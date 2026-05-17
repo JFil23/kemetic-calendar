@@ -25,6 +25,9 @@ class DecanReflectionRepo {
     return '$yyyy-$mm-$dd';
   }
 
+  String _fmtStoredDate(DateTime date) =>
+      date.toIso8601String().split('T').first;
+
   Future<DecanReflectionListResult> listMineResult() async {
     final uid = _client.auth.currentUser?.id;
     if (uid == null) {
@@ -101,6 +104,104 @@ class DecanReflectionRepo {
     } catch (e) {
       debugPrint('[DecanReflectionRepo] getLatest error: $e');
       return null;
+    }
+  }
+
+  Future<DecanReflectionGraphHints?> getGraphHintsForReflection(
+    DecanReflection reflection,
+  ) async {
+    final uid = _client.auth.currentUser?.id;
+    if (uid == null) return null;
+
+    try {
+      final byReflectionId = await withSupabaseAuthRetry(
+        _client,
+        () => _client
+            .from('reflection_generations')
+            .select('anchor_nodes, metadata, source_snapshot, created_at')
+            .eq('user_id', uid)
+            .eq('period_type', 'decan')
+            .filter(
+              'source_snapshot->>decan_reflection_id',
+              'eq',
+              reflection.id,
+            )
+            .order('created_at', ascending: false)
+            .limit(1)
+            .maybeSingle(),
+      );
+      if (byReflectionId != null) {
+        return DecanReflectionGraphHints.fromGenerationJson(
+          Map<String, dynamic>.from(byReflectionId as Map),
+        );
+      }
+    } catch (e) {
+      debugPrint('[DecanReflectionRepo] graph hints id lookup error: $e');
+    }
+
+    try {
+      final start = _fmtStoredDate(reflection.decanStart);
+      final end = _fmtStoredDate(reflection.decanEnd);
+      final byWindow = await withSupabaseAuthRetry(
+        _client,
+        () => _client
+            .from('reflection_generations')
+            .select('anchor_nodes, metadata, source_snapshot, created_at')
+            .eq('user_id', uid)
+            .eq('period_type', 'decan')
+            .like('period_key', '$start:$end:%')
+            .order('created_at', ascending: false)
+            .limit(1)
+            .maybeSingle(),
+      );
+      if (byWindow == null) return null;
+      return DecanReflectionGraphHints.fromGenerationJson(
+        Map<String, dynamic>.from(byWindow as Map),
+      );
+    } catch (e) {
+      debugPrint('[DecanReflectionRepo] graph hints window lookup error: $e');
+      return null;
+    }
+  }
+
+  Future<void> recordSuggestedNodeTap({
+    required String reflectionId,
+    required String nodeSlug,
+  }) async {
+    final uid = _client.auth.currentUser?.id;
+    if (uid == null) return;
+    final slug = nodeSlug.trim();
+    if (slug.isEmpty) return;
+
+    try {
+      final nodeRow = await withSupabaseAuthRetry(
+        _client,
+        () => _client
+            .from('nodes')
+            .select('id')
+            .eq('slug', slug)
+            .maybeSingle(),
+      );
+      final nodeId = nodeRow == null
+          ? null
+          : (nodeRow as Map<String, dynamic>)['id'] as String?;
+      if (nodeId == null || nodeId.isEmpty) return;
+
+      await withSupabaseAuthRetry(
+        _client,
+        () => _client.from('user_choice_events').insert({
+          'user_id': uid,
+          'event_type': 'reflection_linked_to_node',
+          'node_id': nodeId,
+          'reflection_entry_id': reflectionId,
+          'metadata': {
+            'source': 'decan_reflection_suggestion',
+            'node_slug': slug,
+          },
+        }),
+      );
+    } catch (e) {
+      debugPrint('[DecanReflectionRepo] recordSuggestedNodeTap error: $e');
     }
   }
 

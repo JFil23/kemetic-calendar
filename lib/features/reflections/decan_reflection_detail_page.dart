@@ -12,6 +12,7 @@ import '../../data/insight_link_repo.dart';
 import '../../data/insight_link_utils.dart';
 import '../../widgets/insight_link_text.dart';
 import '../nodes/kemetic_node_library.dart';
+import '../nodes/kemetic_node_model.dart';
 import '../nodes/node_link_picker_sheet.dart';
 
 class DecanReflectionDetailPage extends StatefulWidget {
@@ -30,6 +31,8 @@ class _DecanReflectionDetailPageState extends State<DecanReflectionDetailPage> {
   final List<GestureRecognizer> _linkGestureRecognizers = [];
   List<InlineSpan> _reflectionSpans = const [];
   DecanReflection? _reflection;
+  DecanReflectionGraphHints? _graphHints;
+  List<_SuggestedNodeLink> _suggestedNodeLinks = const [];
   TextSelection _reflectionSelection = const TextSelection.collapsed(
     offset: -1,
   );
@@ -51,16 +54,22 @@ class _DecanReflectionDetailPageState extends State<DecanReflectionDetailPage> {
     final data = await _repo.getById(widget.reflectionId);
     final userId = Supabase.instance.client.auth.currentUser?.id ?? 'local';
     final links = await _insightRepo.fetchLinks(userId);
+    final graphHints = data == null
+        ? null
+        : await _repo.getGraphHintsForReflection(data);
     if (!mounted) return;
+    final reflectionLinks = links
+        .where(
+          (l) =>
+              l.sourceType == InsightSourceType.reflectionEntry &&
+              l.sourceId == widget.reflectionId,
+        )
+        .toList();
     setState(() {
       _reflection = data;
-      _links = links
-          .where(
-            (l) =>
-                l.sourceType == InsightSourceType.reflectionEntry &&
-                l.sourceId == widget.reflectionId,
-          )
-          .toList();
+      _graphHints = graphHints;
+      _links = reflectionLinks;
+      _suggestedNodeLinks = _buildSuggestedNodeLinks(graphHints, _links);
       _rebuildReflectionSpans();
       _loading = false;
     });
@@ -100,6 +109,15 @@ class _DecanReflectionDetailPageState extends State<DecanReflectionDetailPage> {
     final node = KemeticNodeLibrary.resolve(link.targetId);
     if (node == null) return;
     context.go('/nodes/${Uri.encodeComponent(node.id)}');
+  }
+
+  Future<void> _openSuggestedNode(_SuggestedNodeLink suggestion) async {
+    await _repo.recordSuggestedNodeTap(
+      reflectionId: widget.reflectionId,
+      nodeSlug: suggestion.node.id,
+    );
+    if (!mounted) return;
+    context.go('/nodes/${Uri.encodeComponent(suggestion.node.id)}');
   }
 
   void _showSelectionRequiredMessage() {
@@ -170,6 +188,7 @@ class _DecanReflectionDetailPageState extends State<DecanReflectionDetailPage> {
       await _insightRepo.saveLinks(userId, filtered);
       setState(() {
         _links = remaining;
+        _suggestedNodeLinks = _buildSuggestedNodeLinks(_graphHints, _links);
         _rebuildReflectionSpans();
       });
       return;
@@ -207,6 +226,7 @@ class _DecanReflectionDetailPageState extends State<DecanReflectionDetailPage> {
     await _insightRepo.saveLinks(userId, filtered);
     setState(() {
       _links = [...remaining, link]..sort((a, b) => a.start.compareTo(b.start));
+      _suggestedNodeLinks = _buildSuggestedNodeLinks(_graphHints, _links);
       _rebuildReflectionSpans();
     });
   }
@@ -310,6 +330,47 @@ class _DecanReflectionDetailPageState extends State<DecanReflectionDetailPage> {
               _reflectionSelection = selection;
             },
           ),
+          if (_suggestedNodeLinks.isNotEmpty) ...[
+            const SizedBox(height: 18),
+            const Text(
+              'Continue in the graph',
+              style: TextStyle(
+                color: Colors.white70,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: _suggestedNodeLinks
+                  .map(
+                    (suggestion) => ActionChip(
+                      avatar: suggestion.node.glyph.trim().isEmpty
+                          ? null
+                          : Text(
+                              suggestion.node.glyph,
+                              style: const TextStyle(
+                                color: KemeticGold.base,
+                                fontSize: 15,
+                              ),
+                            ),
+                      label: Text(
+                        suggestion.node.title,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      tooltip: suggestion.reason,
+                      onPressed: () => _openSuggestedNode(suggestion),
+                      backgroundColor: Colors.white.withValues(alpha: 0.08),
+                      side: BorderSide(
+                        color: KemeticGold.base.withValues(alpha: 0.35),
+                      ),
+                      labelStyle: const TextStyle(color: Colors.white70),
+                    ),
+                  )
+                  .toList(),
+            ),
+          ],
           if (_links.isNotEmpty) ...[
             const SizedBox(height: 12),
             const Text(
@@ -360,7 +421,85 @@ class _DecanReflectionDetailPageState extends State<DecanReflectionDetailPage> {
     await _insightRepo.saveLinks(userId, filtered);
     setState(() {
       _links = _links.where((l) => l.id != link.id).toList();
+      _suggestedNodeLinks = _buildSuggestedNodeLinks(_graphHints, _links);
       _rebuildReflectionSpans();
     });
   }
+}
+
+class _SuggestedNodeLink {
+  final KemeticNode node;
+  final String reason;
+
+  const _SuggestedNodeLink({required this.node, required this.reason});
+}
+
+const Map<String, List<String>> _leadAxisNodeCandidates = {
+  'T': ['maat', 'djehuty'],
+  'M': ['djehuty', 'maat'],
+  'H': ['ka', 'sekhmet'],
+  'V': ['instruction_amenemope', 'renenutet'],
+  'J': ['maat', 'instruction_amenemope'],
+  'S': ['renenutet', 'nile'],
+  'E': ['nile', 'renenutet'],
+  'R': ['instruction_amenemope', 'sekhmet'],
+  'C': ['ptah', 'maat'],
+};
+
+const Map<String, String> _leadAxisReason = {
+  'T': 'Truth and speech integrity',
+  'M': 'Measure and record',
+  'H': 'Life-preserving rhythm',
+  'V': 'Protection and care',
+  'J': 'Due measure',
+  'S': 'Provision and stewardship',
+  'E': 'Seasonal flow',
+  'R': 'Restraint and self-command',
+  'C': 'Continuity and role fidelity',
+};
+
+List<_SuggestedNodeLink> _buildSuggestedNodeLinks(
+  DecanReflectionGraphHints? hints,
+  List<InsightLink> existingLinks,
+) {
+  if (hints == null || hints.isEmpty) return const <_SuggestedNodeLink>[];
+
+  final linkedNodeIds = existingLinks
+      .where((link) => link.targetType == InsightTargetType.node)
+      .map((link) => link.targetId.trim().toLowerCase())
+      .toSet();
+  final seenNodeIds = <String>{...linkedNodeIds};
+  final suggestions = <_SuggestedNodeLink>[];
+
+  void addNode(String slugOrAlias, String reason) {
+    if (suggestions.length >= 2) return;
+    final slug = slugOrAlias.trim();
+    if (slug.isEmpty || slug.toLowerCase() == 'isfet') return;
+    final node = KemeticNodeLibrary.resolve(slug);
+    if (node == null) return;
+    final key = node.id.toLowerCase();
+    if (seenNodeIds.contains(key)) return;
+    seenNodeIds.add(key);
+    suggestions.add(_SuggestedNodeLink(node: node, reason: reason));
+  }
+
+  final leadAxis = hints.leadAxis?.trim().toUpperCase();
+  if (leadAxis != null) {
+    for (final slug in _leadAxisNodeCandidates[leadAxis] ?? const <String>[]) {
+      addNode(slug, _leadAxisReason[leadAxis] ?? 'Reflection pattern');
+      if (suggestions.isNotEmpty) break;
+    }
+  }
+
+  for (final slug in hints.anchorNodes) {
+    addNode(slug, 'From this reflection');
+  }
+
+  if (suggestions.length < 2 && leadAxis != null) {
+    for (final slug in _leadAxisNodeCandidates[leadAxis] ?? const <String>[]) {
+      addNode(slug, _leadAxisReason[leadAxis] ?? 'Reflection pattern');
+    }
+  }
+
+  return List.unmodifiable(suggestions);
 }
