@@ -794,6 +794,48 @@ void main() {
       );
     });
 
+    test('shared app bar new-note actions never route home', () async {
+      final files = <String>[
+        'lib/features/rhythm/pages/todays_alignment_page.dart',
+        'lib/features/profile/profile_page.dart',
+      ];
+
+      for (final path in files) {
+        final source = await File(path).readAsString();
+        for (final action in _tooltipActions(source, 'New note')) {
+          expect(
+            action,
+            isNot(contains('_routeHomeForDetachedLaunch')),
+            reason: '$path new-note action must not route home first',
+          );
+          expect(
+            action,
+            isNot(contains("context.go('/')")),
+            reason: '$path new-note action must not route home',
+          );
+          expect(
+            action,
+            anyOf(
+              contains('openQuickAddFromAnyContext'),
+              contains('_openCalendarQuickAdd'),
+            ),
+            reason: '$path new-note action must open quick add in place',
+          );
+        }
+      }
+
+      final calendarSource = await File(
+        'lib/features/calendar/calendar_page.dart',
+      ).readAsString();
+      expect(
+        calendarSource,
+        contains(
+          'await _openDetachedQuickAddSheet(context);\n  }\n\n  static DateTime _nextWeekdayForQuickAdd',
+        ),
+        reason: 'Detached quick add should open on the current route',
+      );
+    });
+
     test('shared app bar search actions never route home', () async {
       final files = <String>[
         'lib/features/calendar/calendar_page.dart',

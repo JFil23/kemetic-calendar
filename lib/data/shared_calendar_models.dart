@@ -115,10 +115,21 @@ class SharedCalendarSummary {
 
   Color get color => Color(colorValue);
 
-  bool get canEdit =>
+  bool get isOwner => role == SharedCalendarRole.owner;
+
+  bool get canEditEvents =>
       role == SharedCalendarRole.owner || role == SharedCalendarRole.editor;
 
-  bool get canManageMembers => canEdit && !isPersonal;
+  bool get canEdit => canEditEvents;
+
+  bool get canSeeMemberRoster =>
+      status == SharedCalendarInviteStatus.accepted && !isPersonal;
+
+  bool get canSeePendingInvites => isOwner && !isPersonal;
+
+  bool get canManageMembership => isOwner && !isPersonal;
+
+  bool get canManageMembers => canManageMembership;
 
   String get roleLabel {
     switch (role) {
@@ -138,6 +149,90 @@ class SharedCalendarSummary {
     if (handle != null && handle.isNotEmpty) return '@$handle';
     return 'Unknown';
   }
+}
+
+class SharedCalendarMember {
+  const SharedCalendarMember({
+    required this.userId,
+    required this.role,
+    required this.status,
+    this.invitedBy,
+    this.invitedAt,
+    this.respondedAt,
+    this.updatedAt,
+    this.handle,
+    this.displayName,
+    this.avatarUrl,
+  });
+
+  final String userId;
+  final SharedCalendarRole role;
+  final SharedCalendarInviteStatus status;
+  final String? invitedBy;
+  final DateTime? invitedAt;
+  final DateTime? respondedAt;
+  final DateTime? updatedAt;
+  final String? handle;
+  final String? displayName;
+  final String? avatarUrl;
+
+  factory SharedCalendarMember.fromRow(Map<String, dynamic> row) {
+    return SharedCalendarMember(
+      userId: _cleanString(row['user_id']) ?? '',
+      role: sharedCalendarRoleFromString(_cleanString(row['role']) ?? 'viewer'),
+      status: sharedCalendarInviteStatusFromString(
+        _cleanString(row['status']) ?? 'accepted',
+      ),
+      invitedBy: _cleanString(row['invited_by']),
+      invitedAt: _dateTimeOrNull(row['invited_at']),
+      respondedAt: _dateTimeOrNull(row['responded_at']),
+      updatedAt: _dateTimeOrNull(row['updated_at']),
+      handle: _cleanString(row['handle']),
+      displayName: _cleanString(row['display_name']),
+      avatarUrl: _cleanString(row['avatar_url']),
+    );
+  }
+
+  bool get isOwner => role == SharedCalendarRole.owner;
+
+  bool get isPending => status == SharedCalendarInviteStatus.pending;
+
+  String get roleLabel {
+    switch (role) {
+      case SharedCalendarRole.owner:
+        return 'Owner';
+      case SharedCalendarRole.editor:
+        return 'Can edit';
+      case SharedCalendarRole.viewer:
+        return 'View only';
+    }
+  }
+
+  String get displayLabel {
+    final display = displayName?.trim();
+    if (display != null && display.isNotEmpty) return display;
+    final cleanHandle = handle?.trim();
+    if (cleanHandle != null && cleanHandle.isNotEmpty) return '@$cleanHandle';
+    return 'User';
+  }
+
+  String? get handleLabel {
+    final cleanHandle = handle?.trim();
+    if (cleanHandle == null || cleanHandle.isEmpty) return null;
+    return '@$cleanHandle';
+  }
+}
+
+String? _cleanString(Object? value) {
+  if (value == null) return null;
+  final text = value.toString().trim();
+  return text.isEmpty ? null : text;
+}
+
+DateTime? _dateTimeOrNull(Object? value) {
+  final text = _cleanString(value);
+  if (text == null) return null;
+  return DateTime.tryParse(text);
 }
 
 class SharedCalendarInvite {

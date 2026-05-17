@@ -769,6 +769,148 @@ class SharedCalendarsRepo {
     );
   }
 
+  Future<List<SharedCalendarMember>> listMembers(
+    String calendarId, {
+    bool includePending = false,
+    int? expectedMemberCount,
+    int? expectedPendingCount,
+  }) async {
+    final trimmed = calendarId.trim();
+    if (trimmed.isEmpty) {
+      throw ArgumentError('Calendar id is missing.');
+    }
+    final expectedTotal =
+        (expectedMemberCount ?? 0) +
+        (includePending ? (expectedPendingCount ?? 0) : 0);
+
+    try {
+      final response = await _client.rpc(
+        'list_shared_calendar_members',
+        params: <String, dynamic>{'p_calendar_id': trimmed},
+      );
+      final members = _decodeMemberRows(response);
+      if (members.isNotEmpty || expectedTotal <= 0) return members;
+      _log('listMembers RPC returned ${response.runtimeType}; using fallback');
+    } catch (e) {
+      _log('listMembers RPC failed: $e; using fallback');
+    }
+
+    return _listMembersFromTables(trimmed, includePending: includePending);
+  }
+
+  List<SharedCalendarMember> _decodeMemberRows(Object? response) {
+    if (response == null) return const <SharedCalendarMember>[];
+    if (response is! List) {
+      throw StateError(
+        'Unexpected member roster response: ${response.runtimeType}',
+      );
+    }
+
+    return response
+        .whereType<Map>()
+        .map(
+          (row) => SharedCalendarMember.fromRow(Map<String, dynamic>.from(row)),
+        )
+        .where((member) => member.userId.trim().isNotEmpty)
+        .toList(growable: false);
+  }
+
+  Future<List<SharedCalendarMember>> _listMembersFromTables(
+    String calendarId, {
+    required bool includePending,
+  }) async {
+    final statuses = includePending
+        ? const <String>['accepted', 'pending']
+        : const <String>['accepted'];
+    final rows = await _client
+        .from('shared_calendar_members')
+        .select(
+          'user_id, role, status, invited_by, created_at, responded_at, updated_at',
+        )
+        .eq('calendar_id', calendarId)
+        .inFilter('status', statuses);
+    final rawRows = (rows as List)
+        .whereType<Map>()
+        .map((row) => Map<String, dynamic>.from(row))
+        .toList(growable: false);
+    if (rawRows.isEmpty) return const <SharedCalendarMember>[];
+
+    final userIds = rawRows
+        .map((row) => row['user_id']?.toString().trim())
+        .whereType<String>()
+        .where((userId) => userId.isNotEmpty)
+        .toSet()
+        .toList(growable: false);
+    final profilesById = <String, Map<String, dynamic>>{};
+    if (userIds.isNotEmpty) {
+      final profileRows = await _client
+          .from('profiles')
+          .select('id, handle, display_name, avatar_url')
+          .inFilter('id', userIds);
+      for (final row in (profileRows as List).whereType<Map>()) {
+        final profile = Map<String, dynamic>.from(row);
+        final id = profile['id']?.toString().trim();
+        if (id != null && id.isNotEmpty) {
+          profilesById[id] = profile;
+        }
+      }
+    }
+
+    return rawRows
+        .map((row) {
+          final userId = row['user_id']?.toString().trim();
+          final profile = userId == null ? null : profilesById[userId];
+          return SharedCalendarMember.fromRow(<String, dynamic>{
+            ...row,
+            'invited_at': row['created_at'],
+            if (profile != null) ...profile,
+          });
+        })
+        .where((member) => member.userId.trim().isNotEmpty)
+        .toList(growable: false);
+  }
+
+  Future<void> updateMemberRole({
+    required String calendarId,
+    required String userId,
+    required SharedCalendarRole role,
+  }) async {
+    await _client.rpc(
+      'update_shared_calendar_member_role',
+      params: <String, dynamic>{
+        'p_calendar_id': calendarId.trim(),
+        'p_user_id': userId.trim(),
+        'p_role': role.name,
+      },
+    );
+  }
+
+  Future<void> removeMember({
+    required String calendarId,
+    required String userId,
+  }) async {
+    await _client.rpc(
+      'remove_shared_calendar_member',
+      params: <String, dynamic>{
+        'p_calendar_id': calendarId.trim(),
+        'p_user_id': userId.trim(),
+      },
+    );
+  }
+
+  Future<void> revokeInvite({
+    required String calendarId,
+    required String userId,
+  }) async {
+    await _client.rpc(
+      'revoke_shared_calendar_invite',
+      params: <String, dynamic>{
+        'p_calendar_id': calendarId.trim(),
+        'p_user_id': userId.trim(),
+      },
+    );
+  }
+
   Future<void> respondToInvite({
     required String calendarId,
     required bool accept,

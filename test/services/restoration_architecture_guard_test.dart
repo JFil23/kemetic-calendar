@@ -201,7 +201,6 @@ void main() {
 
       expect(actionEntrypoints, contains('_shouldUseMountedCalendarHost'));
       expect(actionEntrypoints, contains('_showDetachedActionsMenu'));
-      expect(actionEntrypoints, contains('_routeHomeForDetachedLaunch'));
       expect(
         actionEntrypoints,
         isNot(
@@ -210,6 +209,58 @@ void main() {
             '    if (state != null)',
           ),
         ),
+      );
+
+      final sharedCalendarEntrypoint = _sourceBetween(
+        calendar,
+        'static Future<void> openSharedCalendarsFromAnyContext',
+        'static Future<void> openFlowStudioFromAnyContext',
+      );
+      expect(
+        sharedCalendarEntrypoint,
+        contains('_shouldUseMountedCalendarHost'),
+      );
+      expect(sharedCalendarEntrypoint, contains('_openSharedCalendarsSheet'));
+      expect(
+        sharedCalendarEntrypoint,
+        contains('_openDetachedSharedCalendarsSheet'),
+      );
+
+      final detachedActions = _sourceBetween(
+        calendar,
+        'static Future<void> _showDetachedActionsMenu',
+        'static Future<void> _openDetachedSharedCalendarsSheet',
+      );
+      expect(detachedActions, contains('_detachedCalendarActions'));
+      expect(detachedActions, contains('void navigate(String location)'));
+      expect(detachedActions, contains('onNavigate(location)'));
+      expect(detachedActions, contains('context.go(location)'));
+      expect(detachedActions, contains('openSharedCalendarsFromAnyContext'));
+      expect(detachedActions, isNot(contains('_routeHomeForDetachedLaunch')));
+
+      final detachedSharedCalendars = _sourceBetween(
+        calendar,
+        'static Future<void> _openDetachedSharedCalendarsSheet',
+        'static Future<void> _openDetachedFlowStudioSheet',
+      );
+      expect(
+        detachedSharedCalendars,
+        contains('_currentRouteLocationForContext(context)'),
+      );
+      expect(
+        detachedSharedCalendars,
+        contains('_saveDetachedCalendarOverlayState'),
+      );
+      expect(detachedSharedCalendars, contains('parentRoute: parentRoute'));
+      expect(
+        detachedSharedCalendars,
+        contains('_kCalendarOverlayKindSharedCalendars'),
+      );
+      expect(detachedSharedCalendars, contains('SharedCalendarsSheet.show'));
+      expect(detachedSharedCalendars, contains('onContinuityChanged'));
+      expect(
+        detachedSharedCalendars,
+        contains('_clearDetachedCalendarOverlayState'),
       );
     });
 

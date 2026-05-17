@@ -123,9 +123,7 @@ class _SharedCalendarsSheetState extends State<SharedCalendarsSheet> {
       await _reload();
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(e.toString())));
+      _showSheetMessage(e.toString());
     } finally {
       if (mounted) {
         setState(() => _saving = false);
@@ -160,6 +158,7 @@ class _SharedCalendarsSheetState extends State<SharedCalendarsSheet> {
   }
 
   Future<void> _inviteToCalendar(SharedCalendarSummary calendar) async {
+    if (!calendar.canManageMembership) return;
     final userId = await context.push<String>(
       '/profile-search'
       '?title=${Uri.encodeComponent('Invite to Calendar')}'
@@ -179,6 +178,23 @@ class _SharedCalendarsSheetState extends State<SharedCalendarsSheet> {
     });
   }
 
+  Future<void> _showMembersSheet(
+    SharedCalendarSummary calendar, {
+    bool pendingFirst = false,
+  }) async {
+    if (!calendar.canSeeMemberRoster) return;
+    final changed = await CalendarMembersSheet.show(
+      context,
+      repo: widget.repo,
+      calendar: calendar,
+      pendingFirst: pendingFirst,
+    );
+    if (!mounted) return;
+    await _reload(showLoading: false);
+    if (changed != true) return;
+    _changed = true;
+  }
+
   Future<void> _addEventToCalendar(SharedCalendarSummary calendar) async {
     final handler = widget.onAddEventRequested;
     if (_saving || handler == null) return;
@@ -192,9 +208,7 @@ class _SharedCalendarsSheetState extends State<SharedCalendarsSheet> {
       }
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(e.toString())));
+      _showSheetMessage(e.toString());
     } finally {
       if (mounted) {
         setState(() => _saving = false);
@@ -210,6 +224,7 @@ class _SharedCalendarsSheetState extends State<SharedCalendarsSheet> {
         : 'You will stop seeing events from this calendar.';
     final shouldContinue = await showDialog<bool>(
       context: context,
+      useRootNavigator: true,
       builder: (ctx) => AlertDialog(
         backgroundColor: const Color(0xFF111214),
         title: Text(label, style: const TextStyle(color: Colors.white)),
@@ -332,12 +347,26 @@ class _SharedCalendarsSheetState extends State<SharedCalendarsSheet> {
   }) async {
     return showDialog<_CalendarEditorResult>(
       context: context,
+      useRootNavigator: true,
       builder: (ctx) => _CalendarEditorDialog(
         initialName: initialName,
         initialColorValue: initialColorValue ?? _palette.first,
         palette: _palette,
       ),
     );
+  }
+
+  void _showSheetMessage(String message) {
+    final overlayContext = Navigator.of(
+      context,
+      rootNavigator: true,
+    ).overlay?.context;
+    final messenger =
+        (overlayContext == null
+            ? null
+            : ScaffoldMessenger.maybeOf(overlayContext)) ??
+        ScaffoldMessenger.maybeOf(context);
+    messenger?.showSnackBar(SnackBar(content: Text(message)));
   }
 
   @override
@@ -514,15 +543,7 @@ class _SharedCalendarsSheetState extends State<SharedCalendarsSheet> {
                             overflow: TextOverflow.fade,
                           ),
                           const SizedBox(height: 4),
-                          Text(
-                            calendar.isPersonal
-                                ? 'Personal calendar'
-                                : '${calendar.memberCount} members • ${calendar.roleLabel}',
-                            style: TextStyle(
-                              color: Colors.white.withValues(alpha: 0.62),
-                              fontSize: 13,
-                            ),
-                          ),
+                          _calendarSubtitle(calendar),
                         ],
                       ),
                     ),
@@ -562,21 +583,15 @@ class _SharedCalendarsSheetState extends State<SharedCalendarsSheet> {
                       ),
                     ),
                   ),
-                  if (calendar.pendingInviteCount > 0)
-                    Text(
-                      '${calendar.pendingInviteCount} pending',
-                      style: TextStyle(
-                        color: calendar.color,
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
+                  if (calendar.canSeePendingInvites &&
+                      calendar.pendingInviteCount > 0)
+                    _pendingInviteLink(calendar),
                 ],
               ),
               const SizedBox(height: 12),
               Row(
                 children: [
-                  if (calendar.canManageMembers)
+                  if (calendar.canManageMembership)
                     IconButton(
                       tooltip: 'Invite',
                       onPressed: _saving
@@ -590,7 +605,8 @@ class _SharedCalendarsSheetState extends State<SharedCalendarsSheet> {
                       onPressed: _saving ? null : () => _editCalendar(calendar),
                       icon: Icon(Icons.edit_outlined, color: calendar.color),
                     ),
-                  if (calendar.canEdit && widget.onAddEventRequested != null)
+                  if (calendar.canEditEvents &&
+                      widget.onAddEventRequested != null)
                     IconButton(
                       tooltip: 'Add event',
                       onPressed: _saving
@@ -610,6 +626,61 @@ class _SharedCalendarsSheetState extends State<SharedCalendarsSheet> {
               ),
             ],
           ],
+        ),
+      ),
+    );
+  }
+
+  Widget _calendarSubtitle(SharedCalendarSummary calendar) {
+    final style = TextStyle(
+      color: Colors.white.withValues(alpha: 0.62),
+      fontSize: 13,
+    );
+    if (calendar.isPersonal) {
+      return Text('Personal calendar', style: style);
+    }
+
+    final memberLabel =
+        '${calendar.memberCount} ${calendar.memberCount == 1 ? 'member' : 'members'}';
+    final memberText = Text(
+      memberLabel,
+      style: calendar.canSeeMemberRoster
+          ? style.copyWith(color: calendar.color, fontWeight: FontWeight.w700)
+          : style,
+    );
+
+    return Wrap(
+      crossAxisAlignment: WrapCrossAlignment.center,
+      children: [
+        if (calendar.canSeeMemberRoster)
+          InkWell(
+            borderRadius: BorderRadius.circular(6),
+            onTap: () => _showMembersSheet(calendar),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: 2),
+              child: memberText,
+            ),
+          )
+        else
+          memberText,
+        Text(' • ${calendar.roleLabel}', style: style),
+      ],
+    );
+  }
+
+  Widget _pendingInviteLink(SharedCalendarSummary calendar) {
+    return InkWell(
+      borderRadius: BorderRadius.circular(6),
+      onTap: () => _showMembersSheet(calendar, pendingFirst: true),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 2),
+        child: Text(
+          '${calendar.pendingInviteCount} pending',
+          style: TextStyle(
+            color: calendar.color,
+            fontSize: 12,
+            fontWeight: FontWeight.w700,
+          ),
         ),
       ),
     );
@@ -890,6 +961,652 @@ class _SharedCalendarsSheetState extends State<SharedCalendarsSheet> {
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+class CalendarMembersSheet extends StatefulWidget {
+  const CalendarMembersSheet({
+    super.key,
+    required this.repo,
+    required this.calendar,
+    this.pendingFirst = false,
+  });
+
+  final SharedCalendarsRepo repo;
+  final SharedCalendarSummary calendar;
+  final bool pendingFirst;
+
+  static Future<bool?> show(
+    BuildContext context, {
+    required SharedCalendarsRepo repo,
+    required SharedCalendarSummary calendar,
+    bool pendingFirst = false,
+  }) {
+    return showModalBottomSheet<bool>(
+      context: context,
+      isScrollControlled: true,
+      useRootNavigator: true,
+      useSafeArea: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => CalendarMembersSheet(
+        repo: repo,
+        calendar: calendar,
+        pendingFirst: pendingFirst,
+      ),
+    );
+  }
+
+  @override
+  State<CalendarMembersSheet> createState() => _CalendarMembersSheetState();
+}
+
+class _CalendarMembersSheetState extends State<CalendarMembersSheet> {
+  List<SharedCalendarMember> _members = const <SharedCalendarMember>[];
+  String? _loadError;
+  String? _actionError;
+  bool _loading = true;
+  bool _saving = false;
+  bool _changed = false;
+
+  @override
+  void initState() {
+    super.initState();
+    unawaited(_reload());
+  }
+
+  Future<void> _reload() async {
+    setState(() => _loading = true);
+    try {
+      final members = await widget.repo.listMembers(
+        widget.calendar.id,
+        includePending: widget.calendar.canSeePendingInvites,
+        expectedMemberCount: widget.calendar.memberCount,
+        expectedPendingCount: widget.calendar.pendingInviteCount,
+      );
+      if (!mounted) return;
+      setState(() {
+        _members = members;
+        _loadError = null;
+        _actionError = null;
+        _loading = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _loadError = e.toString();
+        _loading = false;
+      });
+      _showSheetMessage(e.toString());
+    }
+  }
+
+  Future<void> _runAction(Future<void> Function() action) async {
+    if (_saving) return;
+    setState(() {
+      _saving = true;
+      _actionError = null;
+    });
+    try {
+      await action();
+      _changed = true;
+      await _reload();
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _actionError = e.toString());
+      _showSheetMessage(e.toString());
+    } finally {
+      if (mounted) {
+        setState(() => _saving = false);
+      }
+    }
+  }
+
+  Future<bool> _confirm({
+    required String title,
+    required String detail,
+    required String actionLabel,
+  }) async {
+    final result = await showDialog<bool>(
+      context: context,
+      useRootNavigator: true,
+      barrierDismissible: true,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: const Color(0xFF111214),
+        title: Text(title, style: const TextStyle(color: Colors.white)),
+        content: Text(
+          detail,
+          style: TextStyle(color: Colors.white.withValues(alpha: 0.75)),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: Text(actionLabel),
+          ),
+        ],
+      ),
+    );
+    return result == true;
+  }
+
+  void _showSheetMessage(String message) {
+    final overlayContext = Navigator.of(
+      context,
+      rootNavigator: true,
+    ).overlay?.context;
+    final messenger =
+        (overlayContext == null
+            ? null
+            : ScaffoldMessenger.maybeOf(overlayContext)) ??
+        ScaffoldMessenger.maybeOf(context);
+    messenger?.showSnackBar(SnackBar(content: Text(message)));
+  }
+
+  Future<void> _changeRole(
+    SharedCalendarMember member,
+    SharedCalendarRole role,
+  ) async {
+    if (member.isOwner) return;
+    if (role == member.role) {
+      _showSheetMessage(
+        '${member.displayLabel} is already ${member.roleLabel.toLowerCase()}.',
+      );
+      return;
+    }
+    await _runAction(() {
+      return widget.repo.updateMemberRole(
+        calendarId: widget.calendar.id,
+        userId: member.userId,
+        role: role,
+      );
+    });
+  }
+
+  Future<void> _pickRole(
+    SharedCalendarMember member,
+    BuildContext anchorContext,
+  ) async {
+    if (_saving || member.isOwner) return;
+
+    final anchorObject = anchorContext.findRenderObject();
+    final overlay = Navigator.of(context, rootNavigator: true).overlay;
+    final overlayObject = overlay?.context.findRenderObject();
+    if (anchorObject is! RenderBox || overlayObject is! RenderBox) {
+      _showSheetMessage('Role menu is unavailable right now.');
+      return;
+    }
+
+    final topLeft = anchorObject.localToGlobal(
+      Offset.zero,
+      ancestor: overlayObject,
+    );
+    final bottomRight = anchorObject.localToGlobal(
+      Offset(anchorObject.size.width, anchorObject.size.height),
+      ancestor: overlayObject,
+    );
+    final selected = await showMenu<SharedCalendarRole>(
+      context: context,
+      useRootNavigator: true,
+      color: const Color(0xFF1A1B1E),
+      initialValue: member.role,
+      position: RelativeRect.fromRect(
+        Rect.fromPoints(topLeft, bottomRight),
+        Offset.zero & overlayObject.size,
+      ),
+      items: [
+        _roleMenuItem(
+          role: SharedCalendarRole.editor,
+          currentRole: member.role,
+          label: 'Can edit',
+        ),
+        _roleMenuItem(
+          role: SharedCalendarRole.viewer,
+          currentRole: member.role,
+          label: 'View only',
+        ),
+      ],
+    );
+    if (!mounted || selected == null) return;
+    await _changeRole(member, selected);
+  }
+
+  PopupMenuItem<SharedCalendarRole> _roleMenuItem({
+    required SharedCalendarRole role,
+    required SharedCalendarRole currentRole,
+    required String label,
+  }) {
+    final selected = role == currentRole;
+    return PopupMenuItem<SharedCalendarRole>(
+      value: role,
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          SizedBox(
+            width: 18,
+            child: selected
+                ? Icon(Icons.check, color: widget.calendar.color, size: 16)
+                : null,
+          ),
+          const SizedBox(width: 8),
+          Text(label, style: const TextStyle(color: Colors.white)),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _removeMember(SharedCalendarMember member) async {
+    if (member.isOwner) return;
+    final confirmed = await _confirm(
+      title: 'Remove member?',
+      detail: '${member.displayLabel} will lose access to this calendar.',
+      actionLabel: 'Remove',
+    );
+    if (!confirmed) return;
+    await _runAction(() {
+      return widget.repo.removeMember(
+        calendarId: widget.calendar.id,
+        userId: member.userId,
+      );
+    });
+  }
+
+  Future<void> _revokeInvite(SharedCalendarMember member) async {
+    final confirmed = await _confirm(
+      title: 'Revoke invite?',
+      detail: '${member.displayLabel} will no longer be able to accept it.',
+      actionLabel: 'Revoke',
+    );
+    if (!confirmed) return;
+    await _runAction(() {
+      return widget.repo.revokeInvite(
+        calendarId: widget.calendar.id,
+        userId: member.userId,
+      );
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final accepted = _members
+        .where((member) => member.status == SharedCalendarInviteStatus.accepted)
+        .toList(growable: false);
+    final pending = _members
+        .where((member) => member.status == SharedCalendarInviteStatus.pending)
+        .toList(growable: false);
+
+    return Container(
+      decoration: const BoxDecoration(
+        color: Colors.black,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      child: SafeArea(
+        top: false,
+        child: SizedBox(
+          height: MediaQuery.of(context).size.height * 0.82,
+          child: Column(
+            children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 10, 8, 12),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          GlossyText(
+                            text: widget.pendingFirst
+                                ? 'Pending invites'
+                                : 'Members',
+                            gradient: goldGloss,
+                            style: const TextStyle(
+                              fontSize: 22,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            widget.calendar.name,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              color: Color(0xFFBFC3C7),
+                              fontSize: 13,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    IconButton(
+                      tooltip: 'Refresh',
+                      onPressed: _saving ? null : _reload,
+                      icon: KemeticGold.icon(Icons.refresh),
+                    ),
+                    IconButton(
+                      tooltip: 'Close',
+                      onPressed: () => Navigator.of(context).pop(_changed),
+                      icon: KemeticGold.icon(Icons.close),
+                    ),
+                  ],
+                ),
+              ),
+              const Divider(color: Colors.white12, height: 1),
+              Expanded(
+                child: _loading
+                    ? const Center(
+                        child: CircularProgressIndicator(
+                          valueColor: AlwaysStoppedAnimation<Color>(
+                            KemeticGold.base,
+                          ),
+                        ),
+                      )
+                    : _loadError != null
+                    ? _loadErrorView()
+                    : RefreshIndicator(
+                        onRefresh: _reload,
+                        child: ListView(
+                          padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
+                          children: _sectionWidgets(accepted, pending),
+                        ),
+                      ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  List<Widget> _sectionWidgets(
+    List<SharedCalendarMember> accepted,
+    List<SharedCalendarMember> pending,
+  ) {
+    final sections = <Widget>[];
+    if (_actionError != null) {
+      sections.add(_actionErrorBanner(_actionError!));
+      sections.add(const SizedBox(height: 12));
+    }
+
+    void addAccepted() {
+      sections.add(_sectionTitle('Members'));
+      sections.add(const SizedBox(height: 10));
+      if (accepted.isEmpty) {
+        sections.add(_emptyText('No accepted members yet.'));
+      } else {
+        for (final member in accepted) {
+          sections.add(_memberRow(member));
+        }
+      }
+    }
+
+    void addPending() {
+      if (pending.isEmpty && !widget.pendingFirst) return;
+      sections.add(const SizedBox(height: 18));
+      sections.add(_sectionTitle('Pending'));
+      sections.add(const SizedBox(height: 10));
+      if (pending.isEmpty) {
+        sections.add(_emptyText('No pending invites.'));
+      } else {
+        for (final member in pending) {
+          sections.add(_memberRow(member));
+        }
+      }
+    }
+
+    if (widget.pendingFirst) {
+      sections.add(_sectionTitle('Pending'));
+      sections.add(const SizedBox(height: 10));
+      if (pending.isEmpty) {
+        sections.add(_emptyText('No pending invites.'));
+      } else {
+        for (final member in pending) {
+          sections.add(_memberRow(member));
+        }
+      }
+      sections.add(const SizedBox(height: 18));
+      addAccepted();
+    } else {
+      addAccepted();
+      addPending();
+    }
+
+    return sections;
+  }
+
+  Widget _actionErrorBanner(String message) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: const Color(0xFF101114),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xFFE85D75)),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Icon(Icons.error_outline, color: Color(0xFFE85D75), size: 18),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              message,
+              style: TextStyle(
+                color: Colors.white.withValues(alpha: 0.78),
+                fontSize: 12,
+              ),
+            ),
+          ),
+          IconButton(
+            tooltip: 'Dismiss',
+            visualDensity: VisualDensity.compact,
+            onPressed: () => setState(() => _actionError = null),
+            icon: const Icon(Icons.close, color: Colors.white54, size: 18),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _loadErrorView() {
+    return RefreshIndicator(
+      onRefresh: _reload,
+      child: ListView(
+        padding: const EdgeInsets.fromLTRB(16, 24, 16, 32),
+        children: [
+          Container(
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              color: const Color(0xFF101114),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: const Color(0xFFE85D75)),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Could not load members',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 15,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  _loadError ?? 'Unknown error',
+                  style: TextStyle(
+                    color: Colors.white.withValues(alpha: 0.66),
+                    fontSize: 12,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                OutlinedButton.icon(
+                  onPressed: _reload,
+                  icon: const Icon(Icons.refresh),
+                  label: const Text('Retry'),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _sectionTitle(String text) {
+    return Text(
+      text,
+      style: TextStyle(
+        color: Colors.white.withValues(alpha: 0.8),
+        fontSize: 13,
+        fontWeight: FontWeight.w700,
+        letterSpacing: 0.3,
+      ),
+    );
+  }
+
+  Widget _emptyText(String text) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 10),
+      child: Text(
+        text,
+        style: TextStyle(color: Colors.white.withValues(alpha: 0.62)),
+      ),
+    );
+  }
+
+  Widget _memberRow(SharedCalendarMember member) {
+    final canManage =
+        widget.calendar.canManageMembership && !member.isOwner && !_saving;
+    final subtitle = member.handleLabel;
+    return Container(
+      margin: const EdgeInsets.only(bottom: 10),
+      padding: const EdgeInsets.fromLTRB(12, 10, 8, 10),
+      decoration: BoxDecoration(
+        color: const Color(0xFF101114),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
+      ),
+      child: Row(
+        children: [
+          _avatar(member),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  member.displayLabel,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 15,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                if (subtitle != null) ...[
+                  const SizedBox(height: 2),
+                  Text(
+                    subtitle,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      color: Colors.white.withValues(alpha: 0.52),
+                      fontSize: 12,
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+          const SizedBox(width: 8),
+          _roleControl(member, canManage: canManage),
+          if (canManage) ...[
+            const SizedBox(width: 4),
+            IconButton(
+              tooltip: member.isPending ? 'Revoke invite' : 'Remove member',
+              onPressed: member.isPending
+                  ? () => _revokeInvite(member)
+                  : () => _removeMember(member),
+              icon: Icon(
+                member.isPending
+                    ? Icons.cancel_outlined
+                    : Icons.person_remove_alt_1_outlined,
+                color: const Color(0xFFE85D75),
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _avatar(SharedCalendarMember member) {
+    final avatarUrl = member.avatarUrl?.trim();
+    final label = member.displayLabel.trim();
+    final initial = label.isEmpty ? '?' : label.substring(0, 1).toUpperCase();
+    return CircleAvatar(
+      radius: 20,
+      backgroundColor: widget.calendar.color.withValues(alpha: 0.18),
+      backgroundImage: avatarUrl != null && avatarUrl.isNotEmpty
+          ? NetworkImage(avatarUrl)
+          : null,
+      child: avatarUrl == null || avatarUrl.isEmpty
+          ? Text(
+              initial,
+              style: TextStyle(
+                color: widget.calendar.color,
+                fontWeight: FontWeight.w800,
+              ),
+            )
+          : null,
+    );
+  }
+
+  Widget _roleControl(SharedCalendarMember member, {required bool canManage}) {
+    if (!canManage) {
+      return _roleChip(member.roleLabel, editable: false);
+    }
+
+    return Builder(
+      builder: (chipContext) => GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: _saving ? null : () => _pickRole(member, chipContext),
+        child: _roleChip(member.roleLabel, editable: true),
+      ),
+    );
+  }
+
+  Widget _roleChip(String label, {required bool editable}) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 6),
+      decoration: BoxDecoration(
+        color: widget.calendar.color.withValues(alpha: 0.14),
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(
+          color: widget.calendar.color.withValues(alpha: 0.28),
+        ),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            label,
+            style: TextStyle(
+              color: widget.calendar.color,
+              fontSize: 12,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          if (editable) ...[
+            const SizedBox(width: 3),
+            Icon(Icons.arrow_drop_down, color: widget.calendar.color, size: 18),
+          ],
+        ],
       ),
     );
   }

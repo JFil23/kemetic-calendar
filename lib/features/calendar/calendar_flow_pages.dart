@@ -2500,163 +2500,107 @@ class _FlowHubPage extends StatelessWidget {
         backgroundColor: Colors.black,
         elevation: 0.5,
         title: const Text('Flow Studio', style: TextStyle(color: Colors.white)),
-        actions: [
+      ),
+      body: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
           Padding(
-            padding: const EdgeInsets.only(right: 8),
-            child: TextButton(
-              style: TextButton.styleFrom(foregroundColor: _silver),
-              onPressed: onCreateNew,
-              child: const Icon(Icons.add, size: 20),
+            padding: const EdgeInsets.fromLTRB(16, 32, 16, 0),
+            child: Align(
+              alignment: Alignment.topCenter,
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 320),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    _FlowHubCell(
+                      title: 'Add Flow',
+                      subtitle: 'Create a new flow',
+                      onTap: onCreateNew,
+                    ),
+                    _FlowHubCell(
+                      title: 'My Flows',
+                      subtitle: 'Your saved and active flows',
+                      onTap: openMyFlows,
+                    ),
+                    _FlowHubCell(
+                      title: "ḥꜣw",
+                      subtitle: "Ma'at template flows",
+                      onTap: openMaatFlows,
+                    ),
+                  ],
+                ),
+              ),
             ),
           ),
         ],
       ),
-      body: Center(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 20),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center, // centers vertically
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              GlossyButton(
-                text: 'My Flows',
-                gradient: const LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                  colors: [
-                    Color(0xFFB8860B),
-                    KemeticGold.base,
-                    Color(0xFFF0D879),
-                  ],
-                ),
-                borderColor: KemeticGold.base,
-                onPressed: openMyFlows, // <-- use the callback you passed in
-              ),
-              const SizedBox(height: 14),
-              GlossyButton(
-                text: "ḥꜣw",
-                gradient: const LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                  colors: [
-                    Color(0xFF7F8C8D),
-                    Color(0xFFBDC3C7),
-                    Color(0xFFEAECEE),
-                  ],
-                ),
-                borderColor: const Color(0xFFBDC3C7),
-                onPressed: openMaatFlows,
-              ),
-            ],
-          ), // Close Column
-        ), // Close Padding
-      ), // Close Center
-    ); // Close Scaffold and return
+    );
   }
 }
 
-// ----------------- glossy button (local to this file) -----------------
-class GlossyButton extends StatelessWidget {
-  const GlossyButton({
-    super.key,
-    required this.text,
-    required this.gradient,
-    required this.borderColor,
-    required this.onPressed,
+class _FlowHubCell extends StatelessWidget {
+  const _FlowHubCell({
+    required this.title,
+    required this.subtitle,
+    required this.onTap,
   });
 
-  final String text;
-  final Gradient gradient;
-  final Color borderColor;
-  final VoidCallback onPressed;
+  final String title;
+  final String subtitle;
+  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
-    // smaller “bubble” = shorter height + tighter radius
-    const double height = 52; // tweak 48–56 if you want
-    const double radius = 26; // half of height = soft pill
-    const double textSize = 20;
-    const FontWeight weight = FontWeight.w700;
-
-    return SizedBox(
-      height: height,
-      child: Stack(
-        children: [
-          // background with gradient + border + shadow
-          DecoratedBox(
-            decoration: BoxDecoration(
-              gradient: gradient,
-              borderRadius: BorderRadius.circular(radius),
-              border: Border.all(color: borderColor, width: 2),
-              boxShadow: const [
-                BoxShadow(
-                  blurRadius: 12,
-                  offset: Offset(0, 6),
-                  color: Colors.black26,
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      decoration: BoxDecoration(
+        color: const Color(0xFF101114),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(
+          color: KemeticGold.base.withValues(alpha: 0.72),
+          width: 1.2,
+        ),
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(18),
+          onTap: onTap,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                KemeticGold.text(
+                  title,
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w700,
+                  ),
+                  maxLines: 1,
+                  softWrap: false,
+                  overflow: TextOverflow.fade,
                 ),
+                if (subtitle.isNotEmpty) ...[
+                  const SizedBox(height: 4),
+                  Text(
+                    subtitle,
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      color: Colors.white.withValues(alpha: 0.62),
+                      fontSize: 13,
+                    ),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
               ],
             ),
-            child: const SizedBox.expand(),
           ),
-
-          // gleam overlay (subtle diagonal shine)
-          IgnorePointer(
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(radius),
-              child: Align(
-                alignment: Alignment.topLeft,
-                child: FractionallySizedBox(
-                  widthFactor: 0.85,
-                  heightFactor: 0.55,
-                  child: DecoratedBox(
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                        colors: [
-                          Colors.white.withValues(alpha: 0.35),
-                          Colors.white.withValues(alpha: 0.10),
-                          Colors.white.withValues(alpha: 0.0),
-                        ],
-                        stops: const [0.0, 0.5, 1.0],
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          ),
-
-          // tap surface + label
-          Material(
-            type: MaterialType.transparency,
-            child: InkWell(
-              borderRadius: BorderRadius.circular(radius),
-              splashColor: Colors.white24,
-              highlightColor: Colors.white10,
-              onTap: onPressed,
-              child: const Center(
-                child: Text(
-                  '',
-                  // placeholder, replaced below
-                ),
-              ),
-            ),
-          ),
-          // we want the text above the gleam and centered
-          Center(
-            child: Text(
-              text,
-              textAlign: TextAlign.center,
-              style: const TextStyle(
-                fontSize: textSize, // bigger text
-                fontWeight: weight,
-                color: Colors.black, // contrasts on gold/silver
-                letterSpacing: 0.2,
-              ),
-            ),
-          ),
-        ],
+        ),
       ),
     );
   }
