@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mobile/services/app_restoration_service.dart';
 import 'package:mobile/services/app_window_service.dart';
+import 'package:mobile/services/restoration_coordinator.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 String _snapshotKey({String userId = 'user-1', String windowId = 'window-1'}) {
@@ -539,6 +540,39 @@ void main() {
       isTrue,
     );
   });
+
+  test(
+    'clears restored profile feed layer without dropping shell continuity',
+    () async {
+      await AppRestorationService.instance.saveSurfaceState('profile:user-1', {
+        'kind': 'profile',
+        'userId': 'user-1',
+        'isMyProfile': true,
+        'feedRevealed': true,
+        'showGregorianFeedDates': true,
+        'activePostIndex': 2,
+        'activeInsightPostIndex': 1,
+        'profileScrollOffset': 320.0,
+        'feedScrollOffset': 48.0,
+        'expandedFeedItem': 'flow:lego-submarine',
+      });
+
+      await RestorationCoordinator.instance.clearProfileFeedContinuity(
+        'user-1',
+      );
+
+      final state = await AppRestorationService.instance.readSurfaceState(
+        'profile:user-1',
+      );
+      expect(state, isNotNull);
+      expect(state, containsPair('feedRevealed', false));
+      expect(state, isNot(containsPair('expandedFeedItem', anything)));
+      expect(state, isNot(containsPair('feedScrollOffset', anything)));
+      expect(state, containsPair('profileScrollOffset', 320.0));
+      expect(state, containsPair('activePostIndex', 2));
+      expect(state, containsPair('showGregorianFeedDates', true));
+    },
+  );
 
   test(
     'adopts a backend latest snapshot when local state is missing',

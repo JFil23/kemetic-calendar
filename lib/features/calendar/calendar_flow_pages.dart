@@ -342,7 +342,7 @@ class _FlowPreviewPageState extends State<_FlowPreviewPage> {
         : dateOnly(templateEnd.add(Duration(days: deltaDays)));
 
     final rulesJson = jsonEncode(
-      template.rules.map(_CalendarPageState.ruleToJson).toList(),
+      template.rules.map(CalendarPageState.ruleToJson).toList(),
     );
 
     final newId = await _userEventsRepo.upsertFlow(

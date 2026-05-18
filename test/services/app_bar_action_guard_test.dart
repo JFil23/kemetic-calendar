@@ -320,6 +320,26 @@ void main() {
       ]);
     });
 
+    test(
+      'calendar profile navigation resets feed continuity before routing',
+      () async {
+        final source = await File(
+          'lib/features/calendar/calendar_page.dart',
+        ).readAsString();
+        final openProfile = _sourceBetween(
+          source,
+          'Future<void> _openProfile(',
+          'Future<void> openProfileFromOutside',
+        );
+
+        expect(openProfile, contains('clearProfileFeedContinuity(userId)'));
+        expect(
+          openProfile.indexOf('clearProfileFeedContinuity(userId)'),
+          lessThan(openProfile.indexOf("context.go('/profile/")),
+        );
+      },
+    );
+
     test('planner app bar actions keep expected handlers', () async {
       final source = await File(
         'lib/features/rhythm/pages/todays_alignment_page.dart',
@@ -440,6 +460,134 @@ void main() {
         contains('EdgeInsets.fromLTRB(16, 16, 16, listBottomPadding)'),
       );
       expect(body, isNot(contains('padding: const EdgeInsets.all(16)')));
+    });
+
+    test(
+      'inbox conversation composer stays above menu without double lift',
+      () async {
+        final source = await File(
+          'lib/features/inbox/inbox_conversation_page.dart',
+        ).readAsString();
+        final body = _sourceBetween(
+          source,
+          'body: SafeArea(',
+          'Widget _buildComposer()',
+        );
+        final composer = _sourceBetween(
+          source,
+          'Widget _buildComposer()',
+          'class _FlowBubble',
+        );
+
+        expect(body, contains('bottom: false'));
+        expect(body, contains('bottomPaddingAboveGlobalMenu('));
+        expect(body, contains('listBottomPadding'));
+        expect(
+          composer,
+          contains('final keyboardInset = keyboardInsetOf(context);'),
+        );
+        expect(
+          composer,
+          contains(
+            'final menuInset = keyboardInset > 0 ? 0.0 : globalBottomMenuHeight(context);',
+          ),
+        );
+        expect(
+          composer,
+          contains('padding: EdgeInsets.only(bottom: menuInset)'),
+        );
+        expect(
+          composer,
+          isNot(contains('padding: EdgeInsets.only(bottom: keyboardInset)')),
+        );
+      },
+    );
+
+    test(
+      'inbox conversation sends optimistically without button spinner',
+      () async {
+        final source = await File(
+          'lib/features/inbox/inbox_conversation_page.dart',
+        ).readAsString();
+        final send = _sourceBetween(
+          source,
+          'Future<void> _sendMessage()',
+          'Future<void> _leaveConversation()',
+        );
+        final composer = _sourceBetween(
+          source,
+          'Widget _buildComposer()',
+          'class _PendingDmMessage',
+        );
+
+        expect(
+          source,
+          contains('final List<_PendingDmMessage> _pendingMessages'),
+        );
+        expect(send, contains('_pendingMessages.add(pending)'));
+        expect(send, contains('_messageController.clear()'));
+        expect(send, contains('await _inboxRepo.sendTextMessage'));
+        expect(composer, contains('onPressed: _sendMessage'));
+        expect(composer, contains('child: const Icon(Icons.send)'));
+        expect(composer, isNot(contains('CircularProgressIndicator')));
+        expect(source, isNot(contains('_sendingMessage')));
+      },
+    );
+
+    test('inbox conversation clears resume before intentional back', () async {
+      final source = await File(
+        'lib/features/inbox/inbox_conversation_page.dart',
+      ).readAsString();
+      final leave = _sourceBetween(
+        source,
+        'Future<void> _leaveConversation()',
+        'List<_PendingDmMessage> _visiblePendingMessages',
+      );
+      final persist = _sourceBetween(
+        source,
+        'void _persistResumeState()',
+        'void _scrollToBottom()',
+      );
+      final inbox = await File(
+        'lib/features/inbox/inbox_page.dart',
+      ).readAsString();
+      final resume = _sourceBetween(
+        inbox,
+        'Future<void> _resumeConversationIfNeeded()',
+        'void _openConversation',
+      );
+
+      expect(persist, contains('SessionResumeService.clearResumeEntry'));
+      expect(source, contains('return PopScope('));
+      expect(source, contains('unawaited(_leaveConversation())'));
+      expect(leave, contains('suppressRestoreForUserNavigation'));
+      expect(leave, contains('await SessionResumeService.clearResumeEntry'));
+      expect(leave, contains("context.go('/inbox')"));
+      expect(resume, contains('RestorationRestoreReason.userNavigation'));
+      expect(resume, contains('claimRestoreSurface(_resumeKind)'));
+    });
+
+    test('shared flow route accepts conversation fallback extra', () async {
+      final conversation = await File(
+        'lib/features/inbox/inbox_conversation_page.dart',
+      ).readAsString();
+      final main = await File('lib/main.dart').readAsString();
+      final route = _sourceBetween(
+        main,
+        'class _SharedFlowRoutePageState',
+        'class EditProfileRoutePage',
+      );
+      final entry = await File(
+        'lib/features/inbox/shared_flow_details_entry.dart',
+      ).readAsString();
+
+      expect(conversation, contains("'fallbackLocation':"));
+      expect(conversation, contains('_conversationLocation'));
+      expect(route, contains("extra['fallbackLocation']"));
+      expect(route, contains("extra['share']"));
+      expect(route, contains('fallbackLocation: _fallbackLocation'));
+      expect(entry, contains('final String fallbackLocation'));
+      expect(entry, contains('fallbackLocation: widget.fallbackLocation'));
     });
 
     test('planner and decan reflection lists reserve menu space', () async {
@@ -611,7 +759,12 @@ void main() {
         'body: SafeArea(',
       );
 
-      expect(conversationAppBar, contains("popOrGo(context, '/inbox')"));
+      expect(conversationAppBar, contains('_leaveConversation'));
+      expect(conversation, contains("context.go('/inbox')"));
+      expect(
+        conversation,
+        contains('await SessionResumeService.clearResumeEntry'),
+      );
       _expectTooltipAction(conversationAppBar, 'View profile', <String>[
         'context.go(',
         "'/profile/",
@@ -699,7 +852,8 @@ void main() {
           'lib/features/profile/profile_page.dart': ["popOrGo(context, '/')"],
           'lib/features/inbox/inbox_page.dart': ["popOrGo(context, '/')"],
           'lib/features/inbox/inbox_conversation_page.dart': [
-            "popOrGo(context, '/inbox')",
+            '_leaveConversation',
+            "context.go('/inbox')",
           ],
           'lib/features/invites/event_invite_details_page.dart': [
             "popOrGo(context, '/inbox')",

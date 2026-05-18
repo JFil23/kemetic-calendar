@@ -111,7 +111,7 @@ void _calendarDebugPrint(String? message, {int? wrapWidth}) {
   }
 }
 
-typedef _QuickAddParse = ({
+typedef QuickAddParse = ({
   DateTime date,
   bool allDay,
   TimeOfDay? start,
@@ -127,8 +127,8 @@ class _QuickAddSheet extends StatefulWidget {
     required this.scaffoldMessengerContext,
   });
 
-  final _QuickAddParse? Function(String raw) parse;
-  final Future<void> Function(_QuickAddParse parsed) onSave;
+  final QuickAddParse? Function(String raw) parse;
+  final Future<void> Function(QuickAddParse parsed) onSave;
   final VoidCallback onOpenFullEditor;
   final BuildContext scaffoldMessengerContext;
 
@@ -4175,8 +4175,8 @@ class CalendarPage extends StatefulWidget {
   }) : super(key: key ?? CalendarPage.globalKey);
 
   // Global key for accessing calendar state from other pages
-  static final GlobalKey<_CalendarPageState> globalKey =
-      GlobalKey<_CalendarPageState>();
+  static final GlobalKey<CalendarPageState> globalKey =
+      GlobalKey<CalendarPageState>();
   static _CalendarDetachedLaunchAction? _pendingDetachedLaunchAction;
   static ({int ky, int km, int kd})? _pendingDetachedSearchDay;
   static bool _detachedCalendarOverlayRestoreInFlight = false;
@@ -4185,7 +4185,7 @@ class CalendarPage extends StatefulWidget {
   static bool _detachedQuickAddSheetOpenOrOpening = false;
   static String? _lastDetachedCalendarOverlayRestoreKey;
 
-  static _CalendarPageState? get _mountedState {
+  static CalendarPageState? get _mountedState {
     final state = globalKey.currentState;
     if (state == null || !state.mounted) return null;
     return state;
@@ -4483,7 +4483,7 @@ class CalendarPage extends StatefulWidget {
     return DateUtils.dateOnly(base.add(Duration(days: add)));
   }
 
-  static _QuickAddParse? parseQuickAddText(String raw) {
+  static QuickAddParse? parseQuickAddText(String raw) {
     final input = raw.trim();
     if (input.isEmpty) return null;
 
@@ -4654,7 +4654,7 @@ class CalendarPage extends StatefulWidget {
     return (date: date, allDay: allDay, start: start, end: end, title: title);
   }
 
-  static Future<void> _saveDetachedQuickAddNote(_QuickAddParse parsed) async {
+  static Future<void> _saveDetachedQuickAddNote(QuickAddParse parsed) async {
     final k = KemeticMath.fromGregorian(parsed.date);
     final gDay = parsed.date;
     final allDay = parsed.allDay;
@@ -4712,25 +4712,23 @@ class CalendarPage extends StatefulWidget {
     try {
       await repo.track(
         event: 'note_created',
-        properties: {
-          'title': title,
-          'all_day': allDay,
-          'detached': true,
-        },
+        properties: {'title': title, 'all_day': allDay, 'detached': true},
         source: 'client',
       );
     } catch (e) {
       if (kDebugMode) {
-        _calendarDebugPrint(
-          '[DetachedQuickAdd] failed to log app_events: $e',
-        );
+        _calendarDebugPrint('[DetachedQuickAdd] failed to log app_events: $e');
       }
     }
   }
 
   static void _routeHomeForDetachedDayEditor(BuildContext context) {
     final today = KemeticMath.fromGregorian(DateTime.now());
-    _pendingDetachedSearchDay = (ky: today.kYear, km: today.kMonth, kd: today.kDay);
+    _pendingDetachedSearchDay = (
+      ky: today.kYear,
+      km: today.kMonth,
+      kd: today.kDay,
+    );
     if (!context.mounted) return;
     context.go('/');
   }
@@ -4789,7 +4787,7 @@ class CalendarPage extends StatefulWidget {
     try {
       final prefs = await SharedPreferences.getInstance();
       final raw = prefs.getString(
-        '${_CalendarPageState._kWarmStartCacheKeyPrefix}:$userId',
+        '${CalendarPageState._kWarmStartCacheKeyPrefix}:$userId',
       );
       if (raw == null || raw.trim().isEmpty) {
         return (notes: <String, List<_Note>>{}, flows: <_Flow>[]);
@@ -5046,21 +5044,9 @@ class CalendarPage extends StatefulWidget {
       return;
     }
     if (!context.mounted) return;
-    context.go('/profile/${Uri.encodeComponent(userId)}');
-  }
-
-  static void _routeHomeForDetachedLaunch(
-    BuildContext context,
-    _CalendarDetachedLaunchAction action, {
-    void Function(String location)? onNavigate,
-  }) {
-    _pendingDetachedLaunchAction = action;
-    if (onNavigate != null) {
-      onNavigate('/');
-      return;
-    }
+    await RestorationCoordinator.instance.clearProfileFeedContinuity(userId);
     if (!context.mounted) return;
-    context.go('/');
+    context.go('/profile/${Uri.encodeComponent(userId)}');
   }
 
   static Future<void> _showDetachedActionsMenu(
@@ -5484,7 +5470,7 @@ class CalendarPage extends StatefulWidget {
         endDate: flow.end,
         notes: flow.notes,
         rules: jsonEncode(
-          flow.rules.map(_CalendarPageState.ruleToJson).toList(),
+          flow.rules.map(CalendarPageState.ruleToJson).toList(),
         ),
         originType: 'template',
       );
@@ -5589,7 +5575,7 @@ class CalendarPage extends StatefulWidget {
         endDate: flow.end,
         notes: flow.notes,
         rules: jsonEncode(
-          flow.rules.map(_CalendarPageState.ruleToJson).toList(),
+          flow.rules.map(CalendarPageState.ruleToJson).toList(),
         ),
         originType: 'template',
       );
@@ -6494,7 +6480,7 @@ class CalendarPage extends StatefulWidget {
     if (r.savedFlow == null) return null;
     final f = r.savedFlow!;
     final rulesJson = jsonEncode(
-      f.rules.map(_CalendarPageState.ruleToJson).toList(),
+      f.rules.map(CalendarPageState.ruleToJson).toList(),
     );
 
     final savedId = await userEventsRepo.upsertFlow(
@@ -6694,10 +6680,10 @@ class CalendarPage extends StatefulWidget {
   }
 
   @override
-  State<CalendarPage> createState() => _CalendarPageState();
+  State<CalendarPage> createState() => CalendarPageState();
 }
 
-class _CalendarPageState extends State<CalendarPage>
+class CalendarPageState extends State<CalendarPage>
     with WidgetsBindingObserver, RouteAware {
   static const Duration _foregroundRefreshThreshold = Duration(minutes: 10);
   static const Duration _restorationWriteDebounce = Duration(milliseconds: 150);
@@ -14705,22 +14691,6 @@ class _CalendarPageState extends State<CalendarPage>
     );
   }
 
-  /// Get event marker colors for a given day using a notes getter function.
-  /// Used by stateless widgets that can't access instance methods.
-  List<Color> getFlowColorsForDayFromNotes(
-    int kYear,
-    int kMonth,
-    int kDay,
-    List<_Note> Function(int kMonth, int kDay) notesGetter,
-  ) {
-    final notes = notesGetter(kMonth, kDay);
-    return calendarEventMarkerColors<_Note>(
-      notes,
-      colorOf: _noteColor,
-      groupBy: _calendarMarkerGroupKey,
-    );
-  }
-
   Object? _calendarMarkerGroupKey(_Note note) {
     final flowId = note.flowId;
     if (flowId == null || flowId <= 0) return null;
@@ -15869,6 +15839,7 @@ class _CalendarPageState extends State<CalendarPage>
       flowTitle = 'Flow';
     }
 
+    if (!mounted) return;
     await showModalBottomSheet<bool>(
       context: context,
       isScrollControlled: true,
@@ -17112,6 +17083,8 @@ class _CalendarPageState extends State<CalendarPage>
     UiGuards.disableJournalSwipe();
     _profileNavigationInFlight = true;
     try {
+      await RestorationCoordinator.instance.clearProfileFeedContinuity(userId);
+      if (!mounted) return;
       context.go('/profile/${Uri.encodeComponent(userId)}');
     } finally {
       _profileNavigationInFlight = false;
@@ -23693,7 +23666,7 @@ class _CalendarPageState extends State<CalendarPage>
     final repo = UserEventsRepo(Supabase.instance.client);
 
     // 6. Persist the flow row to Supabase, storing rules as JSON.
-    final rulesJson = jsonEncode([_CalendarPageState.ruleToJson(rule)]);
+    final rulesJson = jsonEncode([CalendarPageState.ruleToJson(rule)]);
 
     final int flowId = await repo.upsertFlow(
       id: null,

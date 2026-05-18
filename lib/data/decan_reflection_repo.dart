@@ -176,15 +176,9 @@ class DecanReflectionRepo {
     try {
       final nodeRow = await withSupabaseAuthRetry(
         _client,
-        () => _client
-            .from('nodes')
-            .select('id')
-            .eq('slug', slug)
-            .maybeSingle(),
+        () => _client.from('nodes').select('id').eq('slug', slug).maybeSingle(),
       );
-      final nodeId = nodeRow == null
-          ? null
-          : (nodeRow as Map<String, dynamic>)['id'] as String?;
+      final nodeId = nodeRow == null ? null : nodeRow['id'] as String?;
       if (nodeId == null || nodeId.isEmpty) return;
 
       await withSupabaseAuthRetry(

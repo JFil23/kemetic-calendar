@@ -11,8 +11,13 @@ import 'shared_flow_details_page.dart';
 
 class SharedFlowDetailsEntry extends StatefulWidget {
   final InboxShareItem share;
+  final String fallbackLocation;
 
-  const SharedFlowDetailsEntry({super.key, required this.share});
+  const SharedFlowDetailsEntry({
+    super.key,
+    required this.share,
+    this.fallbackLocation = '/inbox',
+  });
 
   @override
   State<SharedFlowDetailsEntry> createState() => _SharedFlowDetailsEntryState();
@@ -109,7 +114,10 @@ class _SharedFlowDetailsEntryState extends State<SharedFlowDetailsEntry> {
     // PAYLOAD MODE → instant UI rendering
     // ----------------------------------
     if (_usePayloadMode) {
-      return SharedFlowDetailsPage(share: widget.share);
+      return SharedFlowDetailsPage(
+        share: widget.share,
+        fallbackLocation: widget.fallbackLocation,
+      );
     }
 
     // ----------------------------------
@@ -140,7 +148,10 @@ class _SharedFlowDetailsEntryState extends State<SharedFlowDetailsEntry> {
         final flowId = snapshot.data;
 
         if (flowId != null) {
-          return SharedFlowDetailsPage(flowId: flowId);
+          return SharedFlowDetailsPage(
+            flowId: flowId,
+            fallbackLocation: widget.fallbackLocation,
+          );
         }
 
         // ---------------------------------------------------
@@ -148,7 +159,10 @@ class _SharedFlowDetailsEntryState extends State<SharedFlowDetailsEntry> {
         // If DB lookup failed, fallback to payload anyway
         // (User still sees something instead of infinite spinner)
         // ---------------------------------------------------
-        return SharedFlowDetailsPage(share: widget.share);
+        return SharedFlowDetailsPage(
+          share: widget.share,
+          fallbackLocation: widget.fallbackLocation,
+        );
       },
     );
   }

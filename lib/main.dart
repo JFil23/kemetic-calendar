@@ -2413,6 +2413,27 @@ class SharedFlowRoutePage extends StatefulWidget {
 
 class _SharedFlowRoutePageState extends State<SharedFlowRoutePage> {
   late Future<InboxShareItem?> _future;
+  String get _fallbackLocation {
+    final extra = widget.extra;
+    if (extra is Map) {
+      final rawFallback = extra['fallbackLocation'];
+      if (rawFallback is String && rawFallback.trim().isNotEmpty) {
+        final fallback = rawFallback.trim();
+        return fallback;
+      }
+    }
+    return '/inbox';
+  }
+
+  InboxShareItem? get _extraShare {
+    final extra = widget.extra;
+    if (extra is InboxShareItem) return extra;
+    if (extra is Map) {
+      final share = extra['share'];
+      if (share is InboxShareItem) return share;
+    }
+    return null;
+  }
 
   @override
   void initState() {
@@ -2431,8 +2452,8 @@ class _SharedFlowRoutePageState extends State<SharedFlowRoutePage> {
   }
 
   Future<InboxShareItem?> _load() async {
-    final extra = widget.extra;
-    if (extra is InboxShareItem &&
+    final extra = _extraShare;
+    if (extra != null &&
         widget.shareId != null &&
         extra.shareId == widget.shareId) {
       return extra;
@@ -2451,19 +2472,25 @@ class _SharedFlowRoutePageState extends State<SharedFlowRoutePage> {
   Widget build(BuildContext context) {
     final flowId = widget.flowId;
     if (flowId != null) {
-      return SharedFlowDetailsPage(flowId: flowId);
+      return SharedFlowDetailsPage(
+        flowId: flowId,
+        fallbackLocation: _fallbackLocation,
+      );
     }
     return FutureBuilder<InboxShareItem?>(
       future: _future,
       builder: (context, snapshot) {
         final share = snapshot.data;
         if (share != null && share.isFlow) {
-          return SharedFlowDetailsEntry(share: share);
+          return SharedFlowDetailsEntry(
+            share: share,
+            fallbackLocation: _fallbackLocation,
+          );
         }
         if (snapshot.connectionState == ConnectionState.done) {
-          return const _RouteMissingScaffold(
+          return _RouteMissingScaffold(
             message: 'This shared flow is no longer available.',
-            fallbackLocation: '/inbox',
+            fallbackLocation: _fallbackLocation,
           );
         }
         return const _RouteLoadingScaffold();

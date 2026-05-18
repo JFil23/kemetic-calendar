@@ -855,34 +855,41 @@ class _MaatFlowTemplateDetailPageState
                                     ),
                                   ),
                                   const SizedBox(height: 8),
-                                  ...TrackSkyTimeZone.values.map((timezone) {
-                                    return RadioListTile<TrackSkyTimeZone>(
-                                      value: timezone,
-                                      groupValue: selectedTimeZone,
-                                      activeColor: _gold,
-                                      contentPadding: EdgeInsets.zero,
-                                      title: Text(
-                                        timezone.label,
-                                        style: const TextStyle(
-                                          color: Colors.white,
-                                        ),
-                                      ),
-                                      subtitle: Text(
-                                        timezone.shortLabel,
-                                        style: const TextStyle(
-                                          color: Colors.white54,
-                                        ),
-                                      ),
-                                      onChanged: isWorking
-                                          ? null
-                                          : (value) {
-                                              if (value == null) return;
-                                              setSheetState(() {
-                                                selectedTimeZone = value;
-                                              });
-                                            },
-                                    );
-                                  }),
+                                  RadioGroup<TrackSkyTimeZone>(
+                                    groupValue: selectedTimeZone,
+                                    onChanged: (value) {
+                                      if (isWorking || value == null) return;
+                                      setSheetState(() {
+                                        selectedTimeZone = value;
+                                      });
+                                    },
+                                    child: Column(
+                                      children: TrackSkyTimeZone.values
+                                          .map((timezone) {
+                                            return RadioListTile<
+                                              TrackSkyTimeZone
+                                            >(
+                                              value: timezone,
+                                              enabled: !isWorking,
+                                              activeColor: _gold,
+                                              contentPadding: EdgeInsets.zero,
+                                              title: Text(
+                                                timezone.label,
+                                                style: const TextStyle(
+                                                  color: Colors.white,
+                                                ),
+                                              ),
+                                              subtitle: Text(
+                                                timezone.shortLabel,
+                                                style: const TextStyle(
+                                                  color: Colors.white54,
+                                                ),
+                                              ),
+                                            );
+                                          })
+                                          .toList(growable: false),
+                                    ),
+                                  ),
                                   const SizedBox(height: 8),
                                   const Text(
                                     'Alert',

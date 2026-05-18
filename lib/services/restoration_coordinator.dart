@@ -182,6 +182,24 @@ class RestorationCoordinator {
     return AppRestorationService.instance.saveSurfaceState(key, state);
   }
 
+  Future<void> clearProfileFeedContinuity(String userId) async {
+    final normalizedUserId = userId.trim();
+    if (normalizedUserId.isEmpty) {
+      return;
+    }
+    final surfaceKey = 'profile:$normalizedUserId';
+    final state = await readSurfaceState(surfaceKey);
+    if (state == null || state.isEmpty) {
+      return;
+    }
+
+    final nextState = Map<String, dynamic>.from(state)
+      ..['feedRevealed'] = false
+      ..remove('expandedFeedItem')
+      ..remove('feedScrollOffset');
+    await saveSurfaceState(surfaceKey, nextState);
+  }
+
   Future<List<Map<String, dynamic>>> readOverlayStack() {
     return AppRestorationService.instance.readOverlayStack();
   }

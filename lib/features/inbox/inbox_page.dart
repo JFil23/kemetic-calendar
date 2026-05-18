@@ -20,6 +20,7 @@ import 'dart:async';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:flutter/gestures.dart';
 import 'package:mobile/shared/glossy_text.dart';
+import '../../services/restoration_coordinator.dart';
 import '../../services/session_resume_service.dart';
 import '../../widgets/kemetic_app_bar_action.dart';
 import '../../widgets/kemetic_heart_icon.dart';
@@ -360,6 +361,13 @@ class _InboxPageState extends State<InboxPage> {
   Future<void> _resumeConversationIfNeeded() async {
     if (!mounted || _resumeConversationChecked) return;
     _resumeConversationChecked = true;
+    if (RestorationCoordinator.instance.restoreReason ==
+        RestorationRestoreReason.userNavigation) {
+      return;
+    }
+    if (!RestorationCoordinator.instance.claimRestoreSurface(_resumeKind)) {
+      return;
+    }
 
     final entry = await SessionResumeService.consumeResumeEntry(
       kind: _resumeKind,

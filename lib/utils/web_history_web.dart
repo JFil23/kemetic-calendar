@@ -1,7 +1,9 @@
 // lib/utils/web_history_web.dart
+// ignore_for_file: avoid_web_libraries_in_flutter
+
 import 'dart:async';
 import 'dart:js_interop';
-import 'dart:js_util' as js_util;
+import 'dart:js_interop_unsafe';
 import 'dart:math' as math;
 
 import 'package:web/web.dart' as web;
@@ -10,12 +12,14 @@ final List<JSFunction> _visibilityListeners = <JSFunction>[];
 final List<JSFunction> _pushTapListeners = <JSFunction>[];
 
 bool _hasProperty(JSAny target, String name) {
-  return js_util.hasProperty(target, name);
+  return (target as JSObject).has(name);
 }
 
 bool _navigatorStandalone() {
   try {
-    return js_util.getProperty<bool?>(web.window.navigator, 'standalone') ==
+    return web.window.navigator
+            .getProperty<JSBoolean?>('standalone'.toJS)
+            ?.toDart ==
         true;
   } catch (_) {
     return false;
@@ -24,7 +28,7 @@ bool _navigatorStandalone() {
 
 String _navigatorPlatform() {
   try {
-    return js_util.getProperty<String?>(web.window.navigator, 'platform') ?? '';
+    return web.window.navigator.platform;
   } catch (_) {
     return '';
   }
@@ -32,10 +36,7 @@ String _navigatorPlatform() {
 
 int _navigatorMaxTouchPoints() {
   try {
-    return js_util
-            .getProperty<num?>(web.window.navigator, 'maxTouchPoints')
-            ?.toInt() ??
-        0;
+    return web.window.navigator.maxTouchPoints;
   } catch (_) {
     return 0;
   }
@@ -139,19 +140,13 @@ void onPushNotificationTap(void Function(Map<String, dynamic>) cb) {
     return;
   }
 
-  final container = js_util.getProperty<JSAny?>(
-    web.window.navigator,
-    'serviceWorker',
-  );
-  if (container == null) {
-    return;
-  }
+  final container = web.window.navigator.serviceWorker;
 
   final listener = ((web.Event event) {
     Object? payload;
     try {
-      final rawData = js_util.getProperty<Object?>(event, 'data');
-      payload = js_util.dartify(rawData);
+      final rawData = event.getProperty<JSAny?>('data'.toJS);
+      payload = rawData.dartify();
     } catch (_) {
       payload = null;
     }
@@ -163,8 +158,5 @@ void onPushNotificationTap(void Function(Map<String, dynamic>) cb) {
   }).toJS;
 
   _pushTapListeners.add(listener);
-  js_util.callMethod<void>(container, 'addEventListener', [
-    'message',
-    listener,
-  ]);
+  container.addEventListener('message', listener);
 }

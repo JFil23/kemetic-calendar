@@ -78,7 +78,7 @@ class _FlowStudioPageState extends State<_FlowStudioPage>
   // analytics
   int _originalEventCount = 0; // Store count of AI-generated events
 
-  _CalendarPageState? get _calendarPageState =>
+  CalendarPageState? get _calendarPageState =>
       CalendarPage.globalKey.currentState;
 
   List<SharedCalendarSummary> get _editableCalendars {
