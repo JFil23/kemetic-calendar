@@ -57,6 +57,30 @@ void main() {
     ]);
   });
 
+  test('refresh updates same delivery when server enriches payload', () async {
+    final repo = _FakeMaatGuidanceRepo([
+      _delivery(id: 'opening', bodyText: 'Generic opening.'),
+    ]);
+    final controller = MaatGuidanceController(repo);
+
+    await controller.refresh(force: true);
+    expect(controller.current?.bodyText, 'Generic opening.');
+
+    repo.replaceDelivery(
+      _delivery(
+        id: 'opening',
+        bodyText: 'Opening with today card.',
+        payload: const <String, dynamic>{'day_card_date': '2026-05-16'},
+      ),
+    );
+
+    await controller.refresh(force: true);
+
+    expect(controller.current?.id, 'opening');
+    expect(controller.current?.bodyText, 'Opening with today card.');
+    expect(controller.current?.payload['day_card_date'], '2026-05-16');
+  });
+
   test('markActed clears current delivery and advances queue', () async {
     final repo = _FakeMaatGuidanceRepo([
       _delivery(id: 'drift', kind: MaatGuidanceKind.driftNudge, priority: 20),
@@ -131,6 +155,77 @@ void main() {
     expect(find.text('node'), findsOneWidget);
   });
 
+  testWidgets('opening detail shows journey context and guiding node', (
+    tester,
+  ) async {
+    final repo = _FakeMaatGuidanceRepo([
+      _delivery(
+        id: 'opening',
+        ctaType: MaatGuidanceCtaType.node,
+        ctaRef: 'maat',
+        bodyText:
+            'This decan opens through Hathor.\n\n'
+            'This decan marks stability regained.\n\n'
+            'Today centers Step Back Onto the Earth. Your move: Name what you just carried.\n\n'
+            'The useful move now is simple: write one truthful mark.',
+        payload: const <String, dynamic>{
+          'lead_axis': 'T',
+          'reflection_move': 'inquire',
+          'node_ref': 'maat',
+          'day_card_date': '2026-05-19',
+        },
+      ),
+    ]);
+    final controller = MaatGuidanceController(repo);
+    final router = GoRouter(
+      initialLocation: '/maat-guidance/opening',
+      routes: [
+        GoRoute(
+          path: '/maat-guidance/:deliveryId',
+          builder: (context, state) {
+            return MaatGuidanceScope(
+              controller: controller,
+              child: MaatGuidanceDetailPage(
+                deliveryId: state.pathParameters['deliveryId']!,
+                repo: repo,
+              ),
+            );
+          },
+        ),
+        GoRoute(
+          path: '/nodes/:slug',
+          builder: (context, state) => const Scaffold(body: Text('node')),
+        ),
+      ],
+    );
+
+    await tester.pumpWidget(MaterialApp.router(routerConfig: router));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Today'), findsOneWidget);
+    expect(
+      find.text(
+        'Today centers Step Back Onto the Earth. Your move: Name what you just carried.',
+      ),
+      findsOneWidget,
+    );
+    expect(find.text('Journey signal'), findsOneWidget);
+    expect(
+      find.textContaining('truth in your current pattern'),
+      findsOneWidget,
+    );
+    expect(find.text('Guiding node'), findsOneWidget);
+    expect(find.textContaining('Ma’at'), findsOneWidget);
+    expect(find.text('Read the guiding node'), findsOneWidget);
+
+    await tester.ensureVisible(find.text('Read the guiding node'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Read the guiding node'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('node'), findsOneWidget);
+  });
+
   testWidgets('detail page shows personalized flow preview before accept', (
     tester,
   ) async {
@@ -192,6 +287,7 @@ MaatGuidanceDelivery _delivery({
   MaatGuidanceKind kind = MaatGuidanceKind.decanOpening,
   MaatGuidanceStatus status = MaatGuidanceStatus.pending,
   int priority = 10,
+  String bodyText = 'Keep the action small, visible, and restorable.',
   MaatGuidanceCtaType ctaType = MaatGuidanceCtaType.none,
   String? ctaRef,
   Map<String, dynamic> payload = const <String, dynamic>{},
@@ -203,7 +299,7 @@ MaatGuidanceDelivery _delivery({
     status: status,
     priority: priority,
     teaserText: 'Begin with one measured act.',
-    bodyText: 'Keep the action small, visible, and restorable.',
+    bodyText: bodyText,
     payload: payload,
     ctaType: ctaType,
     ctaRef: ctaRef,
@@ -219,6 +315,15 @@ class _FakeMaatGuidanceRepo implements MaatGuidanceDataSource {
   final List<String> acks = <String>[];
   final Set<String> _terminalIds = <String>{};
 
+  void replaceDelivery(MaatGuidanceDelivery delivery) {
+    final index = _deliveries.indexWhere((row) => row?.id == delivery.id);
+    if (index >= 0) {
+      _deliveries[index] = delivery;
+    } else {
+      _deliveries.add(delivery);
+    }
+  }
+
   @override
   Future<void> ack({
     required String deliveryId,
@@ -232,7 +337,9 @@ class _FakeMaatGuidanceRepo implements MaatGuidanceDataSource {
   }
 
   @override
-  Future<void> evaluate({String? timezone}) async {}
+  Future<MaatGuidanceEvaluateResult?> evaluate({String? timezone}) async {
+    return null;
+  }
 
   @override
   Future<MaatGuidanceDelivery?> fetchPending() async {

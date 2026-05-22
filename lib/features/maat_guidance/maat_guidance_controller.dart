@@ -31,11 +31,13 @@ class MaatGuidanceController extends ChangeNotifier {
 
   final MaatGuidanceDataSource _repo;
   MaatGuidanceDelivery? _current;
+  MaatGuidanceEvaluateResult? _lastEvaluateResult;
   Future<void>? _inFlight;
   DateTime? _lastFetchAt;
   bool _suppressed = true;
 
   MaatGuidanceDelivery? get current => _current;
+  MaatGuidanceEvaluateResult? get lastEvaluateResult => _lastEvaluateResult;
   bool get hasVisibleDelivery => _current != null && !_suppressed;
 
   void updateSuppression(bool suppressed) {
@@ -74,7 +76,7 @@ class MaatGuidanceController extends ChangeNotifier {
   }
 
   Future<void> evaluateAndRefresh({String? timezone}) async {
-    await _repo.evaluate(timezone: timezone);
+    _lastEvaluateResult = await _repo.evaluate(timezone: timezone);
     await refresh(force: true);
   }
 
@@ -85,6 +87,8 @@ class MaatGuidanceController extends ChangeNotifier {
     if (pending == null || pending.id.isEmpty) return;
 
     if (_current?.id == pending.id) {
+      _current = pending;
+      notifyListeners();
       if (!_suppressed) {
         await _markShown(pending);
       }
@@ -122,10 +126,6 @@ class MaatGuidanceController extends ChangeNotifier {
 
   Future<void> markOpened(MaatGuidanceDelivery delivery) async {
     await _repo.ack(deliveryId: delivery.id, action: 'opened');
-    if (_current?.id == delivery.id) {
-      _current = null;
-      notifyListeners();
-    }
     await refresh(force: true);
   }
 

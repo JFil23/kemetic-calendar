@@ -2,35 +2,18 @@ import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../core/day_key.dart';
-import '../features/calendar/decan_metadata.dart';
-import '../features/calendar/kemetic_month_metadata.dart';
 import '../widgets/kemetic_day_info.dart';
 import '../widgets/kemetic_date_picker.dart' show KemeticMath;
-
-class DecanWindow {
-  final DateTime start;
-  final DateTime end;
-  final String decanName;
-  final String? decanTheme;
-  final String? decanContextKey;
-
-  const DecanWindow({
-    required this.start,
-    required this.end,
-    required this.decanName,
-    required this.decanTheme,
-    required this.decanContextKey,
-  });
-}
 
 class DecanReflectionScheduler {
   static const Duration _refreshThrottle = Duration(hours: 6);
 
   final SupabaseClient _client;
+  final VoidCallback? onMaatGuidanceEnsured;
   DateTime? _lastSuccessfulEnsureAt;
   Future<void>? _ensureInFlight;
 
-  DecanReflectionScheduler(this._client);
+  DecanReflectionScheduler(this._client, {this.onMaatGuidanceEnsured});
 
   String _detectTimeZone() {
     final zoneName = DateTime.now().timeZoneName.toUpperCase();
@@ -82,69 +65,6 @@ class DecanReflectionScheduler {
     return timezoneMap[offsetHours] ?? 'America/Los_Angeles';
   }
 
-  DecanWindow _windowFor(DateTime date) {
-    final kem = KemeticMath.fromGregorian(date);
-    final decanStartDay = ((kem.kDay - 1) ~/ 10) * 10 + 1;
-    final decanIndex = ((decanStartDay - 1) ~/ 10) + 1;
-    final maxDay = (kem.kMonth == 13)
-        ? (KemeticMath.isLeapKemeticYear(kem.kYear) ? 6 : 5)
-        : 30;
-    final decanEndDay = (decanStartDay + 9) > maxDay
-        ? maxDay
-        : decanStartDay + 9;
-    final start = KemeticMath.toGregorian(kem.kYear, kem.kMonth, decanStartDay);
-    final end = KemeticMath.toGregorian(kem.kYear, kem.kMonth, decanEndDay);
-    final hasCanonicalContext = kem.kMonth >= 1 && kem.kMonth <= 12;
-    final monthLabel = hasCanonicalContext
-        ? getMonthById(kem.kMonth).displayShort
-        : 'Days Upon the Year';
-    final decanTheme = hasCanonicalContext
-        ? DecanMetadata.decanNameFor(
-            kMonth: kem.kMonth,
-            kDay: decanEndDay,
-            expanded: true,
-          )
-        : null;
-    return DecanWindow(
-      start: start,
-      end: end,
-      decanName: decanTheme == null ? monthLabel : '$monthLabel — $decanTheme',
-      decanTheme: decanTheme,
-      decanContextKey: hasCanonicalContext ? '${kem.kMonth}-$decanIndex' : null,
-    );
-  }
-
-  Future<void> _scheduleWindow(DecanWindow window) async {
-    if (window.decanContextKey == null) {
-      return;
-    }
-    final response = await _client.functions.invoke(
-      'schedule_decan_reflection',
-      body: {
-        'decan_start': window.start.toIso8601String().split('T').first,
-        'decan_end': window.end.toIso8601String().split('T').first,
-        'decan_name': window.decanName,
-        'decan_theme': window.decanTheme,
-        'decan_context_key': window.decanContextKey,
-        'timezone': _detectTimeZone(),
-      },
-    );
-
-    if (response.status >= 200 && response.status < 300) {
-      return;
-    }
-
-    final data = response.data;
-    final detail = data is Map && data['error'] != null
-        ? data['error'].toString()
-        : data?.toString();
-    throw StateError(
-      'schedule_decan_reflection failed for ${window.decanContextKey} '
-      '(status ${response.status})'
-      '${detail == null || detail.isEmpty ? '' : ': $detail'}',
-    );
-  }
-
   Map<String, dynamic>? _dayCardPayloadFor(DateTime date) {
     final kemetic = KemeticMath.fromGregorian(date);
     if (kemetic.kMonth < 1 || kemetic.kMonth > 13) return null;
@@ -179,30 +99,36 @@ class DecanReflectionScheduler {
     };
   }
 
-  Future<void> _ensureMaatGuidance(DecanWindow window) async {
-    if (window.decanContextKey == null) return;
+  void _throwIfFunctionFailed(String functionName, FunctionResponse response) {
+    if (response.status >= 200 && response.status < 300) return;
+    final data = response.data;
+    final detail = data is Map && data['error'] != null
+        ? data['error'].toString()
+        : data?.toString();
+    throw StateError(
+      '$functionName failed for Ma’at guidance '
+      '(status ${response.status})'
+      '${detail == null || detail.isEmpty ? '' : ': $detail'}',
+    );
+  }
+
+  Future<bool> _ensureUserGuidance() async {
     final timezone = _detectTimeZone();
     try {
-      await _client.functions.invoke(
-        'cron_maat_decan_opening',
+      final response = await _client.functions.invoke(
+        'ensure_user_guidance',
         body: {
-          'decan_start': window.start.toIso8601String().split('T').first,
-          'decan_end': window.end.toIso8601String().split('T').first,
-          'decan_name': window.decanName,
-          'decan_theme': window.decanTheme,
-          'decan_context_key': window.decanContextKey,
           'timezone': timezone,
           'day_card': _dayCardPayloadFor(DateTime.now()),
         },
       );
-      await _client.functions.invoke(
-        'evaluate_maat_guidance',
-        body: <String, dynamic>{'timezone': timezone},
-      );
+      _throwIfFunctionFailed('ensure_user_guidance', response);
+      return true;
     } catch (error) {
       if (kDebugMode) {
         debugPrint('[DecanReflectionScheduler] guidance skipped: $error');
       }
+      return false;
     }
   }
 
@@ -230,16 +156,13 @@ class DecanReflectionScheduler {
 
   Future<void> _runEnsureCurrentAndNextScheduled() async {
     final now = DateTime.now();
-    final current = _windowFor(now);
-    await _scheduleWindow(current);
-    await _ensureMaatGuidance(current);
-
-    final nextStart = current.end.add(const Duration(days: 1));
-    final next = _windowFor(nextStart);
-    if (next.start != current.start || next.end != current.end) {
-      await _scheduleWindow(next);
+    final guidanceEnsured = await _ensureUserGuidance();
+    if (guidanceEnsured) {
+      onMaatGuidanceEnsured?.call();
     }
 
-    _lastSuccessfulEnsureAt = now;
+    if (guidanceEnsured) {
+      _lastSuccessfulEnsureAt = now;
+    }
   }
 }
