@@ -41,6 +41,21 @@ void main() {
     expect(delivery.hasCta, isFalse);
   });
 
+  test('opening node CTA uses user-facing label', () {
+    final delivery = MaatGuidanceDelivery.fromJson({
+      'id': 'opening-node',
+      'kind': 'decan_opening',
+      'decan_period_key': '2026-05-16:2026-05-25:1-1',
+      'teaser_text': 'Begin with measure.',
+      'body_text': 'Begin with measure.',
+      'cta_type': 'node',
+      'cta_ref': 'maat',
+    });
+
+    expect(delivery.hasCta, isTrue);
+    expect(delivery.ctaLabel, 'Read the guiding node');
+  });
+
   test('personalized flow CTA parses as consent action', () {
     final delivery = MaatGuidanceDelivery.fromJson({
       'id': 'drift-flow',

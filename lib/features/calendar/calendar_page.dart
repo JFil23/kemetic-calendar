@@ -34,6 +34,7 @@ import '../../models/ai_flow_generation_response.dart';
 import '../../services/ai_reflection_service.dart';
 import '../../data/decan_reflection_repo.dart';
 import '../../data/decan_reflection_model.dart';
+import '../../data/decan_reflection_prompt_state.dart';
 import '../../data/journal_repo.dart';
 import '../../widgets/kemetic_day_info.dart';
 import '../../widgets/insight_link_text.dart';
@@ -4193,6 +4194,12 @@ class CalendarPage extends StatefulWidget {
 
   static bool get hasMountedHost => _mountedState != null;
 
+  static Future<void> dismissMountedReflectionPromptIfAny() async {
+    final state = _mountedState;
+    if (state == null) return;
+    await state._dismissReflectionPrompt();
+  }
+
   static bool _isRootRouteLocation(String location) {
     final uri = Uri.tryParse(location.trim());
     return uri == null || uri.path.isEmpty || uri.path == '/';
@@ -5138,7 +5145,10 @@ class CalendarPage extends StatefulWidget {
         gradient: goldGloss,
         label: 'Reflections',
         dispatchBeforeClose: true,
-        onSelected: () => navigate('/reflections'),
+        onSelected: () async {
+          await dismissMountedReflectionPromptIfAny();
+          navigate('/reflections');
+        },
       ),
       _CalendarAction(
         glyph: MeduNeterGlyphs.home,
@@ -6880,6 +6890,8 @@ class CalendarPageState extends State<CalendarPage>
   late final DecanReflectionRepo _decanReflectionRepo = DecanReflectionRepo(
     Supabase.instance.client,
   );
+  late final DecanReflectionPromptState _decanReflectionPromptState =
+      DecanReflectionPromptState(Supabase.instance.client);
   late final AIReflectionService _aiReflectionService = AIReflectionService(
     Supabase.instance.client,
   );
@@ -6908,8 +6920,6 @@ class CalendarPageState extends State<CalendarPage>
   static const String _kManualDeleteTombstonesKey =
       'calendar:manual_delete_tombstones';
   static const String _kCidMigrationPrefKey = 'calendar:cid_migration_done';
-  static const String _kReflectionSeenPrefKey =
-      'calendar:seen_reflection_by_user';
   final Set<String> _endedReminderIds = {};
 
   // Decan reflection prompt state
@@ -17084,7 +17094,7 @@ class CalendarPageState extends State<CalendarPage>
     _profileNavigationInFlight = true;
     try {
       await RestorationCoordinator.instance.clearProfileFeedContinuity(userId);
-      if (!mounted) return;
+      if (!mounted || !context.mounted) return;
       context.go('/profile/${Uri.encodeComponent(userId)}');
     } finally {
       _profileNavigationInFlight = false;
@@ -17141,6 +17151,8 @@ class CalendarPageState extends State<CalendarPage>
   }
 
   Future<void> _openReflectionsFromMenu() async {
+    await _dismissReflectionPrompt();
+    if (!mounted) return;
     context.go('/reflections');
   }
 
@@ -24905,7 +24917,13 @@ class CalendarPageState extends State<CalendarPage>
           ),
         );
       },
-    );
+    ).whenComplete(() {
+      if (!mounted) return;
+      final current = _reflectionPrompt;
+      if (current == null) return;
+      if (!DateUtils.isSameDay(current.decanStart, prompt.decanStart)) return;
+      unawaited(_dismissReflectionPrompt());
+    });
   }
 
   String _formatDateOnlyLocal(DateTime date) {
@@ -24921,34 +24939,18 @@ class CalendarPageState extends State<CalendarPage>
     return DateTime(d.year, d.month, d.day);
   }
 
-  Future<bool> _hasSeenReflection(DateTime decanStart) async {
-    final uid = Supabase.instance.client.auth.currentUser?.id;
-    if (uid == null) return false;
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      final raw = prefs.getString(_kReflectionSeenPrefKey);
-      if (raw == null || raw.isEmpty) return false;
-      final map = Map<String, dynamic>.from(jsonDecode(raw) as Map);
-      final stored = map[uid] as String?;
-      return stored == _formatDateOnlyLocal(decanStart);
-    } catch (_) {
-      return false;
+  Future<void> _dismissReflectionPrompt() async {
+    final prompt = _reflectionPrompt;
+    if (prompt == null) return;
+    if (mounted) {
+      setState(() => _reflectionPrompt = null);
     }
-  }
-
-  Future<void> _markReflectionSeen(DateTime decanStart) async {
-    final uid = Supabase.instance.client.auth.currentUser?.id;
-    if (uid == null) return;
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      final raw = prefs.getString(_kReflectionSeenPrefKey);
-      final map = raw == null || raw.isEmpty
-          ? <String, dynamic>{}
-          : Map<String, dynamic>.from(jsonDecode(raw) as Map);
-      map[uid] = _formatDateOnlyLocal(decanStart);
-      await prefs.setString(_kReflectionSeenPrefKey, jsonEncode(map));
-    } catch (_) {
-      // ignore
+    await _decanReflectionPromptState.markInteracted(prompt.decanStart);
+    if (!mounted) return;
+    final current = _reflectionPrompt;
+    if (current != null &&
+        DateUtils.isSameDay(current.decanStart, prompt.decanStart)) {
+      setState(() => _reflectionPrompt = null);
     }
   }
 
@@ -25223,11 +25225,6 @@ class CalendarPageState extends State<CalendarPage>
       return;
     }
 
-    if (await _hasSeenReflection(window.start)) {
-      if (_reflectionPrompt != null) setState(() => _reflectionPrompt = null);
-      return;
-    }
-
     // Gate visibility until 8pm local on the 10th day of the decan
     final decanStartLocal = window.start.toLocal();
     final gateLocal = DateTime(
@@ -25247,8 +25244,31 @@ class CalendarPageState extends State<CalendarPage>
         window.end,
       );
       if (existing != null) {
+        if (await _decanReflectionPromptState.hasInteracted(window.start)) {
+          if (!mounted) return;
+          if (_reflectionPrompt != null) {
+            setState(() => _reflectionPrompt = null);
+          }
+          return;
+        }
         if (!mounted) return;
-        await _markReflectionSeen(window.start);
+        setState(() {
+          _reflectionPrompt = (
+            id: existing.id,
+            decanName: existing.decanName,
+            decanTheme: existing.decanTheme,
+            decanStart: existing.decanStart,
+            decanEnd: existing.decanEnd,
+            badgeCount: existing.badgeCount,
+            reflectionText: existing.reflectionText,
+            persisted: true,
+          );
+        });
+        return;
+      }
+
+      if (await _decanReflectionPromptState.hasInteracted(window.start)) {
+        if (!mounted) return;
         if (_reflectionPrompt != null) {
           setState(() => _reflectionPrompt = null);
         }
@@ -25361,7 +25381,7 @@ class CalendarPageState extends State<CalendarPage>
         throw Exception('Unable to save reflection');
       }
 
-      await _markReflectionSeen(prompt.decanStart);
+      await _decanReflectionPromptState.markInteracted(prompt.decanStart);
 
       if (!mounted) return;
       setState(() => _reflectionPrompt = null);

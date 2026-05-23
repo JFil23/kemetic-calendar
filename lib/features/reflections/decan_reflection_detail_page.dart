@@ -7,6 +7,7 @@ import '../../shared/glossy_text.dart';
 
 import '../../data/decan_reflection_repo.dart';
 import '../../data/decan_reflection_model.dart';
+import '../../data/decan_reflection_prompt_state.dart';
 import '../../data/insight_link_model.dart';
 import '../../data/insight_link_repo.dart';
 import '../../data/insight_link_utils.dart';
@@ -26,6 +27,7 @@ class DecanReflectionDetailPage extends StatefulWidget {
 
 class _DecanReflectionDetailPageState extends State<DecanReflectionDetailPage> {
   final _repo = DecanReflectionRepo(Supabase.instance.client);
+  final _promptState = DecanReflectionPromptState(Supabase.instance.client);
   final _insightRepo = InsightLinkRepo();
   List<InsightLink> _links = [];
   final List<GestureRecognizer> _linkGestureRecognizers = [];
@@ -57,6 +59,9 @@ class _DecanReflectionDetailPageState extends State<DecanReflectionDetailPage> {
     final graphHints = data == null
         ? null
         : await _repo.getGraphHintsForReflection(data);
+    if (data != null) {
+      await _promptState.markInteracted(data.decanStart);
+    }
     if (!mounted) return;
     final reflectionLinks = links
         .where(

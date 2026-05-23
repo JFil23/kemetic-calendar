@@ -1,8 +1,6 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'package:go_router/go_router.dart';
-
 import '../../data/maat_guidance_model.dart';
 import '../../shared/glossy_text.dart';
 import 'maat_guidance_controller.dart';
@@ -11,10 +9,12 @@ class MaatGuidanceOverlayHost extends StatelessWidget {
   const MaatGuidanceOverlayHost({
     super.key,
     required this.controller,
+    required this.onOpen,
     required this.visible,
   });
 
   final MaatGuidanceController controller;
+  final ValueChanged<MaatGuidanceDelivery> onOpen;
   final bool visible;
 
   @override
@@ -31,10 +31,7 @@ class MaatGuidanceOverlayHost extends StatelessWidget {
           child: MaatGuidanceFloatingCard(
             delivery: delivery,
             onDismiss: () => unawaited(controller.dismissCurrent()),
-            onOpen: () {
-              unawaited(controller.markOpened(delivery));
-              context.go('/maat-guidance/${Uri.encodeComponent(delivery.id)}');
-            },
+            onOpen: () => onOpen(delivery),
           ),
         ),
       ),
@@ -144,12 +141,15 @@ class MaatGuidanceFloatingCard extends StatelessWidget {
                           ),
                           SizedBox.square(
                             dimension: 36,
-                            child: IconButton(
-                              padding: EdgeInsets.zero,
-                              tooltip: 'Dismiss',
-                              icon: const Icon(Icons.close, size: 19),
-                              color: Colors.white70,
-                              onPressed: onDismiss,
+                            child: Semantics(
+                              label: 'Dismiss',
+                              button: true,
+                              child: IconButton(
+                                padding: EdgeInsets.zero,
+                                icon: const Icon(Icons.close, size: 19),
+                                color: Colors.white70,
+                                onPressed: onDismiss,
+                              ),
                             ),
                           ),
                         ],
@@ -164,6 +164,33 @@ class MaatGuidanceFloatingCard extends StatelessWidget {
                           fontSize: 15,
                           height: 1.42,
                           letterSpacing: 0,
+                        ),
+                      ),
+                      const SizedBox(height: 10),
+                      Align(
+                        alignment: Alignment.centerRight,
+                        child: TextButton(
+                          onPressed: onOpen,
+                          style: TextButton.styleFrom(
+                            foregroundColor: KemeticGold.base,
+                            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                            minimumSize: const Size(0, 38),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 10,
+                              vertical: 8,
+                            ),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                          ),
+                          child: Text(
+                            delivery.hasCta ? 'Open guidance' : 'Read guidance',
+                            style: const TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w700,
+                              letterSpacing: 0,
+                            ),
+                          ),
                         ),
                       ),
                     ],

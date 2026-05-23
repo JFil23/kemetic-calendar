@@ -1085,170 +1085,241 @@ It was borne, maintained, corrected, and made worthy through continued effort.
 }
 
 Map<String, KemeticDayInfo> _buildHathorIEntries() {
-  const month = 'Hathor (Tepy-a Kenmet)';
+  const month =
+      'Hathor (Ḥwt-Ḥr) — “Joy That Sustains the World,” where beauty, nourishment, and right feeling restore the strength required to continue living in Maʿat';
   return _buildGeneratedDecanEntries(
     keyPrefix: 'hathor',
     decan: 1,
     decanLabel: 'Hathor I',
     monthLabelForDate: 'Hathor',
     month: month,
+    season: '🌿 Peret – Season of Emergence',
     flowRows: _hathorIFlowRows,
     entries: [
       (
         totalDay: 1,
         starCluster:
-            '✨ The first low guide-light after strain — the world becoming walkable again',
-        maatPrinciple: 'Step Back Onto the Earth',
+            '✨ sꜣḥ — the enduring form; stability revealed after disruption, the moment what survived becomes visible and trustworthy again',
+        maatPrinciple: 'Feel the Ground Hold',
         cosmicContext: '''
-The first Hathor decan is return.
-Not to performance. Not to pressure.
-To body, home, and worth.
-This is the moment after flood-strain when you feel ground under yourself again and admit what you survived.
-Before beauty, before joy, before offering — first you land.
+The waters have withdrawn enough for the ground to answer your weight again.
+That is the opening feeling of sꜣḥ.
+In Kemet, stability was never assumed emotionally first — it was tested physically. Could the roads be walked? Did the banks hold? Did the work continue without collapse? Could the people move through the day without bracing for failure at every turn?
+Only then did the heart begin to soften.
+So Day 1 is not celebration yet. It is recognition.
+You look at what remained standing after pressure passed through. Your routines. Your body. Your work. Your relationships. Your will to continue.
+What matters now is not perfection.
+What matters is endurance made visible.
+This is why sꜣḥ is linked with Asar: not untouched life, but restored life. Proven life. Life that survived fragmentation and still holds form.
+Today asks you to stop relating to yourself like everything is still collapsing.
 ''',
-        glyph: 'ḥwt-ḥr (𓉗𓅃) — the House of Horus, sheltering light',
-        colorFrequency: 'Warm gold over fertile black earth',
-        mantra: '"My survival is holy."',
+        glyph: 'The restored pillar standing upright after floodwaters recede',
+        colorFrequency: 'River-dark blue, fertile green, and soft gold',
+        mantra: '"What endured through change can now be trusted."',
       ),
       (
         totalDay: 2,
         starCluster:
-            '✨ Low eastern guide-light used with water clocks to measure night hours — proof the dark is being timed, not feared',
-        maatPrinciple: 'Re-center the Body',
+            '✨ sꜣḥ — the restored form moving forward again; the star of continuity returning to visible motion after disruption',
+        maatPrinciple: 'Return to the Path',
         cosmicContext: '''
-Hathor is tenderness made structural.
-Day 2 is somatic return: breath, spine, hydration, sleep, stretch, warmth, touch.
-A body in tension cannot carry Ma’at with softness.
-You cannot pour beauty into the world if you are clenched and starving.
+Once the floodwaters withdrew, the Kemite watched carefully for one sign above all others: movement returning without fear.
+Roads reopened. Ferry paths resumed. Workers crossed the fields before sunrise again. The ordinary rhythms of life slowly proved themselves trustworthy. Stability was not declared emotionally first — it was observed through repetition.
+That is the feeling of sꜣḥ today.
+There is something in your life waiting for you to stop treating it like a temporary arrangement. A discipline. A responsibility. A rhythm. A relationship. A creative practice. Something that survived the season of uncertainty and is now asking to be walked again consistently instead of cautiously.
+Today is not dramatic.
+It is the quiet holiness of returning.
+Not forcing yourself forward. Not pretending nothing happened. Simply allowing continuity to resume because the ground has shown that it can hold your weight.
 ''',
-        glyph: '𓂝 inside ḥwt — the body protected',
-        colorFrequency: 'Milk white and warm gold',
-        mantra: '"My body is allowed to heal."',
+        glyph: 'Sandaled feet returning to a cleared road',
+        colorFrequency: 'Sunlit clay, river green, and calm blue',
+        mantra: '"I walk forward on what has proven stable."',
       ),
       (
         totalDay: 3,
         starCluster:
-            '✨ A leader star marking the first usable hour before sunrise — the moment you can start moving',
-        maatPrinciple: 'Clear and Sweep the Path',
+            '✨ sꜣḥ — the enduring form learning to soften after surviving pressure; stability entering the body instead of remaining only an idea',
+        maatPrinciple: 'Release the Brace',
         cosmicContext: '''
-After flood season, the land is muddy, cluttered, chaotic.
-Before you can plant, you harrow.
-Day 3 is not destruction. It is lane-clearing.
-You gently clean your path: space, inbox, calendar, promises.
-You make the way walkable again.
+The body remembers instability longer than the land does.
+Even after the Nile settled and the routes reopened, tension lingered in the people. Shoulders stayed tight. Sleep stayed shallow. Workers still scanned the banks for signs of collapse. Stability had returned physically, but the nervous system had not fully accepted it yet.
+That is the work of Day 3.
+There is a way survival teaches the body to remain half-defended at all times. The jaw never fully loosens. Rest feels irresponsible. Silence feels suspicious. Even good moments are approached cautiously, as if loss might punish you for relaxing.
+But sꜣḥ is the decan of proven endurance. Not imagined safety — tested stability.
+Today asks you to let one layer of unnecessary guarding leave the body.
+Not recklessly.
+Not all at once.
+Just enough for life to begin flowing through you again instead of merely surviving inside you.
 ''',
-        glyph: 'Sweeping arm 𓂣 clearing before ḥwt',
-        colorFrequency: 'Fresh earth brown and lotus green',
-        mantra: '"I make room for life to grow."',
+        glyph: 'Open hands resting on settled earth',
+        colorFrequency: 'River-blue, soft green, and warm gold',
+        mantra: '"I no longer live as though collapse is inevitable."',
       ),
       (
         totalDay: 4,
         starCluster:
-            '✨ Mirrors flashed in procession to reflect sunrise — throwing light back to the divine',
-        maatPrinciple: 'Invite Joy On Purpose',
+            '✨ sꜣḥ — the enduring form standing without collapse; stability becoming trustworthy enough to lean against',
+        maatPrinciple: 'Trust the Structure',
         cosmicContext: '''
-Pleasure here is not numbing.
-It is medicine, morale, spiritual glue.
-Choose sweetness deliberately: scent, music, softness, dance, taste, touch, art.
-Not binge. Not escape.
-Disciplined joy is part of restoration.
+Once the land proved stable, the Kemite stopped testing every step.
+This mattered more than modern people realize. After inundation, fear could easily remain in the body longer than danger remained in the world. A person could keep walking as though collapse was still beneath them even when the roads had already hardened.
+sꜣḥ marks the moment where continuity proves itself through repetition.
+The fields continue holding.
+The routes continue functioning.
+The structures continue standing.
+So Day 4 asks something difficult:
+Can you stop hovering over what has already proven reliable?
+Not abandon it.
+Not neglect it.
+Trust it.
+There is a kind of anxiety that constantly rechecks, reopens, re-worries, and re-braces because it believes vigilance alone is keeping everything alive.
+But in Kemet, order was not sustained through panic. It was sustained through maintained structure.
+Today is about standing on what you already built instead of acting like stability is still temporary.
 ''',
-        glyph: 'Mirror / sistrum energy — joy as sacred instrument',
-        colorFrequency: 'Rose-gold and lotus blue',
-        mantra: '"My joy is disciplined, not reckless."',
+        glyph: 'Standing pillar rooted firmly in dry earth',
+        colorFrequency: 'River-dark blue, fertile green, and stable gold',
+        mantra: '"I stand on what has already proven itself."',
       ),
       (
         totalDay: 5,
-        starCluster: '✨ The guide-star phase when homes became temple again',
-        maatPrinciple: 'Restore the House/Sanctuary',
+        starCluster:
+            '✨ sꜣḥ — stability becoming visible enough for beauty to return without fear of immediate loss',
+        maatPrinciple: 'Re-enter Beauty',
         cosmicContext: '''
-You put your physical world back in Ma’at.
-Sheets. Floors. Altar. Workspace. Kitchen.
-The Kemite world did not split holy and home.
-The courtyard, bed, shrine, and cooking space formed one ecosystem.
-Today is temple repair through daily order.
+Beauty returns after stability proves itself.
+This is one of Hathor’s deepest teachings.
+In Kemet, joy was not treated as an escape from reality. It was a sign that reality had regained enough balance to support delight again. Music returned to the village because the fields were holding. Mirrors flashed in procession because the people were no longer bracing against collapse. Fragrance, color, song, and adornment were not distractions from Maʿat — they were evidence that Maʿat was alive and functioning.
+That is the threshold Day 5 crosses.
+Until now, this decan has been asking:
+Does the ground hold?
+Can the path be walked?
+Can the body soften?
+Today asks something different:
+Can beauty enter your life again without you distrusting it?
+Not excess.
+Not indulgence.
+Not performance.
+Just the lawful return of softness to a system that no longer needs to survive every second.
+Open the windows.
+Play the music again.
+Let light touch the room like it belongs there.
 ''',
-        glyph: '𓉐 under Hathor’s name — the house as shrine',
-        colorFrequency: 'Fresh linen white and sunlit gold',
-        mantra: '"My space is holy again."',
+        glyph: 'Polished mirror reflecting sunlight across calm water',
+        colorFrequency: 'Lotus blue, warm gold, and soft green',
+        mantra: '"Beauty returns where order can sustain it."',
       ),
       (
         totalDay: 6,
-        starCluster: '✨ Hathor as companion, comforter, friend',
-        maatPrinciple: 'Warm the Bonds',
+        starCluster:
+            '✨ sꜣḥ — enduring form proven stable enough to work without fear-driven urgency',
+        maatPrinciple: 'Work Without Strain',
         cosmicContext: '''
-This is relational repair.
-In strain mode, people go cold, distant, sharp.
-Today is not fixing, lecturing, or managing.
-It is simply returning to someone’s space with warmth.
-Connection itself becomes medicine.
+The Kemite did not glorify exhaustion.
+There were seasons of intense labor, yes — flood management, transport, harvest, construction. But once order stabilized, the goal was not permanent strain. The goal was sustainable continuity.
+That distinction matters here.
+By the time of sꜣḥ, the land is no longer fighting to survive inundation. The routes hold. The structures stand. Work continues — but differently now. Not frantic. Not desperate. Rhythmic.
+Day 6 is about removing unnecessary heaviness from your labor.
+Not laziness.
+Not avoidance.
+Not abandoning responsibility.
+Just the refusal to treat suffering itself as proof of seriousness.
+Many people continue carrying crisis-energy long after the crisis has ended. They rush tasks that do not require rushing. They tense the body against work that no longer threatens them. They make every obligation emotionally heavier than it actually is because strain has become familiar.
+But Hathor teaches that joy and steadiness are part of Maʿat too.
+Today asks you to work like someone whose foundations hold.
 ''',
-        glyph: 'Two arms embracing around a heart/offering',
-        colorFrequency: 'Soft rose and skin-warm gold',
-        mantra: '"My presence is comfort."',
+        glyph: 'Worker carrying grain calmly beneath the morning sun',
+        colorFrequency: 'Soft gold, fertile green, and cooled earth-brown',
+        mantra: '"I continue the work without carrying unnecessary weight."',
       ),
       (
         totalDay: 7,
         starCluster:
-            '✨ Servants of Hathor producing beauty, not merely praising it',
-        maatPrinciple: 'Offer Beauty as Service',
+            '✨ sꜣḥ — enduring form recognized openly; what survived long enough to become visible again in full light',
+        maatPrinciple: 'Recognize What Returned',
         cosmicContext: '''
-Cook. Dress with care. Write healing words. Light the room. Make music. Speak blessing.
-This is not performance.
-It is devotion.
-In Hathor’s month, beauty itself is temple service.
-Your softness can become someone else’s survival point.
+There comes a moment after hardship when you suddenly realize something did not disappear.
+Not because it announced itself loudly.
+Not because it returned dramatically.
+But because enough time has passed for you to see it standing there again.
+In Kemet, this recognition mattered deeply after inundation. When the waters withdrew fully, people looked for signs of continuity everywhere: landmarks still visible, paths still true, fertile soil still holding, relationships still intact, routines still functioning. Stability was not assumed emotionally. It was confirmed through visible endurance.
+That is the feeling of sꜣḥ today.
+Something in your life has quietly returned to form:
+* trust in your own judgment
+* steadiness in the body
+* desire to create
+* the ability to rest
+* a relationship that held
+* a structure that survived pressure
+* a part of yourself you thought was gone
+Day 7 is about seeing it clearly enough to stop speaking about yourself like you are still ruined.
+Asar stands again in sꜣḥ not because fragmentation never happened, but because what mattered endured through it.
+Today is recognition without disbelief.
 ''',
-        glyph: 'Offering arms 𓊤 lifting a lotus 𓆸',
-        colorFrequency: 'Lotus blue and honey gold',
-        mantra: '"My beauty blesses, it doesn’t just impress."',
+        glyph: 'Restored djed pillar standing in open sunlight',
+        colorFrequency: 'River-blue, fertile black, and sunrise gold',
+        mantra: '"What truly belongs to me endured."',
       ),
       (
         totalDay: 8,
-        starCluster: '✨ The calm hour before dawn when work crews gathered',
-        maatPrinciple: 'Align Work With Grace',
+        starCluster:
+            '✨ sꜣḥ — enduring form extending beyond the self; stability becoming something others can feel and rely upon',
+        maatPrinciple: 'Share the Stability',
         cosmicContext: '''
-Routine returns here — but not the old grind.
-The question is not whether duties resume.
-The question is how to resume without burning the vessel.
-This is structure without self-erasure.
-Rhythm instead of panic.
+In Kemet, stability was never considered private property.
+A field that held fed more than one household. A calm canal served more than one farmer. A well-maintained road benefited every traveler who crossed it afterward. Order mattered because it extended outward.
+That is the shift Day 8 makes.
+Until now, this decan has focused on recognizing your own restored ground: the return of continuity, softness, rhythm, trust. But once stability becomes real, it naturally begins affecting the people around you.
+The calm person changes the room.
+The reliable person reduces fear in others.
+The emotionally steady person becomes a place where tension can stop reproducing itself.
+This is not about rescuing everyone.
+It is about understanding that your stability has consequence.
+Hathor enters here as reassurance. Not loud joy. Not performance. Just the quiet warmth of someone whose presence tells others: “The ground is holding. You can unclench a little too.”
+Today asks you to become evidence of continuity for someone else.
 ''',
-        glyph: 'Working arm 𓂡 paired with Hathor’s standard 𓉗𓅃',
-        colorFrequency: 'Gold on calm earth brown',
-        mantra: '"My work serves Ma’at, not my destruction."',
+        glyph: 'Two figures seated calmly beneath the same sheltering canopy',
+        colorFrequency: 'Soft green, warm gold, and evening blue',
+        mantra: '"My steadiness helps the world steady itself."',
       ),
       (
         totalDay: 9,
         starCluster:
-            '✨ The face that returns — the self revealed again after hardship',
-        maatPrinciple: 'Stand in Worth',
+            '✨ sꜣḥ — enduring form opening carefully into delight; stability trusted enough for joy to return without threatening the system',
+        maatPrinciple: 'Let Joy Enter Carefully',
         cosmicContext: '''
-Survival mode shrinks people.
-It makes them grim, practical, hidden.
-Day 9 heals image.
-Posture, voice, gaze, grooming, presentation — not vanity, but alignment.
-Radiance is proof that life is still flowing.
+Joy returns slowly in Kemet.
+Not because joy is dangerous — but because the Kemite understood that anything powerful can become disorder when it loses proportion. Food can become excess. Celebration can become waste. Pleasure can become forgetfulness.
+That is why Hathor’s joy is never chaos.
+It is measured. Sustaining. Restorative.
+By the time of sꜣḥ, the people have already seen that the fields hold. The work continues. The roads remain open. Stability has proven itself enough that the body can begin receiving beauty without immediately fearing loss.
+This is where laughter returns to the table. Music returns to the courtyard. Sweetness returns to the mouth.
+Not as escape from reality — but as proof that reality has regained balance.
+Today asks whether you know how to receive relief without distrusting it. Many people know how to survive suffering better than they know how to survive peace. They tense against happiness as if collapse must follow it.
+But Hathor teaches that properly held joy strengthens Maʿat.
+You do not need to apologize for softness returning to your life.
 ''',
-        glyph: 'Hathor’s face in mirror, reflecting light back without apology',
-        colorFrequency: 'Polished gold and deep indigo',
-        mantra: '"My presence is allowed to shine."',
+        glyph: 'Lotus blossom opening above calm water',
+        colorFrequency: 'Lotus blue, honey gold, and evening rose',
+        mantra: '"Joy returns where stability is trusted."',
       ),
       (
         totalDay: 10,
         starCluster:
-            '✨ The first 10-day pulse closes: safety, beauty, bond, dignity',
-        maatPrinciple: 'Give Thanks for Safe Return',
+            '✨ sꜣḥ — continuity confirmed; the enduring form remaining visible through change and trusted at the close of the decan',
+        maatPrinciple: 'Confirm Continuity',
         cosmicContext: '''
-Day 10 is offering and gratitude.
-Name and thank what carried you: body, ancestors, people, tools, discipline, Source.
-Hathor teaches that joy is not naive.
-Joy is earned survival, honored.
-You do not rush past the return. You mark it.
+The final day of sꜣḥ does not ask for drama.
+It asks for confirmation.
+By now the ground has held, the path has been walked, the body has softened, work has continued, beauty has returned, and joy has entered carefully.
+In Kemet, continuity was not proven by one hopeful moment. It was proven through repeated days of holding: roads staying usable, fields staying firm, structures remaining upright, people returning to rhythm without collapse.
+So Day 10 closes the decan by asking you to mark what remained standing through change.
+Not everything survived in its old form.
+But something did hold.
+Name it clearly enough to trust it.
 ''',
-        glyph: '𓊤 + lotus 𓆸 + ḥwt-ḥr sign',
-        colorFrequency: 'Honey gold, lotus blue, fertile black earth',
-        mantra: '"I honor what kept me alive."',
+        glyph: 'Restored pillar marked at the edge of calm water',
+        colorFrequency: 'River-dark blue, fertile green, and stable gold',
+        mantra: '"What remained standing can now be trusted."',
       ),
     ],
   );

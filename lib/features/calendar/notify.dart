@@ -525,7 +525,9 @@ class Notify {
     await _plugin.initialize(initSettings);
     _log('initialize() complete');
 
-    // 4) Android 13+ notifications runtime permission
+    // 4) Android permissions status only. Startup initialization must not open
+    // runtime permission dialogs or the Android exact-alarm settings screen,
+    // because those activities sit above Flutter and intercept every tap.
     final androidSpecific = _plugin
         .resolvePlatformSpecificImplementation<
           AndroidFlutterLocalNotificationsPlugin
@@ -540,20 +542,22 @@ class Notify {
       ),
     );
 
-    final notifGranted = await androidSpecific
-        ?.requestNotificationsPermission();
-    _log('requestNotificationsPermission() => $notifGranted');
+    final notificationsEnabled = await androidSpecific
+        ?.areNotificationsEnabled();
+    _log('areNotificationsEnabled() => $notificationsEnabled');
 
-    // 5) Android 12+ exact alarms permission (best effort)
+    // 5) Android 12+ exact alarms status. If unavailable, scheduling will use
+    // AndroidScheduleMode.inexactAllowWhileIdle instead of launching Settings.
     try {
       final exactGranted = await androidSpecific
-          ?.requestExactAlarmsPermission();
+          ?.canScheduleExactNotifications();
       if (exactGranted != null) {
         _canScheduleExactAlarms = exactGranted;
       }
-      _log('requestExactAlarmsPermission() => $exactGranted');
+      _log('canScheduleExactNotifications() => $exactGranted');
     } catch (e) {
-      _log('requestExactAlarmsPermission() threw: $e (safe to ignore)');
+      _canScheduleExactAlarms = false;
+      _log('canScheduleExactNotifications() threw: $e (safe to ignore)');
     }
 
     _inited = true;

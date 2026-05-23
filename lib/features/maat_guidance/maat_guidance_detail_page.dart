@@ -8,6 +8,7 @@ import '../../data/maat_guidance_repo.dart';
 import '../../services/ai_flow_generation_service.dart';
 import '../../shared/glossy_text.dart';
 import '../calendar/calendar_page.dart';
+import '../nodes/kemetic_node_library.dart';
 import 'maat_guidance_controller.dart';
 
 class MaatGuidanceDetailPage extends StatefulWidget {
@@ -242,6 +243,10 @@ class _MaatGuidanceDetailPageState extends State<MaatGuidanceDetailPage> {
             style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
           ),
           const SizedBox(height: 16),
+          if (delivery.kind == MaatGuidanceKind.decanOpening) ...[
+            _buildOpeningContext(delivery),
+            const SizedBox(height: 18),
+          ],
           SelectableText(
             delivery.bodyText,
             style: const TextStyle(
@@ -314,6 +319,44 @@ class _MaatGuidanceDetailPageState extends State<MaatGuidanceDetailPage> {
     );
   }
 
+  Widget _buildOpeningContext(MaatGuidanceDelivery delivery) {
+    final todayLine = _openingTodayLine(delivery);
+    final axisLabel = _axisLabel(_trimmed(delivery.payload['lead_axis']));
+    final moveLabel = _moveLabel(_trimmed(delivery.payload['reflection_move']));
+    final nodeRef =
+        _trimmed(delivery.payload['node_ref']) ??
+        (delivery.ctaType == MaatGuidanceCtaType.node ? delivery.ctaRef : null);
+    final node = nodeRef == null ? null : KemeticNodeLibrary.resolve(nodeRef);
+
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.045),
+        border: Border.all(color: KemeticGold.base.withValues(alpha: 0.26)),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(14),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            if (todayLine != null)
+              _OpeningContextRow(label: 'Today', value: todayLine),
+            _OpeningContextRow(
+              label: 'Journey signal',
+              value:
+                  'This opening is tracking ${axisLabel.toLowerCase()} in your current pattern. Move forward by choosing one step that can be seen, recorded, and repeated: ${moveLabel.toLowerCase()}.',
+            ),
+            if (node != null)
+              _OpeningContextRow(
+                label: 'Guiding node',
+                value: '${node.glyph} ${node.title}',
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget _buildFlowPreview(MaatGuidanceDelivery delivery) {
     final brief = _asStringKeyedMap(delivery.payload['flow_brief']);
     final preview = _asStringKeyedMap(brief?['preview']);
@@ -380,6 +423,43 @@ class _MaatGuidanceDetailPageState extends State<MaatGuidanceDetailPage> {
   }
 }
 
+class _OpeningContextRow extends StatelessWidget {
+  const _OpeningContextRow({required this.label, required this.value});
+
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          KemeticGold.text(
+            label,
+            style: const TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w700,
+              letterSpacing: 0,
+            ),
+          ),
+          const SizedBox(height: 5),
+          Text(
+            value,
+            style: TextStyle(
+              color: Colors.white.withValues(alpha: 0.82),
+              fontSize: 13,
+              height: 1.38,
+              letterSpacing: 0,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 Map<String, dynamic>? _asStringKeyedMap(Object? raw) {
   if (raw is Map<String, dynamic>) return raw;
   if (raw is Map) return Map<String, dynamic>.from(raw);
@@ -404,4 +484,52 @@ List<String> _asStringList(Object? raw) {
       .whereType<String>()
       .where((item) => item.isNotEmpty)
       .toList(growable: false);
+}
+
+String? _openingTodayLine(MaatGuidanceDelivery delivery) {
+  for (final paragraph in delivery.bodyText.split(RegExp(r'\n\s*\n'))) {
+    final text = paragraph.trim();
+    if (text.startsWith('Today centers')) return text;
+  }
+
+  final index = delivery.teaserText.indexOf('Today centers');
+  if (index < 0) return null;
+  return delivery.teaserText.substring(index).trim();
+}
+
+String _axisLabel(String? axis) {
+  switch (axis) {
+    case 'T':
+      return 'Truth';
+    case 'M':
+      return 'Measure';
+    case 'H':
+      return 'Life-preserving rhythm';
+    case 'V':
+      return 'Care';
+    case 'J':
+      return 'Due measure';
+    case 'S':
+      return 'Provision';
+    case 'E':
+      return 'Seasonal flow';
+    case 'R':
+      return 'Restraint';
+    case 'C':
+      return 'Cohesion';
+    default:
+      return 'Ma\'at';
+  }
+}
+
+String _moveLabel(String? move) {
+  switch (move) {
+    case 'affirm':
+      return 'preserve the rhythm that is already holding';
+    case 'correct':
+      return 'repair the smallest broken promise first';
+    case 'inquire':
+    default:
+      return 'make one concrete record before deciding';
+  }
 }

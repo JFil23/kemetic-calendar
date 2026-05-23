@@ -26,6 +26,7 @@ import 'data/profile_model.dart';
 import 'data/profile_repo.dart';
 import 'data/flow_post_model.dart';
 import 'data/insight_post_model.dart';
+import 'data/maat_guidance_model.dart';
 import 'data/maat_guidance_repo.dart';
 import 'data/profile_avatar_glyphs.dart';
 import 'data/share_models.dart';
@@ -42,6 +43,7 @@ import 'core/planner_launch_intent.dart';
 import 'core/push_intent_bus.dart';
 import 'core/shared_file_intent.dart';
 import 'core/theme/app_theme.dart';
+import 'features/auth/login_screen.dart';
 import 'services/calendar_sync_service.dart';
 import 'services/push_notifications.dart';
 import 'services/decan_reflection_scheduler.dart';
@@ -140,6 +142,8 @@ final ValueNotifier<bool> _webAuthExchangeInProgress = ValueNotifier<bool>(
 );
 bool _deferSessionResumeForPushNavigation = false;
 String? _bootRestoredLocation;
+String? _lastHandledAuthCallbackSignature;
+DateTime? _lastHandledAuthCallbackAt;
 
 void _configureLogging() {
   if (kReleaseMode || kProfileMode) {
@@ -360,6 +364,61 @@ Future<void> _waitForWebAuthExchangeToSettle() async {
   }
 }
 
+bool _shouldSkipDuplicateAuthCallback(Uri uri) {
+  final signature = uri.toString();
+  final now = DateTime.now();
+  final isRecentDuplicate =
+      _lastHandledAuthCallbackSignature == signature &&
+      _lastHandledAuthCallbackAt != null &&
+      now.difference(_lastHandledAuthCallbackAt!) < const Duration(seconds: 5);
+  if (isRecentDuplicate) {
+    return true;
+  }
+  _lastHandledAuthCallbackSignature = signature;
+  _lastHandledAuthCallbackAt = now;
+  return false;
+}
+
+Future<bool> _exchangeAuthCallbackUri(Uri uri) async {
+  if (_shouldSkipDuplicateAuthCallback(uri)) return false;
+  try {
+    await supabase.auth.exchangeCodeForSession(uri.toString());
+    await supabase.auth.refreshSession();
+    Events.debugAuthBanner('deeplink');
+    return true;
+  } catch (error) {
+    if (kDebugMode) {
+      debugPrint('[auth] exchangeCodeForSession failed: $error');
+    }
+    return false;
+  }
+}
+
+Future<void> _startGoogleSignIn(BuildContext context) async {
+  final redirect = kIsWeb
+      ? Uri.base.removeFragment().replace(queryParameters: const {}).toString()
+      : 'kemet.app://login-callback';
+  try {
+    if (kIsWeb) {
+      await supabase.auth.signInWithOAuth(
+        OAuthProvider.google,
+        redirectTo: redirect,
+      );
+    } else {
+      await supabase.auth.signInWithOAuth(
+        OAuthProvider.google,
+        redirectTo: redirect,
+        authScreenLaunchMode: LaunchMode.externalApplication,
+      );
+    }
+  } catch (error) {
+    if (!context.mounted) return;
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text('Sign-in failed: $error')));
+  }
+}
+
 void _installVisibilityRefresh() {
   if (!kIsWeb) return;
   // Implemented in utils/web_history_web.dart; no-op on non-web.
@@ -415,6 +474,7 @@ final RouteObserver<PageRoute> routeObserver = RouteObserver<PageRoute>();
 const Color _launchBackdrop = Color(0xFF171518);
 final ValueNotifier<int> _floatingMenuModalDepth = ValueNotifier<int>(0);
 final ValueNotifier<bool> _launchOverlayDismissed = ValueNotifier<bool>(false);
+final ValueNotifier<int> _maatGuidancePostEnsureRefresh = ValueNotifier<int>(0);
 final _FloatingMenuRouteObserver _floatingMenuRouteObserver =
     _FloatingMenuRouteObserver();
 const Duration _floatingMenuModalSettleDelay = Duration(milliseconds: 80);
@@ -957,39 +1017,221 @@ final _router = GoRouter(
 
 /* ───────────────────────── App Widgets ───────────────────────── */
 
-class MyApp extends StatelessWidget {
+class MyApp extends StatefulWidget {
   const MyApp({super.key});
+
   @override
-  Widget build(BuildContext context) {
+  State<MyApp> createState() => _MyAppState();
+}
+
+class _MyAppState extends State<MyApp> {
+  StreamSubscription<AuthState>? _authSub;
+  StreamSubscription<Uri>? _linkSub;
+  AppLinks? _appLinks;
+  bool _rebuildScheduled = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _authSub = supabase.auth.onAuthStateChange.listen(
+      (_) => _scheduleRebuild(),
+      onError: (Object error, StackTrace stackTrace) {
+        if (!kDebugMode) return;
+        debugPrint('[MyApp] auth state stream failed: $error');
+        debugPrint('$stackTrace');
+      },
+    );
+    _initAuthDeepLinks();
+  }
+
+  @override
+  void dispose() {
+    _authSub?.cancel();
+    _linkSub?.cancel();
+    super.dispose();
+  }
+
+  void _scheduleRebuild() {
+    if (!mounted || _rebuildScheduled) return;
+    _rebuildScheduled = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _rebuildScheduled = false;
+      if (!mounted) return;
+      setState(() {});
+    });
+    WidgetsBinding.instance.ensureVisualUpdate();
+  }
+
+  Future<void> _initAuthDeepLinks() async {
+    if (kIsWeb) return;
+    _appLinks = AppLinks();
+
+    try {
+      Uri? initialUri;
+      try {
+        initialUri = await (_appLinks as dynamic).getInitialAppLink();
+      } catch (_) {
+        try {
+          initialUri = await (_appLinks as dynamic).getInitialLink();
+        } catch (_) {
+          initialUri = null;
+        }
+      }
+      if (initialUri != null) {
+        await _handleRootAuthLink(initialUri);
+      }
+    } catch (error, stackTrace) {
+      _logRootAuthLinkError('initial app link setup', error, stackTrace);
+    }
+
+    _linkSub = _appLinks!.uriLinkStream.listen(
+      (uri) {
+        unawaited(_handleRootAuthLink(uri));
+      },
+      onError: (Object error, StackTrace stackTrace) {
+        _logRootAuthLinkError('app link stream', error, stackTrace);
+      },
+    );
+  }
+
+  Future<void> _handleRootAuthLink(Uri uri) async {
+    final intent = AppLinkIntent.parse(uri);
+    if (intent is! AuthAppLinkIntent) return;
+    final exchanged = await _exchangeAuthCallbackUri(intent.uri);
+    if (exchanged) _scheduleRebuild();
+  }
+
+  void _logRootAuthLinkError(
+    String scope,
+    Object error,
+    StackTrace stackTrace,
+  ) {
+    if (!kDebugMode) return;
+    debugPrint('[MyApp] $scope failed: $error');
+    debugPrint('$stackTrace');
+  }
+
+  MediaQuery _scaledMediaQuery({
+    required BuildContext context,
+    required Widget child,
+  }) {
+    final mq = MediaQuery.of(context);
+    final isTablet = mq.size.shortestSide >= 600;
+    final baseTextScaleFactor = mq.textScaler.scale(16) / 16;
+    final textScaler = isTablet
+        ? TextScaler.linear(baseTextScaleFactor * 1.5)
+        : mq.textScaler;
+    return MediaQuery(
+      data: mq.copyWith(textScaler: textScaler),
+      child: child,
+    );
+  }
+
+  Widget _buildLoginApp() {
+    return MaterialApp(
+      debugShowCheckedModeBanner: false,
+      theme: AppTheme.dark,
+      builder: (context, child) {
+        return _scaledMediaQuery(
+          context: context,
+          child: child ?? const SizedBox.shrink(),
+        );
+      },
+      home: Builder(
+        builder: (context) =>
+            LoginScreen(onGoogleSignIn: () => _startGoogleSignIn(context)),
+      ),
+    );
+  }
+
+  Widget _buildAuthedApp() {
     return MaterialApp.router(
       debugShowCheckedModeBanner: false,
       restorationScopeId: AppWindowService.instance.restorationScopeId,
       theme: AppTheme.dark,
       routerConfig: _router,
       builder: (context, child) {
-        final mq = MediaQuery.of(context);
-        final isTablet = mq.size.shortestSide >= 600;
-        final baseTextScaleFactor = mq.textScaler.scale(16) / 16;
-        // Keep the existing tablet text boost while avoiding deprecated APIs.
-        final textScaler = isTablet
-            ? TextScaler.linear(baseTextScaleFactor * 1.5)
-            : mq.textScaler;
-        return MediaQuery(
-          data: mq.copyWith(textScaler: textScaler),
+        return _scaledMediaQuery(
+          context: context,
           child: SessionLifecycleBridge(
             child: PushIntentBridge(
-              child: _LaunchShell(
-                child: _GlobalFloatingMenuShell(
-                  router: _router,
-                  child: KemeticKeyboardHost(
-                    child: child ?? const SizedBox.shrink(),
-                  ),
-                ),
+              child: _AppChrome(
+                router: _router,
+                child: child ?? const SizedBox.shrink(),
               ),
             ),
           ),
         );
       },
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final signedIn = supabase.auth.currentSession != null;
+    return signedIn ? _buildAuthedApp() : _buildLoginApp();
+  }
+}
+
+class _AppChrome extends StatefulWidget {
+  const _AppChrome({required this.router, required this.child});
+
+  final GoRouter router;
+  final Widget child;
+
+  @override
+  State<_AppChrome> createState() => _AppChromeState();
+}
+
+class _AppChromeState extends State<_AppChrome> {
+  StreamSubscription<AuthState>? _authSub;
+  bool _rebuildScheduled = false;
+
+  @override
+  void initState() {
+    super.initState();
+    widget.router.routerDelegate.addListener(_handleRouteOrAuthChanged);
+    _authSub = supabase.auth.onAuthStateChange.listen((_) {
+      _handleRouteOrAuthChanged();
+    });
+  }
+
+  @override
+  void didUpdateWidget(covariant _AppChrome oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.router == widget.router) return;
+    oldWidget.router.routerDelegate.removeListener(_handleRouteOrAuthChanged);
+    widget.router.routerDelegate.addListener(_handleRouteOrAuthChanged);
+  }
+
+  @override
+  void dispose() {
+    widget.router.routerDelegate.removeListener(_handleRouteOrAuthChanged);
+    unawaited(_authSub?.cancel());
+    super.dispose();
+  }
+
+  void _handleRouteOrAuthChanged() {
+    if (!mounted || _rebuildScheduled) return;
+    _rebuildScheduled = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _rebuildScheduled = false;
+      if (!mounted) return;
+      setState(() {});
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (supabase.auth.currentSession == null) {
+      return widget.child;
+    }
+
+    return _LaunchShell(
+      child: _GlobalFloatingMenuShell(
+        router: widget.router,
+        child: KemeticKeyboardHost(child: widget.child),
+      ),
     );
   }
 }
@@ -1025,9 +1267,13 @@ class _GlobalFloatingMenuShellState extends State<_GlobalFloatingMenuShell>
     widget.router.routeInformationProvider.addListener(_handleRouteChanged);
     _floatingMenuModalDepth.addListener(_handleMenuVisibilityChanged);
     _launchOverlayDismissed.addListener(_handleMenuVisibilityChanged);
+    _maatGuidancePostEnsureRefresh.addListener(
+      _handleMaatGuidancePostEnsureRefresh,
+    );
     _maatGuidanceController.addListener(_scheduleRebuild);
     _authSub = supabase.auth.onAuthStateChange.listen((_) {
       if (supabase.auth.currentSession == null) {
+        _resetFloatingMenuState();
         _maatGuidanceController.clearForSignedOut();
       } else {
         unawaited(_maatGuidanceController.refresh(force: true));
@@ -1063,6 +1309,9 @@ class _GlobalFloatingMenuShellState extends State<_GlobalFloatingMenuShell>
     widget.router.routeInformationProvider.removeListener(_handleRouteChanged);
     _floatingMenuModalDepth.removeListener(_handleMenuVisibilityChanged);
     _launchOverlayDismissed.removeListener(_handleMenuVisibilityChanged);
+    _maatGuidancePostEnsureRefresh.removeListener(
+      _handleMaatGuidancePostEnsureRefresh,
+    );
     _maatGuidanceController.removeListener(_scheduleRebuild);
     _maatGuidanceController.dispose();
     unawaited(_authSub?.cancel());
@@ -1079,6 +1328,11 @@ class _GlobalFloatingMenuShellState extends State<_GlobalFloatingMenuShell>
     unawaited(_maatGuidanceController.evaluateAndRefresh());
   }
 
+  void _handleMaatGuidancePostEnsureRefresh() {
+    if (supabase.auth.currentSession == null) return;
+    unawaited(_maatGuidanceController.refresh(force: true));
+  }
+
   Uri _readRouterUri() {
     final delegateUri = widget.router.routerDelegate.currentConfiguration.uri;
     if (delegateUri.path.isNotEmpty) return delegateUri;
@@ -1089,20 +1343,22 @@ class _GlobalFloatingMenuShellState extends State<_GlobalFloatingMenuShell>
     final nextUri = _readRouterUri();
     if (nextUri == _currentUri) return;
     _currentUri = nextUri;
-    if (_menuMounted) {
-      _menuMounted = false;
-      _menuOpen = false;
-    }
+    _resetFloatingMenuState();
     unawaited(_maatGuidanceController.refresh());
     _scheduleRebuild();
   }
 
   void _handleMenuVisibilityChanged() {
-    if (_floatingMenuModalDepth.value > 0 && _menuMounted) {
-      _menuMounted = false;
-      _menuOpen = false;
+    if ((!_shouldActivateFloatingMenu || _floatingMenuModalDepth.value > 0) &&
+        _menuMounted) {
+      _resetFloatingMenuState();
     }
     _scheduleRebuild();
+  }
+
+  void _resetFloatingMenuState() {
+    _menuMounted = false;
+    _menuOpen = false;
   }
 
   void _scheduleRebuild() {
@@ -1178,6 +1434,10 @@ class _GlobalFloatingMenuShellState extends State<_GlobalFloatingMenuShell>
     _router.go(location);
   }
 
+  void _openMaatGuidance(MaatGuidanceDelivery delivery) {
+    _router.go('/maat-guidance/${Uri.encodeComponent(delivery.id)}');
+  }
+
   Future<bool> _handleBackButton() async {
     if (!_menuMounted || !_menuOpen) return false;
     await _closeFloatingMenu();
@@ -1211,18 +1471,25 @@ class _GlobalFloatingMenuShellState extends State<_GlobalFloatingMenuShell>
     final suppressGuidance = _shouldSuppressMaatGuidance(context);
     final isLandscape =
         MediaQuery.orientationOf(context) == Orientation.landscape;
+    final bottomMenuHeight = globalBottomMenuHeight(context);
     _syncMaatGuidanceSuppression(suppressGuidance);
 
     Widget buildAnimatedFloatingPanel() {
-      return AnimatedSlide(
-        offset: _menuOpen ? Offset.zero : const Offset(0, 1),
-        duration: _globalBottomMenuBarTransitionDuration,
-        curve: _globalBottomMenuBarTransitionCurve,
-        child: AnimatedOpacity(
-          opacity: _menuOpen ? 1 : 0,
-          duration: _globalBottomMenuBarTransitionDuration,
-          curve: _globalBottomMenuBarTransitionCurve,
-          child: _buildFloatingActionsPanel(context),
+      return IgnorePointer(
+        ignoring: !_menuOpen,
+        child: ExcludeSemantics(
+          excluding: !_menuOpen,
+          child: AnimatedSlide(
+            offset: _menuOpen ? Offset.zero : const Offset(0, 1),
+            duration: _globalBottomMenuBarTransitionDuration,
+            curve: _globalBottomMenuBarTransitionCurve,
+            child: AnimatedOpacity(
+              opacity: _menuOpen ? 1 : 0,
+              duration: _globalBottomMenuBarTransitionDuration,
+              curve: _globalBottomMenuBarTransitionCurve,
+              child: _buildFloatingActionsPanel(context),
+            ),
+          ),
         ),
       );
     }
@@ -1242,16 +1509,19 @@ class _GlobalFloatingMenuShellState extends State<_GlobalFloatingMenuShell>
             ),
             if (isLandscape)
               Positioned.fill(
-                child: GestureDetector(
-                  behavior: HitTestBehavior.opaque,
-                  onTap: () => unawaited(_closeFloatingMenu()),
-                  child: Align(
-                    alignment: Alignment.bottomCenter,
-                    child: GestureDetector(
-                      behavior: HitTestBehavior.opaque,
-                      onTap: () {},
-                      onVerticalDragEnd: _handleMenuDragEnd,
-                      child: buildAnimatedFloatingPanel(),
+                child: IgnorePointer(
+                  ignoring: !_menuOpen,
+                  child: GestureDetector(
+                    behavior: HitTestBehavior.opaque,
+                    onTap: () => unawaited(_closeFloatingMenu()),
+                    child: Align(
+                      alignment: Alignment.bottomCenter,
+                      child: GestureDetector(
+                        behavior: HitTestBehavior.opaque,
+                        onTap: () {},
+                        onVerticalDragEnd: _handleMenuDragEnd,
+                        child: buildAnimatedFloatingPanel(),
+                      ),
                     ),
                   ),
                 ),
@@ -1273,6 +1543,7 @@ class _GlobalFloatingMenuShellState extends State<_GlobalFloatingMenuShell>
               left: 0,
               right: 0,
               bottom: 0,
+              height: bottomMenuHeight,
               child: _GlobalBottomMenuBar(
                 visible: shouldActivateFloatingMenu,
                 onPressed: _handleFloatingMenuPressed,
@@ -1280,6 +1551,7 @@ class _GlobalFloatingMenuShellState extends State<_GlobalFloatingMenuShell>
             ),
           MaatGuidanceOverlayHost(
             controller: _maatGuidanceController,
+            onOpen: _openMaatGuidance,
             visible:
                 _maatGuidanceController.hasVisibleDelivery && !suppressGuidance,
           ),
@@ -1297,14 +1569,20 @@ class _GlobalMenuBarrier extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return AnimatedOpacity(
-      opacity: visible ? 1 : 0,
-      duration: _globalBottomMenuBarTransitionDuration,
-      curve: _globalBottomMenuBarTransitionCurve,
-      child: GestureDetector(
-        behavior: HitTestBehavior.opaque,
-        onTap: () => unawaited(onDismiss()),
-        child: const ColoredBox(color: Color(0x73000000)),
+    return IgnorePointer(
+      ignoring: !visible,
+      child: ExcludeSemantics(
+        excluding: !visible,
+        child: AnimatedOpacity(
+          opacity: visible ? 1 : 0,
+          duration: _globalBottomMenuBarTransitionDuration,
+          curve: _globalBottomMenuBarTransitionCurve,
+          child: GestureDetector(
+            behavior: HitTestBehavior.opaque,
+            onTap: () => unawaited(onDismiss()),
+            child: const ColoredBox(color: Color(0x73000000)),
+          ),
+        ),
       ),
     );
   }
@@ -1321,40 +1599,46 @@ class _GlobalBottomMenuBar extends StatelessWidget {
     final bottomPadding = MediaQuery.paddingOf(context).bottom;
     final visualHeight = globalBottomMenuHeight(context);
 
-    return IgnorePointer(
-      ignoring: !visible,
-      child: ExcludeSemantics(
-        excluding: !visible,
-        child: AnimatedSlide(
-          offset: visible ? Offset.zero : const Offset(0, 1.08),
-          duration: _globalBottomMenuBarTransitionDuration,
-          curve: _globalBottomMenuBarTransitionCurve,
-          child: AnimatedOpacity(
-            opacity: visible ? 1 : 0,
+    return SizedBox(
+      height: visualHeight,
+      child: IgnorePointer(
+        ignoring: !visible,
+        child: ExcludeSemantics(
+          excluding: !visible,
+          child: AnimatedSlide(
+            offset: visible ? Offset.zero : const Offset(0, 1.08),
             duration: _globalBottomMenuBarTransitionDuration,
             curve: _globalBottomMenuBarTransitionCurve,
-            child: Semantics(
-              label: 'Menu',
-              button: true,
-              child: GestureDetector(
-                behavior: HitTestBehavior.opaque,
+            child: AnimatedOpacity(
+              opacity: visible ? 1 : 0,
+              duration: _globalBottomMenuBarTransitionDuration,
+              curve: _globalBottomMenuBarTransitionCurve,
+              child: Semantics(
+                container: true,
+                label: 'Menu',
+                button: true,
                 onTap: onPressed,
-                child: SizedBox(
-                  height: visualHeight,
-                  child: DecoratedBox(
-                    decoration: const BoxDecoration(
-                      color: Color(0xF6000000),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Color(0xB3000000),
-                          blurRadius: 18,
-                          offset: Offset(0, -8),
+                child: ExcludeSemantics(
+                  child: GestureDetector(
+                    behavior: HitTestBehavior.opaque,
+                    onTap: onPressed,
+                    child: SizedBox.expand(
+                      child: DecoratedBox(
+                        decoration: const BoxDecoration(
+                          color: Color(0xF6000000),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Color(0xB3000000),
+                              blurRadius: 18,
+                              offset: Offset(0, -8),
+                            ),
+                          ],
                         ),
-                      ],
-                    ),
-                    child: Padding(
-                      padding: EdgeInsets.only(bottom: bottomPadding),
-                      child: const Center(child: _FloatingMenuGlyph()),
+                        child: Padding(
+                          padding: EdgeInsets.only(bottom: bottomPadding),
+                          child: const Center(child: _FloatingMenuGlyph()),
+                        ),
+                      ),
                     ),
                   ),
                 ),
@@ -2005,6 +2289,12 @@ class _LaunchShellState extends State<_LaunchShell>
   @override
   void initState() {
     super.initState();
+    if (supabase.auth.currentSession == null) {
+      _dismissed = true;
+      _launchOverlayDismissed.value = true;
+      return;
+    }
+
     _launchOverlayDismissed.value = false;
     WidgetsBinding.instance.addPostFrameCallback((_) {
       unawaited(_restoreDetachedCalendarOverlayAfterBoot());
@@ -2013,6 +2303,7 @@ class _LaunchShellState extends State<_LaunchShell>
   }
 
   Future<void> _restoreDetachedCalendarOverlayAfterBoot() async {
+    if (supabase.auth.currentSession == null) return;
     for (var attempt = 0; attempt < 30; attempt++) {
       if (!mounted) return;
       final navContext = _rootNavigatorKey.currentContext;
@@ -2032,6 +2323,13 @@ class _LaunchShellState extends State<_LaunchShell>
   }
 
   Future<void> _dismissOverlay() async {
+    if (supabase.auth.currentSession == null) {
+      if (!mounted) return;
+      setState(() => _dismissed = true);
+      _launchOverlayDismissed.value = true;
+      return;
+    }
+
     await Future<void>.delayed(const Duration(milliseconds: 950));
     await _waitForWebAuthExchangeToSettle();
     await CalendarPage.waitForInitialCalendarRestorationToSettle();
@@ -2932,6 +3230,9 @@ class _AuthGateState extends State<AuthGate> with WidgetsBindingObserver {
   CalendarSyncService? _calendarSync;
   final DecanReflectionScheduler _decanScheduler = DecanReflectionScheduler(
     supabase,
+    onMaatGuidanceEnsured: () {
+      _maatGuidancePostEnsureRefresh.value += 1;
+    },
   );
   bool _scheduledDecans = false;
 
@@ -3080,6 +3381,7 @@ class _AuthGateState extends State<AuthGate> with WidgetsBindingObserver {
       _scheduledDecans = false;
       _sessionResumeChecked = false;
       await AppRestorationService.instance.clearBootFallbackIdentity();
+      _router.go('/');
       _calendarSync?.stop();
       fireAndForgetGuarded(
         'push unregister',
@@ -3275,12 +3577,8 @@ class _AuthGateState extends State<AuthGate> with WidgetsBindingObserver {
   }
 
   Future<void> _exchangeAuthCallback(Uri uri) async {
-    try {
-      await supabase.auth.exchangeCodeForSession(uri.toString());
-      await supabase.auth.refreshSession();
-      Events.debugAuthBanner('deeplink');
-      if (mounted) setState(() {});
-    } catch (_) {}
+    final exchanged = await _exchangeAuthCallbackUri(uri);
+    if (exchanged && mounted) setState(() {});
   }
 
   void _routeToSharedFlow(ShareAppLinkIntent intent) {
@@ -3599,31 +3897,7 @@ class _AuthGateState extends State<AuthGate> with WidgetsBindingObserver {
   }
 
   Future<void> _signInWithGoogle() async {
-    final redirect = kIsWeb
-        ? Uri.base
-              .removeFragment()
-              .replace(queryParameters: const {})
-              .toString()
-        : 'kemet.app://login-callback';
-    try {
-      if (kIsWeb) {
-        await supabase.auth.signInWithOAuth(
-          OAuthProvider.google,
-          redirectTo: redirect,
-        );
-      } else {
-        await supabase.auth.signInWithOAuth(
-          OAuthProvider.google,
-          redirectTo: redirect,
-          authScreenLaunchMode: LaunchMode.externalApplication,
-        );
-      }
-    } catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Sign-in failed: $e')));
-    }
+    await _startGoogleSignIn(context);
   }
 
   @override
@@ -3631,66 +3905,7 @@ class _AuthGateState extends State<AuthGate> with WidgetsBindingObserver {
     final session = supabase.auth.currentSession;
 
     if (session == null) {
-      return Scaffold(
-        backgroundColor: Colors.black,
-        body: Center(
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 420),
-            child: Padding(
-              padding: const EdgeInsets.all(24),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  KemeticGold.text(
-                    'Kemetic Calendar',
-                    style: const TextStyle(
-                      fontSize: 24,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  const Text(
-                    'Sign in to sync your flows and events.',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      color: Colors.white, // White text
-                      fontSize: 16,
-                    ),
-                  ),
-                  const SizedBox(height: 24),
-                  ElevatedButton.icon(
-                    onPressed: _signInWithGoogle,
-                    icon: const Icon(Icons.login, color: Colors.black),
-                    label: const Text(
-                      'Continue with Google',
-                      style: TextStyle(color: Colors.black),
-                    ),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: KemeticGold.base, // Gold button
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 32,
-                        vertical: 16,
-                      ),
-                    ),
-                  ),
-                  if (kDebugMode) ...[
-                    const SizedBox(height: 16),
-                    TextButton(
-                      onPressed: () async {
-                        await supabase.auth.signOut();
-                      },
-                      child: KemeticGold.text(
-                        'Sign out (debug)',
-                        style: const TextStyle(fontWeight: FontWeight.w600),
-                      ),
-                    ),
-                  ],
-                ],
-              ),
-            ),
-          ),
-        ),
-      );
+      return LoginScreen(onGoogleSignIn: _signInWithGoogle);
     }
 
     // Authenticated

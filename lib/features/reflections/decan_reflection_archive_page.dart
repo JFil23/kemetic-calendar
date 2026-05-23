@@ -7,6 +7,9 @@ import '../../shared/glossy_text.dart';
 
 import '../../data/decan_reflection_repo.dart';
 import '../../data/decan_reflection_model.dart';
+import '../../data/decan_reflection_prompt_state.dart';
+import '../../data/maat_guidance_model.dart';
+import '../../data/maat_guidance_repo.dart';
 
 class DecanReflectionArchivePage extends StatefulWidget {
   const DecanReflectionArchivePage({super.key});
@@ -19,7 +22,9 @@ class DecanReflectionArchivePage extends StatefulWidget {
 class _DecanReflectionArchivePageState
     extends State<DecanReflectionArchivePage> {
   final _repo = DecanReflectionRepo(Supabase.instance.client);
-  List<DecanReflection> _items = const [];
+  final _maatRepo = MaatGuidanceRepo(Supabase.instance.client);
+  final _promptState = DecanReflectionPromptState(Supabase.instance.client);
+  List<_ArchiveEntry> _items = const [];
   bool _loading = true;
   String? _errorMessage;
 
@@ -35,10 +40,25 @@ class _DecanReflectionArchivePageState
       _errorMessage = null;
     });
     final result = await _repo.listMineResult();
+    final openingResult = await _maatRepo.listDecanOpeningsForArchive();
+    final entries = <_ArchiveEntry>[
+      ...result.data.map(_ArchiveEntry.reflection),
+      ...openingResult.data.map(_ArchiveEntry.opening),
+    ]..sort((a, b) => b.sortDate.compareTo(a.sortDate));
+    final latestReflection = result.data.fold<DecanReflection?>(
+      null,
+      (latest, reflection) =>
+          latest == null || reflection.decanStart.isAfter(latest.decanStart)
+          ? reflection
+          : latest,
+    );
+    if (latestReflection != null) {
+      await _promptState.markInteracted(latestReflection.decanStart);
+    }
     if (!mounted) return;
     setState(() {
-      _items = result.data;
-      _errorMessage = result.errorMessage;
+      _items = entries;
+      _errorMessage = result.errorMessage ?? openingResult.errorMessage;
       _loading = false;
     });
   }
@@ -125,17 +145,10 @@ class _DecanReflectionArchivePageState
                   const Divider(color: Color(0xFF222222), height: 1),
               itemBuilder: (context, index) {
                 final item = _items[index];
-                final dateRange =
-                    '${item.decanStart.toLocal().toIso8601String().split("T").first} → ${item.decanEnd.toLocal().toIso8601String().split("T").first}';
-                final preview = item.reflectionText.length > 120
-                    ? '${item.reflectionText.substring(0, 120)}…'
-                    : item.reflectionText;
                 return ListTile(
-                  onTap: () => context.go(
-                    '/reflections/${Uri.encodeComponent(item.id)}',
-                  ),
+                  onTap: () => context.go(item.route),
                   title: Text(
-                    item.decanName,
+                    item.title,
                     style: const TextStyle(
                       color: Colors.white,
                       fontWeight: FontWeight.w600,
@@ -146,7 +159,7 @@ class _DecanReflectionArchivePageState
                     children: [
                       const SizedBox(height: 4),
                       Text(
-                        dateRange,
+                        item.dateRange,
                         style: const TextStyle(
                           color: Colors.white54,
                           fontSize: 12,
@@ -154,7 +167,7 @@ class _DecanReflectionArchivePageState
                       ),
                       const SizedBox(height: 4),
                       Text(
-                        preview,
+                        item.preview,
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
                         style: const TextStyle(
@@ -169,4 +182,83 @@ class _DecanReflectionArchivePageState
             ),
     );
   }
+}
+
+enum _ArchiveEntryType { reflection, opening }
+
+class _ArchiveEntry {
+  const _ArchiveEntry._({
+    required this.type,
+    required this.id,
+    required this.title,
+    required this.dateRange,
+    required this.preview,
+    required this.route,
+    required this.sortDate,
+  });
+
+  factory _ArchiveEntry.reflection(DecanReflection reflection) {
+    return _ArchiveEntry._(
+      type: _ArchiveEntryType.reflection,
+      id: reflection.id,
+      title: reflection.decanName,
+      dateRange:
+          '${_dateOnly(reflection.decanStart)} → ${_dateOnly(reflection.decanEnd)}',
+      preview: _clip(reflection.reflectionText),
+      route: '/reflections/${Uri.encodeComponent(reflection.id)}',
+      sortDate: reflection.decanStart,
+    );
+  }
+
+  factory _ArchiveEntry.opening(MaatGuidanceDelivery delivery) {
+    final dates = _periodDates(delivery.decanPeriodKey);
+    return _ArchiveEntry._(
+      type: _ArchiveEntryType.opening,
+      id: delivery.id,
+      title: 'Opening — ${_openingTitle(delivery)}',
+      dateRange: dates == null
+          ? 'Decan opening'
+          : '${_dateOnly(dates.start)} → ${_dateOnly(dates.end)}',
+      preview: _clip(delivery.teaserText),
+      route: '/maat-guidance/${Uri.encodeComponent(delivery.id)}',
+      sortDate: dates?.start ?? delivery.createdAt ?? DateTime.now(),
+    );
+  }
+
+  final _ArchiveEntryType type;
+  final String id;
+  final String title;
+  final String dateRange;
+  final String preview;
+  final String route;
+  final DateTime sortDate;
+}
+
+({DateTime start, DateTime end})? _periodDates(String periodKey) {
+  final parts = periodKey.split(':');
+  if (parts.length < 2) return null;
+  final start = DateTime.tryParse(parts[0]);
+  final end = DateTime.tryParse(parts[1]);
+  if (start == null || end == null) return null;
+  return (start: start, end: end);
+}
+
+String _openingTitle(MaatGuidanceDelivery delivery) {
+  final firstLine = delivery.bodyText
+      .split(RegExp(r'\n\s*\n'))
+      .map((line) => line.trim())
+      .firstWhere((line) => line.isNotEmpty, orElse: () => '');
+  const prefix = 'This decan opens through ';
+  if (firstLine.startsWith(prefix)) {
+    return firstLine.substring(prefix.length).replaceAll(RegExp(r'\.$'), '');
+  }
+  return 'Decan Opening';
+}
+
+String _dateOnly(DateTime date) =>
+    date.toLocal().toIso8601String().split('T').first;
+
+String _clip(String value) {
+  final text = value.trim();
+  return text.length > 120 ? '${text.substring(0, 120)}…' : text;
 }

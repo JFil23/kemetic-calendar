@@ -1825,72 +1825,70 @@ final List<DecanDayInfo> _paophiIIIFlowRows = [
 final List<DecanDayInfo> _hathorIFlowRows = _buildFlowRows([
   (
     day: 1,
-    theme: 'Step Back Onto the Earth',
+    theme: 'Feel the Ground Hold',
     action:
-        'Acknowledge: you survived the flood season. Name what you just carried.',
-    reflection: '"What did I make it through?"',
+        'Walk slowly through the structures of your life and identify what has actually stabilized.',
+    reflection: '"What in my life has proven it can endure?"',
   ),
   (
     day: 2,
-    theme: 'Re-center the Body',
+    theme: 'Return to the Path',
     action:
-        'Ground in the physical: breath, spine, feet, joints, hydration, warmth, sleep.',
-    reflection: '"Is my body safe and calm?"',
+        'Resume one rhythm or responsibility that disruption pushed out of place.',
+    reflection: '"What part of my life is ready to become regular again?"',
   ),
   (
     day: 3,
-    theme: 'Clear and Sweep the Path',
-    action:
-        'Light cleanse of your space / calendar / obligations. Remove stale obligations that no longer serve Ma\'at.',
-    reflection: '"What clutter pulls me out of balance?"',
+    theme: 'Release the Brace',
+    action: 'Relax one place in the body or mind that still expects collapse.',
+    reflection: '"Where am I still protecting myself from yesterday?"',
   ),
   (
     day: 4,
-    theme: 'Invite Joy On Purpose',
-    action:
-        'Bring in sweetness: music, scent, softness, beauty. Choose one delight intentionally, not as escape.',
-    reflection: '"What beauty actually restores me (not numbs me)?"',
+    theme: 'Trust the Structure',
+    action: 'Use what you built instead of hovering over it anxiously.',
+    reflection: '"Do I trust my foundations enough to stand on them?"',
   ),
   (
     day: 5,
-    theme: 'Restore the House/Sanctuary',
+    theme: 'Re-enter Beauty',
     action:
-        'Tend home, altar, workspace, bed, kitchen. Re-establish order that supports you.',
-    reflection: '"Does my daily space reflect the life I say I\'m living?"',
+        'Bring music, fragrance, sunlight, order, or softness back into the environment.',
+    reflection:
+        '"What makes my life feel inhabited again instead of merely survived?"',
   ),
   (
     day: 6,
-    theme: 'Warm the Bonds',
-    action: 'Reconnect gently with close people without agenda.',
-    reflection:
-        '"Who needs to feel me present, calm, and loving — not fixing, just present?"',
+    theme: 'Work Without Strain',
+    action: 'Continue labor steadily while removing unnecessary urgency.',
+    reflection: '"Where am I making the work heavier than it truly is?"',
   ),
   (
     day: 7,
-    theme: 'Offer Beauty as Service',
-    action: 'Make or share something beautiful as an offering, not a flex.',
-    reflection:
-        '"Can my presence make the space softer for someone else today?"',
+    theme: 'Recognize What Returned',
+    action:
+        'Name something you feared losing that has now come back into form.',
+    reflection: '"What has quietly returned to me?"',
   ),
   (
     day: 8,
-    theme: 'Align Work With Grace',
-    action: 'Bring your duties back online — but in rhythm, not panic.',
-    reflection: '"Can I work in a way that doesn\'t grind my spirit?"',
+    theme: 'Share the Stability',
+    action:
+        'Offer reassurance, steadiness, or support to someone still living in uncertainty.',
+    reflection: '"How can my stability become shelter for someone else?"',
   ),
   (
     day: 9,
-    theme: 'Stand in Worth',
-    action:
-        'Release shame stories from survival mode. Carry yourself with dignity.',
-    reflection: '"Do I move like I believe I deserve balanced joy?"',
+    theme: 'Let Joy Enter Carefully',
+    action: 'Allow relief and pleasure to return without guilt or excess.',
+    reflection: '"Can I receive joy without distrusting it?"',
   ),
   (
     day: 10,
-    theme: 'Give Thanks for Safe Return',
+    theme: 'Confirm Continuity',
     action:
-        'Thank body, land, helpers, ancestors, Source. Mark survival as sacred.',
-    reflection: '"Who/what held me up while I was in the flood?"',
+        'Mark the end of the decan by recognizing what remained standing through change.',
+    reflection: '"What in my life now feels trustworthy again?"',
   ),
 ]);
 

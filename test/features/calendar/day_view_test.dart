@@ -54,6 +54,41 @@ void main() {
       expect(scrollable.position.pixels, closeTo(8 * 60, 0.001));
     });
 
+    testWidgets('timeline reserves room above the global bottom menu', (
+      tester,
+    ) async {
+      await _setPhoneViewport(tester);
+
+      await tester.pumpWidget(
+        const MaterialApp(
+          home: MediaQuery(
+            data: MediaQueryData(
+              size: Size(390, 844),
+              padding: EdgeInsets.only(bottom: 34),
+            ),
+            child: Scaffold(
+              body: DayViewGrid(
+                ky: 1,
+                km: 1,
+                kd: 1,
+                notes: [],
+                showGregorian: false,
+                flowIndex: {},
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      final listView = tester.widget<ListView>(
+        find.byKey(const PageStorageKey<String>('day_timeline_list')),
+      );
+      final padding = listView.padding as EdgeInsets;
+
+      expect(padding.bottom, 108);
+    });
+
     test('staggered overlapping events are assigned separate lanes', () {
       final blocks = EventLayoutEngine.layoutEventItems(
         events: const [

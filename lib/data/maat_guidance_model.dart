@@ -129,7 +129,9 @@ class MaatGuidanceDelivery {
   String get ctaLabel {
     switch (ctaType) {
       case MaatGuidanceCtaType.node:
-        return 'Open Node';
+        return kind == MaatGuidanceKind.decanOpening
+            ? 'Read the guiding node'
+            : 'Open Node';
       case MaatGuidanceCtaType.flow:
       case MaatGuidanceCtaType.flowTemplate:
         return 'Open Flow';
