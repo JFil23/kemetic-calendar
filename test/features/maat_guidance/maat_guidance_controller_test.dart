@@ -155,7 +155,7 @@ void main() {
     expect(find.text('node'), findsOneWidget);
   });
 
-  testWidgets('opening detail shows journey context and guiding node', (
+  testWidgets('opening detail shows server-owned journey context', (
     tester,
   ) async {
     final repo = _FakeMaatGuidanceRepo([
@@ -173,6 +173,23 @@ void main() {
           'reflection_move': 'inquire',
           'node_ref': 'maat',
           'day_card_date': '2026-05-19',
+          'surface_variants': {
+            'context_card': {
+              'rows': [
+                {
+                  'label': 'Today',
+                  'value':
+                      'Today centers Step Back Onto the Earth. Your move: Name what you just carried.',
+                },
+                {
+                  'label': 'Journey signal',
+                  'value':
+                      'This opening is tracking truth in the current pattern. Move forward through one step that can be seen, recorded, and repeated.',
+                },
+                {'label': 'Next act', 'value': 'Write one truthful mark.'},
+              ],
+            },
+          },
         },
       ),
     ]);
@@ -210,12 +227,10 @@ void main() {
       findsOneWidget,
     );
     expect(find.text('Journey signal'), findsOneWidget);
-    expect(
-      find.textContaining('truth in your current pattern'),
-      findsOneWidget,
-    );
-    expect(find.text('Guiding node'), findsOneWidget);
-    expect(find.textContaining('Ma’at'), findsOneWidget);
+    expect(find.textContaining('truth in your current pattern'), findsNothing);
+    expect(find.textContaining('truth in the current pattern'), findsOneWidget);
+    expect(find.text('Next act'), findsOneWidget);
+    expect(find.text('Write one truthful mark.'), findsOneWidget);
     expect(find.text('Read the guiding node'), findsOneWidget);
 
     await tester.ensureVisible(find.text('Read the guiding node'));
