@@ -54,6 +54,11 @@ class _DecanReflectionArchivePageState
     );
     if (latestReflection != null) {
       await _promptState.markInteracted(latestReflection.decanStart);
+      await _repo.markPromptInteracted(
+        decanStart: latestReflection.decanStart,
+        decanEnd: latestReflection.decanEnd,
+        interactionKind: 'archived',
+      );
     }
     if (!mounted) return;
     setState(() {

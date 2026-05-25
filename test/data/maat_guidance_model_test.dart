@@ -9,7 +9,7 @@ void main() {
       'decan_period_key': '2026-05-16:2026-05-25:1-1',
       'status': 'pending',
       'priority': 20,
-      'teaser_text': 'A path back to balance is available.',
+      'teaser_text': 'Tend to measure.',
       'body_text': 'Begin with one measured act.',
       'payload': {'lead_axis': 'M'},
       'cta_type': 'node',
@@ -20,6 +20,7 @@ void main() {
 
     expect(delivery.id, 'delivery-1');
     expect(delivery.kind, MaatGuidanceKind.driftNudge);
+    expect(delivery.kind.title, 'Ma’at Grounding');
     expect(delivery.status, MaatGuidanceStatus.pending);
     expect(delivery.hasCta, isTrue);
     expect(delivery.ctaLabel, 'Open Node');
@@ -61,7 +62,7 @@ void main() {
       'id': 'drift-flow',
       'kind': 'drift_nudge',
       'decan_period_key': '2026-05-16:2026-05-25:1-1',
-      'teaser_text': 'A path back to balance is available.',
+      'teaser_text': 'Tend to provision.',
       'body_text': 'Preview the flow before creating it.',
       'cta_type': 'flow_personalized',
       'cta_ref': 'mfb_v1_drift_restore_provision_M',
@@ -70,5 +71,42 @@ void main() {
     expect(delivery.ctaType, MaatGuidanceCtaType.flowPersonalized);
     expect(delivery.hasCta, isTrue);
     expect(delivery.ctaLabel, 'Create this flow');
+  });
+
+  test('flow template CTA uses suggested-flow label', () {
+    final delivery = MaatGuidanceDelivery.fromJson({
+      'id': 'drift-template-flow',
+      'kind': 'drift_nudge',
+      'decan_period_key': '2026-05-16:2026-05-25:1-1',
+      'teaser_text': 'Tend to provision.',
+      'body_text': 'Tend to provision by restoring one check.',
+      'cta_type': 'flow_template',
+      'cta_ref': 'dawn-house-rite',
+    });
+
+    expect(delivery.ctaType, MaatGuidanceCtaType.flowTemplate);
+    expect(delivery.hasCta, isTrue);
+    expect(delivery.ctaLabel, 'Open suggested flow');
+  });
+
+  test('compiled package text owns visible guidance copy', () {
+    final delivery = MaatGuidanceDelivery.fromJson({
+      'id': 'compiled-delivery',
+      'kind': 'drift_nudge',
+      'decan_period_key': '2026-05-16:2026-05-25:1-1',
+      'teaser_text': 'Legacy teaser should not render.',
+      'body_text': 'Legacy body should not render.',
+      'payload': {
+        'compiled_output_package': {
+          'package_version': 'compiled_output_package_v1',
+          'teaser_text': 'Compiled teaser renders.',
+          'final_text': 'Compiled final body renders.',
+          'push_text': 'Compiled push renders.',
+        },
+      },
+    });
+
+    expect(delivery.teaserText, 'Compiled teaser renders.');
+    expect(delivery.bodyText, 'Compiled final body renders.');
   });
 }

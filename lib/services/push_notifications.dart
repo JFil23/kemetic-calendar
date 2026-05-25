@@ -200,10 +200,85 @@ class PushRegistrationDiagnostics {
 
 @immutable
 class PushSelfTestResult {
-  const PushSelfTestResult({required this.ok, required this.message});
+  const PushSelfTestResult({
+    required this.ok,
+    required this.message,
+    this.deliveryKey,
+  });
 
   final bool ok;
   final String message;
+  final String? deliveryKey;
+}
+
+@immutable
+class PushDeliveryReceiptStatus {
+  const PushDeliveryReceiptStatus({
+    required this.deliveryKey,
+    required this.lookupStatus,
+    this.deliveryKind,
+    this.receiptStatus,
+    this.sentAt,
+    this.firstReceivedAt,
+    this.firstShownAt,
+    this.firstOpenedAt,
+    this.firstDismissedAt,
+    this.firstActedAt,
+    this.receiptEventCount,
+    this.receiptLatencySeconds,
+    this.openLatencySeconds,
+  });
+
+  final String deliveryKey;
+  final String lookupStatus;
+  final String? deliveryKind;
+  final String? receiptStatus;
+  final DateTime? sentAt;
+  final DateTime? firstReceivedAt;
+  final DateTime? firstShownAt;
+  final DateTime? firstOpenedAt;
+  final DateTime? firstDismissedAt;
+  final DateTime? firstActedAt;
+  final int? receiptEventCount;
+  final int? receiptLatencySeconds;
+  final int? openLatencySeconds;
+
+  bool get found => lookupStatus == 'found';
+  bool get opened =>
+      receiptStatus == 'opened' ||
+      receiptStatus == 'dismissed' ||
+      receiptStatus == 'acted';
+
+  static PushDeliveryReceiptStatus fromFunctionData(Map<String, dynamic> data) {
+    final deliveryKey = data['delivery_key']?.toString() ?? '';
+    final lookupStatus = data['status']?.toString() ?? 'missing';
+    final receiptRaw = data['receipt'];
+    final receipt = receiptRaw is Map<String, dynamic>
+        ? receiptRaw
+        : (receiptRaw is Map
+              ? Map<String, dynamic>.from(receiptRaw)
+              : <String, dynamic>{});
+
+    return PushDeliveryReceiptStatus(
+      deliveryKey: receipt['delivery_key']?.toString().trim().isNotEmpty == true
+          ? receipt['delivery_key'].toString()
+          : deliveryKey,
+      lookupStatus: lookupStatus,
+      deliveryKind: receipt['delivery_kind']?.toString(),
+      receiptStatus: receipt['receipt_status']?.toString(),
+      sentAt: _parseReceiptTimestamp(receipt['sent_at']),
+      firstReceivedAt: _parseReceiptTimestamp(receipt['first_received_at']),
+      firstShownAt: _parseReceiptTimestamp(receipt['first_shown_at']),
+      firstOpenedAt: _parseReceiptTimestamp(receipt['first_opened_at']),
+      firstDismissedAt: _parseReceiptTimestamp(receipt['first_dismissed_at']),
+      firstActedAt: _parseReceiptTimestamp(receipt['first_acted_at']),
+      receiptEventCount: _parseReceiptInt(receipt['receipt_event_count']),
+      receiptLatencySeconds: _parseReceiptInt(
+        receipt['receipt_latency_seconds'],
+      ),
+      openLatencySeconds: _parseReceiptInt(receipt['open_latency_seconds']),
+    );
+  }
 }
 
 class PushNotifications {
@@ -354,6 +429,13 @@ class PushNotifications {
     }
 
     FirebaseMessaging.onMessage.listen((message) async {
+      unawaited(
+        _recordDeliveryReceipt(
+          message.data,
+          event: 'received',
+          messageId: message.messageId,
+        ),
+      );
       final notif = message.notification;
       if (notif == null) return;
       await showForegroundPushAlert(
@@ -640,6 +722,8 @@ class PushNotifications {
     final deviceId = await _deviceId();
 
     final sentAt = DateTime.now().toUtc();
+    final deliveryKey =
+        'push_test:${user.id}:$deviceId:${sentAt.toIso8601String()}';
     try {
       final response = await _client.functions.invoke(
         'send_push',
@@ -653,6 +737,8 @@ class PushNotifications {
           'data': {
             'type': 'push_test',
             'kind': 'push_test',
+            'delivery_key': deliveryKey,
+            'delivery_kind': 'push_test',
             'sent_at': sentAt.toIso8601String(),
           },
         },
@@ -686,13 +772,51 @@ class PushNotifications {
         return PushSelfTestResult(ok: false, message: reason);
       }
 
-      return const PushSelfTestResult(
+      return PushSelfTestResult(
         ok: true,
+        deliveryKey: deliveryKey,
         message:
             'Test push dispatched to this device. Background the app to check for the iPhone or PWA notification.',
       );
     } catch (e) {
       return PushSelfTestResult(ok: false, message: 'send_push failed: $e');
+    }
+  }
+
+  Future<PushDeliveryReceiptStatus?> getDeliveryReceiptStatus(
+    String deliveryKey,
+  ) async {
+    final normalizedKey = deliveryKey.trim();
+    if (normalizedKey.isEmpty) return null;
+    final session = _client.auth.currentSession;
+    final user = _client.auth.currentUser;
+    if (session == null || user == null) return null;
+
+    try {
+      final response = await _client.functions.invoke(
+        'get_delivery_receipt_status',
+        body: {'delivery_key': normalizedKey},
+      );
+      final data = response.data is Map<String, dynamic>
+          ? response.data as Map<String, dynamic>
+          : (response.data is Map
+                ? Map<String, dynamic>.from(response.data as Map)
+                : <String, dynamic>{});
+      if (response.status >= 400) {
+        return PushDeliveryReceiptStatus(
+          deliveryKey: normalizedKey,
+          lookupStatus: 'error',
+          receiptStatus: data['error']?.toString() ?? 'HTTP ${response.status}',
+        );
+      }
+      return PushDeliveryReceiptStatus.fromFunctionData(data);
+    } catch (e) {
+      debugPrint('[push] delivery receipt status lookup failed: $e');
+      return PushDeliveryReceiptStatus(
+        deliveryKey: normalizedKey,
+        lookupStatus: 'error',
+        receiptStatus: e.toString(),
+      );
     }
   }
 
@@ -846,7 +970,56 @@ class PushNotifications {
         _handledOpenedMessageSignatures.first,
       );
     }
+    unawaited(
+      _recordDeliveryReceipt(data, event: 'opened', messageId: messageId),
+    );
     _openedMessages.add(data);
+  }
+
+  Future<void> recordDeliveryReceiptFromPayload(
+    Map<String, dynamic> data, {
+    required String event,
+    String? messageId,
+  }) {
+    return _recordDeliveryReceipt(data, event: event, messageId: messageId);
+  }
+
+  Future<void> _recordDeliveryReceipt(
+    Map<String, dynamic> data, {
+    required String event,
+    String? messageId,
+  }) async {
+    if (!isPushDeliveryReceiptEvent(event)) return;
+    final deliveryKey = pushDeliveryKeyFromData(data);
+    if (deliveryKey == null) return;
+    final session = _client.auth.currentSession;
+    final user = _client.auth.currentUser;
+    if (session == null || user == null) {
+      debugPrint('[push] delivery receipt skipped: no session');
+      return;
+    }
+
+    try {
+      await _client.functions.invoke(
+        'record_delivery_receipt',
+        body: {
+          'delivery_key': deliveryKey,
+          'delivery_kind': pushDeliveryKindFromData(data),
+          'receipt_event': event,
+          'device_id': await _deviceId(),
+          'platform': _platformLabel(),
+          if (messageId != null && messageId.trim().isNotEmpty)
+            'message_id': messageId.trim(),
+          'event_at': DateTime.now().toUtc().toIso8601String(),
+          'metadata': {
+            'source': 'push_notifications',
+            'kind': data['kind']?.toString() ?? data['type']?.toString(),
+          },
+        },
+      );
+    } catch (e) {
+      debugPrint('[push] delivery receipt record failed: $e');
+    }
   }
 
   Future<String> _deviceId() async {
@@ -1084,6 +1257,46 @@ String buildPushOpenedMessageSignature(
   return 'payload:${jsonEncode(_normalizePushMessageData(data))}';
 }
 
+@visibleForTesting
+String? pushDeliveryKeyFromData(Map<String, dynamic> data) {
+  final raw = data['delivery_key'] ?? data['deliveryKey'];
+  final value = raw?.toString().trim();
+  return value == null || value.isEmpty ? null : value;
+}
+
+@visibleForTesting
+String pushDeliveryKindFromData(Map<String, dynamic> data) {
+  final explicit = data['delivery_kind'] ?? data['deliveryKind'];
+  final explicitValue = explicit?.toString().trim();
+  if (explicitValue != null && explicitValue.isNotEmpty) {
+    return explicitValue;
+  }
+
+  final kind = data['kind'] ?? data['type'];
+  final kindValue = kind?.toString().trim();
+  if (kindValue != null && kindValue.isNotEmpty) {
+    return kindValue;
+  }
+
+  final key = pushDeliveryKeyFromData(data);
+  final prefix = key?.split(':').first.trim();
+  return prefix == null || prefix.isEmpty ? 'unknown' : prefix;
+}
+
+@visibleForTesting
+bool isPushDeliveryReceiptEvent(String event) {
+  switch (event.trim()) {
+    case 'received':
+    case 'shown':
+    case 'opened':
+    case 'dismissed':
+    case 'acted':
+    case 'expired':
+      return true;
+  }
+  return false;
+}
+
 Object? _normalizePushMessageData(Object? value) {
   if (value is Map) {
     final entries = value.entries.toList()
@@ -1100,6 +1313,20 @@ Object? _normalizePushMessageData(Object? value) {
     return value;
   }
   return value.toString();
+}
+
+DateTime? _parseReceiptTimestamp(Object? value) {
+  if (value == null) return null;
+  final text = value.toString().trim();
+  if (text.isEmpty) return null;
+  return DateTime.tryParse(text);
+}
+
+int? _parseReceiptInt(Object? value) {
+  if (value is int) return value;
+  if (value is num) return value.toInt();
+  if (value is String) return int.tryParse(value.trim());
+  return null;
 }
 
 String _platformLabel() {

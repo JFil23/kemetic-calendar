@@ -61,6 +61,11 @@ class _DecanReflectionDetailPageState extends State<DecanReflectionDetailPage> {
         : await _repo.getGraphHintsForReflection(data);
     if (data != null) {
       await _promptState.markInteracted(data.decanStart);
+      await _repo.markPromptInteracted(
+        decanStart: data.decanStart,
+        decanEnd: data.decanEnd,
+        interactionKind: 'archived',
+      );
     }
     if (!mounted) return;
     final reflectionLinks = links

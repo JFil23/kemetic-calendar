@@ -224,6 +224,52 @@ class DecanReflectionRepo {
     }
   }
 
+  Future<bool> hasPromptInteracted(DateTime decanStart) async {
+    final uid = _client.auth.currentUser?.id;
+    if (uid == null) return false;
+    try {
+      final res = await withSupabaseAuthRetry(
+        _client,
+        () => _client
+            .from('decan_reflection_prompt_interactions')
+            .select('decan_start')
+            .eq('user_id', uid)
+            .eq('decan_start', _fmtDate(decanStart))
+            .maybeSingle(),
+      );
+      return res != null;
+    } catch (e) {
+      debugPrint('[DecanReflectionRepo] hasPromptInteracted error: $e');
+      return false;
+    }
+  }
+
+  Future<void> markPromptInteracted({
+    required DateTime decanStart,
+    DateTime? decanEnd,
+    String interactionKind = 'interacted',
+  }) async {
+    final uid = _client.auth.currentUser?.id;
+    if (uid == null) return;
+    try {
+      final payload = <String, dynamic>{
+        'user_id': uid,
+        'decan_start': _fmtDate(decanStart),
+        if (decanEnd != null) 'decan_end': _fmtDate(decanEnd),
+        'interaction_kind': interactionKind,
+        'interacted_at': DateTime.now().toUtc().toIso8601String(),
+      };
+      await withSupabaseAuthRetry(
+        _client,
+        () => _client
+            .from('decan_reflection_prompt_interactions')
+            .upsert(payload, onConflict: 'user_id,decan_start'),
+      );
+    } catch (e) {
+      debugPrint('[DecanReflectionRepo] markPromptInteracted error: $e');
+    }
+  }
+
   Future<DecanReflection?> saveReflection({
     required String decanName,
     String? decanTheme,

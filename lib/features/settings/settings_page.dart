@@ -29,6 +29,8 @@ class _SettingsPageState extends State<SettingsPage> {
   static const String _privacyPolicyUrl = 'https://maat.app/privacy';
   static const String _supportMailUrl =
       'mailto:support@maat.app?subject=Kemetic%20Calendar%20support';
+  static const String _lastPushTestDeliveryKeyPref =
+      'push.lastSelfTestDeliveryKey';
 
   bool _realTimeAlerts = false;
   bool _autoCalendarSync = true;
@@ -40,14 +42,17 @@ class _SettingsPageState extends State<SettingsPage> {
   bool _requestingPush = false;
   bool _loadingPushDiagnostics = false;
   bool _sendingPushTest = false;
+  bool _checkingPushTestReceipt = false;
   bool _loadingSpeechVoices = false;
   bool _savingSpeechVoice = false;
   bool _deletingAccount = false;
   String? _pushStatus;
+  String? _pushTestDeliveryKey;
   String? _speechVoiceStatus;
   String? _accountStatus;
   CalendarSyncStatus? _calendarSyncStatus;
   PushRegistrationDiagnostics? _pushDiagnostics;
+  PushDeliveryReceiptStatus? _pushTestReceiptStatus;
   List<SpeechVoiceOption> _speechVoices = const [];
   String? _selectedSpeechVoiceId;
 
@@ -88,9 +93,18 @@ class _SettingsPageState extends State<SettingsPage> {
           SettingsPrefs.autoCalendarSyncEnabledFrom(prefs);
       _usHolidaysEnabled = SettingsPrefs.usHolidaysEnabledFrom(prefs);
       _calendarSyncStatus = calendarStatus;
+      _pushTestDeliveryKey = prefs
+          .getString(_lastPushTestDeliveryKeyPref)
+          ?.trim();
+      if (_pushTestDeliveryKey?.isEmpty == true) {
+        _pushTestDeliveryKey = null;
+      }
       _loading = false;
     });
     unawaited(_refreshPushDiagnostics());
+    if (_pushTestDeliveryKey != null) {
+      unawaited(_refreshPushTestReceiptStatus());
+    }
   }
 
   Future<void> _save() async {
@@ -325,11 +339,23 @@ class _SettingsPageState extends State<SettingsPage> {
     ).sendSelfTestPush();
 
     if (!mounted) return;
+    if (result.ok && result.deliveryKey != null) {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(_lastPushTestDeliveryKeyPref, result.deliveryKey!);
+    }
+    if (!mounted) return;
     setState(() {
       _sendingPushTest = false;
       _pushStatus = result.message;
+      if (result.deliveryKey != null) {
+        _pushTestDeliveryKey = result.deliveryKey;
+        _pushTestReceiptStatus = null;
+      }
     });
     await _refreshPushDiagnostics();
+    if (result.ok && result.deliveryKey != null) {
+      unawaited(_pollPushTestReceiptStatus(result.deliveryKey!));
+    }
 
     if (!mounted) return;
     messenger.showSnackBar(
@@ -340,6 +366,35 @@ class _SettingsPageState extends State<SettingsPage> {
             : Colors.red.shade700,
       ),
     );
+  }
+
+  Future<void> _refreshPushTestReceiptStatus({String? deliveryKey}) async {
+    final key = (deliveryKey ?? _pushTestDeliveryKey)?.trim();
+    if (!_hasSession || key == null || key.isEmpty) return;
+    if (mounted) {
+      setState(() {
+        _checkingPushTestReceipt = true;
+      });
+    }
+
+    final status = await PushNotifications.instance(
+      Supabase.instance.client,
+    ).getDeliveryReceiptStatus(key);
+
+    if (!mounted) return;
+    setState(() {
+      _checkingPushTestReceipt = false;
+      _pushTestReceiptStatus = status;
+    });
+  }
+
+  Future<void> _pollPushTestReceiptStatus(String deliveryKey) async {
+    for (var attempt = 0; attempt < 8; attempt += 1) {
+      if (!mounted || _pushTestDeliveryKey != deliveryKey) return;
+      await _refreshPushTestReceiptStatus(deliveryKey: deliveryKey);
+      if (!mounted || _pushTestReceiptStatus?.opened == true) return;
+      await Future<void>.delayed(const Duration(seconds: 3));
+    }
   }
 
   Future<void> _openExternalSupportTarget(String target) async {
@@ -847,6 +902,21 @@ class _SettingsPageState extends State<SettingsPage> {
     return '$mm/$dd $hh:$min';
   }
 
+  String _formatDurationSeconds(int? seconds) {
+    if (seconds == null) return 'n/a';
+    if (seconds < 60) return '${seconds}s';
+    final minutes = seconds ~/ 60;
+    final remainder = seconds % 60;
+    if (minutes < 60) return '${minutes}m ${remainder}s';
+    final hours = minutes ~/ 60;
+    return '${hours}h ${minutes % 60}m';
+  }
+
+  String _shortDeliveryKey(String key) {
+    if (key.length <= 42) return key;
+    return '${key.substring(0, 24)}...${key.substring(key.length - 14)}';
+  }
+
   String _pushToggleSubtitle() {
     if (!_hasSession) {
       return 'Sign in first, then allow notifications for this device.';
@@ -930,6 +1000,66 @@ class _SettingsPageState extends State<SettingsPage> {
       lines.add('Diagnostics warning: ${diagnostics.error!}');
     }
 
+    return lines;
+  }
+
+  List<String> _pushTestReceiptLines() {
+    final key = _pushTestDeliveryKey;
+    if (key == null || key.isEmpty) {
+      return const <String>['No push test has been sent from this device yet.'];
+    }
+
+    final status = _pushTestReceiptStatus;
+    final lines = <String>['Delivery key: ${_shortDeliveryKey(key)}'];
+
+    if (_checkingPushTestReceipt) {
+      lines.add('Receipt status: checking...');
+    }
+
+    if (status == null) {
+      lines.add(
+        'Receipt status: sent test pending. Background the app, tap the notification, then refresh.',
+      );
+      return lines;
+    }
+
+    if (status.lookupStatus == 'missing') {
+      lines.add(
+        'Receipt status: no server timing row yet. The send may still be settling or the push was not accepted.',
+      );
+      return lines;
+    }
+
+    if (status.lookupStatus == 'error') {
+      lines.add('Receipt status lookup failed: ${status.receiptStatus}');
+      return lines;
+    }
+
+    lines.add('Receipt status: ${status.receiptStatus ?? 'awaiting receipt'}.');
+    if (status.sentAt != null) {
+      lines.add('Server sent: ${_formatTimestamp(status.sentAt!.toLocal())}.');
+    }
+    if (status.firstReceivedAt != null) {
+      lines.add(
+        'Device received: ${_formatTimestamp(status.firstReceivedAt!.toLocal())}.',
+      );
+    }
+    if (status.firstOpenedAt != null) {
+      lines.add(
+        'Opened from notification: ${_formatTimestamp(status.firstOpenedAt!.toLocal())}.',
+      );
+    }
+    if (status.receiptLatencySeconds != null) {
+      lines.add(
+        'Receipt latency: ${_formatDurationSeconds(status.receiptLatencySeconds)}.',
+      );
+    }
+    if (status.openLatencySeconds != null) {
+      lines.add(
+        'Open latency: ${_formatDurationSeconds(status.openLatencySeconds)}.',
+      );
+    }
+    lines.add('Receipt events: ${status.receiptEventCount ?? 0}.');
     return lines;
   }
 
@@ -1163,6 +1293,7 @@ class _SettingsPageState extends State<SettingsPage> {
 
     final calendarStatusLines = _calendarStatusLines();
     final pushDiagnosticLines = _pushDiagnosticLines();
+    final pushReceiptLines = _pushTestReceiptLines();
     final speechStatusLines = _speechStatusLines();
 
     return Scaffold(
@@ -1236,6 +1367,45 @@ class _SettingsPageState extends State<SettingsPage> {
                 ),
                 _statusLine(_pushStatusText()),
                 for (final line in pushDiagnosticLines) _statusLine(line),
+                const SizedBox(height: 16),
+                const Divider(color: Color(0xFF1D1D1D), height: 1),
+                const SizedBox(height: 16),
+                const Text(
+                  'Push test receipt',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                for (final line in pushReceiptLines) _statusLine(line),
+                const SizedBox(height: 12),
+                SizedBox(
+                  width: double.infinity,
+                  child: OutlinedButton(
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: Colors.white,
+                      side: const BorderSide(color: Color(0xFF3A3A3A)),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 14,
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                    ),
+                    onPressed:
+                        _checkingPushTestReceipt ||
+                            !_hasSession ||
+                            _pushTestDeliveryKey == null
+                        ? null
+                        : () => _refreshPushTestReceiptStatus(),
+                    child: Text(
+                      _checkingPushTestReceipt
+                          ? 'Checking receipt...'
+                          : 'Refresh push test receipt',
+                    ),
+                  ),
+                ),
               ],
             ),
             const SizedBox(height: 16),

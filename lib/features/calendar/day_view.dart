@@ -21,9 +21,30 @@ import 'landscape_month_view.dart';
 import 'track_sky_flow.dart';
 import 'dawn_house_rite_flow.dart';
 import 'evening_threshold_rite_flow.dart';
+import 'the_weighing_flow.dart';
+import 'the_offering_table_flow.dart';
+import 'the_tending_flow.dart';
+import 'the_tending_local_store.dart';
+import 'the_kept_word_flow.dart';
+import 'the_kept_word_local_store.dart';
+import 'the_course_flow.dart';
+import 'the_course_context.dart';
+import 'moon_return_flow.dart';
+import 'the_wag_flow.dart';
+import 'the_wag_local_store.dart';
+import 'the_decan_watch_flow.dart';
+import 'the_decan_watch_local_store.dart';
+import 'the_days_outside_year_flow.dart';
+import 'the_days_outside_year_local_store.dart';
+import 'the_open_hand_flow.dart';
+import 'the_open_hand_local_store.dart';
+import 'the_djed_flow.dart';
+import 'the_djed_local_store.dart';
+import 'decan_id.dart';
 import '../onboarding/day_view_date_coachmark.dart';
 import '../../widgets/kemetic_day_info.dart';
 import 'package:mobile/core/day_key.dart';
+import 'package:mobile/telemetry/telemetry.dart';
 import '../../data/user_events_repo.dart';
 import '../journal/journal_event_badge.dart';
 import '../../services/app_haptics.dart';
@@ -84,6 +105,470 @@ bool _isEveningThresholdRiteFlowName(String? name) {
   return name?.trim().toLowerCase() == kEveningThresholdRiteTitle.toLowerCase();
 }
 
+bool _isTheWeighingFlowName(String? name) {
+  return name?.trim().toLowerCase() == kTheWeighingTitle.toLowerCase();
+}
+
+bool _isOfferingTableFlowName(String? name) {
+  return name?.trim().toLowerCase() == kOfferingTableTitle.toLowerCase();
+}
+
+bool _isTheTendingFlowName(String? name) {
+  return name?.trim().toLowerCase() == kTheTendingTitle.toLowerCase();
+}
+
+bool _isKeptWordFlowName(String? name) {
+  return name?.trim().toLowerCase() == kKeptWordTitle.toLowerCase();
+}
+
+bool _isTheCourseFlowName(String? name) {
+  return name?.trim().toLowerCase() == kTheCourseTitle.toLowerCase();
+}
+
+bool _isMoonReturnFlowName(String? name) {
+  return name?.trim().toLowerCase() == kMoonReturnTitle.toLowerCase();
+}
+
+bool _isTheWagFlowName(String? name) {
+  return name?.trim().toLowerCase() == kTheWagTitle.toLowerCase();
+}
+
+bool _isDecanWatchFlowName(String? name) {
+  return name?.trim().toLowerCase() == kDecanWatchTitle.toLowerCase();
+}
+
+bool _isDaysOutsideYearFlowName(String? name) {
+  return name?.trim().toLowerCase() == kDaysOutsideTheYearTitle.toLowerCase();
+}
+
+bool _isOpenHandFlowName(String? name) {
+  return name?.trim().toLowerCase() == kTheOpenHandTitle.toLowerCase();
+}
+
+bool _isDjedFlowName(String? name) {
+  return name?.trim().toLowerCase() == kTheDjedTitle.toLowerCase();
+}
+
+class _MaatFlowCompletionContext {
+  const _MaatFlowCompletionContext({
+    required this.flowKey,
+    required this.flowTitle,
+    required this.eventTitle,
+    required this.graphNodeSlugs,
+    this.eventCategory,
+    this.eventNumber,
+    this.dayNumber,
+    this.flowDay,
+    this.sharePromptOnComplete = false,
+    this.shareButtonLabel = 'Share what went well',
+    this.extraStatusLabels = const <String, String>{},
+    this.showPartly = true,
+  });
+
+  final String flowKey;
+  final String flowTitle;
+  final String eventTitle;
+  final String? eventCategory;
+  final int? eventNumber;
+  final int? dayNumber;
+  final int? flowDay;
+  final List<String> graphNodeSlugs;
+  final bool sharePromptOnComplete;
+  final String shareButtonLabel;
+  final Map<String, String> extraStatusLabels;
+  final bool showPartly;
+
+  Map<String, dynamic> metadataFor({
+    required String status,
+    required DateTime completedOnDate,
+  }) {
+    final graphEventType = status == 'skipped'
+        ? 'flow_skipped'
+        : status == 'conversation_pending'
+        ? 'flow_pending'
+        : 'flow_completed';
+    final signalStrength = switch (status) {
+      'observed' => 1.0,
+      'observed_partly' => 0.55,
+      'observed_from_inside' => 0.65,
+      'names_spoken' => 0.75,
+      'raised' => 1.0,
+      'conversation_pending' => 0.3,
+      'skipped' => 0.2,
+      _ => 0.0,
+    };
+
+    return <String, dynamic>{
+      'status': status,
+      'flow_key': flowKey,
+      'flow_title': flowTitle,
+      'event_title': eventTitle,
+      'completed_on': _formatCompletionDate(completedOnDate),
+      if (eventCategory != null && eventCategory!.trim().isNotEmpty)
+        'event_category': eventCategory!.trim(),
+      if (eventNumber != null) 'event_number': eventNumber,
+      if (dayNumber != null) 'day_number': dayNumber,
+      if (flowDay != null) 'flow_day': flowDay,
+      'knowledge_graph': <String, dynamic>{
+        'version': 'maat_flow_completion_v1',
+        'event_type': graphEventType,
+        'node_slugs': graphNodeSlugs,
+        'signal_strength': signalStrength,
+      },
+    };
+  }
+}
+
+String _formatCompletionDate(DateTime date) {
+  return '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
+}
+
+List<String> _dedupeMaatNodeSlugs(Iterable<String> values) {
+  final seen = <String>{};
+  final result = <String>[];
+  for (final raw in values) {
+    final value = raw.trim().toLowerCase();
+    if (value.isEmpty || seen.contains(value)) continue;
+    seen.add(value);
+    result.add(value);
+  }
+  return result;
+}
+
+List<String> _maatGraphNodeSlugsForFlow({
+  required String flowKey,
+  String? eventCategory,
+}) {
+  switch (flowKey) {
+    case kDawnHouseRiteFlowKey:
+      return const <String>['maat', 'ra'];
+    case kEveningThresholdRiteFlowKey:
+      return const <String>['maat', 'ra', 'ausar'];
+    case kTheWeighingFlowKey:
+      return const <String>['maat', 'djehuty'];
+    case kOfferingTableFlowKey:
+      return const <String>['maat', 'nile', 'ka'];
+    case kTheTendingFlowKey:
+      return const <String>['maat', 'heru', 'aset'];
+    case kKeptWordFlowKey:
+      return const <String>['maat', 'ptah', 'djehuty'];
+    case kTheCourseFlowKey:
+      return const <String>['maat', 'ra', 'khepri', 'decans'];
+    case kMoonReturnFlowKey:
+      return const <String>['maat', 'heru', 'djehuty'];
+    case kTheWagFlowKey:
+      return const <String>['maat', 'ausar', 'anpu', 'ren'];
+    case kDecanWatchFlowKey:
+      return const <String>['maat', 'nut', 'ra', 'decans'];
+    case kDaysOutsideTheYearFlowKey:
+      return const <String>[
+        'maat',
+        'epagomenal_days',
+        'ausar',
+        'heru',
+        'set',
+        'aset',
+        'nebet_het',
+      ];
+    case kTheOpenHandFlowKey:
+      return const <String>['maat', 'hapy', 'nile'];
+    case kTheDjedFlowKey:
+      return const <String>['maat', 'djed', 'ausar', 'ptah'];
+    case 'track-the-sky':
+      final category = eventCategory?.trim().toLowerCase() ?? '';
+      return _dedupeMaatNodeSlugs(<String>[
+        'maat',
+        'nut',
+        if (category.contains('solar') ||
+            category.contains('sun') ||
+            category.contains('equinox') ||
+            category.contains('solstice'))
+          'ra',
+      ]);
+  }
+  return const <String>['maat'];
+}
+
+EveningThresholdRiteDay? _eveningThresholdRiteDayForTitle(String? title) {
+  final match = RegExp(
+    r'^\s*Day\s+(\d{1,2})\s*:',
+    caseSensitive: false,
+  ).firstMatch(title?.trim() ?? '');
+  final dayNumber = int.tryParse(match?.group(1) ?? '');
+  if (dayNumber == null ||
+      dayNumber < 1 ||
+      dayNumber > kEveningThresholdRiteDays.length) {
+    return null;
+  }
+  return kEveningThresholdRiteDays[dayNumber - 1];
+}
+
+_MaatFlowCompletionContext? _maatFlowCompletionContextForEvent(
+  EventItem event,
+  FlowData? flow,
+) {
+  final flowName = flow?.name;
+  if (_isDawnHouseRiteFlowName(flowName)) {
+    final day = dawnHouseRiteDayForEvent(title: event.title);
+    return _MaatFlowCompletionContext(
+      flowKey: kDawnHouseRiteFlowKey,
+      flowTitle: kDawnHouseRiteTitle,
+      eventTitle: event.title,
+      eventCategory: event.category,
+      dayNumber: day?.dayNumber,
+      graphNodeSlugs: _maatGraphNodeSlugsForFlow(
+        flowKey: kDawnHouseRiteFlowKey,
+        eventCategory: event.category,
+      ),
+    );
+  }
+
+  if (_isEveningThresholdRiteFlowName(flowName)) {
+    final day = _eveningThresholdRiteDayForTitle(event.title);
+    return _MaatFlowCompletionContext(
+      flowKey: kEveningThresholdRiteFlowKey,
+      flowTitle: kEveningThresholdRiteTitle,
+      eventTitle: event.title,
+      eventCategory: event.category,
+      dayNumber: day?.dayNumber,
+      graphNodeSlugs: _maatGraphNodeSlugsForFlow(
+        flowKey: kEveningThresholdRiteFlowKey,
+        eventCategory: event.category,
+      ),
+    );
+  }
+
+  if (_isTrackSkyFlowName(flowName)) {
+    return _MaatFlowCompletionContext(
+      flowKey: 'track-the-sky',
+      flowTitle: flowName ?? 'Track the Sky',
+      eventTitle: event.title,
+      eventCategory: event.category,
+      graphNodeSlugs: _maatGraphNodeSlugsForFlow(
+        flowKey: 'track-the-sky',
+        eventCategory: event.category,
+      ),
+    );
+  }
+
+  if (_isMoonReturnFlowName(flowName)) {
+    final kind = moonReturnKindForEvent(title: event.title);
+    return _MaatFlowCompletionContext(
+      flowKey: kMoonReturnFlowKey,
+      flowTitle: kMoonReturnTitle,
+      eventTitle: event.title,
+      eventCategory: event.category,
+      sharePromptOnComplete: kind == MoonReturnEventKind.wholeEye,
+      shareButtonLabel: 'Share what filled',
+      showPartly: false,
+      graphNodeSlugs: _maatGraphNodeSlugsForFlow(
+        flowKey: kMoonReturnFlowKey,
+        eventCategory: event.category,
+      ),
+    );
+  }
+
+  if (_isTheWagFlowName(flowName)) {
+    final wagEvent = wagEventForEvent(title: event.title);
+    if (wagEvent == null) return null;
+    return _MaatFlowCompletionContext(
+      flowKey: kTheWagFlowKey,
+      flowTitle: kTheWagTitle,
+      eventTitle: event.title,
+      eventCategory: event.category,
+      eventNumber: wagEvent.eventNumber,
+      dayNumber: wagEvent.kemeticDay,
+      sharePromptOnComplete: wagEvent.sharePromptOnComplete,
+      shareButtonLabel: 'Share what was confirmed',
+      extraStatusLabels: wagEvent.kind == WagEventKind.feast
+          ? const <String, String>{'names_spoken': 'Names spoken'}
+          : const <String, String>{},
+      graphNodeSlugs: _maatGraphNodeSlugsForFlow(
+        flowKey: kTheWagFlowKey,
+        eventCategory: event.category,
+      ),
+    );
+  }
+
+  if (_isDecanWatchFlowName(flowName)) {
+    return _MaatFlowCompletionContext(
+      flowKey: kDecanWatchFlowKey,
+      flowTitle: kDecanWatchTitle,
+      eventTitle: event.title,
+      eventCategory: event.category,
+      sharePromptOnComplete: false,
+      showPartly: false,
+      extraStatusLabels: const <String, String>{
+        'observed_from_inside': 'Inside',
+      },
+      graphNodeSlugs: _maatGraphNodeSlugsForFlow(
+        flowKey: kDecanWatchFlowKey,
+        eventCategory: event.category,
+      ),
+    );
+  }
+
+  if (_isDaysOutsideYearFlowName(flowName)) {
+    final daysEvent = daysOutsideEventForEvent(title: event.title);
+    if (daysEvent == null) return null;
+    return _MaatFlowCompletionContext(
+      flowKey: kDaysOutsideTheYearFlowKey,
+      flowTitle: kDaysOutsideTheYearTitle,
+      eventTitle: event.title,
+      eventCategory: event.category,
+      eventNumber: daysEvent.eventNumber,
+      dayNumber: daysEvent.kDay,
+      sharePromptOnComplete: daysEvent.optionalShareOnComplete,
+      shareButtonLabel: 'Share one word',
+      graphNodeSlugs: _maatGraphNodeSlugsForFlow(
+        flowKey: kDaysOutsideTheYearFlowKey,
+        eventCategory: event.category,
+      ),
+    );
+  }
+
+  if (_isOpenHandFlowName(flowName)) {
+    final openHandEvent = openHandEventForEvent(title: event.title);
+    if (openHandEvent == null) return null;
+    return _MaatFlowCompletionContext(
+      flowKey: kTheOpenHandFlowKey,
+      flowTitle: kTheOpenHandTitle,
+      eventTitle: event.title,
+      eventCategory: event.category,
+      eventNumber: openHandEvent.eventNumber,
+      flowDay: openHandEvent.flowDay,
+      sharePromptOnComplete: openHandEvent.sharePromptOnComplete,
+      shareButtonLabel: 'Share continuing practice',
+      graphNodeSlugs: _maatGraphNodeSlugsForFlow(
+        flowKey: kTheOpenHandFlowKey,
+        eventCategory: event.category,
+      ),
+    );
+  }
+
+  if (_isDjedFlowName(flowName)) {
+    final djedEvent = djedEventForEvent(title: event.title);
+    if (djedEvent == null) return null;
+    return _MaatFlowCompletionContext(
+      flowKey: kTheDjedFlowKey,
+      flowTitle: kTheDjedTitle,
+      eventTitle: event.title,
+      eventCategory: event.category,
+      eventNumber: djedEvent.eventNumber,
+      flowDay: djedEvent.flowDay,
+      sharePromptOnComplete: djedEvent.sharePromptOnComplete,
+      shareButtonLabel: 'Share what holds',
+      extraStatusLabels: djedEvent.physicalRaising
+          ? const <String, String>{'raised': 'Raised'}
+          : const <String, String>{},
+      graphNodeSlugs: _maatGraphNodeSlugsForFlow(
+        flowKey: kTheDjedFlowKey,
+        eventCategory: event.category,
+      ),
+    );
+  }
+
+  if (_isTheWeighingFlowName(flowName)) {
+    final weighingEvent = theWeighingEventForEvent(title: event.title);
+    if (weighingEvent == null) return null;
+    return _MaatFlowCompletionContext(
+      flowKey: kTheWeighingFlowKey,
+      flowTitle: kTheWeighingTitle,
+      eventTitle: event.title,
+      eventCategory: event.category,
+      eventNumber: weighingEvent.eventNumber,
+      flowDay: weighingEvent.flowDay,
+      sharePromptOnComplete: weighingEvent.sharePromptOnComplete,
+      graphNodeSlugs: _maatGraphNodeSlugsForFlow(
+        flowKey: kTheWeighingFlowKey,
+        eventCategory: event.category,
+      ),
+    );
+  }
+
+  if (_isOfferingTableFlowName(flowName)) {
+    final offeringDay = offeringTableDayForEvent(title: event.title);
+    if (offeringDay == null) return null;
+    return _MaatFlowCompletionContext(
+      flowKey: kOfferingTableFlowKey,
+      flowTitle: kOfferingTableTitle,
+      eventTitle: event.title,
+      eventCategory: event.category,
+      dayNumber: offeringDay.dayNumber,
+      sharePromptOnComplete: offeringDay.sharePromptOnComplete,
+      shareButtonLabel: 'Share what the table held',
+      graphNodeSlugs: _maatGraphNodeSlugsForFlow(
+        flowKey: kOfferingTableFlowKey,
+        eventCategory: event.category,
+      ),
+    );
+  }
+
+  if (_isTheTendingFlowName(flowName)) {
+    final tendingEvent = theTendingEventForEvent(title: event.title);
+    if (tendingEvent == null) return null;
+    return _MaatFlowCompletionContext(
+      flowKey: kTheTendingFlowKey,
+      flowTitle: kTheTendingTitle,
+      eventTitle: event.title,
+      eventCategory: event.category,
+      eventNumber: tendingEvent.eventNumber,
+      flowDay: tendingEvent.flowDay,
+      sharePromptOnComplete: tendingEvent.sharePromptOnComplete,
+      shareButtonLabel: 'Share what was restored',
+      graphNodeSlugs: _maatGraphNodeSlugsForFlow(
+        flowKey: kTheTendingFlowKey,
+        eventCategory: event.category,
+      ),
+    );
+  }
+
+  if (_isKeptWordFlowName(flowName)) {
+    final keptWordEvent = keptWordEventForEvent(title: event.title);
+    if (keptWordEvent == null) return null;
+    return _MaatFlowCompletionContext(
+      flowKey: kKeptWordFlowKey,
+      flowTitle: kKeptWordTitle,
+      eventTitle: event.title,
+      eventCategory: event.category,
+      eventNumber: keptWordEvent.eventNumber,
+      flowDay: keptWordEvent.flowDay,
+      sharePromptOnComplete: keptWordEvent.sharePromptOnComplete,
+      shareButtonLabel: 'Share the kept word',
+      extraStatusLabels: keptWordEvent.eventNumber == 5
+          ? const <String, String>{
+              'conversation_pending': 'Conversation pending',
+            }
+          : const <String, String>{},
+      graphNodeSlugs: _maatGraphNodeSlugsForFlow(
+        flowKey: kKeptWordFlowKey,
+        eventCategory: event.category,
+      ),
+    );
+  }
+
+  if (_isTheCourseFlowName(flowName)) {
+    final courseEvent = courseEventForEvent(title: event.title);
+    if (courseEvent == null) return null;
+    return _MaatFlowCompletionContext(
+      flowKey: kTheCourseFlowKey,
+      flowTitle: kTheCourseTitle,
+      eventTitle: event.title,
+      eventCategory: event.category,
+      eventNumber: courseEvent.eventNumber,
+      flowDay: courseEvent.flowDay,
+      sharePromptOnComplete: courseEvent.sharePromptOnComplete,
+      shareButtonLabel: 'Share the practice',
+      graphNodeSlugs: _maatGraphNodeSlugsForFlow(
+        flowKey: kTheCourseFlowKey,
+        eventCategory: event.category,
+      ),
+    );
+  }
+
+  return null;
+}
+
 const Gradient _dawnHouseRiteFlowGloss = LinearGradient(
   begin: Alignment.centerLeft,
   end: Alignment.centerRight,
@@ -106,6 +591,30 @@ const LinearGradient _dawnHouseRiteCardGradient = LinearGradient(
     Color(0xFFF2B45F),
   ],
   stops: [0.0, 0.38, 0.76, 1.0],
+);
+
+const Gradient _theWeighingFlowGloss = LinearGradient(
+  begin: Alignment.centerLeft,
+  end: Alignment.centerRight,
+  colors: [
+    Color(0xFFF5E8CB),
+    Color(0xFFB8A88A),
+    Color(0xFFFFF8E8),
+    Color(0xFF8D7C5F),
+  ],
+  stops: [0.0, 0.34, 0.66, 1.0],
+);
+
+const LinearGradient _theWeighingCardGradient = LinearGradient(
+  begin: Alignment.topLeft,
+  end: Alignment.bottomRight,
+  colors: [
+    Color(0xFF111213),
+    Color(0xFF2C2A25),
+    Color(0xFF5D5241),
+    Color(0xFFB8A88A),
+  ],
+  stops: [0.0, 0.42, 0.78, 1.0],
 );
 
 Widget _buildDawnHouseRiteAccent({required bool compact, double size = 24}) {
@@ -1510,6 +2019,7 @@ class DayViewPage extends StatefulWidget {
     required String clientEventId,
     required int flowId,
     required DateTime completedOnDate,
+    Map<String, dynamic>? metadata,
   })?
   onRecordCompletion;
   final Future<void> Function(String clientEventId)? onUnrecordCompletion;
@@ -2371,6 +2881,7 @@ class DayViewGrid extends StatefulWidget {
     required String clientEventId,
     required int flowId,
     required DateTime completedOnDate,
+    Map<String, dynamic>? metadata,
   })?
   onRecordCompletion;
   final Future<void> Function(String clientEventId)? onUnrecordCompletion;
@@ -2957,7 +3468,7 @@ class _DayViewGridState extends State<DayViewGrid> {
 
     final sections = <({String heading, String body})>[];
     final headingPattern = RegExp(
-      r"^(Purpose|Action|Words|Quiet line|Ma'at act|Order act|Evening act|Lens|Cycle|Completion)\s*:?\s*(.*)$",
+      r"^(Purpose|Action|Water|Words|Quiet line|Ma'at act|Order act|Evening act|Steps|Provision|Optional|Drink|Privacy|Source|Lens|Cycle|Completion|Current ḥꜣw Context|Day Card|Season Instruction|Confidence|Variant|Outdoor)\s*:?\s*(.*)$",
       caseSensitive: false,
     );
     final buffer = <String>[];
@@ -4111,6 +4622,7 @@ class _DayViewGridState extends State<DayViewGrid> {
     final isTrackSky = _isTrackSkyFlowName(flow?.name);
     final isDawnHouseRite = _isDawnHouseRiteFlowName(flow?.name);
     final isEveningThresholdRite = _isEveningThresholdRiteFlowName(flow?.name);
+    final isTheWeighing = _isTheWeighingFlowName(flow?.name);
     final trackSkySpec = isTrackSky ? _trackSkyCardSpecForEvent(event) : null;
 
     // 🔍 DEBUG: Log block being rendered
@@ -4124,7 +4636,9 @@ class _DayViewGridState extends State<DayViewGrid> {
     final double height = _eventVisualHeight(event);
 
     final borderRadius = BorderRadius.circular(
-      isTrackSky || isDawnHouseRite || isEveningThresholdRite ? 8 : 4,
+      isTrackSky || isDawnHouseRite || isEveningThresholdRite || isTheWeighing
+          ? 8
+          : 4,
     );
 
     if (isTrackSky) {
@@ -4423,6 +4937,41 @@ class _DayViewGridState extends State<DayViewGrid> {
       );
     }
 
+    if (isTheWeighing) {
+      return Container(
+        width: block.width,
+        height: height,
+        margin: const EdgeInsets.only(right: 4, bottom: 2),
+        decoration: BoxDecoration(
+          borderRadius: borderRadius,
+          gradient: _theWeighingCardGradient,
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: isPreview ? 0.16 : 0.28),
+              blurRadius: kIsWeb ? 8 : 12,
+              spreadRadius: 0.5,
+              offset: const Offset(0, 5),
+            ),
+          ],
+        ),
+        foregroundDecoration: BoxDecoration(
+          borderRadius: borderRadius,
+          border: Border.all(
+            color: const Color(
+              0xFFF5E8CB,
+            ).withValues(alpha: isPreview ? 0.28 : 0.52),
+          ),
+        ),
+        clipBehavior: Clip.hardEdge,
+        padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 5),
+        child: _buildEventTextContents(
+          event,
+          durationMinutes,
+          isPreview: isPreview,
+        ),
+      );
+    }
+
     final fillColor = isPreview
         ? event.color.withValues(alpha: 0.12)
         : event.color.withValues(alpha: 0.2);
@@ -4465,8 +5014,12 @@ class _DayViewGridState extends State<DayViewGrid> {
     final bool isEveningThresholdRite = _isEveningThresholdRiteFlowName(
       flow?.name,
     );
+    final bool isTheWeighing = _isTheWeighingFlowName(flow?.name);
     final bool isGraphicFlow =
-        isTrackSky || isDawnHouseRite || isEveningThresholdRite;
+        isTrackSky ||
+        isDawnHouseRite ||
+        isEveningThresholdRite ||
+        isTheWeighing;
     final trackSkySpec = isTrackSky ? _trackSkyCardSpecForEvent(event) : null;
 
     final showTitle = event.title.trim().isNotEmpty;
@@ -4481,6 +5034,8 @@ class _DayViewGridState extends State<DayViewGrid> {
         ? const Color(0xFFFFF6E3).withValues(alpha: isPreview ? 0.92 : 1.0)
         : isEveningThresholdRite
         ? const Color(0xFFF2F0FF).withValues(alpha: isPreview ? 0.92 : 1.0)
+        : isTheWeighing
+        ? const Color(0xFFFFF8E8).withValues(alpha: isPreview ? 0.92 : 1.0)
         : (isPreview ? Colors.white70 : Colors.white);
     final flowColor = hasFlow && !isGraphicFlow
         ? event.color.withValues(alpha: isPreview ? 0.75 : 1.0)
@@ -4491,6 +5046,8 @@ class _DayViewGridState extends State<DayViewGrid> {
         ? const Color(0xFFFFDEB2).withValues(alpha: isPreview ? 0.74 : 0.92)
         : isEveningThresholdRite
         ? const Color(0xFFE9D6FF).withValues(alpha: isPreview ? 0.74 : 0.92)
+        : isTheWeighing
+        ? const Color(0xFFF5E8CB).withValues(alpha: isPreview ? 0.74 : 0.92)
         : Colors.white.withValues(alpha: isPreview ? 0.55 : 0.7);
     final titleMaxLines = (event.isReminder || hasFlow || durationMinutes < 90)
         ? 1
@@ -4628,6 +5185,18 @@ class _DayViewGridState extends State<DayViewGrid> {
                   overflow: TextOverflow.ellipsis,
                   gradient: _eveningThresholdRiteFlowGloss,
                 )
+              : isTheWeighing
+              ? buildTrackSkyText(
+                  flow.name,
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                    color: trackSkyFlowNameColor,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  gradient: _theWeighingFlowGloss,
+                )
               : Text(
                   flow.name,
                   style: TextStyle(
@@ -4666,6 +5235,17 @@ class _DayViewGridState extends State<DayViewGrid> {
                   overflow: TextOverflow.ellipsis,
                 )
               : isEveningThresholdRite
+              ? buildTrackSkyText(
+                  event.title,
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w700,
+                    color: titleColor,
+                  ),
+                  maxLines: titleMaxLines,
+                  overflow: TextOverflow.ellipsis,
+                )
+              : isTheWeighing
               ? buildTrackSkyText(
                   event.title,
                   style: TextStyle(
@@ -4723,6 +5303,20 @@ class _DayViewGridState extends State<DayViewGrid> {
                     fontWeight: FontWeight.w400,
                     color: const Color(
                       0xFFDDEAFF,
+                    ).withValues(alpha: isPreview ? 0.78 : 0.9),
+                    fontStyle: FontStyle.italic,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                )
+              : isTheWeighing
+              ? buildTrackSkyText(
+                  hasFlow ? '(flow block)' : '(scheduled)',
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w400,
+                    color: const Color(
+                      0xFFFFF8E8,
                     ).withValues(alpha: isPreview ? 0.78 : 0.9),
                     fontStyle: FontStyle.italic,
                   ),
@@ -4914,9 +5508,58 @@ class _DayViewGridState extends State<DayViewGrid> {
     final bool isEveningThresholdRite = _isEveningThresholdRiteFlowName(
       flow?.name,
     );
+    final bool isTheWeighing = _isTheWeighingFlowName(flow?.name);
+    final bool isOfferingTable = _isOfferingTableFlowName(flow?.name);
+    final bool isTheTending = _isTheTendingFlowName(flow?.name);
+    final bool isKeptWord = _isKeptWordFlowName(flow?.name);
+    final bool isTheCourse = _isTheCourseFlowName(flow?.name);
+    final bool isTheWag = _isTheWagFlowName(flow?.name);
+    final bool isDecanWatch = _isDecanWatchFlowName(flow?.name);
+    final bool isDaysOutsideYear = _isDaysOutsideYearFlowName(flow?.name);
+    final bool isOpenHand = _isOpenHandFlowName(flow?.name);
+    final bool isDjed = _isDjedFlowName(flow?.name);
+    final tendingEvent = isTheTending
+        ? theTendingEventForEvent(title: currentEvent.title)
+        : null;
+    final keptWordEvent = isKeptWord
+        ? keptWordEventForEvent(title: currentEvent.title)
+        : null;
+    final courseEvent = isTheCourse
+        ? courseEventForEvent(title: currentEvent.title)
+        : null;
+    final wagEvent = isTheWag
+        ? wagEventForEvent(title: currentEvent.title)
+        : null;
+    final daysOutsideEvent = isDaysOutsideYear
+        ? daysOutsideEventForEvent(title: currentEvent.title)
+        : null;
+    final openHandEvent = isOpenHand
+        ? openHandEventForEvent(title: currentEvent.title)
+        : null;
+    final djedEvent = isDjed
+        ? djedEventForEvent(title: currentEvent.title)
+        : null;
+    final courseContext = courseEvent == null
+        ? null
+        : courseContextForKemeticDate(
+            kYear: target.ky,
+            kMonth: target.km,
+            kDay: target.kd,
+          );
+    final decanWatchContext = isDecanWatch
+        ? courseContextForKemeticDate(
+            kYear: target.ky,
+            kMonth: target.km,
+            kDay: target.kd,
+          )
+        : null;
     final trackSkySpec = isTrackSky
         ? _trackSkyCardSpecForEvent(currentEvent)
         : null;
+    final completionContext = _maatFlowCompletionContextForEvent(
+      currentEvent,
+      flow,
+    );
 
     Widget? metaChip;
     if (flow != null) {
@@ -4930,8 +5573,14 @@ class _DayViewGridState extends State<DayViewGrid> {
               ? _dawnHouseRiteCardGradient
               : isEveningThresholdRite
               ? _eveningThresholdRiteCardGradient
+              : isTheWeighing
+              ? _theWeighingCardGradient
               : null,
-          color: isTrackSky || isDawnHouseRite || isEveningThresholdRite
+          color:
+              isTrackSky ||
+                  isDawnHouseRite ||
+                  isEveningThresholdRite ||
+                  isTheWeighing
               ? null
               : flow.color.withValues(alpha: 0.16),
           border: isTrackSky
@@ -4946,10 +5595,18 @@ class _DayViewGridState extends State<DayViewGrid> {
               ? Border.all(
                   color: const Color(0xFF7FE0D4).withValues(alpha: 0.78),
                 )
+              : isTheWeighing
+              ? Border.all(
+                  color: const Color(0xFFF5E8CB).withValues(alpha: 0.78),
+                )
               : null,
           borderRadius: BorderRadius.circular(8),
         ),
-        child: isTrackSky || isDawnHouseRite || isEveningThresholdRite
+        child:
+            isTrackSky ||
+                isDawnHouseRite ||
+                isEveningThresholdRite ||
+                isTheWeighing
             ? Text(
                 flow.name,
                 maxLines: 1,
@@ -4961,6 +5618,8 @@ class _DayViewGridState extends State<DayViewGrid> {
                       ? skyMetaSpec!.titleColor
                       : isDawnHouseRite
                       ? const Color(0xFFFFF6E3)
+                      : isTheWeighing
+                      ? const Color(0xFFFFF8E8)
                       : const Color(0xFFF2F0FF),
                   shadows: [
                     Shadow(
@@ -5083,6 +5742,12 @@ class _DayViewGridState extends State<DayViewGrid> {
                       km: target.km,
                       kd: target.kd,
                     )
+                  : isTheCourse && courseEvent != null
+                  ? courseDetailText(
+                      courseEvent,
+                      lens: courseLensFromNotes(flow?.notes),
+                      context: courseContext,
+                    )
                   : () {
                       var rawDetail = currentEvent.detail!;
                       if (rawDetail.startsWith('flowLocalId=')) {
@@ -5099,7 +5764,18 @@ class _DayViewGridState extends State<DayViewGrid> {
                 return const SizedBox.shrink();
               }
 
-              if (isDawnHouseRite || isEveningThresholdRite) {
+              if (isDawnHouseRite ||
+                  isEveningThresholdRite ||
+                  isTheWeighing ||
+                  isOfferingTable ||
+                  isTheTending ||
+                  isKeptWord ||
+                  isTheCourse ||
+                  isTheWag ||
+                  isDecanWatch ||
+                  isDaysOutsideYear ||
+                  isOpenHand ||
+                  isDjed) {
                 return _buildDawnHouseRiteDetailText(displayDetail);
               }
 
@@ -5110,6 +5786,88 @@ class _DayViewGridState extends State<DayViewGrid> {
                 ),
               );
             },
+          ),
+        ],
+        if (currentEvent.flowId != null &&
+            tendingEvent != null &&
+            tendingEvent.localPrompt != TheTendingLocalPromptKind.none) ...[
+          const SizedBox(height: 16),
+          _TheTendingLocalNotesPanel(
+            flowId: currentEvent.flowId!,
+            event: tendingEvent,
+          ),
+        ],
+        if (currentEvent.flowId != null &&
+            keptWordEvent != null &&
+            keptWordEvent.localPrompt != KeptWordLocalPromptKind.none) ...[
+          const SizedBox(height: 16),
+          _KeptWordLocalNotesPanel(
+            flowId: currentEvent.flowId!,
+            event: keptWordEvent,
+          ),
+        ],
+        if (currentEvent.flowId != null &&
+            wagEvent != null &&
+            wagEvent.localPrompt != WagLocalPromptKind.none) ...[
+          const SizedBox(height: 16),
+          _TheWagLocalNotesPanel(flowId: currentEvent.flowId!, event: wagEvent),
+        ],
+        if (currentEvent.flowId != null && daysOutsideEvent != null) ...[
+          const SizedBox(height: 16),
+          _DaysOutsideYearLocalNotesPanel(
+            flowId: currentEvent.flowId!,
+            event: daysOutsideEvent,
+          ),
+        ],
+        if (currentEvent.flowId != null && openHandEvent != null) ...[
+          const SizedBox(height: 16),
+          _OpenHandLocalNotesPanel(
+            flowId: currentEvent.flowId!,
+            event: openHandEvent,
+          ),
+        ],
+        if (currentEvent.flowId != null && djedEvent != null) ...[
+          const SizedBox(height: 16),
+          _DjedLocalNotesPanel(flowId: currentEvent.flowId!, event: djedEvent),
+        ],
+        if (courseEvent != null && courseContext != null) ...[
+          const SizedBox(height: 16),
+          _TheCourseDayCardPanel(event: courseEvent, context: courseContext),
+        ],
+        if (isDecanWatch && decanWatchContext != null) ...[
+          const SizedBox(height: 16),
+          _DecanWatchDayCardPanel(context: decanWatchContext),
+        ],
+        if (currentEvent.flowId != null &&
+            isDecanWatch &&
+            decanWatchContext != null) ...[
+          const SizedBox(height: 16),
+          _DecanWatchLocalNotesPanel(
+            flowId: currentEvent.flowId!,
+            kYear: target.ky,
+            kMonth: target.km,
+            kDay: target.kd,
+            decanName: decanWatchContext.decanName,
+          ),
+        ],
+        if (currentEvent.flowId != null && isDecanWatch) ...[
+          const SizedBox(height: 16),
+          _DecanWatchMilestonePanel(
+            flowId: currentEvent.flowId!,
+            kYear: target.ky,
+          ),
+        ],
+        if (completionContext != null &&
+            currentEvent.clientEventId?.trim().isNotEmpty == true &&
+            currentEvent.flowId != null) ...[
+          const SizedBox(height: 16),
+          _MaatFlowCompletionPanel(
+            event: currentEvent,
+            completion: completionContext,
+            ky: target.ky,
+            km: target.km,
+            kd: target.kd,
+            onRecordCompletion: widget.onRecordCompletion,
           ),
         ],
       ],
@@ -5740,6 +6498,2553 @@ class _DayViewGridState extends State<DayViewGrid> {
     }
 
     return '${formatTime(startHour, startMinute)} – ${formatTime(endHour, endMinute)}';
+  }
+}
+
+class _TheCourseDayCardPanel extends StatelessWidget {
+  const _TheCourseDayCardPanel({required this.event, required this.context});
+
+  final CourseEvent event;
+  final CourseCalendarContext context;
+
+  void _trackOpen() {
+    unawaited(
+      UserEventsRepo(Supabase.instance.client).track(
+        event: 'day_card_opened_from_course',
+        properties: <String, dynamic>{
+          'v': kAppEventsSchemaVersion,
+          'flow_key': kTheCourseFlowKey,
+          'event_number': event.eventNumber,
+          'flow_day': event.flowDay,
+          'schedule_kind': event.scheduleKind.key,
+          'season': context.seasonKey,
+          'day_card_available': context.dayCardAvailable,
+        },
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final showDecan =
+        event.decanSection == 'Decan Course' ||
+        event.decanSection == 'Seasonal Course';
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.black.withValues(alpha: 0.26),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: const Color(0xFFE8B84A).withValues(alpha: 0.34),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Day card',
+            style: TextStyle(
+              color: Color(0xFFFFD486),
+              fontSize: 12,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          const SizedBox(height: 8),
+          KemeticDayButton(
+            dayKey: this.context.dayKey,
+            kYear: this.context.kYear,
+            openOnTap: true,
+            onOpen: _trackOpen,
+            child: Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
+              decoration: BoxDecoration(
+                color: _dayGold,
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: const [
+                  Icon(
+                    Icons.event_note_outlined,
+                    color: Colors.black,
+                    size: 18,
+                  ),
+                  SizedBox(width: 8),
+                  Text(
+                    'Open today\'s day card',
+                    style: TextStyle(
+                      color: Colors.black,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 10),
+          Text(
+            '${this.context.kemeticDateLabel} · ${this.context.seasonLabel}',
+            style: const TextStyle(
+              color: Colors.white70,
+              fontSize: 12.5,
+              height: 1.35,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          if (showDecan) ...[
+            const SizedBox(height: 6),
+            Text(
+              '${this.context.decanName}: ${this.context.maatPrinciple}',
+              style: const TextStyle(
+                color: Colors.white60,
+                fontSize: 12.5,
+                height: 1.35,
+              ),
+            ),
+          ],
+          if (event.seasonAware) ...[
+            const SizedBox(height: 8),
+            Text(
+              this.context.seasonInstruction,
+              style: const TextStyle(
+                color: Colors.white70,
+                fontSize: 12.5,
+                height: 1.35,
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _DecanWatchDayCardPanel extends StatelessWidget {
+  const _DecanWatchDayCardPanel({required this.context});
+
+  final CourseCalendarContext context;
+
+  void _trackOpen() {
+    unawaited(
+      UserEventsRepo(Supabase.instance.client).track(
+        event: 'day_card_opened_from_decan_watch',
+        properties: <String, dynamic>{
+          'v': kAppEventsSchemaVersion,
+          'flow_key': kDecanWatchFlowKey,
+          'k_year': context.kYear,
+          'k_month': context.kMonth,
+          'k_day': context.kDay,
+          'season': context.seasonKey,
+          'day_card_available': context.dayCardAvailable,
+        },
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.black.withValues(alpha: 0.26),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: const Color(0xFF2F4A75).withValues(alpha: 0.75),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Day card',
+            style: TextStyle(
+              color: Color(0xFFFFD486),
+              fontSize: 12,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          const SizedBox(height: 8),
+          KemeticDayButton(
+            dayKey: this.context.dayKey,
+            kYear: this.context.kYear,
+            openOnTap: true,
+            onOpen: _trackOpen,
+            child: Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
+              decoration: BoxDecoration(
+                color: _dayGold,
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: const [
+                  Icon(
+                    Icons.event_note_outlined,
+                    color: Colors.black,
+                    size: 18,
+                  ),
+                  SizedBox(width: 8),
+                  Text(
+                    'Open this decan day card',
+                    style: TextStyle(
+                      color: Colors.black,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 10),
+          Text(
+            '${this.context.kemeticDateLabel} · ${this.context.decanName}',
+            style: const TextStyle(
+              color: Colors.white70,
+              fontSize: 12.5,
+              height: 1.35,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            this.context.maatPrinciple,
+            style: const TextStyle(
+              color: Colors.white60,
+              fontSize: 12.5,
+              height: 1.35,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _DecanWatchLocalNotesPanel extends StatefulWidget {
+  const _DecanWatchLocalNotesPanel({
+    required this.flowId,
+    required this.kYear,
+    required this.kMonth,
+    required this.kDay,
+    required this.decanName,
+  });
+
+  final int flowId;
+  final int kYear;
+  final int kMonth;
+  final int kDay;
+  final String decanName;
+
+  @override
+  State<_DecanWatchLocalNotesPanel> createState() =>
+      _DecanWatchLocalNotesPanelState();
+}
+
+class _DecanWatchLocalNotesPanelState
+    extends State<_DecanWatchLocalNotesPanel> {
+  final TextEditingController _skyController = TextEditingController();
+  final TextEditingController _intentionController = TextEditingController();
+  final DecanWatchLocalStore _store = const DecanWatchLocalStore();
+  bool _loading = true;
+  bool _saving = false;
+  bool _observedFromInside = false;
+
+  int get _globalDecanId {
+    return decanIdFromMonthAndIndex(
+      monthIndex: widget.kMonth.clamp(1, 12).toInt(),
+      decanInMonth: decanForDay(widget.kDay).clamp(1, 3).toInt(),
+    );
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    unawaited(_load());
+  }
+
+  @override
+  void didUpdateWidget(covariant _DecanWatchLocalNotesPanel oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.flowId != widget.flowId ||
+        oldWidget.kYear != widget.kYear ||
+        oldWidget.kMonth != widget.kMonth ||
+        oldWidget.kDay != widget.kDay) {
+      unawaited(_load());
+    }
+  }
+
+  @override
+  void dispose() {
+    _skyController.dispose();
+    _intentionController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _load() async {
+    setState(() {
+      _loading = true;
+    });
+    final record = await _store.loadRecord(
+      flowId: widget.flowId,
+      kYear: widget.kYear,
+      globalDecanId: _globalDecanId,
+    );
+    if (!mounted) return;
+    _skyController.text = record.skyNote ?? '';
+    _intentionController.text = record.decanIntention ?? '';
+    setState(() {
+      _observedFromInside = record.observedFromInside;
+      _loading = false;
+    });
+  }
+
+  Future<void> _save() async {
+    if (_saving) return;
+    setState(() => _saving = true);
+    try {
+      await _store.saveRecord(
+        flowId: widget.flowId,
+        kYear: widget.kYear,
+        globalDecanId: _globalDecanId,
+        record: DecanWatchRecord(
+          skyNote: _skyController.text,
+          decanIntention: _intentionController.text,
+          observedFromInside: _observedFromInside,
+        ),
+      );
+      if (!mounted) return;
+      setState(() => _saving = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Saved on this device only.')),
+      );
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _saving = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Could not save Decan Watch notes.')),
+      );
+    }
+  }
+
+  Future<void> _clear() async {
+    if (_saving) return;
+    setState(() => _saving = true);
+    await _store.saveRecord(
+      flowId: widget.flowId,
+      kYear: widget.kYear,
+      globalDecanId: _globalDecanId,
+      record: const DecanWatchRecord(),
+    );
+    if (!mounted) return;
+    _skyController.clear();
+    _intentionController.clear();
+    setState(() {
+      _observedFromInside = false;
+      _saving = false;
+    });
+  }
+
+  InputDecoration _decoration(String hint) {
+    return InputDecoration(
+      filled: true,
+      fillColor: const Color(0xFF090A0D),
+      hintText: hint,
+      hintStyle: const TextStyle(color: Colors.white38),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(8),
+        borderSide: const BorderSide(color: Colors.white24),
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(8),
+        borderSide: const BorderSide(color: _dayGold),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.black.withValues(alpha: 0.26),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: const Color(0xFF2F4A75).withValues(alpha: 0.75),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Decan Watch notes',
+            style: TextStyle(
+              color: Color(0xFFFFD486),
+              fontSize: 12,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            'Your sky note and ${widget.decanName} intention stay on this device.',
+            style: const TextStyle(
+              color: Colors.white70,
+              fontSize: 12,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          const SizedBox(height: 10),
+          if (_loading)
+            const SizedBox(
+              width: 18,
+              height: 18,
+              child: CircularProgressIndicator(strokeWidth: 2),
+            )
+          else ...[
+            TextField(
+              controller: _skyController,
+              minLines: 2,
+              maxLines: 4,
+              style: const TextStyle(color: Colors.white, fontSize: 13.5),
+              decoration: _decoration(
+                'One line about the sky: clear, clouded, Moon position, one visible star, or threshold note.',
+              ),
+            ),
+            const SizedBox(height: 10),
+            TextField(
+              controller: _intentionController,
+              minLines: 2,
+              maxLines: 4,
+              style: const TextStyle(color: Colors.white, fontSize: 13.5),
+              decoration: _decoration('One bearing for the next ten days.'),
+            ),
+            const SizedBox(height: 8),
+            CheckboxListTile(
+              value: _observedFromInside,
+              contentPadding: EdgeInsets.zero,
+              activeColor: _dayGold,
+              checkColor: Colors.black,
+              title: const Text(
+                'Observed from inside or threshold',
+                style: TextStyle(color: Colors.white, fontSize: 13),
+              ),
+              subtitle: const Text(
+                'Use this only when outdoor access was not possible.',
+                style: TextStyle(color: Colors.white54, fontSize: 12),
+              ),
+              onChanged: (value) {
+                setState(() {
+                  _observedFromInside = value == true;
+                });
+              },
+            ),
+          ],
+          const SizedBox(height: 10),
+          Row(
+            children: [
+              Expanded(
+                child: OutlinedButton(
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: Colors.white,
+                    side: const BorderSide(color: Colors.white24),
+                  ),
+                  onPressed: _saving || _loading ? null : _clear,
+                  child: const Text('Clear'),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: _dayGold,
+                    foregroundColor: Colors.black,
+                  ),
+                  onPressed: _saving || _loading ? null : _save,
+                  child: Text(_saving ? 'Saving...' : 'Save local'),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _DecanWatchMilestonePanel extends StatefulWidget {
+  const _DecanWatchMilestonePanel({required this.flowId, required this.kYear});
+
+  final int flowId;
+  final int kYear;
+
+  @override
+  State<_DecanWatchMilestonePanel> createState() =>
+      _DecanWatchMilestonePanelState();
+}
+
+class _DecanWatchMilestonePanelState extends State<_DecanWatchMilestonePanel> {
+  int? _count;
+
+  @override
+  void initState() {
+    super.initState();
+    unawaited(_load());
+  }
+
+  @override
+  void didUpdateWidget(covariant _DecanWatchMilestonePanel oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.flowId != widget.flowId || oldWidget.kYear != widget.kYear) {
+      unawaited(_load());
+    }
+  }
+
+  Future<void> _load() async {
+    final user = Supabase.instance.client.auth.currentUser;
+    if (user == null) {
+      if (mounted) setState(() => _count = 0);
+      return;
+    }
+    try {
+      final rows = await Supabase.instance.client
+          .from('user_event_completions')
+          .select('metadata')
+          .eq('user_id', user.id)
+          .eq('flow_id', widget.flowId);
+      final decans = <int>{};
+      for (final row in (rows as List? ?? const [])) {
+        final metadata = row is Map ? row['metadata'] : null;
+        if (metadata is! Map) continue;
+        final flowKey = metadata['flow_key']?.toString().trim().toLowerCase();
+        if (flowKey != kDecanWatchFlowKey) continue;
+        final status = metadata['status']?.toString().trim().toLowerCase();
+        if (status != 'observed' && status != 'observed_from_inside') {
+          continue;
+        }
+        final kYear = (metadata['k_year'] as num?)?.toInt();
+        if (kYear != widget.kYear) continue;
+        final globalDecanId = (metadata['global_decan_id'] as num?)?.toInt();
+        if (globalDecanId == null) continue;
+        decans.add(globalDecanId);
+      }
+      if (!mounted) return;
+      setState(() => _count = decans.length);
+    } catch (_) {
+      if (mounted) setState(() => _count = 0);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final count = _count;
+    final milestone = count == null ? '' : decanWatchMilestoneMessage(count);
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.black.withValues(alpha: 0.2),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.white12),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Watch count',
+            style: TextStyle(
+              color: Color(0xFFFFD486),
+              fontSize: 12,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            count == null
+                ? 'Loading this year’s count...'
+                : '$count watches observed in Kemetic Year ${widget.kYear}. Observed from inside counts with a threshold mark.',
+            style: const TextStyle(
+              color: Colors.white70,
+              fontSize: 12.5,
+              height: 1.35,
+            ),
+          ),
+          if (milestone.isNotEmpty) ...[
+            const SizedBox(height: 6),
+            Text(
+              milestone,
+              style: const TextStyle(
+                color: Color(0xFFFFD486),
+                fontSize: 12.5,
+                height: 1.35,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _MaatFlowCompletionPanel extends StatefulWidget {
+  const _MaatFlowCompletionPanel({
+    required this.event,
+    required this.completion,
+    required this.ky,
+    required this.km,
+    required this.kd,
+    required this.onRecordCompletion,
+  });
+
+  final EventItem event;
+  final _MaatFlowCompletionContext completion;
+  final int ky;
+  final int km;
+  final int kd;
+  final Future<void> Function({
+    required String clientEventId,
+    required int flowId,
+    required DateTime completedOnDate,
+    Map<String, dynamic>? metadata,
+  })?
+  onRecordCompletion;
+
+  @override
+  State<_MaatFlowCompletionPanel> createState() =>
+      _MaatFlowCompletionPanelState();
+}
+
+class _MaatFlowCompletionPanelState extends State<_MaatFlowCompletionPanel> {
+  String? _status;
+  bool _loading = true;
+  bool _saving = false;
+
+  @override
+  void initState() {
+    super.initState();
+    unawaited(_load());
+  }
+
+  @override
+  void didUpdateWidget(covariant _MaatFlowCompletionPanel oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.event.clientEventId != widget.event.clientEventId) {
+      unawaited(_load());
+    }
+  }
+
+  Future<void> _load() async {
+    final clientEventId = widget.event.clientEventId?.trim();
+    final user = Supabase.instance.client.auth.currentUser;
+    if (clientEventId == null || clientEventId.isEmpty || user == null) {
+      if (mounted) {
+        setState(() {
+          _status = null;
+          _loading = false;
+        });
+      }
+      return;
+    }
+
+    try {
+      final row = await Supabase.instance.client
+          .from('user_event_completions')
+          .select('metadata')
+          .eq('user_id', user.id)
+          .eq('client_event_id', clientEventId)
+          .maybeSingle();
+      final metadata = row?['metadata'];
+      final nextStatus = metadata is Map
+          ? _normalizeStatus(metadata['status']?.toString())
+          : null;
+      final hasCompletionRow = row != null;
+      if (!mounted) return;
+      setState(() {
+        _status = nextStatus ?? (hasCompletionRow ? 'observed' : null);
+        _loading = false;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _loading = false;
+      });
+    }
+  }
+
+  static String? _normalizeStatus(String? raw) {
+    final value = raw?.trim().toLowerCase();
+    if (value == 'observed' ||
+        value == 'observed_partly' ||
+        value == 'observed_from_inside' ||
+        value == 'skipped' ||
+        value == 'names_spoken' ||
+        value == 'raised' ||
+        value == 'conversation_pending') {
+      return value;
+    }
+    if (value == 'partly_observed') return 'observed_partly';
+    if (value == 'inside' || value == 'observed_inside') {
+      return 'observed_from_inside';
+    }
+    return null;
+  }
+
+  Future<bool> _canRecordStatus(String status) async {
+    if (widget.completion.flowKey == kKeptWordFlowKey &&
+        widget.completion.eventNumber == 5 &&
+        status == 'observed') {
+      final flowId = widget.event.flowId;
+      if (flowId == null) return true;
+      final completed = await const TheKeptWordLocalStore()
+          .loadConversationCompleted(flowId);
+      if (completed) return true;
+      if (!mounted) return false;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Mark the conversation complete locally, or choose Conversation pending.',
+          ),
+        ),
+      );
+      return false;
+    }
+    if (widget.completion.flowKey == kTheOpenHandFlowKey &&
+        (widget.completion.eventNumber == 2 ||
+            widget.completion.eventNumber == 5) &&
+        status == 'observed') {
+      final flowId = widget.event.flowId;
+      if (flowId == null) return true;
+      final completed = await const TheOpenHandLocalStore().loadActCompleted(
+        flowId,
+        widget.completion.eventNumber!,
+      );
+      if (completed) return true;
+      if (!mounted) return false;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Mark the outward act complete locally first, or choose Partly/Skipped.',
+          ),
+        ),
+      );
+      return false;
+    }
+    if (widget.completion.flowKey == kTheDjedFlowKey && status == 'raised') {
+      final flowId = widget.event.flowId;
+      if (flowId == null) return true;
+      final completed = await const TheDjedLocalStore().loadRaisingCompleted(
+        flowId,
+      );
+      if (completed) return true;
+      if (!mounted) return false;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Mark the raising complete locally first, or choose Observed/Partly/Skipped.',
+          ),
+        ),
+      );
+      return false;
+    }
+    return true;
+  }
+
+  Future<void> _record(String status) async {
+    if (_saving) return;
+    final clientEventId = widget.event.clientEventId?.trim();
+    final flowId = widget.event.flowId;
+    if (clientEventId == null || clientEventId.isEmpty || flowId == null) {
+      return;
+    }
+    if (!await _canRecordStatus(status)) return;
+    setState(() => _saving = true);
+    final completedOnDate = DateUtils.dateOnly(
+      KemeticMath.toGregorian(widget.ky, widget.km, widget.kd),
+    );
+    final metadata = <String, dynamic>{
+      ...widget.completion.metadataFor(
+        status: status,
+        completedOnDate: completedOnDate,
+      ),
+    };
+    if (widget.completion.flowKey == kDecanWatchFlowKey) {
+      final decanIndex = decanForDay(widget.kd);
+      metadata.addAll(<String, dynamic>{
+        'k_year': widget.ky,
+        'k_month': widget.km,
+        'decan_index': decanIndex,
+        'decan_start_day': ((decanIndex - 1) * 10) + 1,
+        'global_decan_id': decanIdFromMonthAndIndex(
+          monthIndex: widget.km.clamp(1, 12).toInt(),
+          decanInMonth: decanIndex.clamp(1, 3).toInt(),
+        ),
+      });
+    } else if (widget.completion.flowKey == kDaysOutsideTheYearFlowKey) {
+      final closingKYear = widget.km == 1 && widget.kd == 1
+          ? widget.ky - 1
+          : widget.ky;
+      metadata.addAll(<String, dynamic>{
+        'closing_k_year': closingKYear,
+        'event_k_year': widget.ky,
+        'k_month': widget.km,
+        'k_day': widget.kd,
+      });
+    } else if (widget.completion.flowKey == kTheDjedFlowKey &&
+        status == 'raised') {
+      metadata.addAll(<String, dynamic>{
+        'completion': 'raised',
+        'raising_seconds': kDjedRaisingSeconds,
+      });
+    }
+    try {
+      final callback = widget.onRecordCompletion;
+      if (callback != null) {
+        await callback(
+          clientEventId: clientEventId,
+          flowId: flowId,
+          completedOnDate: completedOnDate,
+          metadata: metadata,
+        );
+      } else {
+        await UserEventsRepo(Supabase.instance.client).recordEventCompletion(
+          clientEventId: clientEventId,
+          flowId: flowId,
+          completedOnDate: completedOnDate,
+          metadata: metadata,
+        );
+      }
+      if (!mounted) return;
+      setState(() {
+        _status = status;
+        _saving = false;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _saving = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Could not record this sitting.')),
+      );
+    }
+  }
+
+  Widget _statusButton(String status, String label) {
+    final selected = _status == status;
+    return Expanded(
+      child: OutlinedButton(
+        style: OutlinedButton.styleFrom(
+          foregroundColor: selected ? Colors.black : Colors.white,
+          backgroundColor: selected ? _dayGold : Colors.transparent,
+          side: BorderSide(
+            color: selected ? _dayGold : Colors.white24,
+            width: 1.1,
+          ),
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+        ),
+        onPressed: _saving ? null : () => _record(status),
+        child: Text(
+          label,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
+        ),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final canShare =
+        widget.completion.sharePromptOnComplete &&
+        (_status == 'observed' ||
+            _status == 'observed_partly' ||
+            _status == 'raised');
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.black.withValues(alpha: 0.26),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: const Color(0xFFF5E8CB).withValues(alpha: 0.3),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Completion',
+            style: TextStyle(
+              color: Color(0xFFFFD486),
+              fontSize: 12,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          const SizedBox(height: 8),
+          if (_loading)
+            const SizedBox(
+              width: 18,
+              height: 18,
+              child: CircularProgressIndicator(strokeWidth: 2),
+            )
+          else ...[
+            Row(
+              children: [
+                _statusButton('observed', 'Observed'),
+                if (widget.completion.showPartly) ...[
+                  const SizedBox(width: 8),
+                  _statusButton('observed_partly', 'Partly'),
+                ],
+                const SizedBox(width: 8),
+                _statusButton('skipped', 'Skipped'),
+              ],
+            ),
+            if (widget.completion.extraStatusLabels.isNotEmpty) ...[
+              const SizedBox(height: 8),
+              Row(
+                children:
+                    widget.completion.extraStatusLabels.entries
+                        .expand<Widget>(
+                          (entry) => <Widget>[
+                            _statusButton(entry.key, entry.value),
+                            const SizedBox(width: 8),
+                          ],
+                        )
+                        .toList()
+                      ..removeLast(),
+              ),
+            ],
+          ],
+          if (canShare) ...[
+            const SizedBox(height: 10),
+            TextButton.icon(
+              onPressed: _saving
+                  ? null
+                  : () => unawaited(
+                      CalendarPage.shareFlowFromEvent(widget.event),
+                    ),
+              icon: KemeticGold.icon(Icons.share_outlined, size: 18),
+              label: KemeticGold.text(
+                widget.completion.shareButtonLabel,
+                style: _goldHeaderStyle.copyWith(fontSize: 14),
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _TheTendingLocalNotesPanel extends StatefulWidget {
+  const _TheTendingLocalNotesPanel({required this.flowId, required this.event});
+
+  final int flowId;
+  final TheTendingEvent event;
+
+  @override
+  State<_TheTendingLocalNotesPanel> createState() =>
+      _TheTendingLocalNotesPanelState();
+}
+
+class _TheTendingLocalNotesPanelState
+    extends State<_TheTendingLocalNotesPanel> {
+  final TextEditingController _controller = TextEditingController();
+  final TheTendingLocalStore _store = const TheTendingLocalStore();
+  bool _loading = true;
+  bool _saving = false;
+  int _careListCount = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    unawaited(_load());
+  }
+
+  @override
+  void didUpdateWidget(covariant _TheTendingLocalNotesPanel oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.flowId != widget.flowId ||
+        oldWidget.event.localPrompt != widget.event.localPrompt) {
+      unawaited(_load());
+    }
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  Future<void> _load() async {
+    setState(() {
+      _loading = true;
+    });
+    final text = await _store.loadPromptText(
+      widget.flowId,
+      widget.event.localPrompt,
+    );
+    final careList = await _store.loadCareList(widget.flowId);
+    if (!mounted) return;
+    _controller.text = text;
+    setState(() {
+      _careListCount = careList.length;
+      _loading = false;
+    });
+  }
+
+  Future<void> _save() async {
+    if (_saving) return;
+    setState(() => _saving = true);
+    try {
+      await _store.savePromptText(
+        widget.flowId,
+        widget.event.localPrompt,
+        _controller.text,
+      );
+      final careList = await _store.loadCareList(widget.flowId);
+      if (!mounted) return;
+      setState(() {
+        _careListCount = careList.length;
+        _saving = false;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Saved on this device only.')),
+      );
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _saving = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Could not save local care notes.')),
+      );
+    }
+  }
+
+  Future<void> _clearThisPrompt() async {
+    if (_saving) return;
+    setState(() => _saving = true);
+    await _store.savePromptText(widget.flowId, widget.event.localPrompt, '');
+    final careList = await _store.loadCareList(widget.flowId);
+    if (!mounted) return;
+    _controller.clear();
+    setState(() {
+      _careListCount = careList.length;
+      _saving = false;
+    });
+  }
+
+  int get _minLines {
+    switch (widget.event.localPrompt) {
+      case TheTendingLocalPromptKind.careInventory:
+      case TheTendingLocalPromptKind.sealSeeingStatuses:
+      case TheTendingLocalPromptKind.closePerPerson:
+        return 4;
+      case TheTendingLocalPromptKind.none:
+      case TheTendingLocalPromptKind.heardOneSentence:
+      case TheTendingLocalPromptKind.day11Commitment:
+      case TheTendingLocalPromptKind.day15Check:
+      case TheTendingLocalPromptKind.day21RepairCommit:
+      case TheTendingLocalPromptKind.day25RepairCheck:
+        return 3;
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.black.withValues(alpha: 0.26),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: const Color(0xFF7A6B9E).withValues(alpha: 0.55),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            widget.event.localPrompt.label,
+            style: const TextStyle(
+              color: Color(0xFFFFD486),
+              fontSize: 12,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          const SizedBox(height: 6),
+          const Text(
+            'Your care notes stay on this device.',
+            style: TextStyle(
+              color: Colors.white70,
+              fontSize: 12,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            widget.event.localPrompt.helperText,
+            style: const TextStyle(
+              color: Colors.white54,
+              fontSize: 12,
+              height: 1.35,
+            ),
+          ),
+          if (_careListCount > 0 &&
+              widget.event.localPrompt !=
+                  TheTendingLocalPromptKind.careInventory) ...[
+            const SizedBox(height: 6),
+            Text(
+              'Care inventory on device: $_careListCount ${_careListCount == 1 ? 'entry' : 'entries'}',
+              style: const TextStyle(color: Colors.white54, fontSize: 12),
+            ),
+          ],
+          const SizedBox(height: 10),
+          if (_loading)
+            const SizedBox(
+              width: 18,
+              height: 18,
+              child: CircularProgressIndicator(strokeWidth: 2),
+            )
+          else
+            TextField(
+              controller: _controller,
+              minLines: _minLines,
+              maxLines: 8,
+              style: const TextStyle(color: Colors.white, fontSize: 13.5),
+              decoration: InputDecoration(
+                filled: true,
+                fillColor: const Color(0xFF090A0D),
+                hintText: _hintText(widget.event.localPrompt),
+                hintStyle: const TextStyle(color: Colors.white38),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
+                  borderSide: const BorderSide(color: Colors.white24),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
+                  borderSide: const BorderSide(color: _dayGold),
+                ),
+              ),
+            ),
+          const SizedBox(height: 10),
+          Row(
+            children: [
+              Expanded(
+                child: OutlinedButton(
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: Colors.white,
+                    side: const BorderSide(color: Colors.white24),
+                  ),
+                  onPressed: _saving || _loading ? null : _clearThisPrompt,
+                  child: const Text('Clear'),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: _dayGold,
+                    foregroundColor: Colors.black,
+                  ),
+                  onPressed: _saving || _loading ? null : _save,
+                  child: Text(_saving ? 'Saving...' : 'Save local'),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  String _hintText(TheTendingLocalPromptKind prompt) {
+    switch (prompt) {
+      case TheTendingLocalPromptKind.careInventory:
+        return 'Name - need\nName - need';
+      case TheTendingLocalPromptKind.heardOneSentence:
+        return 'One sentence I heard or saw...';
+      case TheTendingLocalPromptKind.sealSeeingStatuses:
+        return 'Name - tended / partial / unseen';
+      case TheTendingLocalPromptKind.day11Commitment:
+        return 'I will complete...';
+      case TheTendingLocalPromptKind.day15Check:
+        return 'Done / partial / still open...';
+      case TheTendingLocalPromptKind.day21RepairCommit:
+        return 'I missed... I will repair by...';
+      case TheTendingLocalPromptKind.day25RepairCheck:
+        return 'Repair moved / stalled / next step...';
+      case TheTendingLocalPromptKind.closePerPerson:
+        return 'Name - private closing line\nWho tended me...';
+      case TheTendingLocalPromptKind.none:
+        return '';
+    }
+  }
+}
+
+class _KeptWordLocalNotesPanel extends StatefulWidget {
+  const _KeptWordLocalNotesPanel({required this.flowId, required this.event});
+
+  final int flowId;
+  final KeptWordEvent event;
+
+  @override
+  State<_KeptWordLocalNotesPanel> createState() =>
+      _KeptWordLocalNotesPanelState();
+}
+
+class _KeptWordLocalNotesPanelState extends State<_KeptWordLocalNotesPanel> {
+  final TextEditingController _controller = TextEditingController();
+  final TheKeptWordLocalStore _store = const TheKeptWordLocalStore();
+  bool _loading = true;
+  bool _saving = false;
+  bool _conversationCompleted = false;
+  bool _conversationPaused = false;
+  int _agreementCount = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    unawaited(_load());
+  }
+
+  @override
+  void didUpdateWidget(covariant _KeptWordLocalNotesPanel oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.flowId != widget.flowId ||
+        oldWidget.event.localPrompt != widget.event.localPrompt) {
+      unawaited(_load());
+    }
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  Future<void> _load() async {
+    setState(() {
+      _loading = true;
+    });
+    final text = await _store.loadPromptText(
+      widget.flowId,
+      widget.event.localPrompt,
+    );
+    final agreements = await _store.loadAgreementInventory(widget.flowId);
+    final completed = await _store.loadConversationCompleted(widget.flowId);
+    final paused = await _store.loadConversationPaused(widget.flowId);
+    if (!mounted) return;
+    _controller.text = text;
+    setState(() {
+      _agreementCount = agreements.length;
+      _conversationCompleted = completed;
+      _conversationPaused = paused;
+      _loading = false;
+    });
+  }
+
+  Future<void> _save() async {
+    if (_saving) return;
+    setState(() => _saving = true);
+    try {
+      await _store.savePromptText(
+        widget.flowId,
+        widget.event.localPrompt,
+        _controller.text,
+      );
+      final agreements = await _store.loadAgreementInventory(widget.flowId);
+      if (!mounted) return;
+      setState(() {
+        _agreementCount = agreements.length;
+        _saving = false;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Saved on this device only.')),
+      );
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _saving = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Could not save local household notes.')),
+      );
+    }
+  }
+
+  Future<void> _clearThisPrompt() async {
+    if (_saving) return;
+    setState(() => _saving = true);
+    await _store.savePromptText(widget.flowId, widget.event.localPrompt, '');
+    final agreements = await _store.loadAgreementInventory(widget.flowId);
+    if (!mounted) return;
+    _controller.clear();
+    setState(() {
+      _agreementCount = agreements.length;
+      _saving = false;
+    });
+  }
+
+  Future<void> _setConversationCompleted(bool value) async {
+    setState(() {
+      _conversationCompleted = value;
+    });
+    await _store.saveConversationCompleted(widget.flowId, value);
+  }
+
+  Future<void> _setConversationPaused(bool value) async {
+    setState(() {
+      _conversationPaused = value;
+    });
+    await _store.saveConversationPaused(widget.flowId, value);
+  }
+
+  int get _minLines {
+    switch (widget.event.localPrompt) {
+      case KeptWordLocalPromptKind.agreementInventory:
+      case KeptWordLocalPromptKind.conversationRecord:
+      case KeptWordLocalPromptKind.closeInventory:
+        return 4;
+      case KeptWordLocalPromptKind.none:
+      case KeptWordLocalPromptKind.sharedRhythm:
+      case KeptWordLocalPromptKind.sealSeeingGreedCheck:
+      case KeptWordLocalPromptKind.conversationPrep:
+      case KeptWordLocalPromptKind.sealNaming:
+      case KeptWordLocalPromptKind.renewedAgreement:
+      case KeptWordLocalPromptKind.rhythmCheck:
+        return 3;
+    }
+  }
+
+  bool get _showConversationControls {
+    return widget.event.eventNumber >= 4 && widget.event.eventNumber <= 6;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.black.withValues(alpha: 0.26),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: const Color(0xFF8B7355).withValues(alpha: 0.62),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            widget.event.localPrompt.label,
+            style: const TextStyle(
+              color: Color(0xFFFFD486),
+              fontSize: 12,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          const SizedBox(height: 6),
+          const Text(
+            'Your household notes stay on this device.',
+            style: TextStyle(
+              color: Colors.white70,
+              fontSize: 12,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            widget.event.localPrompt.helperText,
+            style: const TextStyle(
+              color: Colors.white54,
+              fontSize: 12,
+              height: 1.35,
+            ),
+          ),
+          if (_agreementCount > 0 &&
+              widget.event.localPrompt !=
+                  KeptWordLocalPromptKind.agreementInventory) ...[
+            const SizedBox(height: 6),
+            Text(
+              'Agreement inventory on device: $_agreementCount ${_agreementCount == 1 ? 'entry' : 'entries'}',
+              style: const TextStyle(color: Colors.white54, fontSize: 12),
+            ),
+          ],
+          if (_showConversationControls) ...[
+            const SizedBox(height: 10),
+            CheckboxListTile(
+              dense: true,
+              contentPadding: EdgeInsets.zero,
+              value: _conversationCompleted,
+              activeColor: _dayGold,
+              title: const Text(
+                'Conversation happened',
+                style: TextStyle(color: Colors.white, fontSize: 13),
+              ),
+              onChanged: _loading || _saving
+                  ? null
+                  : (value) =>
+                        unawaited(_setConversationCompleted(value == true)),
+            ),
+            SwitchListTile.adaptive(
+              dense: true,
+              contentPadding: EdgeInsets.zero,
+              value: _conversationPaused,
+              activeThumbColor: _dayGold,
+              title: const Text(
+                'Pause conversation work locally',
+                style: TextStyle(color: Colors.white, fontSize: 13),
+              ),
+              subtitle: const Text(
+                'Use this if contact is unsafe, unavailable, or not possible.',
+                style: TextStyle(color: Colors.white54, fontSize: 12),
+              ),
+              onChanged: _loading || _saving
+                  ? null
+                  : (value) => unawaited(_setConversationPaused(value)),
+            ),
+            if (!_conversationCompleted && widget.event.eventNumber == 5)
+              const Padding(
+                padding: EdgeInsets.only(top: 4),
+                child: Text(
+                  'The conversation from Day 11 has not been marked complete. It can still happen before the decan closes.',
+                  style: TextStyle(
+                    color: Colors.white60,
+                    fontSize: 12,
+                    height: 1.35,
+                  ),
+                ),
+              ),
+          ],
+          const SizedBox(height: 10),
+          if (_loading)
+            const SizedBox(
+              width: 18,
+              height: 18,
+              child: CircularProgressIndicator(strokeWidth: 2),
+            )
+          else
+            TextField(
+              controller: _controller,
+              minLines: _minLines,
+              maxLines: 8,
+              style: const TextStyle(color: Colors.white, fontSize: 13.5),
+              decoration: InputDecoration(
+                filled: true,
+                fillColor: const Color(0xFF090A0D),
+                hintText: _hintText(widget.event.localPrompt),
+                hintStyle: const TextStyle(color: Colors.white38),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
+                  borderSide: const BorderSide(color: Colors.white24),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
+                  borderSide: const BorderSide(color: _dayGold),
+                ),
+              ),
+            ),
+          const SizedBox(height: 10),
+          Row(
+            children: [
+              Expanded(
+                child: OutlinedButton(
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: Colors.white,
+                    side: const BorderSide(color: Colors.white24),
+                  ),
+                  onPressed: _saving || _loading ? null : _clearThisPrompt,
+                  child: const Text('Clear'),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: _dayGold,
+                    foregroundColor: Colors.black,
+                  ),
+                  onPressed: _saving || _loading ? null : _save,
+                  child: Text(_saving ? 'Saving...' : 'Save local'),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  String _hintText(KeptWordLocalPromptKind prompt) {
+    switch (prompt) {
+      case KeptWordLocalPromptKind.agreementInventory:
+        return 'Person - agreement - kept/drifted/broken';
+      case KeptWordLocalPromptKind.sharedRhythm:
+        return 'The rhythm that drifted...';
+      case KeptWordLocalPromptKind.sealSeeingGreedCheck:
+        return 'The first break to name in Decan 2...';
+      case KeptWordLocalPromptKind.conversationPrep:
+        return 'We agreed to... What has been happening is... I will speak by...';
+      case KeptWordLocalPromptKind.conversationRecord:
+        return 'What I said...\nWhat they said...\nWhat was agreed...';
+      case KeptWordLocalPromptKind.sealNaming:
+        return 'Resolved / in process / named but unresolved...';
+      case KeptWordLocalPromptKind.renewedAgreement:
+        return 'The current agreement is...';
+      case KeptWordLocalPromptKind.rhythmCheck:
+        return 'The rhythm is holding / shifted because...';
+      case KeptWordLocalPromptKind.closeInventory:
+        return 'One line now true...';
+      case KeptWordLocalPromptKind.none:
+        return '';
+    }
+  }
+}
+
+class _TheWagLocalNotesPanel extends StatefulWidget {
+  const _TheWagLocalNotesPanel({required this.flowId, required this.event});
+
+  final int flowId;
+  final WagEvent event;
+
+  @override
+  State<_TheWagLocalNotesPanel> createState() => _TheWagLocalNotesPanelState();
+}
+
+class _TheWagLocalNotesPanelState extends State<_TheWagLocalNotesPanel> {
+  final TextEditingController _controller = TextEditingController();
+  final TheWagLocalStore _store = const TheWagLocalStore();
+  bool _loading = true;
+  bool _saving = false;
+  int _ancestorCount = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    unawaited(_load());
+  }
+
+  @override
+  void didUpdateWidget(covariant _TheWagLocalNotesPanel oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.flowId != widget.flowId ||
+        oldWidget.event.localPrompt != widget.event.localPrompt) {
+      unawaited(_load());
+    }
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  Future<void> _load() async {
+    setState(() {
+      _loading = true;
+    });
+    final text = await _store.loadPromptText(
+      widget.flowId,
+      widget.event.localPrompt,
+    );
+    final ancestors = await _store.loadAncestorNames(widget.flowId);
+    if (!mounted) return;
+    _controller.text = text;
+    setState(() {
+      _ancestorCount = ancestors.length;
+      _loading = false;
+    });
+  }
+
+  Future<void> _save() async {
+    if (_saving) return;
+    setState(() => _saving = true);
+    try {
+      await _store.savePromptText(
+        widget.flowId,
+        widget.event.localPrompt,
+        _controller.text,
+      );
+      final ancestors = await _store.loadAncestorNames(widget.flowId);
+      if (!mounted) return;
+      setState(() {
+        _ancestorCount = ancestors.length;
+        _saving = false;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Saved on this device only.')),
+      );
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _saving = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Could not save local Wag notes.')),
+      );
+    }
+  }
+
+  Future<void> _clearThisPrompt() async {
+    if (_saving) return;
+    setState(() => _saving = true);
+    await _store.savePromptText(widget.flowId, widget.event.localPrompt, '');
+    final ancestors = await _store.loadAncestorNames(widget.flowId);
+    if (!mounted) return;
+    _controller.clear();
+    setState(() {
+      _ancestorCount = ancestors.length;
+      _saving = false;
+    });
+  }
+
+  int get _minLines {
+    switch (widget.event.localPrompt) {
+      case WagLocalPromptKind.ancestorNames:
+      case WagLocalPromptKind.extendedNames:
+      case WagLocalPromptKind.feastNames:
+      case WagLocalPromptKind.closingConfirmation:
+        return 4;
+      case WagLocalPromptKind.none:
+      case WagLocalPromptKind.tableConfirmation:
+      case WagLocalPromptKind.wagFocus:
+      case WagLocalPromptKind.vigilChecklist:
+      case WagLocalPromptKind.inheritedGift:
+      case WagLocalPromptKind.legacyLine:
+        return 3;
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.black.withValues(alpha: 0.26),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: const Color(0xFF9C6B4E).withValues(alpha: 0.62),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            widget.event.localPrompt.label,
+            style: const TextStyle(
+              color: Color(0xFFFFD486),
+              fontSize: 12,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          const SizedBox(height: 6),
+          const Text(
+            'Your ancestor notes stay on this device.',
+            style: TextStyle(
+              color: Colors.white70,
+              fontSize: 12,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            widget.event.localPrompt.helperText,
+            style: const TextStyle(
+              color: Colors.white54,
+              fontSize: 12,
+              height: 1.35,
+            ),
+          ),
+          if (_ancestorCount > 0 &&
+              widget.event.localPrompt != WagLocalPromptKind.ancestorNames) ...[
+            const SizedBox(height: 6),
+            Text(
+              'Ancestor names on device: $_ancestorCount ${_ancestorCount == 1 ? 'entry' : 'entries'}',
+              style: const TextStyle(color: Colors.white54, fontSize: 12),
+            ),
+          ],
+          const SizedBox(height: 10),
+          if (_loading)
+            const SizedBox(
+              width: 18,
+              height: 18,
+              child: CircularProgressIndicator(strokeWidth: 2),
+            )
+          else
+            TextField(
+              controller: _controller,
+              minLines: _minLines,
+              maxLines: 8,
+              style: const TextStyle(color: Colors.white, fontSize: 13.5),
+              decoration: InputDecoration(
+                filled: true,
+                fillColor: const Color(0xFF090A0D),
+                hintText: _hintText(widget.event.localPrompt),
+                hintStyle: const TextStyle(color: Colors.white38),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
+                  borderSide: const BorderSide(color: Colors.white24),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
+                  borderSide: const BorderSide(color: _dayGold),
+                ),
+              ),
+            ),
+          const SizedBox(height: 10),
+          Row(
+            children: [
+              Expanded(
+                child: OutlinedButton(
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: Colors.white,
+                    side: const BorderSide(color: Colors.white24),
+                  ),
+                  onPressed: _saving || _loading ? null : _clearThisPrompt,
+                  child: const Text('Clear'),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: _dayGold,
+                    foregroundColor: Colors.black,
+                  ),
+                  onPressed: _saving || _loading ? null : _save,
+                  child: Text(_saving ? 'Saving...' : 'Save local'),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  String _hintText(WagLocalPromptKind prompt) {
+    switch (prompt) {
+      case WagLocalPromptKind.ancestorNames:
+        return 'Name\n[Name unknown] - grandmother\nPractice ancestor - craft elder';
+      case WagLocalPromptKind.extendedNames:
+        return 'Additional name\nUnknown ancestor - relationship\nMentor or elder';
+      case WagLocalPromptKind.tableConfirmation:
+        return 'List read / water set / table ready...';
+      case WagLocalPromptKind.wagFocus:
+        return 'At the Wag I most want to acknowledge...';
+      case WagLocalPromptKind.vigilChecklist:
+        return 'Water / bread or food / scent / names spoken...';
+      case WagLocalPromptKind.feastNames:
+        return 'Names spoken / full feast kept / partial offering...';
+      case WagLocalPromptKind.inheritedGift:
+        return '[Name] gave me... I carry it by...';
+      case WagLocalPromptKind.legacyLine:
+        return 'After my name, I would want them to say...';
+      case WagLocalPromptKind.closingConfirmation:
+        return 'What this cycle confirmed...';
+      case WagLocalPromptKind.none:
+        return '';
+    }
+  }
+}
+
+class _DaysOutsideYearLocalNotesPanel extends StatefulWidget {
+  const _DaysOutsideYearLocalNotesPanel({
+    required this.flowId,
+    required this.event,
+  });
+
+  final int flowId;
+  final DaysOutsideEvent event;
+
+  @override
+  State<_DaysOutsideYearLocalNotesPanel> createState() =>
+      _DaysOutsideYearLocalNotesPanelState();
+}
+
+class _DaysOutsideYearLocalNotesPanelState
+    extends State<_DaysOutsideYearLocalNotesPanel> {
+  final TextEditingController _controller = TextEditingController();
+  final DaysOutsideYearLocalStore _store = const DaysOutsideYearLocalStore();
+  bool _loading = true;
+  bool _saving = false;
+
+  @override
+  void initState() {
+    super.initState();
+    unawaited(_load());
+  }
+
+  @override
+  void didUpdateWidget(covariant _DaysOutsideYearLocalNotesPanel oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.flowId != widget.flowId ||
+        oldWidget.event.localPrompt != widget.event.localPrompt) {
+      unawaited(_load());
+    }
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  Future<void> _load() async {
+    setState(() => _loading = true);
+    final text = await _store.loadPromptText(
+      widget.flowId,
+      widget.event.localPrompt,
+    );
+    if (!mounted) return;
+    _controller.text = text;
+    setState(() => _loading = false);
+  }
+
+  Future<void> _save() async {
+    if (_saving) return;
+    setState(() => _saving = true);
+    try {
+      await _store.savePromptText(
+        widget.flowId,
+        widget.event.localPrompt,
+        _controller.text,
+      );
+      if (!mounted) return;
+      setState(() => _saving = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Saved on this device only.')),
+      );
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _saving = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Could not save local year-threshold notes.'),
+        ),
+      );
+    }
+  }
+
+  Future<void> _clear() async {
+    if (_saving) return;
+    setState(() => _saving = true);
+    await _store.savePromptText(widget.flowId, widget.event.localPrompt, '');
+    if (!mounted) return;
+    _controller.clear();
+    setState(() => _saving = false);
+  }
+
+  int get _minLines {
+    return widget.event.kind == DaysOutsideEventKind.wepRonpetOpening ? 4 : 3;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.black.withValues(alpha: 0.26),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: const Color(0xFFB8A8FF).withValues(alpha: 0.5),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            widget.event.localPrompt.label,
+            style: const TextStyle(
+              color: Color(0xFFFFD486),
+              fontSize: 12,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          const SizedBox(height: 6),
+          const Text(
+            'Your threshold notes stay on this device.',
+            style: TextStyle(
+              color: Colors.white70,
+              fontSize: 12,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            widget.event.localPrompt.helperText,
+            style: const TextStyle(
+              color: Colors.white54,
+              fontSize: 12,
+              height: 1.35,
+            ),
+          ),
+          const SizedBox(height: 10),
+          if (_loading)
+            const SizedBox(
+              width: 18,
+              height: 18,
+              child: CircularProgressIndicator(strokeWidth: 2),
+            )
+          else
+            TextField(
+              controller: _controller,
+              minLines: _minLines,
+              maxLines: 8,
+              style: const TextStyle(color: Colors.white, fontSize: 13.5),
+              decoration: InputDecoration(
+                filled: true,
+                fillColor: const Color(0xFF090A0D),
+                hintText: _hintText(widget.event.localPrompt),
+                hintStyle: const TextStyle(color: Colors.white38),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
+                  borderSide: const BorderSide(color: Colors.white24),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
+                  borderSide: const BorderSide(color: _dayGold),
+                ),
+              ),
+            ),
+          const SizedBox(height: 10),
+          Row(
+            children: [
+              Expanded(
+                child: OutlinedButton(
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: Colors.white,
+                    side: const BorderSide(color: Colors.white24),
+                  ),
+                  onPressed: _saving || _loading ? null : _clear,
+                  child: const Text('Clear'),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: _dayGold,
+                    foregroundColor: Colors.black,
+                  ),
+                  onPressed: _saving || _loading ? null : _save,
+                  child: Text(_saving ? 'Saving...' : 'Save local'),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  String _hintText(DaysOutsideLocalPromptKind prompt) {
+    switch (prompt) {
+      case DaysOutsideLocalPromptKind.yearCloseTriple:
+        return 'Unexpected gift...\nUngiven ask...\nCarries across...';
+      case DaysOutsideLocalPromptKind.ausarQuality:
+        return 'This needs to be gathered back...';
+      case DaysOutsideLocalPromptKind.heruWerQuality:
+        return 'I need to see this from above...';
+      case DaysOutsideLocalPromptKind.setQuality:
+        return 'This force needs direction...';
+      case DaysOutsideLocalPromptKind.asetQuality:
+        return 'This truth needs the right moment...';
+      case DaysOutsideLocalPromptKind.nebetHetQuality:
+        return 'This threshold needs witness...';
+      case DaysOutsideLocalPromptKind.wepRonpetIntention:
+        return 'Ausar - one word\nHeru Wer - one word\nSet - one word\nAset - one word\nNebet-Het - one word\nYear intention...';
+    }
+  }
+}
+
+class _OpenHandLocalNotesPanel extends StatefulWidget {
+  const _OpenHandLocalNotesPanel({required this.flowId, required this.event});
+
+  final int flowId;
+  final OpenHandEvent event;
+
+  @override
+  State<_OpenHandLocalNotesPanel> createState() =>
+      _OpenHandLocalNotesPanelState();
+}
+
+class _OpenHandLocalNotesPanelState extends State<_OpenHandLocalNotesPanel> {
+  final TextEditingController _controller = TextEditingController();
+  final TextEditingController _deferredController = TextEditingController();
+  final TheOpenHandLocalStore _store = const TheOpenHandLocalStore();
+  bool _loading = true;
+  bool _saving = false;
+  bool _actCompleted = false;
+
+  @override
+  void initState() {
+    super.initState();
+    unawaited(_load());
+  }
+
+  @override
+  void didUpdateWidget(covariant _OpenHandLocalNotesPanel oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.flowId != widget.flowId ||
+        oldWidget.event.eventNumber != widget.event.eventNumber) {
+      unawaited(_load());
+    }
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    _deferredController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _load() async {
+    setState(() => _loading = true);
+    final text = await _store.loadPromptText(
+      widget.flowId,
+      widget.event.localPrompt,
+    );
+    final completed = await _store.loadActCompleted(
+      widget.flowId,
+      widget.event.eventNumber,
+    );
+    final deferred = widget.event.strangerAct
+        ? await _store.loadDeferredStrangerActDate(widget.flowId)
+        : '';
+    if (!mounted) return;
+    _controller.text = text;
+    _deferredController.text = deferred;
+    setState(() {
+      _actCompleted = completed;
+      _loading = false;
+    });
+  }
+
+  Future<void> _save() async {
+    if (_saving) return;
+    setState(() => _saving = true);
+    try {
+      await _store.savePromptText(
+        widget.flowId,
+        widget.event.localPrompt,
+        _controller.text,
+      );
+      if (widget.event.strangerAct) {
+        await _store.saveDeferredStrangerActDate(
+          widget.flowId,
+          _deferredController.text,
+        );
+      }
+      if (!mounted) return;
+      setState(() => _saving = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Saved on this device only.')),
+      );
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _saving = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Could not save local Open Hand notes.')),
+      );
+    }
+  }
+
+  Future<void> _setActCompleted(bool value) async {
+    if (_saving) return;
+    setState(() {
+      _actCompleted = value;
+      _saving = true;
+    });
+    await _store.saveActCompleted(
+      widget.flowId,
+      widget.event.eventNumber,
+      value,
+    );
+    if (!mounted) return;
+    setState(() => _saving = false);
+  }
+
+  Future<void> _clear() async {
+    if (_saving) return;
+    setState(() => _saving = true);
+    await _store.savePromptText(widget.flowId, widget.event.localPrompt, '');
+    if (widget.event.requiresOutwardAct) {
+      await _store.saveActCompleted(
+        widget.flowId,
+        widget.event.eventNumber,
+        false,
+      );
+    }
+    if (widget.event.strangerAct) {
+      await _store.saveDeferredStrangerActDate(widget.flowId, '');
+    }
+    if (!mounted) return;
+    _controller.clear();
+    _deferredController.clear();
+    setState(() {
+      _actCompleted = false;
+      _saving = false;
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.black.withValues(alpha: 0.26),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: const Color(0xFFFFD486).withValues(alpha: 0.45),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            widget.event.localPrompt.label,
+            style: const TextStyle(
+              color: Color(0xFFFFD486),
+              fontSize: 12,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          const SizedBox(height: 6),
+          const Text(
+            'Names, needs, act details, and commitments stay on this device.',
+            style: TextStyle(
+              color: Colors.white70,
+              fontSize: 12,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          if (widget.event.requiresOutwardAct) ...[
+            const SizedBox(height: 8),
+            CheckboxListTile(
+              contentPadding: EdgeInsets.zero,
+              dense: true,
+              value: _actCompleted,
+              onChanged: _loading || _saving
+                  ? null
+                  : (value) => unawaited(_setActCompleted(value == true)),
+              activeColor: _dayGold,
+              checkColor: Colors.black,
+              title: const Text(
+                'I completed the outward act',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              subtitle: const Text(
+                'Observed is gated on this local acknowledgment.',
+                style: TextStyle(color: Colors.white54, fontSize: 12),
+              ),
+            ),
+          ],
+          const SizedBox(height: 8),
+          if (_loading)
+            const SizedBox(
+              width: 18,
+              height: 18,
+              child: CircularProgressIndicator(strokeWidth: 2),
+            )
+          else
+            TextField(
+              controller: _controller,
+              minLines:
+                  widget.event.eventNumber == 4 ||
+                      widget.event.eventNumber == 6 ||
+                      widget.event.eventNumber == 9
+                  ? 4
+                  : 3,
+              maxLines: 8,
+              style: const TextStyle(color: Colors.white, fontSize: 13.5),
+              decoration: InputDecoration(
+                filled: true,
+                fillColor: const Color(0xFF090A0D),
+                hintText: widget.event.localPrompt.placeholder,
+                hintStyle: const TextStyle(color: Colors.white38),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
+                  borderSide: const BorderSide(color: Colors.white24),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
+                  borderSide: const BorderSide(color: _dayGold),
+                ),
+              ),
+            ),
+          if (widget.event.strangerAct) ...[
+            const SizedBox(height: 10),
+            TextField(
+              controller: _deferredController,
+              style: const TextStyle(color: Colors.white, fontSize: 13.5),
+              decoration: InputDecoration(
+                filled: true,
+                fillColor: const Color(0xFF090A0D),
+                hintText:
+                    'If skipped: specific future date for the stranger act',
+                hintStyle: const TextStyle(color: Colors.white38),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
+                  borderSide: const BorderSide(color: Colors.white24),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
+                  borderSide: const BorderSide(color: _dayGold),
+                ),
+              ),
+            ),
+          ],
+          const SizedBox(height: 10),
+          Row(
+            children: [
+              Expanded(
+                child: OutlinedButton(
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: Colors.white,
+                    side: const BorderSide(color: Colors.white24),
+                  ),
+                  onPressed: _saving || _loading ? null : _clear,
+                  child: const Text('Clear'),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: _dayGold,
+                    foregroundColor: Colors.black,
+                  ),
+                  onPressed: _saving || _loading ? null : _save,
+                  child: Text(_saving ? 'Saving...' : 'Save local'),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _DjedLocalNotesPanel extends StatefulWidget {
+  const _DjedLocalNotesPanel({required this.flowId, required this.event});
+
+  final int flowId;
+  final DjedEvent event;
+
+  @override
+  State<_DjedLocalNotesPanel> createState() => _DjedLocalNotesPanelState();
+}
+
+class _DjedLocalNotesPanelState extends State<_DjedLocalNotesPanel> {
+  final TextEditingController _controller = TextEditingController();
+  final TheDjedLocalStore _store = const TheDjedLocalStore();
+  bool _loading = true;
+  bool _saving = false;
+  bool _directEngagementCompleted = false;
+  bool _raisingCompleted = false;
+
+  @override
+  void initState() {
+    super.initState();
+    unawaited(_load());
+  }
+
+  @override
+  void didUpdateWidget(covariant _DjedLocalNotesPanel oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.flowId != widget.flowId ||
+        oldWidget.event.eventNumber != widget.event.eventNumber) {
+      unawaited(_load());
+    }
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  Future<void> _load() async {
+    setState(() => _loading = true);
+    final text = await _store.loadPromptText(
+      widget.flowId,
+      widget.event.localPrompt,
+    );
+    final directCompleted = await _store.loadDirectEngagementCompleted(
+      widget.flowId,
+    );
+    final raisingCompleted = await _store.loadRaisingCompleted(widget.flowId);
+    if (!mounted) return;
+    _controller.text = text;
+    setState(() {
+      _directEngagementCompleted = directCompleted;
+      _raisingCompleted = raisingCompleted;
+      _loading = false;
+    });
+  }
+
+  Future<void> _save() async {
+    if (_saving) return;
+    setState(() => _saving = true);
+    try {
+      await _store.savePromptText(
+        widget.flowId,
+        widget.event.localPrompt,
+        _controller.text,
+      );
+      if (!mounted) return;
+      setState(() => _saving = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Saved on this device only.')),
+      );
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _saving = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Could not save local Djed notes.')),
+      );
+    }
+  }
+
+  Future<void> _setDirectEngagementCompleted(bool value) async {
+    if (_saving) return;
+    setState(() {
+      _directEngagementCompleted = value;
+      _saving = true;
+    });
+    await _store.saveDirectEngagementCompleted(widget.flowId, value);
+    if (!mounted) return;
+    setState(() => _saving = false);
+  }
+
+  Future<void> _setRaisingCompleted(bool value) async {
+    if (_saving) return;
+    setState(() {
+      _raisingCompleted = value;
+      _saving = true;
+    });
+    await _store.saveRaisingCompleted(widget.flowId, value);
+    if (!mounted) return;
+    setState(() => _saving = false);
+  }
+
+  Future<void> _clear() async {
+    if (_saving) return;
+    setState(() => _saving = true);
+    await _store.savePromptText(widget.flowId, widget.event.localPrompt, '');
+    if (widget.event.requiresDirectEngagement) {
+      await _store.saveDirectEngagementCompleted(widget.flowId, false);
+    }
+    if (widget.event.physicalRaising) {
+      await _store.saveRaisingCompleted(widget.flowId, false);
+    }
+    if (!mounted) return;
+    _controller.clear();
+    setState(() {
+      _directEngagementCompleted = false;
+      _raisingCompleted = false;
+      _saving = false;
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.black.withValues(alpha: 0.26),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: const Color(0xFF9BD0A5).withValues(alpha: 0.45),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            widget.event.localPrompt.label,
+            style: const TextStyle(
+              color: Color(0xFFB8E6BD),
+              fontSize: 12,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          const SizedBox(height: 6),
+          const Text(
+            'Spine labels, wobble notes, battle commitments, and raising notes stay on this device.',
+            style: TextStyle(
+              color: Colors.white70,
+              fontSize: 12,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          if (widget.event.eventNumber == 1) ...[
+            const SizedBox(height: 8),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: SpineCondition.values.map((condition) {
+                return Chip(
+                  label: Text(condition.label),
+                  visualDensity: VisualDensity.compact,
+                  backgroundColor: const Color(0xFF15171B),
+                  side: const BorderSide(color: Colors.white24),
+                  labelStyle: const TextStyle(
+                    color: Colors.white70,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                  ),
+                );
+              }).toList(),
+            ),
+          ],
+          if (widget.event.eventNumber == 8) ...[
+            const SizedBox(height: 8),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: const Color(0xFF0B0C0F),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: const Color(0xFF9BD0A5)),
+              ),
+              child: const Text(
+                'Next event requires standing room for about 30 seconds.',
+                style: TextStyle(
+                  color: Color(0xFFB8E6BD),
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ),
+          ],
+          if (widget.event.requiresDirectEngagement) ...[
+            const SizedBox(height: 8),
+            CheckboxListTile(
+              contentPadding: EdgeInsets.zero,
+              dense: true,
+              value: _directEngagementCompleted,
+              onChanged: _loading || _saving
+                  ? null
+                  : (value) =>
+                        unawaited(_setDirectEngagementCompleted(value == true)),
+              activeColor: _dayGold,
+              checkColor: Colors.black,
+              title: const Text(
+                'I engaged the challenge directly',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              subtitle: const Text(
+                'Record what actually happened; no false victory is required.',
+                style: TextStyle(color: Colors.white54, fontSize: 12),
+              ),
+            ),
+          ],
+          if (widget.event.physicalRaising) ...[
+            const SizedBox(height: 8),
+            CheckboxListTile(
+              contentPadding: EdgeInsets.zero,
+              dense: true,
+              value: _raisingCompleted,
+              onChanged: _loading || _saving
+                  ? null
+                  : (value) => unawaited(_setRaisingCompleted(value == true)),
+              activeColor: _dayGold,
+              checkColor: Colors.black,
+              title: const Text(
+                'I stood upright and raised my arms for at least 30 seconds',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              subtitle: const Text(
+                'Raised is gated on this local acknowledgment.',
+                style: TextStyle(color: Colors.white54, fontSize: 12),
+              ),
+            ),
+          ],
+          const SizedBox(height: 8),
+          if (_loading)
+            const SizedBox(
+              width: 18,
+              height: 18,
+              child: CircularProgressIndicator(strokeWidth: 2),
+            )
+          else
+            TextField(
+              controller: _controller,
+              minLines:
+                  widget.event.eventNumber == 1 ||
+                      widget.event.eventNumber == 4 ||
+                      widget.event.eventNumber == 9
+                  ? 4
+                  : 3,
+              maxLines: 8,
+              style: const TextStyle(color: Colors.white, fontSize: 13.5),
+              decoration: InputDecoration(
+                filled: true,
+                fillColor: const Color(0xFF090A0D),
+                hintText: widget.event.localPrompt.placeholder,
+                hintStyle: const TextStyle(color: Colors.white38),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
+                  borderSide: const BorderSide(color: Colors.white24),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
+                  borderSide: const BorderSide(color: _dayGold),
+                ),
+              ),
+            ),
+          const SizedBox(height: 10),
+          Row(
+            children: [
+              Expanded(
+                child: OutlinedButton(
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: Colors.white,
+                    side: const BorderSide(color: Colors.white24),
+                  ),
+                  onPressed: _saving || _loading ? null : _clear,
+                  child: const Text('Clear'),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: _dayGold,
+                    foregroundColor: Colors.black,
+                  ),
+                  onPressed: _saving || _loading ? null : _save,
+                  child: Text(_saving ? 'Saving...' : 'Save local'),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
   }
 }
 

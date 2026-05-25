@@ -155,6 +155,472 @@ void main() {
     expect(find.text('node'), findsOneWidget);
   });
 
+  testWidgets('flow template CTA opens suggested template immediately', (
+    tester,
+  ) async {
+    final repo = _FakeMaatGuidanceRepo([
+      _delivery(
+        id: 'drift-template',
+        kind: MaatGuidanceKind.driftNudge,
+        ctaType: MaatGuidanceCtaType.flowTemplate,
+        ctaRef: 'the-offering-table',
+        bodyText:
+            'Tend to provision by restoring one check. Keep it small enough to finish today.',
+      ),
+    ]);
+    final openedStates = <Map<String, dynamic>>[];
+    final controller = MaatGuidanceController(repo);
+    final router = GoRouter(
+      initialLocation: '/maat-guidance/drift-template',
+      routes: [
+        GoRoute(
+          path: '/maat-guidance/:deliveryId',
+          builder: (context, state) {
+            return MaatGuidanceScope(
+              controller: controller,
+              child: MaatGuidanceDetailPage(
+                deliveryId: state.pathParameters['deliveryId']!,
+                repo: repo,
+                flowStudioOpener: (_, restorationState) async {
+                  openedStates.add(Map<String, dynamic>.from(restorationState));
+                },
+              ),
+            );
+          },
+        ),
+      ],
+    );
+
+    await tester.pumpWidget(MaterialApp.router(routerConfig: router));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Ma’at Grounding'), findsWidgets);
+    expect(find.text('Open suggested flow'), findsOneWidget);
+
+    await tester.tap(find.text('Open suggested flow'));
+    await tester.pumpAndSettle();
+
+    expect(openedStates, hasLength(1));
+    expect(openedStates.single['mode'], 'maatTemplate');
+    expect(openedStates.single['templateKey'], 'the-offering-table');
+    expect(repo.acks, <String>[
+      'drift-template:opened',
+      'drift-template:acted',
+    ]);
+  });
+
+  testWidgets('flow template CTA can open The Weighing', (tester) async {
+    final repo = _FakeMaatGuidanceRepo([
+      _delivery(
+        id: 'measure-template',
+        kind: MaatGuidanceKind.driftNudge,
+        ctaType: MaatGuidanceCtaType.flowTemplate,
+        ctaRef: 'the-weighing',
+      ),
+    ]);
+    final openedStates = <Map<String, dynamic>>[];
+    final controller = MaatGuidanceController(repo);
+    final router = GoRouter(
+      initialLocation: '/maat-guidance/measure-template',
+      routes: [
+        GoRoute(
+          path: '/maat-guidance/:deliveryId',
+          builder: (context, state) {
+            return MaatGuidanceScope(
+              controller: controller,
+              child: MaatGuidanceDetailPage(
+                deliveryId: state.pathParameters['deliveryId']!,
+                repo: repo,
+                flowStudioOpener: (_, restorationState) async {
+                  openedStates.add(Map<String, dynamic>.from(restorationState));
+                },
+              ),
+            );
+          },
+        ),
+      ],
+    );
+
+    await tester.pumpWidget(MaterialApp.router(routerConfig: router));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Open suggested flow'));
+    await tester.pumpAndSettle();
+
+    expect(openedStates.single['mode'], 'maatTemplate');
+    expect(openedStates.single['templateKey'], 'the-weighing');
+  });
+
+  testWidgets('flow template CTA can open The Tending', (tester) async {
+    final repo = _FakeMaatGuidanceRepo([
+      _delivery(
+        id: 'care-template',
+        kind: MaatGuidanceKind.driftNudge,
+        ctaType: MaatGuidanceCtaType.flowTemplate,
+        ctaRef: 'the-tending',
+      ),
+    ]);
+    final openedStates = <Map<String, dynamic>>[];
+    final controller = MaatGuidanceController(repo);
+    final router = GoRouter(
+      initialLocation: '/maat-guidance/care-template',
+      routes: [
+        GoRoute(
+          path: '/maat-guidance/:deliveryId',
+          builder: (context, state) {
+            return MaatGuidanceScope(
+              controller: controller,
+              child: MaatGuidanceDetailPage(
+                deliveryId: state.pathParameters['deliveryId']!,
+                repo: repo,
+                flowStudioOpener: (_, restorationState) async {
+                  openedStates.add(Map<String, dynamic>.from(restorationState));
+                },
+              ),
+            );
+          },
+        ),
+      ],
+    );
+
+    await tester.pumpWidget(MaterialApp.router(routerConfig: router));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Open suggested flow'));
+    await tester.pumpAndSettle();
+
+    expect(openedStates.single['mode'], 'maatTemplate');
+    expect(openedStates.single['templateKey'], 'the-tending');
+  });
+
+  testWidgets('flow template CTA can open The Kept Word', (tester) async {
+    final repo = _FakeMaatGuidanceRepo([
+      _delivery(
+        id: 'cohesion-template',
+        kind: MaatGuidanceKind.driftNudge,
+        ctaType: MaatGuidanceCtaType.flowTemplate,
+        ctaRef: 'the-kept-word',
+      ),
+    ]);
+    final openedStates = <Map<String, dynamic>>[];
+    final controller = MaatGuidanceController(repo);
+    final router = GoRouter(
+      initialLocation: '/maat-guidance/cohesion-template',
+      routes: [
+        GoRoute(
+          path: '/maat-guidance/:deliveryId',
+          builder: (context, state) {
+            return MaatGuidanceScope(
+              controller: controller,
+              child: MaatGuidanceDetailPage(
+                deliveryId: state.pathParameters['deliveryId']!,
+                repo: repo,
+                flowStudioOpener: (_, restorationState) async {
+                  openedStates.add(Map<String, dynamic>.from(restorationState));
+                },
+              ),
+            );
+          },
+        ),
+      ],
+    );
+
+    await tester.pumpWidget(MaterialApp.router(routerConfig: router));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Open suggested flow'));
+    await tester.pumpAndSettle();
+
+    expect(openedStates.single['mode'], 'maatTemplate');
+    expect(openedStates.single['templateKey'], 'the-kept-word');
+  });
+
+  testWidgets('flow template CTA can open The Course', (tester) async {
+    final repo = _FakeMaatGuidanceRepo([
+      _delivery(
+        id: 'rhythm-template',
+        kind: MaatGuidanceKind.driftNudge,
+        ctaType: MaatGuidanceCtaType.flowTemplate,
+        ctaRef: 'the-course',
+      ),
+    ]);
+    final openedStates = <Map<String, dynamic>>[];
+    final controller = MaatGuidanceController(repo);
+    final router = GoRouter(
+      initialLocation: '/maat-guidance/rhythm-template',
+      routes: [
+        GoRoute(
+          path: '/maat-guidance/:deliveryId',
+          builder: (context, state) {
+            return MaatGuidanceScope(
+              controller: controller,
+              child: MaatGuidanceDetailPage(
+                deliveryId: state.pathParameters['deliveryId']!,
+                repo: repo,
+                flowStudioOpener: (_, restorationState) async {
+                  openedStates.add(Map<String, dynamic>.from(restorationState));
+                },
+              ),
+            );
+          },
+        ),
+      ],
+    );
+
+    await tester.pumpWidget(MaterialApp.router(routerConfig: router));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Open suggested flow'));
+    await tester.pumpAndSettle();
+
+    expect(openedStates.single['mode'], 'maatTemplate');
+    expect(openedStates.single['templateKey'], 'the-course');
+  });
+
+  testWidgets('flow template CTA can open The Moon Return', (tester) async {
+    final repo = _FakeMaatGuidanceRepo([
+      _delivery(
+        id: 'moon-template',
+        kind: MaatGuidanceKind.strengthNudge,
+        ctaType: MaatGuidanceCtaType.flowTemplate,
+        ctaRef: 'the-moon-return',
+      ),
+    ]);
+    final openedStates = <Map<String, dynamic>>[];
+    final controller = MaatGuidanceController(repo);
+    final router = GoRouter(
+      initialLocation: '/maat-guidance/moon-template',
+      routes: [
+        GoRoute(
+          path: '/maat-guidance/:deliveryId',
+          builder: (context, state) {
+            return MaatGuidanceScope(
+              controller: controller,
+              child: MaatGuidanceDetailPage(
+                deliveryId: state.pathParameters['deliveryId']!,
+                repo: repo,
+                flowStudioOpener: (_, restorationState) async {
+                  openedStates.add(Map<String, dynamic>.from(restorationState));
+                },
+              ),
+            );
+          },
+        ),
+      ],
+    );
+
+    await tester.pumpWidget(MaterialApp.router(routerConfig: router));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Open suggested flow'));
+    await tester.pumpAndSettle();
+
+    expect(openedStates.single['mode'], 'maatTemplate');
+    expect(openedStates.single['templateKey'], 'the-moon-return');
+  });
+
+  testWidgets('flow template CTA can open The Wag', (tester) async {
+    final repo = _FakeMaatGuidanceRepo([
+      _delivery(
+        id: 'wag-template',
+        kind: MaatGuidanceKind.strengthNudge,
+        ctaType: MaatGuidanceCtaType.flowTemplate,
+        ctaRef: 'the-wag',
+      ),
+    ]);
+    final openedStates = <Map<String, dynamic>>[];
+    final controller = MaatGuidanceController(repo);
+    final router = GoRouter(
+      initialLocation: '/maat-guidance/wag-template',
+      routes: [
+        GoRoute(
+          path: '/maat-guidance/:deliveryId',
+          builder: (context, state) {
+            return MaatGuidanceScope(
+              controller: controller,
+              child: MaatGuidanceDetailPage(
+                deliveryId: state.pathParameters['deliveryId']!,
+                repo: repo,
+                flowStudioOpener: (_, restorationState) async {
+                  openedStates.add(Map<String, dynamic>.from(restorationState));
+                },
+              ),
+            );
+          },
+        ),
+      ],
+    );
+
+    await tester.pumpWidget(MaterialApp.router(routerConfig: router));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Open suggested flow'));
+    await tester.pumpAndSettle();
+
+    expect(openedStates.single['mode'], 'maatTemplate');
+    expect(openedStates.single['templateKey'], 'the-wag');
+  });
+
+  testWidgets('flow template CTA can open The Decan Watch', (tester) async {
+    final repo = _FakeMaatGuidanceRepo([
+      _delivery(
+        id: 'decan-watch-template',
+        kind: MaatGuidanceKind.decanOpening,
+        ctaType: MaatGuidanceCtaType.flowTemplate,
+        ctaRef: 'the-decan-watch',
+      ),
+    ]);
+    final openedStates = <Map<String, dynamic>>[];
+    final controller = MaatGuidanceController(repo);
+    final router = GoRouter(
+      initialLocation: '/maat-guidance/decan-watch-template',
+      routes: [
+        GoRoute(
+          path: '/maat-guidance/:deliveryId',
+          builder: (context, state) {
+            return MaatGuidanceScope(
+              controller: controller,
+              child: MaatGuidanceDetailPage(
+                deliveryId: state.pathParameters['deliveryId']!,
+                repo: repo,
+                flowStudioOpener: (_, restorationState) async {
+                  openedStates.add(Map<String, dynamic>.from(restorationState));
+                },
+              ),
+            );
+          },
+        ),
+      ],
+    );
+
+    await tester.pumpWidget(MaterialApp.router(routerConfig: router));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Open suggested flow'));
+    await tester.pumpAndSettle();
+
+    expect(openedStates.single['mode'], 'maatTemplate');
+    expect(openedStates.single['templateKey'], 'the-decan-watch');
+  });
+
+  testWidgets('flow template CTA can open The Days Outside the Year', (
+    tester,
+  ) async {
+    final repo = _FakeMaatGuidanceRepo([
+      _delivery(
+        id: 'days-outside-template',
+        kind: MaatGuidanceKind.strengthNudge,
+        ctaType: MaatGuidanceCtaType.flowTemplate,
+        ctaRef: 'the-days-outside-the-year',
+      ),
+    ]);
+    final openedStates = <Map<String, dynamic>>[];
+    final controller = MaatGuidanceController(repo);
+    final router = GoRouter(
+      initialLocation: '/maat-guidance/days-outside-template',
+      routes: [
+        GoRoute(
+          path: '/maat-guidance/:deliveryId',
+          builder: (context, state) {
+            return MaatGuidanceScope(
+              controller: controller,
+              child: MaatGuidanceDetailPage(
+                deliveryId: state.pathParameters['deliveryId']!,
+                repo: repo,
+                flowStudioOpener: (_, restorationState) async {
+                  openedStates.add(Map<String, dynamic>.from(restorationState));
+                },
+              ),
+            );
+          },
+        ),
+      ],
+    );
+
+    await tester.pumpWidget(MaterialApp.router(routerConfig: router));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Open suggested flow'));
+    await tester.pumpAndSettle();
+
+    expect(openedStates.single['mode'], 'maatTemplate');
+    expect(openedStates.single['templateKey'], 'the-days-outside-the-year');
+  });
+
+  testWidgets('flow template CTA can open The Open Hand', (tester) async {
+    final repo = _FakeMaatGuidanceRepo([
+      _delivery(
+        id: 'open-hand-template',
+        kind: MaatGuidanceKind.decanOpening,
+        ctaType: MaatGuidanceCtaType.flowTemplate,
+        ctaRef: 'the-open-hand',
+      ),
+    ]);
+    final openedStates = <Map<String, dynamic>>[];
+    final controller = MaatGuidanceController(repo);
+    final router = GoRouter(
+      initialLocation: '/maat-guidance/open-hand-template',
+      routes: [
+        GoRoute(
+          path: '/maat-guidance/:deliveryId',
+          builder: (context, state) {
+            return MaatGuidanceScope(
+              controller: controller,
+              child: MaatGuidanceDetailPage(
+                deliveryId: state.pathParameters['deliveryId']!,
+                repo: repo,
+                flowStudioOpener: (_, restorationState) async {
+                  openedStates.add(Map<String, dynamic>.from(restorationState));
+                },
+              ),
+            );
+          },
+        ),
+      ],
+    );
+
+    await tester.pumpWidget(MaterialApp.router(routerConfig: router));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Open suggested flow'));
+    await tester.pumpAndSettle();
+
+    expect(openedStates.single['mode'], 'maatTemplate');
+    expect(openedStates.single['templateKey'], 'the-open-hand');
+  });
+
+  testWidgets('flow template CTA can open The Djed', (tester) async {
+    final repo = _FakeMaatGuidanceRepo([
+      _delivery(
+        id: 'djed-template',
+        kind: MaatGuidanceKind.decanOpening,
+        ctaType: MaatGuidanceCtaType.flowTemplate,
+        ctaRef: 'the-djed',
+      ),
+    ]);
+    final openedStates = <Map<String, dynamic>>[];
+    final controller = MaatGuidanceController(repo);
+    final router = GoRouter(
+      initialLocation: '/maat-guidance/djed-template',
+      routes: [
+        GoRoute(
+          path: '/maat-guidance/:deliveryId',
+          builder: (context, state) {
+            return MaatGuidanceScope(
+              controller: controller,
+              child: MaatGuidanceDetailPage(
+                deliveryId: state.pathParameters['deliveryId']!,
+                repo: repo,
+                flowStudioOpener: (_, restorationState) async {
+                  openedStates.add(Map<String, dynamic>.from(restorationState));
+                },
+              ),
+            );
+          },
+        ),
+      ],
+    );
+
+    await tester.pumpWidget(MaterialApp.router(routerConfig: router));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Open suggested flow'));
+    await tester.pumpAndSettle();
+
+    expect(openedStates.single['mode'], 'maatTemplate');
+    expect(openedStates.single['templateKey'], 'the-djed');
+  });
+
   testWidgets('opening detail shows server-owned journey context', (
     tester,
   ) async {
@@ -257,7 +723,7 @@ void main() {
             'description': 'Create a provision flow.',
             'sourceText': 'MAAT_FLOW_BRIEF v1',
             'durationDays': 10,
-            'fallbackTemplateKey': 'dawn-house-rite',
+            'fallbackTemplateKey': 'the-offering-table',
           },
         },
       ),

@@ -4,15 +4,26 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 class DecanReflectionPromptState {
-  const DecanReflectionPromptState(this._client);
+  const DecanReflectionPromptState(
+    SupabaseClient client, {
+    String? Function()? currentUserId,
+  }) : _client = client,
+       _currentUserId = currentUserId;
+
+  const DecanReflectionPromptState.withUserIdProvider(
+    String? Function() currentUserId,
+  ) : _client = null,
+      _currentUserId = currentUserId;
 
   static const String seenPrefKey = 'calendar:seen_reflection_by_user';
   static const String dismissedPrefKey =
       'calendar:dismissed_reflection_by_user_v2';
 
-  final SupabaseClient _client;
+  final SupabaseClient? _client;
+  final String? Function()? _currentUserId;
 
-  String? get _userId => _client.auth.currentUser?.id;
+  String? get _userId =>
+      _currentUserId?.call() ?? _client?.auth.currentUser?.id;
 
   Future<bool> hasSeen(DateTime decanStart) =>
       _hasStoredDate(seenPrefKey, decanStart);
@@ -43,8 +54,7 @@ class DecanReflectionPromptState {
       final raw = prefs.getString(key);
       if (raw == null || raw.isEmpty) return false;
       final map = Map<String, dynamic>.from(jsonDecode(raw) as Map);
-      final stored = map[uid] as String?;
-      return stored == _formatDateOnlyLocal(decanStart);
+      return _storedDatesFor(map[uid]).containsAny(_dateKeys(decanStart));
     } catch (_) {
       return false;
     }
@@ -59,18 +69,42 @@ class DecanReflectionPromptState {
       final map = raw == null || raw.isEmpty
           ? <String, dynamic>{}
           : Map<String, dynamic>.from(jsonDecode(raw) as Map);
-      map[uid] = _formatDateOnlyLocal(decanStart);
+      final dates = _storedDatesFor(map[uid])..addAll(_dateKeys(decanStart));
+      map[uid] = dates.toList()..sort();
       await prefs.setString(key, jsonEncode(map));
     } catch (_) {
       // Non-critical local UI state.
     }
   }
 
-  String _formatDateOnlyLocal(DateTime date) {
-    final d = date.toLocal();
+  Set<String> _storedDatesFor(Object? value) {
+    if (value is String && value.trim().isNotEmpty) {
+      return {value.trim()};
+    }
+    if (value is List) {
+      return value
+          .map((raw) => raw?.toString().trim())
+          .whereType<String>()
+          .where((date) => date.isNotEmpty)
+          .toSet();
+    }
+    return <String>{};
+  }
+
+  Set<String> _dateKeys(DateTime date) {
+    final canonical = _formatDateOnly(date);
+    final legacyLocal = _formatDateOnly(date.toLocal());
+    return {canonical, legacyLocal};
+  }
+
+  String _formatDateOnly(DateTime d) {
     final yyyy = d.year.toString().padLeft(4, '0');
     final mm = d.month.toString().padLeft(2, '0');
     final dd = d.day.toString().padLeft(2, '0');
     return '$yyyy-$mm-$dd';
   }
+}
+
+extension on Set<String> {
+  bool containsAny(Set<String> values) => values.any(contains);
 }

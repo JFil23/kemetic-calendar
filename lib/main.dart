@@ -1773,11 +1773,14 @@ class _PushIntentBridgeState extends State<PushIntentBridge> {
     );
 
     onPushNotificationTap((data) {
-      runGuardedSync(
-        'web push tap bridge',
-        () => _queueOrHandlePushData(data),
-        onError: _logPushBridgeError,
-      );
+      runGuardedSync('web push tap bridge', () {
+        unawaited(
+          PushNotifications.instance(
+            supabase,
+          ).recordDeliveryReceiptFromPayload(data, event: 'opened'),
+        );
+        _queueOrHandlePushData(data);
+      }, onError: _logPushBridgeError);
     });
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -1846,9 +1849,20 @@ class _PushIntentBridgeState extends State<PushIntentBridge> {
         'flow_post_id': params['flow_post_id'] ?? params['flowPostId'],
       if (_trimmedValue(params['reminder_id'] ?? params['reminderId']) != null)
         'reminder_id': params['reminder_id'] ?? params['reminderId'],
+      if (_trimmedValue(params['delivery_key'] ?? params['deliveryKey']) !=
+          null)
+        'delivery_key': params['delivery_key'] ?? params['deliveryKey'],
+      if (_trimmedValue(params['delivery_kind'] ?? params['deliveryKind']) !=
+          null)
+        'delivery_kind': params['delivery_kind'] ?? params['deliveryKind'],
     };
 
     replaceUrlWithoutQuery();
+    unawaited(
+      PushNotifications.instance(
+        supabase,
+      ).recordDeliveryReceiptFromPayload(data, event: 'opened'),
+    );
     _queueOrHandlePushData(data);
   }
 

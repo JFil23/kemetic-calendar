@@ -211,6 +211,8 @@ class UserEvent {
 class UserEventsRepo {
   UserEventsRepo(this._client);
   final SupabaseClient _client;
+  static final Set<String> _graphRefreshInFlightUsers = <String>{};
+  static final Set<String> _graphRefreshPendingUsers = <String>{};
 
   int _rpcCount(dynamic value) {
     if (value == null) return 0;
@@ -2151,6 +2153,7 @@ class UserEventsRepo {
     required int flowId,
     required DateTime completedOnDate,
     String source = 'day_view',
+    Map<String, dynamic>? metadata,
   }) async {
     final user = _client.auth.currentUser;
     if (user == null) return;
@@ -2165,6 +2168,16 @@ class UserEventsRepo {
         'p_source': source,
       },
     );
+    if (metadata != null && metadata.isNotEmpty) {
+      await _client
+          .from('user_event_completions')
+          .update({'metadata': metadata})
+          .eq('user_id', user.id)
+          .eq('client_event_id', clientEventId);
+      if (_isMaatFlowCompletionMetadata(metadata)) {
+        unawaited(_maybeRefreshKnowledgeGraph(user.id));
+      }
+    }
   }
 
   /// Undo completion by deleting the row for this client_event_id.
@@ -2176,6 +2189,58 @@ class UserEventsRepo {
         .delete()
         .eq('user_id', user.id)
         .eq('client_event_id', clientEventId);
+    unawaited(_maybeRefreshKnowledgeGraph(user.id));
+  }
+
+  bool _isMaatFlowCompletionMetadata(Map<String, dynamic> metadata) {
+    final flowKey = metadata['flow_key']?.toString().trim().toLowerCase();
+    if (flowKey == 'dawn-house-rite' ||
+        flowKey == 'evening-threshold-rite' ||
+        flowKey == 'track-the-sky' ||
+        flowKey == 'the-weighing' ||
+        flowKey == 'the-offering-table' ||
+        flowKey == 'the-tending' ||
+        flowKey == 'the-kept-word' ||
+        flowKey == 'the-course' ||
+        flowKey == 'the-moon-return' ||
+        flowKey == 'the-wag' ||
+        flowKey == 'the-decan-watch' ||
+        flowKey == 'the-days-outside-the-year' ||
+        flowKey == 'the-open-hand' ||
+        flowKey == 'the-djed') {
+      return true;
+    }
+    final graph = metadata['knowledge_graph'];
+    if (graph is Map) {
+      return graph['version']?.toString() == 'maat_flow_completion_v1';
+    }
+    return false;
+  }
+
+  Future<void> _maybeRefreshKnowledgeGraph(String userId) async {
+    if (userId.isEmpty) return;
+    if (_graphRefreshInFlightUsers.contains(userId)) {
+      _graphRefreshPendingUsers.add(userId);
+      return;
+    }
+
+    _graphRefreshInFlightUsers.add(userId);
+    try {
+      do {
+        _graphRefreshPendingUsers.remove(userId);
+        await _client.functions.invoke(
+          'rebuild_personal_graph',
+          body: <String, dynamic>{'date_window_days': 90},
+        );
+      } while (_graphRefreshPendingUsers.contains(userId));
+    } catch (e) {
+      if (kDebugMode) {
+        debugPrint('[user_events] graph refresh skipped: $e');
+      }
+    } finally {
+      _graphRefreshPendingUsers.remove(userId);
+      _graphRefreshInFlightUsers.remove(userId);
+    }
   }
 
   /// Canonical end-flow path.

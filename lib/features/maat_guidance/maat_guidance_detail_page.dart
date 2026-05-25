@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -10,15 +12,23 @@ import '../../shared/glossy_text.dart';
 import '../calendar/calendar_page.dart';
 import 'maat_guidance_controller.dart';
 
+typedef MaatGuidanceFlowStudioOpener =
+    Future<void> Function(
+      BuildContext context,
+      Map<String, dynamic> restorationState,
+    );
+
 class MaatGuidanceDetailPage extends StatefulWidget {
   const MaatGuidanceDetailPage({
     super.key,
     required this.deliveryId,
     this.repo,
+    this.flowStudioOpener,
   });
 
   final String deliveryId;
   final MaatGuidanceDataSource? repo;
+  final MaatGuidanceFlowStudioOpener? flowStudioOpener;
 
   @override
   State<MaatGuidanceDetailPage> createState() => _MaatGuidanceDetailPageState();
@@ -66,13 +76,7 @@ class _MaatGuidanceDetailPageState extends State<MaatGuidanceDetailPage> {
       await _handlePersonalizedFlow(delivery);
       return;
     }
-    final controller = _controller;
-    if (controller != null) {
-      await controller.markActed(delivery);
-    } else {
-      await _repo.ack(deliveryId: delivery.id, action: 'acted');
-    }
-    if (!mounted) return;
+    _markActedInBackground(delivery);
 
     final ref = delivery.ctaRef;
     switch (delivery.ctaType) {
@@ -82,29 +86,56 @@ class _MaatGuidanceDetailPageState extends State<MaatGuidanceDetailPage> {
         }
         return;
       case MaatGuidanceCtaType.flow:
-        await CalendarPage.openFlowStudioFromAnyContext(
-          context,
-          restorationState: <String, dynamic>{
-            'mode': 'myFlows',
-            if (ref != null && int.tryParse(ref) != null)
-              'initialFlowId': int.parse(ref),
-          },
-        );
+        await _openFlowStudio(<String, dynamic>{
+          'mode': 'myFlows',
+          if (ref != null && int.tryParse(ref) != null)
+            'initialFlowId': int.parse(ref),
+        });
         return;
       case MaatGuidanceCtaType.flowTemplate:
-        await CalendarPage.openFlowStudioFromAnyContext(
-          context,
-          restorationState: <String, dynamic>{
-            'mode': ref == null ? 'maatFlows' : 'maatTemplate',
-            if (ref != null) 'templateKey': ref,
-          },
-        );
+        await _openFlowStudio(<String, dynamic>{
+          'mode': ref == null ? 'maatFlows' : 'maatTemplate',
+          if (ref != null) 'templateKey': ref,
+        });
         return;
       case MaatGuidanceCtaType.flowPersonalized:
         return;
       case MaatGuidanceCtaType.none:
         return;
     }
+  }
+
+  void _markActedInBackground(MaatGuidanceDelivery delivery) {
+    unawaited(_markActed(delivery));
+  }
+
+  Future<void> _markActed(
+    MaatGuidanceDelivery delivery, {
+    Map<String, dynamic>? metadata,
+  }) async {
+    final controller = _controller;
+    if (controller != null) {
+      await controller.markActed(delivery, metadata: metadata);
+    } else {
+      await _repo.ack(
+        deliveryId: delivery.id,
+        action: 'acted',
+        metadata: metadata,
+      );
+    }
+  }
+
+  Future<void> _openFlowStudio(Map<String, dynamic> restorationState) async {
+    if (!mounted) return;
+    final opener = widget.flowStudioOpener;
+    if (opener != null) {
+      await opener(context, restorationState);
+      return;
+    }
+    await CalendarPage.openFlowStudioFromAnyContext(
+      context,
+      restorationState: restorationState,
+    );
   }
 
   Future<void> _handlePersonalizedFlow(MaatGuidanceDelivery delivery) async {
@@ -155,16 +186,7 @@ class _MaatGuidanceDetailPageState extends State<MaatGuidanceDetailPage> {
         'flow_id': flowId,
         'cta_type': 'flow_personalized',
       };
-      final controller = _controller;
-      if (controller != null) {
-        await controller.markActed(delivery, metadata: metadata);
-      } else {
-        await _repo.ack(
-          deliveryId: delivery.id,
-          action: 'acted',
-          metadata: metadata,
-        );
-      }
+      await _markActed(delivery, metadata: metadata);
     } finally {
       if (mounted) setState(() => _creatingPersonalizedFlow = false);
     }
@@ -182,13 +204,10 @@ class _MaatGuidanceDetailPageState extends State<MaatGuidanceDetailPage> {
 
   Future<void> _openFallbackFlow(String? fallbackTemplateKey) async {
     if (!mounted) return;
-    await CalendarPage.openFlowStudioFromAnyContext(
-      context,
-      restorationState: <String, dynamic>{
-        'mode': fallbackTemplateKey == null ? 'maatFlows' : 'maatTemplate',
-        if (fallbackTemplateKey != null) 'templateKey': fallbackTemplateKey,
-      },
-    );
+    await _openFlowStudio(<String, dynamic>{
+      'mode': fallbackTemplateKey == null ? 'maatFlows' : 'maatTemplate',
+      if (fallbackTemplateKey != null) 'templateKey': fallbackTemplateKey,
+    });
   }
 
   @override

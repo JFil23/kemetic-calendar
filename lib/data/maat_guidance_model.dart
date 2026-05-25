@@ -31,9 +31,9 @@ enum MaatGuidanceKind {
       case MaatGuidanceKind.decanOpening:
         return 'Decan Opening';
       case MaatGuidanceKind.driftNudge:
-        return 'Path Back to Balance';
+        return 'Ma’at Grounding';
       case MaatGuidanceKind.strengthNudge:
-        return 'Rhythm Holding';
+        return 'Ma’at Holding';
     }
   }
 }
@@ -108,15 +108,23 @@ class MaatGuidanceDelivery {
   final DateTime? createdAt;
 
   factory MaatGuidanceDelivery.fromJson(Map<String, dynamic> json) {
+    final payload = _jsonMap(json['payload']);
+    final compiledPackage = _jsonMap(payload['compiled_output_package']);
     return MaatGuidanceDelivery(
       id: (json['id'] as String?)?.trim() ?? '',
       kind: MaatGuidanceKind.fromDb(json['kind'] as String?),
       decanPeriodKey: (json['decan_period_key'] as String?)?.trim() ?? '',
       status: MaatGuidanceStatus.fromDb(json['status'] as String?),
       priority: (json['priority'] as num?)?.toInt() ?? 100,
-      teaserText: (json['teaser_text'] as String?)?.trim() ?? '',
-      bodyText: (json['body_text'] as String?)?.trim() ?? '',
-      payload: _jsonMap(json['payload']),
+      teaserText:
+          _trimmed(compiledPackage['teaser_text']) ??
+          _trimmed(json['teaser_text']) ??
+          '',
+      bodyText:
+          _trimmed(compiledPackage['final_text']) ??
+          _trimmed(json['body_text']) ??
+          '',
+      payload: payload,
       ctaType: MaatGuidanceCtaType.fromDb(json['cta_type'] as String?),
       ctaRef: _trimmed(json['cta_ref']),
       triggerReason: _trimmed(json['trigger_reason']),
@@ -134,7 +142,7 @@ class MaatGuidanceDelivery {
             : 'Open Node';
       case MaatGuidanceCtaType.flow:
       case MaatGuidanceCtaType.flowTemplate:
-        return 'Open Flow';
+        return 'Open suggested flow';
       case MaatGuidanceCtaType.flowPersonalized:
         return 'Create this flow';
       case MaatGuidanceCtaType.none:

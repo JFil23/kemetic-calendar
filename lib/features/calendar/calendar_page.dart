@@ -79,6 +79,27 @@ import '../../utils/external_link_utils.dart';
 import 'track_sky_flow.dart';
 import 'dawn_house_rite_flow.dart';
 import 'evening_threshold_rite_flow.dart';
+import 'the_weighing_flow.dart';
+import 'the_offering_table_flow.dart';
+import 'the_tending_flow.dart';
+import 'the_kept_word_flow.dart';
+import 'the_course_flow.dart';
+import 'the_course_context.dart';
+import 'moon_return_flow.dart';
+import 'moon_return_astronomy.dart';
+import 'the_wag_flow.dart';
+import 'the_wag_scheduler.dart';
+import 'the_wag_enrollment.dart';
+import 'the_decan_watch_flow.dart';
+import 'the_decan_watch_scheduler.dart';
+import 'the_decan_watch_enrollment.dart';
+import 'the_days_outside_year_flow.dart';
+import 'the_days_outside_year_scheduler.dart';
+import 'the_days_outside_year_enrollment.dart';
+import 'the_open_hand_flow.dart';
+import 'the_open_hand_enrollment.dart';
+import 'the_djed_flow.dart';
+import 'the_djed_enrollment.dart';
 import '../settings/settings_prefs.dart';
 import '../calendars/shared_calendars_sheet.dart';
 import '../nodes/kemetic_node_library.dart';
@@ -4081,6 +4102,17 @@ enum _MaatFlowTemplateKind {
   trackSky,
   dawnHouseRite,
   eveningThresholdRite,
+  theWeighing,
+  offeringTable,
+  theTending,
+  keptWord,
+  theCourse,
+  moonReturn,
+  theWag,
+  decanWatch,
+  daysOutsideTheYear,
+  theOpenHand,
+  theDjed,
 }
 
 class _MaatFlowTemplate {
@@ -4122,15 +4154,110 @@ final List<_MaatFlowTemplate> _kMaatFlowTemplates = [
     color: const Color(0xFF6F58D9),
     kind: _MaatFlowTemplateKind.eveningThresholdRite,
   ),
+  _MaatFlowTemplate(
+    key: kTheWeighingFlowKey,
+    title: kTheWeighingTitle,
+    overview: kTheWeighingOverview,
+    color: const Color(0xFFB8A88A),
+    kind: _MaatFlowTemplateKind.theWeighing,
+  ),
+  _MaatFlowTemplate(
+    key: kOfferingTableFlowKey,
+    title: kOfferingTableTitle,
+    overview: kOfferingTableOverview,
+    color: const Color(0xFF4A8F7A),
+    kind: _MaatFlowTemplateKind.offeringTable,
+  ),
+  _MaatFlowTemplate(
+    key: kTheTendingFlowKey,
+    title: kTheTendingTitle,
+    overview: kTheTendingOverview,
+    color: const Color(0xFF7A6B9E),
+    kind: _MaatFlowTemplateKind.theTending,
+  ),
+  _MaatFlowTemplate(
+    key: kKeptWordFlowKey,
+    title: kKeptWordTitle,
+    overview: kKeptWordOverview,
+    color: const Color(0xFF8B7355),
+    kind: _MaatFlowTemplateKind.keptWord,
+  ),
+  _MaatFlowTemplate(
+    key: kTheCourseFlowKey,
+    title: kTheCourseTitle,
+    overview: kTheCourseOverview,
+    color: const Color(0xFFE8B84A),
+    kind: _MaatFlowTemplateKind.theCourse,
+  ),
+  _MaatFlowTemplate(
+    key: kMoonReturnFlowKey,
+    title: kMoonReturnTitle,
+    overview: kMoonReturnOverview,
+    color: const Color(0xFF8FA8FF),
+    kind: _MaatFlowTemplateKind.moonReturn,
+  ),
+  _MaatFlowTemplate(
+    key: kTheWagFlowKey,
+    title: kTheWagTitle,
+    overview: kTheWagOverview,
+    color: const Color(0xFF9C6B4E),
+    kind: _MaatFlowTemplateKind.theWag,
+  ),
+  _MaatFlowTemplate(
+    key: kDecanWatchFlowKey,
+    title: kDecanWatchTitle,
+    overview: kDecanWatchOverview,
+    color: const Color(0xFF2F4A75),
+    kind: _MaatFlowTemplateKind.decanWatch,
+  ),
+  _MaatFlowTemplate(
+    key: kDaysOutsideTheYearFlowKey,
+    title: kDaysOutsideTheYearTitle,
+    overview: kDaysOutsideTheYearOverview,
+    color: const Color(0xFF6A5A86),
+    kind: _MaatFlowTemplateKind.daysOutsideTheYear,
+  ),
+  _MaatFlowTemplate(
+    key: kTheOpenHandFlowKey,
+    title: kTheOpenHandTitle,
+    overview: kOpenHandOverview,
+    color: const Color(0xFFB58F42),
+    kind: _MaatFlowTemplateKind.theOpenHand,
+  ),
+  _MaatFlowTemplate(
+    key: kTheDjedFlowKey,
+    title: kTheDjedTitle,
+    overview: kDjedOverview,
+    color: const Color(0xFF6E8A72),
+    kind: _MaatFlowTemplateKind.theDjed,
+  ),
 ];
 
 String _maatFlowTemplateDurationLabel(_MaatFlowTemplate template) {
   switch (template.kind) {
     case _MaatFlowTemplateKind.trackSky:
       return 'Ongoing';
+    case _MaatFlowTemplateKind.moonReturn:
+      return 'Ongoing · ~2/month';
+    case _MaatFlowTemplateKind.theWag:
+      return 'Annual · Month 1';
+    case _MaatFlowTemplateKind.decanWatch:
+      return 'Ongoing · ~1 / 10 days';
+    case _MaatFlowTemplateKind.daysOutsideTheYear:
+      return 'Annual · 7 days';
+    case _MaatFlowTemplateKind.theOpenHand:
+    case _MaatFlowTemplateKind.theDjed:
+      return '30 days · 9 sittings';
     case _MaatFlowTemplateKind.dawnHouseRite:
     case _MaatFlowTemplateKind.eveningThresholdRite:
       return '30 days';
+    case _MaatFlowTemplateKind.theWeighing:
+    case _MaatFlowTemplateKind.theTending:
+    case _MaatFlowTemplateKind.keptWord:
+    case _MaatFlowTemplateKind.theCourse:
+      return '30 days · 9 sittings';
+    case _MaatFlowTemplateKind.offeringTable:
+      return '30 days · daily';
     case _MaatFlowTemplateKind.sequence:
       return '${template.days.isEmpty ? 10 : template.days.length} days';
   }
@@ -5364,6 +5491,17 @@ class CalendarPage extends StatefulWidget {
     bool? eveningDiscreetMode,
     EveningThresholdRiteLens? eveningLens,
     int? eveningFallbackMinutesAfterMidnight,
+    TheWeighingLens? theWeighingLens,
+    OfferingTableLens? offeringTableLens,
+    bool? offeringNoCupMode,
+    TheTendingLens? theTendingLens,
+    KeptWordLens? keptWordLens,
+    CourseLens? courseLens,
+    MoonReturnLens? moonReturnLens,
+    WagLens? wagLens,
+    DecanWatchLens? decanWatchLens,
+    OpenHandLens? openHandLens,
+    DjedLens? djedLens,
   }) async {
     final personalCalendarId = await _loadHeadlessPersonalCalendarId();
     if (template.kind == _MaatFlowTemplateKind.trackSky) {
@@ -5430,6 +5568,576 @@ class CalendarPage extends StatefulWidget {
             _FlowStudioResult(savedFlow: flow, plannedNotes: planned),
           ) ??
           -1;
+    }
+
+    if (template.kind == _MaatFlowTemplateKind.moonReturn) {
+      final timezone = trackSkyTimeZone ?? detectTrackSkyTimeZone();
+      final lens = moonReturnLens ?? MoonReturnLens.neutral;
+      final window = startDate == null
+          ? moonReturnCurrentEnrollmentWindow(timezone)
+          : moonReturnEnrollmentWindowForStartDate(startDate, timezone);
+      if (window == null || !moonReturnEnrollmentIsOpen(window)) return -1;
+      final occurrences = moonReturnOccurrencesForWindow(window: window);
+      if (occurrences.isEmpty) return -1;
+      final dates = <DateTime>{
+        for (final occurrence in occurrences)
+          DateUtils.dateOnly(occurrence.startLocal),
+      };
+      final orderedDates = dates.toList()..sort();
+      final nowLocal = moonReturnNowInZone(timezone);
+      final flow = _Flow(
+        id: -1,
+        calendarId: personalCalendarId,
+        name: template.title,
+        color: template.color,
+        active: true,
+        rules: <FlowRule>[_RuleDates(dates: dates)],
+        start: DateUtils.dateOnly(window.opensAtLocal),
+        end: orderedDates.last,
+        notes: [
+          'mode=astronomy',
+          'split=1',
+          if (template.overview.trim().isNotEmpty)
+            'ov=${Uri.encodeComponent(template.overview.trim())}',
+          'maat=${template.key}',
+          'moon_tz=${timezone.key}',
+          'moon_lens=${lens.key}',
+          'moon_enrolled_at=${nowLocal.toIso8601String()}',
+          'moon_window_open=${_formatDetachedGregorian(window.opensAtLocal)}',
+          'moon_new_moon=${window.newMoonDateIso}',
+        ].join(';'),
+      );
+
+      final userEventsRepo = UserEventsRepo(Supabase.instance.client);
+      final flowId = await userEventsRepo.upsertFlow(
+        id: null,
+        name: flow.name,
+        color: flow.color.toARGB32(),
+        active: flow.active,
+        calendarId: flow.calendarId,
+        startDate: flow.start,
+        endDate: flow.end,
+        notes: flow.notes,
+        rules: jsonEncode(
+          flow.rules.map(CalendarPageState.ruleToJson).toList(),
+        ),
+        originType: 'template',
+      );
+
+      for (final occurrence in occurrences) {
+        final title = moonReturnEventTitle(occurrence);
+        await userEventsRepo.upsertByClientId(
+          clientEventId: moonReturnClientEventId(
+            flowId: flowId,
+            occurrence: occurrence,
+          ),
+          title: title,
+          startsAtUtc: occurrence.startUtc,
+          detail: moonReturnDetailText(occurrence, lens: lens),
+          allDay: false,
+          endsAtUtc: occurrence.endUtc,
+          calendarId: personalCalendarId,
+          flowLocalId: flowId,
+          category: 'Ritual',
+          actionId: moonReturnActionId(occurrence),
+          behaviorPayload: moonReturnBehaviorPayload(
+            occurrence: occurrence,
+            lens: lens,
+          ),
+          caller: 'moon_return_join_headless',
+        );
+      }
+
+      return flowId;
+    }
+
+    if (template.kind == _MaatFlowTemplateKind.theWag) {
+      final timezone = trackSkyTimeZone ?? detectTrackSkyTimeZone();
+      final lens = wagLens ?? WagLens.neutral;
+      final window = startDate == null
+          ? wagCurrentEnrollmentWindow(timezone)
+          : wagEnrollmentWindowForStartDate(startDate, timezone);
+      if (window == null || !wagEnrollmentIsOpen(window)) return -1;
+      final kYear = window.kYear;
+      final schedules = <WagEvent, WagOccurrenceSchedule>{
+        for (final event in kWagEvents)
+          event: wagScheduleForEvent(
+            event: event,
+            kYear: kYear,
+            timezone: timezone,
+          ),
+      };
+      final dates = <DateTime>{
+        for (final schedule in schedules.values)
+          DateUtils.dateOnly(schedule.startLocal),
+      };
+      final orderedDates = dates.toList()..sort();
+      final nowLocal = wagNowInZone(timezone);
+      final flow = _Flow(
+        id: -1,
+        calendarId: personalCalendarId,
+        name: template.title,
+        color: template.color,
+        active: true,
+        rules: <FlowRule>[_RuleDates(dates: dates)],
+        start: DateUtils.dateOnly(wagYearStartGregorian(kYear)),
+        end: DateUtils.dateOnly(wagYearEndGregorian(kYear)),
+        notes: [
+          'mode=kemetic',
+          'split=1',
+          if (template.overview.trim().isNotEmpty)
+            'ov=${Uri.encodeComponent(template.overview.trim())}',
+          'maat=${template.key}',
+          'wag_kyear=$kYear',
+          'wag_tz=${timezone.key}',
+          'wag_lens=${lens.key}',
+          'wag_enrolled_at=${nowLocal.toIso8601String()}',
+          'wag_window_open=${_formatDetachedGregorian(window.opensAtLocal)}',
+        ].join(';'),
+      );
+
+      final userEventsRepo = UserEventsRepo(Supabase.instance.client);
+      final flowId = await userEventsRepo.upsertFlow(
+        id: null,
+        name: flow.name,
+        color: flow.color.toARGB32(),
+        active: flow.active,
+        calendarId: flow.calendarId,
+        startDate: flow.start,
+        endDate: flow.end,
+        notes: flow.notes,
+        rules: jsonEncode(
+          flow.rules.map(CalendarPageState.ruleToJson).toList(),
+        ),
+        originType: 'template',
+      );
+
+      for (final event in kWagEvents) {
+        final schedule = schedules[event]!;
+        final variant = wagCopyVariantForEvent(event: event, kYear: kYear);
+        final title = wagEventTitle(event);
+        await userEventsRepo.upsertByClientId(
+          clientEventId: wagClientEventId(
+            flowId: flowId,
+            kYear: kYear,
+            event: event,
+          ),
+          title: title,
+          startsAtUtc: schedule.startUtc,
+          detail: wagDetailText(
+            event,
+            lens: lens,
+            variant: variant,
+            nextWagDate: event.sharePromptOnComplete
+                ? wagNextFeastGregorian(kYear)
+                : null,
+          ),
+          allDay: false,
+          endsAtUtc: schedule.endUtc,
+          calendarId: personalCalendarId,
+          flowLocalId: flowId,
+          category: 'Ritual',
+          actionId: wagActionId(event),
+          behaviorPayload: wagBehaviorPayload(
+            event: event,
+            kYear: kYear,
+            timezoneKey: timezone.key,
+            ianaTimezone: timezone.ianaName,
+            scheduleType: schedule.scheduleType,
+            referenceLocationName: schedule.referenceLocationName,
+            usedFallback: schedule.usedFallback,
+            lens: lens,
+            variant: variant,
+          ),
+          caller: 'wag_join_headless',
+        );
+      }
+
+      // Keep analyzer honest about the ordered rule dates while matching the
+      // other join branches' structure.
+      if (orderedDates.isEmpty) return -1;
+      return flowId;
+    }
+
+    if (template.kind == _MaatFlowTemplateKind.daysOutsideTheYear) {
+      final timezone = trackSkyTimeZone ?? detectTrackSkyTimeZone();
+      final window = startDate == null
+          ? daysOutsideYearCurrentEnrollmentWindow(timezone)
+          : daysOutsideYearEnrollmentWindowForStartDate(startDate, timezone);
+      if (window == null || !daysOutsideYearEnrollmentIsOpen(window)) {
+        return -1;
+      }
+      final closingKYear = window.closingKYear;
+      final schedules = <DaysOutsideEvent, DaysOutsideOccurrenceSchedule>{
+        for (final event in kDaysOutsideEvents)
+          event: daysOutsideScheduleForEvent(
+            event: event,
+            closingKYear: closingKYear,
+            timezone: timezone,
+          ),
+      };
+      final dates = <DateTime>{
+        for (final schedule in schedules.values)
+          DateUtils.dateOnly(schedule.startLocal),
+      };
+      final nowLocal = daysOutsideNowInZone(timezone);
+      final flow = _Flow(
+        id: -1,
+        calendarId: personalCalendarId,
+        name: template.title,
+        color: template.color,
+        active: true,
+        rules: <FlowRule>[_RuleDates(dates: dates)],
+        start: DateUtils.dateOnly(window.opensAtLocal),
+        end: DateUtils.dateOnly(daysOutsideFlowEndGregorian(closingKYear)),
+        notes: [
+          'mode=kemetic',
+          'split=1',
+          if (template.overview.trim().isNotEmpty)
+            'ov=${Uri.encodeComponent(template.overview.trim())}',
+          'maat=${template.key}',
+          'doy_kyear=$closingKYear',
+          'doy_tz=${timezone.key}',
+          'doy_enrolled_at=${nowLocal.toIso8601String()}',
+          'doy_window_open=${_formatDetachedGregorian(window.opensAtLocal)}',
+        ].join(';'),
+      );
+
+      final userEventsRepo = UserEventsRepo(Supabase.instance.client);
+      final flowId = await userEventsRepo.upsertFlow(
+        id: null,
+        name: flow.name,
+        color: flow.color.toARGB32(),
+        active: flow.active,
+        calendarId: flow.calendarId,
+        startDate: flow.start,
+        endDate: flow.end,
+        notes: flow.notes,
+        rules: jsonEncode(
+          flow.rules.map(CalendarPageState.ruleToJson).toList(),
+        ),
+        originType: 'template',
+      );
+
+      for (final event in kDaysOutsideEvents) {
+        final schedule = schedules[event]!;
+        final gregorian = daysOutsideEventGregorian(
+          closingKYear: closingKYear,
+          kMonth: event.kMonth,
+          kDay: event.kDay,
+        );
+        final variant = daysOutsideCopyVariantForEvent(
+          event: event,
+          gregorianDate: gregorian,
+        );
+        await userEventsRepo.upsertByClientId(
+          clientEventId: daysOutsideClientEventId(
+            flowId: flowId,
+            closingKYear: closingKYear,
+            event: event,
+          ),
+          title: daysOutsideEventTitle(event),
+          startsAtUtc: schedule.startUtc,
+          detail: daysOutsideDetailText(
+            event,
+            closingKYear: closingKYear,
+            variant: variant,
+          ),
+          allDay: false,
+          endsAtUtc: schedule.endUtc,
+          calendarId: personalCalendarId,
+          flowLocalId: flowId,
+          category: 'Ritual',
+          actionId: daysOutsideActionId(event),
+          behaviorPayload: daysOutsideBehaviorPayload(
+            event: event,
+            closingKYear: closingKYear,
+            timezoneKey: timezone.key,
+            ianaTimezone: timezone.ianaName,
+            scheduleType: schedule.scheduleType,
+            referenceLocationName: schedule.referenceLocationName,
+            usedFallback: schedule.usedFallback,
+            variant: variant,
+          ),
+          caller: 'days_outside_year_join_headless',
+        );
+      }
+
+      return flowId;
+    }
+
+    if (template.kind == _MaatFlowTemplateKind.theOpenHand) {
+      final timezone = trackSkyTimeZone ?? detectTrackSkyTimeZone();
+      final lens = openHandLens ?? OpenHandLens.neutral;
+      final window = startDate == null
+          ? openHandCurrentEnrollmentWindow(timezone)
+          : openHandEnrollmentWindowForStartDate(startDate, timezone);
+      if (window == null || !openHandEnrollmentIsOpen(window)) return -1;
+      final flowStart = DateUtils.dateOnly(window.opensAtLocal);
+      final schedules = <OpenHandEvent, OpenHandOccurrenceSchedule>{
+        for (final event in kOpenHandEvents)
+          event: openHandScheduleForEvent(event, flowStart, timezone),
+      };
+      final dates = <DateTime>{
+        for (final schedule in schedules.values)
+          DateUtils.dateOnly(schedule.startLocal),
+      };
+      final orderedDates = dates.toList()..sort();
+      final nowLocal = openHandNowInZone(timezone);
+      final flow = _Flow(
+        id: -1,
+        calendarId: personalCalendarId,
+        name: template.title,
+        color: template.color,
+        active: true,
+        rules: <FlowRule>[_RuleDates(dates: dates)],
+        start: flowStart,
+        end: flowStart.add(const Duration(days: 29)),
+        notes: [
+          'mode=gregorian',
+          'split=1',
+          if (template.overview.trim().isNotEmpty)
+            'ov=${Uri.encodeComponent(template.overview.trim())}',
+          'maat=${template.key}',
+          'oh_start=${_formatDetachedGregorian(flowStart)}',
+          'oh_tz=${timezone.key}',
+          'oh_lens=${lens.key}',
+          'oh_midday_hour=$kOpenHandDefaultMiddayHour',
+          'oh_midday_minute=$kOpenHandDefaultMiddayMinute',
+          'oh_decan_kyear=${window.openingOccurrence.kYear}',
+          'oh_decan_month=${window.openingOccurrence.kMonth}',
+          'oh_decan_day=${window.openingOccurrence.decanStartDay}',
+          'oh_enrolled_at=${nowLocal.toIso8601String()}',
+        ].join(';'),
+      );
+
+      if (orderedDates.isEmpty) return -1;
+      final userEventsRepo = UserEventsRepo(Supabase.instance.client);
+      final flowId = await userEventsRepo.upsertFlow(
+        id: null,
+        name: flow.name,
+        color: flow.color.toARGB32(),
+        active: flow.active,
+        calendarId: flow.calendarId,
+        startDate: flow.start,
+        endDate: flow.end,
+        notes: flow.notes,
+        rules: jsonEncode(
+          flow.rules.map(CalendarPageState.ruleToJson).toList(),
+        ),
+        originType: 'template',
+      );
+
+      for (final event in kOpenHandEvents) {
+        final schedule = schedules[event]!;
+        await userEventsRepo.upsertByClientId(
+          clientEventId: openHandClientEventId(flowId: flowId, event: event),
+          title: openHandEventTitle(event),
+          startsAtUtc: schedule.startUtc,
+          detail: openHandDetailText(event, lens: lens),
+          allDay: false,
+          endsAtUtc: schedule.endUtc,
+          calendarId: personalCalendarId,
+          flowLocalId: flowId,
+          category: 'Ritual',
+          actionId: openHandActionId(event),
+          behaviorPayload: openHandBehaviorPayload(
+            event: event,
+            schedule: schedule,
+            lens: lens,
+          ),
+          caller: 'open_hand_join_headless',
+        );
+      }
+
+      return flowId;
+    }
+
+    if (template.kind == _MaatFlowTemplateKind.theDjed) {
+      final timezone = trackSkyTimeZone ?? detectTrackSkyTimeZone();
+      final lens = djedLens ?? DjedLens.neutral;
+      final window = startDate == null
+          ? djedCurrentEnrollmentWindow(timezone)
+          : djedEnrollmentWindowForStartDate(startDate, timezone);
+      if (window == null || !djedEnrollmentIsOpen(window)) return -1;
+      final flowStart = DateUtils.dateOnly(window.opensAtLocal);
+      final schedules = <DjedEvent, DjedOccurrenceSchedule>{
+        for (final event in kDjedEvents)
+          event: djedScheduleForEvent(event, flowStart, timezone),
+      };
+      final dates = <DateTime>{
+        for (final schedule in schedules.values)
+          DateUtils.dateOnly(schedule.startLocal),
+      };
+      final orderedDates = dates.toList()..sort();
+      final nowLocal = djedNowInZone(timezone);
+      final flow = _Flow(
+        id: -1,
+        calendarId: personalCalendarId,
+        name: template.title,
+        color: template.color,
+        active: true,
+        rules: <FlowRule>[_RuleDates(dates: dates)],
+        start: flowStart,
+        end: flowStart.add(const Duration(days: 29)),
+        notes: [
+          'mode=gregorian',
+          'split=1',
+          if (template.overview.trim().isNotEmpty)
+            'ov=${Uri.encodeComponent(template.overview.trim())}',
+          'maat=${template.key}',
+          'djed_start=${_formatDetachedGregorian(flowStart)}',
+          'djed_tz=${timezone.key}',
+          'djed_lens=${lens.key}',
+          'djed_midday_hour=$kDjedDefaultMiddayHour',
+          'djed_midday_minute=$kDjedDefaultMiddayMinute',
+          'djed_decan_kyear=${window.openingOccurrence.kYear}',
+          'djed_decan_month=${window.openingOccurrence.kMonth}',
+          'djed_decan_day=${window.openingOccurrence.decanStartDay}',
+          'djed_enrolled_at=${nowLocal.toIso8601String()}',
+        ].join(';'),
+      );
+
+      if (orderedDates.isEmpty) return -1;
+      final userEventsRepo = UserEventsRepo(Supabase.instance.client);
+      final flowId = await userEventsRepo.upsertFlow(
+        id: null,
+        name: flow.name,
+        color: flow.color.toARGB32(),
+        active: flow.active,
+        calendarId: flow.calendarId,
+        startDate: flow.start,
+        endDate: flow.end,
+        notes: flow.notes,
+        rules: jsonEncode(
+          flow.rules.map(CalendarPageState.ruleToJson).toList(),
+        ),
+        originType: 'template',
+      );
+
+      for (final event in kDjedEvents) {
+        final schedule = schedules[event]!;
+        await userEventsRepo.upsertByClientId(
+          clientEventId: djedClientEventId(flowId: flowId, event: event),
+          title: djedEventTitle(event),
+          startsAtUtc: schedule.startUtc,
+          detail: djedDetailText(event, lens: lens),
+          allDay: false,
+          endsAtUtc: schedule.endUtc,
+          calendarId: personalCalendarId,
+          flowLocalId: flowId,
+          category: 'Ritual',
+          actionId: djedActionId(event),
+          behaviorPayload: djedBehaviorPayload(
+            event: event,
+            schedule: schedule,
+            lens: lens,
+          ),
+          caller: 'djed_join_headless',
+        );
+      }
+
+      return flowId;
+    }
+
+    if (template.kind == _MaatFlowTemplateKind.decanWatch) {
+      final timezone = trackSkyTimeZone ?? detectTrackSkyTimeZone();
+      final lens = decanWatchLens ?? DecanWatchLens.neutral;
+      final window = startDate == null
+          ? decanWatchCurrentEnrollmentWindow(timezone)
+          : decanWatchEnrollmentWindowForStartDate(startDate, timezone);
+      if (window == null || !decanWatchEnrollmentIsOpen(window)) return -1;
+      final occurrences = <DecanWatchOccurrence>[
+        window.openingOccurrence,
+        ...upcomingDecanWatchOccurrences(
+          timezone: timezone,
+          fromLocal: window.openingOccurrence.startLocal.add(
+            const Duration(days: 1),
+          ),
+          count: 2,
+        ),
+      ];
+      if (occurrences.isEmpty) return -1;
+      final dates = <DateTime>{
+        for (final occurrence in occurrences)
+          DateUtils.dateOnly(occurrence.startLocal),
+      };
+      final orderedDates = dates.toList()..sort();
+      final nowLocal = decanWatchNowInZone(timezone);
+      final flow = _Flow(
+        id: -1,
+        calendarId: personalCalendarId,
+        name: template.title,
+        color: template.color,
+        active: true,
+        rules: <FlowRule>[_RuleDates(dates: dates)],
+        start: orderedDates.first,
+        end: orderedDates.last,
+        notes: [
+          'mode=kemetic',
+          'split=1',
+          if (template.overview.trim().isNotEmpty)
+            'ov=${Uri.encodeComponent(template.overview.trim())}',
+          'maat=${template.key}',
+          'dw_tz=${timezone.key}',
+          'dw_lens=${lens.key}',
+          'dw_enrolled_kyear=${window.openingOccurrence.kYear}',
+          'dw_hour=$kDecanWatchDefaultHour',
+          'dw_minute=$kDecanWatchDefaultMinute',
+          'dw_enrolled_at=${nowLocal.toIso8601String()}',
+        ].join(';'),
+      );
+
+      final userEventsRepo = UserEventsRepo(Supabase.instance.client);
+      final flowId = await userEventsRepo.upsertFlow(
+        id: null,
+        name: flow.name,
+        color: flow.color.toARGB32(),
+        active: flow.active,
+        calendarId: flow.calendarId,
+        startDate: flow.start,
+        endDate: flow.end,
+        notes: flow.notes,
+        rules: jsonEncode(
+          flow.rules.map(CalendarPageState.ruleToJson).toList(),
+        ),
+        originType: 'template',
+      );
+
+      for (final occurrence in occurrences) {
+        final title = decanWatchEventTitle(occurrence);
+        final context = courseContextForKemeticDate(
+          kYear: occurrence.kYear,
+          kMonth: occurrence.kMonth,
+          kDay: occurrence.decanStartDay,
+        );
+        await userEventsRepo.upsertByClientId(
+          clientEventId: decanWatchClientEventId(
+            flowId: flowId,
+            occurrence: occurrence,
+          ),
+          title: title,
+          startsAtUtc: occurrence.startUtc,
+          detail: decanWatchDetailText(
+            occurrence,
+            lens: lens,
+            context: context,
+          ),
+          allDay: false,
+          endsAtUtc: occurrence.endUtc,
+          calendarId: personalCalendarId,
+          flowLocalId: flowId,
+          category: 'Ritual',
+          actionId: decanWatchActionId(occurrence),
+          behaviorPayload: decanWatchBehaviorPayload(
+            occurrence: occurrence,
+            lens: lens,
+          ),
+          caller: 'decan_watch_join_headless',
+        );
+      }
+
+      return flowId;
     }
 
     if (template.kind == _MaatFlowTemplateKind.dawnHouseRite) {
@@ -5629,6 +6337,507 @@ class CalendarPage extends StatefulWidget {
             lens: lens,
           ),
           caller: 'evening_threshold_rite_join_headless',
+        );
+      }
+
+      return flowId;
+    }
+
+    if (template.kind == _MaatFlowTemplateKind.theWeighing) {
+      final timezone = trackSkyTimeZone ?? detectTrackSkyTimeZone();
+      final lens = theWeighingLens ?? TheWeighingLens.neutral;
+      final firstG = DateUtils.dateOnly(
+        startDate ?? defaultTheWeighingStartDate(timezone),
+      );
+      final occurrences = <TheWeighingOccurrenceSchedule>[
+        for (final event in kTheWeighingEvents)
+          theWeighingScheduleForDate(
+            event,
+            firstG.add(Duration(days: event.flowDay - 1)),
+            timezone,
+          ),
+      ];
+      final dates = <DateTime>{
+        for (final occurrence in occurrences)
+          DateUtils.dateOnly(occurrence.startLocal),
+      };
+      final orderedDates = dates.toList()..sort();
+      final flow = _Flow(
+        id: -1,
+        calendarId: personalCalendarId,
+        name: template.title,
+        color: template.color,
+        active: true,
+        rules: <FlowRule>[_RuleDates(dates: dates)],
+        start: orderedDates.first,
+        end: firstG.add(const Duration(days: 29)),
+        notes: [
+          'mode=gregorian',
+          'split=1',
+          if (template.overview.trim().isNotEmpty)
+            'ov=${Uri.encodeComponent(template.overview.trim())}',
+          'maat=${template.key}',
+          'weighing_tz=${timezone.key}',
+          'weighing_lens=${lens.key}',
+          'weighing_midday_hour=$kTheWeighingDefaultMiddayHour',
+          'weighing_midday_minute=$kTheWeighingDefaultMiddayMinute',
+        ].join(';'),
+      );
+
+      final userEventsRepo = UserEventsRepo(Supabase.instance.client);
+      final flowId = await userEventsRepo.upsertFlow(
+        id: null,
+        name: flow.name,
+        color: flow.color.toARGB32(),
+        active: flow.active,
+        calendarId: flow.calendarId,
+        startDate: flow.start,
+        endDate: flow.end,
+        notes: flow.notes,
+        rules: jsonEncode(
+          flow.rules.map(CalendarPageState.ruleToJson).toList(),
+        ),
+        originType: 'template',
+      );
+
+      for (var i = 0; i < kTheWeighingEvents.length; i++) {
+        final event = kTheWeighingEvents[i];
+        final occurrence = occurrences[i];
+        final k = KemeticMath.fromGregorian(
+          DateUtils.dateOnly(occurrence.startLocal),
+        );
+        final title = theWeighingEventTitle(event);
+        final cid = EventCidUtil.buildClientEventId(
+          ky: k.kYear,
+          km: k.kMonth,
+          kd: k.kDay,
+          title: title,
+          startHour: occurrence.startLocal.hour,
+          startMinute: occurrence.startLocal.minute,
+          allDay: false,
+          flowId: flowId,
+        );
+        await userEventsRepo.upsertByClientId(
+          clientEventId: cid,
+          title: title,
+          startsAtUtc: occurrence.startUtc,
+          detail: theWeighingDetailText(event, lens: lens),
+          allDay: false,
+          endsAtUtc: occurrence.endUtc,
+          calendarId: personalCalendarId,
+          flowLocalId: flowId,
+          category: 'Ritual',
+          actionId: theWeighingActionId(event),
+          behaviorPayload: theWeighingBehaviorPayload(
+            event: event,
+            schedule: occurrence,
+            lens: lens,
+          ),
+          caller: 'the_weighing_join_headless',
+        );
+      }
+
+      return flowId;
+    }
+
+    if (template.kind == _MaatFlowTemplateKind.offeringTable) {
+      final timezone = trackSkyTimeZone ?? detectTrackSkyTimeZone();
+      final lens = offeringTableLens ?? OfferingTableLens.neutral;
+      final noCupMode = offeringNoCupMode == true;
+      final firstG = DateUtils.dateOnly(
+        startDate ?? defaultOfferingTableStartDate(timezone),
+      );
+      final occurrences = <OfferingTableOccurrenceSchedule>[
+        for (var i = 0; i < kOfferingTableDays.length; i++)
+          offeringTableScheduleForDate(
+            kOfferingTableDays[i],
+            firstG.add(Duration(days: i)),
+            timezone,
+          ),
+      ];
+      final dates = <DateTime>{
+        for (final occurrence in occurrences)
+          DateUtils.dateOnly(occurrence.startLocal),
+      };
+      final orderedDates = dates.toList()..sort();
+      final flow = _Flow(
+        id: -1,
+        calendarId: personalCalendarId,
+        name: template.title,
+        color: template.color,
+        active: true,
+        rules: <FlowRule>[_RuleDates(dates: dates)],
+        start: orderedDates.first,
+        end: orderedDates.last,
+        notes: [
+          'mode=gregorian',
+          'split=1',
+          if (template.overview.trim().isNotEmpty)
+            'ov=${Uri.encodeComponent(template.overview.trim())}',
+          'maat=${template.key}',
+          'offering_tz=${timezone.key}',
+          'offering_lens=${lens.key}',
+          'offering_hour=$kOfferingTableDefaultHour',
+          'offering_minute=$kOfferingTableDefaultMinute',
+          'no_cup_mode=${noCupMode ? 1 : 0}',
+        ].join(';'),
+      );
+
+      final userEventsRepo = UserEventsRepo(Supabase.instance.client);
+      final flowId = await userEventsRepo.upsertFlow(
+        id: null,
+        name: flow.name,
+        color: flow.color.toARGB32(),
+        active: flow.active,
+        calendarId: flow.calendarId,
+        startDate: flow.start,
+        endDate: flow.end,
+        notes: flow.notes,
+        rules: jsonEncode(
+          flow.rules.map(CalendarPageState.ruleToJson).toList(),
+        ),
+        originType: 'template',
+      );
+
+      for (var i = 0; i < kOfferingTableDays.length; i++) {
+        final day = kOfferingTableDays[i];
+        final occurrence = occurrences[i];
+        final k = KemeticMath.fromGregorian(
+          DateUtils.dateOnly(occurrence.startLocal),
+        );
+        final title = offeringTableEventTitle(day);
+        final cid = EventCidUtil.buildClientEventId(
+          ky: k.kYear,
+          km: k.kMonth,
+          kd: k.kDay,
+          title: title,
+          startHour: occurrence.startLocal.hour,
+          startMinute: occurrence.startLocal.minute,
+          allDay: false,
+          flowId: flowId,
+        );
+        await userEventsRepo.upsertByClientId(
+          clientEventId: cid,
+          title: title,
+          startsAtUtc: occurrence.startUtc,
+          detail: offeringTableDetailText(
+            day,
+            lens: lens,
+            noCupMode: noCupMode,
+          ),
+          allDay: false,
+          endsAtUtc: occurrence.endUtc,
+          calendarId: personalCalendarId,
+          flowLocalId: flowId,
+          category: 'Ritual',
+          actionId: offeringTableActionId(day),
+          behaviorPayload: offeringTableBehaviorPayload(
+            day: day,
+            schedule: occurrence,
+            lens: lens,
+            noCupMode: noCupMode,
+          ),
+          caller: 'offering_table_join_headless',
+        );
+      }
+
+      return flowId;
+    }
+
+    if (template.kind == _MaatFlowTemplateKind.theTending) {
+      final timezone = trackSkyTimeZone ?? detectTrackSkyTimeZone();
+      final lens = theTendingLens ?? TheTendingLens.neutral;
+      final firstG = DateUtils.dateOnly(
+        startDate ?? defaultTheTendingStartDate(timezone),
+      );
+      final occurrences = <TheTendingOccurrenceSchedule>[
+        for (final event in kTheTendingEvents)
+          theTendingScheduleForDate(
+            event,
+            firstG.add(Duration(days: event.flowDay - 1)),
+            timezone,
+          ),
+      ];
+      final dates = <DateTime>{
+        for (final occurrence in occurrences)
+          DateUtils.dateOnly(occurrence.startLocal),
+      };
+      final orderedDates = dates.toList()..sort();
+      final flow = _Flow(
+        id: -1,
+        calendarId: personalCalendarId,
+        name: template.title,
+        color: template.color,
+        active: true,
+        rules: <FlowRule>[_RuleDates(dates: dates)],
+        start: orderedDates.first,
+        end: firstG.add(const Duration(days: 29)),
+        notes: [
+          'mode=gregorian',
+          'split=1',
+          if (template.overview.trim().isNotEmpty)
+            'ov=${Uri.encodeComponent(template.overview.trim())}',
+          'maat=${template.key}',
+          'tending_tz=${timezone.key}',
+          'tending_lens=${lens.key}',
+          'tending_midday_hour=$kTheTendingDefaultMiddayHour',
+          'tending_midday_minute=$kTheTendingDefaultMiddayMinute',
+        ].join(';'),
+      );
+
+      final userEventsRepo = UserEventsRepo(Supabase.instance.client);
+      final flowId = await userEventsRepo.upsertFlow(
+        id: null,
+        name: flow.name,
+        color: flow.color.toARGB32(),
+        active: flow.active,
+        calendarId: flow.calendarId,
+        startDate: flow.start,
+        endDate: flow.end,
+        notes: flow.notes,
+        rules: jsonEncode(
+          flow.rules.map(CalendarPageState.ruleToJson).toList(),
+        ),
+        originType: 'template',
+      );
+
+      for (var i = 0; i < kTheTendingEvents.length; i++) {
+        final event = kTheTendingEvents[i];
+        final occurrence = occurrences[i];
+        final k = KemeticMath.fromGregorian(
+          DateUtils.dateOnly(occurrence.startLocal),
+        );
+        final title = theTendingEventTitle(event);
+        final cid = EventCidUtil.buildClientEventId(
+          ky: k.kYear,
+          km: k.kMonth,
+          kd: k.kDay,
+          title: title,
+          startHour: occurrence.startLocal.hour,
+          startMinute: occurrence.startLocal.minute,
+          allDay: false,
+          flowId: flowId,
+        );
+        await userEventsRepo.upsertByClientId(
+          clientEventId: cid,
+          title: title,
+          startsAtUtc: occurrence.startUtc,
+          detail: theTendingDetailText(event, lens: lens),
+          allDay: false,
+          endsAtUtc: occurrence.endUtc,
+          calendarId: personalCalendarId,
+          flowLocalId: flowId,
+          category: 'Ritual',
+          actionId: theTendingActionId(event),
+          behaviorPayload: theTendingBehaviorPayload(
+            event: event,
+            schedule: occurrence,
+            lens: lens,
+          ),
+          caller: 'the_tending_join_headless',
+        );
+      }
+
+      return flowId;
+    }
+
+    if (template.kind == _MaatFlowTemplateKind.keptWord) {
+      final timezone = trackSkyTimeZone ?? detectTrackSkyTimeZone();
+      final lens = keptWordLens ?? KeptWordLens.neutral;
+      final firstG = DateUtils.dateOnly(
+        startDate ?? defaultKeptWordStartDate(timezone),
+      );
+      final occurrences = <KeptWordOccurrenceSchedule>[
+        for (final event in kKeptWordEvents)
+          keptWordScheduleForDate(
+            event,
+            firstG.add(Duration(days: event.flowDay - 1)),
+            timezone,
+          ),
+      ];
+      final dates = <DateTime>{
+        for (final occurrence in occurrences)
+          DateUtils.dateOnly(occurrence.startLocal),
+      };
+      final orderedDates = dates.toList()..sort();
+      final flow = _Flow(
+        id: -1,
+        calendarId: personalCalendarId,
+        name: template.title,
+        color: template.color,
+        active: true,
+        rules: <FlowRule>[_RuleDates(dates: dates)],
+        start: orderedDates.first,
+        end: firstG.add(const Duration(days: 29)),
+        notes: [
+          'mode=gregorian',
+          'split=1',
+          if (template.overview.trim().isNotEmpty)
+            'ov=${Uri.encodeComponent(template.overview.trim())}',
+          'maat=${template.key}',
+          'kept_word_tz=${timezone.key}',
+          'kept_word_lens=${lens.key}',
+          'kept_word_midday_hour=$kKeptWordDefaultMiddayHour',
+          'kept_word_midday_minute=$kKeptWordDefaultMiddayMinute',
+        ].join(';'),
+      );
+
+      final userEventsRepo = UserEventsRepo(Supabase.instance.client);
+      final flowId = await userEventsRepo.upsertFlow(
+        id: null,
+        name: flow.name,
+        color: flow.color.toARGB32(),
+        active: flow.active,
+        calendarId: flow.calendarId,
+        startDate: flow.start,
+        endDate: flow.end,
+        notes: flow.notes,
+        rules: jsonEncode(
+          flow.rules.map(CalendarPageState.ruleToJson).toList(),
+        ),
+        originType: 'template',
+      );
+
+      for (var i = 0; i < kKeptWordEvents.length; i++) {
+        final event = kKeptWordEvents[i];
+        final occurrence = occurrences[i];
+        final k = KemeticMath.fromGregorian(
+          DateUtils.dateOnly(occurrence.startLocal),
+        );
+        final title = keptWordEventTitle(event);
+        final cid = EventCidUtil.buildClientEventId(
+          ky: k.kYear,
+          km: k.kMonth,
+          kd: k.kDay,
+          title: title,
+          startHour: occurrence.startLocal.hour,
+          startMinute: occurrence.startLocal.minute,
+          allDay: false,
+          flowId: flowId,
+        );
+        await userEventsRepo.upsertByClientId(
+          clientEventId: cid,
+          title: title,
+          startsAtUtc: occurrence.startUtc,
+          detail: keptWordDetailText(event, lens: lens),
+          allDay: false,
+          endsAtUtc: occurrence.endUtc,
+          calendarId: personalCalendarId,
+          flowLocalId: flowId,
+          category: 'Ritual',
+          actionId: keptWordActionId(event),
+          behaviorPayload: keptWordBehaviorPayload(
+            event: event,
+            schedule: occurrence,
+            lens: lens,
+          ),
+          caller: 'the_kept_word_join_headless',
+        );
+      }
+
+      return flowId;
+    }
+
+    if (template.kind == _MaatFlowTemplateKind.theCourse) {
+      final timezone = trackSkyTimeZone ?? detectTrackSkyTimeZone();
+      final lens = courseLens ?? CourseLens.neutral;
+      final firstG = DateUtils.dateOnly(
+        startDate ?? defaultTheCourseStartDate(timezone),
+      );
+      final joinedK = KemeticMath.fromGregorian(firstG);
+      final occurrences = <CourseOccurrenceSchedule>[
+        for (final event in kTheCourseEvents)
+          courseScheduleForDate(
+            event,
+            firstG.add(Duration(days: event.flowDay - 1)),
+            timezone,
+          ),
+      ];
+      final dates = <DateTime>{
+        for (final occurrence in occurrences)
+          DateUtils.dateOnly(occurrence.startLocal),
+      };
+      final orderedDates = dates.toList()..sort();
+      final flow = _Flow(
+        id: -1,
+        calendarId: personalCalendarId,
+        name: template.title,
+        color: template.color,
+        active: true,
+        rules: <FlowRule>[_RuleDates(dates: dates)],
+        start: orderedDates.first,
+        end: firstG.add(const Duration(days: 29)),
+        notes: [
+          'mode=gregorian',
+          'split=1',
+          if (template.overview.trim().isNotEmpty)
+            'ov=${Uri.encodeComponent(template.overview.trim())}',
+          'maat=${template.key}',
+          'course_tz=${timezone.key}',
+          'course_lens=${lens.key}',
+          'course_midday_hour=$kTheCourseDefaultMiddayHour',
+          'course_midday_minute=$kTheCourseDefaultMiddayMinute',
+          'joined_ky=${joinedK.kYear}',
+          'joined_km=${joinedK.kMonth}',
+          'joined_kd=${joinedK.kDay}',
+        ].join(';'),
+      );
+
+      final userEventsRepo = UserEventsRepo(Supabase.instance.client);
+      final flowId = await userEventsRepo.upsertFlow(
+        id: null,
+        name: flow.name,
+        color: flow.color.toARGB32(),
+        active: flow.active,
+        calendarId: flow.calendarId,
+        startDate: flow.start,
+        endDate: flow.end,
+        notes: flow.notes,
+        rules: jsonEncode(
+          flow.rules.map(CalendarPageState.ruleToJson).toList(),
+        ),
+        originType: 'template',
+      );
+
+      for (var i = 0; i < kTheCourseEvents.length; i++) {
+        final event = kTheCourseEvents[i];
+        final occurrence = occurrences[i];
+        final dayOnly = DateUtils.dateOnly(occurrence.startLocal);
+        final k = KemeticMath.fromGregorian(dayOnly);
+        final context = courseContextForKemeticDate(
+          kYear: k.kYear,
+          kMonth: k.kMonth,
+          kDay: k.kDay,
+        );
+        final title = courseEventTitle(event);
+        final cid = EventCidUtil.buildClientEventId(
+          ky: k.kYear,
+          km: k.kMonth,
+          kd: k.kDay,
+          title: title,
+          startHour: occurrence.startLocal.hour,
+          startMinute: occurrence.startLocal.minute,
+          allDay: false,
+          flowId: flowId,
+        );
+        await userEventsRepo.upsertByClientId(
+          clientEventId: cid,
+          title: title,
+          startsAtUtc: occurrence.startUtc,
+          detail: courseDetailText(event, lens: lens, context: context),
+          allDay: false,
+          endsAtUtc: occurrence.endUtc,
+          calendarId: personalCalendarId,
+          flowLocalId: flowId,
+          category: 'Ritual',
+          actionId: courseActionId(event),
+          behaviorPayload: courseBehaviorPayload(
+            event: event,
+            schedule: occurrence,
+            lens: lens,
+            context: context,
+          ),
+          caller: 'the_course_join_headless',
         );
       }
 
@@ -7823,6 +9032,17 @@ class CalendarPageState extends State<CalendarPage>
                           bool? eveningDiscreetMode,
                           EveningThresholdRiteLens? eveningLens,
                           int? eveningFallbackMinutesAfterMidnight,
+                          TheWeighingLens? theWeighingLens,
+                          OfferingTableLens? offeringTableLens,
+                          bool? offeringNoCupMode,
+                          TheTendingLens? theTendingLens,
+                          KeptWordLens? keptWordLens,
+                          CourseLens? courseLens,
+                          MoonReturnLens? moonReturnLens,
+                          WagLens? wagLens,
+                          DecanWatchLens? decanWatchLens,
+                          OpenHandLens? openHandLens,
+                          DjedLens? djedLens,
                         }) async {
                           final id = await _addMaatFlowInstance(
                             template: template,
@@ -7839,6 +9059,22 @@ class CalendarPageState extends State<CalendarPage>
                             eveningFallbackMinutesAfterMidnight:
                                 eveningFallbackMinutesAfterMidnight ??
                                 kEveningThresholdDefaultFallbackMinutes,
+                            theWeighingLens:
+                                theWeighingLens ?? TheWeighingLens.neutral,
+                            offeringTableLens:
+                                offeringTableLens ?? OfferingTableLens.neutral,
+                            offeringNoCupMode: offeringNoCupMode ?? false,
+                            theTendingLens:
+                                theTendingLens ?? TheTendingLens.neutral,
+                            keptWordLens: keptWordLens ?? KeptWordLens.neutral,
+                            courseLens: courseLens ?? CourseLens.neutral,
+                            moonReturnLens:
+                                moonReturnLens ?? MoonReturnLens.neutral,
+                            wagLens: wagLens ?? WagLens.neutral,
+                            decanWatchLens:
+                                decanWatchLens ?? DecanWatchLens.neutral,
+                            openHandLens: openHandLens ?? OpenHandLens.neutral,
+                            djedLens: djedLens ?? DjedLens.neutral,
                           );
                           return id;
                         },
@@ -7953,6 +9189,17 @@ class CalendarPageState extends State<CalendarPage>
                 bool? eveningDiscreetMode,
                 EveningThresholdRiteLens? eveningLens,
                 int? eveningFallbackMinutesAfterMidnight,
+                TheWeighingLens? theWeighingLens,
+                OfferingTableLens? offeringTableLens,
+                bool? offeringNoCupMode,
+                TheTendingLens? theTendingLens,
+                KeptWordLens? keptWordLens,
+                CourseLens? courseLens,
+                MoonReturnLens? moonReturnLens,
+                WagLens? wagLens,
+                DecanWatchLens? decanWatchLens,
+                OpenHandLens? openHandLens,
+                DjedLens? djedLens,
               }) async {
                 final id = await _addMaatFlowInstance(
                   template: template,
@@ -7967,6 +9214,18 @@ class CalendarPageState extends State<CalendarPage>
                   eveningFallbackMinutesAfterMidnight:
                       eveningFallbackMinutesAfterMidnight ??
                       kEveningThresholdDefaultFallbackMinutes,
+                  theWeighingLens: theWeighingLens ?? TheWeighingLens.neutral,
+                  offeringTableLens:
+                      offeringTableLens ?? OfferingTableLens.neutral,
+                  offeringNoCupMode: offeringNoCupMode ?? false,
+                  theTendingLens: theTendingLens ?? TheTendingLens.neutral,
+                  keptWordLens: keptWordLens ?? KeptWordLens.neutral,
+                  courseLens: courseLens ?? CourseLens.neutral,
+                  moonReturnLens: moonReturnLens ?? MoonReturnLens.neutral,
+                  wagLens: wagLens ?? WagLens.neutral,
+                  decanWatchLens: decanWatchLens ?? DecanWatchLens.neutral,
+                  openHandLens: openHandLens ?? OpenHandLens.neutral,
+                  djedLens: djedLens ?? DjedLens.neutral,
                 );
                 return id;
               },
@@ -17893,6 +19152,17 @@ class CalendarPageState extends State<CalendarPage>
     EveningThresholdRiteLens eveningLens = EveningThresholdRiteLens.neutral,
     int eveningFallbackMinutesAfterMidnight =
         kEveningThresholdDefaultFallbackMinutes,
+    TheWeighingLens theWeighingLens = TheWeighingLens.neutral,
+    OfferingTableLens offeringTableLens = OfferingTableLens.neutral,
+    bool offeringNoCupMode = false,
+    TheTendingLens theTendingLens = TheTendingLens.neutral,
+    KeptWordLens keptWordLens = KeptWordLens.neutral,
+    CourseLens courseLens = CourseLens.neutral,
+    MoonReturnLens moonReturnLens = MoonReturnLens.neutral,
+    WagLens wagLens = WagLens.neutral,
+    DecanWatchLens decanWatchLens = DecanWatchLens.neutral,
+    OpenHandLens openHandLens = OpenHandLens.neutral,
+    DjedLens djedLens = DjedLens.neutral,
   }) async {
     if (template.kind == _MaatFlowTemplateKind.trackSky) {
       final timezone = trackSkyTimeZone ?? detectTrackSkyTimeZone();
@@ -18020,6 +19290,1165 @@ class CalendarPageState extends State<CalendarPage>
             );
           } catch (_) {}
         });
+      }
+
+      setState(() {});
+      return serverFlowId;
+    }
+
+    if (template.kind == _MaatFlowTemplateKind.moonReturn) {
+      final timezone = trackSkyTimeZone ?? detectTrackSkyTimeZone();
+      final window = startDate == null
+          ? moonReturnCurrentEnrollmentWindow(timezone)
+          : moonReturnEnrollmentWindowForStartDate(startDate, timezone);
+      if (window == null || !moonReturnEnrollmentIsOpen(window)) {
+        if (mounted) {
+          final next = moonReturnNextEnrollmentWindow(timezone);
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                'The Moon Return begins only at the new moon. The next window opens on ${CalendarPage._formatDetachedGregorian(next.opensAtLocal)}.',
+              ),
+            ),
+          );
+        }
+        return -1;
+      }
+      final occurrences = moonReturnOccurrencesForWindow(window: window);
+      if (occurrences.isEmpty) return -1;
+      final dates = <DateTime>{
+        for (final occurrence in occurrences)
+          DateUtils.dateOnly(occurrence.startLocal),
+      };
+      final orderedDates = dates.toList()..sort();
+      final nowLocal = moonReturnNowInZone(timezone);
+
+      final flow = _Flow(
+        id: -1,
+        calendarId: _personalCalendarId,
+        name: template.title,
+        color: template.color,
+        active: true,
+        rules: [_RuleDates(dates: dates)],
+        start: DateUtils.dateOnly(window.opensAtLocal),
+        end: orderedDates.last,
+        notes: [
+          'mode=astronomy',
+          'split=1',
+          if (template.overview.trim().isNotEmpty)
+            'ov=${Uri.encodeComponent(template.overview.trim())}',
+          'maat=${template.key}',
+          'moon_tz=${timezone.key}',
+          'moon_lens=${moonReturnLens.key}',
+          'moon_enrolled_at=${nowLocal.toIso8601String()}',
+          'moon_window_open=${CalendarPage._formatDetachedGregorian(window.opensAtLocal)}',
+          'moon_new_moon=${window.newMoonDateIso}',
+        ].join(';'),
+      );
+
+      final serverFlowId = await _saveNewFlow(flow);
+      if (serverFlowId == null) {
+        if (kDebugMode) {
+          _calendarDebugPrint('[moonReturn] Aborting - flow insert failed');
+        }
+        return -1;
+      }
+
+      final repo = UserEventsRepo(Supabase.instance.client);
+      try {
+        for (final occurrence in occurrences) {
+          final kyKmKd = KemeticMath.fromGregorian(
+            DateUtils.dateOnly(occurrence.startLocal),
+          );
+          final startTod = TimeOfDay(
+            hour: occurrence.startLocal.hour,
+            minute: occurrence.startLocal.minute,
+          );
+          final endTod = TimeOfDay(
+            hour: occurrence.endLocal.hour,
+            minute: occurrence.endLocal.minute,
+          );
+          final title = moonReturnEventTitle(occurrence);
+          final detail = moonReturnDetailText(occurrence, lens: moonReturnLens);
+          final behaviorPayload = moonReturnBehaviorPayload(
+            occurrence: occurrence,
+            lens: moonReturnLens,
+          );
+          final clientEventId = moonReturnClientEventId(
+            flowId: serverFlowId,
+            occurrence: occurrence,
+          );
+          final note = _Note(
+            clientEventId: clientEventId,
+            calendarId: _personalCalendarId,
+            title: title,
+            detail: detail,
+            allDay: false,
+            start: startTod,
+            end: endTod,
+            flowId: serverFlowId,
+            category: 'Ritual',
+            alertOffsetMinutes: 0,
+            actionId: moonReturnActionId(occurrence),
+            behaviorPayload: behaviorPayload,
+          );
+
+          _addNote(
+            kyKmKd.kYear,
+            kyKmKd.kMonth,
+            kyKmKd.kDay,
+            title,
+            detail,
+            clientEventId: clientEventId,
+            calendarId: _personalCalendarId,
+            allDay: false,
+            start: startTod,
+            end: endTod,
+            flowId: serverFlowId,
+            category: 'Ritual',
+            alertOffsetMinutes: 0,
+            actionId: moonReturnActionId(occurrence),
+            behaviorPayload: behaviorPayload,
+          );
+
+          await _scheduleAlertForEvent(
+            note: note,
+            ky: kyKmKd.kYear,
+            km: kyKmKd.kMonth,
+            kd: kyKmKd.kDay,
+            clientEventId: clientEventId,
+          );
+
+          await repo.upsertByClientId(
+            clientEventId: clientEventId,
+            title: title,
+            startsAtUtc: occurrence.startUtc,
+            detail: detail,
+            calendarId: _personalCalendarId,
+            allDay: false,
+            endsAtUtc: occurrence.endUtc,
+            category: 'Ritual',
+            flowLocalId: serverFlowId,
+            actionId: moonReturnActionId(occurrence),
+            behaviorPayload: behaviorPayload,
+            caller: 'moon_return_join',
+          );
+        }
+      } catch (e, st) {
+        if (kDebugMode) {
+          _calendarDebugPrint('[moonReturn] event creation failed: $e');
+          _calendarDebugPrint('$st');
+        }
+        _flows.removeWhere((flow) => flow.id == serverFlowId);
+        final emptyKeys = <String>[];
+        _notes.forEach((key, notes) {
+          notes.removeWhere((note) => note.flowId == serverFlowId);
+          if (notes.isEmpty) emptyKeys.add(key);
+        });
+        for (final key in emptyKeys) {
+          _notes.remove(key);
+        }
+        if (mounted) {
+          setState(() {});
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Could not create The Moon Return.')),
+          );
+        }
+        try {
+          await repo.deleteFlow(serverFlowId);
+        } catch (_) {}
+        return -1;
+      }
+
+      setState(() {});
+      return serverFlowId;
+    }
+
+    if (template.kind == _MaatFlowTemplateKind.theWag) {
+      final timezone = trackSkyTimeZone ?? detectTrackSkyTimeZone();
+      final window = startDate == null
+          ? wagCurrentEnrollmentWindow(timezone)
+          : wagEnrollmentWindowForStartDate(startDate, timezone);
+      if (window == null || !wagEnrollmentIsOpen(window)) {
+        if (mounted) {
+          final next = wagNextEnrollmentWindow(timezone);
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(wagEnrollmentClosedMessage(next))),
+          );
+        }
+        return -1;
+      }
+      final kYear = window.kYear;
+      final alreadyEnrolled = _flows.any((flow) {
+        final notes = (flow.notes ?? '').toLowerCase();
+        return flow.active &&
+            notes.contains('maat=$kTheWagFlowKey') &&
+            notes.contains('wag_kyear=$kYear');
+      });
+      if (alreadyEnrolled) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('You are already enrolled in this year\'s Wag.'),
+            ),
+          );
+        }
+        return -1;
+      }
+
+      final schedules = <WagEvent, WagOccurrenceSchedule>{
+        for (final event in kWagEvents)
+          event: wagScheduleForEvent(
+            event: event,
+            kYear: kYear,
+            timezone: timezone,
+          ),
+      };
+      final dates = <DateTime>{
+        for (final schedule in schedules.values)
+          DateUtils.dateOnly(schedule.startLocal),
+      };
+      final nowLocal = wagNowInZone(timezone);
+      final flow = _Flow(
+        id: -1,
+        calendarId: _personalCalendarId,
+        name: template.title,
+        color: template.color,
+        active: true,
+        rules: [_RuleDates(dates: dates)],
+        start: DateUtils.dateOnly(wagYearStartGregorian(kYear)),
+        end: DateUtils.dateOnly(wagYearEndGregorian(kYear)),
+        notes: [
+          'mode=kemetic',
+          'split=1',
+          if (template.overview.trim().isNotEmpty)
+            'ov=${Uri.encodeComponent(template.overview.trim())}',
+          'maat=${template.key}',
+          'wag_kyear=$kYear',
+          'wag_tz=${timezone.key}',
+          'wag_lens=${wagLens.key}',
+          'wag_enrolled_at=${nowLocal.toIso8601String()}',
+          'wag_window_open=${CalendarPage._formatDetachedGregorian(window.opensAtLocal)}',
+        ].join(';'),
+      );
+
+      final serverFlowId = await _saveNewFlow(flow);
+      if (serverFlowId == null) {
+        if (kDebugMode) {
+          _calendarDebugPrint('[theWag] Aborting - flow insert failed');
+        }
+        return -1;
+      }
+
+      final repo = UserEventsRepo(Supabase.instance.client);
+      try {
+        for (final event in kWagEvents) {
+          final schedule = schedules[event]!;
+          final variant = wagCopyVariantForEvent(event: event, kYear: kYear);
+          final kyKmKd = KemeticMath.fromGregorian(
+            DateUtils.dateOnly(schedule.startLocal),
+          );
+          final startTod = TimeOfDay(
+            hour: schedule.startLocal.hour,
+            minute: schedule.startLocal.minute,
+          );
+          final endTod = TimeOfDay(
+            hour: schedule.endLocal.hour,
+            minute: schedule.endLocal.minute,
+          );
+          final title = wagEventTitle(event);
+          final detail = wagDetailText(
+            event,
+            lens: wagLens,
+            variant: variant,
+            nextWagDate: event.sharePromptOnComplete
+                ? wagNextFeastGregorian(kYear)
+                : null,
+          );
+          final behaviorPayload = wagBehaviorPayload(
+            event: event,
+            kYear: kYear,
+            timezoneKey: timezone.key,
+            ianaTimezone: timezone.ianaName,
+            scheduleType: schedule.scheduleType,
+            referenceLocationName: schedule.referenceLocationName,
+            usedFallback: schedule.usedFallback,
+            lens: wagLens,
+            variant: variant,
+          );
+          final clientEventId = wagClientEventId(
+            flowId: serverFlowId,
+            kYear: kYear,
+            event: event,
+          );
+          final note = _Note(
+            clientEventId: clientEventId,
+            calendarId: _personalCalendarId,
+            title: title,
+            detail: detail,
+            allDay: false,
+            start: startTod,
+            end: endTod,
+            flowId: serverFlowId,
+            category: 'Ritual',
+            alertOffsetMinutes: 0,
+            actionId: wagActionId(event),
+            behaviorPayload: behaviorPayload,
+          );
+
+          _addNote(
+            kyKmKd.kYear,
+            kyKmKd.kMonth,
+            kyKmKd.kDay,
+            title,
+            detail,
+            clientEventId: clientEventId,
+            calendarId: _personalCalendarId,
+            allDay: false,
+            start: startTod,
+            end: endTod,
+            flowId: serverFlowId,
+            category: 'Ritual',
+            alertOffsetMinutes: 0,
+            actionId: wagActionId(event),
+            behaviorPayload: behaviorPayload,
+          );
+
+          await _scheduleAlertForEvent(
+            note: note,
+            ky: kyKmKd.kYear,
+            km: kyKmKd.kMonth,
+            kd: kyKmKd.kDay,
+            clientEventId: clientEventId,
+          );
+
+          await repo.upsertByClientId(
+            clientEventId: clientEventId,
+            title: title,
+            startsAtUtc: schedule.startUtc,
+            detail: detail,
+            calendarId: _personalCalendarId,
+            allDay: false,
+            endsAtUtc: schedule.endUtc,
+            category: 'Ritual',
+            flowLocalId: serverFlowId,
+            actionId: wagActionId(event),
+            behaviorPayload: behaviorPayload,
+            caller: 'wag_join',
+          );
+        }
+      } catch (e, st) {
+        if (kDebugMode) {
+          _calendarDebugPrint('[theWag] event creation failed: $e');
+          _calendarDebugPrint('$st');
+        }
+        _flows.removeWhere((flow) => flow.id == serverFlowId);
+        final emptyKeys = <String>[];
+        _notes.forEach((key, notes) {
+          notes.removeWhere((note) => note.flowId == serverFlowId);
+          if (notes.isEmpty) emptyKeys.add(key);
+        });
+        for (final key in emptyKeys) {
+          _notes.remove(key);
+        }
+        if (mounted) {
+          setState(() {});
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Could not create The Wag.')),
+          );
+        }
+        try {
+          await repo.deleteFlow(serverFlowId);
+        } catch (_) {}
+        return -1;
+      }
+
+      setState(() {});
+      return serverFlowId;
+    }
+
+    if (template.kind == _MaatFlowTemplateKind.daysOutsideTheYear) {
+      final timezone = trackSkyTimeZone ?? detectTrackSkyTimeZone();
+      final window = startDate == null
+          ? daysOutsideYearCurrentEnrollmentWindow(timezone)
+          : daysOutsideYearEnrollmentWindowForStartDate(startDate, timezone);
+      if (window == null || !daysOutsideYearEnrollmentIsOpen(window)) {
+        if (mounted) {
+          final next = daysOutsideYearNextEnrollmentWindow(timezone);
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(daysOutsideYearEnrollmentClosedMessage(next)),
+            ),
+          );
+        }
+        return -1;
+      }
+      final closingKYear = window.closingKYear;
+      final alreadyEnrolled = _flows.any((flow) {
+        final notes = (flow.notes ?? '').toLowerCase();
+        return flow.active &&
+            notes.contains('maat=$kDaysOutsideTheYearFlowKey') &&
+            notes.contains('doy_kyear=$closingKYear');
+      });
+      if (alreadyEnrolled) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text(
+                'You are already enrolled in this year\'s Days Outside the Year.',
+              ),
+            ),
+          );
+        }
+        return -1;
+      }
+
+      final schedules = <DaysOutsideEvent, DaysOutsideOccurrenceSchedule>{
+        for (final event in kDaysOutsideEvents)
+          event: daysOutsideScheduleForEvent(
+            event: event,
+            closingKYear: closingKYear,
+            timezone: timezone,
+          ),
+      };
+      final dates = <DateTime>{
+        for (final schedule in schedules.values)
+          DateUtils.dateOnly(schedule.startLocal),
+      };
+      final nowLocal = daysOutsideNowInZone(timezone);
+      final flow = _Flow(
+        id: -1,
+        calendarId: _personalCalendarId,
+        name: template.title,
+        color: template.color,
+        active: true,
+        rules: [_RuleDates(dates: dates)],
+        start: DateUtils.dateOnly(window.opensAtLocal),
+        end: DateUtils.dateOnly(daysOutsideFlowEndGregorian(closingKYear)),
+        notes: [
+          'mode=kemetic',
+          'split=1',
+          if (template.overview.trim().isNotEmpty)
+            'ov=${Uri.encodeComponent(template.overview.trim())}',
+          'maat=${template.key}',
+          'doy_kyear=$closingKYear',
+          'doy_tz=${timezone.key}',
+          'doy_enrolled_at=${nowLocal.toIso8601String()}',
+          'doy_window_open=${CalendarPage._formatDetachedGregorian(window.opensAtLocal)}',
+        ].join(';'),
+      );
+
+      final serverFlowId = await _saveNewFlow(flow);
+      if (serverFlowId == null) {
+        if (kDebugMode) {
+          _calendarDebugPrint(
+            '[daysOutsideYear] Aborting - flow insert failed',
+          );
+        }
+        return -1;
+      }
+
+      final repo = UserEventsRepo(Supabase.instance.client);
+      try {
+        for (final event in kDaysOutsideEvents) {
+          final schedule = schedules[event]!;
+          final gregorian = daysOutsideEventGregorian(
+            closingKYear: closingKYear,
+            kMonth: event.kMonth,
+            kDay: event.kDay,
+          );
+          final variant = daysOutsideCopyVariantForEvent(
+            event: event,
+            gregorianDate: gregorian,
+          );
+          final kyKmKd = KemeticMath.fromGregorian(
+            DateUtils.dateOnly(schedule.startLocal),
+          );
+          final startTod = TimeOfDay(
+            hour: schedule.startLocal.hour,
+            minute: schedule.startLocal.minute,
+          );
+          final endTod = TimeOfDay(
+            hour: schedule.endLocal.hour,
+            minute: schedule.endLocal.minute,
+          );
+          final title = daysOutsideEventTitle(event);
+          final detail = daysOutsideDetailText(
+            event,
+            closingKYear: closingKYear,
+            variant: variant,
+          );
+          final behaviorPayload = daysOutsideBehaviorPayload(
+            event: event,
+            closingKYear: closingKYear,
+            timezoneKey: timezone.key,
+            ianaTimezone: timezone.ianaName,
+            scheduleType: schedule.scheduleType,
+            referenceLocationName: schedule.referenceLocationName,
+            usedFallback: schedule.usedFallback,
+            variant: variant,
+          );
+          final clientEventId = daysOutsideClientEventId(
+            flowId: serverFlowId,
+            closingKYear: closingKYear,
+            event: event,
+          );
+          final note = _Note(
+            clientEventId: clientEventId,
+            calendarId: _personalCalendarId,
+            title: title,
+            detail: detail,
+            allDay: false,
+            start: startTod,
+            end: endTod,
+            flowId: serverFlowId,
+            category: 'Ritual',
+            alertOffsetMinutes: 0,
+            actionId: daysOutsideActionId(event),
+            behaviorPayload: behaviorPayload,
+          );
+
+          _addNote(
+            kyKmKd.kYear,
+            kyKmKd.kMonth,
+            kyKmKd.kDay,
+            title,
+            detail,
+            clientEventId: clientEventId,
+            calendarId: _personalCalendarId,
+            allDay: false,
+            start: startTod,
+            end: endTod,
+            flowId: serverFlowId,
+            category: 'Ritual',
+            alertOffsetMinutes: 0,
+            actionId: daysOutsideActionId(event),
+            behaviorPayload: behaviorPayload,
+          );
+
+          await _scheduleAlertForEvent(
+            note: note,
+            ky: kyKmKd.kYear,
+            km: kyKmKd.kMonth,
+            kd: kyKmKd.kDay,
+            clientEventId: clientEventId,
+          );
+
+          await repo.upsertByClientId(
+            clientEventId: clientEventId,
+            title: title,
+            startsAtUtc: schedule.startUtc,
+            detail: detail,
+            calendarId: _personalCalendarId,
+            allDay: false,
+            endsAtUtc: schedule.endUtc,
+            category: 'Ritual',
+            flowLocalId: serverFlowId,
+            actionId: daysOutsideActionId(event),
+            behaviorPayload: behaviorPayload,
+            caller: 'days_outside_year_join',
+          );
+        }
+      } catch (e, st) {
+        if (kDebugMode) {
+          _calendarDebugPrint('[daysOutsideYear] event creation failed: $e');
+          _calendarDebugPrint('$st');
+        }
+        _flows.removeWhere((flow) => flow.id == serverFlowId);
+        final emptyKeys = <String>[];
+        _notes.forEach((key, notes) {
+          notes.removeWhere((note) => note.flowId == serverFlowId);
+          if (notes.isEmpty) emptyKeys.add(key);
+        });
+        for (final key in emptyKeys) {
+          _notes.remove(key);
+        }
+        if (mounted) {
+          setState(() {});
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Could not create The Days Outside the Year.'),
+            ),
+          );
+        }
+        try {
+          await repo.deleteFlow(serverFlowId);
+        } catch (_) {}
+        return -1;
+      }
+
+      setState(() {});
+      return serverFlowId;
+    }
+
+    if (template.kind == _MaatFlowTemplateKind.theOpenHand) {
+      final timezone = trackSkyTimeZone ?? detectTrackSkyTimeZone();
+      final window = startDate == null
+          ? openHandCurrentEnrollmentWindow(timezone)
+          : openHandEnrollmentWindowForStartDate(startDate, timezone);
+      if (window == null || !openHandEnrollmentIsOpen(window)) {
+        if (mounted) {
+          final next = openHandNextEnrollmentWindow(timezone);
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(openHandEnrollmentClosedMessage(next))),
+          );
+        }
+        return -1;
+      }
+      final flowStart = DateUtils.dateOnly(window.opensAtLocal);
+      final startIso = CalendarPage._formatDetachedGregorian(flowStart);
+      final alreadyEnrolledThisStart = _flows.any((flow) {
+        final notes = (flow.notes ?? '').toLowerCase();
+        return flow.active &&
+            notes.contains('maat=$kTheOpenHandFlowKey') &&
+            notes.contains('oh_start=$startIso');
+      });
+      if (alreadyEnrolledThisStart) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('You already joined The Open Hand for this decan.'),
+            ),
+          );
+        }
+        return -1;
+      }
+
+      final schedules = <OpenHandEvent, OpenHandOccurrenceSchedule>{
+        for (final event in kOpenHandEvents)
+          event: openHandScheduleForEvent(event, flowStart, timezone),
+      };
+      final dates = <DateTime>{
+        for (final schedule in schedules.values)
+          DateUtils.dateOnly(schedule.startLocal),
+      };
+      final nowLocal = openHandNowInZone(timezone);
+      final flow = _Flow(
+        id: -1,
+        calendarId: _personalCalendarId,
+        name: template.title,
+        color: template.color,
+        active: true,
+        rules: [_RuleDates(dates: dates)],
+        start: flowStart,
+        end: flowStart.add(const Duration(days: 29)),
+        notes: [
+          'mode=gregorian',
+          'split=1',
+          if (template.overview.trim().isNotEmpty)
+            'ov=${Uri.encodeComponent(template.overview.trim())}',
+          'maat=${template.key}',
+          'oh_start=$startIso',
+          'oh_tz=${timezone.key}',
+          'oh_lens=${openHandLens.key}',
+          'oh_midday_hour=$kOpenHandDefaultMiddayHour',
+          'oh_midday_minute=$kOpenHandDefaultMiddayMinute',
+          'oh_decan_kyear=${window.openingOccurrence.kYear}',
+          'oh_decan_month=${window.openingOccurrence.kMonth}',
+          'oh_decan_day=${window.openingOccurrence.decanStartDay}',
+          'oh_enrolled_at=${nowLocal.toIso8601String()}',
+        ].join(';'),
+      );
+
+      final serverFlowId = await _saveNewFlow(flow);
+      if (serverFlowId == null) {
+        if (kDebugMode) {
+          _calendarDebugPrint('[openHand] Aborting - flow insert failed');
+        }
+        return -1;
+      }
+
+      final repo = UserEventsRepo(Supabase.instance.client);
+      try {
+        for (final event in kOpenHandEvents) {
+          final schedule = schedules[event]!;
+          final kyKmKd = KemeticMath.fromGregorian(
+            DateUtils.dateOnly(schedule.startLocal),
+          );
+          final startTod = TimeOfDay(
+            hour: schedule.startLocal.hour,
+            minute: schedule.startLocal.minute,
+          );
+          final endTod = TimeOfDay(
+            hour: schedule.endLocal.hour,
+            minute: schedule.endLocal.minute,
+          );
+          final title = openHandEventTitle(event);
+          final detail = openHandDetailText(event, lens: openHandLens);
+          final behaviorPayload = openHandBehaviorPayload(
+            event: event,
+            schedule: schedule,
+            lens: openHandLens,
+          );
+          final clientEventId = openHandClientEventId(
+            flowId: serverFlowId,
+            event: event,
+          );
+          final note = _Note(
+            clientEventId: clientEventId,
+            calendarId: _personalCalendarId,
+            title: title,
+            detail: detail,
+            allDay: false,
+            start: startTod,
+            end: endTod,
+            flowId: serverFlowId,
+            category: 'Ritual',
+            alertOffsetMinutes: 0,
+            actionId: openHandActionId(event),
+            behaviorPayload: behaviorPayload,
+          );
+
+          _addNote(
+            kyKmKd.kYear,
+            kyKmKd.kMonth,
+            kyKmKd.kDay,
+            title,
+            detail,
+            clientEventId: clientEventId,
+            calendarId: _personalCalendarId,
+            allDay: false,
+            start: startTod,
+            end: endTod,
+            flowId: serverFlowId,
+            category: 'Ritual',
+            alertOffsetMinutes: 0,
+            actionId: openHandActionId(event),
+            behaviorPayload: behaviorPayload,
+          );
+
+          await _scheduleAlertForEvent(
+            note: note,
+            ky: kyKmKd.kYear,
+            km: kyKmKd.kMonth,
+            kd: kyKmKd.kDay,
+            clientEventId: clientEventId,
+          );
+
+          await repo.upsertByClientId(
+            clientEventId: clientEventId,
+            title: title,
+            startsAtUtc: schedule.startUtc,
+            detail: detail,
+            calendarId: _personalCalendarId,
+            allDay: false,
+            endsAtUtc: schedule.endUtc,
+            category: 'Ritual',
+            flowLocalId: serverFlowId,
+            actionId: openHandActionId(event),
+            behaviorPayload: behaviorPayload,
+            caller: 'open_hand_join',
+          );
+        }
+      } catch (e, st) {
+        if (kDebugMode) {
+          _calendarDebugPrint('[openHand] event creation failed: $e');
+          _calendarDebugPrint('$st');
+        }
+        _flows.removeWhere((flow) => flow.id == serverFlowId);
+        final emptyKeys = <String>[];
+        _notes.forEach((key, notes) {
+          notes.removeWhere((note) => note.flowId == serverFlowId);
+          if (notes.isEmpty) emptyKeys.add(key);
+        });
+        for (final key in emptyKeys) {
+          _notes.remove(key);
+        }
+        if (mounted) {
+          setState(() {});
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Could not create The Open Hand.')),
+          );
+        }
+        try {
+          await repo.deleteFlow(serverFlowId);
+        } catch (_) {}
+        return -1;
+      }
+
+      setState(() {});
+      return serverFlowId;
+    }
+
+    if (template.kind == _MaatFlowTemplateKind.theDjed) {
+      final timezone = trackSkyTimeZone ?? detectTrackSkyTimeZone();
+      final window = startDate == null
+          ? djedCurrentEnrollmentWindow(timezone)
+          : djedEnrollmentWindowForStartDate(startDate, timezone);
+      if (window == null || !djedEnrollmentIsOpen(window)) {
+        if (mounted) {
+          final next = djedNextEnrollmentWindow(timezone);
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(djedEnrollmentClosedMessage(next))),
+          );
+        }
+        return -1;
+      }
+      final flowStart = DateUtils.dateOnly(window.opensAtLocal);
+      final startIso = CalendarPage._formatDetachedGregorian(flowStart);
+      final alreadyEnrolledThisStart = _flows.any((flow) {
+        final notes = (flow.notes ?? '').toLowerCase();
+        return flow.active &&
+            notes.contains('maat=$kTheDjedFlowKey') &&
+            notes.contains('djed_start=$startIso');
+      });
+      if (alreadyEnrolledThisStart) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('You already joined The Djed for this decan.'),
+            ),
+          );
+        }
+        return -1;
+      }
+
+      final schedules = <DjedEvent, DjedOccurrenceSchedule>{
+        for (final event in kDjedEvents)
+          event: djedScheduleForEvent(event, flowStart, timezone),
+      };
+      final dates = <DateTime>{
+        for (final schedule in schedules.values)
+          DateUtils.dateOnly(schedule.startLocal),
+      };
+      final nowLocal = djedNowInZone(timezone);
+      final flow = _Flow(
+        id: -1,
+        calendarId: _personalCalendarId,
+        name: template.title,
+        color: template.color,
+        active: true,
+        rules: [_RuleDates(dates: dates)],
+        start: flowStart,
+        end: flowStart.add(const Duration(days: 29)),
+        notes: [
+          'mode=gregorian',
+          'split=1',
+          if (template.overview.trim().isNotEmpty)
+            'ov=${Uri.encodeComponent(template.overview.trim())}',
+          'maat=${template.key}',
+          'djed_start=$startIso',
+          'djed_tz=${timezone.key}',
+          'djed_lens=${djedLens.key}',
+          'djed_midday_hour=$kDjedDefaultMiddayHour',
+          'djed_midday_minute=$kDjedDefaultMiddayMinute',
+          'djed_decan_kyear=${window.openingOccurrence.kYear}',
+          'djed_decan_month=${window.openingOccurrence.kMonth}',
+          'djed_decan_day=${window.openingOccurrence.decanStartDay}',
+          'djed_enrolled_at=${nowLocal.toIso8601String()}',
+        ].join(';'),
+      );
+
+      final serverFlowId = await _saveNewFlow(flow);
+      if (serverFlowId == null) {
+        if (kDebugMode) {
+          _calendarDebugPrint('[djed] Aborting - flow insert failed');
+        }
+        return -1;
+      }
+
+      final repo = UserEventsRepo(Supabase.instance.client);
+      try {
+        for (final event in kDjedEvents) {
+          final schedule = schedules[event]!;
+          final kyKmKd = KemeticMath.fromGregorian(
+            DateUtils.dateOnly(schedule.startLocal),
+          );
+          final startTod = TimeOfDay(
+            hour: schedule.startLocal.hour,
+            minute: schedule.startLocal.minute,
+          );
+          final endTod = TimeOfDay(
+            hour: schedule.endLocal.hour,
+            minute: schedule.endLocal.minute,
+          );
+          final title = djedEventTitle(event);
+          final detail = djedDetailText(event, lens: djedLens);
+          final behaviorPayload = djedBehaviorPayload(
+            event: event,
+            schedule: schedule,
+            lens: djedLens,
+          );
+          final clientEventId = djedClientEventId(
+            flowId: serverFlowId,
+            event: event,
+          );
+          final note = _Note(
+            clientEventId: clientEventId,
+            calendarId: _personalCalendarId,
+            title: title,
+            detail: detail,
+            allDay: false,
+            start: startTod,
+            end: endTod,
+            flowId: serverFlowId,
+            category: 'Ritual',
+            alertOffsetMinutes: 0,
+            actionId: djedActionId(event),
+            behaviorPayload: behaviorPayload,
+          );
+
+          _addNote(
+            kyKmKd.kYear,
+            kyKmKd.kMonth,
+            kyKmKd.kDay,
+            title,
+            detail,
+            clientEventId: clientEventId,
+            calendarId: _personalCalendarId,
+            allDay: false,
+            start: startTod,
+            end: endTod,
+            flowId: serverFlowId,
+            category: 'Ritual',
+            alertOffsetMinutes: 0,
+            actionId: djedActionId(event),
+            behaviorPayload: behaviorPayload,
+          );
+
+          await _scheduleAlertForEvent(
+            note: note,
+            ky: kyKmKd.kYear,
+            km: kyKmKd.kMonth,
+            kd: kyKmKd.kDay,
+            clientEventId: clientEventId,
+          );
+
+          await repo.upsertByClientId(
+            clientEventId: clientEventId,
+            title: title,
+            startsAtUtc: schedule.startUtc,
+            detail: detail,
+            calendarId: _personalCalendarId,
+            allDay: false,
+            endsAtUtc: schedule.endUtc,
+            category: 'Ritual',
+            flowLocalId: serverFlowId,
+            actionId: djedActionId(event),
+            behaviorPayload: behaviorPayload,
+            caller: 'djed_join',
+          );
+        }
+      } catch (e, st) {
+        if (kDebugMode) {
+          _calendarDebugPrint('[djed] event creation failed: $e');
+          _calendarDebugPrint('$st');
+        }
+        _flows.removeWhere((flow) => flow.id == serverFlowId);
+        final emptyKeys = <String>[];
+        _notes.forEach((key, notes) {
+          notes.removeWhere((note) => note.flowId == serverFlowId);
+          if (notes.isEmpty) emptyKeys.add(key);
+        });
+        for (final key in emptyKeys) {
+          _notes.remove(key);
+        }
+        if (mounted) {
+          setState(() {});
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Could not create The Djed.')),
+          );
+        }
+        try {
+          await repo.deleteFlow(serverFlowId);
+        } catch (_) {}
+        return -1;
+      }
+
+      setState(() {});
+      return serverFlowId;
+    }
+
+    if (template.kind == _MaatFlowTemplateKind.decanWatch) {
+      final timezone = trackSkyTimeZone ?? detectTrackSkyTimeZone();
+      final window = startDate == null
+          ? decanWatchCurrentEnrollmentWindow(timezone)
+          : decanWatchEnrollmentWindowForStartDate(startDate, timezone);
+      if (window == null || !decanWatchEnrollmentIsOpen(window)) {
+        if (mounted) {
+          final next = decanWatchNextEnrollmentWindow(timezone);
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(decanWatchEnrollmentClosedMessage(next))),
+          );
+        }
+        return -1;
+      }
+      final alreadyEnrolled = _flows.any((flow) {
+        final notes = (flow.notes ?? '').toLowerCase();
+        return flow.active && notes.contains('maat=$kDecanWatchFlowKey');
+      });
+      if (alreadyEnrolled) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('You are already enrolled in The Decan Watch.'),
+            ),
+          );
+        }
+        return -1;
+      }
+
+      final occurrences = <DecanWatchOccurrence>[
+        window.openingOccurrence,
+        ...upcomingDecanWatchOccurrences(
+          timezone: timezone,
+          fromLocal: window.openingOccurrence.startLocal.add(
+            const Duration(days: 1),
+          ),
+          count: 2,
+        ),
+      ];
+      final dates = <DateTime>{
+        for (final occurrence in occurrences)
+          DateUtils.dateOnly(occurrence.startLocal),
+      };
+      final orderedDates = dates.toList()..sort();
+      final nowLocal = decanWatchNowInZone(timezone);
+      final flow = _Flow(
+        id: -1,
+        calendarId: _personalCalendarId,
+        name: template.title,
+        color: template.color,
+        active: true,
+        rules: [_RuleDates(dates: dates)],
+        start: orderedDates.first,
+        end: orderedDates.last,
+        notes: [
+          'mode=kemetic',
+          'split=1',
+          if (template.overview.trim().isNotEmpty)
+            'ov=${Uri.encodeComponent(template.overview.trim())}',
+          'maat=${template.key}',
+          'dw_tz=${timezone.key}',
+          'dw_lens=${decanWatchLens.key}',
+          'dw_enrolled_kyear=${window.openingOccurrence.kYear}',
+          'dw_hour=$kDecanWatchDefaultHour',
+          'dw_minute=$kDecanWatchDefaultMinute',
+          'dw_enrolled_at=${nowLocal.toIso8601String()}',
+        ].join(';'),
+      );
+
+      final serverFlowId = await _saveNewFlow(flow);
+      if (serverFlowId == null) {
+        if (kDebugMode) {
+          _calendarDebugPrint('[decanWatch] Aborting - flow insert failed');
+        }
+        return -1;
+      }
+
+      final repo = UserEventsRepo(Supabase.instance.client);
+      try {
+        for (final occurrence in occurrences) {
+          final kyKmKd = KemeticMath.fromGregorian(
+            DateUtils.dateOnly(occurrence.startLocal),
+          );
+          final startTod = TimeOfDay(
+            hour: occurrence.startLocal.hour,
+            minute: occurrence.startLocal.minute,
+          );
+          final endTod = TimeOfDay(
+            hour: occurrence.endLocal.hour,
+            minute: occurrence.endLocal.minute,
+          );
+          final context = courseContextForKemeticDate(
+            kYear: occurrence.kYear,
+            kMonth: occurrence.kMonth,
+            kDay: occurrence.decanStartDay,
+          );
+          final title = decanWatchEventTitle(occurrence);
+          final detail = decanWatchDetailText(
+            occurrence,
+            lens: decanWatchLens,
+            context: context,
+          );
+          final behaviorPayload = decanWatchBehaviorPayload(
+            occurrence: occurrence,
+            lens: decanWatchLens,
+          );
+          final clientEventId = decanWatchClientEventId(
+            flowId: serverFlowId,
+            occurrence: occurrence,
+          );
+          final note = _Note(
+            clientEventId: clientEventId,
+            calendarId: _personalCalendarId,
+            title: title,
+            detail: detail,
+            allDay: false,
+            start: startTod,
+            end: endTod,
+            flowId: serverFlowId,
+            category: 'Ritual',
+            alertOffsetMinutes: 0,
+            actionId: decanWatchActionId(occurrence),
+            behaviorPayload: behaviorPayload,
+          );
+
+          _addNote(
+            kyKmKd.kYear,
+            kyKmKd.kMonth,
+            kyKmKd.kDay,
+            title,
+            detail,
+            clientEventId: clientEventId,
+            calendarId: _personalCalendarId,
+            allDay: false,
+            start: startTod,
+            end: endTod,
+            flowId: serverFlowId,
+            category: 'Ritual',
+            alertOffsetMinutes: 0,
+            actionId: decanWatchActionId(occurrence),
+            behaviorPayload: behaviorPayload,
+          );
+
+          await _scheduleAlertForEvent(
+            note: note,
+            ky: kyKmKd.kYear,
+            km: kyKmKd.kMonth,
+            kd: kyKmKd.kDay,
+            clientEventId: clientEventId,
+          );
+
+          await repo.upsertByClientId(
+            clientEventId: clientEventId,
+            title: title,
+            startsAtUtc: occurrence.startUtc,
+            detail: detail,
+            calendarId: _personalCalendarId,
+            allDay: false,
+            endsAtUtc: occurrence.endUtc,
+            category: 'Ritual',
+            flowLocalId: serverFlowId,
+            actionId: decanWatchActionId(occurrence),
+            behaviorPayload: behaviorPayload,
+            caller: 'decan_watch_join',
+          );
+        }
+      } catch (e, st) {
+        if (kDebugMode) {
+          _calendarDebugPrint('[decanWatch] event creation failed: $e');
+          _calendarDebugPrint('$st');
+        }
+        _flows.removeWhere((flow) => flow.id == serverFlowId);
+        final emptyKeys = <String>[];
+        _notes.forEach((key, notes) {
+          notes.removeWhere((note) => note.flowId == serverFlowId);
+          if (notes.isEmpty) emptyKeys.add(key);
+        });
+        for (final key in emptyKeys) {
+          _notes.remove(key);
+        }
+        if (mounted) {
+          setState(() {});
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Could not create The Decan Watch.')),
+          );
+        }
+        try {
+          await repo.deleteFlow(serverFlowId);
+        } catch (_) {}
+        return -1;
       }
 
       setState(() {});
@@ -18367,6 +20796,867 @@ class CalendarPageState extends State<CalendarPage>
             const SnackBar(
               content: Text('Could not create Evening Threshold Rite events.'),
             ),
+          );
+        }
+        try {
+          await repo.deleteFlow(serverFlowId);
+        } catch (_) {}
+        return -1;
+      }
+
+      setState(() {});
+      return serverFlowId;
+    }
+
+    if (template.kind == _MaatFlowTemplateKind.theWeighing) {
+      final timezone = trackSkyTimeZone ?? detectTrackSkyTimeZone();
+      final firstG = DateUtils.dateOnly(
+        startDate ?? defaultTheWeighingStartDate(timezone),
+      );
+      final occurrences = <TheWeighingOccurrenceSchedule>[
+        for (final event in kTheWeighingEvents)
+          theWeighingScheduleForDate(
+            event,
+            firstG.add(Duration(days: event.flowDay - 1)),
+            timezone,
+          ),
+      ];
+      final dates = <DateTime>{
+        for (final occurrence in occurrences)
+          DateUtils.dateOnly(occurrence.startLocal),
+      };
+      final orderedDates = dates.toList()..sort();
+
+      final flow = _Flow(
+        id: -1,
+        calendarId: _personalCalendarId,
+        name: template.title,
+        color: template.color,
+        active: true,
+        rules: [_RuleDates(dates: dates)],
+        start: orderedDates.first,
+        end: firstG.add(const Duration(days: 29)),
+        notes: [
+          'mode=gregorian',
+          'split=1',
+          if (template.overview.trim().isNotEmpty)
+            'ov=${Uri.encodeComponent(template.overview.trim())}',
+          'maat=${template.key}',
+          'weighing_tz=${timezone.key}',
+          'weighing_lens=${theWeighingLens.key}',
+          'weighing_midday_hour=$kTheWeighingDefaultMiddayHour',
+          'weighing_midday_minute=$kTheWeighingDefaultMiddayMinute',
+        ].join(';'),
+      );
+
+      final serverFlowId = await _saveNewFlow(flow);
+      if (serverFlowId == null) {
+        if (kDebugMode) {
+          _calendarDebugPrint('[theWeighing] Aborting - flow insert failed');
+        }
+        return -1;
+      }
+
+      final repo = UserEventsRepo(Supabase.instance.client);
+      try {
+        for (var i = 0; i < kTheWeighingEvents.length; i++) {
+          final event = kTheWeighingEvents[i];
+          final occurrence = occurrences[i];
+          final kyKmKd = KemeticMath.fromGregorian(
+            DateUtils.dateOnly(occurrence.startLocal),
+          );
+          final startTod = TimeOfDay(
+            hour: occurrence.startLocal.hour,
+            minute: occurrence.startLocal.minute,
+          );
+          final endTod = TimeOfDay(
+            hour: occurrence.endLocal.hour,
+            minute: occurrence.endLocal.minute,
+          );
+          final title = theWeighingEventTitle(event);
+          final detail = theWeighingDetailText(event, lens: theWeighingLens);
+          final behaviorPayload = theWeighingBehaviorPayload(
+            event: event,
+            schedule: occurrence,
+            lens: theWeighingLens,
+          );
+          final clientEventId = _buildCid(
+            ky: kyKmKd.kYear,
+            km: kyKmKd.kMonth,
+            kd: kyKmKd.kDay,
+            title: title,
+            startHour: startTod.hour,
+            startMinute: startTod.minute,
+            allDay: false,
+            flowId: serverFlowId,
+          );
+          final note = _Note(
+            clientEventId: clientEventId,
+            calendarId: _personalCalendarId,
+            title: title,
+            detail: detail,
+            allDay: false,
+            start: startTod,
+            end: endTod,
+            flowId: serverFlowId,
+            category: 'Ritual',
+            alertOffsetMinutes: 0,
+            actionId: theWeighingActionId(event),
+            behaviorPayload: behaviorPayload,
+          );
+
+          _addNote(
+            kyKmKd.kYear,
+            kyKmKd.kMonth,
+            kyKmKd.kDay,
+            title,
+            detail,
+            clientEventId: clientEventId,
+            calendarId: _personalCalendarId,
+            allDay: false,
+            start: startTod,
+            end: endTod,
+            flowId: serverFlowId,
+            category: 'Ritual',
+            alertOffsetMinutes: 0,
+            actionId: theWeighingActionId(event),
+            behaviorPayload: behaviorPayload,
+          );
+
+          await _scheduleAlertForEvent(
+            note: note,
+            ky: kyKmKd.kYear,
+            km: kyKmKd.kMonth,
+            kd: kyKmKd.kDay,
+            clientEventId: clientEventId,
+          );
+
+          await repo.upsertByClientId(
+            clientEventId: clientEventId,
+            title: title,
+            startsAtUtc: occurrence.startUtc,
+            detail: detail,
+            calendarId: _personalCalendarId,
+            allDay: false,
+            endsAtUtc: occurrence.endUtc,
+            category: 'Ritual',
+            flowLocalId: serverFlowId,
+            actionId: theWeighingActionId(event),
+            behaviorPayload: behaviorPayload,
+            caller: 'the_weighing_join',
+          );
+        }
+      } catch (e, st) {
+        if (kDebugMode) {
+          _calendarDebugPrint('[theWeighing] event creation failed: $e');
+          _calendarDebugPrint('$st');
+        }
+        _flows.removeWhere((flow) => flow.id == serverFlowId);
+        final emptyKeys = <String>[];
+        _notes.forEach((key, notes) {
+          notes.removeWhere((note) => note.flowId == serverFlowId);
+          if (notes.isEmpty) emptyKeys.add(key);
+        });
+        for (final key in emptyKeys) {
+          _notes.remove(key);
+        }
+        if (mounted) {
+          setState(() {});
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Could not create The Weighing.')),
+          );
+        }
+        try {
+          await repo.deleteFlow(serverFlowId);
+        } catch (_) {}
+        return -1;
+      }
+
+      setState(() {});
+      return serverFlowId;
+    }
+
+    if (template.kind == _MaatFlowTemplateKind.offeringTable) {
+      final timezone = trackSkyTimeZone ?? detectTrackSkyTimeZone();
+      final firstG = DateUtils.dateOnly(
+        startDate ?? defaultOfferingTableStartDate(timezone),
+      );
+      final occurrences = <OfferingTableOccurrenceSchedule>[
+        for (var i = 0; i < kOfferingTableDays.length; i++)
+          offeringTableScheduleForDate(
+            kOfferingTableDays[i],
+            firstG.add(Duration(days: i)),
+            timezone,
+          ),
+      ];
+      final dates = <DateTime>{
+        for (final occurrence in occurrences)
+          DateUtils.dateOnly(occurrence.startLocal),
+      };
+      final orderedDates = dates.toList()..sort();
+
+      final flow = _Flow(
+        id: -1,
+        calendarId: _personalCalendarId,
+        name: template.title,
+        color: template.color,
+        active: true,
+        rules: [_RuleDates(dates: dates)],
+        start: orderedDates.first,
+        end: orderedDates.last,
+        notes: [
+          'mode=gregorian',
+          'split=1',
+          if (template.overview.trim().isNotEmpty)
+            'ov=${Uri.encodeComponent(template.overview.trim())}',
+          'maat=${template.key}',
+          'offering_tz=${timezone.key}',
+          'offering_lens=${offeringTableLens.key}',
+          'offering_hour=$kOfferingTableDefaultHour',
+          'offering_minute=$kOfferingTableDefaultMinute',
+          'no_cup_mode=${offeringNoCupMode ? 1 : 0}',
+        ].join(';'),
+      );
+
+      final serverFlowId = await _saveNewFlow(flow);
+      if (serverFlowId == null) {
+        if (kDebugMode) {
+          _calendarDebugPrint('[offeringTable] Aborting - flow insert failed');
+        }
+        return -1;
+      }
+
+      final repo = UserEventsRepo(Supabase.instance.client);
+      try {
+        for (var i = 0; i < kOfferingTableDays.length; i++) {
+          final day = kOfferingTableDays[i];
+          final occurrence = occurrences[i];
+          final kyKmKd = KemeticMath.fromGregorian(
+            DateUtils.dateOnly(occurrence.startLocal),
+          );
+          final startTod = TimeOfDay(
+            hour: occurrence.startLocal.hour,
+            minute: occurrence.startLocal.minute,
+          );
+          final endTod = TimeOfDay(
+            hour: occurrence.endLocal.hour,
+            minute: occurrence.endLocal.minute,
+          );
+          final title = offeringTableEventTitle(day);
+          final detail = offeringTableDetailText(
+            day,
+            lens: offeringTableLens,
+            noCupMode: offeringNoCupMode,
+          );
+          final behaviorPayload = offeringTableBehaviorPayload(
+            day: day,
+            schedule: occurrence,
+            lens: offeringTableLens,
+            noCupMode: offeringNoCupMode,
+          );
+          final clientEventId = _buildCid(
+            ky: kyKmKd.kYear,
+            km: kyKmKd.kMonth,
+            kd: kyKmKd.kDay,
+            title: title,
+            startHour: startTod.hour,
+            startMinute: startTod.minute,
+            allDay: false,
+            flowId: serverFlowId,
+          );
+          final note = _Note(
+            clientEventId: clientEventId,
+            calendarId: _personalCalendarId,
+            title: title,
+            detail: detail,
+            allDay: false,
+            start: startTod,
+            end: endTod,
+            flowId: serverFlowId,
+            category: 'Ritual',
+            alertOffsetMinutes: 0,
+            actionId: offeringTableActionId(day),
+            behaviorPayload: behaviorPayload,
+          );
+
+          _addNote(
+            kyKmKd.kYear,
+            kyKmKd.kMonth,
+            kyKmKd.kDay,
+            title,
+            detail,
+            clientEventId: clientEventId,
+            calendarId: _personalCalendarId,
+            allDay: false,
+            start: startTod,
+            end: endTod,
+            flowId: serverFlowId,
+            category: 'Ritual',
+            alertOffsetMinutes: 0,
+            actionId: offeringTableActionId(day),
+            behaviorPayload: behaviorPayload,
+          );
+
+          await _scheduleAlertForEvent(
+            note: note,
+            ky: kyKmKd.kYear,
+            km: kyKmKd.kMonth,
+            kd: kyKmKd.kDay,
+            clientEventId: clientEventId,
+          );
+
+          await repo.upsertByClientId(
+            clientEventId: clientEventId,
+            title: title,
+            startsAtUtc: occurrence.startUtc,
+            detail: detail,
+            calendarId: _personalCalendarId,
+            allDay: false,
+            endsAtUtc: occurrence.endUtc,
+            category: 'Ritual',
+            flowLocalId: serverFlowId,
+            actionId: offeringTableActionId(day),
+            behaviorPayload: behaviorPayload,
+            caller: 'offering_table_join',
+          );
+        }
+      } catch (e, st) {
+        if (kDebugMode) {
+          _calendarDebugPrint('[offeringTable] event creation failed: $e');
+          _calendarDebugPrint('$st');
+        }
+        _flows.removeWhere((flow) => flow.id == serverFlowId);
+        final emptyKeys = <String>[];
+        _notes.forEach((key, notes) {
+          notes.removeWhere((note) => note.flowId == serverFlowId);
+          if (notes.isEmpty) emptyKeys.add(key);
+        });
+        for (final key in emptyKeys) {
+          _notes.remove(key);
+        }
+        if (mounted) {
+          setState(() {});
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Could not create The Offering Table.'),
+            ),
+          );
+        }
+        try {
+          await repo.deleteFlow(serverFlowId);
+        } catch (_) {}
+        return -1;
+      }
+
+      setState(() {});
+      return serverFlowId;
+    }
+
+    if (template.kind == _MaatFlowTemplateKind.theTending) {
+      final timezone = trackSkyTimeZone ?? detectTrackSkyTimeZone();
+      final firstG = DateUtils.dateOnly(
+        startDate ?? defaultTheTendingStartDate(timezone),
+      );
+      final occurrences = <TheTendingOccurrenceSchedule>[
+        for (final event in kTheTendingEvents)
+          theTendingScheduleForDate(
+            event,
+            firstG.add(Duration(days: event.flowDay - 1)),
+            timezone,
+          ),
+      ];
+      final dates = <DateTime>{
+        for (final occurrence in occurrences)
+          DateUtils.dateOnly(occurrence.startLocal),
+      };
+      final orderedDates = dates.toList()..sort();
+
+      final flow = _Flow(
+        id: -1,
+        calendarId: _personalCalendarId,
+        name: template.title,
+        color: template.color,
+        active: true,
+        rules: [_RuleDates(dates: dates)],
+        start: orderedDates.first,
+        end: firstG.add(const Duration(days: 29)),
+        notes: [
+          'mode=gregorian',
+          'split=1',
+          if (template.overview.trim().isNotEmpty)
+            'ov=${Uri.encodeComponent(template.overview.trim())}',
+          'maat=${template.key}',
+          'tending_tz=${timezone.key}',
+          'tending_lens=${theTendingLens.key}',
+          'tending_midday_hour=$kTheTendingDefaultMiddayHour',
+          'tending_midday_minute=$kTheTendingDefaultMiddayMinute',
+        ].join(';'),
+      );
+
+      final serverFlowId = await _saveNewFlow(flow);
+      if (serverFlowId == null) {
+        if (kDebugMode) {
+          _calendarDebugPrint('[theTending] Aborting - flow insert failed');
+        }
+        return -1;
+      }
+
+      final repo = UserEventsRepo(Supabase.instance.client);
+      try {
+        for (var i = 0; i < kTheTendingEvents.length; i++) {
+          final event = kTheTendingEvents[i];
+          final occurrence = occurrences[i];
+          final kyKmKd = KemeticMath.fromGregorian(
+            DateUtils.dateOnly(occurrence.startLocal),
+          );
+          final startTod = TimeOfDay(
+            hour: occurrence.startLocal.hour,
+            minute: occurrence.startLocal.minute,
+          );
+          final endTod = TimeOfDay(
+            hour: occurrence.endLocal.hour,
+            minute: occurrence.endLocal.minute,
+          );
+          final title = theTendingEventTitle(event);
+          final detail = theTendingDetailText(event, lens: theTendingLens);
+          final behaviorPayload = theTendingBehaviorPayload(
+            event: event,
+            schedule: occurrence,
+            lens: theTendingLens,
+          );
+          final clientEventId = _buildCid(
+            ky: kyKmKd.kYear,
+            km: kyKmKd.kMonth,
+            kd: kyKmKd.kDay,
+            title: title,
+            startHour: startTod.hour,
+            startMinute: startTod.minute,
+            allDay: false,
+            flowId: serverFlowId,
+          );
+          final note = _Note(
+            clientEventId: clientEventId,
+            calendarId: _personalCalendarId,
+            title: title,
+            detail: detail,
+            allDay: false,
+            start: startTod,
+            end: endTod,
+            flowId: serverFlowId,
+            category: 'Ritual',
+            alertOffsetMinutes: 0,
+            actionId: theTendingActionId(event),
+            behaviorPayload: behaviorPayload,
+          );
+
+          _addNote(
+            kyKmKd.kYear,
+            kyKmKd.kMonth,
+            kyKmKd.kDay,
+            title,
+            detail,
+            clientEventId: clientEventId,
+            calendarId: _personalCalendarId,
+            allDay: false,
+            start: startTod,
+            end: endTod,
+            flowId: serverFlowId,
+            category: 'Ritual',
+            alertOffsetMinutes: 0,
+            actionId: theTendingActionId(event),
+            behaviorPayload: behaviorPayload,
+          );
+
+          await _scheduleAlertForEvent(
+            note: note,
+            ky: kyKmKd.kYear,
+            km: kyKmKd.kMonth,
+            kd: kyKmKd.kDay,
+            clientEventId: clientEventId,
+          );
+
+          await repo.upsertByClientId(
+            clientEventId: clientEventId,
+            title: title,
+            startsAtUtc: occurrence.startUtc,
+            detail: detail,
+            calendarId: _personalCalendarId,
+            allDay: false,
+            endsAtUtc: occurrence.endUtc,
+            category: 'Ritual',
+            flowLocalId: serverFlowId,
+            actionId: theTendingActionId(event),
+            behaviorPayload: behaviorPayload,
+            caller: 'the_tending_join',
+          );
+        }
+      } catch (e, st) {
+        if (kDebugMode) {
+          _calendarDebugPrint('[theTending] event creation failed: $e');
+          _calendarDebugPrint('$st');
+        }
+        _flows.removeWhere((flow) => flow.id == serverFlowId);
+        final emptyKeys = <String>[];
+        _notes.forEach((key, notes) {
+          notes.removeWhere((note) => note.flowId == serverFlowId);
+          if (notes.isEmpty) emptyKeys.add(key);
+        });
+        for (final key in emptyKeys) {
+          _notes.remove(key);
+        }
+        if (mounted) {
+          setState(() {});
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Could not create The Tending.')),
+          );
+        }
+        try {
+          await repo.deleteFlow(serverFlowId);
+        } catch (_) {}
+        return -1;
+      }
+
+      setState(() {});
+      return serverFlowId;
+    }
+
+    if (template.kind == _MaatFlowTemplateKind.keptWord) {
+      final timezone = trackSkyTimeZone ?? detectTrackSkyTimeZone();
+      final firstG = DateUtils.dateOnly(
+        startDate ?? defaultKeptWordStartDate(timezone),
+      );
+      final occurrences = <KeptWordOccurrenceSchedule>[
+        for (final event in kKeptWordEvents)
+          keptWordScheduleForDate(
+            event,
+            firstG.add(Duration(days: event.flowDay - 1)),
+            timezone,
+          ),
+      ];
+      final dates = <DateTime>{
+        for (final occurrence in occurrences)
+          DateUtils.dateOnly(occurrence.startLocal),
+      };
+      final orderedDates = dates.toList()..sort();
+
+      final flow = _Flow(
+        id: -1,
+        calendarId: _personalCalendarId,
+        name: template.title,
+        color: template.color,
+        active: true,
+        rules: [_RuleDates(dates: dates)],
+        start: orderedDates.first,
+        end: firstG.add(const Duration(days: 29)),
+        notes: [
+          'mode=gregorian',
+          'split=1',
+          if (template.overview.trim().isNotEmpty)
+            'ov=${Uri.encodeComponent(template.overview.trim())}',
+          'maat=${template.key}',
+          'kept_word_tz=${timezone.key}',
+          'kept_word_lens=${keptWordLens.key}',
+          'kept_word_midday_hour=$kKeptWordDefaultMiddayHour',
+          'kept_word_midday_minute=$kKeptWordDefaultMiddayMinute',
+        ].join(';'),
+      );
+
+      final serverFlowId = await _saveNewFlow(flow);
+      if (serverFlowId == null) {
+        if (kDebugMode) {
+          _calendarDebugPrint('[keptWord] Aborting - flow insert failed');
+        }
+        return -1;
+      }
+
+      final repo = UserEventsRepo(Supabase.instance.client);
+      try {
+        for (var i = 0; i < kKeptWordEvents.length; i++) {
+          final event = kKeptWordEvents[i];
+          final occurrence = occurrences[i];
+          final kyKmKd = KemeticMath.fromGregorian(
+            DateUtils.dateOnly(occurrence.startLocal),
+          );
+          final startTod = TimeOfDay(
+            hour: occurrence.startLocal.hour,
+            minute: occurrence.startLocal.minute,
+          );
+          final endTod = TimeOfDay(
+            hour: occurrence.endLocal.hour,
+            minute: occurrence.endLocal.minute,
+          );
+          final title = keptWordEventTitle(event);
+          final detail = keptWordDetailText(event, lens: keptWordLens);
+          final behaviorPayload = keptWordBehaviorPayload(
+            event: event,
+            schedule: occurrence,
+            lens: keptWordLens,
+          );
+          final clientEventId = _buildCid(
+            ky: kyKmKd.kYear,
+            km: kyKmKd.kMonth,
+            kd: kyKmKd.kDay,
+            title: title,
+            startHour: startTod.hour,
+            startMinute: startTod.minute,
+            allDay: false,
+            flowId: serverFlowId,
+          );
+          final note = _Note(
+            clientEventId: clientEventId,
+            calendarId: _personalCalendarId,
+            title: title,
+            detail: detail,
+            allDay: false,
+            start: startTod,
+            end: endTod,
+            flowId: serverFlowId,
+            category: 'Ritual',
+            alertOffsetMinutes: 0,
+            actionId: keptWordActionId(event),
+            behaviorPayload: behaviorPayload,
+          );
+
+          _addNote(
+            kyKmKd.kYear,
+            kyKmKd.kMonth,
+            kyKmKd.kDay,
+            title,
+            detail,
+            clientEventId: clientEventId,
+            calendarId: _personalCalendarId,
+            allDay: false,
+            start: startTod,
+            end: endTod,
+            flowId: serverFlowId,
+            category: 'Ritual',
+            alertOffsetMinutes: 0,
+            actionId: keptWordActionId(event),
+            behaviorPayload: behaviorPayload,
+          );
+
+          await _scheduleAlertForEvent(
+            note: note,
+            ky: kyKmKd.kYear,
+            km: kyKmKd.kMonth,
+            kd: kyKmKd.kDay,
+            clientEventId: clientEventId,
+          );
+
+          await repo.upsertByClientId(
+            clientEventId: clientEventId,
+            title: title,
+            startsAtUtc: occurrence.startUtc,
+            detail: detail,
+            calendarId: _personalCalendarId,
+            allDay: false,
+            endsAtUtc: occurrence.endUtc,
+            category: 'Ritual',
+            flowLocalId: serverFlowId,
+            actionId: keptWordActionId(event),
+            behaviorPayload: behaviorPayload,
+            caller: 'the_kept_word_join',
+          );
+        }
+      } catch (e, st) {
+        if (kDebugMode) {
+          _calendarDebugPrint('[keptWord] event creation failed: $e');
+          _calendarDebugPrint('$st');
+        }
+        _flows.removeWhere((flow) => flow.id == serverFlowId);
+        final emptyKeys = <String>[];
+        _notes.forEach((key, notes) {
+          notes.removeWhere((note) => note.flowId == serverFlowId);
+          if (notes.isEmpty) emptyKeys.add(key);
+        });
+        for (final key in emptyKeys) {
+          _notes.remove(key);
+        }
+        if (mounted) {
+          setState(() {});
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Could not create The Kept Word.')),
+          );
+        }
+        try {
+          await repo.deleteFlow(serverFlowId);
+        } catch (_) {}
+        return -1;
+      }
+
+      setState(() {});
+      return serverFlowId;
+    }
+
+    if (template.kind == _MaatFlowTemplateKind.theCourse) {
+      final timezone = trackSkyTimeZone ?? detectTrackSkyTimeZone();
+      final firstG = DateUtils.dateOnly(
+        startDate ?? defaultTheCourseStartDate(timezone),
+      );
+      final joinedK = KemeticMath.fromGregorian(firstG);
+      final occurrences = <CourseOccurrenceSchedule>[
+        for (final event in kTheCourseEvents)
+          courseScheduleForDate(
+            event,
+            firstG.add(Duration(days: event.flowDay - 1)),
+            timezone,
+          ),
+      ];
+      final dates = <DateTime>{
+        for (final occurrence in occurrences)
+          DateUtils.dateOnly(occurrence.startLocal),
+      };
+      final orderedDates = dates.toList()..sort();
+
+      final flow = _Flow(
+        id: -1,
+        calendarId: _personalCalendarId,
+        name: template.title,
+        color: template.color,
+        active: true,
+        rules: [_RuleDates(dates: dates)],
+        start: orderedDates.first,
+        end: firstG.add(const Duration(days: 29)),
+        notes: [
+          'mode=gregorian',
+          'split=1',
+          if (template.overview.trim().isNotEmpty)
+            'ov=${Uri.encodeComponent(template.overview.trim())}',
+          'maat=${template.key}',
+          'course_tz=${timezone.key}',
+          'course_lens=${courseLens.key}',
+          'course_midday_hour=$kTheCourseDefaultMiddayHour',
+          'course_midday_minute=$kTheCourseDefaultMiddayMinute',
+          'joined_ky=${joinedK.kYear}',
+          'joined_km=${joinedK.kMonth}',
+          'joined_kd=${joinedK.kDay}',
+        ].join(';'),
+      );
+
+      final serverFlowId = await _saveNewFlow(flow);
+      if (serverFlowId == null) {
+        if (kDebugMode) {
+          _calendarDebugPrint('[theCourse] Aborting - flow insert failed');
+        }
+        return -1;
+      }
+
+      final repo = UserEventsRepo(Supabase.instance.client);
+      try {
+        for (var i = 0; i < kTheCourseEvents.length; i++) {
+          final event = kTheCourseEvents[i];
+          final occurrence = occurrences[i];
+          final dayOnly = DateUtils.dateOnly(occurrence.startLocal);
+          final kyKmKd = KemeticMath.fromGregorian(dayOnly);
+          final courseContext = courseContextForKemeticDate(
+            kYear: kyKmKd.kYear,
+            kMonth: kyKmKd.kMonth,
+            kDay: kyKmKd.kDay,
+          );
+          final startTod = TimeOfDay(
+            hour: occurrence.startLocal.hour,
+            minute: occurrence.startLocal.minute,
+          );
+          final endTod = TimeOfDay(
+            hour: occurrence.endLocal.hour,
+            minute: occurrence.endLocal.minute,
+          );
+          final title = courseEventTitle(event);
+          final detail = courseDetailText(
+            event,
+            lens: courseLens,
+            context: courseContext,
+          );
+          final behaviorPayload = courseBehaviorPayload(
+            event: event,
+            schedule: occurrence,
+            lens: courseLens,
+            context: courseContext,
+          );
+          final clientEventId = _buildCid(
+            ky: kyKmKd.kYear,
+            km: kyKmKd.kMonth,
+            kd: kyKmKd.kDay,
+            title: title,
+            startHour: startTod.hour,
+            startMinute: startTod.minute,
+            allDay: false,
+            flowId: serverFlowId,
+          );
+          final note = _Note(
+            clientEventId: clientEventId,
+            calendarId: _personalCalendarId,
+            title: title,
+            detail: detail,
+            allDay: false,
+            start: startTod,
+            end: endTod,
+            flowId: serverFlowId,
+            category: 'Ritual',
+            alertOffsetMinutes: 0,
+            actionId: courseActionId(event),
+            behaviorPayload: behaviorPayload,
+          );
+
+          _addNote(
+            kyKmKd.kYear,
+            kyKmKd.kMonth,
+            kyKmKd.kDay,
+            title,
+            detail,
+            clientEventId: clientEventId,
+            calendarId: _personalCalendarId,
+            allDay: false,
+            start: startTod,
+            end: endTod,
+            flowId: serverFlowId,
+            category: 'Ritual',
+            alertOffsetMinutes: 0,
+            actionId: courseActionId(event),
+            behaviorPayload: behaviorPayload,
+          );
+
+          await _scheduleAlertForEvent(
+            note: note,
+            ky: kyKmKd.kYear,
+            km: kyKmKd.kMonth,
+            kd: kyKmKd.kDay,
+            clientEventId: clientEventId,
+          );
+
+          await repo.upsertByClientId(
+            clientEventId: clientEventId,
+            title: title,
+            startsAtUtc: occurrence.startUtc,
+            detail: detail,
+            calendarId: _personalCalendarId,
+            allDay: false,
+            endsAtUtc: occurrence.endUtc,
+            category: 'Ritual',
+            flowLocalId: serverFlowId,
+            actionId: courseActionId(event),
+            behaviorPayload: behaviorPayload,
+            caller: 'the_course_join',
+          );
+        }
+      } catch (e, st) {
+        if (kDebugMode) {
+          _calendarDebugPrint('[theCourse] event creation failed: $e');
+          _calendarDebugPrint('$st');
+        }
+        _flows.removeWhere((flow) => flow.id == serverFlowId);
+        final emptyKeys = <String>[];
+        _notes.forEach((key, notes) {
+          notes.removeWhere((note) => note.flowId == serverFlowId);
+          if (notes.isEmpty) emptyKeys.add(key);
+        });
+        for (final key in emptyKeys) {
+          _notes.remove(key);
+        }
+        if (mounted) {
+          setState(() {});
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Could not create The Course.')),
           );
         }
         try {
@@ -18838,10 +22128,12 @@ class CalendarPageState extends State<CalendarPage>
                 required String clientEventId,
                 required int flowId,
                 required DateTime completedOnDate,
+                Map<String, dynamic>? metadata,
               }) => _recordEventCompletion(
                 clientEventId: clientEventId,
                 flowId: flowId,
                 completedOnDate: completedOnDate,
+                metadata: metadata,
               ),
           onUnrecordCompletion: _unrecordEventCompletion,
           onRestorationStateChanged:
@@ -19066,6 +22358,7 @@ class CalendarPageState extends State<CalendarPage>
     required String clientEventId,
     required int flowId,
     required DateTime completedOnDate,
+    Map<String, dynamic>? metadata,
   }) async {
     final repo = UserEventsRepo(Supabase.instance.client);
     try {
@@ -19073,12 +22366,191 @@ class CalendarPageState extends State<CalendarPage>
         clientEventId: clientEventId,
         flowId: flowId,
         completedOnDate: completedOnDate,
+        metadata: metadata,
       );
+      if (metadata?['flow_key']?.toString().trim().toLowerCase() ==
+          kDecanWatchFlowKey) {
+        unawaited(_ensureDecanWatchHorizon(flowId));
+      }
     } catch (e) {
       if (kDebugMode) {
         _calendarDebugPrint('[DayView] recordEventCompletion failed: $e');
       }
     }
+  }
+
+  Future<void> _ensureDecanWatchHorizon(int flowId) async {
+    final flowIndex = _flows.indexWhere((flow) => flow.id == flowId);
+    if (flowIndex < 0) return;
+    final flow = _flows[flowIndex];
+    if (!flow.active) return;
+    if (notesDecode(flow.notes).maatKey != kDecanWatchFlowKey) return;
+
+    final timezone =
+        _trackSkyTimeZoneFromKey(_flowNoteToken(flow.notes, 'dw_tz=')) ??
+        detectTrackSkyTimeZone();
+    final lens = decanWatchLensFromNotes(flow.notes);
+    final hour =
+        int.tryParse(_flowNoteToken(flow.notes, 'dw_hour=') ?? '') ??
+        kDecanWatchDefaultHour;
+    final minute =
+        int.tryParse(_flowNoteToken(flow.notes, 'dw_minute=') ?? '') ??
+        kDecanWatchDefaultMinute;
+    final occurrences = upcomingDecanWatchOccurrences(
+      timezone: timezone,
+      count: 3,
+      hour: hour,
+      minute: minute,
+    );
+    if (occurrences.isEmpty) return;
+
+    final repo = UserEventsRepo(Supabase.instance.client);
+    final ruleDates = <DateTime>{};
+    for (final rule in flow.rules) {
+      if (rule is _RuleDates) {
+        ruleDates.addAll(rule.dates.map(DateUtils.dateOnly));
+      }
+    }
+
+    for (final occurrence in occurrences) {
+      final dayOnly = DateUtils.dateOnly(occurrence.startLocal);
+      ruleDates.add(dayOnly);
+      final kyKmKd = KemeticMath.fromGregorian(dayOnly);
+      final context = courseContextForKemeticDate(
+        kYear: occurrence.kYear,
+        kMonth: occurrence.kMonth,
+        kDay: occurrence.decanStartDay,
+      );
+      final title = decanWatchEventTitle(occurrence);
+      final detail = decanWatchDetailText(
+        occurrence,
+        lens: lens,
+        context: context,
+      );
+      final behaviorPayload = decanWatchBehaviorPayload(
+        occurrence: occurrence,
+        lens: lens,
+      );
+      final clientEventId = decanWatchClientEventId(
+        flowId: flowId,
+        occurrence: occurrence,
+      );
+      final startTod = TimeOfDay(
+        hour: occurrence.startLocal.hour,
+        minute: occurrence.startLocal.minute,
+      );
+      final endTod = TimeOfDay(
+        hour: occurrence.endLocal.hour,
+        minute: occurrence.endLocal.minute,
+      );
+      final note = _Note(
+        clientEventId: clientEventId,
+        calendarId: flow.calendarId ?? _personalCalendarId,
+        title: title,
+        detail: detail,
+        allDay: false,
+        start: startTod,
+        end: endTod,
+        flowId: flowId,
+        category: 'Ritual',
+        alertOffsetMinutes: 0,
+        actionId: decanWatchActionId(occurrence),
+        behaviorPayload: behaviorPayload,
+      );
+      _addNote(
+        kyKmKd.kYear,
+        kyKmKd.kMonth,
+        kyKmKd.kDay,
+        title,
+        detail,
+        clientEventId: clientEventId,
+        calendarId: flow.calendarId ?? _personalCalendarId,
+        allDay: false,
+        start: startTod,
+        end: endTod,
+        flowId: flowId,
+        category: 'Ritual',
+        alertOffsetMinutes: 0,
+        actionId: decanWatchActionId(occurrence),
+        behaviorPayload: behaviorPayload,
+        notify: false,
+      );
+      await _scheduleAlertForEvent(
+        note: note,
+        ky: kyKmKd.kYear,
+        km: kyKmKd.kMonth,
+        kd: kyKmKd.kDay,
+        clientEventId: clientEventId,
+      );
+      await repo.upsertByClientId(
+        clientEventId: clientEventId,
+        title: title,
+        startsAtUtc: occurrence.startUtc,
+        detail: detail,
+        calendarId: flow.calendarId ?? _personalCalendarId,
+        allDay: false,
+        endsAtUtc: occurrence.endUtc,
+        category: 'Ritual',
+        flowLocalId: flowId,
+        actionId: decanWatchActionId(occurrence),
+        behaviorPayload: behaviorPayload,
+        caller: 'decan_watch_horizon',
+      );
+    }
+
+    final orderedDates = ruleDates.toList()..sort();
+    if (orderedDates.isNotEmpty) {
+      flow.rules
+        ..clear()
+        ..add(_RuleDates(dates: ruleDates));
+      flow.start = orderedDates.first;
+      flow.end = orderedDates.last;
+      try {
+        await repo.upsertFlow(
+          id: flow.id,
+          name: flow.name,
+          color: flow.color.toARGB32(),
+          active: flow.active,
+          calendarId: flow.calendarId,
+          startDate: flow.start,
+          endDate: flow.end,
+          notes: flow.notes,
+          rules: jsonEncode(
+            flow.rules.map(CalendarPageState.ruleToJson).toList(),
+          ),
+          originType: 'template',
+        );
+      } catch (_) {}
+    }
+    if (mounted) {
+      setState(() {});
+      _notifyDayViewDataChanged();
+    }
+  }
+
+  String? _flowNoteToken(String? notes, String prefix) {
+    if (notes == null || notes.isEmpty) return null;
+    for (final token in notes.split(';')) {
+      final trimmed = token.trim();
+      if (trimmed.startsWith(prefix)) {
+        return trimmed.substring(prefix.length);
+      }
+    }
+    return null;
+  }
+
+  TrackSkyTimeZone? _trackSkyTimeZoneFromKey(String? key) {
+    switch (key?.trim().toLowerCase()) {
+      case 'pacific':
+        return TrackSkyTimeZone.pacific;
+      case 'mountain':
+        return TrackSkyTimeZone.mountain;
+      case 'central':
+        return TrackSkyTimeZone.central;
+      case 'eastern':
+        return TrackSkyTimeZone.eastern;
+    }
+    return null;
   }
 
   Future<void> _unrecordEventCompletion(String clientEventId) async {
@@ -21767,6 +25239,124 @@ class CalendarPageState extends State<CalendarPage>
     );
   }
 
+  String? _canonicalTheWeighingDetailForLoadedEvent({
+    required _Flow? flow,
+    required FlowEventRow event,
+  }) {
+    return canonicalTheWeighingDetailTextForEvent(
+      flowName: flow?.name,
+      flowNotes: flow?.notes,
+      title: event.title,
+      actionId: event.actionId,
+      behaviorPayload: event.behaviorPayload,
+    );
+  }
+
+  String? _canonicalOfferingTableDetailForLoadedEvent({
+    required _Flow? flow,
+    required FlowEventRow event,
+  }) {
+    return canonicalOfferingTableDetailTextForEvent(
+      flowName: flow?.name,
+      flowNotes: flow?.notes,
+      title: event.title,
+      actionId: event.actionId,
+      behaviorPayload: event.behaviorPayload,
+    );
+  }
+
+  String? _canonicalTheTendingDetailForLoadedEvent({
+    required _Flow? flow,
+    required FlowEventRow event,
+  }) {
+    return canonicalTheTendingDetailTextForEvent(
+      flowName: flow?.name,
+      flowNotes: flow?.notes,
+      title: event.title,
+      actionId: event.actionId,
+      behaviorPayload: event.behaviorPayload,
+    );
+  }
+
+  String? _canonicalKeptWordDetailForLoadedEvent({
+    required _Flow? flow,
+    required FlowEventRow event,
+  }) {
+    return canonicalKeptWordDetailTextForEvent(
+      flowName: flow?.name,
+      flowNotes: flow?.notes,
+      title: event.title,
+      actionId: event.actionId,
+      behaviorPayload: event.behaviorPayload,
+    );
+  }
+
+  String? _canonicalCourseDetailForLoadedEvent({
+    required _Flow? flow,
+    required FlowEventRow event,
+    required DateTime localStart,
+  }) {
+    final k = KemeticMath.fromGregorian(DateUtils.dateOnly(localStart));
+    return canonicalCourseDetailTextForEvent(
+      flowName: flow?.name,
+      flowNotes: flow?.notes,
+      title: event.title,
+      actionId: event.actionId,
+      behaviorPayload: event.behaviorPayload,
+      context: courseContextForKemeticDate(
+        kYear: k.kYear,
+        kMonth: k.kMonth,
+        kDay: k.kDay,
+      ),
+    );
+  }
+
+  String? _canonicalWagDetailForLoadedEvent({
+    required _Flow? flow,
+    required FlowEventRow event,
+  }) {
+    int? parseYear(dynamic value) {
+      if (value is num) return value.toInt();
+      return int.tryParse(value?.toString().trim() ?? '');
+    }
+
+    final kYear = parseYear(event.behaviorPayload?['k_year']);
+    return canonicalWagDetailTextForEvent(
+      flowName: flow?.name,
+      flowNotes: flow?.notes,
+      title: event.title,
+      actionId: event.actionId,
+      behaviorPayload: event.behaviorPayload,
+      nextWagDate: kYear == null ? null : wagNextFeastGregorian(kYear),
+    );
+  }
+
+  String? _canonicalOpenHandDetailForLoadedEvent({
+    required _Flow? flow,
+    required FlowEventRow event,
+  }) {
+    return canonicalOpenHandDetailTextForEvent(
+      flowName: flow?.name,
+      flowNotes: flow?.notes,
+      title: event.title,
+      actionId: event.actionId,
+      behaviorPayload: event.behaviorPayload,
+    );
+  }
+
+  String? _canonicalDjedDetailForLoadedEvent({
+    required _Flow? flow,
+    required FlowEventRow event,
+  }) {
+    return canonicalDjedDetailTextForEvent(
+      flowName: flow?.name,
+      flowNotes: flow?.notes,
+      title: event.title,
+      actionId: event.actionId,
+      behaviorPayload: event.behaviorPayload,
+    );
+  }
+
   void _repairDawnHouseRiteLoadedDetail({
     required UserEventsRepo repo,
     required FlowEventRow event,
@@ -22116,13 +25706,61 @@ class CalendarPageState extends State<CalendarPage>
                   flow: owningFlow,
                   event: evt,
                 );
-            final cleanedDetail = canonicalDawnDetail ?? storedCleanDetail;
-            if (canonicalDawnDetail != null &&
-                canonicalDawnDetail != storedCleanDetail) {
+            final canonicalTheWeighingDetail =
+                _canonicalTheWeighingDetailForLoadedEvent(
+                  flow: owningFlow,
+                  event: evt,
+                );
+            final canonicalOfferingTableDetail =
+                _canonicalOfferingTableDetailForLoadedEvent(
+                  flow: owningFlow,
+                  event: evt,
+                );
+            final canonicalTheTendingDetail =
+                _canonicalTheTendingDetailForLoadedEvent(
+                  flow: owningFlow,
+                  event: evt,
+                );
+            final canonicalKeptWordDetail =
+                _canonicalKeptWordDetailForLoadedEvent(
+                  flow: owningFlow,
+                  event: evt,
+                );
+            final canonicalCourseDetail = _canonicalCourseDetailForLoadedEvent(
+              flow: owningFlow,
+              event: evt,
+              localStart: localStart,
+            );
+            final canonicalWagDetail = _canonicalWagDetailForLoadedEvent(
+              flow: owningFlow,
+              event: evt,
+            );
+            final canonicalOpenHandDetail =
+                _canonicalOpenHandDetailForLoadedEvent(
+                  flow: owningFlow,
+                  event: evt,
+                );
+            final canonicalDjedDetail = _canonicalDjedDetailForLoadedEvent(
+              flow: owningFlow,
+              event: evt,
+            );
+            final canonicalDetail =
+                canonicalDawnDetail ??
+                canonicalTheWeighingDetail ??
+                canonicalOfferingTableDetail ??
+                canonicalTheTendingDetail ??
+                canonicalKeptWordDetail ??
+                canonicalCourseDetail ??
+                canonicalWagDetail ??
+                canonicalOpenHandDetail ??
+                canonicalDjedDetail;
+            final cleanedDetail = canonicalDetail ?? storedCleanDetail;
+            if (canonicalDetail != null &&
+                canonicalDetail != storedCleanDetail) {
               _repairDawnHouseRiteLoadedDetail(
                 repo: repo,
                 event: evt,
-                canonicalDetail: canonicalDawnDetail,
+                canonicalDetail: canonicalDetail,
                 color: meta.color,
                 alertMinutes: meta.alertMinutes,
               );
@@ -24945,7 +28583,7 @@ class CalendarPageState extends State<CalendarPage>
     if (mounted) {
       setState(() => _reflectionPrompt = null);
     }
-    await _decanReflectionPromptState.markInteracted(prompt.decanStart);
+    await _markReflectionPromptInteracted(prompt, interactionKind: 'dismissed');
     if (!mounted) return;
     final current = _reflectionPrompt;
     if (current != null &&
@@ -25203,6 +28841,41 @@ class CalendarPageState extends State<CalendarPage>
     ].join('\n\n');
   }
 
+  Future<bool> _hasInteractedWithReflectionPrompt(DateTime decanStart) async {
+    if (await _decanReflectionPromptState.hasInteracted(decanStart)) {
+      return true;
+    }
+    final cloudInteracted = await _decanReflectionRepo.hasPromptInteracted(
+      decanStart,
+    );
+    if (cloudInteracted) {
+      await _decanReflectionPromptState.markInteracted(decanStart);
+    }
+    return cloudInteracted;
+  }
+
+  Future<void> _markReflectionPromptInteracted(
+    ({
+      String? id,
+      String decanName,
+      String? decanTheme,
+      DateTime decanStart,
+      DateTime decanEnd,
+      int badgeCount,
+      String reflectionText,
+      bool persisted,
+    })
+    prompt, {
+    required String interactionKind,
+  }) async {
+    await _decanReflectionPromptState.markInteracted(prompt.decanStart);
+    await _decanReflectionRepo.markPromptInteracted(
+      decanStart: prompt.decanStart,
+      decanEnd: prompt.decanEnd,
+      interactionKind: interactionKind,
+    );
+  }
+
   Future<void> _maybeLoadDecanReflectionPrompt({bool force = false}) async {
     if (!mounted || _reflectionInFlight) return;
     final user = Supabase.instance.client.auth.currentUser;
@@ -25239,18 +28912,19 @@ class CalendarPageState extends State<CalendarPage>
 
     _reflectionInFlight = true;
     try {
+      if (await _hasInteractedWithReflectionPrompt(window.start)) {
+        if (!mounted) return;
+        if (_reflectionPrompt != null) {
+          setState(() => _reflectionPrompt = null);
+        }
+        return;
+      }
+
       final existing = await _decanReflectionRepo.findByWindow(
         window.start,
         window.end,
       );
       if (existing != null) {
-        if (await _decanReflectionPromptState.hasInteracted(window.start)) {
-          if (!mounted) return;
-          if (_reflectionPrompt != null) {
-            setState(() => _reflectionPrompt = null);
-          }
-          return;
-        }
         if (!mounted) return;
         setState(() {
           _reflectionPrompt = (
@@ -25264,14 +28938,6 @@ class CalendarPageState extends State<CalendarPage>
             persisted: true,
           );
         });
-        return;
-      }
-
-      if (await _decanReflectionPromptState.hasInteracted(window.start)) {
-        if (!mounted) return;
-        if (_reflectionPrompt != null) {
-          setState(() => _reflectionPrompt = null);
-        }
         return;
       }
 
@@ -25381,7 +29047,10 @@ class CalendarPageState extends State<CalendarPage>
         throw Exception('Unable to save reflection');
       }
 
-      await _decanReflectionPromptState.markInteracted(prompt.decanStart);
+      await _markReflectionPromptInteracted(
+        prompt,
+        interactionKind: 'archived',
+      );
 
       if (!mounted) return;
       setState(() => _reflectionPrompt = null);

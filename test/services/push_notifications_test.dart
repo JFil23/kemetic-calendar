@@ -113,5 +113,56 @@ void main() {
       expect(shouldAttemptWebPushAutoRecovery('denied'), isFalse);
       expect(shouldAttemptWebPushAutoRecovery(null), isFalse);
     });
+
+    test('delivery receipt helpers read delivery keys and kinds', () {
+      expect(
+        pushDeliveryKeyFromData({'delivery_key': 'reminder:abc'}),
+        'reminder:abc',
+      );
+      expect(
+        pushDeliveryKeyFromData({'deliveryKey': 'maat_guidance:def'}),
+        'maat_guidance:def',
+      );
+      expect(
+        pushDeliveryKindFromData({
+          'delivery_key': 'reminder:abc',
+          'kind': 'calendar_event',
+        }),
+        'calendar_event',
+      );
+      expect(
+        pushDeliveryKindFromData({'delivery_key': 'decan_reflection:abc'}),
+        'decan_reflection',
+      );
+      expect(isPushDeliveryReceiptEvent('opened'), isTrue);
+      expect(isPushDeliveryReceiptEvent('invented'), isFalse);
+    });
+
+    test('delivery receipt status parses function response rows', () {
+      final status = PushDeliveryReceiptStatus.fromFunctionData({
+        'delivery_key': 'push_test:user:device:time',
+        'status': 'found',
+        'receipt': {
+          'delivery_key': 'push_test:user:device:time',
+          'delivery_kind': 'push_test',
+          'receipt_status': 'opened',
+          'sent_at': '2026-05-23T05:00:00.000Z',
+          'first_opened_at': '2026-05-23T05:00:12.000Z',
+          'receipt_event_count': 2,
+          'open_latency_seconds': 12,
+        },
+      });
+
+      expect(status.found, isTrue);
+      expect(status.opened, isTrue);
+      expect(status.deliveryKind, 'push_test');
+      expect(status.receiptStatus, 'opened');
+      expect(status.receiptEventCount, 2);
+      expect(status.openLatencySeconds, 12);
+      expect(
+        status.firstOpenedAt?.toUtc().toIso8601String(),
+        '2026-05-23T05:00:12.000Z',
+      );
+    });
   });
 }
