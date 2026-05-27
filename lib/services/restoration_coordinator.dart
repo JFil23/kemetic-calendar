@@ -65,6 +65,12 @@ class RestorationCoordinator {
     if (requireRootTarget && !_isRootLocation(_restoreTargetLocation)) {
       return false;
     }
+    final overlayParentRoute = _calendarOverlayParentRoute(normalized);
+    if (overlayParentRoute != null &&
+        !_isRootLocation(overlayParentRoute) &&
+        !_sameLocation(overlayParentRoute, _restoreTargetLocation)) {
+      return false;
+    }
     return true;
   }
 
@@ -121,6 +127,25 @@ class RestorationCoordinator {
     if (normalized == null) return true;
     final uri = Uri.tryParse(normalized);
     return uri == null || uri.path.isEmpty || uri.path == '/';
+  }
+
+  static bool _sameLocation(String? a, String? b) {
+    final normalizedA = _normalizeLocation(a);
+    final normalizedB = _normalizeLocation(b);
+    if (normalizedA == null || normalizedB == null) {
+      return _isRootLocation(normalizedA) && _isRootLocation(normalizedB);
+    }
+    final aUri = Uri.tryParse(normalizedA);
+    final bUri = Uri.tryParse(normalizedB);
+    if (aUri == null || bUri == null) return normalizedA == normalizedB;
+    return aUri.path == bUri.path && aUri.query == bUri.query;
+  }
+
+  static String? _calendarOverlayParentRoute(String surface) {
+    if (!surface.startsWith('$calendarOverlayStackSurface|')) return null;
+    final parts = surface.split('|');
+    if (parts.length < 3) return null;
+    return _normalizeLocation(parts[2]);
   }
 
   Future<void> recordRouteLocation(String location) {

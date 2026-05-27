@@ -8,6 +8,7 @@ import '../../utils/kemetic_date_format.dart';
 import '../../widgets/insight_link_text.dart';
 import 'kemetic_node_library.dart';
 import 'kemetic_node_model.dart';
+import 'widgets.dart';
 
 Future<String?> showKemeticNodeSearch(BuildContext context) {
   return showSearch<String?>(
@@ -393,24 +394,12 @@ class _ResultGlyph extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return SizedBox.square(
-      dimension: 40,
-      child: Center(
-        child: ShaderMask(
-          shaderCallback: (Rect bounds) =>
-              KemeticGold.gloss.createShader(bounds),
-          blendMode: BlendMode.srcIn,
-          child: Text(
-            glyph,
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 24,
-              fontFamily: 'GentiumPlus',
-              fontFamilyFallback: ['NotoSans', 'Roboto', 'Arial', 'sans-serif'],
-            ),
-          ),
-        ),
-      ),
+    return NodeGlyphMark(
+      glyph: glyph,
+      width: 40,
+      height: 40,
+      fontSize: 28,
+      padding: const EdgeInsets.all(4),
     );
   }
 }

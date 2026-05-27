@@ -7044,6 +7044,7 @@ class _DecanWatchMilestonePanelState extends State<_DecanWatchMilestonePanel> {
   Widget build(BuildContext context) {
     final count = _count;
     final milestone = count == null ? '' : decanWatchMilestoneMessage(count);
+    final gregorianYear = KemeticMath.toGregorian(widget.kYear, 1, 1).year;
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(12),
@@ -7067,7 +7068,7 @@ class _DecanWatchMilestonePanelState extends State<_DecanWatchMilestonePanel> {
           Text(
             count == null
                 ? 'Loading this year’s count...'
-                : '$count watches observed in Kemetic Year ${widget.kYear}. Observed from inside counts with a threshold mark.',
+                : '$count watches observed in the $gregorianYear decan cycle. Observed from inside counts with a threshold mark.',
             style: const TextStyle(
               color: Colors.white70,
               fontSize: 12.5,

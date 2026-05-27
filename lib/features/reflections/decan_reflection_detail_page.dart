@@ -12,6 +12,7 @@ import '../../data/insight_link_model.dart';
 import '../../data/insight_link_repo.dart';
 import '../../data/insight_link_utils.dart';
 import '../../widgets/insight_link_text.dart';
+import '../calendar/calendar_page.dart';
 import '../nodes/kemetic_node_library.dart';
 import '../nodes/kemetic_node_model.dart';
 import '../nodes/node_link_picker_sheet.dart';
@@ -128,6 +129,45 @@ class _DecanReflectionDetailPageState extends State<DecanReflectionDetailPage> {
     );
     if (!mounted) return;
     context.go('/nodes/${Uri.encodeComponent(suggestion.node.id)}');
+  }
+
+  Future<void> _handleReflectionCta(DecanReflectionCta cta) async {
+    if (!cta.hasDestination) return;
+    switch (cta.type) {
+      case 'node':
+        context.go('/nodes/${Uri.encodeComponent(cta.ref)}');
+        return;
+      case 'flow':
+        await CalendarPage.openFlowStudioFromAnyContext(
+          context,
+          restorationState: <String, dynamic>{
+            'mode': 'myFlows',
+            if (int.tryParse(cta.ref) != null)
+              'initialFlowId': int.parse(cta.ref),
+          },
+        );
+        return;
+      case 'flow_template':
+        await CalendarPage.openFlowStudioFromAnyContext(
+          context,
+          restorationState: <String, dynamic>{
+            'mode': 'maatTemplate',
+            'templateKey': cta.ref,
+          },
+        );
+        return;
+      case 'flow_personalized':
+        await CalendarPage.openFlowStudioFromAnyContext(
+          context,
+          restorationState: <String, dynamic>{
+            'mode': cta.fallbackRef == null ? 'maatFlows' : 'maatTemplate',
+            if (cta.fallbackRef != null) 'templateKey': cta.fallbackRef,
+          },
+        );
+        return;
+      default:
+        return;
+    }
   }
 
   void _showSelectionRequiredMessage() {
@@ -340,6 +380,29 @@ class _DecanReflectionDetailPageState extends State<DecanReflectionDetailPage> {
               _reflectionSelection = selection;
             },
           ),
+          if (_graphHints?.cta?.hasDestination == true) ...[
+            const SizedBox(height: 22),
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton(
+                onPressed: () => _handleReflectionCta(_graphHints!.cta!),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: KemeticGold.base,
+                  side: BorderSide(
+                    color: KemeticGold.base.withValues(alpha: 0.55),
+                  ),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                ),
+                child: Text(
+                  _graphHints!.cta!.label,
+                  style: const TextStyle(fontWeight: FontWeight.w700),
+                ),
+              ),
+            ),
+          ],
           if (_suggestedNodeLinks.isNotEmpty) ...[
             const SizedBox(height: 18),
             const Text(

@@ -63,12 +63,15 @@ class AIFlowGenerationResponse {
     }
 
     String? error;
-    for (final key in ['error', 'message', 'detail', 'errorMessage']) {
+    for (final key in ['message', 'detail', 'errorMessage', 'error']) {
       final v = j[key];
       if (v is String && v.trim().isNotEmpty) {
         error = v.trim();
         break;
       }
+    }
+    if (error == 'parse') {
+      error = 'The generator returned an invalid response. Please try again.';
     }
 
     DateTime? parseDate(Object? raw) {

@@ -66,6 +66,7 @@ const String _kFlowStudioModeMyFlows = 'myFlows';
 const String _kFlowStudioModeMaatFlows = 'maatFlows';
 const String _kFlowStudioModeMaatTemplate = 'maatTemplate';
 const String _kFlowStudioModeEditor = 'editor';
+const String _kMaatFlowsDisplayTitle = "Ma'at Flows";
 
 const List<_AlertOption> _alertOptions = [
   _AlertOption('None', _alertNoneMinutes),

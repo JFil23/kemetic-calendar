@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:go_router/go_router.dart';
 import 'package:mobile/features/nodes/kemetic_node_library.dart';
+import 'package:mobile/features/nodes/kemetic_node_list_page.dart';
 import 'package:mobile/features/nodes/kemetic_node_reader_page.dart';
 import 'package:mobile/features/nodes/widgets.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -61,6 +63,81 @@ void main() {
     },
   );
 
+  testWidgets('reader back returns to the library list near the exited node', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(1170, 1920);
+    tester.view.devicePixelRatio = 3.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    final router = GoRouter(
+      initialLocation: '/nodes/serpent',
+      routes: [
+        GoRoute(
+          path: '/nodes',
+          builder: (context, state) => KemeticNodeListPage(
+            initialNodeId: state.uri.queryParameters['focus'],
+          ),
+        ),
+        GoRoute(
+          path: '/nodes/:nodeId',
+          builder: (context, state) {
+            final nodeId = Uri.decodeComponent(state.pathParameters['nodeId']!);
+            return KemeticNodeReaderPage(
+              node: KemeticNodeLibrary.resolve(nodeId)!,
+            );
+          },
+        ),
+      ],
+    );
+    addTearDown(router.dispose);
+
+    await tester.pumpWidget(MaterialApp.router(routerConfig: router));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Serpent'), findsOneWidget);
+
+    await tester.tap(find.byType(GlyphBackButton));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Serpent'), findsOneWidget);
+    final scrollableState = tester.state<ScrollableState>(
+      find.byType(Scrollable).last,
+    );
+    expect(scrollableState.position.pixels, greaterThan(0));
+  });
+
+  testWidgets('node list glyph tiles fit compound and low-profile signs', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(744, 1133);
+    tester.view.devicePixelRatio = 2.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    for (final entry in const [
+      ('declarations_of_innocence', '𓉹𓆄𓆄'),
+      ('nile', '𓈘'),
+      ('epagomenal_days', '𓏤𓏤𓏤𓏤𓏤'),
+    ]) {
+      await tester.pumpWidget(
+        MaterialApp(home: KemeticNodeListPage(initialNodeId: entry.$1)),
+      );
+      await tester.pumpAndSettle();
+
+      final tile = find.byWidgetPredicate(
+        (widget) =>
+            widget is NodeGlyphMark &&
+            widget.glyph == entry.$2 &&
+            widget.framed,
+      );
+      expect(tile, findsWidgets, reason: entry.$1);
+      expect(tester.getSize(tile.first), const Size(48, 48));
+      expect(tester.takeException(), isNull);
+    }
+  });
+
   testWidgets('renders cosmic order prose with table grids', (tester) async {
     tester.view.physicalSize = const Size(1170, 2532);
     tester.view.devicePixelRatio = 3.0;
@@ -77,13 +154,14 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Cosmic Order'), findsOneWidget);
-    expect(find.byType(Table), findsNWidgets(2));
+    expect(find.byType(Table), findsNWidgets(3));
     expect(
       find.text('Cosmic Beginnings, Around 13.8 Billion Years Ago'),
       findsOneWidget,
     );
     expect(find.text('Modern Science'), findsOneWidget);
     expect(find.text('Purpose'), findsOneWidget);
+    expect(find.text('Event or Shift'), findsOneWidget);
     expect(find.text('How Stardust Becomes Life'), findsOneWidget);
   });
 
@@ -126,7 +204,7 @@ void main() {
     expect(find.text('Ancient African Tree'), findsOneWidget);
     expect(find.byType(Table), findsNWidgets(2));
     expect(find.text('Species'), findsOneWidget);
-    expect(find.text('Fractured Lineage'), findsOneWidget);
+    expect(find.text('Ecological Context'), findsOneWidget);
   });
 
   testWidgets('renders rise of kush and kemet volcanic grid', (tester) async {
@@ -148,6 +226,55 @@ void main() {
     expect(find.byType(Table), findsOneWidget);
     expect(find.text('Volcanic Feature'), findsOneWidget);
     expect(find.text('Relevance'), findsOneWidget);
+  });
+
+  testWidgets('renders Ptahhotep emphasis without markdown markers', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(1170, 2532);
+    tester.view.devicePixelRatio = 3.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: KemeticNodeReaderPage(
+          node: KemeticNodeLibrary.resolve('instruction_ptahhotep')!,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(
+      find.textContaining(
+        'He saw what happened when authority forgot how to listen.',
+        findRichText: true,
+      ),
+      findsOneWidget,
+    );
+    expect(find.textContaining('**', findRichText: true), findsNothing);
+  });
+
+  testWidgets('renders Ma\'at citation emphasis without markdown markers', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(1170, 2532);
+    tester.view.devicePixelRatio = 3.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: KemeticNodeReaderPage(node: KemeticNodeLibrary.resolve('maat')!),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(
+      find.textContaining('Pyramid Texts', findRichText: true),
+      findsWidgets,
+    );
+    expect(find.textContaining('*', findRichText: true), findsNothing);
   });
 }
 

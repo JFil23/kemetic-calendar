@@ -1,5 +1,64 @@
 part of 'calendar_page.dart';
 
+class _MaatFlowsListPageWithSnapshot extends StatefulWidget {
+  const _MaatFlowsListPageWithSnapshot({
+    required this.initialSnapshot,
+    required this.loadSnapshot,
+    required this.onPickTemplate,
+    required this.onCreateNew,
+    required this.title,
+    required this.templates,
+  });
+
+  final _MyFlowsFilingSnapshot? initialSnapshot;
+  final Future<_MyFlowsFilingSnapshot> Function() loadSnapshot;
+  final Future<void> Function(_MaatFlowTemplate tpl) onPickTemplate;
+  final VoidCallback onCreateNew;
+  final String title;
+  final List<_MaatFlowTemplate> templates;
+
+  @override
+  State<_MaatFlowsListPageWithSnapshot> createState() =>
+      _MaatFlowsListPageWithSnapshotState();
+}
+
+class _MaatFlowsListPageWithSnapshotState
+    extends State<_MaatFlowsListPageWithSnapshot> {
+  _MyFlowsFilingSnapshot? _snapshot;
+
+  @override
+  void initState() {
+    super.initState();
+    _snapshot = widget.initialSnapshot;
+    unawaited(_refreshSnapshot());
+  }
+
+  Future<void> _refreshSnapshot() async {
+    try {
+      final snapshot = await widget.loadSnapshot();
+      if (!mounted) return;
+      setState(() => _snapshot = snapshot);
+    } catch (e, st) {
+      if (kDebugMode) {
+        _calendarDebugPrint('[maatFlows] snapshot refresh failed: $e');
+        _calendarDebugPrint('$st');
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return _MaatFlowsListPage(
+      title: widget.title,
+      templates: widget.templates,
+      hasActiveForKey: (key) =>
+          CalendarPage._snapshotHasActiveMaatInstanceFor(_snapshot, key),
+      onPickTemplate: widget.onPickTemplate,
+      onCreateNew: widget.onCreateNew,
+    );
+  }
+}
+
 class _MaatFlowsListPage extends StatelessWidget {
   const _MaatFlowsListPage({
     required this.hasActiveForKey,
@@ -928,7 +987,7 @@ class _MaatFlowTemplateDetailPageState
                           color: selected ? _gold : Colors.white38,
                         ),
                         title: Text(
-                          'Kemetic Year ${window.kYear}',
+                          'Wep Ronpet ${window.opensAtLocal.year}',
                           style: const TextStyle(
                             color: Colors.white,
                             fontWeight: FontWeight.w600,
@@ -1048,7 +1107,7 @@ class _MaatFlowTemplateDetailPageState
                           ),
                         ),
                         subtitle: Text(
-                          'KYear ${occurrence.kYear} · M${occurrence.kMonth} D${occurrence.decanStartDay} · opens ${_dateLabel(context, window.opensAtLocal)} at ${timeLabel(window.opensAtLocal)}',
+                          '${window.opensAtLocal.year} · M${occurrence.kMonth} D${occurrence.decanStartDay} · opens ${_dateLabel(context, window.opensAtLocal)} at ${timeLabel(window.opensAtLocal)}',
                           style: const TextStyle(
                             color: Colors.white60,
                             fontSize: 12,
@@ -1161,7 +1220,7 @@ class _MaatFlowTemplateDetailPageState
                           ),
                         ),
                         subtitle: Text(
-                          'KYear ${occurrence.kYear} · M${occurrence.kMonth} D${occurrence.decanStartDay} · opens ${_dateLabel(context, window.opensAtLocal)} at ${timeLabel(window.opensAtLocal)}',
+                          '${window.opensAtLocal.year} · M${occurrence.kMonth} D${occurrence.decanStartDay} · opens ${_dateLabel(context, window.opensAtLocal)} at ${timeLabel(window.opensAtLocal)}',
                           style: const TextStyle(
                             color: Colors.white60,
                             fontSize: 12,
@@ -1274,7 +1333,7 @@ class _MaatFlowTemplateDetailPageState
                           ),
                         ),
                         subtitle: Text(
-                          'KYear ${occurrence.kYear} · M${occurrence.kMonth} D${occurrence.decanStartDay} · opens ${_dateLabel(context, window.opensAtLocal)} at ${timeLabel(window.opensAtLocal)}',
+                          '${window.opensAtLocal.year} · M${occurrence.kMonth} D${occurrence.decanStartDay} · opens ${_dateLabel(context, window.opensAtLocal)} at ${timeLabel(window.opensAtLocal)}',
                           style: const TextStyle(
                             color: Colors.white60,
                             fontSize: 12,
@@ -1379,7 +1438,7 @@ class _MaatFlowTemplateDetailPageState
                           color: selected ? _gold : Colors.white38,
                         ),
                         title: Text(
-                          'Closing Kemetic Year ${window.closingKYear}',
+                          'Year Closing ${window.opensAtLocal.year}',
                           style: const TextStyle(
                             color: Colors.white,
                             fontWeight: FontWeight.w600,
@@ -4291,16 +4350,9 @@ class _MaatFlowTemplateDetailPageState
     final media = MediaQuery.of(context);
     final buttonWidth = math.min(media.size.width - 32, 280.0);
     final ctaBottom = media.padding.bottom + 12;
-    final l10n = MaterialLocalizations.of(context);
     final window = _wagSelectedWindow();
     final selectedStart = DateUtils.dateOnly(window.opensAtLocal);
-    final isOpen = wagEnrollmentIsOpen(window);
     final nextFeast = wagNextFeastGregorian(window.kYear);
-    String timeLabel(DateTime value) {
-      return l10n.formatTimeOfDay(
-        TimeOfDay(hour: value.hour, minute: value.minute),
-      );
-    }
 
     return Scaffold(
       backgroundColor: _bg,
@@ -4351,17 +4403,12 @@ class _MaatFlowTemplateDetailPageState
                 decoration: BoxDecoration(
                   color: const Color(0xFF0B0C0F),
                   borderRadius: BorderRadius.circular(12),
-                  border: Border.all(
-                    color: isOpen ? _gold : Colors.white24,
-                    width: 1.1,
-                  ),
+                  border: Border.all(color: _gold, width: 1.1),
                 ),
                 child: Text(
-                  isOpen
-                      ? 'Enrollment window open for Kemetic Year ${window.kYear}. It closes ${_dateLabel(context, window.closesAtLocal)} at ${timeLabel(window.closesAtLocal)}.'
-                      : 'The Wag begins only at the opening of the Kemetic year. The next window opens on ${_dateLabel(context, window.opensAtLocal)} at ${timeLabel(window.opensAtLocal)}.',
-                  style: TextStyle(
-                    color: isOpen ? const Color(0xFFFFD486) : Colors.white70,
+                  'Selected Wep Ronpet start for ${window.opensAtLocal.year}: ${_dateLabel(context, window.opensAtLocal)}. Add it now and the Month 1 events will prompt when the year opens.',
+                  style: const TextStyle(
+                    color: Color(0xFFFFD486),
                     height: 1.35,
                     fontWeight: FontWeight.w600,
                   ),
@@ -4508,12 +4555,8 @@ class _MaatFlowTemplateDetailPageState
             bottom: ctaBottom,
             child: _buildTemplateStickyJoinButton(
               buttonWidth: buttonWidth,
-              text: _wagJoinInFlight
-                  ? 'Joining…'
-                  : isOpen
-                  ? 'Join Flow'
-                  : 'Locked Until Wep Ronpet',
-              onPressed: _wagJoinInFlight || !isOpen
+              text: _wagJoinInFlight ? 'Joining…' : 'Add Flow',
+              onPressed: _wagJoinInFlight
                   ? null
                   : () => _joinWagFlow(selectedStart),
             ),
@@ -4577,10 +4620,8 @@ class _MaatFlowTemplateDetailPageState
     final media = MediaQuery.of(context);
     final buttonWidth = math.min(media.size.width - 32, 280.0);
     final ctaBottom = media.padding.bottom + 12;
-    final l10n = MaterialLocalizations.of(context);
     final window = _decanWatchSelectedWindow();
     final selectedStart = DateUtils.dateOnly(window.opensAtLocal);
-    final isOpen = decanWatchEnrollmentIsOpen(window);
     final preview = <DecanWatchOccurrence>[
       window.openingOccurrence,
       ...upcomingDecanWatchOccurrences(
@@ -4591,11 +4632,6 @@ class _MaatFlowTemplateDetailPageState
         count: 2,
       ),
     ];
-    String timeLabel(DateTime value) {
-      return l10n.formatTimeOfDay(
-        TimeOfDay(hour: value.hour, minute: value.minute),
-      );
-    }
 
     return Scaffold(
       backgroundColor: _bg,
@@ -4646,17 +4682,12 @@ class _MaatFlowTemplateDetailPageState
                 decoration: BoxDecoration(
                   color: const Color(0xFF0B0C0F),
                   borderRadius: BorderRadius.circular(12),
-                  border: Border.all(
-                    color: isOpen ? _gold : Colors.white24,
-                    width: 1.1,
-                  ),
+                  border: Border.all(color: _gold, width: 1.1),
                 ),
                 child: Text(
-                  isOpen
-                      ? 'Enrollment window open. ${window.openingOccurrence.decanName} begins now; the window closes ${_dateLabel(context, window.closesAtLocal)} at ${timeLabel(window.closesAtLocal)}.'
-                      : 'The Decan Watch begins only at the opening of a new decan. The next window opens on ${_dateLabel(context, window.opensAtLocal)}, when ${window.openingOccurrence.decanName} begins.',
-                  style: TextStyle(
-                    color: isOpen ? const Color(0xFFFFD486) : Colors.white70,
+                  'Selected decan opening: ${_dateLabel(context, window.opensAtLocal)}, when ${window.openingOccurrence.decanName} begins. Add it now and the first watch will prompt on that opening.',
+                  style: const TextStyle(
+                    color: Color(0xFFFFD486),
                     height: 1.35,
                     fontWeight: FontWeight.w600,
                   ),
@@ -4824,12 +4855,8 @@ class _MaatFlowTemplateDetailPageState
             bottom: ctaBottom,
             child: _buildTemplateStickyJoinButton(
               buttonWidth: buttonWidth,
-              text: _decanWatchJoinInFlight
-                  ? 'Joining…'
-                  : isOpen
-                  ? 'Join Flow'
-                  : 'Locked Until Decan Opening',
-              onPressed: _decanWatchJoinInFlight || !isOpen
+              text: _decanWatchJoinInFlight ? 'Joining…' : 'Add Flow',
+              onPressed: _decanWatchJoinInFlight
                   ? null
                   : () => _joinDecanWatchFlow(selectedStart),
             ),
@@ -4901,15 +4928,8 @@ class _MaatFlowTemplateDetailPageState
     final media = MediaQuery.of(context);
     final buttonWidth = math.min(media.size.width - 32, 280.0);
     final ctaBottom = media.padding.bottom + 12;
-    final l10n = MaterialLocalizations.of(context);
     final window = _openHandSelectedWindow();
     final flowStart = DateUtils.dateOnly(window.opensAtLocal);
-    final isOpen = openHandEnrollmentIsOpen(window);
-    String timeLabel(DateTime value) {
-      return l10n.formatTimeOfDay(
-        TimeOfDay(hour: value.hour, minute: value.minute),
-      );
-    }
 
     return Scaffold(
       backgroundColor: _bg,
@@ -4960,17 +4980,12 @@ class _MaatFlowTemplateDetailPageState
                 decoration: BoxDecoration(
                   color: const Color(0xFF0B0C0F),
                   borderRadius: BorderRadius.circular(12),
-                  border: Border.all(
-                    color: isOpen ? _gold : Colors.white24,
-                    width: 1.1,
-                  ),
+                  border: Border.all(color: _gold, width: 1.1),
                 ),
                 child: Text(
-                  isOpen
-                      ? 'Enrollment window open. ${window.openingOccurrence.decanName} begins now; the window closes ${_dateLabel(context, window.closesAtLocal)} at ${timeLabel(window.closesAtLocal)}.'
-                      : openHandEnrollmentClosedMessage(window),
-                  style: TextStyle(
-                    color: isOpen ? const Color(0xFFFFD486) : Colors.white70,
+                  'Selected decan opening: ${_dateLabel(context, window.opensAtLocal)}, when ${window.openingOccurrence.decanName} begins. Add it now and the nine sittings will prompt from that start date.',
+                  style: const TextStyle(
+                    color: Color(0xFFFFD486),
                     height: 1.35,
                     fontWeight: FontWeight.w600,
                   ),
@@ -5130,12 +5145,8 @@ class _MaatFlowTemplateDetailPageState
             bottom: ctaBottom,
             child: _buildTemplateStickyJoinButton(
               buttonWidth: buttonWidth,
-              text: _openHandJoinInFlight
-                  ? 'Joining…'
-                  : isOpen
-                  ? 'Join Flow'
-                  : 'Locked Until Decan Opening',
-              onPressed: _openHandJoinInFlight || !isOpen
+              text: _openHandJoinInFlight ? 'Joining…' : 'Add Flow',
+              onPressed: _openHandJoinInFlight
                   ? null
                   : () => _joinOpenHandFlow(flowStart),
             ),
@@ -5214,15 +5225,8 @@ class _MaatFlowTemplateDetailPageState
     final media = MediaQuery.of(context);
     final buttonWidth = math.min(media.size.width - 32, 280.0);
     final ctaBottom = media.padding.bottom + 12;
-    final l10n = MaterialLocalizations.of(context);
     final window = _djedSelectedWindow();
     final flowStart = DateUtils.dateOnly(window.opensAtLocal);
-    final isOpen = djedEnrollmentIsOpen(window);
-    String timeLabel(DateTime value) {
-      return l10n.formatTimeOfDay(
-        TimeOfDay(hour: value.hour, minute: value.minute),
-      );
-    }
 
     return Scaffold(
       backgroundColor: _bg,
@@ -5273,17 +5277,12 @@ class _MaatFlowTemplateDetailPageState
                 decoration: BoxDecoration(
                   color: const Color(0xFF0B0C0F),
                   borderRadius: BorderRadius.circular(12),
-                  border: Border.all(
-                    color: isOpen ? _gold : Colors.white24,
-                    width: 1.1,
-                  ),
+                  border: Border.all(color: _gold, width: 1.1),
                 ),
                 child: Text(
-                  isOpen
-                      ? 'Enrollment window open. ${window.openingOccurrence.decanName} begins now; the window closes ${_dateLabel(context, window.closesAtLocal)} at ${timeLabel(window.closesAtLocal)}.'
-                      : djedEnrollmentClosedMessage(window),
-                  style: TextStyle(
-                    color: isOpen ? const Color(0xFFFFD486) : Colors.white70,
+                  'Selected decan opening: ${_dateLabel(context, window.opensAtLocal)}, when ${window.openingOccurrence.decanName} begins. Add it now and the Djed sittings will prompt from that start date.',
+                  style: const TextStyle(
+                    color: Color(0xFFFFD486),
                     height: 1.35,
                     fontWeight: FontWeight.w600,
                   ),
@@ -5443,12 +5442,8 @@ class _MaatFlowTemplateDetailPageState
             bottom: ctaBottom,
             child: _buildTemplateStickyJoinButton(
               buttonWidth: buttonWidth,
-              text: _djedJoinInFlight
-                  ? 'Joining…'
-                  : isOpen
-                  ? 'Join Flow'
-                  : 'Locked Until Decan Opening',
-              onPressed: _djedJoinInFlight || !isOpen
+              text: _djedJoinInFlight ? 'Joining…' : 'Add Flow',
+              onPressed: _djedJoinInFlight
                   ? null
                   : () => _joinDjedFlow(flowStart),
             ),
@@ -5525,7 +5520,6 @@ class _MaatFlowTemplateDetailPageState
     final ctaBottom = media.padding.bottom + 12;
     final window = _daysOutsideYearSelectedWindow();
     final selectedStart = DateUtils.dateOnly(window.opensAtLocal);
-    final isOpen = daysOutsideYearEnrollmentIsOpen(window);
     final yearClose = daysOutsideEventGregorian(
       closingKYear: window.closingKYear,
       kMonth: 12,
@@ -5590,17 +5584,12 @@ class _MaatFlowTemplateDetailPageState
                 decoration: BoxDecoration(
                   color: const Color(0xFF0B0C0F),
                   borderRadius: BorderRadius.circular(12),
-                  border: Border.all(
-                    color: isOpen ? _gold : Colors.white24,
-                    width: 1.1,
-                  ),
+                  border: Border.all(color: _gold, width: 1.1),
                 ),
                 child: Text(
-                  isOpen
-                      ? 'Enrollment window open for closing Kemetic Year ${window.closingKYear}. It closes before ${_dateLabel(context, window.closesAtLocal)}.'
-                      : 'The Days Outside the Year begins only at the close of the Kemetic year. The next window opens on ${_dateLabel(context, window.opensAtLocal)}, two days before the year closes.',
-                  style: TextStyle(
-                    color: isOpen ? const Color(0xFFFFD486) : Colors.white70,
+                  'Selected year-closing start for ${window.opensAtLocal.year}: ${_dateLabel(context, window.opensAtLocal)}. Add it now and the threshold events will prompt when the year closes.',
+                  style: const TextStyle(
+                    color: Color(0xFFFFD486),
                     height: 1.35,
                     fontWeight: FontWeight.w600,
                   ),
@@ -5746,12 +5735,8 @@ class _MaatFlowTemplateDetailPageState
             bottom: ctaBottom,
             child: _buildTemplateStickyJoinButton(
               buttonWidth: buttonWidth,
-              text: _daysOutsideYearJoinInFlight
-                  ? 'Joining…'
-                  : isOpen
-                  ? 'Join Flow'
-                  : 'Locked Until Year Close',
-              onPressed: _daysOutsideYearJoinInFlight || !isOpen
+              text: _daysOutsideYearJoinInFlight ? 'Joining…' : 'Add Flow',
+              onPressed: _daysOutsideYearJoinInFlight
                   ? null
                   : () => _joinDaysOutsideYearFlow(selectedStart),
             ),
@@ -5768,7 +5753,6 @@ class _MaatFlowTemplateDetailPageState
     final l10n = MaterialLocalizations.of(context);
     final window = _moonReturnSelectedWindow();
     final selectedStart = DateUtils.dateOnly(window.opensAtLocal);
-    final isOpen = moonReturnEnrollmentIsOpen(window);
     final occurrences = moonReturnOccurrencesForWindow(window: window);
     final preview = occurrences.take(4).toList(growable: false);
     final emptyEyeCandidates = occurrences
@@ -5832,17 +5816,12 @@ class _MaatFlowTemplateDetailPageState
                 decoration: BoxDecoration(
                   color: const Color(0xFF0B0C0F),
                   borderRadius: BorderRadius.circular(12),
-                  border: Border.all(
-                    color: isOpen ? _gold : Colors.white24,
-                    width: 1.1,
-                  ),
+                  border: Border.all(color: _gold, width: 1.1),
                 ),
                 child: Text(
-                  isOpen
-                      ? 'Enrollment window open. It closes ${_dateLabel(context, window.closesAtLocal)} at ${timeLabel(window.closesAtLocal)}.'
-                      : 'The Moon Return begins only at the new moon. The next window opens on ${_dateLabel(context, window.opensAtLocal)} at ${timeLabel(window.opensAtLocal)}.',
-                  style: TextStyle(
-                    color: isOpen ? const Color(0xFFFFD486) : Colors.white70,
+                  'Selected new-moon start: ${_dateLabel(context, window.opensAtLocal)}. Add it now and the first Empty Eye will prompt at the appointed dusk.',
+                  style: const TextStyle(
+                    color: Color(0xFFFFD486),
                     height: 1.35,
                     fontWeight: FontWeight.w600,
                   ),
@@ -6002,12 +5981,8 @@ class _MaatFlowTemplateDetailPageState
             bottom: ctaBottom,
             child: _buildTemplateStickyJoinButton(
               buttonWidth: buttonWidth,
-              text: _moonReturnJoinInFlight
-                  ? 'Joining…'
-                  : isOpen
-                  ? 'Join Flow'
-                  : 'Locked Until New Moon',
-              onPressed: _moonReturnJoinInFlight || !isOpen
+              text: _moonReturnJoinInFlight ? 'Joining…' : 'Add Flow',
+              onPressed: _moonReturnJoinInFlight
                   ? null
                   : () => _joinMoonReturnFlow(selectedStart),
             ),

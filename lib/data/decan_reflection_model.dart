@@ -36,13 +36,15 @@ class DecanReflection {
 class DecanReflectionGraphHints {
   final String? leadAxis;
   final List<String> anchorNodes;
+  final DecanReflectionCta? cta;
 
   const DecanReflectionGraphHints({
     required this.leadAxis,
     required this.anchorNodes,
+    this.cta,
   });
 
-  bool get isEmpty => leadAxis == null && anchorNodes.isEmpty;
+  bool get isEmpty => leadAxis == null && anchorNodes.isEmpty && cta == null;
 
   factory DecanReflectionGraphHints.fromGenerationJson(
     Map<String, dynamic> json,
@@ -51,21 +53,104 @@ class DecanReflectionGraphHints {
     final decisionMatrix = _asStringKeyedMap(metadata['decision_matrix']);
     final rawAnchorNodes = json['anchor_nodes'];
     final fallbackAnchorNodes = decisionMatrix['anchor_nodes'];
+    final cta = DecanReflectionCta.fromGenerationJson(json);
 
     return DecanReflectionGraphHints(
-      leadAxis: _trimmedString(metadata['lead_axis']) ??
+      leadAxis:
+          _trimmedString(metadata['lead_axis']) ??
           _trimmedString(decisionMatrix['lead_axis']),
       anchorNodes: _stringList(rawAnchorNodes).isNotEmpty
           ? _stringList(rawAnchorNodes)
           : _stringList(fallbackAnchorNodes),
+      cta: cta.hasDestination ? cta : null,
     );
   }
+}
+
+class DecanReflectionCta {
+  final String type;
+  final String ref;
+  final String label;
+  final String? fallbackRef;
+
+  const DecanReflectionCta({
+    required this.type,
+    required this.ref,
+    required this.label,
+    this.fallbackRef,
+  });
+
+  factory DecanReflectionCta.fromGenerationJson(Map<String, dynamic> json) {
+    final metadata = _asStringKeyedMap(json['metadata']);
+    final sourceSnapshot = _asStringKeyedMap(json['source_snapshot']);
+    final metadataOutputControl = _asStringKeyedMap(metadata['output_control']);
+    final sourceOutputControl = _asStringKeyedMap(
+      sourceSnapshot['output_control'],
+    );
+    final package = _firstMap([
+      metadataOutputControl['compiled_output_package'],
+      sourceOutputControl['compiled_output_package'],
+    ]);
+    final destination = _firstMap([
+      package['destination'],
+      metadataOutputControl['reflection_destination'],
+      sourceOutputControl['reflection_destination'],
+    ]);
+    final cta = _asStringKeyedMap(package['cta']);
+    final type =
+        _trimmedString(destination['type']) ??
+        _trimmedString(cta['type']) ??
+        _trimmedString(package['cta_type']);
+    final ref =
+        _trimmedString(destination['ref']) ??
+        _trimmedString(cta['ref']) ??
+        _trimmedString(package['cta_ref']);
+    if (type == null || ref == null || type == 'none') {
+      return const DecanReflectionCta(type: 'none', ref: '', label: '');
+    }
+    final fallback = _asStringKeyedMap(destination['fallback']);
+    return DecanReflectionCta(
+      type: type,
+      ref: ref,
+      label:
+          _trimmedString(destination['label']) ??
+          _trimmedString(cta['label']) ??
+          _defaultCtaLabel(type),
+      fallbackRef:
+          _trimmedString(fallback['ctaRef']) ??
+          _trimmedString(fallback['cta_ref']),
+    );
+  }
+
+  bool get hasDestination => type != 'none' && ref.trim().isNotEmpty;
 }
 
 Map<String, dynamic> _asStringKeyedMap(Object? value) {
   if (value is Map<String, dynamic>) return value;
   if (value is Map) return Map<String, dynamic>.from(value);
   return const <String, dynamic>{};
+}
+
+Map<String, dynamic> _firstMap(Iterable<Object?> values) {
+  for (final value in values) {
+    final map = _asStringKeyedMap(value);
+    if (map.isNotEmpty) return map;
+  }
+  return const <String, dynamic>{};
+}
+
+String _defaultCtaLabel(String type) {
+  switch (type) {
+    case 'node':
+      return 'Read the guiding node';
+    case 'flow':
+    case 'flow_template':
+      return 'Open suggested flow';
+    case 'flow_personalized':
+      return 'Create this flow';
+    default:
+      return '';
+  }
 }
 
 String? _trimmedString(Object? value) {

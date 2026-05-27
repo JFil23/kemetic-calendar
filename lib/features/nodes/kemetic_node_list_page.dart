@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
@@ -11,13 +12,116 @@ import 'kemetic_node_search_delegate.dart';
 import 'widgets.dart';
 
 class KemeticNodeListPage extends StatefulWidget {
-  const KemeticNodeListPage({super.key});
+  const KemeticNodeListPage({super.key, this.initialNodeId});
+
+  final String? initialNodeId;
 
   @override
   State<KemeticNodeListPage> createState() => _KemeticNodeListPageState();
 }
 
 class _KemeticNodeListPageState extends State<KemeticNodeListPage> {
+  static const double _estimatedRowExtent = 168;
+  static const double _targetTopInset = 96;
+
+  late final ScrollController _scrollController;
+  final Map<String, GlobalKey> _nodeKeys = {};
+
+  @override
+  void initState() {
+    super.initState();
+    _scrollController = ScrollController(
+      initialScrollOffset: _estimatedOffsetFor(widget.initialNodeId),
+      keepScrollOffset: widget.initialNodeId == null,
+    );
+    _scheduleFocusedNodeRestore();
+  }
+
+  @override
+  void didUpdateWidget(covariant KemeticNodeListPage oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.initialNodeId != widget.initialNodeId) {
+      _scheduleFocusedNodeRestore();
+    }
+  }
+
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  int? _nodeIndex(String? nodeId) {
+    if (nodeId == null || nodeId.trim().isEmpty) return null;
+    final target = KemeticNodeLibrary.resolve(nodeId);
+    if (target == null) return null;
+    final targetId = target.id.toLowerCase();
+    final index = KemeticNodeLibrary.nodes.indexWhere(
+      (node) => node.id.toLowerCase() == targetId,
+    );
+    return index < 0 ? null : index;
+  }
+
+  String? _canonicalNodeId(String? nodeId) {
+    if (nodeId == null || nodeId.trim().isEmpty) return null;
+    return KemeticNodeLibrary.resolve(nodeId)?.id;
+  }
+
+  double _estimatedOffsetFor(String? nodeId) {
+    final index = _nodeIndex(nodeId);
+    if (index == null) return 0;
+    return math.max(0, (index * _estimatedRowExtent) - _targetTopInset);
+  }
+
+  GlobalKey _nodeKey(String nodeId) =>
+      _nodeKeys.putIfAbsent(nodeId, GlobalKey.new);
+
+  void _scheduleFocusedNodeRestore([int attempt = 0]) {
+    final focusedNodeId = _canonicalNodeId(widget.initialNodeId);
+    if (focusedNodeId == null) return;
+    final focusedIndex = _nodeIndex(focusedNodeId);
+    if (focusedIndex == null) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || !_scrollController.hasClients) return;
+      final focusedContext = _nodeKeys[focusedNodeId]?.currentContext;
+      if (focusedContext != null) {
+        Scrollable.ensureVisible(
+          focusedContext,
+          alignment: 0.18,
+          duration: Duration.zero,
+        );
+        return;
+      }
+
+      final visibleIndexes = <int>[];
+      for (var index = 0; index < KemeticNodeLibrary.nodes.length; index++) {
+        final nodeId = KemeticNodeLibrary.nodes[index].id;
+        if (_nodeKeys[nodeId]?.currentContext != null) {
+          visibleIndexes.add(index);
+        }
+      }
+      if (visibleIndexes.isEmpty) return;
+
+      final minVisibleIndex = visibleIndexes.reduce(math.min);
+      final maxVisibleIndex = visibleIndexes.reduce(math.max);
+      final currentOffset = _scrollController.offset;
+      final maxScrollExtent = _scrollController.position.maxScrollExtent;
+      double nextOffset = currentOffset;
+
+      if (focusedIndex < minVisibleIndex) {
+        nextOffset -= (minVisibleIndex - focusedIndex) * _estimatedRowExtent;
+      } else if (focusedIndex > maxVisibleIndex) {
+        nextOffset += (focusedIndex - maxVisibleIndex) * _estimatedRowExtent;
+      }
+
+      nextOffset = nextOffset.clamp(0.0, maxScrollExtent).toDouble();
+      if (attempt >= 8 || (nextOffset - currentOffset).abs() < 1) return;
+
+      _scrollController.jumpTo(nextOffset);
+      _scheduleFocusedNodeRestore(attempt + 1);
+    });
+  }
+
   String _snippet(KemeticNode node) {
     final collapsed = node.body
         .replaceAll('\n', ' ')
@@ -109,10 +213,13 @@ class _KemeticNodeListPageState extends State<KemeticNodeListPage> {
       ),
       body: SafeArea(
         child: ListView.separated(
+          key: const PageStorageKey('kemetic-node-library-list'),
+          controller: _scrollController,
           padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
           itemBuilder: (context, index) {
             final node = nodes[index];
             return _NodeCard(
+              key: _nodeKey(node.id),
               node: node,
               subtitle: _snippet(node),
               onTap: () {
@@ -134,6 +241,7 @@ class _NodeCard extends StatelessWidget {
   final VoidCallback onTap;
 
   const _NodeCard({
+    super.key,
     required this.node,
     required this.subtitle,
     required this.onTap,
@@ -155,34 +263,13 @@ class _NodeCard extends StatelessWidget {
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Container(
+              NodeGlyphMark(
+                glyph: node.glyph,
                 width: 48,
                 height: 48,
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: Colors.white12),
-                  color: Colors.white.withValues(alpha: 0.04),
-                ),
-                alignment: Alignment.center,
-                child: ShaderMask(
-                  shaderCallback: (Rect bounds) =>
-                      KemeticGold.gloss.createShader(bounds),
-                  blendMode: BlendMode.srcIn,
-                  child: Text(
-                    node.glyph,
-                    style: const TextStyle(
-                      fontSize: 26,
-                      color: Colors.white,
-                      fontFamily: 'GentiumPlus',
-                      fontFamilyFallback: [
-                        'NotoSans',
-                        'Roboto',
-                        'Arial',
-                        'sans-serif',
-                      ],
-                    ),
-                  ),
-                ),
+                fontSize: 31,
+                padding: const EdgeInsets.all(6),
+                framed: true,
               ),
               const SizedBox(width: 12),
               Expanded(

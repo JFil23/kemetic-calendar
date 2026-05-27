@@ -135,16 +135,6 @@ List<DecanWatchEnrollmentWindow> decanWatchUpcomingEnrollmentWindows(
   return windows;
 }
 
-String decanWatchEnrollmentClosedMessage(DecanWatchEnrollmentWindow next) {
-  return 'The Decan Watch begins only at the opening of a new decan. The next window opens on ${_isoDate(next.opensAtLocal)}, when ${next.openingOccurrence.decanName} begins.';
-}
-
 bool _sameDate(DateTime a, DateTime b) {
   return a.year == b.year && a.month == b.month && a.day == b.day;
-}
-
-String _isoDate(DateTime date) {
-  return '${date.year.toString().padLeft(4, '0')}-'
-      '${date.month.toString().padLeft(2, '0')}-'
-      '${date.day.toString().padLeft(2, '0')}';
 }

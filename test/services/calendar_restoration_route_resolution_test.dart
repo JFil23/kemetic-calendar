@@ -65,6 +65,28 @@ void main() {
       );
     });
 
+    test('library routes are not restored as detached overlay parents', () {
+      for (final parentRoute in <String>[
+        '/nodes',
+        '/nodes?focus=maat',
+        '/nodes/ausar',
+      ]) {
+        expect(
+          CalendarPage.restorableOverlayParentRouteFromStack(
+            <Map<String, dynamic>>[
+              <String, dynamic>{
+                'kind': 'calendar.flowStudio',
+                'parentRoute': parentRoute,
+                'mode': 'hub',
+              },
+            ],
+          ),
+          isNull,
+          reason: parentRoute,
+        );
+      }
+    });
+
     test('latest restorable calendar overlay wins', () {
       expect(
         CalendarPage.restorableOverlayParentRouteFromStack(

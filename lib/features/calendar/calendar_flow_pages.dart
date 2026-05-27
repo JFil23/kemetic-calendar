@@ -2524,7 +2524,7 @@ class _FlowHubPage extends StatelessWidget {
                       onTap: openMyFlows,
                     ),
                     _FlowHubCell(
-                      title: "ḥꜣw",
+                      title: _kMaatFlowsDisplayTitle,
                       subtitle: "Ma'at template flows",
                       onTap: openMaatFlows,
                     ),

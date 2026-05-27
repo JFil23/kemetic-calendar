@@ -4332,6 +4332,12 @@ class CalendarPage extends StatefulWidget {
     return uri == null || uri.path.isEmpty || uri.path == '/';
   }
 
+  static bool _isLibraryRouteLocation(String location) {
+    final uri = Uri.tryParse(location.trim());
+    final path = uri?.path ?? location.trim();
+    return path == '/nodes' || path.startsWith('/nodes/');
+  }
+
   static String _currentRouteLocationForContext(BuildContext context) {
     try {
       final location = GoRouterState.of(context).uri.toString().trim();
@@ -4401,7 +4407,8 @@ class CalendarPage extends StatefulWidget {
     final parentRoute = (overlay?['parentRoute'] as String?)?.trim();
     if (parentRoute == null ||
         parentRoute.isEmpty ||
-        _isRootRouteLocation(parentRoute)) {
+        _isRootRouteLocation(parentRoute) ||
+        _isLibraryRouteLocation(parentRoute)) {
       return null;
     }
     return parentRoute;
@@ -4509,7 +4516,8 @@ class CalendarPage extends StatefulWidget {
     required String kind,
     required Map<String, dynamic> state,
   }) async {
-    final normalizedParentRoute = parentRoute.trim().isEmpty
+    final normalizedParentRoute =
+        parentRoute.trim().isEmpty || _isLibraryRouteLocation(parentRoute)
         ? '/'
         : parentRoute.trim();
     await RestorationCoordinator.instance.recordRouteLocationWithOverlayStack(
@@ -5447,19 +5455,16 @@ class CalendarPage extends StatefulWidget {
     String tplKey,
   ) {
     if (snapshot == null) return false;
-    final today = DateUtils.dateOnly(DateTime.now());
     return snapshot.flows.any((flow) {
-      final meta = notesDecode(flow.notes);
-      if (meta.maatKey != tplKey || !flow.active) return false;
-      if (!snapshot.activeFlowIds.contains(flow.id)) return false;
-      for (final rule in flow.rules) {
-        if (rule is _RuleDates &&
-            rule.dates.any((d) => !DateUtils.dateOnly(d).isBefore(today))) {
-          return true;
-        }
-      }
-      return false;
+      return _flowMatchesActiveMaatTemplate(flow, tplKey);
     });
+  }
+
+  static bool _flowMatchesActiveMaatTemplate(_Flow flow, String tplKey) {
+    final meta = notesDecode(flow.notes);
+    if (meta.maatKey != tplKey) return false;
+    if (!flow.active || flow.isHidden || flow.isReminder) return false;
+    return isFlowScheduleOpenLocally(active: flow.active, endDate: flow.end);
   }
 
   static Future<String?> _loadHeadlessPersonalCalendarId() async {
@@ -5574,9 +5579,9 @@ class CalendarPage extends StatefulWidget {
       final timezone = trackSkyTimeZone ?? detectTrackSkyTimeZone();
       final lens = moonReturnLens ?? MoonReturnLens.neutral;
       final window = startDate == null
-          ? moonReturnCurrentEnrollmentWindow(timezone)
+          ? moonReturnNextEnrollmentWindow(timezone)
           : moonReturnEnrollmentWindowForStartDate(startDate, timezone);
-      if (window == null || !moonReturnEnrollmentIsOpen(window)) return -1;
+      if (window == null) return -1;
       final occurrences = moonReturnOccurrencesForWindow(window: window);
       if (occurrences.isEmpty) return -1;
       final dates = <DateTime>{
@@ -5655,9 +5660,9 @@ class CalendarPage extends StatefulWidget {
       final timezone = trackSkyTimeZone ?? detectTrackSkyTimeZone();
       final lens = wagLens ?? WagLens.neutral;
       final window = startDate == null
-          ? wagCurrentEnrollmentWindow(timezone)
+          ? wagNextEnrollmentWindow(timezone)
           : wagEnrollmentWindowForStartDate(startDate, timezone);
-      if (window == null || !wagEnrollmentIsOpen(window)) return -1;
+      if (window == null) return -1;
       final kYear = window.kYear;
       final schedules = <WagEvent, WagOccurrenceSchedule>{
         for (final event in kWagEvents)
@@ -5762,11 +5767,9 @@ class CalendarPage extends StatefulWidget {
     if (template.kind == _MaatFlowTemplateKind.daysOutsideTheYear) {
       final timezone = trackSkyTimeZone ?? detectTrackSkyTimeZone();
       final window = startDate == null
-          ? daysOutsideYearCurrentEnrollmentWindow(timezone)
+          ? daysOutsideYearNextEnrollmentWindow(timezone)
           : daysOutsideYearEnrollmentWindowForStartDate(startDate, timezone);
-      if (window == null || !daysOutsideYearEnrollmentIsOpen(window)) {
-        return -1;
-      }
+      if (window == null) return -1;
       final closingKYear = window.closingKYear;
       final schedules = <DaysOutsideEvent, DaysOutsideOccurrenceSchedule>{
         for (final event in kDaysOutsideEvents)
@@ -5870,9 +5873,9 @@ class CalendarPage extends StatefulWidget {
       final timezone = trackSkyTimeZone ?? detectTrackSkyTimeZone();
       final lens = openHandLens ?? OpenHandLens.neutral;
       final window = startDate == null
-          ? openHandCurrentEnrollmentWindow(timezone)
+          ? openHandNextEnrollmentWindow(timezone)
           : openHandEnrollmentWindowForStartDate(startDate, timezone);
-      if (window == null || !openHandEnrollmentIsOpen(window)) return -1;
+      if (window == null) return -1;
       final flowStart = DateUtils.dateOnly(window.opensAtLocal);
       final schedules = <OpenHandEvent, OpenHandOccurrenceSchedule>{
         for (final event in kOpenHandEvents)
@@ -5957,9 +5960,9 @@ class CalendarPage extends StatefulWidget {
       final timezone = trackSkyTimeZone ?? detectTrackSkyTimeZone();
       final lens = djedLens ?? DjedLens.neutral;
       final window = startDate == null
-          ? djedCurrentEnrollmentWindow(timezone)
+          ? djedNextEnrollmentWindow(timezone)
           : djedEnrollmentWindowForStartDate(startDate, timezone);
-      if (window == null || !djedEnrollmentIsOpen(window)) return -1;
+      if (window == null) return -1;
       final flowStart = DateUtils.dateOnly(window.opensAtLocal);
       final schedules = <DjedEvent, DjedOccurrenceSchedule>{
         for (final event in kDjedEvents)
@@ -6044,9 +6047,9 @@ class CalendarPage extends StatefulWidget {
       final timezone = trackSkyTimeZone ?? detectTrackSkyTimeZone();
       final lens = decanWatchLens ?? DecanWatchLens.neutral;
       final window = startDate == null
-          ? decanWatchCurrentEnrollmentWindow(timezone)
+          ? decanWatchNextEnrollmentWindow(timezone)
           : decanWatchEnrollmentWindowForStartDate(startDate, timezone);
-      if (window == null || !decanWatchEnrollmentIsOpen(window)) return -1;
+      if (window == null) return -1;
       final occurrences = <DecanWatchOccurrence>[
         window.openingOccurrence,
         ...upcomingDecanWatchOccurrences(
@@ -7082,11 +7085,14 @@ class CalendarPage extends StatefulWidget {
     required FlowsRepo flowsRepo,
   }) {
     final cachedSnapshot = _cachedDetachedMyFlowsFilingSnapshot(flowsRepo);
-    return _MaatFlowsListPage(
-      title: 'ḥꜣw',
+    return _MaatFlowsListPageWithSnapshot(
+      title: _kMaatFlowsDisplayTitle,
       templates: _kMaatFlowTemplates,
-      hasActiveForKey: (key) =>
-          _snapshotHasActiveMaatInstanceFor(cachedSnapshot, key),
+      initialSnapshot: cachedSnapshot,
+      loadSnapshot: () async {
+        final rows = await flowsRepo.refreshMyFiledFlows();
+        return _myFlowsFilingSnapshotFromRowsDetached(rows);
+      },
       onPickTemplate: (template) async {
         final importedFlowId = await _pushDetachedMaatFlowTemplateDetail(
           navigator,
@@ -18898,7 +18904,7 @@ class CalendarPageState extends State<CalendarPage>
   Widget _buildMaatFlowsListPage(BuildContext listCtx) {
     final navigator = Navigator.of(listCtx);
     return _MaatFlowsListPage(
-      title: 'ḥꜣw',
+      title: _kMaatFlowsDisplayTitle,
       templates: _kMaatFlowTemplates,
       hasActiveForKey: (key) => _hasActiveMaatInstanceFor(key),
       onPickTemplate: (tpl) async {
@@ -19012,8 +19018,10 @@ class CalendarPageState extends State<CalendarPage>
               );
             },
             openMaatFlows: () {
-              unawaited(
-                _pushFlowStudioRoute<int?>(
+              unawaited(() async {
+                await _loadFromDisk(source: 'open_maat_flows');
+                if (!innerCtx.mounted) return;
+                final importedFlowId = await _pushFlowStudioRoute<int?>(
                   Navigator.of(innerCtx),
                   MaterialPageRoute<int?>(
                     builder: (ctx3) => _buildMaatFlowsListPage(ctx3),
@@ -19024,12 +19032,11 @@ class CalendarPageState extends State<CalendarPage>
                   returnState: const <String, dynamic>{
                     'mode': _kFlowStudioModeHub,
                   },
-                ).then((importedFlowId) async {
-                  if (importedFlowId != null && importedFlowId > 0) {
-                    await _loadFromDisk();
-                  }
-                }),
-              );
+                );
+                if (importedFlowId != null && importedFlowId > 0) {
+                  await _loadFromDisk(source: 'maat_flow_imported');
+                }
+              }());
             },
             onCreateNew: () async {
               final edited = await _pushFlowStudioEditor(
@@ -19122,17 +19129,8 @@ class CalendarPageState extends State<CalendarPage>
   /// True if there is at least one *active* instance of template [tplKey]
   /// with any remaining day today or in the future.
   bool _hasActiveMaatInstanceFor(String tplKey) {
-    final today = DateUtils.dateOnly(DateTime.now());
     return _flows.any((f) {
-      final meta = notesDecode(f.notes);
-      if (meta.maatKey != tplKey || !f.active) return false;
-      for (final r in f.rules) {
-        if (r is _RuleDates &&
-            r.dates.any((d) => !DateUtils.dateOnly(d).isBefore(today))) {
-          return true;
-        }
-      }
-      return false;
+      return CalendarPage._flowMatchesActiveMaatTemplate(f, tplKey);
     });
   }
 
@@ -19299,16 +19297,13 @@ class CalendarPageState extends State<CalendarPage>
     if (template.kind == _MaatFlowTemplateKind.moonReturn) {
       final timezone = trackSkyTimeZone ?? detectTrackSkyTimeZone();
       final window = startDate == null
-          ? moonReturnCurrentEnrollmentWindow(timezone)
+          ? moonReturnNextEnrollmentWindow(timezone)
           : moonReturnEnrollmentWindowForStartDate(startDate, timezone);
-      if (window == null || !moonReturnEnrollmentIsOpen(window)) {
+      if (window == null) {
         if (mounted) {
-          final next = moonReturnNextEnrollmentWindow(timezone);
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(
-                'The Moon Return begins only at the new moon. The next window opens on ${CalendarPage._formatDetachedGregorian(next.opensAtLocal)}.',
-              ),
+            const SnackBar(
+              content: Text('Choose one of the listed new-moon start dates.'),
             ),
           );
         }
@@ -19467,13 +19462,14 @@ class CalendarPageState extends State<CalendarPage>
     if (template.kind == _MaatFlowTemplateKind.theWag) {
       final timezone = trackSkyTimeZone ?? detectTrackSkyTimeZone();
       final window = startDate == null
-          ? wagCurrentEnrollmentWindow(timezone)
+          ? wagNextEnrollmentWindow(timezone)
           : wagEnrollmentWindowForStartDate(startDate, timezone);
-      if (window == null || !wagEnrollmentIsOpen(window)) {
+      if (window == null) {
         if (mounted) {
-          final next = wagNextEnrollmentWindow(timezone);
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(wagEnrollmentClosedMessage(next))),
+            const SnackBar(
+              content: Text('Choose one of the listed Wep Ronpet start dates.'),
+            ),
           );
         }
         return -1;
@@ -19670,14 +19666,15 @@ class CalendarPageState extends State<CalendarPage>
     if (template.kind == _MaatFlowTemplateKind.daysOutsideTheYear) {
       final timezone = trackSkyTimeZone ?? detectTrackSkyTimeZone();
       final window = startDate == null
-          ? daysOutsideYearCurrentEnrollmentWindow(timezone)
+          ? daysOutsideYearNextEnrollmentWindow(timezone)
           : daysOutsideYearEnrollmentWindowForStartDate(startDate, timezone);
-      if (window == null || !daysOutsideYearEnrollmentIsOpen(window)) {
+      if (window == null) {
         if (mounted) {
-          final next = daysOutsideYearNextEnrollmentWindow(timezone);
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(daysOutsideYearEnrollmentClosedMessage(next)),
+            const SnackBar(
+              content: Text(
+                'Choose one of the listed year-closing start dates.',
+              ),
             ),
           );
         }
@@ -19884,13 +19881,16 @@ class CalendarPageState extends State<CalendarPage>
     if (template.kind == _MaatFlowTemplateKind.theOpenHand) {
       final timezone = trackSkyTimeZone ?? detectTrackSkyTimeZone();
       final window = startDate == null
-          ? openHandCurrentEnrollmentWindow(timezone)
+          ? openHandNextEnrollmentWindow(timezone)
           : openHandEnrollmentWindowForStartDate(startDate, timezone);
-      if (window == null || !openHandEnrollmentIsOpen(window)) {
+      if (window == null) {
         if (mounted) {
-          final next = openHandNextEnrollmentWindow(timezone);
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(openHandEnrollmentClosedMessage(next))),
+            const SnackBar(
+              content: Text(
+                'Choose one of the listed decan-opening start dates.',
+              ),
+            ),
           );
         }
         return -1;
@@ -20073,13 +20073,16 @@ class CalendarPageState extends State<CalendarPage>
     if (template.kind == _MaatFlowTemplateKind.theDjed) {
       final timezone = trackSkyTimeZone ?? detectTrackSkyTimeZone();
       final window = startDate == null
-          ? djedCurrentEnrollmentWindow(timezone)
+          ? djedNextEnrollmentWindow(timezone)
           : djedEnrollmentWindowForStartDate(startDate, timezone);
-      if (window == null || !djedEnrollmentIsOpen(window)) {
+      if (window == null) {
         if (mounted) {
-          final next = djedNextEnrollmentWindow(timezone);
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(djedEnrollmentClosedMessage(next))),
+            const SnackBar(
+              content: Text(
+                'Choose one of the listed decan-opening start dates.',
+              ),
+            ),
           );
         }
         return -1;
@@ -20262,13 +20265,16 @@ class CalendarPageState extends State<CalendarPage>
     if (template.kind == _MaatFlowTemplateKind.decanWatch) {
       final timezone = trackSkyTimeZone ?? detectTrackSkyTimeZone();
       final window = startDate == null
-          ? decanWatchCurrentEnrollmentWindow(timezone)
+          ? decanWatchNextEnrollmentWindow(timezone)
           : decanWatchEnrollmentWindowForStartDate(startDate, timezone);
-      if (window == null || !decanWatchEnrollmentIsOpen(window)) {
+      if (window == null) {
         if (mounted) {
-          final next = decanWatchNextEnrollmentWindow(timezone);
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(decanWatchEnrollmentClosedMessage(next))),
+            const SnackBar(
+              content: Text(
+                'Choose one of the listed decan-opening start dates.',
+              ),
+            ),
           );
         }
         return -1;
@@ -26656,7 +26662,13 @@ class CalendarPageState extends State<CalendarPage>
       // For AI-generated flows, wipe existing events first to avoid duplicates
       if (isAIFlow && flowId > 0) {
         try {
-          await repo2.deleteByFlowId(flowId);
+          await repo2.deleteByFlowId(
+            flowId,
+            semantic: 'flow_replace',
+            suppressesClient: false,
+            sourceFeature: 'CalendarPage._persistFlowStudioResult',
+            deleteScope: 'ai_flow_replace',
+          );
           if (kDebugMode) {
             _calendarDebugPrint(
               '[persistFlowStudio] Cleared existing events for AI flow $flowId to avoid duplicates',
@@ -28047,7 +28059,14 @@ class CalendarPageState extends State<CalendarPage>
 
     try {
       // Clear existing scheduled notes for this flow after successful generation
-      await repo.deleteByFlowId(flowId, fromDate: scheduleStart.toUtc());
+      await repo.deleteByFlowId(
+        flowId,
+        fromDate: scheduleStart.toUtc(),
+        semantic: 'flow_reschedule',
+        suppressesClient: false,
+        sourceFeature: 'CalendarPage.scheduleFlowNotes',
+        deleteScope: 'flow_reschedule',
+      );
       await repo.track(
         event: 'flow_rescheduled',
         properties: {'flow_id': flowId, 'v': kAppEventsSchemaVersion},

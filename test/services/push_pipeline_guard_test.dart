@@ -62,6 +62,35 @@ void main() {
       expect(mainSource, contains("if (kind == 'follow')"));
       expect(mainSource, contains("_router.go('/inbox')"));
     });
+
+    test('notification taps remain explicit navigation commands', () async {
+      final mainSource = await File('lib/main.dart').readAsString();
+      final pushNavigationSource = _sourceBetween(
+        mainSource,
+        'Future<bool> _handlePushNavigation(Map<String, dynamic> data) async {',
+        'void _openSharedFlow(String shareId) {',
+      );
+
+      expect(pushNavigationSource, contains("kind == 'maat_guidance'"));
+      expect(
+        pushNavigationSource,
+        contains("deliveryKey.startsWith('maat_guidance:')"),
+      );
+      expect(pushNavigationSource, contains("'/maat-guidance/"));
+      expect(pushNavigationSource, contains("kind == 'decan_reflection'"));
+      expect(pushNavigationSource, contains("'/reflections/"));
+      expect(pushNavigationSource, contains("kind == 'calendar_event'"));
+      expect(
+        pushNavigationSource,
+        contains("kind == 'scheduled_notification'"),
+      );
+      expect(pushNavigationSource, contains("kind == 'reminder_10min'"));
+      expect(
+        pushNavigationSource,
+        contains('await _openCalendarEventFromPush(clientEventId)'),
+      );
+      expect(pushNavigationSource, contains("_router.go('/')"));
+    });
   });
 }
 

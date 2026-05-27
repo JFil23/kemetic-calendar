@@ -1210,20 +1210,6 @@ class AppRestorationService {
       return remoteWindowCandidate;
     }
 
-    final currentRoute = currentWindowCandidate.snapshot.routeLocation?.trim();
-    final currentIsRootOrEmpty =
-        currentRoute == null || currentRoute.isEmpty || currentRoute == '/';
-    final latestRoute = latestUserCandidate?.snapshot.routeLocation?.trim();
-    final latestHasMeaningfulRoute =
-        latestRoute != null && latestRoute.isNotEmpty && latestRoute != '/';
-    if (currentIsRootOrEmpty &&
-        latestUserCandidate != null &&
-        latestHasMeaningfulRoute &&
-        latestUserCandidate.snapshot.updatedAtMs >
-            currentWindowCandidate.snapshot.updatedAtMs) {
-      return latestUserCandidate;
-    }
-
     final latestHasOverlay =
         latestUserCandidate?.snapshot.overlayStack.isNotEmpty == true;
     if (latestUserCandidate != null &&

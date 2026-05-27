@@ -26,18 +26,21 @@ void main() {
     expect(window.closesAtLocal.hour, 23);
   });
 
-  test('enrollment is blocked outside the active new moon window', () {
+  test('future new moon window rows are selectable before they open', () {
     final window = moonReturnNextEnrollmentWindow(
+      TrackSkyTimeZone.pacific,
+      now: DateTime.utc(2026, 5, 23, 18),
+    );
+    final selected = moonReturnEnrollmentWindowForStartDate(
+      window.opensAtLocal,
       TrackSkyTimeZone.pacific,
       now: DateTime.utc(2026, 5, 23, 18),
     );
 
     expect(window.newMoonDateIso, '2026-06-14');
+    expect(selected?.newMoonDateIso, window.newMoonDateIso);
     expect(
-      moonReturnEnrollmentIsOpen(
-        window,
-        now: DateTime.utc(2026, 5, 23, 18),
-      ),
+      moonReturnEnrollmentIsOpen(window, now: DateTime.utc(2026, 5, 23, 18)),
       isFalse,
     );
   });
@@ -71,40 +74,45 @@ void main() {
     );
   });
 
-  test('blue moon is a bonus only for users enrolled before first full moon', () {
-    final aprilWindow = moonReturnEnrollmentWindowForStartDate(
-      DateTime(2026, 4, 15),
-      TrackSkyTimeZone.eastern,
-      now: DateTime.utc(2026, 4, 1, 12),
-    )!;
-    final aprilOccurrences = moonReturnOccurrencesForWindow(
-      window: aprilWindow,
-      horizonMonths: 3,
-    );
-    expect(
-      aprilOccurrences.any(
-        (occurrence) =>
-            occurrence.phaseDateIso == '2026-05-31' &&
-            occurrence.isBonusBlueMoon &&
-            occurrence.variant == MoonReturnCopyVariant.blueMoonFull,
-      ),
-      isTrue,
-    );
+  test(
+    'blue moon is a bonus only for users enrolled before first full moon',
+    () {
+      final aprilWindow = moonReturnEnrollmentWindowForStartDate(
+        DateTime(2026, 4, 15),
+        TrackSkyTimeZone.eastern,
+        now: DateTime.utc(2026, 4, 1, 12),
+      )!;
+      final aprilOccurrences = moonReturnOccurrencesForWindow(
+        window: aprilWindow,
+        horizonMonths: 3,
+      );
+      expect(
+        aprilOccurrences.any(
+          (occurrence) =>
+              occurrence.phaseDateIso == '2026-05-31' &&
+              occurrence.isBonusBlueMoon &&
+              occurrence.variant == MoonReturnCopyVariant.blueMoonFull,
+        ),
+        isTrue,
+      );
 
-    final mayWindow = moonReturnEnrollmentWindowForStartDate(
-      DateTime(2026, 5, 14),
-      TrackSkyTimeZone.eastern,
-      now: DateTime.utc(2026, 5, 1, 12),
-    )!;
-    final mayOccurrences = moonReturnOccurrencesForWindow(
-      window: mayWindow,
-      horizonMonths: 2,
-    );
-    expect(
-      mayOccurrences.any((occurrence) => occurrence.phaseDateIso == '2026-05-31'),
-      isFalse,
-    );
-  });
+      final mayWindow = moonReturnEnrollmentWindowForStartDate(
+        DateTime(2026, 5, 14),
+        TrackSkyTimeZone.eastern,
+        now: DateTime.utc(2026, 5, 1, 12),
+      )!;
+      final mayOccurrences = moonReturnOccurrencesForWindow(
+        window: mayWindow,
+        horizonMonths: 2,
+      );
+      expect(
+        mayOccurrences.any(
+          (occurrence) => occurrence.phaseDateIso == '2026-05-31',
+        ),
+        isFalse,
+      );
+    },
+  );
 
   test('payloads are JSON-safe and omit observed_partly', () {
     final window = moonReturnEnrollmentWindowForStartDate(
@@ -142,9 +150,11 @@ void main() {
 
     expect(detailSource, contains('_pickMoonReturnWindowDate'));
     expect(detailSource, contains('designated new-moon enrollment windows'));
-    expect(detailSource, contains('Locked Until New Moon'));
+    expect(detailSource, contains('Add Flow'));
     expect(pageSource, contains('_MaatFlowTemplateKind.moonReturn'));
-    expect(pageSource, contains('moonReturnEnrollmentIsOpen'));
+    expect(pageSource, contains('moonReturnNextEnrollmentWindow'));
+    expect(pageSource, contains('moonReturnEnrollmentWindowForStartDate'));
+    expect(pageSource, isNot(contains('moonReturnEnrollmentIsOpen')));
     expect(pageSource, contains('moonReturnClientEventId'));
     expect(pageSource, isNot(contains('kMoonReturnDays')));
   });

@@ -101,7 +101,11 @@ class _KemeticNodeReaderPageState extends State<KemeticNodeReaderPage> {
 
   void _handleBackNavigation() {
     if (_popNode()) return;
-    popOrGo(context, '/nodes');
+    final location = Uri(
+      path: '/nodes',
+      queryParameters: {'focus': _node.id},
+    ).toString();
+    popOrGo(context, location);
   }
 
   Future<void> _openSearch() async {
@@ -243,32 +247,13 @@ class _KemeticNodeReaderPageState extends State<KemeticNodeReaderPage> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        ShaderMask(
-          shaderCallback: (Rect bounds) =>
-              KemeticGold.gloss.createShader(bounds),
-          blendMode: BlendMode.srcIn,
-          child: Text(
-            _node.glyph,
-            style: const TextStyle(
-              fontSize: 40,
-              color: Colors.white,
-              fontFamily: 'GentiumPlus',
-              fontFamilyFallback: ['NotoSans', 'Roboto', 'Arial', 'sans-serif'],
-              letterSpacing: 1.2,
-              shadows: [
-                Shadow(
-                  color: Colors.black54,
-                  blurRadius: 3,
-                  offset: Offset(0, 1),
-                ),
-                Shadow(
-                  color: Colors.white12,
-                  blurRadius: 8,
-                  offset: Offset(0, 3),
-                ),
-              ],
-            ),
-          ),
+        NodeGlyphMark(
+          glyph: _node.glyph,
+          width: double.infinity,
+          height: 50,
+          fontSize: 42,
+          alignment: Alignment.centerLeft,
+          shadows: true,
         ),
         const SizedBox(height: 6),
         KemeticGold.text(
@@ -369,7 +354,7 @@ class _KemeticNodeReaderPageState extends State<KemeticNodeReaderPage> {
     List<KemeticNodeLink> linkMap,
     Set<String> used,
   ) {
-    final spans = _linkifyParagraph(paragraph, linkMap, used);
+    final spans = _linkifyParagraph(paragraph, linkMap, used, _bodyStyle);
     return RichText(
       text: TextSpan(style: _bodyStyle, children: spans),
       textHeightBehavior: const TextHeightBehavior(
@@ -472,7 +457,12 @@ class _KemeticNodeReaderPageState extends State<KemeticNodeReaderPage> {
           : RichText(
               text: TextSpan(
                 style: _tableCellStyle,
-                children: _linkifyParagraph(text, linkMap, used),
+                children: _linkifyParagraph(
+                  text,
+                  linkMap,
+                  used,
+                  _tableCellStyle,
+                ),
               ),
             ),
     );
@@ -507,7 +497,71 @@ class _KemeticNodeReaderPageState extends State<KemeticNodeReaderPage> {
     String paragraph,
     List<KemeticNodeLink> linkMap,
     Set<String> used,
+    TextStyle baseStyle,
   ) {
+    final emphasisPattern = RegExp(r'\*\*(.+?)\*\*|\*(.+?)\*', dotAll: true);
+    final spans = <InlineSpan>[];
+    var cursor = 0;
+
+    for (final match in emphasisPattern.allMatches(paragraph)) {
+      if (match.start > cursor) {
+        spans.addAll(
+          _linkifyPlainText(
+            paragraph.substring(cursor, match.start),
+            linkMap,
+            used,
+            baseStyle: baseStyle,
+          ),
+        );
+      }
+
+      final boldText = match.group(1);
+      final italicText = match.group(2);
+      final emphasisText = boldText ?? italicText ?? '';
+      if (emphasisText.isNotEmpty) {
+        final emphasisStyle = boldText != null
+            ? const TextStyle(fontWeight: FontWeight.w700)
+            : const TextStyle(fontStyle: FontStyle.italic);
+        final emphasisBaseStyle = boldText != null
+            ? baseStyle.copyWith(fontWeight: FontWeight.w700)
+            : baseStyle.copyWith(fontStyle: FontStyle.italic);
+        spans.addAll(
+          _linkifyPlainText(
+            emphasisText,
+            linkMap,
+            used,
+            textStyle: emphasisStyle,
+            baseStyle: emphasisBaseStyle,
+          ),
+        );
+      }
+      cursor = match.end;
+    }
+
+    if (cursor < paragraph.length) {
+      spans.addAll(
+        _linkifyPlainText(
+          paragraph.substring(cursor),
+          linkMap,
+          used,
+          baseStyle: baseStyle,
+        ),
+      );
+    }
+
+    if (spans.isEmpty) {
+      return [TextSpan(text: paragraph)];
+    }
+    return spans;
+  }
+
+  List<InlineSpan> _linkifyPlainText(
+    String paragraph,
+    List<KemeticNodeLink> linkMap,
+    Set<String> used, {
+    TextStyle? textStyle,
+    required TextStyle baseStyle,
+  }) {
     final matches = <_LinkMatch>[];
     for (final link in linkMap) {
       if (used.contains(link.phrase)) continue;
@@ -529,22 +583,27 @@ class _KemeticNodeReaderPageState extends State<KemeticNodeReaderPage> {
     for (final match in matches) {
       if (match.start < cursor) continue; // avoid overlaps
       if (match.start > cursor) {
-        spans.add(TextSpan(text: paragraph.substring(cursor, match.start)));
+        spans.add(
+          TextSpan(
+            text: paragraph.substring(cursor, match.start),
+            style: textStyle,
+          ),
+        );
       }
-      spans.add(_buildLinkSpan(match.link));
+      spans.add(_buildLinkSpan(match.link, baseStyle));
       cursor = match.end;
     }
     if (cursor < paragraph.length) {
-      spans.add(TextSpan(text: paragraph.substring(cursor)));
+      spans.add(TextSpan(text: paragraph.substring(cursor), style: textStyle));
     }
 
     if (spans.isEmpty) {
-      return [TextSpan(text: paragraph)];
+      return [TextSpan(text: paragraph, style: textStyle)];
     }
     return spans;
   }
 
-  InlineSpan _buildLinkSpan(KemeticNodeLink link) {
+  InlineSpan _buildLinkSpan(KemeticNodeLink link, TextStyle baseStyle) {
     return WidgetSpan(
       alignment: PlaceholderAlignment.baseline,
       baseline: TextBaseline.alphabetic,
@@ -559,7 +618,7 @@ class _KemeticNodeReaderPageState extends State<KemeticNodeReaderPage> {
             blendMode: BlendMode.srcIn,
             child: Text(
               link.phrase,
-              style: InsightLinkTextStyle.widgetStyle(_bodyStyle),
+              style: InsightLinkTextStyle.widgetStyle(baseStyle),
             ),
           ),
         ),

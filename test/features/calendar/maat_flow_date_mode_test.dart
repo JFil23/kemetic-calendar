@@ -3,6 +3,38 @@ import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
+  test('Ma_at flow hub and list use the readable Ma_at Flows label', () {
+    final modelsSource = File(
+      'lib/features/calendar/calendar_flow_studio_models.dart',
+    ).readAsStringSync();
+    final hubSource = File(
+      'lib/features/calendar/calendar_flow_pages.dart',
+    ).readAsStringSync();
+    final calendarSource = File(
+      'lib/features/calendar/calendar_page.dart',
+    ).readAsStringSync();
+
+    expect(modelsSource, contains('const String _kMaatFlowsDisplayTitle'));
+    expect(modelsSource, contains('"Ma\'at Flows"'));
+    expect(hubSource, contains('title: _kMaatFlowsDisplayTitle'));
+    expect(calendarSource, contains('title: _kMaatFlowsDisplayTitle'));
+  });
+
+  test('Ma_at flow added state refreshes from flow filing data', () {
+    final source = File(
+      'lib/features/calendar/calendar_page.dart',
+    ).readAsStringSync();
+    final listSource = File(
+      'lib/features/calendar/calendar_maat_flows.dart',
+    ).readAsStringSync();
+
+    expect(source, contains('_flowMatchesActiveMaatTemplate'));
+    expect(source, contains("source: 'open_maat_flows'"));
+    expect(source, contains('flowsRepo.refreshMyFiledFlows()'));
+    expect(source, contains('isFlowScheduleOpenLocally'));
+    expect(listSource, contains('class _MaatFlowsListPageWithSnapshot'));
+  });
+
   test('Ma_at flow detail pages default to Kemetic date mode', () {
     final source = File(
       'lib/features/calendar/calendar_maat_flows.dart',

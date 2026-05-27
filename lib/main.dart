@@ -228,9 +228,10 @@ Future<void> main() async {
     await AppWindowService.instance.ensureInitialized();
     await AppRestorationService.instance.initialize();
     _bootRestoredLocation = await _readBootRestoredLocation();
+    final initialLocation = _resolveInitialLocation();
     RestorationCoordinator.instance.beginLaunchRestore(
       reason: RestorationRestoreReason.coldLaunch,
-      targetLocation: _bootRestoredLocation ?? '/',
+      targetLocation: initialLocation,
     );
 
     // 🚨 Initialize notifications/push without blocking the first frame.
@@ -578,49 +579,11 @@ String _resolveInitialLocation() {
 }
 
 Future<String?> _readBootRestoredLocation() async {
-  final hasSession = Supabase.instance.client.auth.currentSession != null;
-  final result = await AppRestorationService.instance.readBestSnapshot(
-    includeRemote: hasSession,
-  );
-  if (result.status != AppRestorationReadStatus.restored &&
-      result.status != AppRestorationReadStatus.tentative) {
-    return null;
-  }
-  final overlayParentRoute = CalendarPage.restorableOverlayParentRouteFromStack(
-    result.snapshot?.overlayStack ?? const <Map<String, dynamic>>[],
-  );
-  final location = overlayParentRoute ?? result.snapshot?.routeLocation?.trim();
-  if (location == null || location.isEmpty || location == '/') {
-    return null;
-  }
-  return _isContinuityRouteLocation(location) ? location : null;
-}
-
-bool _isContinuityRouteLocation(String location) {
-  final uri = Uri.tryParse(location);
-  if (uri == null || !uri.path.startsWith('/')) {
-    return false;
-  }
-  final path = uri.path;
-  return path == '/' ||
-      path == '/inbox' ||
-      path == '/settings' ||
-      path == '/profile-search' ||
-      path == '/journal' ||
-      path == '/nodes' ||
-      path == '/reflections' ||
-      path.startsWith('/inbox/conversation/') ||
-      path.startsWith('/event-invite/') ||
-      path.startsWith('/shared-flow/') ||
-      path.startsWith('/profile/') ||
-      path.startsWith('/insight-post/') ||
-      path.startsWith('/flow-post/') ||
-      path.startsWith('/journal/entry/') ||
-      path.startsWith('/maat-guidance/') ||
-      path.startsWith('/nodes/') ||
-      path.startsWith('/reflections/') ||
-      path.startsWith('/share/') ||
-      path.startsWith('/rhythm/');
+  // Durable restoration owns calendar/page state, not navigation intent.
+  // Explicit app links still route through PlatformDispatcher.defaultRouteName
+  // and _redirectExternalAppLink; normal pages should not reopen just because
+  // they were the last saved route before an app reload.
+  return null;
 }
 
 String? _redirectExternalAppLink(Uri uri) {
@@ -649,7 +612,9 @@ String? _redirectRetiredRhythmRoute(Uri uri) {
 final _router = GoRouter(
   navigatorKey: _rootNavigatorKey,
   initialLocation: _resolveInitialLocation(),
-  restorationScopeId: AppWindowService.instance.restorationScopeId,
+  // Route history is intentionally not restored by go_router. The app owns
+  // durable state through AppRestorationService; restoring Navigator history
+  // here reopens whatever secondary page was active before process restart.
   observers: <NavigatorObserver>[
     routeObserver,
     _floatingMenuRouteObserver,
@@ -859,7 +824,10 @@ final _router = GoRouter(
       path: '/nodes',
       builder: (context, state) => SessionTrackedRoute(
         location: state.uri.toString(),
-        child: const KemeticNodeListPage(),
+        enabled: false,
+        child: KemeticNodeListPage(
+          initialNodeId: state.uri.queryParameters['focus'],
+        ),
       ),
     ),
     GoRoute(
@@ -868,6 +836,7 @@ final _router = GoRouter(
         final nodeId = Uri.decodeComponent(state.pathParameters['nodeId']!);
         return SessionTrackedRoute(
           location: state.uri.toString(),
+          enabled: false,
           child: NodeReaderRoutePage(nodeId: nodeId),
         );
       },
@@ -1147,7 +1116,9 @@ class _MyAppState extends State<MyApp> {
   Widget _buildAuthedApp() {
     return MaterialApp.router(
       debugShowCheckedModeBanner: false,
-      restorationScopeId: AppWindowService.instance.restorationScopeId,
+      // Keep Flutter's implicit route restoration off. AppRestorationService
+      // restores calendar/page state without turning saved pages into launch
+      // commands.
       theme: AppTheme.dark,
       routerConfig: _router,
       builder: (context, child) {
@@ -1824,6 +1795,12 @@ class _PushIntentBridgeState extends State<PushIntentBridge> {
       if (_trimmedValue(params['reflection_id'] ?? params['reflectionId']) !=
           null)
         'reflection_id': params['reflection_id'] ?? params['reflectionId'],
+      if (_trimmedValue(params['delivery_id'] ?? params['deliveryId']) != null)
+        'delivery_id': params['delivery_id'] ?? params['deliveryId'],
+      if (_trimmedValue(params['cta_type'] ?? params['ctaType']) != null)
+        'cta_type': params['cta_type'] ?? params['ctaType'],
+      if (_trimmedValue(params['cta_ref'] ?? params['ctaRef']) != null)
+        'cta_ref': params['cta_ref'] ?? params['ctaRef'],
       if (_trimmedValue(params['sender_id'] ?? params['senderId']) != null)
         'sender_id': params['sender_id'] ?? params['senderId'],
       if (_trimmedValue(params['share_id'] ?? params['shareId']) != null)
@@ -1968,13 +1945,39 @@ class _PushIntentBridgeState extends State<PushIntentBridge> {
   }
 
   Future<bool> _handlePushNavigation(Map<String, dynamic> data) async {
-    final kind = _trimmedValue(data['kind'] ?? data['type']);
+    final deliveryKeyForKind = _trimmedValue(
+      data['delivery_key'] ?? data['deliveryKey'],
+    );
+    final kind =
+        _trimmedValue(data['kind'] ?? data['type']) ??
+        (deliveryKeyForKind?.startsWith('maat_guidance:') == true
+            ? 'maat_guidance'
+            : null);
     if (kind == null) return false;
     final shareKind = _trimmedValue(data['share_kind'] ?? data['shareKind']);
 
     final reflectionId = _trimmedValue(
       data['reflectionId'] ?? data['reflection_id'],
     );
+    if (kind == 'maat_guidance') {
+      final deliveryId = _trimmedValue(
+        data['delivery_id'] ??
+            data['deliveryId'] ??
+            data['maat_guidance_id'] ??
+            data['maatGuidanceId'],
+      );
+      final deliveryKey = _trimmedValue(
+        data['delivery_key'] ?? data['deliveryKey'],
+      );
+      final keyId =
+          deliveryKey != null && deliveryKey.startsWith('maat_guidance:')
+          ? deliveryKey.substring('maat_guidance:'.length)
+          : null;
+      final id = deliveryId ?? keyId;
+      if (id == null) return false;
+      _router.go('/maat-guidance/${Uri.encodeComponent(id)}');
+      return true;
+    }
     if (kind == 'decan_reflection' && reflectionId != null) {
       final uid = supabase.auth.currentUser?.id;
       if (uid == null) return false;
@@ -3419,36 +3422,15 @@ class _AuthGateState extends State<AuthGate> with WidgetsBindingObserver {
         _deferSessionResumeForPushNavigation) {
       return;
     }
-    final overlayParentRoute =
-        CalendarPage.restorableOverlayParentRouteFromStack(
-          await AppRestorationService.instance.readOverlayStack(),
-        );
-    final savedLocation =
-        overlayParentRoute ??
-        await AppRestorationService.instance.readRouteLocation(
-          includeRemote: true,
-        ) ??
-        await SessionResumeService.readRouteLocation();
-    if (!mounted ||
-        savedLocation == null ||
-        _deferSessionResumeForPushNavigation ||
-        savedLocation.isEmpty ||
-        savedLocation == '/' ||
-        !_isContinuityRouteLocation(savedLocation)) {
-      return;
-    }
-    RestorationCoordinator.instance.beginLaunchRestore(
-      reason: RestorationRestoreReason.authResume,
-      targetLocation: savedLocation,
-    );
-    _router.go(savedLocation);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final navContext = _rootNavigatorKey.currentContext;
       if (navContext == null) return;
+      final currentLocation = _router.routerDelegate.currentConfiguration.uri
+          .toString();
       unawaited(
         CalendarPage.restoreDetachedCalendarOverlayFromAnyContext(
           navContext,
-          currentLocation: savedLocation,
+          currentLocation: currentLocation,
         ),
       );
     });

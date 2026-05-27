@@ -132,15 +132,3 @@ List<DaysOutsideYearEnrollmentWindow> daysOutsideYearUpcomingEnrollmentWindows(
   }
   return windows;
 }
-
-String daysOutsideYearEnrollmentClosedMessage(
-  DaysOutsideYearEnrollmentWindow next,
-) {
-  return 'The Days Outside the Year begins only at the close of the Kemetic year. The next enrollment window opens on ${_isoDate(next.opensAtLocal)}, two days before the year closes.';
-}
-
-String _isoDate(DateTime date) {
-  return '${date.year.toString().padLeft(4, '0')}-'
-      '${date.month.toString().padLeft(2, '0')}-'
-      '${date.day.toString().padLeft(2, '0')}';
-}

@@ -239,7 +239,10 @@ String? aiFlowSanitizeSourceTextForInvoke(
       .split(RegExp(r'\n\s*\n+'))
       .map((block) => block.trim())
       .where((block) => block.isNotEmpty)
-      .where((block) => !_looksLikeFlowTelemetryBlock(block))
+      .where(
+        (block) =>
+            !_looksLikeFlowTelemetryBlock(block) || _hasFlowPromptSignal(block),
+      )
       .toList();
 
   final cleaned = blocks.isEmpty ? normalized : blocks.join('\n\n');
@@ -378,6 +381,13 @@ bool _looksLikeFlowTelemetryBlock(String block) {
   ).allMatches(compact).length;
   return telemetryHits >= 2 ||
       (compact.startsWith('{') && compact.endsWith('}') && jsonKeys >= 4);
+}
+
+bool _hasFlowPromptSignal(String block) {
+  return RegExp(
+    r'\b(?:create|build|make|turn|transform)\b[\s\S]{0,80}\b\d{1,3}\s*[- ]?\s*day\b|\bday\s+\d{1,3}\b|\bwatch\s*:\s*https?://|\bprompt\s*:',
+    caseSensitive: false,
+  ).hasMatch(block);
 }
 
 int _scoreFlowSourceBlock(String block, int index, int total) {

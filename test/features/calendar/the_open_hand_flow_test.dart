@@ -103,7 +103,7 @@ void main() {
     );
   });
 
-  test('selected start date must be inside its 24h decan window', () {
+  test('enrollment helper still reports the 24h decan window', () {
     final openingDate = KemeticMath.toGregorian(1, 3, 11);
     final window = openHandEnrollmentWindowForStartDate(
       openingDate,
@@ -149,10 +149,14 @@ void main() {
     ).readAsStringSync();
 
     expect(calendarPage, contains('_MaatFlowTemplateKind.theOpenHand'));
-    expect(calendarPage, contains('openHandEnrollmentIsOpen'));
+    expect(calendarPage, contains('openHandNextEnrollmentWindow'));
+    expect(calendarPage, contains('openHandEnrollmentWindowForStartDate'));
+    expect(calendarPage, isNot(contains('openHandEnrollmentIsOpen')));
     expect(calendarPage, contains('openHandClientEventId'));
     expect(detailPage, contains('_pickOpenHandWindowDate'));
     expect(detailPage, contains('designated decan-opening enrollment windows'));
+    expect(detailPage, contains('Add Flow'));
+    expect(detailPage, isNot(contains("'KYear ")));
     expect(dayView, contains('TheOpenHandLocalStore'));
   });
 }

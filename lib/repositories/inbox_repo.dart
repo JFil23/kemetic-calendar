@@ -738,8 +738,17 @@ class InboxRepo {
       final repo = UserEventsRepo(_client);
       final start = startDate ?? DateTime.now();
 
-      // Clear existing notes for this flow
-      await repo.deleteByFlowId(flowId, fromDate: start.toUtc());
+      // Clear existing notes for this flow as an internal replacement. Do not
+      // create client-suppressing tombstones, because the import immediately
+      // writes replacement rows with the same deterministic client IDs.
+      await repo.deleteByFlowId(
+        flowId,
+        fromDate: start.toUtc(),
+        semantic: 'flow_import_replace',
+        suppressesClient: false,
+        sourceFeature: 'InboxRepo._scheduleImportedFlow',
+        deleteScope: 'flow_import_replace',
+      );
 
       if (kDebugMode) {
         _log('[InboxRepo] _scheduleImportedFlow for flowId=$flowId');

@@ -101,18 +101,26 @@ void main() {
     expect(detail, contains('6. Reset intention.'));
   });
 
-  test('source wires template, gated picker, and rolling ids', () {
+  test('source wires template, window-only picker, and rolling ids', () {
     final calendarPage = File(
       'lib/features/calendar/calendar_page.dart',
     ).readAsStringSync();
     final detailPage = File(
       'lib/features/calendar/calendar_maat_flows.dart',
     ).readAsStringSync();
+    final dayView = File(
+      'lib/features/calendar/day_view.dart',
+    ).readAsStringSync();
 
     expect(calendarPage, contains('_MaatFlowTemplateKind.decanWatch'));
-    expect(calendarPage, contains('decanWatchEnrollmentIsOpen'));
+    expect(calendarPage, contains('decanWatchNextEnrollmentWindow'));
+    expect(calendarPage, contains('decanWatchEnrollmentWindowForStartDate'));
+    expect(calendarPage, isNot(contains('decanWatchEnrollmentIsOpen')));
     expect(calendarPage, contains('decanWatchClientEventId'));
     expect(detailPage, contains('_pickDecanWatchWindowDate'));
     expect(detailPage, contains('designated decan-opening enrollment windows'));
+    expect(detailPage, contains('Add Flow'));
+    expect(detailPage, isNot(contains("'KYear ")));
+    expect(dayView, isNot(contains('Kemetic Year')));
   });
 }

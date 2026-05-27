@@ -167,11 +167,14 @@ void main() {
         );
         expect(bootRetry, contains('currentLocation: currentLocation'));
 
-        expect(authResume, contains('restorableOverlayParentRouteFromStack'));
-        expect(authResume, contains('readOverlayStack()'));
-        expect(authResume, contains('readRouteLocation('));
-        expect(authResume, contains('includeRemote: true'));
-        expect(authResume, contains('_router.go(savedLocation)'));
+        expect(
+          authResume,
+          isNot(contains('restorableOverlayParentRouteFromStack')),
+        );
+        expect(authResume, isNot(contains('readOverlayStack()')));
+        expect(authResume, isNot(contains('readRouteLocation(')));
+        expect(authResume, isNot(contains('includeRemote: true')));
+        expect(authResume, isNot(contains('_router.go(savedLocation)')));
         expect(
           authResume,
           isNot(contains('restorableRouteLocationFromSnapshot')),
@@ -185,7 +188,8 @@ void main() {
           authResume,
           contains('restoreDetachedCalendarOverlayFromAnyContext'),
         );
-        expect(authResume, contains('currentLocation: savedLocation'));
+        expect(authResume, contains('currentConfiguration.uri'));
+        expect(authResume, contains('currentLocation: currentLocation'));
       },
     );
 
@@ -272,12 +276,17 @@ void main() {
       final bootRestore = _sourceBetween(
         main,
         'Future<String?> _readBootRestoredLocation() async',
-        'bool _isContinuityRouteLocation(String location)',
+        'String? _redirectExternalAppLink(Uri uri)',
       );
       final routes = _sourceBetween(
         main,
         'final _router = GoRouter(',
         '/* ───────────────────────── App Widgets',
+      );
+      final nodeRoutes = _sourceBetween(
+        routes,
+        "path: '/nodes',",
+        "path: '/reflections',",
       );
       final parentResolver = _sourceBetween(
         calendar,
@@ -285,12 +294,19 @@ void main() {
         'static Future<void> _saveDetachedCalendarOverlayState',
       );
       final authRoot = _sourceBetween(main, '// Authenticated', '  }\n}');
+      final authedApp = _sourceBetween(
+        main,
+        'Widget _buildAuthedApp()',
+        '@override\n  Widget build',
+      );
 
-      expect(bootRestore, contains('restorableOverlayParentRouteFromStack'));
-      expect(bootRestore, contains('result.snapshot?.routeLocation?.trim()'));
+      expect(bootRestore, contains('navigation intent'));
+      expect(bootRestore, contains('return null;'));
+      expect(bootRestore, isNot(contains('readBestSnapshot')));
+      expect(bootRestore, isNot(contains('routeLocation')));
       expect(
-        bootRestore.indexOf('restorableOverlayParentRouteFromStack'),
-        lessThan(bootRestore.indexOf('result.snapshot?.routeLocation?.trim()')),
+        bootRestore,
+        isNot(contains('restorableOverlayParentRouteFromStack')),
       );
       expect(
         bootRestore,
@@ -299,9 +315,16 @@ void main() {
       expect(bootRestore, isNot(contains('dayView')));
 
       expect(parentResolver, contains('_isRootRouteLocation(parentRoute)'));
+      expect(parentResolver, contains('_isLibraryRouteLocation(parentRoute)'));
       expect(parentResolver, contains('return null;'));
       expect(parentResolver, contains('return parentRoute;'));
 
+      expect(routes, isNot(contains('restorationScopeId:')));
+      expect(authedApp, isNot(contains('restorationScopeId:')));
+      expect(
+        'enabled: false'.allMatches(nodeRoutes),
+        hasLength(greaterThanOrEqualTo(2)),
+      );
       expect(authRoot, contains("SessionTrackedRoute(location: '/'"));
       expect(routes, isNot(contains("path: '/calendar'")));
       expect(routes, isNot(contains("path: 'day/:kYear/:kMonth/:kDay'")));
@@ -313,6 +336,70 @@ void main() {
       expect(calendar, isNot(contains('_CalendarMountedStateBuilder')));
       expect(calendar, isNot(contains('_buildRestoredFlowStudioRouteSheet')));
     });
+
+    test(
+      'secondary pages cannot become launch routes from persistence',
+      () async {
+        final main = await File('lib/main.dart').readAsString();
+        final bootRestore = _sourceBetween(
+          main,
+          'Future<String?> _readBootRestoredLocation() async',
+          'String? _redirectExternalAppLink(Uri uri)',
+        );
+        final authResume = _sourceBetween(
+          main,
+          'Future<void> _maybeResumeSessionRoute() async',
+          '// -- Log app_open once per cold start after auth is present',
+        );
+        final routes = _sourceBetween(
+          main,
+          'final _router = GoRouter(',
+          '/* ───────────────────────── App Widgets',
+        );
+        final appLinkRedirect = _sourceBetween(
+          main,
+          'String? _redirectExternalAppLink(Uri uri)',
+          'String? _redirectRetiredRhythmRoute(Uri uri)',
+        );
+        final appLinkHandler = _sourceBetween(
+          main,
+          'Future<void> _handleIncomingAppLink(Uri uri) async',
+          'bool _shouldSkipDuplicateLink(String signature)',
+        );
+
+        for (final route in const <String>[
+          "path: '/rhythm/today'",
+          "path: '/nodes'",
+          "path: '/settings'",
+          "path: '/profile/:userId'",
+        ]) {
+          expect(routes, contains(route));
+        }
+
+        expect(main, isNot(contains('bool _isContinuityRouteLocation')));
+        expect(bootRestore, contains('return null;'));
+        expect(bootRestore, isNot(contains('readBestSnapshot')));
+        expect(bootRestore, isNot(contains('readRouteLocation')));
+        expect(bootRestore, isNot(contains('SessionResumeService')));
+        expect(authResume, isNot(contains('readBestSnapshot')));
+        expect(authResume, isNot(contains('readRouteLocation')));
+        expect(
+          authResume,
+          isNot(contains('SessionResumeService.readRouteLocation')),
+        );
+        expect(authResume, isNot(contains('_router.go(savedLocation)')));
+        expect(routes, isNot(contains('restorationScopeId:')));
+
+        expect(appLinkRedirect, contains('AppLinkIntent.parse(uri)'));
+        expect(appLinkRedirect, contains('PlannerAppLinkIntent'));
+        expect(appLinkRedirect, contains('ShareAppLinkIntent'));
+        expect(appLinkHandler, contains('_routeToSharedFlow(intent)'));
+        expect(
+          appLinkHandler,
+          contains('_routeToPlanner(intent.plannerIntent)'),
+        );
+      },
+    );
 
     test('Ma’at template restoration seeds initial routes', () async {
       final calendar = await File(
@@ -505,7 +592,7 @@ void main() {
 
         expect(main, contains('beginLaunchRestore'));
         expect(main, contains('RestorationRestoreReason.coldLaunch'));
-        expect(main, contains('RestorationRestoreReason.authResume'));
+        expect(main, isNot(contains('RestorationRestoreReason.authResume')));
         expect(
           launchDismiss,
           contains('waitForInitialCalendarRestorationToSettle'),

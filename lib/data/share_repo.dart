@@ -2122,7 +2122,13 @@ class ShareRepo {
       rootFlowId: _parseIntValue(sourceFlow['root_flow_id']) ?? sourceFlowId,
     );
 
-    await repo.deleteByFlowId(targetFlowId);
+    await repo.deleteByFlowId(
+      targetFlowId,
+      semantic: 'flow_import_replace',
+      suppressesClient: false,
+      sourceFeature: 'ShareRepo._importSharedFlow',
+      deleteScope: 'flow_import_replace',
+    );
 
     // Reminder-backed imports should behave like reminders, not copied notes.
     // The imported flow metadata is enough for the calendar reminder engine to

@@ -29,6 +29,32 @@ Daily anchors:
       expect(sanitized, contains('Daily anchors:'));
     });
 
+    test('keeps prompt text when telemetry and flow content share a block', () {
+      const raw = '''
+[
+  {
+    "event_message": "shutdown",
+    "event_type": "Shutdown",
+    "execution_id": "abc",
+    "function_id": "def",
+    "timestamp": 1779738352369000
+  }
+]
+Create a 90-day learning flow called Daily Math Visuals.
+Schedule: 12 noon every day.
+
+Day 1 - Area of Square
+Watch: https://www.youtube.com/shorts/Y9EynW7GVn8
+Prompt: What does area mean?
+''';
+
+      final sanitized = aiFlowSanitizeSourceTextForInvoke(raw);
+
+      expect(sanitized, isNotNull);
+      expect(sanitized, contains('Create a 90-day learning flow'));
+      expect(sanitized, contains('Day 1 - Area of Square'));
+    });
+
     test(
       'condenses very large source text without dropping key boundary blocks',
       () {
@@ -55,6 +81,31 @@ Daily anchors:
         expect(sanitized, contains('Phase 1'));
       },
     );
+
+    test('keeps a 90-day linked video prompt intact under invoke limit', () {
+      final days = List<String>.generate(90, (i) {
+        final day = i + 1;
+        final id = day.toString().padLeft(11, 'A');
+        return 'Day $day - Visual Math Topic $day\n'
+            'Watch: https://www.youtube.com/shorts/$id\n'
+            'Prompt: What did this video help me see?';
+      });
+      final raw = [
+        'Create a 90-day learning flow called Daily Math Visuals.',
+        'Schedule: one task per day for 90 days. Time: 12 noon every day.',
+        ...days,
+      ].join('\n\n');
+
+      final sanitized = aiFlowSanitizeSourceTextForInvoke(raw);
+
+      expect(sanitized, isNotNull);
+      expect(sanitized, contains('Day 1 - Visual Math Topic 1'));
+      expect(sanitized, contains('Day 90 - Visual Math Topic 90'));
+      expect(
+        RegExp(r'\bDay \d+ - Visual Math Topic').allMatches(sanitized!).length,
+        90,
+      );
+    });
   });
 
   group('aiFlowBestErrorMessage', () {

@@ -55,7 +55,7 @@ void main() {
     expect(feast.startLocal.hour, 9);
   });
 
-  test('enrollment is a 48h Wep Ronpet window and blocks outside it', () {
+  test('Wep Ronpet picker rows are valid before their 48h window opens', () {
     final window = wagNextEnrollmentWindow(
       TrackSkyTimeZone.pacific,
       now: DateTime.utc(2026, 5, 23, 18),
@@ -142,9 +142,12 @@ void main() {
         detailSource,
         contains('designated Wep Ronpet enrollment windows'),
       );
-      expect(detailSource, contains('Locked Until Wep Ronpet'));
+      expect(detailSource, contains('Add Flow'));
+      expect(detailSource, isNot(contains('Kemetic Year')));
       expect(pageSource, contains('_MaatFlowTemplateKind.theWag'));
-      expect(pageSource, contains('wagEnrollmentIsOpen'));
+      expect(pageSource, contains('wagNextEnrollmentWindow'));
+      expect(pageSource, contains('wagEnrollmentWindowForStartDate'));
+      expect(pageSource, isNot(contains('wagEnrollmentIsOpen')));
       expect(schedulerSource, contains('wagEventGregorian'));
       expect(pageSource, contains('wag_kyear='));
       expect(

@@ -606,7 +606,7 @@ void main() {
   );
 
   test(
-    'prefers a newer backend latest snapshot over a stale local root snapshot',
+    'does not prefer a route-only backend latest snapshot over current root',
     () async {
       final staleLocal = {
         'schemaVersion': AppRestorationService.schemaVersion,
@@ -630,14 +630,14 @@ void main() {
         includeRemote: true,
       );
       expect(result.status, AppRestorationReadStatus.restored);
-      expect(result.source, 'remote_latest');
-      expect(result.snapshot?.routeLocation, '/profile/user-1');
+      expect(result.source, isNot('remote_latest'));
+      expect(result.snapshot?.routeLocation, '/');
 
       final raw = prefs.getString(_snapshotKey());
       expect(raw, isNotNull);
       final adopted = jsonDecode(raw!) as Map<String, dynamic>;
       expect(adopted['windowId'], 'window-1');
-      expect(adopted['routeLocation'], '/profile/user-1');
+      expect(adopted['routeLocation'], '/');
     },
   );
 

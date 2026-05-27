@@ -48,6 +48,26 @@ void main() {
       );
     });
 
+    test('detached overlay surfaces restore only on their parent route', () {
+      final coordinator = RestorationCoordinator.instance
+        ..beginLaunchRestore(
+          reason: RestorationRestoreReason.coldLaunch,
+          targetLocation: '/',
+        );
+      const plannerOverlay =
+          '${RestorationCoordinator.calendarOverlayStackSurface}'
+          '|calendar.flowStudio|/rhythm/today';
+
+      expect(coordinator.canRestoreSurface(plannerOverlay), isFalse);
+
+      coordinator.beginLaunchRestore(
+        reason: RestorationRestoreReason.coldLaunch,
+        targetLocation: '/rhythm/today',
+      );
+
+      expect(coordinator.canRestoreSurface(plannerOverlay), isTrue);
+    });
+
     test('explicit user navigation suppresses stale restore surfaces', () {
       final coordinator = RestorationCoordinator.instance
         ..beginLaunchRestore(

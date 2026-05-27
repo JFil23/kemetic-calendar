@@ -60,13 +60,3 @@ bool openHandStartDateIsValid(DateTime start, TrackSkyTimeZone timezone) {
   final k = KemeticMath.fromGregorian(local);
   return isDecanOpeningKemeticDay(k.kMonth, k.kDay);
 }
-
-String openHandEnrollmentClosedMessage(OpenHandEnrollmentWindow next) {
-  return 'The Open Hand begins at the opening of a new decan. The next window opens on ${_isoDate(next.opensAtLocal)}, when ${next.openingOccurrence.decanName} begins.';
-}
-
-String _isoDate(DateTime date) {
-  return '${date.year.toString().padLeft(4, '0')}-'
-      '${date.month.toString().padLeft(2, '0')}-'
-      '${date.day.toString().padLeft(2, '0')}';
-}

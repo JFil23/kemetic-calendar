@@ -110,6 +110,7 @@ class MaatGuidanceDelivery {
   factory MaatGuidanceDelivery.fromJson(Map<String, dynamic> json) {
     final payload = _jsonMap(json['payload']);
     final compiledPackage = _jsonMap(payload['compiled_output_package']);
+    final packageCta = _jsonMap(compiledPackage['cta']);
     return MaatGuidanceDelivery(
       id: (json['id'] as String?)?.trim() ?? '',
       kind: MaatGuidanceKind.fromDb(json['kind'] as String?),
@@ -125,8 +126,10 @@ class MaatGuidanceDelivery {
           _trimmed(json['body_text']) ??
           '',
       payload: payload,
-      ctaType: MaatGuidanceCtaType.fromDb(json['cta_type'] as String?),
-      ctaRef: _trimmed(json['cta_ref']),
+      ctaType: MaatGuidanceCtaType.fromDb(
+        _trimmed(json['cta_type']) ?? _trimmed(packageCta['type']),
+      ),
+      ctaRef: _trimmed(json['cta_ref']) ?? _trimmed(packageCta['ref']),
       triggerReason: _trimmed(json['trigger_reason']),
       createdAt: _dateTime(json['created_at']),
     );

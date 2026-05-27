@@ -54,4 +54,26 @@ void main() {
       'flowspec_v2',
     );
   });
+
+  test('fromJson prefers useful failure messages over terse error codes', () {
+    final response = AIFlowGenerationResponse.fromJson({
+      'success': false,
+      'error': 'parse',
+      'message': 'A segment failed to generate valid JSON.',
+    });
+
+    expect(response.errorMessage, 'A segment failed to generate valid JSON.');
+  });
+
+  test('fromJson maps bare parse error to a readable message', () {
+    final response = AIFlowGenerationResponse.fromJson({
+      'success': false,
+      'error': 'parse',
+    });
+
+    expect(
+      response.errorMessage,
+      'The generator returned an invalid response. Please try again.',
+    );
+  });
 }

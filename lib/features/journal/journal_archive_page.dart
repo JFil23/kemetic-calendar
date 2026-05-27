@@ -14,6 +14,7 @@ import '../../data/insight_link_repo.dart';
 import '../../data/insight_link_utils.dart';
 import '../../data/journal_repo.dart';
 import '../../widgets/insight_link_text.dart';
+import '../../widgets/keyboard_aware.dart';
 import '../calendar/calendar_page.dart' show KemeticMath;
 import '../calendar/kemetic_month_metadata.dart' show getMonthById;
 import '../nodes/kemetic_node_library.dart';
@@ -562,7 +563,10 @@ class _JournalArchivePageState extends State<JournalArchivePage> {
     final date = entry.gregDate;
     final header = _formatArchiveDate(date);
     final entryDoc = _entryToDocument(entry);
-    final contentBottomPadding = bottomPaddingAboveGlobalMenu(context, 16);
+    final keyboardVisible = keyboardInsetOf(context) > 0;
+    final contentBottomPadding = keyboardVisible
+        ? 16.0
+        : bottomPaddingAboveGlobalMenu(context, 16);
 
     return Column(
       children: [
@@ -591,7 +595,9 @@ class _JournalArchivePageState extends State<JournalArchivePage> {
         Expanded(
           child: Padding(
             padding: EdgeInsets.fromLTRB(16, 16, 16, contentBottomPadding),
-            child: _isEditing ? _buildEditView() : _buildReadView(entryDoc),
+            child: _isEditing
+                ? _buildEditView(keyboardVisible: keyboardVisible)
+                : _buildReadView(entryDoc),
           ),
         ),
       ],
@@ -688,7 +694,7 @@ class _JournalArchivePageState extends State<JournalArchivePage> {
     );
   }
 
-  Widget _buildEditView() {
+  Widget _buildEditView({required bool keyboardVisible}) {
     // Use current document paragraph as initial block
     ParagraphBlock initialBlock;
     if (_editingDocument != null) {
@@ -721,115 +727,135 @@ class _JournalArchivePageState extends State<JournalArchivePage> {
     final badges = _editingDocument != null
         ? JournalBadgeUtils.tokensFromDocument(_editingDocument!)
         : <EventBadgeToken>[];
-    const badgeHeight = 220.0;
 
-    return Column(
-      children: [
-        Expanded(
-          child: Column(
-            children: [
-              Expanded(
-                child: RichTextEditor(
-                  initialBlock: initialBlock,
-                  highlightedRanges: _entryLinkRanges(),
-                  insightLinks: _entryLinks,
-                  onInsightLinkTap: _handleEntryLinkTap,
-                  onChanged: (block) {
-                    final previousText = _entryPrevText;
-                    setState(() {
-                      final doc =
-                          _editingDocument ?? _entryToDocument(_selectedEntry!);
-                      final blocks = List<JournalBlock>.from(doc.blocks);
-                      final pIdx = blocks.indexWhere(
-                        (b) => b is ParagraphBlock,
-                      );
-                      if (pIdx >= 0) {
-                        blocks[pIdx] = block;
-                      } else {
-                        blocks.insert(0, block);
-                      }
-                      final nextDocument = JournalDocument(
-                        version: doc.version,
-                        blocks: blocks,
-                        meta: doc.meta,
-                      );
-                      final nextText = nextDocument.toPlainText();
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final badgeHeight = _editBadgeSectionHeight(
+          keyboardVisible: keyboardVisible,
+          hasBadges: badges.isNotEmpty,
+          maxEditHeight: constraints.maxHeight,
+        );
+        final sectionGap = keyboardVisible ? 8.0 : 12.0;
 
-                      _editingDocument = nextDocument;
-                      _editController.text = nextText;
-                      if (previousText != nextText) {
-                        _entryLinks = InsightLinkRangeUpdater.shiftRanges(
-                          previous: previousText,
-                          next: nextText,
-                          links: _entryLinks,
-                        );
-                        _entryPrevText = nextText;
-                      }
-                    });
-                  },
-                ),
-              ),
-            ],
-          ),
-        ),
-        AnimatedContainer(
-          duration: const Duration(milliseconds: 180),
-          curve: Curves.easeOut,
-          height: badgeHeight,
-          child: badgeHeight == 0
-              ? const SizedBox.shrink()
-              : Padding(
-                  padding: const EdgeInsets.only(top: 12),
-                  child: _buildBadgeSection(badges, maxHeight: 220),
-                ),
-        ),
-        const SizedBox(height: 12),
-        Row(
+        return Column(
           children: [
             Expanded(
-              child: ElevatedButton(
-                onPressed: () {
-                  final entry = _selectedEntry;
-                  if (entry == null) return;
-                  final originalDoc = _entryToDocument(entry);
-                  final originalText = originalDoc.toPlainText();
+              child: RichTextEditor(
+                initialBlock: initialBlock,
+                highlightedRanges: _entryLinkRanges(),
+                insightLinks: _entryLinks,
+                onInsightLinkTap: _handleEntryLinkTap,
+                onChanged: (block) {
+                  final previousText = _entryPrevText;
                   setState(() {
-                    _isEditing = false;
-                    _editingDocument = originalDoc;
-                    _editController.text = originalText;
-                    _entryPrevText = originalText;
+                    final doc =
+                        _editingDocument ?? _entryToDocument(_selectedEntry!);
+                    final blocks = List<JournalBlock>.from(doc.blocks);
+                    final pIdx = blocks.indexWhere((b) => b is ParagraphBlock);
+                    if (pIdx >= 0) {
+                      blocks[pIdx] = block;
+                    } else {
+                      blocks.insert(0, block);
+                    }
+                    final nextDocument = JournalDocument(
+                      version: doc.version,
+                      blocks: blocks,
+                      meta: doc.meta,
+                    );
+                    final nextText = nextDocument.toPlainText();
+
+                    _editingDocument = nextDocument;
+                    _editController.text = nextText;
+                    if (previousText != nextText) {
+                      _entryLinks = InsightLinkRangeUpdater.shiftRanges(
+                        previous: previousText,
+                        next: nextText,
+                        links: _entryLinks,
+                      );
+                      _entryPrevText = nextText;
+                    }
                   });
-                  _loadEntryLinks(entry);
                 },
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.grey[800],
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(vertical: 12),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                ),
-                child: const Text('Cancel'),
               ),
             ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: ElevatedButton(
-                onPressed: _saveEntry,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: KemeticGold.base,
-                  foregroundColor: Colors.black,
-                  padding: const EdgeInsets.symmetric(vertical: 12),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(8),
+            if (badgeHeight > 0) ...[
+              SizedBox(height: sectionGap),
+              AnimatedContainer(
+                duration: const Duration(milliseconds: 180),
+                curve: Curves.easeOut,
+                height: badgeHeight,
+                child: _buildBadgeSection(badges, maxHeight: badgeHeight),
+              ),
+            ],
+            SizedBox(height: sectionGap),
+            Row(
+              children: [
+                Expanded(
+                  child: ElevatedButton(
+                    onPressed: () {
+                      final entry = _selectedEntry;
+                      if (entry == null) return;
+                      final originalDoc = _entryToDocument(entry);
+                      final originalText = originalDoc.toPlainText();
+                      setState(() {
+                        _isEditing = false;
+                        _editingDocument = originalDoc;
+                        _editController.text = originalText;
+                        _entryPrevText = originalText;
+                      });
+                      _loadEntryLinks(entry);
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.grey[800],
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                    ),
+                    child: const Text('Cancel'),
                   ),
                 ),
-                child: const Text('Save'),
-              ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: ElevatedButton(
+                    onPressed: _saveEntry,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: KemeticGold.base,
+                      foregroundColor: Colors.black,
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                    ),
+                    child: const Text('Save'),
+                  ),
+                ),
+              ],
             ),
           ],
-        ),
-      ],
+        );
+      },
     );
+  }
+
+  double _editBadgeSectionHeight({
+    required bool keyboardVisible,
+    required bool hasBadges,
+    required double maxEditHeight,
+  }) {
+    if (keyboardVisible && !hasBadges) return 0;
+
+    final targetHeight = keyboardVisible ? 88.0 : 220.0;
+    if (!maxEditHeight.isFinite) return targetHeight;
+
+    final minTextHeight = keyboardVisible ? 160.0 : 180.0;
+    final actionHeight = 48.0;
+    final gapHeight = keyboardVisible ? 16.0 : 24.0;
+    final maxBadgeHeight =
+        maxEditHeight - minTextHeight - actionHeight - gapHeight;
+
+    if (maxBadgeHeight < 52) return 0;
+    return targetHeight.clamp(52.0, maxBadgeHeight).toDouble();
   }
 }

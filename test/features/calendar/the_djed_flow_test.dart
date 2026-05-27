@@ -102,7 +102,7 @@ void main() {
     expect(djedStartDateIsValid(ordinary, TrackSkyTimeZone.pacific), isFalse);
   });
 
-  test('selected start date must be inside its 24h decan window', () {
+  test('enrollment helper still reports the 24h decan window', () {
     final openingDate = KemeticMath.toGregorian(1, 3, 11);
     final window = djedEnrollmentWindowForStartDate(
       openingDate,
@@ -148,11 +148,15 @@ void main() {
     ).readAsStringSync();
 
     expect(calendarPage, contains('_MaatFlowTemplateKind.theDjed'));
-    expect(calendarPage, contains('djedEnrollmentIsOpen'));
+    expect(calendarPage, contains('djedNextEnrollmentWindow'));
+    expect(calendarPage, contains('djedEnrollmentWindowForStartDate'));
+    expect(calendarPage, isNot(contains('djedEnrollmentIsOpen')));
     expect(calendarPage, contains('djedClientEventId'));
     expect(detailPage, contains('_pickDjedWindowDate'));
     expect(detailPage, contains('Djed Start Windows'));
     expect(detailPage, contains('designated decan-opening enrollment windows'));
+    expect(detailPage, contains('Add Flow'));
+    expect(detailPage, isNot(contains("'KYear ")));
     expect(dayView, contains('TheDjedLocalStore'));
     expect(dayView, contains("'raised': 'Raised'"));
   });

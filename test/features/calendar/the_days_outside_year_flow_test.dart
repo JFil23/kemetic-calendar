@@ -178,9 +178,13 @@ void main() {
       detailSource,
       contains('designated year-closing enrollment windows'),
     );
-    expect(detailSource, contains('Locked Until Year Close'));
+    expect(detailSource, contains('Add Flow'));
+    expect(detailSource, isNot(contains('Closing Kemetic Year')));
+    expect(detailSource, isNot(contains('Kemetic Year')));
     expect(pageSource, contains('_MaatFlowTemplateKind.daysOutsideTheYear'));
-    expect(pageSource, contains('daysOutsideYearEnrollmentIsOpen'));
+    expect(pageSource, contains('daysOutsideYearNextEnrollmentWindow'));
+    expect(pageSource, contains('daysOutsideYearEnrollmentWindowForStartDate'));
+    expect(pageSource, isNot(contains('daysOutsideYearEnrollmentIsOpen')));
     expect(pageSource, contains('doy_kyear='));
     expect(schedulerSource, contains('daysOutsideEventGregorian'));
     expect(
