@@ -870,7 +870,7 @@ void main() {
   });
 
   test(
-    'mounted Moon Return, Wag, Days Outside, Decan Watch, Open Hand, Djed, Offering Table, Tending, and Kept Word persist events before filing alerts',
+    'mounted Moon Return, Wag, Days Outside, Decan Watch, Open Hand, Djed, Offering Table, Tending, Kept Word, and Course persist events before filing alerts',
     () {
       final source = File(
         'lib/features/calendar/calendar_page.dart',
@@ -978,6 +978,17 @@ void main() {
         keptWordBranch,
         caller: "caller: 'the_kept_word_join'",
         branchName: 'mounted Kept Word',
+      );
+
+      final courseBranch = _sourceBetween(
+        mountedJoin,
+        'if (template.kind == _MaatFlowTemplateKind.theCourse)',
+        'if (startDate == null) {',
+      );
+      _expectPersistsBeforeAlertFiling(
+        courseBranch,
+        caller: "caller: 'the_course_join'",
+        branchName: 'mounted Course',
       );
     },
   );
@@ -1627,6 +1638,77 @@ void main() {
       );
       expect(keptWordPayload, contains("'sync_agreement_text': false"));
       expect(keptWordPayload, contains("'sync_names': false"));
+    },
+  );
+
+  test(
+    'mounted Course join preserves event identity and calendar payload contract',
+    () {
+      final source = File(
+        'lib/features/calendar/calendar_page.dart',
+      ).readAsStringSync();
+      final courseSource = File(
+        'lib/features/calendar/the_course_flow.dart',
+      ).readAsStringSync();
+      final mountedJoin = _sourceBetween(
+        source,
+        'Future<int> _addMaatFlowInstance({',
+        'Future<bool> _endFlowFromEventTarget',
+      );
+      final courseBranch = _sourceBetween(
+        mountedJoin,
+        'if (template.kind == _MaatFlowTemplateKind.theCourse)',
+        'if (startDate == null) {',
+      );
+      final coursePayload = _sourceBetween(
+        courseSource,
+        'Map<String, dynamic> courseBehaviorPayload({',
+        'String courseDetailText(',
+      );
+
+      expect(courseBranch, contains('mode=gregorian'));
+      expect(courseBranch, contains('maat=\${template.key}'));
+      expect(courseBranch, contains('course_tz=\${timezone.key}'));
+      expect(courseBranch, contains('course_lens=\${courseLens.key}'));
+      expect(courseBranch, contains('course_midday_hour='));
+      expect(courseBranch, contains('course_midday_minute='));
+      expect(courseBranch, contains('joined_ky='));
+      expect(courseBranch, contains('joined_km='));
+      expect(courseBranch, contains('joined_kd='));
+      expect(courseBranch, contains('courseContextForKemeticDate('));
+      expect(courseBranch, contains('kYear: kyKmKd.kYear'));
+      expect(courseBranch, contains('kMonth: kyKmKd.kMonth'));
+      expect(courseBranch, contains('kDay: kyKmKd.kDay'));
+      expect(courseBranch, contains('courseEventTitle(event)'));
+      expect(courseBranch, contains('courseDetailText('));
+      expect(courseBranch, contains('lens: courseLens'));
+      expect(courseBranch, contains('context: courseContext'));
+      expect(courseBranch, contains('courseBehaviorPayload('));
+      expect(courseBranch, contains('event: event'));
+      expect(courseBranch, contains('schedule: occurrence'));
+      expect(courseBranch, contains('courseActionId(event)'));
+      expect(courseBranch, contains('clientEventId = _buildCid('));
+      expect(courseBranch, contains('startsAtUtc: occurrence.startUtc'));
+      expect(courseBranch, contains('endsAtUtc: occurrence.endUtc'));
+      expect(courseBranch, contains('category: \'Ritual\''));
+      expect(courseBranch, contains('alertOffsetMinutes: 0'));
+      expect(courseBranch, contains('caller: \'the_course_join\''));
+      expect(courseBranch, contains('_addNote('));
+      expect(courseBranch, contains('await _scheduleAlertForEvent('));
+
+      expect(coursePayload, contains("'flow_key': kTheCourseFlowKey"));
+      expect(coursePayload, contains("'required': <String>['day_card']"));
+      expect(
+        coursePayload,
+        contains("'requires_day_card': event.requiresDayCard"),
+      );
+      expect(coursePayload, contains("'season_aware': event.seasonAware"));
+      expect(coursePayload, contains("'calendar_context': <String, dynamic>{"));
+      expect(coursePayload, contains("'kemetic_month': context.kMonth"));
+      expect(coursePayload, contains("'kemetic_day': context.kDay"));
+      expect(coursePayload, contains("'decan_name': context.decanName"));
+      expect(coursePayload, contains("'season': context.seasonKey"));
+      expect(coursePayload, contains("'lens': lens.key"));
     },
   );
 
