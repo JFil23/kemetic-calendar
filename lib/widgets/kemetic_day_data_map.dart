@@ -29,4 +29,5 @@ final Map<String, KemeticDayInfo> _dayInfoMap = <String, KemeticDayInfo>{}
   ..addAll(_buildHentiHetIIIEntries())
   ..addAll(_buildPaIpiIEntries())
   ..addAll(_buildPaIpiIIEntries())
-  ..addAll(_buildPaIpiIIIEntries());
+  ..addAll(_buildPaIpiIIIEntries())
+  ..addAll(_compressedDayInfoMap);

@@ -1,14 +1,14 @@
 /*
  * ═══════════════════════════════════════════════════════════════
- *   ⚠️  KEMETIC YEAR 1 ONLY - HARDCODED DATES
+ *   KEMETIC DAY CARD DATA
  * ═══════════════════════════════════════════════════════════════
  *
- * Valid Period: March 20, 2025 - March 19, 2026 (Gregorian)
+ * Day cards are keyed by Kemetic month/day/decan and reused every year.
  *
  * Gregorian labels in the UI come from [KemeticDayData.calculateGregorianDate]
  * (day key + Kemetic year), not from static strings on each card.
  *
- * For multi-year support, see: docs/MULTI_YEAR_MIGRATION.md
+ * Heriu Renpet is the exception: leap years expose a sixth threshold day.
  *
  * ═══════════════════════════════════════════════════════════════
  */
@@ -31,6 +31,7 @@ part 'kemetic_day_data_flow_rows_1.dart';
 part 'kemetic_day_data_flow_rows_2.dart';
 part 'kemetic_day_data_entries_1.dart';
 part 'kemetic_day_data_entries_2.dart';
+part 'kemetic_day_data_compressed.dart';
 part 'kemetic_day_data_map_1.dart';
 part 'kemetic_day_data_map_2.dart';
 part 'kemetic_day_data_map_3.dart';

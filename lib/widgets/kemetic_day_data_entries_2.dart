@@ -1,223 +1,508 @@
 part of 'kemetic_day_info.dart';
 
 Map<String, KemeticDayInfo> _buildMesutRaIIIEntries() {
-  const season = '☀️ Shemu – Season of Harvest';
+  const season = "☀️ Shemu – Season of Harvest";
   const month =
-      'Mesut-Ra (Mswt-Rꜥ) — the month of births of Ra, where what has been carried, stored, ordered, and prepared now enters emergence, arrival, and first appearance in the light';
+      "Mesut-Ra (Mswt-Rꜥ) — The Birth of Ra and the Stillness Before Emergence";
   return _buildGeneratedDecanEntries(
-    keyPrefix: 'mswtRa',
+    keyPrefix: "mswtRa",
     decan: 3,
-    decanLabel: 'Mesut-Ra III',
-    monthLabelForDate: 'Mesut-Ra',
+    decanLabel: "Mesut-Ra III",
+    monthLabelForDate: "Mesut-Ra",
     month: month,
     season: season,
+    decanName: "sbꜣ msḥtjw ḫt",
+    kemeticDateBuilder: (totalDay, _) => "Mesut-Ra III, Day $totalDay",
     flowRows: _mesutRaOverrideIIIFlowRows,
     entries: [
       (
         totalDay: 21,
         starCluster:
-            '✨ sbꜣ msḥtjw ḥꜣt — the guiding star of first births, where what has newly come into life must now become steady enough to orient action, shape conduct, and begin carrying its own light',
-        maatPrinciple: 'Let the new life begin to guide',
+            "✨ sbꜣ msḥtjw ḫt — the star phase of the Crocodiles of the Offering sequence; a modest horizon-rising decanal marker in the night order, with no secure modern constellation identification",
+        maatPrinciple: "Threshold Recognized",
         cosmicContext: '''
-The third decan begins when birth must do more than simply survive.
-What has emerged has already been named, embodied, fed, guarded, and inwardly accepted. Now a new question rises: can this new life begin to guide? In Kemet, first appearance was never meant to remain only a fragile event. What was truly born had to enter order strongly enough that the day could start arranging itself around it.
-That is the work of sbꜣ msḥtjw ḥꜣt.
-This is birth becoming orientation. Not full maturity yet, but enough steadiness that what has come into life can now begin to lead choices, shape rhythm, and correct the old pattern that existed before it. The newborn thing is no longer only asking for protection. It is beginning to ask for place, direction, and influence.
-So Day 21 is about rightful guidance.
-What has now been born in you strongly enough that it should start setting the line for what comes next? A new discipline. A new honesty. A new role. A restored strength. A cleaner standard. A more truthful devotion. Something no longer belongs only in the nursery of possibility.
-It is ready to begin giving light.
+The first decan entered the hidden chamber.
+
+The second kept the heart awake in stillness.
+
+The third stands at the threshold.
+
+This is the work of sbꜣ msḥtjw ḫt: the star of the Crocodiles of the Offering. The hidden power has gathered. The night watch has been kept. The chamber has held. Now the edge of birth comes near, but nearness is not the same as permission.
+
+Day 21 asks for the threshold to be recognized.
+
+A threshold is not a hallway.
+
+It is a boundary between conditions.
+
+Before crossing, the heart must know what kind of doorway it is standing before. Is this a new beginning, a final release, a return of strength, a decision that has finished forming, or a dawn that is almost ready but not yet risen?
+
+The danger here is rushing because the end is visible.
+
+But Ra is not born before the night has completed its passage. Nut does not release the sun before the proper hour. Khepri does not rise because impatience demands morning.
+
+Today asks for one threshold to be named without crossing it too soon.
+
+Recognition is not action yet.
+
+It is readiness taking its first clean form.
 ''',
-        glyph: 'New flame beneath a guiding star',
-        colorFrequency: 'Dawn gold, ember red, and deep horizon blue',
-        mantra: 'What has been born in truth now begins to guide.',
+        glyph: "Star above a sealed dawn gate",
+        colorFrequency: "Duat black, threshold blue, and first gold",
+        mantra: "“I recognize the threshold before I cross it.”",
       ),
       (
         totalDay: 22,
         starCluster:
-            '✨ sbꜣ msḥtjw ḥꜣt — first birth beginning to govern its surroundings, where the old day must now make room for the new thing to lead',
-        maatPrinciple: 'Rearrange the day around the birth',
+            "✨ sbꜣ msḥtjw ḫt — a small decanal rising group near the horizon, treated as a ten-day timing marker rather than a securely identified modern cluster",
+        maatPrinciple: "Old Cycle Left Unburdened",
         cosmicContext: '''
-A birth that changes nothing around it remains too weak.
-In Kemet, real emergence altered sequence. Once something new entered life, other things had to move in response. Time shifted. Space shifted. Effort shifted. The old arrangement could not remain untouched if the new thing was truly to live.
-Day 22 is about alignment.
-You stop acting as though the old order still deserves full command. If a new truth has been born, the schedule must answer it. If a new discipline has emerged, the body and day must honor it. If a new role is real, the surrounding structure must stop pretending otherwise.
-New life asks for reordering.
-Without that, the old pattern quietly smothers the very thing you claim to welcome.
+The old cycle should not be burdened with last-minute additions.
+
+Day 22 asks for restraint.
+
+When a year nears completion, the mind may begin reaching backward. It wants to fix one more thing, explain one more wound, complete one more unfinished task, force one more answer, repair one more relation, or make the old cycle look more complete than it truly was.
+
+Some repairs are still lawful.
+
+But some additions are only fear refusing to close.
+
+Mesut-Ra asks the heart to know the difference.
+
+The final darkness is not a place for piling more weight onto what is already ending. If something belongs to the next cycle, it should not be forced into the old one. If something is complete enough to close, it should not be reopened from anxiety. If something cannot be finished now, it should be placed in Ma’at rather than dragged across the threshold unfinished and unnamed.
+
+Today asks what no longer needs to be added.
+
+What task is only noise?
+
+What explanation is only fear?
+
+What repair is being forced because closure feels uncomfortable?
+
+The old cycle should end truthfully.
+
+Not perfectly.
+
+Truthfully.
 ''',
-        glyph: 'New flame set at the front of the day-board',
-        colorFrequency: 'Soft gold, black stone, and active red',
-        mantra: 'I move the day around what is now alive.',
+        glyph: "Closed scroll beside an untouched reed pen",
+        colorFrequency: "Ink black, muted gold, and closing blue",
+        mantra: "“I do not burden what is already complete.”",
       ),
       (
         totalDay: 23,
         starCluster:
-            '✨ sbꜣ msḥtjw ḥꜣt — new life under guarding light, exposing the force that still tries to cut it off before it strengthens',
-        maatPrinciple: 'Remove what is still threatening the birth',
+            "✨ sbꜣ msḥtjw ḫt — a modest horizon-based decanal star marker in the observed night order, with exact modern identification uncertain",
+        maatPrinciple: "Gate Cleared",
         cosmicContext: '''
-A new life does not only need feeding. It needs defense.
-In Kemet, what was born into light also entered a world of pressure. Not everything around it was neutral. Some things threatened growth directly: neglect, poor atmosphere, untimely exposure, old habits, hostile speech, careless handling, wasted energy. Wise keepers did not merely hope the new thing would survive. They removed the threat.
-Day 23 is a cutting day.
-You identify the factor still endangering this new emergence and you deal with it. Not later. Now. One habit, one distraction, one old indulgence, one recurring confusion, one voice of contempt, one leaky structure.
-Protection is not passive.
-Sometimes the life survives because the keeper finally says: this no longer gets access.
+A birth needs a clear gate.
+
+Day 23 asks for the threshold to be cleared.
+
+The new cycle should not have to push through clutter that the old cycle refused to release. A room full of old noise makes it harder to hear the first light. A body carrying unnecessary strain cannot receive emergence cleanly. A mind crowded with unfinished arguments may mistake pressure for guidance.
+
+Clearing is not the same as beginning.
+
+It is preparation for beginning.
+
+Remove the false urgency.
+
+Clear the surface.
+
+Close the open loop that can be closed.
+
+Put away what no longer belongs in the chamber.
+
+Let the room, body, record, altar, or schedule become quiet enough for the next sign to be noticed.
+
+In the Duat, gates matter. Passage must be ordered. The wrong obstruction at the threshold can disturb the emergence that has been forming in darkness.
+
+Today asks what blocks the gate.
+
+Not everything must be solved.
+
+But what stands directly in the doorway should be cleared.
+
+A clean threshold gives the birth a place to pass.
 ''',
-        glyph: 'Blade protecting the new flame',
-        colorFrequency: 'Flint gray, ember red, and guarding gold',
-        mantra: 'I remove what threatens what is trying to live.',
+        glyph: "Gate swept clean before a hidden sun",
+        colorFrequency: "Clean blue, Duat black, and quiet gold",
+        mantra: "“I clear the gate before the birth.”",
       ),
       (
         totalDay: 24,
         starCluster:
-            '✨ sbꜣ msḥtjw ḥꜣt — birth rising into honorable visibility, where what is now alive must be given a rightful place in the open',
-        maatPrinciple: 'Give the birth its place',
+            "✨ sbꜣ msḥtjw ḫt — a small rising decanal group in the ten-day night sequence, best described as a modest watched horizon marker with uncertain modern identity",
+        maatPrinciple: "Necessary Things Gathered",
         cosmicContext: '''
-Something newly born can remain hidden too long.
-Protection is necessary, but so is rightful placement. In Kemet, what had survived its first vulnerability had to be set where it belonged in the visible order. Not flaunted. Not paraded. But given its actual place among the duties, rhythms, and structures of life.
-Day 24 is about honorable placement.
-You stop treating the new thing as an exception or secret side project if it has now grown beyond that stage. Give it room. Give it time. Give it structure. Give it a visible place on the calendar, in the house, in the role, in the budget, in the speech, in the labor.
-What is truly alive should no longer be treated like an intruder in its own home.
+Readiness is not the same as accumulation.
+
+Day 24 asks for only the necessary things to be gathered.
+
+When a new beginning approaches, the mind may overprepare. It gathers too many tools, too many promises, too many plans, too many protections, too many opinions, too many explanations. The threshold becomes crowded with objects that make readiness feel safer but do not actually serve the birth.
+
+Mesut-Ra teaches a cleaner preparation.
+
+What does the birth truly need?
+
+Water.
+
+Rest.
+
+A cleared record.
+
+A boundary.
+
+A quiet room.
+
+A simple offering.
+
+A tool placed where the hand can find it.
+
+An intention stated without excess.
+
+A body not already exhausted before the beginning arrives.
+
+Nut holds the sun. She does not overload the womb with unnecessary weight. The Duat contains passage, not clutter. Khepri rises when the transformation has enough, not when the mind has collected everything it can imagine.
+
+Today asks for true necessities.
+
+What must be present?
+
+What is extra?
+
+What can remain outside the threshold?
+
+Readiness becomes Ma’at when it is clean enough for emergence to move through it.
 ''',
-        glyph: 'New flame set at the front of the chamber',
-        colorFrequency: 'Sun gold, polished clay, and steady blue',
-        mantra: 'I give rightful place to what has truly come alive.',
+        glyph: "Simple offering, water jar, and clean cloth before a gate",
+        colorFrequency: "Altar white, Nile blue, and first gold",
+        mantra: "“I gather only what the birth truly needs.”",
       ),
       (
         totalDay: 25,
         starCluster:
-            '✨ sbꜣ msḥtjw ḥꜣt — birth becoming legible in conduct, where what has changed within must now begin showing in the outer life',
-        maatPrinciple: 'Let your life show the birth',
+            "✨ sbꜣ msḥtjw ḫt — the midpoint phase of this decanal sequence, a modest horizon-rising star marker in the night order with uncertain modern identification",
+        maatPrinciple: "False Dawn Refused",
         cosmicContext: '''
-A birth is known by what it changes.
-If something has truly come into life, it eventually alters conduct. Speech changes. Pace changes. Choices change. Standards change. Use of time changes. The body begins obeying a different order. In Kemet, the reality of inner transformation could not remain forever invisible. Life around it eventually had to testify.
-Day 25 is outward witness.
-You let one visible part of your conduct now reflect the birth. More truth in speech. Cleaner sequence. More disciplined rest. Better handling of resources. A firmer boundary. A truer pace. A different answer under pressure.
-The point is not performance.
-It is congruence. What has truly been born inside you should no longer leave the outer life unchanged.
+The middle of this decan tests impatience.
+
+Day 25 asks for the false dawn to be refused.
+
+Not every brightness is sunrise. Sometimes excitement appears because the night has become tiring. Sometimes fear creates urgency and calls it clarity. Sometimes pressure from others makes the heart announce what it has not yet confirmed. Sometimes a partial sign is mistaken for the whole emergence.
+
+A false dawn can be dangerous.
+
+It begins the journey before the body is ready.
+
+It speaks before the word is true.
+
+It commits before the form is stable.
+
+It opens the gate before the passage has completed its final hour.
+
+Mesut-Ra asks for patience at the edge of light.
+
+Today asks where impatience is pretending to be revelation.
+
+What feels urgent only because waiting is uncomfortable?
+
+What sign is real but incomplete?
+
+What beginning is being forced because the old cycle feels unbearable?
+
+Ra will rise.
+
+But not because the heart demands escape from darkness.
+
+Dawn belongs to right timing.
+
+The false dawn must be refused so the true one can arrive clean.
 ''',
-        glyph: 'New rising disk mirrored in the walking figure',
-        colorFrequency: 'Bright gold, warm red, and living blue',
-        mantra: 'I let the birth be seen in how I live.',
+        glyph: "Dim horizon glow held behind a closed gate",
+        colorFrequency: "Pale gold, shadow blue, and restrained black",
+        mantra: "“I do not mistake impatience for dawn.”",
       ),
       (
         totalDay: 26,
         starCluster:
-            '✨ sbꜣ msḥtjw ḥꜣt — new life strengthened into rule, where what has been born must now be secured against forgetting and decline',
-        maatPrinciple: 'Strengthen the new order',
+            "✨ sbꜣ msḥtjw ḫt — a decanal star marker in the rising night sequence, physically uncertain and best described as a modest horizon point or small group",
+        maatPrinciple: "Body Prepared for Birth",
         cosmicContext: '''
-Birth without reinforcement fades into memory.
-Kemet understood that first life had to become repeated life if it was to endure. What had newly emerged needed law, rhythm, structure, and reinforcement, or the old order would slowly absorb it back into itself.
-Day 26 is a strengthening day.
-You reinforce the habit, system, vow, or structure that will keep this birth from dissolving. Add repetition. Build the support. Write the rule. Simplify the pathway. Protect the time. Deepen the chamber. Remove the ambiguity.
-New life becomes a new order when it stops depending on momentary fire and starts being secured by form.
-What is born now must be given a way to remain.
+The body must be ready to receive emergence.
+
+Day 26 asks for the vessel to be prepared.
+
+Birth is not only a spiritual image. It happens through a body, a room, a schedule, a nervous system, a mouth, a set of hands. If the body is depleted at the threshold, the new beginning may arrive into strain instead of welcome.
+
+This day asks for practical care.
+
+Water.
+
+Food.
+
+Bathing.
+
+Rest.
+
+Clean linen.
+
+Lowered demand.
+
+A slower pace.
+
+A calmer room.
+
+A body that is not being asked to hold the old year, the hidden passage, and the new dawn all at once.
+
+Mesut-Ra belongs to Ra’s birth, but even the sun emerges through ordered conditions. The sky must hold. The passage must complete. The horizon must be ready to receive light.
+
+Today asks what condition the body must be in for the new cycle.
+
+Not perfect.
+
+Prepared.
+
+A tired body can still enter dawn, but it should not be neglected at the gate.
+
+The vessel that receives birth should be honored before the birth arrives.
 ''',
-        glyph: 'Rising disk fastened to the horizon line',
-        colorFrequency: 'Dawn gold, fixed blue, and strengthening red',
-        mantra: 'I give the new life the structure it needs to remain.',
+        glyph: "Clean body beside water jar and folded linen",
+        colorFrequency: "Linen white, Nile blue, and dawn gold",
+        mantra: "“I prepare the vessel that will receive the dawn.”",
       ),
       (
         totalDay: 27,
         starCluster:
-            '✨ sbꜣ msḥtjw ḥꜣt — birth becoming transmissible, where what has newly come alive must now begin changing the order around it',
-        maatPrinciple: 'Let the new life teach the field',
+            "✨ sbꜣ msḥtjw ḫt — a small decanal rising group near the horizon in the ten-day star order, treated as a timing marker with uncertain modern identity",
+        maatPrinciple: "Last Darkness Honored",
         cosmicContext: '''
-A true birth does not remain isolated.
-In Kemet, what rose rightly eventually affected more than the one who held it. New order began influencing the house, the labor, the speech, the atmosphere, the sequence of actions, and the expectations of those nearby. Life teaches by presence once it becomes stable enough.
-Day 27 is outward effect.
-You let the birth begin instructing the field around it. Maybe through example. Maybe through a cleaner standard. Maybe through a better process. Maybe by sharing what you have learned. Maybe by altering how the room moves because something in you is no longer negotiable.
-The new thing does not need to dominate.
-It simply needs to be alive enough that others can now feel its order.
-What is born in truth begins to radiate.
+The last darkness still has work.
+
+Day 27 asks for it to be honored.
+
+This is often the most difficult part of waiting. The heart feels close to emergence and begins to resent the dark that remains. But the final hidden stage may be completing what earlier stages could not. It may be sealing the form, finishing the release, gathering the last strength, or showing one final truth that should not be carried unconsciously into dawn.
+
+To hate the last darkness is to misunderstand the passage.
+
+The Duat is not meaningless because it is unseen. Night is not failure because morning has not yet appeared. The womb is not delay because birth has not yet happened.
+
+Today asks what part of the dark still needs respect.
+
+What silence has not finished teaching?
+
+What grief has one more shape to take?
+
+What old pattern is making its final appearance before release?
+
+What hidden strength is still gathering?
+
+The final night should not be despised.
+
+It may be the chamber that makes the birth whole.
+
+Honor the last darkness without making a home there.
 ''',
-        glyph: 'New flame casting order across the room',
-        colorFrequency: 'Living gold, chamber blue, and warm red',
-        mantra: 'What is born in me now begins to teach by how it lives.',
+        glyph: "Last dark gate before a covered sun",
+        colorFrequency: "Deep black, quiet blue, and veiled gold",
+        mantra: "“I honor the last darkness without remaining inside it.”",
       ),
       (
         totalDay: 28,
         starCluster:
-            '✨ sbꜣ msḥtjw ḥꜣt — living birth under guard, where the old order still seeks re-entry if the threshold is left unkept',
-        maatPrinciple: 'Refuse the return of what once ruled',
+            "✨ sbꜣ msḥtjw ḫt — a modest horizon-based decanal marker used in the night sequence, with exact modern astronomical identification uncertain",
+        maatPrinciple: "First Light Discerned",
         cosmicContext: '''
-Every new life has an old world trying to reclaim the chamber.
-The old habit still knows the path. The old fear still knows the argument. The old indulgence still knows the hour of weakness. The old disorder still waits for the day you are tired enough to stop guarding the threshold. In Kemet, what was newly born had to be defended from return pressures, not only from first dangers.
-Day 28 is threshold defense.
-You identify what old pattern is still trying to move back in and take up space against the birth. Then you stop it. Not emotionally. Cleanly. The old schedule. The old appetite. The old speech. The old self-story. The old compromise.
-What is new survives not only by growth, but by firm refusal of what would quietly reclaim the room.
+A true sign of emergence is quiet before it is obvious.
+
+Day 28 asks for the first light to be discerned.
+
+This is not full dawn. It is the sign that dawn is near. A slight clarity. A settled decision. A softer body. A dream that no longer feels confused. A repeated direction that has become steady. A desire that survives silence without becoming frantic. A new form that no longer needs to be forced to exist.
+
+The first light should be noticed.
+
+Not seized.
+
+Not announced too soon.
+
+Not turned into a demand that everything begin immediately.
+
+A star before dawn does not create the sun. It tells the watcher that the night has reached its final measure.
+
+Today asks what sign is true enough to trust.
+
+What feels quieter than impulse?
+
+What has remained after impatience cooled?
+
+What has taken shape without being forced?
+
+What does the body recognize as readiness rather than pressure?
+
+Discernment matters at this edge.
+
+False dawn was refused. Now the true sign can be seen more clearly.
+
+First light belongs to Ma’at when it is received with patience.
 ''',
-        glyph: 'Threshold barred behind the living flame',
-        colorFrequency: 'Black stone, ember red, and defending gold',
-        mantra: 'I guard the birth from the return of what it replaced.',
+        glyph: "Single star fading before a true dawn line",
+        colorFrequency: "Pale gold, horizon blue, and soft black",
+        mantra: "“I notice the first true light without forcing the sun.”",
       ),
       (
         totalDay: 29,
         starCluster:
-            '✨ sbꜣ msḥtjw ḥꜣt — living birth under review, where the keeper must separate what has truly taken root from what merely felt intense for a moment',
-        maatPrinciple: 'Confirm what is truly alive',
+            "✨ sbꜣ msḥtjw ḫt — a small star group in the decanal rising sequence, best described as a modest horizon timing marker rather than a securely identified modern constellation",
+        maatPrinciple: "Night Passage Sealed",
         cosmicContext: '''
-Not every bright beginning survives long enough to become life.
-That is why Kemet returned to review. What has truly taken root? What now repeats? What now changes the order? What now holds under use? What now asks real care because it is undeniably present? And what was only heat, emotion, projection, or the wish for a new identity without the labor of carrying it?
-Day 29 is sober confirmation.
-You look honestly at what is alive now. Not what sounded beautiful. Not what you hoped to be true by now. What is actually living — in your body, schedule, labor, conduct, stewardship, or devotion.
-Truth here is not discouragement.
-It is protection of the real. What truly lives deserves different treatment than what merely flared and vanished.
+The night passage should be sealed before dawn.
+
+Day 29 asks for record and closure.
+
+What was completed in hiddenness?
+
+What was protected?
+
+What was not forced?
+
+What was released?
+
+What remained unnamed for good reason?
+
+What first signs appeared?
+
+What false dawn was refused?
+
+What container held?
+
+What does the heart now know because it stayed awake through the dark?
+
+Without this record, the hidden work may be forgotten once light returns. The new cycle may begin with excitement and lose the wisdom that made emergence possible. The body may forget what it needed. The heart may forget what should not be forced again.
+
+Djehuty stands at the edge of dawn with the reed pen.
+
+Write the passage.
+
+Name the lesson.
+
+Mark what ended.
+
+Mark what is not yet to be touched.
+
+Mark what is ready.
+
+This is not delay.
+
+It is sealing.
+
+A night that is sealed truthfully becomes foundation for the day.
+
+Today asks for the hidden passage to be preserved before the new light changes everything.
 ''',
-        glyph: 'Living flame measured against the horizon',
-        colorFrequency: 'Horizon blue, bright gold, and truth-red',
-        mantra: 'I distinguish what truly lives from what only flared.',
+        glyph: "Sealed night record beside a covered sun",
+        colorFrequency: "Ink black, sealed gold, and Duat blue",
+        mantra: "“I seal the night so dawn can stand on truth.”",
       ),
       (
         totalDay: 30,
         starCluster:
-            '✨ sbꜣ msḥtjw ḥꜣt — the guiding star of first births sealed in purpose, closing the month with a life now emerged, inwardly received, outwardly guarded, and ready to continue under Ma’at',
-        maatPrinciple: 'Dedicate the birth to lasting purpose',
+            "✨ sbꜣ msḥtjw ḫt — the final star marker of Mesut-Ra’s Crocodiles of the Offering sequence, a modest horizon-rising decanal group in the night order with uncertain modern identification",
+        maatPrinciple: "Threshold Sealed",
         cosmicContext: '''
-Mesut-Ra closes not with mere arrival, but with consecration.
-What was hidden has emerged. What emerged has been named, given body, fed, protected, accepted inwardly, brought into conduct, strengthened, defended from return, and confirmed as real. That is the full labor of birth in Kemet. Not sentiment. Not sudden magic. Ordered emergence into life.
-That is the completion of sbꜣ msḥtjw ḥꜣt.
-The birth now asks its final first question: what is it for? What service will it render? What order will it strengthen? What continuity will it enter? What pattern of Ma’at will it now be asked to serve beyond your excitement, beyond your self-image, beyond the raw thrill of something new?
-So Day 30 is dedication.
-You place this new life under purpose, discipline, and right relation. Because a birth that is not dedicated is still vulnerable to drift. But a birth given to worthy use gains direction, endurance, and deeper legitimacy.
-What has entered life now needs a reason to remain.
+Day 30 closes Mesut-Ra.
+
+The year has reached the edge of birth.
+
+The hidden chamber was entered. The dark was listened to. The heart stayed awake. The gate was guarded. The lamp was kept low. The ordered passage was trusted. The threshold was recognized. The old cycle was not burdened with false additions. The gate was cleared. The necessary things were gathered. The false dawn was refused. The body was prepared. The last darkness was honored. The first light was discerned. The night passage was sealed.
+
+Now the work is readiness.
+
+Nothing more should be forced.
+
+Nothing more should be dragged from the old year to prove completion.
+
+Nothing forming should be exposed before its hour.
+
+Nothing settled should be reopened from fear.
+
+This is the final discipline before Heriu Renpet.
+
+Stand at the edge.
+
+Keep the vessel clean.
+
+Keep the heart awake.
+
+Let the birth come by its proper timing.
+
+Ra is born from the hidden passage, not from human demand. Khepri rises when becoming has completed its unseen work. The threshold must remain intact so renewal can enter without carrying the disorder of what should have ended.
+
+Today asks for readiness without interference.
+
+The year is closed enough to rest.
+
+The birth is near enough to be honored.
+
+The gate is sealed until the gods are born.
 ''',
-        glyph: 'New flame offered before the horizon of Ra',
-        colorFrequency: 'Dawn gold, deep red, and consecrated blue',
-        mantra: 'What has been born in truth, I dedicate to lasting order.',
+        glyph: "Sealed dawn gate holding a golden sun just below the horizon",
+        colorFrequency:
+            "Duat black, threshold blue, unborn gold, and altar white",
+        mantra: "“I am ready without forcing the birth.”",
       ),
     ],
   );
 }
 
 Map<String, KemeticDayInfo> _buildHeriuRenpetEntries() {
-  const season = '☀️ Shemu – Season of Harvest';
-  const month =
-      'Heriu Renpet (ḥr.w rnpt) — the Five Days Upon the Year, the sacred threshold where the old cycle empties and the divine births open the way for renewal';
+  const season = '✨ Heriu Renpet – Days Upon the Year';
+  const month = 'Heriu Renpet (ḥr.w rnpt) — Days Upon the Year';
   return Map.fromEntries([
     _dayInfoEntry(
       key: 'epagomenal_1_1',
       kemeticDate: 'Heriu Renpet, Day 1',
       season: season,
       month: month,
-      decanName:
-          'Wesir (Wsir) — Birth of Endurance, Restoration, and Right Continuity',
+      decanName: 'Outside the Decans',
       starCluster:
-          '✨ The first day of the year’s threshold opens with continuity reclaimed — what was broken, buried, or scattered is called back into living order',
-      maatPrinciple: 'Restore what must continue',
+          '✨ Imperishable northern stars — the circumpolar star field around the north celestial pole, visible through the night from Kemet and not setting below the horizon',
+      maatPrinciple: 'Restoration Begins in Gathering',
       cosmicContext: '''
-Heriu Renpet begins at the edge of endings.
-The harvest has already done its work. What could ripen has ripened. What could be gathered has been gathered. Now the year pauses outside ordinary sequence. These are not regular calendar days. They are threshold days — charged, exposed, and close to the powers that govern birth, death, continuity, and return.
-Day 1 belongs to Wesir.
-This is not merely a day of grief or memory. It is a day of reassembly. In Kemet, Wesir represents what can be cut down and still return in another form. Not through fantasy, but through law: what is true, rightly ordered, and joined to the eternal pattern can be restored.
-So today you look at what in your life must not be left in fragments.
-A discipline. A vow. A piece of dignity. A sacred routine. A relationship with the divine. A part of yourself that has been neglected, but not destroyed.
-The first work of the threshold is not novelty.
-It is rightful restoration.
+Heriu Renpet begins outside the counted months.
+
+The year has completed its ordinary cycle. The old work has been sealed. The threshold has been reached. These days do not belong fully to the year that has ended or the year that is about to begin.
+
+They stand between.
+
+Day 1 belongs to the birth of Ausar.
+
+Ausar is not the power of untouched life. He is the power of life gathered after rupture. His body is broken, searched for, joined, mourned, and restored into another kind of sovereignty. He does not return as the same figure who was lost. He becomes the deep source of continuity, fertility, judgment, and renewal in the hidden place.
+
+That is why this first day asks for gathering.
+
+Not fixing everything.
+
+Gathering.
+
+What has been scattered across the year?
+
+What grief has not been placed?
+
+What strength remained hidden inside loss?
+
+What broken thing may still become fertile if it is gathered correctly?
+
+This is not the day to rush into a new beginning. It is the day to collect the pieces that still belong to life. A name. A lesson. A body. A memory. A boundary. A truth that survived what broke around it.
+
+Ausar teaches that restoration does not begin with pretending nothing happened.
+
+It begins with gathering what remains under Ma’at.
 ''',
       decanFlow: _heriuRenpetOverrideFlowRows,
       meduNeter: MeduNeterKey(
-        glyph: 'Djed rising from reassembled earth',
-        colorFrequency: 'Dark earth, enduring green, and threshold gold',
-        mantra: 'I restore what must continue.',
+        glyph: 'Wrapped form of Ausar beneath imperishable stars',
+        colorFrequency: 'Duat black, fertile green, and star gold',
+        mantra: '“What is gathered in Ma’at can become fertile again.”',
       ),
     ),
     _dayInfoEntry(
@@ -225,26 +510,46 @@ It is rightful restoration.
       kemeticDate: 'Heriu Renpet, Day 2',
       season: season,
       month: month,
-      decanName:
-          'Heru-Wer (Ḥr-wr) — Birth of Right Vision, Upright Rule, and Clear Ascent',
+      decanName: 'Outside the Decans',
       starCluster:
-          '✨ The second threshold day brings height, sight, and rightful perspective — the power to stand above confusion and see what must be governed',
-      maatPrinciple: 'Raise your sightline',
+          '✨ Imperishable northern stars — a fixed northern star field circling the pole, appearing to remain in the sky while other stars rise and set',
+      maatPrinciple: 'Sight Above Fragmentation',
       cosmicContext: '''
-Once continuity is restored, vision must return.
-A person can recover strength and still remain directionless. He can rebuild order and still keep his eyes too low, fixed on noise, reaction, appetite, and small confusion. Day 2 interrupts that. Heru-Wer lifts the line of sight.
-In Kemet, this is the force that rises above entanglement without leaving responsibility behind.
-Not escape. Not detachment for its own sake. Clear vantage.
-So today is about elevation of perception.
-What are you looking at too closely? What has become bigger in your mind than it deserves? What would change if you stopped staring at the dust and looked again at the full pattern of your life, your role, your house, your work, and your duty?
-The second threshold day asks you to see from above without becoming arrogant.
-Right rule begins with right sight.
+Day 2 belongs to the birth of Heru the Elder.
+
+This is sky-power.
+
+Not the young Heru who must later contend for the throne, but the elder horizon-force, the wide sight of the falcon, the divine eye that sees from above the field of conflict.
+
+After the first day’s gathering, sight is needed.
+
+A person who remains too close to the broken pieces may lose the whole pattern. The wound becomes the horizon. The scattered part becomes the entire world. The year is remembered only by its fracture, not by the order that still held through it.
+
+Heru the Elder asks for a higher view.
+
+What can be seen from above?
+
+What belongs to the whole, not only the wound?
+
+What pattern did the year reveal?
+
+What line of Ma’at remained visible even when the ground was difficult?
+
+The falcon does not deny the earth by rising. It sees the earth more fully. From height, boundaries, roads, fields, water, and movement become legible again.
+
+This day asks for perspective before the new year opens.
+
+Not detachment from feeling.
+
+A larger sight that keeps feeling from becoming the only measure.
+
+Where Heru the Elder is born, the heart is asked to look beyond the broken place and see the field of order that still waits to be served.
 ''',
       decanFlow: _heriuRenpetOverrideFlowRows,
       meduNeter: MeduNeterKey(
-        glyph: 'Falcon eye raised above the horizon',
-        colorFrequency: 'Sky blue, sun gold, and clean black',
-        mantra: 'I lift my sight to govern rightly.',
+        glyph: 'Falcon eye above the horizon and northern stars',
+        colorFrequency: 'Sky blue, solar gold, and horizon red',
+        mantra: '“I rise high enough to see the whole field.”',
       ),
     ),
     _dayInfoEntry(
@@ -252,26 +557,60 @@ Right rule begins with right sight.
       kemeticDate: 'Heriu Renpet, Day 3',
       season: season,
       month: month,
-      decanName:
-          'Sutekh (Stẖ) — Birth of Force, Fracture, Trial, and Necessary Disruption',
+      decanName: 'Outside the Decans',
       starCluster:
-          '✨ The third threshold day reveals raw force — not evil by itself, but dangerous when unguided and powerful when harnessed to boundary, courage, and exact correction',
-      maatPrinciple: 'Harness the dangerous force',
+          '✨ Imperishable northern stars — the visible circumpolar region of the night sky, turning around a northern center without dropping below the horizon',
+      maatPrinciple: 'Force Given Its Place',
       cosmicContext: '''
-Not everything sacred feels gentle.
-The threshold does not only birth restoration and vision. It also births force — the untamed current that can either shatter order or help defend it. Sutekh belongs to storms, pressure, hostility, conflict, interruption, and the energy that does not naturally move in harmony unless brought under law.
-This is why Day 3 must be handled with honesty.
-Somewhere in you there is force that has not been fully yoked: anger, ambition, hunger, defiance, will, sexual charge, survival instinct, appetite for dominance, appetite for escape. Pretending it is not there does not purify it. It only sends it underground.
-So today is not about becoming softer than truth.
-It is about becoming strong enough to govern what is dangerous in you before it governs you.
-A threshold worthy of Ma’at does not deny chaos.
-It puts a boundary around it and makes it answer.
+Day 3 belongs to the birth of Set.
+
+This day must be handled carefully.
+
+Set is not simple evil. He is force, disruption, desert heat, storm, boundary, rupture, and the power that tests whether order is truly ordered. When placed rightly, force can defend the solar bark, cut through stagnation, and stand where weakness would fail. When unplaced, it becomes violence, appetite, envy, and disorder.
+
+Heriu Renpet needs Set because every new year will contain pressure.
+
+The question is not whether force exists.
+
+The question is where it belongs.
+
+Day 3 asks for the disruptive power to be named before it rules from the dark.
+
+Anger.
+
+Heat.
+
+Desire.
+
+Refusal.
+
+Boundary.
+
+Restlessness.
+
+The need to break from an old form.
+
+The strength to say no.
+
+The danger is pretending this force is not present. Denied Set does not disappear. He enters speech, body, appetite, and reaction without being named. But force named under Ma’at can be placed.
+
+What power in you needs a lawful role?
+
+What anger is protecting something real?
+
+What disruption is warning that an old order has become false?
+
+What boundary must be set before resentment becomes violence?
+
+Set’s birth teaches that the year cannot begin truthfully by exiling force from the self.
+
+Force must be named, measured, and placed where it serves Ma’at instead of tearing the field apart.
 ''',
       decanFlow: _heriuRenpetOverrideFlowRows,
       meduNeter: MeduNeterKey(
-        glyph: 'Set-standard before a marked boundary line',
-        colorFrequency: 'Storm red, black stone, and desert gold',
-        mantra: 'I govern the force before it governs me.',
+        glyph: 'Set-animal standing at the desert edge beneath fixed stars',
+        colorFrequency: 'Desert red, storm black, and sharp gold',
+        mantra: '“My force has a place, or it becomes danger.”',
       ),
     ),
     _dayInfoEntry(
@@ -279,27 +618,46 @@ It puts a boundary around it and makes it answer.
       kemeticDate: 'Heriu Renpet, Day 4',
       season: season,
       month: month,
-      decanName:
-          'Aset (ꜣst) — Birth of Deep Intelligence, Protection, Naming, and Sacred Gathering',
+      decanName: 'Outside the Decans',
       starCluster:
-          '✨ The fourth threshold day gathers scattered power through wisdom — the force that names correctly, protects precisely, and restores hidden coherence',
-      maatPrinciple: 'Gather through wisdom',
+          '✨ Imperishable northern stars — the enduring northern star field around the pole, used as a physical image of persistence because the stars remain visible across the night',
+      maatPrinciple: 'Restoration Through Wisdom',
       cosmicContext: '''
-After force, intelligence must return.
-Aset is not merely softness, devotion, or mystery. She is disciplined sacred intelligence — the ability to gather what has been broken, to perceive what others miss, to protect what is vulnerable, and to use right naming as a form of power.
-Day 4 belongs to the mind that heals through precision.
-Not overtalking. Not panic. Not rushing. Wisdom.
-So today asks: what needs to be gathered back together through careful intelligence rather than raw effort? A plan. A family rhythm. A spiritual practice. A budget. A wounded conversation. A scattered self.
-Aset does not waste motion.
-She studies, names, collects, shields, and restores.
-This threshold day reminds you that not every problem is solved by pushing harder.
-Some are solved by seeing more deeply and handling more carefully.
+Day 4 belongs to the birth of Aset.
+
+After gathering, sight, and force, restoration needs intelligence.
+
+Aset is throne, mother, mourner, magician, strategist, protector, and the one whose speech can restore what violence has broken. She does not heal by force alone. She knows the name. She knows the word. She knows how to gather power without becoming reckless with it.
+
+This is the day of sacred intelligence.
+
+What cannot be repaired by strength?
+
+What requires the right word?
+
+What requires patience, timing, memory, ritual, or strategy?
+
+What must be restored through knowledge instead of pressure?
+
+Aset teaches that love is not helpless. Grief is not passive. Protection is not only force. Wisdom can enter the broken place and begin arranging the conditions for life to return.
+
+This matters at the edge of the year.
+
+A person may want to push into renewal by effort alone. But some doors open only through the correct name. Some wounds require precise speech. Some futures need a plan rather than intensity. Some restorations require quiet, skillful protection.
+
+Day 4 asks for the word, method, or wisdom that can make restoration possible.
+
+Not every problem needs more force.
+
+Some need Aset.
+
+Where her power is born, the hidden year receives the intelligence required to bring life back into relation.
 ''',
       decanFlow: _heriuRenpetOverrideFlowRows,
       meduNeter: MeduNeterKey(
-        glyph: 'Tjet knot gathered in two careful hands',
-        colorFrequency: 'Milk white, red cord, and midnight blue',
-        mantra: 'I gather through wisdom, not panic.',
+        glyph: 'Throne sign and winged Aset beside a written name',
+        colorFrequency: 'Royal blue, throne gold, and protective white',
+        mantra: '“Wisdom restores what force cannot repair.”',
       ),
     ),
     _dayInfoEntry(
@@ -307,27 +665,53 @@ Some are solved by seeing more deeply and handling more carefully.
       kemeticDate: 'Heriu Renpet, Day 5',
       season: season,
       month: month,
-      decanName:
-          'Nebet-Het (Nb.t-ḥt) — Birth of Threshold Guarding, Hidden Support, Mourning, and Sacred Closure',
+      decanName: 'Outside the Decans',
       starCluster:
-          '✨ The fifth threshold day watches the edge itself — the hidden hand that tends endings correctly, accompanies what must be released, and guards the crossing into the next cycle',
-      maatPrinciple: 'Close the year with clean hands',
+          '✨ Imperishable northern stars — the circumpolar stars around the northern sky, physically notable because they remain above the horizon and mark endurance through the night',
+      maatPrinciple: 'Threshold Guarded',
       cosmicContext: '''
-The last threshold day belongs to the keeper of edges.
-Nebet-Het stands where the visible world thins out — at endings, funerary spaces, hidden support, private sorrow, and the quiet labor of closing what must be closed without spectacle. She is often near what others avoid looking at: grief, exhaustion, aftermath, and the silent work of attending what is passing out of one form into another.
-That makes Day 5 a day of clean closure.
-Not denial. Not collapse. Not dragging unfinished residue into the next cycle because you lacked the courage to end something properly.
-So today you ask: what must be closed with reverence? What must be mourned without becoming your identity? What must be laid down, thanked, sealed, buried, recorded, or released so the new year does not inherit unnecessary decay?
-Nebet-Het teaches that thresholds are not crossed well by pretending nothing is ending.
-They are crossed well by honoring the ending and guarding the passage.
-The five days close here.
-What enters the new year should do so through a clean threshold.
+Day 5 belongs to the birth of Nebet-Het.
+
+She stands at the edge.
+
+Nebet-Het is the guardian of threshold, mourner, sister, boundary-keeper, and companion at the place where one condition becomes another. She does not force the dead to return. She does not rush the living past grief. She guards the transition so it does not become abandonment.
+
+This is the final day before Wp Renpet.
+
+The year has ended, but the new year has not yet opened. The gods have been born into the threshold. The chamber is full of powers the next cycle will need: restoration, sight, force, wisdom, and boundary.
+
+Now the passage must be kept clean.
+
+Day 5 asks what must be mourned, guarded, and released before the new year begins.
+
+What belongs to the old year?
+
+What should not cross the threshold?
+
+What grief needs a final clean form?
+
+What name should be spoken once more?
+
+What boundary must be kept so the opening does not carry disorder?
+
+Nebet-Het teaches that endings need guardianship. If the threshold is neglected, what should be buried follows the living into the next dawn. If grief is denied, it enters the new year without a name. If the boundary is unclear, the old disorder crosses with the new light.
+
+Today asks for the edge to be honored.
+
+Mourn what ended.
+
+Guard what remains.
+
+Release what cannot travel.
+
+Stand at the threshold until the year opens in Ma’at.
 ''',
       decanFlow: _heriuRenpetOverrideFlowRows,
       meduNeter: MeduNeterKey(
-        glyph: 'Veiled lamp at the threshold',
-        colorFrequency: 'Indigo dusk, silver ash, and quiet gold',
-        mantra: 'I close the year with clean hands.',
+        glyph: 'Nebet-Het standing at a closed threshold with an offering bowl',
+        colorFrequency:
+            'Threshold black, mourning blue, altar white, and dawn gold',
+        mantra: '“I guard the edge so the new year opens clean.”',
       ),
     ),
   ]);
@@ -458,1641 +842,5364 @@ Map<String, KemeticDayInfo> _buildRekhWerIEntries() {
 }
 
 Map<String, KemeticDayInfo> _buildRekhWerIIEntries() {
-  const season = "🌿 Peret – Season of Emergence";
-  const month =
-      "Rekh-Wer (Rḫ-wr) — “Great Knowing,” where understanding must prove itself through structure, measure, and responsibility";
+  const season = '🌿 Peret – Season of Emergence';
+  const month = 'Rekh-Wer (Rḫ-wr) — Great Knowing Held Under Measure';
   return _buildGeneratedDecanEntries(
-    keyPrefix: "rekhwer",
+    keyPrefix: 'rekhwer',
     decan: 2,
-    decanLabel: "Rekh-Wer II",
-    monthLabelForDate: "Rekh-Wer",
+    decanLabel: 'Rekh-Wer II',
+    monthLabelForDate: 'Rekh-Wer',
     month: month,
     season: season,
+    decanName: 'ḥry-ib knmw',
+    kemeticDateBuilder: (totalDay, _) => 'Rekh-Wer II, Day $totalDay',
     flowRows: _rekhWerOverrideIIFlowRows,
     entries: [
       (
         totalDay: 11,
         starCluster:
-            "✨ ḥry-ib knmw — shaping brought inward, where knowledge is no longer judged by force alone, but by correction, restraint, and right guidance from the center",
-        maatPrinciple: "Bring the Craft Within",
-        cosmicContext:
-            "The first shaping has already been done. Something now stands. But what stands outwardly must be brought inward if it is going to last.\nIn Kemet, structure without inner command was never enough. A hand may know the motion, yet still waste effort. A worker may know the task, yet still apply it without balance. So the next labor was not to begin again, but to refine from the center — correcting angle, pressure, sequence, timing, and use.\nThat is the work of ḥry-ib knmw.\nThis decan turns knowledge inward. Not to make it passive, but to make it intelligent in application. Skill becomes worthy when it is guided. Method becomes wisdom when it is directed by intention instead of impulse.\nDay 11 begins that inward discipline.\nYou are no longer asking only, “Can I build it?” You are asking, “Can I guide what I build with steadiness, care, and exactness?”",
-        glyph: "The heart guiding the shaped vessel",
-        colorFrequency: "Deep lapis, quiet bronze, and centered gold",
-        mantra: "I refine my method until wisdom directs my hand.",
+            '✨ ḥry-ib knmw — the heart phase of the knmw decanal sequence; a modest horizon-rising star group used as a night-time marker, with no secure modern constellation identification',
+        maatPrinciple: 'Skill Governed by the Heart',
+        cosmicContext: '''
+The first decan gave form.
+
+The second asks whether that form can be refined by discernment.
+
+This is the work of ḥry-ib knmw: the heart of Khnum. The clay has risen. A vessel has begun to appear. But a rising form is not yet a trustworthy form. It must be read by the heart before the hand continues pressing.
+
+Day 11 asks for skill to pause before it improves.
+
+This matters because refinement can become another form of force. A person may keep editing because anxiety cannot stop touching the work. A body may be pushed because discipline has confused itself with punishment. A relationship may be corrected before it has been heard. A project may be improved until its original purpose is buried under clever additions.
+
+The heart must govern the hand.
+
+In Rekh-Wer, knowledge becomes dangerous when it becomes proud of itself. Skill must not act only because it can. It must ask what the form truly needs.
+
+Today begins the work of discernment.
+
+Before shaping more, listen.
+
+Before correcting, understand.
+
+Before pressing, weigh.
+
+Great knowing becomes Ma’at when it lets the heart decide how knowledge should touch the world.
+''',
+        glyph: 'Heart placed above the potter’s hand',
+        colorFrequency: 'Wet clay brown, deep green, and measured gold',
+        mantra: '“My skill answers to discernment.”',
       ),
       (
         totalDay: 12,
         starCluster:
-            "✨ ḥry-ib knmw — inwardly guided shaping, where the quality of the work depends on the quality of attention brought to it",
-        maatPrinciple: "Slow the Hand",
-        cosmicContext:
-            "A rushed hand creates hidden errors.\nIn Kemetic labor, speed had its place, but not at the cost of correctness. A cut made too quickly, a measure taken carelessly, a store sealed without inspection — these created failures that appeared later, when correction cost more. So refinement required deliberate pace, especially when the work would need to endure.\nDay 12 is the discipline of slowing down enough to do the work well.\nNot laziness. Not hesitation. Precision.\nYou reduce excess speed so you can actually feel the method, see the flaw, and place force where it belongs.\nNothing is rushed or wasted today.",
-        glyph: "Steady hand above a measured line",
-        colorFrequency: "Soft sand, lapis shadow, and restrained gold",
-        mantra: "I slow down enough to do what is true.",
+            '✨ ḥry-ib knmw — a small rising decanal group near the horizon in the night sequence, physically treated as a timing marker rather than a securely identified modern cluster',
+        maatPrinciple: 'The Form Heard',
+        cosmicContext: '''
+The form speaks through response.
+
+Day 12 asks for listening.
+
+The clay tells the potter when pressure is too hard. The wall thins. The center wobbles. The surface cracks. The hand that refuses to listen damages what it is trying to make.
+
+The same is true in every kind of work.
+
+The body speaks through fatigue, appetite, stiffness, breath, and pain.
+
+The project speaks through friction, confusion, repetition, and resistance.
+
+The relationship speaks through tone, silence, repair, and recurring tension.
+
+The habit speaks through whether it can survive ordinary days.
+
+The first question is not, “How can this be forced into the desired shape?”
+
+The first question is, “What is the form revealing?”
+
+Great knowing requires observation before correction. A clever hand may make fast changes, but a wise hand listens first.
+
+Today asks for evidence to be read without defensiveness.
+
+What is holding?
+
+What is straining?
+
+What keeps collapsing?
+
+What improves when given space?
+
+What worsens when pressed?
+
+The work is not mute. The body is not mute. The field is not mute.
+
+Discernment begins when the heart listens to the answer of the form.
+''',
+        glyph: 'Ear and heart beside a rising vessel',
+        colorFrequency: 'Soft blue, clay brown, and listening gold',
+        mantra: '“I listen to what the form is telling me.”',
       ),
       (
         totalDay: 13,
         starCluster:
-            "✨ ḥry-ib knmw — inner discernment finding the slight tilt, offset, or error that must be brought back into true",
-        maatPrinciple: "Correct the Angle",
-        cosmicContext:
-            "Large failures often begin as small tilts.\nIn Kemet, a line that drifted only slightly could throw off an entire wall, channel, or boundary. What looked minor at the start became costly when the structure extended. So the wise worker corrected the angle early, before distortion had time to multiply.\nDay 13 is for subtle correction.\nNot dramatic reinvention. Not tearing everything down. Adjustment.\nYou look for what is slightly off in your posture, your tone, your assumptions, your handling of time, your use of force, or your way of learning.\nA small correction made early is a form of mercy.",
-        glyph: "Measuring cord pulled back into alignment",
-        colorFrequency: "Pale gold, clear blue, and fine black",
-        mantra: "I correct what drifts before it hardens.",
+            '✨ ḥry-ib knmw — a modest horizon marker in the decanal star sequence, with exact modern identification uncertain',
+        maatPrinciple: 'Error Named Without Condemnation',
+        cosmicContext: '''
+Correction requires distinction.
+
+Day 13 asks for error to be separated from material.
+
+A vessel may have one weak wall without being worthless. A skill may have one faulty habit without being false. A relationship may have one repeating wound without being beyond repair. A body may have one weak point without being failed. A project may need one part removed without the whole work being thrown away.
+
+This distinction protects progress.
+
+Without it, every flaw becomes a verdict.
+
+The perfectionist destroys the vessel because it is not finished. The ashamed person abandons the work because one part is crooked. The angry person condemns the whole relationship because one truth hurts. The frightened person calls the whole body broken because one place needs care.
+
+That is not discernment.
+
+Discernment names exactly what is wrong.
+
+No more.
+
+No less.
+
+Today asks for one flaw to be identified with precision and mercy.
+
+What needs correction?
+
+What remains sound?
+
+What should be repaired rather than rejected?
+
+Khnum does not hate the clay because it needs shaping. Great knowing should not hate the material either.
+
+Error named clearly can serve Ma’at. Error used as condemnation becomes Isfet in the mind.
+''',
+        glyph: 'Marked flaw on a vessel beside an unbroken base',
+        colorFrequency: 'Clay red, clear gold, and steady green',
+        mantra: '“I correct the flaw without condemning the whole.”',
       ),
       (
         totalDay: 14,
         starCluster:
-            "✨ ḥry-ib knmw — the intelligence that improves method until it becomes worthy of trust, repetition, and transmission",
-        maatPrinciple: "Refine the Method",
-        cosmicContext:
-            "A result can be decent while the method remains poor.\nIn Kemetic work, this was never enough. A process that produced a passable outcome but wasted time, force, or material still carried disorder inside it. Refinement meant improving the manner of the work itself, so that quality could endure and be repeated without strain.\nDay 14 is devoted to method.\nYou are not only asking whether something worked. You are asking whether it worked correctly.\nThis is how craft deepens. Not by chasing novelty, but by removing what is clumsy from what is already useful.\nWhen the method becomes clean, the result begins to carry Ma’at more naturally.",
-        glyph: "Smoothed tool edge beside a shaped vessel",
-        colorFrequency: "Worked bronze, muted clay, and brightened gold",
-        mantra: "I refine the way I work.",
+            '✨ ḥry-ib knmw — a small decanal rising group observed near the horizon as part of the night-hour order; no secure modern star-cluster assignment should be assumed',
+        maatPrinciple: 'Method Refined',
+        cosmicContext: '''
+Sometimes the material is not the problem.
+
+The method is.
+
+Day 14 asks for the hand to be refined.
+
+A vessel may collapse because the pressure is wrong, not because the clay is worthless. A student may struggle because the teaching is unclear, not because the mind is weak. A body may resist because the training is poorly paced, not because discipline is impossible. A conversation may fail because the timing and tone are wrong, not because truth has no place.
+
+This is one of the humbling lessons of Rekh-Wer.
+
+Knowledge must be willing to examine itself.
+
+The person who knows a little may blame the material. The person under Ma’at asks whether the hand has become careless, proud, rushed, or too rigid.
+
+Today asks for one method to be adjusted.
+
+Change the timing.
+
+Change the words.
+
+Change the tool.
+
+Change the pressure.
+
+Change the order.
+
+Change the amount.
+
+Change the way the work is approached before declaring the work impossible.
+
+Khnum’s hand is powerful because it is responsive.
+
+Great knowing becomes craft when it can refine its own method.
+''',
+        glyph: 'Potter’s hand changing angle on the wheel',
+        colorFrequency: 'Wet clay, responsive blue, and refined gold',
+        mantra: '“I refine the hand before blaming the clay.”',
       ),
       (
         totalDay: 15,
         starCluster:
-            "✨ ḥry-ib knmw — inward guidance turning care from a feeling into a disciplined mode of handling life",
-        maatPrinciple: "Let Care Become Skill",
-        cosmicContext:
-            "Care is not softness. It is exact handling.\nIn Kemet, what sustained life had to be handled with intelligence: seed, water, grain, bodies, tools, offerings, records, agreements. To be careless with what mattered was not freedom. It was disorder. So care became part of skill itself — the ability to touch, move, store, prepare, or speak in a way that preserved what was valuable.\nDay 15 deepens that law.\nYou bring deliberate care to something you usually treat too casually.\nNot because it is fragile in a sentimental sense, but because it deserves correct handling.\nThis is where refinement stops being cosmetic and becomes ethical.",
-        glyph: "Two careful hands supporting a formed object",
-        colorFrequency: "Quiet green, warm bronze, and temple gold",
-        mantra: "What I handle, I handle well.",
+            '✨ ḥry-ib knmw — the midpoint phase of the knmw decanal sequence, a modest rising star group used for timing with uncertain modern identification',
+        maatPrinciple: 'Correction Received',
+        cosmicContext: '''
+The middle of this decan asks for humility.
+
+Day 15 belongs to receiving correction.
+
+This is where great knowing is tested. Knowledge can become proud of itself. Skill can mistake experience for immunity. A person can become attached to the first form simply because they made it. A method can be defended because it once worked, even after the evidence has changed.
+
+Correction is not humiliation when it serves Ma’at.
+
+It is protection from hardening in the wrong shape.
+
+A teacher may speak. The body may object. A mistake may repeat. A number may refuse to agree with the story. A friend may say the sentence that reveals the crooked place. A tool may fail because the method is wrong. The field may answer the farmer honestly.
+
+Today asks for useful correction to be received without defense.
+
+Not every voice should shape the vessel.
+
+But the right correction should not be rejected because pride finds it uncomfortable.
+
+What truth can improve the work?
+
+What evidence has been ignored?
+
+What discomfort is actually instruction?
+
+A vessel that accepts correction before firing can still become useful.
+
+A life that accepts correction before collapse can still return to measure.
+''',
+        glyph: 'Open hands receiving a measuring cord',
+        colorFrequency: 'Humility blue, clay brown, and honest gold',
+        mantra: '“Correction can protect the form.”',
       ),
       (
         totalDay: 16,
         starCluster:
-            "✨ ḥry-ib knmw — inward mastery that yokes force to intention, preventing strength from turning into waste",
-        maatPrinciple: "Direct the Force",
-        cosmicContext:
-            "Strength without guidance creates damage.\nIn Kemetic systems, force had to be applied with placement. Water had to be channeled. Labor had to be timed. Pressure had to meet the right point. Even a useful power became destructive when released without direction.\nDay 16 is about force under command.\nYour ambition, anger, urgency, will, and energy are not the enemy. But they cannot lead by themselves.\nToday you practice control strong enough to keep power useful.\nThis is where knowledge stops merely informing action and begins governing it.",
-        glyph: "Directed stream entering a carved channel",
-        colorFrequency: "River blue, iron brown, and controlled gold",
-        mantra: "My strength serves the right line.",
+            '✨ ḥry-ib knmw — a horizon-rising decanal marker in the ten-day star sequence, best described as a small watched group with uncertain modern identity',
+        maatPrinciple: 'Excess Removed',
+        cosmicContext: '''
+Refinement often means removal.
+
+Day 16 asks for excess to be cut away.
+
+The vessel may be too heavy. The wall may be too thick. The mouth may be cluttered by ornament. The surface may carry marks that weaken the function. What was added in enthusiasm may now keep the form from serving.
+
+This happens in life constantly.
+
+A schedule carries too many tasks.
+
+A project carries too many features.
+
+A room carries too many objects.
+
+A sentence carries too many words.
+
+A relationship carries old arguments that should not keep being stored.
+
+A practice carries rules that no longer serve the body.
+
+Excess can look like richness while quietly weakening the vessel.
+
+Great knowing does not only gather. It removes.
+
+Today asks for one unnecessary part to be released.
+
+Not the living center.
+
+The extra weight.
+
+The thing that makes the form harder to use, harder to maintain, harder to understand, or less truthful.
+
+Removal under Ma’at is not loss. It is the clearing of function.
+
+A vessel becomes more useful when it stops carrying what it was never meant to hold.
+''',
+        glyph: 'Chisel removing excess clay from a vessel',
+        colorFrequency: 'Clean gold, clay brown, and clear white',
+        mantra: '“I remove what keeps the form from serving.”',
       ),
       (
         totalDay: 17,
         starCluster:
-            "✨ ḥry-ib knmw — refined knowledge becoming visible enough in conduct that others can learn from what is seen",
-        maatPrinciple: "Teach Through Example",
-        cosmicContext:
-            "Refined knowledge does not always speak first.\nIn Kemet, much was learned through proximity: by watching how someone measured, handled, stored, corrected, waited, and completed. Example carried instruction because correct action could be seen. A person whose method held Ma’at taught even in silence.\nDay 17 asks for that kind of presence.\nYou do not need performance. You do not need a lecture. You need visible correctness.\nLet someone learn from your timing, your steadiness, your thoroughness, your calm, your refusal to waste motion.\nWhen knowledge becomes embodied, it begins to guide beyond the self.",
-        glyph: "Upright figure with measured hand before a younger worker",
-        colorFrequency: "Deep blue, reed green, and patient gold",
-        mantra: "My conduct teaches what my words cannot.",
+            '✨ ḥry-ib knmw — a small rising decanal group in the observed night sequence, physically described as a horizon timing marker rather than a confirmed modern constellation',
+        maatPrinciple: 'Center Strengthened',
+        cosmicContext: '''
+After excess is removed, the center must be strengthened.
+
+Day 17 returns to the core.
+
+The danger after cutting away what is unnecessary is forgetting what remains must be reinforced. A vessel still needs a strong base. A practice still needs a reason. A relationship still needs truth. A body still needs nourishment. A project still needs the one function it was made to serve.
+
+The center carries the whole form.
+
+If the center is weak, outer polish does not matter.
+
+This day asks where the essential part needs support.
+
+The core habit.
+
+The central promise.
+
+The main skill.
+
+The true audience.
+
+The necessary boundary.
+
+The foundation of the body: food, sleep, breath, movement.
+
+The actual purpose beneath all the work.
+
+Rekh-Wer is great knowing, but knowing is not measured by how much is added. It is measured by whether the center is understood and protected.
+
+Today asks for one central thing to be strengthened before more is built around it.
+
+In the vessel, in the life, in the work, in the body: the center must hold.
+
+Everything else depends on that.
+''',
+        glyph: 'Strong base beneath a shaped vessel',
+        colorFrequency: 'Deep green, clay brown, and foundation gold',
+        mantra: '“I strengthen the center that carries the form.”',
       ),
       (
         totalDay: 18,
         starCluster:
-            "✨ ḥry-ib knmw — discernment cutting away wasted motion so skill can move without leakage",
-        maatPrinciple: "Remove Waste Motion",
-        cosmicContext:
-            "Not every motion is meaningful.\nIn Kemetic labor, wasted movement cost more than time. It drained the body, scattered attention, spoiled rhythm, and often damaged the work itself. So refinement included economy — not doing less out of laziness, but removing what was needless so effort could travel directly where it belonged.\nDay 18 is for clean efficiency.\nYou look at what you repeat that does not truly serve: overexplaining, switching tasks poorly, reacting too often, rehearsing excuses, making extra passes, carrying cluttered routines.\nMovement is not the same as progress.\nA disciplined life knows how to stop leaking.",
-        glyph: "Clean line with severed excess loops",
-        colorFrequency: "Flint gray, dry reed, and exact gold",
-        mantra: "I cut away what steals force.",
+            '✨ ḥry-ib knmw — a modest horizon marker in the decanal star order, likely faint compared with major stellar anchors and not securely identified today',
+        maatPrinciple: 'Form Tested in Use',
+        cosmicContext: '''
+A form must be tested by use.
+
+Day 18 asks whether the vessel can hold outside the imagination.
+
+This is the moment when theory meets condition. The vessel receives water. The schedule receives a difficult day. The boundary receives pressure. The relationship receives truth. The body receives ordinary labor. The project receives an actual user, reader, client, household, or need.
+
+Use reveals what planning cannot.
+
+Some things look balanced until they are carried. Some promises sound strong until time tests them. Some methods seem wise until the body has to live inside them. Some beautiful structures fail because no one can use them without strain.
+
+This is not an insult to the work.
+
+It is the next teacher.
+
+Today asks for one form to meet a real condition.
+
+Do not demand perfection from the test.
+
+Watch.
+
+What holds?
+
+What leaks?
+
+What confuses?
+
+What needs reinforcement?
+
+What becomes easier than expected?
+
+Great knowing does not hide inside theory. It lets the form meet the world, then learns from the answer.
+
+A vessel proven in use becomes more trustworthy than one admired from a distance.
+''',
+        glyph: 'Water being poured into a newly formed vessel',
+        colorFrequency: 'Nile blue, fired clay, and testing gold',
+        mantra: '“I let the form meet real use.”',
       ),
       (
         totalDay: 19,
         starCluster:
-            "✨ ḥry-ib knmw — the center holding intention and action together so skill no longer divides into claim and conduct",
-        maatPrinciple: "Bind Intention to Action",
-        cosmicContext:
-            "Many people mean well. Fewer live in alignment.\nIn Kemetic thought, correctness was never completed by intention alone. A good aim without matching conduct still left disorder in the world. The heart, the hand, and the spoken purpose had to agree. Otherwise, the split itself became a source of weakness.\nDay 19 is for closing that split.\nYou examine whether your conduct truly matches what you say you value.\nNot what you admire in theory. Not what you explain beautifully. What you actually do.\nKnowledge becomes trustworthy when intention no longer has to apologize for action.",
-        glyph: "Heart and hand joined by one line",
-        colorFrequency: "Red-brown, lapis, and balanced gold",
-        mantra: "My actions answer to my inner law.",
+            '✨ ḥry-ib knmw — a small decanal rising group near the horizon in the night-time sequence, with exact modern star identity uncertain',
+        maatPrinciple: 'Method Preserved',
+        cosmicContext: '''
+What has been learned should not be lost.
+
+Day 19 asks for the method to be recorded.
+
+Correction has happened. Excess has been removed. The center has been strengthened. The form has been tested. Now the lesson must be preserved before memory dissolves into feeling.
+
+This is Djehuty’s work inside Khnum’s craft.
+
+The hand learns, but the record lets another hand learn later. The body learns, but the written rhythm helps the body remember when stress returns. The project teaches its method, but the method must be named or it will have to be rediscovered through future frustration.
+
+In Kemet, knowledge survived because it was copied, taught, measured, and placed into forms that could continue.
+
+A method unrecorded remains vulnerable.
+
+Today asks for one piece of learning to be written clearly.
+
+What worked?
+
+What failed?
+
+What pressure was too much?
+
+What order should be repeated?
+
+What standard should now govern the work?
+
+This does not need to be elaborate. A simple note can become a future guide.
+
+Great knowing becomes inheritance when it is preserved.
+''',
+        glyph: 'Reed pen beside a finished vessel',
+        colorFrequency: 'Ink black, clay brown, and gold',
+        mantra: '“I preserve the method so wisdom can continue.”',
       ),
       (
         totalDay: 20,
         starCluster:
-            "✨ ḥry-ib knmw — inwardly stabilized shaping, where corrected method becomes a governing principle rather than a temporary effort",
-        maatPrinciple: "Confirm the Inner Guide",
-        cosmicContext:
-            "The second decan closes not with display, but with governance.\nBy now the question is no longer whether you can perform the act. It is whether a truer principle now governs how you perform it. In Kemet, refinement was not complete when a mistake was fixed once. It was complete when correction became part of the worker’s nature — when the method itself had absorbed the lesson.\nDay 20 is the sealing of that change.\nYou look back over what has been slowed, corrected, refined, and brought inward. Then you name the law that now leads your hand.\nNot a mood. Not a slogan. A governing principle.\nWhat has been refined enough to guide you can now prepare you for the next stage of mastery.",
-        glyph: "Centered heart above a finished instrument",
-        colorFrequency: "Inner blue, dark bronze, and settled gold",
-        mantra: "My skill is guided from within.",
+            '✨ ḥry-ib knmw — the heart phase of the knmw decanal group, a modest horizon-rising timing marker in the star sequence with no secure modern constellation match',
+        maatPrinciple: 'Discerned Skill Sealed',
+        cosmicContext: '''
+Day 20 seals the heart of Khnum.
+
+This decan has asked whether skill can accept discernment. The form has been heard. Error has been separated from material. The hand has been refined. Correction has been received. Excess has been removed. The center has been strengthened. The form has been tested in use. The method has been recorded.
+
+Now skill is more trustworthy.
+
+Not because it was perfect.
+
+Because it was corrected.
+
+This is one of the deepest teachings of Rekh-Wer. Knowledge under Ma’at does not fear refinement. It does not cling to first attempts. It does not hide from evidence. It does not confuse pride with mastery.
+
+A vessel shaped by correction can hold more than a vessel defended by ego.
+
+A life shaped by truth can continue where performance would break.
+
+Today asks what has become more reliable because it was refined.
+
+Name it.
+
+A method.
+
+A rhythm.
+
+A body practice.
+
+A relationship pattern.
+
+A piece of work.
+
+A way of speaking.
+
+A way of carrying responsibility.
+
+Seal the learning.
+
+What has been corrected in Ma’at can now serve with greater trust.
+''',
+        glyph: 'Corrected vessel sealed with a heart sign',
+        colorFrequency: 'Fired clay, deep green, and sealed gold',
+        mantra: '“What accepts correction becomes trustworthy.”',
       ),
     ],
   );
 }
 
 Map<String, KemeticDayInfo> _buildRekhWerIIIEntries() {
-  const season = "🌿 Peret – Season of Emergence";
-  const month =
-      "Rekh-Wer (Rḫ-wr) — “Great Knowing,” where understanding must prove itself through structure, measure, and responsibility";
+  const season = '🌿 Peret – Season of Emergence';
+  const month = 'Rekh-Wer (Rḫ-wr) — Great Knowing Held Under Measure';
   return _buildGeneratedDecanEntries(
-    keyPrefix: "rekhwer",
+    keyPrefix: 'rekhwer',
     decan: 3,
-    decanLabel: "Rekh-Wer III",
-    monthLabelForDate: "Rekh-Wer",
+    decanLabel: 'Rekh-Wer III',
+    monthLabelForDate: 'Rekh-Wer',
     month: month,
     season: season,
+    decanName: 'sbꜣ knmw',
+    kemeticDateBuilder: (totalDay, _) => 'Rekh-Wer III, Day $totalDay',
     flowRows: _rekhWerOverrideIIIFlowRows,
     entries: [
       (
         totalDay: 21,
         starCluster:
-            "✨ sbꜣ knmw — the star of shaping made steady: formed intelligence now held long enough, cleanly enough, and truthfully enough to become guidance",
-        maatPrinciple: "Lay out what must now be trusted",
-        cosmicContext:
-            "* Day 21 is inspection.\n* By the third decan, the question is no longer whether something can be started. It is whether it can be relied upon. In Kemet, this was the phase when tools, jars, cords, ledgers, hands, and habits had to be examined before heavier duty began. Anything that would feed, cut, bind, store, teach, or protect had to be checked in plain view.\n* That is the work of sbꜣ knmw. Knowledge has already been formed. It has already been corrected inwardly. Now it must become stable enough to guide. Not clever once. Not impressive occasionally. Dependable. Repeatable. Clear under pressure. Able to serve more than the self.\n* So today you spread out your real life and look at it without drama: your body, methods, schedule, money, speech, obligations, standards, and spiritual rhythm. You do this because Ma’at is not guarded by wishful thinking. It is guarded by accurate seeing and by the discipline to refine what will soon carry weight.\n* ▽ Rekh-Wer Flow — sbꜣ knmw (Days 21–30)\nDay\tStage\tAction\tReflection\n21\tLay Out the Instruments\tSpread out what this next phase will depend on: tools, health, schedule, money, discipline, alliances, and spiritual practice. See it without performance.\t“What in my life is actually ready to be trusted?”\n22\tName the Unsound Place\tIdentify what is cracked, loose, overextended, inconsistent, or falsely presented as “fine.” Refuse soft lies.\t“Where am I still pretending something is sound when it is not?”\n23\tHone the Working Edge\tSharpen one thing you will need to function cleanly: a skill, a body habit, a workspace, a discipline, a form of speech.\t“What must be honed so I stop tearing through life with a dull edge?”\n24\tBring It Back Into True\tRealign one structure before pressure exposes its weakness: posture, agreement, budget, boundary, workflow, calendar, or vow.\t“What needs correction now so it does not fail later?”\n25\tYoke the Force\tTake raw power — ambition, anger, urgency, appetite, charisma, stamina — and harness it to duty.\t“Is my strength serving order, or only serving impulse?”\n26\tSpeak the Obligation\tState plainly what you are now responsible for maintaining. Reduce vagueness. Accept the burden without theatrics.\t“What is mine to keep alive from here forward?”\n27\tCut Away the Rot\tRemove one drain that cannot travel with you: habit, excuse, indulgence, false loyalty, recurring disorder, or self-betrayal.\t“What will poison the next cycle if I keep feeding it?”\n28\tBind Continuity\tMake a continuity vow. Promise steady tending rather than dramatic effort. Build repetition into the future.\t“What deserves my steady hand beyond today’s mood?”\n29\tSubmit to Measure\tCount, record, verify. Face numbers, outcomes, limits, and timelines without inflation, avoidance, or fantasy.\t“Can I let truth be measured exactly as it is?”\n30\tPresent Yourself for Use\tStand before the next cycle prepared, accountable, and available. Offer not just survival, but governed usefulness.\t“Am I ready to be used in the work of Ma’at, not just praised for enduring?”",
-        glyph: "Star above the shaped vessel set beside the scribe’s tally",
-        colorFrequency: "River-cool blue, worked bronze, and papyrus gold",
-        mantra: "I refine what must hold, and I offer what can guide.",
+            '✨ sbꜣ knmw — the star phase of the knmw decanal sequence; a modest horizon-rising marker in the night order, with no secure modern constellation identification',
+        maatPrinciple: 'Reliability Begins',
+        cosmicContext: '''
+The first decan gave form.
+
+The second refined the form through correction.
+
+The third asks whether the form can now be trusted.
+
+This is the work of sbꜣ knmw: the star of Khnum. A star becomes useful because it returns in order. A vessel becomes useful because it holds under use. A skill becomes useful because it can be repeated when the conditions are ordinary.
+
+Day 21 asks for reliability.
+
+Not brilliance.
+
+Not display.
+
+Reliability.
+
+The corrected method must now meet a normal day. Not a perfect day. Not a sacredly arranged day. A real one, with distractions, limits, interruptions, and ordinary pressure.
+
+Can the rhythm hold there?
+
+Can the body practice there?
+
+Can the project move there?
+
+Can the relationship use the new method there?
+
+Can the vessel hold when it is no longer being admired from the wheel?
+
+Great knowing is not proven by what is understood once. It is proven by what can guide action repeatedly.
+
+Today asks for one corrected form to be used in ordinary life.
+
+What holds there can begin to become trustworthy.
+''',
+        glyph: 'Finished vessel placed beneath a steady star',
+        colorFrequency: 'Fired clay, night blue, and stable gold',
+        mantra: '“What holds in ordinary conditions becomes trustworthy.”',
       ),
       (
         totalDay: 22,
         starCluster:
-            "✨ sbꜣ knmw — star-knowledge that refuses ornament and goes straight to soundness, testing what can still hold and what can no longer be trusted",
-        maatPrinciple: "Tell the truth about what is unsound",
-        cosmicContext:
-            "* A cracked vessel does not become whole because no one mentions the crack.\n* In Kemet, naming damage was loyalty, not pessimism. If a handle was split, it was called split. If a jar leaked, it was called leaking. If a measure was false, it was corrected before goods were lost and trust was broken. Silence around damage was never kindness. It was an invitation to later failure.\n* Day 22 is that honesty.\n* You call the thing what it is: exhaustion, debt, poor technique, a weak boundary, lazy speech, a promise you cannot keep, a method that still fails when repeated. This is not self-attack. This is disciplined clarity. Ma’at cannot be maintained by protecting your pride from accurate naming. It is maintained by refusing to let hidden weakness rule the next phase.\n* ▽ Rekh-Wer Flow — sbꜣ knmw (Days 21–30)\nDay\tStage\tAction\tReflection\n21\tLay Out the Instruments\tSpread out what this next phase will depend on: tools, health, schedule, money, discipline, alliances, and spiritual practice. See it without performance.\t“What in my life is actually ready to be trusted?”\n22\tName the Unsound Place\tIdentify what is cracked, loose, overextended, inconsistent, or falsely presented as “fine.” Refuse soft lies.\t“Where am I still pretending something is sound when it is not?”\n23\tHone the Working Edge\tSharpen one thing you will need to function cleanly: a skill, a body habit, a workspace, a discipline, a form of speech.\t“What must be honed so I stop tearing through life with a dull edge?”\n24\tBring It Back Into True\tRealign one structure before pressure exposes its weakness: posture, agreement, budget, boundary, workflow, calendar, or vow.\t“What needs correction now so it does not fail later?”\n25\tYoke the Force\tTake raw power — ambition, anger, urgency, appetite, charisma, stamina — and harness it to duty.\t“Is my strength serving order, or only serving impulse?”\n26\tSpeak the Obligation\tState plainly what you are now responsible for maintaining. Reduce vagueness. Accept the burden without theatrics.\t“What is mine to keep alive from here forward?”\n27\tCut Away the Rot\tRemove one drain that cannot travel with you: habit, excuse, indulgence, false loyalty, recurring disorder, or self-betrayal.\t“What will poison the next cycle if I keep feeding it?”\n28\tBind Continuity\tMake a continuity vow. Promise steady tending rather than dramatic effort. Build repetition into the future.\t“What deserves my steady hand beyond today’s mood?”\n29\tSubmit to Measure\tCount, record, verify. Face numbers, outcomes, limits, and timelines without inflation, avoidance, or fantasy.\t“Can I let truth be measured exactly as it is?”\n30\tPresent Yourself for Use\tStand before the next cycle prepared, accountable, and available. Offer not just survival, but governed usefulness.\t“Am I ready to be used in the work of Ma’at, not just praised for enduring?”",
-        glyph: "Split shaft marked by a truthful repair line",
-        colorFrequency: "Dry clay brown, exposed wood, and strict gold",
-        mantra: "I do not hide what must be repaired.",
+            '✨ sbꜣ knmw — a small rising decanal star group near the horizon in the ten-day sequence, physically treated as a timing marker rather than a firmly identified modern cluster',
+        maatPrinciple: 'Method Repeated',
+        cosmicContext: '''
+Reliability requires repetition.
+
+Day 22 asks for the corrected method to be repeated without impatience.
+
+This is harder than it sounds. Once something works, the restless mind often wants to change it immediately. Add more. Make it impressive. Make it faster. Make it new. But competence does not mature when the method is constantly abandoned before it can settle into the body.
+
+The potter learns by returning the hand to the wheel.
+
+The scribe learns by returning the reed to the line.
+
+The healer learns by observing repeated signs.
+
+The farmer learns by watching seasons repeat without assuming each return is empty.
+
+Repetition is not deadness when it serves Ma’at.
+
+It is how truth enters muscle, memory, hand, and rhythm.
+
+Today asks for one useful method to be repeated cleanly. Do not improve it out of anxiety. Do not discard it because it feels simple. Do not confuse novelty with growth.
+
+A vessel becomes reliable when the method that shaped it can be repeated.
+
+A life becomes reliable the same way.
+
+Where repetition holds, skill begins to become inheritance.
+''',
+        glyph: 'Repeated hand marks around a turning wheel',
+        colorFrequency: 'Clay brown, patterned gold, and deep blue',
+        mantra: '“I repeat what has proven true.”',
       ),
       (
         totalDay: 23,
         starCluster:
-            "✨ sbꜣ knmw — shaped intelligence narrowing to a clean edge, where force no longer hacks wildly but cuts in one true motion",
-        maatPrinciple: "Sharpen what will have to work",
-        cosmicContext:
-            "* A dull edge wastes life.\n* In the field, a blade that should have cut cleanly instead tore, slowed the hand, spoiled the grain, and multiplied fatigue. In the house, a weak method did the same. The problem was not only inefficiency. It was unnecessary damage.\n* Day 23 is refinement without delay.\n* You pick one instrument in your life that must become cleaner: your body’s readiness, your skill, your morning order, your paperwork, your prayer discipline, your use of language, your way of making decisions. Then you sharpen it. Great Knowing is not the pride of saying you understand. It is the discipline of becoming more exact so less force is wasted.\n* ▽ Rekh-Wer Flow — sbꜣ knmw (Days 21–30)\nDay\tStage\tAction\tReflection\n21\tLay Out the Instruments\tSpread out what this next phase will depend on: tools, health, schedule, money, discipline, alliances, and spiritual practice. See it without performance.\t“What in my life is actually ready to be trusted?”\n22\tName the Unsound Place\tIdentify what is cracked, loose, overextended, inconsistent, or falsely presented as “fine.” Refuse soft lies.\t“Where am I still pretending something is sound when it is not?”\n23\tHone the Working Edge\tSharpen one thing you will need to function cleanly: a skill, a body habit, a workspace, a discipline, a form of speech.\t“What must be honed so I stop tearing through life with a dull edge?”\n24\tBring It Back Into True\tRealign one structure before pressure exposes its weakness: posture, agreement, budget, boundary, workflow, calendar, or vow.\t“What needs correction now so it does not fail later?”\n25\tYoke the Force\tTake raw power — ambition, anger, urgency, appetite, charisma, stamina — and harness it to duty.\t“Is my strength serving order, or only serving impulse?”\n26\tSpeak the Obligation\tState plainly what you are now responsible for maintaining. Reduce vagueness. Accept the burden without theatrics.\t“What is mine to keep alive from here forward?”\n27\tCut Away the Rot\tRemove one drain that cannot travel with you: habit, excuse, indulgence, false loyalty, recurring disorder, or self-betrayal.\t“What will poison the next cycle if I keep feeding it?”\n28\tBind Continuity\tMake a continuity vow. Promise steady tending rather than dramatic effort. Build repetition into the future.\t“What deserves my steady hand beyond today’s mood?”\n29\tSubmit to Measure\tCount, record, verify. Face numbers, outcomes, limits, and timelines without inflation, avoidance, or fantasy.\t“Can I let truth be measured exactly as it is?”\n30\tPresent Yourself for Use\tStand before the next cycle prepared, accountable, and available. Offer not just survival, but governed usefulness.\t“Am I ready to be used in the work of Ma’at, not just praised for enduring?”",
-        glyph: "Whetstone against a blade beneath a guiding star",
-        colorFrequency: "Metal gray, river shadow, and brightened gold",
-        mantra: "I sharpen what I will depend on.",
+            '✨ sbꜣ knmw — a horizon-based decanal marker in the observed night sequence, likely modest in brightness compared with major stellar anchors and not securely identified today',
+        maatPrinciple: 'Practice Without Display',
+        cosmicContext: '''
+Skill weakens when it becomes performance too soon.
+
+Day 23 asks for practice without display.
+
+This matters because the desire to be seen can pull a forming skill away from its own growth. The hand starts shaping for applause instead of function. The voice speaks to be admired rather than to be true. The body trains to prove something instead of becoming steady. The work is shown before it is strong enough to survive opinion.
+
+Great knowing becomes distorted when it serves image before service.
+
+This day asks for hidden competence.
+
+Do the work without announcing it.
+
+Repeat the method without making it a spectacle.
+
+Practice where no one praises the effort.
+
+Let the form become stronger before it becomes public.
+
+This is not secrecy from fear. It is protection from premature performance. A vessel still drying should not be handed to a crowd. A skill still settling should not be forced to carry reputation before it can carry function.
+
+Ma’at does not require everything real to be immediately visible.
+
+Some things become trustworthy because they are allowed to mature in quiet.
+
+Today asks for one competent act done cleanly without display.
+''',
+        glyph: 'Hidden hand shaping clay behind a low lamp',
+        colorFrequency: 'Lamp gold, shadow blue, and wet clay',
+        mantra: '“Competence may grow quietly.”',
       ),
       (
         totalDay: 24,
         starCluster:
-            "✨ sbꜣ knmw — the star of alignment, bringing angle, sequence, and proportion back into true before strain turns error into collapse",
-        maatPrinciple: "Bring one thing back into true",
-        cosmicContext:
-            "* Most collapse announces itself quietly first.\n* A cord starts to drift. A joint loosens. A boundary gets spoken less clearly. A budget slips. A posture bends. A routine moves off its line by degrees. What breaks later usually began with a small permission to stay crooked.\n* Day 24 is correction before consequence.\n* You restore one real structure in your life to true relation. Not performatively. Not because disorder makes a good story. Because misalignment multiplies. Great Knowing does not wait for public failure to begin repair. It makes the small adjustment while dignity is still intact and before others must pay for your delay.\n* ▽ Rekh-Wer Flow — sbꜣ knmw (Days 21–30)\nDay\tStage\tAction\tReflection\n21\tLay Out the Instruments\tSpread out what this next phase will depend on: tools, health, schedule, money, discipline, alliances, and spiritual practice. See it without performance.\t“What in my life is actually ready to be trusted?”\n22\tName the Unsound Place\tIdentify what is cracked, loose, overextended, inconsistent, or falsely presented as “fine.” Refuse soft lies.\t“Where am I still pretending something is sound when it is not?”\n23\tHone the Working Edge\tSharpen one thing you will need to function cleanly: a skill, a body habit, a workspace, a discipline, a form of speech.\t“What must be honed so I stop tearing through life with a dull edge?”\n24\tBring It Back Into True\tRealign one structure before pressure exposes its weakness: posture, agreement, budget, boundary, workflow, calendar, or vow.\t“What needs correction now so it does not fail later?”\n25\tYoke the Force\tTake raw power — ambition, anger, urgency, appetite, charisma, stamina — and harness it to duty.\t“Is my strength serving order, or only serving impulse?”\n26\tSpeak the Obligation\tState plainly what you are now responsible for maintaining. Reduce vagueness. Accept the burden without theatrics.\t“What is mine to keep alive from here forward?”\n27\tCut Away the Rot\tRemove one drain that cannot travel with you: habit, excuse, indulgence, false loyalty, recurring disorder, or self-betrayal.\t“What will poison the next cycle if I keep feeding it?”\n28\tBind Continuity\tMake a continuity vow. Promise steady tending rather than dramatic effort. Build repetition into the future.\t“What deserves my steady hand beyond today’s mood?”\n29\tSubmit to Measure\tCount, record, verify. Face numbers, outcomes, limits, and timelines without inflation, avoidance, or fantasy.\t“Can I let truth be measured exactly as it is?”\n30\tPresent Yourself for Use\tStand before the next cycle prepared, accountable, and available. Offer not just survival, but governed usefulness.\t“Am I ready to be used in the work of Ma’at, not just praised for enduring?”",
-        glyph: "Measuring cord drawn taut over a true line",
-        colorFrequency: "Chalk white, pale gold, and lapis blue",
-        mantra: "I return what drifts to its proper line.",
+            '✨ sbꜣ knmw — a modest rising group in the decanal star order, observed near the horizon with uncertain modern astronomical identification',
+        maatPrinciple: 'Weak Point Strengthened',
+        cosmicContext: '''
+A reliable form still has weak points.
+
+Day 24 asks for one of them to be strengthened.
+
+This is not a return to shame. It is the next phase of craft. Once the vessel holds, the potter can see where the wall remains thin. Once the method repeats, the practitioner can see where attention still slips. Once the body grows stronger, the old weak place becomes clear enough to be trained with care.
+
+This is a gift.
+
+Weakness seen early can become strength.
+
+Weakness ignored becomes future fracture.
+
+Today asks for calm attention to one known weak point.
+
+The part of the skill that still wavers.
+
+The place in the schedule that still breaks.
+
+The phrase that still turns a conversation crooked.
+
+The tool that keeps failing.
+
+The body part that needs steadier care.
+
+The step in the method that still depends on luck.
+
+Do not attack the weakness.
+
+Strengthen it.
+
+There is a difference.
+
+Attack comes from contempt. Strengthening comes from responsibility.
+
+Khnum’s craft does not reject the vessel for needing reinforcement. Great knowing places support where the form most needs to hold.
+''',
+        glyph: 'Hand thickening the weak wall of a vessel',
+        colorFrequency: 'Clay red, repair gold, and deep green',
+        mantra: '“I strengthen the place that must hold.”',
       ),
       (
         totalDay: 25,
         starCluster:
-            "✨ sbꜣ knmw — star-bound force under harness, where strength is respected only when it has accepted guidance",
-        maatPrinciple: "Harness power to duty",
-        cosmicContext:
-            "* Power is not yet sacred just because it is real.\n* The bull is real. Fire is real. Urgency is real. Appetite is real. So are voice, stamina, status, magnetism, and force of will. In Kemet, these were not despised — but they were never left untethered. What was strong had to be yoked, or it would trample what it was meant to protect.\n* Day 25 is disciplined force.\n* You take what is powerful in you and you place it under law. Your ambition must serve the house, not vanity. Your anger must defend the vulnerable, not feed appetite. Your stamina must sustain duty, not prove superiority. This is where knowledge stops admiring strength and begins governing it.\n* ▽ Rekh-Wer Flow — sbꜣ knmw (Days 21–30)\nDay\tStage\tAction\tReflection\n21\tLay Out the Instruments\tSpread out what this next phase will depend on: tools, health, schedule, money, discipline, alliances, and spiritual practice. See it without performance.\t“What in my life is actually ready to be trusted?”\n22\tName the Unsound Place\tIdentify what is cracked, loose, overextended, inconsistent, or falsely presented as “fine.” Refuse soft lies.\t“Where am I still pretending something is sound when it is not?”\n23\tHone the Working Edge\tSharpen one thing you will need to function cleanly: a skill, a body habit, a workspace, a discipline, a form of speech.\t“What must be honed so I stop tearing through life with a dull edge?”\n24\tBring It Back Into True\tRealign one structure before pressure exposes its weakness: posture, agreement, budget, boundary, workflow, calendar, or vow.\t“What needs correction now so it does not fail later?”\n25\tYoke the Force\tTake raw power — ambition, anger, urgency, appetite, charisma, stamina — and harness it to duty.\t“Is my strength serving order, or only serving impulse?”\n26\tSpeak the Obligation\tState plainly what you are now responsible for maintaining. Reduce vagueness. Accept the burden without theatrics.\t“What is mine to keep alive from here forward?”\n27\tCut Away the Rot\tRemove one drain that cannot travel with you: habit, excuse, indulgence, false loyalty, recurring disorder, or self-betrayal.\t“What will poison the next cycle if I keep feeding it?”\n28\tBind Continuity\tMake a continuity vow. Promise steady tending rather than dramatic effort. Build repetition into the future.\t“What deserves my steady hand beyond today’s mood?”\n29\tSubmit to Measure\tCount, record, verify. Face numbers, outcomes, limits, and timelines without inflation, avoidance, or fantasy.\t“Can I let truth be measured exactly as it is?”\n30\tPresent Yourself for Use\tStand before the next cycle prepared, accountable, and available. Offer not just survival, but governed usefulness.\t“Am I ready to be used in the work of Ma’at, not just praised for enduring?”",
-        glyph: "Bull’s foreleg bound to the working beam",
-        colorFrequency: "Ox-blood red, rope tan, and temple gold",
-        mantra: "My strength is harnessed to what must be served.",
+            '✨ sbꜣ knmw — a small decanal horizon marker in the night-time sequence, best described as a modest watched star group with no secure modern cluster assignment',
+        maatPrinciple: 'Capacity Expanded Lawfully',
+        cosmicContext: '''
+A vessel that holds can be tested with more.
+
+Day 25 asks for lawful increase.
+
+Not overload.
+
+Increase.
+
+The corrected form has held ordinary use. The method has repeated. The weak point has been noticed. Now the question is whether the vessel can carry a little more responsibility without losing shape.
+
+This is how capacity grows under Ma’at.
+
+A body takes on a slightly greater task.
+
+A project receives a real user.
+
+A skill handles a harder version of the work.
+
+A relationship holds a more honest conversation.
+
+A schedule carries a fuller day without returning to chaos.
+
+The increase must be lawful. It should stretch the form, not break it. It should reveal capacity, not punish the vessel for becoming stronger.
+
+Many people remain too small because they fear every increase will repeat the old collapse. Others overload too quickly because early success makes them forget measure.
+
+Today asks for the middle path.
+
+What can this now hold that it could not hold before?
+
+Choose one greater but rightful responsibility.
+
+Let the vessel prove itself under more weight, but not under false weight.
+
+Growth becomes trustworthy when capacity expands by measure.
+''',
+        glyph: 'Vessel receiving a slightly fuller measure of water',
+        colorFrequency: 'Nile blue, fired clay, and careful gold',
+        mantra: '“I increase capacity in right measure.”',
       ),
       (
         totalDay: 26,
         starCluster:
-            "✨ sbꜣ knmw — the star that makes duty speakable, where stewardship is not assumed vaguely but named as covenant",
-        maatPrinciple: "State the obligation cleanly",
-        cosmicContext:
-            "* Unspoken responsibility breeds neglect.\n* In Kemet, what had to be maintained was named. Who watched the storehouse. Who measured grain. Who guarded the young. Who tended the rites. Who kept record. Duty spoken aloud became accountable. Duty left vague became everyone’s problem and no one’s burden.\n* Day 26 is assignment without evasion.\n* You say clearly what is yours to keep alive. A child’s rhythm. A healing discipline. A business standard. A marriage vow. A practice of truth. A system that feeds the house. This is not about inflating yourself with importance. It is about removing the fog around stewardship so order has an actual keeper. Great Knowing becomes great only when it accepts maintenance as sacred labor.\n* ▽ Rekh-Wer Flow — sbꜣ knmw (Days 21–30)\nDay\tStage\tAction\tReflection\n21\tLay Out the Instruments\tSpread out what this next phase will depend on: tools, health, schedule, money, discipline, alliances, and spiritual practice. See it without performance.\t“What in my life is actually ready to be trusted?”\n22\tName the Unsound Place\tIdentify what is cracked, loose, overextended, inconsistent, or falsely presented as “fine.” Refuse soft lies.\t“Where am I still pretending something is sound when it is not?”\n23\tHone the Working Edge\tSharpen one thing you will need to function cleanly: a skill, a body habit, a workspace, a discipline, a form of speech.\t“What must be honed so I stop tearing through life with a dull edge?”\n24\tBring It Back Into True\tRealign one structure before pressure exposes its weakness: posture, agreement, budget, boundary, workflow, calendar, or vow.\t“What needs correction now so it does not fail later?”\n25\tYoke the Force\tTake raw power — ambition, anger, urgency, appetite, charisma, stamina — and harness it to duty.\t“Is my strength serving order, or only serving impulse?”\n26\tSpeak the Obligation\tState plainly what you are now responsible for maintaining. Reduce vagueness. Accept the burden without theatrics.\t“What is mine to keep alive from here forward?”\n27\tCut Away the Rot\tRemove one drain that cannot travel with you: habit, excuse, indulgence, false loyalty, recurring disorder, or self-betrayal.\t“What will poison the next cycle if I keep feeding it?”\n28\tBind Continuity\tMake a continuity vow. Promise steady tending rather than dramatic effort. Build repetition into the future.\t“What deserves my steady hand beyond today’s mood?”\n29\tSubmit to Measure\tCount, record, verify. Face numbers, outcomes, limits, and timelines without inflation, avoidance, or fantasy.\t“Can I let truth be measured exactly as it is?”\n30\tPresent Yourself for Use\tStand before the next cycle prepared, accountable, and available. Offer not just survival, but governed usefulness.\t“Am I ready to be used in the work of Ma’at, not just praised for enduring?”",
-        glyph: "Open hand beside a written tally of duties",
-        colorFrequency: "Papyrus gold, dark reed brown, and vow-blue",
-        mantra: "What is mine to maintain, I name and keep.",
+            '✨ sbꜣ knmw — a rising decanal group in the horizon-based star sequence, physically described with caution because its exact modern identity is uncertain',
+        maatPrinciple: 'Method Transmitted',
+        cosmicContext: '''
+What is known well enough should be passed on.
+
+Day 26 asks for the method to be taught.
+
+This does not require mastery over every aspect of the craft. It requires enough tested knowledge to make another hand less lost than the first hand was. A method that remains only inside one person is fragile. It can die with memory, mood, fatigue, or silence.
+
+In Kemet, knowledge endured because it was copied, recited, taught, and placed where another reader or worker could use it. The House of Life preserves this principle. Writing keeps a voice active beyond the breath that first spoke it.
+
+Today asks what can now be transmitted.
+
+A recipe.
+
+A routine.
+
+A boundary.
+
+A way of repairing.
+
+A lesson from failure.
+
+A process that made the work easier.
+
+A warning that would save someone time.
+
+A practice that kept the body steady.
+
+Teaching does not mean performing superiority. It means placing knowledge into relation.
+
+Great knowing becomes generous when it becomes usable by another.
+
+Today asks for one method to be explained, written, demonstrated, or handed forward.
+
+A vessel serves more fully when others know how it was made and how it should be used.
+''',
+        glyph: 'Reed pen and hand passing a small vessel forward',
+        colorFrequency: 'Ink black, clay brown, and teaching gold',
+        mantra: '“What I have learned can help another hand.”',
       ),
       (
         totalDay: 27,
         starCluster:
-            "✨ sbꜣ knmw — the star that distinguishes what may be carried forward from what must be cut loose before it corrupts the next cycle",
-        maatPrinciple: "Refuse what will rot the future",
-        cosmicContext:
-            "* Not everything deserves continuation.\n* Some things are not “still growing.” They are feeding on what should be reserved for life. A habit, a false loyalty, an indulgence, a story about yourself, a quiet corruption in speech, a recurring leak in conduct — these do not become harmless by becoming familiar.\n* Day 27 is severance with intelligence.\n* You remove one thing that cannot travel with you into the next phase. This is not dramatic purification for display. It is the plain work of protecting future order from present decay. Great Knowing includes the courage to stop feeding what is already proving itself hostile to Ma’at.\n* ▽ Rekh-Wer Flow — sbꜣ knmw (Days 21–30)\nDay\tStage\tAction\tReflection\n21\tLay Out the Instruments\tSpread out what this next phase will depend on: tools, health, schedule, money, discipline, alliances, and spiritual practice. See it without performance.\t“What in my life is actually ready to be trusted?”\n22\tName the Unsound Place\tIdentify what is cracked, loose, overextended, inconsistent, or falsely presented as “fine.” Refuse soft lies.\t“Where am I still pretending something is sound when it is not?”\n23\tHone the Working Edge\tSharpen one thing you will need to function cleanly: a skill, a body habit, a workspace, a discipline, a form of speech.\t“What must be honed so I stop tearing through life with a dull edge?”\n24\tBring It Back Into True\tRealign one structure before pressure exposes its weakness: posture, agreement, budget, boundary, workflow, calendar, or vow.\t“What needs correction now so it does not fail later?”\n25\tYoke the Force\tTake raw power — ambition, anger, urgency, appetite, charisma, stamina — and harness it to duty.\t“Is my strength serving order, or only serving impulse?”\n26\tSpeak the Obligation\tState plainly what you are now responsible for maintaining. Reduce vagueness. Accept the burden without theatrics.\t“What is mine to keep alive from here forward?”\n27\tCut Away the Rot\tRemove one drain that cannot travel with you: habit, excuse, indulgence, false loyalty, recurring disorder, or self-betrayal.\t“What will poison the next cycle if I keep feeding it?”\n28\tBind Continuity\tMake a continuity vow. Promise steady tending rather than dramatic effort. Build repetition into the future.\t“What deserves my steady hand beyond today’s mood?”\n29\tSubmit to Measure\tCount, record, verify. Face numbers, outcomes, limits, and timelines without inflation, avoidance, or fantasy.\t“Can I let truth be measured exactly as it is?”\n30\tPresent Yourself for Use\tStand before the next cycle prepared, accountable, and available. Offer not just survival, but governed usefulness.\t“Am I ready to be used in the work of Ma’at, not just praised for enduring?”",
-        glyph: "Knife separating sound reed from spoiled fiber",
-        colorFrequency: "Flint gray, shadow green, and severe gold",
-        mantra: "I do not carry forward what corrodes the work.",
+            '✨ sbꜣ knmw — a modest decanal timing marker near the horizon in the ten-day star order; no secure modern star-cluster identification should be assumed',
+        maatPrinciple: 'Cleverness Restrained',
+        cosmicContext: '''
+Cleverness is not the same as wisdom.
+
+Day 27 asks for unnecessary complication to be refused.
+
+This is a danger in the month of Rekh-Wer. Once skill appears, the mind may begin adding for the sake of showing it can add. The method becomes ornate. The sentence becomes heavy. The system becomes overbuilt. The ritual becomes difficult to maintain. The project carries features that serve ego more than function.
+
+Great knowing can become refined Isfet when it separates from usefulness.
+
+A vessel does not become better because it is impossible to hold. A teaching does not become wiser because it is hard to understand. A system does not become sacred because it is complex. A practice does not become deeper because it cannot be repeated by the body that needs it.
+
+Today asks for simplicity in service to truth.
+
+Where is cleverness hiding from discipline?
+
+Where is complexity covering fear?
+
+Where is refinement becoming self-display?
+
+What can be made cleaner, plainer, and more useful?
+
+Djehuty’s knowledge serves Ma’at because it measures. Khnum’s craft serves Ma’at because it forms. Neither exists to decorate confusion.
+
+Today asks for the method to remain clean enough to serve life.
+''',
+        glyph: 'Simple vessel beside discarded ornamental excess',
+        colorFrequency: 'Clean white, clay brown, and restrained gold',
+        mantra: '“Wisdom stays useful.”',
       ),
       (
         totalDay: 28,
         starCluster:
-            "✨ sbꜣ knmw — the star of sustained guidance, where wisdom becomes reliable not by intensity but by repetition under oath",
-        maatPrinciple: "Swear continuity",
-        cosmicContext:
-            "* Insight that cannot survive tomorrow is not yet guidance.\n* By this point in the month, flashes of clarity are not enough. The question becomes whether your care can continue when the moment loses drama, when no one is watching, when effort is no longer new. In Kemet, order survived because tending survived boredom. The field was not fed by inspiration alone. It was fed by continuity.\n* Day 28 is vow made practical.\n* You choose what will still receive your hand after today: a discipline, a repair, a protection, a standard, a duty, a form of truthfulness. Then you bind yourself to it. This is where skill begins to look like wisdom — not because it dazzles, but because it remains.\n* ▽ Rekh-Wer Flow — sbꜣ knmw (Days 21–30)\nDay\tStage\tAction\tReflection\n21\tLay Out the Instruments\tSpread out what this next phase will depend on: tools, health, schedule, money, discipline, alliances, and spiritual practice. See it without performance.\t“What in my life is actually ready to be trusted?”\n22\tName the Unsound Place\tIdentify what is cracked, loose, overextended, inconsistent, or falsely presented as “fine.” Refuse soft lies.\t“Where am I still pretending something is sound when it is not?”\n23\tHone the Working Edge\tSharpen one thing you will need to function cleanly: a skill, a body habit, a workspace, a discipline, a form of speech.\t“What must be honed so I stop tearing through life with a dull edge?”\n24\tBring It Back Into True\tRealign one structure before pressure exposes its weakness: posture, agreement, budget, boundary, workflow, calendar, or vow.\t“What needs correction now so it does not fail later?”\n25\tYoke the Force\tTake raw power — ambition, anger, urgency, appetite, charisma, stamina — and harness it to duty.\t“Is my strength serving order, or only serving impulse?”\n26\tSpeak the Obligation\tState plainly what you are now responsible for maintaining. Reduce vagueness. Accept the burden without theatrics.\t“What is mine to keep alive from here forward?”\n27\tCut Away the Rot\tRemove one drain that cannot travel with you: habit, excuse, indulgence, false loyalty, recurring disorder, or self-betrayal.\t“What will poison the next cycle if I keep feeding it?”\n28\tBind Continuity\tMake a continuity vow. Promise steady tending rather than dramatic effort. Build repetition into the future.\t“What deserves my steady hand beyond today’s mood?”\n29\tSubmit to Measure\tCount, record, verify. Face numbers, outcomes, limits, and timelines without inflation, avoidance, or fantasy.\t“Can I let truth be measured exactly as it is?”\n30\tPresent Yourself for Use\tStand before the next cycle prepared, accountable, and available. Offer not just survival, but governed usefulness.\t“Am I ready to be used in the work of Ma’at, not just praised for enduring?”",
-        glyph: "Bound cord around a steady hand",
-        colorFrequency: "Rope-sand, worked bronze, and sunrise amber",
-        mantra: "What I know, I continue.",
+            '✨ sbꜣ knmw — a horizon-rising decanal star group in the observed night sequence, likely modest and not securely matched to any modern constellation',
+        maatPrinciple: 'Competence in Service',
+        cosmicContext: '''
+Competence becomes sacred when it solves a real problem.
+
+Day 28 asks for skill to serve.
+
+A shaped vessel should hold water. A written record should preserve truth. A trained hand should repair what is broken. A disciplined body should carry life with less collapse. A clear method should reduce confusion for the next person.
+
+Competence that never serves becomes private display.
+
+Competence under Ma’at enters the world as usefulness.
+
+Today asks for one real problem to be met by the skill that has been formed.
+
+Not the most dramatic problem.
+
+A real one.
+
+Something in the body, home, work, relationship, community, altar, or future that can be better held because capability now exists.
+
+Fix the loose part.
+
+Make the instruction clear.
+
+Prepare the meal.
+
+Organize the record.
+
+Repair the rhythm.
+
+Use the method where it matters.
+
+Great knowing is not proven by saying what is known. It is proven when knowledge helps life continue in better order.
+
+Today asks: who or what is better held because the vessel has become capable?
+
+Competence reaches Ma’at when it becomes service.
+''',
+        glyph: 'Capable hand repairing a household vessel',
+        colorFrequency: 'Service gold, clay brown, and living green',
+        mantra: '“My skill serves life.”',
       ),
       (
         totalDay: 29,
         starCluster:
-            "✨ sbꜣ knmw — the star of exact count, where mastery submits itself to tally, proof, and visible measure rather than self-flattery",
-        maatPrinciple: "Let truth be counted",
-        cosmicContext:
-            "* Anything can sound better uncounted.\n* In Kemet, tallying was not greed. It was loyalty to reality. Grain, labor, stores, distances, offerings, and time all entered record because Ma’at required that what passed through human hands remain answerable to truth. False count was not a small vice. It infected the whole system.\n* Day 29 is measured honesty.\n* You face the numbers: money in and out, sleep, repetitions, work completed, promises kept, delays, costs, gains, losses, leaks. No inflation. No strategic vagueness. No using beautiful language to hide weak accounting. Great Knowing reaches maturity when it stops asking to be admired and agrees to be measured.\n* ▽ Rekh-Wer Flow — sbꜣ knmw (Days 21–30)\nDay\tStage\tAction\tReflection\n21\tLay Out the Instruments\tSpread out what this next phase will depend on: tools, health, schedule, money, discipline, alliances, and spiritual practice. See it without performance.\t“What in my life is actually ready to be trusted?”\n22\tName the Unsound Place\tIdentify what is cracked, loose, overextended, inconsistent, or falsely presented as “fine.” Refuse soft lies.\t“Where am I still pretending something is sound when it is not?”\n23\tHone the Working Edge\tSharpen one thing you will need to function cleanly: a skill, a body habit, a workspace, a discipline, a form of speech.\t“What must be honed so I stop tearing through life with a dull edge?”\n24\tBring It Back Into True\tRealign one structure before pressure exposes its weakness: posture, agreement, budget, boundary, workflow, calendar, or vow.\t“What needs correction now so it does not fail later?”\n25\tYoke the Force\tTake raw power — ambition, anger, urgency, appetite, charisma, stamina — and harness it to duty.\t“Is my strength serving order, or only serving impulse?”\n26\tSpeak the Obligation\tState plainly what you are now responsible for maintaining. Reduce vagueness. Accept the burden without theatrics.\t“What is mine to keep alive from here forward?”\n27\tCut Away the Rot\tRemove one drain that cannot travel with you: habit, excuse, indulgence, false loyalty, recurring disorder, or self-betrayal.\t“What will poison the next cycle if I keep feeding it?”\n28\tBind Continuity\tMake a continuity vow. Promise steady tending rather than dramatic effort. Build repetition into the future.\t“What deserves my steady hand beyond today’s mood?”\n29\tSubmit to Measure\tCount, record, verify. Face numbers, outcomes, limits, and timelines without inflation, avoidance, or fantasy.\t“Can I let truth be measured exactly as it is?”\n30\tPresent Yourself for Use\tStand before the next cycle prepared, accountable, and available. Offer not just survival, but governed usefulness.\t“Am I ready to be used in the work of Ma’at, not just praised for enduring?”",
-        glyph: "Scribe palette with disciplined counting marks",
-        colorFrequency: "Ink black, papyrus gold, and measured blue",
-        mantra: "I let the truth be counted.",
+            '✨ sbꜣ knmw — the star phase of the knmw decan, observed as a modest horizon marker in the night order with uncertain modern astronomical identification',
+        maatPrinciple: 'Standard Preserved',
+        cosmicContext: '''
+Familiarity can weaken standards.
+
+Day 29 asks for the standard to be preserved.
+
+When a skill is new, attention is sharp. The hand remembers correction. The mind respects each step. The body listens. But once the method becomes familiar, carelessness can enter quietly.
+
+The vessel is made too quickly.
+
+The record becomes sloppy.
+
+The practice loses its center.
+
+The body is pushed without listening.
+
+The relationship returns to vague speech.
+
+The project is handled as though early success guarantees future order.
+
+This is where standards matter.
+
+A standard is not harshness. It is memory made active. It preserves what correction taught. It keeps the work from drifting back into the errors that refinement already exposed.
+
+Today asks for one rule that will keep competence from becoming careless.
+
+What must always be checked?
+
+What must never be skipped?
+
+What measure protects the form?
+
+What sign reveals drift?
+
+What correction should become permanent law?
+
+Great knowing does not only discover. It preserves the conditions under which knowledge remains true.
+
+A standard protects the skill after the urgency of learning has faded.
+''',
+        glyph: 'Measuring cord sealed beside a finished vessel',
+        colorFrequency: 'Gold line, fired clay, and deep blue',
+        mantra: '“The standard remembers what correction taught.”',
       ),
       (
         totalDay: 30,
         starCluster:
-            "✨ sbꜣ knmw — the star of stabilized guidance, closing the month not with display, but with prepared usefulness: shaped, tested, and ready to serve",
-        maatPrinciple: "Present yourself for use",
-        cosmicContext:
-            "* The month closes with presentation.\n* In Kemet, before a new phase, one did not simply tumble forward unfinished and unnamed. One stood composed, corrected, measured, and available. This was not theater. It was readiness. The useful person was not the loudest one, but the one whose conduct, methods, and obligations had been brought into right relation.\n* So today you do not ask for praise. You ask whether you are prepared. Prepared to guide without confusion. Prepared to work without waste. Prepared to protect without panic. Prepared to teach what you truly know because it has entered your hands, your habits, and your speech. That is the final turn of sbꜣ knmw: knowledge stabilized until another life could safely lean on it.\n* You stand before the next cycle with the truth in view: edge sharpened, line corrected, force yoked, rot cut, vow spoken, numbers faced. Then you offer yourself to Ma’at not as a spectator, but as an instrument.\n* ▽ Rekh-Wer Flow — sbꜣ knmw (Days 21–30)\nDay\tStage\tAction\tReflection\n21\tLay Out the Instruments\tSpread out what this next phase will depend on: tools, health, schedule, money, discipline, alliances, and spiritual practice. See it without performance.\t“What in my life is actually ready to be trusted?”\n22\tName the Unsound Place\tIdentify what is cracked, loose, overextended, inconsistent, or falsely presented as “fine.” Refuse soft lies.\t“Where am I still pretending something is sound when it is not?”\n23\tHone the Working Edge\tSharpen one thing you will need to function cleanly: a skill, a body habit, a workspace, a discipline, a form of speech.\t“What must be honed so I stop tearing through life with a dull edge?”\n24\tBring It Back Into True\tRealign one structure before pressure exposes its weakness: posture, agreement, budget, boundary, workflow, calendar, or vow.\t“What needs correction now so it does not fail later?”\n25\tYoke the Force\tTake raw power — ambition, anger, urgency, appetite, charisma, stamina — and harness it to duty.\t“Is my strength serving order, or only serving impulse?”\n26\tSpeak the Obligation\tState plainly what you are now responsible for maintaining. Reduce vagueness. Accept the burden without theatrics.\t“What is mine to keep alive from here forward?”\n27\tCut Away the Rot\tRemove one drain that cannot travel with you: habit, excuse, indulgence, false loyalty, recurring disorder, or self-betrayal.\t“What will poison the next cycle if I keep feeding it?”\n28\tBind Continuity\tMake a continuity vow. Promise steady tending rather than dramatic effort. Build repetition into the future.\t“What deserves my steady hand beyond today’s mood?”\n29\tSubmit to Measure\tCount, record, verify. Face numbers, outcomes, limits, and timelines without inflation, avoidance, or fantasy.\t“Can I let truth be measured exactly as it is?”\n30\tPresent Yourself for Use\tStand before the next cycle prepared, accountable, and available. Offer not just survival, but governed usefulness.\t“Am I ready to be used in the work of Ma’at, not just praised for enduring?”",
-        glyph: "Star poised above the vessel and tally-board",
-        colorFrequency:
-            "Temple gold, disciplined charcoal, and river-blue shadow",
-        mantra: "I steady what I know until it can guide.",
+            '✨ sbꜣ knmw — the final star marker of Rekh-Wer’s knmw sequence, best described as a modest rising decanal group near the horizon with no secure modern constellation identification',
+        maatPrinciple: 'Great Knowing Sealed',
+        cosmicContext: '''
+Day 30 closes Rekh-Wer.
+
+The month began with raw material and ends with trustworthy knowledge.
+
+Something was shaped. It was centered, pressured, corrected, refined, tested, repeated, taught, simplified, used, and protected by standard. This is the arc of great knowing under Ma’at.
+
+Knowledge did not remain thought.
+
+It became form.
+
+Form did not remain appearance.
+
+It became function.
+
+Function did not remain private.
+
+It became service.
+
+Service did not remain accidental.
+
+It became method.
+
+This is what Rekh-Wer teaches.
+
+Great knowing is not the gathering of impressive ideas. It is the ability to perceive, shape, correct, preserve, and apply what serves life in right relation.
+
+Today asks what is now truly known.
+
+Not because it was read once.
+
+Not because it was imagined.
+
+Because it was lived, shaped, tested, corrected, and used.
+
+Name that knowledge.
+
+Seal the method.
+
+Preserve the standard.
+
+Carry forward only what has proven useful under Ma’at.
+
+A vessel that has been formed and tested can now be trusted to hold. A person shaped by the same discipline can now carry knowledge without letting knowledge become pride.
+''',
+        glyph: 'Finished vessel, reed pen, and sealed star mark',
+        colorFrequency: 'Fired clay, ink black, deep blue, and sealed gold',
+        mantra: '“What I know must serve Ma’at.”',
       ),
     ],
   );
 }
 
 Map<String, KemeticDayInfo> _buildRekhNedjesIEntries() {
-  const season = "🌿 Peret – Season of Emergence";
-  const month =
-      "Rekh-Nedjes (Rḫ-nds) — “Lesser Knowing,” the month of near knowledge, where perception is still forming and discernment must be protected from haste, vanity, and false certainty";
+  const season = '🌿 Peret – Season of Emergence';
+  const month = 'Rekh-Nedjes (Rḫ-nḏs) — Knowing Tested Under Pressure';
   return _buildGeneratedDecanEntries(
-    keyPrefix: "rekhnedjes",
+    keyPrefix: 'rekhnedjes',
     decan: 1,
-    decanLabel: "Rekh-Nedjes I",
-    monthLabelForDate: "Rekh-Nedjes",
+    decanLabel: 'Rekh-Nedjes I',
+    monthLabelForDate: 'Rekh-Nedjes',
     month: month,
     season: season,
+    decanName: 'špsswt',
+    kemeticDateBuilder: (totalDay, _) => 'Rekh-Nedjes I, Day $totalDay',
     flowRows: _rekhNedjesOverrideIFlowRows,
     entries: [
       (
         totalDay: 1,
         starCluster:
-            "✨ špsswt — the noble powers in their first arising: not rank as display, but cultivated quality, disciplined bearing, and value that must be carried with care",
-        maatPrinciple: "Begin with dignity, not display",
-        cosmicContext:
-            "Rekh-Nedjes begins where not everything is fully known.\nThat is its danger and its power. In Kemet, what was still forming had to be handled carefully. Early growth, young grain, fresh plans, new agreements, and half-set structures could not be treated as finished simply because they had appeared. To do so invited damage. What was small, recent, or not yet tested needed protection, watchfulness, and correct handling.\nThat is the atmosphere of špsswt.\nThis first decan does not begin with noise. It begins with nobility in conduct. Not status. Not vanity. Nobility as disciplined value — the ability to carry yourself, your work, your speech, and your emerging responsibilities in a way that does not cheapen what is still becoming.\nSo Day 1 is about beginning with dignity.\nYou do not rush to prove what you are. You do not force ripeness. You do not advertise unfinished strength as mastery.\nYou protect what is still growing by carrying it well.",
-        glyph: "Upright plume above a well-held vessel",
-        colorFrequency: "Soft gold, white linen, and young papyrus green",
-        mantra: "I carry what is becoming with dignity.",
+            '✨ špsswt — a decanal star group in the rising night sequence; exact modern identification is uncertain, so it is best described as a modest horizon marker watched during this ten-day interval',
+        maatPrinciple: 'Knowledge Entering Trial',
+        cosmicContext: '''
+Rekh-Wer shaped knowledge into form.
+
+Rekh-Nedjes sends that knowledge into pressure.
+
+This is the work of špsswt. What was learned, shaped, refined, and recorded must now meet conditions that do not arrange themselves for ease. The field is no longer only teaching formation. It is testing reliability.
+
+Day 1 asks for entry into the trial.
+
+Not a dramatic trial.
+
+A real one.
+
+The method meets an ordinary obstacle. The body meets fatigue. The relationship meets friction. The schedule meets interruption. The skill meets a harder task. The promise meets inconvenience. The knowledge leaves the safe place and enters consequence.
+
+This is not failure.
+
+It is contact with reality.
+
+Heru’s claim was not made true by being spoken once. It had to stand before contest, pressure, and judgment. The same law applies here. What is correct must be able to remain correct when it is challenged.
+
+Today asks for one practiced thing to be tested outside ideal conditions.
+
+Not to break it.
+
+To learn whether it can stand.
+''',
+        glyph: 'Star above a tested staff standing in open ground',
+        colorFrequency: 'Dust gold, field green, and trial red',
+        mantra: '“What I know must now stand in the field.”',
       ),
       (
         totalDay: 2,
         starCluster:
-            "✨ špsswt — noble force in its guarded state, where value is preserved through protection rather than exposure",
-        maatPrinciple: "Guard the tender thing",
-        cosmicContext:
-            "What is precious early is often fragile.\nIn Kemet, no wise person demanded from the young stalk what only a mature field could give. New growth was guarded. Freshly shaped objects were not handled roughly. Early stages were not despised for being incomplete, but neither were they treated carelessly. Their value required protection until they could bear weight.\nDay 2 belongs to that law.\nYou identify what in your life is still tender: a discipline, a healing, a relationship, an idea, a practice, a boundary, a child, a piece of truth inside yourself that has only recently come into the light.\nThen you guard it.\nNot from life itself, but from premature pressure, reckless speech, hungry eyes, and your own impatience.\nProtection is part of nobility.",
-        glyph: "Protective hands around a young reed",
-        colorFrequency: "Pale green, ivory, and quiet gold",
-        mantra: "I protect what is not yet ready for rough handling.",
+            '✨ špsswt — a small decanal rising group near the horizon, functioning as a ten-day timing marker rather than a securely identified modern constellation',
+        maatPrinciple: 'Pressure Recognized',
+        cosmicContext: '''
+The first pressure tells the truth.
+
+Day 2 asks where resistance appears.
+
+A method may look stable until the day becomes crowded. A body may feel strong until sleep is short. A relationship may feel repaired until an old wound is touched. A skill may feel mastered until the task stops being familiar.
+
+Pressure reveals the first gate.
+
+This does not mean the work is false. It means the work is now speaking more honestly. Comfort hides weak points. Pressure brings them forward.
+
+The danger is taking the first pressure personally.
+
+A tired body is not betrayal. A difficult conversation is not proof that repair failed. A delayed result is not proof that the path is wrong. A moment of strain is not the same as collapse.
+
+Today asks for the first pressure to be noticed without panic.
+
+Where does the trial show itself first?
+
+In the breath?
+
+In the schedule?
+
+In the mouth?
+
+In the money?
+
+In the need to quit?
+
+In the urge to control?
+
+The trial begins by showing where the form needs attention.
+
+What is seen early can be strengthened before it breaks.
+''',
+        glyph: 'Eye watching the first crack in dry ground',
+        colorFrequency: 'Dry clay, alert gold, and shadow blue',
+        mantra: '“Pressure reveals where care must go.”',
       ),
       (
         totalDay: 3,
         starCluster:
-            "✨ špsswt — restrained nobility, holding form inwardly rather than spending itself in early display",
-        maatPrinciple: "Refuse premature display",
-        cosmicContext:
-            "Not everything that has begun should be shown.\nIn Kemetic life, there was wisdom in concealment. Stores were sealed. Sacred things were veiled. What was still in process was often kept under ordered protection until its time of use. Exposure was not always truthfulness. Sometimes it was waste.\nDay 3 asks you to resist the urge to unveil what still needs ripening.\nThis could be a plan, a change in identity, a new discipline, a restored strength, a bond that is still forming, or a truth that has only recently entered your heart.\nYou do not owe the world early access to what is not yet stable.\nWhat is guarded well has a better chance of becoming real.",
-        glyph: "Veiled vessel beneath a quiet star",
-        colorFrequency: "Linen white, dusk blue, and hidden gold",
-        mantra: "I do not expose what still needs sacred growth.",
+            '✨ špsswt — a modest horizon-based decanal star marker in the observed night order, with exact modern identification uncertain',
+        maatPrinciple: 'Standard Maintained',
+        cosmicContext: '''
+Pressure asks whether the standard will remain.
+
+Day 3 belongs to keeping one line intact.
+
+This is where many patterns begin to weaken. The day becomes hard, so speech becomes careless. Fatigue arrives, so the body is ignored. Friction appears, so honesty is postponed. A mistake happens, so the whole standard is abandoned.
+
+But Ma’at is not maintained only when conditions are easy.
+
+The standard that matters must be kept especially when comfort leaves.
+
+This does not mean harshness. It means one central line remains true.
+
+No lying to make the day smoother.
+
+No cruelty because frustration is present.
+
+No abandoning the body because work feels urgent.
+
+No breaking the promise because pressure has arrived.
+
+No using difficulty as permission for Isfet.
+
+Heru’s claim had to remain lawful through contest. If he became the same disorder he opposed, the throne would lose its truth.
+
+Today asks for one standard to be held under pressure.
+
+Not every standard.
+
+One.
+
+Keep the line that keeps the whole form from bending toward disorder.
+''',
+        glyph: 'Straight measuring cord held through wind',
+        colorFrequency: 'Clear gold, dry red, and deep green',
+        mantra: '“The standard remains when pressure arrives.”',
       ),
       (
         totalDay: 4,
         starCluster:
-            "✨ špsswt — noble quality carried into ordinary conduct, where worth is proven in small actions before larger roles are deserved",
-        maatPrinciple: "Establish clean conduct",
-        cosmicContext:
-            "Value that appears only in grand moments is suspect.\nIn Kemet, character was visible in small handling: how one greeted, measured, listened, waited, stored, recorded, carried, and spoke. Clean conduct was not ornamental morality. It was the daily texture of Ma’at. Without it, larger claims of virtue were hollow.\nDay 4 is about the plain places where your quality is already visible.\nYour posture. Your tone. Your reliability. The way you answer. The way you use time. The way you move around other people’s labor. The way you leave a space after passing through it.\nDignity is not built from speeches.\nIt is built from repeated clean acts.",
-        glyph: "Straight back, steady foot, open hand",
-        colorFrequency: "White linen, sandstone, and morning gold",
-        mantra: "My smallest acts reveal my true quality.",
+            '✨ špsswt — a small rising decanal group in the ten-day star sequence, best treated as a modest watched horizon marker with uncertain modern identity',
+        maatPrinciple: 'Strain Named Clearly',
+        cosmicContext: '''
+Strain is not the same as failure.
+
+Day 4 asks for that distinction.
+
+A load can be heavy and still lawful. A body can be tired and still capable. A relationship can feel tension and still be repairable. A project can meet resistance and still be rightly formed. A path can become difficult without becoming false.
+
+This distinction protects progress.
+
+If every strain is called failure, nothing can mature.
+
+If every discomfort is treated as collapse, the person will abandon the test before knowledge becomes wisdom.
+
+Rekh-Nedjes is lesser knowing not because it is useless, but because it is close to the ground. It is knowledge in the field, knowledge inside friction, knowledge small enough to be tested by actual life.
+
+Today asks for the difficulty to be named accurately.
+
+What is strained?
+
+What is still standing?
+
+What needs support?
+
+What does not need to be condemned?
+
+The trial is not here to prove the whole path wrong. It is here to reveal what the path must become in order to continue.
+
+Name the strain without turning it into a final judgment.
+
+What is tested may still be true.
+''',
+        glyph: 'Bent reed that has not broken',
+        colorFrequency: 'Reed green, desert red, and steady gold',
+        mantra: '“Strain is information, not final judgment.”',
       ),
       (
         totalDay: 5,
         starCluster:
-            "✨ špsswt — noble force tested against vanity, separating cultivated worth from the hunger to be praised for having it",
-        maatPrinciple: "Separate worth from vanity",
-        cosmicContext:
-            "There is a difference between value and the need to be seen as valuable.\nKemet knew the danger of display detached from substance. Fine linen, gold, titles, beauty, and ceremonial dignity had meaning, but only when attached to actual role, actual order, actual service. Without that, ornament became false witness.\nDay 5 is discrimination.\nYou examine where your hunger for recognition is contaminating something real. A gift. A discipline. A moral claim. A spiritual path. A craft. A relationship. A responsibility.\nVanity spends energy proving. Worth spends energy becoming.\nToday you choose which one you will feed.",
-        glyph: "Bright collar beside a plain working tool",
-        colorFrequency: "Burnished gold, shadow black, and reed green",
-        mantra: "I choose substance over display.",
+            '✨ špsswt — a horizon-rising decanal marker in the night sequence, likely modest in appearance compared with major stars like Sopdet or Sah',
+        maatPrinciple: 'Reaction Cooled',
+        cosmicContext: '''
+The middle of the first trial tests reaction.
+
+Day 5 asks for cooling.
+
+Pressure often does not destroy the form by itself. The reaction to pressure does. A sharp word breaks what fatigue only strained. A panicked decision scatters what delay only slowed. A defensive answer turns correction into conflict. A heated impulse makes the trial heavier than it needed to be.
+
+The Instruction of Amenemope warns against the heated person because heat spreads.
+
+That warning belongs here.
+
+The trial does not need more fire.
+
+It needs measure.
+
+Today asks for a pause before reaction. The pause is not weakness. It is the heart stepping between pressure and action.
+
+Breathe before speaking.
+
+Wait before quitting.
+
+Listen before defending.
+
+Cool the mouth before it burns the bond.
+
+Let the body settle before making law from discomfort.
+
+Rekh-Nedjes tests whether knowledge can remain knowledge when heat rises. A person who knows Ma’at only when calm has not yet carried Ma’at into the field.
+
+Today asks for reaction to be cooled so the trial can teach without becoming destruction.
+''',
+        glyph: 'Water poured over a heated mouth',
+        colorFrequency: 'Cool blue, ember red, and balanced gold',
+        mantra: '“I cool the reaction before it becomes the wound.”',
       ),
       (
         totalDay: 6,
         starCluster:
-            "✨ špsswt — nobility moving inward, building the standard that must hold when praise, ease, and witness disappear",
-        maatPrinciple: "Strengthen the inner standard",
-        cosmicContext:
-            "External dignity collapses quickly without inward law.\nIn Kemetic thought, right bearing had to be anchored in something deeper than mood. A person needed a principle that could outlast temptation, fatigue, insult, loneliness, and the desire to bend for convenience. Otherwise, conduct changed with circumstance and character never took root.\nDay 6 turns inward.\nYou ask what principle in you must become stronger than appetite, stronger than resentment, stronger than laziness, stronger than the wish to be liked.\nThis is not abstract morality.\nIt is the beam inside the structure.\nWhat holds you when no one is looking will eventually show in everything they do see.",
-        glyph: "Centered heart beneath an upright plume",
-        colorFrequency: "Deep blue, white, and quiet gold",
-        mantra: "My inner law holds my outer bearing.",
+            '✨ špsswt — a small star group in the decanal rising order, described physically as a horizon marker with no secure modern constellation match',
+        maatPrinciple: 'Weak Point Read',
+        cosmicContext: '''
+After reaction is cooled, the weak point can be read.
+
+Day 6 asks what the trial revealed.
+
+The point is not to suffer pressure and learn nothing. The point is to let pressure show where the form needs strengthening. A difficult day may reveal that the schedule has no margin. A conflict may reveal that the agreement was vague. A mistake may reveal that the method was not recorded. A fatigue may reveal that the body was being used without replenishment.
+
+Pressure becomes teacher when the heart reads it.
+
+Without that reading, hardship repeats as noise.
+
+Today asks for one lesson from the trial.
+
+Where did the form bend?
+
+Where did the standard hold?
+
+Where did the body ask for care?
+
+Where did the method need clearer structure?
+
+Where did fear pretend to be wisdom?
+
+Where did pride make the pressure worse?
+
+This is not blame. It is diagnosis.
+
+Djehuty records so the same confusion does not rule again. Khnum adjusts so the form can hold. Heru learns to stand through contest without becoming Set.
+
+Today asks: what did the trial teach that comfort could not?
+''',
+        glyph: 'Reed pen marking the weak point on a vessel',
+        colorFrequency: 'Ink black, clay red, and clear gold',
+        mantra: '“I read what pressure reveals.”',
       ),
       (
         totalDay: 7,
         starCluster:
-            "✨ špsswt — noble quality expressed through stewardship, where what is entrusted is handled as sacred charge rather than personal possession",
-        maatPrinciple: "Honor what is entrusted",
-        cosmicContext:
-            "To be given something is not the same as deserving to use it loosely.\nIn Kemet, what passed into one’s hands carried obligation with it: land, children, tools, animals, stores, titles, ritual duties, even speech. Entrustment implied stewardship. To exploit what had been placed in your care was a form of disorder, even if no one stopped you immediately.\nDay 7 is about reverent handling.\nYou look at what has been placed with you — body, household, craft, role, influence, knowledge, relationship, resource — and ask whether you are treating it as charge or as appetite’s playground.\nNobility is visible in stewardship.\nHow you handle what is not purely “yours” reveals what kind of person you are.",
-        glyph: "Open palm supporting a vessel with care",
-        colorFrequency: "Sand gold, cool green, and temple white",
-        mantra: "What is entrusted to me, I handle with reverence.",
+            '✨ špsswt — a modest decanal star group observed near the horizon during this interval, not securely identifiable with a modern star cluster',
+        maatPrinciple: 'Continuation Without Drama',
+        cosmicContext: '''
+The trial does not need to become identity.
+
+Day 7 asks for quiet continuation.
+
+Difficulty often invites performance. The person begins narrating the struggle instead of taking the next step. The obstacle becomes a stage. The wound becomes a title. The pressure becomes proof that everything must be dramatic.
+
+But Ma’at is usually quieter than that.
+
+The field still needs water. The body still needs food. The task still needs the next action. The relationship still needs one clean sentence. The method still needs practice. The record still needs truth.
+
+Today asks for the next correct step without spectacle.
+
+Do the work.
+
+Make the call.
+
+Drink the water.
+
+Write the line.
+
+Repair the small thing.
+
+Keep the promise.
+
+Take the rest.
+
+Not as a grand overcoming.
+
+As order continuing.
+
+This does not minimize pain. It refuses to let pain become ruler.
+
+Rekh-Nedjes teaches that tested knowing becomes stronger when it can continue without needing the difficulty to define the whole story.
+
+Today asks for movement that is simple, sober, and true.
+''',
+        glyph: 'Steady footstep beside a quiet star',
+        colorFrequency: 'Dust brown, muted gold, and green',
+        mantra: '“I take the next true step without spectacle.”',
       ),
       (
         totalDay: 8,
         starCluster:
-            "✨ špsswt — measured nobility in motion, where grace is not softness but disciplined movement without waste",
-        maatPrinciple: "Move with measured grace",
-        cosmicContext:
-            "Grace is not decoration. It is disciplined movement.\nIn Kemet, wasteful motion cost labor, time, material, and dignity. The skilled person did not thrash. The honorable person did not lunge at every impulse. Correct movement had rhythm, placement, and intention.\nDay 8 asks you to slow enough to recover your form.\nHow do you enter a room? How do you answer pressure? How do you eat, speak, work, train, rest, and transition? Where are you spilling yourself through rushed movement, overreaction, cluttered pace, or unconscious force?\nMeasured grace is power governed so cleanly it no longer has to advertise itself.",
-        glyph: "Sandaled feet on a straight measured path",
-        colorFrequency: "Pale bronze, white stone, and moving gold",
-        mantra: "I move with clean intention, not waste.",
+            '✨ špsswt — a small horizon-based timing group in the decanal sequence, with exact modern identification uncertain',
+        maatPrinciple: 'False Escape Refused',
+        cosmicContext: '''
+Not every exit is wisdom.
+
+Day 8 asks for false rescue to be refused.
+
+There are times when leaving is Ma’at. A harmful burden should be set down. A false duty should be rejected. A distorted path should be corrected.
+
+But there are also times when escape wears the mask of discernment.
+
+The work becomes difficult, so it is called misaligned. The conversation becomes honest, so it is called unsafe. The practice begins exposing weakness, so it is called pointless. The responsibility asks for maturity, so it is called too heavy before it has truly been measured.
+
+This day asks for honesty.
+
+Is the path actually wrong?
+
+Or is the trial revealing the part that does not want to be tested?
+
+Heru could not receive the throne by avoiding the contest. Ausar could not become the pattern of restoration if the brokenness was never faced. The field cannot become grain if the first strain of growth is treated as failure.
+
+Today asks for one urge to escape to be examined.
+
+If leaving is Ma’at, leave cleanly.
+
+If staying is Ma’at, stop calling avoidance wisdom.
+
+The trial must be allowed to finish its teaching.
+''',
+        glyph: 'Gate half-open beside a balanced heart',
+        colorFrequency: 'Threshold gold, shadow blue, and trial red',
+        mantra: '“I do not flee the lesson before it has spoken.”',
       ),
       (
         totalDay: 9,
         starCluster:
-            "✨ špsswt — noble quality proving itself without announcement, where consistency becomes the witness",
-        maatPrinciple: "Prove it quietly",
-        cosmicContext:
-            "There comes a point when explanation becomes unnecessary.\nIn Kemet, the trustworthy person was known less by self-description than by repeated conduct. The field showed whether it was tended. The ledger showed whether it was kept. The body showed whether discipline was real. The house showed whether stewardship was alive there.\nDay 9 is about silent proof.\nYou stop narrating your value and let your work, your composure, your restraint, your order, and your follow-through reveal what is true.\nThis is not passivity.\nIt is confidence strong enough to release the need for immediate recognition.\nWhat is noble does not beg to be noticed.\nIt leaves a clean record.",
-        glyph: "Sealed ledger beside a finished task",
-        colorFrequency: "Ink black, pale gold, and cool stone",
-        mantra: "My work speaks where vanity would shout.",
+            '✨ špsswt — a modest rising decanal marker in the ten-day star order, physically described with caution because no secure modern cluster identification is available',
+        maatPrinciple: 'Lesson Preserved',
+        cosmicContext: '''
+A trial is wasted if its lesson is not preserved.
+
+Day 9 asks for record.
+
+What did pressure reveal?
+
+What held?
+
+What bent?
+
+What reaction made the difficulty worse?
+
+What support helped?
+
+What standard remained true?
+
+What weakness needs strengthening before the next trial?
+
+Without record, hardship becomes only memory and mood. With record, hardship becomes instruction. The next attempt does not begin from ignorance. The next version of the body, work, relationship, or path receives the benefit of what was endured.
+
+This is Djehuty’s discipline inside Rekh-Nedjes.
+
+The small knowledge of the field must be written, spoken, remembered, or placed into practice. Otherwise the same test returns and finds the person unprepared again.
+
+Today asks for one lesson to be preserved.
+
+Not a long story.
+
+A clear truth.
+
+The kind that can guide action later.
+
+Comfort teaches some things. Pressure teaches others. Both must be recorded truthfully.
+
+A person who preserves the lesson does not have to worship the pain. They can let the pain become useful and then release its claim over the heart.
+''',
+        glyph: 'Reed pen writing beside a tested stone',
+        colorFrequency: 'Ink black, dust red, and clear gold',
+        mantra: '“I preserve what the trial taught.”',
       ),
       (
         totalDay: 10,
         starCluster:
-            "✨ špsswt — the noble powers gathered into bearing, closing the first decan with character more formed, more guarded, and more fit to carry what comes next",
-        maatPrinciple: "Seal the bearing",
-        cosmicContext:
-            "The first decan closes not with conclusion, but with posture.\nYou do not know everything yet. That is why this month is Rekh-Nedjes. Its wisdom is smaller, nearer, less complete than the later fullness of tested understanding. But lesser knowing is not worthless knowing. It is the stage where bearing matters most — because what is still forming can either be protected with dignity or ruined by arrogance.\nDay 10 is the sealing of your carriage.\nYou look at how you have moved through these ten days: what you guarded, what you exposed too early, what you handled with reverence, where vanity tried to interfere, where your conduct grew cleaner, where your inner law held.\nThen you name the quality now taking form in you.\nNot the title you want. The bearing you are actually building.\nWhat you carry in the next decan will be shaped by how well you have learned to carry yourself in this one.",
-        glyph: "Upright plume fixed above a steady brow",
-        colorFrequency: "White linen, settled gold, and early green",
-        mantra: "I carry myself in a way that protects what is becoming.",
+            '✨ špsswt — the first star marker of Rekh-Nedjes, a modest horizon-rising decanal group in the night sequence with uncertain modern astronomical identification',
+        maatPrinciple: 'First Trial Sealed',
+        cosmicContext: '''
+Day 10 seals the first trial of Rekh-Nedjes.
+
+Knowledge entered the field. Pressure appeared. A standard was held. Strain was separated from failure. Reaction was cooled. The weak point was read. Continuation remained possible. False escape was examined. The lesson was preserved.
+
+This is not the end of testing.
+
+It is the first completion.
+
+The question now is what survived the test and what must be strengthened next.
+
+Some part of the method may be more trustworthy than before. Some part may need support. Some reaction may need future discipline. Some structure may need repair. Some confidence may be better grounded because it has now met reality.
+
+This is how lesser knowing becomes wisdom.
+
+Not by avoiding pressure.
+
+By learning from pressure without letting pressure become ruler.
+
+Today asks for three things to be named:
+
+What held.
+
+What bent.
+
+What must be strengthened.
+
+The first trial should not be exaggerated into victory if repair is still needed. It should not be called failure if truth has been gained.
+
+Where the trial is sealed honestly, the next decan can begin from clearer measure.
+''',
+        glyph: 'Sealed record beside a standing standard',
+        colorFrequency: 'Trial red, ink black, and sealed gold',
+        mantra: '“What was tested will now be strengthened.”',
       ),
     ],
   );
 }
 
 Map<String, KemeticDayInfo> _buildRekhNedjesIIEntries() {
-  const season = "🌿 Peret – Season of Emergence";
-  const month =
-      "Rekh-Nedjes (Rḫ-nds) — “Lesser Knowing,” the month of near knowledge, where perception is still forming and discernment must be protected from haste, vanity, and false certainty";
+  const season = '🌿 Peret – Season of Emergence';
+  const month = 'Rekh-Nedjes (Rḫ-nḏs) — Knowing Tested Under Pressure';
   return _buildGeneratedDecanEntries(
-    keyPrefix: "rekhnedjes",
+    keyPrefix: 'rekhnedjes',
     decan: 2,
-    decanLabel: "Rekh-Nedjes II",
-    monthLabelForDate: "Rekh-Nedjes",
+    decanLabel: 'Rekh-Nedjes II',
+    monthLabelForDate: 'Rekh-Nedjes',
     month: month,
     season: season,
+    decanName: 'ḥry-ib špsswt',
+    kemeticDateBuilder: (totalDay, _) => 'Rekh-Nedjes II, Day $totalDay',
     flowRows: _rekhNedjesOverrideIIFlowRows,
     entries: [
       (
         totalDay: 11,
         starCluster:
-            "✨ ḥry-ib špsswt — noble quality drawn inward, where dignity is no longer just outward bearing but an inner rule that steadies judgment, appetite, and response",
-        maatPrinciple: "Bring nobility into the center",
-        cosmicContext:
-            "The first decan taught bearing. The second asks what governs it.\nIn Kemet, outward grace without inward order was never enough. A person could appear composed and still be ruled by vanity, fear, appetite, or wounded pride. That kind of dignity could not endure. It cracked under insult, temptation, fatigue, or delay. So the deeper work was always inward: the heart had to be trained to hold what the body was trying to display.\nThat is the labor of ḥry-ib špsswt.\nThis decan turns nobility inward. It asks whether your restraint is real, whether your standards are rooted, whether your composure comes from principle rather than performance. It is no longer enough to look honorable. The center must become honorable.\nSo Day 11 begins with inward correction.\nYou ask what rules you when no audience is present. What disturbs your dignity? What still has too much access to your tongue, your pace, your attention, your reactions, your self-concept?\nThe noble life must first be governed from within.",
-        glyph: "Upright plume within the heart-space",
-        colorFrequency: "Deep blue, white linen, and inward gold",
-        mantra: "I govern my center, and my bearing follows.",
+            '✨ ḥry-ib špsswt — the heart phase of the špsswt decanal sequence; a modest horizon-rising star group observed in the night order, with no secure modern constellation identification',
+        maatPrinciple: 'Trial Brought to the Heart',
+        cosmicContext: '''
+The first decan entered the trial.
+
+The second asks what the heart will do with what the trial revealed.
+
+This is the work of ḥry-ib špsswt: the heart of the noble ones. Pressure has already touched the method. Something has been tested. Something has held. Something has bent. Now the lesson must not be wasted by reaction alone.
+
+Day 11 asks for the trial to be brought inward.
+
+Not to brood over it.
+
+Not to turn it into identity.
+
+To judge it.
+
+The heart must ask what was exposed. Was the method too weak? Was the timing wrong? Was the pressure unlawful? Was the response heated? Was the standard held? Was help needed? Was the difficulty teaching, or was it revealing a broken relation that should not continue?
+
+Rekh-Nedjes is knowledge close to the ground. It does not remain elegant theory. It has dirt on it. It has fatigue in it. It has evidence.
+
+Today asks for that evidence to enter the heart before another action is taken.
+
+Pressure becomes wisdom only when the heart reads it.
+''',
+        glyph: 'Heart held above a tested field marker',
+        colorFrequency: 'Dust red, deep green, and measured gold',
+        mantra: '“I bring the trial to the heart before I move again.”',
       ),
       (
         totalDay: 12,
         starCluster:
-            "✨ ḥry-ib špsswt — noble quality tested against appetite, where dignity must survive the hunger to indulge, react, grasp, and be immediately satisfied",
-        maatPrinciple: "Quiet the appetite",
-        cosmicContext:
-            "What you cannot refuse will eventually rule you.\nIn Kemet, appetite was not treated as evil, but it was never allowed to lead. Hunger, lust, irritation, curiosity, ambition, and the need to be affirmed all had their place, but not the throne. When desire took command, proportion broke. Speech became loose. Pace became uneven. Choices became self-serving. Order thinned out from the inside.\nDay 12 is about quieting what keeps lunging.\nNot killing life. Not becoming cold. But proving that your inner world is not governed by every urge that rises in it.\nYou do not need to obey every impulse to prove you are alive.\nToday dignity means refusing immediate satisfaction so something better can keep its place.",
-        glyph: "Closed hand before a full table",
-        colorFrequency: "Burnished bronze, shadow blue, and controlled gold",
-        mantra: "I do not serve every hunger that speaks.",
+            '✨ ḥry-ib špsswt — a small decanal rising group near the horizon in the ten-day star sequence, best treated as a timing marker with uncertain modern identity',
+        maatPrinciple: 'Pressure Distinguished',
+        cosmicContext: '''
+Not all pressure is the same.
+
+Day 12 asks for distinction.
+
+Some pressure refines. It exposes weakness so the form can strengthen. Some pressure corrects. It shows where the path has drifted. Some pressure teaches endurance. It asks the body or method to carry a lawful load.
+
+But some pressure violates relation.
+
+It extracts. It humiliates. It repeats harm. It demands from a person, body, or structure what should never have been required. It calls abuse discipline, neglect freedom, or exploitation duty.
+
+Ma’at requires discernment between these conditions.
+
+A person should not flee every test.
+
+A person should also not call every wound a lesson.
+
+Today asks: what kind of pressure is this?
+
+Is it shaping?
+
+Is it warning?
+
+Is it revealing a need for support?
+
+Is it exposing a false relation?
+
+Is it calling for endurance, adjustment, refusal, or departure?
+
+Heru’s contest matters because the dispute had to be judged. Force alone could not decide truth. Pressure alone does not prove righteousness.
+
+The heart must distinguish test from attack.
+
+Only then can the next response remain clean.
+''',
+        glyph: 'Scale weighing a staff against a wound mark',
+        colorFrequency: 'Balanced gold, desert red, and shadow blue',
+        mantra: '“I distinguish refinement from violation.”',
       ),
       (
         totalDay: 13,
         starCluster:
-            "✨ ḥry-ib špsswt — inward nobility discovering the fault-line of reaction, where the untrained response reveals exactly where mastery is still thin",
-        maatPrinciple: "Correct the reaction",
-        cosmicContext:
-            "Character is often betrayed in a single moment.\nA person can seem composed until contradicted. Generous until inconvenienced. Measured until disrespected. Quiet until afraid. This is why inward refinement matters. It is not built in comfort alone. It is exposed where something presses the exact wound, vanity, or weakness that still wants control.\nDay 13 is that exposure turned useful.\nYou watch one recurring reaction closely. Maybe it is sharp speech. Maybe defensiveness. Maybe withdrawal. Maybe an urge to dominate, justify, or collapse. You do not excuse it. You do not romanticize it. You correct it.\nThe reaction is not the deepest self.\nIt is the place where discipline has more work to do.",
-        glyph: "Straightened reed after a sudden bend",
-        colorFrequency: "Reed green, charcoal, and refining gold",
-        mantra: "I correct the response before it becomes my rule.",
+            '✨ ḥry-ib špsswt — a modest horizon-based decanal marker in the observed night order, with exact modern star-cluster identification uncertain',
+        maatPrinciple: 'Method Adjusted',
+        cosmicContext: '''
+Adaptation is not betrayal.
+
+Day 13 asks for adjustment without abandonment.
+
+The first trial may have shown that the old method cannot continue unchanged. The pace may need to slow. The tool may need to change. The boundary may need to strengthen. The words may need to be cleaner. The schedule may need more margin. The body may need more support. The relationship may need a clearer agreement.
+
+Changing the method does not mean the aim was false.
+
+A farmer adjusts the channel without abandoning the field. A potter changes pressure without abandoning the vessel. A scribe corrects the line without rejecting the whole text.
+
+The danger is rigidity.
+
+Stubbornness can disguise itself as loyalty. A person may cling to a failing approach because changing it feels like admitting weakness. But Ma’at is not served by repeating what pressure has already shown to be crooked.
+
+Today asks for one method to be changed while the true purpose remains intact.
+
+What can shift?
+
+What must stay?
+
+What should be released?
+
+What should be protected?
+
+Adaptation becomes righteous when it preserves the center while correcting the way.
+''',
+        glyph: 'Water channel redirected toward the same field',
+        colorFrequency: 'Nile blue, field green, and corrective gold',
+        mantra: '“I adjust the method without abandoning the purpose.”',
       ),
       (
         totalDay: 14,
         starCluster:
-            "✨ ḥry-ib špsswt — noble quality seeking its root, where bearing must be tied to principle or it will remain vulnerable to mood and pressure",
-        maatPrinciple: "Deepen the standard",
-        cosmicContext:
-            "A person without an inner standard can only imitate dignity.\nHe can borrow tone, posture, language, and aesthetic form, but once tested he has nothing solid to refer back to. In Kemet, order was not sustained by style alone. It was sustained by inner law: a chosen standard that could tell the hand, the tongue, and the heart how to behave when the path was no longer easy.\nDay 14 goes beneath appearance.\nYou name the principle beneath your bearing. Truthfulness. Restraint. Reverence. Precision. Stewardship. Patience. Clean speech. Service. What is it that you are actually trying to embody?\nWithout a standard, conduct drifts.\nWith one, dignity can survive weather.",
-        glyph: "Upright staff planted deep in earth",
-        colorFrequency: "Stone beige, lapis, and rooted gold",
-        mantra: "My bearing stands on principle, not appearance.",
+            '✨ ḥry-ib špsswt — a small rising decanal group observed near the horizon, functioning as a night-time sequence marker rather than a securely mapped modern constellation',
+        maatPrinciple: 'Counsel Sought',
+        cosmicContext: '''
+Pressure narrows vision.
+
+Day 14 asks for counsel.
+
+This is not surrender of judgment. It is protection against the blindness that comes when the heart is too close to the strain. A person inside the trial may see only urgency, insult, fear, fatigue, or the need to prove. Counsel widens the field again.
+
+A trusted person may help.
+
+An elder may help.
+
+A text may help.
+
+An ancestor’s pattern may help.
+
+A written record from a calmer day may help.
+
+The body may help if it is listened to honestly.
+
+The point is not to collect many voices. Too many voices can scatter the heart. The point is to bring the question to a source that has earned trust.
+
+Heru did not settle the contest by private impulse alone. The dispute moved through counsel, tribunal, witness, and judgment because rightful order had to be established beyond reaction.
+
+Today asks for one real question to be brought to a trustworthy source.
+
+Not to avoid action.
+
+To make action cleaner.
+
+Good counsel does not replace Ma’at in the heart. It helps the heart hear Ma’at more clearly.
+''',
+        glyph: 'Seated elder beside an open reed scroll',
+        colorFrequency: 'Deep blue, aged gold, and calm green',
+        mantra: '“I seek counsel so my response can be clean.”',
       ),
       (
         totalDay: 15,
         starCluster:
-            "✨ ḥry-ib špsswt — inward nobility examining motive, separating the clean act from the desire to be admired for performing it",
-        maatPrinciple: "Clean the motive",
-        cosmicContext:
-            "An action can look right and still be inwardly mixed.\nA generous deed can hide vanity. A disciplined practice can hide fear. A calm tone can hide contempt. Service can become self-display. Silence can become punishment. This is why the second decan presses inward. It is not satisfied with good appearance. It wants clean motive.\nDay 15 asks why.\nWhy are you doing this act? Why are you pursuing this task, this path, this standard, this relationship, this repair? What in you still wants applause, control, revenge, innocence, or moral superiority from it?\nMotive matters because it shapes what the act becomes over time.\nToday you remove what contaminates the work from within.",
-        glyph: "Heart weighed against a plain feather",
-        colorFrequency: "Red-brown, white, and clarifying gold",
-        mantra: "I purify the reason for what I do.",
+            '✨ ḥry-ib špsswt — the midpoint phase of this decanal group, a modest horizon-rising marker in the night sequence with uncertain modern identification',
+        maatPrinciple: 'Truth Received Without Defense',
+        cosmicContext: '''
+The middle of the decan brings the mirror.
+
+Day 15 asks for truthful feedback to be received without defense.
+
+This is one of the hardest forms of adaptation. Pressure may reveal something, counsel may name it, but pride still has one more gate to guard: the refusal to let truth enter.
+
+The truth may not be pleasant.
+
+The method may be weaker than believed.
+
+The tone may be harsher than intended.
+
+The promise may be too large.
+
+The boundary may be unclear.
+
+The body may be more tired than the story allows.
+
+The relationship may be carrying an imbalance that affection alone cannot solve.
+
+Receiving this truth does not mean becoming shame.
+
+Shame collapses the whole person.
+
+Discernment corrects the specific place.
+
+The mirror is useful only if it is looked into steadily. A person who attacks the mirror learns nothing. A person who worships the flaw learns nothing. A person who sees clearly can adjust.
+
+Today asks for one truth to be received cleanly.
+
+No defense first.
+
+No self-destruction after.
+
+Only recognition.
+
+A noble one does not become noble by never needing correction. Nobility appears when correction is allowed to refine the response.
+''',
+        glyph: 'Polished mirror held before a balanced heart',
+        colorFrequency: 'Mirror silver, trial red, and clear gold',
+        mantra: '“I receive truth without becoming shame.”',
       ),
       (
         totalDay: 16,
         starCluster:
-            "✨ ḥry-ib špsswt — inward nobility under friction, where steadiness becomes real only when pressure tries to dislodge it",
-        maatPrinciple: "Hold steady under friction",
-        cosmicContext:
-            "Anyone can feel noble when the day agrees with him.\nThe real question is what remains when the path resists: when you are delayed, overlooked, interrupted, contradicted, misunderstood, or forced to wait while something in you wants quick relief. In Kemet, endurance was not merely hardening. It was proportion under strain. The honorable person stayed intact enough to keep right relation even under pressure.\nDay 16 is that test.\nYou do not look for ideal conditions. You use the actual irritations of the day as training ground. The line at the wrong time. The silence after effort. The inconvenience. The challenge to ego. The demand to wait.\nComposure under friction is one of the proofs of inward nobility.",
-        glyph: "Plume unshaken in desert wind",
-        colorFrequency: "Storm gray, white, and steadfast gold",
-        mantra: "Pressure does not have to pull me from myself.",
+            '✨ ḥry-ib špsswt — a horizon-rising decanal timing group, likely modest in brightness and not securely identifiable with a modern cluster',
+        maatPrinciple: 'Response Refined',
+        cosmicContext: '''
+The first reaction is rarely the cleanest response.
+
+Day 16 asks for refinement.
+
+The trial has been read. Pressure has been distinguished. Counsel has been sought. Truth has been received. Now the response must be chosen more carefully than the first impulse would have chosen it.
+
+This is where Ma’at becomes visible.
+
+Not in never feeling anger.
+
+Not in never fearing loss.
+
+Not in never being tired.
+
+In choosing a response that does not deepen Isfet.
+
+A sharper sentence may be softened without losing truth. A boundary may be made firmer without cruelty. A task may be resumed without drama. A refusal may be spoken without contempt. A correction may be made without humiliation. A departure may happen without destruction.
+
+Refinement does not mean making everything gentle when force is required.
+
+It means matching the response to the real condition.
+
+No more.
+
+No less.
+
+Today asks how Ma’at would answer the pressure.
+
+Not ego.
+
+Not panic.
+
+Not old injury.
+
+Ma’at.
+
+The response chosen after discernment carries more authority than the reaction born in heat.
+''',
+        glyph: 'Hand lowering a heated blade into water',
+        colorFrequency: 'Cooling blue, refined gold, and ember red',
+        mantra: '“I choose the response after the heart has weighed it.”',
       ),
       (
         totalDay: 17,
         starCluster:
-            "✨ ḥry-ib špsswt — noble quality ripening in silence, where withheld speech becomes a chamber for deeper formation",
-        maatPrinciple: "Let silence mature you",
-        cosmicContext:
-            "Not every truth needs to be spoken at once.\nIn Kemet, silence was not always emptiness. It could be incubation, restraint, reverence, and protection. What was spoken too early could lose force. What was explained too quickly could remain shallow. What was allowed to mature in quiet often came out stronger, cleaner, and better timed.\nDay 17 asks you to stop spending words unnecessarily.\nDo less explaining. Less announcing. Less immediate interpretation of yourself and the day. Let some things deepen before you name them. Let some insights sit. Let some emotions pass through without becoming declaration.\nSilence can become an inner workshop when vanity is no longer allowed to fill it.",
-        glyph: "Closed lips beneath a rising star",
-        colorFrequency: "Midnight blue, silver-gray, and hidden gold",
-        mantra: "I let silence deepen what words would cheapen.",
+            '✨ ḥry-ib špsswt — a small horizon marker in the decanal star order, physically described cautiously because no secure modern constellation match is available',
+        maatPrinciple: 'Weak Place Strengthened',
+        cosmicContext: '''
+A trial should leave the weak place stronger.
+
+Day 17 asks for focused strengthening.
+
+The pressure has already shown where the form bends. Now attention must go there. Not everywhere. Not generally. The exact place.
+
+A schedule needs margin.
+
+A body needs sleep.
+
+A relationship needs one clearer agreement.
+
+A skill needs repeated practice at the difficult step.
+
+A project needs a stronger support.
+
+A boundary needs consequence.
+
+A heart needs a better pause before the mouth answers.
+
+This is not punishment for weakness.
+
+It is care for the place that carried the test.
+
+A field with one weak bank does not need the whole river cursed. It needs the weak bank repaired. A person with one recurring reaction does not need to call the whole self broken. That reaction needs training, protection, and better structure.
+
+Today asks for one vulnerable place to receive deliberate strengthening.
+
+What would make the next encounter with the same pressure cleaner?
+
+What support would prevent the same distortion?
+
+What practice would make the response steadier?
+
+Rekh-Nedjes turns pressure into wisdom by strengthening what pressure revealed.
+''',
+        glyph: 'Hand reinforcing a cracked canal bank',
+        colorFrequency: 'Clay red, river blue, and repair gold',
+        mantra: '“I strengthen the place pressure revealed.”',
       ),
       (
         totalDay: 18,
         starCluster:
-            "✨ ḥry-ib špsswt — inward nobility seeking wholeness, where heart, speech, admiration, and action must cease pulling in different directions",
-        maatPrinciple: "Bring the heart into alignment",
-        cosmicContext:
-            "Division inside the self is exhausting.\nTo praise one thing and practice another. To speak with reverence while living loosely. To admire restraint while feeding appetite. To claim dignity while choosing what repeatedly lowers it. This split weakens the center and makes bearing unstable, because too many parts are moving in opposite directions.\nDay 18 is for reunion.\nYou ask where the heart is still divided. What do you know but not live? What do you honor in theory but betray in repetition? What do you keep praising from a distance because you fear the cost of embodying it?\nInward nobility requires agreement.\nWhat you value, say, and do must begin learning the same direction.",
-        glyph: "Heart, tongue, and hand joined on one line",
-        colorFrequency: "Red earth, clean white, and harmonizing gold",
-        mantra: "What I honor, I bring into one life.",
+            '✨ ḥry-ib špsswt — a modest decanal rising group in the horizon-based sequence, with exact modern star identity uncertain',
+        maatPrinciple: 'Return With Correction',
+        cosmicContext: '''
+After adjustment, the field must be entered again.
+
+Day 18 asks for return.
+
+Not the same return as before.
+
+A wiser return.
+
+The person goes back with a corrected method, a steadier heart, and clearer knowledge of the pressure. The body returns to movement with better pacing. The relationship returns to conversation with cleaner speech. The work returns to use with stronger structure. The path is entered again without pretending nothing was learned.
+
+This is adaptation made real.
+
+It is easy to make a correction in thought. Harder to live it under the same sky where the first test happened.
+
+Today asks for one re-entry.
+
+Return to the task.
+
+Return to the conversation.
+
+Return to the practice.
+
+Return to the field.
+
+Return to the place where pressure appeared, but do not return unchanged.
+
+This is not bitterness.
+
+This is not proving.
+
+This is applied learning.
+
+Heru’s victory required more than being right in principle. The claim had to stand through action, judgment, and return.
+
+Today asks for return without resentment and without forgetfulness.
+
+The next step should show that the lesson has entered the body.
+''',
+        glyph: 'Foot returning to a field beside a corrected marker',
+        colorFrequency: 'Field green, dust red, and steady gold',
+        mantra: '“I return wiser, not harder.”',
       ),
       (
         totalDay: 19,
         starCluster:
-            "✨ ḥry-ib špsswt — inward nobility guarding the threshold, where the center must choose what may enter and what must remain outside",
-        maatPrinciple: "Guard the inner gate",
-        cosmicContext:
-            "Everything allowed inside leaves a trace.\nVoices, habits, entertainments, resentments, recurring thoughts, dishonest comforts, degrading influences, flattering lies — all of them shape the center if admitted often enough. In Kemet, what was sacred had a threshold. Not everything could enter. Purity was protected not by fear, but by discernment about what belonged near the core.\nDay 19 is about the gate.\nYou decide what no longer deserves interior access. Perhaps it is a line of thought. A digital diet. A conversation pattern. A person’s repeated poison. A habit of self-contempt. A fantasy that keeps weakening resolve. Something in you must become a better guardian.\nDignity cannot live long in an unguarded sanctuary.",
-        glyph: "Door-bolt across a temple threshold",
-        colorFrequency: "Dark cedar, muted gold, and watchful blue",
-        mantra: "I protect the center from what degrades it.",
+            '✨ ḥry-ib špsswt — a small decanal star group observed near the horizon during this ten-day interval, best treated as an uncertain physical timing marker',
+        maatPrinciple: 'Change Measured',
+        cosmicContext: '''
+Correction must be measured after it is made.
+
+Day 19 asks whether the adjustment worked.
+
+This is where many people stop too early. They change the method once and call the matter solved. But Ma’at requires observation after action. A new channel must be watched after water moves through it. A new boundary must be tested after it is spoken. A new rhythm must be observed through use.
+
+Did the response become cleaner?
+
+Did the body hold better?
+
+Did the conversation carry less heat?
+
+Did the method reduce friction?
+
+Did the weak place strengthen?
+
+Did the same pressure produce a different outcome?
+
+If nothing changed, that is not shame. It is information. The correction may need another measure. The pressure may be unlawful. The method may still be wrong. The support may still be missing.
+
+Today asks for honest measurement.
+
+Not the story of improvement.
+
+The evidence.
+
+Rekh-Nedjes becomes wisdom only when adaptation is tested by consequence. A person who measures the change can continue learning. A person who only declares change may repeat the same trial with a new name.
+
+Today asks: what is different now because the response was corrected?
+''',
+        glyph: 'Measuring cord placed beside two field marks',
+        colorFrequency: 'Clear gold, field green, and ink black',
+        mantra: '“I measure the change, not the wish.”',
       ),
       (
         totalDay: 20,
         starCluster:
-            "✨ ḥry-ib špsswt — inward nobility stabilized, closing the second decan with a center more governed, less reactive, and more capable of carrying true worth",
-        maatPrinciple: "Seal the inner bearing",
-        cosmicContext:
-            "The second decan closes with inward confirmation.\nSomething has been asked of the center these past ten days: less vanity, less reaction, less scattered appetite, less divided motive. In its place, a quieter rule has been forming. Not perfection. Not immunity from pressure. But increased governance. More pause before response. More dignity without performance. More clarity about what belongs inside and what does not.\nThat is real progress in Rekh-Nedjes.\nLesser Knowing is becoming steadier knowing. The near truth is becoming lived truth. And the nobility that first appeared as outward bearing is now beginning to harden into inner law.\nSo Day 20 is not for boasting.\nIt is for naming what has become more stable in you.\nWhat now holds the center better than it did before? What no longer gets immediate control? What inner quality is learning how to remain?\nThat is what you carry into the next decan.",
-        glyph: "Plume fixed within a sealed heart-chamber",
-        colorFrequency: "Deep lapis, quiet white, and settled gold",
-        mantra: "I carry true worth from the center outward.",
+            '✨ ḥry-ib špsswt — the heart phase of the špsswt sequence, a modest horizon-rising decanal marker in the night order with uncertain modern identification',
+        maatPrinciple: 'Adapted Knowing Sealed',
+        cosmicContext: '''
+Day 20 seals the heart of the trial.
+
+The pressure has been brought to the heart. Test has been distinguished from attack. Method has been adjusted without abandoning purpose. Counsel has been sought. Truth has been received. Response has been refined. The weak place has been strengthened. The field has been re-entered. The change has been measured.
+
+This is adapted knowing.
+
+Not the knowing that existed before pressure.
+
+The knowing that pressure corrected.
+
+This matters because wisdom is not only endurance. It is the capacity to change without losing Ma’at. A person can survive pressure and remain unchanged. A person can also adapt so cleanly that the same pressure no longer rules them in the same way.
+
+Today asks for the adjustment to be named and sealed.
+
+What is now done differently?
+
+What response is cleaner?
+
+What method is stronger?
+
+What boundary is clearer?
+
+What pressure no longer has the same power?
+
+This seal should not become pride. It should become standard.
+
+The next time the trial appears, the heart should not have to begin from the same confusion.
+
+What pressure has taught under Ma’at should now travel forward as law.
+''',
+        glyph: 'Sealed heart beside a corrected path marker',
+        colorFrequency: 'Deep green, dust red, and sealed gold',
+        mantra: '“What pressure taught me will now guide me.”',
       ),
     ],
   );
 }
 
 Map<String, KemeticDayInfo> _buildRekhNedjesIIIEntries() {
-  const season = "🌿 Peret – Season of Emergence";
-  const month =
-      "Rekh-Nedjes (Rḫ-nds) — “Lesser Knowing,” the month of near knowledge, where perception is still forming and discernment must be protected from haste, vanity, and false certainty";
+  const season = '🌿 Peret – Season of Emergence';
+  const month = 'Rekh-Nedjes (Rḫ-nḏs) — Knowing Tested Under Pressure';
   return _buildGeneratedDecanEntries(
-    keyPrefix: "rekhnedjes",
+    keyPrefix: 'rekhnedjes',
     decan: 3,
-    decanLabel: "Rekh-Nedjes III",
-    monthLabelForDate: "Rekh-Nedjes",
+    decanLabel: 'Rekh-Nedjes III',
+    monthLabelForDate: 'Rekh-Nedjes',
     month: month,
     season: season,
+    decanName: 'sbꜣ špsswt',
+    kemeticDateBuilder: (totalDay, _) => 'Rekh-Nedjes III, Day $totalDay',
     flowRows: _rekhNedjesOverrideIIIFlowRows,
     entries: [
       (
         totalDay: 21,
         starCluster:
-            "✨ sbꜣ špsswt — the star of noble quality made visible and steady: dignity no longer merely felt inwardly, but refined enough to guide conduct, shape atmosphere, and become an example others can trust",
-        maatPrinciple: "Let noble conduct become guidance",
-        cosmicContext:
-            "The third decan begins when inward dignity must prove it can hold form in the world.\nIt is one thing to carry honor privately. It is another to let it stabilize into conduct so consistent that it guides work, speech, timing, stewardship, and presence around others. In Kemet, value was never meant to remain hidden as a private sentiment. What was refined inwardly had to become visible in ordered action. Nobility that could not shape the field around it was not yet complete.\nThat is the turn of sbꜣ špsswt.\nThis is dignity tested in public usefulness. Not performance. Not superiority. Guidance. The kind of bearing that makes a room cleaner, a task steadier, a conversation more measured, a responsibility safer in your hands.\nSo Day 21 asks a harder question than the earlier decans did.\nNot only, “Am I carrying myself well?” But: “Does the quality I have been building now help anything outside me stand in better order?”\nWhat is truly noble begins to guide without noise.",
-        glyph: "Upright plume beneath a guiding star",
-        colorFrequency: "White linen, deep lapis, and tempered gold",
-        mantra: "I let true dignity become ordered guidance.",
+            '✨ sbꜣ špsswt — the star phase of the špsswt decanal sequence; a modest horizon-rising star marker in the night order, with no secure modern constellation identification',
+        maatPrinciple: 'Quiet Competence',
+        cosmicContext: '''
+The first decan entered the trial.
+
+The second adapted under pressure.
+
+The third asks whether the lesson can become quiet competence.
+
+This is the work of sbꜣ špsswt: the star of the noble ones. A star does not guide by shouting. It guides by returning to its place. Its authority is not noise. Its authority is reliability.
+
+Day 21 asks for competence without display.
+
+The test has already taught what it needed to teach. The method has been corrected. The weak place has been strengthened. The response has been refined. Now the work should become quieter.
+
+This matters in life after difficulty.
+
+A person may want to announce every improvement, defend every change, or make the struggle visible so the progress feels real. But some progress becomes stronger when it no longer needs performance.
+
+Today asks for one thing to be done well without making the self louder than the work.
+
+Keep the promise.
+
+Complete the task.
+
+Use the corrected response.
+
+Hold the boundary.
+
+Return to the practice.
+
+Let the action stand.
+
+Competence becomes noble when it no longer needs the trial to be its identity.
+''',
+        glyph: 'Quiet star above a steady hand',
+        colorFrequency: 'Night blue, muted gold, and field green',
+        mantra: '“The work can speak without my noise.”',
       ),
       (
         totalDay: 22,
         starCluster:
-            "✨ sbꜣ špsswt — noble quality radiating outward, where dignity becomes environmental and begins cleansing the atmosphere around it",
-        maatPrinciple: "Clean the atmosphere",
-        cosmicContext:
-            "Atmosphere matters more than many people admit.\nA room can be disordered before anyone says a harmful word. A house can carry agitation in its pace. A team can be weakened by tolerated sloppiness. A home can become heavy with clutter, sharpness, vagueness, or chronic lateness long before any major collapse announces itself.\nIn Kemet, order was not only built in monuments and rituals. It lived in maintained surroundings, correct handling, and the felt quality of a place shaped by disciplined people.\nDay 22 is about what your presence permits.\nYou clean one layer of atmosphere today. Perhaps it is physical clutter. Perhaps it is your tone. Perhaps it is confused planning, scattered movement, or an undercurrent of low disrespect that everyone has started calling normal.\nNobility does not adapt itself downward to every atmosphere.\nSometimes it is the force that quietly makes the place cleaner.",
-        glyph: "Swept floor beneath a raised plume",
-        colorFrequency: "Sandstone, white, and clarifying gold",
-        mantra: "I make the place around me cleaner.",
+            '✨ sbꜣ špsswt — a small decanal rising group near the horizon, treated as a ten-day star-time marker rather than a securely identified modern cluster',
+        maatPrinciple: 'Standard Sustained',
+        cosmicContext: '''
+A standard is proven after the pressure passes.
+
+Day 22 asks for return to the standard.
+
+During a trial, a person may rise to the moment. The voice becomes disciplined because it has to be. The body keeps the rhythm because the stakes are clear. The boundary holds because disorder is obvious.
+
+But after the heat fades, carelessness can return quietly.
+
+This is where Ma’at must remain.
+
+The standard should not depend on crisis. Truthful speech should not appear only during judgment. Measured effort should not appear only when collapse is near. Clean records, clear boundaries, regular practice, and honest care should not require emergency to become real.
+
+Rekh-Nedjes has already shown what bends under pressure. Now it asks what will remain in place when the day feels ordinary again.
+
+Today asks for one tested standard to be kept without drama.
+
+Not because anyone is watching.
+
+Not because the trial is loud.
+
+Because the standard is now known to be necessary.
+
+What survived testing should not be lowered once comfort returns.
+''',
+        glyph: 'Straight standard planted in quiet ground',
+        colorFrequency: 'Field green, clear gold, and calm brown',
+        mantra: '“The standard remains after the test.”',
       ),
       (
         totalDay: 23,
         starCluster:
-            "✨ sbꜣ špsswt — the noble star in motion, where refined conduct becomes visible instruction without needing to announce itself",
-        maatPrinciple: "Teach by how you move",
-        cosmicContext:
-            "There is a kind of instruction that lands deeper than speech.\nIn Kemet, much was learned by watchfulness: how a person entered sacred space, handled tools, addressed elders, kept measure, completed labor, and held restraint in conversation. Example had teaching power because conduct carried structure that words alone could not.\nDay 23 is not about becoming theatrical.\nIt is about becoming legible in quality.\nLet someone see today what measured timing looks like. What clean follow-through looks like. What reverent handling looks like. What calm under pressure looks like. What self-respect without arrogance looks like.\nWhen dignity becomes repeatable in action, it begins to educate the field around it.",
-        glyph: "Sandaled feet on a measured path beneath a star",
-        colorFrequency: "Reed green, white linen, and bright gold",
-        mantra: "My conduct teaches before my mouth does.",
+            '✨ sbꜣ špsswt — a modest horizon-based decanal marker in the observed night sequence, with exact modern identification uncertain',
+        maatPrinciple: 'Work Without Heat',
+        cosmicContext: '''
+The work does not need heat to be real.
+
+Day 23 asks for calm completion.
+
+After a season of pressure, the body may become used to urgency. It may treat every task like a trial, every delay like danger, every correction like attack, every ordinary duty like proof of worth.
+
+This is how heat lingers after the fire has passed.
+
+But Rekh-Nedjes III belongs to quiet competence. The skill should now be able to move without crisis-energy. The hand should know the task. The heart should know the standard. The mouth should not need to burn in order to speak truth.
+
+Today asks for one necessary task to be completed without excess heat.
+
+No rushing to prove seriousness.
+
+No anger used as fuel.
+
+No dramatic suffering added to simple work.
+
+No emotional force where steady rhythm would do.
+
+This is not softness that avoids responsibility.
+
+It is discipline that no longer depends on agitation.
+
+A noble form does not shake itself apart just to show it is working.
+
+Today asks for work done in measure, with the heat removed.
+''',
+        glyph: 'Cool hand completing a task beneath a small star',
+        colorFrequency: 'Cool blue, soft gold, and dry earth',
+        mantra: '“I can complete the work without burning.”',
       ),
       (
         totalDay: 24,
         starCluster:
-            "✨ sbꜣ špsswt — noble quality under inspection, exposing the small compromises that quietly cheapen what has otherwise been carefully built",
-        maatPrinciple: "Refuse the cheapening",
-        cosmicContext:
-            "A life is often lowered by small permissions, not dramatic falls.\nCheap speech. Lazy explanation. Slight dishonesty. Casual disrespect. Small gossip. Convenient exaggeration. Repeated messiness. A habit of cutting corners when the thing seems minor. These are not glamorous sins, but they erode dignity quickly because they teach the self that quality is optional when no one is scoring closely.\nDay 24 is severe in a useful way.\nYou refuse one small corruption that has been thinning out your standard. Not the huge problem that makes a dramatic story. The daily one. The tolerated one. The thing you keep calling minor even though it keeps teaching your character the wrong lesson.\nNobility is protected at the level of detail.",
-        glyph: "Fine linen kept clear of mud",
-        colorFrequency: "White, ash-gray, and severe gold",
-        mantra: "I do not let the small things lower the standard.",
+            '✨ sbꜣ špsswt — a small rising decanal group in the horizon-based star order, best described cautiously because no secure modern constellation match is available',
+        maatPrinciple: 'Corrected Method Trusted',
+        cosmicContext: '''
+A corrected method needs time to become natural.
+
+Day 24 asks for trust in the new way.
+
+This is difficult because old reactions are familiar. Even when they caused harm, they feel known. The new method may feel slower, quieter, less dramatic, or less immediately satisfying. The old way may promise speed, control, defense, or certainty.
+
+But the trial already showed why the old way failed.
+
+The mouth was too hot.
+
+The schedule was too narrow.
+
+The boundary was too vague.
+
+The body was pushed too hard.
+
+The method lacked support.
+
+The promise was too large.
+
+The correction was made for a reason. Today asks for that correction to be used again.
+
+Do not return to the old reaction because it feels familiar.
+
+Use the measured answer.
+
+Use the slower pace.
+
+Use the clearer boundary.
+
+Use the calmer sentence.
+
+Use the corrected method long enough for it to become a path.
+
+Ma’at is not only insight. It is repeated alignment after insight has already spoken.
+
+Today asks: trust what the trial taught.
+''',
+        glyph: 'Corrected path marker beside steady footprints',
+        colorFrequency: 'Dust red, path gold, and field green',
+        mantra: '“I trust the corrected way long enough to live it.”',
       ),
       (
         totalDay: 25,
         starCluster:
-            "✨ sbꜣ špsswt — the noble star as shelter, where matured quality expresses itself through protection rather than domination",
-        maatPrinciple: "Use strength as shelter",
-        cosmicContext:
-            "True refinement does not make a person more fragile in concern with self-image. It makes him safer for the vulnerable.\nIn Kemet, the worthy person was not simply adorned. He was responsible. His maturity was visible in how he handled what was smaller, younger, weaker, newer, or not yet ready to endure roughness. Power that cannot protect is still incomplete.\nDay 25 asks what your dignity is for.\nCan your steadiness shield a child from chaos? Can your patience protect a process from being rushed? Can your restraint keep a conversation from becoming degrading? Can your experience protect someone from avoidable harm? Can your discipline cover a weak point in the household before it becomes damage?\nNobility is proven by what becomes safer around it.",
-        glyph: "Protective arm extended over a young reed",
-        colorFrequency: "Soft bronze, pale green, and guardian gold",
-        mantra: "My strength becomes shelter, not threat.",
+            '✨ sbꜣ špsswt — a modest decanal horizon marker in the ten-day night sequence, likely faint compared with major stellar anchors and not securely identified today',
+        maatPrinciple: 'Steadiness in Small Pressure',
+        cosmicContext: '''
+Small pressure reveals whether the lesson has entered the body.
+
+Day 25 asks for steadiness under ordinary irritation.
+
+A great crisis may call forth courage because there is no choice. But small pressure tests another kind of maturity: the delay, the tone, the inconvenience, the repeated question, the minor discomfort, the plan changing slightly, the task taking longer than expected.
+
+This is where old patterns often return.
+
+The mouth sharpens.
+
+The body tightens.
+
+The promise weakens.
+
+The boundary becomes either too hard or too vague.
+
+The person says, “It is only small,” and then lets the small thing pull them out of Ma’at.
+
+Quiet competence is proven here.
+
+Not in heroic strain.
+
+In ordinary steadiness.
+
+Today asks for one small pressure to be met with the corrected response.
+
+Do not dramatize it.
+
+Do not ignore it.
+
+Do not let it rule the day.
+
+Let it show whether the lesson is becoming part of the nervous system, the schedule, the mouth, the hand, the heart.
+
+A star guides through repetition. Competence does the same.
+
+Small pressure is where reliability becomes visible.
+''',
+        glyph: 'Small stone on a path beside steady feet',
+        colorFrequency: 'Dry stone gray, quiet gold, and calm green',
+        mantra: '“I remain aligned under ordinary pressure.”',
       ),
       (
         totalDay: 26,
         starCluster:
-            "✨ sbꜣ špsswt — dignified speech under a guiding star, where language becomes measured enough to carry truth without waste",
-        maatPrinciple: "Make the words count",
-        cosmicContext:
-            "Speech can either reveal quality or spend it recklessly.\nIn Kemet, words were not treated lightly. The tongue could bless, bind, instruct, shame, stabilize, or disorder. A noble person did not necessarily speak the most. He spoke with proportion. His words were better timed, more exact, less swollen with ego, and less contaminated by appetite.\nDay 26 is about verbal weight.\nYou say less, but each word becomes cleaner. Less ornament. Less self-justification. Less reacting out loud before thought catches up. Less decorative agreement. Less talking to relieve tension that discipline should be able to hold.\nA measured mouth is one of the clearest signs that inner order has reached the surface.",
-        glyph: "Tuned tongue before a balanced feather",
-        colorFrequency: "Ink black, white linen, and measured gold",
-        mantra: "My words are clean enough to carry weight.",
+            '✨ sbꜣ špsswt — a small star group in the decanal rising sequence, physically described as a horizon timing marker with uncertain modern identification',
+        maatPrinciple: 'Proof Refused',
+        cosmicContext: '''
+After testing, the need to prove can become another burden.
+
+Day 26 asks for that burden to be refused.
+
+A person may survive the trial and then overperform to show that they survived it. They may take on too much, speak too strongly, work too hard, or display the lesson so no one doubts their change.
+
+But overproof is still fear.
+
+The skill does not need to be exaggerated to be real. The repaired boundary does not need cruelty to be firm. The healed body does not need punishment to prove strength. The corrected method does not need public performance to become trustworthy.
+
+Quiet competence uses only the force required.
+
+No more.
+
+No less.
+
+Today asks where strength is being used to prove something that Ma’at has not asked to be proven.
+
+Can the work be done plainly?
+
+Can the answer be simple?
+
+Can the boundary be firm without theater?
+
+Can progress exist without being turned into spectacle?
+
+The noble one does not need every room to witness the trial.
+
+The evidence is in the steadiness.
+
+Today asks for strength without overstatement.
+''',
+        glyph: 'Closed fist opening into a steady hand',
+        colorFrequency: 'Muted gold, field green, and cool blue',
+        mantra: '“I do not overperform what is already true.”',
       ),
       (
         totalDay: 27,
         starCluster:
-            "✨ sbꜣ špsswt — the noble star at work, where even duty becomes refined when done with correct spirit and careful finish",
-        maatPrinciple: "Do the duty beautifully",
-        cosmicContext:
-            "Some people reserve dignity for chosen tasks.\nThey can be careful when inspired, attentive when admired, and disciplined when the work flatters identity. But ordinary obligations reveal the deeper truth. How do you clean, file, show up, answer, cook, lift, repair, prepare, follow through, and tend what no one romanticizes?\nIn Kemet, duty was not beneath dignity. It was one of its proving grounds.\nDay 27 asks you to bring honor into a plain responsibility.\nComplete something without resentment hanging off it. Do it fully. Do it correctly. Do it without self-pity. Do it without rushing through because it lacks glamour. When grace enters duty, the whole life becomes more coherent.",
-        glyph: "Finished task beside an upright plume",
-        colorFrequency: "Clay brown, white, and worked gold",
-        mantra: "I bring honor even to ordinary duty.",
+            '✨ sbꜣ špsswt — a modest rising decanal marker near the horizon in the observed night sequence, not securely identified with a modern star cluster',
+        maatPrinciple: 'Completion Allowed to Stand',
+        cosmicContext: '''
+Some things are harmed by being reopened too often.
+
+Day 27 asks for the completed action to stand.
+
+This is another test of quiet competence. A repaired thing may be handled again and again because the mind does not trust repair. A decision may be reargued after it was made cleanly. A completed task may be endlessly adjusted because anxiety wants the hand to keep moving. A boundary may be reexplained until its strength is weakened.
+
+There is a moment when care becomes interference.
+
+A vessel that has been shaped, corrected, and tested should not remain forever on the wheel. A field that has received the right water should not be dug open again. A sentence that has been spoken in truth should not be covered with anxious additions.
+
+Today asks what is complete enough to stop being handled.
+
+Let it stand.
+
+Not forever beyond review.
+
+But long enough to prove that it can hold.
+
+Trust is part of the work now. Without trust, every repair becomes temporary and every completion becomes another source of unrest.
+
+Quiet competence knows when to take the hand away.
+
+What has been completed in Ma’at should be allowed to stand.
+''',
+        glyph: 'Finished vessel left standing untouched',
+        colorFrequency: 'Fired clay, steady gold, and calm blue',
+        mantra: '“I let what is complete stand.”',
       ),
       (
         totalDay: 28,
         starCluster:
-            "✨ sbꜣ špsswt — noble steadiness becoming structural, where another life can begin to rely on your quality without fear of sudden collapse",
-        maatPrinciple: "Become safe to rely on",
-        cosmicContext:
-            "Dependability is one of the highest forms of visible dignity.\nMany people can perform quality briefly. Fewer can be leaned on. Fewer can be trusted with time, follow-through, secrecy, standards, children, money, tone, or responsibility when conditions are ordinary and no applause is involved. In Kemet, order was sustained by people who could hold weight without making everything around them less stable.\nDay 28 is about becoming safer in use.\nWhere can you make yourself more reliable today? By arriving prepared. By keeping the promise. By telling the truth early. By finishing without being chased. By holding a line steadily. By refusing the emotional volatility that makes others carry your instability.\nNobility becomes communal when others can rest some weight on it.",
-        glyph: "Steady pillar beside a supporting arm",
-        colorFrequency: "Stone gray, soft gold, and trust-blue",
-        mantra: "I become safe for real responsibility.",
+            '✨ sbꜣ špsswt — a horizon-rising decanal group in the ten-day star order, best treated as a modest observed timing marker with uncertain modern identity',
+        maatPrinciple: 'Reliability Shared',
+        cosmicContext: '''
+Competence becomes visible to others through steadiness.
+
+Day 28 asks for reliability to become shelter.
+
+This does not mean becoming responsible for everything. It means allowing others to experience the fact that the method has matured. A kept promise reduces fear. A calm presence changes the room. Clean follow-through lets others plan. A measured answer prevents unnecessary heat from spreading. A stable rhythm makes a household, project, or relationship safer to inhabit.
+
+Reliability is a form of nourishment.
+
+It feeds trust.
+
+The person who has passed through trial and adaptation should not only become stronger in private. That strength should make the field around them more ordered. Not through control. Through steadiness.
+
+Today asks for one person, space, or system to benefit from your quiet competence.
+
+Complete what was promised.
+
+Arrive when expected.
+
+Speak cleanly.
+
+Hold the standard.
+
+Do the ordinary thing in the corrected way.
+
+Let someone else feel less uncertainty because you did not scatter under pressure.
+
+This is Ma’at moving through conduct.
+
+Not announced.
+
+Experienced.
+''',
+        glyph: 'Steady pillar sheltering two figures',
+        colorFrequency: 'Soft green, reliable gold, and evening blue',
+        mantra: '“My steadiness helps others stand.”',
       ),
       (
         totalDay: 29,
         starCluster:
-            "✨ sbꜣ špsswt — the noble star under review, requiring visible proof that inner rule has truly become outward habit",
-        maatPrinciple: "Verify the standard in action",
-        cosmicContext:
-            "Before a cycle closes, the life must be read honestly.\nNot your intentions. Not your taste. Not the story you prefer about yourself. The visible record. Did your conduct improve? Did your speech get cleaner? Did your surroundings become more ordered? Did your responsibilities get safer in your hands? Did your presence reduce chaos or add to it?\nDay 29 is verification.\nYou compare the inner rule you claimed with the outward evidence of your days. This is not cruelty. It is maturity. Lesser Knowing becomes truer knowing only when it agrees to be tested against action.\nDignity that cannot survive review is still too dependent on self-image.",
-        glyph: "Open ledger beneath a clear plume",
-        colorFrequency: "Ink black, temple white, and exact gold",
-        mantra: "I let my actions testify honestly.",
+            '✨ sbꜣ špsswt — the star phase of the špsswt decan, a modest horizon marker in the night-time sequence with no secure modern constellation assignment',
+        maatPrinciple: 'Quiet Lesson Preserved',
+        cosmicContext: '''
+The quiet lesson must be preserved.
+
+Day 29 asks for record.
+
+Not the dramatic story of the trial. The practical lesson.
+
+What helped?
+
+What kept the standard intact?
+
+What cooled the reaction?
+
+What corrected the method?
+
+What boundary mattered?
+
+What support was needed?
+
+What old response should not return?
+
+What did quiet competence feel like in the body?
+
+The danger after pressure passes is forgetting the small truths that made survival cleaner. The mind remembers the pain more easily than the method. It remembers the insult more easily than the correction. It remembers the fatigue more easily than the rhythm that helped.
+
+Djehuty’s work prevents that loss.
+
+Write the lesson.
+
+Name the standard.
+
+Record the method.
+
+Keep the sentence that future pressure will need.
+
+This is not obsession with the trial. It is preservation of wisdom so the same pressure does not have to teach with the same force again.
+
+Today asks for one quiet lesson to be placed in memory.
+
+What is preserved can guide.
+
+What is forgotten may return as confusion.
+''',
+        glyph: 'Small written record beneath a quiet star',
+        colorFrequency: 'Ink black, muted gold, and night blue',
+        mantra: '“I preserve the lesson without worshiping the trial.”',
       ),
       (
         totalDay: 30,
         starCluster:
-            "✨ sbꜣ špsswt — noble quality stabilized into usefulness, closing the month with dignity that can now serve, steady, and guide beyond the self",
-        maatPrinciple: "Offer noble usefulness",
-        cosmicContext:
-            "Rekh-Nedjes closes with a quiet test of maturity.\nWhat began as lesser knowing has moved through three stages: first, dignity in bearing; then dignity in the center; now dignity in use. The question at the end of the month is not whether you looked refined or even whether you felt inwardly improved. It is whether the quality you built has become serviceable to Ma’at.\nCan your presence steady a place? Can your speech clean a moment? Can your conduct instruct without humiliating? Can your responsibility protect what is weaker? Can your dependability carry real weight? Can your standards survive ordinary life?\nThat is the final turn of sbꜣ špsswt.\nNot nobility as ornament, but nobility as usefulness.\nSo Day 30 asks you to offer what has been formed: not your vanity, not your image, but your actual quality. You enter the next cycle as someone more fit to guide because you have learned not only to carry worth, but to let it serve.",
-        glyph: "Guiding star above the upright plume and open hand",
-        colorFrequency: "White linen, lapis blue, and completed gold",
-        mantra: "I offer my dignity in service to order.",
+            '✨ sbꜣ špsswt — the final star marker of Rekh-Nedjes, best described as a modest horizon-rising decanal group in the night sequence with uncertain modern identification',
+        maatPrinciple: 'Quiet Competence Sealed',
+        cosmicContext: '''
+Day 30 closes Rekh-Nedjes.
+
+The month began with knowledge entering pressure. It moved through trial, adaptation, counsel, correction, return, measurement, and quiet competence. What was learned in Rekh-Wer had to prove itself in conditions that did not protect it.
+
+Now the question is what has become steady enough to carry forward.
+
+Not perfect.
+
+Steady.
+
+A response may be cleaner. A method may be stronger. A boundary may be clearer. A body may be more honest. A relationship may be less ruled by old heat. A skill may now hold under ordinary use. A standard may no longer need crisis to remain active.
+
+This is the seal of sbꜣ špsswt.
+
+The noble star does not guide through intensity. It guides through return.
+
+The tested person does not need to become louder. They need to become truer.
+
+Today asks for the trustworthy thing to be named.
+
+What skill has become steadier?
+
+What response now belongs to the future?
+
+What standard has survived enough testing to become law?
+
+What knowledge is no longer only known, but lived?
+
+Seal that.
+
+Carry it forward without noise.
+
+Quiet competence is Ma’at after pressure has done its teaching.
+''',
+        glyph: 'Sealed standard beneath a quiet star',
+        colorFrequency: 'Night blue, field green, and sealed gold',
+        mantra: '“What has been tested can now be carried quietly.”',
       ),
     ],
   );
 }
 
 Map<String, KemeticDayInfo> _buildRenwetIEntries() {
-  const season = "🌿 Peret – Season of Emergence";
+  const season = '☀️ Shemu – Season of Harvest';
   const month =
-      "Renwet (Rnnwt) — the month of nourishment and increase, where what has been cultivated must now be received, sorted, protected, and carried without greed";
+      'Renwet (Rnnwt) — Nourishment Fulfilled and Destiny Made Visible';
   return _buildGeneratedDecanEntries(
-    keyPrefix: "renwet",
+    keyPrefix: 'renwet',
     decan: 1,
-    decanLabel: "Renwet I",
-    monthLabelForDate: "Renwet",
+    decanLabel: 'Renwet I',
+    monthLabelForDate: 'Renwet',
     month: month,
     season: season,
+    decanName: 'ꜥpdw',
+    kemeticDateBuilder: (totalDay, _) => 'Renwet I, Day $totalDay',
     flowRows: _renwetOverrideIFlowRows,
     entries: [
       (
         totalDay: 1,
         starCluster:
-            "✨ ꜥpdw — a decan of arriving provision: increase not as fantasy, but as tangible yield, gathered benefit, and the first visible answer to sustained labor",
-        maatPrinciple: "Receive what has actually arrived",
-        cosmicContext:
-            "Renwet begins with arrival.\nIn Kemet, emergence was never only about growth in the field. It was also about what could finally be gathered, counted, tasted, and brought into use. The work of prior phases had to become something real: grain in hand, stores filling, obligations answered, mouths fed, offerings prepared. Increase was not admired from a distance. It had to be handled correctly.\nThat is the atmosphere of ꜥpdw.\nThis decan does not begin with chasing. It begins with receiving. Not grabbing. Not boasting. Not acting like blessing is self-created. Receiving with enough clarity to recognize what has actually come in and enough discipline to handle it without letting appetite become ruler.\nSo Day 1 asks for honest recognition.\nWhat has arrived in your life that is real? Provision, energy, skill, payment, insight, support, access, restored strength, a door opening, a small but undeniable gain?\nCall it what it is.\nNourishment enters Ma’at only when it is received with reverence and governed well.",
-        glyph: "Open hands receiving the gathered offering",
-        colorFrequency: "Harvest gold, river green, and warm clay red",
-        mantra: "I receive with reverence, and I carry increase in order.",
+            '✨ ꜥpdw — a decanal star group in the rising night sequence; exact modern identification is uncertain, so it is best described as a modest horizon marker watched during this ten-day interval',
+        maatPrinciple: 'First Return Recognized',
+        cosmicContext: '''
+Renwet begins when the field starts answering.
+
+What was hidden in the soil now begins to return in visible form. The first signs are not the whole harvest, but they matter. They show that earlier care was not empty. Flood, seed, nourishment, patience, and pressure have all moved toward result.
+
+This is the work of ꜥpdw.
+
+The Birds mark the first movement of return. Birds gather where life is concentrating. Their presence tells the watcher that something has ripened enough to draw attention.
+
+Day 1 asks for the first return to be recognized.
+
+This may be money after long labor. A result after steady practice. Trust after repair. Strength after care. A message after waiting. A calmer body after discipline. A visible sign that something once hidden has begun to answer.
+
+The danger is dismissing the first return because it is not yet the whole.
+
+That is not Ma’at.
+
+A first return is evidence. It should not be inflated, but it should be seen.
+
+Renenutet stands near this month because nourishment has begun to become destiny. What was fed now starts to show what it can become.
+
+Today asks: what has come back because it was tended before?
+''',
+        glyph: 'Bird landing beside first grain',
+        colorFrequency: 'Harvest gold, field green, and dawn blue',
+        mantra: '“I recognize what care has returned.”',
       ),
       (
         totalDay: 2,
         starCluster:
-            "✨ ꜥpdw — provision arriving in multiple forms, requiring discernment so increase is placed rightly and does not become waste",
-        maatPrinciple: "Sort what has come in",
-        cosmicContext:
-            "Not everything received belongs in the same place.\nIn Kemet, once food, goods, labor, or blessing came in, it had to be sorted. Some was for storage. Some for immediate use. Some for the household. Some for sacred return. Some for seed. Confusion at this stage created later hunger, spoilage, and imbalance.\nDay 2 is the discipline of placement.\nYou do not just celebrate the gain. You assign it. Time, money, attention, strength, opportunity, insight, help, food, even emotional relief — all of it must be sorted according to function.\nThis is where increase becomes intelligent.\nA blessing that is not placed correctly can become disorder almost as fast as a loss.",
-        glyph: "Four-part basket dividing the gathered yield",
-        colorFrequency: "Soft gold, basket brown, and field green",
-        mantra: "I place each gift where it belongs.",
+            '✨ ꜥpdw — a small decanal rising group near the horizon, treated as a ten-day star-time marker rather than a securely identified modern cluster',
+        maatPrinciple: 'Receiving Without Grasping',
+        cosmicContext: '''
+Receiving is a test.
+
+Day 2 asks for the first return to be accepted without grasping.
+
+This is harder than it sounds. Scarcity can make the hand close too quickly. A person who has waited long may try to seize the whole future from the first sign of gain. Relief can become hunger. Gratitude can become panic. The return can be treated as something that must be owned before it disappears.
+
+But Renwet is not only about receiving.
+
+It is about receiving under Ma’at.
+
+The first grain is not eaten all at once. The first gain is not proof that every need has been settled. The first sign of love is not a demand for endless certainty. The first success is not permission to abandon measure.
+
+Renenutet nourishes, but she also guards.
+
+What arrives must be handled in a way that allows it to continue.
+
+Today asks for clean receiving.
+
+Let the return be real.
+
+Let it be enough for this moment.
+
+Do not turn it into fear of losing. Do not turn it into appetite for more. Do not force it to prove the whole harvest before the harvest has fully entered the storehouse.
+
+What is received with measure can become provision.
+
+What is grasped too quickly can be damaged by the hand that wanted to keep it.
+''',
+        glyph: 'Open hands beneath falling grain',
+        colorFrequency: 'Soft gold, warm clay, and river blue',
+        mantra: '“I receive without grasping.”',
       ),
       (
         totalDay: 3,
         starCluster:
-            "✨ ꜥpdw — provision under sacred measure, where first-fruits belong not to appetite first, but to gratitude and right return",
-        maatPrinciple: "Return the first share",
-        cosmicContext:
-            "What arrives does not begin with you.\nIn Kemet, first increase was not treated as private victory. Before full enjoyment, there was return: offering, gratitude, acknowledgment, the honoring of source. This kept the heart from becoming swollen around what had been received and reminded the household that nourishment moved through larger patterns than personal effort alone.\nDay 3 is about first-fruits in spirit and conduct.\nYou give before grasping fully. A portion of money. A portion of food. A portion of time. A spoken honoring. An act of generosity. A visible return.\nNot because loss is holy, but because selfish possession corrupts the gift quickly.\nGratitude becomes stable when it costs something.",
-        glyph: "Raised offering loaf before the shrine",
-        colorFrequency: "Honey gold, incense gray, and temple red",
-        mantra: "I honor the source before I center myself.",
+            '✨ ꜥpdw — a modest horizon-based decanal star marker in the observed night order, with exact modern identification uncertain',
+        maatPrinciple: 'First Yield Inspected',
+        cosmicContext: '''
+The first yield speaks.
+
+Day 3 asks for inspection.
+
+When the first grain is cut, the wise farmer does not only rejoice. The farmer reads. The heads are full or thin. The stalks are strong or weak. One field answers better than another. The harvest reveals the history of water, seed, labor, timing, pests, patience, and care.
+
+The same law governs personal return.
+
+A first result is not only reward.
+
+It is information.
+
+The payment says something about the work. The healed place says something about the care. The first success says something about the method. The first tension says something about what remains unfinished. The first visible return tells the truth of what was planted, how it was tended, and where Ma’at held or bent.
+
+Today asks for the first yield to be inspected without fear and without fantasy.
+
+What does this result reveal?
+
+What worked?
+
+What was underfed?
+
+What came back stronger than expected?
+
+What came back weak?
+
+What should be repeated?
+
+What should be corrected?
+
+A person who only celebrates the first return may miss the teaching inside it.
+
+A person who only criticizes it may miss the blessing.
+
+Inspection under Ma’at receives both.
+''',
+        glyph: 'Hand examining first grain beneath a watchful eye',
+        colorFrequency: 'Grain gold, ink black, and field green',
+        mantra: '“I read what the first return reveals.”',
       ),
       (
         totalDay: 4,
         starCluster:
-            "✨ ꜥpdw — gathered provision moving into household life, where blessing becomes real through feeding, strengthening, and stabilizing the living circle",
-        maatPrinciple: "Feed the house",
-        cosmicContext:
-            "Increase proves itself by whom it nourishes.\nIn Kemet, gain that never reached the household was incomplete. Food had to become meals. Stores had to become life. Relief had to become steadiness. The house — children, elders, partners, workers, dependents, the vulnerable, even the weary self — had to feel the benefit of what came in.\nDay 4 asks whether the blessing is circulating correctly.\nWho needs to be fed by what has arrived? Not flattered. Not entertained. Fed. Physically, emotionally, spiritually, materially, structurally.\nThis day cuts against the temptation to hoard increase as self-image.\nNourishment that stops at the ego begins to rot there.",
-        glyph: "Full bowl set at the center of the household",
-        colorFrequency: "Nourishing green, warm gold, and hearth-brown",
-        mantra: "What comes in must become life for the house.",
+            '✨ ꜥpdw — a small rising decanal group in the ten-day night sequence, best described as a modest watched horizon marker with uncertain modern identity',
+        maatPrinciple: 'Source Honored',
+        cosmicContext: '''
+Nothing returns by itself.
+
+Day 4 asks for the source to be honored.
+
+A field returns grain because water came, soil held, seed was preserved, hands labored, tools served, boundaries protected, and time completed its work. The harvest may be gathered by one hand, but it was never created by one hand alone.
+
+The same is true in life.
+
+A result may arrive through personal effort, but effort itself was carried by sources: ancestors, teachers, friends, body, land, discipline, rest, help, protection, and unseen timing.
+
+Renenutet’s nourishment is never isolated. It moves through relationship.
+
+Today asks for the sources of return to be named.
+
+Who helped?
+
+What held?
+
+What taught?
+
+What fed?
+
+What protected?
+
+What endured quietly in the background?
+
+This is not modesty as performance. It is accuracy. To honor source is to remain in right relation with what made the return possible.
+
+A person who forgets source begins to mistake possession for power.
+
+A person who remembers source can receive without becoming swollen by the receiving.
+
+Gratitude keeps abundance clean.
+''',
+        glyph: 'Offering bowl placed before field, river, and ancestor sign',
+        colorFrequency: 'River blue, ancestor gold, and grain brown',
+        mantra: '“I honor what made this return possible.”',
       ),
       (
         totalDay: 5,
         starCluster:
-            "✨ ꜥpdw — abundance under count, where gain must enter record if it is to remain truthful and usable",
-        maatPrinciple: "Count what actually came in",
-        cosmicContext:
-            "Blessing that remains uncounted easily becomes fantasy.\nIn Kemet, grain, labor, livestock, offerings, and stores were measured because nourishment had to be answerable to reality. Vague abundance helped no one. If the record was false, planning failed. If the count was inflated, hunger came later. If the gain was hidden, trust weakened.\nDay 5 is ledger work.\nYou count what came in. Money, time recovered, meals prepared, progress made, support received, resources available, strength restored. You do not shrink it out of false humility, and you do not exaggerate it out of hunger for greatness.\nTruthful increase is enough.\nWhen nourishment enters clean record, it becomes something a life can actually build on.",
-        glyph: "Scribe marks beside a filled granary jar",
-        colorFrequency: "Ink black, grain gold, and papyrus tan",
-        mantra: "I let increase enter honest record.",
+            '✨ ꜥpdw — a modest decanal horizon marker in the night-time sequence, likely faint compared with major stellar anchors and not securely identified today',
+        maatPrinciple: 'First Share Separated',
+        cosmicContext: '''
+The middle of the decan asks for division.
+
+Day 5 belongs to the first share.
+
+In a Ma’at-ordered harvest, what arrives cannot be treated as one undifferentiated pile. Some belongs to offering. Some belongs to household. Some belongs to labor. Some belongs to debt. Some belongs to storage. Some belongs to seed. Some may be enjoyed now, but not before the necessary portions are recognized.
+
+This is the discipline that keeps abundance from becoming disorder.
+
+A gain that is not divided correctly can disappear quickly. Relief becomes spending. Gratitude becomes display. Fear becomes hoarding. Generosity becomes self-erasure. The future is forgotten because the present feels urgent.
+
+Renwet asks the hand to pause over the first return.
+
+What belongs where?
+
+What must be given first?
+
+What must be stored?
+
+What must repair what was owed?
+
+What must remain for the next cycle?
+
+This applies to money, energy, attention, time, opportunity, knowledge, and emotional strength.
+
+The first share protects the whole harvest.
+
+Today asks for one return to be divided before it is consumed.
+
+Provision becomes peace when each portion finds its proper relation.
+''',
+        glyph: 'Grain measure divided into offering, house, and seed portions',
+        colorFrequency: 'Barley gold, clay brown, and sealed green',
+        mantra: '“I place each portion where it belongs.”',
       ),
       (
         totalDay: 6,
         starCluster:
-            "✨ ꜥpdw — increase acknowledging its carriers, where gain must answer labor and unseen support with rightful return",
-        maatPrinciple: "Pay the hands",
-        cosmicContext:
-            "Nothing arrives alone.\nIn Kemet, harvest was never the achievement of one isolated will. Hands sowed, carried, lifted, recorded, guarded, cooked, tended, measured, advised, prayed, and endured. Even when blessing came through your path, it usually arrived with the fingerprints of others on it.\nDay 6 is about answering labor with justice.\nYou acknowledge help, compensate effort, honor support, settle a hidden debt, speak a needed thanks, or stop acting as though you rose on your own. This applies to money, but not only money. Recognition, relief, credit, nourishment, and real reciprocity are also payments.\nIncrease becomes cleaner when it does not forget the hands that helped bring it in.",
-        glyph: "Two open hands exchanging the measure fairly",
-        colorFrequency: "Bronze, reed green, and just gold",
-        mantra: "I answer support with rightful return.",
+            '✨ ꜥpdw — a small decanal star group observed near the horizon as part of the night-hour sequence, not securely matched to a modern constellation',
+        maatPrinciple: 'Labor Honored',
+        cosmicContext: '''
+The hands that carried the season must be honored.
+
+Day 6 asks for payment, thanks, acknowledgment, and repair.
+
+A harvest is never only the field’s answer. It is also the answer of labor. Someone watched the water. Someone carried the load. Someone kept the rhythm. Someone fed the workers. Someone maintained the tool. Someone remembered the record. Someone stood quietly in the background while visible work received praise.
+
+If those hands are ignored, the harvest is already wounded.
+
+Renwet does not allow abundance to erase the labor that made abundance possible.
+
+Today asks who helped bring the return into being.
+
+Pay what is owed.
+
+Thank who should be thanked.
+
+Name the unseen worker.
+
+Acknowledge the body that carried the work.
+
+Support the person who supported the process.
+
+Stop acting as though the result appeared from isolated effort.
+
+This applies inwardly too. The tired part of the self deserves gratitude. The disciplined part deserves respect. The patient part deserves recognition. The body deserves care.
+
+A harvest that does not honor labor becomes extraction.
+
+A harvest that honors labor strengthens Ma’at.
+''',
+        glyph: 'Working hands receiving grain and water',
+        colorFrequency: 'Worker clay, grain gold, and Nile blue',
+        mantra: '“I honor the hands that carried the return.”',
       ),
       (
         totalDay: 7,
         starCluster:
-            "✨ ꜥpdw — provision remembered as cyclical, where the source itself must be guarded from overuse, greed, and short-sighted taking",
-        maatPrinciple: "Leave room for renewal",
-        cosmicContext:
-            "A source that is only taken from will weaken.\nIn Kemet, fields needed rest, waters needed correct relation, bodies needed rhythm, stores needed pacing, and sacred sources needed reverence. To strip the source bare because increase had finally appeared was to betray the very pattern that made nourishment possible.\nDay 7 is restraint inside receipt.\nYou ask what in your life is feeding you right now — land, body, cash flow, community, discipline, household labor, emotional reserves, spiritual practice — and whether you are using it in a way that allows renewal.\nThis is where gratitude becomes intelligent.\nNot every good thing should be pushed to its limit just because it is currently giving.",
-        glyph: "Resting field beside a closed storage jar",
-        colorFrequency: "Dark green, soil brown, and patient gold",
-        mantra: "I receive without draining the source.",
+            '✨ ꜥpdw — a decanal rising group near the horizon in the ten-day star order, physically described with caution because no secure modern cluster identification is available',
+        maatPrinciple: 'Return Not Mistaken for Completion',
+        cosmicContext: '''
+The first return is not the whole harvest.
+
+Day 7 asks for restraint inside encouragement.
+
+This is where early gain can distort judgment. A first payment arrives, and the hand spends as though the storehouse is full. A first sign of healing appears, and the body is overloaded. A first success arrives, and the method is abandoned. A relationship softens, and the old problem is declared finished before the roots have truly changed.
+
+Early return should bring confidence.
+
+Not carelessness.
+
+In the field, the first cut grain tells the farmer that harvest has begun. It does not mean all grain is secured, dried, stored, counted, and protected. The work is not over because the answer has started.
+
+Today asks for the first return to be respected as beginning, not final completion.
+
+What still needs gathering?
+
+What still needs protection?
+
+What remains uncertain?
+
+What should not be consumed yet?
+
+What deserves joy without losing caution?
+
+This is not distrust. It is maturity.
+
+The person who can celebrate without abandoning measure will keep more of what returns.
+
+Renwet teaches that reward must become continuity, not a brief fire of relief.
+''',
+        glyph: 'First sheaf beside an unfinished field',
+        colorFrequency: 'Harvest gold, open field green, and watchful blue',
+        mantra: '“The first return begins the harvest; it does not finish it.”',
       ),
       (
         totalDay: 8,
         starCluster:
-            "✨ ꜥpdw — gathered blessing voiced into the world, where gratitude becomes stronger when it leaves the hidden chamber and enters speech",
-        maatPrinciple: "Speak gratitude aloud",
-        cosmicContext:
-            "Silent gratitude can be real, but spoken gratitude strengthens bonds.\nIn Kemet, thanks was not always left to private feeling. It entered ritual, offering, blessing, acknowledgment, and public return. This mattered because nourishment is relational. What fed you should know it fed you. The living should hear they mattered. The unseen should be honored. The household should feel the spirit of thanks in the atmosphere.\nDay 8 is audible gratitude.\nSay it plainly to a person, a source, the divine, the ancestors, the body, the workers, the household. Not decorative thank-you language. Real gratitude that names what was given and what it changed.\nWhat is acknowledged becomes harder to take for granted.",
-        glyph: "Open mouth above the offering table",
-        colorFrequency: "Sunlit gold, clear blue, and living green",
-        mantra: "I name my gratitude so it can strengthen the bond.",
+            '✨ ꜥpdw — a modest horizon-based decanal marker used in the night sequence, with exact modern astronomical identification uncertain',
+        maatPrinciple: 'Waste Guarded Against',
+        cosmicContext: '''
+A blessing can leak away.
+
+Day 8 asks for waste to be guarded against.
+
+This is not fear of abundance. It is respect for what abundance must become. A first return can be lost through excitement, guilt, fear, careless spending, overgiving, under-recording, poor storage, or the old belief that anything received must be consumed quickly before it disappears.
+
+Renenutet’s serpent nature matters here.
+
+The cobra guards the granary because gathered life remains vulnerable. Food can be stolen. Grain can spoil. A gift can be wasted. A return can be used to feed the very disorder that once caused hunger.
+
+Today asks what could waste this blessing.
+
+The unnecessary purchase.
+
+The emotional leak.
+
+The person who takes but does not honor.
+
+The habit that consumes every gain.
+
+The lack of record.
+
+The lack of container.
+
+The fear that spends before wisdom can divide.
+
+Guarding is not stinginess.
+
+Stinginess freezes the flow from fear.
+
+Guarding protects provision so it can serve its proper relations.
+
+Today asks for one leak to be sealed around the first return.
+
+What has arrived should not be lost before it has time to become security.
+''',
+        glyph: 'Cobra coiled around a sealed grain jar',
+        colorFrequency: 'Protective black, grain gold, and clay red',
+        mantra: '“I guard the blessing from waste.”',
       ),
       (
         totalDay: 9,
         starCluster:
-            "✨ ꜥpdw — nourished increase entering preservation, where what remains must be guarded from spoilage, leakage, fear, and waste",
-        maatPrinciple: "Secure what remains",
-        cosmicContext:
-            "Receipt alone is not enough. What comes in must be kept.\nIn Kemet, storage was sacred practicality. Containers had to be sound. Grain had to be protected. Measures had to be guarded. Theft, spoilage, leakage, vermin, and careless handling could erase blessing quickly if preservation was weak.\nDay 9 is the work of keeping.\nYou protect what remains: money with structure, food with care, energy with rhythm, insight with repetition, peace with boundaries, opportunities with timely response, relationships with proper tending.\nThis is not paranoia and not miserliness.\nIt is respect for what has already cost life enough to arrive.",
-        glyph: "Sealed jar marked with the keeper’s sign",
-        colorFrequency: "Deep green, clay brown, and guarded gold",
-        mantra: "I protect what remains so it can continue feeding life.",
+            '✨ ꜥpdw — a small star group in the decanal rising sequence, best described as a modest horizon timing marker rather than a securely identified modern constellation',
+        maatPrinciple: 'Return Recorded Truthfully',
+        cosmicContext: '''
+What arrives must be counted.
+
+Day 9 asks for record.
+
+A harvest without accounting becomes confusion. No one knows what came in, what was spent, what remains, what is owed, what should be stored, or what can be offered. The feeling of abundance replaces the truth of abundance, and feeling alone cannot feed the future.
+
+This is Djehuty inside Renwet.
+
+The gain must be written.
+
+Not exaggerated.
+
+Not hidden.
+
+Not vaguely celebrated.
+
+Written.
+
+How much came in?
+
+From where?
+
+At what cost?
+
+Who helped?
+
+What must be paid?
+
+What must be stored?
+
+What remains uncertain?
+
+What did the first return teach?
+
+This applies beyond money and grain. Record the hours restored. The strength returned. The trust repaired. The pattern that worked. The support that mattered. The debt still open.
+
+The record does not diminish the blessing.
+
+It protects it.
+
+A true account turns return into usable provision. A false account turns return into myth, and myths do not keep storehouses full.
+
+Today asks for the first return to be recorded in truth.
+
+What is counted honestly can be placed under Ma’at.
+''',
+        glyph: 'Reed pen beside a counted grain measure',
+        colorFrequency: 'Ink black, grain gold, and papyrus green',
+        mantra: '“I count the return in truth.”',
       ),
       (
         totalDay: 10,
         starCluster:
-            "✨ ꜥpdw — the decan of first provision completed, closing with the question of identity: whether the receiver will become a worthy steward of what now flows through his hands",
-        maatPrinciple: "Seal the name of the gain",
-        cosmicContext:
-            "The first decan closes with a question of stewardship.\nSomething has come in. It has been recognized, sorted, returned in gratitude, circulated to the house, counted, honored, protected, and held under better order. Now the month turns from receipt toward character.\nBecause increase always asks who it has entered.\nWill it meet greed or reverence? Waste or stewardship? Forgetfulness or gratitude? Disorder or right handling? Renwet is never only about what was gained. It is about the kind of person formed by receiving.\nSo Day 10 is the sealing of the name.\nYou declare, quietly and truthfully, who you must be to carry this nourishment well. Not the title that flatters you. The role that governs you. Keeper. Feeder. Steward. Repairer. Giver. Responsible one. Watcher of the store.\nBlessing changes meaning depending on the quality of the hands that hold it.",
-        glyph: "Keeper’s seal pressed into the full jar",
-        colorFrequency: "Harvest gold, dark green, and settled clay",
-        mantra: "I become worthy of what I receive.",
+            '✨ ꜥpdw — the first decanal star group of Renwet, a modest rising horizon marker in the night order with uncertain modern star-cluster identification',
+        maatPrinciple: 'First Return Sealed',
+        cosmicContext: '''
+Day 10 seals the first movement of Renwet.
+
+The first return has been recognized, received, inspected, traced to source, divided into rightful portions, connected to labor, restrained from premature completion, guarded against waste, and recorded truthfully.
+
+This is how gain begins to become provision.
+
+The decan does not end by declaring the whole harvest complete. It ends by placing the first return under law. What has come back must now be protected, distributed, stored, offered, and allowed to teach the rest of the season.
+
+Renenutet’s work is visible here.
+
+She is not only the sweetness of nourishment arriving. She is the watchfulness that keeps nourishment from becoming waste, appetite, or false security. She guards the passage from return into continuity.
+
+Today asks for the first return to be sealed.
+
+What has come back?
+
+What portion belongs where?
+
+What must be protected?
+
+What must be recorded?
+
+What must not be consumed too soon?
+
+What does this return reveal about destiny taking shape?
+
+Shai begins to show itself through consequence. What was planted returns according to conditions. What is now received must become part of the future, not only relief from the past.
+
+The first return is sacred when it is handled in Ma’at.
+''',
+        glyph: 'Sealed basket of first grain beneath a bird sign',
+        colorFrequency: 'Harvest gold, protective black, and field green',
+        mantra: '“What has returned will be kept in Ma’at.”',
       ),
     ],
   );
 }
 
 Map<String, KemeticDayInfo> _buildRenwetIIEntries() {
-  const season = "🌿 Peret – Season of Emergence";
+  const season = '☀️ Shemu – Season of Harvest';
   const month =
-      "Renwet (Rnnwt) — the month of nourishment and increase, where what has been cultivated must now be received, sorted, protected, and carried without greed";
+      'Renwet (Rnnwt) — Nourishment Fulfilled and Destiny Made Visible';
   return _buildGeneratedDecanEntries(
-    keyPrefix: "renwet",
+    keyPrefix: 'renwet',
     decan: 2,
-    decanLabel: "Renwet II",
-    monthLabelForDate: "Renwet",
+    decanLabel: 'Renwet II',
+    monthLabelForDate: 'Renwet',
     month: month,
     season: season,
+    decanName: 'ḥry-ib ꜥpdw',
+    kemeticDateBuilder: (totalDay, _) => 'Renwet II, Day $totalDay',
     flowRows: _renwetOverrideIIFlowRows,
     entries: [
       (
         totalDay: 11,
         starCluster:
-            "✨ ḥry-ib ꜥpdw — provision drawn inward, where increase is no longer only gathered outwardly but weighed in the heart, testing whether the receiver can hold blessing without corruption",
-        maatPrinciple: "Weigh what abundance is doing to you",
-        cosmicContext:
-            "The first decan taught receipt. The second asks what receipt is making of you.\nIn Kemet, nourishment did not end with harvest or gain. What came into the house also entered the heart. Provision could strengthen gratitude, justice, and steadiness — but it could also awaken greed, fear, vanity, indulgence, forgetfulness, and the impulse to possess what was meant to circulate under Ma’at.\nThat is the labor of ḥry-ib ꜥpdw.\nThis decan turns increase inward. It asks whether you can remain clean while holding more. Whether your motives stay measured when resources rise. Whether your heart stays balanced when comfort becomes available. Whether your speech, spending, appetite, and sense of self are still governed by right relation rather than by the intoxication of having.\nSo Day 11 begins with inward weighing.\nNot “Do I have enough?” but “What is what I have now doing to me?”\nThe blessing is real. The deeper question is whether you are becoming worthy enough to keep carrying it.",
-        glyph: "Full vessel balanced within the heart-space",
-        colorFrequency: "Deep green, warm gold, and inner blue",
-        mantra: "I hold increase without letting it unbalance my heart.",
+            '✨ ḥry-ib ꜥpdw — the heart phase of the ꜥpdw decanal sequence; a modest horizon-rising star group used as a night timing marker, with no secure modern constellation identification',
+        maatPrinciple: 'Harvest Brought to the Heart',
+        cosmicContext: '''
+The first decan recognized return.
+
+The second asks how return should be distributed.
+
+This is the work of ḥry-ib ꜥpdw: the heart of the Birds. The field has begun to answer. Something has come in. The first return has been seen, counted, and protected. Now the heart must decide where the return belongs.
+
+Abundance without discernment becomes danger.
+
+Grain can feed the house or rot in the store. Money can restore balance or feed old disorder. Praise can strengthen the work or swell the appetite. Relief can become gratitude or careless spending. A returned strength can serve the future or be exhausted proving that it has returned.
+
+Day 11 asks for the harvest to be brought to the heart before it is used.
+
+What has arrived?
+
+What relations does it touch?
+
+What portion belongs to household, offering, labor, debt, storage, future seed, and rest?
+
+Renenutet nourishes, but she also guards destiny. What is received now shapes what can live later.
+
+Today asks for a pause before distribution.
+
+The hand should not move before the heart has weighed the return.
+''',
+        glyph: 'Heart above a grain measure and bird sign',
+        colorFrequency: 'Harvest gold, deep green, and measured blue',
+        mantra: '“I bring what returned to the heart before I divide it.”',
       ),
       (
         totalDay: 12,
         starCluster:
-            "✨ ḥry-ib ꜥpdw — inward provision tested by ego, where blessing must not be mistaken for self-creation or personal supremacy",
-        maatPrinciple: "Refuse the swell of pride",
-        cosmicContext:
-            "Increase can make memory disappear.\nA person forgets the nights of strain, the hands that helped, the timing he did not control, the mercy he did not earn, the doors opened by forces beyond his will. Gain then begins to rewrite the story: “I did this alone. I deserve more than others. I no longer need correction. I am different now.”\nKemet had no use for that inflation.\nTo receive and then become swollen with self-importance was to let blessing curdle into disorder. Pride distorts proportion. It loosens gratitude. It makes the tongue careless and the heart less teachable.\nDay 12 is about catching the rise before it hardens.\nYou notice where increase has begun to make you larger in your own eyes than truth allows.\nWhat comes in should strengthen your stewardship, not your delusion.",
-        glyph: "Full jar beneath a lowered head",
-        colorFrequency: "Burnished gold, river-black, and humble green",
-        mantra: "I receive without enlarging myself falsely.",
+            '✨ ḥry-ib ꜥpdw — a small decanal rising group near the horizon in the ten-day star order, best treated as a timing marker with uncertain modern identity',
+        maatPrinciple: 'Appetite Weighed',
+        cosmicContext: '''
+Abundance reveals appetite.
+
+Day 12 asks for that appetite to be weighed.
+
+When something arrives, the first hunger speaks quickly. The urge may be to consume it, hide it, spend it, show it, overgive it, control it, or demand that it become proof that scarcity is finally over.
+
+That first urge is not always evil.
+
+But it must be weighed.
+
+A person who has gone without may grasp too tightly. A person used to crisis may spend quickly before the gain disappears. A person hungry for recognition may turn return into display. A person afraid of being selfish may give away what the household needed to keep.
+
+Renwet tests the heart through receiving.
+
+The question is not only what came in.
+
+The question is what rises in the heart when it comes in.
+
+Today asks for the first appetite to be named before action.
+
+What wants to move?
+
+Fear?
+
+Relief?
+
+Greed?
+
+Gratitude?
+
+Panic?
+
+Joy?
+
+Duty?
+
+The heart must know the hunger before the hand obeys it.
+
+Abundance enters Ma’at only when appetite accepts measure.
+''',
+        glyph: 'Heart weighed beside an open grain basket',
+        colorFrequency: 'Grain gold, shadow red, and clear blue',
+        mantra: '“I weigh the hunger that rises with abundance.”',
       ),
       (
         totalDay: 13,
         starCluster:
-            "✨ ḥry-ib ꜥpdw — increase meeting the fear beneath it, where possession can tighten the heart unless loss is faced honestly",
-        maatPrinciple: "Name the fear of losing",
-        cosmicContext:
-            "More can make a person more afraid.\nBefore gain, there is hunger. After gain, there can be guarding, tightening, suspicion, and restless calculation. The fear changes clothes, but it remains fear. Now it says: “What if this leaves? What if I cannot keep it? What if someone takes it? What if I have to share? What if I fall back?”\nThis too must be brought under Ma’at.\nIn Kemet, storage mattered, but fear was not meant to rule the storehouse. Wise protection is different from inner panic. Stewardship is different from territorial possession.\nDay 13 asks you to name the fear directly.\nWhat are you gripping because you are afraid of going without again?\nTruth weakens fear’s disguise. Once named, it can be governed.",
-        glyph: "Sealed jar watched by clear eyes",
-        colorFrequency: "Deep bronze, guarded green, and clarifying gold",
-        mantra: "I name my fear so it does not secretly rule my keeping.",
+            '✨ ḥry-ib ꜥpdw — a modest horizon-based decanal marker in the observed night sequence, with exact modern identification uncertain',
+        maatPrinciple: 'Obligation Named',
+        cosmicContext: '''
+Return arrives with obligations attached.
+
+Day 13 asks what is owed.
+
+A harvest does not belong to appetite first. It belongs to relation. Before enjoyment comes the question of what must be settled: labor, debt, promise, offering, household need, damaged trust, unpaid support, neglected tools, or the body that carried the work.
+
+This is not punishment.
+
+It is purification of the gain.
+
+A blessing remains tangled when what is owed is ignored. Money carries unrest when debt is hidden. Praise becomes crooked when helpers are erased. Food becomes morally heavy when the household remains unfed. Success becomes unstable when the foundation that made it possible is left unrepaired.
+
+Renwet asks for clean receiving.
+
+Today asks: what must be settled before this return can rest?
+
+Who should be paid?
+
+Who should be thanked?
+
+What promise should be honored?
+
+What repair should be made?
+
+What debt to the body, home, ancestor, helper, or future has been waiting?
+
+Abundance becomes peace when obligation is named.
+
+What is received under Ma’at must answer the relations that made receiving possible.
+''',
+        glyph: 'Ledger beside grain and offering hands',
+        colorFrequency: 'Ink black, harvest gold, and clay brown',
+        mantra: '“I settle what is owed before I call the gain mine.”',
       ),
       (
         totalDay: 14,
         starCluster:
-            "✨ ḥry-ib ꜥpdw — inward provision brought under discipline, where comfort must not be allowed to loosen the hand or dull the edge",
-        maatPrinciple: "Correct the appetite",
-        cosmicContext:
-            "Comfort can quietly dissolve structure.\nAfter strain, relief feels deserved. After deprivation, indulgence can disguise itself as healing. A person begins eating without measure, spending without thought, sleeping past discipline, speaking loosely, delaying repairs, and calling softness “recovery” long after it has become decline.\nKemet knew that nourishment had to be held in balance.\nThe point of increase was not to enthrone appetite. It was to support life under Ma’at. What feeds you should strengthen your order, not dissolve it.\nDay 14 is for bringing consumption back into line.\nFood, purchases, screens, pleasure, attention, emotion, talking, resting — whatever comfort has begun to overtake, you bring it under measure again.\nBlessing should restore your form, not unmake it.",
-        glyph: "Measured portion set beside the full bowl",
-        colorFrequency: "Warm clay, grain gold, and disciplined green",
-        mantra: "I receive comfort without surrendering my measure.",
+            '✨ ḥry-ib ꜥpdw — a small rising decanal group observed near the horizon, functioning as a night-time sequence marker rather than a securely mapped modern constellation',
+        maatPrinciple: 'Household Fed',
+        cosmicContext: '''
+The house must be fed before abundance becomes display.
+
+Day 14 asks for nourishment to enter daily life.
+
+A harvest that never reaches the table has not fulfilled its work. Grain that is counted but does not feed the household becomes abstraction. A gain that looks impressive from outside but leaves the body hungry, the room disordered, the tools broken, or the people exhausted has not yet become provision.
+
+Renwet brings return into the house.
+
+Food.
+
+Rest.
+
+Repair.
+
+Clothing.
+
+Medicine.
+
+Clean space.
+
+Working tools.
+
+A settled account.
+
+A calmer schedule.
+
+A body no longer forced to run on emergency.
+
+The household is not only a building. It is the living structure that allows work, memory, offering, and future to continue.
+
+Today asks where the house must be fed first.
+
+Not where pride wants to spend.
+
+Not where fear wants to hide.
+
+Where life actually depends on provision.
+
+A full storehouse means little if the people under its roof remain depleted.
+
+Renenutet’s nourishment becomes Ma’at when it reaches the daily place where life must continue.
+''',
+        glyph: 'House sign with bread, water, and grain inside',
+        colorFrequency: 'Warm clay, grain gold, and Nile blue',
+        mantra: '“The return must feed the house.”',
       ),
       (
         totalDay: 15,
         starCluster:
-            "✨ ḥry-ib ꜥpdw — gathered blessing tested in the storehouse of motive, where keeping must be purified from greed and fear",
-        maatPrinciple: "Purify the reason for keeping",
-        cosmicContext:
-            "Not all saving is wise.\nA person can protect resources because he is responsible. He can also protect them because he is afraid, vain, withholding, distrustful, or addicted to the feeling of possession. The outer act may look the same while the inner reason makes two very different lives.\nIn Kemet, the storehouse served order.\nIts purpose was nourishment, continuity, duty, stability, and right timing — not private obsession with accumulation. This is why Day 15 asks about motive.\nWhy are you holding what you hold? Why are you storing, investing, guarding, planning, preserving?\nIf the answer is wisdom, Ma’at is strengthened. If the answer is fear disguised as prudence, the heart tightens even while the jars are full.",
-        glyph: "Keeper’s hand resting calmly on the jar-lid",
-        colorFrequency: "Dark green, temple gold, and still blue",
-        mantra: "I keep for life, not for greed.",
+            '✨ ḥry-ib ꜥpdw — the midpoint phase of the ꜥpdw decanal sequence, a modest horizon-rising star marker with uncertain modern identification',
+        maatPrinciple: 'Vulnerable Protected',
+        cosmicContext: '''
+The middle of the decan turns toward protection.
+
+Day 15 asks who remains exposed after abundance has arrived.
+
+This is one of the clearest tests of Ma’at. A return that benefits only the strongest parts of the system is not yet righteous. The child, elder, tired worker, sick body, neglected tool, quiet helper, underfed relationship, and future seed all must be seen.
+
+Abundance often gathers around the loudest hand.
+
+Ma’at asks for the vulnerable place.
+
+Where is the system still exposed?
+
+Who is still hungry?
+
+What part of the body has not recovered?
+
+What tool will fail next month if it is not repaired now?
+
+What relationship needs safety more than celebration?
+
+What future need should be shielded before it becomes crisis?
+
+Renenutet’s cobra guards nourishment because what sustains life can be taken, wasted, or misdirected. Protection is part of feeding.
+
+Today asks for part of the return to become shelter.
+
+Not rescue for display.
+
+Protection in right measure.
+
+A harvest that does not protect the vulnerable will carry future disorder inside it.
+''',
+        glyph: 'Cobra sheltering a child, grain, and seed jar',
+        colorFrequency: 'Protective black, grain gold, and soft green',
+        mantra: '“The vulnerable must be included in the harvest.”',
       ),
       (
         totalDay: 16,
         starCluster:
-            "✨ ḥry-ib ꜥpdw — provision reopening its hand, where blessing must circulate again if it is to remain alive under Ma’at",
-        maatPrinciple: "Reopen the flow",
-        cosmicContext:
-            "What never moves again begins to stagnate.\nIn Kemet, stores were protected, but provision was not meant to become a sealed monument to fear. Grain moved into meals. Wealth moved into duty. Strength moved into service. Knowledge moved into instruction. Relief moved into generosity. Circulation was part of life.\nDay 16 is the restoration of outward flow.\nYou let something move again. Help someone. Share food. Release money wisely. Pass on insight. Answer a need. Strengthen the house. Make the blessing touch more life than your own.\nThis is not reckless giving.\nIt is remembering that nourishment lives best when it continues to serve.",
-        glyph: "Open jar pouring measure into waiting hands",
-        colorFrequency: "River green, bread-gold, and living bronze",
-        mantra: "I let blessing move where life needs it.",
+            '✨ ḥry-ib ꜥpdw — a horizon-rising decanal timing group, likely modest in brightness and not securely identifiable with a modern cluster',
+        maatPrinciple: 'Offering Returned',
+        cosmicContext: '''
+What returns must return again.
+
+Day 16 asks for offering.
+
+The return has been brought to the heart, appetite has been weighed, obligation has been named, the house has been fed, and the vulnerable have been protected. Now gratitude must become action.
+
+Offering is not loss.
+
+It is circulation restored.
+
+A portion goes back to source because nothing arrives alone. The land fed. The river fed. The dead fed. The helpers fed. The body fed. The divine order held the cycle long enough for the return to appear.
+
+An offering may be water at the altar, food shared, money given, a debt paid, a helper thanked, a tool repaired, a lesson passed on, or a future need funded.
+
+The form matters less than the relation.
+
+Today asks: where must gratitude become visible?
+
+Not only felt.
+
+Placed.
+
+The offering formula names provision so it can reach the ka. In daily life, offering names the truth that receiving belongs inside relationship.
+
+What is returned in gratitude does not diminish the harvest.
+
+It cleans the hand that receives it.
+''',
+        glyph: 'Offering arms lifting grain and water',
+        colorFrequency: 'Bright gold, Nile blue, and altar white',
+        mantra: '“I return gratitude into relation.”',
       ),
       (
         totalDay: 17,
         starCluster:
-            "✨ ḥry-ib ꜥpdw — increase remembered precisely, where gratitude becomes sharper when it names the actual forms nourishment took",
-        maatPrinciple: "Make gratitude exact",
-        cosmicContext:
-            "General gratitude is better than none, but exact gratitude changes the heart more deeply.\nTo say “I’m blessed” can be true and still remain vague enough to avoid transformation. But to say: this person fed me, this work sustained me, this discipline restored me, this prayer was answered, this mercy arrived when I was weakening — that kind of precision cuts forgetfulness.\nIn Kemet, naming mattered.\nSpecific offerings, specific records, specific thanks. What was named clearly entered order more fully.\nDay 17 asks you to remember in detail.\nWhat exactly nourished you? Through whom? In what form? What did it repair? What weight did it relieve? What door did it open?\nExact gratitude makes entitlement harder to maintain.",
-        glyph: "Named offerings arranged in clear rows",
-        colorFrequency: "Bright gold, ink black, and clarified green",
-        mantra: "I name my nourishment so I do not forget its truth.",
+            '✨ ḥry-ib ꜥpdw — a small horizon marker in the decanal star order, physically described cautiously because no secure modern constellation match is available',
+        maatPrinciple: 'Hoarding Refused',
+        cosmicContext: '''
+Preservation and hoarding are not the same.
+
+Day 17 asks for the difference.
+
+Some of the return must be kept. Seed must be set aside. Food must be stored. Money must be guarded. Energy must be preserved. The future deserves provision.
+
+But hoarding begins when fear takes over the hand.
+
+The grain is held past usefulness. The money never circulates where it should. The knowledge is kept for status. The affection is withheld to maintain control. The gift is buried so deeply that it can no longer serve life.
+
+Renenutet guards the granary.
+
+She does not turn it into a tomb.
+
+Today asks what is being protected and what is being trapped.
+
+What should be stored for the future?
+
+What should be released into relation?
+
+What is being kept because Ma’at requires preservation?
+
+What is being kept because fear does not trust life?
+
+Abundance must not be wasted, but it also must not be frozen into possession.
+
+Where preservation serves continuity, it is Ma’at.
+
+Where keeping prevents right circulation, it becomes hunger wearing a storehouse mask.
+''',
+        glyph: 'Open storehouse with measured grain leaving one door',
+        colorFrequency: 'Granary brown, grain gold, and clear green',
+        mantra: '“I preserve without imprisoning the blessing.”',
       ),
       (
         totalDay: 18,
         starCluster:
-            "✨ ḥry-ib ꜥpdw — comfort under scrutiny, where ease must not be allowed to rot discipline from the inside",
-        maatPrinciple: "Refuse the softening",
-        cosmicContext:
-            "Ease has its own temptations.\nAfter pressure lifts, the body wants more softness. The mind wants less vigilance. The hand wants less exactness. The tongue becomes looser. Standards that were once held tightly begin to be negotiated. Soon the person is still nourished, but less sharp, less reliable, less disciplined, less able to carry what made the nourishment possible.\nThis is why Day 18 is protective.\nYou watch for the softness that is not healing but decline. Delay where promptness is needed. Comfort where duty still requires edge. Extra indulgence where measure once protected you. Sloppier handling, looser speech, lowered standards.\nRenwet is about increase, but increase must not weaken the vessel meant to hold it.",
-        glyph: "Straight reed kept upright beside the full basket",
-        colorFrequency: "Reed green, soft brown, and corrective gold",
-        mantra: "Ease will not make me forget my form.",
+            '✨ ḥry-ib ꜥpdw — a modest decanal rising group in the horizon-based sequence, with exact modern star identity uncertain',
+        maatPrinciple: 'Portions Assigned Clearly',
+        cosmicContext: '''
+Abundance needs clear portions.
+
+Day 18 asks for distribution without vagueness.
+
+This is where return becomes usable. What is used now? What is stored? What is offered? What is shared? What pays the debt? What repairs the tool? What feeds the body? What becomes seed? What must not be touched?
+
+If portions remain vague, disorder enters through assumption.
+
+One person thinks the grain is for celebration. Another thinks it is for storage. One part of the self wants to spend the energy. Another knows it must rest. One helper waits for payment while praise is offered instead. One future need is forgotten because no portion was named.
+
+Ma’at requires placement.
+
+A thing belongs somewhere.
+
+Today asks for each portion to be assigned plainly.
+
+This applies to money, food, time, attention, gratitude, strength, opportunity, and knowledge.
+
+Do not leave the return in a heap.
+
+A heap invites appetite.
+
+A measured distribution creates peace.
+
+When every portion has a rightful place, the harvest begins to become order.
+''',
+        glyph: 'Several labeled grain bowls set in order',
+        colorFrequency: 'Ordered gold, clay brown, and ink black',
+        mantra: '“Each portion has its proper place.”',
       ),
       (
         totalDay: 19,
         starCluster:
-            "✨ ḥry-ib ꜥpdw — abundance submitted to inner law, where what is possessed must answer to principle and not merely to desire",
-        maatPrinciple: "Bring abundance under your code",
-        cosmicContext:
-            "Possession without principle turns quickly.\nWhat you have can begin to lead you if you do not lead it. Money can rewrite values. Comfort can reset discipline downward. Food can become indulgence. Opportunity can become vanity. Influence can become appetite. Even healing can become self-absorption if not brought under the laws that make life clean.\nKemet demanded relation, not mere possession.\nWhat was held had to answer to the house, to truth, to order, to duty, to continuity, to sacred return. That is the work of Day 19.\nYou ask whether what you now possess is serving your code — or slowly editing it.\nThe clean heart does not let abundance become its new teacher.",
-        glyph: "Full basket placed beneath the upright staff of law",
-        colorFrequency: "Dark green, temple blue, and ruling gold",
-        mantra: "What I have answers to what I stand for.",
+            '✨ ḥry-ib ꜥpdw — a small decanal star group observed near the horizon during this ten-day interval, best treated as an uncertain physical timing marker',
+        maatPrinciple: 'Balance Checked After Distribution',
+        cosmicContext: '''
+After distribution, the field must be checked again.
+
+Day 19 asks what changed after the portions moved.
+
+This is the step many people skip. They divide once and assume Ma’at has been restored. But distribution is not complete until its effects are observed.
+
+Did the house receive enough?
+
+Was the debt truly settled?
+
+Did the vulnerable place become safer?
+
+Was the offering real or symbolic only?
+
+Was too much kept?
+
+Was too much given away?
+
+Did the future seed remain protected?
+
+Did the giver become depleted?
+
+Did the body receive what it needed?
+
+A measure can be sincere and still need correction. A portion can be assigned and still reveal imbalance after it moves. This does not mean the distribution failed. It means the heart is still listening.
+
+Today asks for the field after distribution to be read honestly.
+
+What became more peaceful?
+
+What still feels strained?
+
+What was missed?
+
+What must be adjusted before the return hardens into pattern?
+
+Renwet teaches that abundance is not only received. It is managed.
+
+A harvest enters Ma’at through distribution, observation, and correction.
+''',
+        glyph: 'Eye above divided grain measures',
+        colorFrequency: 'Clear blue, grain gold, and corrective green',
+        mantra: '“I check the balance after the portions move.”',
       ),
       (
         totalDay: 20,
         starCluster:
-            "✨ ḥry-ib ꜥpdw — provision settled in the heart, closing the second decan with the demand that abundance be carried by inward cleanliness rather than appetite, fear, or pride",
-        maatPrinciple: "Seal the clean heart",
-        cosmicContext:
-            "The second decan closes with inward judgment.\nBy now the question is no longer only whether you received well, but whether you remained well while receiving. Did blessing enlarge your pride? Did it tighten your fear? Did comfort soften your discipline? Did storing make you greedy? Did relief make you forgetful? Or did increase deepen your gratitude, sharpen your stewardship, and clarify your code?\nThat is the real work of ḥry-ib ꜥpdw.\nNourishment must not merely fill the jars. It must refine the heart. Otherwise the next phase will rest on a corrupted center, and what came as blessing will begin to feed disorder.\nSo Day 20 is the sealing.\nYou name the inward quality that must remain ruler as provision continues: humility, gratitude, measure, stewardship, generosity, fearlessness, discipline, or trust.\nWhat stays clean in the heart will decide whether increase remains sacred in the hands.",
-        glyph: "Balanced heart beneath the keeper’s seal",
-        colorFrequency: "Settled green, inner blue, and enduring gold",
-        mantra: "I let increase refine my heart, not rule it.",
+            '✨ ḥry-ib ꜥpdw — the heart phase of the ꜥpdw decanal sequence, a modest horizon-rising timing marker in the night order with uncertain modern identification',
+        maatPrinciple: 'Right Distribution Sealed',
+        cosmicContext: '''
+Day 20 seals the heart of Renwet.
+
+The return has been brought to the heart. Appetite has been weighed. Obligation has been named. The house has been fed. The vulnerable have been protected. Offering has been returned. Hoarding has been refused. Portions have been assigned. Balance has been checked after distribution.
+
+This is how abundance becomes continuity.
+
+Without distribution, abundance becomes appetite.
+
+Without protection, abundance becomes loss.
+
+Without offering, abundance becomes possession.
+
+Without record, abundance becomes confusion.
+
+Without future seed, abundance becomes hunger waiting for another season.
+
+Renenutet and Shai meet here. Nourishment shapes destiny by how it is handled after it arrives. A portion distributed wrongly can wound the future. A portion placed correctly can feed a life that has not yet appeared.
+
+Today asks for the law of this abundance to be sealed.
+
+How will it circulate?
+
+What must remain protected?
+
+What must continue receiving?
+
+What must never again be consumed by fear, waste, or display?
+
+Right distribution is not the end of harvest. It is the beginning of stability.
+
+Where abundance is divided under Ma’at, the future is fed before it arrives.
+''',
+        glyph:
+            'Heart, grain measure, seed jar, and offering bowl sealed together',
+        colorFrequency:
+            'Harvest gold, deep green, altar white, and sealed black',
+        mantra: '“What returns must be distributed in Ma’at.”',
       ),
     ],
   );
 }
 
 Map<String, KemeticDayInfo> _buildRenwetIIIEntries() {
-  const season = "🌿 Peret – Season of Emergence";
+  const season = '☀️ Shemu – Season of Harvest';
   const month =
-      "Renwet (Rnnwt) — the month of nourishment and increase, where what has been cultivated must now be received, sorted, protected, and carried without greed";
+      'Renwet (Rnnwt) — Nourishment Fulfilled and Destiny Made Visible';
   return _buildGeneratedDecanEntries(
-    keyPrefix: "renwet",
+    keyPrefix: 'renwet',
     decan: 3,
-    decanLabel: "Renwet III",
-    monthLabelForDate: "Renwet",
+    decanLabel: 'Renwet III',
+    monthLabelForDate: 'Renwet',
     month: month,
     season: season,
+    decanName: 'sbꜣ ꜥpdw',
+    kemeticDateBuilder: (totalDay, _) => 'Renwet III, Day $totalDay',
     flowRows: _renwetOverrideIIIFlowRows,
     entries: [
       (
         totalDay: 21,
         starCluster:
-            "✨ sbꜣ ꜥpdw — provision made steady enough to guide: increase no longer only received or weighed inwardly, but matured into wise distribution, protected abundance, and nourishing order others can safely depend on",
-        maatPrinciple: "Turn increase into right provision",
-        cosmicContext:
-            "The third decan begins when blessing must prove it can govern.\nIt is not enough to receive nourishment. It is not enough even to purify the heart around it. In Kemet, provision had to become dependable in use. Grain had to be guarded well, distributed correctly, and brought forward with enough wisdom that it could sustain more than a moment. Increase that remained only personal feeling or private possession had not yet fulfilled its work.\nThat is the turn of sbꜣ ꜥpdw.\nThis is provision under guidance. The question is no longer merely, “What came in?” or “What is it doing to me?” Now the question is: “Can what I have become a stable source of life, order, and continuity for more than myself?”\nSo Day 21 opens with stewardship in its fuller form.\nYou look at what is now in your hands — food, money, energy, skill, access, support, restored health, insight, household strength — and ask whether it is becoming wisely usable. Can it be distributed without chaos? Protected without fear? Shared without waste? Directed without vanity?\nNourishment reaches Ma’at when increase becomes trustworthy in action.",
-        glyph: "Guarded storehouse beneath a guiding star",
-        colorFrequency: "Grain gold, deep green, and settled bronze",
-        mantra: "I turn increase into living order.",
+            '✨ sbꜣ ꜥpdw — the star phase of the ꜥpdw decanal sequence; a modest horizon-rising star marker in the night order, with no secure modern constellation identification',
+        maatPrinciple: 'Reward Secured',
+        cosmicContext: '''
+The first decan recognized return.
+
+The second distributed it.
+
+The third asks whether the reward can be sustained.
+
+This is the work of sbꜣ ꜥpdw: the star of the Birds. The return has moved through the heart. Portions have been assigned. Offering has been made. The household has been fed. Now what remains must be placed where it can continue serving life.
+
+Day 21 asks for the reward to be stored.
+
+Not hidden from fear.
+
+Stored in order.
+
+A harvest left loose is not yet security. Grain must enter the storehouse. Money must enter its account. Energy must enter rhythm. A lesson must enter record. A healed part of the body must enter a way of living that protects it.
+
+The question is not only what came in.
+
+The question is where it now lives.
+
+What container will hold the gain?
+
+What boundary will protect it?
+
+What system will let it serve beyond the first moment of relief?
+
+Renenutet guards the granary because gathered abundance remains vulnerable. What has returned must be given a form strong enough to carry time.
+
+Today asks for one reward to be placed into a true container.
+
+Provision begins when the gain is secured.
+''',
+        glyph: 'Grain basket placed inside a sealed storehouse',
+        colorFrequency: 'Granary brown, harvest gold, and protective black',
+        mantra: '“What has returned will now be secured.”',
       ),
       (
         totalDay: 22,
         starCluster:
-            "✨ sbꜣ ꜥpdw — wise provision in motion, where abundance becomes most sacred when it reaches the right mouths, the right hands, and the right obligations",
-        maatPrinciple: "Feed according to need",
-        cosmicContext:
-            "Not every hunger should be fed first.\nIn Kemet, distribution mattered as much as harvest. To feed wrongly was its own disorder. Some stores were for the house. Some for laborers. Some for ritual. Some for seed. Some for crisis. Right nourishment depended on discernment, because abundance thrown around without order could still leave the truly necessary places weak.\nDay 22 is about measured generosity.\nYou look at the needs around you and refuse sentimentality without structure. What must be fed first? What is urgent, what is important, and what is merely loud? Which duty actually sustains life, order, continuity, and morale? Which need is real, and which appetite merely wants to feel central?\nWise provision does not feed randomly.\nIt feeds according to what keeps Ma’at alive.",
-        glyph: "Bread loaves set before the rightful seats",
-        colorFrequency: "Warm gold, hearth red, and ordered green",
-        mantra: "I feed what truly sustains life.",
+            '✨ sbꜣ ꜥpdw — a small decanal rising group near the horizon, treated as a ten-day timing marker rather than a securely identified modern cluster',
+        maatPrinciple: 'Storehouse Protected',
+        cosmicContext: '''
+What is stored must still be guarded.
+
+Day 22 asks for protection around the storehouse.
+
+A gain can be counted and still be lost. A jar can be filled and still be left unsealed. A boundary can be named and still be left unenforced. A body can recover and still be exposed to the old strain too soon.
+
+Renwet teaches that receiving is only the first test.
+
+Preserving is the next.
+
+What could threaten what has been gathered?
+
+Waste.
+
+Theft.
+
+Fear.
+
+Old appetite.
+
+Unclear access.
+
+Careless generosity.
+
+Pressure from people who did not help plant or tend.
+
+The belief that every blessing must be spent quickly to feel real.
+
+Renenutet’s cobra form belongs here. The serpent watches the granary because abundance does not protect itself. It must be held in right relation with vigilance, not paranoia.
+
+Today asks for one protective act.
+
+Seal the account.
+
+Clarify the rule.
+
+Close the leak.
+
+Limit access.
+
+Repair the container.
+
+Stop the habit that consumes the return.
+
+Protection is not distrust of blessing. It is respect for blessing.
+
+What has been gathered should not be left exposed.
+''',
+        glyph: 'Cobra guarding a sealed grain door',
+        colorFrequency: 'Protective black, deep gold, and clay red',
+        mantra: '“I guard what must continue.”',
       ),
       (
         totalDay: 23,
         starCluster:
-            "✨ sbꜣ ꜥpdw — provision under watch, where guided abundance looks for hidden drains before scarcity has to announce them publicly",
-        maatPrinciple: "Find the leak",
-        cosmicContext:
-            "A store can be lost quietly.\nNot all loss arrives as disaster. Sometimes it escapes in drips: careless spending, spoiled food, poor timing, forgotten subscriptions, wasted energy, undisciplined speech, unplanned obligations, neglected maintenance, emotional leakage, or repeated tiny permissions that slowly empty the jar.\nKemet understood this well. A wise keeper did not wait for famine to become visible before inspecting the storehouse. He looked for weakness while correction was still simple.\nDay 23 is quiet vigilance.\nYou identify where nourishment is leaking from your life. Money, strength, peace, attention, momentum, food, trust, time. You stop calling it “just how things are” and name it as a leak.\nBlessing poorly guarded will imitate misfortune if you let it.",
-        glyph: "Sealed jar checked for cracks by lamp-light",
-        colorFrequency: "Deep bronze, shadow green, and alert gold",
-        mantra: "I guard what feeds life from quiet loss.",
+            '✨ sbꜣ ꜥpdw — a modest horizon-based decanal star marker in the observed night sequence, with exact modern identification uncertain',
+        maatPrinciple: 'Remainder Counted',
+        cosmicContext: '''
+After distribution, what remains must be counted.
+
+Day 23 asks for the true remainder.
+
+This is different from the first count. The offering has moved. The house has been fed. Debts have been named. Labor has been honored. The vulnerable have been protected. Portions have been assigned. Now the question becomes: what actually remains?
+
+This matters because a person can feel rich before obligations are met and poor after they are paid, even though the second condition is cleaner.
+
+Ma’at prefers the clean account.
+
+What remains after right distribution is more trustworthy than what appeared abundant before truth entered the ledger.
+
+Today asks for honest counting.
+
+What money remains?
+
+What food remains?
+
+What strength remains?
+
+What time remains?
+
+What goodwill remains?
+
+What attention remains?
+
+What can be used, and what must stay stored?
+
+This is not scarcity-thinking.
+
+It is post-distribution truth.
+
+A storehouse that knows its contents can protect the future. A person who knows what remains can make clean decisions. A household that counts honestly is less vulnerable to panic.
+
+Today asks for the real account after the portions have moved.
+
+What is known truthfully can be managed in Ma’at.
+''',
+        glyph: 'Reed pen marking the remaining grain in a storehouse',
+        colorFrequency: 'Ink black, grain gold, and storage brown',
+        mantra: '“I count what remains in truth.”',
       ),
       (
         totalDay: 24,
         starCluster:
-            "✨ sbꜣ ꜥpdw — nourishment stabilized through rhythm, where blessing becomes reliable only when it enters repeatable pattern",
-        maatPrinciple: "Make provision dependable",
-        cosmicContext:
-            "Temporary gain is not yet stability.\nA good week can fool a person into thinking his life is secure. One payment, one burst of energy, one stocked shelf, one strong conversation, one restored stretch of days — all of this matters, but without structure it fades quickly. Kemet did not trust only moments of plenty. It built systems around them.\nDay 24 is the day of rhythm.\nYou create one repeatable way for nourishment to continue serving life: a meal plan, a savings rhythm, a rest system, a weekly inventory, a support routine, a schedule for supply, a recurring act of household strengthening.\nIncrease becomes more sacred when it stops depending on improvisation.\nWhat is predictable can protect more than what is dramatic.",
-        glyph: "Ordered jars arranged in recurring rows",
-        colorFrequency: "Papyrus tan, grain gold, and steady green",
-        mantra: "I give blessing a rhythm it can live in.",
+            '✨ sbꜣ ꜥpdw — a small rising decanal group in the ten-day night sequence, best described as a modest watched horizon marker with uncertain modern identity',
+        maatPrinciple: 'Tools Honored',
+        cosmicContext: '''
+The tools that carried the harvest must not be forgotten.
+
+Day 24 asks for respect toward what made return possible.
+
+A sickle is cleaned. A basket is repaired. A jar is sealed. A boat is maintained. A body is rested. A schedule is revised. A notebook is preserved. A relationship that supported the work is thanked. A method that proved useful is written down.
+
+This is not sentimental.
+
+It is continuity.
+
+A person who uses the tool and discards it injures the next cycle. A household that celebrates the return while neglecting the body, space, or system that produced it is already preparing future strain.
+
+Renwet asks that abundance look backward as well as forward.
+
+What carried the work?
+
+What absorbed the pressure?
+
+What needs repair now that the harvest has arrived?
+
+This can be physical, emotional, practical, or spiritual.
+
+The body may be the tool.
+
+The calendar may be the tool.
+
+A friend’s help may have been the tool.
+
+The discipline itself may need honor.
+
+Today asks for one carrier of the harvest to be cleaned, repaired, thanked, or restored.
+
+What carried life should be made ready to carry again.
+''',
+        glyph: 'Clean sickle beside a repaired basket',
+        colorFrequency: 'Bronze, grain gold, and earth brown',
+        mantra: '“I honor what carried the harvest.”',
       ),
       (
         totalDay: 25,
         starCluster:
-            "✨ sbꜣ ꜥpdw — guarded abundance under mature rule, where protection must become clean enough to serve life without hardening into fear",
-        maatPrinciple: "Protect without clutching",
-        cosmicContext:
-            "There is a difference between guarding and gripping.\nA wise keeper protects the storehouse. A fearful one worships it. One acts from stewardship. The other from panic. Kemet respected sound protection, but it did not honor a heart that became mean, suspicious, or spiritually narrowed by what it held.\nDay 25 is about clean boundaries around blessing.\nYou strengthen protection where needed — better accounting, cleaner storage, firmer limits, clearer planning, stronger containers, more honest review. But you do this without turning fear into master. The goal is not to become rigid around what you have. The goal is to keep it available for right use.\nProvision should make you steadier, not more haunted.",
-        glyph: "Closed lid with an unknotted hand resting above it",
-        colorFrequency: "Deep green, clay red, and restrained gold",
-        mantra: "I protect what matters without becoming possessed by it.",
+            '✨ sbꜣ ꜥpdw — a modest decanal horizon marker in the night-time sequence, likely faint compared with major stellar anchors and not securely identified today',
+        maatPrinciple: 'Lesson Named',
+        cosmicContext: '''
+Every return teaches.
+
+Day 25 asks for the lesson to be named.
+
+A harvest is not only reward. It is judgment made visible. It reveals the quality of earlier water, seed, timing, care, labor, protection, and patience. What comes back tells the truth of what was maintained.
+
+So does every result in life.
+
+A gain teaches what worked.
+
+A weak return teaches what was underfed.
+
+A delayed return teaches patience, timing, or the cost of disorder.
+
+A generous return teaches what must be preserved.
+
+A difficult return may still reveal strength that would not have been known otherwise.
+
+Renwet is where Shai begins to become visible through consequence. Destiny is not only what is declared. It is also what ripens from conditions.
+
+Today asks for the lesson of the return to be named clearly.
+
+What did this teach about care?
+
+About appetite?
+
+About trust?
+
+About labor?
+
+About the body?
+
+About timing?
+
+About the people who stood near the work?
+
+A harvest that is eaten without learning feeds only the day.
+
+A harvest that is understood feeds the future.
+
+Today asks for the lesson to be preserved before celebration or fatigue makes it fade.
+''',
+        glyph: 'Opened scroll beside harvested grain',
+        colorFrequency: 'Papyrus gold, ink black, and field green',
+        mantra: '“I learn from what returned.”',
       ),
       (
         totalDay: 26,
         starCluster:
-            "✨ sbꜣ ꜥpdw — provision becoming communal strength, where well-kept abundance strengthens the entire circle rather than decorating one isolated self",
-        maatPrinciple: "Strengthen the circle",
-        cosmicContext:
-            "Good stewardship changes more than the keeper.\nWhen nourishment is handled well, the circle around it becomes safer. The household breathes easier. The children feel more stable. The workers are less strained. The elders are less exposed. The team can move with more confidence. The atmosphere loses desperation.\nKemet understood increase as something relational.\nBlessing entered systems: family, storehouse, labor, offering, continuity. That is why Day 26 asks what your wise handling is doing for the wider circle.\nWho becomes stronger because you paced things well? What fragility is reduced because you planned? What chaos is prevented because you kept record? What anxiety is softened because you carried provision with steadiness instead of drama?\nAbundance becomes truly beautiful when it makes the circle less brittle.",
-        glyph: "Full basket at the center of the gathered circle",
-        colorFrequency: "Warm gold, reed green, and hearth brown",
-        mantra: "I make the circle stronger with what I keep well.",
+            '✨ sbꜣ ꜥpdw — a small decanal star group observed near the horizon as part of the night-hour sequence, not securely matched to a modern constellation',
+        maatPrinciple: 'Seed Preserved',
+        cosmicContext: '''
+The future must be fed before it arrives.
+
+Day 26 asks for seed to be preserved.
+
+This is one of Renwet’s central laws. A harvest that leaves no seed becomes hunger wearing the mask of abundance. The present mouth is real, but it is not the only mouth. The future also has a claim.
+
+Seed can take many forms.
+
+Money set aside.
+
+Energy not spent.
+
+Knowledge written down.
+
+A child taught.
+
+A tool repaired.
+
+A relationship protected.
+
+A habit maintained.
+
+A portion of time guarded for what has not yet become urgent.
+
+A body allowed to rest before it is demanded again.
+
+This is not hoarding. Hoarding is fear closing the hand. Seed preservation is Ma’at opening time.
+
+It says: the next cycle deserves to begin fed, not starved.
+
+Today asks what must not be consumed simply because it exists.
+
+What belongs to the future?
+
+What must be kept clean?
+
+What should be placed beyond the reach of appetite?
+
+Renenutet guards nourishment because destiny depends on what is preserved before need becomes visible.
+
+Today asks for seed to be set aside in right measure.
+''',
+        glyph: 'Sealed seed jar placed behind the grain basket',
+        colorFrequency: 'Seed gold, deep green, and protective clay',
+        mantra: '“I do not eat the future.”',
       ),
       (
         totalDay: 27,
         starCluster:
-            "✨ sbꜣ ꜥpdw — the star of transmitted nourishment, where wise handling must be taught if continuity is to outlast one generation of keepers",
-        maatPrinciple: "Teach the way of stewardship",
-        cosmicContext:
-            "A blessing poorly taught is easily lost.\nKemet valued continuity. What fed life had to be preserved not only in jars and ledgers, but in people. The next hands needed to know how to sort, store, share, measure, protect, pace, and return. Otherwise one good keeper could be followed by wasteful descendants and broken systems.\nDay 27 is about transmission.\nYou teach one principle of provision today. How to store. How to budget. How to cook with care. How to pace resources. How to honor source. How to keep gratitude alive. How not to waste. How to leave some for tomorrow.\nWhat you teach may be quiet, but it matters.\nStewardship that dies with you was never fully secured.",
-        glyph: "Elder hand guiding younger hand over the grain jar",
-        colorFrequency: "Aged bronze, young green, and teaching gold",
-        mantra: "I pass on the knowledge that keeps blessing alive.",
+            '✨ sbꜣ ꜥpdw — a decanal rising group near the horizon in the ten-day star order, physically described with caution because no secure modern cluster identification is available',
+        maatPrinciple: 'Source Rested',
+        cosmicContext: '''
+The source must rest after giving.
+
+Day 27 asks what produced the return and now needs recovery.
+
+A field cannot be stripped without consequence. A body cannot labor endlessly because the harvest was good. A mind cannot plan forever because the result finally came. A relationship cannot support everything without receiving rest. A tool cannot cut forever without sharpening. A storehouse cannot be used without maintenance.
+
+Renwet honors return, but it also teaches restraint after return.
+
+This is where many cycles fail. The gain arrives, and the source that produced it is immediately demanded again. No rest. No repair. No gratitude beyond words. No time for the field to breathe.
+
+That is not continuity.
+
+It is extraction.
+
+Today asks for the source to be identified and rested.
+
+What gave?
+
+What carried?
+
+What worked?
+
+What endured?
+
+What now needs time, food, cleaning, silence, repair, or protection?
+
+A field rested in time can feed again later. A body rested in time can serve again later. A relationship rested in time can remain generous without resentment.
+
+The source must not be consumed by the very reward it produced.
+
+Today asks for rest as part of preservation.
+''',
+        glyph: 'Field lying quiet beside a stored grain basket',
+        colorFrequency: 'Resting brown, soft gold, and evening blue',
+        mantra: '“I rest the source that gave.”',
       ),
       (
         totalDay: 28,
         starCluster:
-            "✨ sbꜣ ꜥpdw — provision under purification, where decay must be removed before it quietly infects the store and the spirit around it",
-        maatPrinciple: "Cut out the spoilage",
-        cosmicContext:
-            "Not all corruption comes from lack.\nSome of it comes from what was received but then mishandled. Food spoils. Stores sour. Records blur. Gratitude becomes entitlement. Generosity becomes performance. Protection becomes miserliness. Resentment enters the giving. Waste enters the keeping. These are forms of spoilage, and they must be cut out before they spread.\nDay 28 is corrective and cleansing.\nYou identify what is rotting the store from within. A pattern of waste. An indulgence. Sloppy accounting. Secret resentment around supporting others. Poor storage. Delayed maintenance. The belief that abundance means you can now afford disorder.\nSpoilage ignored becomes scarcity later.\nWise abundance inspects itself ruthlessly enough to stay clean.",
-        glyph: "Knife clearing spoiled grain from the heap",
-        colorFrequency: "Flint gray, grain gold, and cleansing green",
-        mantra: "I remove what would corrupt the blessing.",
+            '✨ sbꜣ ꜥpdw — a modest horizon-based decanal marker used in the night sequence, with exact modern astronomical identification uncertain',
+        maatPrinciple: 'Continuation Blessed',
+        cosmicContext: '''
+What remains should be blessed.
+
+Day 28 asks for gratitude after the first excitement has passed.
+
+The return has been received, divided, stored, protected, counted, and learned from. What remains now is not only a remainder. It is continuation.
+
+Continuation is quieter than arrival.
+
+It does not always feel dramatic. It may look like food still in the house, money still held, strength still present, a tool ready for next use, a body less depleted, a lesson preserved, a future seed protected.
+
+These are blessings.
+
+Not because they are large.
+
+Because they remain.
+
+In Kemet, offerings kept relation alive through repetition. Gratitude did not belong only to the first moment of receiving. It belonged also to maintenance, storage, rest, and the quiet preservation of life.
+
+Today asks for blessing over what continues.
+
+Thank the portion that remains.
+
+Thank the order that kept it.
+
+Thank the restraint that did not waste it.
+
+Thank the source that can rest because preservation happened.
+
+A blessing given after excitement has faded is often more truthful than the first burst of gratitude.
+
+It says: this is not only gain. This is provision that can carry time.
+''',
+        glyph: 'Offering hands over a sealed storehouse',
+        colorFrequency: 'Soft gold, altar white, and granary brown',
+        mantra: '“I bless what remains to sustain life.”',
       ),
       (
         totalDay: 29,
         starCluster:
-            "✨ sbꜣ ꜥpdw — mature provision under final count, where the true remainder must be faced without fantasy, inflation, or fear",
-        maatPrinciple: "Count the remainder",
-        cosmicContext:
-            "After feeding, giving, guarding, and loss, what remains?\nThat question matters. Not to induce fear, but to restore truth. Kemet counted what remained because continuity depended on honest remainder, not on mood. If the count was false, planning failed. If the keeper exaggerated, the house suffered later. If he denied what was still there, gratitude weakened and disorder entered by ingratitude.\nDay 29 is sober clarity.\nYou face the remainder as it is. What money is left. What energy is left. What food, time, patience, momentum, and support remain after use and after duty. No drama, no boasting, no scarcity performance, no false abundance.\nTruthful remainder is honorable.\nIt lets the next cycle begin on real ground.",
-        glyph: "Final tally marks beside the remaining jars",
-        colorFrequency: "Ink black, muted gold, and grounded green",
-        mantra: "I face the remainder in truth.",
+            '✨ sbꜣ ꜥpdw — a small star group in the decanal rising sequence, best described as a modest horizon timing marker rather than a securely identified modern constellation',
+        maatPrinciple: 'Handoff Prepared',
+        cosmicContext: '''
+What is stored must be made usable for the next stage.
+
+Day 29 asks for the handoff.
+
+This is where provision becomes inheritance. Not inheritance in the distant sense only, but inheritance from one day to the next, one cycle to the next, one version of the self to the next.
+
+A storehouse full of grain but impossible to read creates confusion. An account with money but no purpose invites disorder. A lesson learned but not written may be lost under pressure. A tool stored carelessly may fail when needed. A body rested without a new rhythm may return to depletion.
+
+The next stage should not have to begin by untangling what this stage left unclear.
+
+Today asks for arrangement.
+
+Label the store.
+
+Write the instruction.
+
+Prepare the next use.
+
+Put the tool where it belongs.
+
+Set the rule.
+
+Name the purpose of what remains.
+
+Leave a clean path for the future to enter.
+
+This is Ma’at as handoff.
+
+The present becomes generous when it does not leave chaos for what comes after it.
+
+What has been gathered should be arranged so the next stage can receive it without confusion.
+''',
+        glyph: 'Labeled jars arranged in a storehouse',
+        colorFrequency: 'Ink black, clay brown, and ordered gold',
+        mantra: '“I leave provision where the future can find it.”',
       ),
       (
         totalDay: 30,
         starCluster:
-            "✨ sbꜣ ꜥpdw — the star of faithful provision fulfilled, where increase has been received, purified, ordered, protected, and made usable enough to sustain life beyond the self",
-        maatPrinciple: "Become a faithful provider",
-        cosmicContext:
-            "Renwet closes with a question of trust.\nNot whether blessing visited you. It did. Not whether you felt thankful at moments. You likely did. The deeper question is whether, by the end of the month, you have become more faithful in handling nourishment. More exact in count. More just in distribution. More clean in motive. More wise in protection. More stable in provision. More able to strengthen the circle around you.\nThat is the completion of sbꜣ ꜥpdw.\nProvision has moved through three stages: first, receipt; then inward purification; now outward reliability. The month does not end by praising abundance itself. It ends by asking what kind of steward abundance has formed.\nSo Day 30 is an offering of role.\nYou enter the next cycle not as someone merely lucky enough to receive, but as someone more trustworthy with what arrives. More capable of feeding without waste, guarding without fear, teaching without pride, and counting without distortion.\nNourishment reaches its highest form when it becomes faithful provision in human hands.",
-        glyph: "Open hand before the guarded storehouse",
-        colorFrequency: "Harvest gold, deep green, and enduring bronze",
-        mantra: "I carry nourishment faithfully, so life can continue.",
+            '✨ sbꜣ ꜥpdw — the final star marker of Renwet’s ꜥpdw sequence, a modest horizon-rising decanal group in the night order with uncertain modern identification',
+        maatPrinciple: 'Sustained Reward Sealed',
+        cosmicContext: '''
+Day 30 closes Renwet.
+
+The month began with return and ends with provision.
+
+This is the difference between receiving and sustaining.
+
+What returned was recognized. It was brought to the heart. Appetite was weighed. Obligations were named. The house was fed. The vulnerable were protected. Offering was returned. Hoarding was refused. Portions were assigned. The storehouse was protected. Tools were honored. Seed was preserved. The source was rested. The future was prepared to receive.
+
+That is reward under Ma’at.
+
+Not a burst of gain.
+
+A structure of continuation.
+
+Renenutet’s work has carried the return from first sign to guarded provision. Shai stands nearby because destiny becomes visible in how the harvest is handled. What is wasted shapes one future. What is stored rightly shapes another. What is shared, offered, and preserved becomes a path the next cycle can walk.
+
+Today asks what has become stable enough to carry forward.
+
+What reward has become provision?
+
+What provision has become future?
+
+What future has been fed by the choices of this month?
+
+Seal that.
+
+Renwet ends with the law of sustained reward: what returns must be received, divided, guarded, and preserved so life can continue beyond the moment of gain.
+''',
+        glyph: 'Cobra, sealed granary, and seed jar beneath a star',
+        colorFrequency:
+            'Harvest gold, deep green, protective black, and sealed blue',
+        mantra: '“What returned in Ma’at now feeds the future.”',
       ),
     ],
   );
 }
 
 Map<String, KemeticDayInfo> _buildHnswIEntries() {
-  const season = "☀️ Shemu – Season of Harvest";
+  const season = '☀️ Shemu – Season of Harvest';
   const month =
-      "Hnsw (Ḥnsw) — the opening month of harvest, where ripened labor must be seen clearly, cut cleanly, gathered fully, and carried without waste";
+      'Hnsw (Ḫnsw) — The Traveler and the Discipline of Right Movement';
   return _buildGeneratedDecanEntries(
-    keyPrefix: "hnsw",
+    keyPrefix: 'hnsw',
     decan: 1,
-    decanLabel: "Hnsw I",
-    monthLabelForDate: "Hnsw",
+    decanLabel: 'Hnsw I',
+    monthLabelForDate: 'Hnsw',
     month: month,
     season: season,
+    decanName: 'ẖry ꜥrt',
+    kemeticDateBuilder: (totalDay, _) => 'Hnsw I, Day $totalDay',
     flowRows: _hnswOverrideIFlowRows,
     entries: [
       (
         totalDay: 1,
         starCluster:
-            "✨ ḥry ꜥrt — the overseeing eye at harvest: disciplined sight that knows what is ready, what must be cut now, and what cannot be left to chance",
-        maatPrinciple: "See what is truly ready",
-        cosmicContext:
-            "Shemu begins with sight.\nBefore the blade, before the baskets, before the carrying, there is inspection. In Kemet, harvest could not begin from appetite alone. A field had to be read. What was ripe had to be distinguished from what was still forming, what was damaged, what would hold another day, and what would be lost if left standing too long.\nThat is the law of ḥry ꜥrt.\nThis decan begins with clear seeing under responsibility. Not wishful seeing. Not hurried seeing. Not the greed that wants to cut everything at once. The eye at harvest serves Ma’at by recognizing timing correctly.\nSo Day 1 asks you to look across your life the way a keeper looks across a field.\nWhat is actually ready now? What work has matured enough to act on? What conversation is ripe? What opportunity must be taken? What result can finally be gathered? What has been delayed long enough?\nYou do not begin Shemu by lunging.\nYou begin by seeing cleanly enough to harvest without regret.",
-        glyph: "Open eye above the first cut stalk",
-        colorFrequency: "Sun-burnished gold, cut-reed green, and flint brown",
-        mantra: "I see what is ripe, and I gather it in truth.",
+            '✨ ẖry ꜥrt — a decanal star group in the rising night sequence; exact modern identification is uncertain, so it is best described as a modest horizon marker watched during this ten-day interval',
+        maatPrinciple: 'The Path Entered',
+        cosmicContext: '''
+Hnsw begins when what has been gathered must move.
+
+The harvest has entered storage. Portions have been assigned. The return has been protected. Now provision, message, duty, trade, and care must travel. A thing that remains stored forever cannot feed the whole field of relation.
+
+This is the work of ẖry ꜥrt.
+
+The journey begins under constraint. The season is dry. The sun is stronger. Roads and routes matter. The body cannot move carelessly. The load cannot be chosen vaguely. The first step must know what law leads it.
+
+Day 1 asks for the path to be named.
+
+Not every movement is Ma’at.
+
+Some movement is escape.
+
+Some movement is appetite.
+
+Some movement is panic wearing purpose.
+
+Some movement is true passage.
+
+Khonsu, the traveler of the night sky, teaches movement that changes form without losing course. The moon waxes, wanes, disappears, and returns, yet its rhythm remains knowable. Movement under changing conditions can still belong to order.
+
+Today asks: where is the journey beginning?
+
+What is being carried?
+
+What must lead it?
+
+A path entered without Ma’at becomes wandering.
+
+A path entered under Ma’at becomes passage.
+''',
+        glyph: 'Sandaled feet at the beginning of a road beneath a small star',
+        colorFrequency: 'Dry road gold, night blue, and cool moon silver',
+        mantra: '“I enter the path with Ma’at before me.”',
       ),
       (
         totalDay: 2,
         starCluster:
-            "✨ ḥry ꜥrt — the discerning eye that separates urgency from noise, teaching the keeper what must be cut first",
-        maatPrinciple: "Choose the first cut wisely",
-        cosmicContext:
-            "Not everything ripe should be handled in random order.\nIn Kemet, harvest required sequence. Some areas of the field demanded immediate action. Some stores had to be moved before sun or theft took them. Some tasks became dangerous if delayed. Wise sight was not only about seeing readiness. It was about ranking necessity.\nDay 2 is the discipline of priority.\nYou choose what must be harvested first. The project that has matured enough to close. The repair that can no longer wait. The payment that must be collected. The conversation whose time has come. The opportunity that will not hold much longer.\nThis is where many people lose what they earned: not because nothing was ready, but because they cut the wrong thing first or kept admiring readiness instead of acting in sequence.\nHarvest begins to succeed when timing becomes ordered.",
-        glyph: "Marked row in the field beneath the watchful eye",
-        colorFrequency: "Dry gold, field brown, and sharp green",
-        mantra: "I cut first where delay would cause loss.",
+            '✨ ẖry ꜥrt — a small decanal rising group near the horizon, treated as a ten-day star-time marker rather than a securely identified modern cluster',
+        maatPrinciple: 'Constraint Measured',
+        cosmicContext: '''
+A journey begins honestly when its limits are known.
+
+Day 2 asks for the constraint to be measured.
+
+This is not pessimism. It is respect for the road. The dry season changes what movement costs. Heat changes the body. Distance changes the load. Time changes the pace. A journey that ignores condition becomes danger before it becomes arrival.
+
+The same is true in ordinary life.
+
+A project has limits.
+
+A body has limits.
+
+A promise has limits.
+
+A household has limits.
+
+A conversation has limits.
+
+A budget has limits.
+
+A person may want to move with freedom, but Ma’at asks first what the conditions allow. Too much speed in the wrong heat becomes collapse. Too much load on the wrong road becomes injury. Too much confidence without measure becomes Isfet in motion.
+
+Today asks for the real conditions to be named.
+
+What is the heat?
+
+What is the distance?
+
+What is the true capacity?
+
+What cannot be carried today?
+
+What must be planned before movement continues?
+
+Khonsu’s moon does not move as noon-sun force. It travels by measured change. That is the lesson here.
+
+The road becomes safer when constraint is respected before movement begins.
+''',
+        glyph: 'Moon over a measured road and water jar',
+        colorFrequency: 'Moon silver, dry clay, and muted gold',
+        mantra: '“I respect the conditions of the road.”',
       ),
       (
         totalDay: 3,
         starCluster:
-            "✨ ḥry ꜥrt — harvest sight joined to prepared action, where readiness in the field demands readiness in the hand",
-        maatPrinciple: "Sharpen what will do the work",
-        cosmicContext:
-            "A ripe field does not excuse a dull blade.\nIn Kemet, seeing readiness was only the beginning. Tools, bodies, timing, baskets, helpers, and pathways all had to be prepared. Opportunity can be real and still be wasted if the one who sees it is not ready to cut cleanly.\nDay 3 is preparation under pressure.\nYou sharpen what will do the work. Your speech. Your body. Your paperwork. Your schedule. Your toolset. Your follow-up method. Your discipline. Whatever must actually touch the task needs to be brought into condition.\nMany losses at harvest do not come from blindness. They come from poor readiness after vision.\nTo see clearly and still remain unprepared is another form of delay.",
-        glyph: "Flint blade beside a ripe stalk",
-        colorFrequency: "Flint gray, reed green, and sun gold",
-        mantra: "I sharpen myself for what is ready.",
+            '✨ ẖry ꜥrt — a modest horizon-based decanal star marker in the observed night order, with exact modern identification uncertain',
+        maatPrinciple: 'Ma’at at the Front',
+        cosmicContext: '''
+A journey must know what stands at its head.
+
+Day 3 asks for Ma’at to be placed first.
+
+The Book of Coming Forth by Day gives the image of Ma’at carried at the head of the great bark. That image belongs to every righteous passage. Movement becomes clean when truth, measure, and right relation lead before desire, speed, pride, or fear.
+
+This matters now because movement can distort conduct.
+
+A person may become careless on the road.
+
+Trade may become unfair when distance hides the hand.
+
+Speech may loosen when no one nearby can answer.
+
+A promise may become vague once the journey begins.
+
+The path tests whether Ma’at travels with the traveler or remains behind as an idea.
+
+Today asks for the standard before motion continues.
+
+How will speech stay clean?
+
+How will exchange stay fair?
+
+How will the body be treated?
+
+How will the load be carried?
+
+How will arrival be measured?
+
+What will not be done, even if the road becomes difficult?
+
+A journey led by appetite may still arrive somewhere.
+
+A journey led by Ma’at arrives with the person still whole.
+''',
+        glyph: 'Feather of Ma’at at the prow of a small boat',
+        colorFrequency: 'White feather, river blue, and solar gold',
+        mantra: '“Ma’at goes before my movement.”',
       ),
       (
         totalDay: 4,
         starCluster:
-            "✨ ḥry ꜥrt — the overseeing eye yielding to the first decisive stroke, where watching must finally become action",
-        maatPrinciple: "Cut cleanly",
-        cosmicContext:
-            "Watching has a time limit.\nIf you inspect too long, ripeness passes. If you keep refining forever, the field begins to lose itself. In Kemet, once readiness and sequence were clear, the cut had to be made. This was the point where observation surrendered to decision.\nDay 4 is the first decisive stroke.\nYou stop orbiting what is ready and you act. Not recklessly. Not sloppily. Cleanly. You send the message. Close the deal. Finish the edit. Make the repair. Sign the paper. Have the talk. Turn the plan into something irreversible.\nA harvest does not enter the house because it was well understood.\nIt enters because at some point the blade touched the stalk.",
-        glyph: "First cut stalk falling into the hand",
-        colorFrequency: "Cut-straw gold, brown earth, and active green",
-        mantra: "I act when the time for action arrives.",
+            '✨ ẖry ꜥrt — a small rising decanal group in the ten-day night sequence, best described as a modest watched horizon marker with uncertain modern identity',
+        maatPrinciple: 'Unlawful Weight Removed',
+        cosmicContext: '''
+Not every burden belongs on the road.
+
+Day 4 asks for the load to be examined.
+
+A traveler who carries what is unnecessary wastes strength before danger appears. A boat overloaded at departure becomes vulnerable in current. A body carrying old heat, false duty, or someone else’s disorder moves more slowly and less cleanly.
+
+The same is true for any path of progress.
+
+An old promise may not belong to this journey.
+
+A resentment may not deserve transport.
+
+A task may be another person’s neglected duty.
+
+A fear may be packed as if it were wisdom.
+
+A desire to prove may add weight that no destination requires.
+
+Hnsw teaches disciplined movement. Discipline is not only forcing the body forward. It is refusing to carry what distorts the passage.
+
+Today asks for one burden to be removed.
+
+What does not serve the destination?
+
+What belongs to another hand?
+
+What is being carried only because it has been carried before?
+
+What will make arrival less clean?
+
+A lighter load is not always avoidance.
+
+Sometimes it is the first sign that movement has come under Ma’at.
+''',
+        glyph: 'Bundle set down beside a road marker',
+        colorFrequency: 'Dust brown, moon silver, and cleared gold',
+        mantra: '“I do not carry what bends the path.”',
       ),
       (
         totalDay: 5,
         starCluster:
-            "✨ ḥry ꜥrt — clear sight protecting the cut from loss, ensuring what has been won is not dropped through disorder",
-        maatPrinciple: "Gather without scattering",
-        cosmicContext:
-            "The first cut is not the end of harvest.\nWhat has been separated from the field must still be gathered. And this stage has its own dangers: distraction, sloppy handling, misplaced effort, loose ends, poor coordination, or the foolishness of acting as if a thing is secured before it is actually in hand.\nDay 5 is the work of pulling in what you have already earned.\nThis is not glamorous labor. It is finishing labor. Retrieval. Filing. Packaging. Consolidating. Collecting the payment. Backing up the files. Scheduling the follow-up. Cleaning the details. Closing the loops.\nMany people lose at the point between success and possession.\nWhat was cut must still be gathered.",
-        glyph: "Armful of reeds brought into one bundle",
-        colorFrequency: "Straw gold, basket tan, and field green",
-        mantra: "I gather fully what I have worked to cut.",
+            '✨ ẖry ꜥrt — a modest decanal horizon marker in the night-time sequence, likely faint compared with major stellar anchors and not securely identified today',
+        maatPrinciple: 'Vessel Protected',
+        cosmicContext: '''
+The carrier is part of the cargo.
+
+Day 5 asks for the vessel to be protected.
+
+A journey is not righteous if it destroys the body that makes the journey possible. A boat must be maintained. A water jar must be filled. A shoulder must not be treated as disposable. A mind moving through pressure must be guarded from heat, noise, false urgency, and careless speech.
+
+Hnsw belongs to movement, but movement under Ma’at includes care for what moves.
+
+The traveler who ignores thirst endangers the delivery. The worker who refuses rest weakens the work. The messenger who loses clarity damages the message. The person who treats the body as a tool without honoring it will eventually find the path closed by exhaustion.
+
+Today asks what the vessel needs.
+
+Water.
+
+Shade.
+
+Food.
+
+Silence.
+
+A slower pace.
+
+A clearer plan.
+
+A boundary around attention.
+
+A refusal to move while scattered.
+
+This is not indulgence. It is transport maintenance.
+
+Khonsu crosses the night by measure, not by burning like noon. Some passages require coolness to be completed.
+
+Today asks for the body and mind to be protected so arrival can happen whole.
+''',
+        glyph: 'Water jar beside sandaled feet under the moon',
+        colorFrequency: 'Cool blue, moon silver, and dry gold',
+        mantra: '“The vessel must be protected to complete the passage.”',
       ),
       (
         totalDay: 6,
         starCluster:
-            "✨ ḥry ꜥrt — the overseeing eye turning toward order, where gathered yield must be bound into forms fit for carrying and count",
-        maatPrinciple: "Bind what you have gathered",
-        cosmicContext:
-            "Loose gain is still unstable.\nIn Kemet, cut stalks were not left in scattered heaps. They were bound. Organization turned effort into something movable, countable, preservable. Without this stage, even honest harvest could become waste.\nDay 6 is about conversion from loose success into stable form.\nYou bundle what has come in. Notes into a system. Files into structure. Income into categories. Results into process. Contacts into follow-up. Food into storage. Energy into schedule. Insight into practice.\nBinding is humble work, but it protects the yield.\nWhat is not organized remains vulnerable to disappearance.",
-        glyph: "Bound sheaf tied with cord",
-        colorFrequency: "Rope tan, grain gold, and storage brown",
-        mantra: "I bind what I gathered so it can endure.",
+            '✨ ẖry ꜥrt — a small decanal star group observed near the horizon as part of the night-hour sequence, not securely matched to a modern constellation',
+        maatPrinciple: 'Purposeful Movement',
+        cosmicContext: '''
+Movement is not automatically progress.
+
+Day 6 asks for purpose.
+
+A person can move all day and still not advance the passage. A boat can drift with the current and still miss the right landing. A message can travel quickly and still fail if it was never clear. A task can consume energy without serving the destination.
+
+Hnsw asks for movement that knows where it belongs.
+
+Today is for one deliberate step.
+
+Not everything.
+
+One step that actually carries the journey forward.
+
+Send the needed message.
+
+Move the resource.
+
+Make the call.
+
+Deliver the item.
+
+Begin the route.
+
+Walk toward the place that matters.
+
+Complete the action that creates real passage rather than the feeling of busyness.
+
+This matters for any obstacle. When the road feels large, scattered movement becomes tempting. But the traveler under Ma’at asks what action serves the destination now.
+
+Khonsu does not light the whole sky at once.
+
+The moon moves by phases.
+
+Today asks for movement in phase: enough to advance, not enough to scatter.
+
+Purposeful motion keeps the traveler inside the path.
+''',
+        glyph: 'Single footprint aligned with a road and moon',
+        colorFrequency: 'Road gold, night blue, and soft silver',
+        mantra: '“I move only where the path is served.”',
       ),
       (
         totalDay: 7,
         starCluster:
-            "✨ ḥry ꜥrt — harvest sight yielding to burden-bearing, where success must now be transported by discipline rather than admired from the field’s edge",
-        maatPrinciple: "Carry what you gathered",
-        cosmicContext:
-            "Harvest becomes burden as soon as it becomes real.\nOnce gathered, it must be moved. And this is where fantasy often breaks. People like the idea of results more than the labor of transport. Yet in Kemet, the field was only one part of the work. The load still had to be carried into storage, into record, into distribution, into future obligation.\nDay 7 asks if you are willing to bear the weight of what you wanted.\nSuccess has mass. Provision creates responsibility. Open doors create follow-through. Visibility creates expectation. Healing creates maintenance. Money creates stewardship. Gathered work asks to be carried.\nToday you stop thinking of the harvest only as reward.\nYou recognize it as load worthy of a strong back.",
-        glyph: "Carrier bearing bound stalks on the shoulder",
-        colorFrequency: "Sun-brown, harvest gold, and labor red",
-        mantra: "I carry the weight of what I asked to receive.",
+            '✨ ẖry ꜥrt — a decanal rising group near the horizon in the ten-day star order, physically described with caution because no secure modern cluster identification is available',
+        maatPrinciple: 'Road Read Clearly',
+        cosmicContext: '''
+The road is not empty beneath the feet.
+
+Day 7 asks for the path to be read.
+
+Movement teaches. Delays, helpers, warnings, openings, resistance, fatigue, repeated obstacles, and unexpected ease all speak. The traveler who refuses to read the road loses knowledge that only the road can give.
+
+In Kemet, routes mattered because land and water were never abstract. A channel could shift. A bank could weaken. A road could become unsafe. A good traveler did not move by pride alone. The path itself had to be observed.
+
+The same is true in daily progress.
+
+Where does resistance keep appearing?
+
+Where does help arrive?
+
+What part of the route drains too much?
+
+What encounter reveals an old pattern?
+
+What new opening should be respected?
+
+What warning should not be dismissed because the destination is desired?
+
+Today asks for attention while moving.
+
+Do not rush past the signs in order to feel productive.
+
+The path may be correcting the plan.
+
+A road read carefully becomes instruction. A road ignored becomes danger disguised as determination.
+''',
+        glyph: 'Eye over a winding road and moon',
+        colorFrequency: 'Watchful gold, night blue, and desert brown',
+        mantra: '“I read the road while I travel.”',
       ),
       (
         totalDay: 8,
         starCluster:
-            "✨ ḥry ꜥrt — the watchful eye guarding the path between field and store, where gains remain vulnerable until properly secured",
-        maatPrinciple: "Guard what is in transit",
-        cosmicContext:
-            "What has been won can still be lost on the way home.\nIn Kemet, the path from field to storage was not empty of danger. Spoilage, theft, weather, confusion, misplacement, mishandling — all could destroy what had already been successfully cut. This is why wise sight did not relax too early.\nDay 8 is protection during transition.\nYou look at what is currently in motion in your life. Payments not yet settled. Projects nearly complete. Opportunities in negotiation. Health being restored but not stable. Relationships being repaired but not yet strong. Systems in transfer. Gains not yet safely housed.\nDo not celebrate so early that you abandon vigilance.\nThe road between success and security is part of harvest too.",
-        glyph: "Watchful eye over the loaded path",
-        colorFrequency: "Night blue, sand brown, and guarded gold",
-        mantra: "I keep watch until the harvest is safely housed.",
+            '✨ ẖry ꜥrt — a modest horizon-based decanal marker used in the night sequence, with exact modern astronomical identification uncertain',
+        maatPrinciple: 'Word Kept Clean in Motion',
+        cosmicContext: '''
+Movement tests speech.
+
+Day 8 asks for the word to remain clean while the path is active.
+
+A person may speak carefully at rest and carelessly under pressure. Travel, exchange, deadlines, heat, fatigue, and distance can loosen the mouth. The truth becomes rounded. The promise becomes vague. The report becomes colored by convenience. The message arrives but carries distortion.
+
+That is dangerous.
+
+The word is part of the cargo.
+
+If the word arrives crooked, the journey has not stayed clean.
+
+Today asks for accuracy in motion.
+
+Say what was delivered.
+
+Say what was delayed.
+
+Say what was promised.
+
+Say what changed.
+
+Say what is still uncertain.
+
+Do not use movement as excuse for confusion. Do not let speed make speech false. Do not let fatigue turn the mouth into fire.
+
+Hnsw belongs to travel, but Djehuty still stands near every record and message. What moves must be named correctly so relation can remain ordered across distance.
+
+A clean word can arrive before the body does.
+
+A crooked word can damage the destination before the traveler reaches it.
+
+Today asks for speech that travels in Ma’at.
+''',
+        glyph: 'Mouth sign carried on a small boat under moonlight',
+        colorFrequency: 'Moon silver, ink black, and river blue',
+        mantra: '“My word remains true while I move.”',
       ),
       (
         totalDay: 9,
         starCluster:
-            "✨ ḥry ꜥrt — the eye of harvest under honest measure, where brought-in yield must enter count without inflation or false humility",
-        maatPrinciple: "Count what the harvest truly gave",
-        cosmicContext:
-            "After the cutting and carrying comes measure.\nIn Kemet, harvest was not complete until the yield entered record. Not guessed. Not dramatized. Not minimized. Counted. This protected the house from fantasy and let future planning rest on truth rather than mood.\nDay 9 is numerical honesty.\nWhat did the harvest actually yield? Money, pages, progress, contracts, restored strength, finished tasks, gathered support, repaired ground, food, energy, clarity, momentum. Write it down as it is. Neither make it grander than it was nor shrink it because you distrust your own progress.\nTrue measure is a form of reverence.\nIt honors both the labor and the reality.",
-        glyph: "Tally marks beside a measured heap",
-        colorFrequency: "Ink black, grain gold, and earth brown",
-        mantra: "I count the yield in truth.",
+            '✨ ẖry ꜥrt — a small star group in the decanal rising sequence, best described as a modest horizon timing marker rather than a securely identified modern constellation',
+        maatPrinciple: 'Distance Recorded',
+        cosmicContext: '''
+What moved must be accounted for.
+
+Day 9 asks for the distance to be recorded.
+
+The journey is not complete because motion occurred. The record must say what actually happened: what was carried, what was spent, what was delivered, what was delayed, what remains promised, what was learned, and what changed along the path.
+
+Without record, movement becomes story.
+
+With record, movement becomes knowledge.
+
+This matters in practical life. A person may feel busy and still not know what was done. Money may move without an account. Time may be spent without memory. A promise may be half-kept because no one recorded the terms. A journey may teach something valuable and then lose the lesson because it was never written.
+
+The Wadi el-Jarf Papyri preserve this kind of truth at the level of labor: days, crews, routes, and deliveries counted so great work could continue.
+
+Today asks for a simple account.
+
+What moved?
+
+What arrived?
+
+What did not?
+
+What does the next step require?
+
+A true record protects the next passage from beginning in confusion.
+
+The road should leave knowledge behind it.
+''',
+        glyph: 'Reed pen beside footprints and a road marker',
+        colorFrequency: 'Ink black, road gold, and moon blue',
+        mantra: '“I record the path in truth.”',
       ),
       (
         totalDay: 10,
         starCluster:
-            "✨ ḥry ꜥrt — harvest sight completing its first labor, where what has been gathered must now be given purpose under order",
-        maatPrinciple: "Place the harvest under right use",
-        cosmicContext:
-            "The first decan closes not with cutting, but with placement.\nWhat has now been seen, cut, gathered, bound, carried, guarded, and counted cannot remain undefined. In Kemet, yield had to be assigned: seed, storage, offering, household, labor, future use. Otherwise abundance sat in confusion and drifted toward waste.\nDay 10 is about purpose.\nYou decide what this first harvest is for. What will be stored. What will be used now. What will be returned. What will be invested. What will be protected for later. What will become proof of the season rather than a brief emotional high.\nHarvest becomes sacred when it is placed under right use.\nWhat you gathered now needs law, not just celebration.",
-        glyph: "Measured heap placed before storehouse and shrine",
-        colorFrequency: "Temple gold, dark green, and settled clay",
-        mantra: "I place what I gathered under right purpose.",
+            '✨ ẖry ꜥrt — the first star marker of Hnsw’s decanal sequence, a modest horizon-rising timing group in the night order with uncertain modern identification',
+        maatPrinciple: 'First Passage Sealed',
+        cosmicContext: '''
+Day 10 seals the first passage of Hnsw.
+
+The path was entered. Constraint was measured. Ma’at was placed at the front. Unlawful weight was removed. The vessel was protected. Purposeful movement was taken. The road was read. The word was kept clean. The distance was recorded.
+
+This is how movement begins to become passage.
+
+The journey is not finished. But the first movement has been brought under measure. That matters because the beginning teaches the body how the rest of the road should be walked.
+
+Today asks what has been carried so far.
+
+What remained true?
+
+What burden was removed?
+
+What condition must continue being respected?
+
+What did the road reveal?
+
+What did the record preserve?
+
+The traveler who seals the first passage honestly does not have to begin the next one in confusion.
+
+Hnsw teaches that Ma’at must move. It must travel with the message, the body, the trade, the promise, the offering, and the road itself.
+
+Where the first passage is sealed in truth, the next movement can begin with direction rather than drift.
+''',
+        glyph: 'Sealed road record beneath the crescent moon',
+        colorFrequency: 'Moon silver, ink black, and sealed gold',
+        mantra: '“I close the first passage in Ma’at.”',
       ),
     ],
   );
 }
 
 Map<String, KemeticDayInfo> _buildHnswIIEntries() {
-  const season = "☀️ Shemu – Season of Harvest";
+  const season = '☀️ Shemu – Season of Harvest';
   const month =
-      "Hnsw (Ḥnsw) — the opening month of harvest, where ripened labor must be seen clearly, cut cleanly, gathered fully, and carried without waste";
+      'Hnsw (Ḫnsw) — The Traveler and the Discipline of Right Movement';
   return _buildGeneratedDecanEntries(
-    keyPrefix: "hnsw",
+    keyPrefix: 'hnsw',
     decan: 2,
-    decanLabel: "Hnsw II",
-    monthLabelForDate: "Hnsw",
+    decanLabel: 'Hnsw II',
+    monthLabelForDate: 'Hnsw',
     month: month,
     season: season,
+    decanName: 'rmn ḥry sꜣḥ',
+    kemeticDateBuilder: (totalDay, _) => 'Hnsw II, Day $totalDay',
     flowRows: _hnswOverrideIIFlowRows,
     entries: [
       (
         totalDay: 11,
         starCluster:
-            "✨ rmn ḥry sḥ — the supporting arm over the store, where harvest shifts from cutting into bearing, lifting, and sustained responsibility for what has already been brought in",
-        maatPrinciple: "Take the weight onto yourself",
+            '✨ rmn ḥry sꜣḥ — a decanal star marker described in relation to Sah/Orion; exact modern identification is uncertain, but it may be understood physically as a star or small group positioned above or near the Orion region in the observed night-sky sequence',
+        maatPrinciple: 'Load Lifted Correctly',
         cosmicContext: '''
-The first decan was about seeing and cutting.
+The first decan entered the path.
 
-The second begins when the gathered yield must be borne.
+The second asks whether the load can be carried.
 
-In Kemet, harvest did not end when the stalk fell. Once the field had given up its ripeness, human labor had to take over fully. Bundles had to be lifted. Loads had to be shouldered. Storage had to be arranged. The burden moved from field to body, from opportunity to responsibility.
+This is the work of rmn ḥry sꜣḥ: the shoulder above Sah. The shoulder is not the first step. It is the bearing point. It receives weight and keeps movement possible after the beginning has lost its excitement.
 
-That is the force of rmn ḥry sḥ.
+Day 11 asks for the load to be lifted correctly.
 
-This decan belongs to the arm that supports the store. It is not concerned with the excitement of first results. It is concerned with what happens after results arrive — who lifts them, who stabilizes them, who keeps the house from collapsing under the very weight it prayed for.
+Not every journey is difficult at the start. Many become difficult when movement must continue. The first decision has already been made. The road has already opened. Now the question is whether the body, household, project, promise, or exchange can carry what the journey requires.
 
-So Day 11 asks whether you are willing to bear what has now become yours to carry.
+This is where fantasy ends.
 
-A good outcome has a load hidden inside it. Success has follow-through. Provision has maintenance. Growth has weight. Recognition has obligation. Completion has administration. If you only wanted the harvest as a moment of pleasure, this decan will feel heavy.
+A load must be named clearly. A person cannot endure what they refuse to admit they are carrying. A relationship cannot carry a vague burden. A project cannot move if its true weight is hidden under enthusiasm. A body cannot carry indefinitely if the shoulder is treated as invisible.
 
-If you wanted it as something real, this is where reality begins.
+Today asks: what is being carried now?
+
+Not what was intended.
+
+What is actually on the shoulder?
+
+Endurance begins when the real load is named.
 ''',
-        glyph: "Supporting arm beneath a loaded bundle",
-        colorFrequency: "Sun-worn bronze, reed brown, and storehouse gold",
-        mantra: "I bear what I have gathered with steadiness.",
+        glyph: 'Shoulder beneath a traveling bundle and star',
+        colorFrequency: 'Dry gold, night blue, and warm clay',
+        mantra: '“I name the load before I carry it.”',
       ),
       (
         totalDay: 12,
         starCluster:
-            "✨ rmn ḥry sḥ — the bearing arm under honest labor, where the keeper must stop romanticizing reward and start respecting the burden that comes with it",
-        maatPrinciple: "Carry without resentment",
+            '✨ rmn ḥry sꜣḥ — a decanal timing marker associated with the region above Sah/Orion in ancient description; best treated as a modest star or small group observed relative to the Orion figure, with uncertain modern identification',
+        maatPrinciple: 'Terms Made Clear',
         cosmicContext: '''
-Many people want the fruit but resent the carrying.
+A load without terms becomes confusion.
 
-In Kemet, that attitude would have ruined the harvest. Once the yield came in, there was no room for childish surprise that work still remained. Loads had to move. Counts had to be checked. Storage had to be made ready. Fatigue did not cancel responsibility.
+Day 12 asks for the agreement to be named.
 
-Day 12 is about the spirit in which you carry.
+This matters wherever movement involves others. Trade, labor, care, travel, partnership, promise, delivery, and responsibility all need clear terms. Who carries what? What is owed? What is being exchanged? What support is promised? What is the destination? What would count as completion?
 
-You do one necessary burden today without self-pity, drama, or inward rebellion. You answer the email, close the loop, move the goods, finish the setup, make the call, handle the paperwork, tend the body, prepare the next stage. Not because it is thrilling, but because it belongs to the life you asked for.
+Without terms, endurance becomes resentment.
 
-Resentment adds weight to every load.
+One person thinks they are helping briefly. Another thinks the duty is permanent. One person thinks payment is understood. Another treats gratitude as enough. One person carries the emotional weight while others pretend the load is shared.
 
-Clean acceptance makes the burden more bearable.
+That is not Ma’at.
+
+The shoulder can carry a lawful burden. It should not be forced to carry vagueness.
+
+Today asks for one set of terms to be spoken or written clearly.
+
+Not harshly.
+
+Clearly.
+
+A clean agreement protects the road. It keeps the load from changing shape in silence. It allows the carrier to endure without wondering whether the burden has become exploitation.
+
+Movement under Hnsw must remain honest as it travels.
+
+A burden with clear terms can be carried in Ma’at.
 ''',
-        glyph: "Shoulder under the bundle, back held straight",
-        colorFrequency: "Burnt gold, clay brown, and workday red",
-        mantra: "I carry without turning the burden into self-pity.",
+        glyph: 'Written agreement beside a shouldered load',
+        colorFrequency: 'Ink black, road gold, and moon silver',
+        mantra: '“I name the terms before the load travels farther.”',
       ),
       (
         totalDay: 13,
         starCluster:
-            "✨ rmn ḥry sḥ — the bearing arm calling for strength, where harvest exposes whether the body, mind, and systems are equal to the new load",
-        maatPrinciple: "Build the strength to hold it",
+            '✨ rmn ḥry sꜣḥ — a star marker described in relation to Sah/Orion, likely a small observed group or point above the Orion pattern in the decanal sequence; exact modern match is uncertain',
+        maatPrinciple: 'Load Balanced',
         cosmicContext: '''
-A load reveals the truth about capacity.
+A load can be rightful and still carried wrongly.
 
-When the bundles are small, weakness can hide. Once real weight arrives, posture tells the story. So do systems. So does patience. So does money. So does nerve. So does the ability to stay organized when one more demand lands on the shoulder.
+Day 13 asks for balance at the shoulder.
 
-In Kemet, harvesting well required more than skill with the blade. It required strength to carry, endurance to repeat, and enough internal order to keep the work from scattering.
+The body knows this before the mind admits it. A weight placed badly injures faster than a weight placed well. One strap cuts. One side drags. One shoulder takes what both should bear. The journey continues, but the carrier begins to bend.
 
-Day 13 is strengthening day.
+This happens in life as well.
 
-You reinforce the part of yourself most likely to fail under this burden. Maybe the body needs more sleep and training. Maybe the calendar needs structure. Maybe your follow-through needs tightening. Maybe your emotional life needs less volatility. Maybe your finances need margin.
+A project may be worthwhile, but the schedule is uneven. A household duty may be necessary, but one person is carrying too much. A relationship may be real, but the emotional load is badly placed. A promise may be lawful, but the method of carrying it is damaging the body.
 
-A worthy harvest often asks you to become stronger than the version of yourself that first reached it.
+Ma’at does not only ask whether the burden is legitimate.
+
+It asks whether the burden is placed rightly.
+
+Today asks for the load to be adjusted.
+
+Shift the weight.
+
+Move the time.
+
+Clarify the help.
+
+Change the container.
+
+Remove what does not belong.
+
+Use both shoulders if the burden requires both.
+
+Endurance is not proven by letting the body twist around a bad arrangement.
+
+The wise traveler adjusts before injury becomes the teacher.
 ''',
-        glyph: "Muscled arm bracing the load",
-        colorFrequency: "Bronze, ochre, and strengthening red-brown",
-        mantra: "I become strong enough for what I now carry.",
+        glyph: 'Balanced carrying pole across both shoulders',
+        colorFrequency: 'Clay brown, road gold, and balanced blue',
+        mantra: '“I carry the load in right placement.”',
       ),
       (
         totalDay: 14,
         starCluster:
-            "✨ rmn ḥry sḥ — the supporting arm demanding a clear path, where unnecessary obstacles turn honest burden into foolish strain",
-        maatPrinciple: "Remove avoidable drag",
+            '✨ rmn ḥry sꜣḥ — a modest decanal star marker described as above or associated with Sah/Orion; physically best understood as a watched star point or small group in that night-sky region, with uncertain modern identity',
+        maatPrinciple: 'Pace Sustained',
         cosmicContext: '''
-Not all heaviness comes from the load itself.
+Endurance depends on pace.
 
-Some of it comes from clutter, poor planning, broken tools, late decisions, vague roles, messy floors, bad storage, missing information, and all the little frictions that make rightful labor more punishing than it should be. In Kemet, a clear path mattered because carrying is already hard enough.
+Day 14 asks for movement that can continue.
 
-Day 14 is relief through order.
+The beginning of a journey often carries its own force. The body is alert. The mind is stirred. The destination feels close because motion has just begun. But the road teaches differently. The load must be carried after the first heat fades. The pace must serve arrival, not excitement.
 
-You remove what is making the burden unnecessarily difficult. Clean the workspace. Organize the files. Fix the calendar. Clarify the role. Prepare the route. Put the needed materials within reach. End one repeating confusion.
+A traveler who rushes early may fail before the true distance begins.
 
-There is no virtue in struggling more than Ma’at requires.
+A person who drags from resentment may never arrive cleanly.
 
-Sometimes wisdom does not lighten the load. It clears the path under it.
+A worker who proves strength through strain may lose the strength needed later.
+
+This day asks for the pace to be made honest.
+
+What rhythm can actually carry the burden?
+
+What speed protects the body?
+
+What timing keeps the promise alive without turning it into punishment?
+
+What can be done today without stealing from tomorrow?
+
+Khonsu’s movement teaches measured change. The moon does not cross the night by one violent act. It keeps its course through phase and return.
+
+Today asks for pace that respects the whole journey.
+
+Endurance is not intensity.
+
+It is movement that remains possible.
 ''',
-        glyph: "Cleared path beneath the carried bundle",
-        colorFrequency: "Sand tan, sun gold, and practical brown",
-        mantra: "I remove what makes rightful labor harder than it should be.",
+        glyph: 'Measured footprints beneath a crescent moon',
+        colorFrequency: 'Moon silver, steady gold, and dry earth',
+        mantra: '“My pace must be able to arrive.”',
       ),
       (
         totalDay: 15,
         starCluster:
-            "✨ rmn ḥry sḥ — the bearing arm under judgment, where wisdom decides how much to hold alone and how much to place into other trustworthy hands",
-        maatPrinciple: "Share the burden correctly",
+            '✨ rmn ḥry sꜣḥ — the midpoint phase of this decanal marker, associated by name with a shoulder above Sah/Orion; exact modern star identification remains uncertain',
+        maatPrinciple: 'Heat Watched',
         cosmicContext: '''
-Not every worthy carrier carries alone.
+The middle of this decan watches heat.
 
-In Kemet, harvest was communal labor. One person could oversee, another cut, another bind, another lift, another count, another store. Disorder came not only from laziness, but also from poor allocation — one person overloaded while others drifted, or burdens handed to the wrong hands.
+Day 15 asks where endurance is becoming hot.
 
-Day 15 is about weight in right relation.
+The dry season tests the traveler by heat outside and heat inside. Effort can become irritation. Responsibility can become harshness. Fatigue can sharpen the mouth. Pride can enter the shoulder and say, “I will carry this even if it ruins me.”
 
-You decide what belongs squarely on your shoulders and what should be distributed. This requires humility as much as authority. Hoarding every burden can be vanity. Dumping the weight carelessly can be weakness. Ma’at asks for proper placement.
+That is not endurance.
 
-Shared labor is not failure.
+That is heat becoming ruler.
 
-It is often the only way a real harvest reaches the house intact.
+The Instruction of Amenemope warns against the heated person because heat spreads. It moves from the heart into the mouth, from the mouth into the room, from the room into the road.
+
+Today asks for the early signs of heat to be seen.
+
+The short tone.
+
+The clenched jaw.
+
+The resentment.
+
+The urge to prove.
+
+The complaint that repeats.
+
+The refusal to rest.
+
+The belief that suffering makes the burden more sacred.
+
+Endurance under Ma’at does not need to burn everything nearby.
+
+It needs cooling before damage begins.
+
+Water, shade, silence, breath, honest pacing, and clean speech belong to this day.
+
+The load can continue only if heat does not take command of the carrier.
 ''',
-        glyph: "Two arms carrying one balanced yoke",
-        colorFrequency: "Bronze, rope tan, and balanced gold",
-        mantra: "I place the weight where it can be borne well.",
+        glyph: 'Water jar poured over a heated shoulder',
+        colorFrequency: 'Cool blue, ember red, and moon silver',
+        mantra: '“I cool the heat before it commands the journey.”',
       ),
       (
         totalDay: 16,
         starCluster:
-            "✨ rmn ḥry sḥ — the sustaining arm bringing weight into stability, where what has arrived must now be put somewhere strong enough to hold it",
-        maatPrinciple: "Build firmer holding structure",
+            '✨ rmn ḥry sꜣḥ — a star or small group in the decanal order described relative to Sah/Orion, likely observed near that region of the night sky; modern identification is uncertain',
+        maatPrinciple: 'Burden Redistributed',
         cosmicContext: '''
-Carrying cannot last forever.
+A burden that bends the carrier must be redistributed.
 
-At some point the burden must be set down into something stable — storage, schedule, ledger, shelf, routine, account, system, boundary, agreement. In Kemet, to keep holding everything by hand was poor stewardship. The wise keeper transferred weight from muscle into structure as soon as right order allowed.
+Day 16 asks for shared weight.
 
-Day 16 is about stable placement.
+This is not weakness. It is structural intelligence. A boat takes cargo according to balance. A carrying pole is made to distribute pressure. A crew exists because some loads are not meant for one body.
 
-You stop carrying in improvisation and build a firmer holding place. Maybe that means proper storage. Maybe it means an automated system. Maybe a calendar, a rule, a documented process, a cleaner agreement, a better container, or a stronger financial structure.
+The same law applies to life.
 
-What remains only in your grip remains at risk.
+A household cannot rest on one person forever.
 
-The burden matures when it is housed well.
+A project cannot depend on one exhausted mind.
+
+A relationship cannot call itself mutual if one heart carries every repair.
+
+A body cannot be asked to keep moving when the plan has denied it support.
+
+Today asks what must be shared before damage deepens.
+
+Ask for help.
+
+Hand off a portion.
+
+Renegotiate the role.
+
+Move the deadline.
+
+Name the unfairness.
+
+Stop carrying what only remains yours because no one else has been asked to stand in truth.
+
+Redistribution under Ma’at is not abandonment of duty.
+
+It is the correction of placement.
+
+The shoulder above Sah can carry, but even the shoulder has a lawful measure.
+
+The load that must continue must be carried in a way that allows the carrier to continue too.
 ''',
-        glyph: "Load set securely on the storehouse shelf",
-        colorFrequency: "Deep brown, storehouse gold, and fixed green",
-        mantra: "I house the burden where it can endure.",
+        glyph: 'Two carriers sharing one load under a star',
+        colorFrequency: 'Twin gold, road brown, and night blue',
+        mantra: '“Shared weight protects the journey.”',
       ),
       (
         totalDay: 17,
         starCluster:
-            "✨ rmn ḥry sḥ — the bearing arm in the long middle, where the harvest must be served through repetition after the thrill has passed",
-        maatPrinciple: "Stay faithful in the middle labor",
+            '✨ rmn ḥry sꜣḥ — a modest star marker connected by name to the area above Sah/Orion, best described physically as an uncertain decanal point or small group in the Orion-related sky region',
+        maatPrinciple: 'Carrier Honored',
         cosmicContext: '''
-There is always a middle stage that receives little praise.
+The carrier must be honored while still carrying.
 
-The field is exciting. The first results are exciting. But the long labor between arrival and stable completion is quieter. It is repetitive, often hidden, and easy to disrespect. Yet in Kemet, this middle work determined whether the harvest actually survived.
+Day 17 asks for care toward what has borne the weight.
 
-Day 17 belongs to repetition without glamour.
+This may be the body. The back, shoulders, feet, hands, nervous system, eyes, and mouth that have kept the passage moving. It may be a person. The one who organized, remembered, checked, transported, cooked, paid, repaired, or stayed calm. It may be a tool, a vehicle, a schedule, or a system that has quietly held the journey together.
 
-You continue the necessary labor even though the emotional high is gone. Carrying, sorting, recording, checking, moving, maintaining, preserving. This is where many lives sag — not because the blessing failed, but because attention fled once novelty passed.
+Endurance often hides the carrier.
 
-Ma’at is often kept by people who remain steady after applause would have already left.
+Because the load keeps moving, people assume the carrier is fine.
 
-Today your task is simple: remain.
+That assumption becomes injustice.
+
+Today asks what has been carrying quietly.
+
+What needs food?
+
+What needs repair?
+
+What needs gratitude?
+
+What needs relief?
+
+What needs to be named before it collapses under invisibility?
+
+In Kemet, labor and record mattered because great works were made from repeated carrying. A load delivered does not erase the body that delivered it.
+
+Hnsw teaches movement, but movement must not consume the carrier.
+
+Today asks for one act of honor toward what has kept the burden moving.
 ''',
-        glyph: "Repeated footprints between field and store",
-        colorFrequency: "Dust brown, muted gold, and steady green",
-        mantra: "I remain faithful after the first excitement passes.",
+        glyph: 'Hands washing a tired shoulder',
+        colorFrequency: 'Warm clay, healing blue, and soft gold',
+        mantra: '“I honor what has carried the load.”',
       ),
       (
         totalDay: 18,
         starCluster:
-            "✨ rmn ḥry sḥ — the supporting arm protecting the carriers, where wise harvest cares for the bodies and systems that make continuation possible",
-        maatPrinciple: "Protect the ones doing the carrying",
+            '✨ rmn ḥry sꜣḥ — a decanal star marker described in relation to Sah/Orion, physically uncertain but understood as a watched night-sky point or small group in that sequence',
+        maatPrinciple: 'Continuation Without Complaint',
         cosmicContext: '''
-A harvest can damage its own bearers if handled foolishly.
+Some burdens become heavier because the story around them grows.
 
-In Kemet, loads had to move, but so did people. Strength was respected, yet overstrain was not wisdom. A body can be injured. A household can be exhausted. A team can burn out. A system can crack. If the carriers fail, the store suffers next.
+Day 18 asks for continuation without complaint.
 
-Day 18 is stewardship of the bearers themselves.
+This does not mean silence under injustice. A false burden should be named. A harmful load should be corrected. But once the lawful load has been measured, balanced, cooled, and supported, the next step may simply need to be taken.
 
-You look at the people and structures holding the weight — including your own body, mind, and spirit — and ask what must be protected. Rest, pacing, better distribution, repair, acknowledgment, relief, a cleaner process, stronger support, less chaos.
+Complaint can become another weight.
 
-To preserve the harvest, preserve the ones carrying it.
+The mouth repeats the difficulty until the burden fills the whole mind. The task becomes not only what must be carried, but also the story of being the one who carries it. This makes the road longer.
 
-Neglect at this stage is expensive.
+Quiet endurance is different.
+
+It does not deny the load. It does not romanticize suffering. It does not demand applause. It simply continues in the correct measure because the work still belongs to the path.
+
+Today asks for the next step without feeding the drama of the burden.
+
+Move the task.
+
+Carry the message.
+
+Keep the pace.
+
+Do the necessary part.
+
+Let the work be real without making struggle the center of identity.
+
+Endurance becomes clean when the burden is carried in truth, not worshiped as proof of worth.
 ''',
-        glyph: "Supporting arm wrapped and cared for after labor",
-        colorFrequency: "Healing green, bronze, and protective gold",
-        mantra: "I guard the strength that carries the harvest.",
+        glyph: 'Quiet feet continuing beneath a shouldered bundle',
+        colorFrequency: 'Dust gold, muted blue, and steady brown',
+        mantra: '“I continue without making struggle my crown.”',
       ),
       (
         totalDay: 19,
         starCluster:
-            "✨ rmn ḥry sḥ — the bearing arm under inspection, where true stewardship checks for sag before collapse teaches the lesson cruelly",
-        maatPrinciple: "Inspect for strain before failure",
+            '✨ rmn ḥry sꜣḥ — a modest decanal marker in the night sequence, associated by name with the shoulder above Sah/Orion; modern astronomical identification remains uncertain',
+        maatPrinciple: 'Carried Distance Recorded',
         cosmicContext: '''
-Weight always reveals weak points.
+Endurance needs record.
 
-A rope frays. A shelf bends. A shoulder overcompensates. A system starts running late. A budget tightens. A relationship grows sharp under pressure. A body begins to ache. None of this means the harvest was wrong. It means the burden is telling the truth about where reinforcement is needed.
+Day 19 asks what has actually been carried.
 
-Day 19 is inspection under realism.
+A long passage can distort memory. A person may remember only fatigue and forget distance. Or remember only effort and miss cost. Or remember only arrival and forget what remains unfinished.
 
-You look for sag and strain now, while repair is still possible. What is bending under the load? Where are you compensating badly? What system is barely holding? What support is thinning? What container is too weak for what is now inside it?
+The record steadies the mind.
 
-Wise keepers do not wait for collapse to learn.
+What moved?
 
-They read the strain and answer it early.
+What was delivered?
+
+What was paid?
+
+What was promised?
+
+What was damaged?
+
+What was learned?
+
+What remains on the shoulder?
+
+What must be redistributed before the next passage?
+
+This is not administrative dryness. It is Ma’at protecting endurance from confusion. A carrier who does not count the load may keep carrying what should have been set down. A worker who does not record the cost may repeat an unsustainable pattern. A traveler who does not mark the distance may never understand the road.
+
+Today asks for the carried distance to be written or named.
+
+The record should be honest: not complaint, not exaggeration, not false modesty.
+
+Truth.
+
+Endurance becomes wisdom when the journey leaves an accurate account behind it.
 ''',
-        glyph: "Bent beam marked for repair",
-        colorFrequency: "Wood brown, shadow bronze, and warning gold",
-        mantra: "I answer strain before it becomes collapse.",
+        glyph: 'Reed pen beside shoulder mark and road line',
+        colorFrequency: 'Ink black, road gold, and moon blue',
+        mantra: '“I record what endurance has carried.”',
       ),
       (
         totalDay: 20,
         starCluster:
-            "✨ rmn ḥry sḥ — the supporting arm made trustworthy, closing the second decan with proven endurance under the burden of what has been gathered",
-        maatPrinciple: "Become trustworthy under weight",
+            '✨ rmn ḥry sꜣḥ — the second star marker of Hnsw’s decanal sequence, described relative to Sah/Orion and best treated as a modest, uncertain horizon or Orion-region marker in the night order',
+        maatPrinciple: 'Sustainable Endurance Sealed',
         cosmicContext: '''
-The second decan closes with a harder kind of proof than the first.
+Day 20 seals the shoulder of Hnsw.
 
-The field proved that you could see. The cut proved that you could act. But this decan has been asking whether you can hold. Whether you can keep carrying once the thrill is gone. Whether you can accept the burden without becoming bitter, sloppy, dramatic, overstrained, or evasive.
+The load has been named. The terms have been made clear. The shoulder has been balanced. The pace has been measured. Heat has been cooled. Weight has been redistributed. The carrier has been honored. Continuation has happened without drama. The carried distance has been recorded.
 
-That is the true test of rmn ḥry sḥ.
+Now the question is whether endurance can continue without becoming collapse.
 
-To support the store is to become the kind of person life can place weight upon without immediate collapse. Not because you never tire, but because you answer weight with structure, honesty, pacing, repair, and continued fidelity.
+This is the seal of rmn ḥry sꜣḥ.
 
-So Day 20 is confirmation by endurance.
+Endurance is not endless bearing.
 
-What have you shown these past ten days? That you can bear? That you can strengthen under load? That you can clear the path, share wisely, protect the carriers, and answer strain before failure? Then something in you is becoming more trustworthy than it was before.
+It is sustained movement in right measure.
 
-This is how harvest begins to create character.
+If the load must continue, what must change?
+
+What support must remain?
+
+What heat must be watched?
+
+What record must guide the next stage?
+
+What burden must not be allowed back on one shoulder?
+
+What source must be rested before the journey continues?
+
+Hnsw teaches that Ma’at must move, but movement that destroys the carrier is not Ma’at. A journey is righteous when the load, the carrier, the destination, and the law of the path remain in relation.
+
+Today asks for sustainable endurance to be named and sealed.
+
+What can continue cleanly may continue.
+
+What would continue only by damage must be corrected before the next passage.
 ''',
-        glyph: "Steady arm beneath the loaded beam",
-        colorFrequency: "Enduring bronze, storehouse brown, and settled gold",
-        mantra: "I become steady enough to bear what life places on me.",
+        glyph: 'Sealed shoulder-mark beneath moon and star',
+        colorFrequency: 'Moon silver, deep blue, road gold, and clay brown',
+        mantra: '“The load continues only in Ma’at.”',
       ),
     ],
   );
 }
 
 Map<String, KemeticDayInfo> _buildHnswIIIEntries() {
-  const season = "☀️ Shemu – Season of Harvest";
+  const season = '☀️ Shemu – Season of Harvest';
   const month =
-      "Hnsw (Ḥnsw) — the opening month of harvest, where ripened labor must be seen clearly, cut cleanly, gathered fully, and carried without waste";
+      'Hnsw (Ḫnsw) — The Traveler and the Discipline of Right Movement';
   return _buildGeneratedDecanEntries(
-    keyPrefix: "hnsw",
+    keyPrefix: 'hnsw',
     decan: 3,
-    decanLabel: "Hnsw III",
-    monthLabelForDate: "Hnsw",
+    decanLabel: 'Hnsw III',
+    monthLabelForDate: 'Hnsw',
     month: month,
     season: season,
+    decanName: 'rmn ẖry sꜣḥ',
+    kemeticDateBuilder: (totalDay, _) => 'Hnsw III, Day $totalDay',
     flowRows: _hnswOverrideIIIFlowRows,
     entries: [
       (
         totalDay: 21,
         starCluster:
-            "✨ rmn ḥry sḥ — the supporting arm in its mature form, where bearing becomes ordered enough to sustain others, preserve the yield, and carry the burden without collapse",
-        maatPrinciple: "Turn burden into stable support",
-        cosmicContext:
-            "The third decan begins when carrying must become structure.\nBy now the harvest has already been seen, cut, gathered, bound, lifted, and brought under strain. The question is no longer whether you can take on weight. It is whether you can hold it in a way that becomes reliable enough to support life beyond the moment. In Kemet, this was the difference between effort and stewardship. A burden carried once proved strength. A burden carried well over time proved order.\nThat is the deeper force of rmn ḥry sḥ in its final turn.\nThe supporting arm is no longer merely reacting to the load. It is learning how to become a stable bearer. The work now is endurance with intelligence: preserving what has been gathered, setting weight in right relation, strengthening the whole system, and making sure what was won does not collapse under its own heaviness.\nSo Day 21 asks a harder question than the last decan asked.\nNot only, “Can I carry this?” but: “Can I support this so steadily that it becomes safe, durable, and useful for more than myself?”\nThis is where burden becomes mature responsibility.",
-        glyph: "Supporting arm beneath the roof-beam",
-        colorFrequency: "Dark cedar, bronze, and harvest gold",
-        mantra: "I do not merely carry. I support and preserve.",
+            '✨ rmn ẖry sꜣḥ — a decanal star marker described in relation to Sah/Orion; exact modern identification is uncertain, but it may be understood physically as a star or small group below or near the Orion region in the observed night-sky sequence',
+        maatPrinciple: 'Burden Lowered',
+        cosmicContext: '''
+The first decan entered the path.
+
+The second carried the load.
+
+The third asks how the load should be lowered.
+
+This is the work of rmn ẖry sꜣḥ: the shoulder beneath Sah. The burden has traveled. Endurance has been tested. The carrier has held the road long enough for a new question to arise.
+
+What must now be set down?
+
+A load carried past its proper time becomes harm. A responsibility that was lawful for one stretch may become distortion if it is never lowered. A journey that never allows arrival turns movement into endless strain.
+
+Day 21 asks for the first act of descent.
+
+Not collapse.
+
+Not abandonment.
+
+Descent in measure.
+
+This may mean ending the workday, closing the task, releasing a role, putting down an argument, lowering expectation, or accepting that the body has carried enough for now.
+
+Ra enters the west without defeat. Khonsu wanes without losing rhythm. Lowering belongs to order when it happens at the right time.
+
+Today asks what burden has reached the point where carrying must become release.
+
+A load set down in Ma’at preserves the carrier for the next journey.
+''',
+        glyph: 'Shouldered bundle being lowered beside a road marker',
+        colorFrequency: 'Dust gold, evening blue, and cooling silver',
+        mantra: '“I set down what has been carried far enough.”',
       ),
       (
         totalDay: 22,
         starCluster:
-            "✨ rmn ḥry sḥ — the bearing arm locating the weak seam, where true support begins by reinforcing the place most likely to fail",
-        maatPrinciple: "Brace the weak point",
-        cosmicContext:
-            "What fails first is rarely the center.\nIt is usually the seam, the joint, the corner that looked “good enough,” the shelf that was almost strong enough, the habit that held until fatigue arrived, the budget margin that was thinner than it should have been, the relationship strain everyone ignored because the larger structure still seemed intact.\nIn Kemet, wise keepers learned to inspect the weak point before it broke the whole.\nDay 22 is that inspection turned into repair.\nYou identify the thinnest place under the burden and strengthen it while dignity is still possible. Not after collapse. Not after resentment erupts. Not after the store is spoiled. Now.\nMature support is not proven by pretending everything is fine.\nIt is proven by reinforcing what you know cannot keep carrying like this for much longer.",
-        glyph: "Bound joint tightened beneath the beam",
-        colorFrequency: "Rope tan, cedar brown, and guarded gold",
-        mantra: "I strengthen the place that cannot afford to break.",
+            '✨ rmn ẖry sꜣḥ — a modest decanal marker associated by name with the shoulder below Sah/Orion; best treated as a small observed star point or group in the Orion-related sky region, with uncertain modern identity',
+        maatPrinciple: 'Body Recovered',
+        cosmicContext: '''
+The body keeps the account of the road.
+
+Day 22 asks for recovery.
+
+A traveler may arrive before the body has arrived. The feet still ache. The mouth is dry. The shoulders remain lifted. The mind continues scanning as though the road is still dangerous. Endurance does not end the moment motion stops.
+
+The carrier must be restored.
+
+Water matters.
+
+Food matters.
+
+Sleep matters.
+
+Stretching matters.
+
+Silence matters.
+
+The body that carried the path should not be treated as disposable once the delivery is made.
+
+This applies to any kind of journey. After a difficult conversation, the nervous system may need cooling. After a long project, the hands may need rest. After emotional labor, the heart may need quiet. After sustained pressure, the body may need to be told that the danger has passed.
+
+Hnsw teaches right movement, but movement under Ma’at includes recovery after movement.
+
+Today asks where the body is still carrying the road.
+
+Do not demand another journey before the vessel is restored.
+
+The traveler who recovers in measure can travel again without resentment or collapse.
+''',
+        glyph: 'Water jar, resting feet, and crescent moon',
+        colorFrequency: 'Cool blue, moon silver, and soft earth brown',
+        mantra: '“The body that carried the road will be restored.”',
       ),
       (
         totalDay: 23,
         starCluster:
-            "✨ rmn ḥry sḥ — the supporting arm settling into measured cadence, where burden is preserved by rhythm rather than panic",
-        maatPrinciple: "Replace urgency with rhythm",
-        cosmicContext:
-            "A load carried in panic feels heavier than it is.\nEmergency effort has its place, but it cannot become a way of life. In Kemet, once the first rush of harvest passed, the labor had to enter rhythm. Repetition protected strength. Sequence protected the store. Cadence preserved the bearers. Without rhythm, even honest work became disorder.\nDay 23 is the end of frantic carrying.\nYou build a way of bearing this load that can last. A schedule. A weekly sequence. A repeatable check-in. A transport rhythm. A bodily pace. A cleaner emotional tempo. Something that keeps the burden moving without forcing the whole system to live in alarm.\nThis is how responsibility matures.\nWhat is carried in rhythm can endure where constant urgency would eventually break the back.",
-        glyph: "Repeated footsteps beneath a balanced yoke",
-        colorFrequency: "Dust brown, muted bronze, and steady gold",
-        mantra: "I carry by rhythm, not by panic.",
+            '✨ rmn ẖry sꜣḥ — a star or small group in the decanal sequence described relative to Sah/Orion, likely observed near that sky region; modern identification remains uncertain',
+        maatPrinciple: 'Pace Reduced',
+        cosmicContext: '''
+Descent requires slower rhythm.
+
+Day 23 asks for the pace to be lowered.
+
+The body may keep moving at travel-speed after the road has changed. The mind may continue answering as if everything is urgent. The mouth may stay sharp because it learned to speak under heat. The schedule may continue in the pace of survival even when the passage has ended.
+
+That pace must be reduced.
+
+A boat entering harbor does not keep the same force as a boat crossing current. A person approaching rest should not move like a person still outrunning danger. A household after strain should not keep crisis rhythm as its normal law.
+
+Today asks where urgency has become habit.
+
+What can slow now?
+
+What can wait?
+
+What does not need immediate answer?
+
+What task can be done gently?
+
+What pressure belongs to the road behind, not the place now entered?
+
+Khonsu teaches change without losing course. Waning is not failure. It is the lawful reduction of light according to time.
+
+Today asks for one pace to be lowered so the journey can end cleanly.
+
+What slows in Ma’at does not lose purpose.
+
+It protects it.
+''',
+        glyph: 'Slowed footprints beneath a waning moon',
+        colorFrequency: 'Evening blue, muted gold, and cool silver',
+        mantra: '“I lower the pace without losing the path.”',
       ),
       (
         totalDay: 24,
         starCluster:
-            "✨ rmn ḥry sḥ — the bearing arm guarding against dampness and decay, where stored labor must be kept from quiet corruption",
-        maatPrinciple: "Keep the store dry",
-        cosmicContext:
-            "A harvest can rot after it is won.\nThat is one of the quieter tragedies of labor. The cutting was real. The carrying was real. The counting was real. Yet poor tending afterward can invite spoilage. In the world of Kemet, dampness, neglect, disorder, contamination, and inattention could undo much of what hard labor had secured.\nDay 24 is about decay prevention.\nYou look for what could still be spoiled after success. A project left undocumented. Food stored poorly. Money left unmanaged. A healed relationship left untended. A restored body left without care. A system with too much confusion around it. An atmosphere where stress and resentment are starting to sour the room.\nWhat has been gathered still needs protection from corruption.\nSupport is not only bearing weight. It is keeping what you bear from spoiling in your hands.",
-        glyph: "Sealed store jar beneath a dry roof",
-        colorFrequency: "Dry straw gold, cedar brown, and protective green",
-        mantra: "I protect what was gathered from quiet decay.",
+            '✨ rmn ẖry sꜣḥ — a modest decanal marker connected by name to the area below Sah/Orion, best described physically as an uncertain star point or small group in the Orion-related night sequence',
+        maatPrinciple: 'Arrival Placed Correctly',
+        cosmicContext: '''
+Arrival is not complete until what arrived is placed.
+
+Day 24 asks for the delivered thing to be set down correctly.
+
+A load may reach the house and still become disorder if it is dropped in the wrong place. Grain must enter storage. A message must reach the right ear. A payment must be recorded. A tool must return to its place. A lesson from the road must be written before it dissolves into fatigue.
+
+This is true for inner journeys too.
+
+A realization must be placed into practice.
+
+A completed conversation must be placed into a new agreement.
+
+A recovered strength must be placed into rhythm.
+
+A boundary carried through pressure must be placed into standard.
+
+Hnsw does not end with motion alone. Movement must become placement. Otherwise arrival becomes clutter.
+
+Today asks what has arrived and where it belongs.
+
+Storage.
+
+Record.
+
+Offering.
+
+Home.
+
+The right hands.
+
+The next plan.
+
+The old load should not remain on the floor of the life, creating new confusion.
+
+A delivered thing becomes useful when it is placed under Ma’at.
+
+The journey reaches order only when arrival is properly housed.
+''',
+        glyph: 'Bundle placed inside a marked storehouse',
+        colorFrequency: 'Storehouse brown, sealed gold, and moon blue',
+        mantra: '“What has arrived must be placed correctly.”',
       ),
       (
         totalDay: 25,
         starCluster:
-            "✨ rmn ḥry sḥ — the supporting arm preserving standard under fatigue, where weight must not be allowed to excuse decline in conduct or craft",
-        maatPrinciple: "Keep the standard while tired",
-        cosmicContext:
-            "Fatigue has its own arguments.\nIt says: “Close enough.” “No one will notice.” “Just this once.” “You’ve earned the shortcut.” “The burden is heavy, so the standard can come down.” But in Kemet, the weight of the work was never treated as permission for sloppiness. In fact, burden made standards more important, because small failures under load spread quickly.\nDay 25 is about line-keeping under strain.\nYou do the task correctly even though you are tired. You speak cleanly even though pressure could excuse sharpness. You finish the detail even though you could get away with leaving it loose. You keep the record accurate even though you would rather be done.\nThis is where support becomes honorable.\nTo hold the standard when the load is heavy is a different kind of strength than inspiration ever gave you.",
-        glyph: "Straight measuring line under a weighted arm",
-        colorFrequency: "Flint gray, bronze, and disciplined gold",
-        mantra: "I do not let heaviness excuse disorder.",
+            '✨ rmn ẖry sꜣḥ — the midpoint phase of this decanal marker, associated by name with the shoulder beneath Sah/Orion; exact modern star identification remains uncertain',
+        maatPrinciple: 'Road Cooled',
+        cosmicContext: '''
+The road leaves heat behind.
+
+Day 25 asks for cooling.
+
+After sustained travel, the heat may remain in speech, movement, expectation, and judgment. The person may continue answering quickly, guarding sharply, deciding from fatigue, or treating every new request as another burden.
+
+That heat must be cooled before the next stage begins.
+
+Otherwise the traveler carries the road into the house.
+
+The work enters the bed.
+
+The irritation enters the meal.
+
+The old pressure enters the new conversation.
+
+The completed burden keeps ruling the body after its time has passed.
+
+Cooling is a sacred act here.
+
+Water.
+
+Bathing.
+
+Silence.
+
+Unhurried breath.
+
+Lowered speech.
+
+A pause before new promises.
+
+Refusal to begin the next passage while still hot from the last one.
+
+The Book of the Heavenly Cow shows the danger of force that is not cooled after its purpose has been fulfilled. Even righteous heat can become destruction if it refuses return to measure.
+
+Today asks where the road is still hot.
+
+Cool it before it becomes the law of the next place.
+''',
+        glyph: 'Water poured over a road and heated feet',
+        colorFrequency: 'Cooling blue, ember red, and evening silver',
+        mantra: '“I cool the road before I enter the next place.”',
       ),
       (
         totalDay: 26,
         starCluster:
-            "✨ rmn ḥry sḥ — the supporting arm extending its strength, where mature bearing includes strengthening others beneath the shared beam",
-        maatPrinciple: "Make the other bearers stronger",
-        cosmicContext:
-            "A harvest carried by only one strong arm remains vulnerable.\nKemet survived through distributed strength. The wise keeper did not merely prove that he could bear more than everyone else. He trained, organized, and strengthened the others so the whole structure could endure. Shared burden without shared development eventually collapses back onto the strongest person until even he begins to fail.\nDay 26 is support multiplied.\nYou do something that strengthens another bearer. Clarify the process. Share knowledge. Build the system. Offer the tool. Teach the timing. Give the rest. Distribute the load with wisdom. Make someone else more capable of holding what belongs to them.\nThis is how burden stops being merely heavy and starts becoming sustainable.\nA mature arm does not only carry. It helps other arms become reliable.",
-        glyph: "Two arms lifted beneath one shared beam",
-        colorFrequency: "Deep bronze, reed green, and teaching gold",
-        mantra: "I strengthen the ones who share the burden.",
+            '✨ rmn ẖry sꜣḥ — a small star marker in the decanal order described relative to Sah/Orion, likely an observed point or modest group below that figure; modern identification is uncertain',
+        maatPrinciple: 'Travel Wear Repaired',
+        cosmicContext: '''
+A journey wears things down.
+
+Day 26 asks for repair.
+
+The road may have delivered its purpose, but the sandals are worn, the jar is cracked, the account is messy, the relationship is strained, the nervous system is thin, or the tool has lost its edge.
+
+If the wear is ignored, the next journey begins already damaged.
+
+This is how small neglect becomes future crisis.
+
+Hnsw asks the traveler to inspect what the road has touched.
+
+What was rubbed raw?
+
+What was bent?
+
+What became loose?
+
+What needs oil, stitching, apology, sharpening, payment, rest, or clarification?
+
+A repaired tool is not a delay. It is preparation for future movement. A repaired relationship is not weakness. It is the restoration of passage. A repaired body is not indulgence. It is respect for the vessel that carried the road.
+
+Today asks for one worn place to be tended before it becomes failure.
+
+Do not only thank the journey.
+
+Repair what the journey cost.
+
+The road should not be allowed to leave hidden damage in the life that must continue after it.
+''',
+        glyph: 'Worn sandal being mended beside a travel staff',
+        colorFrequency: 'Leather brown, repair gold, and moon blue',
+        mantra: '“I repair what the road wore down.”',
       ),
       (
         totalDay: 27,
         starCluster:
-            "✨ rmn ḥry sḥ — the supporting arm tested in thought, where burden must not be allowed to become an excuse for inner collapse",
-        maatPrinciple: "Refuse collapse thinking",
-        cosmicContext:
-            "Strain does not only affect the body. It affects the story you tell.\nUnder prolonged burden, the mind starts whispering: “This is too much.” “Nothing is holding.” “Why even try?” “I’ve earned decline.” “Since the load is heavy, disorder is understandable.” If believed long enough, these thoughts become a second burden heavier than the first.\nKemet did not romanticize despair.\nIt respected weariness, but it still required right relation under load. Day 27 is about rejecting the thought-pattern that turns honest burden into moral permission for bitterness, looseness, or collapse.\nYou can be tired without becoming faithless to the structure.\nYou can be strained without surrendering the standard.\nSometimes the load is real. The extra ruin comes from the story told around it.",
-        glyph: "Upright back beneath a darkened sky",
-        colorFrequency: "Shadow blue, bronze, and stubborn gold",
-        mantra: "The burden is real, but it does not excuse my collapse.",
+            '✨ rmn ẖry sꜣḥ — a modest decanal marker associated with the sky region beneath Sah/Orion in name; exact modern star or cluster identification is uncertain',
+        maatPrinciple: 'Center Recovered',
+        cosmicContext: '''
+A traveler must return to center.
+
+Day 27 asks for reconnection with source.
+
+Movement can become its own appetite. The road, task, exchange, duty, and distance can begin to feel like the whole self. A person may forget why movement began. They may become loyal to motion instead of to the law that movement was meant to serve.
+
+So return is needed.
+
+Home.
+
+Altar.
+
+Body.
+
+Lineage.
+
+Promise.
+
+Name.
+
+Purpose.
+
+The law under which the journey was first entered.
+
+Khonsu travels, but the moon remains in relation to cycle. It does not become random light simply because it moves. The traveler must do the same.
+
+Today asks: what center gives this movement meaning?
+
+Return to the place, person, practice, memory, or law that reminds the path what it serves.
+
+This may be as simple as sitting before the altar, entering the home quietly, speaking to the body with care, remembering the ancestors, or naming the duty without the noise of the road.
+
+Movement without center becomes wandering.
+
+Return to center makes the road meaningful again.
+''',
+        glyph: 'Traveler returning to a house and altar under the moon',
+        colorFrequency: 'Home clay, altar white, and moon silver',
+        mantra: '“I return to what gives the journey meaning.”',
       ),
       (
         totalDay: 28,
         starCluster:
-            "✨ rmn ḥry sḥ — the supporting arm thinking beyond itself, where long-term survival depends on redistributing burden for continuity",
-        maatPrinciple: "Rearrange for endurance",
-        cosmicContext:
-            "Anything that depends on one exhausted person is already unstable.\nIn Kemet, continuity required redistribution. Loads were shifted. Roles were clarified. Stores were repositioned. Labor was assigned in ways that let the harvest survive beyond one body’s peak effort. What was not rearranged in time often failed later from preventable concentration of strain.\nDay 28 is about endurance design.\nYou move something now so it can last. Reassign the task. Simplify the system. Change the container. Improve the flow. Document the process. Adjust the schedule. Move a burden from personality to structure.\nThis is not abandonment of duty.\nIt is mature stewardship. Continuity is one of the highest forms of support.",
-        glyph: "Repositioned jars set evenly across the floor",
-        colorFrequency: "Storehouse brown, balanced gold, and muted green",
-        mantra: "I rearrange the burden so it can endure.",
+            '✨ rmn ẖry sꜣḥ — a decanal star marker described in relation to the area beneath Sah/Orion, physically uncertain but understood as a watched night-sky point or small group in that sequence',
+        maatPrinciple: 'Report Given Truthfully',
+        cosmicContext: '''
+The journey needs a report.
+
+Day 28 asks for truth after movement.
+
+What was carried?
+
+What was delivered?
+
+What was lost?
+
+What was protected?
+
+What was learned?
+
+What remains unresolved?
+
+What did the road cost?
+
+What did the road reveal?
+
+A clean report prevents the next journey from beginning under illusion. It also protects the traveler from false pride and false shame. The point is not to make the passage sound better or worse than it was. The point is to tell the truth so the record can serve Ma’at.
+
+This matters in daily life.
+
+After a project, say what happened.
+
+After a conflict, say what changed.
+
+After a delivery, say what arrived.
+
+After a period of endurance, say what it cost.
+
+After movement through pressure, say what the next stage needs.
+
+A report is not complaint when it is truthful. It is not boasting when it is accurate. It is Djehuty’s work at the end of the road.
+
+Today asks for one honest report.
+
+Let the record be clean enough that future action can trust it.
+''',
+        glyph: 'Travel report written beside a road and moon',
+        colorFrequency: 'Ink black, moon blue, and sealed gold',
+        mantra: '“I report the passage in truth.”',
       ),
       (
         totalDay: 29,
         starCluster:
-            "✨ rmn ḥry sḥ — the supporting arm under self-review, where burden has now shaped the bearer and must be read honestly",
-        maatPrinciple: "Read what the burden has made of you",
-        cosmicContext:
-            "Weight changes a person.\nIt can make him steadier, clearer, stronger, more exact, more patient, more serious in a good way. It can also make him sharp, bitter, self-important, numb, controlling, or inwardly tired beyond truth. Burden is never neutral. It shapes the bearer.\nIn Kemet, wise review mattered because character under load was part of the harvest too.\nDay 29 is honest reading.\nYou ask what this burden has been making of you. Not what you wish it were producing. What it is actually producing. More structure? More resentment? More discipline? More pettiness? More capacity? More harshness? More faithfulness?\nThis is not accusation.\nIt is correction before the shaping hardens permanently.",
-        glyph: "Bearing arm reflected in still water",
-        colorFrequency: "Deep blue, bronze, and truth-gold",
-        mantra: "I read what the weight is shaping in me.",
+            '✨ rmn ẖry sꜣḥ — a modest decanal timing marker described relative to Sah/Orion, best treated as an uncertain star point or small group in the Orion-related night sequence',
+        maatPrinciple: 'Arrival Blessed',
+        cosmicContext: '''
+Safe arrival deserves gratitude.
+
+Day 29 asks for the passage to be blessed.
+
+This gratitude is not only for success. It is for endurance, protection, correction, cooling, helpers, signs, the body that carried, the road that taught, the load that arrived, and the law that kept movement from becoming wandering.
+
+A traveler who does not bless arrival may turn immediately toward the next demand and never let the heart know that a passage was completed.
+
+That creates a life with no thresholds.
+
+Only motion.
+
+Hnsw asks for the threshold to be honored.
+
+Offer water.
+
+Speak thanks.
+
+Rest the feet.
+
+Thank the helper.
+
+Thank the body.
+
+Thank the road.
+
+Thank the moon that kept measure through change.
+
+Thank Ma’at for what remained true while moving.
+
+This is not empty ceremony. It teaches the body and spirit that arrival matters. It marks completion so the next movement does not begin from endless strain.
+
+Today asks for one act of gratitude for safe passage.
+
+What helped you arrive should not be forgotten the moment you stand on new ground.
+''',
+        glyph: 'Offering bowl placed at the end of a road',
+        colorFrequency: 'Offering white, road gold, and moon silver',
+        mantra: '“I bless the passage that brought me here.”',
       ),
       (
         totalDay: 30,
         starCluster:
-            "✨ rmn ḥry sḥ — the mature supporting arm, closing the month with a bearer proven not by display, but by durability, structure, and faithful endurance",
-        maatPrinciple: "Become the steady pillar",
-        cosmicContext:
-            "Hnsw closes with a proof deeper than harvest excitement.\nThe month began with sight: reading the field, choosing the cut, gathering what was ready. It then turned toward burden: lifting, carrying, organizing, enduring, protecting. Now the final question is not whether the harvest happened. It is whether the bearer has become more trustworthy because of it.\nThat is the completion of rmn ḥry sḥ.\nThe supporting arm has had to do more than feel strong. It has had to carry without complaint, strengthen under load, clear the path, share wisely, protect the bearers, reject collapse thinking, and rearrange weight for continuity. What survives that process is not flashy strength. It is durable strength.\nSo Day 30 is not a celebration of drama.\nIt is the sealing of reliability.\nYou enter the next cycle as someone a real burden can now rest on more safely than before. Someone less impressed with the moment of gain and more committed to the steady work that keeps gain from collapsing. Someone closer to pillar than performance.\nThis is how harvest becomes character.",
-        glyph: "Upright pillar beneath the burdened beam",
-        colorFrequency: "Cedar brown, sun-worn bronze, and enduring gold",
-        mantra: "I become steady enough to hold what must last.",
+            '✨ rmn ẖry sꜣḥ — the final star marker of Hnsw’s sequence, described in relation to the shoulder beneath Sah/Orion and best treated as a modest, uncertain decanal point or small group in the night order',
+        maatPrinciple: 'Journey Sealed',
+        cosmicContext: '''
+Day 30 closes Hnsw.
+
+The month began with movement and ends with the journey sealed.
+
+The path was entered. Constraint was measured. Ma’at was placed before motion. The load was named, carried, balanced, cooled, redistributed, honored, recorded, lowered, repaired, and returned to center. The arrival was reported and blessed.
+
+This is the full discipline of right movement.
+
+Movement is not holy because it moves.
+
+Movement is holy when it carries what must be carried without losing truth, damaging the carrier, violating relation, or forgetting the destination.
+
+Hnsw teaches that Ma’at must travel, but it also teaches that every journey must know when to end.
+
+Today asks what should travel onward and what must remain behind.
+
+What lesson belongs to the next season?
+
+What burden is complete?
+
+What road should not be walked again?
+
+What rhythm of movement proved clean?
+
+What center must be remembered before the next path opens?
+
+Khonsu changes shape and still keeps the cycle. The traveler must learn the same law.
+
+The month closes with one clear measure: what moves under Ma’at may continue; what only moves from heat, fear, or appetite must be set down.
+''',
+        glyph: 'Sealed road, moon, and lowered shoulder bundle',
+        colorFrequency: 'Moon silver, night blue, road gold, and sealed black',
+        mantra:
+            '“What must continue travels in Ma’at; what must end is set down.”',
       ),
     ],
   );
 }
 
 Map<String, KemeticDayInfo> _buildHentiHetIEntries() {
-  const season = "☀️ Shemu – Season of Harvest";
-  const month =
-      "Ḥenti-ḥet (Ḥnt-ḥtj) — the month of what stands at the fore, where what has been carried through harvest must now be brought forward, positioned correctly, and made ready to lead the next phase";
+  const season = '☀️ Shemu – Season of Harvest';
+  const month = 'Ḥenti-ḥet (Ḥnt-ḥtj) — Foremost of Offerings';
   return _buildGeneratedDecanEntries(
-    keyPrefix: "henti",
+    keyPrefix: 'henti',
     decan: 1,
-    decanLabel: "Ḥenti-ḥet I",
-    monthLabelForDate: "Ḥenti-ḥet",
+    decanLabel: 'Ḥenti-ḥet I',
+    monthLabelForDate: 'Ḥenti-ḥet',
     month: month,
     season: season,
+    decanName: 'ḥr-sꜣḥ',
+    kemeticDateBuilder: (totalDay, _) => 'Ḥenti-ḥet I, Day $totalDay',
     flowRows: _hentiHetOverrideIFlowRows,
     entries: [
       (
         totalDay: 1,
         starCluster:
-            "✨ ḥr-sḥ — that which stands before the store and before the house: the front-facing force of placement, visibility, readiness, and what must now be brought into proper position",
-        maatPrinciple: "Bring the right thing forward",
-        cosmicContext:
-            "Ḥenti-ḥet begins with placement.\nIn Kemet, not everything gathered remained in the background. Once the harvest had been cut, carried, and stabilized, some things had to be brought forward: what would be used first, what would lead the next labor, what must stand visible, what had to be presented, and what could no longer remain buried in storage or delay.\nThat is the work of ḥr-sḥ.\nThis decan is about what stands in front. Not front as vanity. Front as function. The front item is the one nearest use, nearest duty, nearest inspection, nearest responsibility. It is what must now be faced directly.\nSo Day 1 asks you to identify what in your life needs to come forward.\nA task, a truth, a decision, a role, a repair, a conversation, a system, a burden, a gift. Something is ready to leave the back row. Something can no longer stay hidden in later.\nShemu matures when what is ready is brought into right position.",
-        glyph: "Forward-set vessel before the storehouse threshold",
-        colorFrequency: "Sunlit gold, threshold black, and ordered clay",
-        mantra: "I bring forward what is ready to stand in truth.",
+            '✨ ḥr-sꜣḥ — a decanal star marker described in relation to Sah/Orion; exact modern identification is uncertain, but it is best understood physically as a star or small group observed near the Orion region in the night sequence',
+        maatPrinciple: 'Watch Established',
+        cosmicContext: '''
+Ḥenti-ḥet begins after the harvest has been received, divided, guarded, and stored.
+
+Now abundance must be watched.
+
+This is the work of ḥr-sꜣḥ: Heru upon Sah. Sah carries the memory of restored endurance. Heru stands above it as rightful authority, not as appetite. The image is one of vigilance placed upon a restored foundation.
+
+Day 1 asks for the store to be inspected.
+
+What has been gathered?
+
+What has been entrusted?
+
+What has survived the previous months?
+
+What is now under protection?
+
+This may be money, food, tools, reputation, a project, a relationship, health, a body of knowledge, a household rhythm, or a restored part of the self.
+
+The danger after receiving is assuming that what has been gathered is already safe. It is not. Grain can spoil. Records can blur. Boundaries can weaken. Power can become careless once the threat seems distant.
+
+Heru’s authority matters here because rightful power must watch what restoration has made possible.
+
+Today asks for a first act of vigilance.
+
+Not fear.
+
+Not suspicion.
+
+Watchfulness.
+
+What has been placed in your keeping should be seen clearly before the heat of the month tests it.
+''',
+        glyph: 'Falcon standing above a restored pillar and sealed grain',
+        colorFrequency: 'Solar gold, deep blue, and stored grain brown',
+        mantra: '“I stand watch over what has been restored.”',
       ),
       (
         totalDay: 2,
         starCluster:
-            "✨ ḥr-sḥ — the forward-set form under arrangement, where what matters must be placed where it can actually serve",
-        maatPrinciple: "Put it where it belongs",
-        cosmicContext:
-            "What is forward but badly placed still creates disorder.\nIn Kemet, objects, offerings, tools, records, and stores were not only gathered; they were arranged. The thing needed first had to stand where the hand could reach it. What was for later was kept back. What was sacred was placed correctly. What was central had to occupy the proper position or the whole sequence of use became confused.\nDay 2 is placement under intelligence.\nYou do not merely admit what belongs in front. You set it there. A file moved to the top. A conversation scheduled. A repair given its slot. A role accepted openly. A health matter brought into direct care. A financial truth placed where it cannot be ignored.\nTo know the priority and still leave it buried is just a gentler form of avoidance.\nRight position is one of the hidden laws of Ma’at.",
-        glyph: "Ordered row at the front of the chamber",
-        colorFrequency: "Reed green, pale gold, and storage brown",
-        mantra: "I place the important thing where it can truly be used.",
+            '✨ ḥr-sꜣḥ — a modest decanal marker associated by name with Heru and Sah/Orion, physically described as an uncertain star point or small group near the Orion star field',
+        maatPrinciple: 'Authority Named',
+        cosmicContext: '''
+Vigilance requires knowing who is responsible.
+
+Day 2 asks for authority to be named.
+
+This is not authority as domination. It is authority as duty. Someone must watch the storehouse. Someone must keep the record. Someone must protect the boundary. Someone must cool the heat before it spreads. Someone must know what power has been placed in their hands.
+
+When authority is not named, responsibility becomes vague.
+
+Vagueness becomes disorder.
+
+One person assumes another will protect the account. One part of the self assumes another part will hold the standard. A household drifts because no one names who carries the watch. A project weakens because every role is implied and nothing is held.
+
+Heru’s claim matters because rightful authority had to be distinguished from possession. Set had force. Heru had the lawful claim. The difference was not strength alone. The difference was Ma’at.
+
+Today asks what authority is being held.
+
+What role is yours?
+
+What duty is yours?
+
+What power must be governed through you?
+
+What are you not allowed to misuse?
+
+Authority becomes clean when it is named as service.
+
+Power without named duty becomes heat waiting for an excuse.
+''',
+        glyph: 'Falcon standard beside a written duty mark',
+        colorFrequency: 'Royal gold, ink black, and clear blue',
+        mantra: '“My authority is duty under Ma’at.”',
       ),
       (
         totalDay: 3,
         starCluster:
-            "✨ ḥr-sḥ — the front space under protection, where what matters cannot take its place until lesser clutter is removed",
-        maatPrinciple: "Make room at the front",
-        cosmicContext:
-            "Nothing rightful can stand in front if the front is already crowded with nonsense.\nIn Kemet, before something important could be set in place, the area had to be cleared. Not everything could occupy the threshold. Not every object belonged near the hand. Not every matter deserved the foreground. Disorder at the front created confusion in action, sequence, and reverence.\nDay 3 is subtraction.\nYou remove what has been occupying the front falsely: noise, shallow urgency, cluttered schedules, ego tasks, digital distraction, emotional static, performative busyness, inherited confusion, or some smaller obligation that keeps hiding the larger one.\nThis is not empty tidiness.\nIt is preparation for right prominence.\nWhat matters cannot lead your life if irrelevance keeps standing in front of it.",
-        glyph: "Swept threshold before the leading vessel",
-        colorFrequency: "Dust beige, black stone, and clarifying gold",
-        mantra: "I clear the front so the right thing can stand there.",
+            '✨ ḥr-sꜣḥ — a star marker in the decanal sequence described relative to Sah/Orion; modern identification remains uncertain, so it should be treated as a small watched point or group in that sky region',
+        maatPrinciple: 'Protection Without Possession',
+        cosmicContext: '''
+Guarding can become grasping.
+
+Day 3 asks for the difference.
+
+Something valuable has been restored. A resource has arrived. A boundary has been rebuilt. A name has been cleaned. A relationship has survived. A body has recovered. A system has begun to hold.
+
+It deserves protection.
+
+But protection loses Ma’at when the hand closes too hard.
+
+A storehouse must be guarded, but grain cannot become an idol. A boundary must be defended, but not turned into cruelty. A relationship must be protected, but not possessed. A project must be stewarded, but not controlled until it cannot breathe.
+
+Heru protects the restored order of Ausar. He does not become righteous by hoarding power for its own sake. His authority serves the restoration of relation.
+
+Today asks where guarding may be turning into control.
+
+What needs protection?
+
+What needs room?
+
+What is being held because it is sacred?
+
+What is being clutched because fear has entered the hand?
+
+Protection under Ma’at keeps life able to continue.
+
+Possession freezes life around the fear of losing it.
+
+Today asks for a guarded hand, not a clenched one.
+''',
+        glyph: 'Open guarding hand before a sealed storehouse',
+        colorFrequency: 'Protective gold, granary brown, and calm blue',
+        mantra: '“I guard without grasping.”',
       ),
       (
         totalDay: 4,
         starCluster:
-            "✨ ḥr-sḥ — the forefront under courage, where the first thing must be faced before easier things steal the day",
-        maatPrinciple: "Face what is first",
-        cosmicContext:
-            "There is always something easier waiting to help you avoid the real first thing.\nThat is why this decan exists. In Kemet, order required sequence. The first matter had to be handled first, not replaced by more pleasant, more flattering, or more instantly rewarding tasks. To let the smaller thing go first because it felt better was not harmless. It disturbed the whole line of work.\nDay 4 is for direct encounter.\nYou face what belongs in front before you let the day scatter you. The hard talk. The financial truth. The leading task. The health step. The decision. The repair. The preparation. The role you must now stand in.\nSome things do not need more contemplation. They need your presence.\nMa’at often advances not when everything is solved, but when the true first thing is finally faced.",
-        glyph: "Figure standing before the first offering",
-        colorFrequency: "Flint brown, temple gold, and resolved green",
-        mantra: "I face what must come first.",
+            '✨ ḥr-sꜣḥ — an uncertain decanal star point or small group associated with the Sah/Orion region, observed as part of the night-time sequence',
+        maatPrinciple: 'Heat Inspected',
+        cosmicContext: '''
+Stored power creates heat.
+
+Day 4 asks for that heat to be inspected.
+
+After the harvest, there is more to guard. More to manage. More to lose. More to distribute. More reason for pride, fear, irritation, or control to rise.
+
+Heat may appear in the body.
+
+In the mouth.
+
+In the account.
+
+In the household.
+
+In the person who thinks they now have the right to command because they carried the last season.
+
+In the fear that the storehouse will empty.
+
+In the urge to punish anyone who threatens what has been gathered.
+
+This heat must be seen early.
+
+The Book of the Heavenly Cow gives the warning: force sent to correct disorder can exceed its purpose if it is not cooled and recalled. The Eye that protects can become devastation when measure is lost.
+
+Today asks where force is beginning to exceed purpose.
+
+Where is the tone too sharp?
+
+Where is vigilance becoming suspicion?
+
+Where is pressure building under the name of protection?
+
+Where is pride using responsibility as cover?
+
+Heat inspected early can still be cooled.
+
+Heat ignored becomes ruler.
+''',
+        glyph: 'Eye of Ra watched above a heated storehouse',
+        colorFrequency: 'Hot red, solar gold, and cooling blue',
+        mantra: '“I see the heat before it rules the hand.”',
       ),
       (
         totalDay: 5,
         starCluster:
-            "✨ ḥr-sḥ — the leading form brought into clean visibility, where what matters must be presented clearly enough to be handled",
-        maatPrinciple: "Make it plain",
-        cosmicContext:
-            "A thing can be important and still remain unusable if it stays vague.\nIn Kemet, whatever stood at the front had to be clear. Measured, named, arranged, visible, and in a form fit for action. Confusion at the forefront wasted time, weakened judgment, and invited delay under the disguise of uncertainty.\nDay 5 is about clean presentation.\nYou take what matters and make it plain. Clarify the ask. Write the next steps. Organize the materials. Clean up the wording. State the role. Lay out the numbers. Put the issue into a form that can actually be handled.\nMany burdens feel heavier than they are because they remain cloudy.\nWhat is clearly presented becomes easier to judge, easier to move, and harder to hide from.",
-        glyph: "Named tablet before the open hand",
-        colorFrequency: "Papyrus tan, black ink, and bright gold",
-        mantra: "I make the important thing clear enough to be used.",
+            '✨ ḥr-sꜣḥ — the midpoint phase of this decanal marker, described in relation to Sah/Orion and best treated as a modest, uncertain star point or small group in that region',
+        maatPrinciple: 'Force Cooled',
+        cosmicContext: '''
+The middle of this decan belongs to cooling.
+
+Day 5 asks for the hand to soften before force damages what it means to protect.
+
+This is not surrender.
+
+It is the discipline of proportion.
+
+A sharp command may be lowered into clear speech. A demand may become a measured request. A pace may be reduced. A grip may be opened. A punishment may become correction. A heated decision may wait until the heart can see again.
+
+In Ḥenti-ḥet, offering and peace stand close together. Hotep is not empty stillness. It is satisfaction after what is due has been placed correctly. But nothing settles while the hand is burning.
+
+Today asks what must be cooled.
+
+A conversation.
+
+A plan.
+
+A reaction.
+
+A body.
+
+An expectation.
+
+A desire to prove authority.
+
+A fear that turns every uncertainty into threat.
+
+The force may still be needed. But it must return to purpose before it acts.
+
+Even divine power must be recalled when its work is complete.
+
+Today asks for one heated force to be cooled enough to serve Ma’at again.
+''',
+        glyph: 'Water poured over a raised hand',
+        colorFrequency: 'Cooling blue, solar gold, and softened red',
+        mantra: '“I cool my force so it can serve.”',
       ),
       (
         totalDay: 6,
         starCluster:
-            "✨ ḥr-sḥ — the front rank under governance, where the day must now obey true priority instead of noise",
-        maatPrinciple: "Let the first thing lead",
-        cosmicContext:
-            "Once the right thing stands in front, the rest of the day must answer to it.\nThis is where many people lose the order they briefly established. They identify the true priority, set it forward, clear space for it — then let interruption, convenience, mood, digital noise, or ego appetite quietly take command again. In Kemet, first place was not symbolic. It was functional. What stood first governed sequence.\nDay 6 is about obedience to what you already know is first.\nYou let priority lead the schedule, the energy, the decisions, the speech, the movement of the day. You do not ask every lesser matter for permission. You do not let the noisy thing dethrone the necessary thing.\nLeadership in the life begins with what is allowed to stand in front longest.",
-        glyph: "Leading vessel before the procession line",
-        colorFrequency: "Processional gold, dark stone, and governing green",
-        mantra: "I let what is first actually lead.",
+            '✨ ḥr-sꜣḥ — a decanal star marker linked by name to Heru upon Sah/Orion, with exact modern identification uncertain and best described as a small observed point or group near the Orion figure',
+        maatPrinciple: 'Rightful Claim Protected',
+        cosmicContext: '''
+Some things must be defended.
+
+Day 6 asks for protection of the rightful claim.
+
+This is not the same as grasping. It is not appetite. It is not domination. It is the defense of what belongs in Ma’at: a name cleaned by truth, a boundary established after harm, a resource needed for the household, a position earned through responsibility, a promise that must be honored, a vulnerable place that should not be exposed.
+
+Heru’s claim to the throne was not vanity. It was the restoration of rightful order after violation. If force alone ruled, the throne would become possession. If rightful succession was protected, the world could stand again in Ma’at.
+
+Today asks what must be defended because it is rightful.
+
+Do not abandon the claim out of fatigue.
+
+Do not corrupt the claim through cruelty.
+
+Stand where standing is required.
+
+Say the clear word.
+
+Hold the boundary.
+
+Protect the resource.
+
+Keep the record.
+
+Defend the restored order without becoming the disorder that threatens it.
+
+Power under Ma’at is not ashamed to protect.
+
+It is ashamed only when protection becomes appetite.
+''',
+        glyph: 'Falcon guarding a throne and boundary marker',
+        colorFrequency: 'Royal gold, protective black, and field green',
+        mantra: '“I protect what belongs in Ma’at.”',
       ),
       (
         totalDay: 7,
         starCluster:
-            "✨ ḥr-sḥ — the one who stands before, where true leading begins with staying present before responsibility",
-        maatPrinciple: "Hold your place before it",
-        cosmicContext:
-            "Bringing something forward is one thing. Remaining before it is another.\nA person can name the priority and still drift from it once discomfort begins. He can bring a truth forward and then hurry past it. He can set the right thing first and still lose his place when pressure, emotion, or impatience rises.\nIn Kemet, presence mattered. To stand before a duty meant staying there long enough for it to be honored, measured, and fulfilled.\nDay 7 is not about motion. It is about stance.\nYou remain before what matters. Without fleeing into distraction. Without dramatizing the weight. Without rushing just to escape the discomfort of clear confrontation.\nSteadiness before the first thing is itself a form of power.",
-        glyph: "Upright figure before the threshold",
-        colorFrequency: "Black stone, pale gold, and composed green",
-        mantra: "I remain before what matters.",
+            '✨ ḥr-sꜣḥ — a modest decanal marker associated with the Sah/Orion star field by name; physically uncertain, likely a watched point or small group in the Orion-related night sequence',
+        maatPrinciple: 'Appetite in Power Refused',
+        cosmicContext: '''
+Power reveals appetite.
+
+Day 7 asks where authority still wants more than its rightful portion.
+
+This can be subtle. The person protecting the storehouse begins to feel entitled to the storehouse. The one who carried responsibility begins to believe every decision should answer to them. The boundary meant to preserve life becomes a way to control movement. The strength that defended Ma’at begins to enjoy being feared.
+
+This is where power becomes dangerous.
+
+Set is not only outside the gate. Set-like disorder can enter the one guarding the gate if force begins serving itself.
+
+Today asks for appetite inside authority to be named.
+
+Where does protection want to become possession?
+
+Where does responsibility want to become superiority?
+
+Where does the hand want more because it has already held much?
+
+Where is the desire to punish pretending to be justice?
+
+Where is control pretending to be care?
+
+Heru’s authority remains righteous only while it serves the restored order. The moment power feeds itself, it begins to leave Ma’at.
+
+Today asks for appetite to be refused before it wears the crown.
+''',
+        glyph: 'Closed mouth before a throne and measured grain',
+        colorFrequency: 'Restrained gold, shadow red, and deep blue',
+        mantra: '“Power is not permission to take more.”',
       ),
       (
         totalDay: 8,
         starCluster:
-            "✨ ḥr-sḥ — the forward thing under refinement, where what stands in front must be made fit for the work it is about to lead",
-        maatPrinciple: "Ready what is in front",
-        cosmicContext:
-            "Prominence without readiness is another form of disorder.\nSomething may now be rightly in front, but that does not mean it is fully prepared. In Kemet, what stood nearest use still had to be cleaned, ordered, checked, measured, repaired, or refined so it could actually perform its function well.\nDay 8 is preparation after emergence.\nYou ready what has been brought forward. Tighten the language. Repair the tool. Clarify the process. Organize the materials. Strengthen the body. Polish the proposal. Confirm the plan. Remove the confusion that would embarrass the front line once real use begins.\nThe front does not only need courage.\nIt needs readiness.",
-        glyph: "Prepared vessel set before the open hand",
-        colorFrequency: "Bright gold, warm clay, and use-green",
-        mantra: "I make ready what now stands in front.",
+            '✨ ḥr-sꜣḥ — a star marker in the decanal order described relative to Heru and Sah/Orion; modern astronomical match remains uncertain',
+        maatPrinciple: 'Force Returned to Purpose',
+        cosmicContext: '''
+Strength must be returned to purpose.
+
+Day 8 asks where force should now serve.
+
+A heated system cannot stay hot forever. A guarding hand cannot remain raised without exhausting the body. A correction cannot remain active after the thing has been corrected. A boundary cannot become the whole life.
+
+Force must return to its reason.
+
+Protection.
+
+Repair.
+
+Offering.
+
+Stabilization.
+
+Clarifying the record.
+
+Sheltering the vulnerable.
+
+Cooling the room.
+
+Restoring the relation.
+
+This is the movement from vigilance toward hotep. The offering is placed, the due portion is returned, the relation settles. Peace is not reached by pretending force was never needed. Peace is reached when force has fulfilled its purpose and returns to measure.
+
+Today asks for strength to be redirected.
+
+What should your power serve now?
+
+What action would protect without escalating?
+
+What repair would make the system safer?
+
+What offering would settle the relation?
+
+What correction would reduce future heat?
+
+A force that cannot return to purpose becomes another threat.
+
+A force governed by Ma’at becomes protection that can rest when its work is done.
+''',
+        glyph: 'Raised arm lowering into offering hands',
+        colorFrequency: 'Solar gold, altar white, and cooling blue',
+        mantra: '“My strength returns to its purpose.”',
       ),
       (
         totalDay: 9,
         starCluster:
-            "✨ ḥr-sḥ — the fore-position under review, where the line of prominence must be checked for truth",
-        maatPrinciple: "Check the order again",
-        cosmicContext:
-            "Even after correction, false priorities try to creep forward again.\nThat is why order must be reviewed. In Kemet, arrangement was not set once and forgotten. Things shifted. New conditions emerged. Objects got misplaced. Lesser matters drifted into central space. The keeper had to look again.\nDay 9 is second inspection.\nYou ask whether the true first thing is still first. Or whether noise has reoccupied the threshold. Has busyness returned to the front? Has vanity stolen place? Has fear hidden the real matter again? Has comfort displaced duty? Has convenience moved ahead of necessity?\nRight order is maintained through repeated honest checking.\nWhat belongs in front should still be standing there.",
-        glyph: "Front row checked by the measuring line",
-        colorFrequency: "Ink black, threshold gold, and corrective brown",
-        mantra: "I verify that the right thing still stands in front.",
+            '✨ ḥr-sꜣḥ — a modest decanal timing marker linked by name to Sah/Orion, physically best treated as an uncertain watched point or small group near that sky region',
+        maatPrinciple: 'Watch Recorded',
+        cosmicContext: '''
+A watch without record fades.
+
+Day 9 asks for the vigilance to be written.
+
+What was protected?
+
+What was threatened?
+
+What became heated?
+
+What was cooled?
+
+What rightful claim was defended?
+
+Where did appetite try to enter authority?
+
+What correction worked?
+
+What still needs watchfulness?
+
+This record matters because power easily rewrites its own story. It remembers its protection and forgets its excess. It remembers the threat and forgets the heat of its own response. It remembers what it guarded and forgets what it damaged while guarding.
+
+Djehuty must stand beside Heru here.
+
+Authority needs record. Watchfulness needs witness. The protector must also be accountable.
+
+Today asks for a clean account of the watch.
+
+Not a heroic story.
+
+Not an accusation.
+
+A record.
+
+What happened under your authority?
+
+Where did Ma’at hold?
+
+Where did force require cooling?
+
+A truthful record keeps vigilance from becoming self-justifying power.
+
+What is watched should also be accountable.
+''',
+        glyph: 'Reed pen beside falcon and watchtower',
+        colorFrequency: 'Ink black, solar gold, and night blue',
+        mantra: '“I record the watch in truth.”',
       ),
       (
         totalDay: 10,
         starCluster:
-            "✨ ḥr-sḥ — the foreground established, closing the first decan with a cleaner line of leadership, readiness, and rightful prominence",
-        maatPrinciple: "Seal the front line",
-        cosmicContext:
-            "The first decan closes with order at the threshold.\nSomething has been brought forward, positioned, cleared around, faced, clarified, obeyed, stood before, prepared, and checked. That is not a small thing. Most disorder persists because the front line remains confused. The real first thing never gets its place, so the whole life leans crooked.\nḤenti-ḥet corrects that.\nDay 10 is about sealing the foreground. You recognize what now properly stands nearest action, nearest duty, nearest visibility, nearest use. You also recognize what has no right to lead you anymore.\nThis is not merely productivity.\nIt is moral arrangement. What is foremost in a life reveals its true structure.\nYou close this decan by naming the new front line clearly.\nWhat now belongs at the threshold of your days?",
-        glyph: "Leading vessel fixed at the threshold",
-        colorFrequency: "Temple gold, black stone, and settled green",
-        mantra: "I seal the right thing at the front of my life.",
+            '✨ ḥr-sꜣḥ — the first star marker of Ḥenti-ḥet’s sequence, associated by name with Heru upon Sah/Orion and best treated as a modest, uncertain decanal point or group in the Orion-related sky order',
+        maatPrinciple: 'Watchful Authority Sealed',
+        cosmicContext: '''
+Day 10 seals the first watch of Ḥenti-ḥet.
+
+The store was inspected. Authority was named. Protection was separated from possession. Heat was seen and cooled. The rightful claim was defended. Appetite inside power was refused. Force was returned to purpose. The watch was recorded.
+
+This is watchful authority.
+
+Not domination.
+
+Not fear.
+
+Not endless control.
+
+Authority held in answer to Ma’at.
+
+The decan closes by asking how power will remain protective without becoming its own danger.
+
+What must you continue watching?
+
+What force must stay cooled?
+
+What boundary must remain?
+
+What appetite must not be allowed to wear the crown?
+
+What record will keep the watch accountable?
+
+Ḥenti-ḥet stands near offering because power must eventually return what it holds. The storehouse exists to feed relation, not to glorify the guard. The throne exists to uphold Ma’at, not to satisfy possession.
+
+Today asks for authority to be sealed as service.
+
+Where power protects, measures, records, and returns to purpose, Ma’at holds.
+
+Where power forgets its purpose, heat begins again.
+''',
+        glyph: 'Falcon, sealed record, and cooled solar eye',
+        colorFrequency: 'Solar gold, cooling blue, ink black, and altar white',
+        mantra: '“I hold power as protection, not possession.”',
       ),
     ],
   );
@@ -2100,8 +6207,7 @@ Map<String, KemeticDayInfo> _buildHentiHetIEntries() {
 
 Map<String, KemeticDayInfo> _buildHentiHetIIEntries() {
   const season = "☀️ Shemu – Season of Harvest";
-  const month =
-      "Ḥenti-ḥet (Ḥnt-ḥtj) — the month of what stands at the fore, where what has been carried through harvest must now be brought forward, positioned correctly, and made ready to lead the next phase";
+  const month = "Ḥenti-ḥet (Ḥnt-ḥtj) — Foremost of Offerings";
   return _buildGeneratedDecanEntries(
     keyPrefix: "henti",
     decan: 2,
@@ -2109,117 +6215,452 @@ Map<String, KemeticDayInfo> _buildHentiHetIIEntries() {
     monthLabelForDate: "Ḥenti-ḥet",
     month: month,
     season: season,
+    decanName: "ḥry-ib ḥr-sꜣḥ",
+    kemeticDateBuilder: (totalDay, _) => "Ḥenti-ḥet II, Day $totalDay",
     flowRows: _hentiHetOverrideIIFlowRows,
     entries: [
       (
         totalDay: 11,
         starCluster:
-            "✨ ḥry-ib ḥr-sḥ — the forefront drawn inward, where priority is no longer only about outer placement, but about what truly holds first place inside the heart, the mind, and the governing center",
-        maatPrinciple: "Bring the front line into the heart",
-        cosmicContext:
-            "The first decan taught outer arrangement.\nThe second asks a harder question: what is actually first inside you?\nIn Kemet, correct placement in the outer world mattered, but it was never enough by itself. A person could set the right thing in front outwardly and still let fear, vanity, comfort, resentment, distraction, or appetite rule inwardly. In that case the order would not hold. The front line would collapse the moment pressure rose, because the heart had never truly agreed with the arrangement.\nThat is the work of ḥry-ib ḥr-sḥ.\nThis decan turns priority inward. It asks whether what you have brought forward in life has actually been granted first place within your motives, loyalties, reactions, and private decisions. Not what you say matters. Not what your calendar claims matters. What your inward life is actually obeying.\nSo Day 11 begins with inward honesty.\nWhat holds first place in you right now? Duty, truth, repair, devotion, stewardship, clean work — or comfort, image, delay, and emotional drift?\nIf the front line is not established in the heart, it will not hold in the world.",
-        glyph: "Foreground vessel set within the heart-space",
-        colorFrequency: "Deep blue, black stone, and inward gold",
-        mantra: "I place first within what must lead without.",
+            "✨ ḥry-ib ḥr-sꜣḥ — the heart phase of the Heru-upon-Sah decanal sequence; a modest star marker described in relation to Sah/Orion, with exact modern identification uncertain",
+        maatPrinciple: "Power Brought to the Heart",
+        cosmicContext: '''
+The first decan established the watch.
+
+The second brings power to the heart.
+
+This is the work of ḥry-ib ḥr-sꜣḥ: the heart of Heru upon Sah. Authority has already been named. The store has been inspected. Heat has been seen. Now power must be weighed inwardly before it moves outwardly.
+
+This is where true restraint begins.
+
+Not weakness.
+
+Not refusal to act.
+
+Restraint is the heart standing between force and consequence.
+
+A person may be right and still act wrongly. A boundary may be needed and still be enforced with excess. A truth may need to be spoken and still be spoken with unnecessary heat. A rightful claim may need defense and still be corrupted by pride.
+
+Day 11 asks for power to pause.
+
+What force is moving?
+
+Anger.
+
+Protection.
+
+Fear.
+
+Authority.
+
+Desire.
+
+Urgency.
+
+Grief.
+
+The heart must know the force before the hand obeys it.
+
+Heru’s authority remains righteous because it answers to Ma’at. Power that refuses the heart begins to resemble the disorder it claims to oppose.
+
+Today asks for force to enter judgment before action.
+''',
+        glyph: "Heart held before a falcon standard",
+        colorFrequency: "Royal gold, deep blue, and cooled red",
+        mantra: "“My power enters the heart before it acts.”",
       ),
       (
         totalDay: 12,
         starCluster:
-            "✨ ḥry-ib ḥr-sḥ — inward priority under challenge, where hidden loyalties and appetites try to take first place without announcing themselves",
-        maatPrinciple: "Name the hidden rival",
-        cosmicContext:
-            "The true enemy of order is often not open rebellion, but quiet rivalry.\nA person says duty is first, but comfort leads. Says truth is first, but reputation leads. Says the work is first, but distraction leads. Says the family is first, but ego injury leads. Says healing is first, but appetite keeps taking the better seat.\nKemet understood this inward contest.\nWhat sits in front of the heart shapes what eventually sits in front of the life. That is why this day is about exposing the rival. You do not just name the noble priority. You name what keeps competing with it in secret.\nFear. Vanity. Laziness. Bitterness. Fantasy. Emotional indulgence. Need for praise. Compulsive motion.\nThe hidden rival must be named before the rightful leader can truly hold its place.",
-        glyph: "Two figures before one threshold, one in shadow",
-        colorFrequency: "Shadow blue, muted bronze, and warning gold",
-        mantra: "I name what competes with what should lead.",
+            "✨ ḥry-ib ḥr-sꜣḥ — a small or modest decanal marker associated by name with the heart of Heru upon Sah/Orion; modern star-cluster identification remains uncertain",
+        maatPrinciple: "Fire Named",
+        cosmicContext: '''
+Heat becomes more dangerous when it is unnamed.
+
+Day 12 asks for the fire to be identified.
+
+The surface may say anger. Underneath may be fear. The surface may say discipline. Underneath may be control. The surface may say justice. Underneath may be humiliation waiting for permission. The surface may say protection. Underneath may be old pain defending itself before the present has even spoken.
+
+This day does not condemn the fire.
+
+Fire has purpose.
+
+It can defend the vulnerable, burn away rot, warm what is cold, and give courage where softness alone cannot stand. But fire must be known by name before it can be placed.
+
+The Eye of Ra teaches this danger clearly. Solar power can protect order, but when heat exceeds its purpose, correction becomes devastation.
+
+Today asks: what is truly burning?
+
+Anger.
+
+Fear.
+
+Pride.
+
+Exhaustion.
+
+Desire for control.
+
+Grief that has not been honored.
+
+A rightful protective force.
+
+Name it before acting.
+
+What is named can be governed. What remains hidden may govern the hand while pretending to serve Ma’at.
+''',
+        glyph: "Small flame beneath a watchful eye",
+        colorFrequency: "Ember red, solar gold, and shadow blue",
+        mantra: "“I name the fire before I feed it.”",
       ),
       (
         totalDay: 13,
         starCluster:
-            "✨ ḥry-ib ḥr-sḥ — the inward forefront brought back into alignment, where the heart is reordered so the true first thing governs again",
-        maatPrinciple: "Restore the inward order",
-        cosmicContext:
-            "Once the false front is seen, it must be displaced.\nIt is not enough to notice inward disorder and then continue living under it. In Kemet, correction was practical. If something had moved out of proper position, it was put back. If the wrong thing had taken precedence, the line was reset. Order did not return by wish. It returned by deliberate re-placement.\nDay 13 is a day of inner rearrangement.\nYou choose one part of your inward life and bring it back under correct rule. The morning. The spending. The tone of your speech. The way you respond to stress. The use of your private time. The first thought you obey. The desire that keeps deciding too much.\nPriority becomes real when it enters habit.\nThe heart’s order is rebuilt one corrected placement at a time.",
-        glyph: "Reset vessel moved back to the front row",
-        colorFrequency: "Reed green, black stone, and corrective gold",
-        mantra: "I return the right thing to first place within.",
+            "✨ ḥry-ib ḥr-sꜣḥ — a decanal star point or small group described relative to Sah/Orion, physically uncertain but treated as part of the observed night sequence",
+        maatPrinciple: "Intention Purified",
+        cosmicContext: '''
+Force must know whom it serves.
+
+Day 13 asks for intention to be purified.
+
+A person can act with strength and still carry a crooked motive. A correction may be needed, but if the hidden purpose is to punish, the correction becomes distorted. A boundary may be righteous, but if the hidden purpose is to control, the boundary becomes possession. A defense may be necessary, but if the hidden purpose is pride, the defense begins serving the self more than Ma’at.
+
+This is the inner purification of power.
+
+Before the hand moves, the heart must ask:
+
+Does this serve protection?
+
+Does this serve repair?
+
+Does this serve truth?
+
+Does this serve offering?
+
+Does this serve the restoration of right relation?
+
+Or does it serve ego, fear, revenge, display, appetite, or the need to dominate?
+
+Ḥenti-ḥet is Foremost of Offerings. That matters here. Power must eventually be able to return something to relation. If the force cannot become offering, it may not be clean yet.
+
+Today asks for one intention to be purified before action.
+
+What does this power truly serve?
+
+Only the force that serves Ma’at should be allowed to lead.
+''',
+        glyph: "Flame placed before the feather of Ma’at",
+        colorFrequency: "White feather, ember red, and clear gold",
+        mantra: "“My force must serve Ma’at, not appetite.”",
       ),
       (
         totalDay: 14,
         starCluster:
-            "✨ ḥry-ib ḥr-sḥ — inward order rejecting illusion, where false urgency and emotional weather are denied the place of true priority",
-        maatPrinciple: "Refuse what only pretends to be first",
-        cosmicContext:
-            "Some things feel first because they are loud, not because they are rightful.\nA mood rises. A message arrives. A fear flares. A small irritation swells. A shiny task flatters the ego. A private discomfort demands relief. Suddenly the whole inner world reorganizes itself around what is merely noisy.\nKemet required stricter judgment than that.\nThe foremost thing was not whatever shouted loudest. It was what was rightful, necessary, and ordered to life. Day 14 asks you to stop confusing intensity with importance.\nYou refuse the false front. Not by force alone, but by recognition. You see that some things have been occupying the doorway of your inner life without any authority to do so.\nWhat is loud is not always what is first.",
-        glyph: "Closed gate before the false claimant",
-        colorFrequency: "Dark blue, threshold black, and severe gold",
-        mantra: "I do not let noise impersonate what is first.",
+            "✨ ḥry-ib ḥr-sꜣḥ — a modest decanal marker linked by name to Heru and Sah/Orion; exact physical identification with a modern star group is uncertain",
+        maatPrinciple: "Flame Sweetened",
+        cosmicContext: '''
+Some fire must be sweetened before it can serve.
+
+Day 14 asks for the heat to be returned to measure.
+
+This is not the extinguishing of rightful strength. It is the transformation of heat so it can enter relation without destroying what it touches.
+
+A hard sentence may become clear speech.
+
+A raised voice may become a firm boundary.
+
+A frantic answer may become silence until the heart settles.
+
+A demand may become a measured request.
+
+A punishment may become correction.
+
+A clenched body may receive water, breath, shade, or rest.
+
+In the story of the Eye, red beer cools the goddess before destruction exceeds its purpose. The heat is not denied. It is redirected. The world is protected because force is returned to relation.
+
+Today asks for one cooling act.
+
+Speak softer without becoming vague.
+
+Move slower without abandoning duty.
+
+Drink water.
+
+Pause the message.
+
+Lower the gaze.
+
+Let the body release enough heat that power can think again.
+
+Fire sweetened under Ma’at does not lose strength.
+
+It becomes fit for the work.
+''',
+        glyph: "Red vessel cooling a solar flame",
+        colorFrequency: "Red beer, cooling blue, and solar gold",
+        mantra: "“I cool the fire until it can serve.”",
       ),
       (
         totalDay: 15,
         starCluster:
-            "✨ ḥry-ib ḥr-sḥ — priority bound to motive, where what stands first outwardly must also be loved, chosen, and intended inwardly",
-        maatPrinciple: "Make the motive agree",
-        cosmicContext:
-            "A person can do the right thing for the wrong inner reason.\nHe can place duty first because he fears shame. Put the work first because he wants praise. Choose repair because he wants innocence. Choose devotion because he wants image. Outward order may still appear, but inwardly the foundation is mixed, and mixed foundations do not endure cleanly.\nKemet pressed deeper.\nWhat stood first had to be supported by a cleaner reason. Day 15 asks whether your inward motive now agrees with your outward priority. Not perfectly, but honestly enough that what leads your life is no longer being fed by distortion.\nThis is a day of purification through truth.\nWhy does this matter to you? Why are you putting it first? What in you still wants reward, appearance, escape, or control from it?\nPriority becomes steadier when its root becomes cleaner.",
-        glyph: "Heart tied to the leading staff",
-        colorFrequency: "Red-brown, deep blue, and clarifying gold",
-        mantra: "I let my inward reason agree with what I place first.",
+            "✨ ḥry-ib ḥr-sꜣḥ — the midpoint phase of this Heru-upon-Sah decanal sequence, best treated as an uncertain star point or small group near the Orion-related sky field",
+        maatPrinciple: "Heat Repaired",
+        cosmicContext: '''
+The middle of the decan asks for repair.
+
+Day 15 asks where heat caused harm.
+
+This is where power proves whether it truly serves Ma’at. It is easy to justify harm when the cause was righteous. The person says, “I was protecting.” “I was tired.” “I was right.” “They needed to hear it.” “The situation demanded force.”
+
+Maybe force was needed.
+
+That does not mean every expression of that force was clean.
+
+A tone may have cut deeper than truth required. A boundary may have been enforced without dignity. An urgent action may have ignored the body. A correction may have humiliated what it should have restored. A protective hand may have gripped too hard.
+
+Today asks for one harm done in heat to be repaired.
+
+Apologize.
+
+Clarify.
+
+Return what was taken.
+
+Lower the demand.
+
+Repair the tool.
+
+Give the body rest.
+
+Restore dignity where force became too sharp.
+
+This is not self-condemnation.
+
+It is accountability.
+
+Power that can repair itself is safer than power that insists every wound it caused was necessary.
+''',
+        glyph: "Hand mending a scorched cloth",
+        colorFrequency: "Repair gold, ember red, and linen white",
+        mantra: "“I repair what my heat damaged.”",
       ),
       (
         totalDay: 16,
         starCluster:
-            "✨ ḥry-ib ḥr-sḥ — the inward threshold under guard, where the rightful first thing must be protected from repeated displacement",
-        maatPrinciple: "Guard the inner threshold",
-        cosmicContext:
-            "What sits first in the heart can still be displaced by what is repeatedly admitted.\nThoughts, habits, influences, conversations, entertainment, private fantasies, resentments, familiar excuses — all of these can cross the threshold and gradually move the true priority backward. The collapse is usually quiet. Not dramatic apostasy. Just repeated admission of what should never have held such inward access.\nKemet guarded thresholds.\nWhat entered sacred space mattered. So does what enters your center. Day 16 is a day of inner gatekeeping. You decide what no longer deserves entry if the true first thing is going to hold its place.\nNot everything that knocks should be let in.\nA guarded threshold keeps the front line clean.",
-        glyph: "Inner gate-bolt across the heart chamber",
-        colorFrequency: "Midnight blue, cedar brown, and guarding gold",
-        mantra: "I protect what is first from inward displacement.",
+            "✨ ḥry-ib ḥr-sꜣḥ — a decanal marker associated with the heart of Heru upon Sah/Orion; physically uncertain and best described as a modest observed point or small group in that region",
+        maatPrinciple: "Speech Under Oath",
+        cosmicContext: '''
+The mouth must answer for power.
+
+Day 16 asks for speech under oath.
+
+When heat rises, the mouth wants permission. It wants to exaggerate, threaten, wound, promise too much, declare too soon, or say the one sentence that will make the other person feel the force. But speech is not weightless. It creates consequence. It enters memory. It shapes relation.
+
+A word spoken from authority carries even more weight.
+
+A parent’s word.
+
+A leader’s word.
+
+A partner’s word.
+
+A teacher’s word.
+
+The word of anyone holding the storehouse, the boundary, the record, or the vulnerable place.
+
+Today asks for speech that can stand after the feeling passes.
+
+Would this sentence remain clean before Ma’at?
+
+Would it still be true if written down?
+
+Would it protect without humiliating?
+
+Would it correct without poisoning?
+
+Would it bind you to what you can actually keep?
+
+The Book of Coming Forth by Day places enormous weight on truthful speech and the heart’s witness. The daily mouth belongs to that same order.
+
+Today asks for every word of power to be spoken as though it will be weighed.
+''',
+        glyph: "Mouth sign beside feather and sealed scroll",
+        colorFrequency: "Ink black, feather white, and royal gold",
+        mantra: "“My word must stand after heat has passed.”",
       ),
       (
         totalDay: 17,
         starCluster:
-            "✨ ḥry-ib ḥr-sḥ — the foremost thing honored in hiddenness, where inward reverence becomes stronger without witness",
-        maatPrinciple: "Practice firstness in private",
-        cosmicContext:
-            "Something is not truly first until it remains first when no one is watching.\nPublic order matters, but private order reveals the deeper truth. In Kemet, sacredness was not only ceremonial display. It was also quiet continuity, hidden reverence, correct handling in the unseen chamber. What mattered most had to be treated as first even when there was no audience to reward the act.\nDay 17 is a day of silent loyalty.\nYou honor the true priority where no one can praise you for it. In your schedule. In your thoughts. In the way you spend unclaimed time. In what you refuse privately. In what you tend without performance.\nThis is where firstness becomes real.\nThe hidden chamber either confirms the front line or betrays it.",
-        glyph: "Hidden lamp before the foremost offering",
-        colorFrequency: "Quiet gold, dark blue, and still black",
-        mantra: "I honor what is first even in secret.",
+            "✨ ḥry-ib ḥr-sꜣḥ — a modest decanal marker in the Orion-related night sequence, linked by name to Heru and Sah but without secure modern star identification",
+        maatPrinciple: "Fuel Removed",
+        cosmicContext: '''
+Some fires keep burning because they are being fed.
+
+Day 17 asks what fuel must be removed.
+
+This is not only about anger. It may be the repeated argument, the object kept as proof of injury, the message reopened too often, the habit that inflames the body, the audience that rewards outrage, the silence that turns into pressure, or the pride that will not allow cooling.
+
+A fire that once protected can become dangerous if it keeps receiving fuel after its work is done.
+
+The Eye must return.
+
+The hand must open.
+
+The room must cool.
+
+Today asks what keeps the heat alive beyond its purpose.
+
+What do you keep returning to?
+
+What story re-ignites the body?
+
+What habit makes measured action harder?
+
+What environment turns correction into battle?
+
+What must be removed so strength can become useful again?
+
+This is not denial of what happened. It is refusal to keep feeding what would burn the next stage.
+
+To remove fuel is to protect future peace.
+
+Heat without fuel can return to measure.
+''',
+        glyph: "Hand removing wood from a controlled fire",
+        colorFrequency: "Charcoal black, ember red, and cooling blue",
+        mantra: "“I stop feeding the fire after its work is done.”",
       ),
       (
         totalDay: 18,
         starCluster:
-            "✨ ḥry-ib ḥr-sḥ — the inward forefront under temptation, where softer and more flattering pulls try to reclaim the lead",
-        maatPrinciple: "Resist the inward drift",
-        cosmicContext:
-            "The heart rarely loses order in one dramatic moment.\nMore often it drifts. Toward what is easier. Toward what feels better immediately. Toward what flatters the self. Toward what asks less of discipline. Toward the old indulgence, the familiar avoidance, the private compromise that slowly reclaims the front line while you call it harmless.\nKemet required stronger watch than that.\nTo keep the rightful thing first, you sometimes have to resist not a great evil, but a small inward pull repeated often. Day 18 is about that resistance.\nYou notice where your interior life is trying to slide backward into lesser rule. Then you stop the drift. Not with drama. With steadiness.\nWhat is foremost must be protected from erosion, not just from attack.",
-        glyph: "Upright line resisting the side-pull",
-        colorFrequency: "Flint gray, inward blue, and steadfast gold",
-        mantra: "I refuse the inward drift away from what is first.",
+            "✨ ḥry-ib ḥr-sꜣḥ — an uncertain star marker or small group in the decanal order, described relative to the Sah/Orion region and Heru’s position upon it",
+        maatPrinciple: "Strength Offered as Service",
+        cosmicContext: '''
+Strength must have a worthy place to go.
+
+Day 18 asks for power to become service.
+
+After fire is named, cooled, purified, repaired, and restrained, it should not remain trapped inside the body. Governed strength has work to do. It can defend the vulnerable, repair what heat damaged, stabilize the storehouse, clarify the boundary, protect the name, carry the offering, or make the next stage safer.
+
+This is the transformation of force.
+
+Not force as reaction.
+
+Force as service.
+
+A strong word can protect dignity.
+
+A firm hand can repair a broken system.
+
+A guarded boundary can protect rest.
+
+A difficult decision can preserve the future.
+
+A disciplined refusal can stop Isfet from spreading.
+
+Today asks where strength should be placed now.
+
+Not everywhere.
+
+Not where pride wants proof.
+
+Where Ma’at needs support.
+
+Ḥenti-ḥet is Foremost of Offerings. Power becomes clean when it can be offered toward right relation. Strength that only guards itself becomes a sealed fire. Strength that serves Ma’at becomes protection, repair, and peace.
+
+Today asks for one act where force becomes offering.
+''',
+        glyph: "Strong arm lifting an offering bowl",
+        colorFrequency: "Solar gold, altar white, and living green",
+        mantra: "“My strength becomes service.”",
       ),
       (
         totalDay: 19,
         starCluster:
-            "✨ ḥry-ib ḥr-sḥ — the inward foreground under verification, where quiet life must prove what the heart has truly enthroned",
-        maatPrinciple: "Verify what is truly first",
-        cosmicContext:
-            "By this point, the heart should be showing its ruler.\nNot in slogans. Not in declarations. In choices. In pace. In spending. In what receives time. In what is protected. In what is obeyed first under pressure. In what still gets honored when fatigue, mood, or distraction try to interfere.\nThat is why this day is review.\nKemet always returned to measure. The inward life is no different. You ask whether the true priority is now actually leading. Or whether something lesser still quietly governs from behind the curtain.\nThe answer is not found in what you admire.\nIt is found in what your life keeps moving toward.",
-        glyph: "Heart before the measuring cord",
-        colorFrequency: "Red-brown, black ink, and truth-gold",
-        mantra: "I let my inward life reveal what truly leads.",
+            "✨ ḥry-ib ḥr-sꜣḥ — a modest decanal timing marker associated by name with Heru upon Sah/Orion; exact modern astronomical identification is uncertain",
+        maatPrinciple: "Form Held in Heat",
+        cosmicContext: '''
+Composure is tested while heat is still present.
+
+Day 19 asks for stillness inside the blaze.
+
+This does not mean pretending there is no pressure. It means keeping form while pressure exists. The fire may still be in the room. The provocation may still be near. The urge to answer may still be strong. The body may still want to erupt, collapse, explain, punish, or flee.
+
+This is where governed power becomes visible.
+
+Not in a quiet room.
+
+In a heated one.
+
+Can the mouth remain measured?
+
+Can the hand remain steady?
+
+Can the boundary remain clear without becoming cruel?
+
+Can the body breathe before action?
+
+Can the authority remain answerable to Ma’at when challenged?
+
+The instruction traditions warn against the heated person because heat makes the heart unstable. Today asks for the opposite: a heart that holds its shape while heat is present.
+
+This is not passivity.
+
+It is command of the inner throne.
+
+A person who can hold form in heat is less likely to become a weapon for Isfet.
+
+Today asks for one provocation to be met with composure.
+''',
+        glyph: "Still heart inside a ring of flame",
+        colorFrequency: "Steady gold, ember red, and deep blue",
+        mantra: "“I keep my form while heat is present.”",
       ),
       (
         totalDay: 20,
         starCluster:
-            "✨ ḥry-ib ḥr-sḥ — the forefront established in the inner chamber, closing the second decan with a heart more rightly ordered and more fit to lead outwardly",
-        maatPrinciple: "Seal the heart’s foreground",
-        cosmicContext:
-            "The second decan closes not with outer display, but with inward decision.\nSomething has been exposed, corrected, guarded, purified, and tested these past ten days. You have asked harder questions than the first decan required: not merely what stands first in life, but what stands first in the heart. Not merely what is arranged outwardly, but what is truly obeyed inwardly.\nThat is the real labor of ḥry-ib ḥr-sḥ.\nIf it has gone well, then the rightful first thing is no longer just positioned in front of your tasks. It is beginning to occupy the inner place from which tasks, choices, speech, and endurance are governed. That is a deeper victory than simple organization.\nSo Day 20 is the sealing of the inward foreground.\nYou name clearly what now sits first within. What has been restored to precedence. What has lost its false claim. What must continue leading when the next phase grows heavier.\nThe heart’s front line must now be kept as carefully as the outer one.",
-        glyph: "Sealed heart chamber behind the foremost threshold",
-        colorFrequency: "Deep blue, threshold black, and settled gold",
-        mantra: "I seal within what must lead without.",
+            "✨ ḥry-ib ḥr-sꜣḥ — the heart phase of Ḥenti-ḥet’s Heru-upon-Sah sequence, best treated as a modest, uncertain decanal point or group in the Orion-related night order",
+        maatPrinciple: "Governed Fire Sealed",
+        cosmicContext: '''
+Day 20 seals the heart of Ḥenti-ḥet.
+
+Power has been brought to the heart. Fire has been named. Intention has been purified. The flame has been sweetened. Harm done in heat has been repaired. Speech has been placed under oath. Fuel has been removed. Strength has been offered as service. Form has been held inside heat.
+
+This is governed fire.
+
+Not extinguished power.
+
+Not uncontrolled force.
+
+Power returned to purpose.
+
+The question now is what this power will answer to after the decan closes.
+
+What does your strength serve?
+
+What must it never become?
+
+What heat must be watched?
+
+What words must be kept under oath?
+
+What repair remains part of the law?
+
+What force belongs only in protection, never in appetite?
+
+The Eye of Ra teaches that force must be recalled after its purpose is fulfilled. Heru teaches that rightful authority must not become Set’s hunger in sacred clothing.
+
+Today asks for the law of power to be sealed.
+
+Fire in Ma’at warms, protects, purifies, and serves.
+
+Fire outside Ma’at consumes.
+''',
+        glyph: "Sealed flame beneath the feather of Ma’at",
+        colorFrequency:
+            "Ember red, feather white, royal gold, and cooling blue",
+        mantra: "“My fire serves Ma’at, or it does not lead.”",
       ),
     ],
   );
@@ -2227,8 +6668,7 @@ Map<String, KemeticDayInfo> _buildHentiHetIIEntries() {
 
 Map<String, KemeticDayInfo> _buildHentiHetIIIEntries() {
   const season = "☀️ Shemu – Season of Harvest";
-  const month =
-      "Ḥenti-ḥet (Ḥnt-ḥtj) — the month of what stands at the fore, where what has been carried through harvest must now be brought forward, positioned correctly, and made ready to lead the next phase";
+  const month = "Ḥenti-ḥet (Ḥnt-ḥtj) — Foremost of Offerings";
   return _buildGeneratedDecanEntries(
     keyPrefix: "henti",
     decan: 3,
@@ -2236,233 +6676,458 @@ Map<String, KemeticDayInfo> _buildHentiHetIIIEntries() {
     monthLabelForDate: "Ḥenti-ḥet",
     month: month,
     season: season,
+    decanName: "sbꜣ ḥr-sꜣḥ",
+    kemeticDateBuilder: (totalDay, _) => "Ḥenti-ḥet III, Day $totalDay",
     flowRows: _hentiHetOverrideIIIFlowRows,
     entries: [
       (
         totalDay: 21,
         starCluster:
-            "✨ sbꜣ ḥr-sḥ — the guiding star of the foremost place, where what stands in front must now become clear enough, stable enough, and true enough to orient the life around it",
-        maatPrinciple: "Let the foremost thing become your guide",
+            "✨ sbꜣ ḥr-sꜣḥ — the star phase of the Heru-upon-Sah decanal sequence; a modest star marker described in relation to Sah/Orion, with exact modern identification uncertain",
+        maatPrinciple: "Completion Recognized",
         cosmicContext: '''
-The third decan begins when what stands in front must do more than merely occupy position.
+The first decan established watchful authority.
 
-By now something has been brought forward outwardly, and something has been set first inwardly. The question now is whether that first thing can actually guide. In Kemet, what stood at the fore was not meant to be decorative. It had to orient action, sequence, labor, and right relation. The front was the point from which the rest took order.
+The second governed fire.
 
-That is the work of sbꜣ ḥr-sḥ.
+The third asks whether power can release.
 
-This decan is about guidance through rightful precedence. The foremost thing must now become steady enough to govern the others. Not by noise. Not by force. By clarity, consistency, and truth. What is first should make the rest of the line easier to arrange.
+This is the work of sbꜣ ḥr-sꜣḥ: the star of Heru upon Sah. Authority has stood guard. Heat has been named, cooled, repaired, and offered into service. Now the hand must recognize where the work is complete enough to stop pressing.
 
-So Day 21 asks whether the thing you placed in front has become strong enough to lead.
+Day 21 asks what no longer needs raised force.
 
-Can it direct your day? Can it clean your choices? Can it correct your sequence? Can it keep lesser things from impersonating importance again?
+This is difficult after vigilance. The body may keep guarding after the danger has passed. The mouth may keep preparing correction after the truth has already been spoken. The hand may keep holding what was protected because release feels like risk.
 
-What rightly stands in front should begin to give direction, not just demand attention.
+But power that cannot stand down becomes danger.
+
+A gate does not remain righteous by closing forever. A guard does not serve Ma’at by refusing peace. A boundary does not become stronger by hardening after its purpose has been fulfilled.
+
+Today asks where completion has arrived.
+
+What has been protected?
+
+What has been corrected?
+
+What has been restored?
+
+What can now stop receiving force?
+
+The first step toward offering is recognizing that the clenched hand has finished its work.
 ''',
-        glyph: "Leading star above the front-set vessel",
-        colorFrequency: "Bright gold, deep blue, and black stone",
-        mantra: "What is first in truth now guides the rest.",
+        glyph: "Falcon lowering a raised arm above a restored pillar",
+        colorFrequency: "Solar gold, cooled blue, and stable green",
+        mantra: "“When the work is complete, my hand may open.”",
       ),
       (
         totalDay: 22,
         starCluster:
-            "✨ sbꜣ ḥr-sḥ — the guiding foremost place ordering the ranks behind it, so that what follows no longer competes chaotically for the same position",
-        maatPrinciple: "Bring the rest into line",
+            "✨ sbꜣ ḥr-sꜣḥ — a small or modest decanal marker associated by name with Heru and Sah/Orion; modern star-cluster identification remains uncertain",
+        maatPrinciple: "Hand Opened",
         cosmicContext: '''
-A true priority is known by what it orders behind itself.
+Release begins in the hand.
 
-If the first thing is genuinely first, the rest of the line begins to settle. Tasks stop competing blindly. Time becomes less fragmented. Speech becomes less scattered. Even emotion is asked to take its proper place. In Kemet, when the front was correct, the procession could move. When the front was confused, the whole order faltered.
+Day 22 asks for one thing to be opened.
 
-Day 22 is not about choosing again.
+This does not mean carelessness. It does not mean giving away what must be protected. It means recognizing where protection has become possession, where responsibility has become control, or where fear has continued holding after Ma’at has already shown the next relation.
 
-It is about alignment.
+A storehouse must open at the proper time.
 
-You look behind the foremost thing and ask what still stands crooked. Which habits do not yet answer to it? Which appointments, desires, speech patterns, or responsibilities still behave as if there were no real leader? What continues to crowd the threshold even though its rank should be lower?
+An offering must be placed.
 
-What is first should simplify the arrangement of what follows.
+A debt must be paid.
 
-If everything still feels equally urgent, the line is not yet under order.
+An apology must be spoken.
+
+A burden must be set down.
+
+A body must be allowed to stop bracing.
+
+A person cannot reach hotep with a clenched hand.
+
+Peace comes when what is due has been placed correctly. Satisfaction follows right relation, not tight control.
+
+Today asks what is still being held from fear, pride, old heat, or habit.
+
+What belongs back in circulation?
+
+What belongs to the altar?
+
+What belongs to another hand?
+
+What belongs to rest?
+
+Opening the hand does not dishonor what was protected.
+
+It completes the protection by allowing the protected thing to return to its proper place.
 ''',
-        glyph: "Front rank with straightened rows behind it",
-        colorFrequency: "Processional gold, reed brown, and ordered green",
-        mantra: "I bring the whole line behind what is rightly first.",
+        glyph: "Open hand releasing grain toward an offering table",
+        colorFrequency: "Offering white, grain gold, and calm blue",
+        mantra: "“I open the hand where Ma’at asks for release.”",
       ),
       (
         totalDay: 23,
         starCluster:
-            "✨ sbꜣ ḥr-sḥ — the guiding forefront under challenge, where lesser claimants must be stripped of the authority they keep trying to steal",
-        maatPrinciple: "Remove the false leader",
+            "✨ sbꜣ ḥr-sꜣḥ — a decanal point or small group described relative to the Sah/Orion star field, physically uncertain but treated as part of the observed night sequence",
+        maatPrinciple: "Due Portion Placed",
         cosmicContext: '''
-False leaders rarely arrive announcing themselves as false.
+Release becomes clean when the due portion is placed.
 
-They feel urgent. Pleasurable. emotionally convincing. Familiar. They promise quick relief or flattering importance. Inwardly they may look like comfort, distraction, irritation, wounded pride, or the need to respond to whatever is loudest. Outwardly they appear as the lesser task that jumps the line because it is easier to touch.
+Day 23 asks what is owed.
 
-Kemet required sharper judgment than that.
+Offering is not random giving. It is placement. Bread, beer, water, incense, linen, speech, gratitude, payment, apology, and rest all become powerful when directed to the relation that is waiting for them.
 
-If what stands in front is to guide rightly, then the impostor must be removed. Day 23 is a cutting day. Not of the true first thing, but of what keeps taking its place without rightful claim.
+A person may want peace while still withholding the portion that would make peace possible.
 
-This could be a habit. A device. A mood. A reflex. A recurring conversation. A “small” obligation that keeps stealing the morning. A thought pattern that keeps moving itself to the front.
+A helper has not been thanked.
 
-What falsely leads must lose its privilege.
+A debt has not been paid.
+
+A body has not been rested.
+
+A name has not been cleaned.
+
+An ancestor has not been remembered.
+
+A household has not been fed.
+
+A promise has not been honored.
+
+Hotep cannot settle where the due portion remains unplaced.
+
+Today asks: what portion belongs where?
+
+Not what is easiest to give.
+
+Not what makes the giver look generous.
+
+The portion that restores relation.
+
+When the right thing reaches the right place, tension begins to loosen. The hand no longer has to clutch. The heart no longer has to carry unsettled obligation.
+
+Peace is not empty feeling.
+
+Peace is relation fulfilled.
 ''',
-        glyph: "Foremost staff with the lesser claimant removed",
-        colorFrequency: "Flint gray, dark blue, and corrective gold",
-        mantra: "I remove what has no right to lead.",
+        glyph: "Offering table receiving a measured portion",
+        colorFrequency: "Altar white, barley gold, and deep blue",
+        mantra: "“What is due must reach its place.”",
       ),
       (
         totalDay: 24,
         starCluster:
-            "✨ sbꜣ ḥr-sḥ — the guiding forefront clarified, where the lead signal must be made unmistakable so the life can follow cleanly",
-        maatPrinciple: "Make the guiding line unmistakable",
+            "✨ sbꜣ ḥr-sꜣḥ — a modest decanal star marker linked by name to Heru upon Sah/Orion; exact physical identification with a modern star group is uncertain",
+        maatPrinciple: "Excess Returned",
         cosmicContext: '''
-A weak signal makes the whole order hesitate.
+Excess must not harden in the hand.
 
-In Kemet, what stood at the fore had to be recognizable. The first place could not remain clouded. If the marker was unclear, if the path was muddy, if the command was half-spoken, confusion spread behind it. Guidance requires clarity.
+Day 24 asks for overflow to return to relation.
 
-Day 24 is signal-strengthening.
+This is different from giving away what must be stored. Preservation remains Ma’at when it feeds the future. But excess is different. Excess begins where protection has already been satisfied and fear still keeps gathering. It is what remains beyond rightful need, beyond seed, beyond duty, beyond safety.
 
-You make the true priority plain enough that your own life can actually follow it without constant renegotiation. A clearer plan. A visible reminder. A cleaner system. Better wording. Sharper boundaries. Better timing. Less ambiguity around what is being obeyed.
+Excess that does not circulate becomes heavy.
 
-This is not rigidity.
+Food rots.
 
-It is mercy on the rest of the line. When the front is clearer, the following becomes less wasteful.
+Money tightens the heart.
 
-What leads should be legible.
+Knowledge becomes status.
+
+Power becomes appetite.
+
+Attention becomes control.
+
+A storehouse exists to preserve life, not to imprison provision.
+
+Today asks what is being kept beyond its rightful place.
+
+Where could overflow feed life?
+
+Where could a portion be returned to household, community, altar, helper, body, or future balance?
+
+Where would release create more order than keeping?
+
+Ḥenti-ḥet teaches that power is proven not only in guarding, but in opening. The one who can release excess shows that authority is not possession.
+
+What should circulate must not be trapped by fear.
 ''',
-        glyph: "Clear path-marker at the front of the road",
-        colorFrequency: "Bright gold, clear black, and signal green",
-        mantra: "I make the true front clear enough to follow.",
+        glyph: "Open granary door with measured grain flowing outward",
+        colorFrequency: "Granary brown, flowing gold, and living green",
+        mantra: "“I release excess so life can circulate.”",
       ),
       (
         totalDay: 25,
         starCluster:
-            "✨ sbꜣ ḥr-sḥ — the guiding forefront embodied, where what leads inwardly must now become visible in conduct",
-        maatPrinciple: "Let behavior reveal the leader",
+            "✨ sbꜣ ḥr-sꜣḥ — the midpoint phase of this decanal marker, associated by name with Heru upon Sah/Orion and best treated as a modest, uncertain star point or small group in that region",
+        maatPrinciple: "Body Stood Down",
         cosmicContext: '''
-Guidance that never enters conduct remains too abstract.
+The body must be told the watch is over.
 
-In Kemet, what truly led a person could be seen. In timing. In pace. In speech. In what he handled first. In what he refused. In how he carried himself before duty, before temptation, before pressure, before the household. The inner leader eventually writes itself into the body.
+Day 25 asks for the body to stand down.
 
-Day 25 is embodied priority.
+The hand may have opened, but the shoulders may still be raised. The jaw may still be guarded. Sleep may still be shallow. The mouth may still be ready to answer. The muscles may still hold the shape of authority, protection, conflict, or heat.
 
-You let the foremost principle show itself in visible form. Not through self-advertisement, but through clean action. The right task first. The right word held back. The right sequence honored. The right standard kept. The right burden shouldered without display.
+A body can remain in command long after command is no longer required.
 
-At some point the life must become readable.
+This is how vigilance becomes exhaustion.
 
-If no one can see what leads you in the way you move, then it may not yet be leading strongly enough.
+Today asks where the body is still braced.
+
+Lower the shoulders.
+
+Unclench the jaw.
+
+Drink water.
+
+Rest the eyes.
+
+Move slowly.
+
+Stop scanning for a threat that has already been handled.
+
+Let the body receive the message that power has returned to measure.
+
+In Ḥenti-ḥet, offering leads toward hotep. But rest cannot enter a body that still believes the conflict is active.
+
+To stand down is not to become weak.
+
+It is to let the vessel recover after carrying force.
+
+The body that protected the storehouse must now be protected by peace.
 ''',
-        glyph: "Leading staff mirrored in the stride",
-        colorFrequency: "Bronze, black stone, and sunlit gold",
-        mantra: "What leads me becomes visible in how I move.",
+        glyph: "Resting shoulders beneath a cooled solar disk",
+        colorFrequency: "Cooling blue, soft gold, and linen white",
+        mantra: "“My body may stand down now.”",
       ),
       (
         totalDay: 26,
         starCluster:
-            "✨ sbꜣ ḥr-sḥ — the guiding front made stable through reinforcement, where first place must be kept from drifting through neglect",
-        maatPrinciple: "Reinforce what keeps it first",
+            "✨ sbꜣ ḥr-sꜣḥ — a decanal marker associated with Heru upon Sah/Orion; physically uncertain and best described as a modest observed point or small group in that sky region",
+        maatPrinciple: "Wear Repaired",
         cosmicContext: '''
-Anything left unsupported will drift.
+Force leaves marks.
 
-Even the rightful first thing can slide backward if it depends only on inspiration. In Kemet, what mattered was reinforced: with structure, repetition, materials, servants, schedule, and care. Priority without support becomes a sentiment. Priority with support becomes order.
+Day 26 asks for mending after heat.
 
-Day 26 is reinforcement.
+Even governed power can wear things down. A season of watching may strain the eyes. A boundary may preserve truth but leave tenderness needing repair. A hard decision may protect the whole while still requiring aftercare. A tool may have carried the work but now needs sharpening. A relationship may have survived correction but still need gentleness.
 
-You strengthen the habit, boundary, schedule, environment, or system that keeps the right thing foremost. Perhaps the morning must change. Perhaps the workspace. Perhaps the budget. Perhaps the way you communicate. Perhaps the threshold around your attention.
+Do not mistake survival for completion.
 
-The guiding principle should not have to fight for its place every day.
+Something may have held and still need mending.
 
-Build the support that allows it to remain first with less waste.
+Today asks what force has worn down.
+
+A room.
+
+A body.
+
+A tool.
+
+A tone.
+
+A relationship.
+
+A record.
+
+A nervous system.
+
+Trust.
+
+Repair belongs here because peace cannot settle over damage that everyone is pretending not to see. Hotep is not silence over a wound. It is settled relation after what was due has been placed.
+
+Mending may be practical or emotional.
+
+Clean the space.
+
+Sharpen the tool.
+
+Apologize.
+
+Rest.
+
+Repair the record.
+
+Restore the tenderness that force could not provide.
+
+Power becomes safer when it tends what it has worn down.
 ''',
-        glyph: "Bound foremost standard fixed in place",
-        colorFrequency: "Cedar brown, deep gold, and stabilizing green",
-        mantra: "I support what is first so it can remain first.",
+        glyph: "Needle repairing linen beside a cooled flame",
+        colorFrequency: "Linen white, repair gold, and cooled red",
+        mantra: "“I mend what force wore down.”",
       ),
       (
         totalDay: 27,
         starCluster:
-            "✨ sbꜣ ḥr-sḥ — the guiding forefront becoming transmissible, where right order must be taught if it is to outlast one moment of clarity",
-        maatPrinciple: "Teach the order",
+            "✨ sbꜣ ḥr-sꜣḥ — a modest decanal marker in the Orion-related night sequence, linked by name to Heru and Sah but without secure modern star identification",
+        maatPrinciple: "House Settled",
         cosmicContext: '''
-Order that cannot be taught remains too fragile.
+Peace must enter a place.
 
-In Kemet, the arrangement of what came first was not private wisdom only. It had to be transmitted: to children, assistants, workers, kin, and to the parts of oneself still prone to confusion. If the order lives only in one person’s intuition, it can be lost too easily.
+Day 27 asks for the house to be restored.
 
-Day 27 is instruction.
+After heat, vigilance, correction, and release, the shared space may still carry the shape of strain. Objects may be out of place. Meals may have been rushed. Voices may still be cautious. Corners may still hold disorder. The house may be functional but not yet settled.
 
-You explain, model, document, or otherwise teach the rightful sequence. What comes first. What follows. What must not move ahead. What belongs at the threshold. What is protected. What is delayed. What is refused.
+Hotep must be made practical.
 
-This is not control for its own sake.
+Sweep the floor.
 
-It is continuity. Guidance becomes more solid when it can be handed forward without distortion.
+Prepare food.
+
+Refresh the altar.
+
+Open the window.
+
+Speak the soft sentence.
+
+Put the tool back.
+
+Clear the table.
+
+Let the room know that the emergency is no longer the law.
+
+The house is not only walls. It is the environment where the body learns whether peace has returned. A person cannot fully settle if every surface still carries the evidence of conflict.
+
+Today asks for one act that restores peace to the place.
+
+Not decoration.
+
+Settlement.
+
+When the house returns to order, the heart can begin to trust that the release was real.
 ''',
-        glyph: "Front marker shown to the waiting line",
-        colorFrequency: "Papyrus tan, teaching gold, and dark green",
-        mantra: "I pass on the order that keeps life clear.",
+        glyph: "House sign with offering bowl and cool water inside",
+        colorFrequency: "Fresh linen, calm blue, and warm clay",
+        mantra: "“I make the house ready for peace.”",
       ),
       (
         totalDay: 28,
         starCluster:
-            "✨ sbꜣ ḥr-sḥ — the foremost position under protection, where the lead place must be guarded from erosion and familiar compromise",
-        maatPrinciple: "Guard the lead place",
+            "✨ sbꜣ ḥr-sꜣḥ — a star marker in the decanal order described relative to Heru and Sah/Orion; modern astronomical match remains uncertain",
+        maatPrinciple: "Release Recorded",
         cosmicContext: '''
-What is rightly first can still be worn down over time.
+Release should be recorded.
 
-Not usually by one dramatic overthrow, but by dilution. By “just this once.” By tolerated disorder. By repeated concessions to mood. By the slow return of what had already been judged and corrected. Kemet knew that a lead position unguarded would eventually be occupied by something less worthy.
+Day 28 asks for the account of what was returned.
 
-Day 28 is protective.
+What was offered?
 
-You guard the front line from erosion. This may mean saying no again. Reclosing a threshold. Reasserting a schedule. Reestablishing a rule. Pulling a drifting habit back into place. Refusing the old compromise because you now know what it costs.
+What was paid?
 
-Guidance does not remain intact through sentiment.
+What was released?
 
-It remains through repeated protection of the place from which the rest takes order.
+What was repaired?
+
+What was allowed to rest?
+
+What heat was cooled?
+
+What excess was returned to circulation?
+
+What burden no longer belongs in the hand?
+
+This record matters because the mind often remembers what it held more clearly than what it released. Without record, the old grip may return. The same excess may be gathered again. The same heat may be fed again. The same completed conflict may be reopened from habit.
+
+Djehuty stands beside hotep here.
+
+Peace needs memory.
+
+A written release teaches the future that this matter was placed. This portion was returned. This wound was repaired. This force was cooled. This burden was set down.
+
+Today asks for a clean record.
+
+Not a performance.
+
+Not a confession without change.
+
+A record of settlement.
+
+What is recorded in truth becomes harder for old disorder to reclaim.
 ''',
-        glyph: "Guarded foremost standard at the threshold",
-        colorFrequency: "Black stone, protective gold, and dark reed",
-        mantra: "I protect the place from which right order leads.",
+        glyph: "Reed pen writing beside an offering table",
+        colorFrequency: "Ink black, altar white, and sealed gold",
+        mantra: "“I record what has been returned to Ma’at.”",
       ),
       (
         totalDay: 29,
         starCluster:
-            "✨ sbꜣ ḥr-sḥ — the guiding forefront under review, where the life must now show what this precedence has truly directed",
-        maatPrinciple: "Read the results of the front line",
+            "✨ sbꜣ ḥr-sꜣḥ — a modest decanal timing marker linked by name to Heru upon Sah/Orion, physically best treated as an uncertain watched point or small group near that sky region",
+        maatPrinciple: "Hotep Received",
         cosmicContext: '''
-A true guide leaves a trail.
+Peace must be allowed to remain.
 
-If the right thing has really been leading, something should now be different. The day should carry a cleaner sequence. The speech should be less loose. The burdens should be better ordered. The thresholds better guarded. The inner life less divided. The false priorities less entitled to immediate obedience.
+Day 29 asks for rest in hotep.
 
-That is why Day 29 is review.
+After offering, release, repair, and record, the old habit may still want to reopen the matter. The hand wants to check again. The mouth wants to add one more sentence. The mind wants to test the peace to see if it is real. The body, used to tension, may distrust the quiet.
 
-You look at what this lead principle has actually directed. Not what you hoped it would do, but what it has done. More steadiness? Clearer action? Better sequence? Less waste? Less confusion? More truthful endurance? Or has the front line remained more symbolic than real?
+But what has been placed correctly should not be disturbed from habit.
 
-The guide must be judged by the road it has produced.
+Hotep is the satisfaction that follows right placement. It is not emptiness. It is relation fulfilled enough to rest.
+
+Today asks for the settled thing to stay settled.
+
+Do not reopen what was honestly closed.
+
+Do not disturb the rest you asked for.
+
+Do not keep testing the boundary after it held.
+
+Do not turn peace into another task.
+
+Let the offering remain on the table.
+
+Let the body receive quiet.
+
+Let the room breathe.
+
+Let enough be enough where Ma’at has already been restored.
+
+This is not avoidance. It is trust in completion.
+
+A person who cannot rest after right action remains ruled by the old heat.
+
+Today asks for peace to be received without suspicion.
 ''',
-        glyph: "Guiding staff beside the ordered path behind it",
-        colorFrequency: "Ink black, bronze, and verifying gold",
-        mantra: "I read the road to judge what truly leads.",
+        glyph: "Offering table at rest beneath a still star",
+        colorFrequency: "Soft gold, altar white, and evening blue",
+        mantra: "“What has been placed correctly may rest.”",
       ),
       (
         totalDay: 30,
         starCluster:
-            "✨ sbꜣ ḥr-sḥ — the guiding forefront sealed, closing the month with a clearer line of precedence strong enough to orient what comes next",
-        maatPrinciple: "Seal what now truly leads",
+            "✨ sbꜣ ḥr-sꜣḥ — the final star marker of Ḥenti-ḥet’s Heru-upon-Sah sequence, best treated as a modest, uncertain decanal point or group in the Orion-related night order",
+        maatPrinciple: "Offering Sealed",
         cosmicContext: '''
-Ḥenti-ḥet closes with the question of guidance fulfilled.
+Day 30 closes Ḥenti-ḥet.
 
-The month began by bringing something forward. It moved through outer placement, inward enthronement, and now guiding precedence. What began as a matter of position has become a matter of leadership. The true foremost thing is not merely visible now. It is meant to direct.
+The month began with abundance under watch. Authority was named. Heat was inspected, cooled, purified, repaired, and governed. Power was brought under the heart. Force was returned to purpose. The hand opened. The due portion was placed. Excess was released. The body stood down. The house was settled. The release was recorded. Hotep was allowed to remain.
 
-That is the full movement of sbꜣ ḥr-sḥ.
+This is Foremost of Offerings.
 
-Something has been clarified, defended, embodied, taught, and tested. If the month has done its work, then the front line is no longer cluttered, symbolic, or unstable. It is cleaner. Stronger. More capable of governing the sequence of your life.
+Not giving as loss.
 
-So Day 30 is the sealing of the guide.
+Offering as the restoration of relation.
 
-You name what now stands first strongly enough to orient what follows. Not what flatters you. Not what sounds noble. What has actually proven itself able to direct the line with less confusion, less waste, and more right relation.
+Power has proven itself not by holding forever, but by knowing what to guard, what to cool, what to repair, what to release, and what to place back into the living circuit.
 
-The next phase will show whether you keep it there.
+Today asks what has been settled.
+
+What was returned?
+
+What relation now rests?
+
+What force no longer needs to remain active?
+
+What peace must not be disturbed?
+
+What offering has completed the month?
+
+Ḥenti-ḥet ends with a law: abundance becomes peace only when what is due has been placed correctly.
+
+Where offering is sealed in Ma’at, power can rest without becoming weakness, and the house can breathe again.
 ''',
-        glyph: "Guiding star above the foremost threshold-marker",
-        colorFrequency: "Settled gold, black stone, and deep blue",
-        mantra: "I seal what is foremost so it may rightly guide.",
+        glyph: "Sealed offering table beneath falcon and restored pillar",
+        colorFrequency:
+            "Altar white, royal gold, cooled blue, and stable green",
+        mantra: "“What is due has been placed; peace may remain.”",
       ),
     ],
   );
@@ -2470,8 +7135,7 @@ The next phase will show whether you keep it there.
 
 Map<String, KemeticDayInfo> _buildPaIpiIEntries() {
   const season = "☀️ Shemu – Season of Harvest";
-  const month =
-      "Pa-Ipi (ỉpt-ḥmt) — the month of counted chambers and gathered stores, where what has been led forward must now be housed, apportioned, and made fit for sustained use";
+  const month = "Pa-Ipi (ỉpt-ḥmt) — Reunion and the Return to the Ka";
   return _buildGeneratedDecanEntries(
     keyPrefix: "ipt",
     decan: 1,
@@ -2479,237 +7143,451 @@ Map<String, KemeticDayInfo> _buildPaIpiIEntries() {
     monthLabelForDate: "Pa-Ipi",
     month: month,
     season: season,
+    decanName: "sbꜣ nfr",
+    kemeticDateBuilder: (totalDay, _) => "Pa-Ipi I, Day $totalDay",
     flowRows: _paIpiIFlowRows,
     entries: [
       (
         totalDay: 1,
         starCluster:
-            "✨ sbꜣ nfr — the star of good emergence into order: what is beautiful not as ornament, but as well-made arrangement, proper storage, and a form so sound it can serve life cleanly",
-        maatPrinciple: "Make what you gathered fit to keep",
+            "✨ sbꜣ nfr — a decanal star marker in the rising night sequence; exact modern identification is uncertain, so it is best described as a modest horizon marker watched during this ten-day interval",
+        maatPrinciple: "Endurance Recognized",
         cosmicContext: '''
-Pa-Ipi begins when harvest must enter form.
+Pa-Ipi begins by turning the year inward.
 
-What was seen, cut, carried, brought forward, and set in order now faces another demand: it must be housed well. In Kemet, gathered abundance could not remain in loose piles, passing moods, or improvised corners. What mattered had to be placed into chambers, containers, categories, and uses that could preserve it without confusion.
+The harvest has moved. The offerings have been placed. The heat has been cooled. The journey has been sealed. Now the question is what remains present after movement, labor, distance, correction, and release.
 
-That is the labor of sbꜣ nfr.
+This is the work of sbꜣ nfr.
 
-This is good order made visible. Not “pretty” in the shallow sense. Good because it fits. Good because it holds. Good because what is placed inside it can be found, used, measured, and protected without waste. Beauty here is functionality brought into right form.
+nfr is not surface beauty alone. It is rightness that holds. A star is beautiful because it returns to its place. A memory is beautiful because it still carries truth. A name is beautiful because it remains speakable across time.
 
-So Day 1 asks what in your life now needs proper housing.
+Day 1 asks what endured.
 
-Resources, work, notes, money, habits, tools, healing, responsibilities, plans, relationships, even thoughts — something can no longer remain loose. What has value must be put into a form worthy of keeping.
+Not what was loud.
 
-Shemu now asks not only what you gathered, but whether you know how to keep it beautifully.
+Not what was perfect.
+
+What remained true.
+
+A relationship may have changed but still held. A name may have faded and now asks to be restored. A practice may have survived pressure. A value may have proven itself. A part of the self may still be standing after the year moved through it.
+
+Pa-Ipi belongs to gathering. What has scattered must now be recognized before it can be returned to relation.
+
+Today asks for one enduring thing to be named clearly.
+
+What remained true after everything moved?
+
+Recognition is the first act of remembrance.
 ''',
-        glyph: "Good vessel set beneath a guiding star",
-        colorFrequency: "Storehouse gold, polished clay, and deep reed green",
-        mantra: "I give worthy form to what deserves to remain.",
+        glyph: "Beautiful star above a remembered name",
+        colorFrequency: "Night blue, soft gold, and ancestor white",
+        mantra: "“What endured is worthy of remembrance.”",
       ),
       (
         totalDay: 2,
         starCluster:
-            "✨ sbꜣ nfr — the good star of right containment, where quality depends on matching the thing to the vessel that can truly hold it",
-        maatPrinciple: "Match the thing to its vessel",
+            "✨ sbꜣ nfr — a small decanal rising group near the horizon, treated as a ten-day star-time marker rather than a securely identified modern cluster",
+        maatPrinciple: "Name Restored",
         cosmicContext: '''
-Not every container is worthy of every burden.
+Memory becomes active when the name returns to the mouth.
 
-In Kemet, a fine oil did not go in a cracked jar. Grain did not belong in dampness. Sacred items did not lie where anything could brush against them. Form had to suit content. Otherwise even good things were placed under threat.
+Day 2 asks for the name to be spoken.
 
-Day 2 is about correct containment.
+In Kemet, the ren was not decoration. The name allowed presence to remain addressable. A forgotten name weakened relation. A spoken name opened the way for offering, memory, duty, and continuation.
 
-You look at what you are trying to hold and ask whether its container fits. Is the schedule strong enough for the responsibility? Is the budget right for the burden? Is the note system fit for the knowledge? Is the room right for the work? Is the boundary sturdy enough for the relationship? Is the role clearly enough defined for the task?
+This matters in ordinary life too.
 
-A good thing in a poor vessel becomes vulnerable fast.
+A person can be missed but not named.
 
-Wisdom at this stage is not more gathering. It is better fitting.
+A lesson can be known but not spoken.
+
+A promise can remain vague because no one says what it truly is.
+
+A part of the self can be neglected because it has not been called back by name.
+
+Pa-Ipi asks for reunion. Reunion cannot happen with what remains unnamed.
+
+Today asks whose name, what name, or which truth needs to return to speech.
+
+An ancestor.
+
+A teacher.
+
+A lost part of the self.
+
+A family duty.
+
+A value.
+
+A place.
+
+A promise.
+
+A grief.
+
+A name spoken rightly does not trap the past. It brings the past into relation with the living present.
+
+What is named cleanly can be fed.
+
+What is never named begins to drift.
 ''',
-        glyph: "Jar chosen precisely for its contents",
-        colorFrequency: "Clay red, quiet gold, and dark green",
-        mantra: "I place each good thing in a vessel fit to hold it.",
+        glyph: "Mouth sign beside a written name",
+        colorFrequency: "Ink black, ancestor white, and warm gold",
+        mantra: "“I speak the name so relation can continue.”",
       ),
       (
         totalDay: 3,
         starCluster:
-            "✨ sbꜣ nfr — good form under inspection, exposing the cracked, weak, or careless container that can no longer be trusted",
-        maatPrinciple: "Retire the unworthy container",
+            "✨ sbꜣ nfr — a modest horizon-based decanal star marker in the observed night order, with exact modern identification uncertain",
+        maatPrinciple: "Memory Given Place",
         cosmicContext: '''
-Sometimes the problem is not the thing itself, but what it has been left inside.
+Memory needs a place to stand.
 
-A valuable habit can live in a broken schedule. Important records can sit inside a foolish filing method. Healing can be placed into a life with no protective structure. Money can leak through a container too vague to keep it. In Kemet, cracked vessels were not romanticized. They were replaced.
+Day 3 asks for return to the place of memory.
 
-Day 3 is a day of refusal.
+This may be an altar, a grave, a photograph, a box of records, a room, a family table, a saved message, a homeland, a body scar, or a quiet corner where the past still waits to be acknowledged.
 
-You identify one form that is no longer worthy of what it is holding and stop using it. This may be physical, financial, emotional, relational, or practical. The point is simple: if the container repeatedly fails, then continuing to trust it is negligence.
+Place matters.
 
-A good keeper does not blame the oil for the jar.
+A memory without place can become scattered. It appears only when triggered. It presses into the body without form. It becomes sadness without offering, longing without direction, inheritance without structure.
 
-He changes the jar.
+Pa-Ipi gathers what has drifted.
+
+The sacred geography of Abydos belongs to this month because memory becomes place there. Ausar is not only remembered in thought. Restoration becomes procession, mound, tomb, rite, and return.
+
+Today asks for one place of memory to be acknowledged.
+
+Clean it.
+
+Visit it.
+
+Open it.
+
+Repair it.
+
+Sit before it.
+
+Name what it holds.
+
+This is not living in the past. It is giving memory a rightful chamber so it does not haunt the whole house.
+
+What has a place can enter Ma’at more easily than what wanders unnamed.
 ''',
-        glyph: "Broken jar set aside from the store",
-        colorFrequency: "Flint gray, clay brown, and corrective gold",
-        mantra: "I do not keep good things in forms that fail them.",
+        glyph: "Small shrine beneath a star",
+        colorFrequency: "Stone gray, ancestor white, and deep blue",
+        mantra: "“Memory is given a place so it can rest in order.”",
       ),
       (
         totalDay: 4,
         starCluster:
-            "✨ sbꜣ nfr — good arrangement under practical law, where what is kept must be ordered by real use, not random placement",
-        maatPrinciple: "Order by actual use",
+            "✨ sbꜣ nfr — a small rising decanal group in the ten-day night sequence, best described as a modest watched horizon marker with uncertain modern identity",
+        maatPrinciple: "Ka Fed",
         cosmicContext: '''
-A chamber can be full and still be badly ordered.
+Presence must be fed.
 
-In Kemet, stores were not only filled; they were arranged according to access, function, timing, and purpose. What would be needed soon stood within reach. What belonged together stayed together. What served different duties was not thrown into confusion.
+Day 4 asks for offering to the ka.
 
-Day 4 is functional order.
+This does not need to be grand. Water placed cleanly can matter. Bread, fruit, incense, a candle, a repaired object, a written note, a cleaned space, a word of gratitude, a meal cooked with intention — each can become offering when placed in right relation.
 
-You arrange what you keep according to how life actually uses it. Not where it happened to land. Not what looks neat for one moment. But what reduces waste in movement, time, thought, and strain.
+The ka receives through provision.
 
-This principle applies everywhere: shelves, notes, tools, finances, digital space, workflow, family rhythm, and internal priorities.
+This is true for the dead, but it is also true for living continuities. A relationship unfed begins to fade. A practice unfed loses body. A home unfed loses warmth. A memory unfed becomes abstract. A name unfed becomes sound without relation.
 
-The beautiful chamber is not the one that merely looks composed.
+Pa-Ipi asks that remembrance become action.
 
-It is the one that serves cleanly when the hand reaches for what it needs.
+Feeling alone is not enough.
+
+The offering formula names bread, beer, and every good and pure thing for the ka because relation must be provided for, not only imagined.
+
+Today asks what must be fed so presence can continue.
+
+An ancestor.
+
+A household bond.
+
+A promise.
+
+A body.
+
+A neglected practice.
+
+A part of the self that still carries life.
+
+Place the offering.
+
+What is fed in Ma’at remains able to answer.
 ''',
-        glyph: "Ordered chamber with reachable front row",
-        colorFrequency: "Papyrus tan, storehouse brown, and service gold",
-        mantra: "I arrange what I keep by how it must serve.",
+        glyph: "Offering table with water, bread, and ka arms",
+        colorFrequency: "Altar white, Nile blue, and bread gold",
+        mantra: "“What must continue must be fed.”",
       ),
       (
         totalDay: 5,
         starCluster:
-            "✨ sbꜣ nfr — the good star of legibility, where value is protected when it can be found, named, and recognized without confusion",
-        maatPrinciple: "Make it easy to find",
+            "✨ sbꜣ nfr — a modest decanal horizon marker in the night-time sequence, likely faint compared with major stellar anchors and not securely identified today",
+        maatPrinciple: "Inheritance Sorted",
         cosmicContext: '''
-What cannot be found is nearly as vulnerable as what was never stored.
+The middle of the decan asks what should be inherited.
 
-In Kemet, order depended on recognizability. Goods, offerings, measures, and chambers had to be readable. The keeper needed to know what was where, what it belonged to, and when it was to be used. Confusion itself was a threat to abundance.
+Day 5 is for sorting.
 
-Day 5 is a day of clarity.
+Not everything received from the past should govern the future. Some inheritance strengthens. Some burdens. Some traditions preserve Ma’at. Some habits only repeat old disorder. Some names should be honored. Some patterns should be understood and then refused.
 
-You label, name, sort, or otherwise make a valuable thing easier to retrieve. A folder. A budget line. A container. A process. A priority. A next step. A household item. A body practice. A piece of knowledge.
+Pa-Ipi does not ask for blind carrying.
 
-Hidden value is often not truly hidden by malice.
+It asks for right carrying.
 
-It is hidden by your own vague arrangement.
+This matters in family, memory, body, culture, work, and inner life. A person may inherit courage, skill, language, devotion, humor, discipline, trauma, silence, debt, fear, or a way of loving that no longer serves the living.
 
-To keep well is to make access honest and clean.
+The heart must sort.
+
+What is worth carrying?
+
+What needs repair before it can be carried?
+
+What should be honored but not repeated?
+
+What must be released so the next cycle is not made heavy by the last one?
+
+Aset and Nebet-Het do not restore Ausar by pretending nothing was broken. They attend what is there, gather what must be gathered, and give grief a form that can become restoration.
+
+Today asks for inheritance to be placed under Ma’at.
+
+The past is not rejected.
+
+It is judged, honored, repaired, and carried only in truth.
 ''',
-        glyph: "Named jar with clear seal mark",
-        colorFrequency: "Ink black, polished clay, and bright gold",
-        mantra: "I make what matters easy to recognize and retrieve.",
+        glyph: "Two baskets: one sealed for keeping, one opened for release",
+        colorFrequency: "Ancestor white, earth brown, and discerning gold",
+        mantra:
+            "“I carry what strengthens the chain and release what distorts it.”",
       ),
       (
         totalDay: 6,
         starCluster:
-            "✨ sbꜣ nfr — good form under preservation, where what has value must be guarded from decay, confusion, and careless touch",
-        maatPrinciple: "Preserve the quality",
+            "✨ sbꜣ nfr — a small decanal star group observed near the horizon as part of the night-hour sequence, not securely matched to a modern constellation",
+        maatPrinciple: "Chain Repaired",
         cosmicContext: '''
-Some things are lost not because they were attacked, but because they were handled loosely.
+Continuity weakens where links are neglected.
 
-Kemet knew the quiet enemies of value: dampness, exposure, careless hands, poor sealing, vague oversight, and misuse. A thing could be well gathered and well housed, yet still decline if preservation was weak.
+Day 6 asks for repair of the chain.
 
-Day 6 asks what deserves better guarding.
+This may be a missing name in the record. An unspoken thank-you. A family story no one has written down. A practice that stopped when grief came. An object needing care. A promise waiting to be completed. A tradition that still has life but needs a new vessel.
 
-This may be tangible or not. Food. Money. Health. Energy. Trust. Tools. Records. Ritual rhythm. Recovery. Peace in the house. The point is not hoarding. The point is care.
+The chain does not repair itself.
 
-Quality survives where preservation is deliberate.
+Someone must notice the break.
 
-If something matters, its preservation should not be left to accident.
+Someone must pick up the thread.
+
+Someone must speak the name again.
+
+Someone must place the offering.
+
+Someone must repair the object, restore the record, or make the call.
+
+This is not nostalgia. It is continuity work.
+
+Pa-Ipi teaches that memory must be gathered intentionally. What is assumed will continue often fades. What is fed, repaired, and named has a stronger chance of remaining.
+
+Today asks where the chain has weakened.
+
+Choose one link.
+
+Repair that.
+
+Not the whole past.
+
+One link.
+
+A chain restored in one place becomes stronger than a chain only mourned from a distance.
 ''',
-        glyph: "Sealed chamber under the keeper’s hand",
-        colorFrequency: "Deep green, warm brown, and preserving gold",
-        mantra: "I protect the quality of what deserves to remain.",
+        glyph: "Linked cord being retied beside a name sign",
+        colorFrequency: "Cord brown, ink black, and repair gold",
+        mantra: "“I repair one link so continuity can hold.”",
       ),
       (
         totalDay: 7,
         starCluster:
-            "✨ sbꜣ nfr — the good star of the chamber itself, where environment must rise to meet the worth of what it contains",
-        maatPrinciple: "Improve the chamber",
+            "✨ sbꜣ nfr — a decanal rising group near the horizon in the ten-day star order, physically described with caution because no secure modern cluster identification is available",
+        maatPrinciple: "Grief Given Form",
         cosmicContext: '''
-The chamber teaches the thing inside it how it will be treated.
+Grief needs a clean form.
 
-A low, dirty, confused, careless environment trains loose handling. A clean, deliberate, well-ordered one trains reverence and clarity. In Kemet, the chamber mattered because environment shaped conduct. Good form did not float free of place.
+Day 7 asks for mourning to be honored.
 
-Day 7 is about the dignity of environment.
+Avoided grief does not disappear. It enters the body, the room, the mouth, the schedule, the appetite, the way memory is touched or refused. It becomes pressure without name.
 
-You improve one space so that it better matches what is being stored, done, or protected there. Workspace, bedroom, altar, kitchen, digital system, budget view, tool zone, calendar surface, healing space. Not for display. For correctness.
+In Pa-Ipi, grief is not treated as weakness.
 
-A worthy chamber reduces waste before action even begins.
+Aset and Nebet-Het stand at the edge of death and give mourning sacred form. Their lamentation does not abandon the dead. It keeps relation alive long enough for restoration to become possible.
 
-Sometimes the right next step is not doing more inside the room.
+Today asks what loss still needs to be honored.
 
-It is making the room better.
+A death.
+
+A broken bond.
+
+A lost place.
+
+A former self.
+
+An old hope.
+
+A year that took more than expected.
+
+The mourning may be simple: water poured, a name spoken, a letter written, a candle lit, a song played, a room cleaned, silence kept without running from it.
+
+Grief under Ma’at does not flood the whole life forever.
+
+It is given a vessel.
+
+What is mourned rightly can join memory without ruling every step.
 ''',
-        glyph: "Ordered chamber before the open threshold",
-        colorFrequency: "Sandstone, polished gold, and chamber green",
-        mantra: "I make the chamber worthy of what it holds.",
+        glyph: "Two mourning figures beside an offering bowl",
+        colorFrequency: "Mourning blue, altar white, and soft gold",
+        mantra: "“I give grief a form so restoration can begin.”",
       ),
       (
         totalDay: 8,
         starCluster:
-            "✨ sbꜣ nfr — beauty in service to use, where grace is not excess but order made easier on the hand, eye, and mind",
-        maatPrinciple: "Let form reduce friction",
+            "✨ sbꜣ nfr — a modest horizon-based decanal marker used in the night sequence, with exact modern astronomical identification uncertain",
+        maatPrinciple: "Record Preserved",
         cosmicContext: '''
-There is a form of beauty that saves labor.
+Memory that is not preserved can be lost.
 
-Not luxury for vanity, but arrangement so clean that the body strains less, the mind scatters less, and the hand finds what it needs without waste. Kemet understood this kind of goodness. Right form was not separate from right function. The beautiful arrangement often was the more usable one.
+Day 8 asks for record.
 
-Day 8 is refinement in service of ease.
+This is Djehuty’s work inside Pa-Ipi. A name spoken once may fade again. A lesson felt deeply may disappear under the next season’s pressure. A family story may vanish when the last person who knows it is gone. A repair may be forgotten if it is not placed somewhere the future can find.
 
-You improve one system or space so that correct action becomes easier and confusion becomes harder. The aim is not ornament for its own sake. The aim is to reduce needless friction.
+Record protects continuity.
 
-Where would elegance make Ma’at easier to keep?
+Write the name.
 
-That is the right question today.
+Label the photograph.
+
+Save the document.
+
+Tell the story.
+
+Organize the file.
+
+Record the recipe.
+
+Mark the date.
+
+Write what the grief taught.
+
+Write what should not be repeated.
+
+Write what must be carried.
+
+Papyrus Chester Beatty IV praises writing because monuments decay while words can keep names alive in the mouths of those who read them. That principle belongs here.
+
+Today asks for one truth to be preserved.
+
+Not everything.
+
+One thing that should not have to depend on fragile memory alone.
+
+What is recorded cleanly can guide the future when feeling has moved on.
 ''',
-        glyph: "Well-shaped vessel easy to grip and pour",
-        colorFrequency: "Polished clay, bright gold, and clear green",
-        mantra: "I let good form make right action easier.",
+        glyph: "Reed pen preserving a name beneath a star",
+        colorFrequency: "Ink black, papyrus gold, and night blue",
+        mantra: "“I preserve what the future must remember.”",
       ),
       (
         totalDay: 9,
         starCluster:
-            "✨ sbꜣ nfr — good form under trial, where theory yields to use and only what truly works deserves to remain",
-        maatPrinciple: "Test what you built",
+            "✨ sbꜣ nfr — a small star group in the decanal rising sequence, best described as a modest horizon timing marker rather than a securely identified modern constellation",
+        maatPrinciple: "Worthy Continuity Chosen",
         cosmicContext: '''
-A chamber imagined is not yet a chamber proven.
+Not everything remembered must be carried forward.
 
-In Kemet, a vessel had to hold. A seal had to keep. A placement had to work under real use. Beautiful arrangement without practical endurance was still failure. So the keeper tested. He used the thing. He watched it under life, not under fantasy.
+Day 9 asks what is worthy of continuation.
 
-Day 9 is proof by contact.
+This comes after recognition, naming, offering, sorting, repair, mourning, and record. The heart now has enough information to choose. Some memories should be honored but left at rest. Some lessons should become law. Some names should be spoken regularly. Some practices should return. Some burdens should not be passed on.
 
-You use the system, chamber, schedule, container, or arrangement you have built and see what happens. Does it actually reduce waste? Does it preserve the thing? Does it remain clear under pressure? Does the hand find what it needs? Does the plan survive a real day?
+Continuity is not clinging.
 
-Not every good-looking form is a good form.
+It is correct passage.
 
-What cannot survive use does not yet deserve trust.
+Today asks what has proven worthy of entering the next cycle.
+
+A value.
+
+A family teaching.
+
+A discipline.
+
+A prayer.
+
+A recipe.
+
+A boundary.
+
+A story.
+
+A name.
+
+A way of caring that actually sustained life.
+
+The choice matters because what is carried forward becomes part of the ground others will stand on. A person does not only inherit the past. A person also becomes an ancestor to the future through what they choose to transmit.
+
+Pa-Ipi asks for transmission under Ma’at.
+
+Carry what strengthens the chain.
+
+Do not enthrone what only survived because no one questioned it.
+
+The future should receive memory as nourishment, not as weight.
 ''',
-        glyph: "Filled jar tested for seepage",
-        colorFrequency: "Flint gray, storehouse brown, and trial gold",
-        mantra: "I trust what has proved itself under use.",
+        glyph: "Hand passing a small flame to another hand",
+        colorFrequency: "Ancestral gold, deep blue, and living green",
+        mantra: "“I carry forward only what can serve life.”",
       ),
       (
         totalDay: 10,
         starCluster:
-            "✨ sbꜣ nfr — the good star sealed in chamber, closing the first decan with a form now cleaner, more usable, and more worthy of continued abundance",
-        maatPrinciple: "Confirm what is now fit to keep",
+            "✨ sbꜣ nfr — the first decanal star marker of Pa-Ipi, a modest horizon-rising timing group in the night order with uncertain modern star-cluster identification",
+        maatPrinciple: "Remembrance Sealed",
         cosmicContext: '''
-The first decan closes with confirmation of fitness.
+Day 10 seals the first movement of Pa-Ipi.
 
-Something has been given a place, matched to its vessel, separated from weaker forms, arranged, made legible, protected, refined, beautified in service of use, and tested under real life. That is not a small correction. It means one chamber of the life is becoming more trustworthy.
+What endured has been recognized. The name has been spoken. Memory has been given place. The ka has been fed. Inheritance has been sorted. A broken link has been repaired. Mourning has been honored. The record has been preserved. What deserves continuation has been chosen.
 
-This is the work of Pa-Ipi at its beginning.
+This is remembrance under Ma’at.
 
-The month does not ask only whether you can gain. It asks whether you can store rightly. Whether what is valuable enters a form worthy of it. Whether what is gathered becomes easier to preserve, easier to use, and harder to lose.
+Not memory as wandering feeling.
 
-So Day 10 is a sealing day.
+Not nostalgia without duty.
 
-You name what is now more fit to keep than it was ten days ago. A room. A rhythm. A financial structure. A toolset. A body practice. A work system. A relational boundary. A sacred space.
+Remembrance as action.
 
-What is housed well becomes more capable of remaining.
+Pa-Ipi teaches that continuity must be gathered. The dead do not remain present by accident. Names do not preserve themselves. Houses of memory do not stay clean without hands. Inheritance does not become righteous unless the heart sorts what should continue from what should not.
+
+Today asks what remains present because remembrance became action.
+
+What name returned?
+
+What offering was placed?
+
+What record was preserved?
+
+What grief received form?
+
+What link was repaired?
+
+What inheritance will travel forward cleanly?
+
+The first decan closes with a simple law: what is remembered, fed, and placed correctly can remain in relation.
+
+What remains in relation can continue.
 ''',
-        glyph: "Sealed good vessel within the ordered chamber",
-        colorFrequency: "Settled gold, polished clay, and deep green",
-        mantra: "I make what I keep worthy of remaining.",
+        glyph: "Sealed name, offering bowl, and beautiful star",
+        colorFrequency:
+            "Ancestor white, ink black, night blue, and sealed gold",
+        mantra: "“What I remember in Ma’at remains present.”",
       ),
     ],
   );
@@ -2717,8 +7595,7 @@ What is housed well becomes more capable of remaining.
 
 Map<String, KemeticDayInfo> _buildPaIpiIIEntries() {
   const season = "☀️ Shemu – Season of Harvest";
-  const month =
-      "Pa-Ipi (ỉpt-ḥmt) — the month of counted chambers and gathered stores, where what has been led forward must now be housed, apportioned, and made fit for sustained use";
+  const month = "Pa-Ipi (ỉpt-ḥmt) — Reunion and the Return to the Ka";
   return _buildGeneratedDecanEntries(
     keyPrefix: "ipt",
     decan: 2,
@@ -2726,237 +7603,448 @@ Map<String, KemeticDayInfo> _buildPaIpiIIEntries() {
     monthLabelForDate: "Pa-Ipi",
     month: month,
     season: season,
+    decanName: "ḥry-ib sbꜣ nfr",
+    kemeticDateBuilder: (totalDay, _) => "Pa-Ipi II, Day $totalDay",
     flowRows: _paIpiIIFlowRows,
     entries: [
       (
         totalDay: 11,
         starCluster:
-            "✨ ḥry-ib sbꜣ nfr — the good form turned inward, where order is no longer only visible arrangement but an inner standard of fitness, proportion, and worthy containment",
-        maatPrinciple: "Make the inside worthy too",
+            "✨ ḥry-ib sbꜣ nfr — the heart phase of the sbꜣ nfr decanal sequence; a modest horizon-rising star marker used in the night order, with no secure modern constellation identification",
+        maatPrinciple: "Memory Brought to the Heart",
         cosmicContext: '''
-The first decan shaped the chamber.
+The first decan remembered.
 
-The second asks whether the keeper matches it.
+The second asks how memory should be carried.
 
-In Kemet, good order was never only external. A room could be refined while the mind remained scattered. A vessel could be sealed while the appetite remained loose. A storehouse could be measured while the heart still handled abundance carelessly. That kind of order never held for long. Eventually the inside leaked into the chamber.
+This is the work of ḥry-ib sbꜣ nfr: the heart of the beautiful star. What endured has been named. The ka has been fed. The record has been preserved. Now remembrance must enter discernment.
 
-That is the work of ḥry-ib sbꜣ nfr.
+Not every memory should be carried in the same way.
 
-This decan turns goodness inward. Not goodness as sentiment, but as inner fitness. The question is whether your habits, motives, standards, and reactions are worthy of the structures you have begun to build. Whether the person using the chamber is as ordered as the chamber itself.
+Some memories feed.
 
-So Day 11 begins with inward inspection.
+Some memories warn.
 
-What in you still handles good things carelessly? Where is the mind still messy, the appetite still loose, the motive still mixed, the hand still rough with what deserves cleaner treatment?
+Some memories ask for repair.
 
-Beautiful form outside requires cleaner form within.
+Some memories ask to be honored and then set down.
+
+Some memories have been carried so long that the heart no longer knows whether they are presence or weight.
+
+Day 11 asks for memory to be brought inward.
+
+Not to drown in it.
+
+Not to dismiss it.
+
+To weigh it.
+
+Pa-Ipi is reunion, but reunion under Ma’at requires truth. A name returned to the mouth must also be placed correctly in the heart. A grief given form must not be allowed to rule every chamber. An inheritance recognized must still be judged.
+
+Today asks: what memory needs discernment now?
+
+The heart must decide how remembrance can remain alive without becoming disorder.
 ''',
-        glyph: "Sealed vessel set within the heart chamber",
-        colorFrequency: "Deep lapis, polished gold, and red-brown clay",
-        mantra: "I become inwardly worthy of what I ask to preserve.",
+        glyph: "Heart beneath a beautiful star and written name",
+        colorFrequency: "Deep blue, ancestor white, and measured gold",
+        mantra: "“I bring memory to the heart so it can be carried in Ma’at.”",
       ),
       (
         totalDay: 12,
         starCluster:
-            "✨ ḥry-ib sbꜣ nfr — inward good form expressed through touch, where the keeper’s handling reveals whether the order is truly alive",
-        maatPrinciple: "Handle what matters cleanly",
+            "✨ ḥry-ib sbꜣ nfr — a small decanal rising group near the horizon, treated as a ten-day timing marker rather than a securely identified modern cluster",
+        maatPrinciple: "Presence Separated From Weight",
         cosmicContext: '''
-A great deal is revealed by touch.
+There is a difference between presence and weight.
 
-In Kemet, rough handling spoiled more than broken jars. It spoiled rhythm, atmosphere, trust, and sacred relation. The way one opened a container, moved a tool, addressed another person, touched a record, or used a resource revealed whether reverence was present or absent.
+Day 12 asks for that difference to be known.
 
-Day 12 is about handling.
+A remembered name can keep relation alive. A remembered wound can warn the heart wisely. A remembered kindness can nourish the future. These are forms of presence.
 
-You choose one part of life and refuse to touch it loosely today. Your schedule. Your money. Your body. Your desk. Your words. Your child. Your tools. Your rest. Your ritual space.
+But memory can also become weight.
 
-Good order is not proven only by arrangement.
+The same story repeated until it traps the body. The same loss carried as proof that joy is unsafe. The same family wound turned into a law for every relationship. The same failure held as identity long after the lesson has been learned.
 
-It is proven by the quality of contact between you and what you keep.
+Pa-Ipi does not ask the heart to forget.
+
+It asks the heart to carry rightly.
+
+Today asks what remembrance strengthens and what remembrance burdens.
+
+What memory brings you back into relation?
+
+What memory keeps the past alive in a way that feeds life?
+
+What memory has become heavier than its truth?
+
+What are you carrying because it still belongs, and what are you carrying because no one taught the heart how to set it down?
+
+Presence can be honored.
+
+Weight must be measured.
+
+The past should become ancestor, teacher, record, or offering.
+
+It should not become the whole sky.
 ''',
-        glyph: "Careful hand lifting the lid of a good jar",
-        colorFrequency: "Warm clay, muted gold, and clean blue",
-        mantra: "I touch what matters with worthy hands.",
+        glyph: "Two jars: one holding water, one holding stone",
+        colorFrequency: "Ancestor white, river blue, and earth brown",
+        mantra: "“I keep presence and release unnecessary weight.”",
       ),
       (
         totalDay: 13,
         starCluster:
-            "✨ ḥry-ib sbꜣ nfr — inward beauty under judgment, where the standard must rise because the burden has risen",
-        maatPrinciple: "Raise what counts as acceptable",
+            "✨ ḥry-ib sbꜣ nfr — a modest horizon-based decanal marker in the observed night sequence, with exact modern identification uncertain",
+        maatPrinciple: "Inheritance Weighed",
         cosmicContext: '''
-What once was sufficient may no longer be sufficient.
+Inheritance must be weighed.
 
-A person outgrows old tolerances. What held during a smaller season becomes too crude for a fuller one. In Kemet, increase required refinement. Better stores demanded better seals. Greater weight required stronger structure. More sacred burden required more disciplined care.
+Day 13 asks what was received.
 
-Day 13 is about the raised standard.
+Some inheritance arrives as blessing: language, skill, devotion, humor, endurance, craft, song, prayer, food, story, protection, or a way of standing when the world becomes hard.
 
-You look at one area of life and admit that your old definition of “fine” is no longer enough. A better budget. Cleaner speech. Better sleep. More exact files. More serious follow-through. Less sloppy recovery. Better emotional restraint. Stronger reverence.
+Some inheritance arrives as burden: silence, fear, debt, shame, rage, confusion, neglect, old rules that once protected but now confine.
 
-This is not perfectionism.
+Most inheritance is mixed.
 
-It is a rightful adjustment to growth. A richer chamber deserves a better keeper.
+That is why the heart must weigh it.
+
+A person does not honor the ancestors by repeating every pattern. A person does not heal the past by rejecting everything that came before. Ma’at asks for discernment: what strengthens the chain, what needs repair, what should be remembered without being repeated, and what must end here.
+
+Today asks for one inheritance to be examined honestly.
+
+What did it give?
+
+What did it cost?
+
+What should continue?
+
+What should be transformed?
+
+What should be laid down before it reaches another life?
+
+Pa-Ipi gathers the chain, but gathering is not blind carrying.
+
+The heart must decide how the inheritance can serve life.
 ''',
-        glyph: "Measuring cord redrawn tighter",
-        colorFrequency: "Flint gray, dark green, and sharpened gold",
-        mantra: "I rise to the level of what I now hold.",
+        glyph: "Scale weighing two inheritance baskets",
+        colorFrequency: "Discerning gold, ancestor white, and deep brown",
+        mantra: "“I weigh what I received before I pass it on.”",
       ),
       (
         totalDay: 14,
         starCluster:
-            "✨ ḥry-ib sbꜣ nfr — the inner chamber cleared for quality, where clutter must leave if good order is to breathe",
-        maatPrinciple: "Remove what crowds the inside",
+            "✨ ḥry-ib sbꜣ nfr — a small rising decanal group in the ten-day night sequence, best described as a modest watched horizon marker with uncertain modern identity",
+        maatPrinciple: "Grief Made Instructive",
         cosmicContext: '''
-A chamber can be beautiful and still too full.
+Grief can teach.
 
-Inner clutter works the same way. Old excuses, emotional residue, repetitive fantasies, stale fears, undigested resentment, private looseness, and mental junk pile up until there is no clean room left for what matters. The outer order then begins to feel strained because the inner one is overcrowded.
+It should not rule.
 
-Kemet did not only fill chambers. It cleared them.
+Day 14 asks what loss has taught that can serve life.
 
-Day 14 is a clearing day.
+This is a careful question. It does not make loss good. It does not turn pain into decoration. It does not demand gratitude for harm. It simply asks whether the heart can receive what the grief revealed without letting grief become the ruler of every future room.
 
-You identify one recurring inner form of clutter and remove it from the place of repetition. Stop feeding the thought. End the private excuse. Name the stale resentment. Cut the mental habit. Open the window of the mind and let something dead leave.
+A loss may teach tenderness.
 
-Goodness needs room.
+It may teach boundaries.
 
-What is inwardly crowded cannot keep handling valuable things well.
+It may teach the value of time.
+
+It may teach how fragile the body is.
+
+It may teach what should have been said sooner.
+
+It may teach what must never be repeated.
+
+Aset and Nebet-Het give mourning a sacred form because grief without form can scatter the living. Grief with form can help gather what was broken.
+
+Today asks for one lesson from grief to be named cleanly.
+
+Not the whole grief.
+
+One lesson.
+
+What did the loss show?
+
+What should it protect now?
+
+What truth can it pass forward without turning the heart into a tomb?
+
+Grief under Ma’at becomes witness, not prison.
+
+What it teaches should serve life.
 ''',
-        glyph: "Cleared chamber floor before the sealed vessel",
-        colorFrequency: "Dust beige, deep blue, and cleansing gold",
-        mantra: "I clear the inside so good things can remain well.",
+        glyph: "Mourning figure holding a small lamp",
+        colorFrequency: "Mourning blue, soft gold, and altar white",
+        mantra: "“What grief taught will serve life, not imprison it.”",
       ),
       (
         totalDay: 15,
         starCluster:
-            "✨ ḥry-ib sbꜣ nfr — inward good order purified at its root, where motive must become worthy of what it is trying to preserve",
-        maatPrinciple: "Purify why you keep",
+            "✨ ḥry-ib sbꜣ nfr — the midpoint phase of the sbꜣ nfr decanal sequence, a modest horizon-rising marker in the night order with uncertain modern identification",
+        maatPrinciple: "Record Corrected",
         cosmicContext: '''
-A chamber can be ordered from fear just as easily as from wisdom.
+The middle of the decan asks for the record to be corrected.
 
-A person can preserve because he is responsible. He can also preserve because he is anxious, controlling, vain, or desperate to appear superior through neatness and structure. The outer form may look almost the same while the inward root remains distorted.
+Day 15 belongs to truthful memory.
 
-Kemet pushed deeper than appearance.
+A story may have been inherited incomplete. A person may have been made into villain or saint because the living needed simplicity. A wound may have been exaggerated by pain or minimized by fear. A family story may have been repeated so often that no one asks whether it is true.
 
-Day 15 asks why you are building, keeping, preserving, refining, and caring for what you have. Is it to support life? To serve Ma’at? To protect what is truly good? Or to calm your fear, feed self-image, and turn order into a private throne?
+The record matters.
 
-Good chambers require good motives.
+A false record distorts the future.
 
-The keeper’s heart becomes part of the vessel.
+This does not mean every hidden thing can be known. Some questions will remain unanswered. But where truth can be brought closer, Ma’at asks for the attempt.
+
+Today asks what story needs correction.
+
+What was omitted?
+
+What was exaggerated?
+
+Who was not named?
+
+Who carried what others refused to see?
+
+What part of the self has been described unfairly?
+
+What memory has been flattened until it no longer teaches truth?
+
+Djehuty stands here with the reed pen. The record should not serve comfort more than Ma’at.
+
+Correcting the record does not change what happened.
+
+It changes what the future is forced to inherit from it.
 ''',
-        glyph: "Heart set behind the keeper’s seal",
-        colorFrequency: "Red-brown, lapis, and honest gold",
-        mantra: "I keep from wisdom, not from fear.",
+        glyph: "Reed pen correcting a damaged scroll",
+        colorFrequency: "Ink black, papyrus gold, and clear blue",
+        mantra: "“I bring the record closer to truth.”",
       ),
       (
         totalDay: 16,
         starCluster:
-            "✨ ḥry-ib sbꜣ nfr — inward goodness expressed through deliberate touch, where refinement becomes physical in timing, tone, and pace",
-        maatPrinciple: "Slow the hand and refine the touch",
+            "✨ ḥry-ib sbꜣ nfr — a decanal star marker in the rising night sequence, physically uncertain and best described as a modest horizon point or small group",
+        maatPrinciple: "Judgment Returned to Measure",
         cosmicContext: '''
-The inward chamber shows itself through the hand.
+Blame can become heavier than truth.
 
-A rushed touch reveals inward disorder. So does a harsh tone, careless placement, noisy entry, rough movement, sloppy speech, impatient handling of what should be treated with more care. The refined interior is not invisible. It reaches the surface through contact.
+Day 16 asks for judgment to return to measure.
 
-Day 16 asks for deliberate touch.
+Some blame belongs. Harm should be named. Responsibility should not be dissolved into vague forgiveness. A broken relation should not be called whole because the truth is uncomfortable.
 
-Slow one part of your life down and handle it as though it truly matters. Not with stiffness, but with regard. Open the drawer quietly. Speak the instruction clearly. Fold the garment well. Close the file properly. Touch the body with discipline rather than indulgence or contempt. Move through a room like it belongs to order.
+But blame can also grow beyond its rightful place.
 
-Goodness is not abstract today.
+It can become identity.
 
-It is in the hand.
+It can become inheritance.
+
+It can become a room the heart never leaves.
+
+It can attach itself to the wrong person, the wrong moment, the wrong self, or the wrong memory because the true source was too painful to face.
+
+Guilt and shame can do the same.
+
+They may begin as recognition, then expand until they darken everything.
+
+Today asks where judgment has become too heavy, too vague, or too old.
+
+What responsibility is real?
+
+What belongs elsewhere?
+
+What should be repaired?
+
+What should be released?
+
+What should no longer be used to punish the present?
+
+In the Hall of Two Truths, the heart is weighed, not crushed. Ma’at is precise. It does not require false innocence, and it does not require endless condemnation.
+
+Today asks for judgment to become exact enough to heal.
 ''',
-        glyph: "Open hand above the polished lid",
-        colorFrequency: "Warm bronze, quiet blue, and patient gold",
-        mantra: "I let inward refinement reach the surface of my touch.",
+        glyph: "Heart on a scale with a feather",
+        colorFrequency: "Feather white, balanced gold, and deep red",
+        mantra: "“I let judgment become precise, not endless.”",
       ),
       (
         totalDay: 17,
         starCluster:
-            "✨ ḥry-ib sbꜣ nfr — inward good order guarding against quiet corruption, where decay begins in negligence before it becomes visible in the chamber",
-        maatPrinciple: "Catch the hidden spoilage early",
+            "✨ ḥry-ib sbꜣ nfr — a small decanal rising group near the horizon in the ten-day star order, treated as a timing marker with uncertain modern identity",
+        maatPrinciple: "Unfinished Matter Placed",
         cosmicContext: '''
-Rot rarely begins at the center where everyone can see it.
+Some things cannot be completed.
 
-It begins in the overlooked corner. The small indulgence. The private neglect. The silent resentment. The lazy exception repeated too often. The fatigue excused one day too many. The indulgence called harmless. The standard lowered in the hidden chamber.
+Day 17 asks for peace with the unfinished.
 
-Kemet understood that preservation required vigilance against small corruptions.
+Not every question receives an answer. Not every apology arrives. Not every record can be restored. Not every dead person can be asked what they meant. Not every loss can be made sensible. Not every broken chain can be fully repaired by the living hand.
 
-Day 17 is about inner spoilage detection.
+This is one of the hardest parts of Pa-Ipi.
 
-You identify what in you could still quietly corrupt the outer chamber if it continues unchecked. Not the dramatic fall. The subtle one. The decay that begins in carelessness and becomes visible later in speech, money, atmosphere, relationships, or work.
+The desire for reunion meets the limits of time.
 
-What is hidden is not harmless.
+But Ma’at can still be served.
 
-Good keepers inspect what others would ignore.
+The unfinished thing can be named. It can be given a place. It can be mourned. It can be prevented from ruling the entire future. It can be carried as mystery instead of an open wound that demands impossible completion.
+
+Today asks what must be placed in Ma’at without full closure.
+
+This is not giving up on truth.
+
+It is refusing to let the absence of one answer destroy every relation that remains.
+
+Aset gathers what can be gathered. Nebet-Het guards the threshold. Not everything returns in the form the heart wanted.
+
+Still, the rites can be kept.
+
+Still, the name can be spoken.
+
+Still, the living can continue.
 ''',
-        glyph: "Lamp held into the back corner of the chamber",
-        colorFrequency: "Shadow blue, aged brown, and warning gold",
-        mantra: "I inspect the hidden places before decay spreads.",
+        glyph: "Unfinished cord placed beside an offering bowl",
+        colorFrequency: "Shadow blue, altar white, and quiet gold",
+        mantra: "“I place the unfinished in Ma’at and continue.”",
       ),
       (
         totalDay: 18,
         starCluster:
-            "✨ ḥry-ib sbꜣ nfr — inward beauty moving into conduct, where refinement stops being private aspiration and becomes visible atmosphere",
-        maatPrinciple: "Let refinement shape your way of being",
+            "✨ ḥry-ib sbꜣ nfr — a modest decanal horizon marker used in the night sequence, with exact modern astronomical identification uncertain",
+        maatPrinciple: "Living Thread Chosen",
         cosmicContext: '''
-At some point the chamber must begin to affect the whole house.
+After weighing memory, one living thread must be chosen.
 
-Inward refinement that never reaches conduct remains too isolated. Kemet tied inner order to visible bearing. A person whose inward chamber was being cleaned would eventually sound different, move differently, pace differently, and treat others differently. The atmosphere around him would begin to feel more ordered.
+Day 18 asks what still feeds life.
 
-Day 18 is about that extension.
+The heart has remembered, distinguished, weighed, grieved, corrected, judged, and accepted what cannot be completed. Now it must choose what should continue.
 
-You let inner refinement show in the lived details: speech with less waste, tone with less harshness, pace with less frantic scattering, movement with more regard, responses with more proportion. Not for performance. For consistency.
+This is not the same as carrying everything.
 
-The good chamber should begin to perfume the threshold.
+The living thread is the part of memory that still has nourishment in it.
 
-What is becoming cleaner in you should become perceptible around you.
+A name that should be spoken.
+
+A practice that still steadies the body.
+
+A lesson that prevents future harm.
+
+A song that keeps relation warm.
+
+A boundary learned from the past.
+
+A family skill that deserves renewal.
+
+A way of loving that should survive what damaged it.
+
+Today asks what thread remains alive enough to carry.
+
+Choose one.
+
+Do not carry the entire bundle if the bundle bends the back.
+
+Choose the thread that can be woven into the next cycle without making the future a copy of the wound.
+
+Pa-Ipi teaches that continuity is selected, not assumed.
+
+The living thread becomes sacred when the heart chooses it under Ma’at.
 ''',
-        glyph: "Open doorway with ordered chamber light spilling outward",
-        colorFrequency: "Soft gold, warm brown, and living green",
-        mantra: "What is refined within begins to order what is around me.",
+        glyph: "Single golden thread drawn from a basket of cords",
+        colorFrequency: "Living gold, ancestor white, and deep green",
+        mantra: "“I choose the thread that still feeds life.”",
       ),
       (
         totalDay: 19,
         starCluster:
-            "✨ ḥry-ib sbꜣ nfr — inward order under trial, where the true fitness of the keeper is judged in use, not theory",
-        maatPrinciple: "Test the keeper under pressure",
+            "✨ ḥry-ib sbꜣ nfr — a small star group in the decanal rising sequence, best described as a modest horizon timing marker rather than a securely identified modern constellation",
+        maatPrinciple: "Memory Given Form",
         cosmicContext: '''
-Good intentions are easy in a quiet chamber.
+Integrated memory needs form.
 
-The harder question is what survives pressure. Fatigue. Interruption. Temptation. Noise. Friction. Delays. In Kemet, a vessel was trusted because it held when used, not because it looked sound while sitting untouched. The keeper is no different.
+Day 19 asks for the chosen thread to become practice.
 
-Day 19 is trial.
+A memory left only as feeling may fade or return as pressure. A lesson not embodied may be forgotten. A name not given a place may drift again. A grief not given ritual may keep entering the room without warning.
 
-You let life test the inner order a little. Not recklessly. Honestly. Does the cleaner handling remain under inconvenience? Does the raised standard survive fatigue? Does the motive stay clean when no immediate reward appears? Does the refinement hold when the day becomes ordinary again?
+Form protects remembrance.
 
-This is where trust is born.
+A boundary.
 
-Not from imagined discipline, but from what remains after contact.
+A yearly offering.
+
+A written record.
+
+A photograph labeled and kept.
+
+A recipe cooked on a certain day.
+
+A promise spoken clearly.
+
+A practice returned.
+
+A small altar.
+
+A family story told without distortion.
+
+A way of caring that becomes standard.
+
+Today asks what form will help the memory live cleanly.
+
+Not dramatically.
+
+Reliably.
+
+This is how memory stops haunting and begins guiding. It is placed where the living can meet it without being overwhelmed.
+
+In Kemet, remembrance was ritual, text, offering, tomb, name, and repeated speech. It had form because relation needed a path.
+
+Today asks for one memory to receive its path.
 ''',
-        glyph: "Sealed vessel under poured water",
-        colorFrequency: "Flint gray, deep blue, and proving gold",
-        mantra: "I trust what remains sound under real use.",
+        glyph: "Golden thread tied to a small shrine and scroll",
+        colorFrequency: "Gold, ink black, altar white, and night blue",
+        mantra: "“I give memory a form that can guide.”",
       ),
       (
         totalDay: 20,
         starCluster:
-            "✨ ḥry-ib sbꜣ nfr — good inward form sealed in the keeper, closing the second decan with a person more fit to preserve, contain, and protect what matters",
-        maatPrinciple: "Seal the worthy keeper",
+            "✨ ḥry-ib sbꜣ nfr — the heart phase of Pa-Ipi’s sbꜣ nfr sequence, a modest horizon-rising decanal marker in the night order with uncertain modern identification",
+        maatPrinciple: "Integrated Memory Sealed",
         cosmicContext: '''
-The second decan closes with the question of fitness answered more honestly.
+Day 20 seals the heart of Pa-Ipi.
 
-The chamber has been shaped outwardly. Now the keeper has been examined inwardly. Handling has been corrected. Standards raised. Clutter cleared. Motive purified. Touch refined. Hidden rot exposed. Conduct improved. Trial faced.
+Memory has been brought to the heart. Presence has been separated from weight. Inheritance has been weighed. Grief has been allowed to teach without ruling. The record has been corrected. Judgment has been returned to measure. The unfinished has been placed in Ma’at. The living thread has been chosen. Memory has been given form.
 
-That is the true work of ḥry-ib sbꜣ nfr.
+This is integrated remembrance.
 
-Good order is no longer only something around you. It is beginning to become something in you. That is why this day matters. A worthy chamber without a worthy keeper cannot remain worthy for long.
+Not forgetting.
 
-So Day 20 is sealing by character.
+Not being ruled.
 
-You name the inward quality now stronger than it was before: steadier care, cleaner motive, better restraint, more reverent handling, more truthful standards, less loose appetite, less inward clutter.
+Carrying rightly.
 
-What becomes fit within can now keep more faithfully without.
+The question now is what memory can travel forward without becoming a burden that bends the future.
+
+What name will continue?
+
+What lesson has become clean?
+
+What grief has received a vessel?
+
+What inheritance has been sorted?
+
+What story has been corrected?
+
+What form will help the memory remain in relation?
+
+Pa-Ipi teaches that the past does not become righteous merely because it survived. It becomes righteous when the heart places it correctly.
+
+Today asks for memory to be sealed in its proper form.
+
+What has been integrated can guide.
+
+What has been placed under Ma’at no longer has to rule from the dark.
 ''',
-        glyph: "Keeper’s seal pressed over the good chamber",
-        colorFrequency: "Settled gold, lapis blue, and polished clay",
-        mantra: "I become fit inwardly for what I am entrusted to keep.",
+        glyph: "Heart, golden thread, and sealed name beneath a star",
+        colorFrequency:
+            "Deep blue, ancestor white, living gold, and sealed black",
+        mantra: "“I carry memory without being ruled by it.”",
       ),
     ],
   );
@@ -2964,8 +8052,7 @@ What becomes fit within can now keep more faithfully without.
 
 Map<String, KemeticDayInfo> _buildPaIpiIIIEntries() {
   const season = "☀️ Shemu – Season of Harvest";
-  const month =
-      "Pa-Ipi (ỉpt-ḥmt) — the month of counted chambers and gathered stores, where what has been led forward must now be housed, apportioned, and made fit for sustained use";
+  const month = "Pa-Ipi (ỉpt-ḥmt) — Reunion and the Return to the Ka";
   return _buildGeneratedDecanEntries(
     keyPrefix: "ipt",
     decan: 3,
@@ -2973,118 +8060,464 @@ Map<String, KemeticDayInfo> _buildPaIpiIIIEntries() {
     monthLabelForDate: "Pa-Ipi",
     month: month,
     season: season,
+    decanName: "sbꜣ sbꜣ nfr",
+    kemeticDateBuilder: (totalDay, _) => "Pa-Ipi III, Day $totalDay",
     flowRows: _paIpiOverrideIIIFlowRows,
     entries: [
       (
         totalDay: 21,
         starCluster:
-            "✨ tpy-ꜣ spdt — the first bright point of ordering light: the leading appearance that reveals direction, announces transition, and gathers what has been properly kept toward a clearer onward movement",
-        maatPrinciple: "Let the stored good become a new beginning",
-        cosmicContext:
-            "The third decan begins when what has been kept must begin to lead forward.\nA chamber well ordered is not the end of the work. In Kemet, proper keeping prepared a next rising. What had been stored, sealed, clarified, and protected was not meant to remain motionless forever. At the right moment, what was preserved had to become usable again — the beginning of another phase, another sequence, another brightness at the edge of the day.\nThat is the force of tpy-ꜣ spdt.\nThis decan belongs to first appearance. The first clear light. The first sign that what was housed well can now orient movement again. Not reckless release. Not premature spending. But a fresh leading point emerging from good preservation.\nSo Day 21 asks what in your life is ready to move from storage into guidance.\nA plan you kept safe. A strength you rebuilt. A discipline you stabilized. A resource you protected. A truth you clarified. A role you prepared for. Something now wants to stop being merely preserved and start becoming directional.\nWhat is kept well should eventually become fertile again.",
-        glyph: "First star rising above the sealed chamber",
-        colorFrequency: "Dawn gold, deep blue, and polished clay",
-        mantra: "What I kept in order now rises in right time.",
+            "✨ sbꜣ sbꜣ nfr — the star phase of the beautiful-star sequence; a modest horizon-rising decanal marker in the night order, with no secure modern constellation identification",
+        maatPrinciple: "Continuity Named",
+        cosmicContext: '''
+The first decan remembered.
+
+The second integrated memory through the heart.
+
+The third asks what will continue.
+
+This is the work of sbꜣ sbꜣ nfr: the star of the beautiful star. What endured has been recognized. What burdened the heart has been weighed. What belonged to grief has been given form. What was false in the record has been corrected. Now the chain must know what is worthy of passage.
+
+Day 21 asks what continues.
+
+Not everything.
+
+Only what can travel in Ma’at.
+
+A name.
+
+A practice.
+
+A lesson.
+
+A family skill.
+
+A boundary.
+
+A story corrected into truth.
+
+A grief transformed into tenderness.
+
+A standard that survived the year.
+
+A form of love that should not disappear because pain once surrounded it.
+
+Pa-Ipi does not treat continuity as accident. What continues must be chosen, named, and placed into a vessel strong enough to carry it.
+
+Today asks for one living continuity to be named clearly.
+
+What is strong enough, clean enough, or true enough to move forward?
+
+The future cannot receive what the present refuses to name.
+''',
+        glyph: "Star above a golden thread and written name",
+        colorFrequency: "Night blue, ancestor white, and living gold",
+        mantra: "“I name what is worthy to continue.”",
       ),
       (
         totalDay: 22,
         starCluster:
-            "✨ tpy-ꜣ spdt — the first appearing point made intelligible, where a new phase must be named rightly if it is to be guided well",
-        maatPrinciple: "Name what is beginning",
-        cosmicContext:
-            "A beginning left unnamed stays weak.\nIn Kemet, first appearances were not meant to remain vague omens floating at the edge of awareness. They had to be recognized, measured, and placed into language and sequence. Without that, the moment passed into confusion and the people did not know what they were actually entering.\nDay 22 is naming day.\nYou define the new beginning without decoration. Is this recovery? A new work rhythm? A new stewardship phase? A cleaner household order? A more serious financial structure? A restored body? A new standard in speech? A disciplined season of making?\nWhen a new phase is not named, old habits speak over it.\nWhat rises needs a true name if it is going to take its place in the life.",
-        glyph: "Named star-mark above the doorway",
-        colorFrequency: "Ink black, dawn gold, and threshold blue",
-        mantra: "I name the beginning so it can be rightly guided.",
+            "✨ sbꜣ sbꜣ nfr — a small decanal rising group near the horizon, treated as a ten-day star-time marker rather than a securely identified modern cluster",
+        maatPrinciple: "Vessel Prepared",
+        cosmicContext: '''
+What continues needs a vessel.
+
+Day 22 asks for the container to be prepared.
+
+A name needs a place where it can be read. A story needs a form that keeps it from changing carelessly. A practice needs a rhythm. A ritual needs tools. A family duty needs clarity. A lesson needs words. A memory needs somewhere to live besides the body’s private ache.
+
+Without a vessel, continuity depends on mood.
+
+Mood is not enough.
+
+A person may intend to remember and still forget. A family may intend to preserve and still lose the record. A practice may matter deeply and still disappear if no time, place, object, or standard holds it.
+
+Kemet understood this. Names were carved. Offerings were repeated. Tombs, texts, false doors, shrines, and records made memory addressable. Continuity was given architecture.
+
+Today asks what vessel will carry what has been chosen.
+
+A written note.
+
+A saved file.
+
+A labeled object.
+
+A recurring offering.
+
+A calendar mark.
+
+A clean place on the altar.
+
+A standard spoken to the household.
+
+A practice tied to a day.
+
+The vessel does not replace the memory.
+
+It protects the path by which memory can return.
+''',
+        glyph: "Small shrine prepared to hold a written name",
+        colorFrequency: "Stone gray, papyrus gold, and altar white",
+        mantra: "“What must continue needs a vessel.”",
       ),
       (
         totalDay: 23,
         starCluster:
-            "✨ tpy-ꜣ spdt — first light entering use, where what was stored must be opened with intelligence rather than dumped into life carelessly",
-        maatPrinciple: "Open the chamber at the right measure",
-        cosmicContext:
-            "Not everything preserved should be released all at once.\nIn Kemet, the chamber protected value until the right time, but right time did not mean reckless emptying. The keeper still had to decide what portion to bring out, how much to expose, what would serve now, and what should remain sealed for later. Poor release could waste good keeping.\nDay 23 is measured opening.\nYou bring one stored good into use. A saved resource. A prepared idea. A disciplined rhythm. A restored strength. A long-protected truth. A postponed but ready action. But you do it with measure.\nThis is not a breaking-open out of hunger.\nIt is a rightful opening under judgment.\nWhat was kept well should enter use cleanly, not spill.",
-        glyph: "Jar opened to one measured portion",
-        colorFrequency: "Polished clay, soft gold, and living green",
-        mantra:
-            "I open what is ready without spilling what must still be kept.",
+            "✨ sbꜣ sbꜣ nfr — a modest horizon-based decanal star marker in the observed night sequence, with exact modern identification uncertain",
+        maatPrinciple: "Future Addressed",
+        cosmicContext: '''
+Continuity becomes real when it is addressed to the future.
+
+Day 23 asks for speech beyond the present moment.
+
+This may be a letter, record, instruction, recipe, family story, apology, warning, blessing, practice note, altar dedication, or simple sentence written for a later self. The point is not grandeur. The point is transmission.
+
+Someone will need what the present has learned.
+
+Maybe a child.
+
+Maybe a student.
+
+Maybe a friend.
+
+Maybe the next person who enters the work.
+
+Maybe the future self who will forget what pressure taught.
+
+Maybe the dead, whose names still ask to be spoken.
+
+Maybe the living, who need a cleaner chain than the one received.
+
+A word placed forward becomes a bridge.
+
+Papyrus Chester Beatty IV praises writing because written words can keep names alive beyond tombs and bodies. That principle belongs here. Speech can cross time when it is preserved in form.
+
+Today asks: who will need this after me?
+
+Speak to that one.
+
+Write to that one.
+
+Prepare the path so the future does not begin without guidance.
+''',
+        glyph: "Reed pen writing toward an open horizon",
+        colorFrequency: "Ink black, dawn gold, and deep blue",
+        mantra: "“I speak so the future can receive.”",
       ),
       (
         totalDay: 24,
         starCluster:
-            "✨ tpy-ꜣ spdt — the first rising made tangible, where a beginning must leave symbol and become act",
-        maatPrinciple: "Mark the beginning in reality",
-        cosmicContext:
-            "A beginning becomes stronger the moment it enters the world.\nKemet did not trust beginnings that existed only in feeling or inward recognition. Once the sign was read and the chamber opened, the first act had to be made. A marker in time. A visible shift. A concrete step. Otherwise the beginning remained vulnerable to being swallowed again by habit.\nDay 24 is first marker day.\nYou make one act that proves the new phase has truly begun. Send the message. Start the new rhythm. Allocate the first amount. Rearrange the first chamber. Make the appointment. Build the opening page. Publish the piece. Begin the training.\nThe new beginning does not need ten speeches.\nIt needs one real act that says: this phase is now underway.",
-        glyph: "First star-sign beside the opened door",
-        colorFrequency: "Bright dawn gold, black stone, and active green",
-        mantra: "I give the beginning a real first act.",
+            "✨ sbꜣ sbꜣ nfr — a small rising decanal group in the ten-day night sequence, best described as a modest watched horizon marker with uncertain modern identity",
+        maatPrinciple: "Name Protected",
+        cosmicContext: '''
+A name can be damaged after it is remembered.
+
+Day 24 asks for protection of the name.
+
+This may be the name of an ancestor, a living person, a place, a practice, a truth, or a part of the self that has only recently returned to relation. A name can be erased by silence. It can also be harmed by careless speech, mockery, simplification, gossip, or turning a whole life into one easy story.
+
+The ren deserves accuracy.
+
+Not every memory needs public handling. Not every family story should be repeated without care. Not every grief should be opened before people who cannot hold it. Not every recovered truth should be exposed to hands that only know how to use.
+
+Protection is part of remembrance.
+
+Today asks what name or truth needs guarding.
+
+What should be spoken carefully?
+
+What should be corrected when distorted?
+
+What should be kept private until the right hands can receive it?
+
+What should never again be made small for another person’s comfort?
+
+To protect the name is not to freeze it.
+
+It is to keep relation clean enough for the name to continue.
+''',
+        glyph: "Protective arms around a written name",
+        colorFrequency: "Protective black, ancestor white, and clear gold",
+        mantra: "“I keep the name clean so relation can continue.”",
       ),
       (
         totalDay: 25,
         starCluster:
-            "✨ tpy-ꜣ spdt — first light under protection, where a new emergence must be shielded from the old habits that would blur or contaminate it",
-        maatPrinciple: "Protect the new thing while it is still tender",
-        cosmicContext:
-            "Beginnings can be lost quickly if treated as already invincible.\nIn Kemet, the first appearance of a thing did not mean it was now beyond danger. Early stages required protection from confusion, neglect, overexposure, and premature demand. The new thing had to be given a cleaner margin while it gained strength.\nDay 25 is about guarded emergence.\nYou protect the beginning from what has ruined earlier beginnings: loose talk, old patterns, distracted pacing, overspending, overpromising, emotional chaos, or the urge to prove too much too quickly.\nWhat rises today is real.\nThat is exactly why it must be guarded.\nNot hidden forever. Guarded until it can stand.",
-        glyph: "Rising star cupped by guarding hands",
-        colorFrequency: "Dawn blue, pale gold, and watchful green",
-        mantra: "I protect the beginning until it can bear its own weight.",
+            "✨ sbꜣ sbꜣ nfr — the midpoint phase of this decanal sequence, a modest horizon-rising star marker in the night order with uncertain modern identification",
+        maatPrinciple: "Unfit Burden Released",
+        cosmicContext: '''
+Not everything remembered should travel.
+
+Day 25 asks for release.
+
+This is where continuity becomes honest. A burden may have been inherited, explained, named, mourned, and understood. That does not mean it should enter the next cycle. Some memories belong in the record but not in the hand. Some roles belonged to survival but not to the future. Some loyalties were shaped by fear. Some stories remain true but should not remain law.
+
+To release is not to deny.
+
+It is to stop giving the past authority where Ma’at has not granted it.
+
+What belongs to the past but not the path ahead?
+
+An old shame.
+
+A family rule that bent the body.
+
+A grief that has received enough ritual to stop ruling every room.
+
+A duty that was never truly yours.
+
+A story that was inherited but not true.
+
+A self-image built during collapse.
+
+Today asks for one thing to be set down.
+
+Not thrown away in contempt.
+
+Placed where it belongs.
+
+Some things are honored by being buried properly.
+
+The future should not be forced to carry what has already completed its teaching.
+''',
+        glyph: "Old bundle placed beside a closed tomb door",
+        colorFrequency: "Earth brown, shadow blue, and quiet gold",
+        mantra: "“I release what should not govern the next cycle.”",
       ),
       (
         totalDay: 26,
         starCluster:
-            "✨ tpy-ꜣ spdt — the first appearance entering rhythm, where growth must be paced if it is to survive beyond excitement",
-        maatPrinciple: "Let the beginning unfold by order",
-        cosmicContext:
-            "The new thing is weakened when rushed.\nIn Kemet, emergence had sequence. Even what was bright and promising still had to move by stages. A keeper who forced the whole process into one burst often damaged what could have grown well with proper pacing.\nDay 26 is about deliberate unfolding.\nYou refuse to turn the beginning into a frenzy. Instead you give it rhythm. The next right step, not every step. The next portion, not the whole store. The next layer of effort, not exhaustion disguised as devotion.\nThis is how a beginning lasts.\nWhat is paced can deepen. What is rushed often burns itself before its strength arrives.",
-        glyph: "First light above a measured stair of steps",
-        colorFrequency: "Soft gold, deep blue, and paced brown",
-        mantra: "I let the beginning grow by right sequence.",
+            "✨ sbꜣ sbꜣ nfr — a decanal star marker in the rising night sequence, physically uncertain and best described as a modest horizon point or small group",
+        maatPrinciple: "Remembrance Made Repeatable",
+        cosmicContext: '''
+What matters should be able to return.
+
+Day 26 asks for remembrance to become repeatable.
+
+Feeling may be strong today and absent tomorrow. Grief may rise sharply and then vanish under work. Gratitude may be sincere and still forgotten. A name may be spoken once and then drift again.
+
+Repetition protects relation.
+
+The offering returns.
+
+The date is marked.
+
+The story is told at the right time.
+
+The candle is lit.
+
+The recipe is cooked.
+
+The boundary is repeated.
+
+The name is read.
+
+The practice is placed in the week.
+
+A small act done again can carry more continuity than a great act done once and abandoned.
+
+This is not mechanical. It is devotion given rhythm.
+
+In Kemet, relation survived through repeated offerings, repeated names, repeated rites, and repeated records. The living did not rely on feeling alone to keep the dead present. They gave remembrance a path back into time.
+
+Today asks: how will this be remembered when feeling is not enough?
+
+Make one act repeatable.
+
+Continuity needs return.
+''',
+        glyph: "Repeated offering bowls beneath a star",
+        colorFrequency: "Altar white, living gold, and night blue",
+        mantra: "“I give remembrance a rhythm.”",
       ),
       (
         totalDay: 27,
         starCluster:
-            "✨ tpy-ꜣ spdt — first light carrying memory, where the wisdom of what was stored must govern what now rises",
-        maatPrinciple: "Let old wisdom govern new movement",
-        cosmicContext:
-            "A new beginning that ignores the chamber it came from is already in danger.\nWhat was stored well was not only resources and preparation. It was memory. Correction. Discipline. Lessons paid for. Patterns already proven. In Kemet, what rose rightly carried the intelligence of what had been preserved behind it.\nDay 27 is about continuity of wisdom.\nYou do not begin as if nothing has been learned. You bring forward the stored insight. What wasted you before. What preserved you. What strengthened the chamber. What kind of vessel held. What cracked. What needed pacing. What required protection.\nA worthy beginning does not repeat the ignorance of its earlier self.\nIt rises carrying memory.",
-        glyph: "Rising star above the opened record tablet",
-        colorFrequency: "Ink black, dawn gold, and enduring green",
-        mantra: "I let preserved wisdom govern what now begins.",
+            "✨ sbꜣ sbꜣ nfr — a small decanal rising group near the horizon in the ten-day star order, treated as a timing marker with uncertain modern identity",
+        maatPrinciple: "Chain Joined",
+        cosmicContext: '''
+Every person stands in the chain.
+
+Day 27 asks for that place to be recognized.
+
+A person receives before they transmit. Breath, language, food, name, land, warning, skill, body, wound, blessing, record, and practice all arrive through others. Even refusal comes from relation: deciding that something must end here is still an answer to what came before.
+
+Pa-Ipi shows the living as both descendants and future ancestors.
+
+This matters because the question is not only, “What did I receive?”
+
+It is also, “What am I becoming responsible to pass on?”
+
+A cleaned record.
+
+A better boundary.
+
+A repaired name.
+
+A meal.
+
+A skill.
+
+A story told more truthfully.
+
+A wound that does not have to travel farther.
+
+A prayer.
+
+A standard.
+
+A way of caring that the next life can stand on.
+
+Today asks where the chain passes through you.
+
+Not as burden only.
+
+As responsibility.
+
+The future will inherit something from the way the present handles memory.
+
+Let it inherit what has been brought closer to Ma’at.
+''',
+        glyph: "Linked cord passing through two hands",
+        colorFrequency: "Cord brown, ancestor white, and living green",
+        mantra: "“I receive, I sort, I transmit.”",
       ),
       (
         totalDay: 28,
         starCluster:
-            "✨ tpy-ꜣ spdt — first light aligning itself with the larger order, where a beginning must fit the whole life and not merely excite one part of it",
-        maatPrinciple: "Make the beginning fit the whole",
-        cosmicContext:
-            "Not every beginning is a rightful beginning.\nSome start brightly but do not belong. They fight the chambers, undermine the deeper duties, disrupt the store, and pull life out of right proportion. In Kemet, what rose had to fit the larger order. The new thing did not become sacred simply by appearing.\nDay 28 is alignment.\nYou ask whether this beginning truly belongs within the life you are building. Does it strengthen the chambers or weaken them? Does it honor the front line already established, or compete with it? Does it fit your obligations, your resources, your body, your house, your deeper rule?\nA true first light does not scatter the order.\nIt joins it.",
-        glyph: "First star aligned above the ordered chambers",
-        colorFrequency: "Deep blue, ordered gold, and chamber brown",
-        mantra: "I let the new beginning fit the whole order of my life.",
+            "✨ sbꜣ sbꜣ nfr — a modest decanal horizon marker used in the night sequence, with exact modern astronomical identification uncertain",
+        maatPrinciple: "Line Blessed",
+        cosmicContext: '''
+The chain should be blessed.
+
+Day 28 asks for gratitude to the line.
+
+Not because the line was perfect. No line is. But because something carried life this far. Someone preserved a name. Someone kept a skill. Someone survived long enough for another life to begin. Someone fed, taught, warned, loved, endured, corrected, or left a record that still offers a way forward.
+
+Gratitude under Ma’at does not require denial.
+
+A person can bless what sustained life while still refusing what harmed it.
+
+This is mature remembrance.
+
+Today asks what chain held you before you knew how to hold yourself.
+
+Ancestors.
+
+Teachers.
+
+Friends.
+
+Land.
+
+Texts.
+
+Rituals.
+
+Households.
+
+The body.
+
+The quiet practices that kept life from breaking.
+
+Offer gratitude where gratitude is due.
+
+Do not exaggerate.
+
+Do not erase harm.
+
+Bless what truly carried continuity.
+
+A clean blessing strengthens the relation between living, dead, and future. It tells the heart that the chain is not only weight. It is also support.
+''',
+        glyph: "Offering lifted toward a chain of stars",
+        colorFrequency: "Star gold, altar white, and deep blue",
+        mantra: "“I bless what carried life this far.”",
       ),
       (
         totalDay: 29,
         starCluster:
-            "✨ tpy-ꜣ spdt — the first appearing light under review, where what is truly rising must be separated from fantasy, projection, and excitement",
-        maatPrinciple: "Distinguish real rising from imagined rising",
-        cosmicContext:
-            "Not everything that feels like movement is true emergence.\nSome beginnings are only mood. Some are projection. Some are the body’s hunger for a fresh story. Kemet required more sobriety than that. What rose had to be measured by action, fit, continuity, and use. Otherwise illusion would be enthroned as guidance.\nDay 29 is confirmation through truth.\nYou review what has actually begun. What has taken concrete form? What has entered sequence? What has survived contact with the day? What has aligned with the chambers and the rule? What is more than hope now?\nThis is not cynicism.\nIt is protection of the real. What truly rises becomes stronger when it is distinguished from what only glittered for a moment.",
-        glyph: "First star measured against the horizon line",
-        colorFrequency: "Horizon blue, bright gold, and truth-black",
-        mantra: "I confirm the true rising and refuse illusion.",
+            "✨ sbꜣ sbꜣ nfr — a small star group in the decanal rising sequence, best described as a modest horizon timing marker rather than a securely identified modern constellation",
+        maatPrinciple: "Clean Transmission",
+        cosmicContext: '''
+What is handed forward must be arranged cleanly.
+
+Day 29 asks for transmission without confusion.
+
+A record should not be left unlabeled. A story should not be passed on with poison hidden inside it. A lesson should not be wrapped in shame. A family duty should not be implied so heavily that the next person must guess its terms. A practice should not be made so obscure that it dies with the one who knew it.
+
+If something is worth carrying forward, it should be made receivable.
+
+Today asks how to pass the living thread without passing on distortion.
+
+Clarify the record.
+
+Name the boundary.
+
+Explain the practice.
+
+Correct the story.
+
+Remove unnecessary secrecy.
+
+Separate instruction from resentment.
+
+Make the path easier for the next hand than it was for yours.
+
+This is not simplification of sacred things into emptiness. It is care for transmission.
+
+A thing can remain deep and still be clear enough to receive.
+
+The future should not have to fight through confusion before it can receive nourishment.
+
+Hand forward what has been cleaned.
+''',
+        glyph: "Labeled scroll handed from one figure to another",
+        colorFrequency: "Papyrus gold, ink black, and clear blue",
+        mantra: "“I pass on the thread without passing on distortion.”",
       ),
       (
         totalDay: 30,
         starCluster:
-            "✨ tpy-ꜣ spdt — the first bright point sealed into purpose, closing the month with a beginning now clarified, protected, aligned, and made ready for the next great movement",
-        maatPrinciple: "Dedicate the first light",
-        cosmicContext:
-            "Pa-Ipi closes with release into purpose.\nThe month began with chambers, vessels, fitness, and worthy keeping. It moved inward through the refining of the keeper. Now it ends with what right preservation was always meant to serve: a true beginning rising from what was guarded well.\nThat is the completion of tpy-ꜣ spdt.\nWhat was kept has now begun to move. What was hidden has been named. What was sealed has been opened by measure. What emerged has been protected, paced, aligned, and confirmed. The final question is now one of dedication.\nWhat is this beginning for?\nNot merely for your excitement. Not merely for movement itself. For what purpose, what service, what alignment, what continuity under Ma’at will this first light now be offered?\nA beginning gains endurance when it is given a worthy reason to continue.",
-        glyph: "Rising star offered above the opened chamber",
-        colorFrequency: "Dawn gold, deep blue, and consecrating green",
-        mantra: "What rises from good keeping, I dedicate to lasting order.",
+            "✨ sbꜣ sbꜣ nfr — the final star marker of Pa-Ipi’s sbꜣ nfr sequence, a modest horizon-rising decanal group in the night order with uncertain modern identification",
+        maatPrinciple: "Continuity Sealed",
+        cosmicContext: '''
+Day 30 closes Pa-Ipi.
+
+The month began with remembrance and ends with continuity sealed.
+
+What endured was recognized. The name was spoken. The place of memory was entered. The ka was fed. Inheritance was sorted. Mourning was honored. The record was preserved and corrected. Judgment was returned to measure. The unfinished was placed in Ma’at. The living thread was chosen. The vessel was prepared. The chain was blessed. What continues has been handed forward more cleanly.
+
+This is reunion completed as duty.
+
+Not a return to the past.
+
+A return of the past into right relation with the living and the future.
+
+Pa-Ipi teaches that continuity is not automatic. Names fade when they are not spoken. Records decay when they are not kept. Practices die when they are not repeated. Wounds travel when they are not judged. Blessings weaken when they are not transmitted.
+
+Today asks what remains alive because it was carried in Ma’at.
+
+What name?
+
+What lesson?
+
+What practice?
+
+What record?
+
+What repaired link?
+
+What living thread?
+
+Seal that.
+
+The month closes with a clear law: what is remembered, weighed, fed, repaired, and transmitted cleanly can continue without ruling from the dark.
+''',
+        glyph: "Sealed golden thread connecting name, offering, and star",
+        colorFrequency:
+            "Ancestor white, living gold, night blue, and sealed black",
+        mantra: "“What I carry in Ma’at can continue.”",
       ),
     ],
   );

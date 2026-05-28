@@ -5,7 +5,7 @@ final Map<String, KemeticDayInfo> _dayInfoMapBase1 = {
   // 🌞 THOTH I — DAYS 1–10  (Month of Divine Order & Rebirth)
   // ==========================================================
   'thoth_1_1': KemeticDayInfo(
-    kemeticDate: 'Thoth I – Day 1',
+    kemeticDate: 'Thoth I, Day 1',
     season: '🌊 Akhet – Season of Inundation',
     month: 'Thoth (Djehuty) – Month of Divine Order and Rebirth',
     decanName: _canonicalDecanName('thoth_1_1'),
@@ -27,7 +27,7 @@ What is spoken now should sound less like ambition and more like law.''',
   ),
 
   'thoth_2_1': KemeticDayInfo(
-    kemeticDate: 'Thoth I – Day 2',
+    kemeticDate: 'Thoth I, Day 2',
     season: '🌊 Akhet – Season of Inundation',
     month: 'Thoth (Djehuty) – Month of Divine Order and Rebirth',
     decanName: _canonicalDecanName('thoth_2_1'),
@@ -49,7 +49,7 @@ What you design today should be livable under pressure, not just beautiful in im
   ),
 
   'thoth_3_1': KemeticDayInfo(
-    kemeticDate: 'Thoth I – Day 3',
+    kemeticDate: 'Thoth I, Day 3',
     season: '🌊 Akhet – Season of Inundation',
     month: 'Thoth (Djehuty) – Month of Divine Order and Rebirth',
     decanName: _canonicalDecanName('thoth_3_1'),
@@ -71,7 +71,7 @@ Disorder ignored becomes atmosphere. Disorder corrected becomes foundation.''',
   ),
 
   'thoth_4_1': KemeticDayInfo(
-    kemeticDate: 'Thoth I – Day 4',
+    kemeticDate: 'Thoth I, Day 4',
     season: '🌊 Akhet – Season of Inundation',
     month: 'Thoth (Djehuty) – Month of Divine Order and Rebirth',
     decanName: _canonicalDecanName('thoth_4_1'),
@@ -93,7 +93,7 @@ Today is good for titles, vows, disciplines, and formal beginnings that you inte
   ),
 
   'thoth_5_1': KemeticDayInfo(
-    kemeticDate: 'Thoth I – Day 5',
+    kemeticDate: 'Thoth I, Day 5',
     season: '🌊 Akhet – Season of Inundation',
     month: 'Thoth (Djehuty) – Month of Divine Order and Rebirth',
     decanName: _canonicalDecanName('thoth_5_1'),
@@ -115,7 +115,7 @@ A year held in order begins with early honesty.''',
   ),
 
   'thoth_6_1': KemeticDayInfo(
-    kemeticDate: 'Thoth I – Day 6',
+    kemeticDate: 'Thoth I, Day 6',
     season: '🌊 Akhet – Season of Inundation',
     month: 'Thoth (Djehuty) – Month of Divine Order and Rebirth',
     decanName: _canonicalDecanName('thoth_6_1'),
@@ -137,7 +137,7 @@ Today favors generosity that stabilizes rather than generosity that announces it
   ),
 
   'thoth_7_1': KemeticDayInfo(
-    kemeticDate: 'Thoth I – Day 7',
+    kemeticDate: 'Thoth I, Day 7',
     season: '🌊 Akhet – Season of Inundation',
     month: 'Thoth (Djehuty) – Month of Divine Order and Rebirth',
     decanName: _canonicalDecanName('thoth_7_1'),
@@ -159,7 +159,7 @@ What quiets today becomes audible tomorrow.''',
   ),
 
   'thoth_8_1': KemeticDayInfo(
-    kemeticDate: 'Thoth I – Day 8',
+    kemeticDate: 'Thoth I, Day 8',
     season: '🌊 Akhet – Season of Inundation',
     month: 'Thoth (Djehuty) – Month of Divine Order and Rebirth',
     decanName: _canonicalDecanName('thoth_8_1'),
@@ -181,7 +181,7 @@ If the word is real, it will arrive with weight.''',
   ),
 
   'thoth_9_1': KemeticDayInfo(
-    kemeticDate: 'Thoth I – Day 9',
+    kemeticDate: 'Thoth I, Day 9',
     season: '🌊 Akhet – Season of Inundation',
     month: 'Thoth (Djehuty) – Month of Divine Order and Rebirth',
     decanName: _canonicalDecanName('thoth_9_1'),
@@ -203,7 +203,7 @@ What has been spoken now begins to occupy the world.''',
   ),
 
   'thoth_10_1': KemeticDayInfo(
-    kemeticDate: 'Thoth I – Day 10',
+    kemeticDate: 'Thoth I, Day 10',
     season: '🌊 Akhet – Season of Inundation',
     month: 'Thoth (Djehuty) – Month of Divine Order and Rebirth',
     decanName: _canonicalDecanName('thoth_10_1'),

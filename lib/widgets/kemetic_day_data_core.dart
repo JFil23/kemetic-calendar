@@ -92,6 +92,8 @@ Map<String, KemeticDayInfo> _buildGeneratedDecanEntries({
   required String monthLabelForDate,
   required String month,
   String season = '🌊 Akhet – Season of Inundation',
+  String? decanName,
+  String Function(int totalDay, int dayInDecan)? kemeticDateBuilder,
   required List<DecanDayInfo> flowRows,
   required List<
     ({
@@ -112,9 +114,11 @@ Map<String, KemeticDayInfo> _buildGeneratedDecanEntries({
       return _dayInfoEntry(
         key: '${keyPrefix}_${entry.totalDay}_$decan',
         kemeticDate:
-            '$decanLabel – Day $dayInDecan (Day ${entry.totalDay} of $monthLabelForDate)',
+            kemeticDateBuilder?.call(entry.totalDay, dayInDecan) ??
+            '$decanLabel, Day ${entry.totalDay}',
         season: season,
         month: month,
+        decanName: decanName,
         starCluster: entry.starCluster,
         maatPrinciple: entry.maatPrinciple,
         cosmicContext: entry.cosmicContext,
@@ -130,7 +134,13 @@ Map<String, KemeticDayInfo> _buildGeneratedDecanEntries({
 }
 
 KemeticDayInfo? _getInfoForDay(String dayKey) {
-  return _dayInfoMap[dayKey];
+  final direct = _dayInfoMap[dayKey];
+  if (direct != null) return direct;
+
+  final parsed = _parseDayKey(dayKey);
+  if (parsed == null || parsed.month != 13) return null;
+
+  return _dayInfoMap['epagomenal_${parsed.day}_1'];
 }
 
 /// Month key override map.

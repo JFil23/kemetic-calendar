@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:mobile/core/day_key.dart';
 import 'package:mobile/widgets/kemetic_day_info.dart';
 
 void main() {
@@ -34,6 +35,54 @@ void main() {
       expect(henti!.decanName, contains('sbꜣ ḥr-sꜣḥ'));
       expect(mesutRa, isNotNull);
       expect(mesutRa!.decanName, contains('sbꜣ msḥtjw ḫt'));
+    });
+
+    test('reuses Heriu Renpet card data for year-suffixed keys', () {
+      final canonical = KemeticDayData.getInfoForDay('epagomenal_1_1');
+      final yearSpecific = KemeticDayData.getInfoForDay('epagomenal_1_2026');
+
+      expect(canonical, isNotNull);
+      expect(yearSpecific, same(canonical));
+    });
+
+    test('validates the leap-year sixth Heriu Renpet date label', () {
+      expect(
+        KemeticDayData.calculateGregorianDate('epagomenal_6_3'),
+        isNot('Invalid Epagomenal Day'),
+      );
+      expect(
+        KemeticDayData.calculateGregorianDate('epagomenal_6_2'),
+        'Invalid Epagomenal Day',
+      );
+    });
+
+    test('uses normalized visible date labels for all standard day cards', () {
+      expect(KemeticDayData.dayInfoMap.length, 365);
+
+      final oldStyleLabels = <String>[];
+      for (var month = 1; month <= 12; month++) {
+        for (var day = 1; day <= 30; day++) {
+          final key = kemeticDayKey(month, day);
+          final dayInfo = KemeticDayData.getInfoForDay(key);
+
+          expect(dayInfo, isNotNull, reason: 'Missing day card for $key');
+          if (RegExp(r'Day \d+ of|– Day').hasMatch(dayInfo!.kemeticDate)) {
+            oldStyleLabels.add('$key => ${dayInfo.kemeticDate}');
+          }
+        }
+      }
+
+      for (var day = 1; day <= 5; day++) {
+        final key = 'epagomenal_${day}_1';
+        final dayInfo = KemeticDayData.getInfoForDay(key);
+
+        expect(dayInfo, isNotNull, reason: 'Missing day card for $key');
+        if (RegExp(r'Day \d+ of|– Day').hasMatch(dayInfo!.kemeticDate)) {
+          oldStyleLabels.add('$key => ${dayInfo.kemeticDate}');
+        }
+      }
+
+      expect(oldStyleLabels, isEmpty);
     });
   });
 

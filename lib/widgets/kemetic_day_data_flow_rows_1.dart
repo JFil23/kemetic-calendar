@@ -1827,27 +1827,27 @@ final List<DecanDayInfo> _hathorIFlowRows = _buildFlowRows([
     day: 1,
     theme: 'Feel the Ground Hold',
     action:
-        'Walk slowly through the structures of your life and identify what has actually stabilized.',
-    reflection: '"What in my life has proven it can endure?"',
+        'Walk slowly through the structures of life and identify what has actually stabilized.',
+    reflection: '“What in my life has proven it can endure?”',
   ),
   (
     day: 2,
     theme: 'Return to the Path',
     action:
         'Resume one rhythm or responsibility that disruption pushed out of place.',
-    reflection: '"What part of my life is ready to become regular again?"',
+    reflection: '“What part of my life is ready to become regular again?”',
   ),
   (
     day: 3,
     theme: 'Release the Brace',
     action: 'Relax one place in the body or mind that still expects collapse.',
-    reflection: '"Where am I still protecting myself from yesterday?"',
+    reflection: '“Where am I still protecting myself from yesterday?”',
   ),
   (
     day: 4,
     theme: 'Trust the Structure',
-    action: 'Use what you built instead of hovering over it anxiously.',
-    reflection: '"Do I trust my foundations enough to stand on them?"',
+    action: 'Use what has been built instead of hovering over it anxiously.',
+    reflection: '“Do I trust my foundations enough to stand on them?”',
   ),
   (
     day: 5,
@@ -1855,874 +1855,902 @@ final List<DecanDayInfo> _hathorIFlowRows = _buildFlowRows([
     action:
         'Bring music, fragrance, sunlight, order, or softness back into the environment.',
     reflection:
-        '"What makes my life feel inhabited again instead of merely survived?"',
+        '“What makes my life feel inhabited again instead of merely survived?”',
   ),
   (
     day: 6,
     theme: 'Work Without Strain',
     action: 'Continue labor steadily while removing unnecessary urgency.',
-    reflection: '"Where am I making the work heavier than it truly is?"',
+    reflection: '“Where am I making the work heavier than it truly is?”',
   ),
   (
     day: 7,
     theme: 'Recognize What Returned',
-    action:
-        'Name something you feared losing that has now come back into form.',
-    reflection: '"What has quietly returned to me?"',
+    action: 'Name something once feared lost that has now come back into form.',
+    reflection: '“What has quietly returned to me?”',
   ),
   (
     day: 8,
     theme: 'Share the Stability',
     action:
         'Offer reassurance, steadiness, or support to someone still living in uncertainty.',
-    reflection: '"How can my stability become shelter for someone else?"',
+    reflection: '“How can my stability become shelter for someone else?”',
   ),
   (
     day: 9,
     theme: 'Let Joy Enter Carefully',
     action: 'Allow relief and pleasure to return without guilt or excess.',
-    reflection: '"Can I receive joy without distrusting it?"',
+    reflection: '“Can I receive joy without distrusting it?”',
   ),
   (
     day: 10,
     theme: 'Confirm Continuity',
     action:
         'Mark the end of the decan by recognizing what remained standing through change.',
-    reflection: '"What in my life now feels trustworthy again?"',
+    reflection: '“What in my life now feels trustworthy again?”',
   ),
 ]);
 
 final List<DecanDayInfo> _hathorIIFlowRows = _buildFlowRows([
   (
     day: 11,
-    theme: 'Name the Partnership',
+    theme: 'Find the Shared Rhythm',
     action:
-        'Say clearly who you\'re building with right now (family, crew, partner, teammate). Declare "we," not just "me."',
-    reflection: '"Who is actually walking next to me?"',
+        'Name the people, spaces, or systems that now have to move in rhythm with you.',
+    reflection:
+        '“Who is affected by my stability, and who must I move with in balance?”',
   ),
   (
     day: 12,
-    theme: 'Sync the Rhythm',
+    theme: 'Name the Relation',
     action:
-        'Align pace, schedules, expectations. Talk tempo: when do we move, rest, check in.',
-    reflection: '"Are we moving in sync or stepping on each other?"',
+        'Speak clearly about the bond, role, agreement, or shared duty that needs definition.',
+    reflection:
+        '“What relationship needs to be named honestly before it can become harmonious?”',
   ),
   (
     day: 13,
-    theme: 'Share the Load Fairly',
+    theme: 'Balance the Load',
     action:
-        'Divide tasks and emotional weight so one person isn\'t secretly carrying everything.',
+        'Look for uneven weight in household, work, care, money, emotional labor, or planning.',
     reflection:
-        '"Where am I letting \'love\' or \'duty\' become exploitation?"',
+        '“Where has one person or one part of the system been carrying too much?”',
   ),
   (
     day: 14,
-    theme: 'Keep Honesty in Friction',
-    action: 'When tension shows up, address it cleanly, early, without poison.',
-    reflection: '"Can I say what\'s not working without attacking who I love?"',
+    theme: 'Speak Before Tension Hardens',
+    action:
+        'Address one point of friction while it is still small enough to be repaired cleanly.',
+    reflection:
+        '“What truth needs to be spoken before silence turns into resentment?”',
   ),
   (
     day: 15,
-    theme: 'Repair the Commons',
+    theme: 'Repair the Common Space',
     action:
-        'Work together on shared infrastructure: house, money flow, workspace, calendar, kids\' routine, food system.',
-    reflection: '"What shared system needs fixing so both of us can breathe?"',
+        'Tend one shared structure: room, schedule, account, agreement, workspace, meal rhythm, or boundary.',
+    reflection:
+        '“What shared structure needs repair so everyone can breathe again?”',
   ),
   (
     day: 16,
-    theme: 'Pledge Mutual Protection',
+    theme: 'Protect Mutual Dignity',
     action:
-        'Make it explicit: I protect you in rooms you\'re not in. You protect me in rooms I\'m not in.',
+        'Defend someone’s name, privacy, effort, or humanity where it has been exposed or weakened.',
     reflection:
-        '"Do we defend each other\'s dignity when the other isn\'t there?"',
+        '“Do I protect dignity when the person is not present to defend it?”',
   ),
   (
     day: 17,
-    theme: 'Honor the Work Done Together',
-    action: 'Celebrate cooperative wins, not just solo heroics.',
-    reflection: '"Do we name and praise what we built side-by-side?"',
+    theme: 'Let Beauty Coordinate',
+    action:
+        'Use beauty, warmth, music, shared food, kind words, or ordered space to restore cooperation.',
+    reflection: '“How can beauty help this system move together again?”',
   ),
   (
     day: 18,
-    theme: 'Refine the System Together',
+    theme: 'Adjust the Pattern',
     action:
-        'Adjust the plan so it\'s sustainable for both/all going forward. Shared optimization.',
-    reflection:
-        '"How do we make this smoother for both of us, not just efficient for one of us?"',
+        'Change the rhythm so it becomes sustainable for everyone involved, not only efficient for one person.',
+    reflection: '“What adjustment would make this pattern easier to maintain?”',
   ),
   (
     day: 19,
-    theme: 'Rest in Harmony',
+    theme: 'Rest in the Same Peace',
     action:
-        'Rest together without guilt. Shared stillness, not just shared grind.',
-    reflection: '"Can we be peaceful in the same room without performing?"',
+        'Share quiet without fixing, proving, explaining, or managing. Let peace become mutual.',
+    reflection:
+        '“Can I be still with others without turning stillness into performance?”',
   ),
   (
     day: 20,
-    theme: 'Reaffirm the Bond to Ma\'at',
+    theme: 'Confirm Harmony',
     action:
-        'Speak gratitude for the partnership itself. Say: this bond is part of balance, not an accident.',
+        'Close the decan by naming what now moves more smoothly because relation was restored.',
     reflection:
-        '"Do we both understand this isn\'t casual — this is sacred alignment work?"',
+        '“What has become more balanced because it was brought back into right relation?”',
   ),
 ]);
 
 final List<DecanDayInfo> _hathorIIIFlowRows = _buildFlowRows([
   (
     day: 21,
-    theme: 'Reveal the Restored Self',
+    theme: 'Let Order Be Seen',
     action:
-        'Present yourself with intention today: dress, posture, voice, and gaze should reflect recovery, not hiding.',
-    reflection: '"Am I still covering a self that has already begun to heal?"',
+        'Allow one stable part of your life, work, body, or character to become visible without apology.',
+    reflection:
+        '“What is ready to be seen because it has actually become stable?”',
   ),
   (
     day: 22,
-    theme: 'Polish the Image',
+    theme: 'Refine the Surface',
     action:
-        'Refine one visible part of your life that represents you publicly: appearance, room, profile, portfolio, altar, entrance.',
-    reflection: '"What part of my image deserves to match my actual growth?"',
+        'Polish the visible layer of something that already holds: presentation, language, room, work, dress, or design.',
+    reflection: '“Does the outer form honor the order underneath it?”',
   ),
   (
     day: 23,
-    theme: 'Let Beauty Tell the Truth',
+    theme: 'Reflect the Light',
     action:
-        'Choose adornment, music, fragrance, or visual order that expresses reality rather than performance.',
-    reflection: '"What beauty feels honest on me?"',
+        'Return praise, visibility, or attention toward the source that made this stability possible.',
+    reflection: '“What light am I reflecting, and where did it come from?”',
   ),
   (
     day: 24,
-    theme: 'Speak From Restored Ground',
+    theme: 'Remove False Shine',
     action:
-        'Say something important from calm rather than from defense, panic, or hunger for approval.',
-    reflection: '"What does my voice sound like when I am not bracing?"',
+        'Strip away one performance, exaggeration, or decorative layer that does not serve truth.',
+    reflection:
+        '“Where am I trying to look whole instead of letting what is whole show naturally?”',
   ),
   (
     day: 25,
-    theme: 'Radiate Without Chasing',
-    action: 'Let yourself be seen without begging to be chosen.',
-    reflection: '"Can I be visible without performing desperation?"',
+    theme: 'Make Beauty Useful',
+    action:
+        'Use beauty to improve function: make a space easier to enter, a message clearer, a routine more inviting.',
+    reflection: '“How can beauty help this thing serve life better?”',
   ),
   (
     day: 26,
-    theme: 'Align Love and Radiance',
+    theme: 'Share Joy Without Waste',
     action:
-        'Bring warmth, softness, and magnetism into a relationship without losing boundaries or clarity.',
-    reflection: '"Can I remain open without becoming unclear?"',
+        'Offer joy in a measured way: food, music, kindness, color, celebration, or warmth that strengthens rather than drains.',
+    reflection:
+        '“Does this joy nourish the pattern, or does it spend what should be preserved?”',
   ),
   (
     day: 27,
-    theme: 'Honor the Sacred Body',
+    theme: 'Stand in Worth',
     action:
-        'Tend the body as a beautiful vessel: oil, stretch, bathe, dress, rest, adorn.',
-    reflection: '"Do I treat my body like a worthy house for my spirit?"',
+        'Carry yourself according to the dignity of what has endured, not according to the fear of what once collapsed.',
+    reflection: '“Where do I still act smaller than what I have become?”',
   ),
   (
     day: 28,
-    theme: 'Bless the Room',
+    theme: 'Cool the Eye',
     action:
-        'Make the space around you more alive through atmosphere, elegance, and peace.',
-    reflection: '"Does my presence improve the field I enter?"',
+        'Notice where visibility, praise, desire, or heat could turn into excess, and return it to measure.',
+    reflection: '“Where does my radiance need cooling so it can remain clean?”',
   ),
   (
     day: 29,
-    theme: 'Hold Beauty Steady',
+    theme: 'Leave a Sign of Order',
     action:
-        'Keep your radiance consistent without tipping into excess, vanity, or emotional leakage.',
-    reflection: '"Can I stay luminous without becoming unstable?"',
+        'Create or mark one visible sign that beauty, stability, and right relation have been restored.',
+    reflection:
+        '“What can remain after today as evidence that Ma’at was strengthened?”',
   ),
   (
     day: 30,
-    theme: 'Seal the Star-Form',
+    theme: 'Seal the Radiance',
     action:
-        'Mark what has become visible, beautiful, and structurally true in you this month.',
+        'Close Hathor’s month by naming what beauty now protects, nourishes, and makes visible.',
     reflection:
-        '"What now shines in me because it has been genuinely restored?"',
+        '“What joy can I carry forward because it has proven itself in Ma’at?”',
   ),
 ]);
 
 final List<DecanDayInfo> _kaHerKaIFlowRows = _buildFlowRows([
   (
     day: 1,
-    theme: 'Bind What Must Hold',
+    theme: 'Recognize Returning Strength',
     action:
-        'Name the habit, bond, structure, or vow that now needs fastening into place.',
-    reflection:
-        '"What in my life is ready to be secured instead of merely admired?"',
+        'Notice one place where energy, stability, or willingness has begun to return.',
+    reflection: '“Where is life quietly coming back into me?”',
   ),
   (
     day: 2,
-    theme: 'Tighten the First Knot',
+    theme: 'Test the Ground Gently',
     action:
-        'Make one concrete move that locks the thing in: calendar block, storage system, payment rule, ritual time, agreement.',
-    reflection: '"What is the first knot that keeps this from drifting?"',
+        'Try one small action that confirms capacity without forcing full performance.',
+    reflection:
+        '“What can I do now without pretending I am ready for everything?”',
   ),
   (
     day: 3,
-    theme: 'Secure the Weak Edge',
+    theme: 'Gather the Body',
     action:
-        'Find the loose side, vulnerable seam, or unguarded point and reinforce it.',
-    reflection: '"Where would this unravel first if I ignored it?"',
+        'Bring attention back to breath, food, sleep, posture, movement, and physical rhythm.',
+    reflection: '“What part of my body needs to be gathered back into care?”',
   ),
   (
     day: 4,
-    theme: 'Test the Binding',
+    theme: 'Protect the Root',
     action:
-        'Put pressure on the structure and see if it actually holds under use.',
-    reflection: '"Can this survive real life, or only ideal conditions?"',
+        'Guard what is newly returning from criticism, overuse, or premature exposure.',
+    reflection: '“What is still too young to be handled roughly?”',
   ),
   (
     day: 5,
-    theme: 'Bind in Order, Not Fear',
+    theme: 'Feed the Ka',
     action:
-        'Tighten what matters without becoming rigid, paranoid, or controlling.',
-    reflection: '"Am I securing this in Ma\'at, or trying to over-control it?"',
+        'Give real nourishment to what is trying to continue: food, rest, attention, money, time, or protection.',
+    reflection: '“What must be fed if it is going to live?”',
   ),
   (
     day: 6,
-    theme: 'Pair the Inner and Outer',
-    action: 'Make sure the inward vow and the outward system match each other.',
-    reflection: '"Does my structure reflect what I truly intend?"',
+    theme: 'Strength Without Display',
+    action:
+        'Use power quietly today. Do one strong thing without needing it to be seen.',
+    reflection: '“Can I trust strength that does not announce itself?”',
   ),
   (
     day: 7,
-    theme: 'Respect the Fastening Tools',
+    theme: 'Brace Before Motion',
     action:
-        'Organize and care for the tools, rules, and supports doing the holding.',
-    reflection:
-        '"What is helping this stay together, and have I respected it?"',
+        'Prepare the support before taking the larger step: schedule, tools, boundary, body, or help.',
+    reflection: '“What must be braced before I move forward?”',
   ),
   (
     day: 8,
-    theme: 'Keep Tension Balanced',
+    theme: 'Move One Limb',
     action:
-        'Adjust what is too loose or too tight so the whole thing remains functional and alive.',
-    reflection:
-        '"Where does this need more give, and where does it need more discipline?"',
+        'Take one controlled step toward the work, relationship, practice, or life-pattern returning to form.',
+    reflection: '“What single movement proves I am returning?”',
   ),
   (
     day: 9,
-    theme: 'Bind It to Purpose',
-    action:
-        'Reconnect the structure to the reason it exists — protection, continuity, dignity, growth.',
-    reflection: '"Why is this worth holding in the first place?"',
+    theme: 'Confirm Capacity',
+    action: 'Review what the body, mind, and situation can now carry honestly.',
+    reflection: '“What can I carry now that I could not carry before?”',
   ),
   (
     day: 10,
-    theme: 'Seal the First Binding',
+    theme: 'Seal Renewed Strength',
     action:
-        'Mark the fastening with gratitude and declaration: this now stands under my care.',
-    reflection: '"What has now been made harder to lose?"',
+        'Close the decan by naming the strength that has returned and how it must be protected.',
+    reflection:
+        '“What strength has come back, and what law will keep it alive?”',
   ),
 ]);
 
 final List<DecanDayInfo> _kaHerKaIIFlowRows = _buildFlowRows([
   (
     day: 11,
-    theme: 'Enter the Center Hold',
+    theme: 'Bring Strength to the Heart',
     action:
-        'Name the central structure, vow, or relationship now holding the rest together.',
-    reflection: '"What sits at the center of my order right now?"',
+        'Pause before using returned energy. Let the heart decide where strength belongs.',
+    reflection: '“What strength has returned, and what should govern it?”',
   ),
   (
     day: 12,
-    theme: 'Protect the Core',
-    action: 'Reduce threats, noise, and waste around what matters most.',
-    reflection: '"What is pulling at the center that should not have access?"',
+    theme: 'Name the Impulse',
+    action:
+        'Notice the first urge to rush, prove, fix, control, or overgive before acting on it.',
+    reflection: '“What impulse wants to move before it has been measured?”',
   ),
   (
     day: 13,
-    theme: 'Feed the Binding',
+    theme: 'Choose the Right Load',
     action:
-        'Give time, resources, attention, and ritual care to the thing you want to endure.',
-    reflection: '"Am I actively nourishing what I claim is central?"',
+        'Select one responsibility that truly belongs to this stage and leave the rest unlifted.',
+    reflection: '“What load is mine now, and what load is not yet lawful?”',
   ),
   (
     day: 14,
-    theme: 'Remove Hidden Strain',
+    theme: 'Moderate the Effort',
     action:
-        'Find the silent pressure building inside the core structure and address it early.',
-    reflection: '"What tension is quietly gathering at the center?"',
+        'Reduce excess force. Work with enough power to continue, not enough to collapse.',
+    reflection: '“Where am I using more force than the moment requires?”',
   ),
   (
     day: 15,
-    theme: 'Re-state the Inner Law',
-    action: 'Speak the rule, value, or vow that governs this structure.',
-    reflection: '"What law must stay clear if this is to remain whole?"',
+    theme: 'Protect the Root From Excess',
+    action:
+        'Guard the new growth from overuse, exposure, pressure, or old patterns returning too quickly.',
+    reflection: '“What would damage this growth if I handled it too hard?”',
   ),
   (
     day: 16,
-    theme: 'Keep the Core Clean',
+    theme: 'Let the Heart Correct the Hand',
     action:
-        'Remove rot, resentment, clutter, and contradiction from the central area of life.',
-    reflection:
-        '"What impurity is sitting too close to what I most need to protect?"',
+        'Correct one action, habit, or plan that has begun moving out of proportion.',
+    reflection: '“Where does my hand need the heart’s correction?”',
   ),
   (
     day: 17,
-    theme: 'Strengthen Through Repetition',
-    action: 'Repeat the central act that keeps the whole system stable.',
-    reflection: '"What simple act keeps proving it deserves to remain?"',
+    theme: 'Speak From Steadiness',
+    action:
+        'Use speech to protect balance. No frantic promises, sharp reactions, or excessive explaining.',
+    reflection: '“Does my speech carry strength under measure?”',
   ),
   (
     day: 18,
-    theme: 'Guard Against Drift',
+    theme: 'Repair Overreach',
     action:
-        'Watch for subtle compromise, delay, or carelessness at the center.',
-    reflection: '"Where is slippage starting to appear?"',
+        'Undo one place where returned strength became too much: apologize, slow down, redistribute, or rest.',
+    reflection: '“Where did I overreach, and how can I restore proportion?”',
   ),
   (
     day: 19,
-    theme: 'Let the Structure Support You',
-    action: 'Stop carrying alone what the system itself can now hold.',
-    reflection:
-        '"Am I trusting what I built, or still acting like nothing can help me?"',
+    theme: 'Set the Law of Use',
+    action:
+        'Define how this renewed strength will be used, protected, paced, and refused when necessary.',
+    reflection: '“What law must govern this power so it serves Ma’at?”',
   ),
   (
     day: 20,
-    theme: 'Seal the Inner Knot',
-    action: 'Mark the center as established and under protection.',
-    reflection: '"What at my core is now harder to shake?"',
+    theme: 'Seal Disciplined Strength',
+    action:
+        'Close the decan by naming the difference between strength that serves and strength that consumes.',
+    reflection:
+        '“How will I know when my strength is still in right relation?”',
   ),
 ]);
 
 final List<DecanDayInfo> _kaHerKaIIIFlowRows = _buildFlowRows([
   (
     day: 21,
-    theme: 'Work as Offering',
-    action: 'Approach daily labor as offering. Align intention with function.',
-    reflection: '"Can I treat this work as sacred instead of resenting it?"',
+    theme: 'Place Strength Into Service',
+    action:
+        'Choose one concrete place where renewed strength can serve life instead of proving itself.',
+    reflection: '“Where is my strength actually needed?”',
   ),
   (
     day: 22,
-    theme: 'Gather the Materials',
+    theme: 'Begin With the Necessary Task',
     action:
-        'Pull together what the build requires: tools, money, people, notes, permissions, energy.',
-    reflection: '"What do I need in hand before I start raising form?"',
+        'Do the task that supports continuity first, even if it is not dramatic.',
+    reflection: '“What work matters because it keeps life moving?”',
   ),
   (
     day: 23,
-    theme: 'Mark the Ground',
-    action: 'Define the exact space, limit, or frame of what is being built.',
-    reflection: '"Where does this begin, and what boundary gives it shape?"',
+    theme: 'Use Power With Precision',
+    action:
+        'Apply effort exactly where it is needed. Do not scatter energy across everything.',
+    reflection:
+        '“Where will one precise action do more than ten scattered ones?”',
   ),
   (
     day: 24,
-    theme: 'Raise the First Form',
+    theme: 'Support What Is Growing',
     action:
-        'Put up the first visible piece. First wall, first interface, first habit in public reality.',
-    reflection: '"Is it standing in the real world yet, even in rough form?"',
+        'Strengthen the condition around new life: water, money, schedule, protection, food, time, or encouragement.',
+    reflection: '“What support would help this growth continue?”',
   ),
   (
     day: 25,
-    theme: 'Carve the Meaning In',
-    action:
-        'Add intentional symbolism: blessing, inscription, stated purpose. Make sure it is not empty structure.',
-    reflection:
-        '"Does this thing reflect my values, or is it just productive?"',
+    theme: 'Refuse Wasteful Force',
+    action: 'Stop one action that spends energy without serving the root.',
+    reflection: '“Where am I using strength just because I have it?”',
   ),
   (
     day: 26,
-    theme: 'Stabilize the Build',
+    theme: 'Carry the Right Weight',
     action:
-        'Reinforce joints, seal leaks, tighten money flow, lock permissions, secure boundaries.',
-    reflection: '"Where could this fall apart if I don\'t shore it up now?"',
+        'Accept one rightful responsibility and release one burden that does not belong to this stage.',
+    reflection: '“What weight strengthens me, and what weight distorts me?”',
   ),
   (
     day: 27,
-    theme: 'Beautify With Purpose',
+    theme: 'Make the Work Reliable',
     action:
-        'Refine surface: finish, aesthetic, scent, color, polish, the welcoming layer. Not vanity — invitation.',
-    reflection: '"Is it pleasing to enter, to hold, to use?"',
+        'Turn one useful action into a repeatable rhythm, system, or standard.',
+    reflection: '“How can this become dependable instead of occasional?”',
   ),
   (
     day: 28,
-    theme: 'Consecrate / Dedicate',
+    theme: 'Let Service Be Seen',
     action:
-        'Offer it up. Mark the build as sacred. Thank whoever helped. Thank the Source that allowed it.',
-    reflection: '"Who or what am I acknowledging as co-creator here?"',
+        'Allow the result of disciplined strength to become visible without turning it into performance.',
+    reflection: '“What proof of service can stand without boasting?”',
   ),
   (
     day: 29,
-    theme: 'Integration Into Daily Life',
-    action: 'Fold it into your normal rhythm. Use it. Let it serve.',
-    reflection:
-        '"Is this now part of how I live — or is it just a nice idea sitting in a corner?"',
+    theme: 'Offer the Result',
+    action:
+        'Return some fruit of the work to household, community, altar, ancestor, or future need.',
+    reflection: '“Who or what should receive from what my strength produced?”',
   ),
   (
     day: 30,
-    theme: 'Witness and Record',
+    theme: 'Seal Applied Strength',
     action:
-        'Document what was created: photos, notes, receipts, agreements, first usage. Claim it as real legacy, not a moment.',
-    reflection:
-        '"If I disappeared tomorrow, could someone see this and know who I was and what I served?"',
+        'Close the month by naming how renewed strength will continue to serve Ma’at.',
+    reflection: '“How will this strength remain useful after this month ends?”',
   ),
 ]);
 
 final List<DecanDayInfo> _shefBedetIFlowRows = _buildFlowRows([
   (
     day: 1,
-    theme: 'Form the Vessel',
-    action:
-        'Prepare the container: clean jars, steady routines, clear a place for what will grow.',
-    reflection: '"Have I shaped a stable place for life to sit?"',
+    theme: 'Notice the Fragile Growth',
+    action: 'Look for the part of life that has begun but is not yet secure.',
+    reflection: '“What is alive, but still too young to survive neglect?”',
   ),
   (
     day: 2,
-    theme: 'Moisten the Clay',
-    action: 'Water deliberately. Hydrate body, soil, schedule.',
-    reflection: '"Where am I cracked from neglect and in need of moisture?"',
+    theme: 'Check the Water',
+    action:
+        'Examine the flow of nourishment: food, rest, money, attention, communication, or time.',
+    reflection:
+        '“Where is life receiving too little, too much, or nothing at all?”',
   ),
   (
     day: 3,
-    theme: 'Plant Intention',
-    action: 'Choose one living goal this cycle and plant it. Not ten. One.',
-    reflection: '"What deserves to be rooted in me right now?"',
+    theme: 'Find the Uneven Place',
+    action: 'Identify one small imbalance before it becomes visible damage.',
+    reflection: '“What problem is still small enough to correct gently?”',
   ),
   (
     day: 4,
-    theme: 'Feed What You Planted',
-    action: 'Give it fuel: calories, time, presence, protection.',
-    reflection: '"Did I actually nourish what I claimed I cared about?"',
+    theme: 'Tend Without Smothering',
+    action:
+        'Give support in proportion. Help the growth without taking over its process.',
+    reflection: '“Where does care become control if I am not careful?”',
   ),
   (
     day: 5,
-    theme: 'Protect the Fragile',
-    action: 'Put small boundaries around early growth.',
-    reflection: '"What new growth needs shielding from noise and chaos?"',
+    theme: 'Protect the Tender Root',
+    action:
+        'Guard one vulnerable beginning from pressure, criticism, theft, waste, or exposure.',
+    reflection: '“What needs shelter more than advice right now?”',
   ),
   (
     day: 6,
-    theme: 'Breathe Into the Work',
-    action: 'Slow the nervous system. Long exhale. Labor without panic.',
-    reflection:
-        '"Is my body still acting like I\'m in crisis even though I\'m not?"',
+    theme: 'Feed the Right Place',
+    action:
+        'Put nourishment where it will actually reach the root, not where it only looks generous.',
+    reflection: '“Is my care reaching the true need?”',
   ),
   (
     day: 7,
-    theme: 'Honor the Providers',
-    action: 'Acknowledge who or what nourishes you materially.',
-    reflection: '"Do I treat my sources of support as sacred or as automatic?"',
+    theme: 'Remove the Drain',
+    action:
+        'Stop one small leak of energy, food, money, focus, or emotional strength.',
+    reflection:
+        '“What is quietly stealing from the growth I am trying to protect?”',
   ),
   (
     day: 8,
-    theme: 'Distribute Fairly',
+    theme: 'Record the Signs',
     action:
-        'Share food, money, time, attention in balance — not hoarding, not self-erasure.',
-    reflection: '"Is my giving Ma\'at-balanced or am I draining myself?"',
+        'Write down what is growing, what is weakening, and what needs continued care.',
+    reflection: '“What evidence is the field giving me?”',
   ),
   (
     day: 9,
-    theme: 'Record the Yield',
-    action:
-        'Take inventory. What did you actually grow, save, repair, stabilize so far?',
-    reflection: '"Can I point to proof of order — or am I telling a story?"',
+    theme: 'Strengthen the Care Rhythm',
+    action: 'Turn one act of nourishment into a repeatable rhythm.',
+    reflection:
+        '“What care must happen regularly, not only when crisis appears?”',
   ),
   (
     day: 10,
-    theme: 'Seal the Promise to Continue',
-    action: 'Make a quiet vow to keep feeding this life tomorrow.',
-    reflection: '"What will I keep alive through consistency, not hype?"',
+    theme: 'Seal Early Nourishment',
+    action:
+        'Close the decan by naming what must be watched and fed through the next stage.',
+    reflection: '“What living thing has been entrusted to my care?”',
   ),
 ]);
 
 final List<DecanDayInfo> _shefBedetIIFlowRows = _buildFlowRows([
   (
     day: 11,
-    theme: 'Walk the Boundary',
+    theme: 'Bring Care to the Heart',
     action:
-        'Inspect the perimeter of your life: health, money, relationships, space. Note every breach.',
-    reflection: '"Where is chaos sneaking in?"',
+        'Pause before giving more. Let discernment decide what kind of nourishment is actually needed.',
+    reflection:
+        '“What does this life truly need, not what do I feel driven to give?”',
   ),
   (
     day: 12,
-    theme: 'Name the Pest',
+    theme: 'Read the True Need',
     action:
-        'Identify the actual drain (person, habit, substance, thought) without lying about it.',
-    reflection: '"What is quietly eating my field at night?"',
+        'Look beneath the visible symptom and identify the real hunger, weakness, or imbalance.',
+    reflection: '“What is the root asking for beneath the surface?”',
   ),
   (
     day: 13,
-    theme: 'Lay Protective Offerings',
+    theme: 'Adjust the Measure',
     action:
-        'Strengthen the guard: rituals, nutrition, sleep, locks, agreements, budgeting, passwords.',
-    reflection: '"What will I put in place tonight so I wake safer tomorrow?"',
+        'Increase, reduce, redirect, or pause care so it matches the actual condition.',
+    reflection: '“Where does the measure need to change?”',
   ),
   (
     day: 14,
-    theme: 'Strike the Threat',
-    action: 'Remove what actively harms growth. Cut access. Say no. Block.',
-    reflection:
-        '"What am I allowing near me that Ma\'at would drive into the sand?"',
+    theme: 'Feed Without Draining',
+    action: 'Give support without emptying the source that gives it.',
+    reflection: '“Can this care continue without exhausting the giver?”',
   ),
   (
     day: 15,
-    theme: 'Cool the Field',
+    theme: 'Protect the Giver',
     action:
-        'Lower heat before it scorches: de-escalate conflict, reduce stress load, cool inflammation.',
-    reflection: '"Where am I running too hot to stay fertile?"',
+        'Guard the body, time, resources, and spirit of the one providing care.',
+    reflection: '“What protects the one who keeps feeding life?”',
   ),
   (
     day: 16,
-    theme: 'Guard the Storehouse',
-    action: 'Protect stored value: food, money, saved energy, repaired trust.',
-    reflection: '"What I saved — is it actually safe?"',
+    theme: 'Correct Distorted Care',
+    action:
+        'Repair one place where care has become control, neglect, guilt, waste, or fear.',
+    reflection: '“Where has care lost its right relation?”',
   ),
   (
     day: 17,
-    theme: 'Tighten the Circle',
-    action: 'Reconfirm who is inside your protected space and who is not.',
-    reflection: '"Who has access to me that should not?"',
+    theme: 'Distribute Nourishment Fairly',
+    action:
+        'Make sure care reaches more than the loudest need. Look for the quiet places also requiring provision.',
+    reflection:
+        '“Who or what has been overlooked because another need was louder?”',
   ),
   (
     day: 18,
-    theme: 'Track the Losses',
-    action: 'Record leaks, waste, theft, relapse, erosion. No denial.',
-    reflection: '"Where did life escape my hands?"',
+    theme: 'Listen for Response',
+    action:
+        'Observe how the field, body, relationship, or project responds after care is given.',
+    reflection: '“What changed after nourishment was placed?”',
   ),
   (
     day: 19,
-    theme: 'Reinforce the Oath',
-    action:
-        'Restate your terms: how you will be treated, how resources will be handled, how peace is kept.',
-    reflection: '"Have I spoken my law out loud?"',
+    theme: 'Make Provision Sustainable',
+    action: 'Build a support pattern that can continue beyond urgency.',
+    reflection:
+        '“How can this care survive after the emotional moment passes?”',
   ),
   (
     day: 20,
-    theme: 'Stand Watch at Dusk',
+    theme: 'Seal Intelligent Nourishment',
     action:
-        'End the decan in awareness. Quiet body, sharpen perception. Stay awake to patterns.',
-    reflection:
-        '"Do I see threats early enough, or only after damage is done?"',
+        'Close the decan by naming the difference between care that sustains and care that distorts.',
+    reflection: '“How will I know when my care is still in Ma’at?”',
   ),
 ]);
 
 final List<DecanDayInfo> _shefBedetIIIFlowRows = _buildFlowRows([
   (
     day: 21,
-    theme: 'Exhale the Tension',
-    action:
-        'Let the body unclench. Rest the systems you have been holding tight.',
-    reflection: '"Where am I still braced for danger that has already passed?"',
+    theme: 'Trust the Care Already Given',
+    action: 'Let one nourished thing continue without constant interference.',
+    reflection:
+        '“What has received enough care to begin moving by its own rhythm?”',
   ),
   (
     day: 22,
-    theme: 'Acknowledge the Living Field',
-    action:
-        'Look directly at what you kept alive — body, home, work, peace, trust, provision.',
-    reflection: '"What survived because of my care?"',
+    theme: 'Step Back Without Abandoning',
+    action: 'Reduce unnecessary handling while keeping watchful presence.',
+    reflection:
+        '“Where does trust require me to stop touching without stopping care?”',
   ),
   (
     day: 23,
-    theme: 'Bless What Will Feed Others',
-    action: 'Give thanks for what your labor will nourish beyond yourself.',
-    reflection: '"Who will be fed by what I protected?"',
+    theme: 'Let Growth Reach Light',
+    action:
+        'Allow one sign of progress to become visible without rushing it into maturity.',
+    reflection: '“What is ready to be seen, but not yet harvested?”',
   ),
   (
     day: 24,
-    theme: 'Loosen Control Without Leaving Ma’at',
-    action: 'Stop gripping what now has enough structure to stand.',
-    reflection: '"Where can I release control without inviting chaos?"',
+    theme: 'Guard the Boundary',
+    action:
+        'Protect growth from interruption, theft, criticism, overuse, or premature demand.',
+    reflection: '“What boundary lets this life continue in peace?”',
   ),
   (
     day: 25,
-    theme: 'Tend the Vessel',
-    action:
-        'Care for the carrier — your body, hands, voice, tools, and attention.',
-    reflection: '"Am I maintaining the one who carries nourishment?"',
+    theme: 'Feed Steadily',
+    action: 'Give the next measured portion of care without drama or excess.',
+    reflection: '“What simple nourishment is needed now?”',
   ),
   (
     day: 26,
-    theme: 'Name the Inheritance',
+    theme: 'Prepare the Future Share',
     action:
-        'Say clearly what this cycle is passing forward: food, order, skill, trust, record, example.',
-    reflection: '"What will remain because I kept it alive?"',
+        'Set aside seed, savings, time, teaching, or strength for what comes next.',
+    reflection: '“What must be preserved so the next cycle is not starved?”',
   ),
   (
     day: 27,
-    theme: 'Let Joy Return Lawfully',
-    action: 'Allow relief, softness, and gratitude without guilt or excess.',
-    reflection:
-        '"Do I permit joy only after collapse, or can I receive it in balance?"',
+    theme: 'Recognize Maturing Growth',
+    action: 'Name what has become stronger because it was tended correctly.',
+    reflection: '“What is no longer as fragile as it once was?”',
   ),
   (
     day: 28,
-    theme: 'Eat and Receive With Presence',
-    action: 'Take in nourishment slowly and consciously.',
-    reflection: '"Can I receive what feeds me without rushing or shrinking?"',
+    theme: 'Share Confidence',
+    action:
+        'Offer reassurance without taking control. Let steadiness become shelter.',
+    reflection:
+        '“How can I support without making myself the center of the growth?”',
   ),
   (
     day: 29,
-    theme: 'Trust the Order You Built',
+    theme: 'Bless What Continues',
     action:
-        'Let the field breathe. Let the systems breathe. Stop rechecking what is already sound.',
-    reflection: '"Can I trust what I built enough to stop hovering over it?"',
+        'Give thanks for the care, patience, and measure that allowed life to continue.',
+    reflection: '“What survived because it was nourished in right measure?”',
   ),
   (
     day: 30,
-    theme: 'Prepare the Hand-Off',
+    theme: 'Seal Nourished Trust',
     action:
-        'Close the month with order, blessing, and readiness for what comes next.',
-    reflection: '"How do I enter the next cycle as keeper, not casualty?"',
+        'Close the month by naming what can now continue because it has been properly fed.',
+    reflection: '“What living thing can I now trust to keep growing?”',
   ),
 ]);
 
 final List<DecanDayInfo> _mesutRaOverrideIFlowRows = _buildFlowRows([
   (
     day: 1,
-    theme: 'Open the Birth Gate',
+    theme: 'Enter the Hidden Chamber',
     action:
-        'Identify what is now ready to move from hidden preparation into living form.',
-    reflection: '"What is truly ready to emerge now?"',
+        'Name what is forming beneath the surface before trying to reveal it.',
+    reflection: '“What is alive in me that is not ready to appear yet?”',
   ),
   (
     day: 2,
-    theme: 'Protect the First Opening',
+    theme: 'Recognize Latent Power',
     action:
-        'Guard the new emergence from noise, doubt, premature demand, and careless handling.',
-    reflection: '"What must be protected while it is still new?"',
+        'Notice strength that is present but still concealed, quiet, or unexpressed.',
+    reflection: '“What power is gathering without needing display?”',
   ),
   (
     day: 3,
-    theme: 'Name What Is Being Born',
+    theme: 'Stop Forcing Emergence',
     action:
-        'Speak clearly what is coming into life so it does not remain vague or half-formed.',
-    reflection: '"What exactly is being born through me now?"',
+        'Withdraw one demand for immediate clarity, proof, answer, or visible progress.',
+    reflection: '“Where am I trying to pull something into daylight too soon?”',
   ),
   (
     day: 4,
-    theme: 'Give It a Body',
+    theme: 'Guard the Depth',
     action:
-        'Take one concrete action that gives the new thing real form in the world.',
-    reflection: '"What makes this birth tangible instead of imagined?"',
+        'Protect the private space where new life, thought, healing, or direction is still forming.',
+    reflection: '“What needs concealment in order to become whole?”',
   ),
   (
     day: 5,
-    theme: 'Feed the New Life',
+    theme: 'Feed the Hidden Process',
     action:
-        'Give the emerging thing the first nourishment it will need: time, structure, care, materials, or attention.',
-    reflection: '"What must I feed now so it does not weaken at birth?"',
+        'Give quiet nourishment to what is forming: rest, silence, water, prayer, study, or protected time.',
+    reflection: '“What does this hidden becoming need in order to continue?”',
   ),
   (
     day: 6,
-    theme: 'Refuse Premature Judgment',
+    theme: 'Listen Beneath the Surface',
     action:
-        'Stop measuring the newborn thing by the standards of full maturity.',
-    reflection: '"Am I expecting ripeness from what has only just emerged?"',
+        'Observe subtle signals from the body, dream, silence, hesitation, desire, or recurring thought.',
+    reflection: '“What is the unseen part of me trying to say?”',
   ),
   (
     day: 7,
-    theme: 'Establish the Rhythm of Care',
-    action:
-        'Build the first repeatable pattern that will help this new life continue.',
-    reflection: '"What rhythm will keep this birth alive?"',
+    theme: 'Refuse Premature Naming',
+    action: 'Allow uncertainty to remain where the form is not yet complete.',
+    reflection: '“What am I not ready to name accurately yet?”',
   ),
   (
     day: 8,
-    theme: 'Strengthen the Fragile Edge',
+    theme: 'Strengthen the Womb of Becoming',
     action:
-        'Reinforce the part most vulnerable in the early stage: confidence, system, protection, skill, or consistency.',
-    reflection: '"Where is this new thing still easiest to injure?"',
+        'Improve the container around what is forming: schedule, privacy, boundary, body, room, or practice.',
+    reflection: '“What container will help this become without distortion?”',
   ),
   (
     day: 9,
-    theme: 'Welcome the Responsibility of Birth',
+    theme: 'Record the Stirring',
     action:
-        'Accept that what has emerged now makes a claim on your labor, attention, and stewardship.',
-    reflection: '"Am I ready to care for what I asked to be born?"',
+        'Write what is beginning to move, even if it is not yet clear enough to act on.',
+    reflection: '“What first signs of becoming should I preserve?”',
   ),
   (
     day: 10,
-    theme: 'Seal the First Life',
+    theme: 'Seal Hidden Emergence',
     action:
-        'Confirm that something now truly exists which did not exist before.',
-    reflection: '"What now lives in my world that was only hidden before?"',
+        'Close the decan by naming what must remain protected until the right moment of birth.',
+    reflection:
+        '“What is forming, and what law will keep it safe until it can rise?”',
   ),
 ]);
 
 final List<DecanDayInfo> _mesutRaOverrideIIFlowRows = _buildFlowRows([
   (
     day: 11,
-    theme: 'Receive the Birth Within',
+    theme: 'Keep the Heart Awake',
     action:
-        'Acknowledge what has now entered your life and ask how your inner world must change to hold it well.',
-    reflection: '"What must be rearranged in me now that this exists?"',
+        'Remain attentive without forcing action. Notice what is present in the silence.',
+    reflection: '“Can I stay awake to what is forming without rushing it?”',
   ),
   (
     day: 12,
-    theme: 'Quiet the First Fear',
+    theme: 'Listen to the Dark',
     action:
-        'Name the fear, resistance, or overwhelm that the new thing has awakened and refuse to let it govern the bond.',
-    reflection: '"What in me is afraid of what has just begun?"',
+        'Give time to quiet signs: dream, hesitation, intuition, recurring thought, or body signal.',
+    reflection: '“What is the hidden passage trying to teach me?”',
   ),
   (
     day: 13,
-    theme: 'Accept the New Claim',
+    theme: 'Separate Stillness From Avoidance',
     action:
-        'Admit that the birth now has rightful claim on your time, loyalty, and inward attention.',
+        'Ask whether the pause is protecting formation or hiding from necessary truth.',
     reflection:
-        '"Have I truly accepted that this new life now asks something of me?"',
+        '“Is this stillness sacred, or am I using it to avoid what must be faced?”',
   ),
   (
     day: 14,
-    theme: 'Stop Pulling Back',
+    theme: 'Guard the Inner Chamber',
     action:
-        'Catch where you are withholding commitment, care, or belief from what has emerged.',
-    reflection:
-        '"Where am I still standing at a distance from what I asked to be born?"',
+        'Protect privacy, rest, silence, and the unfinished process from unnecessary intrusion.',
+    reflection: '“What boundary keeps the hidden work clean?”',
   ),
   (
     day: 15,
-    theme: 'Clean the Inner Atmosphere',
+    theme: 'Hold the Unclear Thing Gently',
     action:
-        'Remove one inward condition that would poison the new life: resentment, cynicism, comparison, self-doubt, or hidden chaos.',
-    reflection: '"What in my inner climate could weaken this before it grows?"',
+        'Let uncertainty remain without turning it into fear, performance, or premature decision.',
+    reflection: '“What can I hold without needing to solve it today?”',
   ),
   (
     day: 16,
-    theme: 'Bind Heart to Care',
+    theme: 'Watch the Gate',
     action:
-        'Attach real inward loyalty to the thing you are now responsible for nurturing.',
-    reflection: '"Does my heart now stand with what has emerged?"',
+        'Notice what wants to enter the hidden chamber: fear, pressure, old habit, outside voices, or true guidance.',
+    reflection: '“What should be allowed in, and what should remain outside?”',
   ),
   (
     day: 17,
-    theme: 'End the Double Mind',
+    theme: 'Keep the Lamp Low',
     action:
-        'Refuse the split between wanting the birth and resisting the labor it requires.',
-    reflection: '"Where am I still divided about carrying this?"',
+        'Use just enough light to see the next sign. Do not overexpose what is still forming.',
+    reflection: '“What small light is enough for this stage?”',
   ),
   (
     day: 18,
-    theme: 'Learn the New Tenderness',
+    theme: 'Trust the Ordered Passage',
     action:
-        'Let the new thing teach you a more precise way of handling, timing, and listening.',
-    reflection: '"What new kind of care is this birth demanding from me?"',
+        'Let the process continue through its proper sequence instead of demanding immediate emergence.',
+    reflection:
+        '“What part of this must pass through time before it can become clear?”',
   ),
   (
     day: 19,
-    theme: 'Test the Inner Welcome',
+    theme: 'Record the Night Watch',
     action:
-        'Notice whether your reactions under pressure are supporting the birth or threatening it.',
-    reflection: '"Do my private habits make this new life safer or shakier?"',
+        'Write what the silence revealed, what shifted inwardly, and what still remains hidden.',
+    reflection: '“What did I learn by staying present in the dark?”',
   ),
   (
     day: 20,
-    theme: 'Seal the Inner Adoption',
+    theme: 'Seal Attentive Stillness',
     action:
-        'End the decan by inwardly claiming what has been born as something you now truly mean to keep alive.',
-    reflection: '"What have I now fully accepted into my care?"',
+        'Close the decan by naming what the heart must keep watching until the threshold opens.',
+    reflection: '“What requires my attention, not my interference?”',
   ),
 ]);
 
 final List<DecanDayInfo> _mesutRaOverrideIIIFlowRows = _buildFlowRows([
   (
     day: 21,
-    theme: 'Let the New Life Lead',
-    action:
-        'Identify what has now grown strong enough to begin guiding your choices and sequence.',
-    reflection: '"What newly born thing should now start leading?"',
+    theme: 'Stand at the Threshold',
+    action: 'Name the doorway now before you without crossing it too soon.',
+    reflection: '“What threshold is near, but not yet open?”',
   ),
   (
     day: 22,
-    theme: 'Align the Day Around It',
+    theme: 'Stop Adding to the Old Cycle',
     action:
-        'Rearrange one part of your day, work, or household so it answers to the new life instead of the old pattern.',
-    reflection: '"What still moves as though this birth never happened?"',
+        'Refuse one unnecessary task, demand, explanation, or repair that belongs to the closing year.',
+    reflection:
+        '“What am I still trying to add to something already complete?”',
   ),
   (
     day: 23,
-    theme: 'Remove the Threat to Growth',
+    theme: 'Clear the Gate',
     action:
-        'Cut away one force that keeps endangering the new life: distraction, cynicism, indulgence, confusion, or fear.',
-    reflection: '"What still threatens what is trying to live?"',
+        'Remove clutter, unfinished noise, emotional residue, or false urgency from the space before emergence.',
+    reflection: '“What must be cleared so the next beginning is not crowded?”',
   ),
   (
     day: 24,
-    theme: 'Give the Birth a Place of Honor',
+    theme: 'Gather the Necessary Things',
     action:
-        'Set the new thing in visible priority through schedule, space, structure, or open acknowledgment.',
-    reflection: '"Have I given this new life a rightful place?"',
+        'Prepare only what the birth truly needs: water, record, boundary, rest, offering, tool, or intention.',
+    reflection: '“What is actually needed for the next beginning?”',
   ),
   (
     day: 25,
-    theme: 'Let Conduct Reflect the Birth',
+    theme: 'Refuse the False Dawn',
     action:
-        'Make your speech, pace, and actions show that something real has changed in you.',
-    reflection: '"Can my life now reveal what has been born?"',
+        'Do not mistake impatience, excitement, fear, or pressure for the true moment of emergence.',
+    reflection:
+        '“Where am I calling something dawn because I am tired of night?”',
   ),
   (
     day: 26,
-    theme: 'Strengthen the New Rule',
+    theme: 'Keep the Body Ready',
     action:
-        'Reinforce the habit, system, or devotion that will keep this birth from slipping back into weakness.',
-    reflection: '"What will keep this new life from fading into memory?"',
+        'Prepare the body for emergence through rest, hydration, food, cleanliness, and lowered strain.',
+    reflection: '“What condition must my body be in to receive the new cycle?”',
   ),
   (
     day: 27,
-    theme: 'Teach the New Way',
+    theme: 'Honor the Last Darkness',
     action:
-        'Let the birth begin affecting others through example, guidance, or better order.',
-    reflection: '"How should this new life now change the world around me?"',
+        'Let the final hidden stage complete without contempt for its silence.',
+    reflection: '“What part of the dark still has work to finish?”',
   ),
   (
     day: 28,
-    theme: 'Guard Against Return of the Old',
+    theme: 'Listen for the First Light',
     action:
-        'Stop one old pattern from re-entering and taking back space it has lost.',
-    reflection: '"What past force is still trying to reclaim the chamber?"',
+        'Notice the first real sign of readiness without forcing it into action.',
+    reflection: '“What sign of emergence is true enough to trust?”',
   ),
   (
     day: 29,
-    theme: 'Confirm What Is Truly Alive',
+    theme: 'Seal the Night Passage',
     action:
-        'Review what has actually taken root and distinguish real growth from emotional projection.',
-    reflection: '"What is now living strongly enough to be trusted?"',
+        'Record what was completed, protected, learned, released, and held in silence.',
+    reflection: '“What did the hidden passage make ready?”',
   ),
   (
     day: 30,
-    theme: 'Dedicate the New Light',
+    theme: 'Wait at the Edge of Birth',
     action:
-        'Seal the decan by placing this birth under purpose, endurance, and service to Ma’at.',
-    reflection: '"What is this new life now for?"',
+        'Close Mesut-Ra by standing ready without interference, demand, or fear.',
+    reflection: '“Can I be ready without forcing the birth?”',
   ),
 ]);
 
 final List<DecanDayInfo> _heriuRenpetOverrideFlowRows = _buildFlowRows([
   (
     day: 1,
-    theme: 'Restore What Must Continue',
+    theme: 'Birth of Ausar',
     action:
-        'Restore one discipline, vow, sacred routine, or piece of dignity that should not be left in fragments.',
-    reflection: '"What in my life must not remain in pieces?"',
+        'Name what has ended, what must be gathered, and what can still become fertile after loss.',
+    reflection:
+        '“What broken thing is asking to be gathered into a new form of life?”',
   ),
   (
     day: 2,
-    theme: 'Raise Your Sightline',
+    theme: 'Birth of Heru the Elder',
     action:
-        'Lift your perception above the dust of reaction and look again at the full pattern of your life and duty.',
+        'Rise above the scattered pieces and look for the larger field of order.',
     reflection:
-        '"What changes when I look from height instead of from entanglement?"',
+        '“What becomes visible when I stop looking only from the wound?”',
   ),
   (
     day: 3,
-    theme: 'Harness the Dangerous Force',
+    theme: 'Birth of Set',
     action:
-        'Name one raw force in you and place a lawful boundary around it so it serves rather than rules.',
-    reflection: '"What dangerous force in me needs governance, not denial?"',
+        'Name the force, disruption, anger, or boundary-power that must be placed before it becomes destructive.',
+    reflection:
+        '“What power in me needs a rightful place before it turns against the whole?”',
   ),
   (
     day: 4,
-    theme: 'Gather Through Wisdom',
+    theme: 'Birth of Aset',
     action:
-        'Use careful intelligence to gather one scattered thing back into coherence.',
-    reflection: '"What needs precise wisdom more than more force right now?"',
+        'Gather the name, word, spell, plan, or intelligence that can restore what force alone cannot repair.',
+    reflection: '“What wisdom knows how to restore what strength cannot?”',
   ),
   (
     day: 5,
-    theme: 'Close the Year With Clean Hands',
+    theme: 'Birth of Nebet-Het',
     action:
-        'Thank, mourn, seal, record, or release one ending properly so the next cycle does not inherit decay.',
-    reflection: '"What must be closed cleanly before I cross the threshold?"',
+        'Stand at the threshold with what is ending and give transition a clean form.',
+    reflection:
+        '“What must be mourned, guarded, and released before the new year opens?”',
   ),
 ]);
 
@@ -2795,291 +2823,293 @@ final List<DecanDayInfo> _rekhWerOverrideIFlowRows = _buildFlowRows([
 final List<DecanDayInfo> _rekhWerOverrideIIFlowRows = _buildFlowRows([
   (
     day: 11,
-    theme: "Bring the Craft Within",
+    theme: "Bring Skill to the Heart",
     action:
-        "Turn attention from outer structure to inner method. Ask how you are doing the work, not just whether you are doing it.",
-    reflection: "What in my craft still lacks inward guidance?",
+        "Pause before improving the form. Let discernment decide what truly needs refinement.",
+    reflection:
+        "“What does this work need, not what do I want to force onto it?”",
   ),
   (
     day: 12,
-    theme: "Slow the Hand",
+    theme: "Listen to the Form",
     action:
-        "Reduce haste in one important area. Work with precision instead of speed.",
-    reflection: "Where does rushing cause me to lose quality?",
+        "Study how the body, project, habit, or relationship is responding to the pressure already applied.",
+    reflection:
+        "“What is the form telling me about how it wants to be shaped?”",
   ),
   (
     day: 13,
-    theme: "Correct the Angle",
-    action:
-        "Adjust one method, posture, sequence, or assumption that has been slightly off.",
-    reflection: "What small misalignment is distorting the whole?",
+    theme: "Separate Error From Material",
+    action: "Identify what is truly wrong without condemning the whole work.",
+    reflection: "“What needs correction, and what is still sound?”",
   ),
   (
     day: 14,
-    theme: "Refine the Method",
+    theme: "Refine the Hand",
     action:
-        "Improve how you work so the process itself becomes cleaner, not just the result.",
-    reflection: "Is my method worthy of repetition?",
+        "Change the method before blaming the material. Adjust touch, timing, language, or technique.",
+    reflection: "“Where does my approach need more skill?”",
   ),
   (
     day: 15,
-    theme: "Let Care Become Skill",
+    theme: "Receive Correction",
     action:
-        "Apply patience, attention, and deliberate handling to something you usually do too casually.",
-    reflection: "Where would more care increase true mastery?",
+        "Accept useful feedback, evidence, or discomfort without defending the old form.",
+    reflection: "“What truth can improve the work if I stop resisting it?”",
   ),
   (
     day: 16,
-    theme: "Direct the Force",
-    action: "Bring strength under control. Use pressure only where it belongs.",
-    reflection: "Am I guiding my power, or wasting it?",
+    theme: "Remove Excess",
+    action:
+        "Cut away one unnecessary part that makes the form heavier, weaker, or less truthful.",
+    reflection: "“What is extra, and what is essential?”",
   ),
   (
     day: 17,
-    theme: "Teach Through Example",
+    theme: "Strengthen the Center",
     action:
-        "Let someone see refinement in your conduct, timing, or discipline.",
-    reflection: "Would my example teach correctness without words?",
+        "Return to the core purpose and reinforce the part that everything else depends on.",
+    reflection:
+        "“What center must be strengthened before the outer form can hold?”",
   ),
   (
     day: 18,
-    theme: "Remove Waste Motion",
-    action: "Cut one inefficient habit, extra step, or repeated error.",
-    reflection: "What motion in my life looks active but produces little?",
+    theme: "Test Under Use",
+    action:
+        "Let the form meet a real condition. Notice what holds and what needs adjustment.",
+    reflection: "“Does this work only in theory, or can it hold in use?”",
   ),
   (
     day: 19,
-    theme: "Bind Intention to Action",
-    action: "Make sure what you mean and what you do are fully aligned.",
-    reflection: "Does my conduct truly match my stated purpose?",
+    theme: "Record the Method",
+    action:
+        "Write down what was learned so the correction can be repeated instead of rediscovered.",
+    reflection: "“What method is now clear enough to preserve?”",
   ),
   (
     day: 20,
-    theme: "Confirm the Inner Guide",
+    theme: "Seal Discerned Skill",
     action:
-        "End the decan by identifying the principle that now governs your method.",
-    reflection: "What inner law is now shaping how I work?",
+        "Close the decan by naming what has become more trustworthy through correction.",
+    reflection: "“What can now be trusted because it was refined under Ma’at?”",
   ),
 ]);
 
 final List<DecanDayInfo> _rekhWerOverrideIIIFlowRows = _buildFlowRows([
   (
     day: 21,
-    theme: "Lay Out the Instruments",
-    action:
-        "Spread out what this next phase will depend on: tools, health, schedule, money, discipline, alliances, and spiritual practice. See it without performance.",
-    reflection: "What in my life is actually ready to be trusted?",
+    theme: "Let Skill Become Reliable",
+    action: "Use the corrected method in a real, ordinary condition.",
+    reflection:
+        "“Can this skill hold when the day is normal, not specially prepared?”",
   ),
   (
     day: 22,
-    theme: "Name the Unsound Place",
+    theme: "Repeat the Method",
     action:
-        "Identify what is cracked, loose, overextended, inconsistent, or falsely presented as “fine.” Refuse soft lies.",
-    reflection:
-        "Where am I still pretending something is sound when it is not?",
+        "Practice the same corrected action again without changing it out of impatience.",
+    reflection: "“Can I trust repetition long enough for skill to stabilize?”",
   ),
   (
     day: 23,
-    theme: "Hone the Working Edge",
+    theme: "Remove Performance From Practice",
     action:
-        "Sharpen one thing you will need to function cleanly: a skill, a body habit, a workspace, a discipline, a form of speech.",
-    reflection:
-        "What must be honed so I stop tearing through life with a dull edge?",
+        "Do the work without turning it into display, announcement, or proof.",
+    reflection: "“Can I let competence grow quietly?”",
   ),
   (
     day: 24,
-    theme: "Bring It Back Into True",
+    theme: "Strengthen the Weak Point",
     action:
-        "Realign one structure before pressure exposes its weakness: posture, agreement, budget, boundary, workflow, calendar, or vow.",
-    reflection: "What needs correction now so it does not fail later?",
+        "Choose one known weakness and reinforce it with calm, specific attention.",
+    reflection: "“What part of the form still needs strengthening?”",
   ),
   (
     day: 25,
-    theme: "Yoke the Force",
-    action:
-        "Take raw power — ambition, anger, urgency, appetite, charisma, stamina — and harness it to duty.",
-    reflection: "Is my strength serving order, or only serving impulse?",
+    theme: "Let the Vessel Hold More",
+    action: "Test the form with a slightly greater but lawful responsibility.",
+    reflection: "“What can this now hold that it could not hold before?”",
   ),
   (
     day: 26,
-    theme: "Speak the Obligation",
+    theme: "Teach the Method",
     action:
-        "State plainly what you are now responsible for maintaining. Reduce vagueness. Accept the burden without theatrics.",
-    reflection: "What is mine to keep alive from here forward?",
+        "Explain, write, or demonstrate the method so it can live beyond one person.",
+    reflection: "“What do I now know well enough to pass on?”",
   ),
   (
     day: 27,
-    theme: "Cut Away the Rot",
+    theme: "Guard Against Cleverness",
     action:
-        "Remove one drain that cannot travel with you: habit, excuse, indulgence, false loyalty, recurring disorder, or self-betrayal.",
-    reflection: "What will poison the next cycle if I keep feeding it?",
+        "Refuse unnecessary complication. Keep the method clean, useful, and true.",
+    reflection: "“Where am I adding complexity to avoid simple discipline?”",
   ),
   (
     day: 28,
-    theme: "Bind Continuity",
+    theme: "Serve Through Competence",
     action:
-        "Make a continuity vow. Promise steady tending rather than dramatic effort. Build repetition into the future.",
-    reflection: "What deserves my steady hand beyond today’s mood?",
+        "Use skill to solve one real problem for the body, home, work, community, or future.",
+    reflection: "“Who or what is better held because I became capable?”",
   ),
   (
     day: 29,
-    theme: "Submit to Measure",
+    theme: "Preserve the Standard",
     action:
-        "Count, record, verify. Face numbers, outcomes, limits, and timelines without inflation, avoidance, or fantasy.",
-    reflection: "Can I let truth be measured exactly as it is?",
+        "Set the rule that will keep this skill from becoming careless later.",
+    reflection: "“What standard must remain after the effort feels familiar?”",
   ),
   (
     day: 30,
-    theme: "Present Yourself for Use",
+    theme: "Seal Great Knowing",
     action:
-        "Stand before the next cycle prepared, accountable, and available. Offer not just survival, but governed usefulness.",
+        "Close the month by naming what knowledge has become trustworthy through form, correction, and use.",
     reflection:
-        "Am I ready to be used in the work of Ma’at, not just praised for enduring?",
+        "“What do I now know because I have lived it, shaped it, and tested it?”",
   ),
 ]);
 
 final List<DecanDayInfo> _rekhNedjesOverrideIFlowRows = _buildFlowRows([
   (
     day: 1,
-    theme: "Enter with Dignity",
+    theme: "Enter the Trial",
     action:
-        "Begin this cycle without performance. Carry yourself, your work, and your intentions with composure.",
-    reflection: "Can I begin without trying to impress?",
+        "Let one practiced skill, method, or commitment meet a real condition without overprotecting it.",
+    reflection:
+        "“What knowledge is ready to be tested outside the safe place?”",
   ),
   (
     day: 2,
-    theme: "Guard the Tender Thing",
+    theme: "Notice the First Pressure",
     action:
-        "Identify what in your life is still new, vulnerable, or easily damaged, and protect it from careless exposure.",
-    reflection: "What needs shielding before it is asked to stand alone?",
+        "Identify where resistance appears first: body, schedule, emotion, money, relationship, or confidence.",
+    reflection: "“Where does pressure first reveal itself?”",
   ),
   (
     day: 3,
-    theme: "Refuse Premature Display",
+    theme: "Hold the Standard",
     action:
-        "Hold back the urge to announce, explain, or showcase what has not yet matured.",
-    reflection: "Where am I tempted to display what still needs quiet growth?",
+        "Keep one standard intact even when conditions become less comfortable.",
+    reflection:
+        "“What part of Ma’at must not be lowered because pressure arrived?”",
   ),
   (
     day: 4,
-    theme: "Establish Clean Conduct",
-    action:
-        "Bring honor to small acts: speech, timing, posture, attention, and handling of others.",
-    reflection: "Does my basic conduct reflect value?",
+    theme: "Separate Strain From Failure",
+    action: "Name the difficulty without calling the whole path broken.",
+    reflection: "“What is simply being tested, not destroyed?”",
   ),
   (
     day: 5,
-    theme: "Separate Worth from Vanity",
-    action: "Distinguish real quality from the hunger to be seen as important.",
-    reflection: "What in me wants appearance more than substance?",
+    theme: "Cool the Reaction",
+    action:
+        "Pause before reacting to discomfort, criticism, delay, or frustration.",
+    reflection:
+        "“What reaction would make the trial harder than it needs to be?”",
   ),
   (
     day: 6,
-    theme: "Tend the Inner Standard",
+    theme: "Read the Weak Point",
     action:
-        "Strengthen the code you live by before pressure asks you to compromise it.",
-    reflection: "What principle must be stronger in me than my moods?",
+        "Study what the pressure exposes and identify the place that needs strengthening.",
+    reflection: "“What is the trial teaching me about the form?”",
   ),
   (
     day: 7,
-    theme: "Honor What Is Entrusted",
+    theme: "Continue Without Drama",
     action:
-        "Treat your body, tools, relationships, tasks, and gifts as things placed in your care, not things to exploit.",
+        "Take the next correct step without turning difficulty into spectacle.",
     reflection:
-        "Am I handling what I’ve been given with reverence or appetite?",
+        "“Can I keep moving without needing the struggle to define me?”",
   ),
   (
     day: 8,
-    theme: "Move with Measured Grace",
-    action:
-        "Slow down enough to make your actions clean, deliberate, and unwasteful.",
-    reflection: "What changes when I stop moving like I am chased?",
+    theme: "Refuse False Rescue",
+    action: "Do not abandon the test too early or call avoidance wisdom.",
+    reflection: "“Where am I tempted to escape before the lesson is complete?”",
   ),
   (
     day: 9,
-    theme: "Prove It Quietly",
-    action:
-        "Let the value of your work show through consistency, not explanation.",
-    reflection: "If I said nothing, would the work still speak well for me?",
+    theme: "Preserve the Lesson",
+    action: "Record what pressure revealed so the next attempt begins wiser.",
+    reflection: "“What did this trial show that comfort could not?”",
   ),
   (
     day: 10,
-    theme: "Seal the Bearing",
+    theme: "Seal the First Trial",
     action:
-        "End the decan by recognizing the quality of character now taking shape in you.",
-    reflection: "What kind of person am I becoming through how I carry this?",
+        "Close the decan by naming what held, what bent, and what must be strengthened next.",
+    reflection: "“What survived the first test, and what now requires care?”",
   ),
 ]);
 
 final List<DecanDayInfo> _rekhNedjesOverrideIIFlowRows = _buildFlowRows([
   (
     day: 11,
-    theme: "Bring Nobility Inward",
+    theme: "Bring the Trial to the Heart",
     action:
-        "Turn attention from appearance to inner rule. Ask what actually governs your conduct.",
-    reflection: "What truly rules me when no one is watching?",
+        "Pause after the first test and let the heart judge what pressure revealed.",
+    reflection: "“What did the trial expose that now needs discernment?”",
   ),
   (
     day: 12,
-    theme: "Quiet the Appetite",
+    theme: "Distinguish Test From Attack",
     action:
-        "Refuse one urge to overreach, overreact, overconsume, or overexplain.",
-    reflection: "What desire in me keeps trying to sit on the throne?",
+        "Decide whether the pressure is teaching, harming, correcting, or violating.",
+    reflection:
+        "“Is this pressure refining me, or is it breaking right relation?”",
   ),
   (
     day: 13,
-    theme: "Correct the Reaction",
-    action:
-        "Catch one recurring response — defensiveness, sharpness, pride, retreat, haste — and bring it under conscious control.",
-    reflection: "What reaction still lowers my dignity?",
+    theme: "Adjust Without Abandoning",
+    action: "Change one method while keeping the true aim intact.",
+    reflection: "“What can change without betraying the purpose?”",
   ),
   (
     day: 14,
-    theme: "Deepen the Standard",
+    theme: "Ask for Counsel",
     action:
-        "Clarify the inner principle you want to live from, not just the image you want to project.",
-    reflection: "What is the law beneath my bearing?",
+        "Bring one real question to a trusted person, ancestor, record, or inner standard.",
+    reflection: "“Where do I need guidance before I act again?”",
   ),
   (
     day: 15,
-    theme: "Clean the Motive",
+    theme: "Receive the Mirror",
     action:
-        "Examine why you are doing something important. Remove vanity, resentment, or the need for approval from it.",
-    reflection: "If no one praised me, would I still do this well?",
+        "Accept one piece of truthful feedback without turning it into shame or defense.",
+    reflection: "“What truth is being shown to me from outside myself?”",
   ),
   (
     day: 16,
-    theme: "Hold Steady Under Friction",
+    theme: "Refine the Response",
     action:
-        "Practice remaining composed when delayed, challenged, ignored, or inconvenienced.",
-    reflection: "What kind of pressure still makes me leave myself?",
+        "Choose a calmer, cleaner, more proportionate response than the first reaction.",
+    reflection: "“How would Ma’at answer this pressure?”",
   ),
   (
     day: 17,
-    theme: "Let Silence Mature You",
+    theme: "Strengthen the Weak Place",
     action:
-        "Choose restraint over commentary. Let some things ripen in quiet rather than forcing explanation.",
-    reflection: "What grows stronger in me when I do not rush to speak?",
+        "Give focused care to the exact place the trial revealed as vulnerable.",
+    reflection:
+        "“What must be strengthened so the same pressure teaches less harshly next time?”",
   ),
   (
     day: 18,
-    theme: "Bring the Heart into Alignment",
+    theme: "Return to the Field",
     action:
-        "Make sure what you admire, what you say, and what you actually practice agree with one another.",
-    reflection: "Where is my heart still divided?",
+        "Re-enter the situation with the corrected method and a steadier heart.",
+    reflection: "“Can I return wiser without returning bitter?”",
   ),
   (
     day: 19,
-    theme: "Guard the Inner Gate",
-    action:
-        "Decide what thoughts, influences, habits, or voices no longer deserve entry to your center.",
-    reflection: "What have I been allowing inside that weakens my rule?",
+    theme: "Measure the Change",
+    action: "Observe whether the adjustment actually improved the pattern.",
+    reflection: "“What is different because I corrected my response?”",
   ),
   (
     day: 20,
-    theme: "Seal the Inner Bearing",
-    action:
-        "End the decan by naming the inward quality now becoming stable within you.",
-    reflection: "What is becoming steady at the center of me?",
+    theme: "Seal Adapted Knowing",
+    action: "Close the decan by naming the adjustment that will carry forward.",
+    reflection: "“What has pressure taught me to do differently now?”",
   ),
 ]);
