@@ -45,4 +45,27 @@ void main() {
     expect(hints.cta?.type, 'flow_template');
     expect(hints.fallbackNode, isNull);
   });
+
+  test('parses primary node destination into CTA metadata', () {
+    final hints = DecanReflectionGraphHints.fromGenerationJson({
+      'anchor_nodes': <String>[],
+      'metadata': {
+        'output_control': {
+          'reflection_destination': {
+            'type': 'node',
+            'ref': 'maat',
+            'label': 'Read the guiding node',
+            'reason': 'reflection_alignment:truth:node_default',
+            'source': 'reflection_judgment',
+            'confidence': 0.72,
+          },
+        },
+      },
+    });
+
+    expect(hints.cta?.type, 'node');
+    expect(hints.cta?.ref, 'maat');
+    expect(hints.cta?.label, 'Read the guiding node');
+    expect(hints.fallbackNode, isNull);
+  });
 }

@@ -111,4 +111,27 @@ void main() {
       1,
     );
   });
+
+  test('primary node destination renders as a node suggestion', () {
+    final hints = DecanReflectionGraphHints.fromGenerationJson({
+      'anchor_nodes': <String>[],
+      'metadata': {
+        'output_control': {
+          'reflection_destination': {
+            'type': 'node',
+            'ref': 'maat',
+            'label': 'Read the guiding node',
+          },
+        },
+      },
+    });
+
+    final suggestions = buildDecanReflectionSuggestedNodeLinks(
+      hints,
+      const <InsightLink>[],
+    );
+
+    expect(suggestions.map((suggestion) => suggestion.node.id), ['maat']);
+    expect(suggestions.single.reason, 'Read the guiding node');
+  });
 }

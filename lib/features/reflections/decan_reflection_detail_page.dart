@@ -601,6 +601,10 @@ List<DecanReflectionSuggestedNodeLink> buildDecanReflectionSuggestedNodeLinks(
   }
 
   final fallbackNode = hints.fallbackNode;
+  final primaryCta = hints.cta;
+  if (primaryCta?.type == 'node' && primaryCta?.hasDestination == true) {
+    addNode(primaryCta!.ref, primaryCta.label);
+  }
   if (fallbackNode?.hasNode == true) {
     addNode(fallbackNode!.ref, fallbackNode.label);
   }
