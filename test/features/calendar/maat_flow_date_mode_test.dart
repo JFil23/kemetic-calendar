@@ -870,7 +870,7 @@ void main() {
   });
 
   test(
-    'mounted Moon Return, Wag, Days Outside, Decan Watch, Open Hand, and Djed persist events before filing alerts',
+    'mounted Moon Return, Wag, Days Outside, Decan Watch, Open Hand, Djed, and Offering Table persist events before filing alerts',
     () {
       final source = File(
         'lib/features/calendar/calendar_page.dart',
@@ -945,6 +945,17 @@ void main() {
         djedBranch,
         caller: "caller: 'djed_join'",
         branchName: 'mounted Djed',
+      );
+
+      final offeringTableBranch = _sourceBetween(
+        mountedJoin,
+        'if (template.kind == _MaatFlowTemplateKind.offeringTable)',
+        'if (template.kind == _MaatFlowTemplateKind.theTending)',
+      );
+      _expectPersistsBeforeAlertFiling(
+        offeringTableBranch,
+        caller: "caller: 'offering_table_join'",
+        branchName: 'mounted Offering Table',
       );
     },
   );
@@ -1435,6 +1446,53 @@ void main() {
     expect(djedBranch, contains('_addNote('));
     expect(djedBranch, contains('await _scheduleAlertForEvent('));
   });
+
+  test(
+    'mounted Offering Table join preserves event identity and payload contract',
+    () {
+      final source = File(
+        'lib/features/calendar/calendar_page.dart',
+      ).readAsStringSync();
+      final mountedJoin = _sourceBetween(
+        source,
+        'Future<int> _addMaatFlowInstance({',
+        'Future<bool> _endFlowFromEventTarget',
+      );
+      final offeringTableBranch = _sourceBetween(
+        mountedJoin,
+        'if (template.kind == _MaatFlowTemplateKind.offeringTable)',
+        'if (template.kind == _MaatFlowTemplateKind.theTending)',
+      );
+
+      expect(offeringTableBranch, contains('mode=gregorian'));
+      expect(offeringTableBranch, contains('maat=\${template.key}'));
+      expect(offeringTableBranch, contains('offering_tz=\${timezone.key}'));
+      expect(
+        offeringTableBranch,
+        contains('offering_lens=\${offeringTableLens.key}'),
+      );
+      expect(offeringTableBranch, contains('offering_hour='));
+      expect(offeringTableBranch, contains('offering_minute='));
+      expect(
+        offeringTableBranch,
+        contains('no_cup_mode=\${offeringNoCupMode ? 1 : 0}'),
+      );
+      expect(offeringTableBranch, contains('offeringTableEventTitle(day)'));
+      expect(offeringTableBranch, contains('offeringTableDetailText('));
+      expect(offeringTableBranch, contains('lens: offeringTableLens'));
+      expect(offeringTableBranch, contains('noCupMode: offeringNoCupMode'));
+      expect(offeringTableBranch, contains('offeringTableBehaviorPayload('));
+      expect(offeringTableBranch, contains('offeringTableActionId(day)'));
+      expect(offeringTableBranch, contains('clientEventId = _buildCid('));
+      expect(offeringTableBranch, contains('startsAtUtc: occurrence.startUtc'));
+      expect(offeringTableBranch, contains('endsAtUtc: occurrence.endUtc'));
+      expect(offeringTableBranch, contains('category: \'Ritual\''));
+      expect(offeringTableBranch, contains('alertOffsetMinutes: 0'));
+      expect(offeringTableBranch, contains('caller: \'offering_table_join\''));
+      expect(offeringTableBranch, contains('_addNote('));
+      expect(offeringTableBranch, contains('await _scheduleAlertForEvent('));
+    },
+  );
 
   test('mounted enrollment cluster uses safe join resolvers', () {
     final source = File(
