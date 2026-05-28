@@ -54,6 +54,18 @@ class RestorationCoordinator {
     );
   }
 
+  void suppressRestoreForExplicitIntent({
+    required String reason,
+    Iterable<String> surfaces = const <String>[],
+  }) {
+    assert(reason.trim().isNotEmpty);
+    _suppressedRestoreSurfaces.addAll(
+      surfaces.map((surface) => surface.trim()).where((surface) {
+        return surface.isNotEmpty;
+      }),
+    );
+  }
+
   bool canRestoreSurface(String surface, {bool requireRootTarget = false}) {
     final normalized = surface.trim();
     if (normalized.isEmpty) return false;

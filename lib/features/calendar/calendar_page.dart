@@ -3526,12 +3526,6 @@ class CalendarPage extends StatefulWidget {
     return uri == null || uri.path.isEmpty || uri.path == '/';
   }
 
-  static bool _isLibraryRouteLocation(String location) {
-    final uri = Uri.tryParse(location.trim());
-    final path = uri?.path ?? location.trim();
-    return path == '/nodes' || path.startsWith('/nodes/');
-  }
-
   static String _currentRouteLocationForContext(BuildContext context) {
     try {
       final location = GoRouterState.of(context).uri.toString().trim();
@@ -3612,8 +3606,7 @@ class CalendarPage extends StatefulWidget {
     final parentRoute = (overlay?['parentRoute'] as String?)?.trim();
     if (parentRoute == null ||
         parentRoute.isEmpty ||
-        _isRootRouteLocation(parentRoute) ||
-        _isLibraryRouteLocation(parentRoute)) {
+        _isRootRouteLocation(parentRoute)) {
       return null;
     }
     return parentRoute;
@@ -3721,8 +3714,7 @@ class CalendarPage extends StatefulWidget {
     required String kind,
     required Map<String, dynamic> state,
   }) async {
-    final normalizedParentRoute =
-        parentRoute.trim().isEmpty || _isLibraryRouteLocation(parentRoute)
+    final normalizedParentRoute = parentRoute.trim().isEmpty
         ? '/'
         : parentRoute.trim();
     await RestorationCoordinator.instance.recordRouteLocationWithOverlayStack(

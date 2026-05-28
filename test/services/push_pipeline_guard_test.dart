@@ -91,6 +91,75 @@ void main() {
       );
       expect(pushNavigationSource, contains("_router.go('/')"));
     });
+
+    test(
+      'cold-start notification intent wins over passive restoration',
+      () async {
+        final mainSource = await File('lib/main.dart').readAsString();
+        final pushSource = await File(
+          'lib/services/push_notifications.dart',
+        ).readAsString();
+        final initialLocationSource = _sourceBetween(
+          mainSource,
+          'String _resolveInitialLocation()',
+          'Future<void> _readBootInitialPushIntent() async',
+        );
+        final bootPushSource = _sourceBetween(
+          mainSource,
+          'Future<void> _readBootInitialPushIntent() async',
+          'Future<String?> _readBootRestoredLocation() async',
+        );
+        final launchSuppressionSource = _sourceBetween(
+          mainSource,
+          'void _suppressPassiveLaunchSurfacesForExplicitIntentIfNeeded()',
+          'Future<String?> _readBootRestoredLocation() async',
+        );
+        final initialTasksSource = _sourceBetween(
+          mainSource,
+          'void _startInitialTasks()',
+          'void _consumePendingWebPushIntent()',
+        );
+
+        expect(pushSource, contains('class PushInitialMessage'));
+        expect(
+          pushSource,
+          contains('Future<PushInitialMessage?> takeInitialMessage()'),
+        );
+        expect(bootPushSource, contains('takeInitialMessage'));
+        expect(bootPushSource, contains('_pushIntentDataFromQuery'));
+        expect(bootPushSource, contains('_initialLocationFromPushData'));
+        expect(
+          initialLocationSource.indexOf('_bootExplicitIntentLocation'),
+          lessThan(initialLocationSource.indexOf('_bootRestoredLocation')),
+        );
+        expect(
+          mainSource.indexOf('await _readBootInitialPushIntent();'),
+          lessThan(mainSource.indexOf('_bootRestoredLocation =')),
+        );
+        expect(
+          launchSuppressionSource,
+          contains('suppressRestoreForExplicitIntent'),
+        );
+        expect(
+          launchSuppressionSource,
+          contains('_deferSessionResumeForPushNavigation = true;'),
+        );
+        expect(
+          launchSuppressionSource,
+          contains('RestorationCoordinator.calendarDayViewSurface'),
+        );
+        expect(
+          launchSuppressionSource,
+          contains('RestorationCoordinator.calendarOverlayStackSurface'),
+        );
+        expect(initialTasksSource, contains('_bootInitialPushMessage'));
+        expect(
+          initialTasksSource,
+          contains('recordDeliveryReceiptFromPayload'),
+        );
+        expect(initialTasksSource, contains('_queueOrHandlePushData'));
+      },
+    );
   });
 }
 

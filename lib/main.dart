@@ -142,6 +142,9 @@ final ValueNotifier<bool> _webAuthExchangeInProgress = ValueNotifier<bool>(
 );
 bool _deferSessionResumeForPushNavigation = false;
 String? _bootRestoredLocation;
+String? _bootExplicitIntentLocation;
+PushInitialMessage? _bootInitialPushMessage;
+String? _bootInitialAppLinkSignature;
 String? _lastHandledAuthCallbackSignature;
 DateTime? _lastHandledAuthCallbackAt;
 
@@ -227,12 +230,15 @@ Future<void> main() async {
 
     await AppWindowService.instance.ensureInitialized();
     await AppRestorationService.instance.initialize();
+    await _readBootInitialAppLinkIntent();
+    await _readBootInitialPushIntent();
     _bootRestoredLocation = await _readBootRestoredLocation();
     final initialLocation = _resolveInitialLocation();
     RestorationCoordinator.instance.beginLaunchRestore(
       reason: RestorationRestoreReason.coldLaunch,
       targetLocation: initialLocation,
     );
+    _suppressPassiveLaunchSurfacesForExplicitIntentIfNeeded();
 
     // 🚨 Initialize notifications/push without blocking the first frame.
     // AuthGate will re-attempt on sign-in if these fail.
@@ -573,17 +579,315 @@ class TelemetryRouteObserver extends RouteObserver<PageRoute<dynamic>> {
 String _resolveInitialLocation() {
   final defaultRoute = PlatformDispatcher.instance.defaultRouteName.trim();
   if (defaultRoute.isEmpty || defaultRoute == Navigator.defaultRouteName) {
-    return _bootRestoredLocation ?? '/';
+    return _bootExplicitIntentLocation ?? _bootRestoredLocation ?? '/';
   }
   return defaultRoute.startsWith('/') ? defaultRoute : '/$defaultRoute';
 }
 
+Future<void> _readBootInitialAppLinkIntent() async {
+  if (kIsWeb) return;
+  final initialUri = await _readInitialAppLinkUri();
+  if (initialUri == null) return;
+  final intent = AppLinkIntent.parse(initialUri);
+  if (intent == null) return;
+
+  _bootInitialAppLinkSignature = _appLinkIntentSignature(intent, initialUri);
+  _bootExplicitIntentLocation ??= _initialLocationFromAppLinkIntent(intent);
+  if (intent is AuthAppLinkIntent) {
+    await _exchangeAuthCallbackUri(intent.uri);
+  }
+}
+
+Future<Uri?> _readInitialAppLinkUri() async {
+  final appLinks = AppLinks();
+  try {
+    try {
+      return await (appLinks as dynamic).getInitialAppLink() as Uri?;
+    } catch (_) {
+      return await (appLinks as dynamic).getInitialLink() as Uri?;
+    }
+  } catch (_) {
+    return null;
+  }
+}
+
+Future<void> _readBootInitialPushIntent() async {
+  if (kIsWeb) {
+    _bootExplicitIntentLocation ??= _initialLocationFromPushData(
+      _pushIntentDataFromQuery(Uri.base.queryParameters),
+      hasSession: Supabase.instance.client.auth.currentSession != null,
+    );
+    return;
+  }
+
+  final initial = await PushNotifications.instance(
+    Supabase.instance.client,
+  ).takeInitialMessage();
+  _bootInitialPushMessage = initial;
+  _bootExplicitIntentLocation ??= _initialLocationFromPushData(
+    initial?.data,
+    hasSession: Supabase.instance.client.auth.currentSession != null,
+  );
+}
+
+bool _hasExplicitBootIntent() {
+  final defaultRoute = PlatformDispatcher.instance.defaultRouteName.trim();
+  return _bootExplicitIntentLocation != null ||
+      (defaultRoute.isNotEmpty && defaultRoute != Navigator.defaultRouteName);
+}
+
+void _suppressPassiveLaunchSurfacesForExplicitIntentIfNeeded() {
+  if (!_hasExplicitBootIntent()) return;
+  _deferSessionResumeForPushNavigation = true;
+  RestorationCoordinator.instance.suppressRestoreForExplicitIntent(
+    reason: 'explicit_launch_intent',
+    surfaces: const <String>[
+      RestorationCoordinator.calendarDayViewSurface,
+      RestorationCoordinator.calendarOverlayStackSurface,
+    ],
+  );
+}
+
 Future<String?> _readBootRestoredLocation() async {
-  // Durable restoration owns calendar/page state, not navigation intent.
-  // Explicit app links still route through PlatformDispatcher.defaultRouteName
-  // and _redirectExternalAppLink; normal pages should not reopen just because
-  // they were the last saved route before an app reload.
+  final hasSession = Supabase.instance.client.auth.currentSession != null;
+  final result = await AppRestorationService.instance.readBestSnapshot(
+    includeRemote: hasSession,
+  );
+  if (result.status == AppRestorationReadStatus.restored ||
+      result.status == AppRestorationReadStatus.tentative) {
+    final overlayParentRoute =
+        CalendarPage.restorableOverlayParentRouteFromStack(
+          result.snapshot?.overlayStack ?? const <Map<String, dynamic>>[],
+        );
+    final location =
+        overlayParentRoute ?? result.snapshot?.routeLocation?.trim();
+    final restored = _restorableLaunchLocation(location);
+    if (restored != null) return restored;
+    if (overlayParentRoute != null || result.snapshot?.routeLocation != null) {
+      return null;
+    }
+  }
+
+  return _restorableLaunchLocation(
+    await SessionResumeService.readRouteLocation(),
+  );
+}
+
+String? _restorableLaunchLocation(String? location) {
+  final normalized = location?.trim();
+  if (normalized == null || normalized.isEmpty || normalized == '/') {
+    return null;
+  }
+  return _isContinuityRouteLocation(normalized) ? normalized : null;
+}
+
+bool _isContinuityRouteLocation(String location) {
+  final uri = Uri.tryParse(location.trim());
+  if (uri == null ||
+      uri.hasScheme ||
+      uri.host.isNotEmpty ||
+      !uri.path.startsWith('/')) {
+    return false;
+  }
+  final path = uri.path;
+  return path == '/' ||
+      path == '/inbox' ||
+      path == '/settings' ||
+      path == '/profile-search' ||
+      path == '/journal' ||
+      path == '/nodes' ||
+      path == '/reflections' ||
+      path.startsWith('/inbox/conversation/') ||
+      path.startsWith('/event-invite/') ||
+      path.startsWith('/shared-flow/') ||
+      path.startsWith('/profile/') ||
+      path.startsWith('/insight-post/') ||
+      path.startsWith('/flow-post/') ||
+      path.startsWith('/journal/entry/') ||
+      path.startsWith('/maat-guidance/') ||
+      path.startsWith('/nodes/') ||
+      path.startsWith('/reflections/') ||
+      path.startsWith('/share/') ||
+      path.startsWith('/rhythm/');
+}
+
+Map<String, dynamic>? _pushIntentDataFromQuery(Map<String, String> params) {
+  final kind = _trimmedPushValue(params['push_kind'] ?? params['pushKind']);
+  if (kind == null) return null;
+
+  return <String, dynamic>{
+    'kind': kind,
+    if (_trimmedPushValue(params['reflection_id'] ?? params['reflectionId']) !=
+        null)
+      'reflection_id': params['reflection_id'] ?? params['reflectionId'],
+    if (_trimmedPushValue(params['delivery_id'] ?? params['deliveryId']) !=
+        null)
+      'delivery_id': params['delivery_id'] ?? params['deliveryId'],
+    if (_trimmedPushValue(params['cta_type'] ?? params['ctaType']) != null)
+      'cta_type': params['cta_type'] ?? params['ctaType'],
+    if (_trimmedPushValue(params['cta_ref'] ?? params['ctaRef']) != null)
+      'cta_ref': params['cta_ref'] ?? params['ctaRef'],
+    if (_trimmedPushValue(params['sender_id'] ?? params['senderId']) != null)
+      'sender_id': params['sender_id'] ?? params['senderId'],
+    if (_trimmedPushValue(params['share_id'] ?? params['shareId']) != null)
+      'share_id': params['share_id'] ?? params['shareId'],
+    if (_trimmedPushValue(params['calendar_id'] ?? params['calendarId']) !=
+        null)
+      'calendar_id': params['calendar_id'] ?? params['calendarId'],
+    if (_trimmedPushValue(
+          params['notification_id'] ?? params['notificationId'],
+        ) !=
+        null)
+      'notification_id': params['notification_id'] ?? params['notificationId'],
+    if (_trimmedPushValue(
+          params['response_status'] ?? params['responseStatus'],
+        ) !=
+        null)
+      'response_status': params['response_status'] ?? params['responseStatus'],
+    if (_trimmedPushValue(
+          params['client_event_id'] ?? params['clientEventId'],
+        ) !=
+        null)
+      'client_event_id': params['client_event_id'] ?? params['clientEventId'],
+    if (_trimmedPushValue(params['flow_post_id'] ?? params['flowPostId']) !=
+        null)
+      'flow_post_id': params['flow_post_id'] ?? params['flowPostId'],
+    if (_trimmedPushValue(params['reminder_id'] ?? params['reminderId']) !=
+        null)
+      'reminder_id': params['reminder_id'] ?? params['reminderId'],
+    if (_trimmedPushValue(params['delivery_key'] ?? params['deliveryKey']) !=
+        null)
+      'delivery_key': params['delivery_key'] ?? params['deliveryKey'],
+    if (_trimmedPushValue(params['delivery_kind'] ?? params['deliveryKind']) !=
+        null)
+      'delivery_kind': params['delivery_kind'] ?? params['deliveryKind'],
+  };
+}
+
+String? _initialLocationFromPushData(
+  Map<String, dynamic>? data, {
+  required bool hasSession,
+}) {
+  if (data == null || data.isEmpty) return null;
+  final deliveryKeyForKind = _trimmedPushValue(
+    data['delivery_key'] ?? data['deliveryKey'],
+  );
+  final kind =
+      _trimmedPushValue(data['kind'] ?? data['type']) ??
+      (deliveryKeyForKind?.startsWith('maat_guidance:') == true
+          ? 'maat_guidance'
+          : null);
+  final clientEventId = _trimmedPushValue(
+    data['client_event_id'] ?? data['clientEventId'],
+  );
+  if (kind == null && clientEventId == null) return null;
+  if (!hasSession) return '/';
+
+  if (kind == 'maat_guidance') {
+    final deliveryId = _trimmedPushValue(
+      data['delivery_id'] ??
+          data['deliveryId'] ??
+          data['maat_guidance_id'] ??
+          data['maatGuidanceId'],
+    );
+    final deliveryKey = _trimmedPushValue(
+      data['delivery_key'] ?? data['deliveryKey'],
+    );
+    final keyId =
+        deliveryKey != null && deliveryKey.startsWith('maat_guidance:')
+        ? deliveryKey.substring('maat_guidance:'.length)
+        : null;
+    final id = deliveryId ?? keyId;
+    return id == null ? null : '/maat-guidance/${Uri.encodeComponent(id)}';
+  }
+
+  final reflectionId = _trimmedPushValue(
+    data['reflectionId'] ?? data['reflection_id'],
+  );
+  if (kind == 'decan_reflection' && reflectionId != null) {
+    return '/reflections/${Uri.encodeComponent(reflectionId)}';
+  }
+
+  final shareKind = _trimmedPushValue(data['share_kind'] ?? data['shareKind']);
+  if (kind == 'flow_share' || (kind == 'dm' && shareKind == 'flow')) {
+    final shareId = _trimmedPushValue(data['share_id'] ?? data['shareId']);
+    return shareId == null
+        ? '/inbox'
+        : '/shared-flow/${Uri.encodeComponent(shareId)}';
+  }
+
+  if (kind == 'event_invite') {
+    final shareId = _trimmedPushValue(data['share_id'] ?? data['shareId']);
+    return shareId == null
+        ? '/inbox'
+        : '/event-invite/${Uri.encodeComponent(shareId)}';
+  }
+
+  if (kind == 'dm' ||
+      kind == 'follow' ||
+      kind == 'calendar_invite' ||
+      kind == 'calendar_invite_response') {
+    return '/inbox';
+  }
+
+  if (kind == 'flow_like' ||
+      kind == 'flow_comment' ||
+      kind == 'flow_comment_reply' ||
+      kind == 'flow_comment_like') {
+    final flowPostId = _trimmedPushValue(
+      data['flow_post_id'] ?? data['flowPostId'],
+    );
+    if (flowPostId == null) return '/inbox';
+    final comments = kind == 'flow_like' ? '' : '?comments=1';
+    return '/flow-post/${Uri.encodeComponent(flowPostId)}$comments';
+  }
+
+  if (kind == 'calendar_event' ||
+      kind == 'scheduled_notification' ||
+      kind == 'reminder_10min' ||
+      (clientEventId != null && kind == 'reminder') ||
+      clientEventId != null) {
+    return '/';
+  }
+
   return null;
+}
+
+String? _trimmedPushValue(Object? raw) {
+  if (raw == null) return null;
+  final text = raw.toString().trim();
+  return text.isEmpty ? null : text;
+}
+
+String? _initialLocationFromAppLinkIntent(AppLinkIntent intent) {
+  if (intent is AuthAppLinkIntent) {
+    return '/';
+  }
+  if (intent is PlannerAppLinkIntent) {
+    return intent.routeLocation;
+  }
+  if (intent is ShareAppLinkIntent) {
+    return intent.routeLocation;
+  }
+  return null;
+}
+
+String _appLinkIntentSignature(AppLinkIntent intent, Uri uri) {
+  return intent is AuthAppLinkIntent
+      ? 'auth:${intent.uri}'
+      : intent is ShareAppLinkIntent
+      ? 'share:${intent.routeLocation}'
+      : intent is PlannerAppLinkIntent
+      ? 'planner:${intent.routeLocation}'
+      : 'unknown:${uri.toString()}';
+}
+
+bool _isBootInitialAppLinkUri(Uri uri) {
+  final intent = AppLinkIntent.parse(uri);
+  final signature = intent == null
+      ? null
+      : _appLinkIntentSignature(intent, uri);
+  return signature != null && signature == _bootInitialAppLinkSignature;
 }
 
 String? _redirectExternalAppLink(Uri uri) {
@@ -824,7 +1128,6 @@ final _router = GoRouter(
       path: '/nodes',
       builder: (context, state) => SessionTrackedRoute(
         location: state.uri.toString(),
-        enabled: false,
         child: KemeticNodeListPage(
           initialNodeId: state.uri.queryParameters['focus'],
         ),
@@ -836,7 +1139,6 @@ final _router = GoRouter(
         final nodeId = Uri.decodeComponent(state.pathParameters['nodeId']!);
         return SessionTrackedRoute(
           location: state.uri.toString(),
-          enabled: false,
           child: NodeReaderRoutePage(nodeId: nodeId),
         );
       },
@@ -1047,7 +1349,9 @@ class _MyAppState extends State<MyApp> {
         }
       }
       if (initialUri != null) {
-        await _handleRootAuthLink(initialUri);
+        if (!_isBootInitialAppLinkUri(initialUri)) {
+          await _handleRootAuthLink(initialUri);
+        }
       }
     } catch (error, stackTrace) {
       _logRootAuthLinkError('initial app link setup', error, stackTrace);
@@ -1776,63 +2080,31 @@ class _PushIntentBridgeState extends State<PushIntentBridge> {
     if (_initialTasksStarted) return;
     _initialTasksStarted = true;
 
-    fireAndForgetGuarded(
-      'initial push message',
-      PushNotifications.instance(supabase).emitInitialMessage(),
-      onError: _logPushBridgeError,
-    );
+    final bootMessage = _bootInitialPushMessage;
+    if (bootMessage != null) {
+      _bootInitialPushMessage = null;
+      unawaited(
+        PushNotifications.instance(supabase).recordDeliveryReceiptFromPayload(
+          bootMessage.data,
+          event: 'opened',
+          messageId: bootMessage.messageId,
+        ),
+      );
+      _queueOrHandlePushData(bootMessage.data);
+    } else {
+      fireAndForgetGuarded(
+        'initial push message',
+        PushNotifications.instance(supabase).emitInitialMessage(),
+        onError: _logPushBridgeError,
+      );
+    }
     _consumePendingWebPushIntent();
   }
 
   void _consumePendingWebPushIntent() {
     if (!kIsWeb) return;
-    final params = Uri.base.queryParameters;
-    final kind = _trimmedValue(params['push_kind'] ?? params['pushKind']);
-    if (kind == null) return;
-
-    final data = <String, dynamic>{
-      'kind': kind,
-      if (_trimmedValue(params['reflection_id'] ?? params['reflectionId']) !=
-          null)
-        'reflection_id': params['reflection_id'] ?? params['reflectionId'],
-      if (_trimmedValue(params['delivery_id'] ?? params['deliveryId']) != null)
-        'delivery_id': params['delivery_id'] ?? params['deliveryId'],
-      if (_trimmedValue(params['cta_type'] ?? params['ctaType']) != null)
-        'cta_type': params['cta_type'] ?? params['ctaType'],
-      if (_trimmedValue(params['cta_ref'] ?? params['ctaRef']) != null)
-        'cta_ref': params['cta_ref'] ?? params['ctaRef'],
-      if (_trimmedValue(params['sender_id'] ?? params['senderId']) != null)
-        'sender_id': params['sender_id'] ?? params['senderId'],
-      if (_trimmedValue(params['share_id'] ?? params['shareId']) != null)
-        'share_id': params['share_id'] ?? params['shareId'],
-      if (_trimmedValue(params['calendar_id'] ?? params['calendarId']) != null)
-        'calendar_id': params['calendar_id'] ?? params['calendarId'],
-      if (_trimmedValue(
-            params['notification_id'] ?? params['notificationId'],
-          ) !=
-          null)
-        'notification_id':
-            params['notification_id'] ?? params['notificationId'],
-      if (_trimmedValue(
-            params['response_status'] ?? params['responseStatus'],
-          ) !=
-          null)
-        'response_status':
-            params['response_status'] ?? params['responseStatus'],
-      if (_trimmedValue(params['client_event_id'] ?? params['clientEventId']) !=
-          null)
-        'client_event_id': params['client_event_id'] ?? params['clientEventId'],
-      if (_trimmedValue(params['flow_post_id'] ?? params['flowPostId']) != null)
-        'flow_post_id': params['flow_post_id'] ?? params['flowPostId'],
-      if (_trimmedValue(params['reminder_id'] ?? params['reminderId']) != null)
-        'reminder_id': params['reminder_id'] ?? params['reminderId'],
-      if (_trimmedValue(params['delivery_key'] ?? params['deliveryKey']) !=
-          null)
-        'delivery_key': params['delivery_key'] ?? params['deliveryKey'],
-      if (_trimmedValue(params['delivery_kind'] ?? params['deliveryKind']) !=
-          null)
-        'delivery_kind': params['delivery_kind'] ?? params['deliveryKind'],
-    };
+    final data = _pushIntentDataFromQuery(Uri.base.queryParameters);
+    if (data == null) return;
 
     replaceUrlWithoutQuery();
     unawaited(
@@ -3422,15 +3694,36 @@ class _AuthGateState extends State<AuthGate> with WidgetsBindingObserver {
         _deferSessionResumeForPushNavigation) {
       return;
     }
+    final overlayParentRoute =
+        CalendarPage.restorableOverlayParentRouteFromStack(
+          await AppRestorationService.instance.readOverlayStack(),
+        );
+    final savedLocation =
+        overlayParentRoute ??
+        await AppRestorationService.instance.readRouteLocation(
+          includeRemote: true,
+        ) ??
+        await SessionResumeService.readRouteLocation();
+    if (!mounted ||
+        savedLocation == null ||
+        _deferSessionResumeForPushNavigation ||
+        savedLocation.isEmpty ||
+        savedLocation == '/' ||
+        !_isContinuityRouteLocation(savedLocation)) {
+      return;
+    }
+    RestorationCoordinator.instance.beginLaunchRestore(
+      reason: RestorationRestoreReason.authResume,
+      targetLocation: savedLocation,
+    );
+    _router.go(savedLocation);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final navContext = _rootNavigatorKey.currentContext;
       if (navContext == null) return;
-      final currentLocation = _router.routerDelegate.currentConfiguration.uri
-          .toString();
       unawaited(
         CalendarPage.restoreDetachedCalendarOverlayFromAnyContext(
           navContext,
-          currentLocation: currentLocation,
+          currentLocation: savedLocation,
         ),
       );
     });
@@ -3498,11 +3791,13 @@ class _AuthGateState extends State<AuthGate> with WidgetsBindingObserver {
         }
       }
       if (initialUri != null) {
-        await runGuardedAsync(
-          'initial app link',
-          () => _handleIncomingAppLink(initialUri!),
-          onError: _logAuthGateError,
-        );
+        if (!_isBootInitialAppLinkUri(initialUri)) {
+          await runGuardedAsync(
+            'initial app link',
+            () => _handleIncomingAppLink(initialUri!),
+            onError: _logAuthGateError,
+          );
+        }
       }
     } catch (e, st) {
       _logAuthGateError('initial app link setup', e, st);
@@ -3531,13 +3826,7 @@ class _AuthGateState extends State<AuthGate> with WidgetsBindingObserver {
       return;
     }
 
-    final signature = intent is AuthAppLinkIntent
-        ? 'auth:${intent.uri}'
-        : intent is ShareAppLinkIntent
-        ? 'share:${intent.routeLocation}'
-        : intent is PlannerAppLinkIntent
-        ? 'planner:${intent.routeLocation}'
-        : 'unknown:${uri.toString()}';
+    final signature = _appLinkIntentSignature(intent, uri);
 
     if (_shouldSkipDuplicateLink(signature)) {
       return;

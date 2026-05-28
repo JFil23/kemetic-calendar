@@ -212,6 +212,14 @@ class PushSelfTestResult {
 }
 
 @immutable
+class PushInitialMessage {
+  const PushInitialMessage({required this.data, this.messageId});
+
+  final Map<String, dynamic> data;
+  final String? messageId;
+}
+
+@immutable
 class PushDeliveryReceiptStatus {
   const PushDeliveryReceiptStatus({
     required this.deliveryKey,
@@ -934,22 +942,33 @@ class PushNotifications {
     return true;
   }
 
-  Future<void> emitInitialMessage() async {
-    if (_initialMessageChecked) return;
+  Future<PushInitialMessage?> takeInitialMessage() async {
+    if (_initialMessageChecked) return null;
     if (kIsWeb) {
       _initialMessageChecked = true;
-      return;
+      return null;
     }
     final ok = await _ensureFirebaseInitialized();
-    if (!ok) return;
+    if (!ok) return null;
     try {
       final initial = await FirebaseMessaging.instance.getInitialMessage();
       _initialMessageChecked = true;
       if (initial != null) {
-        _emitOpenedMessage(initial.data, messageId: initial.messageId);
+        return PushInitialMessage(
+          data: Map<String, dynamic>.from(initial.data),
+          messageId: initial.messageId,
+        );
       }
     } catch (e) {
       debugPrint('[push] emitInitialMessage error: $e');
+    }
+    return null;
+  }
+
+  Future<void> emitInitialMessage() async {
+    final initial = await takeInitialMessage();
+    if (initial != null) {
+      _emitOpenedMessage(initial.data, messageId: initial.messageId);
     }
   }
 

@@ -65,7 +65,7 @@ void main() {
       );
     });
 
-    test('library routes are not restored as detached overlay parents', () {
+    test('library routes restore as detached overlay parents', () {
       for (final parentRoute in <String>[
         '/nodes',
         '/nodes?focus=maat',
@@ -81,7 +81,7 @@ void main() {
               },
             ],
           ),
-          isNull,
+          parentRoute,
           reason: parentRoute,
         );
       }
