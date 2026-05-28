@@ -136,9 +136,25 @@ void main() {
     );
   });
 
+  test(
+    'safe enrollment resolver returns null for unavailable selected dates',
+    () {
+      final window = resolveDjedEnrollmentWindowSafely(
+        timezone: TrackSkyTimeZone.pacific,
+        startDate: DateTime(2099, 1, 1),
+        now: DateTime.utc(2026, 5, 23, 18),
+      );
+
+      expect(window, isNull);
+    },
+  );
+
   test('source wires template, picker, local store, and raised completion', () {
     final calendarPage = File(
       'lib/features/calendar/calendar_page.dart',
+    ).readAsStringSync();
+    final enrollmentSource = File(
+      'lib/features/calendar/the_djed_enrollment.dart',
     ).readAsStringSync();
     final detailPage = File(
       'lib/features/calendar/calendar_maat_flows.dart',
@@ -148,8 +164,10 @@ void main() {
     ).readAsStringSync();
 
     expect(calendarPage, contains('_MaatFlowTemplateKind.theDjed'));
-    expect(calendarPage, contains('djedNextEnrollmentWindow'));
-    expect(calendarPage, contains('djedEnrollmentWindowForStartDate'));
+    expect(calendarPage, contains('_resolveMountedDjedJoinWindow'));
+    expect(calendarPage, contains('resolveDjedEnrollmentWindowSafely'));
+    expect(enrollmentSource, contains('djedNextEnrollmentWindow'));
+    expect(enrollmentSource, contains('djedEnrollmentWindowForStartDate'));
     expect(calendarPage, isNot(contains('djedEnrollmentIsOpen')));
     expect(calendarPage, contains('djedClientEventId'));
     expect(detailPage, contains('_pickDjedWindowDate'));

@@ -836,7 +836,574 @@ void main() {
     expect(helpers, contains('FlowJoinResult.success'));
   });
 
-  test('mounted Moon Return and Wag persist events before filing alerts', () {
+  test(
+    'mounted Moon Return, Wag, Days Outside, Decan Watch, Open Hand, and Djed persist events before filing alerts',
+    () {
+      final source = File(
+        'lib/features/calendar/calendar_page.dart',
+      ).readAsStringSync();
+      final mountedJoin = _sourceBetween(
+        source,
+        'Future<int> _addMaatFlowInstance({',
+        'Future<bool> _endFlowFromEventTarget',
+      );
+
+      final moonReturnBranch = _sourceBetween(
+        mountedJoin,
+        'if (template.kind == _MaatFlowTemplateKind.moonReturn)',
+        'if (template.kind == _MaatFlowTemplateKind.theWag)',
+      );
+      _expectPersistsBeforeAlertFiling(
+        moonReturnBranch,
+        caller: "caller: 'moon_return_join'",
+        branchName: 'mounted Moon Return',
+      );
+
+      final wagBranch = _sourceBetween(
+        mountedJoin,
+        'if (template.kind == _MaatFlowTemplateKind.theWag)',
+        'if (template.kind == _MaatFlowTemplateKind.daysOutsideTheYear)',
+      );
+      _expectPersistsBeforeAlertFiling(
+        wagBranch,
+        caller: "caller: 'wag_join'",
+        branchName: 'mounted Wag',
+      );
+
+      final daysOutsideBranch = _sourceBetween(
+        mountedJoin,
+        'if (template.kind == _MaatFlowTemplateKind.daysOutsideTheYear)',
+        'if (template.kind == _MaatFlowTemplateKind.theOpenHand)',
+      );
+      _expectPersistsBeforeAlertFiling(
+        daysOutsideBranch,
+        caller: "caller: 'days_outside_year_join'",
+        branchName: 'mounted Days Outside the Year',
+      );
+
+      final decanWatchBranch = _sourceBetween(
+        mountedJoin,
+        'if (template.kind == _MaatFlowTemplateKind.decanWatch)',
+        'if (template.kind == _MaatFlowTemplateKind.dawnHouseRite)',
+      );
+      _expectPersistsBeforeAlertFiling(
+        decanWatchBranch,
+        caller: "caller: 'decan_watch_join'",
+        branchName: 'mounted Decan Watch',
+      );
+
+      final openHandBranch = _sourceBetween(
+        mountedJoin,
+        'if (template.kind == _MaatFlowTemplateKind.theOpenHand)',
+        'if (template.kind == _MaatFlowTemplateKind.theDjed)',
+      );
+      _expectPersistsBeforeAlertFiling(
+        openHandBranch,
+        caller: "caller: 'open_hand_join'",
+        branchName: 'mounted Open Hand',
+      );
+
+      final djedBranch = _sourceBetween(
+        mountedJoin,
+        'if (template.kind == _MaatFlowTemplateKind.theDjed)',
+        'if (template.kind == _MaatFlowTemplateKind.decanWatch)',
+      );
+      _expectPersistsBeforeAlertFiling(
+        djedBranch,
+        caller: "caller: 'djed_join'",
+        branchName: 'mounted Djed',
+      );
+    },
+  );
+
+  test('mounted Moon Return join uses safe enrollment resolution', () {
+    final source = File(
+      'lib/features/calendar/calendar_page.dart',
+    ).readAsStringSync();
+    final resolver = _sourceBetween(
+      source,
+      'MoonReturnEnrollmentWindow? _resolveMountedMoonReturnJoinWindow',
+      '/// Create a user-owned *instance*',
+    );
+    final mountedJoin = _sourceBetween(
+      source,
+      'Future<int> _addMaatFlowInstance({',
+      'Future<bool> _endFlowFromEventTarget',
+    );
+    final moonReturnBranch = _sourceBetween(
+      mountedJoin,
+      'if (template.kind == _MaatFlowTemplateKind.moonReturn)',
+      'if (template.kind == _MaatFlowTemplateKind.theWag)',
+    );
+
+    expect(resolver, contains('resolveMoonReturnEnrollmentWindowSafely'));
+    expect(resolver, contains('flow=The Moon Return'));
+    expect(resolver, contains('timezone=\${timezone.key}'));
+    expect(resolver, contains('selectedDate='));
+    expect(resolver, contains('now=\${now.toIso8601String()}'));
+    expect(resolver, isNot(contains('moonReturnNextEnrollmentWindow(')));
+    expect(moonReturnBranch, contains('_resolveMountedMoonReturnJoinWindow'));
+    expect(
+      moonReturnBranch,
+      isNot(contains('moonReturnNextEnrollmentWindow(')),
+    );
+    expect(
+      moonReturnBranch,
+      isNot(contains('moonReturnEnrollmentWindowForStartDate(')),
+    );
+    expect(
+      moonReturnBranch,
+      contains('FlowJoinFailureCode.noEnrollmentWindow'),
+    );
+    expect(moonReturnBranch, contains('FlowJoinFailureCode.noOccurrences'));
+  });
+
+  test(
+    'mounted Moon Return join preserves event identity and payload contract',
+    () {
+      final source = File(
+        'lib/features/calendar/calendar_page.dart',
+      ).readAsStringSync();
+      final mountedJoin = _sourceBetween(
+        source,
+        'Future<int> _addMaatFlowInstance({',
+        'Future<bool> _endFlowFromEventTarget',
+      );
+      final moonReturnBranch = _sourceBetween(
+        mountedJoin,
+        'if (template.kind == _MaatFlowTemplateKind.moonReturn)',
+        'if (template.kind == _MaatFlowTemplateKind.theWag)',
+      );
+
+      expect(moonReturnBranch, contains('mode=astronomy'));
+      expect(moonReturnBranch, contains('maat=\${template.key}'));
+      expect(moonReturnBranch, contains('moon_tz=\${timezone.key}'));
+      expect(moonReturnBranch, contains('moon_lens=\${moonReturnLens.key}'));
+      expect(moonReturnBranch, contains('moon_enrolled_at='));
+      expect(moonReturnBranch, contains('moon_window_open='));
+      expect(moonReturnBranch, contains('moon_new_moon='));
+      expect(moonReturnBranch, contains('moonReturnEventTitle(occurrence)'));
+      expect(moonReturnBranch, contains('moonReturnDetailText('));
+      expect(moonReturnBranch, contains('moonReturnBehaviorPayload('));
+      expect(moonReturnBranch, contains('moonReturnClientEventId('));
+      expect(moonReturnBranch, contains('moonReturnActionId(occurrence)'));
+      expect(moonReturnBranch, contains('startsAtUtc: occurrence.startUtc'));
+      expect(moonReturnBranch, contains('endsAtUtc: occurrence.endUtc'));
+      expect(moonReturnBranch, contains('category: \'Ritual\''));
+      expect(moonReturnBranch, contains('alertOffsetMinutes: 0'));
+      expect(moonReturnBranch, contains('caller: \'moon_return_join\''));
+      expect(moonReturnBranch, contains('_addNote('));
+      expect(moonReturnBranch, contains('await _scheduleAlertForEvent('));
+    },
+  );
+
+  test('mounted Wag join uses safe enrollment resolution', () {
+    final source = File(
+      'lib/features/calendar/calendar_page.dart',
+    ).readAsStringSync();
+    final resolver = _sourceBetween(
+      source,
+      'WagEnrollmentWindow? _resolveMountedWagJoinWindow',
+      '/// Create a user-owned *instance*',
+    );
+    final mountedJoin = _sourceBetween(
+      source,
+      'Future<int> _addMaatFlowInstance({',
+      'Future<bool> _endFlowFromEventTarget',
+    );
+    final wagBranch = _sourceBetween(
+      mountedJoin,
+      'if (template.kind == _MaatFlowTemplateKind.theWag)',
+      'if (template.kind == _MaatFlowTemplateKind.daysOutsideTheYear)',
+    );
+
+    expect(resolver, contains('resolveWagEnrollmentWindowSafely'));
+    expect(resolver, contains('flow=The Wag'));
+    expect(resolver, contains('timezone=\${timezone.key}'));
+    expect(resolver, contains('selectedDate='));
+    expect(resolver, contains('now=\${now.toIso8601String()}'));
+    expect(resolver, isNot(contains('wagNextEnrollmentWindow(')));
+    expect(wagBranch, contains('_resolveMountedWagJoinWindow'));
+    expect(wagBranch, isNot(contains('wagNextEnrollmentWindow(')));
+    expect(wagBranch, isNot(contains('wagEnrollmentWindowForStartDate(')));
+    expect(wagBranch, contains('FlowJoinFailureCode.noEnrollmentWindow'));
+  });
+
+  test('mounted Wag join preserves event identity and payload contract', () {
+    final source = File(
+      'lib/features/calendar/calendar_page.dart',
+    ).readAsStringSync();
+    final mountedJoin = _sourceBetween(
+      source,
+      'Future<int> _addMaatFlowInstance({',
+      'Future<bool> _endFlowFromEventTarget',
+    );
+    final wagBranch = _sourceBetween(
+      mountedJoin,
+      'if (template.kind == _MaatFlowTemplateKind.theWag)',
+      'if (template.kind == _MaatFlowTemplateKind.daysOutsideTheYear)',
+    );
+
+    expect(wagBranch, contains('mode=kemetic'));
+    expect(wagBranch, contains('maat=\${template.key}'));
+    expect(wagBranch, contains('wag_kyear=\$kYear'));
+    expect(wagBranch, contains('wag_tz=\${timezone.key}'));
+    expect(wagBranch, contains('wag_lens=\${wagLens.key}'));
+    expect(wagBranch, contains('wag_enrolled_at='));
+    expect(wagBranch, contains('wag_window_open='));
+    expect(wagBranch, contains('wagEventTitle(event)'));
+    expect(wagBranch, contains('wagDetailText('));
+    expect(wagBranch, contains('wagBehaviorPayload('));
+    expect(wagBranch, contains('wagClientEventId('));
+    expect(wagBranch, contains('wagActionId(event)'));
+    expect(wagBranch, contains('startsAtUtc: schedule.startUtc'));
+    expect(wagBranch, contains('endsAtUtc: schedule.endUtc'));
+    expect(wagBranch, contains('category: \'Ritual\''));
+    expect(wagBranch, contains('alertOffsetMinutes: 0'));
+    expect(wagBranch, contains('caller: \'wag_join\''));
+    expect(wagBranch, contains('_addNote('));
+    expect(wagBranch, contains('await _scheduleAlertForEvent('));
+  });
+
+  test('mounted Days Outside join uses safe enrollment resolution', () {
+    final source = File(
+      'lib/features/calendar/calendar_page.dart',
+    ).readAsStringSync();
+    final resolver = _sourceBetween(
+      source,
+      'DaysOutsideYearEnrollmentWindow? _resolveMountedDaysOutsideYearJoinWindow',
+      '/// Create a user-owned *instance*',
+    );
+    final mountedJoin = _sourceBetween(
+      source,
+      'Future<int> _addMaatFlowInstance({',
+      'Future<bool> _endFlowFromEventTarget',
+    );
+    final daysOutsideBranch = _sourceBetween(
+      mountedJoin,
+      'if (template.kind == _MaatFlowTemplateKind.daysOutsideTheYear)',
+      'if (template.kind == _MaatFlowTemplateKind.theOpenHand)',
+    );
+
+    expect(resolver, contains('resolveDaysOutsideYearEnrollmentWindowSafely'));
+    expect(resolver, contains('flow=The Days Outside the Year'));
+    expect(resolver, contains('timezone=\${timezone.key}'));
+    expect(resolver, contains('selectedDate='));
+    expect(resolver, contains('now=\${now.toIso8601String()}'));
+    expect(resolver, isNot(contains('daysOutsideYearNextEnrollmentWindow(')));
+    expect(
+      daysOutsideBranch,
+      contains('_resolveMountedDaysOutsideYearJoinWindow'),
+    );
+    expect(
+      daysOutsideBranch,
+      isNot(contains('daysOutsideYearNextEnrollmentWindow(')),
+    );
+    expect(
+      daysOutsideBranch,
+      isNot(contains('daysOutsideYearEnrollmentWindowForStartDate(')),
+    );
+    expect(
+      daysOutsideBranch,
+      contains('FlowJoinFailureCode.noEnrollmentWindow'),
+    );
+  });
+
+  test(
+    'mounted Days Outside join preserves event identity and payload contract',
+    () {
+      final source = File(
+        'lib/features/calendar/calendar_page.dart',
+      ).readAsStringSync();
+      final mountedJoin = _sourceBetween(
+        source,
+        'Future<int> _addMaatFlowInstance({',
+        'Future<bool> _endFlowFromEventTarget',
+      );
+      final daysOutsideBranch = _sourceBetween(
+        mountedJoin,
+        'if (template.kind == _MaatFlowTemplateKind.daysOutsideTheYear)',
+        'if (template.kind == _MaatFlowTemplateKind.theOpenHand)',
+      );
+
+      expect(daysOutsideBranch, contains('mode=kemetic'));
+      expect(daysOutsideBranch, contains('maat=\${template.key}'));
+      expect(daysOutsideBranch, contains('doy_kyear=\$closingKYear'));
+      expect(daysOutsideBranch, contains('doy_tz=\${timezone.key}'));
+      expect(daysOutsideBranch, contains('doy_enrolled_at='));
+      expect(daysOutsideBranch, contains('doy_window_open='));
+      expect(daysOutsideBranch, contains('daysOutsideEventTitle(event)'));
+      expect(daysOutsideBranch, contains('daysOutsideDetailText('));
+      expect(daysOutsideBranch, contains('daysOutsideBehaviorPayload('));
+      expect(daysOutsideBranch, contains('daysOutsideClientEventId('));
+      expect(daysOutsideBranch, contains('daysOutsideActionId(event)'));
+      expect(daysOutsideBranch, contains('startsAtUtc: schedule.startUtc'));
+      expect(daysOutsideBranch, contains('endsAtUtc: schedule.endUtc'));
+      expect(daysOutsideBranch, contains('category: \'Ritual\''));
+      expect(daysOutsideBranch, contains('alertOffsetMinutes: 0'));
+      expect(daysOutsideBranch, contains('caller: \'days_outside_year_join\''));
+      expect(daysOutsideBranch, contains('_addNote('));
+      expect(daysOutsideBranch, contains('await _scheduleAlertForEvent('));
+    },
+  );
+
+  test('mounted Decan Watch join uses safe enrollment resolution', () {
+    final source = File(
+      'lib/features/calendar/calendar_page.dart',
+    ).readAsStringSync();
+    final resolver = _sourceBetween(
+      source,
+      'DecanWatchEnrollmentWindow? _resolveMountedDecanWatchJoinWindow',
+      '/// Create a user-owned *instance*',
+    );
+    final mountedJoin = _sourceBetween(
+      source,
+      'Future<int> _addMaatFlowInstance({',
+      'Future<bool> _endFlowFromEventTarget',
+    );
+    final decanWatchBranch = _sourceBetween(
+      mountedJoin,
+      'if (template.kind == _MaatFlowTemplateKind.decanWatch)',
+      'if (template.kind == _MaatFlowTemplateKind.dawnHouseRite)',
+    );
+
+    expect(resolver, contains('resolveDecanWatchEnrollmentWindowSafely'));
+    expect(resolver, contains('flow=The Decan Watch'));
+    expect(resolver, contains('timezone=\${timezone.key}'));
+    expect(resolver, contains('selectedDate='));
+    expect(resolver, contains('now=\${now.toIso8601String()}'));
+    expect(resolver, isNot(contains('decanWatchNextEnrollmentWindow(')));
+    expect(decanWatchBranch, contains('_resolveMountedDecanWatchJoinWindow'));
+    expect(
+      decanWatchBranch,
+      isNot(contains('decanWatchNextEnrollmentWindow(')),
+    );
+    expect(
+      decanWatchBranch,
+      isNot(contains('decanWatchEnrollmentWindowForStartDate(')),
+    );
+    expect(
+      decanWatchBranch,
+      contains('FlowJoinFailureCode.noEnrollmentWindow'),
+    );
+  });
+
+  test(
+    'mounted Decan Watch join preserves event identity and payload contract',
+    () {
+      final source = File(
+        'lib/features/calendar/calendar_page.dart',
+      ).readAsStringSync();
+      final mountedJoin = _sourceBetween(
+        source,
+        'Future<int> _addMaatFlowInstance({',
+        'Future<bool> _endFlowFromEventTarget',
+      );
+      final decanWatchBranch = _sourceBetween(
+        mountedJoin,
+        'if (template.kind == _MaatFlowTemplateKind.decanWatch)',
+        'if (template.kind == _MaatFlowTemplateKind.dawnHouseRite)',
+      );
+
+      expect(decanWatchBranch, contains('mode=kemetic'));
+      expect(decanWatchBranch, contains('maat=\${template.key}'));
+      expect(decanWatchBranch, contains('dw_tz=\${timezone.key}'));
+      expect(decanWatchBranch, contains('dw_lens=\${decanWatchLens.key}'));
+      expect(
+        decanWatchBranch,
+        contains('dw_enrolled_kyear=\${window.openingOccurrence.kYear}'),
+      );
+      expect(decanWatchBranch, contains('dw_hour=\$kDecanWatchDefaultHour'));
+      expect(
+        decanWatchBranch,
+        contains('dw_minute=\$kDecanWatchDefaultMinute'),
+      );
+      expect(decanWatchBranch, contains('dw_enrolled_at='));
+      expect(decanWatchBranch, contains('decanWatchEventTitle(occurrence)'));
+      expect(decanWatchBranch, contains('courseContextForKemeticDate('));
+      expect(decanWatchBranch, contains('decanWatchDetailText('));
+      expect(decanWatchBranch, contains('decanWatchBehaviorPayload('));
+      expect(decanWatchBranch, contains('decanWatchClientEventId('));
+      expect(decanWatchBranch, contains('decanWatchActionId(occurrence)'));
+      expect(decanWatchBranch, contains('startsAtUtc: occurrence.startUtc'));
+      expect(decanWatchBranch, contains('endsAtUtc: occurrence.endUtc'));
+      expect(decanWatchBranch, contains('category: \'Ritual\''));
+      expect(decanWatchBranch, contains('alertOffsetMinutes: 0'));
+      expect(decanWatchBranch, contains('caller: \'decan_watch_join\''));
+      expect(decanWatchBranch, contains('_addNote('));
+      expect(decanWatchBranch, contains('await _scheduleAlertForEvent('));
+    },
+  );
+
+  test('mounted Open Hand join uses safe enrollment resolution', () {
+    final source = File(
+      'lib/features/calendar/calendar_page.dart',
+    ).readAsStringSync();
+    final resolver = _sourceBetween(
+      source,
+      'OpenHandEnrollmentWindow? _resolveMountedOpenHandJoinWindow',
+      '/// Create a user-owned *instance*',
+    );
+    final mountedJoin = _sourceBetween(
+      source,
+      'Future<int> _addMaatFlowInstance({',
+      'Future<bool> _endFlowFromEventTarget',
+    );
+    final openHandBranch = _sourceBetween(
+      mountedJoin,
+      'if (template.kind == _MaatFlowTemplateKind.theOpenHand)',
+      'if (template.kind == _MaatFlowTemplateKind.theDjed)',
+    );
+
+    expect(resolver, contains('resolveOpenHandEnrollmentWindowSafely'));
+    expect(resolver, contains('flow=The Open Hand'));
+    expect(resolver, contains('timezone=\${timezone.key}'));
+    expect(resolver, contains('selectedDate='));
+    expect(resolver, contains('now=\${now.toIso8601String()}'));
+    expect(resolver, isNot(contains('openHandNextEnrollmentWindow(')));
+    expect(openHandBranch, contains('_resolveMountedOpenHandJoinWindow'));
+    expect(openHandBranch, isNot(contains('openHandNextEnrollmentWindow(')));
+    expect(
+      openHandBranch,
+      isNot(contains('openHandEnrollmentWindowForStartDate(')),
+    );
+    expect(openHandBranch, contains('FlowJoinFailureCode.noEnrollmentWindow'));
+  });
+
+  test(
+    'mounted Open Hand join preserves event identity and payload contract',
+    () {
+      final source = File(
+        'lib/features/calendar/calendar_page.dart',
+      ).readAsStringSync();
+      final mountedJoin = _sourceBetween(
+        source,
+        'Future<int> _addMaatFlowInstance({',
+        'Future<bool> _endFlowFromEventTarget',
+      );
+      final openHandBranch = _sourceBetween(
+        mountedJoin,
+        'if (template.kind == _MaatFlowTemplateKind.theOpenHand)',
+        'if (template.kind == _MaatFlowTemplateKind.theDjed)',
+      );
+
+      expect(openHandBranch, contains('mode=gregorian'));
+      expect(openHandBranch, contains('maat=\${template.key}'));
+      expect(openHandBranch, contains('oh_start=\$startIso'));
+      expect(openHandBranch, contains('oh_tz=\${timezone.key}'));
+      expect(openHandBranch, contains('oh_lens=\${openHandLens.key}'));
+      expect(openHandBranch, contains('oh_midday_hour='));
+      expect(openHandBranch, contains('oh_midday_minute='));
+      expect(
+        openHandBranch,
+        contains('oh_decan_kyear=\${window.openingOccurrence.kYear}'),
+      );
+      expect(
+        openHandBranch,
+        contains('oh_decan_month=\${window.openingOccurrence.kMonth}'),
+      );
+      expect(
+        openHandBranch,
+        contains('oh_decan_day=\${window.openingOccurrence.decanStartDay}'),
+      );
+      expect(openHandBranch, contains('oh_enrolled_at='));
+      expect(openHandBranch, contains('openHandEventTitle(event)'));
+      expect(openHandBranch, contains('openHandDetailText('));
+      expect(openHandBranch, contains('openHandBehaviorPayload('));
+      expect(openHandBranch, contains('openHandClientEventId('));
+      expect(openHandBranch, contains('openHandActionId(event)'));
+      expect(openHandBranch, contains('startsAtUtc: schedule.startUtc'));
+      expect(openHandBranch, contains('endsAtUtc: schedule.endUtc'));
+      expect(openHandBranch, contains('category: \'Ritual\''));
+      expect(openHandBranch, contains('alertOffsetMinutes: 0'));
+      expect(openHandBranch, contains('caller: \'open_hand_join\''));
+      expect(openHandBranch, contains('_addNote('));
+      expect(openHandBranch, contains('await _scheduleAlertForEvent('));
+    },
+  );
+
+  test('mounted Djed join uses safe enrollment resolution', () {
+    final source = File(
+      'lib/features/calendar/calendar_page.dart',
+    ).readAsStringSync();
+    final resolver = _sourceBetween(
+      source,
+      'DjedEnrollmentWindow? _resolveMountedDjedJoinWindow',
+      '/// Create a user-owned *instance*',
+    );
+    final mountedJoin = _sourceBetween(
+      source,
+      'Future<int> _addMaatFlowInstance({',
+      'Future<bool> _endFlowFromEventTarget',
+    );
+    final djedBranch = _sourceBetween(
+      mountedJoin,
+      'if (template.kind == _MaatFlowTemplateKind.theDjed)',
+      'if (template.kind == _MaatFlowTemplateKind.decanWatch)',
+    );
+
+    expect(resolver, contains('resolveDjedEnrollmentWindowSafely'));
+    expect(resolver, contains('flow=The Djed'));
+    expect(resolver, contains('timezone=\${timezone.key}'));
+    expect(resolver, contains('selectedDate='));
+    expect(resolver, contains('now=\${now.toIso8601String()}'));
+    expect(resolver, isNot(contains('djedNextEnrollmentWindow(')));
+    expect(djedBranch, contains('_resolveMountedDjedJoinWindow'));
+    expect(djedBranch, isNot(contains('djedNextEnrollmentWindow(')));
+    expect(djedBranch, isNot(contains('djedEnrollmentWindowForStartDate(')));
+    expect(djedBranch, contains('FlowJoinFailureCode.noEnrollmentWindow'));
+  });
+
+  test('mounted Djed join preserves event identity and payload contract', () {
+    final source = File(
+      'lib/features/calendar/calendar_page.dart',
+    ).readAsStringSync();
+    final mountedJoin = _sourceBetween(
+      source,
+      'Future<int> _addMaatFlowInstance({',
+      'Future<bool> _endFlowFromEventTarget',
+    );
+    final djedBranch = _sourceBetween(
+      mountedJoin,
+      'if (template.kind == _MaatFlowTemplateKind.theDjed)',
+      'if (template.kind == _MaatFlowTemplateKind.decanWatch)',
+    );
+
+    expect(djedBranch, contains('mode=gregorian'));
+    expect(djedBranch, contains('maat=\${template.key}'));
+    expect(djedBranch, contains('djed_start=\$startIso'));
+    expect(djedBranch, contains('djed_tz=\${timezone.key}'));
+    expect(djedBranch, contains('djed_lens=\${djedLens.key}'));
+    expect(djedBranch, contains('djed_midday_hour='));
+    expect(djedBranch, contains('djed_midday_minute='));
+    expect(
+      djedBranch,
+      contains('djed_decan_kyear=\${window.openingOccurrence.kYear}'),
+    );
+    expect(
+      djedBranch,
+      contains('djed_decan_month=\${window.openingOccurrence.kMonth}'),
+    );
+    expect(
+      djedBranch,
+      contains('djed_decan_day=\${window.openingOccurrence.decanStartDay}'),
+    );
+    expect(djedBranch, contains('djed_enrolled_at='));
+    expect(djedBranch, contains('djedEventTitle(event)'));
+    expect(djedBranch, contains('djedDetailText('));
+    expect(djedBranch, contains('djedBehaviorPayload('));
+    expect(djedBranch, contains('djedClientEventId('));
+    expect(djedBranch, contains('djedActionId(event)'));
+    expect(djedBranch, contains('startsAtUtc: schedule.startUtc'));
+    expect(djedBranch, contains('endsAtUtc: schedule.endUtc'));
+    expect(djedBranch, contains('category: \'Ritual\''));
+    expect(djedBranch, contains('alertOffsetMinutes: 0'));
+    expect(djedBranch, contains('caller: \'djed_join\''));
+    expect(djedBranch, contains('_addNote('));
+    expect(djedBranch, contains('await _scheduleAlertForEvent('));
+  });
+
+  test('mounted enrollment cluster uses safe join resolvers', () {
     final source = File(
       'lib/features/calendar/calendar_page.dart',
     ).readAsStringSync();
@@ -846,27 +1413,46 @@ void main() {
       'Future<bool> _endFlowFromEventTarget',
     );
 
-    final moonReturnBranch = _sourceBetween(
-      mountedJoin,
-      'if (template.kind == _MaatFlowTemplateKind.moonReturn)',
-      'if (template.kind == _MaatFlowTemplateKind.theWag)',
-    );
-    _expectPersistsBeforeAlertFiling(
-      moonReturnBranch,
-      caller: "caller: 'moon_return_join'",
-      branchName: 'mounted Moon Return',
-    );
+    for (final branch in _mountedSafeEnrollmentBranches) {
+      final resolver = _sourceBetween(
+        source,
+        branch.resolverStart,
+        '/// Create a user-owned *instance*',
+      );
+      final mountedBranch = _sourceBetween(
+        mountedJoin,
+        branch.branchStart,
+        branch.branchEnd,
+      );
 
-    final wagBranch = _sourceBetween(
-      mountedJoin,
-      'if (template.kind == _MaatFlowTemplateKind.theWag)',
-      'if (template.kind == _MaatFlowTemplateKind.decanWatch)',
-    );
-    _expectPersistsBeforeAlertFiling(
-      wagBranch,
-      caller: "caller: 'wag_join'",
-      branchName: 'mounted Wag',
-    );
+      expect(
+        resolver,
+        contains(branch.safeResolver),
+        reason: '${branch.name} must have a mounted safe resolver.',
+      );
+      expect(
+        mountedBranch,
+        contains(branch.mountedResolver),
+        reason: '${branch.name} must use its mounted safe resolver.',
+      );
+      expect(
+        mountedBranch,
+        isNot(contains(branch.throwingNextApi)),
+        reason:
+            '${branch.name} mounted join must not call the throwing next-window API directly.',
+      );
+      expect(
+        mountedBranch,
+        isNot(contains(branch.throwingSelectedApi)),
+        reason:
+            '${branch.name} mounted join must not call the throwing selected-date API directly.',
+      );
+      expect(
+        mountedBranch,
+        contains('FlowJoinFailureCode.noEnrollmentWindow'),
+        reason: '${branch.name} must return structured no-window failure.',
+      );
+    }
   });
 
   test(
@@ -1130,6 +1716,74 @@ const _previewEnrollmentBranches = [
     scaffoldStart: 'Widget _buildDaysOutsideYearScaffold',
     scaffoldEnd: 'Widget _buildMoonReturnScaffold',
     throwingApi: 'daysOutsideYearNextEnrollmentWindow',
+  ),
+];
+
+const _mountedSafeEnrollmentBranches = [
+  (
+    name: 'Moon Return',
+    resolverStart:
+        'MoonReturnEnrollmentWindow? _resolveMountedMoonReturnJoinWindow',
+    branchStart: 'if (template.kind == _MaatFlowTemplateKind.moonReturn)',
+    branchEnd: 'if (template.kind == _MaatFlowTemplateKind.theWag)',
+    mountedResolver: '_resolveMountedMoonReturnJoinWindow',
+    safeResolver: 'resolveMoonReturnEnrollmentWindowSafely',
+    throwingNextApi: 'moonReturnNextEnrollmentWindow(',
+    throwingSelectedApi: 'moonReturnEnrollmentWindowForStartDate(',
+  ),
+  (
+    name: 'Wag',
+    resolverStart: 'WagEnrollmentWindow? _resolveMountedWagJoinWindow',
+    branchStart: 'if (template.kind == _MaatFlowTemplateKind.theWag)',
+    branchEnd: 'if (template.kind == _MaatFlowTemplateKind.daysOutsideTheYear)',
+    mountedResolver: '_resolveMountedWagJoinWindow',
+    safeResolver: 'resolveWagEnrollmentWindowSafely',
+    throwingNextApi: 'wagNextEnrollmentWindow(',
+    throwingSelectedApi: 'wagEnrollmentWindowForStartDate(',
+  ),
+  (
+    name: 'Days Outside the Year',
+    resolverStart:
+        'DaysOutsideYearEnrollmentWindow? _resolveMountedDaysOutsideYearJoinWindow',
+    branchStart:
+        'if (template.kind == _MaatFlowTemplateKind.daysOutsideTheYear)',
+    branchEnd: 'if (template.kind == _MaatFlowTemplateKind.theOpenHand)',
+    mountedResolver: '_resolveMountedDaysOutsideYearJoinWindow',
+    safeResolver: 'resolveDaysOutsideYearEnrollmentWindowSafely',
+    throwingNextApi: 'daysOutsideYearNextEnrollmentWindow(',
+    throwingSelectedApi: 'daysOutsideYearEnrollmentWindowForStartDate(',
+  ),
+  (
+    name: 'Open Hand',
+    resolverStart:
+        'OpenHandEnrollmentWindow? _resolveMountedOpenHandJoinWindow',
+    branchStart: 'if (template.kind == _MaatFlowTemplateKind.theOpenHand)',
+    branchEnd: 'if (template.kind == _MaatFlowTemplateKind.theDjed)',
+    mountedResolver: '_resolveMountedOpenHandJoinWindow',
+    safeResolver: 'resolveOpenHandEnrollmentWindowSafely',
+    throwingNextApi: 'openHandNextEnrollmentWindow(',
+    throwingSelectedApi: 'openHandEnrollmentWindowForStartDate(',
+  ),
+  (
+    name: 'Djed',
+    resolverStart: 'DjedEnrollmentWindow? _resolveMountedDjedJoinWindow',
+    branchStart: 'if (template.kind == _MaatFlowTemplateKind.theDjed)',
+    branchEnd: 'if (template.kind == _MaatFlowTemplateKind.decanWatch)',
+    mountedResolver: '_resolveMountedDjedJoinWindow',
+    safeResolver: 'resolveDjedEnrollmentWindowSafely',
+    throwingNextApi: 'djedNextEnrollmentWindow(',
+    throwingSelectedApi: 'djedEnrollmentWindowForStartDate(',
+  ),
+  (
+    name: 'Decan Watch',
+    resolverStart:
+        'DecanWatchEnrollmentWindow? _resolveMountedDecanWatchJoinWindow',
+    branchStart: 'if (template.kind == _MaatFlowTemplateKind.decanWatch)',
+    branchEnd: 'if (template.kind == _MaatFlowTemplateKind.dawnHouseRite)',
+    mountedResolver: '_resolveMountedDecanWatchJoinWindow',
+    safeResolver: 'resolveDecanWatchEnrollmentWindowSafely',
+    throwingNextApi: 'decanWatchNextEnrollmentWindow(',
+    throwingSelectedApi: 'decanWatchEnrollmentWindowForStartDate(',
   ),
 ];
 

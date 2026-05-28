@@ -80,6 +80,19 @@ void main() {
     );
   });
 
+  test(
+    'safe enrollment resolver returns null for unavailable selected dates',
+    () {
+      final window = resolveWagEnrollmentWindowSafely(
+        timezone: TrackSkyTimeZone.pacific,
+        startDate: DateTime(2099, 1, 1),
+        now: DateTime.utc(2026, 5, 23, 18),
+      );
+
+      expect(window, isNull);
+    },
+  );
+
   test('payloads are JSON-safe and Event 6 supports names_spoken', () {
     final event = kWagEvents[5];
     final schedule = wagScheduleForEvent(
@@ -145,8 +158,8 @@ void main() {
       expect(detailSource, contains('Add Flow'));
       expect(detailSource, isNot(contains('Kemetic Year')));
       expect(pageSource, contains('_MaatFlowTemplateKind.theWag'));
-      expect(pageSource, contains('wagNextEnrollmentWindow'));
-      expect(pageSource, contains('wagEnrollmentWindowForStartDate'));
+      expect(pageSource, contains('_resolveMountedWagJoinWindow'));
+      expect(pageSource, contains('resolveWagEnrollmentWindowSafely'));
       expect(pageSource, isNot(contains('wagEnrollmentIsOpen')));
       expect(schedulerSource, contains('wagEventGregorian'));
       expect(pageSource, contains('wag_kyear='));

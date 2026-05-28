@@ -86,6 +86,19 @@ void main() {
     );
   });
 
+  test(
+    'safe enrollment resolver returns null for unavailable selected dates',
+    () {
+      final window = resolveDecanWatchEnrollmentWindowSafely(
+        timezone: TrackSkyTimeZone.pacific,
+        startDate: DateTime(2099, 1, 1),
+        now: DateTime.utc(2026, 5, 23, 18),
+      );
+
+      expect(window, isNull);
+    },
+  );
+
   test('detail text carries six steps and confidence label', () {
     final occurrence = decanWatchOccurrenceFor(
       kYear: 1,
@@ -105,6 +118,9 @@ void main() {
     final calendarPage = File(
       'lib/features/calendar/calendar_page.dart',
     ).readAsStringSync();
+    final enrollmentSource = File(
+      'lib/features/calendar/the_decan_watch_enrollment.dart',
+    ).readAsStringSync();
     final detailPage = File(
       'lib/features/calendar/calendar_maat_flows.dart',
     ).readAsStringSync();
@@ -113,8 +129,13 @@ void main() {
     ).readAsStringSync();
 
     expect(calendarPage, contains('_MaatFlowTemplateKind.decanWatch'));
-    expect(calendarPage, contains('decanWatchNextEnrollmentWindow'));
-    expect(calendarPage, contains('decanWatchEnrollmentWindowForStartDate'));
+    expect(calendarPage, contains('_resolveMountedDecanWatchJoinWindow'));
+    expect(calendarPage, contains('resolveDecanWatchEnrollmentWindowSafely'));
+    expect(enrollmentSource, contains('decanWatchNextEnrollmentWindow'));
+    expect(
+      enrollmentSource,
+      contains('decanWatchEnrollmentWindowForStartDate'),
+    );
     expect(calendarPage, isNot(contains('decanWatchEnrollmentIsOpen')));
     expect(calendarPage, contains('decanWatchClientEventId'));
     expect(detailPage, contains('_pickDecanWatchWindowDate'));

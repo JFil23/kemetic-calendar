@@ -54,6 +54,27 @@ MoonReturnEnrollmentWindow moonReturnNextEnrollmentWindow(
   throw StateError('No Moon Return enrollment window found.');
 }
 
+MoonReturnEnrollmentWindow? resolveMoonReturnEnrollmentWindowSafely({
+  required TrackSkyTimeZone timezone,
+  DateTime? startDate,
+  DateTime? now,
+  void Function(Object error, StackTrace stackTrace)? onError,
+}) {
+  try {
+    if (startDate == null) {
+      return moonReturnNextEnrollmentWindow(timezone, now: now);
+    }
+    return moonReturnEnrollmentWindowForStartDate(
+      startDate,
+      timezone,
+      now: now,
+    );
+  } catch (error, stackTrace) {
+    onError?.call(error, stackTrace);
+    return null;
+  }
+}
+
 MoonReturnEnrollmentWindow? moonReturnCurrentEnrollmentWindow(
   TrackSkyTimeZone timezone, {
   DateTime? now,
@@ -165,16 +186,15 @@ List<MoonReturnOccurrence> moonReturnOccurrencesForWindow({
     final firstFull = firstFullByMonth[monthKey];
     final isBlueMoon =
         firstFull != null &&
-        !_sameDate(_dateOnly(firstFull.instantLocal), _dateOnly(phase.instantLocal));
+        !_sameDate(
+          _dateOnly(firstFull.instantLocal),
+          _dateOnly(phase.instantLocal),
+        );
     if (isBlueMoon && window.opensAtLocal.isAfter(firstFull.instantLocal)) {
       continue;
     }
     result.add(
-      _fullMoonOccurrence(
-        phase,
-        window.timezone,
-        isBonusBlueMoon: isBlueMoon,
-      ),
+      _fullMoonOccurrence(phase, window.timezone, isBonusBlueMoon: isBlueMoon),
     );
   }
   result.sort((a, b) => a.startUtc.compareTo(b.startUtc));
@@ -193,7 +213,9 @@ MoonReturnOccurrence _newMoonOccurrence(
   final startUtc = base.usedFallback
       ? base.startUtc
       : base.startUtc.subtract(const Duration(minutes: 20));
-  final endUtc = startUtc.add(const Duration(minutes: kMoonReturnDurationMinutes));
+  final endUtc = startUtc.add(
+    const Duration(minutes: kMoonReturnDurationMinutes),
+  );
   final location = tz.getLocation(timezone.ianaName);
   return MoonReturnOccurrence(
     kind: MoonReturnEventKind.emptyEye,
@@ -228,7 +250,9 @@ MoonReturnOccurrence _fullMoonOccurrence(
       (fallback.usedFallback
           ? fallback.startUtc
           : fallback.startUtc.subtract(const Duration(minutes: 20)));
-  final endUtc = startUtc.add(const Duration(minutes: kMoonReturnDurationMinutes));
+  final endUtc = startUtc.add(
+    const Duration(minutes: kMoonReturnDurationMinutes),
+  );
   final location = tz.getLocation(timezone.ianaName);
   return MoonReturnOccurrence(
     kind: MoonReturnEventKind.wholeEye,
@@ -288,7 +312,9 @@ List<_MoonPhaseInstant> _moonPhasesBetween({
       from.difference(_kKnownNewMoonUtc).inSeconds / Duration.secondsPerDay;
   final firstCycle = (daysSinceEpoch / _kSynodicMonthDays).floor() - 2;
   final cycleCount =
-      (to.difference(from).inSeconds / Duration.secondsPerDay / _kSynodicMonthDays)
+      (to.difference(from).inSeconds /
+              Duration.secondsPerDay /
+              _kSynodicMonthDays)
           .ceil() +
       5;
   final phases = <_MoonPhaseInstant>[];
@@ -325,10 +351,7 @@ _MoonPhaseInstant _phaseForCycle({
   required MoonReturnEventKind kind,
   required TrackSkyTimeZone timezone,
 }) {
-  final instantUtc = _trueMoonPhaseUtc(
-    cycle + offsetCycles,
-    kind: kind,
-  );
+  final instantUtc = _trueMoonPhaseUtc(cycle + offsetCycles, kind: kind);
   final location = tz.getLocation(timezone.ianaName);
   final instantLocal = _fromZonedDateTime(
     tz.TZDateTime.from(instantUtc, location),
@@ -341,10 +364,7 @@ _MoonPhaseInstant _phaseForCycle({
   );
 }
 
-DateTime _trueMoonPhaseUtc(
-  double k, {
-  required MoonReturnEventKind kind,
-}) {
+DateTime _trueMoonPhaseUtc(double k, {required MoonReturnEventKind kind}) {
   final t = k / 1236.85;
   final t2 = t * t;
   final t3 = t2 * t;
@@ -423,7 +443,8 @@ double _degToRad(double value) {
 }
 
 DateTime _julianDayToUtc(double julianDay) {
-  final unixSeconds = ((julianDay - 2440587.5) * Duration.secondsPerDay).round();
+  final unixSeconds = ((julianDay - 2440587.5) * Duration.secondsPerDay)
+      .round();
   // Meeus phases are dynamical time. A one-minute TT/UTC correction is enough
   // for day-window scheduling and keeps fixture dates aligned without tables.
   return DateTime.fromMillisecondsSinceEpoch(
@@ -518,8 +539,7 @@ _MoonCoordinates _moonCoordinates(double d) {
   const obliquity = 23.4397;
   final e = _degToRad(obliquity);
   final rightAscension = math.atan2(
-    (math.sin(longitude) * math.cos(e)) -
-        (math.tan(latitude) * math.sin(e)),
+    (math.sin(longitude) * math.cos(e)) - (math.tan(latitude) * math.sin(e)),
     math.cos(longitude),
   );
   final declination = math.asin(

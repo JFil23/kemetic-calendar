@@ -41,6 +41,20 @@ OpenHandEnrollmentWindow? openHandEnrollmentWindowForStartDate(
   return decanWatchEnrollmentWindowForStartDate(startDate, timezone, now: now);
 }
 
+OpenHandEnrollmentWindow? resolveOpenHandEnrollmentWindowSafely({
+  required TrackSkyTimeZone timezone,
+  DateTime? startDate,
+  DateTime? now,
+  void Function(Object error, StackTrace stackTrace)? onError,
+}) {
+  return resolveDecanWatchEnrollmentWindowSafely(
+    timezone: timezone,
+    startDate: startDate,
+    now: now,
+    onError: onError,
+  );
+}
+
 List<OpenHandEnrollmentWindow> openHandUpcomingEnrollmentWindows(
   TrackSkyTimeZone timezone, {
   DateTime? now,

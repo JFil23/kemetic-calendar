@@ -81,6 +81,27 @@ DaysOutsideYearEnrollmentWindow daysOutsideYearNextEnrollmentWindow(
   throw StateError('No Days Outside the Year enrollment window found.');
 }
 
+DaysOutsideYearEnrollmentWindow? resolveDaysOutsideYearEnrollmentWindowSafely({
+  required TrackSkyTimeZone timezone,
+  DateTime? startDate,
+  DateTime? now,
+  void Function(Object error, StackTrace stackTrace)? onError,
+}) {
+  try {
+    if (startDate == null) {
+      return daysOutsideYearNextEnrollmentWindow(timezone, now: now);
+    }
+    return daysOutsideYearEnrollmentWindowForStartDate(
+      startDate,
+      timezone,
+      now: now,
+    );
+  } catch (error, stackTrace) {
+    onError?.call(error, stackTrace);
+    return null;
+  }
+}
+
 bool daysOutsideYearEnrollmentIsOpen(
   DaysOutsideYearEnrollmentWindow window, {
   DateTime? now,

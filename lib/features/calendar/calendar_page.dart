@@ -17446,6 +17446,204 @@ class CalendarPageState extends State<CalendarPage>
     });
   }
 
+  MoonReturnEnrollmentWindow? _resolveMountedMoonReturnJoinWindow({
+    required TrackSkyTimeZone timezone,
+    DateTime? startDate,
+  }) {
+    final now = DateTime.now();
+    Object? caughtError;
+    StackTrace? caughtStackTrace;
+    final window = resolveMoonReturnEnrollmentWindowSafely(
+      timezone: timezone,
+      startDate: startDate,
+      now: now,
+      onError: (error, stackTrace) {
+        caughtError = error;
+        caughtStackTrace = stackTrace;
+      },
+    );
+    if (window == null && kDebugMode) {
+      _calendarDebugPrint(
+        '[moonReturn] enrollment window unavailable: '
+        'flow=The Moon Return '
+        'timezone=${timezone.key} '
+        'selectedDate=${startDate?.toIso8601String() ?? 'none'} '
+        'now=${now.toIso8601String()} '
+        'reason=${caughtError ?? 'no matching enrollment window'}',
+      );
+      final stackTrace = caughtStackTrace;
+      if (stackTrace != null) {
+        _calendarDebugPrint('$stackTrace');
+      }
+    }
+    return window;
+  }
+
+  WagEnrollmentWindow? _resolveMountedWagJoinWindow({
+    required TrackSkyTimeZone timezone,
+    DateTime? startDate,
+  }) {
+    final now = DateTime.now();
+    Object? caughtError;
+    StackTrace? caughtStackTrace;
+    final window = resolveWagEnrollmentWindowSafely(
+      timezone: timezone,
+      startDate: startDate,
+      now: now,
+      onError: (error, stackTrace) {
+        caughtError = error;
+        caughtStackTrace = stackTrace;
+      },
+    );
+    if (window == null && kDebugMode) {
+      _calendarDebugPrint(
+        '[theWag] enrollment window unavailable: '
+        'flow=The Wag '
+        'timezone=${timezone.key} '
+        'selectedDate=${startDate?.toIso8601String() ?? 'none'} '
+        'now=${now.toIso8601String()} '
+        'reason=${caughtError ?? 'no matching enrollment window'}',
+      );
+      final stackTrace = caughtStackTrace;
+      if (stackTrace != null) {
+        _calendarDebugPrint('$stackTrace');
+      }
+    }
+    return window;
+  }
+
+  DaysOutsideYearEnrollmentWindow? _resolveMountedDaysOutsideYearJoinWindow({
+    required TrackSkyTimeZone timezone,
+    DateTime? startDate,
+  }) {
+    final now = DateTime.now();
+    Object? caughtError;
+    StackTrace? caughtStackTrace;
+    final window = resolveDaysOutsideYearEnrollmentWindowSafely(
+      timezone: timezone,
+      startDate: startDate,
+      now: now,
+      onError: (error, stackTrace) {
+        caughtError = error;
+        caughtStackTrace = stackTrace;
+      },
+    );
+    if (window == null && kDebugMode) {
+      _calendarDebugPrint(
+        '[daysOutsideYear] enrollment window unavailable: '
+        'flow=The Days Outside the Year '
+        'timezone=${timezone.key} '
+        'selectedDate=${startDate?.toIso8601String() ?? 'none'} '
+        'now=${now.toIso8601String()} '
+        'reason=${caughtError ?? 'no matching enrollment window'}',
+      );
+      final stackTrace = caughtStackTrace;
+      if (stackTrace != null) {
+        _calendarDebugPrint('$stackTrace');
+      }
+    }
+    return window;
+  }
+
+  DecanWatchEnrollmentWindow? _resolveMountedDecanWatchJoinWindow({
+    required TrackSkyTimeZone timezone,
+    DateTime? startDate,
+  }) {
+    final now = DateTime.now();
+    Object? caughtError;
+    StackTrace? caughtStackTrace;
+    final window = resolveDecanWatchEnrollmentWindowSafely(
+      timezone: timezone,
+      startDate: startDate,
+      now: now,
+      onError: (error, stackTrace) {
+        caughtError = error;
+        caughtStackTrace = stackTrace;
+      },
+    );
+    if (window == null && kDebugMode) {
+      _calendarDebugPrint(
+        '[decanWatch] enrollment window unavailable: '
+        'flow=The Decan Watch '
+        'timezone=${timezone.key} '
+        'selectedDate=${startDate?.toIso8601String() ?? 'none'} '
+        'now=${now.toIso8601String()} '
+        'reason=${caughtError ?? 'no matching enrollment window'}',
+      );
+      final stackTrace = caughtStackTrace;
+      if (stackTrace != null) {
+        _calendarDebugPrint('$stackTrace');
+      }
+    }
+    return window;
+  }
+
+  OpenHandEnrollmentWindow? _resolveMountedOpenHandJoinWindow({
+    required TrackSkyTimeZone timezone,
+    DateTime? startDate,
+  }) {
+    final now = DateTime.now();
+    Object? caughtError;
+    StackTrace? caughtStackTrace;
+    final window = resolveOpenHandEnrollmentWindowSafely(
+      timezone: timezone,
+      startDate: startDate,
+      now: now,
+      onError: (error, stackTrace) {
+        caughtError = error;
+        caughtStackTrace = stackTrace;
+      },
+    );
+    if (window == null && kDebugMode) {
+      _calendarDebugPrint(
+        '[openHand] enrollment window unavailable: '
+        'flow=The Open Hand '
+        'timezone=${timezone.key} '
+        'selectedDate=${startDate?.toIso8601String() ?? 'none'} '
+        'now=${now.toIso8601String()} '
+        'reason=${caughtError ?? 'no matching enrollment window'}',
+      );
+      final stackTrace = caughtStackTrace;
+      if (stackTrace != null) {
+        _calendarDebugPrint('$stackTrace');
+      }
+    }
+    return window;
+  }
+
+  DjedEnrollmentWindow? _resolveMountedDjedJoinWindow({
+    required TrackSkyTimeZone timezone,
+    DateTime? startDate,
+  }) {
+    final now = DateTime.now();
+    Object? caughtError;
+    StackTrace? caughtStackTrace;
+    final window = resolveDjedEnrollmentWindowSafely(
+      timezone: timezone,
+      startDate: startDate,
+      now: now,
+      onError: (error, stackTrace) {
+        caughtError = error;
+        caughtStackTrace = stackTrace;
+      },
+    );
+    if (window == null && kDebugMode) {
+      _calendarDebugPrint(
+        '[djed] enrollment window unavailable: '
+        'flow=The Djed '
+        'timezone=${timezone.key} '
+        'selectedDate=${startDate?.toIso8601String() ?? 'none'} '
+        'now=${now.toIso8601String()} '
+        'reason=${caughtError ?? 'no matching enrollment window'}',
+      );
+      final stackTrace = caughtStackTrace;
+      if (stackTrace != null) {
+        _calendarDebugPrint('$stackTrace');
+      }
+    }
+    return window;
+  }
+
   /// Create a user-owned *instance* from a Ma'at template starting on [startDate].
   /// - Sequence templates use [startDate] and optionally [useKemetic].
   /// - Ongoing templates can use their own join settings, such as timezone.
@@ -17608,9 +17806,10 @@ class CalendarPageState extends State<CalendarPage>
 
     if (template.kind == _MaatFlowTemplateKind.moonReturn) {
       final timezone = trackSkyTimeZone ?? detectTrackSkyTimeZone();
-      final window = startDate == null
-          ? moonReturnNextEnrollmentWindow(timezone)
-          : moonReturnEnrollmentWindowForStartDate(startDate, timezone);
+      final window = _resolveMountedMoonReturnJoinWindow(
+        timezone: timezone,
+        startDate: startDate,
+      );
       if (window == null) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -17619,10 +17818,16 @@ class CalendarPageState extends State<CalendarPage>
             ),
           );
         }
-        return -1;
+        return const FlowJoinResult.failure(
+          FlowJoinFailureCode.noEnrollmentWindow,
+        ).flowIdOrNegativeOne;
       }
       final occurrences = moonReturnOccurrencesForWindow(window: window);
-      if (occurrences.isEmpty) return -1;
+      if (occurrences.isEmpty) {
+        return const FlowJoinResult.failure(
+          FlowJoinFailureCode.noOccurrences,
+        ).flowIdOrNegativeOne;
+      }
       final dates = <DateTime>{
         for (final occurrence in occurrences)
           DateUtils.dateOnly(occurrence.startLocal),
@@ -17773,9 +17978,10 @@ class CalendarPageState extends State<CalendarPage>
 
     if (template.kind == _MaatFlowTemplateKind.theWag) {
       final timezone = trackSkyTimeZone ?? detectTrackSkyTimeZone();
-      final window = startDate == null
-          ? wagNextEnrollmentWindow(timezone)
-          : wagEnrollmentWindowForStartDate(startDate, timezone);
+      final window = _resolveMountedWagJoinWindow(
+        timezone: timezone,
+        startDate: startDate,
+      );
       if (window == null) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -17784,7 +17990,9 @@ class CalendarPageState extends State<CalendarPage>
             ),
           );
         }
-        return -1;
+        return const FlowJoinResult.failure(
+          FlowJoinFailureCode.noEnrollmentWindow,
+        ).flowIdOrNegativeOne;
       }
       final kYear = window.kYear;
       final alreadyEnrolled = _flows.any((flow) {
@@ -17977,9 +18185,10 @@ class CalendarPageState extends State<CalendarPage>
 
     if (template.kind == _MaatFlowTemplateKind.daysOutsideTheYear) {
       final timezone = trackSkyTimeZone ?? detectTrackSkyTimeZone();
-      final window = startDate == null
-          ? daysOutsideYearNextEnrollmentWindow(timezone)
-          : daysOutsideYearEnrollmentWindowForStartDate(startDate, timezone);
+      final window = _resolveMountedDaysOutsideYearJoinWindow(
+        timezone: timezone,
+        startDate: startDate,
+      );
       if (window == null) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -17990,7 +18199,9 @@ class CalendarPageState extends State<CalendarPage>
             ),
           );
         }
-        return -1;
+        return const FlowJoinResult.failure(
+          FlowJoinFailureCode.noEnrollmentWindow,
+        ).flowIdOrNegativeOne;
       }
       final closingKYear = window.closingKYear;
       final alreadyEnrolled = _flows.any((flow) {
@@ -18136,14 +18347,6 @@ class CalendarPageState extends State<CalendarPage>
             behaviorPayload: behaviorPayload,
           );
 
-          await _scheduleAlertForEvent(
-            note: note,
-            ky: kyKmKd.kYear,
-            km: kyKmKd.kMonth,
-            kd: kyKmKd.kDay,
-            clientEventId: clientEventId,
-          );
-
           await repo.upsertByClientId(
             clientEventId: clientEventId,
             title: title,
@@ -18157,6 +18360,14 @@ class CalendarPageState extends State<CalendarPage>
             actionId: daysOutsideActionId(event),
             behaviorPayload: behaviorPayload,
             caller: 'days_outside_year_join',
+          );
+
+          await _scheduleAlertForEvent(
+            note: note,
+            ky: kyKmKd.kYear,
+            km: kyKmKd.kMonth,
+            kd: kyKmKd.kDay,
+            clientEventId: clientEventId,
           );
         }
       } catch (e, st) {
@@ -18193,9 +18404,10 @@ class CalendarPageState extends State<CalendarPage>
 
     if (template.kind == _MaatFlowTemplateKind.theOpenHand) {
       final timezone = trackSkyTimeZone ?? detectTrackSkyTimeZone();
-      final window = startDate == null
-          ? openHandNextEnrollmentWindow(timezone)
-          : openHandEnrollmentWindowForStartDate(startDate, timezone);
+      final window = _resolveMountedOpenHandJoinWindow(
+        timezone: timezone,
+        startDate: startDate,
+      );
       if (window == null) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -18206,7 +18418,9 @@ class CalendarPageState extends State<CalendarPage>
             ),
           );
         }
-        return -1;
+        return const FlowJoinResult.failure(
+          FlowJoinFailureCode.noEnrollmentWindow,
+        ).flowIdOrNegativeOne;
       }
       final flowStart = DateUtils.dateOnly(window.opensAtLocal);
       final startIso = CalendarPage._formatDetachedGregorian(flowStart);
@@ -18331,14 +18545,6 @@ class CalendarPageState extends State<CalendarPage>
             behaviorPayload: behaviorPayload,
           );
 
-          await _scheduleAlertForEvent(
-            note: note,
-            ky: kyKmKd.kYear,
-            km: kyKmKd.kMonth,
-            kd: kyKmKd.kDay,
-            clientEventId: clientEventId,
-          );
-
           await repo.upsertByClientId(
             clientEventId: clientEventId,
             title: title,
@@ -18352,6 +18558,14 @@ class CalendarPageState extends State<CalendarPage>
             actionId: openHandActionId(event),
             behaviorPayload: behaviorPayload,
             caller: 'open_hand_join',
+          );
+
+          await _scheduleAlertForEvent(
+            note: note,
+            ky: kyKmKd.kYear,
+            km: kyKmKd.kMonth,
+            kd: kyKmKd.kDay,
+            clientEventId: clientEventId,
           );
         }
       } catch (e, st) {
@@ -18386,9 +18600,10 @@ class CalendarPageState extends State<CalendarPage>
 
     if (template.kind == _MaatFlowTemplateKind.theDjed) {
       final timezone = trackSkyTimeZone ?? detectTrackSkyTimeZone();
-      final window = startDate == null
-          ? djedNextEnrollmentWindow(timezone)
-          : djedEnrollmentWindowForStartDate(startDate, timezone);
+      final window = _resolveMountedDjedJoinWindow(
+        timezone: timezone,
+        startDate: startDate,
+      );
       if (window == null) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -18399,7 +18614,9 @@ class CalendarPageState extends State<CalendarPage>
             ),
           );
         }
-        return -1;
+        return const FlowJoinResult.failure(
+          FlowJoinFailureCode.noEnrollmentWindow,
+        ).flowIdOrNegativeOne;
       }
       final flowStart = DateUtils.dateOnly(window.opensAtLocal);
       final startIso = CalendarPage._formatDetachedGregorian(flowStart);
@@ -18524,14 +18741,6 @@ class CalendarPageState extends State<CalendarPage>
             behaviorPayload: behaviorPayload,
           );
 
-          await _scheduleAlertForEvent(
-            note: note,
-            ky: kyKmKd.kYear,
-            km: kyKmKd.kMonth,
-            kd: kyKmKd.kDay,
-            clientEventId: clientEventId,
-          );
-
           await repo.upsertByClientId(
             clientEventId: clientEventId,
             title: title,
@@ -18545,6 +18754,14 @@ class CalendarPageState extends State<CalendarPage>
             actionId: djedActionId(event),
             behaviorPayload: behaviorPayload,
             caller: 'djed_join',
+          );
+
+          await _scheduleAlertForEvent(
+            note: note,
+            ky: kyKmKd.kYear,
+            km: kyKmKd.kMonth,
+            kd: kyKmKd.kDay,
+            clientEventId: clientEventId,
           );
         }
       } catch (e, st) {
@@ -18579,9 +18796,10 @@ class CalendarPageState extends State<CalendarPage>
 
     if (template.kind == _MaatFlowTemplateKind.decanWatch) {
       final timezone = trackSkyTimeZone ?? detectTrackSkyTimeZone();
-      final window = startDate == null
-          ? decanWatchNextEnrollmentWindow(timezone)
-          : decanWatchEnrollmentWindowForStartDate(startDate, timezone);
+      final window = _resolveMountedDecanWatchJoinWindow(
+        timezone: timezone,
+        startDate: startDate,
+      );
       if (window == null) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -18592,7 +18810,9 @@ class CalendarPageState extends State<CalendarPage>
             ),
           );
         }
-        return -1;
+        return const FlowJoinResult.failure(
+          FlowJoinFailureCode.noEnrollmentWindow,
+        ).flowIdOrNegativeOne;
       }
       final alreadyEnrolled = _flows.any((flow) {
         return flow.active &&
@@ -18724,14 +18944,6 @@ class CalendarPageState extends State<CalendarPage>
             behaviorPayload: behaviorPayload,
           );
 
-          await _scheduleAlertForEvent(
-            note: note,
-            ky: kyKmKd.kYear,
-            km: kyKmKd.kMonth,
-            kd: kyKmKd.kDay,
-            clientEventId: clientEventId,
-          );
-
           await repo.upsertByClientId(
             clientEventId: clientEventId,
             title: title,
@@ -18745,6 +18957,14 @@ class CalendarPageState extends State<CalendarPage>
             actionId: decanWatchActionId(occurrence),
             behaviorPayload: behaviorPayload,
             caller: 'decan_watch_join',
+          );
+
+          await _scheduleAlertForEvent(
+            note: note,
+            ky: kyKmKd.kYear,
+            km: kyKmKd.kMonth,
+            kd: kyKmKd.kDay,
+            clientEventId: clientEventId,
           );
         }
       } catch (e, st) {

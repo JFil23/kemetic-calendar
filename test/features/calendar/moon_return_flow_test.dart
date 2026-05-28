@@ -45,6 +45,19 @@ void main() {
     );
   });
 
+  test(
+    'safe enrollment resolver returns null for unavailable selected dates',
+    () {
+      final window = resolveMoonReturnEnrollmentWindowSafely(
+        timezone: TrackSkyTimeZone.pacific,
+        startDate: DateTime(2099, 1, 1),
+        now: DateTime.utc(2026, 5, 23, 18),
+      );
+
+      expect(window, isNull);
+    },
+  );
+
   test('enrollment creates Empty Eye first and following Whole Eye events', () {
     final window = moonReturnEnrollmentWindowForStartDate(
       DateTime(2026, 8, 10),
@@ -152,8 +165,8 @@ void main() {
     expect(detailSource, contains('designated new-moon enrollment windows'));
     expect(detailSource, contains('Add Flow'));
     expect(pageSource, contains('_MaatFlowTemplateKind.moonReturn'));
-    expect(pageSource, contains('moonReturnNextEnrollmentWindow'));
-    expect(pageSource, contains('moonReturnEnrollmentWindowForStartDate'));
+    expect(pageSource, contains('_resolveMountedMoonReturnJoinWindow'));
+    expect(pageSource, contains('resolveMoonReturnEnrollmentWindowSafely'));
     expect(pageSource, isNot(contains('moonReturnEnrollmentIsOpen')));
     expect(pageSource, contains('moonReturnClientEventId'));
     expect(pageSource, isNot(contains('kMoonReturnDays')));

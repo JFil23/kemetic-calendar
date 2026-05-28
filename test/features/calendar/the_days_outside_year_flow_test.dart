@@ -111,6 +111,19 @@ void main() {
     );
   });
 
+  test(
+    'safe enrollment resolver returns null for unavailable selected dates',
+    () {
+      final window = resolveDaysOutsideYearEnrollmentWindowSafely(
+        timezone: TrackSkyTimeZone.pacific,
+        startDate: DateTime(2099, 1, 1),
+        now: DateTime.utc(2026, 5, 23, 18),
+      );
+
+      expect(window, isNull);
+    },
+  );
+
   test('payloads are JSON-safe and do not carry private reflections', () {
     final event = kDaysOutsideEvents.last;
     final schedule = daysOutsideScheduleForEvent(
@@ -182,8 +195,11 @@ void main() {
     expect(detailSource, isNot(contains('Closing Kemetic Year')));
     expect(detailSource, isNot(contains('Kemetic Year')));
     expect(pageSource, contains('_MaatFlowTemplateKind.daysOutsideTheYear'));
-    expect(pageSource, contains('daysOutsideYearNextEnrollmentWindow'));
-    expect(pageSource, contains('daysOutsideYearEnrollmentWindowForStartDate'));
+    expect(pageSource, contains('_resolveMountedDaysOutsideYearJoinWindow'));
+    expect(
+      pageSource,
+      contains('resolveDaysOutsideYearEnrollmentWindowSafely'),
+    );
     expect(pageSource, isNot(contains('daysOutsideYearEnrollmentIsOpen')));
     expect(pageSource, contains('doy_kyear='));
     expect(schedulerSource, contains('daysOutsideEventGregorian'));

@@ -80,6 +80,27 @@ DecanWatchEnrollmentWindow decanWatchNextEnrollmentWindow(
   throw StateError('No Decan Watch enrollment window found.');
 }
 
+DecanWatchEnrollmentWindow? resolveDecanWatchEnrollmentWindowSafely({
+  required TrackSkyTimeZone timezone,
+  DateTime? startDate,
+  DateTime? now,
+  void Function(Object error, StackTrace stackTrace)? onError,
+}) {
+  try {
+    if (startDate == null) {
+      return decanWatchNextEnrollmentWindow(timezone, now: now);
+    }
+    return decanWatchEnrollmentWindowForStartDate(
+      startDate,
+      timezone,
+      now: now,
+    );
+  } catch (error, stackTrace) {
+    onError?.call(error, stackTrace);
+    return null;
+  }
+}
+
 bool decanWatchEnrollmentIsOpen(
   DecanWatchEnrollmentWindow window, {
   DateTime? now,

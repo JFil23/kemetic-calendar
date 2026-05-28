@@ -35,6 +35,20 @@ DjedEnrollmentWindow? djedEnrollmentWindowForStartDate(
   return decanWatchEnrollmentWindowForStartDate(startDate, timezone, now: now);
 }
 
+DjedEnrollmentWindow? resolveDjedEnrollmentWindowSafely({
+  required TrackSkyTimeZone timezone,
+  DateTime? startDate,
+  DateTime? now,
+  void Function(Object error, StackTrace stackTrace)? onError,
+}) {
+  return resolveDecanWatchEnrollmentWindowSafely(
+    timezone: timezone,
+    startDate: startDate,
+    now: now,
+    onError: onError,
+  );
+}
+
 List<DjedEnrollmentWindow> djedUpcomingEnrollmentWindows(
   TrackSkyTimeZone timezone, {
   DateTime? now,

@@ -137,9 +137,25 @@ void main() {
     );
   });
 
+  test(
+    'safe enrollment resolver returns null for unavailable selected dates',
+    () {
+      final window = resolveOpenHandEnrollmentWindowSafely(
+        timezone: TrackSkyTimeZone.pacific,
+        startDate: DateTime(2099, 1, 1),
+        now: DateTime.utc(2026, 5, 23, 18),
+      );
+
+      expect(window, isNull);
+    },
+  );
+
   test('source wires template, window-only picker, join, and local store', () {
     final calendarPage = File(
       'lib/features/calendar/calendar_page.dart',
+    ).readAsStringSync();
+    final enrollmentSource = File(
+      'lib/features/calendar/the_open_hand_enrollment.dart',
     ).readAsStringSync();
     final detailPage = File(
       'lib/features/calendar/calendar_maat_flows.dart',
@@ -149,8 +165,10 @@ void main() {
     ).readAsStringSync();
 
     expect(calendarPage, contains('_MaatFlowTemplateKind.theOpenHand'));
-    expect(calendarPage, contains('openHandNextEnrollmentWindow'));
-    expect(calendarPage, contains('openHandEnrollmentWindowForStartDate'));
+    expect(calendarPage, contains('_resolveMountedOpenHandJoinWindow'));
+    expect(calendarPage, contains('resolveOpenHandEnrollmentWindowSafely'));
+    expect(enrollmentSource, contains('openHandNextEnrollmentWindow'));
+    expect(enrollmentSource, contains('openHandEnrollmentWindowForStartDate'));
     expect(calendarPage, isNot(contains('openHandEnrollmentIsOpen')));
     expect(calendarPage, contains('openHandClientEventId'));
     expect(detailPage, contains('_pickOpenHandWindowDate'));

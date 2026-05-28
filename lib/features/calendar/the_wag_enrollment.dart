@@ -90,6 +90,21 @@ WagEnrollmentWindow wagNextEnrollmentWindow(
   throw StateError('No Wag enrollment window found.');
 }
 
+WagEnrollmentWindow? resolveWagEnrollmentWindowSafely({
+  required TrackSkyTimeZone timezone,
+  DateTime? startDate,
+  DateTime? now,
+  void Function(Object error, StackTrace stackTrace)? onError,
+}) {
+  try {
+    if (startDate == null) return wagNextEnrollmentWindow(timezone, now: now);
+    return wagEnrollmentWindowForStartDate(startDate, timezone, now: now);
+  } catch (error, stackTrace) {
+    onError?.call(error, stackTrace);
+    return null;
+  }
+}
+
 WagEnrollmentWindow? wagCurrentEnrollmentWindow(
   TrackSkyTimeZone timezone, {
   DateTime? now,
