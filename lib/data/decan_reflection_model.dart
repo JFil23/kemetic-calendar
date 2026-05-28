@@ -37,14 +37,20 @@ class DecanReflectionGraphHints {
   final String? leadAxis;
   final List<String> anchorNodes;
   final DecanReflectionCta? cta;
+  final DecanReflectionNodeSuggestion? fallbackNode;
 
   const DecanReflectionGraphHints({
     required this.leadAxis,
     required this.anchorNodes,
     this.cta,
+    this.fallbackNode,
   });
 
-  bool get isEmpty => leadAxis == null && anchorNodes.isEmpty && cta == null;
+  bool get isEmpty =>
+      leadAxis == null &&
+      anchorNodes.isEmpty &&
+      cta == null &&
+      fallbackNode == null;
 
   factory DecanReflectionGraphHints.fromGenerationJson(
     Map<String, dynamic> json,
@@ -63,21 +69,53 @@ class DecanReflectionGraphHints {
           ? _stringList(rawAnchorNodes)
           : _stringList(fallbackAnchorNodes),
       cta: cta.hasDestination ? cta : null,
+      fallbackNode: DecanReflectionNodeSuggestion.tryFromCtaFallback(cta),
     );
   }
+}
+
+class DecanReflectionNodeSuggestion {
+  final String ref;
+  final String label;
+
+  const DecanReflectionNodeSuggestion({required this.ref, required this.label});
+
+  static DecanReflectionNodeSuggestion? tryFromCtaFallback(
+    DecanReflectionCta cta,
+  ) {
+    final fallbackType = cta.fallbackType?.trim().toLowerCase();
+    final fallbackRef = cta.fallbackRef?.trim();
+    if (!_isNodeCtaType(fallbackType) ||
+        fallbackRef == null ||
+        fallbackRef.isEmpty) {
+      return null;
+    }
+    return DecanReflectionNodeSuggestion(
+      ref: fallbackRef,
+      label: cta.fallbackLabel?.trim().isNotEmpty == true
+          ? cta.fallbackLabel!.trim()
+          : _defaultCtaLabel('node'),
+    );
+  }
+
+  bool get hasNode => ref.trim().isNotEmpty;
 }
 
 class DecanReflectionCta {
   final String type;
   final String ref;
   final String label;
+  final String? fallbackType;
   final String? fallbackRef;
+  final String? fallbackLabel;
 
   const DecanReflectionCta({
     required this.type,
     required this.ref,
     required this.label,
+    this.fallbackType,
     this.fallbackRef,
+    this.fallbackLabel,
   });
 
   factory DecanReflectionCta.fromGenerationJson(Map<String, dynamic> json) {
@@ -116,13 +154,30 @@ class DecanReflectionCta {
           _trimmedString(destination['label']) ??
           _trimmedString(cta['label']) ??
           _defaultCtaLabel(type),
+      fallbackType:
+          _trimmedString(fallback['ctaType']) ??
+          _trimmedString(fallback['cta_type']),
       fallbackRef:
           _trimmedString(fallback['ctaRef']) ??
           _trimmedString(fallback['cta_ref']),
+      fallbackLabel:
+          _trimmedString(fallback['ctaLabel']) ??
+          _trimmedString(fallback['cta_label']),
     );
   }
 
   bool get hasDestination => type != 'none' && ref.trim().isNotEmpty;
+}
+
+bool _isNodeCtaType(String? type) {
+  switch (type) {
+    case 'node':
+    case 'library_node':
+    case 'node_library':
+      return true;
+    default:
+      return false;
+  }
 }
 
 Map<String, dynamic> _asStringKeyedMap(Object? value) {

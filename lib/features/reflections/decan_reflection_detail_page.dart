@@ -35,7 +35,7 @@ class _DecanReflectionDetailPageState extends State<DecanReflectionDetailPage> {
   List<InlineSpan> _reflectionSpans = const [];
   DecanReflection? _reflection;
   DecanReflectionGraphHints? _graphHints;
-  List<_SuggestedNodeLink> _suggestedNodeLinks = const [];
+  List<DecanReflectionSuggestedNodeLink> _suggestedNodeLinks = const [];
   TextSelection _reflectionSelection = const TextSelection.collapsed(
     offset: -1,
   );
@@ -80,7 +80,10 @@ class _DecanReflectionDetailPageState extends State<DecanReflectionDetailPage> {
       _reflection = data;
       _graphHints = graphHints;
       _links = reflectionLinks;
-      _suggestedNodeLinks = _buildSuggestedNodeLinks(graphHints, _links);
+      _suggestedNodeLinks = buildDecanReflectionSuggestedNodeLinks(
+        graphHints,
+        _links,
+      );
       _rebuildReflectionSpans();
       _loading = false;
     });
@@ -122,7 +125,9 @@ class _DecanReflectionDetailPageState extends State<DecanReflectionDetailPage> {
     context.go('/nodes/${Uri.encodeComponent(node.id)}');
   }
 
-  Future<void> _openSuggestedNode(_SuggestedNodeLink suggestion) async {
+  Future<void> _openSuggestedNode(
+    DecanReflectionSuggestedNodeLink suggestion,
+  ) async {
     await _repo.recordSuggestedNodeTap(
       reflectionId: widget.reflectionId,
       nodeSlug: suggestion.node.id,
@@ -238,7 +243,10 @@ class _DecanReflectionDetailPageState extends State<DecanReflectionDetailPage> {
       await _insightRepo.saveLinks(userId, filtered);
       setState(() {
         _links = remaining;
-        _suggestedNodeLinks = _buildSuggestedNodeLinks(_graphHints, _links);
+        _suggestedNodeLinks = buildDecanReflectionSuggestedNodeLinks(
+          _graphHints,
+          _links,
+        );
         _rebuildReflectionSpans();
       });
       return;
@@ -276,7 +284,10 @@ class _DecanReflectionDetailPageState extends State<DecanReflectionDetailPage> {
     await _insightRepo.saveLinks(userId, filtered);
     setState(() {
       _links = [...remaining, link]..sort((a, b) => a.start.compareTo(b.start));
-      _suggestedNodeLinks = _buildSuggestedNodeLinks(_graphHints, _links);
+      _suggestedNodeLinks = buildDecanReflectionSuggestedNodeLinks(
+        _graphHints,
+        _links,
+      );
       _rebuildReflectionSpans();
     });
   }
@@ -405,43 +416,9 @@ class _DecanReflectionDetailPageState extends State<DecanReflectionDetailPage> {
           ],
           if (_suggestedNodeLinks.isNotEmpty) ...[
             const SizedBox(height: 18),
-            const Text(
-              'Continue in the graph',
-              style: TextStyle(
-                color: Colors.white70,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-            const SizedBox(height: 8),
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: _suggestedNodeLinks
-                  .map(
-                    (suggestion) => ActionChip(
-                      avatar: suggestion.node.glyph.trim().isEmpty
-                          ? null
-                          : Text(
-                              suggestion.node.glyph,
-                              style: const TextStyle(
-                                color: KemeticGold.base,
-                                fontSize: 15,
-                              ),
-                            ),
-                      label: Text(
-                        suggestion.node.title,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                      tooltip: suggestion.reason,
-                      onPressed: () => _openSuggestedNode(suggestion),
-                      backgroundColor: Colors.white.withValues(alpha: 0.08),
-                      side: BorderSide(
-                        color: KemeticGold.base.withValues(alpha: 0.35),
-                      ),
-                      labelStyle: const TextStyle(color: Colors.white70),
-                    ),
-                  )
-                  .toList(),
+            DecanReflectionSuggestedNodeChips(
+              suggestions: _suggestedNodeLinks,
+              onOpenSuggestedNode: _openSuggestedNode,
             ),
           ],
           if (_links.isNotEmpty) ...[
@@ -494,17 +471,80 @@ class _DecanReflectionDetailPageState extends State<DecanReflectionDetailPage> {
     await _insightRepo.saveLinks(userId, filtered);
     setState(() {
       _links = _links.where((l) => l.id != link.id).toList();
-      _suggestedNodeLinks = _buildSuggestedNodeLinks(_graphHints, _links);
+      _suggestedNodeLinks = buildDecanReflectionSuggestedNodeLinks(
+        _graphHints,
+        _links,
+      );
       _rebuildReflectionSpans();
     });
   }
 }
 
-class _SuggestedNodeLink {
+class DecanReflectionSuggestedNodeLink {
   final KemeticNode node;
   final String reason;
 
-  const _SuggestedNodeLink({required this.node, required this.reason});
+  const DecanReflectionSuggestedNodeLink({
+    required this.node,
+    required this.reason,
+  });
+}
+
+class DecanReflectionSuggestedNodeChips extends StatelessWidget {
+  const DecanReflectionSuggestedNodeChips({
+    super.key,
+    required this.suggestions,
+    required this.onOpenSuggestedNode,
+  });
+
+  final List<DecanReflectionSuggestedNodeLink> suggestions;
+  final void Function(DecanReflectionSuggestedNodeLink suggestion)
+  onOpenSuggestedNode;
+
+  @override
+  Widget build(BuildContext context) {
+    if (suggestions.isEmpty) return const SizedBox.shrink();
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'Continue in the graph',
+          style: TextStyle(color: Colors.white70, fontWeight: FontWeight.w600),
+        ),
+        const SizedBox(height: 8),
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: suggestions
+              .map(
+                (suggestion) => ActionChip(
+                  avatar: suggestion.node.glyph.trim().isEmpty
+                      ? null
+                      : Text(
+                          suggestion.node.glyph,
+                          style: const TextStyle(
+                            color: KemeticGold.base,
+                            fontSize: 15,
+                          ),
+                        ),
+                  label: Text(
+                    suggestion.node.title,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  tooltip: suggestion.reason,
+                  onPressed: () => onOpenSuggestedNode(suggestion),
+                  backgroundColor: Colors.white.withValues(alpha: 0.08),
+                  side: BorderSide(
+                    color: KemeticGold.base.withValues(alpha: 0.35),
+                  ),
+                  labelStyle: const TextStyle(color: Colors.white70),
+                ),
+              )
+              .toList(),
+        ),
+      ],
+    );
+  }
 }
 
 const Map<String, List<String>> _leadAxisNodeCandidates = {
@@ -531,18 +571,20 @@ const Map<String, String> _leadAxisReason = {
   'C': 'Continuity and role fidelity',
 };
 
-List<_SuggestedNodeLink> _buildSuggestedNodeLinks(
+List<DecanReflectionSuggestedNodeLink> buildDecanReflectionSuggestedNodeLinks(
   DecanReflectionGraphHints? hints,
   List<InsightLink> existingLinks,
 ) {
-  if (hints == null || hints.isEmpty) return const <_SuggestedNodeLink>[];
+  if (hints == null || hints.isEmpty) {
+    return const <DecanReflectionSuggestedNodeLink>[];
+  }
 
   final linkedNodeIds = existingLinks
       .where((link) => link.targetType == InsightTargetType.node)
       .map((link) => link.targetId.trim().toLowerCase())
       .toSet();
   final seenNodeIds = <String>{...linkedNodeIds};
-  final suggestions = <_SuggestedNodeLink>[];
+  final suggestions = <DecanReflectionSuggestedNodeLink>[];
 
   void addNode(String slugOrAlias, String reason) {
     if (suggestions.length >= 2) return;
@@ -553,7 +595,14 @@ List<_SuggestedNodeLink> _buildSuggestedNodeLinks(
     final key = node.id.toLowerCase();
     if (seenNodeIds.contains(key)) return;
     seenNodeIds.add(key);
-    suggestions.add(_SuggestedNodeLink(node: node, reason: reason));
+    suggestions.add(
+      DecanReflectionSuggestedNodeLink(node: node, reason: reason),
+    );
+  }
+
+  final fallbackNode = hints.fallbackNode;
+  if (fallbackNode?.hasNode == true) {
+    addNode(fallbackNode!.ref, fallbackNode.label);
   }
 
   final leadAxis = hints.leadAxis?.trim().toUpperCase();
