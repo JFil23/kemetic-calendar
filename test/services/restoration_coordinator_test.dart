@@ -1,3 +1,4 @@
+import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mobile/services/restoration_coordinator.dart';
 
@@ -68,6 +69,50 @@ void main() {
       expect(coordinator.canRestoreSurface(plannerOverlay), isTrue);
     });
 
+    test('detached overlay target beats stale root day view state', () {
+      final coordinator = RestorationCoordinator.instance
+        ..beginLaunchRestore(
+          reason: RestorationRestoreReason.coldLaunch,
+          targetLocation: '/profile/user-1',
+        );
+      const profileCalendarSheet =
+          '${RestorationCoordinator.calendarOverlayStackSurface}'
+          '|calendar.sharedCalendars|/profile/user-1';
+
+      expect(
+        coordinator.canRestoreSurface(
+          RestorationCoordinator.calendarDayViewSurface,
+          requireRootTarget: true,
+        ),
+        isFalse,
+      );
+      expect(coordinator.canRestoreSurface(profileCalendarSheet), isTrue);
+      expect(coordinator.claimRestoreSurface(profileCalendarSheet), isTrue);
+      expect(coordinator.canRestoreSurface(profileCalendarSheet), isFalse);
+    });
+
+    test('lifecycle interruption preserves restore surfaces', () {
+      final coordinator = RestorationCoordinator.instance
+        ..beginLaunchRestore(
+          reason: RestorationRestoreReason.coldLaunch,
+          targetLocation: '/',
+        )
+        ..noteLifecycleState(AppLifecycleState.paused);
+
+      expect(coordinator.shouldPreserveOverlayForLifecycleClose, isTrue);
+
+      coordinator.noteLifecycleState(AppLifecycleState.resumed);
+
+      expect(coordinator.shouldPreserveOverlayForLifecycleClose, isTrue);
+      expect(
+        coordinator.canRestoreSurface(
+          RestorationCoordinator.calendarDayViewSurface,
+          requireRootTarget: true,
+        ),
+        isTrue,
+      );
+    });
+
     test('explicit user navigation suppresses stale restore surfaces', () {
       final coordinator = RestorationCoordinator.instance
         ..beginLaunchRestore(
@@ -94,6 +139,49 @@ void main() {
           '${RestorationCoordinator.calendarOverlayStackSurface}|calendar.sharedCalendars|/',
         ),
         isFalse,
+      );
+    });
+
+    test('explicit launch intent suppression is scoped to that launch', () {
+      final coordinator = RestorationCoordinator.instance
+        ..beginLaunchRestore(
+          reason: RestorationRestoreReason.coldLaunch,
+          targetLocation: '/',
+        )
+        ..suppressRestoreForExplicitIntent(
+          reason: 'notification',
+          surfaces: const <String>[
+            RestorationCoordinator.calendarDayViewSurface,
+            RestorationCoordinator.calendarOverlayStackSurface,
+          ],
+        );
+
+      expect(
+        coordinator.canRestoreSurface(
+          RestorationCoordinator.calendarDayViewSurface,
+          requireRootTarget: true,
+        ),
+        isFalse,
+      );
+      expect(
+        coordinator.canRestoreSurface(
+          '${RestorationCoordinator.calendarOverlayStackSurface}|calendar.flowStudio|/',
+          requireRootTarget: true,
+        ),
+        isFalse,
+      );
+
+      coordinator.beginLaunchRestore(
+        reason: RestorationRestoreReason.coldLaunch,
+        targetLocation: '/',
+      );
+
+      expect(
+        coordinator.canRestoreSurface(
+          RestorationCoordinator.calendarDayViewSurface,
+          requireRootTarget: true,
+        ),
+        isTrue,
       );
     });
   });

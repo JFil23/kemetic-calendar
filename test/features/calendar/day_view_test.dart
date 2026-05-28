@@ -733,6 +733,7 @@ void main() {
 
       await tester.tap(find.byTooltip('Close'));
       await tester.pumpAndSettle();
+      await tester.pump(const Duration(milliseconds: 500));
 
       expect(find.byType(DayViewPage), findsNothing);
       expect(find.text('Open day view'), findsOneWidget);
@@ -788,6 +789,74 @@ void main() {
 
       expect(find.byType(DayViewPage), findsNothing);
       expect(userCloseCalls, 1);
+    });
+
+    testWidgets('reopening after user close allows restoration reports again', (
+      tester,
+    ) async {
+      await _setPhoneViewport(tester);
+      var openSerial = 0;
+      var secondOpenRestorationReports = 0;
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Builder(
+            builder: (context) => Scaffold(
+              body: Center(
+                child: ElevatedButton(
+                  onPressed: () {
+                    final serial = ++openSerial;
+                    Navigator.of(context).push(
+                      MaterialPageRoute<void>(
+                        builder: (routeContext) => DayViewPage(
+                          initialKy: 1,
+                          initialKm: 2,
+                          initialKd: 5,
+                          showGregorian: false,
+                          notesForDay: (ky, km, kd) => const [],
+                          flowIndex: const {},
+                          getMonthName: (month) => 'Month $month',
+                          onUserClose: () async {},
+                          onClose: () => Navigator.of(routeContext).pop(),
+                          onRestorationStateChanged:
+                              ({
+                                required int kYear,
+                                required int kMonth,
+                                required int kDay,
+                                required bool showGregorian,
+                                int? firstVisibleMinute,
+                                double? scrollOffset,
+                                EventDetailRestorationState? eventDetail,
+                              }) {
+                                if (serial == 2) {
+                                  secondOpenRestorationReports += 1;
+                                }
+                              },
+                        ),
+                      ),
+                    );
+                  },
+                  child: const Text('Open day view'),
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+
+      await tester.tap(find.text('Open day view'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byTooltip('Close'));
+      await tester.pumpAndSettle();
+      await tester.pump(const Duration(milliseconds: 500));
+
+      await tester.tap(find.text('Open day view'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const ValueKey('day_view_month_toggle')));
+      await tester.pumpAndSettle();
+
+      expect(find.byType(DayViewPage), findsOneWidget);
+      expect(secondOpenRestorationReports, greaterThan(0));
     });
 
     testWidgets(

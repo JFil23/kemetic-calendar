@@ -205,6 +205,55 @@ void main() {
     },
   );
 
+  test(
+    'keeps restorable routes and calendar position in the same snapshot',
+    () async {
+      const routes = <String>[
+        '/profile/user-1',
+        '/nodes',
+        '/nodes/ausar',
+        '/rhythm/today',
+        '/reflections',
+      ];
+
+      for (final route in routes) {
+        await AppRestorationService.instance.saveRouteLocation(route);
+        expect(await AppRestorationService.instance.readRouteLocation(), route);
+      }
+
+      await AppRestorationService.instance.saveCalendarState(
+        const CalendarRestorationState(
+          kYear: 6267,
+          kMonth: 4,
+          kDay: 12,
+          showGregorian: true,
+          expansion: 'details',
+          anchorTarget: 'monthBody',
+          anchorAlignment: 0.44,
+          viewportHeight: 812.0,
+          layoutRevision: 2,
+          scrollOffset: 4200,
+        ),
+      );
+      await AppRestorationService.instance.saveDayViewState(
+        const DayViewRestorationState(
+          isOpen: false,
+          kYear: 6267,
+          kMonth: 4,
+          kDay: 12,
+          showGregorian: true,
+        ),
+      );
+
+      final snapshot = await AppRestorationService.instance.readSnapshot();
+      expect(snapshot, isNotNull);
+      expect(snapshot!.routeLocation, '/reflections');
+      expect(snapshot.calendar?.scrollOffset, 4200);
+      expect(snapshot.calendar?.anchorTarget, 'monthBody');
+      expect(snapshot.dayView?.isOpen, isFalse);
+    },
+  );
+
   test('clears snapshots with unsupported schema versions', () async {
     final prefs = await SharedPreferences.getInstance();
     final key = _snapshotKey();

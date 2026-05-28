@@ -63,6 +63,32 @@ void main() {
         ),
         '/profile/user-1',
       );
+
+      expect(
+        CalendarPage.restorableOverlayParentRouteFromStack(
+          const <Map<String, dynamic>>[
+            <String, dynamic>{
+              'kind': 'calendar.sharedCalendars',
+              'parentRoute': '/profile/user-1',
+              'expandedCalendarIds': <String>['personal', 'temple'],
+            },
+          ],
+        ),
+        '/profile/user-1',
+      );
+
+      expect(
+        CalendarPage.restorableOverlayParentRouteFromStack(
+          const <Map<String, dynamic>>[
+            <String, dynamic>{
+              'kind': 'calendar.flowStudio',
+              'parentRoute': '/reflections',
+              'mode': 'myFlows',
+            },
+          ],
+        ),
+        '/reflections',
+      );
     });
 
     test('library routes restore as detached overlay parents', () {

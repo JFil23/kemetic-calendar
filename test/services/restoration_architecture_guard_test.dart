@@ -439,6 +439,147 @@ void main() {
       expect(appLinkHandler, contains('_routeToPlanner(intent.plannerIntent)'));
     });
 
+    test('boot route restoration cannot be disabled silently', () async {
+      final main = await File('lib/main.dart').readAsString();
+      final bootRestore = _sourceBetween(
+        main,
+        'Future<String?> _readBootRestoredLocation() async',
+        'String? _restorableLaunchLocation',
+      );
+      final continuityPolicy = _sourceBetween(
+        main,
+        'bool _isContinuityRouteLocation(String location)',
+        'Map<String, dynamic>? _pushIntentDataFromQuery',
+      );
+      final routes = _sourceBetween(
+        main,
+        'final _router = GoRouter(',
+        '/* ───────────────────────── App Widgets',
+      );
+
+      expect(bootRestore, contains('readBestSnapshot'));
+      expect(bootRestore, contains('restorableOverlayParentRouteFromStack'));
+      expect(bootRestore, contains('return restored;'));
+      expect(bootRestore, contains('SessionResumeService.readRouteLocation'));
+      expect(bootRestore, contains('return _restorableLaunchLocation('));
+      expect(
+        _squashWhitespace(bootRestore),
+        isNot(
+          equals(
+            'Future<String?> _readBootRestoredLocation() async { return null; }',
+          ),
+        ),
+      );
+
+      for (final route in const <String>[
+        "path == '/nodes'",
+        "path == '/reflections'",
+        "path == '/settings'",
+        "path.startsWith('/profile/')",
+        "path.startsWith('/nodes/')",
+        "path.startsWith('/reflections/')",
+        "path.startsWith('/rhythm/')",
+      ]) {
+        expect(continuityPolicy, contains(route), reason: route);
+      }
+
+      for (final route in const <String>[
+        "path: '/nodes'",
+        "path: '/nodes/:nodeId'",
+        "path: '/reflections'",
+        "path: '/profile/:userId'",
+        "path: '/rhythm/today'",
+      ]) {
+        expect(routes, contains(route), reason: route);
+      }
+      expect(routes, isNot(contains('enabled: false')));
+    });
+
+    test(
+      'explicit launch intents are consumed once before restoration',
+      () async {
+        final main = await File('lib/main.dart').readAsString();
+        final push = await File(
+          'lib/services/push_notifications.dart',
+        ).readAsString();
+        final initialLocation = _sourceBetween(
+          main,
+          'String _resolveInitialLocation()',
+          'Future<void> _readBootInitialAppLinkIntent() async',
+        );
+        final bootAppLink = _sourceBetween(
+          main,
+          'Future<void> _readBootInitialAppLinkIntent() async',
+          'Future<Uri?> _readInitialAppLinkUri() async',
+        );
+        final initDeepLinks = _sourceBetween(
+          main,
+          'Future<void> _initDeepLinksMobile() async',
+          'Future<void> _handleIncomingAppLink(Uri uri) async',
+        );
+        final bootPush = _sourceBetween(
+          main,
+          'Future<void> _readBootInitialPushIntent() async',
+          'bool _hasExplicitBootIntent()',
+        );
+        final initialTasks = _sourceBetween(
+          main,
+          'void _startInitialTasks()',
+          'void _consumePendingWebPushIntent()',
+        );
+        final sessionResume = _sourceBetween(
+          main,
+          'Future<void> _maybeResumeSessionRoute() async',
+          '// -- Log app_open once per cold start after auth is present',
+        );
+        final suppressExplicit = _sourceBetween(
+          main,
+          'void _suppressPassiveLaunchSurfacesForExplicitIntentIfNeeded()',
+          'Future<String?> _readBootRestoredLocation() async',
+        );
+
+        expect(
+          initialLocation.indexOf('_bootExplicitIntentLocation'),
+          lessThan(initialLocation.indexOf('_bootRestoredLocation')),
+        );
+        expect(
+          main.indexOf('await _readBootInitialAppLinkIntent();'),
+          lessThan(main.indexOf('await _readBootInitialPushIntent();')),
+        );
+        expect(
+          main.indexOf('await _readBootInitialPushIntent();'),
+          lessThan(main.indexOf('_bootRestoredLocation =')),
+        );
+        expect(bootAppLink, contains('_bootInitialAppLinkSignature'));
+        expect(bootAppLink, contains('_initialLocationFromAppLinkIntent'));
+        expect(
+          initDeepLinks,
+          contains('!_isBootInitialAppLinkUri(initialUri)'),
+        );
+        expect(initDeepLinks, contains('_handleIncomingAppLink(initialUri!)'));
+        expect(main, contains('bool _isBootInitialAppLinkUri(Uri uri)'));
+        expect(_countOccurrences(main, 'takeInitialMessage()'), 1);
+        expect(bootPush, contains('takeInitialMessage'));
+        expect(bootPush, contains('_bootInitialPushMessage = initial'));
+        expect(initialTasks, contains('_bootInitialPushMessage = null'));
+        expect(
+          initialTasks.indexOf('_bootInitialPushMessage = null'),
+          lessThan(initialTasks.indexOf('_queueOrHandlePushData')),
+        );
+        expect(push, contains('if (_initialMessageChecked) return null;'));
+        expect(push, contains('_initialMessageChecked = true;'));
+        expect(
+          suppressExplicit,
+          contains('_deferSessionResumeForPushNavigation = true;'),
+        );
+        expect(sessionResume, contains('_deferSessionResumeForPushNavigation'));
+        expect(
+          sessionResume.indexOf('_deferSessionResumeForPushNavigation'),
+          lessThan(sessionResume.indexOf('readOverlayStack')),
+        );
+      },
+    );
+
     test('Ma’at template restoration seeds initial routes', () async {
       final calendar = await File(
         'lib/features/calendar/calendar_page.dart',
@@ -481,6 +622,16 @@ void main() {
           calendar,
           'void _openDayView',
           '/* ───── Day Sheet ───── */',
+        );
+        final userClosePersistence = _sourceBetween(
+          dayViewNavigation,
+          'Future<void> persistUserClosedDayView() async',
+          '// Adapter',
+        );
+        final restorationCallback = _sourceBetween(
+          dayViewNavigation,
+          'onRestorationStateChanged:',
+          '        ),\n      ),\n    ).then((_) {',
         );
         final dayView = await File(
           'lib/features/calendar/day_view.dart',
@@ -529,6 +680,18 @@ void main() {
         expect(
           dayViewNavigation,
           contains('onUserClose: persistUserClosedDayView'),
+        );
+        expect(
+          userClosePersistence,
+          isNot(contains('shouldPreserveOverlayForLifecycleClose')),
+        );
+        expect(
+          dayViewNavigation.indexOf('onUserClose: persistUserClosedDayView'),
+          lessThan(dayViewNavigation.indexOf(').then((_)')),
+        );
+        expect(
+          restorationCallback.indexOf('if (dayViewUserCloseReported)'),
+          lessThan(restorationCallback.indexOf('isOpen: true')),
         );
         expect(dayViewNavigation, contains("reason: 'day_view_closed'"));
         expect(
@@ -818,6 +981,20 @@ Future<List<String>> _filesContainingAny(List<String> needles) async {
 }
 
 String _normalizePath(String path) => path.replaceAll('\\', '/');
+
+int _countOccurrences(String source, String needle) {
+  var count = 0;
+  var index = source.indexOf(needle);
+  while (index != -1) {
+    count += 1;
+    index = source.indexOf(needle, index + needle.length);
+  }
+  return count;
+}
+
+String _squashWhitespace(String source) {
+  return source.replaceAll(RegExp(r'\s+'), ' ').trim();
+}
 
 String _sourceBetween(String source, String start, String end) {
   final startIndex = source.indexOf(start);
