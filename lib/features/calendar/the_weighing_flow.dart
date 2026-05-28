@@ -3,6 +3,7 @@ import 'package:timezone/timezone.dart' as tz;
 
 import 'dawn_house_rite_flow.dart';
 import 'evening_threshold_rite_flow.dart';
+import 'maat_flow_identity.dart';
 import 'track_sky_flow.dart';
 
 const String kTheWeighingFlowKey = 'the-weighing';
@@ -509,19 +510,13 @@ bool isTheWeighingFlowReference({
   String? actionId,
   Map<String, dynamic>? behaviorPayload,
 }) {
-  if (flowName?.trim().toLowerCase() == kTheWeighingTitle.toLowerCase()) {
-    return true;
-  }
-  if ((flowNotes ?? '').toLowerCase().contains('maat=$kTheWeighingFlowKey')) {
-    return true;
-  }
-  if ((actionId ?? '').trim().toLowerCase().startsWith('the-weighing-event-')) {
-    return true;
-  }
-  final kind = behaviorPayload?['kind']?.toString().trim().toLowerCase();
-  if (kind == 'maat_the_weighing_event') return true;
-  final flowKey = behaviorPayload?['flow_key']?.toString().trim().toLowerCase();
-  return flowKey == kTheWeighingFlowKey;
+  return isMaatFlowReference(
+    MaatFlowKind.theWeighing,
+    flowName: flowName,
+    flowNotes: flowNotes,
+    actionId: actionId,
+    behaviorPayload: behaviorPayload,
+  );
 }
 
 TheWeighingEvent? theWeighingEventForEvent({

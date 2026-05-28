@@ -3,6 +3,7 @@ import 'package:timezone/timezone.dart' as tz;
 
 import 'dawn_house_rite_flow.dart';
 import 'evening_threshold_rite_flow.dart';
+import 'maat_flow_identity.dart';
 import 'track_sky_flow.dart';
 
 const String kTheOpenHandFlowKey = 'the-open-hand';
@@ -624,21 +625,13 @@ bool isOpenHandFlowReference({
   String? actionId,
   Map<String, dynamic>? behaviorPayload,
 }) {
-  if (flowName?.trim().toLowerCase() == kTheOpenHandTitle.toLowerCase()) {
-    return true;
-  }
-  if ((flowNotes ?? '').toLowerCase().contains('maat=$kTheOpenHandFlowKey')) {
-    return true;
-  }
-  if ((actionId ?? '').trim().toLowerCase().startsWith(
-    'the-open-hand-event-',
-  )) {
-    return true;
-  }
-  final kind = behaviorPayload?['kind']?.toString().trim().toLowerCase();
-  if (kind == 'maat_open_hand_event') return true;
-  final flowKey = behaviorPayload?['flow_key']?.toString().trim().toLowerCase();
-  return flowKey == kTheOpenHandFlowKey;
+  return isMaatFlowReference(
+    MaatFlowKind.theOpenHand,
+    flowName: flowName,
+    flowNotes: flowNotes,
+    actionId: actionId,
+    behaviorPayload: behaviorPayload,
+  );
 }
 
 OpenHandEvent? openHandEventForEvent({

@@ -1,3 +1,4 @@
+import 'maat_flow_identity.dart';
 import 'track_sky_flow.dart';
 
 const String kMoonReturnFlowKey = 'the-moon-return';
@@ -258,21 +259,13 @@ bool isMoonReturnFlowReference({
   String? actionId,
   Map<String, dynamic>? behaviorPayload,
 }) {
-  if (flowName?.trim().toLowerCase() == kMoonReturnTitle.toLowerCase()) {
-    return true;
-  }
-  if ((flowNotes ?? '').toLowerCase().contains('maat=$kMoonReturnFlowKey')) {
-    return true;
-  }
-  if ((actionId ?? '').trim().toLowerCase().startsWith('the-moon-return-')) {
-    return true;
-  }
-  final kind = behaviorPayload?['kind']?.toString().trim().toLowerCase();
-  if (kind == 'maat_moon_return_new' || kind == 'maat_moon_return_full') {
-    return true;
-  }
-  final flowKey = behaviorPayload?['flow_key']?.toString().trim().toLowerCase();
-  return flowKey == kMoonReturnFlowKey;
+  return isMaatFlowReference(
+    MaatFlowKind.moonReturn,
+    flowName: flowName,
+    flowNotes: flowNotes,
+    actionId: actionId,
+    behaviorPayload: behaviorPayload,
+  );
 }
 
 MoonReturnEventKind? moonReturnKindForEvent({
@@ -290,8 +283,12 @@ MoonReturnEventKind? moonReturnKindForEvent({
   if (id.contains('the-moon-return-new')) return MoonReturnEventKind.emptyEye;
   if (id.contains('the-moon-return-full')) return MoonReturnEventKind.wholeEye;
   final normalizedTitle = title?.trim().toLowerCase() ?? '';
-  if (normalizedTitle.contains('empty eye')) return MoonReturnEventKind.emptyEye;
-  if (normalizedTitle.contains('whole eye')) return MoonReturnEventKind.wholeEye;
+  if (normalizedTitle.contains('empty eye')) {
+    return MoonReturnEventKind.emptyEye;
+  }
+  if (normalizedTitle.contains('whole eye')) {
+    return MoonReturnEventKind.wholeEye;
+  }
   return null;
 }
 

@@ -1,3 +1,4 @@
+import 'maat_flow_identity.dart';
 import 'the_course_context.dart';
 import 'track_sky_flow.dart';
 
@@ -168,19 +169,13 @@ bool isDecanWatchFlowReference({
   String? actionId,
   Map<String, dynamic>? behaviorPayload,
 }) {
-  if (flowName?.trim().toLowerCase() == kDecanWatchTitle.toLowerCase()) {
-    return true;
-  }
-  if ((flowNotes ?? '').toLowerCase().contains('maat=$kDecanWatchFlowKey')) {
-    return true;
-  }
-  if ((actionId ?? '').trim().toLowerCase().startsWith('the-decan-watch-')) {
-    return true;
-  }
-  final kind = behaviorPayload?['kind']?.toString().trim().toLowerCase();
-  if (kind == 'maat_decan_watch') return true;
-  final flowKey = behaviorPayload?['flow_key']?.toString().trim().toLowerCase();
-  return flowKey == kDecanWatchFlowKey;
+  return isMaatFlowReference(
+    MaatFlowKind.decanWatch,
+    flowName: flowName,
+    flowNotes: flowNotes,
+    actionId: actionId,
+    behaviorPayload: behaviorPayload,
+  );
 }
 
 String decanWatchDetailText(

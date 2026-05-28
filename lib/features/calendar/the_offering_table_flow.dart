@@ -2,6 +2,7 @@ import 'package:timezone/data/latest_all.dart' as tzdata;
 import 'package:timezone/timezone.dart' as tz;
 
 import 'dawn_house_rite_flow.dart';
+import 'maat_flow_identity.dart';
 import 'track_sky_flow.dart';
 
 const String kOfferingTableFlowKey = 'the-offering-table';
@@ -599,21 +600,13 @@ bool isOfferingTableFlowReference({
   String? actionId,
   Map<String, dynamic>? behaviorPayload,
 }) {
-  if (flowName?.trim().toLowerCase() == kOfferingTableTitle.toLowerCase()) {
-    return true;
-  }
-  if ((flowNotes ?? '').toLowerCase().contains('maat=$kOfferingTableFlowKey')) {
-    return true;
-  }
-  if ((actionId ?? '').trim().toLowerCase().startsWith(
-    'the-offering-table-day-',
-  )) {
-    return true;
-  }
-  final kind = behaviorPayload?['kind']?.toString().trim().toLowerCase();
-  if (kind == 'maat_offering_table_day') return true;
-  final flowKey = behaviorPayload?['flow_key']?.toString().trim().toLowerCase();
-  return flowKey == kOfferingTableFlowKey;
+  return isMaatFlowReference(
+    MaatFlowKind.offeringTable,
+    flowName: flowName,
+    flowNotes: flowNotes,
+    actionId: actionId,
+    behaviorPayload: behaviorPayload,
+  );
 }
 
 OfferingTableDay? offeringTableDayForEvent({

@@ -1,3 +1,5 @@
+import 'maat_flow_identity.dart';
+
 const String kTheWagFlowKey = 'the-wag';
 const String kTheWagTitle = 'The Wag';
 const String kTheWagGlyph = '𓇋𓏏𓄣𓀀';
@@ -495,19 +497,13 @@ bool isWagFlowReference({
   String? actionId,
   Map<String, dynamic>? behaviorPayload,
 }) {
-  if (flowName?.trim().toLowerCase() == kTheWagTitle.toLowerCase()) {
-    return true;
-  }
-  if ((flowNotes ?? '').toLowerCase().contains('maat=$kTheWagFlowKey')) {
-    return true;
-  }
-  if ((actionId ?? '').trim().toLowerCase().startsWith('the-wag-event-')) {
-    return true;
-  }
-  final kind = behaviorPayload?['kind']?.toString().trim().toLowerCase();
-  if (kind == 'maat_wag_event') return true;
-  final flowKey = behaviorPayload?['flow_key']?.toString().trim().toLowerCase();
-  return flowKey == kTheWagFlowKey;
+  return isMaatFlowReference(
+    MaatFlowKind.theWag,
+    flowName: flowName,
+    flowNotes: flowNotes,
+    actionId: actionId,
+    behaviorPayload: behaviorPayload,
+  );
 }
 
 WagEvent? wagEventForEvent({

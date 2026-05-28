@@ -1,3 +1,4 @@
+import 'maat_flow_identity.dart';
 import 'the_weighing_flow.dart';
 import 'track_sky_flow.dart';
 
@@ -581,19 +582,13 @@ bool isDjedFlowReference({
   String? actionId,
   Map<String, dynamic>? behaviorPayload,
 }) {
-  if (flowName?.trim().toLowerCase() == kTheDjedTitle.toLowerCase()) {
-    return true;
-  }
-  if ((flowNotes ?? '').toLowerCase().contains('maat=$kTheDjedFlowKey')) {
-    return true;
-  }
-  if ((actionId ?? '').trim().toLowerCase().startsWith('the-djed-event-')) {
-    return true;
-  }
-  final kind = behaviorPayload?['kind']?.toString().trim().toLowerCase();
-  if (kind == 'maat_djed_event') return true;
-  final flowKey = behaviorPayload?['flow_key']?.toString().trim().toLowerCase();
-  return flowKey == kTheDjedFlowKey;
+  return isMaatFlowReference(
+    MaatFlowKind.theDjed,
+    flowName: flowName,
+    flowNotes: flowNotes,
+    actionId: actionId,
+    behaviorPayload: behaviorPayload,
+  );
 }
 
 DjedEvent? djedEventForEvent({

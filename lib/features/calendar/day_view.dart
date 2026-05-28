@@ -18,6 +18,7 @@ import 'package:mobile/core/touch_targets.dart';
 import 'calendar_page.dart';
 import 'day_view_chrome.dart';
 import 'landscape_month_view.dart';
+import 'maat_flow_identity.dart';
 import 'track_sky_flow.dart';
 import 'dawn_house_rite_flow.dart';
 import 'evening_threshold_rite_flow.dart';
@@ -7021,8 +7022,12 @@ class _DecanWatchMilestonePanelState extends State<_DecanWatchMilestonePanel> {
       for (final row in (rows as List? ?? const [])) {
         final metadata = row is Map ? row['metadata'] : null;
         if (metadata is! Map) continue;
-        final flowKey = metadata['flow_key']?.toString().trim().toLowerCase();
-        if (flowKey != kDecanWatchFlowKey) continue;
+        if (resolveMaatFlowKind(
+              behaviorPayload: Map<String, dynamic>.from(metadata),
+            ) !=
+            MaatFlowKind.decanWatch) {
+          continue;
+        }
         final status = metadata['status']?.toString().trim().toLowerCase();
         if (status != 'observed' && status != 'observed_from_inside') {
           continue;

@@ -318,6 +318,113 @@ class _MaatFlowTemplateDetailPageState
     return 'Start: ${_dateLabel(context, date)}';
   }
 
+  T? _tryEnrollmentWindow<T>(String debugLabel, T Function() resolve) {
+    try {
+      return resolve();
+    } catch (e, st) {
+      if (kDebugMode) {
+        _calendarDebugPrint(
+          '[$debugLabel] enrollment window unavailable: '
+          'timezone=${_previewTrackSkyTimeZone.key} '
+          'selectedDate=${_picked?.toIso8601String() ?? 'none'} '
+          'now=${DateTime.now().toIso8601String()} '
+          'error=$e',
+        );
+        _calendarDebugPrint('$st');
+      }
+      return null;
+    }
+  }
+
+  Widget _buildEnrollmentUnavailableScaffold(
+    BuildContext context, {
+    required String debugLabel,
+  }) {
+    final media = MediaQuery.of(context);
+    return Scaffold(
+      backgroundColor: _bg,
+      appBar: AppBar(
+        backgroundColor: Colors.black,
+        elevation: 0.5,
+        title: _buildDateModeTitle(title: widget.template.title),
+      ),
+      body: SafeArea(
+        child: ListView(
+          padding: EdgeInsets.fromLTRB(16, 16, 16, 24 + media.padding.bottom),
+          children: [
+            _buildDateModeTitle(title: widget.template.title),
+            const SizedBox(height: 12),
+            Text(
+              widget.template.overview,
+              style: const TextStyle(color: Colors.white, height: 1.35),
+            ),
+            const SizedBox(height: 16),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: const Color(0xFF0B0C0F),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: _gold, width: 1.1),
+              ),
+              child: const Text(
+                'No enrollment window is available right now. Try another timezone or retry in a moment.',
+                style: TextStyle(
+                  color: Color(0xFFFFD486),
+                  height: 1.35,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+            const SizedBox(height: 16),
+            const GlossyText(
+              text: 'Timezone',
+              style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700),
+              gradient: silverGloss,
+            ),
+            const SizedBox(height: 8),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: TrackSkyTimeZone.values.map((timezone) {
+                return ChoiceChip(
+                  label: Text(timezone.shortLabel),
+                  selected: _previewTrackSkyTimeZone == timezone,
+                  onSelected: (_) => _setTrackSkyPreviewTimeZone(timezone),
+                  selectedColor: _gold,
+                  labelStyle: TextStyle(
+                    color: _previewTrackSkyTimeZone == timezone
+                        ? Colors.black
+                        : Colors.white,
+                    fontWeight: FontWeight.w600,
+                  ),
+                  backgroundColor: const Color(0xFF15171B),
+                  side: const BorderSide(color: Colors.white24),
+                );
+              }).toList(),
+            ),
+            const SizedBox(height: 16),
+            Align(
+              alignment: Alignment.centerLeft,
+              child: OutlinedButton(
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: _gold,
+                  side: const BorderSide(color: _gold, width: 1.1),
+                ),
+                onPressed: () {
+                  if (kDebugMode) {
+                    _calendarDebugPrint('[$debugLabel] retry enrollment');
+                  }
+                  setState(() {});
+                },
+                child: const Text('Retry'),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget _buildDateModeTitle({
     required String title,
     double fontSize = 20,
@@ -2487,12 +2594,38 @@ class _MaatFlowTemplateDetailPageState
                                           return;
                                         }
                                         setSheetState(() => isWorking = true);
-                                        final id = await widget.addInstance(
-                                          template: widget.template,
-                                          trackSkyTimeZone: selectedTimeZone,
-                                          alertMinutesBefore:
-                                              selectedAlertMinutes!,
-                                        );
+                                        final int id;
+                                        try {
+                                          id = await widget.addInstance(
+                                            template: widget.template,
+                                            trackSkyTimeZone: selectedTimeZone,
+                                            alertMinutesBefore:
+                                                selectedAlertMinutes!,
+                                          );
+                                        } catch (e, st) {
+                                          if (kDebugMode) {
+                                            _calendarDebugPrint(
+                                              '[trackSky] join failed: $e',
+                                            );
+                                            _calendarDebugPrint('$st');
+                                          }
+                                          if (!mounted || !sheetCtx.mounted) {
+                                            return;
+                                          }
+                                          ScaffoldMessenger.of(
+                                            context,
+                                          ).showSnackBar(
+                                            const SnackBar(
+                                              content: Text(
+                                                'Could not join Follow the sky. Please retry.',
+                                              ),
+                                            ),
+                                          );
+                                          setSheetState(
+                                            () => isWorking = false,
+                                          );
+                                          return;
+                                        }
                                         if (!mounted || !sheetCtx.mounted) {
                                           return;
                                         }
@@ -4234,16 +4367,18 @@ class _MaatFlowTemplateDetailPageState
     );
   }
 
-  MoonReturnEnrollmentWindow _moonReturnSelectedWindow() {
-    final picked = _picked;
-    if (picked != null) {
-      final selected = moonReturnEnrollmentWindowForStartDate(
-        picked,
-        _previewTrackSkyTimeZone,
-      );
-      if (selected != null) return selected;
-    }
-    return moonReturnNextEnrollmentWindow(_previewTrackSkyTimeZone);
+  MoonReturnEnrollmentWindow? _resolveMoonReturnPreviewWindow() {
+    return _tryEnrollmentWindow('moonReturn', () {
+      final picked = _picked;
+      if (picked != null) {
+        final selected = moonReturnEnrollmentWindowForStartDate(
+          picked,
+          _previewTrackSkyTimeZone,
+        );
+        if (selected != null) return selected;
+      }
+      return moonReturnNextEnrollmentWindow(_previewTrackSkyTimeZone);
+    });
   }
 
   Widget _buildMoonReturnOccurrenceTile(
@@ -4288,16 +4423,18 @@ class _MaatFlowTemplateDetailPageState
     );
   }
 
-  WagEnrollmentWindow _wagSelectedWindow() {
-    final picked = _picked;
-    if (picked != null) {
-      final selected = wagEnrollmentWindowForStartDate(
-        picked,
-        _previewTrackSkyTimeZone,
-      );
-      if (selected != null) return selected;
-    }
-    return wagNextEnrollmentWindow(_previewTrackSkyTimeZone);
+  WagEnrollmentWindow? _resolveWagPreviewWindow() {
+    return _tryEnrollmentWindow('theWag', () {
+      final picked = _picked;
+      if (picked != null) {
+        final selected = wagEnrollmentWindowForStartDate(
+          picked,
+          _previewTrackSkyTimeZone,
+        );
+        if (selected != null) return selected;
+      }
+      return wagNextEnrollmentWindow(_previewTrackSkyTimeZone);
+    });
   }
 
   Widget _buildWagEventTile(BuildContext context, WagEvent event, int kYear) {
@@ -4350,7 +4487,10 @@ class _MaatFlowTemplateDetailPageState
     final media = MediaQuery.of(context);
     final buttonWidth = math.min(media.size.width - 32, 280.0);
     final ctaBottom = media.padding.bottom + 12;
-    final window = _wagSelectedWindow();
+    final WagEnrollmentWindow? window = _resolveWagPreviewWindow();
+    if (window == null) {
+      return _buildEnrollmentUnavailableScaffold(context, debugLabel: 'theWag');
+    }
     final selectedStart = DateUtils.dateOnly(window.opensAtLocal);
     final nextFeast = wagNextFeastGregorian(window.kYear);
 
@@ -4566,16 +4706,18 @@ class _MaatFlowTemplateDetailPageState
     );
   }
 
-  DecanWatchEnrollmentWindow _decanWatchSelectedWindow() {
-    final picked = _picked;
-    if (picked != null) {
-      final selected = decanWatchEnrollmentWindowForStartDate(
-        picked,
-        _previewTrackSkyTimeZone,
-      );
-      if (selected != null) return selected;
-    }
-    return decanWatchNextEnrollmentWindow(_previewTrackSkyTimeZone);
+  DecanWatchEnrollmentWindow? _resolveDecanWatchPreviewWindow() {
+    return _tryEnrollmentWindow('decanWatch', () {
+      final picked = _picked;
+      if (picked != null) {
+        final selected = decanWatchEnrollmentWindowForStartDate(
+          picked,
+          _previewTrackSkyTimeZone,
+        );
+        if (selected != null) return selected;
+      }
+      return decanWatchNextEnrollmentWindow(_previewTrackSkyTimeZone);
+    });
   }
 
   Widget _buildDecanWatchOccurrenceTile(
@@ -4620,7 +4762,14 @@ class _MaatFlowTemplateDetailPageState
     final media = MediaQuery.of(context);
     final buttonWidth = math.min(media.size.width - 32, 280.0);
     final ctaBottom = media.padding.bottom + 12;
-    final window = _decanWatchSelectedWindow();
+    final DecanWatchEnrollmentWindow? window =
+        _resolveDecanWatchPreviewWindow();
+    if (window == null) {
+      return _buildEnrollmentUnavailableScaffold(
+        context,
+        debugLabel: 'decanWatch',
+      );
+    }
     final selectedStart = DateUtils.dateOnly(window.opensAtLocal);
     final preview = <DecanWatchOccurrence>[
       window.openingOccurrence,
@@ -4866,16 +5015,18 @@ class _MaatFlowTemplateDetailPageState
     );
   }
 
-  OpenHandEnrollmentWindow _openHandSelectedWindow() {
-    final picked = _picked;
-    if (picked != null) {
-      final selected = openHandEnrollmentWindowForStartDate(
-        picked,
-        _previewTrackSkyTimeZone,
-      );
-      if (selected != null) return selected;
-    }
-    return openHandNextEnrollmentWindow(_previewTrackSkyTimeZone);
+  OpenHandEnrollmentWindow? _resolveOpenHandPreviewWindow() {
+    return _tryEnrollmentWindow('openHand', () {
+      final picked = _picked;
+      if (picked != null) {
+        final selected = openHandEnrollmentWindowForStartDate(
+          picked,
+          _previewTrackSkyTimeZone,
+        );
+        if (selected != null) return selected;
+      }
+      return openHandNextEnrollmentWindow(_previewTrackSkyTimeZone);
+    });
   }
 
   Widget _buildOpenHandEventTile(
@@ -4928,7 +5079,13 @@ class _MaatFlowTemplateDetailPageState
     final media = MediaQuery.of(context);
     final buttonWidth = math.min(media.size.width - 32, 280.0);
     final ctaBottom = media.padding.bottom + 12;
-    final window = _openHandSelectedWindow();
+    final OpenHandEnrollmentWindow? window = _resolveOpenHandPreviewWindow();
+    if (window == null) {
+      return _buildEnrollmentUnavailableScaffold(
+        context,
+        debugLabel: 'openHand',
+      );
+    }
     final flowStart = DateUtils.dateOnly(window.opensAtLocal);
 
     return Scaffold(
@@ -5156,16 +5313,18 @@ class _MaatFlowTemplateDetailPageState
     );
   }
 
-  DjedEnrollmentWindow _djedSelectedWindow() {
-    final picked = _picked;
-    if (picked != null) {
-      final selected = djedEnrollmentWindowForStartDate(
-        picked,
-        _previewTrackSkyTimeZone,
-      );
-      if (selected != null) return selected;
-    }
-    return djedNextEnrollmentWindow(_previewTrackSkyTimeZone);
+  DjedEnrollmentWindow? _resolveDjedPreviewWindow() {
+    return _tryEnrollmentWindow('djed', () {
+      final picked = _picked;
+      if (picked != null) {
+        final selected = djedEnrollmentWindowForStartDate(
+          picked,
+          _previewTrackSkyTimeZone,
+        );
+        if (selected != null) return selected;
+      }
+      return djedNextEnrollmentWindow(_previewTrackSkyTimeZone);
+    });
   }
 
   Widget _buildDjedEventTile(
@@ -5225,7 +5384,10 @@ class _MaatFlowTemplateDetailPageState
     final media = MediaQuery.of(context);
     final buttonWidth = math.min(media.size.width - 32, 280.0);
     final ctaBottom = media.padding.bottom + 12;
-    final window = _djedSelectedWindow();
+    final DjedEnrollmentWindow? window = _resolveDjedPreviewWindow();
+    if (window == null) {
+      return _buildEnrollmentUnavailableScaffold(context, debugLabel: 'djed');
+    }
     final flowStart = DateUtils.dateOnly(window.opensAtLocal);
 
     return Scaffold(
@@ -5453,16 +5615,18 @@ class _MaatFlowTemplateDetailPageState
     );
   }
 
-  DaysOutsideYearEnrollmentWindow _daysOutsideYearSelectedWindow() {
-    final picked = _picked;
-    if (picked != null) {
-      final selected = daysOutsideYearEnrollmentWindowForStartDate(
-        picked,
-        _previewTrackSkyTimeZone,
-      );
-      if (selected != null) return selected;
-    }
-    return daysOutsideYearNextEnrollmentWindow(_previewTrackSkyTimeZone);
+  DaysOutsideYearEnrollmentWindow? _resolveDaysOutsideYearPreviewWindow() {
+    return _tryEnrollmentWindow('daysOutsideYear', () {
+      final picked = _picked;
+      if (picked != null) {
+        final selected = daysOutsideYearEnrollmentWindowForStartDate(
+          picked,
+          _previewTrackSkyTimeZone,
+        );
+        if (selected != null) return selected;
+      }
+      return daysOutsideYearNextEnrollmentWindow(_previewTrackSkyTimeZone);
+    });
   }
 
   Widget _buildDaysOutsideYearEventTile(
@@ -5518,7 +5682,14 @@ class _MaatFlowTemplateDetailPageState
     final media = MediaQuery.of(context);
     final buttonWidth = math.min(media.size.width - 32, 320.0);
     final ctaBottom = media.padding.bottom + 12;
-    final window = _daysOutsideYearSelectedWindow();
+    final DaysOutsideYearEnrollmentWindow? window =
+        _resolveDaysOutsideYearPreviewWindow();
+    if (window == null) {
+      return _buildEnrollmentUnavailableScaffold(
+        context,
+        debugLabel: 'daysOutsideYear',
+      );
+    }
     final selectedStart = DateUtils.dateOnly(window.opensAtLocal);
     final yearClose = daysOutsideEventGregorian(
       closingKYear: window.closingKYear,
@@ -5751,7 +5922,14 @@ class _MaatFlowTemplateDetailPageState
     final buttonWidth = math.min(media.size.width - 32, 280.0);
     final ctaBottom = media.padding.bottom + 12;
     final l10n = MaterialLocalizations.of(context);
-    final window = _moonReturnSelectedWindow();
+    final MoonReturnEnrollmentWindow? window =
+        _resolveMoonReturnPreviewWindow();
+    if (window == null) {
+      return _buildEnrollmentUnavailableScaffold(
+        context,
+        debugLabel: 'moonReturn',
+      );
+    }
     final selectedStart = DateUtils.dateOnly(window.opensAtLocal);
     final occurrences = moonReturnOccurrencesForWindow(window: window);
     final preview = occurrences.take(4).toList(growable: false);

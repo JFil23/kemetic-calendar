@@ -3,6 +3,7 @@ import 'package:timezone/timezone.dart' as tz;
 
 import 'dawn_house_rite_flow.dart';
 import 'evening_threshold_rite_flow.dart';
+import 'maat_flow_identity.dart';
 import 'the_course_context.dart';
 import 'track_sky_flow.dart';
 
@@ -541,19 +542,13 @@ bool isCourseFlowReference({
   String? actionId,
   Map<String, dynamic>? behaviorPayload,
 }) {
-  if (flowName?.trim().toLowerCase() == kTheCourseTitle.toLowerCase()) {
-    return true;
-  }
-  if ((flowNotes ?? '').toLowerCase().contains('maat=$kTheCourseFlowKey')) {
-    return true;
-  }
-  if ((actionId ?? '').trim().toLowerCase().startsWith('the-course-event-')) {
-    return true;
-  }
-  final kind = behaviorPayload?['kind']?.toString().trim().toLowerCase();
-  if (kind == 'maat_course_event') return true;
-  final flowKey = behaviorPayload?['flow_key']?.toString().trim().toLowerCase();
-  return flowKey == kTheCourseFlowKey;
+  return isMaatFlowReference(
+    MaatFlowKind.theCourse,
+    flowName: flowName,
+    flowNotes: flowNotes,
+    actionId: actionId,
+    behaviorPayload: behaviorPayload,
+  );
 }
 
 CourseEvent? courseEventForEvent({

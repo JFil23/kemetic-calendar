@@ -76,6 +76,9 @@ import '../../services/session_resume_service.dart';
 import '../../core/push_intent_bus.dart';
 import '../../widgets/flow_start_date_picker.dart';
 import '../../utils/external_link_utils.dart';
+import 'calendar_invalidation.dart';
+import 'event_filing_service.dart';
+import 'maat_flow_identity.dart';
 import 'track_sky_flow.dart';
 import 'dawn_house_rite_flow.dart';
 import 'evening_threshold_rite_flow.dart';
@@ -126,6 +129,7 @@ part 'calendar_maat_flows.dart';
 part 'calendar_event_search_delegate.dart';
 part 'calendar_note_model.dart';
 part 'calendar_custom_repeat_page.dart';
+part 'flow_join_service.dart';
 
 void _calendarDebugPrint(String? message, {int? wrapWidth}) {
   if (kDebugMode) {
@@ -1265,2103 +1269,1293 @@ const Map<int, String> _monthInfo = {
   1: '''
 Month 1 – Thoth (Ḏḥwty)
 The Measuring of the World as It Returns to Water
-The first month of Akhet — Thoth — opens with the Nile’s swelling.
-The river does not simply rise; it unmakes the land. Boundaries dissolve. Fields disappear beneath dark water. Paths are erased. What was known becomes uncertain again.
-To the Kemite, this was not disaster. It was remembrance.
-The world returns, for a moment, to the state before creation —
-the time when, as the ancient texts say, one stood “alone in the waters, in inertness,” before anything had taken form (Coffin Texts, Spell 76).
-In this condition, nothing can yet be built.
-Nothing should yet be forced.
-So while the flood spreads, the people wait—but not idly.
-Before dawn, temple astronomer-priests climb to their stations. They watch the eastern horizon for Sopdet (Sirius), whose rising signals renewal. They mark time against water, and water against sky. The year does not begin in the field—it begins in attention.
-The farmer cannot sow.
-The builder cannot build.
-The traveler cannot cross.
-But the scribe can measure.
-And so the civilization holds.
-It was understood:
-what keeps the world alive is not strength, but right knowing.
-Thoth stands at the center of this moment—not as a distant god, but as a principle lived by all who observe carefully. He does not create the world; he records its pattern so it can return without decay.
-When Ra first spoke creation, it was Thoth who preserved it.
-When the flood erases boundaries, it is Thoth who restores them—not by force, but by understanding.
-As preserved in the scribal tradition:
-“A man has perished, and his corpse has become dust…
-but writings cause him to be remembered.”
-(Papyrus Chester Beatty IV, “The Immortality of Writers”)
-So too with the world itself.
-If its measures are forgotten, it dissolves.
-If they are remembered, it renews.
-Thus Thoth’s month sets the tone for the entire year:
-Not action first—
-but clear perception, right naming, and faithful record.
+
+The first month of Akhet opens with the Nile rising.
+
+The land disappears beneath water. Field lines vanish. Roads become channels. Boundaries that had governed labor, taxation, inheritance, and memory are hidden under the flood. What had been measured is returned to uncertainty.
+
+This was not treated as disaster.
+
+It was the first condition of renewal.
+
+The Coffin Texts preserve the image of the beginning as solitude in the waters, before a place to stand had been established. The flood returned the land, for a time, to that older condition: not chaos in the crude sense, but form temporarily dissolved so the world could be restored.
+
+— Coffin Texts, Spell 76
+
+Nothing should be forced in this moment.
+
+The farmer cannot sow. The surveyor cannot redraw the field. The traveler cannot cross the old path by memory alone. The correct work is attention: watching water, watching sky, watching the return of Sopdet before dawn, and marking the year against what the heavens and the river reveal together.
+
+This is why Djehuty stands at the opening of the cycle.
+
+He is not only the scribe who records the year. He is the principle that makes return legible.
+
+As ibis, he belongs to the edge of water and land, probing where what is hidden must be found. As baboon, he belongs to dawn, crying out when light returns and the cycle has completed its passage through night. As lunar power, he measures change without losing continuity. As scribe of the gods, he preserves what would otherwise vanish into speech, flood, and forgetting.
+
+These are not separate roles.
+
+They are one function appearing wherever return must be made knowable.
+
+Djehuty measures the sky, records the word, mediates dispute, restores proportion, and keeps the count by which ritual time can return in order. Wherever reality must be known precisely enough to be preserved, Djehuty is present.
+
+The Hymn to Hapy praises the inundation because it makes grain possible, fills storehouses, and renews the offerings on which temple, household, and ka all depend.
+
+— Hymn to Hapy
+
+But the flood gives only potential.
+
+Too little water brings hunger. Too much water destroys. Water without measure becomes danger. This is why the first duty of the year is not labor but reckoning.
+
+Papyrus Chester Beatty IV preserves the scribal claim that tombs and monuments can decay, but writings keep names alive in the mouth of those who read them.
+
+— Papyrus Chester Beatty IV
+
+So too with the year.
+
+If the measures are forgotten, the flood leaves confusion behind it. If they are preserved, the water becomes renewal rather than erasure.
+
+The first month establishes the rule of the whole cycle: what dissolves must be observed before it is acted upon; what is observed must be measured; what is measured can return to order.
 ''',
   2: '''
 Month 2 – Paopi (Mnḫt)
 Carrying the Measured World Forward
-If Thoth’s month teaches order through understanding, Paopi teaches order through movement.
-The world has been measured.
-Now it must be carried.
-The flood still fills the land, but it is no longer disorienting. What was uncertain has been observed. What was observed has been understood. Now the task is to move in accordance with that understanding.
-The ancients named this month Mnḫt — “to carry,” “to bring forth.”
-It is both physical and sacred.
-The Nile itself is the first teacher.
-It does not resist its path—it follows it fully.
-So too the people of Kemet.
-They move.
-Boats cross where roads once were. Goods are transported from one nome to another. Offerings travel to temples. Communities reconnect across water.
-Nothing is planted yet—
-but everything is in motion.
-To carry something in Kemet was not mere labor—it was participation in Maʿat.
-As the older teachings express:
-“I laid the foundation of all things by my own will.”
-(Pyramid Texts, Utterance 527)
-Creation does not end with formation—it continues through continuity.
-So each act of carrying becomes an extension of that first ordering.
-Baskets of fish. Bundles of papyrus. Jars of beer. Offerings of milk poured into the flood. These are not small acts—they are the maintenance of the world.
-In myth, this movement reflects a deeper passage.
-Hathor, Mistress of the West, guides the solar barque across the celestial waters. As the sun travels, so too do the people. As the gods carry light across the sky, humans carry sustenance across the land.
-The Kemite understood:
-Order is not something you achieve once.
-It is something you continue.
-Paopi is that continuation.
-The month teaches that movement must be aligned—not hurried, not resisted.
-To carry wrongly is to spill.
-To carry rightly is to sustain.
+
+Paopi continues the work that Thoth began.
+
+The flood has not ended. Much of the land remains under water. The field is still hidden, and the old roads are still broken. But the first confusion has passed. The water has been watched. The sky has been marked. The measures have begun to return.
+
+Now what has been known must be carried.
+
+The month name is tied here to mnḫt: carrying, bringing, bearing forward. This carrying is not only physical labor. It appears wherever order must move without losing its measure.
+
+Boats cross where roads cannot. Food moves between settlements. Papyrus, fish, beer, grain reserves, tools, and offerings travel by water. Priests carry offerings into temples. Scribes carry records from one season into the next. The flood has made the land unstable, but it has also turned the Nile into the great road of the year.
+
+The Nile teaches the form of this month.
+
+It does not resist its course. It carries what it has received. Water moves silt, boats, food, labor, and memory. What had been measured in Thoth now enters motion in Paopi.
+
+The Pyramid Texts place the deceased in the solar boat, rowing with the imperishable ones and joining the ordered movement of Ra. Movement here is not wandering. It is passage within a known course.
+
+— Pyramid Texts
+
+That is the deeper meaning of carrying.
+
+Ra is carried across the sky. The Nightboat carries him through the Duat. The Nile carries the year through flood. The people carry offerings, goods, records, and obligations across the changed land. At every level, movement must remain aligned.
+
+A load carried wrongly spills. A message carried wrongly distorts. An offering carried without proper name loses its direction. A record carried without accuracy becomes Isfet in motion.
+
+The Wadi el-Jarf Papyri preserve the practical face of this truth: crews, boats, stone, officials, routes, and counted days. Great work depended on carried things moving in correct order.
+
+— Wadi el-Jarf Papyri
+
+Paopi teaches that Ma’at does not remain still after it is measured. It must travel.
+
+What has been observed must be carried forward. What is carried forward must remain aligned. What remains aligned can sustain the next stage of the year.
 ''',
   3: '''
 Month 3 – Hathor (Ḥwt-Ḥr)
-Joy That Sustains the World
-Hathor — goddess of beauty, music, and the celestial cow — teaches that joy is not the opposite of discipline; it is what completes it.
-Her laughter is not escape—it is renewal.
-It is the same force that turns seed to sprout,
-and sorrow into song.
-By this time — roughly May 19 to June 17 in the resynced solar calendar — the floodwaters have settled. The land glistens green. What was carried through effort now begins to flourish.
-But the Kemite did not take this lightly.
-They understood:
-what grows must be sustained not only by labor, but by right feeling.
-So after the strain of inundation and the discipline of movement, the people turn toward balance.
-They celebrate.
-Women weave garlands of lotus and papyrus. Men brew sweet beer, sometimes colored with pomegranate. Music returns to the village. Laughter returns to the body.
-Not as excess—but as restoration.
-At Dendera, the great center of Hathor, the ḥmwt-nṯr ḥwt-ḥr — “Servants of the Goddess” — lead processions where polished mirrors catch the sunlight and reflect it outward, honoring her as the golden one.
-Light is not only received—it is returned.
-In homes and shrines, couples seek fertility. Artists seek inspiration. Musicians tune their instruments again. What was structured in earlier months is now made beautiful.
-Because in Kemet, beauty was never separate from truth.
-It was proof of alignment.
-As the solar hymns remind:
-“You rise in beauty…
-the gods come into being at your command.”
-(Middle Kingdom Hymn to Ra)
-To rise in beauty is to be in harmony with creation itself.
-This is Hathor’s teaching.
-Her name, ḥwt-ḥr — “House of Horus” — reveals her nature.
-She is the great celestial cow whose body forms the sky. Within her, the sun travels. Within her, the stars are carried. She does not create the light—she holds it.
-And without that holding, light cannot endure.
-So too with human life.
-Effort alone does not sustain the world.
-Structure alone does not sustain the world.
-It is joy—rightly held—that allows both to continue.
-The Kemite understood:
-To reject joy is to weaken the system.
-To indulge it without measure is to distort it.
-But to honor it properly is to strengthen Maʿat.
-So the month of Hathor is not a break from order.
-It is the moment when order becomes alive, visible, and shared.
-Every heart that delights in what is true
-becomes, for a moment, a House of Horus.
+Joy Held in Right Measure
+
+Hathor’s month begins after the first strain of the flood has softened.
+
+The land has not fully returned to ordinary work, but stability has begun to show itself. Routes are trusted again. Water has settled into pattern. What was measured in Thoth and carried in Paopi now begins to feel inhabitable.
+
+This is where Hathor enters.
+
+She is not joy as escape. She is joy as the sign that order has become livable.
+
+Her name, Ḥwt-Ḥr, means House of Heru. That name already carries her layered nature. She is a house, a holding place, a celestial enclosure for the falcon of kingship. She is also the great cow of the sky, the one who carries the solar power across the heavens. She is the golden one of music, beauty, intoxication, love, fertility, and celebration. She is also the Eye of Ra when solar force leaves its source and must be returned to relation.
+
+These are not separate Hathors.
+
+They are one sacred function appearing wherever power must be held without being harmed, wherever delight must return without becoming excess, wherever the dangerous heat of the Eye must be soothed back into radiance.
+
+The Book of Coming Forth by Day asks that the way be made to the place where Ra is and Hathor. The freed ba seeks not only movement, but movement toward solar presence and divine welcome.
+
+— Book of Coming Forth by Day
+
+This matters in the month of Hathor.
+
+The world is becoming beautiful again, but beauty is not decoration. In Kemet, beauty is right relation made visible. Music, garlands, mirrors, beer, dance, and festival do not stand outside Ma’at. They restore the body to the order it serves.
+
+At Dendera, Hathor’s temple preserves this truth in stone: astronomical ceilings, ritual passages, and the ascent of the goddess toward union with the solar disk. Joy is not loose emotion there. It is a rite of return.
+
+— Dendera Temple traditions
+
+Hathor teaches that a world held only by measure becomes rigid, while a world given to pleasure without measure becomes distorted.
+
+What has stabilized may now rejoice. What rejoices must remain in proportion. What remains in proportion strengthens the order that made joy possible.
 ''',
   4: '''
 Month 4 – Ka-ḥer-Ka (Kȝ-ḥr-Kȝ)
-Life Upon Life — The Doubling of Essence
-Ka-ḥer-Ka translates as “Ka upon Ka” — the doubling of vital essence.
-In Kemetic understanding, the ka is the sustaining life-force present in gods, kings, humans, and even places. It is what endures, what receives, what continues.
-To place ka upon ka is not excess—it is renewal layered upon what already lives.
-By this time — roughly June 9 to July 8 in the resynced solar calendar — the floodwaters have drawn back. The land reveals the dark, fertile silt called kemet — the Black Land, from which the country itself takes its name.
-The ground is ready.
-So the people begin to plant.
-Farmers press seed into the soft earth. Oxen drag simple wooden plows. Children scatter manure and ash. The work is physical, repetitive, and quiet—but it is never seen as ordinary.
-Because to sow seed is to imitate Asar.
-Each burial of seed mirrors his burial in the earth.
-Each covering of soil is a promise.
-What is placed below will rise again.
-The Kemite did not treat this as metaphor—it was participation in divine process.
-As the sacred texts affirm:
-“Osiris… is not dead.”
-(Pyramid Texts, Utterance 373)
-This is the principle of the month.
-Death is not interruption.
-It is transformation within order.
-Families would sing simple lines:
-“As Asar sleeps, so shall the earth awaken.”
-Not as poetry—but as truth observed in the field.
-To live rightly in this time was to remain aligned with that cycle.
-To bury unjustly, to hoard grain, or to neglect one’s ancestors was to break continuity—to create isfet within what should flow.
-But to plant honestly, to mourn truthfully, to give offerings from gratitude—these acts sustained the unseen exchange between what is gone and what is becoming.
-Here, Maʿat is not abstract.
-It is the balance between:
-what is buried
-and what is growing.
-Scribes record flood heights and grain stores—not as mere administration, but as sacred measure. The year must match the heavens. What is given must be accounted for.
-Nothing is separate.
-Children hear the stories of Asar’s patience—how he endured darkness without fear because he trusted the order of things. To live rightly is to live that same patience:
-to plant,
-to trust,
-to wait.
-Above them, the sky confirms the work.
-On clear nights, Orion (Sah) and Sirius (Sopdet) rise low over the horizon—forms of Asar and Aset watching over the fields. Their appearance is not symbolic alone—it is timing, guidance, and assurance.
-Priests at Dendera and Abydos align their instruments—merkhets and water clocks—to the rising decans. The “watchers of hours” observe each star and speak:
-“He sails the hidden waters.”
-Each decan marks a passage through the Duat.
-Each night reflects the unseen journey of Asar.
-And as he moves below, the earth responds above.
-Seeds swell. Shoots emerge. Life returns—not suddenly, but faithfully.
-So the heavens and the earth mirror one another:
-Asar travels.
-The seed rises.
-Maʿat holds.
-This is the teaching of Ka-ḥer-Ka.
-Life does not replace death—it builds upon it.
-What is given returns.
-What is buried transforms.
-What is aligned continues.
-Living Principle:
-What you plant in truth will rise in its time.
+Life Upon Life — Vitality Placed Into the Earth
+
+Ka-ḥer-Ka means Ka upon Ka.
+
+The phrase carries more than increase. It names life layered upon life, vital force placed where vital force can continue. In Kemetic thought, the ka is not a vague spirit. It is the sustaining presence that receives, endures, and must be fed. Gods have kas. Kings have kas. The dead return to their kas. The living are upheld by the ka while breath remains in the body.
+
+The Pyramid Texts describe divine and royal beings going to be with their kas, and they repeatedly provide bread and beer so the ka may receive without interruption.
+
+— Pyramid Texts
+
+This month gives that principle to the field.
+
+The floodwaters have withdrawn. The black silt is visible again. The land that vanished under Akhet now returns as fertile ground. Seed is pressed into earth that has been prepared by water, silt, waiting, and measure.
+
+Planting is not only labor.
+
+It is placement of life into hiddenness.
+
+This is why Ausar stands close to the month. The seed enters darkness, is covered, and waits. Ausar is broken, gathered, restored, and made fertile. The same sacred pattern appears in body, throne, field, and year: what is placed correctly below can return above in another form.
+
+The Pyramid Texts describe Heru gathering the limbs of Ausar, joining what had been separated, and making the restored body secure.
+
+— Pyramid Texts
+
+Ka-ḥer-Ka holds that same grammar in agricultural form.
+
+The seed is not thrown away. It is entrusted. The field is not empty. It is receiving. The previous year’s grain becomes the next year’s life. The ka of the household, the ka of the ancestors, the ka of the field, and the ka of the coming harvest meet in one act of planting.
+
+This is the month when continuity becomes physical.
+
+What was measured in Thoth, carried in Paopi, and beautified in Hathor is now placed into the ground. It must not be rushed. It must not be hoarded. It must not be planted without measure.
+
+What receives life must be prepared. What is prepared must be entrusted. What is entrusted must be allowed to transform in darkness before it can rise.
 ''',
   5: '''
 Month 5 – Šef-Bedet (Šf-bdt)
-Nourishment — Sustaining What Has Been Brought Forth
-Šef-Bedet (šf-bdt) means “The Nourisher” — she who feeds with grain.
-šf is to feed, to provide.
-bdt is offering, sustenance, bread.
-Together, they name the first responsibility of a world that has been restored:
-to sustain what now lives.
-By this time — following the sowing of Ka-ḥer-Ka — the land has taken seed. The first signs of growth appear. The work is no longer about planting or proving strength, but about care.
-What has begun must now be fed.
-The Kemite understood this as law, not preference.
-Every being—human, animal, river, or star—has a right to sustenance. To feed another was not generosity—it was participation in Maʿat.
-Because what is not nourished cannot remain in order.
-So the villages move into a quieter rhythm.
-The floodplain is firm beneath the feet. The houses, newly rebuilt, glow with fresh whitewash. The world appears washed clean—and in that clarity, gratitude arises naturally.
-Farmers rise before dawn.
-They carry clay jars to water the seedlings, ensuring even flow across the fields. Nothing is rushed. Nothing is neglected. Each plant is given what it needs—not more, not less.
-They sing as they work:
-“The earth drinks — and I drink with her.”
-Children follow behind, scattering ash and fish bones into the soil. Waste becomes nourishment. Nothing is discarded outside the cycle.
-Women shape the first loaves from the previous year’s grain and offer them to Renenutet, saying:
-“What was given returns.”
-This is the law of continuity made visible.
-In the temples, the House of Life opens again. Scribes return to their work—recording flood levels, copying hymns, teaching the young. Intellectual labor and agricultural labor move together as one system.
-There is no separation.
-To measure the grain is to preserve balance.
-To write the record is to sustain memory.
-To feed the people is to uphold the gods.
-This is why nourishment is not sentiment.
-It is maintenance of the world.
-As the wisdom texts teach:
-“Give bread to the hungry…
-so that your name may endure.”
-(Instruction of Ptahhotep)
-To give sustenance is to enter continuity.
-To withhold it is to break it.
-So this month carries a different kind of discipline.
-Not force.
-Not endurance.
-But consistency.
-Water given daily.
-Care given steadily.
-Attention given without interruption.
-This is why Šef-Bedet is a month of balance without struggle.
-Nothing dramatic occurs.
-Yet everything depends on it.
-The Kemite knew:
-Order is not maintained by dominance—
-it is maintained by gentle, repeated care.
-Even the gods reflect this.
-Renenutet guards the harvest.
-The ka is sustained through offerings.
-The ancestors are fed so they may continue to support the living.
-All things are held through nourishment.
-So the teaching of this month is simple, but not easy:
-What has been brought forth must be tended faithfully.
-Not once.
-But continuously.
-Living Principle:
-What you sustain with care will endure in order.
+Nourishment Given in Right Measure
+
+Šef-Bedet names the work of nourishment.
+
+The month follows planting. Seed has entered the dark earth. The field has received life, but what has begun is still fragile. Growth is present as promise, not yet as security.
+
+The task is no longer dissolution, carrying, joy, or planting.
+
+The task is care.
+
+The name holds this plainly. Šef carries the sense of feeding and providing. Bedet carries bread, offering, and sustenance. Together they name the first responsibility of a restored world: what has been brought forth must now be sustained.
+
+This is where Renenutet stands near the month.
+
+She is the nourishing serpent of field, granary, nursing, harvest, and destiny. Her power is not only agricultural. She guards the passage from growth into provision, from provision into survival, from survival into the future that can be named. A child must be fed before character can mature. A field must be watered before harvest can answer. A ka must receive before presence can continue.
+
+These are not separate domains.
+
+They are one truth appearing wherever life depends on being sustained.
+
+The Hymn to Hapy praises the inundation because it makes grain possible, fills storehouses, and brings offerings to the gods. The flood gives the condition for nourishment, but the month of Šef-Bedet asks whether that gift will be maintained correctly.
+
+— Hymn to Hapy
+
+Care is not excess.
+
+Too little water weakens the seedling. Too much water damages the root. Too little food starves the household. Too much taking empties the storehouse before its time. Nourishment belongs to Ma’at only when it is given in proportion.
+
+The Pyramid Texts repeatedly present bread, beer, water, oils, and other offerings so the ka may receive and continue.
+
+— Pyramid Texts
+
+This is the sacred pattern beneath the month.
+
+The field receives water. The household receives food. The temple receives offering. The dead receive bread and beer through the name and formula. Nothing remains alive by being admired. What lives must be fed.
+
+Šef-Bedet teaches quiet maintenance. No great drama announces the work. Water is carried. Stores are watched. Offerings are prepared. Weak places are noticed before failure appears.
+
+What has begun must be nourished. What is nourished must be measured. What is measured can endure without waste.
 ''',
   6: '''
 Month 6 – Rekh-Wer (Rḫ-wr)
-Great Knowing — Awareness That Sustains Order
-Rekh-Wer (rḫ-wr) means “Great Knowing.”
-From the root rḫ — to know, to perceive, to understand — it names not knowledge as accumulation, but knowledge as alignment with what is true.
-In the sacred texts, this knowing is not passive. It is described as a force that guides the tongue and keeps the world upright (Pyramid Texts, Utterance 600).
-So this month marks a shift.
-What has been grown…
-must now be understood.
-The crops are no longer fragile. The systems of care are established. Now attention turns toward refinement—counting, measuring, teaching, remembering.
-Awareness takes form.
-In every home, wisdom becomes practical.
-Women balance granaries, recording storage and rationing grain with fairness. Nothing is taken without measure. Nothing is stored without record.
-Men teach apprentices how to cut stone, carve wood, repair tools—not only the action, but the right way to do it.
-Because in Kemet, skill without understanding was incomplete.
-In the evenings, elders gather and speak:
-“He who knows Maʿat…”
-Not as philosophy—but as instruction.
-To know is to live rightly.
-To understand is to act in proportion.
-In the temples, the House of Life is active again.
-Scribes study arithmetic, surveying, astronomy. They calculate yield, track the stars, and align their measures with the heavens.
-The “stretching of the cord” is performed—fields are measured again, boundaries restored, not by assumption, but by precision.
-This is not administration.
-It is the restoration of Maʿat through exactness.
-Every measure taken correctly reflects the first act of creation—when the world was ordered from undifferentiated waters.
-As the cosmogony affirms:
-“You created your names,
-and they became the gods who came after you.”
-(Pyramid Texts, Utterance 600)
-To name, to measure, to define—these are acts that bring order into being.
-So even the smallest acts become instruction.
-At dusk, people pour libations of water onto the ground—“teaching” the soil, reminding it of the Nile’s rhythm, so that roots may “remember the flood.”
-Canals are repaired. Tools are sharpened. Boundaries are checked.
-Nothing is beneath attention.
-Because everything is part of the system.
-This is why Rekh-Wer belongs to both Thoth and Sekhmet.
-Thoth measures.
-Sekhmet acts.
-One without the other breaks balance.
-Knowledge without power is inert.
-Power without knowledge creates isfet.
-So the scribes say that Thoth “measured her path” and “taught her restraint.”
-This is the harmony of the month:
-intellect governing energy,
-compassion guiding productivity.
-The sun climbs higher now.
-Ra’s Eye—fierce and watchful—moves across the sky. Growth continues, but so does risk. What has been built must now be maintained with awareness.
-So knowledge becomes vigilance.
-Not fear.
-But clarity.
-The Kemite understood:
-To know something is to be responsible for it.
-As later teachings express:
-“He who measures rightly
-keeps the balance of heaven and earth in his hand.”
-This is the essence of Rekh-Wer.
-Not learning for its own sake—
-but knowing that sustains the world.
-Living Principle:
-What is understood clearly can be maintained without error.
+Great Knowing Held Under Measure
+
+Rekh-Wer means Great Knowing.
+
+But the greatness is not accumulation. It is knowledge strong enough to serve order without becoming proud of itself. The month belongs to the point in the year when growth is established, systems are functioning, and attention turns toward refinement: measuring, teaching, correcting, recording, and preserving what must not drift.
+
+Knowledge becomes dangerous when it separates from Ma’at.
+
+This is why Djehuty stands near Rekh-Wer, but not as the only presence. Djehuty measures, records, calculates, and preserves. Sekhmet watches from another side of the same condition: power that acts when imbalance becomes threat. Knowledge without power remains inert. Power without knowledge becomes destruction. The month requires the joining of clear perception and disciplined force.
+
+These are not separate lessons.
+
+They are one demand appearing in two forms: knowing what is true, and acting only according to that truth.
+
+The House of Life belongs naturally to this month. Sacred texts, medical writings, astronomical tables, ritual instructions, and funerary compositions had to be copied and taught correctly. A copied error could become ritual failure. A false record could become unjust distribution. A misread star could disturb sacred timing.
+
+Papyrus Chester Beatty IV preserves the scribal claim that writings keep names alive after tombs and descendants have failed.
+
+— Papyrus Chester Beatty IV
+
+Writing preserves, but only when copied with care.
+
+The Book of Coming Forth by Day depends on this same discipline. Its chapters preserve the heart, protect the name, free the ba, and open the path through the hidden region. Knowledge there is not ornament. It is survival.
+
+— Book of Coming Forth by Day
+
+In the fields, the same law holds. Growth must be read correctly. Stores must be counted honestly. Boundaries must be maintained. Tools must be repaired before failure. Apprentices must learn not only action, but proportion.
+
+Rekh-Wer teaches that knowing creates obligation.
+
+What is known must be measured truthfully. What is measured truthfully must be recorded accurately. What is recorded accurately must guide action. When knowledge serves Ma’at, the world becomes maintainable. When knowledge serves appetite, Isfet gains an educated hand.
 ''',
   7: '''
 Month 7 – Rekh-Nedjes (Rḫ-nḏs)
-Tested Knowing — Wisdom Proven Through Endurance
-Rekh-Nedjes (rḫ-nḏs) means “Lesser Knowing.”
-But this does not mean ignorance.
-It means knowledge in practice—knowledge that has left the mind and entered the world, where it must prove itself.
-After the clarity of Rekh-Wer, this month begins a different kind of work.
-Not learning.
-Not shaping.
-But testing.
-The mythology reflects this shift.
-After the restoration of Asar, the Two Lands are divided. Horus must contend with Set—not in a single act, but through trials, disputes, and endurance. Victory is not immediate. It must be earned through balance.
-Aset guides her son—not toward force, but restraint.
-And Thoth, keeper of measure, reminds him:
-“Patience is victory; Maʿat is not won by haste.”
-(Coffin Texts, judgment cycle traditions)
-This is the teaching of the month.
-To know is not enough.
-One must hold to what is known under pressure.
-So rḫ-nḏs becomes the stage of the apprentice, the craftsman, the growing crop meeting its first heat.
-What was learned must now endure conditions.
-The field is no longer protected.
-The work is no longer guided at every step.
-The system is no longer new.
-Now it must continue.
-In inscriptions from Dendera and Esna Temple, this time is associated with titles such as “of the patient heart” and “of the watching eye.”
-Because this is not a time of expansion.
-It is a time of attention within action.
-In daily life, everything becomes quieter.
-The early momentum of the year has passed. What remains is the steady rhythm of maintenance. The Kemite saw something sacred here—not in dramatic change, but in continuation without collapse.
-Tools are cleaned and sharpened.
-Old hymns are recopied so they are not lost.
-Work is repeated—not because it is new, but because it must be kept true.
-Even the festivals grow fewer.
-Because this is not a time for display.
-It is a time for integrity.
-The sages taught:
-“He who knows Maʿat must carry her in silence.
-The one who acts without shouting keeps the world from cracking.”
-Wisdom here is not spoken—it is enacted.
-Every furrow drawn straight.
-Every measure kept fair.
-Every effort sustained without complaint.
-This is how Maʿat is preserved—not in declaration, but in consistency under strain.
-The Kemite understood:
-Untested knowledge is illusion.
-Heat reveals the strength of metal.
-Difficulty reveals the truth of understanding.
-So this month is not hardship—it is refinement.
-What holds is strengthened.
-What fails is corrected.
-What endures becomes real.
-This is the passage from knowing…
-to being able to live what is known.
-Living Principle:
-Wisdom becomes real only when it endures.
+Knowing Tested Under Pressure
+
+Rekh-Nedjes means Lesser Knowing.
+
+The name does not point to ignorance. It points to knowledge made smaller, closer, and more exposed — knowledge no longer held safely in teaching, record, or inner understanding, but placed into the field where heat, fatigue, conflict, and resistance can test it.
+
+Rekh-Wer was great knowing: the formation of skill, measure, and reliable instruction. Rekh-Nedjes is what happens after knowledge leaves the protected place and enters consequence.
+
+The crops are established. The systems of care are no longer new. Labor has rhythm. Tools, records, and methods have been formed. Now they must hold.
+
+This is why Heru belongs near the month.
+
+His claim to rule was not accepted the moment it was spoken. In the Contendings of Heru and Set, rightful succession had to be tested through dispute, trial, humiliation, endurance, and judgment. Set had force. Heru had lineage and the duty of restoration. The divine tribunal had to determine which claim could stand within Ma’at.
+
+— The Contendings of Heru and Set
+
+This is the month’s central teaching.
+
+Right knowledge must survive pressure without becoming its opposite.
+
+Aset does not guide Heru into reckless force. Djehuty does not allow the dispute to dissolve into appetite. The struggle must be measured because the outcome becomes precedent. If power alone wins, the throne becomes possession. If rightful claim is recognized through judgment, Ma’at is strengthened.
+
+The same law appears in ordinary life. A fair measure is easy before hunger. Restraint is easy before anger. Skill is easy before fatigue. Rekh-Nedjes begins when ease disappears and the real condition of knowledge becomes visible.
+
+The Instruction of Amenemope warns against the heated person and against speech that burns beyond measure.
+
+— Instruction of Amenemope
+
+That warning belongs here. Tested knowing is not loud. It does not need to prove itself by force. It holds its form when disturbed.
+
+What was learned must now endure. What endures must adapt without losing its measure. What keeps its measure under pressure becomes wisdom that can be trusted.
 ''',
   8: '''
 Month 8 – Renwet (Rnnwt)
-Nourishment Fulfilled — Destiny Revealed Through What Is Given
-Renwet (rnnt) takes its name from the goddess Renenutet—the serpent of nourishment and fate.
-From rnn—“to nurse, to suckle”—her name means “She Who Nurtures into Being.” She is depicted as a rearing cobra with a watchful, almost gentle face, her image painted on granaries and carved into storage vessels.
-Her domain is twofold:
-the abundance of the earth…
-and the destiny (šai) of every living being.
-For the Kemite, these were not separate.
-What you receive,
-and what you become,
-are bound together.
-It was said that at birth, Renenutet whispered a child’s true name—not the name given by parents, but the one known by the gods.
-So she nourished not only the body,
-but the path of a life.
-By this time, the harvest has come.
-The fields are cut. The grain is gathered. Storehouses fill. What was planted, tended, and tested has now returned in full.
-The villages come alive again.
-Laughter fills the courtyards.
-The scent of bread, beer, and roasted fish rises into the air.
-Workers are paid from temple granaries.
-Festivals stretch across days.
-Children play games of chance—small rehearsals of fate—while elders bless them:
-“May your name be long,
-may your Ka be rich,
-may Renenutet remember you.”
-Joy is present—but it is not careless.
-Because this is not simply a time of receiving.
-It is a time of reckoning.
-The Kemite understood that abundance reveals character more clearly than hardship.
-To hoard is to break the cycle.
-To waste is to disrespect the source.
-To overindulge is to forget proportion.
-So even in celebration, restraint remains sacred.
-The first share is always returned:
-to the gods,
-to the ancestors,
-to the poor.
-Because what is received must be circulated to remain alive.
-As the offering texts declare:
-“Bread, beer, oxen, and fowl…
-for the one who gives and receives in Maʿat.”
-(Offering Formula, Old Kingdom funerary inscriptions)
-Giving completes receiving.
-This is why Renwet is the final examination of the season.
-Not whether one can endure.
-Not whether one can learn.
-But whether one can receive without forgetting.
-Gratitude here is not feeling—it is action.
-Measured distribution.
-Fair payment.
-Right offering.
-This is Maʿat fulfilled.
-Renenutet, therefore, is both gentle and exacting.
-Her presence fills the silos.
-Her absence empties them.
-Because destiny is not given once.
-It is sustained through what is nourished and what is returned.
-The Kemite knew:
-What you feed will grow.
-What you neglect will diminish.
-So the teaching of the month is simple, but final:
-Your destiny is not separate from your actions.
-It is shaped by them.
-Living Principle:
-Your destiny is what you nourish. Feed the world that feeds you.
+Nourishment Fulfilled and Destiny Made Visible
+
+Renwet belongs to Renenutet.
+
+Her name carries nursing, raising, and bringing into growth. She is the serpent of nourishment, harvest, granary, birth, and destiny. Her power is not only that food appears. Her power is that food becomes continuity: body sustained, household secured, offerings made, seed preserved, and the future given something to stand on.
+
+This month comes when what was planted, tended, and tested has returned.
+
+The fields are cut. Grain enters storage. Bread and beer become possible in abundance. What began as seed beneath dark soil now becomes provision that can feed the living, honor the gods, sustain the ka, and secure the next season.
+
+The Hymn to Hapy praises the inundation because it makes barley, creates emmer, fills storehouses, and brings offerings into being.
+
+— Hymn to Hapy
+
+Renwet is the human answer to that gift.
+
+The flood gave condition. Labor gave care. Time gave growth. Now abundance has arrived, and abundance must be handled under Ma’at. Grain can nourish, but it can also be hoarded. Storehouses can preserve the future, but they can also become instruments of control. Festival can restore the heart, but it can also lose proportion.
+
+Renenutet’s serpent form matters here.
+
+The serpent does not only threaten. It watches, guards, protects, and encircles what must not be wasted. At the granary, that watchfulness becomes sacred. Food is not secure simply because it has been gathered. It must be measured, stored, distributed, offered, and protected from misuse.
+
+This is why Renenutet also stands near Shai.
+
+Destiny is not detached from nourishment. A child’s future depends on being fed. A household’s future depends on grain kept rightly. A name’s future depends on offerings that can continue. What is nourished grows into its portion; what is neglected meets a different fate.
+
+The offering formula names bread, beer, oxen, fowl, linen, incense, and every good and pure thing for the ka of the deceased.
+
+— Offering Formula
+
+That formula rests on harvest.
+
+Renwet teaches that receiving is a test of Ma’at. What has returned must circulate. What circulates must be measured. What is measured must preserve life beyond the moment of plenty.
 ''',
   9: '''
-Month 9 – Hnsw (Ḥnsw)
-The Traveler — Walking the Path of the Sun
-Hnsw (Ḥnsw), “The Traveler,” opens the season of Shemu.
-It is the month of movement—radiant, demanding, alive.
-Here, Maʿat is no longer something held or maintained.
-It is something walked.
-The Kemite understood: balance is not a resting place.
-It is a path—one that must be followed under the eye of Ra.
-The sun now dominates the sky.
-Its heat is not incidental—it is instruction.
-In the sacred texts of the Duat, Ra travels endlessly—by day across the sky, by night through the hidden world—sustaining the balance between light and darkness.
-“I travel my road…
-I do not weary.”
-(Amduat, Book of the Hidden Chamber)
-So too must life continue.
-Hnsw reflects both the sun’s journey and the movement of the people as the agricultural year nears completion. What has been grown and gathered must now be carried, exchanged, and preserved.
-Caravans move across the land.
-Boats travel the Nile.
-Offerings are brought to temples.
-Food is carried to cities.
-Every path becomes part of a greater circulation.
-The Kemite did not curse the heat.
-They understood it.
-Heat reveals endurance.
-Heat tests proportion.
-Heat exposes what cannot hold.
-So movement continues—not in ease, but in alignment.
-The wise do not resist the journey.
-They pace themselves within it.
-Fields that once stood green now dry beneath the sun. The Nile withdraws into its banks, leaving bright traces of salt across the soil. Work shifts again:
-transportation, preservation, continuation.
-Grain is stored.
-Oil is pressed.
-Fish and fruit are dried.
-Nothing is wasted.
-Everything is carried forward.
-Travel itself becomes sacred.
-Families visit distant kin. Merchants cross nomes. Fishermen follow the shrinking Nile. Each movement reflects the same truth:
-all life is in circulation.
-To move rightly is to align with Ra.
-Offerings take on the color of the sun—golden bread, beer, honey, saffron oil. At midday, households anoint their foreheads and recite:
-“May my path follow the sun’s.
-May my heat be righteous, my light not blind.”
-This is the philosophy of Hnsw.
-Power without balance burns.
-Power guided by Maʿat illumines.
-So the priests teach meditation on Khepri—the scarab who rolls the sun each dawn. Not as symbol alone, but as instruction:
-to continue,
-to persist,
-to move even under weight.
-Children are taught to face the rising sun with open hands—not to grasp it, but to receive its measure.
-Because light must be carried, not hoarded.
-This is the deeper teaching of the month:
-Maʿat does not stand still.
-Even balance moves—like the arc of the sun, like the passage through the Duat.
-To live rightly in this season is to walk with the light without being consumed by it.
-The wise carry inner shade.
-They know that endurance, humility, and restraint are the highest forms of power.
-As the old teaching says:
-“He who travels rightly
-leaves Maʿat behind him as footprints.”
-This is Hnsw.
-Not arrival—
-but right movement across time.
-Living Principle:
-Walk in balance, and your path will sustain the world.
+Month 9 – Hnsw (Ḫnsw)
+The Traveler and the Discipline of Right Movement
+
+Hnsw opens the season of Shemu.
+
+The harvest has been gathered. The stores have begun to settle. The land is drier now, and the sun grows more demanding. Work changes again. What has been received must be moved, preserved, exchanged, carried, and protected across distance.
+
+The name Hnsw belongs to the Traveler.
+
+This is also the name of Khonsu, the lunar neter who crosses the night sky. His movement is not the same as Ra’s blazing solar course, but it belongs to the same larger truth: time is known because heavenly bodies travel in order. Ra marks the day. Khonsu marks the night and the measured change of the moon. Together they reveal that motion itself must keep rhythm.
+
+Movement without rhythm is wandering.
+
+Movement with measure becomes time.
+
+This is why Hnsw is not merely a month of travel. It is a month of disciplined passage. Boats move along the Nile. Goods move between towns. Food moves from granary to household and temple. People travel before the fiercest heat. The year itself moves from harvest into preservation.
+
+The Book of Coming Forth by Day gives the solar form of this movement. It grants that the Ausar carries Ma’at at the head of the great bark and holds Ma’at among the divine company.
+
+— Book of Coming Forth by Day
+
+That image belongs here.
+
+A journey becomes righteous when Ma’at stands at the front of it. Without that standard, movement becomes appetite, trade becomes exploitation, heat becomes aggression, and travel becomes scattering.
+
+Khonsu’s lunar travel adds another layer. The moon does not conquer the night. It measures it. It changes shape without losing its course. It teaches movement under changing conditions: waxing, waning, disappearing, returning. Not every journey shines with the force of noon. Some journeys require coolness, pacing, and attention in darkness.
+
+The month therefore holds both Ra and Khonsu: solar completion and lunar passage, heat and coolness, visible road and night crossing.
+
+Hnsw teaches that Ma’at does not stand still. It must be carried along the path. What moves must keep direction. What carries light must not burn what it passes. What travels under night must not lose the measure that guides return.
 ''',
   10: '''
 Month 10 – Ḥenti-ḥet (Ḥnt-ḥtj)
-Foremost of Offerings — Cooling, Return, and the Restoration of Measure
-Ḥenti-ḥet, “Foremost of Offerings,” marks the turning point where receiving gives way to returning.
-The word ḥet (offering) shares its root with ḥtp (peace).
-To the Kemite, peace was not passive — it was the condition created when all things are in right proportion.
-Thus, to offer was not loss, but restoration.
-By this time — in the height of Shemu — the land is dry, the work is complete, and the sun stands at its fiercest.
-Nothing more can be grown. Nothing more should be taken.
-So the people turned not to labor, but to balance.
-Offerings were made not to ask for abundance, but to acknowledge it.
-Bread, beer, cool water, milk, lotus — each given not from surplus alone, but from understanding.
-For what had been received was never owned.
-The teachings remind:
-“Do not set your heart upon wealth;
-there is no ignoring fate and destiny.”
-(Instruction of Amenemope)
-This was the wisdom of the month — that grasping beyond measure invites disorder.
-Daily life reflected this truth.
-Travelers moved at night beneath a cooler sky.
-Markets shifted from growth to preservation — dried grain, stored oil, woven shade.
-Families repaired tools instead of making new ones.
-Children learned rationing not as deprivation, but as alignment with the desert’s rhythm.
-Storytellers filled the evenings, recalling the moment when the Eye of Ra — in the form of Sekhmet — nearly destroyed humanity in her excess.
-Only when her fury was cooled did life continue.
-So too must human force be cooled.
-Because even divine power, when unmeasured, becomes isfet.
-In older temple theology, Ra himself is said to establish Maʿat through offering — not merely receiving it:
-“He gave offerings to the gods…
-he established Maʿat in the place of Isfet.”
-(Pyramid Texts, Utterance 273–274)
-This is the deeper teaching of Ḥenti-ḥet:
-Maʿat is not maintained by accumulation,
-but by circulation.
-What comes must go.
-What is taken must be returned.
-Thus even the poorest made offering.
-Some gave food.
-Some gave water.
-Some gave only breath — standing before the morning sun, exhaling slowly:
-“May my heat cool yours.
-May my heart rest in Maʿat.”
-For breath itself is a gift returned.
-Ḥenti-ḥet teaches the most difficult discipline of the year:
-to stop when enough has been given.
-To release without fear.
-To cool without losing strength.
-To give without expecting return.
-Because nothing truly belongs to the self —
-not harvest, not power, not even life-force.
-All is held temporarily within Maʿat.
-And must be returned to it.
-Living Principle:
-Peace is restored when what is received is returned in right measure.
+Foremost of Offerings — Power Returned to Measure
+
+Ḥenti-ḥet means Foremost of Offerings.
+
+The name belongs to the turning point where receiving gives way to returning. The harvest has been gathered. The stores have been filled. The year has produced what it can produce. Now the question is not how much more can be taken, but how what has been received will be placed back into right relation.
+
+This is where offering becomes peace.
+
+Hotep holds both meanings: offering, satisfaction, rest, and settled relation. Peace is not emptiness. Peace is what arrives when what is due has been placed correctly. The god receives. The ka receives. The ancestor receives. The household receives. The community receives. No relation is left starving while another consumes without measure.
+
+The Pyramid Texts repeatedly present bread, beer, cool water, incense, oils, linen, and food so the deceased may receive and continue.
+
+— Pyramid Texts
+
+Offering is therefore not loss.
+
+It is restoration of proportion.
+
+This month comes in the heat of Shemu. The land is dry. The sun is strong. The fields can give no more. Grain must be preserved. Bodies must be cooled. Tools must be repaired. Movement must slow before effort becomes damage.
+
+The Book of the Heavenly Cow preserves the danger of force without measure. The Eye of Ra goes forth as destructive power, and the slaughter only ends when the goddess is cooled through red beer and returned from consuming fury into relation.
+
+— Book of the Heavenly Cow
+
+That story belongs to this month.
+
+Even divine force must be cooled when its work is complete. Strength that refuses to stop becomes Isfet. Heat that will not release becomes destruction. Abundance that will not circulate becomes hoarding.
+
+The Pyramid Texts give the royal form of the same principle: Ma’at is established in the place of Isfet.
+
+— Pyramid Texts
+
+Ḥenti-ḥet asks how that establishment happens after harvest.
+
+Not by taking more.
+
+By placing what has been received where it belongs.
+
+What has been gathered must be offered. What is offered must restore relation. What restores relation brings rest without neglect. Where offering is made in measure, peace becomes active. Where it is withheld, abundance hardens and Isfet enters through possession.
 ''',
   11: '''
 Month 11 – Pa-Ipi (ỉpt-ḥmt)
-Reunion — The Return to the Ka
-Pa-Ipi (ỉpt-ḥmt), “Bringing Together of the Women,” is among the oldest names preserved in Kemet. It speaks of reunion—of what was separated now drawing back into alignment.
-By later periods, it was shortened simply to Ipi, but its meaning remained:
-the gathering, the rejoining, the return to source.
-In priestly understanding, this was the same truth expressed in another form:
-the traveler returns to the Ka.
-What has moved outward through the year—through labor, growth, testing, and offering—now begins to turn inward.
-Not in retreat,
-but in recognition.
-The Kemite understood that the year, like the soul, approaches its transformation.
-Not an end—
-but a return.
-This was a month of remembrance.
-Families walked to the tombs of their ancestors. Meals were shared in the fields and at the thresholds between worlds. Names were spoken aloud so they would not fade.
-Because in Kemet, to remember was not symbolic.
-It was sustaining.
-The Ka—the vital essence—does not vanish. It is strengthened through attention, nourished through offering, and maintained through memory.
-To forget was to diminish life.
-To remember was to extend it.
-The teachings affirm:
-“A man lives when his name is spoken.”
-(Tomb inscriptions, Middle Kingdom funerary tradition)
-So the living spoke the names of the dead—
-and in doing so, kept them present.
-The atmosphere itself reflected this turning.
-The air carried lotus and old incense.
-Music slowed to soft flutes and hand drums.
-The nights opened wide and clear.
-The Milky Way stretched across the sky—the “River of Souls”—guiding travelers and reminding all that the path does not end at the horizon.
-The visible and invisible drew closer.
-Farmers, having completed their cycle, now looked toward renewal. Mothers whispered blessings over sleeping children, linking breath to the rhythm of the Nile’s return.
-Everything pointed toward continuity.
-Devotion turned again to Asar.
-He who dies and rises.
-He who is buried and becomes life again.
-The seed beneath the soil.
-The king beneath the earth.
-The god within the cycle.
-His story was not myth alone—it was pattern.
-What is given returns.
-What is buried rises.
-What is aligned endures.
-Pa-Ipi teaches the deepest truth of Maʿat:
-that nothing stands alone.
-Each life is a continuation.
-Each breath is inherited.
-Each act either strengthens or weakens the chain.
-The Kemite did not see himself as separate.
-He was a link—
-between those before
-and those yet to come.
-The ancestors were not gone.
-They were present in the Ka, woven into the body of the world, moving through time as a living current.
-So fear of death dissolved.
-To die was to change form.
-To live rightly was to ensure continuation.
-To maintain Maʿat was to remain within the current.
-As preserved in the traditions of Abydos:
-“He who remembers, endures;
-he who is remembered, returns.”
-This is the wisdom of Pa-Ipi.
-Not ending—
-but reunion.
-Not loss—
-but continuity restored.
-Living Principle:
-What is remembered lives; what is honored continues.
+Reunion and the Return to the Ka
+
+Pa-Ipi turns the year inward.
+
+The harvest has been gathered. Offerings have been made. The heat has forced measure back into the body. What moved outward through labor, travel, exchange, and return now begins to gather again around source: ancestor, name, tomb, ka, and memory.
+
+The old name carries the sense of bringing together.
+
+That meaning matters. This month is not retreat. It is rejoining. What had been distributed through the year is drawn back into relation so continuity does not break.
+
+The women gathered at the edge of death give the sacred pattern.
+
+Aset searches. Nebet-Het mourns. Together they stand beside the body of Ausar, not as decoration around grief, but as the forces that keep the dead from being abandoned. Aset restores through knowledge and speech. Nebet-Het guards the threshold and gives grief its ritual form. The dead are gathered by being named, mourned, attended, and placed back into relation.
+
+The Book of Coming Forth by Day gives Abydos as the sacred ground of this work: “I am the prophet in Abydos on the day when the earth is raised.”
+
+— Book of Coming Forth by Day
+
+That line belongs to Pa-Ipi.
+
+Abydos is where the restoration of Ausar becomes place, procession, memory, and annual return. The earth raised there is not only soil. It is the reappearance of what had been hidden, the lifting of what had gone below, the proof that burial can become renewal when the rites are kept.
+
+The month also belongs to the ka.
+
+The ka must be fed. The ren must be spoken. The tomb must remain a place of address. The false door, the offering formula, and the remembered name keep relation open between living and dead.
+
+Papyrus Chester Beatty IV preserves the scribal claim that writings keep names alive after tombs and descendants have failed.
+
+— Papyrus Chester Beatty IV
+
+This is remembrance as action.
+
+The ancestor is not sustained by feeling alone. The name must be spoken. Offerings must be placed. The chain must be honored because each life is carried by those before it and becomes ground for those after it.
+
+Pa-Ipi teaches that continuity is gathered, not assumed. What is remembered can remain present. What is honored can continue. What is returned to the ka strengthens the living current between dead, living, and those still to come.
 ''',
   12: '''
 Month 12 – Mesut-Ra (Mswt-Rꜥ)
-The Birth of Ra — The Stillness Before Emergence
-Mesut-Ra, “The Birth of Ra,” is the final movement of the year.
-Not an ending—
-but a gestation.
-From the root msi — “to give birth” — the name carries the act of emergence itself: what is hidden preparing to become seen. It is the same root carried in names and traditions across time, all pointing to one truth:
-life returns through concealment and release.
-In this month, nothing is built.
-Nothing is extended.
-Nothing is sought.
-The work of the year is complete.
-What remains is waiting in balance.
-The Kemite understood this time as belonging to Nut—the sky who swallows the sun each evening and gives birth to him each dawn.
-But now the cycle deepens.
-Nut is not only birthing the daily sun—
-she is preparing to bring forth the gods themselves.
-As the temple texts describe:
-“The sky is bent…
-she trembles as she gives birth to Ra.”
-(Temple inscriptions, Dendera tradition)
-The heavens become a womb.
-The stars hold their places in stillness.
-The air grows quiet.
-The world pauses.
-This is not emptiness.
-It is fullness not yet released.
-The Nile has not yet risen.
-The flood has not yet come.
-The new year has not yet begun.
-But all of it is already forming.
-In daily life, this stillness is mirrored.
-The people slow completely.
-Children mark the “Counting of Years,” scratching tallies into potsherds—not to measure what comes next, but to recognize what has been completed.
-Elders tell stories of past floods—gentle and destructive alike—so that memory becomes preparation.
-Temples perform the Ritual of Sealing the Year.
-The lamps are extinguished.
-The cycle is allowed to close fully.
-“The breath returns to the sky,
-the seed returns to the soil,
-the order stands—awaiting the dawn.”
-No flame remains.
-Because no light should carry over improperly into the next cycle.
-Households mirror this act.
-Altars are cleared.
-Statues are washed.
-Walls are repainted.
-Water, natron, lotus—
-purification, dissolution, readiness.
-Even the symbols change.
-Frogs for emergence.
-Scarabs for transformation.
-Everything points toward becoming again.
-This is the teaching of Mesut-Ra:
-Nothing is forced into birth.
-What is to emerge must first be held in stillness.
-The Kemite did not rush this moment.
-They honored it.
-Because to interrupt gestation
-is to weaken what is born.
-Even the gods follow this law.
-As preserved in the Pyramid Texts:
-“I am born each day…
-I come forth from the horizon renewed.”
-(Pyramid Texts, solar cycle utterances)
-So too the year.
-So too the self.
-Mesut-Ra is both grave and womb.
-What has ended dissolves completely.
-What will begin gathers strength unseen.
-There is no contradiction here.
-Only continuity.
-The world stands still—not from exhaustion,
-but from reverence.
-Because what comes next cannot be controlled.
-It can only be received.
+The Birth of Ra and the Stillness Before Emergence
+
+Mesut-Ra means the Birth of Ra.
+
+The year has reached its final month. Harvest has been gathered. Offerings have been returned. Ancestors have been remembered. What needed to move has moved. What needed to be preserved has been placed into storage, memory, name, and rite.
+
+Now the cycle enters stillness.
+
+This stillness is not absence. It is gestation.
+
+Ra is born every day, but his birth is never simple appearance. By night he passes through the Duat, where movement is hidden and renewal is prepared before dawn can be seen. The Book of Coming Forth by Day calls him “the Lord of Resurrections,” the one who comes forth from dusk and whose birth is from the House of Death.
+
+— Book of Coming Forth by Day
+
+That line belongs to Mesut-Ra.
+
+The sun is born from the place that looks like ending. The year also approaches that place. The visible work is finished, but the next beginning is not yet permitted to appear. What will return must first be held in the hidden chamber of time.
+
+Nut gives the month its body.
+
+She swallows the sun at evening and gives birth to him at dawn. She is sky, mother, vault, enclosure, and womb. In her, disappearance is not loss. It is containment. The sun enters her body not to vanish, but to be carried through the unseen interval until the right moment of emergence.
+
+Khepri waits inside this mystery.
+
+The scarab does not rise before the night has done its work. Becoming is not forced. It appears only after the hidden passage has completed.
+
+The Amduat gives the nightly form of this truth. Ra passes through the ordered hours of the Duat, reaching the hidden center before renewal becomes visible as dawn.
+
+— Amduat
+
+Mesut-Ra therefore asks for completion without interference.
+
+Altars are cleared. Records are closed. Lamps are allowed to go out. Purification belongs here because no unfinished disorder should be carried improperly into the next cycle. Natron, water, silence, and stillness prepare the threshold.
+
+Nothing more is demanded from the old year.
+
+What has ended must be allowed to end. What is forming must not be pulled into visibility too soon. What will be born must be held until the moment of birth arrives under Ma’at.
 ''',
   13: '''
 Month 13 – Heriu Renpet (ḥr.w rnpt)
-Days Upon the Year — The Births of the Gods
-Heriu Renpet (ḥr.w rnpt), the “Days upon the Year,” stand outside the calendar.
-They are not counted among the months.
-They do not belong to a season.
-They are the pause between endings and beginnings—
-the moment when the cycle releases its breath.
-To the Kemite, these were not “extra” days.
-They were necessary.
-For without pause,
-nothing can be born.
-These are the days when the gods themselves emerge.
-Asar.
-Heru the Elder.
-Set.
-Aset.
-Nebet-Het.
-And in some reckonings, a final day for Ra—
-the light returning to itself.
-Each day carries a presence.
-Not symbolic—
-but active within the world.
-Asar restores what was broken.
-Heru guards the horizon.
-Set tests strength.
-Aset weaves protection.
-Nebet-Het keeps the hidden places.
-Each force returns to its place
-before the year begins again.
-These days do not move forward.
-They hold.
-The lamps are extinguished.
-Altars are cleared.
-Natron water is poured.
-Nothing unfinished is allowed to cross.
-Because what passes through this threshold
-must be whole.
-Life slows deliberately.
-Speech softens.
-Movement reduces.
-The world enters a state of sacred suspension.
-Songs are offered to Nut,
-who has carried the sun through darkness
-and prepares to give birth again.
-The sky is not empty.
-It is pregnant with return.
-The Kemite understood:
-Before creation, there is stillness.
-Before light, there is containment.
-Before beginning, there is recognition.
-So each day is lived with awareness.
-Not of what will come—
-but of what must be aligned before it does.
-The teachings echo this:
-“He who is purified enters the new day;
-he who carries disorder remains behind.”
-(Temple purification formulae — New Kingdom tradition)
-Thus the question becomes:
-What must be made complete before crossing?
-Because this is not a passage of time.
-It is a passage of order.
-Heriu Renpet is the hinge:
-one year exhales,
-the next inhales.
-Breath returns to the sky.
-Seed returns to the soil.
-Order stands—waiting for first light.
-Nothing begins yet.
-But everything is ready to be born.
-This is the sacred pause that makes renewal possible.
-Not emptiness—
-but perfect readiness.
-Living Principle:
-Before beginning again, honor what is being born.
+Days Upon the Year — The Threshold Where the Gods Are Born
+
+Heriu Renpet means the Days Upon the Year.
+
+They are not an ordinary month. They stand outside the counted cycle, after the twelve months have completed their work and before Wp Rnpt opens the year again. They are days of suspension: not harvest, not flood, not planting, not travel, not offering, but the pause in which time loosens its ordinary form so the powers of the next cycle can enter.
+
+The year has exhaled.
+
+It has not yet inhaled again.
+
+This is why the births of the gods belong here.
+
+Ausar is born first: the one who will be broken, gathered, restored, and made ruler in the Duat. Heru the Elder is born as sky-power, horizon-force, and divine sight. Set is born as necessary force at the boundary, dangerous when it refuses its place. Aset is born as throne, speech, protection, and the intelligence that restores what force cannot repair. Nebet-Het is born as the guardian of the edge, the mourner, the one who keeps transition from becoming abandonment.
+
+These are not separate mythic episodes placed beside the calendar.
+
+They are the powers the year must carry if it is to begin again truthfully.
+
+Every cycle requires death and restoration. Every cycle requires sight. Every cycle requires force placed under measure. Every cycle requires skillful protection. Every cycle requires mourning, boundary, and return. The gods born in Heriu Renpet are the conditions the coming year will need.
+
+Nut holds the threshold.
+
+As sky, mother, vault, and womb, she contains what has not yet emerged. The sun has passed through her darkness. The year has entered her stillness. What is to be born must remain held until the right moment.
+
+The Book of Coming Forth by Day gives the stellar form of this threshold: “I hide myself among you, O ye Stars that set not.”
+
+— Book of Coming Forth by Day
+
+That line belongs here because Heriu Renpet stands between disappearance and return. The imperishable stars do not enter the ordinary cycle of rising and setting in the same way. They hold. They witness. They remain as fixed powers while the year prepares to turn.
+
+Purification belongs to these days.
+
+Natron, water, silence, cleared altars, completed offerings, and closed records all serve the same purpose: nothing disordered should cross into the opening of the year. What has ended must be released. What must continue must be made clean enough to pass.
+
+Heriu Renpet teaches that renewal does not begin with motion.
+
+It begins with readiness.
+
+What has completed must be sealed. What is disordered must be left behind. What is necessary must be born in its proper place. Only then can the year open without carrying Isfet across the threshold.
 ''',
 };
 
 const List<String> _decanInfo = [
   '''Orientation — Placing Attention Correctly
-tpy-ꜥ sbꜣw (“Foremost of the Stars”) marks orientation.
-To the Kemite, tpy-ꜥ (“the foremost”) does not mean dominance — it means what appears first and therefore sets direction. Like the first star seen at dusk, it establishes bearing before movement.
-The flood is still high.
-The land is hidden beneath water. Boundaries are gone. Boats replace roads, and even the experienced farmer cannot say where one field ends and another begins.
-This is the moment of first seeing.
-Nothing is built yet.
-Nothing is corrected yet.
-As the ancient texts recall of the beginning:
-“I was alone in the waters…
-I could not find a place to stand.”
-(Coffin Texts, Spell 76)
-So the work here is not action—it is orientation.
-In practice:
-assessing conditions after uncertainty; checking measurements; establishing bearings before action.
-Thoth’s role here is alignment, like the scribe drawing the first line.
-Where am I standing?
-What is true right now?
-Attention gathers. The field of time is surveyed.
-The Kemite understood: if attention is misplaced at the beginning, everything that follows carries that error forward.
-Living Principle:
-Order begins when attention is placed correctly.''',
-  '''Integration — Bringing Thought into Coherence
-ḥry-ib sbꜣw (“Heart of the Stars”) marks integration.
-ḥry-ib (“that which is at the heart”) signals internal coherence—observation becoming understanding. Like the stars held in relation across the sky, meaning emerges not from one point, but from how things hold together.
-The waters still cover the land, but distinctions are now visible.
-Currents shift along hidden edges. Birds return to particular places. Fishermen notice where nets fill and where they remain empty. The world is no longer silent—it is revealing pattern.
-Now observation must be tested.
-In administrative and ritual life:
-checking accounts, refining plans, correcting imbalance before it spreads.
-Thoth keeps proportion so thought matches reality and intention matches capacity.
-For in Kemet, understanding is not assumed—it is verified.
-As expressed in the theology of creation:
-“The heart thinks, and the tongue speaks what the heart has devised.”
-(Memphite Theology, Shabaka Stone)
-But before speech comes alignment.
-This is the work of the heart—to bring what is seen into coherence before it is declared.
-The Kemite knew: a misalignment within becomes disorder without.
-So this phase is quiet, deliberate, exacting.
-Reflection replaces reaction.
-Adjustment replaces assumption.
-Living Principle:
-Truth is not what appears — it is what holds together under examination.''',
-  '''Expression — Releasing Understanding into Structure
-sbꜣw (“The Stars”) marks expression into order.
-Without modifier, sbꜣw refers to the many points held in relation—a system. To the Kemite, the stars modeled a truth: many parts, one rhythm. They do not drift; they hold pattern across time.
-Now the waters withdraw.
-The land rises again, dark and fertile. Boundaries reappear—but they must be re-established, not assumed. What has been observed and refined must now be carried into structure.
-Understanding is released into form.
-Schedules, records, agreements, commitments.
-Plans become instructions.
-Decisions become actions.
-Knowledge becomes responsibility.
-In the villages and temples, scribes begin their work in full. Measurements are recorded. Fields are marked. Provisions are calculated. What was insight becomes shared order.
-For the Kemite, the stars were not decoration—they were proof that order can endure when properly maintained.
-And that endurance depends on record.
-As the scribal tradition teaches:
-“More profitable is a book than a well-built tomb…
-writings cause him to be remembered.”
-(Papyrus Chester Beatty IV)
-So Thoth records and binds, so that decisions are carried forward faithfully.
-Because what is not recorded will drift.
-What drifts will fragment.
-What fragments will fall into isfet.
-Here, the work becomes visible.
-Order is no longer internal—it is enacted, shared, and upheld.
-Living Principle:
-Order is sustained when understanding is shared and upheld.''',
+
+tpy-ꜥ sbꜣw, “Foremost of the Stars,” marks the first act of orientation.
+
+The decanal star does not rule because it appears first. It gives bearing. Its first visibility tells the watcher where the night has moved, where the year has entered, and what must be measured before action begins.
+
+The flood is still high. The land is hidden beneath water. Boundaries are gone, roads are unusable, and the field cannot yet be trusted by memory. The world has returned to a condition where first sight matters.
+
+The Coffin Texts remember the beginning as a condition in the waters before a place to stand had been established.
+
+— Coffin Texts, Spell 76
+
+That image belongs here because the first task after dissolution is not correction.
+
+It is orientation.
+
+Djehuty’s ibis form belongs to this moment: the beak at the waterline, searching the hidden edge where land will later be found again. The sky is watched in the same way. The first star gives direction before the first boundary can be restored.
+
+A misplaced beginning carries error forward.
+
+Where attention is placed correctly, the year can be measured. Where attention is scattered, every later correction begins from distortion.''',
+  '''Integration — Bringing Observation into Coherence
+
+ḥry-ib sbꜣw, “Heart of the Stars,” marks observation becoming understanding.
+
+A star does not guide alone. It guides by relation: to the horizon, to the season, to the other stars that rise before and after it. The sky becomes useful because its points hold together.
+
+The flood still covers much of the land, but the flood is no longer unreadable. Currents reveal hidden edges. Birds return to particular places. Fishermen learn where the water gathers life and where it remains empty. Pattern begins to show itself inside uncertainty.
+
+The work now moves inward.
+
+In Kemetic thought, the heart is not emotion alone. It is the place of discernment, the chamber where what is perceived becomes ordered before it is spoken or acted upon. The Memphite Theology describes creation through heart and tongue: the heart conceives, the tongue gives utterance, and what is spoken takes form.
+
+— Memphite Theology
+
+But speech cannot come first.
+
+Before the year can be named, counted, divided, or acted upon, what has been observed must hold together. Water, sky, storehouse, boundary, and season must be understood in relation.
+
+Djehuty’s lunar nature belongs here. The moon changes form without losing its cycle. It teaches measured change: difference held inside continuity.
+
+A measure taken too early becomes false. A conclusion formed too quickly becomes Isfet in thought. The heart must bring the world into coherence before the tongue releases instruction.
+
+Where observation is integrated, judgment becomes possible. Where it is not, action speaks before truth has formed.''',
+  '''Expression — Releasing Understanding into Shared Order
+
+sbꜣw, “The Stars,” marks understanding released into structure.
+
+The stars do not guide because they are isolated lights. They guide because they hold relation across time. The same is required of the year. Observation must become record. Record must become shared order.
+
+As the flood begins to reveal the land again, memory alone is not enough. Boundaries must not be assumed. Stores must not be guessed. Routes must not be reopened without attention to what the water has changed. What was seen and integrated must now be written, spoken, measured, and carried into common use.
+
+Papyrus Chester Beatty IV teaches that buildings and tombs can decay, while writings preserve the names of those whose words are still read.
+
+— Papyrus Chester Beatty IV
+
+This is why expression matters.
+
+What remains only in one mind can be lost with that mind. What is recorded can instruct another hand. Djehuty’s work is not merely to know. It is to preserve what is known in a form that can guide action after the first observer is gone.
+
+His baboon form belongs to this release. Dawn is not only seen; it is announced. The cycle that has returned must be marked so others can enter the day in order.
+
+The decan completes the opening triad of the year.
+
+Attention finds the world. The heart orders what is found. Record releases that order into the community.
+
+Where understanding is shared correctly, Ma’at can be carried forward. Where it is not recorded, the pattern drifts, fragments, and gives Isfet room to enter.''',
   '''Initiation of Motion — What Was Set Begins to Move
-ꜥḥꜣy (“The Riser”) marks initiation of motion.
-ꜥḥꜣy refers to rising, appearing, or stepping forward deliberately. It names the moment when what was measured is put into motion: resuming labor, beginning transport, re-entering circulation after pause.
-This is the first lift.
-Thoth’s month established the measure of things. Paopi begins when that measure is no longer only observed, but carried forward.
-The flood still covers much of the land, yet the people are no longer waiting in stillness. Boats begin to move with purpose across known channels. Goods pass from one settlement to another. Temple storehouses receive fish, papyrus, herbs, and jars of beer. What had been held in readiness now begins to travel.
-To the Kemite, this was not merely practical movement. It was the visible sign that order had survived the flood and could now pass through human hands.
-To rise is to accept weight.
-Nothing new is decided here—what was set begins to move. The first burden is lifted. The first route is trusted. The first commitment leaves thought and enters action.
-This is why ꜥḥꜣy is deliberate. A thing that rises must be able to bear its own continuation.
-The Nile itself teaches the principle. It does not leap; it advances in force and rhythm. So too the work of this decan is not haste, but willing entry into responsibility.
-The Kemite understood: what begins to move must be sustained, and what is carried must be worthy of being carried.
-Living Principle:
-What you begin to move, you must be willing to carry.''',
+
+ꜥḥꜣy, “The Riser,” marks the first lift into motion.
+
+A decanal star becomes useful when it rises into view. Its appearance at the horizon does not complete the night. It begins a watch. It tells the observer that a movement has entered its next position.
+
+So this decan belongs to first movement.
+
+The flood still covers much of the land, but the people are no longer held in pure waiting. Boats are loaded. Channels are trusted. Goods begin to cross from one settlement to another. What Thoth measured is now placed into motion.
+
+This is not haste.
+
+A thing that rises too quickly can fall. A boat pushed into the wrong current loses its course. A burden lifted before it is balanced spills what it was meant to preserve.
+
+The Pyramid Texts place ordered movement in the solar boat, where the deceased joins the rowing of the imperishable powers. The point is not motion alone. It is motion within a course that can be completed.
+
+— Pyramid Texts
+
+ꜥḥꜣy asks whether the first movement can bear continuation.
+
+Where motion begins in measure, the path can open. Where motion begins without measure, the burden becomes disorder before the journey has truly started.''',
   '''Sustained Effort — Motion That Remains Aligned
-ḥry-ib ḫꜥy (“Heart of the Riser”) marks sustained effort.
-ḥry-ib (“that which is at the heart”) signals inner regulation—movement guided from within rather than forced from without. What has risen must now be carried correctly.
-The focus shifts from starting to maintaining.
-The boats are already moving. Loads are already lifted. Routes already in use. Now the question is no longer can this begin? but:
-Can this continue without distortion?
-The Nile does not surge endlessly—it holds a rhythm. So too the work of this decan is pacing, load-balancing, and continuity across time.
-In practice:
-checking weight, adjusting pace, maintaining flow in travel and exchange. What was initiated must now be sustained without strain.
-Motion without regulation collapses.
-A load carried too fast spills.
-A route pushed too hard breaks.
-An effort without listening loses its form.
-So endurance here is not force—it is attention while moving.
-The Kemite understood this in both labor and ritual: movement must be corrected as it happens, not after it fails.
-The heart stays active.
-As expressed in the teachings of creation:
-“The heart thinks, and the tongue speaks what the heart has devised.”
-(Memphite Theology, Shabaka Stone)
-Here, the heart does not only think—it regulates.
-It keeps proportion so action matches capacity, and effort matches truth.
-This is the difference between movement that lasts and movement that collapses.
-Living Principle:
-Motion remains righteous only when the heart stays awake.''',
+
+ḥry-ib ꜥḥꜣy, “Heart of the Riser,” marks motion regulated from within.
+
+The star has risen. The movement has begun. Now the question changes. It is no longer whether the path can open, but whether the path can be maintained without distortion.
+
+The heart matters here.
+
+In Kemetic thought, the heart is the chamber of discernment. It receives what the senses bring and holds action under measure. Movement without the heart becomes strain. Effort without inner regulation becomes force losing its form.
+
+The Memphite Theology describes creation through heart and tongue: the heart conceives, the tongue gives utterance, and what is spoken takes form.
+
+— Memphite Theology
+
+Paopi applies the same principle to motion. The route must remain conceived correctly while the body, boat, hand, and record carry it forward. A load must be adjusted while moving. A crew must keep pace. A message must stay true across distance.
+
+The Nile does not surge without rhythm. It moves with force, but its force has measure.
+
+This decan teaches the discipline of carrying without collapse. Effort must listen while it moves. What began correctly must remain correct under weight.
+
+Where the heart governs motion, the burden reaches its place. Where motion outruns discernment, Ma’at is lost in the carrying.''',
   '''Stability — Movement That No Longer Falters
-sbꜣ nfr (“The Beautiful Star”) marks successful continuity.
-sbꜣ nfr means rightness of form — movement that stays aligned. It is not beauty as appearance, but beauty as function proven over time.
-Routes are established. Labor flows. Exchange is reliable. Systems prove they hold under use.
-What was initiated in ꜥḥꜣy and regulated in ḥry-ib ꜥḥꜣy now becomes stable without strain.
-The boats move without hesitation. Loads are carried without shifting. Timing holds. What once required attention now moves with its own rhythm.
-This is where vigilance changes form.
-It does not disappear—but it softens.
-Because what is truly aligned does not require constant correction.
-The Kemite saw this in the stars.
-Each point distinct, yet all in relation.
-No collision. No drift.
-Only pattern held across time.
-So too with the work of this decan:
-What holds can be trusted.
-What can be trusted can be shared.
-What is shared becomes part of Maʿat.
-This is the proof of right movement—not that it begins, but that it continues without breaking.
-As the deeper principle of order suggests, what is true is what remains consistent—not once, but repeatedly.
-The star is “beautiful” because it does not falter,
-letting vigilance ease without inviting chaos.
-Living Principle:
-Beauty is motion that no longer needs correction.''',
+
+sbꜣ nfr, “The Beautiful Star,” marks motion that has proven its form.
+
+Beauty here is not ornament. It is rightness made visible. A star is beautiful because it holds its place in relation. It returns as expected. It can be trusted by those who know how to watch.
+
+The same is true of the month.
+
+Routes are no longer experimental. Boats know the channels. Carried goods reach their destinations. Offerings arrive without confusion. Records move with the things they name. The motion begun in ꜥḥꜣy and regulated in ḥry-ib ꜥḥꜣy now becomes dependable.
+
+This is the first stability of Paopi.
+
+It is not stillness. It is movement that no longer falters.
+
+The Wadi el-Jarf Papyri show this kind of order in practical form: dated movements, work crews, transport routes, deliveries, and officials named in the sequence of labor. The greatness of the work depended on repeated accuracy.
+
+— Wadi el-Jarf Papyri
+
+sbꜣ nfr belongs to that same truth at the level of star-time. What appears in right relation becomes a guide. What moves repeatedly without breaking becomes trustworthy.
+
+A carried order is beautiful when it reaches without spilling, speaks without distortion, and continues without strain.
+
+Where movement becomes stable, Ma’at can travel through the world. Where it remains unstable, even good intention fails to arrive whole.''',
   '''Stability Regained — What Endures Becomes Visible
-sꜣḥ (“Sah”) marks stability regained.
-sꜣḥ evokes endurance and renewed stability, symbolically linked to Asar: what has survived disruption and now stands recognizable. It is the moment when continuity is confirmed and fear of collapse recedes.
-The waters have withdrawn.
-The land holds.
-What was uncertain in Thoth, and carried through effort in Paopi, now proves itself by remaining. The fields are visible again. Paths are walked without hesitation. What was once submerged now stands in form.
-This is the first relief.
-Not celebration yet—but recognition.
-In practice:
-recognizing what returned after loss; resuming steady labor; trusting that order has taken hold.
-The Kemite did not assume stability—they looked for it.
-Does the ground hold underfoot?
-Do the routes remain true?
-Does the work continue without strain?
-Only then could the heart begin to release its tension.
-For this is the deeper meaning of sꜣḥ:
-Not that nothing changed—
-but that what matters endured through change.
-This is why it is linked to Asar, who stands again after fragmentation—not as he was before, but as something proven.
-Hathor enters here not with intensity, but with reassurance.
-She does not create stability—
-she reveals that it is safe to feel it.
-As the solar order affirms:
-“He established Ma’at in the place of Isfet.”
-(Pyramid Texts, Utterance 273–274)
-This is that establishment made visible in life.
-The moment when order is no longer fragile,
-but trusted.
-And only from this trust can joy begin to rise.
-Living Principle:
-Stability is the foundation that allows joy to exist.''',
+
+sꜣḥ, “Sah,” marks stability after disruption.
+
+The star or star-group that returns to visibility does not create stability by appearing. It confirms that a pattern has held. What was absent is seen again. What was uncertain becomes recognizable.
+
+The same movement appears on the land.
+
+The waters have withdrawn enough for form to return. Paths can be trusted. Fields begin to hold their shape. Work no longer moves only by emergency or guesswork. The world has passed through dissolution and is becoming readable again.
+
+Sah also carries the memory of Ausar. The restored one is not restored because nothing happened to him. He is restored because what was broken was gathered, joined, and made capable of standing again.
+
+The Pyramid Texts describe Heru gathering the limbs of his father and joining what had been separated so that nothing of him can be disturbed.
+
+— Pyramid Texts
+
+This is the force beneath the decan.
+
+Stability is not the denial of disruption. It is form that has endured through it.
+
+Hathor’s presence begins gently here. Joy is not yet full festival. It is the first release of tension when the heart recognizes that the ground holds.
+
+Where stability is recognized correctly, joy can rise without fear. Where stability is assumed too early, celebration rests on uncertainty.''',
   '''Harmonization — Stability Shared and Lived
-ḥry-ib sꜣḥ (“Heart of Sah”) marks harmonization.
-The heart (ib) orders within what Sah establishes without. What has proven stable now becomes felt, coordinated, and shared.
-Stability is no longer something observed—it is something lived together.
-The fields hold. The work continues. But now the people begin to move in relation to one another, not just in isolation. Rhythm returns—not only to labor, but to community.
-Boats do not cross at random—they follow timing.
-Work does not overlap—it aligns.
-Voices do not compete—they find measure.
-This is the work of the heart.
-In Kemet, the heart was not emotion alone—it was the seat of discernment, the place where balance is maintained between self and world.
-So this decan governs:
-pacing, coordination, social rhythm, and working in time rather than haste.
-What was rebuilt externally now requires internal agreement.
-Because stability that is not shared will not last.
-The Kemite understood this clearly:
-A field may be fertile, but if workers are out of rhythm, the harvest fails.
-A system may function, but if people are misaligned, it begins to strain.
-So attention shifts outward again—but differently than before.
-Not to initiate.
-Not to test.
-But to align with others.
-Hathor’s presence deepens here.
-Joy is no longer individual—it becomes relational. Music returns not as sound alone, but as coordination—hands, voices, steps, all moving together.
-As the wisdom tradition teaches:
-“Do not set yourself apart from the people…
-Ma’at is great, it endures.”
-(Instruction of Ptahhotep)
-Harmony is not forced—it is recognized and joined.
-This is the heart of sꜣḥ:
-what stands firm can now be shared without breaking.
-Hathor asks:
-Are actions aligned with those around me?
-Because only what is aligned collectively can be sustained beautifully.
-Living Principle:
-Balance is sustained through alignment with others.''',
+
+ḥry-ib sꜣḥ, “Heart of Sah,” marks stability entering the center.
+
+A star’s usefulness is not only that it appears. It appears in relation. It belongs to a pattern that can be trusted by more than one watcher. The sky becomes guidance because its order can be shared.
+
+So too with the land.
+
+The fields hold. Movement is possible. But stability that remains isolated is not yet harmony. Work must now enter rhythm between people: boats timed properly, labor coordinated, offerings prepared, households returning to shared measure.
+
+The heart governs this phase.
+
+In Kemetic thought, the heart is discernment, not emotion alone. It is the place where relation is weighed before action becomes disorder. A community out of rhythm can damage a stable field. A household out of measure can waste what the flood has restored.
+
+Hathor’s music belongs here.
+
+Music is not sound alone. It is relation held through timing. Hands, feet, voices, instruments, and breath must enter one pattern without losing their distinct parts. This is joy becoming communal order.
+
+The Book of Coming Forth by Day places Hathor with Ra as a destination of the freed ba, showing her not as ornament, but as welcome within the ordered path of return.
+
+— Book of Coming Forth by Day
+
+Harmonization is the moment when what stands firm becomes shareable.
+
+Where the heart keeps rhythm, community strengthens Ma’at. Where rhythm breaks, even restored ground begins to strain.''',
   '''Expression — Order Made Visible Through Beauty
-sbꜣ sꜣḥ (“Star of Sah”) marks expression.
-sbꜣ is what shines and orients by presence alone. It does not argue or enforce—it reveals. What has been stabilized and harmonized now becomes visible as form.
-Order no longer needs guarding.
-It can be shown.
-The land is green. The work holds. The people move in rhythm. What was rebuilt and aligned now begins to take on beauty.
-Garlands are worn. Bodies are adorned. Music is played not to restore balance, but to express it.
-This is Hathor fully present.
-Not as effort.
-Not as correction.
-But as radiance.
-In practice:
-creative work and adornment; ritual joy without excess; reinforcing order through pleasure.
-The Kemite did not see beauty as decoration.
-They saw it as proof.
-If something is truly aligned, it can be expressed without distortion.
-If it cannot be expressed, it is not yet complete.
-Like the stars—each one steady, each one placed, each one contributing to a pattern that needs no defense.
-So too with life in this phase:
-What is done well becomes graceful.
-What is stable becomes shareable.
-What is aligned becomes beautiful.
-This is why expression must still be guided.
-Because beauty without measure dissolves into excess.
-But beauty grounded in Maʿat preserves what it reveals.
-As the solar hymns declare:
-“You rise in beauty…
-crowned with your brilliance, adorned in your glory.”
-(Middle Kingdom Hymn to Ra, Papyrus Berlin 3048)
-To rise in beauty is not ornament—it is alignment made visible.
-Hathor asks:
-What deserves celebration so it remains whole?
-Because what is expressed with care does not weaken order—
-it strengthens it.
-Living Principle:
-What is expressed with care preserves order.''',
-  '''Renewed Strength — Power That Has Returned
-msḥtjw (“The Foreleg”) marks renewed strength.
-To the Kemite, msḥtjw represents raw vitality restored after disruption—not aggression, but capacity. It is the foreleg that steadies the body before movement, the point of contact that proves weight can be held again.
-Energy re-enters body and land.
-The fields have been sown. The soil holds the seed. What was buried has not yet risen—but something has already changed.
-The ground is firm.
-The body responds.
-Strength is present again.
-Not fully expressed—but available.
-In practice:
-returning physical strength; resuming demanding labor; testing endurance without excess.
-The Kemite did not rush this phase.
-After inundation, after movement, after stabilization—there is always a moment where strength must be felt before it is trusted.
-A field may be planted—but can it sustain growth?
-A body may move—but can it carry weight?
-So nothing is accelerated. Nothing is pushed.
-This is the act of testing quietly.
-Like the foreleg of a bull placed firmly before forward motion, this decan asks:
-Where has strength returned?
-What force can now be trusted again?
-Ka-ḥer-Ka teaches doubling, not expansion.
-What is restored must be confirmed, not extended too quickly.
-This reflects the deeper pattern of Asar:
-he is not restored all at once—
-he is reconstituted, piece by piece, until strength returns.
-“I have gathered my limbs, I am whole again.”
-(Coffin Texts, Spell 714)
-So too with life in this phase.
-Strength is not assumed—it is recognized through return.
-Only what is felt clearly can be used without breaking.
-Living Principle:
-Strength must be felt before it is used.''',
+
+sbꜣ sꜣḥ, “Star of Sah,” marks stability shining outward.
+
+A star guides by appearing in the right place at the right time. It does not argue for its order. It shows it. What has held inwardly now becomes visible.
+
+This is the expressive phase of Hathor’s month.
+
+The land is no longer only recovering. It can be adorned. Music can return without fleeing from duty. Garlands, mirrors, dance, fragrance, and festival become proper because they express a stability already established.
+
+Beauty here is not surface.
+
+It is proof of alignment.
+
+At Dendera, Hathor’s rites made this visible through processions, sistrums, mirrors, and the movement of the goddess toward the solar disk. Light was not only received. It was reflected, returned, and shared.
+
+— Dendera Temple traditions
+
+This is why expression must remain measured.
+
+Hathor is also the Eye of Ra. The same power that delights can become destructive when it leaves right relation. Celebration without proportion becomes heat without cooling. Beauty without Ma’at becomes excess.
+
+The month does not ask joy to disappear.
+
+It asks joy to hold its form.
+
+The star of Sah marks the point where restored order can shine without breaking. What is stable becomes graceful. What is graceful becomes memorable. What is memorable strengthens the pattern that produced it.
+
+Where beauty expresses Ma’at, joy preserves order. Where expression escapes measure, delight turns toward distortion.''',
+  '''Renewed Strength — Power Returning to the Body
+
+msḥtjw, “The Foreleg,” marks strength returned but not yet spent.
+
+The foreleg is the part that braces before movement. It touches the ground before the whole body commits its weight. In Kemetic star lore, the foreleg image carries force, stability, and the power to stand before forward motion begins.
+
+This decan belongs to the first recognition of restored capacity.
+
+The flood has withdrawn enough for the ground to hold. Seed has entered the earth. The body of the field is not yet green, but it has received what will become growth. Something has changed beneath the surface.
+
+Ka-ḥer-Ka does not ask for expansion yet.
+
+It asks that returned strength be recognized without being wasted.
+
+The same pattern appears in Ausar. Restoration is not sudden display. The broken body is gathered, joined, and made secure before power can act through it again. The Pyramid Texts describe Heru gathering the limbs of his father and joining what had been separated.
+
+— Pyramid Texts
+
+Strength becomes trustworthy only when its return is confirmed.
+
+Where power is recognized before use, the next movement can hold. Where force is spent before it is stable, renewal is weakened at its root.''',
   '''Control — Strength Brought Under Awareness
-ḥry-ib msḥtjw (“Heart of the Foreleg”) marks control.
-Force without direction creates isfet; ḥry-ib msḥtjw is strength governed by awareness. What has returned in the previous phase must now be held, measured, and directed.
-The body has regained power.
-The land has received the seed.
-Vitality is present.
-Now it must be managed.
-In practice:
-pacing effort; balancing labor with rest; directing energy with intention.
-The Kemite understood that strength alone is not virtue.
-Unmeasured force exhausts itself.
-Unbalanced labor breaks what it sustains.
-Energy without alignment turns against order.
-So this phase is not about doing more—it is about holding steady.
-The farmer does not overwork the field.
-The laborer does not spend all strength at once.
-The system is maintained through proportion.
-This is the work of the heart (ib).
-In Kemet, the heart is not emotion—it is the regulator, the place where measure is maintained between what is possible and what is right.
-Ka-ḥer-Ka’s resonance here is mastery:
-doubled vitality must be governed, or it fractures.
-So the question becomes:
-Is my strength aligned with my purpose?
-Nothing is exhausted yet.
-Nothing is depleted yet.
-This is the moment of restraint within power—
-the act of holding force steady before expression.
-As the wisdom tradition teaches:
-“Do not overburden yourself…
-your strength will not endure.”
-(Instruction of Amenemope, Chapter 6)
-The Kemite knew:
-Endurance is not force extended endlessly—
-it is force rightly measured.
-Only what is governed can be sustained.
-Living Principle:
-Power becomes useful when it is governed.''',
+
+ḥry-ib msḥtjw, “Heart of the Foreleg,” marks strength governed from within.
+
+The foreleg can brace, push, strike, or carry. Its value depends on measure. Force by itself is not Ma’at. Force held in right relation becomes support.
+
+The heart is the regulator here.
+
+In Kemetic thought, the ib is the place of discernment, memory, and judgment. It is not enough that strength has returned. Strength must be held under awareness before it enters action.
+
+The Book of Coming Forth by Day asks that the heart remain with the deceased and not stand against the person in judgment.
+
+— Book of Coming Forth by Day
+
+That concern belongs to the living field as well.
+
+The land has received seed. Labor returns. Bodies regain rhythm after the flood season. But overworking the field, spending strength too quickly, or forcing growth before its time would turn vitality into damage.
+
+Ka upon Ka requires governance.
+
+The first ka is life received. The second is life preserved through measure. Without restraint, abundance becomes exhaustion before it becomes harvest.
+
+The foreleg must hold before it moves.
+
+Where strength is governed by the heart, force becomes useful. Where strength acts without discernment, Isfet begins as excess inside renewal.''',
   '''Application — Strength Put Into Right Use
-sbꜣ msḥtjw (“Star of the Foreleg”) marks applied force.
-sbꜣ signals what shines as a reliable guide; it does not compel—it orients through presence. Here, strength is no longer only felt or governed—it is used.
-What has returned is now directed outward.
-The fields have been sown and tended. The body has regained capacity. The rhythm of effort is established. Now work becomes productive without strain.
-In practice:
-sustained labor; building and repair; productive output without excess.
-The Kemite understood that this phase is not about exertion—but right application.
-To use strength wrongly is to undo what has been restored.
-To use it rightly is to extend stability into the world.
-So nothing is wasted.
-Nothing is forced.
-Effort is placed where it can hold and continue.
-Like the foreleg carrying the body forward after balance is secured, this decan asks:
-Where can effort now be applied without harm?
-This is the completion of Ka-ḥer-Ka’s teaching.
-Vitality has doubled.
-It has been felt.
-It has been governed.
-Now it must be expressed in service of continuity.
-The Kemite saw this as alignment with divine action itself:
-“I act, and what I do endures.”
-(Pyramid Texts, Utterance 301)
-Endurance is the measure.
-What is applied correctly does not collapse after effort—it continues beyond it.
-So strength is no longer potential.
-It becomes contribution.
-Not for display.
-Not for excess.
-But for maintaining Maʿat across time.
-Living Principle:
-Applied strength preserves balance when guided by restraint.''',
+
+sbꜣ msḥtjw, “Star of the Foreleg,” marks strength made reliable enough to guide action.
+
+A star becomes useful when its appearance can be trusted. The foreleg becomes useful when its force can be placed without breaking what it supports. This decan is not about raw vitality. It is about applied strength.
+
+The seed is in the earth. The field has received the year’s first hidden charge of life. Tools return to use. Canals are checked. Soil is tended. Labor becomes steady rather than dramatic.
+
+The work is not to prove strength.
+
+The work is to place it where continuity needs it.
+
+The Pyramid Texts present offerings to the ka so life may be sustained without interruption. That same logic governs the field. Energy must feed the cycle, not consume it. Labor must support what has been planted, not disturb it through impatience.
+
+— Pyramid Texts
+
+This completes the movement of the foreleg.
+
+Strength returns. The heart governs it. Then the star of that strength shows where it can be used.
+
+Ka-ḥer-Ka reaches its proper form when vitality becomes contribution. What has been restored is not displayed for its own sake. It is applied to keep the year alive.
+
+Where strength serves continuity, Ma’at takes root in the field. Where strength seeks display, the planted future is placed at risk.''',
   '''Attention — Seeing What Must Be Tended First
-ḫnty-ḥr (“Foremost of the Sky”) marks attention to care.
-ḫnty-ḥr means precedence of concern—what must be tended first so life can continue without strain. It is what appears early, what stands forward, what calls for notice before action.
-Effort shifts from exertion to nourishment.
-The seeds have taken. The first growth has emerged. But it is still fragile—easily overlooked, easily lost if neglected.
-So the work changes.
-No longer pushing.
-Now watching.
-In practice:
-checking early growth; stabilizing irrigation and supply; tending what is fragile but promising.
-The Kemite did not wait for failure to respond.
-They looked early.
-Where is water uneven?
-Which shoots are weak?
-What is growing—but not yet secure?
-Like the sky that reveals the stars before they are fully seen, ḫnty-ḥr is about orientation—knowing where to place care before it is urgently demanded.
-Nothing is harvested yet.
-Nothing is secured yet.
-This is the stage of recognition before response.
-Because what is missed early becomes difficult later.
-Šef-Bedet asks:
-What requires attention before it can flourish?
-This is not reaction.
-It is awareness.
-As the wisdom tradition teaches:
-“Do not neglect what is before you…
-it is what sustains the house.”
-(Instruction of Amenemope)
-Care begins not with effort—
-but with seeing clearly.
-Only what is noticed can be nourished correctly.
-Living Principle:
-Care begins with correct attention.''',
+
+ḫnty-ḥr, “Foremost of the Sky,” marks the first attention given to care.
+
+A star that appears at the front of a watch does not complete the night. It announces where attention must go. Its value is directional. It teaches the observer what must be noticed before the next movement begins.
+
+Šef-Bedet opens with this same discipline.
+
+The seedlings have taken, but they are not secure. The field can fail quietly at this stage. Water may collect unevenly. Roots may weaken before the surface shows distress. A small imbalance, missed early, becomes a larger loss later.
+
+The work is therefore seeing.
+
+Not intervention first.
+
+Seeing first.
+
+Renenutet’s serpent nature belongs to this moment. The cobra watches before it strikes. It guards by attention. It knows that what is vulnerable must be seen before it can be protected.
+
+The Hymn to Hapy praises the flood because it fills storehouses and makes grain possible, but grain does not become security on its own.
+
+— Hymn to Hapy
+
+Attention begins the work of nourishment.
+
+Where fragile growth is seen early, care can arrive in measure. Where need is noticed only after damage appears, nourishment becomes repair instead of preservation.''',
   '''Sustained Nurturing — Care Directed with Understanding
-ḥry-ib ḫnty-ḥr (“Heart of the Foremost”) marks sustained nurturing.
-Nourishment without intention is wasteful; ḥry-ib ḫnty-ḥr is care guided by understanding—the heart directing how resources are given and preserved.
-What was noticed in the previous phase must now be responded to correctly.
-The seedlings are growing. The water is flowing. The work continues—but now distribution matters as much as effort.
-Where attention identified need, the heart now regulates response.
-In practice:
-distributing labor evenly; feeding without excess; maintaining balance in supply.
-The Kemite understood:
-To give too little is to weaken life.
-To give too much is to damage it.
-So nourishment becomes measured.
-Water is carried where it is needed—not everywhere equally.
-Food is shared according to need—not impulse.
-Effort is sustained—not exhausted.
-Nothing is rushed.
-Nothing is depleted.
-This is the discipline of steady provision.
-Because what is being grown is not yet strong enough to endure imbalance.
-So the question becomes:
-Am I sustaining life, or merely consuming effort?
-This is the work of the heart (ib)—to keep proportion between giving and preserving, between care and capacity.
-As the wisdom tradition teaches:
-“Do not consume more than your share…
-it is an abomination to take beyond measure.”
-(Instruction of Amenemope, Chapter 7)
-Sustenance must be governed.
-Only what is given with measure can continue without strain.
-Šef-Bedet reveals here that care is not only kindness—it is precision.
-Giving steadily, without imbalance, is what allows life to hold.
-Living Principle:
-Sustenance preserves order when given with restraint.''',
+
+ḥry-ib ḫnty-ḥr, “Heart of the Foremost,” marks care governed by discernment.
+
+Attention has found what needs tending. Now response must be measured. The heart decides how nourishment moves: where water is needed, where labor should be placed, where restraint matters more than increase.
+
+In Kemetic thought, the heart is the chamber of proportion. It does not only feel need. It weighs response.
+
+This matters because nourishment can be distorted.
+
+Too little care abandons life. Too much care smothers it. Giving without measure can exhaust the giver, damage the field, or empty what must be preserved for later. Ma’at is not simply generosity. It is right provision in right relation.
+
+The Pyramid Texts show this through offering. Bread and beer are not vague symbols. They are named, directed, and placed so the ka may receive properly.
+
+— Pyramid Texts
+
+Šef-Bedet applies the same order to the living field.
+
+Water must reach the root, not flood the ground without purpose. Food must sustain the household without wasting the store. Care must continue steadily, not surge once and vanish.
+
+Renenutet nourishes, but she also guards what is stored.
+
+Where care is directed by the heart, life is sustained without depletion. Where care loses measure, even nourishment becomes disorder.''',
   '''Trust — Allowing Growth to Continue
-sbꜣ ḫnty-ḥr (“Star of the Foremost”) marks trust in growth.
-sbꜣ indicates what can be relied on without constant supervision; it is what shines as a guide by its consistency. Here, nourishment has taken hold and can proceed under its own rhythm.
-What was carefully tended no longer requires constant correction.
-The water has been balanced.
-The growth has stabilized.
-The system begins to sustain itself.
-So the work changes again.
-Not adding.
-Not adjusting.
-But allowing.
-In practice:
-easing vigilance; trusting established routines; allowing growth to continue naturally.
-The Kemite understood this as a necessary discipline.
-To interfere too much is to disrupt what has already aligned.
-To withdraw too early is to abandon what still depends.
-So this phase requires discernment:
-What can now be left to grow on its own?
-Nothing is forced.
-Nothing is withheld.
-This is not neglect—it is confidence in what has been properly nourished.
-Like the stars that move without guidance once set in their course, what is aligned begins to hold without constant oversight.
-Šef-Bedet asks:
-What can I allow to grow without control?
-Because control, if continued beyond its time, becomes interference.
-As the wisdom tradition teaches:
-“Do not disturb the balance of what is set…
-it will endure in its proper time.”
-(Instruction of Amenemope)
-Care does not end in effort.
-It ends in trust.
-What has been given correctly, measured carefully, and sustained with balance will continue—without strain, without force.
-This is the completion of nourishment:
-life continuing on its own.
-Living Principle:
-Trust is the final act of care.''',
+
+sbꜣ ḫnty-ḥr, “Star of the Foremost,” marks care that has become stable enough to release control.
+
+A star guides by consistency. It does not need to be corrected each night by the watcher. Once its relation is known, it can be trusted to hold its course.
+
+The same movement completes Šef-Bedet.
+
+The early weakness has been seen. Water has been balanced. Care has been given in proportion. The seedling no longer requires constant correction. Growth begins to follow its own rhythm.
+
+This is not neglect.
+
+It is the final form of proper care.
+
+A field interfered with too heavily can be damaged by the hand meant to help it. A storehouse opened without discipline can lose what it was meant to preserve. A child overguarded can be kept from becoming strong. Nourishment reaches completion when what has been sustained can continue without being constantly handled.
+
+Renenutet’s work is visible here as guarded confidence.
+
+She does not only feed life. She protects the conditions under which life can continue.
+
+The ka receives offerings repeatedly, but the goal is not dependence on panic. The goal is stable presence: nourishment given so continuity can hold.
+
+Where care has been measured correctly, growth can proceed without strain. Where control continues beyond its proper time, care becomes interference and Ma’at is weakened by excess.''',
   '''Formation — Shaping Through Understanding
-knmw (“Khnum”) marks formation through knowledge.
-knmw signifies shaping with understanding—informed craft, not force. It is the moment when awareness begins to give form to what has been nourished, moving from growth into refinement.
-What has been sustained must now be shaped correctly.
-The fields are growing steadily. The systems hold. But growth alone is not enough—form must follow.
-So the work changes again.
-Not tending.
-Now shaping.
-In practice:
-shaping materials deliberately; learning correct technique; beginning instruction and apprenticeship.
-The Kemite saw this clearly in both craft and life.
-Clay does not become a vessel by force.
-Stone does not take form through haste.
-Skill does not emerge without guidance.
-So the apprentice watches before acting.
-The hand learns proportion before speed.
-This is why knmw is associated with the divine potter—Khnum—who forms life on the wheel, not through pressure alone, but through measured turning and steady hands.
-What is being shaped here is not yet finished.
-Nothing is perfected.
-Nothing is finalized.
-This is learning before refining.
-Because what is formed without understanding will not hold.
-As the creation texts affirm:
-“I created forms from myself.”
-(Pyramid Texts, Utterance 527)
-Form follows knowing.
-So Rekh-Wer asks:
-What must be understood before it can be shaped?
-This is the discipline of early mastery:
-to slow down,
-to observe,
-to align hand with knowledge.
-Only then can effort take form without breaking.
-Living Principle:
-Understanding gives form to effort.''',
+knmw, “Khnum,” marks knowledge beginning to take form.
+
+A decanal star does not guide by brightness alone. It guides because its place in the sequence is known. Knowledge becomes useful when it can be placed, repeated, and applied.
+
+Khnum belongs to this decan because he shapes life before it can act.
+
+The field is growing steadily. Systems of care have taken hold. But growth alone is not enough. Form must follow. Clay must be turned with measure. Stone must be cut with knowledge. A tool must be made fit for its task. A young hand must learn before it can work without damage.
+
+Khnum’s potter’s wheel gives the image.
+
+Water softens clay. The wheel turns. Pressure is applied. Too little pressure leaves formlessness. Too much pressure collapses the vessel. Formation requires knowledge held in the hand.
+
+Rekh-Wer begins here: not with more information, but with the disciplined shaping of what has already been understood.
+
+Where knowledge gives form to effort, work can hold. Where force shapes without understanding, what is made carries failure inside it.''',
   '''Discernment — Guiding Knowledge with Judgment
-ḥry-ib knmw (“Heart of Khnum”) marks discernment.
-Knowledge without judgment leads to imbalance; ḥry-ib knmw applies awareness inward—knowing how, when, and why to shape. It is not the presence of skill, but the right use of it.
-What was learned must now be refined.
-The hand is no longer uncertain. The work has begun. But now precision matters more than effort.
-Where to press.
-Where to ease.
-When to stop.
-This is the work of the heart (ib).
-In Kemet, the heart is the seat of discernment—the place where truth is weighed and proportion maintained. It governs not only what is done, but how it is done.
-So the craft deepens.
-In practice:
-correcting technique; refining methods; teaching through example.
-The apprentice begins to see mistakes before they form.
-The teacher adjusts without excess.
-The work becomes quieter—but more exact.
-Nothing is rushed.
-Nothing is wasted.
-Because excess—even in knowledge—creates distortion.
-This is where Rekh-Wer becomes mastery.
-Not knowing more—
-but knowing rightly.
-So the question becomes:
-Is my knowledge used with care and proportion?
-Because skill without restraint breaks what it shapes.
-As the wisdom texts teach:
-“Do not act with haste…
-you will ruin what is well-made.”
-(Instruction of Ptahhotep)
-Discernment is what preserves form.
-Here, knowledge turns inward and becomes guidance.
-The hand follows the heart.
-The action follows understanding.
-And in that alignment, skill becomes reliable.
-Living Principle:
-Skill becomes wisdom when directed by intention.''',
+ḥry-ib knmw, “Heart of Khnum,” marks skill governed from the center.
+
+The first form has appeared, but it is not finished. This is the stage where pressure must be judged, not merely applied. The hand must know where to press, where to ease, and when to stop.
+
+The heart governs the craft.
+
+In Kemetic thought, the ib is the chamber of discernment. It weighs relation before action becomes damage. This matters because knowledge can distort what it touches when it lacks judgment.
+
+The Memphite Theology describes creation through heart and tongue. The heart conceives before the tongue releases the word into form.
+
+— Memphite Theology
+
+Khnum gives the same principle a material body.
+
+The vessel is shaped before it can hold. The body is formed before it can breathe. The field is managed before it can yield. Technique without discernment becomes strain. Correction without measure becomes harm.
+
+This decan belongs to refinement.
+
+The apprentice begins to see the error before it hardens. The teacher corrects without excess. The work grows quieter because judgment has entered the hand.
+
+Where knowledge is guided by the heart, skill becomes trustworthy. Where knowledge moves without judgment, it creates disorder with precision.''',
   '''Competence — Knowledge That Can Be Trusted
-sbꜣ knmw (“Star of Khnum”) marks competence made reliable.
-sbꜣ indicates what now guides others—not by force, but by consistency. What has been learned and refined becomes stable enough to orient action beyond the self.
-This is knowledge that holds.
-No longer forming.
-No longer correcting.
-Now guiding.
-sbꜣ knmw is stabilized knowledge—dependable, repeatable skill.
-In practice:
-consistent workmanship; teaching others; applying knowledge without hesitation.
-The Kemite recognized this as a turning point.
-What was once effort becomes standard.
-What was once learned becomes trusted.
-What was once personal becomes shared.
-The artisan no longer experiments—the work flows correctly.
-The teacher no longer explains constantly—the example is enough.
-The system no longer strains—it holds through repetition.
-Nothing is improvised.
-Nothing is uncertain.
-Because what has been mastered does not need to be reinvented.
-Like the stars, which guide by remaining in place, true knowledge becomes a point of orientation for others.
-This is why teaching becomes central here.
-To pass on correct knowledge is to preserve Maʿat across generations.
-To distort it is to introduce error into the future.
-So Rekh-Wer asks:
-What understanding can be trusted to lead?
-Because only what is stable should guide others.
-As the wisdom tradition teaches:
-“If you are a man of knowledge,
-sit among the ignorant and teach them.”
-(Instruction of Ptahhotep)
-Knowledge fulfills itself when it becomes useful beyond the self.
-Here, skill becomes inheritance.
-What is known clearly can be repeated.
-What is repeated correctly can be relied upon.
-What is relied upon becomes part of the world’s order.
-Living Principle:
-True knowledge guides steadily.''',
+sbꜣ knmw, “Star of Khnum,” marks knowledge stabilized into reliable form.
+
+A star becomes a guide because it appears where it should. It does not need to explain itself. Its reliability is its instruction.
+
+The same is true of competence.
+
+What was first shaped through understanding and refined through discernment now becomes dependable. The hand no longer strains to remember every correction. The work begins to hold its pattern. A vessel forms correctly. A tool is repaired without waste. A boundary is measured without confusion. A student becomes capable of carrying the method forward.
+
+This is the fulfillment of Rekh-Wer.
+
+Knowledge has become useful beyond the one who first held it.
+
+The House of Life preserves the same principle in scribal form. A text copied correctly becomes a guide for another reader. A ritual instruction preserved accurately can work after the first teacher has died. Papyrus Chester Beatty IV praises writings because they keep names alive across generations.
+
+— Papyrus Chester Beatty IV
+
+Competence is not display.
+
+It is repeatable right action.
+
+Where knowledge can be trusted, it becomes inheritance. Where skill cannot be repeated, the future must begin again from uncertainty.''',
   '''Trial — Knowledge Entering the Field
-špsswt (“The Noble Ones”) marks trial.
-špsswt is knowledge in its first application—understanding that must prove itself under real conditions. It is the initial encounter between what is known and what resists it.
-This is the first test.
-What was learned in Rekh-Wer now meets friction.
-The crop faces heat.
-The tool meets resistance.
-The body meets fatigue.
-Nothing is theoretical anymore.
-In practice:
-applying skill under pressure; encountering difficulty without abandoning method; holding to what was learned when ease disappears.
-The Kemite did not expect perfection here.
-They expected contact with reality.
-Because knowledge that has not been tested cannot yet be trusted.
-So mistakes appear.
-Adjustments are required.
-Effort must be sustained even when results are uneven.
-This is where many turn away.
-But the teaching of the month is clear:
-Do not abandon knowledge at the first sign of difficulty.
-The trials of Horus reflect this stage.
-He does not win immediately.
-He is challenged, corrected, restrained.
-And Thoth reminds him:
-“Patience is victory; Maʿat is not won by haste.”
-(Coffin Texts, judgment cycle traditions)
-So this decan is not about success.
-It is about remaining aligned under strain.
-Nothing is mastered yet.
-Nothing is proven yet.
-But something essential begins:
-the separation between what is imagined…
-and what actually holds.
-Šef-Bedet asked for care.
-Rekh-Wer asked for understanding.
-Now Rekh-Nedjes asks:
-Will you remain steady when tested?
-Because only what survives pressure becomes real.
-Living Principle:
-What is known must be tested to become true.''',
+špsswt, “The Noble Ones,” marks the first trial of knowledge.
+
+A decanal star group becomes useful when it is seen in its proper place within the night’s sequence. It must not only appear. It must appear where the watcher expects it, under conditions that test the accuracy of the count.
+
+The same is true of knowledge.
+
+What was learned in Rekh-Wer now meets resistance. The crop faces heat. The tool meets harder material. The body meets fatigue. A method that worked in instruction must now work under pressure.
+
+This is not failure.
+
+It is contact with reality.
+
+The Contendings of Heru and Set preserve this pattern at the mythic level. Heru’s claim is not accepted without trial. It is tested before the divine assembly, where force, inheritance, restoration, and judgment must be distinguished.
+
+— The Contendings of Heru and Set
+
+špsswt belongs to the beginning of that exposure.
+
+Knowledge that has not been tested can still be imagination. Once pressure arrives, the difference between appearance and reality begins to show.
+
+Where knowledge remains aligned under first strain, it can mature. Where difficulty causes immediate abandonment, the earlier learning was not yet stable.''',
   '''Adaptation — Refining Without Breaking
-ḥry-ib špsswt (“Heart of the Noble Ones”) marks adaptation.
-Refinement requires adjustment, not rigidity; ḥry-ib špsswt is inner recalibration—the heart learning from strain and correcting course without collapse.
-What has been tested now reveals its limits.
-Not as failure—
-but as instruction.
-The pressure of the previous phase exposes where knowledge does not yet hold. The body tires. The method strains. The result wavers.
-So the work changes again.
-Not pushing harder.
-But adjusting correctly.
-In practice:
-modifying technique; strengthening weak areas; practicing patience under effort.
-The Kemite understood that endurance is not stubbornness.
-To continue without change is to break.
-To abandon effort is to lose what was gained.
-So the path is between:
-holding…
-and refining.
-This is the work of the heart (ib).
-It listens while acting.
-It corrects without panic.
-It maintains direction while altering method.
-This is how balance is preserved under pressure.
-The trials of Horus reflect this stage.
-He does not simply resist Set—
-he learns.
-He adjusts his approach, guided by Aset and measured by Thoth, until force becomes controlled and purposeful.
-So Rekh-Nedjes asks:
-What must change so balance can be preserved?
-Nothing is abandoned.
-Nothing is forced.
-This is refining without breaking.
-As the wisdom tradition teaches:
-“Bend with the moment…
-do not be rigid in your path.”
-(Instruction of Amenemope)
-Adaptation is not weakness.
-It is intelligence under pressure.
-What adjusts can endure.
-What endures can be trusted.
-Living Principle:
-Endurance grows through adjustment.''',
+ḥry-ib špsswt, “Heart of the Noble Ones,” marks adjustment under pressure.
+
+The first trial has revealed the limits of the method. The question is no longer whether strain exists. It does. The question is whether the heart can correct the course without collapse.
+
+In Kemetic thought, the heart is the place of discernment. It does not merely react to pressure. It weighs what pressure reveals. A method may need correction. A pace may need reduction. A tool may need reshaping. A judgment may need more evidence before it can stand.
+
+Adaptation is not surrender.
+
+It is Ma’at preserved through adjustment.
+
+In the Contendings, Heru does not win by force alone. The struggle continues through argument, counsel, testing, and repeated judgment. Aset’s protection and Djehuty’s measure keep the claim from becoming reckless appetite.
+
+— The Contendings of Heru and Set
+
+This decan belongs to that inner recalibration.
+
+Stubbornness can look like endurance, but it breaks what it refuses to read. Abandonment can look like flexibility, but it loses the line entirely. The heart must hold direction while changing method.
+
+Where adjustment preserves measure, pressure becomes instruction. Where adjustment is refused, strain becomes fracture.''',
   '''Quiet Competence — Mastery Without Display
-sbꜣ špsswt (“Star of the Noble Ones”) marks quiet competence.
-sbꜣ signals reliability recognized through consistency; sbꜣ špsswt is knowledge that has endured testing and now operates calmly, without display.
-What was strained…
-has stabilized.
-What was uncertain…
-now holds.
-This is not the beginning of skill.
-It is not even its refinement.
-It is the moment when knowledge becomes natural.
-In practice:
-steady work without novelty; maintaining what has been learned; performing duties without seeking recognition.
-The Kemite understood this as a sign of true mastery.
-Not brilliance.
-Not intensity.
-But consistency without effort.
-The hand moves correctly without thought.
-The work is done without strain.
-The system continues without interruption.
-Nothing is improvised.
-Nothing is forced.
-Because what has endured no longer needs to prove itself.
-Like the stars—fixed, reliable, guiding without announcement—true competence does not call attention to itself. It simply holds its place.
-This is why nothing is celebrated here.
-No conclusion is declared.
-No achievement is announced.
-Because what is real does not need to be affirmed—it is evident through continuity.
-So Rekh-Nedjes asks:
-What can now be done correctly without effortful attention?
-This is the transition from effort…
-to embodiment.
-As the wisdom tradition teaches:
-“The silent man prospers…
-his actions endure without noise.”
-(Instruction of Amenemope)
-Mastery is not loud.
-It is stable.
-It is repeatable.
-It is trusted without question.
-And in that trust, Maʿat is preserved—not through declaration, but through unbroken continuation.
-Living Principle:
-True mastery is quiet.''',
+sbꜣ špsswt, “Star of the Noble Ones,” marks knowledge that has endured testing and become reliable.
+
+A star does not guide by announcing itself loudly. It guides by returning to its place. Its authority is consistency. It can be trusted because it has held its relation through time.
+
+The same is true of tested knowledge.
+
+What was strained has stabilized. What required correction now moves without panic. The hand works cleanly. The field is tended without excess. The record is kept without distortion. The method has passed through pressure and no longer needs display.
+
+This is competence.
+
+Not brilliance as spectacle.
+
+Reliable right action.
+
+The Instruction of Amenemope values the quiet person over the heated one because the quiet person is not easily pulled out of measure.
+
+— Instruction of Amenemope
+
+That teaching belongs here. True mastery does not announce itself by intensity. It is recognized because the work holds, the judgment remains fair, and the person does not become unstable when conditions change.
+
+Rekh-Nedjes completes itself in this decan.
+
+Knowledge has entered pressure, adjusted without breaking, and become quiet enough to be trusted.
+
+Where competence remains steady, Ma’at is preserved without noise. Where skill still needs display, it has not yet become fully stable.''',
   '''Return — The First Signs of Answer
-ꜥpdw (“The Birds”) marks return and gathering.
-ꜥpdw signals movement toward abundance—the first visible signs that effort begins to answer itself. Like birds returning to known ground, what was sent out begins to come back.
-The harvest has begun—but not fully.
-The fields are being cut in sections. Early yields are gathered and tested. The first grain is measured, not yet consumed in full.
-This is the moment of recognition.
-What was planted…
-has responded.
-Birds circle above the fields, drawn by grain and movement. Their presence is not incidental—it is a sign.
-Life gathers where there is sustenance.
-Return follows provision.
-The Kemite observed this closely.
-Where birds gather, there is food.
-Where food appears, the cycle is holding.
-So this decan is not celebration yet.
-It is confirmation.
-In practice:
-gathering early yield; observing return on effort; preparing storage; beginning distribution carefully.
-Nothing is assumed.
-The first results must be read correctly.
-Is the harvest strong?
-Is the yield balanced?
-Is the labor justified?
-This is where effort begins to speak back.
-And the response must be received with clarity—not excitement.
-Because early abundance can mislead.
-So restraint remains.
-The Kemite knew:
-What returns first must be measured before it is trusted.
-Renenutet’s presence is felt here—not in fullness, but in promise. Šai begins to reveal itself—not as fate declared, but as direction emerging.
-As the offering texts remind:
-“May your provisions come to you…
-as the birds return to their place.”
-(Offering Formula, Old Kingdom inscriptions)
-Return is part of order.
-What is given rightly comes back in its time.
-So Renwet asks:
-What is beginning to return?
-Because in that return lies the first glimpse of destiny fulfilled.
-Living Principle:
-What you give in alignment returns in its time.''',
+ꜥpdw, “The Birds,” marks return beginning to show itself.
+
+Birds gather where food appears. Their movement is not random to the careful observer. It reveals where grain, water, insects, and life have begun to concentrate. In star-time, this decan carries the same function: a visible sign that the cycle has entered a returning phase.
+
+The harvest has begun, but it is not yet settled.
+
+Early grain is cut. First yields are carried in. The field begins to answer the months of flood, planting, care, knowledge, and trial. What was placed in the earth now returns in visible form.
+
+This is confirmation, not completion.
+
+Renenutet is present here as promise guarded by attention. Her nourishment has begun to appear, but it has not yet become secure. Shai also begins to show itself, not as a fixed decree from outside the world, but as the ripening of conditions already set in motion.
+
+The Hymn to Hapy praises the flood because it makes grain and fills storehouses, but the first return must still be read carefully.
+
+— Hymn to Hapy
+
+Early abundance can mislead if it is mistaken for the whole harvest.
+
+Where return is observed with clarity, the next distribution can be measured. Where first gain becomes excitement without measure, disorder enters before the storehouse is full.''',
   '''Distribution — Receiving in Right Measure
-ḥry-ib ꜥpdw (“Heart of the Birds”) marks distribution.
-What returns must now be received and shared correctly. The gathering of the previous phase gives way to discernment—how abundance is handled determines whether it will endure.
-The harvest is active now.
-Grain is brought in steadily. Storage fills. Movement increases between field, granary, and home. What was first observed is now entering circulation.
-This is where imbalance can begin.
-Too much taken.
-Too little given.
-Too quickly consumed.
-So the work of the heart (ib) becomes central again.
-In practice:
-deciding fair distribution; balancing enjoyment with responsibility; remembering communal obligation.
-The Kemite understood:
-Abundance tests more than scarcity.
-When there is little, restraint is natural.
-When there is much, restraint must be chosen.
-So nothing is hoarded.
-Nothing is wasted.
-The first portions are set aside.
-The stores are measured.
-The sharing is deliberate.
-Because what is received must remain within Maʿat.
-Renenutet provides—but she also observes.
-Šai unfolds—but according to action.
-So this moment carries weight:
-How should what returns be honored and sustained?
-This is not celebration yet.
-It is right handling.
-As the wisdom tradition teaches:
-“Do not eat bread while another stands waiting…
-share what is set before you.”
-(Instruction of Amenemope)
-Receiving without sharing breaks the cycle.
-But giving with measure sustains it.
-Here, abundance becomes responsibility.
-Not a reward—but a condition to be managed with awareness.
-Living Principle:
-Abundance must be governed by gratitude.''',
+ḥry-ib ꜥpdw, “Heart of the Birds,” marks abundance entering discernment.
+
+Return has begun. Grain moves from field to basket, from basket to threshing floor, from threshing floor toward storage. The question is no longer whether the field has answered. The question is how the answer will be received.
+
+The heart governs this phase.
+
+In Kemetic thought, the heart is the place where measure is held. Abundance tests the heart differently than scarcity. When there is little, restraint is forced. When there is much, restraint must be chosen.
+
+Renenutet provides, but she also watches. Grain gathered without measure can still become Isfet. Too much consumed too quickly empties the future. Too much withheld breaks relation. A harvest taken from those who labored for it wounds the order that produced it.
+
+The offering formula gives the proper pattern: provision is named, directed, and placed in relation. Bread and beer reach the ka because they are not merely possessed. They are offered.
+
+— Offering Formula
+
+Distribution completes receiving.
+
+The first share belongs to relation: gods, ancestors, household, workers, vulnerable bodies, and seed for the next cycle. Abundance that does not circulate becomes weight.
+
+Where receiving is governed by the heart, plenty becomes continuity. Where receiving loses measure, harvest becomes appetite.''',
   '''Stability — Reward That Can Be Sustained
-sbꜣ ꜥpdw (“Star of the Birds”) marks reward stabilized.
-sbꜣ indicates what can be trusted to continue; it is what holds its place without strain. Here, abundance has settled into order—return that no longer threatens balance.
-The harvest is complete.
-The grain is stored.
-The shares are given.
-The movement has slowed.
-What was gathered and distributed now becomes secure.
-This is the moment of rest—but not release.
-Because rest here is not indulgence.
-It is stability maintained without effort.
-In practice:
-enjoyment without excess; honoring gods and ancestors; securing what has been gained.
-The Kemite understood:
-Reward must be held correctly, or it will dissolve.
-To grasp too tightly invites loss.
-To consume without measure invites emptiness.
-So nothing is rushed.
-Nothing is clung to.
-This is resting within earned return.
-The body relaxes—but awareness remains.
-The stores are full—but still guarded.
-The joy is present—but contained within Maʿat.
-Renenutet’s presence is complete here.
-She has nourished.
-She has revealed.
-Now she maintains.
-Šai, too, becomes visible—not as chance, but as pattern fulfilled.
-What has been given has returned.
-What has been handled rightly now endures.
-So Renwet asks:
-What return can be sustained without fear?
-Because only what is balanced can be enjoyed without loss.
-As the offering texts affirm:
-“May your bread endure,
-may your beer remain…
-in the house of plenty.”
-(Offering Formula, Old Kingdom inscriptions)
-Endurance is the measure of true reward.
-Not how much is gained—
-but how well it is held over time.
-Here, the cycle closes—not with consumption, but with continuity secured.
-What has been earned can now remain.
-Living Principle:
-Reward endures when held in balance.''',
+sbꜣ ꜥpdw, “Star of the Birds,” marks return settled into dependable order.
+
+A star becomes useful when its place can be trusted. Return becomes useful when it can be sustained. The first grain has been gathered, the shares have been measured, and the movement between field, granary, household, and temple begins to slow.
+
+This is rest, but not abandonment.
+
+The harvest has reached stability only when it can carry the future. Grain must remain. Seed must be protected. Offerings must continue. The household must be fed without emptying what later months will need.
+
+Renenutet’s full presence belongs here.
+
+She is not only the force that brings nourishment into view. She is the guardian of nourishment after it has arrived. Her cobra nature watches the granary because gathered abundance remains vulnerable: to waste, theft, corruption, false counting, and careless celebration.
+
+The offering formula prays for enduring provision: bread, beer, and every good and pure thing directed to the ka.
+
+— Offering Formula
+
+Endurance is the measure of reward.
+
+A harvest that cannot be preserved is only brief relief. A storehouse that cannot be trusted is not security. Joy that consumes its own foundation becomes danger in festival clothing.
+
+Where reward is held in balance, abundance becomes peace. Where reward is grasped or wasted, the return that should sustain the year becomes the beginning of future lack.''',
   '''Departure — Entering the Path Under Constraint
-ẖry ꜥrt (“The One Beneath ꜥrt”) marks departure and first passage.
-ẖry (“beneath, under”) signals movement through constraint—travel beginning under heat, under load, under necessity. It is not the ideal beginning—but the real one.
-The journey starts anyway.
-The sun is already high.
-The air is already heavy.
-The work is already waiting.
-There is no perfect moment.
-So movement begins under pressure.
-In practice:
-starting journeys early; moving goods and duties while conditions press down; accepting that motion is required even when comfort is not available.
-The Kemite understood this as law:
-Maʿat is not maintained by waiting for ease.
-It is maintained by moving correctly within difficulty.
-Caravans depart at first light.
-Boats are loaded before the heat peaks.
-Travelers wrap their heads, measure their pace, and begin.
-Not because it is easy—
-but because it must be done.
-This is the first act of alignment in Hnsw:
-to step onto the path without resistance to its conditions.
-Ra himself does not delay his course.
-“I go upon my road…
-I do not turn back.”
-(Amduat, solar journey texts)
-So too must the traveler.
-Nothing is gained yet.
-Nothing is concluded yet.
-This is not arrival.
-It is commitment.
-The act of beginning, even under strain.
-Hnsw teaches:
-The path does not wait for readiness.
-Readiness is proven by stepping onto it.
-So the question becomes:
-Will you move when movement is required?
-Because delay does not remove burden—it only shifts it forward.
-This is the crossing from intention…
-to action under reality.
-Living Principle:
-The journey begins when you move despite constraint.''',
+ẖry ꜥrt, “The One Beneath ꜥrt,” marks departure under pressure.
+
+The journey does not begin in perfect conditions. The sun is strong. The road is exposed. Loads are already waiting. The year has entered the dry season, and movement must happen under constraint rather than comfort.
+
+This decan belongs to the first step taken when ease is absent.
+
+A star that rises under night gives direction before daylight returns. Its guidance matters because the traveler cannot wait for all things to become simple. The path opens through attention, not through convenience.
+
+Hnsw carries the name of the Traveler, and Khonsu’s lunar movement belongs to this phase. The moon crosses darkness by measure. It does not remove the night. It moves through it.
+
+The same law governs human passage.
+
+Boats depart before heat thickens. Goods are moved while the stores can still be distributed. Messages, offerings, and obligations must travel even when the conditions press down.
+
+The Book of Coming Forth by Day places Ma’at at the head of the great bark.
+
+— Book of Coming Forth by Day
+
+That is the rule of departure.
+
+Where Ma’at leads the path, constraint becomes discipline. Where movement begins without measure, the journey carries disorder from its first step.''',
   '''Endurance — Carrying With Discipline
-rmn ḥry sꜣḥ (“Shoulder Above Sah”) marks sustained carriage.
-rmn (“shoulder”) is the body’s bearing-point—the place where weight is carried without display. ḥry (“above”) signals elevation through discipline: the load is held higher, cleaner, and more controlled.
-What began in the previous phase must now be carried over distance.
-The journey continues.
-The heat does not lessen.
-The path does not shorten.
-The burden does not disappear.
-So the question is no longer can I begin?
-It is:
-Can I carry correctly?
-In practice:
-pacing work; protecting the body; keeping routes orderly; carrying responsibility without spilling into chaos.
-The Kemite understood:
-Endurance is not force extended blindly.
-It is weight held in proportion over time.
-A load carried poorly exhausts quickly.
-A load carried well can travel far.
-So the body is aligned.
-The pace is measured.
-The breath is controlled.
-Nothing is rushed.
-Nothing is forced.
-This is not strain—it is discipline within movement.
-Like Ra crossing the sky—unchanging in pace, unwavering in path—the traveler learns that consistency is stronger than intensity.
-“I travel and I do not falter…
-my course is set.”
-(Solar Hymns to Ra, New Kingdom tradition)
-So too must the human path hold steady.
-Hnsw asks:
-Can the burden be carried with dignity?
-Because dignity is not ease—it is order maintained under weight.
-This is the refinement of endurance:
-not simply continuing…
-but continuing well.
-What is carried rightly does not break the body.
-What is carried in balance does not disrupt the path.
-Here, movement becomes sustainable.
-Living Principle:
-Endurance is disciplined carriage.''',
+rmn ḥry sꜣḥ, “Shoulder Above Sah,” marks sustained carriage.
+
+The shoulder is the bearing point of the body. It carries weight without needing display. Above Sah, this bearing is placed in relation to restored endurance: what has already passed through disruption now supports what must continue.
+
+The journey has begun.
+
+Now the question is whether the load can be carried without distortion.
+
+Heat remains. Distance remains. The burden does not disappear because the first step was taken. Endurance here is not intensity. It is proportion held over time.
+
+Ra’s solar journey gives one form of this discipline. He completes the course because the bark continues through each region in sequence. Khonsu gives another form: lunar movement that changes appearance while keeping rhythm. Both teach that endurance is not refusal to change. It is continuity without loss of measure.
+
+A load carried wrongly injures the carrier and spills what was meant to arrive. A load carried with discipline reaches its place and preserves its contents.
+
+The Wadi el-Jarf Papyri show this principle in administrative form: crews, movements, routes, and deliveries counted so that great work could continue across days.
+
+— Wadi el-Jarf Papyri
+
+Where endurance is measured, movement remains sustainable. Where endurance becomes blind force, the path damages what it was meant to carry.''',
   '''Recovery — Right Measure in Descent
-rmn ḥry sꜣḥ (“Shoulder Beneath Sah”) marks regulated descent and recovery.
-ḥry (“beneath”) returns the theme of constraint—but now as chosen restraint. The shoulder lowers under the load not in weakness, but in understanding. What has been carried must now be set down in right measure.
-Force gives way to proportion.
-The wise do not wait for collapse.
-They reduce before breaking.
-In practice: ending labor before exhaustion; moving into shade; securing what was carried; allowing the body and path to settle into rhythm again.
-This is not stopping.
-It is keeping Maʿat through limitation.
-The Kemetic teachings are clear:
-“Do not overburden your heart…
-what is firm endures.”
-(Instruction tradition — cf. Ptahhotep / Amenemope corpus)
-So the question becomes:
-Do I know when to lessen effort?
-Because excess is as dangerous as neglect.
-To push beyond balance is to enter isfet.
-Like Ra entering the west, the movement changes form.
-The descent is not failure—it is completion of the cycle in order.
-Nothing is abandoned.
-Nothing is forced.
-What was gained is preserved by restraint.
-This is the discipline of reduction:
-to lower the load without losing the work,
-to rest without dissolving order,
-to prepare the body and path for continuation.
-Living Principle:
-What is measured endures; what is excessive breaks.''',
-  '''ḥr-sꜣḥ (“Heru upon Sah”) — This decan marks vigilance under pressure. Authority rests not in force, but in endurance aligned with order. ḥr-sꜣḥ is Heru upheld by Sah (Asar): awareness standing upon what has already been restored and proven stable.
-In practice: rising early to move before the heat; guarding what has been secured; maintaining discipline as fatigue increases; holding position without escalation. Effort is not expanded — it is contained and directed.
-Ḥenti-ḥet asks: What must be protected through awareness, not force?
-“Be vigilant over what is yours,
-for neglect invites loss.”
-(Instruction of Amenemope)
-Nothing is challenged or seized yet. Nothing is tested beyond necessity. This is the act of maintaining order without strain — preserving form through attention rather than exertion.
-Living Principle:
-Authority endures through vigilance, not force.''',
-  '''Restraint — Cooling Power Within
-ḥry-ib ḥr-sꜣḥ (“Heart of Heru upon Sah”) marks restraint.
-If the first decan holds position, this one governs it.
-The authority of Heru is no longer expressed outwardly.
-It is drawn inward—into the heart (ib), where power is weighed, measured, and withheld when necessary.
-ḥry-ib means “that which is at the center,”
-and in Kemet, the heart is not emotion—it is judgment.
-So here, power is not used.
-It is contained.
-Intensity without regulation fractures.
-Heat without pause consumes.
-So the work changes again.
-Not guarding.
-Now reducing.
-In this time, the sun is at its height.
-The body tires more quickly.
-The margin for excess disappears.
-So effort must be chosen carefully.
-In practice: conserving strength; reducing unnecessary labor; cooling body and mind; acting only where action preserves balance.
-Nothing is rushed.
-Nothing is extended beyond its purpose.
-This is the moment of withholding the hand.
-The teachings say:
-“Do not be heated in your speech…
-control yourself, and you will endure.”
-(Instruction of Amenemope)
-Thus the question becomes:
-Where must effort pause to prevent loss?
-Because not all action sustains.
-Some action burns what it touches.
-What is overworked breaks.
-What is overheated collapses.
-So the wise do less—
-but do it exactly.
-Like Sekhmet brought to stillness after her fury,
-power must be cooled before it turns destructive.
-This is not weakness.
-It is completion of strength.
-To act when necessary is power.
-To refrain when needed is mastery.
-Nothing is exhausted.
-Nothing is burned away.
-What is preserved remains available.
-What is measured endures.
-This is how Maʿat is kept under intensity—not through force, but through restraint in the center.
-Living Principle:
-Restraint completes strength.''',
+rmn ẖry sꜣḥ, “Shoulder Beneath Sah,” marks the lowering of the load in measure.
+
+The carried burden cannot remain on the shoulder forever. What is lifted must eventually be set down. What has traveled must be secured. What has endured must be allowed to recover before endurance becomes collapse.
+
+This decan belongs to the wisdom of reduction.
+
+The traveler does not preserve Ma’at by pushing past the body’s measure. The boat does not preserve its cargo by ignoring strain. The storehouse does not preserve food by moving everything without rest, count, or protection.
+
+Descent is not failure.
+
+It is the completion of a movement in order.
+
+Ra enters the west without ceasing to be Ra. The solar descent is not defeat; it is the next required phase of the cycle. Khonsu’s moon wanes without losing its course. Lessening can belong to order when it happens in right time.
+
+The Instruction of Amenemope warns against the heated person and the disorder of excess.
+
+— Instruction of Amenemope
+
+That warning belongs here. Heat, effort, and carried weight must all be cooled before they become destructive.
+
+Where recovery is honored, endurance can continue later. Where reduction is refused, strength breaks and the journey turns against itself.''',
+  '''Vigilance — Authority Held Under Pressure
+ḥr-sꜣḥ, “Heru upon Sah,” marks authority standing on restored endurance.
+
+Heru is not authority as possession. He is authority recognized after contest, after the restoration of Ausar, after the claim has been tested before the divine assembly. Sah carries the memory of Ausar in stellar form: what has endured, returned, and become stable.
+
+Together they form the image of watchful rule placed upon a restored foundation.
+
+This decan comes when the heat is strong and the stores must be guarded. What has been harvested is no longer in the field, but it is not yet safe by that fact alone. Grain can be wasted. Water can be misused. Power can become appetite after abundance has arrived.
+
+The Contendings of Heru and Set preserve the question beneath the decan: whether rule belongs to force or to rightful order.
+
+— The Contendings of Heru and Set
+
+Vigilance here is not aggression.
+
+It is awareness that protects what has already been restored. Authority does not need to expand. It needs to hold position without becoming harsh, careless, or possessive.
+
+Where Heru stands upon Sah, power watches in service to continuity. Where authority forgets its foundation, protection becomes domination.''',
+  '''Restraint — Power Drawn Back Into the Heart
+ḥry-ib ḥr-sꜣḥ, “Heart of Heru upon Sah,” marks authority governed from within.
+
+The first decan holds position. This one weighs the force that holds it.
+
+In Kemetic thought, the heart is discernment. It receives pressure, heat, desire, fatigue, and fear, then determines whether action would preserve Ma’at or damage it. Authority without this inward weighing becomes dangerous.
+
+This is the decan of cooling.
+
+The harvest has been secured. The heat remains. Labor can no longer be extended without cost. The wise movement is not more force, but measured reduction: fewer unnecessary actions, slower travel, careful use of stores, protection of the body before exhaustion becomes collapse.
+
+The Instruction of Amenemope warns against the heated person and against speech or action that burns beyond measure.
+
+— Instruction of Amenemope
+
+This warning belongs directly to ḥry-ib ḥr-sꜣḥ.
+
+Heru’s authority is strongest when it does not become Set’s appetite. The throne is kept by judgment, not by constant exertion. Power that can refrain has reached a higher order than power that only acts.
+
+Where restraint governs strength, what has been preserved remains available. Where action continues past measure, the hand destroys what it meant to protect.''',
   '''Release — Offering That Restores the Whole
-sbꜣ ḥr-sꜣḥ (“Star of Heru upon Sah”) marks offering and release.
-If the first decan holds,
-and the second restrains,
-this one returns.
-sbꜣ is what becomes visible, what guides by its presence.
-Here, authority no longer guards or withholds—
-it gives.
-Power completes itself through release.
-What was carried…
-what was protected…
-what was preserved…
-must now be returned to balance.
-In this time, the heat has done its work.
-What could endure has endured.
-What could be kept has been secured.
-Now comes the final act:
-letting go in right measure.
-In practice: offering water and sustenance; releasing excess stores; allowing rest to restore balance; giving back without calculation.
-Nothing is hoarded.
-Nothing is clung to.
-Because what is held beyond its time begins to decay.
-The Kemite understood:
-To keep what should be given
-is to invite loss.
-To release what is complete
-is to preserve it in Maʿat.
-The teachings say:
-“Give to the one who asks…
-for what is stored will not follow you.”
-(Instruction of Amenemope)
-Thus the question becomes:
-What must be offered back so order remains intact?
-Because abundance is not secured by holding—
-it is secured by circulation.
-Like the cooling of Sekhmet,
-like the setting of the sun,
-force must be softened, returned, and redistributed
-so that life may continue.
-This is not loss.
-It is completion.
-The hand opens.
-The store is lightened.
-The body rests without fear.
-What is given returns to the whole.
-What returns sustains the world.
-This is Maʿat preserved through release—
-not by force,
-but by knowing when enough has been held.
-Living Principle:
-What is given back keeps the world whole.''',
-  '''Remembrance — What Endures Is Beautiful
-sbꜣ nfr (“The Beautiful Star”) marks remembrance.
-sbꜣ is what shines and guides.
-nfr is not surface beauty—it is rightness proven over time.
-That which endures without distortion,
-that which holds its form across seasons,
-that which remains in Maʿat—
-this is called nfr.
-So this decan is not about admiration.
-It is about recognition.
-What has lasted…
-what has sustained the household…
-what has remained true under use and time…
-is brought forward into awareness.
-Not to judge.
-Not to change.
-But to acknowledge.
-In practice: recalling what sustained the household; honoring ancestors and elders; reviewing stores, tools, and records; recognizing what proved reliable through the year.
-The Kemite looked back carefully.
-Which tools did not fail?
-Which practices held?
-Which words remained true?
-Because endurance reveals truth.
-What survives is not random.
-It is aligned.
-Nothing is judged yet.
-Nothing is discarded.
-This is not sorting.
-It is seeing clearly.
-To look back without disruption.
-To remember without altering.
-To allow what is real to stand in its completeness.
-The teachings say:
-“A man lives when his name is spoken.”
-(Middle Kingdom funerary tradition)
-So remembrance is not passive.
-It is continuation.
-To recall what endured is to keep it alive.
-To honor what held is to strengthen it further.
-Thus the question becomes:
-What deserves remembrance because it endured?
-Because not all things are equal.
-Some fade because they were never aligned.
-Some remain because they are in accordance with Maʿat.
-These are the things that guide.
-Like a star—steady, visible, unchanged—
-they orient the future by remaining true in the past.
-This is the quiet power of sbꜣ nfr:
-to recognize beauty not in what is new,
-but in what has proven itself.
-Nothing is added.
-Nothing is taken away.
-What is whole is allowed to remain whole.
-Living Principle:
-Remembrance preserves continuity.''',
-  '''Integration — Memory Brought into the Heart
-ḥry-ib sbꜣ nfr (“Heart of the Beautiful Star”) marks integration.
-If the first decan remembers,
-this one decides.
-ḥry-ib — “that which is in the heart” — is not emotion, but discernment.
-The heart weighs, selects, and orders what has been seen.
+sbꜣ ḥr-sꜣḥ, “Star of Heru upon Sah,” marks authority made visible through release.
+
+A star guides by appearing in its proper place. Heru guides when rightful power becomes recognizable through action that restores relation. At this point in the month, protection and restraint must complete themselves as offering.
+
+What has been held must not be clung to beyond its time.
+
+Water is given. Food is shared. Offerings are placed. Excess is returned to circulation. Rest is allowed to enter the body. The hand opens not because value has disappeared, but because value becomes Ma’at only when it reaches its proper relation.
+
+The offering formula gives this structure clearly: provision is named, directed, and placed for the ka of the deceased.
+
+— Offering Formula
+
+The same principle governs the living storehouse.
+
+Grain held for the future is Ma’at. Grain held from those who are owed becomes Isfet. Strength conserved for right action is Ma’at. Strength withheld from necessary offering becomes refusal.
+
+Release completes authority because it proves that power is not possession.
+
+Heru’s victory does not end in hoarding the throne. It restores the order through which life can continue.
+
+Where release is measured, offering restores the whole. Where what should be returned is kept back, abundance begins to decay inside the hand that holds it.''',
+  '''Remembrance — What Endures Is Recognized
+sbꜣ nfr, “The Beautiful Star,” marks remembrance of what has proven itself.
+
+nfr is not surface beauty. It is rightness that holds through time. A star is beautiful because it returns to its place and remains reliable in relation. What endures without distortion becomes a guide.
+
+This decan begins Pa-Ipi by turning attention backward.
+
+The year is near completion. Stores are known. Tools have either held or failed. Practices have either sustained the household or weakened it. Names have either been spoken or allowed to fade. The first work is not correction. It is recognition.
+
+What endured?
+
+What remained true under use?
+
+What deserves to be carried forward because it actually held?
+
+The Book of Coming Forth by Day places sacred importance on Abydos, where the raised earth and the presence of Ausar make remembrance active rather than sentimental.
+
+— Book of Coming Forth by Day
+
+The dead are not honored by vague feeling. They are honored by name, offering, and correct memory.
+
+Remembrance preserves continuity by bringing what held back into awareness. Where endurance is recognized, the future gains a trustworthy guide. Where memory is neglected, the next cycle begins without its foundation.''',
+  '''Integration — Memory Brought Into the Heart
+ḥry-ib sbꜣ nfr, “Heart of the Beautiful Star,” marks remembrance entering discernment.
+
 Memory alone is not enough.
-What is remembered must be carried correctly.
-What was gathered in reflection…
-what was recognized as enduring…
-what was brought forward without judgment…
-now enters the center.
-Here, it is measured.
-Memory without understanding becomes burden.
-Memory without proportion distorts.
-So the work changes again.
-Not recalling.
-Now integrating.
-In practice: reconciling success and failure; repairing what still has use; teaching through example; choosing what strengthens continuity and what must be released.
-The Kemite did not carry everything forward.
-They carried what aligned.
-What could still serve Maʿat was kept.
-What disrupted balance was set aside.
-Not in rejection—
-but in clarity.
-Nothing is finalized yet.
-Nothing is erased.
-This is not ending.
-It is ordering what will continue.
-The teachings say:
-“Do not load your heart with what you cannot bear…
-set aside what brings imbalance.”
-(Instruction tradition — cf. Amenemope / Ptahhotep)
-Thus the question becomes:
-What memory strengthens balance rather than burdens it?
-Because not all that endures should be carried.
-Some things remain—but are no longer needed.
-Some things persist—but no longer serve.
-Wisdom is knowing the difference.
-Like the weighing of the heart before Maʿat,
-this is the inner measure:
-what is light enough to continue,
-what is heavy enough to be released.
-This is the quiet work of alignment.
-The heart holds…
-but it also chooses.
-What is carried forward shapes the next cycle.
-What is released makes space for it.
-Nothing is forced.
-Nothing is rushed.
-What is true settles into place.
-What is not begins to fall away.
-Living Principle:
-Memory must be carried with discernment.''',
+
+Everything that remains from the year cannot be carried forward in the same way. Some things endure because they are aligned. Some endure because they have not yet been corrected. The heart must distinguish between what strengthens continuity and what merely persists.
+
+In Kemetic thought, the heart is the chamber of judgment. It weighs what has been received, what has been done, and what must continue. Memory becomes useful only when the heart orders it.
+
+This decan belongs to that ordering.
+
+A tool may be repaired because it still serves. A practice may be abandoned because it strains the household. A name may be restored because it has been neglected. A story may be retold because it preserves what the next generation must know.
+
+Papyrus Chester Beatty IV teaches that writings preserve names in the mouth of the reader after monuments have decayed.
+
+— Papyrus Chester Beatty IV
+
+But preservation requires selection.
+
+Not every memory should govern the future. Not every burden belongs in the next cycle. The heart must carry what serves Ma’at and release what would make continuity heavy with disorder.
+
+Where memory is integrated, inheritance becomes clear. Where memory is carried without discernment, the past becomes weight instead of guidance.''',
   '''Continuity — What Is Carried Forward
-sbꜣ sbꜣ nfr (“Star of the Beautiful Star”) marks continuity.
-If the first decan remembers,
-and the second discerns,
-this one carries forward.
-sbꜣ is what guides by remaining.
-Here, what has been tested, remembered, and chosen
-becomes the line that continues.
-Nothing new is added.
-The work of the year is complete.
-The field has given.
-The ancestors have been honored.
-The heart has chosen.
-Now only one question remains:
-What continues?
-What is carried forward is not everything.
-It is what endured…
-what aligned…
-what proved itself across the cycle.
-This becomes the foundation of what follows.
-In practice: preserving what is essential; transmitting knowledge; teaching the next generation; carrying forward names, methods, and measures that sustain Maʿat.
-The Kemite did not begin again from nothing.
-They began from what remained true.
-What was proven becomes instruction.
-What was aligned becomes inheritance.
-Nothing is debated now.
-Nothing is revised.
-This is not reflection.
-This is continuation.
-The teachings say:
-“I have not forgotten the ancestors…
-I have given them their due.”
-(Book of the Dead, Negative Confession — adapted line)
-For to forget is to break the chain.
-But to carry forward is to remain within it.
-Thus the question becomes:
-What must continue so Maʿat does not break?
-Because continuity is not automatic.
-It is maintained.
-Through memory.
-Through action.
-Through transmission.
-Like the Nile that withdraws only to rise again,
-like Asar who dies only to return,
-what is preserved correctly
-does not end.
-It transforms.
-This is the final act of the cycle:
-not completion—
-but unbroken passage.
-What was lived becomes what is carried.
-What is carried becomes what will be lived again.
-Nothing is lost.
-Nothing is clung to.
-What remains…
-continues.
-Living Principle:
-What is carried forward keeps the cycle unbroken.''',
+sbꜣ sbꜣ nfr, “Star of the Beautiful Star,” marks what remains as guide.
+
+The first decan remembered. The second brought memory into the heart. This one carries forward only what has been recognized and measured.
+
+A star guides because it remains. A remembered name guides because it is spoken again. A tradition guides because it has been tested, preserved, and handed on without losing its function.
+
+This is the final movement of Pa-Ipi.
+
+The year has produced its record. The ancestors have been honored. What endured has been recognized. What should continue has been chosen. Now continuity must be transmitted: names, measures, methods, offerings, stories, and obligations passed into the next cycle.
+
+The ka depends on this transmission. It receives when the name is remembered and the offering is directed. The living depend on it as well, because no household begins from nothing. Breath, food, land, language, and ritual all arrive through what others carried first.
+
+The offering formula gives this structure in ritual form: provision is named, directed, and placed for the ka of the deceased.
+
+— Offering Formula
+
+Continuity is not clinging.
+
+It is correct passage.
+
+What has served Ma’at is carried forward. What would disorder the next cycle is not enthroned as inheritance.
+
+Where continuity is maintained, the chain remains alive. Where transmission breaks, names fade, offerings lose direction, and the year approaches renewal without its memory.''',
   '''Emergence — Strength Gathering in Stillness
-msḥtjw ḫt (“The Crocodiles of the Offering”) marks latent emergence.
-msḥtjw (crocodiles) are not symbols of chaos here—but of hidden power beneath the surface. They do not rush forward. They wait, submerged, sensing the right moment.
-ḥt (offering) reminds us that even this power belongs to the cycle—it is not yet to be used, only held in readiness.
-So this is not birth.
-It is the gathering before birth.
-Nothing moves outward yet.
-The flood has not begun.
-The gods have not yet emerged.
-The year has not yet turned.
-But beneath the stillness—
-something is alive.
-This is the first stirring.
-Not visible.
-Not declared.
-But present.
-In practice: remaining still while preparing inwardly; conserving strength; sensing timing; holding energy without release.
-The Kemite understood this moment:
-to act too early
-is to weaken what is forming.
-So nothing is forced.
-Nothing is drawn into action.
-This is the discipline of waiting with awareness.
-The crocodile does not thrash the water.
-It watches.
-It feels.
-It knows when the current changes.
-The teachings say:
-“He who hurries loses the path;
-the one who waits sees clearly.”
-(Instruction tradition — cf. Amenemope)
-Thus the question becomes:
-What is forming that must not yet be moved?
-Because what is premature
-cannot endure.
-What is forced
-cannot take root.
-Like the child in the womb,
-like the sun before dawn,
-like the flood before its rise—
-power gathers in silence
-before it appears.
-Nothing is gained.
-Nothing is shown.
-But everything is becoming.
-This is the first breath of the new cycle—
-still unseen,
-but already alive.
-Living Principle:
-What emerges must first be held in stillness.''',
+msḥtjw ḫt, “The Crocodiles of the Offering,” marks latent emergence.
+
+The crocodile waits beneath the water. Its power is present, but not yet displayed. It belongs to the surface and the depth at once: seen only when the hidden force chooses to rise.
+
+This decan belongs to the first stirring before birth.
+
+The year is almost complete, but the next cycle has not opened. The flood has not yet returned. The gods of the threshold have not yet emerged. Nothing should be forced outward, because what is forming still belongs to concealment.
+
+Mesut-Ra carries the birth of Ra, but birth begins before appearance.
+
+The Book of Coming Forth by Day names the solar principle as the one whose birth comes from the House of Death.
+
+— Book of Coming Forth by Day
+
+That is the law of this decan.
+
+What will rise gathers first in the hidden place. The crocodile beneath the surface, the child in the womb, the sun before dawn, and the year before renewal all share the same condition: power present before motion.
+
+Where hidden strength is allowed to gather, emergence can come whole. Where emergence is forced too soon, what is born carries weakness from the interruption.''',
   '''Attentive Stillness — The Heart Awake in Silence
-ḥry-ib msḥtjw ḫt (“Heart of the Sacred Foreleg”) marks attentive stillness.
-If the first decan gathers power,
-this one guards it inwardly.
-ḥry-ib — “that which is in the heart” — is awareness at the center.
-Not action.
-Not movement.
-But presence that does not sleep.
-Stillness alone is not enough.
-Rest without awareness dissolves order.
-Silence without attention drifts into neglect.
-So this is not withdrawal.
-It is wakefulness without motion.
-The body is still.
-The hands are still.
-But the heart remains alert.
-Watching.
-Measuring.
-Holding what has been gathered.
-In this time, nothing outward is required.
-The cycle has closed.
-The next has not yet begun.
-So the work turns inward.
-In practice: reflection on the completed cycle; quiet ritual and prayer; internal reckoning; maintaining clarity without acting upon it.
-Nothing is changed yet.
-Nothing is corrected yet.
-This is not decision.
-It is clear seeing without interference.
-The Kemite understood:
-To move too soon breaks formation.
-To sleep too deeply loses alignment.
-So the balance is precise.
-Still…
-but not unaware.
-The teachings say:
-“Be silent, and your heart will hear…
-for the quiet one perceives what others miss.”
-(Instruction tradition — cf. Amenemope)
-Thus the question becomes:
-Can I remain still without losing awareness?
-Because true stillness is not emptiness.
-It is containment.
-What has been gathered is held.
-What has been seen is remembered.
-What is forming is not disturbed.
-Like the crocodile beneath the surface,
-like the child in the womb,
-like the sun before the horizon—
-life is present,
-but not yet expressed.
-Nothing is added.
-Nothing is removed.
-The heart remains steady,
-and in that steadiness, order is preserved.
-This is the center point between cycles:
-not ending,
-not beginning—
-but holding both without movement.
-Living Principle:
-Stillness must remain awake to preserve order.''',
+ḥry-ib msḥtjw ḫt, “Heart of the Crocodiles of the Offering,” marks stillness held at the center.
+
+The first decan gathered hidden power. This one guards it inwardly.
+
+Stillness is not sleep. Rest without awareness becomes drift. Silence without attention becomes neglect. The heart must remain awake while the hands refrain from action.
+
+In Kemetic thought, the ib is the chamber of discernment. It holds memory, measure, and judgment. In this decan, the heart does not rush to decide. It watches what has been completed and what is still forming.
+
+The Amduat shows that the night journey of Ra is not empty darkness. Each hour has place, beings, gates, and sequence. Renewal depends on ordered passage through what cannot yet be seen.
+
+— Amduat
+
+Mesut-Ra applies the same truth to the year.
+
+The cycle has closed enough to become quiet, but not enough to begin again. The correct state is wakeful containment: records understood, offerings completed, purification performed, and no premature movement disturbing what is gathering below the surface.
+
+Where stillness remains awake, order is preserved between cycles. Where stillness loses attention, the threshold becomes vulnerable to drift.''',
   '''Threshold — Readiness Before Rebirth
-sbꜣ msḥtjw ḫt (“Star of the Sacred Foreleg”) marks readiness.
-If the first decan gathers,
-and the second holds,
-this one waits at the edge.
-sbꜣ is what remains visible even in darkness—
-a fixed point before dawn.
-Here, nothing is forming anymore.
-Nothing is being shaped.
-Everything is ready.
-The cycle is complete.
-The year is sealed.
-The lamps are extinguished.
-The offerings are made.
-What remains stands in perfect stillness.
-This is not inactivity.
-It is completion without disturbance.
-Nothing is pushed forward.
-Nothing is held back.
-What is ready will emerge.
-What is not will remain unseen.
-In practice: sealing the year; extinguishing ritual lamps; completing final rites; preparing for the days beyond time; standing in stillness without anticipation.
-No correction is made.
-No effort is added.
-Because nothing more can be done.
-The Kemite understood:
-To interfere at this point
-is to break the birth.
-What has reached completion
-must pass on its own.
-The teachings say:
-“Do not press forward what is not yet time…
-the moment arrives in its own measure.”
-(Instruction tradition — cf. Amenemope)
-Thus the question becomes:
-What is ready to pass into rebirth without force?
-Because true renewal is not driven.
-It is released.
-Like the star that holds its place before sunrise,
-like the breath held before speaking,
-like the child at the threshold of birth—
-everything is present,
-but nothing has yet crossed.
-This is the final discipline:
-to do nothing without falling into neglect,
-to wait without grasping,
-to stand without disturbing what is about to begin.
-Nothing is added.
-Nothing is removed.
-Order stands intact—
-awaiting its own renewal.
-This is the end of the cycle—
-not as conclusion,
-but as perfect readiness.
-Living Principle:
-What is ready must be allowed to emerge without force.''',
+sbꜣ msḥtjw ḫt, “Star of the Crocodiles of the Offering,” marks readiness at the edge.
+
+A star before dawn does not create the sun. It announces that the night has reached its final measure. It stands in darkness as a sign that emergence is near, but not yet complete.
+
+This is the last decan of the year.
+
+The cycle has been sealed. The work has been gathered. The lamps are low. The old year has nothing more to prove. What remains is readiness without interference.
+
+Mesut-Ra reaches its stillest point here.
+
+Ra will be born, but not by force. Nut will release him, but only at the proper moment. Khepri will rise, but only after the hidden transformation has completed. The Duat must finish its passage before Akhet can open again.
+
+The Book of Coming Forth by Day calls the solar power the one who comes forth from dusk and whose birth is from the House of Death.
+
+— Book of Coming Forth by Day
+
+The threshold honors that order.
+
+No more effort can improve what must now pass by timing. No hand can hurry dawn without breaking the meaning of dawn. Readiness is complete when nothing more needs to be added.
+
+Where the threshold is kept intact, rebirth can arrive under Ma’at. Where it is disturbed, the new cycle begins before the old one has truly finished.''',
 ];
 
 /* ─────────── Info link targets ─────────── */
@@ -4360,8 +3554,19 @@ class CalendarPage extends StatefulWidget {
 
   static bool _shouldUseMountedCalendarHost(BuildContext context) {
     final state = _mountedState;
-    if (state == null) return false;
+    if (state == null || !state.mounted) return false;
     return _isRootRouteLocation(_currentRouteLocationForContext(context));
+  }
+
+  static CalendarPageState? _mountedCalendarHostForContext(
+    BuildContext context,
+  ) {
+    final state = _mountedState;
+    if (state == null || !state.mounted) return null;
+    if (!_isRootRouteLocation(_currentRouteLocationForContext(context))) {
+      return null;
+    }
+    return state;
   }
 
   static List<String> _stringListFromRestorationValue(Object? raw) {
@@ -4554,8 +3759,11 @@ class CalendarPage extends StatefulWidget {
     bool includeNewNote = true,
     void Function(String location)? onNavigate,
   }) async {
-    if (_shouldUseMountedCalendarHost(context)) {
-      await _mountedState!.showActionsMenuFromOutside(
+    final mountedHost = _shouldUseMountedCalendarHost(context)
+        ? _mountedCalendarHostForContext(context)
+        : null;
+    if (mountedHost != null) {
+      await mountedHost.showActionsMenuFromOutside(
         context,
         includeNewNote: includeNewNote,
       );
@@ -4612,8 +3820,11 @@ class CalendarPage extends StatefulWidget {
   }
 
   static Future<void> openQuickAddFromAnyContext(BuildContext context) async {
-    if (_shouldUseMountedCalendarHost(context)) {
-      await _mountedState!.openQuickAddFromOutside();
+    final mountedHost = _shouldUseMountedCalendarHost(context)
+        ? _mountedCalendarHostForContext(context)
+        : null;
+    if (mountedHost != null) {
+      await mountedHost.openQuickAddFromOutside();
       return;
     }
     await _openDetachedQuickAddSheet(context);
@@ -4902,8 +4113,11 @@ class CalendarPage extends StatefulWidget {
   }
 
   static Future<void> openSearchFromAnyContext(BuildContext context) async {
-    if (_shouldUseMountedCalendarHost(context)) {
-      _mountedState!._openSearchForContext(context);
+    final mountedHost = _shouldUseMountedCalendarHost(context)
+        ? _mountedCalendarHostForContext(context)
+        : null;
+    if (mountedHost != null) {
+      mountedHost._openSearchForContext(context);
       return;
     }
     final snapshot = await _loadWarmStartSearchSnapshot();
@@ -5115,8 +4329,11 @@ class CalendarPage extends StatefulWidget {
   }
 
   static Future<void> openMyFlowsFromAnyContext(BuildContext context) async {
-    if (_shouldUseMountedCalendarHost(context)) {
-      await _mountedState!.openMyFlowsFromOutside();
+    final mountedHost = _shouldUseMountedCalendarHost(context)
+        ? _mountedCalendarHostForContext(context)
+        : null;
+    if (mountedHost != null) {
+      await mountedHost.openMyFlowsFromOutside();
       return;
     }
     await openFlowStudioFromAnyContext(
@@ -5131,8 +4348,11 @@ class CalendarPage extends StatefulWidget {
     BuildContext context, {
     Map<String, dynamic>? restorationState,
   }) async {
-    if (_shouldUseMountedCalendarHost(context)) {
-      await _mountedState!._openSharedCalendarsSheet(
+    final mountedHost = _shouldUseMountedCalendarHost(context)
+        ? _mountedCalendarHostForContext(context)
+        : null;
+    if (mountedHost != null) {
+      await mountedHost._openSharedCalendarsSheet(
         restorationState: restorationState,
       );
       return;
@@ -5147,8 +4367,11 @@ class CalendarPage extends StatefulWidget {
     BuildContext context, {
     Map<String, dynamic>? restorationState,
   }) async {
-    if (_shouldUseMountedCalendarHost(context)) {
-      final state = _mountedState!;
+    final mountedHost = _shouldUseMountedCalendarHost(context)
+        ? _mountedCalendarHostForContext(context)
+        : null;
+    if (mountedHost != null) {
+      final state = mountedHost;
       final mode = (restorationState?['mode'] as String?)?.trim();
       if (mode == _kFlowStudioModeMyFlows) {
         state._openMyFlowsList(
@@ -5461,8 +4684,8 @@ class CalendarPage extends StatefulWidget {
   }
 
   static bool _flowMatchesActiveMaatTemplate(_Flow flow, String tplKey) {
-    final meta = notesDecode(flow.notes);
-    if (meta.maatKey != tplKey) return false;
+    final kind = resolveMaatFlowKind(flowNotes: flow.notes);
+    if (kind?.flowKey != tplKey) return false;
     if (!flow.active || flow.isHidden || flow.isReminder) return false;
     return isFlowScheduleOpenLocally(active: flow.active, endDate: flow.end);
   }
@@ -5483,6 +4706,47 @@ class CalendarPage extends StatefulWidget {
     } catch (_) {
       return null;
     }
+  }
+
+  static Future<void> _fileHeadlessEventDelivery({
+    required EventFilingService eventFiling,
+    required String debugLabel,
+    required String clientEventId,
+    required DateTime startsAtLocal,
+    required int? alertOffsetMinutes,
+    required String title,
+    String? body,
+  }) async {
+    try {
+      await eventFiling.fileDelivery(
+        clientEventId: clientEventId,
+        startsAtLocal: startsAtLocal,
+        alertOffsetMinutes: alertOffsetMinutes,
+        title: title,
+        body: body,
+      );
+    } catch (e, st) {
+      if (kDebugMode) {
+        _calendarDebugPrint(
+          '[$debugLabel] delivery filing failed for $clientEventId: $e',
+        );
+        _calendarDebugPrint('$st');
+      }
+    }
+  }
+
+  static void _publishHeadlessCalendarInvalidation({
+    required CalendarInvalidationReason reason,
+    required int flowId,
+    required List<String> clientEventIds,
+  }) {
+    CalendarInvalidationBus.instance.publish(
+      CalendarInvalidated(
+        reason: reason,
+        flowId: flowId,
+        clientEventIds: List.unmodifiable(clientEventIds),
+      ),
+    );
   }
 
   static Future<int> _addMaatFlowInstanceHeadless({
@@ -5576,1275 +4840,204 @@ class CalendarPage extends StatefulWidget {
     }
 
     if (template.kind == _MaatFlowTemplateKind.moonReturn) {
-      final timezone = trackSkyTimeZone ?? detectTrackSkyTimeZone();
-      final lens = moonReturnLens ?? MoonReturnLens.neutral;
-      final window = startDate == null
-          ? moonReturnNextEnrollmentWindow(timezone)
-          : moonReturnEnrollmentWindowForStartDate(startDate, timezone);
-      if (window == null) return -1;
-      final occurrences = moonReturnOccurrencesForWindow(window: window);
-      if (occurrences.isEmpty) return -1;
-      final dates = <DateTime>{
-        for (final occurrence in occurrences)
-          DateUtils.dateOnly(occurrence.startLocal),
-      };
-      final orderedDates = dates.toList()..sort();
-      final nowLocal = moonReturnNowInZone(timezone);
-      final flow = _Flow(
-        id: -1,
-        calendarId: personalCalendarId,
-        name: template.title,
-        color: template.color,
-        active: true,
-        rules: <FlowRule>[_RuleDates(dates: dates)],
-        start: DateUtils.dateOnly(window.opensAtLocal),
-        end: orderedDates.last,
-        notes: [
-          'mode=astronomy',
-          'split=1',
-          if (template.overview.trim().isNotEmpty)
-            'ov=${Uri.encodeComponent(template.overview.trim())}',
-          'maat=${template.key}',
-          'moon_tz=${timezone.key}',
-          'moon_lens=${lens.key}',
-          'moon_enrolled_at=${nowLocal.toIso8601String()}',
-          'moon_window_open=${_formatDetachedGregorian(window.opensAtLocal)}',
-          'moon_new_moon=${window.newMoonDateIso}',
-        ].join(';'),
+      final result = await FlowJoinService().joinMoonReturnHeadless(
+        templateKey: template.key,
+        templateTitle: template.title,
+        templateOverview: template.overview,
+        templateColor: template.color,
+        personalCalendarId: personalCalendarId,
+        timezone: trackSkyTimeZone ?? detectTrackSkyTimeZone(),
+        startDate: startDate,
+        lens: moonReturnLens ?? MoonReturnLens.neutral,
+        alertOffsetMinutes: 0,
       );
-
-      final userEventsRepo = UserEventsRepo(Supabase.instance.client);
-      final flowId = await userEventsRepo.upsertFlow(
-        id: null,
-        name: flow.name,
-        color: flow.color.toARGB32(),
-        active: flow.active,
-        calendarId: flow.calendarId,
-        startDate: flow.start,
-        endDate: flow.end,
-        notes: flow.notes,
-        rules: jsonEncode(
-          flow.rules.map(CalendarPageState.ruleToJson).toList(),
-        ),
-        originType: 'template',
-      );
-
-      for (final occurrence in occurrences) {
-        final title = moonReturnEventTitle(occurrence);
-        await userEventsRepo.upsertByClientId(
-          clientEventId: moonReturnClientEventId(
-            flowId: flowId,
-            occurrence: occurrence,
-          ),
-          title: title,
-          startsAtUtc: occurrence.startUtc,
-          detail: moonReturnDetailText(occurrence, lens: lens),
-          allDay: false,
-          endsAtUtc: occurrence.endUtc,
-          calendarId: personalCalendarId,
-          flowLocalId: flowId,
-          category: 'Ritual',
-          actionId: moonReturnActionId(occurrence),
-          behaviorPayload: moonReturnBehaviorPayload(
-            occurrence: occurrence,
-            lens: lens,
-          ),
-          caller: 'moon_return_join_headless',
-        );
-      }
-
-      return flowId;
+      return result.flowIdOrNegativeOne;
     }
 
     if (template.kind == _MaatFlowTemplateKind.theWag) {
-      final timezone = trackSkyTimeZone ?? detectTrackSkyTimeZone();
-      final lens = wagLens ?? WagLens.neutral;
-      final window = startDate == null
-          ? wagNextEnrollmentWindow(timezone)
-          : wagEnrollmentWindowForStartDate(startDate, timezone);
-      if (window == null) return -1;
-      final kYear = window.kYear;
-      final schedules = <WagEvent, WagOccurrenceSchedule>{
-        for (final event in kWagEvents)
-          event: wagScheduleForEvent(
-            event: event,
-            kYear: kYear,
-            timezone: timezone,
-          ),
-      };
-      final dates = <DateTime>{
-        for (final schedule in schedules.values)
-          DateUtils.dateOnly(schedule.startLocal),
-      };
-      final orderedDates = dates.toList()..sort();
-      final nowLocal = wagNowInZone(timezone);
-      final flow = _Flow(
-        id: -1,
-        calendarId: personalCalendarId,
-        name: template.title,
-        color: template.color,
-        active: true,
-        rules: <FlowRule>[_RuleDates(dates: dates)],
-        start: DateUtils.dateOnly(wagYearStartGregorian(kYear)),
-        end: DateUtils.dateOnly(wagYearEndGregorian(kYear)),
-        notes: [
-          'mode=kemetic',
-          'split=1',
-          if (template.overview.trim().isNotEmpty)
-            'ov=${Uri.encodeComponent(template.overview.trim())}',
-          'maat=${template.key}',
-          'wag_kyear=$kYear',
-          'wag_tz=${timezone.key}',
-          'wag_lens=${lens.key}',
-          'wag_enrolled_at=${nowLocal.toIso8601String()}',
-          'wag_window_open=${_formatDetachedGregorian(window.opensAtLocal)}',
-        ].join(';'),
+      final result = await FlowJoinService().joinWagHeadless(
+        templateKey: template.key,
+        templateTitle: template.title,
+        templateOverview: template.overview,
+        templateColor: template.color,
+        personalCalendarId: personalCalendarId,
+        timezone: trackSkyTimeZone ?? detectTrackSkyTimeZone(),
+        startDate: startDate,
+        lens: wagLens ?? WagLens.neutral,
+        alertOffsetMinutes: 0,
       );
-
-      final userEventsRepo = UserEventsRepo(Supabase.instance.client);
-      final flowId = await userEventsRepo.upsertFlow(
-        id: null,
-        name: flow.name,
-        color: flow.color.toARGB32(),
-        active: flow.active,
-        calendarId: flow.calendarId,
-        startDate: flow.start,
-        endDate: flow.end,
-        notes: flow.notes,
-        rules: jsonEncode(
-          flow.rules.map(CalendarPageState.ruleToJson).toList(),
-        ),
-        originType: 'template',
-      );
-
-      for (final event in kWagEvents) {
-        final schedule = schedules[event]!;
-        final variant = wagCopyVariantForEvent(event: event, kYear: kYear);
-        final title = wagEventTitle(event);
-        await userEventsRepo.upsertByClientId(
-          clientEventId: wagClientEventId(
-            flowId: flowId,
-            kYear: kYear,
-            event: event,
-          ),
-          title: title,
-          startsAtUtc: schedule.startUtc,
-          detail: wagDetailText(
-            event,
-            lens: lens,
-            variant: variant,
-            nextWagDate: event.sharePromptOnComplete
-                ? wagNextFeastGregorian(kYear)
-                : null,
-          ),
-          allDay: false,
-          endsAtUtc: schedule.endUtc,
-          calendarId: personalCalendarId,
-          flowLocalId: flowId,
-          category: 'Ritual',
-          actionId: wagActionId(event),
-          behaviorPayload: wagBehaviorPayload(
-            event: event,
-            kYear: kYear,
-            timezoneKey: timezone.key,
-            ianaTimezone: timezone.ianaName,
-            scheduleType: schedule.scheduleType,
-            referenceLocationName: schedule.referenceLocationName,
-            usedFallback: schedule.usedFallback,
-            lens: lens,
-            variant: variant,
-          ),
-          caller: 'wag_join_headless',
-        );
-      }
-
-      // Keep analyzer honest about the ordered rule dates while matching the
-      // other join branches' structure.
-      if (orderedDates.isEmpty) return -1;
-      return flowId;
+      return result.flowIdOrNegativeOne;
     }
 
     if (template.kind == _MaatFlowTemplateKind.daysOutsideTheYear) {
-      final timezone = trackSkyTimeZone ?? detectTrackSkyTimeZone();
-      final window = startDate == null
-          ? daysOutsideYearNextEnrollmentWindow(timezone)
-          : daysOutsideYearEnrollmentWindowForStartDate(startDate, timezone);
-      if (window == null) return -1;
-      final closingKYear = window.closingKYear;
-      final schedules = <DaysOutsideEvent, DaysOutsideOccurrenceSchedule>{
-        for (final event in kDaysOutsideEvents)
-          event: daysOutsideScheduleForEvent(
-            event: event,
-            closingKYear: closingKYear,
-            timezone: timezone,
-          ),
-      };
-      final dates = <DateTime>{
-        for (final schedule in schedules.values)
-          DateUtils.dateOnly(schedule.startLocal),
-      };
-      final nowLocal = daysOutsideNowInZone(timezone);
-      final flow = _Flow(
-        id: -1,
-        calendarId: personalCalendarId,
-        name: template.title,
-        color: template.color,
-        active: true,
-        rules: <FlowRule>[_RuleDates(dates: dates)],
-        start: DateUtils.dateOnly(window.opensAtLocal),
-        end: DateUtils.dateOnly(daysOutsideFlowEndGregorian(closingKYear)),
-        notes: [
-          'mode=kemetic',
-          'split=1',
-          if (template.overview.trim().isNotEmpty)
-            'ov=${Uri.encodeComponent(template.overview.trim())}',
-          'maat=${template.key}',
-          'doy_kyear=$closingKYear',
-          'doy_tz=${timezone.key}',
-          'doy_enrolled_at=${nowLocal.toIso8601String()}',
-          'doy_window_open=${_formatDetachedGregorian(window.opensAtLocal)}',
-        ].join(';'),
+      final result = await FlowJoinService().joinDaysOutsideYearHeadless(
+        templateKey: template.key,
+        templateTitle: template.title,
+        templateOverview: template.overview,
+        templateColor: template.color,
+        personalCalendarId: personalCalendarId,
+        timezone: trackSkyTimeZone ?? detectTrackSkyTimeZone(),
+        startDate: startDate,
+        alertOffsetMinutes: 0,
       );
-
-      final userEventsRepo = UserEventsRepo(Supabase.instance.client);
-      final flowId = await userEventsRepo.upsertFlow(
-        id: null,
-        name: flow.name,
-        color: flow.color.toARGB32(),
-        active: flow.active,
-        calendarId: flow.calendarId,
-        startDate: flow.start,
-        endDate: flow.end,
-        notes: flow.notes,
-        rules: jsonEncode(
-          flow.rules.map(CalendarPageState.ruleToJson).toList(),
-        ),
-        originType: 'template',
-      );
-
-      for (final event in kDaysOutsideEvents) {
-        final schedule = schedules[event]!;
-        final gregorian = daysOutsideEventGregorian(
-          closingKYear: closingKYear,
-          kMonth: event.kMonth,
-          kDay: event.kDay,
-        );
-        final variant = daysOutsideCopyVariantForEvent(
-          event: event,
-          gregorianDate: gregorian,
-        );
-        await userEventsRepo.upsertByClientId(
-          clientEventId: daysOutsideClientEventId(
-            flowId: flowId,
-            closingKYear: closingKYear,
-            event: event,
-          ),
-          title: daysOutsideEventTitle(event),
-          startsAtUtc: schedule.startUtc,
-          detail: daysOutsideDetailText(
-            event,
-            closingKYear: closingKYear,
-            variant: variant,
-          ),
-          allDay: false,
-          endsAtUtc: schedule.endUtc,
-          calendarId: personalCalendarId,
-          flowLocalId: flowId,
-          category: 'Ritual',
-          actionId: daysOutsideActionId(event),
-          behaviorPayload: daysOutsideBehaviorPayload(
-            event: event,
-            closingKYear: closingKYear,
-            timezoneKey: timezone.key,
-            ianaTimezone: timezone.ianaName,
-            scheduleType: schedule.scheduleType,
-            referenceLocationName: schedule.referenceLocationName,
-            usedFallback: schedule.usedFallback,
-            variant: variant,
-          ),
-          caller: 'days_outside_year_join_headless',
-        );
-      }
-
-      return flowId;
+      return result.flowIdOrNegativeOne;
     }
 
     if (template.kind == _MaatFlowTemplateKind.theOpenHand) {
-      final timezone = trackSkyTimeZone ?? detectTrackSkyTimeZone();
-      final lens = openHandLens ?? OpenHandLens.neutral;
-      final window = startDate == null
-          ? openHandNextEnrollmentWindow(timezone)
-          : openHandEnrollmentWindowForStartDate(startDate, timezone);
-      if (window == null) return -1;
-      final flowStart = DateUtils.dateOnly(window.opensAtLocal);
-      final schedules = <OpenHandEvent, OpenHandOccurrenceSchedule>{
-        for (final event in kOpenHandEvents)
-          event: openHandScheduleForEvent(event, flowStart, timezone),
-      };
-      final dates = <DateTime>{
-        for (final schedule in schedules.values)
-          DateUtils.dateOnly(schedule.startLocal),
-      };
-      final orderedDates = dates.toList()..sort();
-      final nowLocal = openHandNowInZone(timezone);
-      final flow = _Flow(
-        id: -1,
-        calendarId: personalCalendarId,
-        name: template.title,
-        color: template.color,
-        active: true,
-        rules: <FlowRule>[_RuleDates(dates: dates)],
-        start: flowStart,
-        end: flowStart.add(const Duration(days: 29)),
-        notes: [
-          'mode=gregorian',
-          'split=1',
-          if (template.overview.trim().isNotEmpty)
-            'ov=${Uri.encodeComponent(template.overview.trim())}',
-          'maat=${template.key}',
-          'oh_start=${_formatDetachedGregorian(flowStart)}',
-          'oh_tz=${timezone.key}',
-          'oh_lens=${lens.key}',
-          'oh_midday_hour=$kOpenHandDefaultMiddayHour',
-          'oh_midday_minute=$kOpenHandDefaultMiddayMinute',
-          'oh_decan_kyear=${window.openingOccurrence.kYear}',
-          'oh_decan_month=${window.openingOccurrence.kMonth}',
-          'oh_decan_day=${window.openingOccurrence.decanStartDay}',
-          'oh_enrolled_at=${nowLocal.toIso8601String()}',
-        ].join(';'),
+      final result = await FlowJoinService().joinOpenHandHeadless(
+        templateKey: template.key,
+        templateTitle: template.title,
+        templateOverview: template.overview,
+        templateColor: template.color,
+        personalCalendarId: personalCalendarId,
+        timezone: trackSkyTimeZone ?? detectTrackSkyTimeZone(),
+        startDate: startDate,
+        lens: openHandLens ?? OpenHandLens.neutral,
+        alertOffsetMinutes: 0,
       );
-
-      if (orderedDates.isEmpty) return -1;
-      final userEventsRepo = UserEventsRepo(Supabase.instance.client);
-      final flowId = await userEventsRepo.upsertFlow(
-        id: null,
-        name: flow.name,
-        color: flow.color.toARGB32(),
-        active: flow.active,
-        calendarId: flow.calendarId,
-        startDate: flow.start,
-        endDate: flow.end,
-        notes: flow.notes,
-        rules: jsonEncode(
-          flow.rules.map(CalendarPageState.ruleToJson).toList(),
-        ),
-        originType: 'template',
-      );
-
-      for (final event in kOpenHandEvents) {
-        final schedule = schedules[event]!;
-        await userEventsRepo.upsertByClientId(
-          clientEventId: openHandClientEventId(flowId: flowId, event: event),
-          title: openHandEventTitle(event),
-          startsAtUtc: schedule.startUtc,
-          detail: openHandDetailText(event, lens: lens),
-          allDay: false,
-          endsAtUtc: schedule.endUtc,
-          calendarId: personalCalendarId,
-          flowLocalId: flowId,
-          category: 'Ritual',
-          actionId: openHandActionId(event),
-          behaviorPayload: openHandBehaviorPayload(
-            event: event,
-            schedule: schedule,
-            lens: lens,
-          ),
-          caller: 'open_hand_join_headless',
-        );
-      }
-
-      return flowId;
+      return result.flowIdOrNegativeOne;
     }
 
     if (template.kind == _MaatFlowTemplateKind.theDjed) {
-      final timezone = trackSkyTimeZone ?? detectTrackSkyTimeZone();
-      final lens = djedLens ?? DjedLens.neutral;
-      final window = startDate == null
-          ? djedNextEnrollmentWindow(timezone)
-          : djedEnrollmentWindowForStartDate(startDate, timezone);
-      if (window == null) return -1;
-      final flowStart = DateUtils.dateOnly(window.opensAtLocal);
-      final schedules = <DjedEvent, DjedOccurrenceSchedule>{
-        for (final event in kDjedEvents)
-          event: djedScheduleForEvent(event, flowStart, timezone),
-      };
-      final dates = <DateTime>{
-        for (final schedule in schedules.values)
-          DateUtils.dateOnly(schedule.startLocal),
-      };
-      final orderedDates = dates.toList()..sort();
-      final nowLocal = djedNowInZone(timezone);
-      final flow = _Flow(
-        id: -1,
-        calendarId: personalCalendarId,
-        name: template.title,
-        color: template.color,
-        active: true,
-        rules: <FlowRule>[_RuleDates(dates: dates)],
-        start: flowStart,
-        end: flowStart.add(const Duration(days: 29)),
-        notes: [
-          'mode=gregorian',
-          'split=1',
-          if (template.overview.trim().isNotEmpty)
-            'ov=${Uri.encodeComponent(template.overview.trim())}',
-          'maat=${template.key}',
-          'djed_start=${_formatDetachedGregorian(flowStart)}',
-          'djed_tz=${timezone.key}',
-          'djed_lens=${lens.key}',
-          'djed_midday_hour=$kDjedDefaultMiddayHour',
-          'djed_midday_minute=$kDjedDefaultMiddayMinute',
-          'djed_decan_kyear=${window.openingOccurrence.kYear}',
-          'djed_decan_month=${window.openingOccurrence.kMonth}',
-          'djed_decan_day=${window.openingOccurrence.decanStartDay}',
-          'djed_enrolled_at=${nowLocal.toIso8601String()}',
-        ].join(';'),
+      final result = await FlowJoinService().joinDjedHeadless(
+        templateKey: template.key,
+        templateTitle: template.title,
+        templateOverview: template.overview,
+        templateColor: template.color,
+        personalCalendarId: personalCalendarId,
+        timezone: trackSkyTimeZone ?? detectTrackSkyTimeZone(),
+        startDate: startDate,
+        lens: djedLens ?? DjedLens.neutral,
+        alertOffsetMinutes: 0,
       );
-
-      if (orderedDates.isEmpty) return -1;
-      final userEventsRepo = UserEventsRepo(Supabase.instance.client);
-      final flowId = await userEventsRepo.upsertFlow(
-        id: null,
-        name: flow.name,
-        color: flow.color.toARGB32(),
-        active: flow.active,
-        calendarId: flow.calendarId,
-        startDate: flow.start,
-        endDate: flow.end,
-        notes: flow.notes,
-        rules: jsonEncode(
-          flow.rules.map(CalendarPageState.ruleToJson).toList(),
-        ),
-        originType: 'template',
-      );
-
-      for (final event in kDjedEvents) {
-        final schedule = schedules[event]!;
-        await userEventsRepo.upsertByClientId(
-          clientEventId: djedClientEventId(flowId: flowId, event: event),
-          title: djedEventTitle(event),
-          startsAtUtc: schedule.startUtc,
-          detail: djedDetailText(event, lens: lens),
-          allDay: false,
-          endsAtUtc: schedule.endUtc,
-          calendarId: personalCalendarId,
-          flowLocalId: flowId,
-          category: 'Ritual',
-          actionId: djedActionId(event),
-          behaviorPayload: djedBehaviorPayload(
-            event: event,
-            schedule: schedule,
-            lens: lens,
-          ),
-          caller: 'djed_join_headless',
-        );
-      }
-
-      return flowId;
+      return result.flowIdOrNegativeOne;
     }
 
     if (template.kind == _MaatFlowTemplateKind.decanWatch) {
-      final timezone = trackSkyTimeZone ?? detectTrackSkyTimeZone();
-      final lens = decanWatchLens ?? DecanWatchLens.neutral;
-      final window = startDate == null
-          ? decanWatchNextEnrollmentWindow(timezone)
-          : decanWatchEnrollmentWindowForStartDate(startDate, timezone);
-      if (window == null) return -1;
-      final occurrences = <DecanWatchOccurrence>[
-        window.openingOccurrence,
-        ...upcomingDecanWatchOccurrences(
-          timezone: timezone,
-          fromLocal: window.openingOccurrence.startLocal.add(
-            const Duration(days: 1),
-          ),
-          count: 2,
-        ),
-      ];
-      if (occurrences.isEmpty) return -1;
-      final dates = <DateTime>{
-        for (final occurrence in occurrences)
-          DateUtils.dateOnly(occurrence.startLocal),
-      };
-      final orderedDates = dates.toList()..sort();
-      final nowLocal = decanWatchNowInZone(timezone);
-      final flow = _Flow(
-        id: -1,
-        calendarId: personalCalendarId,
-        name: template.title,
-        color: template.color,
-        active: true,
-        rules: <FlowRule>[_RuleDates(dates: dates)],
-        start: orderedDates.first,
-        end: orderedDates.last,
-        notes: [
-          'mode=kemetic',
-          'split=1',
-          if (template.overview.trim().isNotEmpty)
-            'ov=${Uri.encodeComponent(template.overview.trim())}',
-          'maat=${template.key}',
-          'dw_tz=${timezone.key}',
-          'dw_lens=${lens.key}',
-          'dw_enrolled_kyear=${window.openingOccurrence.kYear}',
-          'dw_hour=$kDecanWatchDefaultHour',
-          'dw_minute=$kDecanWatchDefaultMinute',
-          'dw_enrolled_at=${nowLocal.toIso8601String()}',
-        ].join(';'),
+      final result = await FlowJoinService().joinDecanWatchHeadless(
+        templateKey: template.key,
+        templateTitle: template.title,
+        templateOverview: template.overview,
+        templateColor: template.color,
+        personalCalendarId: personalCalendarId,
+        timezone: trackSkyTimeZone ?? detectTrackSkyTimeZone(),
+        startDate: startDate,
+        lens: decanWatchLens ?? DecanWatchLens.neutral,
+        alertOffsetMinutes: 0,
       );
-
-      final userEventsRepo = UserEventsRepo(Supabase.instance.client);
-      final flowId = await userEventsRepo.upsertFlow(
-        id: null,
-        name: flow.name,
-        color: flow.color.toARGB32(),
-        active: flow.active,
-        calendarId: flow.calendarId,
-        startDate: flow.start,
-        endDate: flow.end,
-        notes: flow.notes,
-        rules: jsonEncode(
-          flow.rules.map(CalendarPageState.ruleToJson).toList(),
-        ),
-        originType: 'template',
-      );
-
-      for (final occurrence in occurrences) {
-        final title = decanWatchEventTitle(occurrence);
-        final context = courseContextForKemeticDate(
-          kYear: occurrence.kYear,
-          kMonth: occurrence.kMonth,
-          kDay: occurrence.decanStartDay,
-        );
-        await userEventsRepo.upsertByClientId(
-          clientEventId: decanWatchClientEventId(
-            flowId: flowId,
-            occurrence: occurrence,
-          ),
-          title: title,
-          startsAtUtc: occurrence.startUtc,
-          detail: decanWatchDetailText(
-            occurrence,
-            lens: lens,
-            context: context,
-          ),
-          allDay: false,
-          endsAtUtc: occurrence.endUtc,
-          calendarId: personalCalendarId,
-          flowLocalId: flowId,
-          category: 'Ritual',
-          actionId: decanWatchActionId(occurrence),
-          behaviorPayload: decanWatchBehaviorPayload(
-            occurrence: occurrence,
-            lens: lens,
-          ),
-          caller: 'decan_watch_join_headless',
-        );
-      }
-
-      return flowId;
+      return result.flowIdOrNegativeOne;
     }
 
     if (template.kind == _MaatFlowTemplateKind.dawnHouseRite) {
-      final timezone = trackSkyTimeZone ?? detectTrackSkyTimeZone();
-      final discreet = dawnDiscreetMode == true;
-      final lens = dawnLens ?? DawnHouseRiteLens.neutral;
-      final firstG = DateUtils.dateOnly(
-        startDate ?? defaultDawnHouseRiteStartDate(timezone),
+      final result = await FlowJoinService().joinDawnHouseRiteHeadless(
+        templateKey: template.key,
+        templateTitle: template.title,
+        templateOverview: template.overview,
+        templateColor: template.color,
+        personalCalendarId: personalCalendarId,
+        timezone: trackSkyTimeZone ?? detectTrackSkyTimeZone(),
+        startDate: startDate,
+        discreet: dawnDiscreetMode == true,
+        lens: dawnLens ?? DawnHouseRiteLens.neutral,
+        alertOffsetMinutes: kEventFilingNoAlertMinutes,
       );
-      final occurrences = <DawnHouseRiteOccurrenceSchedule>[
-        for (var i = 0; i < kDawnHouseRiteDays.length; i++)
-          dawnHouseRiteScheduleForDate(firstG.add(Duration(days: i)), timezone),
-      ];
-      final dates = <DateTime>{
-        for (final occurrence in occurrences)
-          DateUtils.dateOnly(occurrence.startLocal),
-      };
-      final orderedDates = dates.toList()..sort();
-      final flow = _Flow(
-        id: -1,
-        calendarId: personalCalendarId,
-        name: template.title,
-        color: template.color,
-        active: true,
-        rules: <FlowRule>[_RuleDates(dates: dates)],
-        start: orderedDates.first,
-        end: orderedDates.last,
-        notes: [
-          'mode=gregorian',
-          'split=1',
-          if (template.overview.trim().isNotEmpty)
-            'ov=${Uri.encodeComponent(template.overview.trim())}',
-          'maat=${template.key}',
-          'dawn_tz=${timezone.key}',
-          'dawn_discreet=${discreet ? 1 : 0}',
-          'dawn_lens=${lens.key}',
-        ].join(';'),
-      );
-
-      final userEventsRepo = UserEventsRepo(Supabase.instance.client);
-      final flowId = await userEventsRepo.upsertFlow(
-        id: null,
-        name: flow.name,
-        color: flow.color.toARGB32(),
-        active: flow.active,
-        calendarId: flow.calendarId,
-        startDate: flow.start,
-        endDate: flow.end,
-        notes: flow.notes,
-        rules: jsonEncode(
-          flow.rules.map(CalendarPageState.ruleToJson).toList(),
-        ),
-        originType: 'template',
-      );
-
-      for (var i = 0; i < kDawnHouseRiteDays.length; i++) {
-        final day = kDawnHouseRiteDays[i];
-        final occurrence = occurrences[i];
-        final k = KemeticMath.fromGregorian(
-          DateUtils.dateOnly(occurrence.startLocal),
-        );
-        final cid = EventCidUtil.buildClientEventId(
-          ky: k.kYear,
-          km: k.kMonth,
-          kd: k.kDay,
-          title: dawnHouseRiteEventTitle(day),
-          startHour: occurrence.startLocal.hour,
-          startMinute: occurrence.startLocal.minute,
-          allDay: false,
-          flowId: flowId,
-        );
-        await userEventsRepo.upsertByClientId(
-          clientEventId: cid,
-          title: dawnHouseRiteEventTitle(day),
-          startsAtUtc: occurrence.startUtc,
-          detail: dawnHouseRiteDetailText(day, discreet: discreet, lens: lens),
-          allDay: false,
-          endsAtUtc: occurrence.endUtc,
-          calendarId: personalCalendarId,
-          flowLocalId: flowId,
-          category: 'Ritual',
-          actionId: dawnHouseRiteActionId(day),
-          behaviorPayload: dawnHouseRiteBehaviorPayload(
-            day: day,
-            schedule: occurrence,
-            discreet: discreet,
-            lens: lens,
-          ),
-          caller: 'dawn_house_rite_join_headless',
-        );
-      }
-
-      return flowId;
+      return result.flowIdOrNegativeOne;
     }
 
     if (template.kind == _MaatFlowTemplateKind.eveningThresholdRite) {
-      final timezone = trackSkyTimeZone ?? detectTrackSkyTimeZone();
-      final discreet = eveningDiscreetMode == true;
-      final lens = eveningLens ?? EveningThresholdRiteLens.neutral;
       final fallbackMinutes =
           eveningFallbackMinutesAfterMidnight ??
           kEveningThresholdDefaultFallbackMinutes;
-      final firstG = DateUtils.dateOnly(
-        startDate ??
-            defaultEveningThresholdRiteStartDate(
-              timezone,
-              fallbackMinutesAfterMidnight: fallbackMinutes,
-            ),
+      final result = await FlowJoinService().joinEveningThresholdRiteHeadless(
+        templateKey: template.key,
+        templateTitle: template.title,
+        templateOverview: template.overview,
+        templateColor: template.color,
+        personalCalendarId: personalCalendarId,
+        timezone: trackSkyTimeZone ?? detectTrackSkyTimeZone(),
+        startDate: startDate,
+        discreet: eveningDiscreetMode == true,
+        lens: eveningLens ?? EveningThresholdRiteLens.neutral,
+        fallbackMinutesAfterMidnight: fallbackMinutes,
+        alertOffsetMinutes: kEventFilingNoAlertMinutes,
       );
-      final occurrences = <EveningThresholdOccurrenceSchedule>[
-        for (var i = 0; i < kEveningThresholdRiteDays.length; i++)
-          eveningThresholdScheduleForDate(
-            firstG.add(Duration(days: i)),
-            timezone,
-            fallbackMinutesAfterMidnight: fallbackMinutes,
-          ),
-      ];
-      final dates = <DateTime>{
-        for (final occurrence in occurrences)
-          DateUtils.dateOnly(occurrence.startLocal),
-      };
-      final orderedDates = dates.toList()..sort();
-      final flow = _Flow(
-        id: -1,
-        calendarId: personalCalendarId,
-        name: template.title,
-        color: template.color,
-        active: true,
-        rules: <FlowRule>[_RuleDates(dates: dates)],
-        start: orderedDates.first,
-        end: orderedDates.last,
-        notes: [
-          'mode=gregorian',
-          'split=1',
-          if (template.overview.trim().isNotEmpty)
-            'ov=${Uri.encodeComponent(template.overview.trim())}',
-          'maat=${template.key}',
-          'evening_tz=${timezone.key}',
-          'evening_discreet=${discreet ? 1 : 0}',
-          'evening_lens=${lens.key}',
-          'evening_fallback=$fallbackMinutes',
-        ].join(';'),
-      );
-
-      final userEventsRepo = UserEventsRepo(Supabase.instance.client);
-      final flowId = await userEventsRepo.upsertFlow(
-        id: null,
-        name: flow.name,
-        color: flow.color.toARGB32(),
-        active: flow.active,
-        calendarId: flow.calendarId,
-        startDate: flow.start,
-        endDate: flow.end,
-        notes: flow.notes,
-        rules: jsonEncode(
-          flow.rules.map(CalendarPageState.ruleToJson).toList(),
-        ),
-        originType: 'template',
-      );
-
-      for (var i = 0; i < kEveningThresholdRiteDays.length; i++) {
-        final day = kEveningThresholdRiteDays[i];
-        final occurrence = occurrences[i];
-        final k = KemeticMath.fromGregorian(
-          DateUtils.dateOnly(occurrence.startLocal),
-        );
-        final title = eveningThresholdRiteEventTitle(day);
-        final cid = EventCidUtil.buildClientEventId(
-          ky: k.kYear,
-          km: k.kMonth,
-          kd: k.kDay,
-          title: title,
-          startHour: occurrence.startLocal.hour,
-          startMinute: occurrence.startLocal.minute,
-          allDay: false,
-          flowId: flowId,
-        );
-        await userEventsRepo.upsertByClientId(
-          clientEventId: cid,
-          title: title,
-          startsAtUtc: occurrence.startUtc,
-          detail: eveningThresholdRiteDetailText(
-            day,
-            discreet: discreet,
-            lens: lens,
-          ),
-          allDay: false,
-          endsAtUtc: occurrence.endUtc,
-          calendarId: personalCalendarId,
-          flowLocalId: flowId,
-          category: 'Ritual',
-          actionId: eveningThresholdRiteActionId(day),
-          behaviorPayload: eveningThresholdRiteBehaviorPayload(
-            day: day,
-            schedule: occurrence,
-            discreet: discreet,
-            lens: lens,
-          ),
-          caller: 'evening_threshold_rite_join_headless',
-        );
-      }
-
-      return flowId;
+      return result.flowIdOrNegativeOne;
     }
 
     if (template.kind == _MaatFlowTemplateKind.theWeighing) {
-      final timezone = trackSkyTimeZone ?? detectTrackSkyTimeZone();
-      final lens = theWeighingLens ?? TheWeighingLens.neutral;
-      final firstG = DateUtils.dateOnly(
-        startDate ?? defaultTheWeighingStartDate(timezone),
+      final result = await FlowJoinService().joinTheWeighingHeadless(
+        templateKey: template.key,
+        templateTitle: template.title,
+        templateOverview: template.overview,
+        templateColor: template.color,
+        personalCalendarId: personalCalendarId,
+        timezone: trackSkyTimeZone ?? detectTrackSkyTimeZone(),
+        startDate: startDate,
+        lens: theWeighingLens ?? TheWeighingLens.neutral,
+        alertOffsetMinutes: kEventFilingNoAlertMinutes,
       );
-      final occurrences = <TheWeighingOccurrenceSchedule>[
-        for (final event in kTheWeighingEvents)
-          theWeighingScheduleForDate(
-            event,
-            firstG.add(Duration(days: event.flowDay - 1)),
-            timezone,
-          ),
-      ];
-      final dates = <DateTime>{
-        for (final occurrence in occurrences)
-          DateUtils.dateOnly(occurrence.startLocal),
-      };
-      final orderedDates = dates.toList()..sort();
-      final flow = _Flow(
-        id: -1,
-        calendarId: personalCalendarId,
-        name: template.title,
-        color: template.color,
-        active: true,
-        rules: <FlowRule>[_RuleDates(dates: dates)],
-        start: orderedDates.first,
-        end: firstG.add(const Duration(days: 29)),
-        notes: [
-          'mode=gregorian',
-          'split=1',
-          if (template.overview.trim().isNotEmpty)
-            'ov=${Uri.encodeComponent(template.overview.trim())}',
-          'maat=${template.key}',
-          'weighing_tz=${timezone.key}',
-          'weighing_lens=${lens.key}',
-          'weighing_midday_hour=$kTheWeighingDefaultMiddayHour',
-          'weighing_midday_minute=$kTheWeighingDefaultMiddayMinute',
-        ].join(';'),
-      );
-
-      final userEventsRepo = UserEventsRepo(Supabase.instance.client);
-      final flowId = await userEventsRepo.upsertFlow(
-        id: null,
-        name: flow.name,
-        color: flow.color.toARGB32(),
-        active: flow.active,
-        calendarId: flow.calendarId,
-        startDate: flow.start,
-        endDate: flow.end,
-        notes: flow.notes,
-        rules: jsonEncode(
-          flow.rules.map(CalendarPageState.ruleToJson).toList(),
-        ),
-        originType: 'template',
-      );
-
-      for (var i = 0; i < kTheWeighingEvents.length; i++) {
-        final event = kTheWeighingEvents[i];
-        final occurrence = occurrences[i];
-        final k = KemeticMath.fromGregorian(
-          DateUtils.dateOnly(occurrence.startLocal),
-        );
-        final title = theWeighingEventTitle(event);
-        final cid = EventCidUtil.buildClientEventId(
-          ky: k.kYear,
-          km: k.kMonth,
-          kd: k.kDay,
-          title: title,
-          startHour: occurrence.startLocal.hour,
-          startMinute: occurrence.startLocal.minute,
-          allDay: false,
-          flowId: flowId,
-        );
-        await userEventsRepo.upsertByClientId(
-          clientEventId: cid,
-          title: title,
-          startsAtUtc: occurrence.startUtc,
-          detail: theWeighingDetailText(event, lens: lens),
-          allDay: false,
-          endsAtUtc: occurrence.endUtc,
-          calendarId: personalCalendarId,
-          flowLocalId: flowId,
-          category: 'Ritual',
-          actionId: theWeighingActionId(event),
-          behaviorPayload: theWeighingBehaviorPayload(
-            event: event,
-            schedule: occurrence,
-            lens: lens,
-          ),
-          caller: 'the_weighing_join_headless',
-        );
-      }
-
-      return flowId;
+      return result.flowIdOrNegativeOne;
     }
 
     if (template.kind == _MaatFlowTemplateKind.offeringTable) {
-      final timezone = trackSkyTimeZone ?? detectTrackSkyTimeZone();
-      final lens = offeringTableLens ?? OfferingTableLens.neutral;
-      final noCupMode = offeringNoCupMode == true;
-      final firstG = DateUtils.dateOnly(
-        startDate ?? defaultOfferingTableStartDate(timezone),
+      final result = await FlowJoinService().joinOfferingTableHeadless(
+        templateKey: template.key,
+        templateTitle: template.title,
+        templateOverview: template.overview,
+        templateColor: template.color,
+        personalCalendarId: personalCalendarId,
+        timezone: trackSkyTimeZone ?? detectTrackSkyTimeZone(),
+        startDate: startDate,
+        lens: offeringTableLens ?? OfferingTableLens.neutral,
+        noCupMode: offeringNoCupMode == true,
+        alertOffsetMinutes: 0,
       );
-      final occurrences = <OfferingTableOccurrenceSchedule>[
-        for (var i = 0; i < kOfferingTableDays.length; i++)
-          offeringTableScheduleForDate(
-            kOfferingTableDays[i],
-            firstG.add(Duration(days: i)),
-            timezone,
-          ),
-      ];
-      final dates = <DateTime>{
-        for (final occurrence in occurrences)
-          DateUtils.dateOnly(occurrence.startLocal),
-      };
-      final orderedDates = dates.toList()..sort();
-      final flow = _Flow(
-        id: -1,
-        calendarId: personalCalendarId,
-        name: template.title,
-        color: template.color,
-        active: true,
-        rules: <FlowRule>[_RuleDates(dates: dates)],
-        start: orderedDates.first,
-        end: orderedDates.last,
-        notes: [
-          'mode=gregorian',
-          'split=1',
-          if (template.overview.trim().isNotEmpty)
-            'ov=${Uri.encodeComponent(template.overview.trim())}',
-          'maat=${template.key}',
-          'offering_tz=${timezone.key}',
-          'offering_lens=${lens.key}',
-          'offering_hour=$kOfferingTableDefaultHour',
-          'offering_minute=$kOfferingTableDefaultMinute',
-          'no_cup_mode=${noCupMode ? 1 : 0}',
-        ].join(';'),
-      );
-
-      final userEventsRepo = UserEventsRepo(Supabase.instance.client);
-      final flowId = await userEventsRepo.upsertFlow(
-        id: null,
-        name: flow.name,
-        color: flow.color.toARGB32(),
-        active: flow.active,
-        calendarId: flow.calendarId,
-        startDate: flow.start,
-        endDate: flow.end,
-        notes: flow.notes,
-        rules: jsonEncode(
-          flow.rules.map(CalendarPageState.ruleToJson).toList(),
-        ),
-        originType: 'template',
-      );
-
-      for (var i = 0; i < kOfferingTableDays.length; i++) {
-        final day = kOfferingTableDays[i];
-        final occurrence = occurrences[i];
-        final k = KemeticMath.fromGregorian(
-          DateUtils.dateOnly(occurrence.startLocal),
-        );
-        final title = offeringTableEventTitle(day);
-        final cid = EventCidUtil.buildClientEventId(
-          ky: k.kYear,
-          km: k.kMonth,
-          kd: k.kDay,
-          title: title,
-          startHour: occurrence.startLocal.hour,
-          startMinute: occurrence.startLocal.minute,
-          allDay: false,
-          flowId: flowId,
-        );
-        await userEventsRepo.upsertByClientId(
-          clientEventId: cid,
-          title: title,
-          startsAtUtc: occurrence.startUtc,
-          detail: offeringTableDetailText(
-            day,
-            lens: lens,
-            noCupMode: noCupMode,
-          ),
-          allDay: false,
-          endsAtUtc: occurrence.endUtc,
-          calendarId: personalCalendarId,
-          flowLocalId: flowId,
-          category: 'Ritual',
-          actionId: offeringTableActionId(day),
-          behaviorPayload: offeringTableBehaviorPayload(
-            day: day,
-            schedule: occurrence,
-            lens: lens,
-            noCupMode: noCupMode,
-          ),
-          caller: 'offering_table_join_headless',
-        );
-      }
-
-      return flowId;
+      return result.flowIdOrNegativeOne;
     }
 
     if (template.kind == _MaatFlowTemplateKind.theTending) {
-      final timezone = trackSkyTimeZone ?? detectTrackSkyTimeZone();
-      final lens = theTendingLens ?? TheTendingLens.neutral;
-      final firstG = DateUtils.dateOnly(
-        startDate ?? defaultTheTendingStartDate(timezone),
+      final result = await FlowJoinService().joinTheTendingHeadless(
+        templateKey: template.key,
+        templateTitle: template.title,
+        templateOverview: template.overview,
+        templateColor: template.color,
+        personalCalendarId: personalCalendarId,
+        timezone: trackSkyTimeZone ?? detectTrackSkyTimeZone(),
+        startDate: startDate,
+        lens: theTendingLens ?? TheTendingLens.neutral,
+        alertOffsetMinutes: 0,
       );
-      final occurrences = <TheTendingOccurrenceSchedule>[
-        for (final event in kTheTendingEvents)
-          theTendingScheduleForDate(
-            event,
-            firstG.add(Duration(days: event.flowDay - 1)),
-            timezone,
-          ),
-      ];
-      final dates = <DateTime>{
-        for (final occurrence in occurrences)
-          DateUtils.dateOnly(occurrence.startLocal),
-      };
-      final orderedDates = dates.toList()..sort();
-      final flow = _Flow(
-        id: -1,
-        calendarId: personalCalendarId,
-        name: template.title,
-        color: template.color,
-        active: true,
-        rules: <FlowRule>[_RuleDates(dates: dates)],
-        start: orderedDates.first,
-        end: firstG.add(const Duration(days: 29)),
-        notes: [
-          'mode=gregorian',
-          'split=1',
-          if (template.overview.trim().isNotEmpty)
-            'ov=${Uri.encodeComponent(template.overview.trim())}',
-          'maat=${template.key}',
-          'tending_tz=${timezone.key}',
-          'tending_lens=${lens.key}',
-          'tending_midday_hour=$kTheTendingDefaultMiddayHour',
-          'tending_midday_minute=$kTheTendingDefaultMiddayMinute',
-        ].join(';'),
-      );
-
-      final userEventsRepo = UserEventsRepo(Supabase.instance.client);
-      final flowId = await userEventsRepo.upsertFlow(
-        id: null,
-        name: flow.name,
-        color: flow.color.toARGB32(),
-        active: flow.active,
-        calendarId: flow.calendarId,
-        startDate: flow.start,
-        endDate: flow.end,
-        notes: flow.notes,
-        rules: jsonEncode(
-          flow.rules.map(CalendarPageState.ruleToJson).toList(),
-        ),
-        originType: 'template',
-      );
-
-      for (var i = 0; i < kTheTendingEvents.length; i++) {
-        final event = kTheTendingEvents[i];
-        final occurrence = occurrences[i];
-        final k = KemeticMath.fromGregorian(
-          DateUtils.dateOnly(occurrence.startLocal),
-        );
-        final title = theTendingEventTitle(event);
-        final cid = EventCidUtil.buildClientEventId(
-          ky: k.kYear,
-          km: k.kMonth,
-          kd: k.kDay,
-          title: title,
-          startHour: occurrence.startLocal.hour,
-          startMinute: occurrence.startLocal.minute,
-          allDay: false,
-          flowId: flowId,
-        );
-        await userEventsRepo.upsertByClientId(
-          clientEventId: cid,
-          title: title,
-          startsAtUtc: occurrence.startUtc,
-          detail: theTendingDetailText(event, lens: lens),
-          allDay: false,
-          endsAtUtc: occurrence.endUtc,
-          calendarId: personalCalendarId,
-          flowLocalId: flowId,
-          category: 'Ritual',
-          actionId: theTendingActionId(event),
-          behaviorPayload: theTendingBehaviorPayload(
-            event: event,
-            schedule: occurrence,
-            lens: lens,
-          ),
-          caller: 'the_tending_join_headless',
-        );
-      }
-
-      return flowId;
+      return result.flowIdOrNegativeOne;
     }
 
     if (template.kind == _MaatFlowTemplateKind.keptWord) {
-      final timezone = trackSkyTimeZone ?? detectTrackSkyTimeZone();
-      final lens = keptWordLens ?? KeptWordLens.neutral;
-      final firstG = DateUtils.dateOnly(
-        startDate ?? defaultKeptWordStartDate(timezone),
+      final result = await FlowJoinService().joinKeptWordHeadless(
+        templateKey: template.key,
+        templateTitle: template.title,
+        templateOverview: template.overview,
+        templateColor: template.color,
+        personalCalendarId: personalCalendarId,
+        timezone: trackSkyTimeZone ?? detectTrackSkyTimeZone(),
+        startDate: startDate,
+        lens: keptWordLens ?? KeptWordLens.neutral,
+        alertOffsetMinutes: 0,
       );
-      final occurrences = <KeptWordOccurrenceSchedule>[
-        for (final event in kKeptWordEvents)
-          keptWordScheduleForDate(
-            event,
-            firstG.add(Duration(days: event.flowDay - 1)),
-            timezone,
-          ),
-      ];
-      final dates = <DateTime>{
-        for (final occurrence in occurrences)
-          DateUtils.dateOnly(occurrence.startLocal),
-      };
-      final orderedDates = dates.toList()..sort();
-      final flow = _Flow(
-        id: -1,
-        calendarId: personalCalendarId,
-        name: template.title,
-        color: template.color,
-        active: true,
-        rules: <FlowRule>[_RuleDates(dates: dates)],
-        start: orderedDates.first,
-        end: firstG.add(const Duration(days: 29)),
-        notes: [
-          'mode=gregorian',
-          'split=1',
-          if (template.overview.trim().isNotEmpty)
-            'ov=${Uri.encodeComponent(template.overview.trim())}',
-          'maat=${template.key}',
-          'kept_word_tz=${timezone.key}',
-          'kept_word_lens=${lens.key}',
-          'kept_word_midday_hour=$kKeptWordDefaultMiddayHour',
-          'kept_word_midday_minute=$kKeptWordDefaultMiddayMinute',
-        ].join(';'),
-      );
-
-      final userEventsRepo = UserEventsRepo(Supabase.instance.client);
-      final flowId = await userEventsRepo.upsertFlow(
-        id: null,
-        name: flow.name,
-        color: flow.color.toARGB32(),
-        active: flow.active,
-        calendarId: flow.calendarId,
-        startDate: flow.start,
-        endDate: flow.end,
-        notes: flow.notes,
-        rules: jsonEncode(
-          flow.rules.map(CalendarPageState.ruleToJson).toList(),
-        ),
-        originType: 'template',
-      );
-
-      for (var i = 0; i < kKeptWordEvents.length; i++) {
-        final event = kKeptWordEvents[i];
-        final occurrence = occurrences[i];
-        final k = KemeticMath.fromGregorian(
-          DateUtils.dateOnly(occurrence.startLocal),
-        );
-        final title = keptWordEventTitle(event);
-        final cid = EventCidUtil.buildClientEventId(
-          ky: k.kYear,
-          km: k.kMonth,
-          kd: k.kDay,
-          title: title,
-          startHour: occurrence.startLocal.hour,
-          startMinute: occurrence.startLocal.minute,
-          allDay: false,
-          flowId: flowId,
-        );
-        await userEventsRepo.upsertByClientId(
-          clientEventId: cid,
-          title: title,
-          startsAtUtc: occurrence.startUtc,
-          detail: keptWordDetailText(event, lens: lens),
-          allDay: false,
-          endsAtUtc: occurrence.endUtc,
-          calendarId: personalCalendarId,
-          flowLocalId: flowId,
-          category: 'Ritual',
-          actionId: keptWordActionId(event),
-          behaviorPayload: keptWordBehaviorPayload(
-            event: event,
-            schedule: occurrence,
-            lens: lens,
-          ),
-          caller: 'the_kept_word_join_headless',
-        );
-      }
-
-      return flowId;
+      return result.flowIdOrNegativeOne;
     }
 
     if (template.kind == _MaatFlowTemplateKind.theCourse) {
-      final timezone = trackSkyTimeZone ?? detectTrackSkyTimeZone();
-      final lens = courseLens ?? CourseLens.neutral;
-      final firstG = DateUtils.dateOnly(
-        startDate ?? defaultTheCourseStartDate(timezone),
+      final result = await FlowJoinService().joinTheCourseHeadless(
+        templateKey: template.key,
+        templateTitle: template.title,
+        templateOverview: template.overview,
+        templateColor: template.color,
+        personalCalendarId: personalCalendarId,
+        timezone: trackSkyTimeZone ?? detectTrackSkyTimeZone(),
+        startDate: startDate,
+        lens: courseLens ?? CourseLens.neutral,
+        alertOffsetMinutes: 0,
       );
-      final joinedK = KemeticMath.fromGregorian(firstG);
-      final occurrences = <CourseOccurrenceSchedule>[
-        for (final event in kTheCourseEvents)
-          courseScheduleForDate(
-            event,
-            firstG.add(Duration(days: event.flowDay - 1)),
-            timezone,
-          ),
-      ];
-      final dates = <DateTime>{
-        for (final occurrence in occurrences)
-          DateUtils.dateOnly(occurrence.startLocal),
-      };
-      final orderedDates = dates.toList()..sort();
-      final flow = _Flow(
-        id: -1,
-        calendarId: personalCalendarId,
-        name: template.title,
-        color: template.color,
-        active: true,
-        rules: <FlowRule>[_RuleDates(dates: dates)],
-        start: orderedDates.first,
-        end: firstG.add(const Duration(days: 29)),
-        notes: [
-          'mode=gregorian',
-          'split=1',
-          if (template.overview.trim().isNotEmpty)
-            'ov=${Uri.encodeComponent(template.overview.trim())}',
-          'maat=${template.key}',
-          'course_tz=${timezone.key}',
-          'course_lens=${lens.key}',
-          'course_midday_hour=$kTheCourseDefaultMiddayHour',
-          'course_midday_minute=$kTheCourseDefaultMiddayMinute',
-          'joined_ky=${joinedK.kYear}',
-          'joined_km=${joinedK.kMonth}',
-          'joined_kd=${joinedK.kDay}',
-        ].join(';'),
-      );
-
-      final userEventsRepo = UserEventsRepo(Supabase.instance.client);
-      final flowId = await userEventsRepo.upsertFlow(
-        id: null,
-        name: flow.name,
-        color: flow.color.toARGB32(),
-        active: flow.active,
-        calendarId: flow.calendarId,
-        startDate: flow.start,
-        endDate: flow.end,
-        notes: flow.notes,
-        rules: jsonEncode(
-          flow.rules.map(CalendarPageState.ruleToJson).toList(),
-        ),
-        originType: 'template',
-      );
-
-      for (var i = 0; i < kTheCourseEvents.length; i++) {
-        final event = kTheCourseEvents[i];
-        final occurrence = occurrences[i];
-        final dayOnly = DateUtils.dateOnly(occurrence.startLocal);
-        final k = KemeticMath.fromGregorian(dayOnly);
-        final context = courseContextForKemeticDate(
-          kYear: k.kYear,
-          kMonth: k.kMonth,
-          kDay: k.kDay,
-        );
-        final title = courseEventTitle(event);
-        final cid = EventCidUtil.buildClientEventId(
-          ky: k.kYear,
-          km: k.kMonth,
-          kd: k.kDay,
-          title: title,
-          startHour: occurrence.startLocal.hour,
-          startMinute: occurrence.startLocal.minute,
-          allDay: false,
-          flowId: flowId,
-        );
-        await userEventsRepo.upsertByClientId(
-          clientEventId: cid,
-          title: title,
-          startsAtUtc: occurrence.startUtc,
-          detail: courseDetailText(event, lens: lens, context: context),
-          allDay: false,
-          endsAtUtc: occurrence.endUtc,
-          calendarId: personalCalendarId,
-          flowLocalId: flowId,
-          category: 'Ritual',
-          actionId: courseActionId(event),
-          behaviorPayload: courseBehaviorPayload(
-            event: event,
-            schedule: occurrence,
-            lens: lens,
-            context: context,
-          ),
-          caller: 'the_course_join_headless',
-        );
-      }
-
-      return flowId;
+      return result.flowIdOrNegativeOne;
     }
 
     if (startDate == null) return -1;
@@ -7698,6 +5891,11 @@ class CalendarPage extends StatefulWidget {
     if (deleteId != null) {
       await userEventsRepo.deleteByFlowId(deleteId);
       await userEventsRepo.deleteFlow(deleteId);
+      _publishHeadlessCalendarInvalidation(
+        reason: CalendarInvalidationReason.flowDeleted,
+        flowId: deleteId,
+        clientEventIds: const <String>[],
+      );
       return deleteId;
     }
 
@@ -7743,7 +5941,9 @@ class CalendarPage extends StatefulWidget {
     }
 
     // Persist planned notes (with individual titles)
+    final clientEventIds = <String>[];
     if (r.plannedNotes.isNotEmpty) {
+      final eventFiling = EventFilingService();
       for (final p in r.plannedNotes) {
         final n = p.note;
         final gDay = KemeticMath.toGregorian(p.ky, p.km, p.kd);
@@ -7777,6 +5977,7 @@ class CalendarPage extends StatefulWidget {
           allDay: n.allDay,
           flowId: savedId,
         );
+        clientEventIds.add(cid);
 
         await userEventsRepo.upsertByClientId(
           clientEventId: cid,
@@ -7793,9 +5994,28 @@ class CalendarPage extends StatefulWidget {
           behaviorPayload: n.behaviorPayload,
           caller: 'flow_save_notes',
         );
+
+        final bodyLines = <String>[
+          if ((n.location ?? '').trim().isNotEmpty) n.location!.trim(),
+          if ((n.detail ?? '').trim().isNotEmpty) n.detail!.trim(),
+        ];
+        await _fileHeadlessEventDelivery(
+          eventFiling: eventFiling,
+          debugLabel: 'flowStudioHeadless',
+          clientEventId: cid,
+          startsAtLocal: startsAt,
+          alertOffsetMinutes: n.alertOffsetMinutes,
+          title: n.title,
+          body: bodyLines.isEmpty ? null : bodyLines.join('\n'),
+        );
       }
     }
 
+    _publishHeadlessCalendarInvalidation(
+      reason: CalendarInvalidationReason.flowStudioPersisted,
+      flowId: savedId,
+      clientEventIds: clientEventIds,
+    );
     return savedId;
   }
 
@@ -8114,6 +6334,13 @@ class CalendarPageState extends State<CalendarPage>
   late final ReminderService _reminderService = ReminderService();
   StreamSubscription<List<Reminder>>? _reminderSub; // unused now (safety)
   StreamSubscription<AuthState>? _authSub;
+  StreamSubscription<CalendarInvalidated>? _calendarInvalidationSub;
+  Timer? _calendarInvalidationReloadDebounce;
+  bool _calendarInvalidationReloadPending = false;
+  bool _calendarInvalidationReloadInFlight = false;
+  CalendarInvalidationReason? _calendarInvalidationReloadReason;
+  int _calendarInvalidationScheduledRevision = 0;
+  int? _calendarInvalidationReloadRevision;
   bool _remindersLoaded = false;
   final bool _remindersEnabled = false; // disable floating badges for now
   List<Reminder> _floatingReminders = [];
@@ -11704,6 +9931,10 @@ class CalendarPageState extends State<CalendarPage>
     unawaited(_restoreWarmStartCacheIfAvailable(reason: 'initState'));
     unawaited(_restoreMyFlowsFilingSnapshotCache(reason: 'initState'));
     calendarPushOpenIntent.addListener(_handleCalendarPushOpenIntent);
+    _calendarInvalidationSub = CalendarInvalidationBus.instance.stream.listen(
+      _handleCalendarInvalidated,
+    );
+    _schedulePendingCalendarInvalidationReload();
     _scheduleDaySheetResumeRestore();
     _schedulePushEventResumeRestore();
 
@@ -11792,6 +10023,85 @@ class CalendarPageState extends State<CalendarPage>
       }
     });
     unawaited(_loadCalendarState());
+  }
+
+  void _handleCalendarInvalidated(CalendarInvalidated invalidation) {
+    if (!mounted) return;
+    _schedulePendingCalendarInvalidationReload();
+  }
+
+  void _schedulePendingCalendarInvalidationReload() {
+    if (!mounted) return;
+    final pending = CalendarInvalidationBus.instance.peekPendingAfter(
+      _calendarInvalidationScheduledRevision,
+    );
+    if (pending == null) return;
+    _calendarInvalidationScheduledRevision = pending.revision;
+    _scheduleCalendarInvalidationReload(
+      pending.invalidation.reason,
+      revision: pending.revision,
+    );
+  }
+
+  void _scheduleCalendarInvalidationReload(
+    CalendarInvalidationReason reason, {
+    int? revision,
+  }) {
+    _calendarInvalidationReloadPending = true;
+    _calendarInvalidationReloadReason = reason;
+    if (revision != null) {
+      _calendarInvalidationReloadRevision = revision;
+    }
+    if (_calendarInvalidationReloadInFlight) return;
+
+    _calendarInvalidationReloadDebounce?.cancel();
+    _calendarInvalidationReloadDebounce = Timer(
+      const Duration(milliseconds: 80),
+      _flushCalendarInvalidationReload,
+    );
+  }
+
+  void _flushCalendarInvalidationReload() {
+    _calendarInvalidationReloadDebounce?.cancel();
+    _calendarInvalidationReloadDebounce = null;
+    if (!mounted || !_calendarInvalidationReloadPending) return;
+    if (_calendarInvalidationReloadInFlight || _isLoadingFromDisk) {
+      _calendarInvalidationReloadDebounce = Timer(
+        const Duration(milliseconds: 80),
+        _flushCalendarInvalidationReload,
+      );
+      return;
+    }
+
+    final reason = _calendarInvalidationReloadReason;
+    final revision = _calendarInvalidationReloadRevision;
+    _calendarInvalidationReloadPending = false;
+    _calendarInvalidationReloadReason = null;
+    _calendarInvalidationReloadRevision = null;
+    _calendarInvalidationReloadInFlight = true;
+    unawaited(
+      _loadFromDisk(
+            source: 'invalidation:${reason?.name ?? 'coalesced'}',
+            preserveViewport: true,
+          )
+          .then((_) {
+            if (revision != null) {
+              CalendarInvalidationBus.instance.markConsumed(revision);
+            }
+          })
+          .catchError((Object e, StackTrace st) {
+            if (kDebugMode) {
+              _calendarDebugPrint('[calendar] invalidation reload failed: $e');
+              _calendarDebugPrint('$st');
+            }
+          })
+          .whenComplete(() {
+            _calendarInvalidationReloadInFlight = false;
+            if (_calendarInvalidationReloadPending && mounted) {
+              _flushCalendarInvalidationReload();
+            }
+          }),
+    );
   }
 
   List<OnboardingSlide> _buildOnboardingSlides() {
@@ -13581,6 +11891,8 @@ class CalendarPageState extends State<CalendarPage>
     calendarPushOpenIntent.removeListener(_handleCalendarPushOpenIntent);
     _reminderSub?.cancel();
     _authSub?.cancel();
+    _calendarInvalidationSub?.cancel();
+    _calendarInvalidationReloadDebounce?.cancel();
     _reminderService.dispose();
     unawaited(_journalController.forceSave());
     _journalController.dispose();
@@ -19406,14 +17718,6 @@ class CalendarPageState extends State<CalendarPage>
             behaviorPayload: behaviorPayload,
           );
 
-          await _scheduleAlertForEvent(
-            note: note,
-            ky: kyKmKd.kYear,
-            km: kyKmKd.kMonth,
-            kd: kyKmKd.kDay,
-            clientEventId: clientEventId,
-          );
-
           await repo.upsertByClientId(
             clientEventId: clientEventId,
             title: title,
@@ -19427,6 +17731,14 @@ class CalendarPageState extends State<CalendarPage>
             actionId: moonReturnActionId(occurrence),
             behaviorPayload: behaviorPayload,
             caller: 'moon_return_join',
+          );
+
+          await _scheduleAlertForEvent(
+            note: note,
+            ky: kyKmKd.kYear,
+            km: kyKmKd.kMonth,
+            kd: kyKmKd.kDay,
+            clientEventId: clientEventId,
           );
         }
       } catch (e, st) {
@@ -19478,7 +17790,7 @@ class CalendarPageState extends State<CalendarPage>
       final alreadyEnrolled = _flows.any((flow) {
         final notes = (flow.notes ?? '').toLowerCase();
         return flow.active &&
-            notes.contains('maat=$kTheWagFlowKey') &&
+            resolveMaatFlowKind(flowNotes: flow.notes) == MaatFlowKind.theWag &&
             notes.contains('wag_kyear=$kYear');
       });
       if (alreadyEnrolled) {
@@ -19610,14 +17922,6 @@ class CalendarPageState extends State<CalendarPage>
             behaviorPayload: behaviorPayload,
           );
 
-          await _scheduleAlertForEvent(
-            note: note,
-            ky: kyKmKd.kYear,
-            km: kyKmKd.kMonth,
-            kd: kyKmKd.kDay,
-            clientEventId: clientEventId,
-          );
-
           await repo.upsertByClientId(
             clientEventId: clientEventId,
             title: title,
@@ -19631,6 +17935,14 @@ class CalendarPageState extends State<CalendarPage>
             actionId: wagActionId(event),
             behaviorPayload: behaviorPayload,
             caller: 'wag_join',
+          );
+
+          await _scheduleAlertForEvent(
+            note: note,
+            ky: kyKmKd.kYear,
+            km: kyKmKd.kMonth,
+            kd: kyKmKd.kDay,
+            clientEventId: clientEventId,
           );
         }
       } catch (e, st) {
@@ -19684,7 +17996,8 @@ class CalendarPageState extends State<CalendarPage>
       final alreadyEnrolled = _flows.any((flow) {
         final notes = (flow.notes ?? '').toLowerCase();
         return flow.active &&
-            notes.contains('maat=$kDaysOutsideTheYearFlowKey') &&
+            resolveMaatFlowKind(flowNotes: flow.notes) ==
+                MaatFlowKind.daysOutsideTheYear &&
             notes.contains('doy_kyear=$closingKYear');
       });
       if (alreadyEnrolled) {
@@ -19900,7 +18213,8 @@ class CalendarPageState extends State<CalendarPage>
       final alreadyEnrolledThisStart = _flows.any((flow) {
         final notes = (flow.notes ?? '').toLowerCase();
         return flow.active &&
-            notes.contains('maat=$kTheOpenHandFlowKey') &&
+            resolveMaatFlowKind(flowNotes: flow.notes) ==
+                MaatFlowKind.theOpenHand &&
             notes.contains('oh_start=$startIso');
       });
       if (alreadyEnrolledThisStart) {
@@ -20092,7 +18406,8 @@ class CalendarPageState extends State<CalendarPage>
       final alreadyEnrolledThisStart = _flows.any((flow) {
         final notes = (flow.notes ?? '').toLowerCase();
         return flow.active &&
-            notes.contains('maat=$kTheDjedFlowKey') &&
+            resolveMaatFlowKind(flowNotes: flow.notes) ==
+                MaatFlowKind.theDjed &&
             notes.contains('djed_start=$startIso');
       });
       if (alreadyEnrolledThisStart) {
@@ -20280,8 +18595,9 @@ class CalendarPageState extends State<CalendarPage>
         return -1;
       }
       final alreadyEnrolled = _flows.any((flow) {
-        final notes = (flow.notes ?? '').toLowerCase();
-        return flow.active && notes.contains('maat=$kDecanWatchFlowKey');
+        return flow.active &&
+            resolveMaatFlowKind(flowNotes: flow.notes) ==
+                MaatFlowKind.decanWatch;
       });
       if (alreadyEnrolled) {
         if (mounted) {
@@ -22374,8 +20690,8 @@ class CalendarPageState extends State<CalendarPage>
         completedOnDate: completedOnDate,
         metadata: metadata,
       );
-      if (metadata?['flow_key']?.toString().trim().toLowerCase() ==
-          kDecanWatchFlowKey) {
+      if (resolveMaatFlowKind(behaviorPayload: metadata) ==
+          MaatFlowKind.decanWatch) {
         unawaited(_ensureDecanWatchHorizon(flowId));
       }
     } catch (e) {
@@ -22390,7 +20706,9 @@ class CalendarPageState extends State<CalendarPage>
     if (flowIndex < 0) return;
     final flow = _flows[flowIndex];
     if (!flow.active) return;
-    if (notesDecode(flow.notes).maatKey != kDecanWatchFlowKey) return;
+    if (resolveMaatFlowKind(flowNotes: flow.notes) != MaatFlowKind.decanWatch) {
+      return;
+    }
 
     final timezone =
         _trackSkyTimeZoneFromKey(_flowNoteToken(flow.notes, 'dw_tz=')) ??

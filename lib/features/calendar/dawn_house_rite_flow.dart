@@ -3,6 +3,7 @@ import 'dart:math' as math;
 import 'package:timezone/data/latest_all.dart' as tzdata;
 import 'package:timezone/timezone.dart' as tz;
 
+import 'maat_flow_identity.dart';
 import 'track_sky_flow.dart';
 
 const String kDawnHouseRiteFlowKey = 'dawn-house-rite';
@@ -623,21 +624,13 @@ bool isDawnHouseRiteFlowReference({
   String? actionId,
   Map<String, dynamic>? behaviorPayload,
 }) {
-  if (flowName?.trim().toLowerCase() == kDawnHouseRiteTitle.toLowerCase()) {
-    return true;
-  }
-  if ((flowNotes ?? '').toLowerCase().contains('maat=$kDawnHouseRiteFlowKey')) {
-    return true;
-  }
-  if ((actionId ?? '').trim().toLowerCase().startsWith(
-    'dawn-house-rite-day-',
-  )) {
-    return true;
-  }
-  final kind = behaviorPayload?['kind']?.toString().trim().toLowerCase();
-  if (kind == 'maat_dawn_house_rite_day') return true;
-  final flowKey = behaviorPayload?['flow_key']?.toString().trim().toLowerCase();
-  return flowKey == kDawnHouseRiteFlowKey;
+  return isMaatFlowReference(
+    MaatFlowKind.dawnHouseRite,
+    flowName: flowName,
+    flowNotes: flowNotes,
+    actionId: actionId,
+    behaviorPayload: behaviorPayload,
+  );
 }
 
 DawnHouseRiteDay? dawnHouseRiteDayForEvent({

@@ -3,6 +3,7 @@ import 'package:timezone/timezone.dart' as tz;
 
 import 'dawn_house_rite_flow.dart';
 import 'evening_threshold_rite_flow.dart';
+import 'maat_flow_identity.dart';
 import 'track_sky_flow.dart';
 
 const String kTheTendingFlowKey = 'the-tending';
@@ -608,19 +609,13 @@ bool isTheTendingFlowReference({
   String? actionId,
   Map<String, dynamic>? behaviorPayload,
 }) {
-  if (flowName?.trim().toLowerCase() == kTheTendingTitle.toLowerCase()) {
-    return true;
-  }
-  if ((flowNotes ?? '').toLowerCase().contains('maat=$kTheTendingFlowKey')) {
-    return true;
-  }
-  if ((actionId ?? '').trim().toLowerCase().startsWith('the-tending-event-')) {
-    return true;
-  }
-  final kind = behaviorPayload?['kind']?.toString().trim().toLowerCase();
-  if (kind == 'maat_the_tending_event') return true;
-  final flowKey = behaviorPayload?['flow_key']?.toString().trim().toLowerCase();
-  return flowKey == kTheTendingFlowKey;
+  return isMaatFlowReference(
+    MaatFlowKind.theTending,
+    flowName: flowName,
+    flowNotes: flowNotes,
+    actionId: actionId,
+    behaviorPayload: behaviorPayload,
+  );
 }
 
 TheTendingEvent? theTendingEventForEvent({
