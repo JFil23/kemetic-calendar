@@ -670,6 +670,9 @@ void main() {
       tester,
     ) async {
       await _setPhoneViewport(tester);
+      final closeEvents = <String>[];
+      var userCloseReported = false;
+      var lateRestorationReports = 0;
 
       await tester.pumpWidget(
         MaterialApp(
@@ -688,6 +691,28 @@ void main() {
                           notesForDay: (ky, km, kd) => const [],
                           flowIndex: const {},
                           getMonthName: (month) => 'Month $month',
+                          onUserClose: () async {
+                            userCloseReported = true;
+                            closeEvents.add('userClose');
+                          },
+                          onClose: () {
+                            closeEvents.add('close');
+                            Navigator.of(routeContext).pop();
+                          },
+                          onRestorationStateChanged:
+                              ({
+                                required int kYear,
+                                required int kMonth,
+                                required int kDay,
+                                required bool showGregorian,
+                                int? firstVisibleMinute,
+                                double? scrollOffset,
+                                EventDetailRestorationState? eventDetail,
+                              }) {
+                                if (userCloseReported) {
+                                  lateRestorationReports += 1;
+                                }
+                              },
                         ),
                       ),
                     );
@@ -711,6 +736,58 @@ void main() {
 
       expect(find.byType(DayViewPage), findsNothing);
       expect(find.text('Open day view'), findsOneWidget);
+      expect(closeEvents, <String>['userClose', 'close']);
+      expect(lateRestorationReports, 0);
+    });
+
+    testWidgets('system back reports user close for restoration clearing', (
+      tester,
+    ) async {
+      await _setPhoneViewport(tester);
+      var userCloseCalls = 0;
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Builder(
+            builder: (context) => Scaffold(
+              body: Center(
+                child: ElevatedButton(
+                  onPressed: () {
+                    Navigator.of(context).push(
+                      MaterialPageRoute<void>(
+                        builder: (_) => DayViewPage(
+                          initialKy: 1,
+                          initialKm: 2,
+                          initialKd: 5,
+                          showGregorian: false,
+                          notesForDay: (ky, km, kd) => const [],
+                          flowIndex: const {},
+                          getMonthName: (month) => 'Month $month',
+                          onUserClose: () async {
+                            userCloseCalls += 1;
+                          },
+                        ),
+                      ),
+                    );
+                  },
+                  child: const Text('Open day view'),
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+
+      await tester.tap(find.text('Open day view'));
+      await tester.pumpAndSettle();
+
+      expect(find.byType(DayViewPage), findsOneWidget);
+
+      await tester.binding.handlePopRoute();
+      await tester.pumpAndSettle();
+
+      expect(find.byType(DayViewPage), findsNothing);
+      expect(userCloseCalls, 1);
     });
 
     testWidgets(

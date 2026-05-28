@@ -482,6 +482,9 @@ void main() {
           'void _openDayView',
           '/* ───── Day Sheet ───── */',
         );
+        final dayView = await File(
+          'lib/features/calendar/day_view.dart',
+        ).readAsString();
 
         expect(
           calendar,
@@ -516,11 +519,31 @@ void main() {
           dayViewNavigation,
           contains('shouldPreserveOverlayForLifecycleClose'),
         );
+        expect(
+          dayViewNavigation,
+          contains('Future<void> persistUserClosedDayView() async'),
+        );
+        expect(dayViewNavigation, contains('var dayViewUserCloseReported'));
+        expect(dayViewNavigation, contains('if (dayViewUserCloseReported)'));
+        expect(dayViewNavigation, contains("reason: 'day_view_user_closed'"));
+        expect(
+          dayViewNavigation,
+          contains('onUserClose: persistUserClosedDayView'),
+        );
         expect(dayViewNavigation, contains("reason: 'day_view_closed'"));
         expect(
           dayViewNavigation.indexOf('if (!preserveForLifecycle)'),
           lessThan(dayViewNavigation.indexOf("reason: 'day_view_closed'")),
         );
+        expect(dayView, contains('Future<void> _reportUserClose() async'));
+        expect(dayView, contains('if (_userCloseReported)'));
+        expect(dayView, contains('_restorationDebounce?.cancel();'));
+        expect(
+          dayView.indexOf('await widget.onUserClose?.call()'),
+          lessThan(dayView.indexOf('final close = widget.onClose')),
+        );
+        expect(dayView, contains('onPopInvokedWithResult: (didPop, _)'));
+        expect(dayView, contains('unawaited(_reportUserClose())'));
       },
     );
 

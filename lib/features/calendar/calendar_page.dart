@@ -20399,6 +20399,17 @@ class CalendarPageState extends State<CalendarPage>
     unawaited(
       _persistDayViewState(initialDayViewState, reason: 'day_view_open'),
     );
+    var dayViewUserCloseReported = false;
+    Future<void> persistUserClosedDayView() async {
+      dayViewUserCloseReported = true;
+      final closedState =
+          (_activeDayViewRestorationState ?? initialDayViewState).copyWith(
+            isOpen: false,
+            clearEventDetail: true,
+          );
+      _activeDayViewRestorationState = closedState;
+      await _persistDayViewState(closedState, reason: 'day_view_user_closed');
+    }
 
     // Adapter: Convert _Note to NoteData, and prime reminders for the day
     List<NoteData> notesForDayFn(int y, int m, int d) {
@@ -20504,6 +20515,7 @@ class CalendarPageState extends State<CalendarPage>
           initialEventDetailRestorationState:
               initialEventDetailRestorationState,
           onClose: () => Navigator.of(context).pop(),
+          onUserClose: persistUserClosedDayView,
           onManageFlows: (flowId) => _getMyFlowsCallback()(flowId),
           onOpenQuickAdd: (_) => _openQuickAddSheet(),
           onOpenSearch: (ctx) async => _openSearchForContext(ctx),
@@ -20585,6 +20597,9 @@ class CalendarPageState extends State<CalendarPage>
                 double? scrollOffset,
                 EventDetailRestorationState? eventDetail,
               }) {
+                if (dayViewUserCloseReported) {
+                  return;
+                }
                 final state = DayViewRestorationState(
                   isOpen: true,
                   kYear: kYear,
@@ -20608,7 +20623,8 @@ class CalendarPageState extends State<CalendarPage>
           RestorationCoordinator
               .instance
               .shouldPreserveOverlayForLifecycleClose;
-      if (!preserveForLifecycle) {
+      if (!preserveForLifecycle &&
+          (_activeDayViewRestorationState?.isOpen ?? true)) {
         final closedState =
             (_activeDayViewRestorationState ?? initialDayViewState).copyWith(
               isOpen: false,

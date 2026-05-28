@@ -1969,6 +1969,7 @@ class DayViewPage extends StatefulWidget {
   final Future<void> Function(BuildContext context)? onOpenSearch;
   final Future<void> Function(BuildContext context)? onOpenProfile;
   final VoidCallback? onClose;
+  final Future<void> Function()? onUserClose;
   final void Function(int ky, int km, int kd)? onAddNote;
   final Future<void> Function(int ky, int km, int kd, EventItem event)?
   onDeleteNote;
@@ -2053,6 +2054,7 @@ class DayViewPage extends StatefulWidget {
     this.onOpenSearch,
     this.onOpenProfile,
     this.onClose,
+    this.onUserClose,
     this.onAddNote, // 🔧 NEW
     this.onDeleteNote,
     this.onEditNote,
@@ -2102,6 +2104,7 @@ class _DayViewPageState extends State<DayViewPage> {
 
   // ✅ Today button guard to prevent duplicate state updates
   bool _isJumpingToToday = false;
+  bool _userCloseReported = false;
 
   // 🔧 ADD THIS: Persistent scroll controller for mini calendar
   late ScrollController _miniCalendarScrollController;
@@ -2290,12 +2293,17 @@ class _DayViewPageState extends State<DayViewPage> {
   }
 
   void _reportRestorationState({bool immediate = false}) {
+    if (_userCloseReported) {
+      _restorationDebounce?.cancel();
+      return;
+    }
     final callback = widget.onRestorationStateChanged;
     if (callback == null) {
       return;
     }
 
     void emit() {
+      if (_userCloseReported) return;
       callback(
         kYear: _currentKy,
         kMonth: _currentKm,
@@ -2433,7 +2441,20 @@ class _DayViewPageState extends State<DayViewPage> {
   Set<int> _currentActiveLedgerFlowIds() =>
       widget.activeLedgerFlowIdsBuilder?.call() ?? widget.activeLedgerFlowIds;
 
+  Future<void> _reportUserClose() async {
+    if (_userCloseReported) return;
+    _userCloseReported = true;
+    _restorationDebounce?.cancel();
+    await widget.onUserClose?.call();
+  }
+
   void _closeDayView() {
+    unawaited(_closeDayViewAfterUserIntent());
+  }
+
+  Future<void> _closeDayViewAfterUserIntent() async {
+    await _reportUserClose();
+    if (!mounted) return;
     final close = widget.onClose;
     if (close != null) {
       close();
@@ -2573,241 +2594,253 @@ class _DayViewPageState extends State<DayViewPage> {
         final flowIndex = _currentFlowChromeIndex();
         final activeLedgerFlowIds = _currentActiveLedgerFlowIds();
 
-        return Scaffold(
-          backgroundColor: const Color(0xFF000000), // True black
-          body: OrientationBuilder(
-            builder: (context, orientation) {
-              final orient = isTablet ? Orientation.portrait : orientation;
-              if (orient == Orientation.landscape) {
-                return LandscapeMonthView(
-                  initialKy: _currentKy,
-                  initialKm: _currentKm,
-                  initialKd: _currentKd,
-                  showGregorian: _showGregorian,
-                  dataVersion: widget.dataVersion,
-                  notesForDay: widget.notesForDay,
-                  flowIndex: flowIndex,
-                  activeLedgerFlowIds: activeLedgerFlowIds,
-                  getMonthName: widget.getMonthName,
-                  onManageFlows: widget.onManageFlows,
-                  onAddNote: widget.onAddNote,
-                  onDeleteNote: widget.onDeleteNote,
-                  onEditNote: widget.onEditNote,
-                  onMoveEventTime: widget.onMoveEventTime,
-                  onMonthChanged: (ky, km) {
-                    // ✅ HANDLE MONTH CHANGE IN DAY VIEW
-                    if (kDebugMode) {
-                      debugPrint(
-                        '🔄 [DAY VIEW] Landscape month changed: Year $ky, Month $km',
-                      );
-                    }
-                    setState(() {
-                      _currentKy = ky;
-                      _currentKm = km;
-                      // Keep current day if still valid in new month
-                      final maxDay = km == 13
-                          ? (KemeticMath.isLeapKemeticYear(ky) ? 6 : 5)
-                          : 30;
-                      if (_currentKd > maxDay) {
-                        _currentKd = maxDay;
-                      }
-                    });
-                    _reportRestorationState(immediate: true);
-                  },
-                  onShareNote: widget.onShareNote,
-                  onEditReminder: widget.onEditReminder,
-                  onEndReminder: widget.onEndReminder,
-                  onShareReminder: widget.onShareReminder,
-                  onEndFlow: widget.onEndFlow,
-                  onAppendToJournal: widget.onAppendToJournal,
-                  onSaveFlow: widget.onSaveFlow,
-                  initialEventDetailRestorationState:
-                      _activeEventDetailRestoration,
-                  onEventDetailRestorationChanged:
-                      _handleEventDetailRestorationChanged,
-                  shouldPreserveEventDetailRestorationOnClose:
-                      _shouldPreserveEventDetailRestorationOnClose,
-                );
-              }
-
-              // Portrait day view
-              final portraitDayView = Column(
-                children: [
-                  // Custom Apple-style header
-                  KemeticDayViewHeader(
-                    currentKy: _currentKy,
-                    currentKm: _currentKm,
-                    currentKd: _currentKd,
+        return PopScope(
+          canPop: true,
+          onPopInvokedWithResult: (didPop, _) {
+            if (didPop) {
+              unawaited(_reportUserClose());
+            }
+          },
+          child: Scaffold(
+            backgroundColor: const Color(0xFF000000), // True black
+            body: OrientationBuilder(
+              builder: (context, orientation) {
+                final orient = isTablet ? Orientation.portrait : orientation;
+                if (orient == Orientation.landscape) {
+                  return LandscapeMonthView(
+                    initialKy: _currentKy,
+                    initialKm: _currentKm,
+                    initialKd: _currentKd,
                     showGregorian: _showGregorian,
+                    dataVersion: widget.dataVersion,
+                    notesForDay: widget.notesForDay,
+                    flowIndex: flowIndex,
+                    activeLedgerFlowIds: activeLedgerFlowIds,
                     getMonthName: widget.getMonthName,
-                    miniCalendarScrollController: _miniCalendarScrollController,
-                    onMiniCalendarManualScrollStart:
-                        _handleMiniCalendarManualScrollStart,
-                    onSelectDay: (day) {
-                      final currentGregorian = KemeticMath.toGregorian(
-                        _currentKy,
-                        _currentKm,
-                        _currentKd,
-                      );
-                      final targetGregorian = KemeticMath.toGregorian(
-                        _currentKy,
-                        _currentKm,
-                        day,
-                      );
-                      final offsetDays = targetGregorian
-                          .difference(currentGregorian)
-                          .inDays;
-                      if (!_pageController.hasClients) return;
-                      final basePage =
-                          _pageController.page?.round() ?? _centerPage;
-                      final targetPage = basePage + offsetDays;
-
-                      _pageController.animateToPage(
-                        targetPage,
-                        duration: const Duration(milliseconds: 300),
-                        curve: Curves.easeOut,
-                      );
+                    onManageFlows: widget.onManageFlows,
+                    onAddNote: widget.onAddNote,
+                    onDeleteNote: widget.onDeleteNote,
+                    onEditNote: widget.onEditNote,
+                    onMoveEventTime: widget.onMoveEventTime,
+                    onMonthChanged: (ky, km) {
+                      // ✅ HANDLE MONTH CHANGE IN DAY VIEW
+                      if (kDebugMode) {
+                        debugPrint(
+                          '🔄 [DAY VIEW] Landscape month changed: Year $ky, Month $km',
+                        );
+                      }
+                      setState(() {
+                        _currentKy = ky;
+                        _currentKm = km;
+                        // Keep current day if still valid in new month
+                        final maxDay = km == 13
+                            ? (KemeticMath.isLeapKemeticYear(ky) ? 6 : 5)
+                            : 30;
+                        if (_currentKd > maxDay) {
+                          _currentKd = maxDay;
+                        }
+                      });
+                      _reportRestorationState(immediate: true);
                     },
-                    onToggleDateDisplay: _toggleDateDisplay,
-                    onClose: _closeDayView,
-                    onJumpToToday: _jumpToToday,
-                    onOpenQuickAdd:
-                        widget.onOpenQuickAdd ??
-                        (btnCtx) async {
-                          await CalendarPage.openQuickAddFromAnyContext(btnCtx);
-                        },
-                    onOpenSearch:
-                        widget.onOpenSearch ??
-                        (btnCtx) async {
-                          await CalendarPage.openSearchFromAnyContext(btnCtx);
-                        },
-                    onOpenProfile:
-                        widget.onOpenProfile ??
-                        (ctx) async {
-                          await CalendarPage.openProfileFromAnyContext(ctx);
-                        },
-                    dateButtonBuilder: (context, currentGregorian) {
-                      final headerDateLabel = _buildHeaderDateLabel(
-                        context,
-                        currentGregorian,
-                      );
-                      return KemeticDayButton(
-                        key: _dayCardRevealTargetKey,
-                        dayKey: _getKemeticDayKey(
+                    onShareNote: widget.onShareNote,
+                    onEditReminder: widget.onEditReminder,
+                    onEndReminder: widget.onEndReminder,
+                    onShareReminder: widget.onShareReminder,
+                    onEndFlow: widget.onEndFlow,
+                    onAppendToJournal: widget.onAppendToJournal,
+                    onSaveFlow: widget.onSaveFlow,
+                    initialEventDetailRestorationState:
+                        _activeEventDetailRestoration,
+                    onEventDetailRestorationChanged:
+                        _handleEventDetailRestorationChanged,
+                    shouldPreserveEventDetailRestorationOnClose:
+                        _shouldPreserveEventDetailRestorationOnClose,
+                  );
+                }
+
+                // Portrait day view
+                final portraitDayView = Column(
+                  children: [
+                    // Custom Apple-style header
+                    KemeticDayViewHeader(
+                      currentKy: _currentKy,
+                      currentKm: _currentKm,
+                      currentKd: _currentKd,
+                      showGregorian: _showGregorian,
+                      getMonthName: widget.getMonthName,
+                      miniCalendarScrollController:
+                          _miniCalendarScrollController,
+                      onMiniCalendarManualScrollStart:
+                          _handleMiniCalendarManualScrollStart,
+                      onSelectDay: (day) {
+                        final currentGregorian = KemeticMath.toGregorian(
                           _currentKy,
                           _currentKm,
                           _currentKd,
-                        ),
-                        kYear: _currentKy,
-                        openOnTap: false,
-                        onOpen: () {
-                          unawaited(_handleDayCardRevealCoachmarkCompleted());
-                        },
-                        child: _showGregorian
-                            ? GlossyText(
-                                text: headerDateLabel,
-                                style: const TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 15,
-                                  fontWeight: FontWeight.w500,
-                                ),
-                                gradient: blueGloss,
-                                maxLines: 1,
-                                softWrap: false,
-                                textAlign: TextAlign.center,
-                              )
-                            : Text(
-                                headerDateLabel,
-                                style: const TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 15,
-                                  fontWeight: FontWeight.w500,
-                                ),
-                                softWrap: false,
-                                textAlign: TextAlign.center,
-                              ),
-                      );
-                    },
-                  ),
+                        );
+                        final targetGregorian = KemeticMath.toGregorian(
+                          _currentKy,
+                          _currentKm,
+                          day,
+                        );
+                        final offsetDays = targetGregorian
+                            .difference(currentGregorian)
+                            .inDays;
+                        if (!_pageController.hasClients) return;
+                        final basePage =
+                            _pageController.page?.round() ?? _centerPage;
+                        final targetPage = basePage + offsetDays;
 
-                  // Existing page view with timeline
-                  Expanded(
-                    child: PageView.builder(
-                      controller: _pageController,
-                      onPageChanged: _onPageChanged,
-                      itemBuilder: (context, index) {
-                        final kDate = _dateForPage(index);
-                        return DayViewGrid(
-                          key: ValueKey(
-                            '${kDate.kYear}-${kDate.kMonth}-${kDate.kDay}-$_gridInstance',
-                          ), // Add key
-                          ky: kDate.kYear,
-                          km: kDate.kMonth,
-                          kd: kDate.kDay,
-                          notes: widget.notesForDay(
-                            kDate.kYear,
-                            kDate.kMonth,
-                            kDate.kDay,
+                        _pageController.animateToPage(
+                          targetPage,
+                          duration: const Duration(milliseconds: 300),
+                          curve: Curves.easeOut,
+                        );
+                      },
+                      onToggleDateDisplay: _toggleDateDisplay,
+                      onClose: _closeDayView,
+                      onJumpToToday: _jumpToToday,
+                      onOpenQuickAdd:
+                          widget.onOpenQuickAdd ??
+                          (btnCtx) async {
+                            await CalendarPage.openQuickAddFromAnyContext(
+                              btnCtx,
+                            );
+                          },
+                      onOpenSearch:
+                          widget.onOpenSearch ??
+                          (btnCtx) async {
+                            await CalendarPage.openSearchFromAnyContext(btnCtx);
+                          },
+                      onOpenProfile:
+                          widget.onOpenProfile ??
+                          (ctx) async {
+                            await CalendarPage.openProfileFromAnyContext(ctx);
+                          },
+                      dateButtonBuilder: (context, currentGregorian) {
+                        final headerDateLabel = _buildHeaderDateLabel(
+                          context,
+                          currentGregorian,
+                        );
+                        return KemeticDayButton(
+                          key: _dayCardRevealTargetKey,
+                          dayKey: _getKemeticDayKey(
+                            _currentKy,
+                            _currentKm,
+                            _currentKd,
                           ),
-                          dataVersion: widget.dataVersion,
-                          showGregorian: _showGregorian,
-                          flowIndex: flowIndex,
-                          activeLedgerFlowIds: activeLedgerFlowIds,
-                          initialScrollOffset: _savedScrollOffset, // 🔧 NEW
-                          initialFirstVisibleMinute:
-                              widget.initialFirstVisibleMinute,
-                          focusStartMin: widget.focusStartMin,
-                          focusFlowId: widget.focusFlowId,
-                          focusTitle: widget.focusTitle,
-                          onScrollChanged: _onScrollChanged, // 🔧 NEW
-                          onManageFlows:
-                              widget.onManageFlows, // NEW: Pass callback down
-                          onAddNote: widget.onAddNote,
-                          onDeleteNote: widget.onDeleteNote,
-                          onEditNote: widget.onEditNote,
-                          onMoveEventTime: widget.onMoveEventTime,
-                          onShareNote: widget.onShareNote,
-                          onEditReminder: widget.onEditReminder,
-                          onEndReminder: widget.onEndReminder,
-                          onShareReminder: widget.onShareReminder,
-                          onOpenAddNoteWithTime: widget.onOpenAddNoteWithTime,
-                          onCreateTimedEvent: widget.onCreateTimedEvent,
-                          onEndFlow:
-                              widget.onEndFlow, // Pass End Flow callback down
-                          onAppendToJournal: widget.onAppendToJournal,
-                          onSaveFlow: widget.onSaveFlow,
-                          loadCompletedClientEventIds:
-                              widget.loadCompletedClientEventIds,
-                          onRecordCompletion: widget.onRecordCompletion,
-                          onUnrecordCompletion: widget.onUnrecordCompletion,
-                          initialEventDetailRestorationState:
-                              _activeEventDetailRestoration,
-                          onEventDetailRestorationChanged:
-                              _handleEventDetailRestorationChanged,
-                          shouldPreserveEventDetailRestorationOnClose:
-                              _shouldPreserveEventDetailRestorationOnClose,
-                          resolveCurrentEventTarget: _resolveCurrentEventTarget,
-                          resolveAdjacentEvent: _resolveAdjacentEventTarget,
-                          onNavigateToDay: _animateToKemeticDate,
+                          kYear: _currentKy,
+                          openOnTap: false,
+                          onOpen: () {
+                            unawaited(_handleDayCardRevealCoachmarkCompleted());
+                          },
+                          child: _showGregorian
+                              ? GlossyText(
+                                  text: headerDateLabel,
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 15,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                  gradient: blueGloss,
+                                  maxLines: 1,
+                                  softWrap: false,
+                                  textAlign: TextAlign.center,
+                                )
+                              : Text(
+                                  headerDateLabel,
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 15,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                  softWrap: false,
+                                  textAlign: TextAlign.center,
+                                ),
                         );
                       },
                     ),
-                  ),
-                ],
-              );
 
-              return Stack(
-                children: [
-                  portraitDayView,
-                  if (_showDayCardRevealCoachmark)
-                    Positioned.fill(
-                      child: DayViewDateCoachmark(
-                        targetKey: _dayCardRevealTargetKey,
+                    // Existing page view with timeline
+                    Expanded(
+                      child: PageView.builder(
+                        controller: _pageController,
+                        onPageChanged: _onPageChanged,
+                        itemBuilder: (context, index) {
+                          final kDate = _dateForPage(index);
+                          return DayViewGrid(
+                            key: ValueKey(
+                              '${kDate.kYear}-${kDate.kMonth}-${kDate.kDay}-$_gridInstance',
+                            ), // Add key
+                            ky: kDate.kYear,
+                            km: kDate.kMonth,
+                            kd: kDate.kDay,
+                            notes: widget.notesForDay(
+                              kDate.kYear,
+                              kDate.kMonth,
+                              kDate.kDay,
+                            ),
+                            dataVersion: widget.dataVersion,
+                            showGregorian: _showGregorian,
+                            flowIndex: flowIndex,
+                            activeLedgerFlowIds: activeLedgerFlowIds,
+                            initialScrollOffset: _savedScrollOffset, // 🔧 NEW
+                            initialFirstVisibleMinute:
+                                widget.initialFirstVisibleMinute,
+                            focusStartMin: widget.focusStartMin,
+                            focusFlowId: widget.focusFlowId,
+                            focusTitle: widget.focusTitle,
+                            onScrollChanged: _onScrollChanged, // 🔧 NEW
+                            onManageFlows:
+                                widget.onManageFlows, // NEW: Pass callback down
+                            onAddNote: widget.onAddNote,
+                            onDeleteNote: widget.onDeleteNote,
+                            onEditNote: widget.onEditNote,
+                            onMoveEventTime: widget.onMoveEventTime,
+                            onShareNote: widget.onShareNote,
+                            onEditReminder: widget.onEditReminder,
+                            onEndReminder: widget.onEndReminder,
+                            onShareReminder: widget.onShareReminder,
+                            onOpenAddNoteWithTime: widget.onOpenAddNoteWithTime,
+                            onCreateTimedEvent: widget.onCreateTimedEvent,
+                            onEndFlow:
+                                widget.onEndFlow, // Pass End Flow callback down
+                            onAppendToJournal: widget.onAppendToJournal,
+                            onSaveFlow: widget.onSaveFlow,
+                            loadCompletedClientEventIds:
+                                widget.loadCompletedClientEventIds,
+                            onRecordCompletion: widget.onRecordCompletion,
+                            onUnrecordCompletion: widget.onUnrecordCompletion,
+                            initialEventDetailRestorationState:
+                                _activeEventDetailRestoration,
+                            onEventDetailRestorationChanged:
+                                _handleEventDetailRestorationChanged,
+                            shouldPreserveEventDetailRestorationOnClose:
+                                _shouldPreserveEventDetailRestorationOnClose,
+                            resolveCurrentEventTarget:
+                                _resolveCurrentEventTarget,
+                            resolveAdjacentEvent: _resolveAdjacentEventTarget,
+                            onNavigateToDay: _animateToKemeticDate,
+                          );
+                        },
                       ),
                     ),
-                ],
-              );
-            },
+                  ],
+                );
+
+                return Stack(
+                  children: [
+                    portraitDayView,
+                    if (_showDayCardRevealCoachmark)
+                      Positioned.fill(
+                        child: DayViewDateCoachmark(
+                          targetKey: _dayCardRevealTargetKey,
+                        ),
+                      ),
+                  ],
+                );
+              },
+            ),
           ),
         );
       },
