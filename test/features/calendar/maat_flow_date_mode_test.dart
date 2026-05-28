@@ -870,7 +870,7 @@ void main() {
   });
 
   test(
-    'mounted Moon Return, Wag, Days Outside, Decan Watch, Open Hand, Djed, Offering Table, and Tending persist events before filing alerts',
+    'mounted Moon Return, Wag, Days Outside, Decan Watch, Open Hand, Djed, Offering Table, Tending, and Kept Word persist events before filing alerts',
     () {
       final source = File(
         'lib/features/calendar/calendar_page.dart',
@@ -967,6 +967,17 @@ void main() {
         tendingBranch,
         caller: "caller: 'the_tending_join'",
         branchName: 'mounted Tending',
+      );
+
+      final keptWordBranch = _sourceBetween(
+        mountedJoin,
+        'if (template.kind == _MaatFlowTemplateKind.keptWord)',
+        'if (template.kind == _MaatFlowTemplateKind.theCourse)',
+      );
+      _expectPersistsBeforeAlertFiling(
+        keptWordBranch,
+        caller: "caller: 'the_kept_word_join'",
+        branchName: 'mounted Kept Word',
       );
     },
   );
@@ -1555,6 +1566,67 @@ void main() {
       expect(tendingPayload, contains("'local_prompt': event.localPrompt.key"));
       expect(tendingPayload, contains("'care_notes_storage': 'device_only'"));
       expect(tendingPayload, contains("'sync_care_names': false"));
+    },
+  );
+
+  test(
+    'mounted Kept Word join preserves event identity and privacy payload contract',
+    () {
+      final source = File(
+        'lib/features/calendar/calendar_page.dart',
+      ).readAsStringSync();
+      final keptWordSource = File(
+        'lib/features/calendar/the_kept_word_flow.dart',
+      ).readAsStringSync();
+      final mountedJoin = _sourceBetween(
+        source,
+        'Future<int> _addMaatFlowInstance({',
+        'Future<bool> _endFlowFromEventTarget',
+      );
+      final keptWordBranch = _sourceBetween(
+        mountedJoin,
+        'if (template.kind == _MaatFlowTemplateKind.keptWord)',
+        'if (template.kind == _MaatFlowTemplateKind.theCourse)',
+      );
+      final keptWordPayload = _sourceBetween(
+        keptWordSource,
+        'Map<String, dynamic> keptWordBehaviorPayload({',
+        'String keptWordDetailText(',
+      );
+
+      expect(keptWordBranch, contains('mode=gregorian'));
+      expect(keptWordBranch, contains('maat=\${template.key}'));
+      expect(keptWordBranch, contains('kept_word_tz=\${timezone.key}'));
+      expect(keptWordBranch, contains('kept_word_lens=\${keptWordLens.key}'));
+      expect(keptWordBranch, contains('kept_word_midday_hour='));
+      expect(keptWordBranch, contains('kept_word_midday_minute='));
+      expect(keptWordBranch, contains('keptWordEventTitle(event)'));
+      expect(keptWordBranch, contains('keptWordDetailText('));
+      expect(keptWordBranch, contains('lens: keptWordLens'));
+      expect(keptWordBranch, contains('keptWordBehaviorPayload('));
+      expect(keptWordBranch, contains('event: event'));
+      expect(keptWordBranch, contains('schedule: occurrence'));
+      expect(keptWordBranch, contains('keptWordActionId(event)'));
+      expect(keptWordBranch, contains('clientEventId = _buildCid('));
+      expect(keptWordBranch, contains('startsAtUtc: occurrence.startUtc'));
+      expect(keptWordBranch, contains('endsAtUtc: occurrence.endUtc'));
+      expect(keptWordBranch, contains('category: \'Ritual\''));
+      expect(keptWordBranch, contains('alertOffsetMinutes: 0'));
+      expect(keptWordBranch, contains('caller: \'the_kept_word_join\''));
+      expect(keptWordBranch, contains('_addNote('));
+      expect(keptWordBranch, contains('await _scheduleAlertForEvent('));
+
+      expect(keptWordSource, contains("return 'agreement_inventory'"));
+      expect(
+        keptWordPayload,
+        contains("'local_prompt': event.localPrompt.key"),
+      );
+      expect(
+        keptWordPayload,
+        contains("'household_notes_storage': 'device_only'"),
+      );
+      expect(keptWordPayload, contains("'sync_agreement_text': false"));
+      expect(keptWordPayload, contains("'sync_names': false"));
     },
   );
 
