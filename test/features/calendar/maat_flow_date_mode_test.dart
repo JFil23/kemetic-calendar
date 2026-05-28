@@ -149,6 +149,39 @@ void main() {
     }
   });
 
+  test('FlowJoinService default enrollment resolvers use safe wrappers', () {
+    final source = File(
+      'lib/features/calendar/flow_join_service.dart',
+    ).readAsStringSync();
+
+    for (final branch in _flowJoinSafeDefaultEnrollmentResolvers) {
+      final resolver = _sourceBetween(
+        source,
+        branch.resolverStart,
+        branch.resolverEnd,
+      );
+
+      expect(
+        resolver,
+        contains(branch.safeResolver),
+        reason:
+            '${branch.name} default resolver must convert enrollment failures to null.',
+      );
+      expect(
+        resolver,
+        isNot(contains(branch.throwingNextApi)),
+        reason:
+            '${branch.name} default resolver must not call the throwing next-window API directly.',
+      );
+      expect(
+        resolver,
+        isNot(contains(branch.throwingSelectedApi)),
+        reason:
+            '${branch.name} default resolver must not call the throwing selected-date API directly.',
+      );
+    }
+  });
+
   test('headless flow studio files delivery and invalidates calendar data', () {
     final source = File(
       'lib/features/calendar/calendar_page.dart',
@@ -1784,6 +1817,61 @@ const _mountedSafeEnrollmentBranches = [
     safeResolver: 'resolveDecanWatchEnrollmentWindowSafely',
     throwingNextApi: 'decanWatchNextEnrollmentWindow(',
     throwingSelectedApi: 'decanWatchEnrollmentWindowForStartDate(',
+  ),
+];
+
+const _flowJoinSafeDefaultEnrollmentResolvers = [
+  (
+    name: 'Moon Return',
+    resolverStart:
+        'static MoonReturnEnrollmentWindow? _defaultResolveMoonReturnWindow',
+    resolverEnd: 'static List<MoonReturnOccurrence>',
+    safeResolver: 'resolveMoonReturnEnrollmentWindowSafely',
+    throwingNextApi: 'moonReturnNextEnrollmentWindow(',
+    throwingSelectedApi: 'moonReturnEnrollmentWindowForStartDate(',
+  ),
+  (
+    name: 'Wag',
+    resolverStart: 'static WagEnrollmentWindow? _defaultResolveWagWindow',
+    resolverEnd: 'static WagOccurrenceSchedule',
+    safeResolver: 'resolveWagEnrollmentWindowSafely',
+    throwingNextApi: 'wagNextEnrollmentWindow(',
+    throwingSelectedApi: 'wagEnrollmentWindowForStartDate(',
+  ),
+  (
+    name: 'Days Outside the Year',
+    resolverStart:
+        'static DaysOutsideYearEnrollmentWindow? _defaultResolveDaysOutsideYearWindow',
+    resolverEnd: 'static DaysOutsideOccurrenceSchedule',
+    safeResolver: 'resolveDaysOutsideYearEnrollmentWindowSafely',
+    throwingNextApi: 'daysOutsideYearNextEnrollmentWindow(',
+    throwingSelectedApi: 'daysOutsideYearEnrollmentWindowForStartDate(',
+  ),
+  (
+    name: 'Decan Watch',
+    resolverStart:
+        'static DecanWatchEnrollmentWindow? _defaultResolveDecanWatchWindow',
+    resolverEnd: 'static List<DecanWatchOccurrence>',
+    safeResolver: 'resolveDecanWatchEnrollmentWindowSafely',
+    throwingNextApi: 'decanWatchNextEnrollmentWindow(',
+    throwingSelectedApi: 'decanWatchEnrollmentWindowForStartDate(',
+  ),
+  (
+    name: 'Open Hand',
+    resolverStart:
+        'static OpenHandEnrollmentWindow? _defaultResolveOpenHandWindow',
+    resolverEnd: 'static OpenHandOccurrenceSchedule',
+    safeResolver: 'resolveOpenHandEnrollmentWindowSafely',
+    throwingNextApi: 'openHandNextEnrollmentWindow(',
+    throwingSelectedApi: 'openHandEnrollmentWindowForStartDate(',
+  ),
+  (
+    name: 'Djed',
+    resolverStart: 'static DjedEnrollmentWindow? _defaultResolveDjedWindow',
+    resolverEnd: 'static DjedOccurrenceSchedule',
+    safeResolver: 'resolveDjedEnrollmentWindowSafely',
+    throwingNextApi: 'djedNextEnrollmentWindow(',
+    throwingSelectedApi: 'djedEnrollmentWindowForStartDate(',
   ),
 ];
 

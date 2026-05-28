@@ -2195,8 +2195,10 @@ class FlowJoinService {
     required TrackSkyTimeZone timezone,
     DateTime? startDate,
   }) {
-    if (startDate == null) return moonReturnNextEnrollmentWindow(timezone);
-    return moonReturnEnrollmentWindowForStartDate(startDate, timezone);
+    return resolveMoonReturnEnrollmentWindowSafely(
+      timezone: timezone,
+      startDate: startDate,
+    );
   }
 
   static List<MoonReturnOccurrence> _defaultMoonReturnOccurrencesForWindow({
@@ -2213,8 +2215,10 @@ class FlowJoinService {
     required TrackSkyTimeZone timezone,
     DateTime? startDate,
   }) {
-    if (startDate == null) return wagNextEnrollmentWindow(timezone);
-    return wagEnrollmentWindowForStartDate(startDate, timezone);
+    return resolveWagEnrollmentWindowSafely(
+      timezone: timezone,
+      startDate: startDate,
+    );
   }
 
   static WagOccurrenceSchedule _defaultWagScheduleForEvent({
@@ -2233,10 +2237,10 @@ class FlowJoinService {
     required TrackSkyTimeZone timezone,
     DateTime? startDate,
   }) {
-    if (startDate == null) {
-      return daysOutsideYearNextEnrollmentWindow(timezone);
-    }
-    return daysOutsideYearEnrollmentWindowForStartDate(startDate, timezone);
+    return resolveDaysOutsideYearEnrollmentWindowSafely(
+      timezone: timezone,
+      startDate: startDate,
+    );
   }
 
   static DaysOutsideOccurrenceSchedule _defaultDaysOutsideYearScheduleForEvent({
@@ -2259,8 +2263,10 @@ class FlowJoinService {
     required TrackSkyTimeZone timezone,
     DateTime? startDate,
   }) {
-    if (startDate == null) return decanWatchNextEnrollmentWindow(timezone);
-    return decanWatchEnrollmentWindowForStartDate(startDate, timezone);
+    return resolveDecanWatchEnrollmentWindowSafely(
+      timezone: timezone,
+      startDate: startDate,
+    );
   }
 
   static List<DecanWatchOccurrence> _defaultDecanWatchOccurrencesForWindow({
@@ -2287,8 +2293,10 @@ class FlowJoinService {
     required TrackSkyTimeZone timezone,
     DateTime? startDate,
   }) {
-    if (startDate == null) return openHandNextEnrollmentWindow(timezone);
-    return openHandEnrollmentWindowForStartDate(startDate, timezone);
+    return resolveOpenHandEnrollmentWindowSafely(
+      timezone: timezone,
+      startDate: startDate,
+    );
   }
 
   static OpenHandOccurrenceSchedule _defaultOpenHandScheduleForEvent({
@@ -2307,8 +2315,10 @@ class FlowJoinService {
     required TrackSkyTimeZone timezone,
     DateTime? startDate,
   }) {
-    if (startDate == null) return djedNextEnrollmentWindow(timezone);
-    return djedEnrollmentWindowForStartDate(startDate, timezone);
+    return resolveDjedEnrollmentWindowSafely(
+      timezone: timezone,
+      startDate: startDate,
+    );
   }
 
   static DjedOccurrenceSchedule _defaultDjedScheduleForEvent({

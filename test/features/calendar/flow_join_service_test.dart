@@ -6,6 +6,7 @@ import 'package:mobile/features/calendar/calendar_invalidation.dart';
 import 'package:mobile/features/calendar/calendar_page.dart';
 import 'package:mobile/features/calendar/dawn_house_rite_flow.dart';
 import 'package:mobile/features/calendar/evening_threshold_rite_flow.dart';
+import 'package:mobile/features/calendar/moon_return_astronomy.dart';
 import 'package:mobile/features/calendar/moon_return_flow.dart';
 import 'package:mobile/features/calendar/the_days_outside_year_enrollment.dart';
 import 'package:mobile/features/calendar/the_days_outside_year_flow.dart';
@@ -28,6 +29,193 @@ import 'package:mobile/features/calendar/track_sky_flow.dart';
 import 'package:mobile/utils/event_cid_util.dart';
 
 void main() {
+  test(
+    'default enrollment resolvers return no-window failures without throwing',
+    () async {
+      final timezone = TrackSkyTimeZone.pacific;
+      final service = FlowJoinService(
+        upsertFlow:
+            ({
+              id,
+              required name,
+              required color,
+              required active,
+              calendarId,
+              startDate,
+              endDate,
+              notes,
+              required rules,
+              originType,
+            }) async {
+              fail('No-window joins must not persist a flow.');
+            },
+        upsertEvent:
+            ({
+              required clientEventId,
+              required title,
+              required startsAtUtc,
+              detail,
+              allDay = false,
+              endsAtUtc,
+              flowLocalId,
+              category,
+              actionId,
+              behaviorPayload,
+              calendarId,
+              caller,
+            }) async {
+              fail('No-window joins must not persist events.');
+            },
+        fileHeadlessEventDelivery:
+            ({
+              required eventFiling,
+              required debugLabel,
+              required clientEventId,
+              required startsAtLocal,
+              required alertOffsetMinutes,
+              required title,
+              body,
+            }) async {
+              fail('No-window joins must not file delivery.');
+            },
+        publishHeadlessCalendarInvalidation:
+            ({required reason, required flowId, required clientEventIds}) {
+              fail('No-window joins must not publish invalidation.');
+            },
+      );
+
+      Future<void> expectNoEnrollmentWindow(
+        String label,
+        Future<FlowJoinResult> Function(DateTime startDate) join,
+        DateTime startDate,
+      ) async {
+        final result = await join(startDate);
+        expect(result.succeeded, isFalse, reason: label);
+        expect(
+          result.failureCode,
+          FlowJoinFailureCode.noEnrollmentWindow,
+          reason: label,
+        );
+        expect(result.flowIdOrNegativeOne, -1, reason: label);
+        expect(result.clientEventIds, isEmpty, reason: label);
+      }
+
+      await expectNoEnrollmentWindow(
+        'Moon Return',
+        (startDate) => service.joinMoonReturnHeadless(
+          templateKey: kMoonReturnFlowKey,
+          templateTitle: kMoonReturnTitle,
+          templateOverview: kMoonReturnOverview,
+          templateColor: Colors.indigo,
+          personalCalendarId: 'personal-calendar',
+          timezone: timezone,
+          startDate: startDate,
+        ),
+        _firstUnavailableEnrollmentStart<MoonReturnEnrollmentWindow>(
+          (startDate) => resolveMoonReturnEnrollmentWindowSafely(
+            timezone: timezone,
+            startDate: startDate,
+          ),
+        ),
+      );
+
+      await expectNoEnrollmentWindow(
+        'Wag',
+        (startDate) => service.joinWagHeadless(
+          templateKey: kTheWagFlowKey,
+          templateTitle: kTheWagTitle,
+          templateOverview: kTheWagOverview,
+          templateColor: Colors.brown,
+          personalCalendarId: 'personal-calendar',
+          timezone: timezone,
+          startDate: startDate,
+        ),
+        _firstUnavailableEnrollmentStart<WagEnrollmentWindow>(
+          (startDate) => resolveWagEnrollmentWindowSafely(
+            timezone: timezone,
+            startDate: startDate,
+          ),
+        ),
+      );
+
+      await expectNoEnrollmentWindow(
+        'Days Outside the Year',
+        (startDate) => service.joinDaysOutsideYearHeadless(
+          templateKey: kDaysOutsideTheYearFlowKey,
+          templateTitle: kDaysOutsideTheYearTitle,
+          templateOverview: kDaysOutsideTheYearOverview,
+          templateColor: Colors.orange,
+          personalCalendarId: 'personal-calendar',
+          timezone: timezone,
+          startDate: startDate,
+        ),
+        _firstUnavailableEnrollmentStart<DaysOutsideYearEnrollmentWindow>(
+          (startDate) => resolveDaysOutsideYearEnrollmentWindowSafely(
+            timezone: timezone,
+            startDate: startDate,
+          ),
+        ),
+      );
+
+      await expectNoEnrollmentWindow(
+        'Decan Watch',
+        (startDate) => service.joinDecanWatchHeadless(
+          templateKey: kDecanWatchFlowKey,
+          templateTitle: kDecanWatchTitle,
+          templateOverview: kDecanWatchOverview,
+          templateColor: Colors.blue,
+          personalCalendarId: 'personal-calendar',
+          timezone: timezone,
+          startDate: startDate,
+        ),
+        _firstUnavailableEnrollmentStart<DecanWatchEnrollmentWindow>(
+          (startDate) => resolveDecanWatchEnrollmentWindowSafely(
+            timezone: timezone,
+            startDate: startDate,
+          ),
+        ),
+      );
+
+      await expectNoEnrollmentWindow(
+        'Open Hand',
+        (startDate) => service.joinOpenHandHeadless(
+          templateKey: kTheOpenHandFlowKey,
+          templateTitle: kTheOpenHandTitle,
+          templateOverview: kOpenHandOverview,
+          templateColor: Colors.green,
+          personalCalendarId: 'personal-calendar',
+          timezone: timezone,
+          startDate: startDate,
+        ),
+        _firstUnavailableEnrollmentStart<OpenHandEnrollmentWindow>(
+          (startDate) => resolveOpenHandEnrollmentWindowSafely(
+            timezone: timezone,
+            startDate: startDate,
+          ),
+        ),
+      );
+
+      await expectNoEnrollmentWindow(
+        'Djed',
+        (startDate) => service.joinDjedHeadless(
+          templateKey: kTheDjedFlowKey,
+          templateTitle: kTheDjedTitle,
+          templateOverview: kDjedOverview,
+          templateColor: Colors.teal,
+          personalCalendarId: 'personal-calendar',
+          timezone: timezone,
+          startDate: startDate,
+        ),
+        _firstUnavailableEnrollmentStart<DjedEnrollmentWindow>(
+          (startDate) => resolveDjedEnrollmentWindowSafely(
+            timezone: timezone,
+            startDate: startDate,
+          ),
+        ),
+      );
+    },
+  );
+
   test(
     'headless Moon Return join persists, files at-time delivery, invalidates once, and returns success',
     () async {
@@ -3411,4 +3599,16 @@ void main() {
       ]);
     },
   );
+}
+
+DateTime _firstUnavailableEnrollmentStart<T>(
+  T? Function(DateTime startDate) resolve,
+) {
+  final now = DateTime.now();
+  var startDate = DateTime(now.year, now.month, now.day);
+  for (var i = 0; i < 180; i += 1) {
+    if (resolve(startDate) == null) return startDate;
+    startDate = startDate.add(const Duration(days: 1));
+  }
+  fail('Expected at least one unavailable enrollment start date.');
 }
