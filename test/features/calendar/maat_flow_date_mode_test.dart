@@ -870,7 +870,7 @@ void main() {
   });
 
   test(
-    'mounted Moon Return, Wag, Days Outside, Decan Watch, Open Hand, Djed, Offering Table, Tending, Kept Word, and Course persist events before filing alerts',
+    'mounted Track Sky, Moon Return, Wag, Days Outside, Decan Watch, Open Hand, Djed, Offering Table, Tending, Kept Word, and Course persist events before filing alerts',
     () {
       final source = File(
         'lib/features/calendar/calendar_page.dart',
@@ -879,6 +879,17 @@ void main() {
         source,
         'Future<int> _addMaatFlowInstance({',
         'Future<bool> _endFlowFromEventTarget',
+      );
+
+      final trackSkyBranch = _sourceBetween(
+        mountedJoin,
+        'if (template.kind == _MaatFlowTemplateKind.trackSky)',
+        'if (template.kind == _MaatFlowTemplateKind.moonReturn)',
+      );
+      _expectPersistsBeforeAlertFiling(
+        trackSkyBranch,
+        caller: "caller: 'track_sky_join'",
+        branchName: 'mounted Track Sky',
       );
 
       final moonReturnBranch = _sourceBetween(
@@ -992,6 +1003,79 @@ void main() {
       );
     },
   );
+
+  test('mounted Track Sky preserves event identity and alert contract', () {
+    final source = File(
+      'lib/features/calendar/calendar_page.dart',
+    ).readAsStringSync();
+    final mountedJoin = _sourceBetween(
+      source,
+      'Future<int> _addMaatFlowInstance({',
+      'Future<bool> _endFlowFromEventTarget',
+    );
+    final trackSkyBranch = _sourceBetween(
+      mountedJoin,
+      'if (template.kind == _MaatFlowTemplateKind.trackSky)',
+      'if (template.kind == _MaatFlowTemplateKind.moonReturn)',
+    );
+
+    expect(trackSkyBranch, contains('loadTrackSkyFlowData(timezone)'));
+    expect(trackSkyBranch, contains('upcomingTrackSkyEvents(flowData)'));
+    expect(trackSkyBranch, contains('mode=gregorian'));
+    expect(trackSkyBranch, contains('maat=\${template.key}'));
+    expect(trackSkyBranch, contains('sky_tz=\${timezone.key}'));
+    expect(
+      trackSkyBranch,
+      contains('trackSkyTimeZone ?? detectTrackSkyTimeZone'),
+    );
+    expect(
+      trackSkyBranch,
+      contains('trackSkyEventStartLocal(event, timezone)'),
+    );
+    expect(trackSkyBranch, contains('trackSkyEventEndLocal(event, timezone)'));
+    expect(trackSkyBranch, contains('clientEventId = _buildCid('));
+    expect(trackSkyBranch, contains('title: event.title'));
+    expect(trackSkyBranch, contains('detail: event.detailText'));
+    expect(trackSkyBranch, contains('allDay: event.schedule.allDay'));
+    expect(trackSkyBranch, contains('category: event.category'));
+    expect(trackSkyBranch, contains('alertOffsetMinutes: alertMinutesBefore'));
+    expect(
+      trackSkyBranch,
+      contains('startsAtUtc: trackSkyEventStartUtc(event, timezone)'),
+    );
+    expect(
+      trackSkyBranch,
+      contains('endsAtUtc: trackSkyEventEndUtc(event, timezone)'),
+    );
+    expect(trackSkyBranch, contains('alertMinutes: alertMinutesBefore'));
+    expect(trackSkyBranch, contains('caller: \'track_sky_join\''));
+    expect(trackSkyBranch, contains('_addNote('));
+    expect(trackSkyBranch, contains('await repo.upsertByClientId('));
+    expect(trackSkyBranch, contains('await _scheduleAlertForEvent('));
+  });
+
+  test('mounted Track Sky persistence failures are handled explicitly', () {
+    final source = File(
+      'lib/features/calendar/calendar_page.dart',
+    ).readAsStringSync();
+    final mountedJoin = _sourceBetween(
+      source,
+      'Future<int> _addMaatFlowInstance({',
+      'Future<bool> _endFlowFromEventTarget',
+    );
+    final trackSkyBranch = _sourceBetween(
+      mountedJoin,
+      'if (template.kind == _MaatFlowTemplateKind.trackSky)',
+      'if (template.kind == _MaatFlowTemplateKind.moonReturn)',
+    );
+
+    expect(trackSkyBranch, isNot(contains('Future.microtask')));
+    expect(trackSkyBranch, contains('} catch (e, st) {'));
+    expect(trackSkyBranch, contains('[trackSky] event creation failed: \$e'));
+    expect(trackSkyBranch, contains('Could not create \${template.title}.'));
+    expect(trackSkyBranch, contains('await repo.deleteFlow(serverFlowId);'));
+    expect(trackSkyBranch, contains('return -1;'));
+  });
 
   test('mounted no-alert rites keep explicit no-alert policy', () {
     final source = File(

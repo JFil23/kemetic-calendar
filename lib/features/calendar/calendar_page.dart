@@ -17723,81 +17723,103 @@ class CalendarPageState extends State<CalendarPage>
       }
 
       final repo = UserEventsRepo(Supabase.instance.client);
-      for (final event in events) {
-        final startLocal = trackSkyEventStartLocal(event, timezone);
-        final endLocal = trackSkyEventEndLocal(event, timezone);
-        final dayOnly = DateUtils.dateOnly(startLocal);
-        final kyKmKd = KemeticMath.fromGregorian(dayOnly);
-        final startTod = event.schedule.allDay
-            ? null
-            : TimeOfDay(hour: startLocal.hour, minute: startLocal.minute);
-        final endTod = event.schedule.allDay
-            ? null
-            : TimeOfDay(hour: endLocal.hour, minute: endLocal.minute);
-        final clientEventId = _buildCid(
-          ky: kyKmKd.kYear,
-          km: kyKmKd.kMonth,
-          kd: kyKmKd.kDay,
-          title: event.title,
-          startHour: startTod?.hour,
-          startMinute: startTod?.minute,
-          allDay: event.schedule.allDay,
-          flowId: serverFlowId,
-        );
-        final note = _Note(
-          clientEventId: clientEventId,
-          title: event.title,
-          detail: event.detailText,
-          allDay: event.schedule.allDay,
-          start: startTod,
-          end: endTod,
-          flowId: serverFlowId,
-          category: event.category,
-          alertOffsetMinutes: alertMinutesBefore,
-        );
+      try {
+        for (final event in events) {
+          final startLocal = trackSkyEventStartLocal(event, timezone);
+          final endLocal = trackSkyEventEndLocal(event, timezone);
+          final dayOnly = DateUtils.dateOnly(startLocal);
+          final kyKmKd = KemeticMath.fromGregorian(dayOnly);
+          final startTod = event.schedule.allDay
+              ? null
+              : TimeOfDay(hour: startLocal.hour, minute: startLocal.minute);
+          final endTod = event.schedule.allDay
+              ? null
+              : TimeOfDay(hour: endLocal.hour, minute: endLocal.minute);
+          final clientEventId = _buildCid(
+            ky: kyKmKd.kYear,
+            km: kyKmKd.kMonth,
+            kd: kyKmKd.kDay,
+            title: event.title,
+            startHour: startTod?.hour,
+            startMinute: startTod?.minute,
+            allDay: event.schedule.allDay,
+            flowId: serverFlowId,
+          );
+          final note = _Note(
+            clientEventId: clientEventId,
+            title: event.title,
+            detail: event.detailText,
+            allDay: event.schedule.allDay,
+            start: startTod,
+            end: endTod,
+            flowId: serverFlowId,
+            category: event.category,
+            alertOffsetMinutes: alertMinutesBefore,
+          );
 
-        _addNote(
-          kyKmKd.kYear,
-          kyKmKd.kMonth,
-          kyKmKd.kDay,
-          event.title,
-          event.detailText,
-          clientEventId: clientEventId,
-          allDay: event.schedule.allDay,
-          start: startTod,
-          end: endTod,
-          flowId: serverFlowId,
-          category: event.category,
-          alertOffsetMinutes: alertMinutesBefore,
-        );
+          _addNote(
+            kyKmKd.kYear,
+            kyKmKd.kMonth,
+            kyKmKd.kDay,
+            event.title,
+            event.detailText,
+            clientEventId: clientEventId,
+            allDay: event.schedule.allDay,
+            start: startTod,
+            end: endTod,
+            flowId: serverFlowId,
+            category: event.category,
+            alertOffsetMinutes: alertMinutesBefore,
+          );
 
-        await _scheduleAlertForEvent(
-          note: note,
-          ky: kyKmKd.kYear,
-          km: kyKmKd.kMonth,
-          kd: kyKmKd.kDay,
-          clientEventId: clientEventId,
-        );
+          await repo.upsertByClientId(
+            clientEventId: clientEventId,
+            title: event.title,
+            startsAtUtc: trackSkyEventStartUtc(event, timezone),
+            detail: _encodeDetailWithMeta(
+              event.detailText,
+              alertMinutes: alertMinutesBefore,
+            ),
+            location: null,
+            allDay: event.schedule.allDay,
+            endsAtUtc: trackSkyEventEndUtc(event, timezone),
+            category: event.category,
+            flowLocalId: serverFlowId,
+            caller: 'track_sky_join',
+          );
 
-        Future.microtask(() async {
-          try {
-            await repo.upsertByClientId(
-              clientEventId: clientEventId,
-              title: event.title,
-              startsAtUtc: trackSkyEventStartUtc(event, timezone),
-              detail: _encodeDetailWithMeta(
-                event.detailText,
-                alertMinutes: alertMinutesBefore,
-              ),
-              location: null,
-              allDay: event.schedule.allDay,
-              endsAtUtc: trackSkyEventEndUtc(event, timezone),
-              category: event.category,
-              flowLocalId: serverFlowId,
-              caller: 'track_sky_join',
-            );
-          } catch (_) {}
+          await _scheduleAlertForEvent(
+            note: note,
+            ky: kyKmKd.kYear,
+            km: kyKmKd.kMonth,
+            kd: kyKmKd.kDay,
+            clientEventId: clientEventId,
+          );
+        }
+      } catch (e, st) {
+        if (kDebugMode) {
+          _calendarDebugPrint('[trackSky] event creation failed: $e');
+          _calendarDebugPrint('$st');
+        }
+        _flows.removeWhere((flow) => flow.id == serverFlowId);
+        final emptyKeys = <String>[];
+        _notes.forEach((key, notes) {
+          notes.removeWhere((note) => note.flowId == serverFlowId);
+          if (notes.isEmpty) emptyKeys.add(key);
         });
+        for (final key in emptyKeys) {
+          _notes.remove(key);
+        }
+        if (mounted) {
+          setState(() {});
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Could not create ${template.title}.')),
+          );
+        }
+        try {
+          await repo.deleteFlow(serverFlowId);
+        } catch (_) {}
+        return -1;
       }
 
       setState(() {});
