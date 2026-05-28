@@ -3653,7 +3653,6 @@ class CalendarPage extends StatefulWidget {
       snapshot.snapshot?.overlayStack ?? const <Map<String, dynamic>>[],
     );
     final shouldWaitForDayView =
-        CalendarPageState._restoreDayViewRouteOnStartup &&
         savedDayView != null &&
         savedDayView.isOpen &&
         RestorationCoordinator.instance.canRestoreSurface(
@@ -9485,9 +9484,9 @@ class CalendarPageState extends State<CalendarPage>
 
   // Keep calendar position only for the active short-lived session.
   static const bool _rememberLastView = true;
-  // Day View date/scroll state can seed calendar position, but an open Day View
-  // is not a durable cold-launch route command.
-  static const bool _restoreDayViewRouteOnStartup = false;
+  // Day View is part of continuity state. A saved open Day View should be
+  // restored after the calendar has rebuilt its initial viewport.
+  static const bool _restoreDayViewRouteOnStartup = true;
 
   int? _lastViewKy; // last centered Kemetic year
   int? _lastViewKm; // last centered Kemetic month (1..13)
@@ -20612,10 +20611,12 @@ class CalendarPageState extends State<CalendarPage>
         ),
       ),
     ).then((_) {
-      // User-driven back/close should always retire the open Day View route
-      // state. Lifecycle/process exits may not run this callback; cold launch
-      // ignores stale open state instead of reopening Day View.
-      if (mounted) {
+      final preserveForLifecycle =
+          !mounted ||
+          RestorationCoordinator
+              .instance
+              .shouldPreserveOverlayForLifecycleClose;
+      if (!preserveForLifecycle) {
         final closedState =
             (_activeDayViewRestorationState ?? initialDayViewState).copyWith(
               isOpen: false,
