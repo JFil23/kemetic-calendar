@@ -993,6 +993,46 @@ void main() {
     },
   );
 
+  test('mounted no-alert rites keep explicit no-alert policy', () {
+    final source = File(
+      'lib/features/calendar/calendar_page.dart',
+    ).readAsStringSync();
+    final mountedJoin = _sourceBetween(
+      source,
+      'Future<int> _addMaatFlowInstance({',
+      'Future<bool> _endFlowFromEventTarget',
+    );
+
+    final dawnBranch = _sourceBetween(
+      mountedJoin,
+      'if (template.kind == _MaatFlowTemplateKind.dawnHouseRite)',
+      'if (template.kind == _MaatFlowTemplateKind.eveningThresholdRite)',
+    );
+    final eveningBranch = _sourceBetween(
+      mountedJoin,
+      'if (template.kind == _MaatFlowTemplateKind.eveningThresholdRite)',
+      'if (template.kind == _MaatFlowTemplateKind.theWeighing)',
+    );
+    final weighingBranch = _sourceBetween(
+      mountedJoin,
+      'if (template.kind == _MaatFlowTemplateKind.theWeighing)',
+      'if (template.kind == _MaatFlowTemplateKind.offeringTable)',
+    );
+
+    _expectMountedBranchUsesExplicitNoAlert(
+      dawnBranch,
+      branchName: 'mounted Dawn House Rite',
+    );
+    _expectMountedBranchUsesExplicitNoAlert(
+      eveningBranch,
+      branchName: 'mounted Evening Threshold Rite',
+    );
+    _expectMountedBranchUsesExplicitNoAlert(
+      weighingBranch,
+      branchName: 'mounted The Weighing',
+    );
+  });
+
   test('mounted Moon Return join uses safe enrollment resolution', () {
     final source = File(
       'lib/features/calendar/calendar_page.dart',
@@ -1524,6 +1564,62 @@ void main() {
       expect(offeringTableBranch, contains('caller: \'offering_table_join\''));
       expect(offeringTableBranch, contains('_addNote('));
       expect(offeringTableBranch, contains('await _scheduleAlertForEvent('));
+    },
+  );
+
+  test(
+    'mounted The Weighing join preserves event identity and payload contract',
+    () {
+      final source = File(
+        'lib/features/calendar/calendar_page.dart',
+      ).readAsStringSync();
+      final weighingSource = File(
+        'lib/features/calendar/the_weighing_flow.dart',
+      ).readAsStringSync();
+      final mountedJoin = _sourceBetween(
+        source,
+        'Future<int> _addMaatFlowInstance({',
+        'Future<bool> _endFlowFromEventTarget',
+      );
+      final weighingBranch = _sourceBetween(
+        mountedJoin,
+        'if (template.kind == _MaatFlowTemplateKind.theWeighing)',
+        'if (template.kind == _MaatFlowTemplateKind.offeringTable)',
+      );
+      final weighingPayload = _sourceBetween(
+        weighingSource,
+        'Map<String, dynamic> theWeighingBehaviorPayload({',
+        'String theWeighingDetailText(',
+      );
+
+      expect(weighingBranch, contains('mode=gregorian'));
+      expect(weighingBranch, contains('maat=\${template.key}'));
+      expect(weighingBranch, contains('weighing_tz=\${timezone.key}'));
+      expect(weighingBranch, contains('weighing_lens=\${theWeighingLens.key}'));
+      expect(weighingBranch, contains('weighing_midday_hour='));
+      expect(weighingBranch, contains('weighing_midday_minute='));
+      expect(weighingBranch, contains('theWeighingEventTitle(event)'));
+      expect(weighingBranch, contains('theWeighingDetailText('));
+      expect(weighingBranch, contains('lens: theWeighingLens'));
+      expect(weighingBranch, contains('theWeighingBehaviorPayload('));
+      expect(weighingBranch, contains('event: event'));
+      expect(weighingBranch, contains('schedule: occurrence'));
+      expect(weighingBranch, contains('theWeighingActionId(event)'));
+      expect(weighingBranch, contains('clientEventId = _buildCid('));
+      expect(weighingBranch, contains('startsAtUtc: occurrence.startUtc'));
+      expect(weighingBranch, contains('endsAtUtc: occurrence.endUtc'));
+      expect(weighingBranch, contains('category: \'Ritual\''));
+      expect(weighingBranch, contains('alertOffsetMinutes: _alertNoneMinutes'));
+      expect(weighingBranch, contains('caller: \'the_weighing_join\''));
+      expect(weighingBranch, contains('_addNote('));
+      expect(weighingBranch, contains('await _scheduleAlertForEvent('));
+
+      expect(weighingPayload, contains("'kind': 'maat_the_weighing_event'"));
+      expect(weighingPayload, contains("'flow_key': kTheWeighingFlowKey"));
+      expect(weighingPayload, contains("'event_number': event.eventNumber"));
+      expect(weighingPayload, contains("'flow_day': event.flowDay"));
+      expect(weighingPayload, contains("'schedule': <String, dynamic>{"));
+      expect(weighingPayload, contains("'lens': lens.key"));
     },
   );
 
@@ -2201,5 +2297,26 @@ void _expectPersistsBeforeAlertFiling(
     lessThan(alertFilingIndex),
     reason:
         '$branchName must persist the backing user_event before notification filing can reconcile it.',
+  );
+}
+
+void _expectMountedBranchUsesExplicitNoAlert(
+  String branch, {
+  required String branchName,
+}) {
+  expect(
+    branch,
+    contains('alertOffsetMinutes: _alertNoneMinutes'),
+    reason: '$branchName must encode no-alert intent explicitly.',
+  );
+  expect(
+    branch,
+    isNot(contains('alertOffsetMinutes: 0')),
+    reason: '$branchName must not file at-time alerts by default.',
+  );
+  expect(
+    branch,
+    contains('await _scheduleAlertForEvent('),
+    reason: '$branchName should still route through no-alert cancellation.',
   );
 }

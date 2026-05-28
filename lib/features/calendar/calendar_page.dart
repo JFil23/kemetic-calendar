@@ -19442,7 +19442,7 @@ class CalendarPageState extends State<CalendarPage>
             end: endTod,
             flowId: serverFlowId,
             category: 'Ritual',
-            alertOffsetMinutes: 0,
+            alertOffsetMinutes: _alertNoneMinutes,
             actionId: theWeighingActionId(event),
             behaviorPayload: behaviorPayload,
           );
@@ -19460,7 +19460,7 @@ class CalendarPageState extends State<CalendarPage>
             end: endTod,
             flowId: serverFlowId,
             category: 'Ritual',
-            alertOffsetMinutes: 0,
+            alertOffsetMinutes: _alertNoneMinutes,
             actionId: theWeighingActionId(event),
             behaviorPayload: behaviorPayload,
           );
