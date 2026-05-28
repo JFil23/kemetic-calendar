@@ -424,20 +424,20 @@ void main() {
     });
 
     test(
-      'day view continuity restores open routes without startup clearing',
+      'day view continuity restores calendar anchor without cold-launch route',
       () async {
         final calendar = await File(
           'lib/features/calendar/calendar_page.dart',
         ).readAsString();
+        final initialWait = _sourceBetween(
+          calendar,
+          'static Future<void> waitForInitialCalendarRestorationToSettle',
+          'static Future<void> _saveDetachedCalendarOverlayState',
+        );
         final loadPersistedViewState = _sourceBetween(
           calendar,
           'Future<void> _loadPersistedViewState',
           '/// ✅ Helper: Calculate max days in a Kemetic month',
-        );
-        final restoreDayView = _sourceBetween(
-          calendar,
-          'Future<void> _restorePersistentDayViewIfNeeded',
-          'void _applyTodayFallbackAfterRestore',
         );
         final dayViewNavigation = _sourceBetween(
           calendar,
@@ -447,42 +447,39 @@ void main() {
 
         expect(
           calendar,
-          contains('static const bool _restoreDayViewRouteOnStartup = true;'),
+          contains('static const bool _restoreDayViewRouteOnStartup = false;'),
         );
         expect(
           calendar,
           isNot(contains("reason: 'startup_calendar_fallback'")),
         );
+        expect(initialWait, contains('_restoreDayViewRouteOnStartup &&'));
         expect(
           loadPersistedViewState,
-          isNot(contains('_clearPersistedDayViewOpenState')),
+          contains('if (savedCalendar == null && savedDayView != null)'),
         );
         expect(
           loadPersistedViewState,
-          contains('_pendingPersistentDayViewState'),
+          contains('savedCalendar = CalendarRestorationState('),
+        );
+        expect(
+          loadPersistedViewState,
+          contains('shouldRestoreDayViewRoute &&'),
         );
         expect(loadPersistedViewState, contains('savedDayView.isOpen'));
-        expect(
-          loadPersistedViewState,
-          contains('_schedulePersistentDayViewRestore'),
-        );
 
-        expect(restoreDayView, contains('_openDayView('));
-        expect(restoreDayView, contains('if (attempt >= 20)'));
-        expect(
-          restoreDayView.indexOf('_persistentDayViewRestoreAttempted = true'),
-          lessThan(restoreDayView.indexOf('_openDayView(')),
-        );
-
-        expect(
-          dayViewNavigation,
-          contains('shouldPreserveOverlayForLifecycleClose'),
-        );
+        expect(dayViewNavigation, contains("reason: 'before_day_view_open'"));
         expect(dayViewNavigation, contains("reason: 'day_view_closed'"));
         expect(
-          dayViewNavigation.indexOf('if (!preserveForLifecycle)'),
-          lessThan(dayViewNavigation.indexOf("reason: 'day_view_closed'")),
+          dayViewNavigation,
+          isNot(contains('final preserveForLifecycle')),
         );
+        expect(
+          dayViewNavigation,
+          contains('cold launch\n      // ignores stale open state'),
+        );
+        expect(calendar, contains('onDayTap: (c, m, d) => _openDayView'));
+        expect(calendar, contains('unawaited(_openCalendarEventFromPush'));
       },
     );
 
