@@ -20980,7 +20980,6 @@ class CalendarPageState extends State<CalendarPage>
 
     for (final occurrence in occurrences) {
       final dayOnly = DateUtils.dateOnly(occurrence.startLocal);
-      ruleDates.add(dayOnly);
       final kyKmKd = KemeticMath.fromGregorian(dayOnly);
       final context = courseContextForKemeticDate(
         kYear: occurrence.kYear,
@@ -21023,45 +21022,57 @@ class CalendarPageState extends State<CalendarPage>
         actionId: decanWatchActionId(occurrence),
         behaviorPayload: behaviorPayload,
       );
-      _addNote(
-        kyKmKd.kYear,
-        kyKmKd.kMonth,
-        kyKmKd.kDay,
-        title,
-        detail,
-        clientEventId: clientEventId,
-        calendarId: flow.calendarId ?? _personalCalendarId,
-        allDay: false,
-        start: startTod,
-        end: endTod,
-        flowId: flowId,
-        category: 'Ritual',
-        alertOffsetMinutes: 0,
-        actionId: decanWatchActionId(occurrence),
-        behaviorPayload: behaviorPayload,
-        notify: false,
-      );
-      await _scheduleAlertForEvent(
-        note: note,
-        ky: kyKmKd.kYear,
-        km: kyKmKd.kMonth,
-        kd: kyKmKd.kDay,
-        clientEventId: clientEventId,
-      );
-      await repo.upsertByClientId(
-        clientEventId: clientEventId,
-        title: title,
-        startsAtUtc: occurrence.startUtc,
-        detail: detail,
-        calendarId: flow.calendarId ?? _personalCalendarId,
-        allDay: false,
-        endsAtUtc: occurrence.endUtc,
-        category: 'Ritual',
-        flowLocalId: flowId,
-        actionId: decanWatchActionId(occurrence),
-        behaviorPayload: behaviorPayload,
-        caller: 'decan_watch_horizon',
-      );
+      try {
+        await repo.upsertByClientId(
+          clientEventId: clientEventId,
+          title: title,
+          startsAtUtc: occurrence.startUtc,
+          detail: detail,
+          calendarId: flow.calendarId ?? _personalCalendarId,
+          allDay: false,
+          endsAtUtc: occurrence.endUtc,
+          category: 'Ritual',
+          flowLocalId: flowId,
+          actionId: decanWatchActionId(occurrence),
+          behaviorPayload: behaviorPayload,
+          caller: 'decan_watch_horizon',
+        );
+        ruleDates.add(dayOnly);
+
+        _addNote(
+          kyKmKd.kYear,
+          kyKmKd.kMonth,
+          kyKmKd.kDay,
+          title,
+          detail,
+          clientEventId: clientEventId,
+          calendarId: flow.calendarId ?? _personalCalendarId,
+          allDay: false,
+          start: startTod,
+          end: endTod,
+          flowId: flowId,
+          category: 'Ritual',
+          alertOffsetMinutes: 0,
+          actionId: decanWatchActionId(occurrence),
+          behaviorPayload: behaviorPayload,
+          notify: false,
+        );
+        await _scheduleAlertForEvent(
+          note: note,
+          ky: kyKmKd.kYear,
+          km: kyKmKd.kMonth,
+          kd: kyKmKd.kDay,
+          clientEventId: clientEventId,
+        );
+      } catch (e, st) {
+        if (kDebugMode) {
+          _calendarDebugPrint(
+            '[decanWatchHorizon] event creation failed '
+            'flowId=$flowId cid=$clientEventId: $e',
+          );
+          _calendarDebugPrint('$st');
+        }
+      }
     }
 
     final orderedDates = ruleDates.toList()..sort();
@@ -21086,7 +21097,14 @@ class CalendarPageState extends State<CalendarPage>
           ),
           originType: 'template',
         );
-      } catch (_) {}
+      } catch (e, st) {
+        if (kDebugMode) {
+          _calendarDebugPrint(
+            '[decanWatchHorizon] flow rule update failed flowId=$flowId: $e',
+          );
+          _calendarDebugPrint('$st');
+        }
+      }
     }
     if (mounted) {
       setState(() {});

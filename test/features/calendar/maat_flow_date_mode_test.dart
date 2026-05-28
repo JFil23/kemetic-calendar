@@ -1077,6 +1077,43 @@ void main() {
     expect(trackSkyBranch, contains('return -1;'));
   });
 
+  test('Decan Watch horizon persists events before filing alerts', () {
+    final source = File(
+      'lib/features/calendar/calendar_page.dart',
+    ).readAsStringSync();
+    final horizon = _sourceBetween(
+      source,
+      'Future<void> _ensureDecanWatchHorizon(int flowId) async {',
+      'String? _flowNoteToken(String? notes, String prefix)',
+    );
+
+    _expectPersistsBeforeAlertFiling(
+      horizon,
+      caller: "caller: 'decan_watch_horizon'",
+      branchName: 'Decan Watch horizon',
+    );
+    expect(horizon, contains('alertOffsetMinutes: 0'));
+    expect(horizon, contains('decanWatchClientEventId('));
+    expect(horizon, contains('decanWatchBehaviorPayload('));
+    expect(horizon, contains('decanWatchActionId(occurrence)'));
+  });
+
+  test('Decan Watch horizon failures are not silently swallowed', () {
+    final source = File(
+      'lib/features/calendar/calendar_page.dart',
+    ).readAsStringSync();
+    final horizon = _sourceBetween(
+      source,
+      'Future<void> _ensureDecanWatchHorizon(int flowId) async {',
+      'String? _flowNoteToken(String? notes, String prefix)',
+    );
+
+    expect(horizon, contains('} catch (e, st) {'));
+    expect(horizon, contains('[decanWatchHorizon] event creation failed '));
+    expect(horizon, contains('[decanWatchHorizon] flow rule update failed'));
+    expect(horizon, isNot(contains('catch (_) {}')));
+  });
+
   test('mounted no-alert rites keep explicit no-alert policy', () {
     final source = File(
       'lib/features/calendar/calendar_page.dart',
