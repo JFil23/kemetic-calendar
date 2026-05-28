@@ -24,6 +24,12 @@ enum NotificationType {
   const NotificationType(this.value);
 }
 
+class _PersistedNotification {
+  const _PersistedNotification({required this.notificationId});
+
+  final int notificationId;
+}
+
 class Notify {
   static final _plugin = FlutterLocalNotificationsPlugin();
 
@@ -69,10 +75,9 @@ class Notify {
     }
   }
 
-  /// Generate a stable notification ID per logical notification identity.
-  /// This must include notification type so multiple alerts for the same event
-  /// do not overwrite each other locally.
-  static int _generateStableNotificationId(
+  /// Fallback-only platform id for local scheduling when database persistence is
+  /// unavailable. Normal scheduling must use the DB-stored notification_id.
+  static int _generateFallbackNotificationId(
     String clientEventId, {
     NotificationType type = NotificationType.eventStart,
   }) {
@@ -316,7 +321,7 @@ class Notify {
         );
         final notificationId =
             row['notification_id'] as int? ??
-            _generateStableNotificationId(clientEventId, type: type);
+            _generateFallbackNotificationId(clientEventId, type: type);
         final scheduledAtRaw = row['scheduled_at'] as String?;
         if (scheduledAtRaw == null || scheduledAtRaw.isEmpty) {
           await _plugin.cancel(notificationId);
@@ -679,13 +684,14 @@ class Notify {
 
       final now = DateTime.now();
 
-      // Generate stable notification ID from clientEventId
-      final notificationId = _generateStableNotificationId(
-        clientEventId,
-        type: type,
-      );
-
       if (!scheduledAt.isAfter(now.add(_minimumScheduleLead))) {
+        final existing = await _getNotificationByEventId(
+          clientEventId,
+          type: type,
+        );
+        final notificationId =
+            existing?['notification_id'] as int? ??
+            _generateFallbackNotificationId(clientEventId, type: type);
         await _plugin.cancel(notificationId);
         await _markNotificationInactive(clientEventId, type: type);
         _log(
@@ -700,6 +706,9 @@ class Notify {
         clientEventId,
         type: type,
       );
+      final fallbackNotificationId =
+          existing?['notification_id'] as int? ??
+          _generateFallbackNotificationId(clientEventId, type: type);
       final shouldScheduleLocally = await _shouldScheduleLocallyOnThisDevice();
       final sanitizedTitle = await _resolveNotificationTitle(
         clientEventId: clientEventId,
@@ -709,31 +718,32 @@ class Notify {
       final sanitizedBody = _resolveNotificationBody(preferredBody: body);
       if (existing != null) {
         _log(
-          'Updating existing notification $notificationId for event $clientEventId',
+          'Updating existing notification $fallbackNotificationId for event $clientEventId',
         );
       } else {
         _log(
-          'Creating new notification $notificationId for event $clientEventId',
+          'Creating notification row for event $clientEventId (${type.value})',
         );
       }
 
       // Persist to Supabase
-      final persisted = await _persistNotificationToDatabase(
+      final persistedNotification = await _persistNotificationToDatabase(
         clientEventId: clientEventId,
-        notificationId: notificationId,
         scheduledAt: scheduledAt,
         title: sanitizedTitle,
         body: sanitizedBody,
         payload: payload ?? '{}',
         type: type,
       );
+      final notificationId =
+          persistedNotification?.notificationId ?? fallbackNotificationId;
 
       if (shouldScheduleLocally) {
         if (existing != null) {
           await _plugin.cancel(notificationId);
         }
 
-        if (persisted) {
+        if (persistedNotification != null) {
           _requestLocalWindowReconcile();
           _log(
             'Queued local schedule reconciliation for $notificationIdentity',
@@ -1071,10 +1081,10 @@ class Notify {
     );
   }
 
-  /// **PRIVATE**: Persist notification to Supabase
-  static Future<bool> _persistNotificationToDatabase({
+  /// **PRIVATE**: Persist notification to Supabase and return its DB-owned
+  /// platform notification id.
+  static Future<_PersistedNotification?> _persistNotificationToDatabase({
     required String clientEventId,
-    required int notificationId,
     required DateTime scheduledAt,
     required String title,
     String? body,
@@ -1087,27 +1097,54 @@ class Notify {
 
       if (userId == null) {
         _log('⚠️ Cannot persist notification - no user logged in');
-        return false;
+        return null;
       }
 
-      await client.from('scheduled_notifications').upsert({
-        'user_id': userId,
-        'client_event_id': clientEventId,
-        'notification_id': notificationId,
-        'scheduled_at': scheduledAt.toUtc().toIso8601String(),
-        'title': title,
-        'body': body,
-        'payload': payload,
-        'is_active': true,
-        'notification_type': type.value,
-      }, onConflict: 'user_id,client_event_id,notification_type');
+      final response = await client.rpc(
+        'upsert_scheduled_notification',
+        params: <String, dynamic>{
+          'p_client_event_id': clientEventId,
+          'p_scheduled_at': scheduledAt.toUtc().toIso8601String(),
+          'p_title': title,
+          'p_body': body,
+          'p_payload': payload,
+          'p_notification_type': type.value,
+        },
+      );
+      final persisted = _decodePersistedNotification(response);
+      if (persisted == null) {
+        _log(
+          '⚠️ Persisted notification but no notification_id was returned: $clientEventId',
+        );
+        return null;
+      }
 
-      _log('Persisted notification to database: $clientEventId');
-      return true;
+      _log(
+        'Persisted notification to database: $clientEventId '
+        '(notification_id=${persisted.notificationId})',
+      );
+      return persisted;
     } catch (e) {
       _log('⚠️ Error persisting notification to database: $e');
-      return false;
+      return null;
     }
+  }
+
+  static _PersistedNotification? _decodePersistedNotification(
+    Object? response,
+  ) {
+    final row = switch (response) {
+      List<dynamic> rows when rows.isNotEmpty => rows.first,
+      Map<dynamic, dynamic> map => map,
+      _ => null,
+    };
+    if (row is! Map) return null;
+
+    final decoded = Map<String, dynamic>.from(row);
+    final notificationId = (decoded['notification_id'] as num?)?.toInt();
+    if (notificationId == null || notificationId <= 0) return null;
+
+    return _PersistedNotification(notificationId: notificationId);
   }
 
   /// **PRIVATE**: Get notification by event ID

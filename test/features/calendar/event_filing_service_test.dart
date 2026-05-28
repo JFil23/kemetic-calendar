@@ -176,7 +176,7 @@ void main() {
         scheduleStart,
       );
       final persistStart = source.indexOf(
-        'static Future<bool> _persistNotificationToDatabase',
+        'static Future<_PersistedNotification?> _persistNotificationToDatabase',
       );
       final persistEnd = source.indexOf(
         '/// **PRIVATE**: Get notification by event ID',
@@ -205,10 +205,13 @@ void main() {
       expect(persistCall, greaterThan(retireCall));
 
       final persistBody = source.substring(persistStart, persistEnd);
-      expect(persistBody, contains("'is_active': true"));
       expect(
         persistBody,
-        contains("onConflict: 'user_id,client_event_id,notification_type'"),
+        contains("client.rpc(\n        'upsert_scheduled_notification'"),
+      );
+      expect(
+        persistBody,
+        isNot(contains(".from('scheduled_notifications').upsert")),
       );
     },
   );
