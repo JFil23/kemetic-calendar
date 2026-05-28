@@ -41,10 +41,10 @@ class _DecanReflectionArchivePageState
     });
     final result = await _repo.listMineResult();
     final openingResult = await _maatRepo.listDecanOpeningsForArchive();
-    final entries = <_ArchiveEntry>[
-      ...result.data.map(_ArchiveEntry.reflection),
-      ...openingResult.data.map(_ArchiveEntry.opening),
-    ]..sort((a, b) => b.sortDate.compareTo(a.sortDate));
+    final entries = _buildArchiveEntries(
+      reflections: result.data,
+      openings: openingResult.data,
+    );
     final latestReflection = result.data.fold<DecanReflection?>(
       null,
       (latest, reflection) =>
@@ -63,7 +63,11 @@ class _DecanReflectionArchivePageState
     if (!mounted) return;
     setState(() {
       _items = entries;
-      _errorMessage = result.errorMessage ?? openingResult.errorMessage;
+      _errorMessage = decanReflectionArchiveVisibleError(
+        hasVisibleItems: entries.isNotEmpty,
+        reflectionErrorMessage: result.errorMessage,
+        openingErrorMessage: openingResult.errorMessage,
+      );
       _loading = false;
     });
   }
@@ -190,6 +194,45 @@ class _DecanReflectionArchivePageState
 }
 
 enum _ArchiveEntryType { reflection, opening }
+
+List<_ArchiveEntry> _buildArchiveEntries({
+  required List<DecanReflection> reflections,
+  required List<MaatGuidanceDelivery> openings,
+}) {
+  return <_ArchiveEntry>[
+    ...reflections.map(_ArchiveEntry.reflection),
+    ...openings.map(_ArchiveEntry.opening),
+  ]..sort((a, b) => b.sortDate.compareTo(a.sortDate));
+}
+
+@visibleForTesting
+String? decanReflectionArchiveVisibleError({
+  required bool hasVisibleItems,
+  String? reflectionErrorMessage,
+  String? openingErrorMessage,
+}) {
+  if (hasVisibleItems) return null;
+  return reflectionErrorMessage ?? openingErrorMessage;
+}
+
+@visibleForTesting
+List<({String id, String title, String route, String preview})>
+buildDecanReflectionArchiveRowsForTesting(List<DecanReflection> reflections) {
+  return _buildArchiveEntries(
+        reflections: reflections,
+        openings: const <MaatGuidanceDelivery>[],
+      )
+      .where((entry) => entry.type == _ArchiveEntryType.reflection)
+      .map(
+        (entry) => (
+          id: entry.id,
+          title: entry.title,
+          route: entry.route,
+          preview: entry.preview,
+        ),
+      )
+      .toList(growable: false);
+}
 
 class _ArchiveEntry {
   const _ArchiveEntry._({

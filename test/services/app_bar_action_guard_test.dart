@@ -660,7 +660,8 @@ void main() {
         expect(repo, contains('errorMessage: _friendlyReadError(e)'));
         expect(repo, isNot(contains('return []')));
         expect(page, contains('String? _errorMessage'));
-        expect(page, contains('_errorMessage = result.errorMessage'));
+        expect(page, contains('decanReflectionArchiveVisibleError'));
+        expect(page, contains('hasVisibleItems: entries.isNotEmpty'));
         expect(page, contains('Reflections could not load'));
         expect(page, contains('No reflections yet'));
       },

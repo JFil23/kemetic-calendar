@@ -92,6 +92,33 @@ void main() {
       expect(pushNavigationSource, contains("_router.go('/')"));
     });
 
+    test('decan reflection pushes route directly to reflection detail', () async {
+      final mainSource = await File('lib/main.dart').readAsString();
+      final initialRouteSource = _sourceBetween(
+        mainSource,
+        'String? _initialLocationFromPushData(',
+        "  final shareKind = _trimmedPushValue(data['share_kind'] ?? data['shareKind']);",
+      );
+      final pushNavigationSource = _sourceBetween(
+        mainSource,
+        'Future<bool> _handlePushNavigation(Map<String, dynamic> data) async {',
+        'void _openSharedFlow(String shareId) {',
+      );
+
+      expect(initialRouteSource, contains("kind == 'decan_reflection'"));
+      expect(
+        initialRouteSource,
+        contains("'/reflections/\${Uri.encodeComponent(reflectionId)}'"),
+      );
+      expect(pushNavigationSource, contains("kind == 'decan_reflection'"));
+      expect(
+        pushNavigationSource,
+        contains(
+          "_router.go('/reflections/\${Uri.encodeComponent(reflectionId)}')",
+        ),
+      );
+    });
+
     test(
       'cold-start notification intent wins over passive restoration',
       () async {
