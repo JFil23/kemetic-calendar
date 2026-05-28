@@ -20233,140 +20233,23 @@ class CalendarPageState extends State<CalendarPage>
       return serverFlowId;
     }
 
-    if (startDate == null) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Please pick a start date first.')),
-        );
-      }
-      return -1;
+    // Current Ma'at templates must use explicit branches above; legacy sequence
+    // templates used to continue through `if (startDate == null)` and then
+    // fire-and-forget persistence. They now fail closed before creating rows.
+    if (kDebugMode) {
+      _calendarDebugPrint(
+        "[maatTemplate] Unsupported mounted Ma'at template "
+        'kind=${template.kind} key=${template.key} title="${template.title}"',
+      );
     }
-
-    // 1) Build the 10 Gregorian dates starting at chosen start.
-    final dates = <DateTime>{};
-    DateTime firstG;
-    if (useKemetic) {
-      final k = KemeticMath.fromGregorian(startDate);
-      // interpret startDate as selected Kemetic (already dateOnly)
-      firstG = KemeticMath.toGregorian(k.kYear, k.kMonth, k.kDay);
-    } else {
-      firstG = DateUtils.dateOnly(startDate);
-    }
-    for (int i = 0; i < 10; i++) {
-      dates.add(DateUtils.dateOnly(firstG.add(Duration(days: i))));
-    }
-
-    // 2) Build the flow object (RuleDates over those 10 days).
-    final flow = _Flow(
-      id: -1, // assigned on save
-      calendarId: _personalCalendarId,
-      name: template.title,
-      color: template.color,
-      active: true,
-      rules: [
-        _RuleDates(
-          dates: dates,
-          allDay: false,
-          start: const TimeOfDay(hour: 9, minute: 0),
-          end: const TimeOfDay(hour: 10, minute: 0),
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('${template.title} is not available right now.'),
         ),
-      ],
-
-      start: firstG,
-      end: firstG.add(const Duration(days: 9)),
-      // Encode meta so we can recognize in preview/end:
-      // "mode=gregorian|kemetic; split=1; ov=...; maat=<key>"
-      notes: [
-        useKemetic ? 'mode=kemetic' : 'mode=gregorian',
-        'split=1', // using explicit dates
-        if (template.overview.trim().isNotEmpty)
-          'ov=${Uri.encodeComponent(template.overview.trim())}',
-        'maat=${template.key}',
-      ].join(';'),
-    );
-
-    final serverFlowId = await _saveNewFlow(
-      flow,
-    ); // await save and get server ID
-    if (serverFlowId == null) {
-      if (kDebugMode) {
-        _calendarDebugPrint(
-          '[applyFlowTemplate] Aborting - flow insert failed',
-        );
-      }
-      return -1;
+      );
     }
-
-    // 3) Add 10 linked notes (title + detail from template).
-    // Use 9am default; users can edit/delete individual notes later if they want.
-    int dayIndex = 0;
-    final ordered = dates.toList()..sort();
-    for (final g in ordered) {
-      final kyKmKd = KemeticMath.fromGregorian(g);
-      final day = template.days[dayIndex];
-      for (final slot in day.notes) {
-        _addNote(
-          kyKmKd.kYear,
-          kyKmKd.kMonth,
-          kyKmKd.kDay,
-          slot.title,
-          slot.detail,
-          allDay: false,
-          start: slot.start,
-          end: slot.end,
-          flowId: serverFlowId,
-        );
-        // sync each auto-created flow day to Supabase (fire-and-forget)
-        Future.microtask(() async {
-          try {
-            final repo = UserEventsRepo(Supabase.instance.client);
-            final scheduledAt = DateTime(
-              g.year,
-              g.month,
-              g.day,
-              slot.start.hour,
-              slot.start.minute,
-            );
-            // Use unified clientEventId for Ma'at flows as well. The note uses
-            // the provided slot start/end times; flowId identifies the
-            // owning flow. This allows deletion to operate uniformly.
-            final String cid = _buildCid(
-              ky: kyKmKd.kYear,
-              km: kyKmKd.kMonth,
-              kd: kyKmKd.kDay,
-              title: slot.title,
-              startHour: slot.start.hour,
-              startMinute: slot.start.minute,
-              allDay: false,
-              flowId: serverFlowId,
-            );
-            await repo.upsertByClientId(
-              clientEventId: cid,
-              title: slot.title,
-              startsAtUtc: scheduledAt.toUtc(),
-              detail: (slot.detail ?? '').trim().isEmpty
-                  ? null
-                  : slot.detail!.trim(),
-              location: null,
-              allDay: false,
-              endsAtUtc: DateTime(
-                g.year,
-                g.month,
-                g.day,
-                slot.end.hour,
-                slot.end.minute,
-              ).toUtc(),
-              flowLocalId: serverFlowId, // attach to the flow you just created
-              caller: 'maat_autoschedule',
-            );
-          } catch (_) {}
-        });
-      }
-
-      dayIndex++;
-    }
-    setState(() {});
-    return serverFlowId;
+    return -1;
   }
 
   /// End Flow removes the current user's local calendar copy of the flow by

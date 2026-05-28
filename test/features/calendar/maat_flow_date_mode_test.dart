@@ -994,7 +994,7 @@ void main() {
       final courseBranch = _sourceBetween(
         mountedJoin,
         'if (template.kind == _MaatFlowTemplateKind.theCourse)',
-        'if (startDate == null) {',
+        "// Current Ma'at templates must use explicit branches above;",
       );
       _expectPersistsBeforeAlertFiling(
         courseBranch,
@@ -1152,6 +1152,98 @@ void main() {
       weighingBranch,
       branchName: 'mounted The Weighing',
     );
+  });
+
+  test('mounted Ma_at templates are explicitly handled before fallback', () {
+    final source = File(
+      'lib/features/calendar/calendar_page.dart',
+    ).readAsStringSync();
+    final templateList = _sourceBetween(
+      source,
+      'final List<_MaatFlowTemplate> _kMaatFlowTemplates = [',
+      'String _maatFlowTemplateDurationLabel',
+    );
+    final mountedJoin = _sourceBetween(
+      source,
+      'Future<int> _addMaatFlowInstance({',
+      'Future<bool> _endFlowFromEventTarget',
+    );
+    final explicitBranches = _sourceBetween(
+      mountedJoin,
+      'if (template.kind == _MaatFlowTemplateKind.trackSky)',
+      "// Current Ma'at templates must use explicit branches above;",
+    );
+    const explicitKinds = [
+      'trackSky',
+      'dawnHouseRite',
+      'eveningThresholdRite',
+      'theWeighing',
+      'offeringTable',
+      'theTending',
+      'keptWord',
+      'theCourse',
+      'moonReturn',
+      'theWag',
+      'decanWatch',
+      'daysOutsideTheYear',
+      'theOpenHand',
+      'theDjed',
+    ];
+
+    expect(
+      _countOccurrences(templateList, '_MaatFlowTemplate('),
+      explicitKinds.length,
+      reason: 'Every current Ma_at template should be represented here.',
+    );
+    expect(
+      _countOccurrences(templateList, 'kind: _MaatFlowTemplateKind.'),
+      explicitKinds.length,
+      reason: 'Current templates must declare explicit kinds.',
+    );
+    expect(
+      templateList,
+      isNot(contains('kind: _MaatFlowTemplateKind.sequence')),
+      reason: 'Legacy sequence templates are not current product templates.',
+    );
+    for (final kind in explicitKinds) {
+      expect(
+        templateList,
+        contains('kind: _MaatFlowTemplateKind.$kind'),
+        reason: 'Template list must include $kind explicitly.',
+      );
+      expect(
+        explicitBranches,
+        contains('if (template.kind == _MaatFlowTemplateKind.$kind)'),
+        reason: '$kind must be handled before the fail-closed fallback.',
+      );
+    }
+  });
+
+  test('mounted generic Ma_at fallback fails closed without autoschedule', () {
+    final source = File(
+      'lib/features/calendar/calendar_page.dart',
+    ).readAsStringSync();
+    final mountedJoin = _sourceBetween(
+      source,
+      'Future<int> _addMaatFlowInstance({',
+      'Future<bool> _endFlowFromEventTarget',
+    );
+    final fallbackStart = mountedJoin.indexOf(
+      "// Current Ma'at templates must use explicit branches above;",
+    );
+    expect(fallbackStart, isNonNegative);
+    final fallback = mountedJoin.substring(fallbackStart);
+
+    expect(mountedJoin, isNot(contains('Future.microtask')));
+    expect(mountedJoin, isNot(contains("caller: 'maat_autoschedule'")));
+    expect(fallback, contains('_calendarDebugPrint('));
+    expect(fallback, contains("Unsupported mounted Ma'at template"));
+    expect(fallback, contains('ScaffoldMessenger.of(context).showSnackBar'));
+    expect(fallback, contains('return -1;'));
+    expect(fallback, isNot(contains('_addNote(')));
+    expect(fallback, isNot(contains('repo.upsertByClientId(')));
+    expect(fallback, isNot(contains('await _scheduleAlertForEvent(')));
+    expect(fallback, isNot(contains('catch (_)')));
   });
 
   test('mounted Moon Return join uses safe enrollment resolution', () {
@@ -1875,7 +1967,7 @@ void main() {
       final courseBranch = _sourceBetween(
         mountedJoin,
         'if (template.kind == _MaatFlowTemplateKind.theCourse)',
-        'if (startDate == null) {',
+        "// Current Ma'at templates must use explicit branches above;",
       );
       final coursePayload = _sourceBetween(
         courseSource,
