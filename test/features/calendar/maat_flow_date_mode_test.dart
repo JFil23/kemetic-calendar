@@ -870,7 +870,7 @@ void main() {
   });
 
   test(
-    'mounted Moon Return, Wag, Days Outside, Decan Watch, Open Hand, Djed, and Offering Table persist events before filing alerts',
+    'mounted Moon Return, Wag, Days Outside, Decan Watch, Open Hand, Djed, Offering Table, and Tending persist events before filing alerts',
     () {
       final source = File(
         'lib/features/calendar/calendar_page.dart',
@@ -956,6 +956,17 @@ void main() {
         offeringTableBranch,
         caller: "caller: 'offering_table_join'",
         branchName: 'mounted Offering Table',
+      );
+
+      final tendingBranch = _sourceBetween(
+        mountedJoin,
+        'if (template.kind == _MaatFlowTemplateKind.theTending)',
+        'if (template.kind == _MaatFlowTemplateKind.keptWord)',
+      );
+      _expectPersistsBeforeAlertFiling(
+        tendingBranch,
+        caller: "caller: 'the_tending_join'",
+        branchName: 'mounted Tending',
       );
     },
   );
@@ -1491,6 +1502,59 @@ void main() {
       expect(offeringTableBranch, contains('caller: \'offering_table_join\''));
       expect(offeringTableBranch, contains('_addNote('));
       expect(offeringTableBranch, contains('await _scheduleAlertForEvent('));
+    },
+  );
+
+  test(
+    'mounted Tending join preserves event identity and privacy payload contract',
+    () {
+      final source = File(
+        'lib/features/calendar/calendar_page.dart',
+      ).readAsStringSync();
+      final tendingSource = File(
+        'lib/features/calendar/the_tending_flow.dart',
+      ).readAsStringSync();
+      final mountedJoin = _sourceBetween(
+        source,
+        'Future<int> _addMaatFlowInstance({',
+        'Future<bool> _endFlowFromEventTarget',
+      );
+      final tendingBranch = _sourceBetween(
+        mountedJoin,
+        'if (template.kind == _MaatFlowTemplateKind.theTending)',
+        'if (template.kind == _MaatFlowTemplateKind.keptWord)',
+      );
+      final tendingPayload = _sourceBetween(
+        tendingSource,
+        'Map<String, dynamic> theTendingBehaviorPayload({',
+        'String theTendingDetailText(',
+      );
+
+      expect(tendingBranch, contains('mode=gregorian'));
+      expect(tendingBranch, contains('maat=\${template.key}'));
+      expect(tendingBranch, contains('tending_tz=\${timezone.key}'));
+      expect(tendingBranch, contains('tending_lens=\${theTendingLens.key}'));
+      expect(tendingBranch, contains('tending_midday_hour='));
+      expect(tendingBranch, contains('tending_midday_minute='));
+      expect(tendingBranch, contains('theTendingEventTitle(event)'));
+      expect(tendingBranch, contains('theTendingDetailText('));
+      expect(tendingBranch, contains('lens: theTendingLens'));
+      expect(tendingBranch, contains('theTendingBehaviorPayload('));
+      expect(tendingBranch, contains('event: event'));
+      expect(tendingBranch, contains('schedule: occurrence'));
+      expect(tendingBranch, contains('theTendingActionId(event)'));
+      expect(tendingBranch, contains('clientEventId = _buildCid('));
+      expect(tendingBranch, contains('startsAtUtc: occurrence.startUtc'));
+      expect(tendingBranch, contains('endsAtUtc: occurrence.endUtc'));
+      expect(tendingBranch, contains('category: \'Ritual\''));
+      expect(tendingBranch, contains('alertOffsetMinutes: 0'));
+      expect(tendingBranch, contains('caller: \'the_tending_join\''));
+      expect(tendingBranch, contains('_addNote('));
+      expect(tendingBranch, contains('await _scheduleAlertForEvent('));
+
+      expect(tendingPayload, contains("'local_prompt': event.localPrompt.key"));
+      expect(tendingPayload, contains("'care_notes_storage': 'device_only'"));
+      expect(tendingPayload, contains("'sync_care_names': false"));
     },
   );
 

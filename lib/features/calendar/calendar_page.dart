@@ -19809,14 +19809,6 @@ class CalendarPageState extends State<CalendarPage>
             behaviorPayload: behaviorPayload,
           );
 
-          await _scheduleAlertForEvent(
-            note: note,
-            ky: kyKmKd.kYear,
-            km: kyKmKd.kMonth,
-            kd: kyKmKd.kDay,
-            clientEventId: clientEventId,
-          );
-
           await repo.upsertByClientId(
             clientEventId: clientEventId,
             title: title,
@@ -19830,6 +19822,14 @@ class CalendarPageState extends State<CalendarPage>
             actionId: theTendingActionId(event),
             behaviorPayload: behaviorPayload,
             caller: 'the_tending_join',
+          );
+
+          await _scheduleAlertForEvent(
+            note: note,
+            ky: kyKmKd.kYear,
+            km: kyKmKd.kMonth,
+            kd: kyKmKd.kDay,
+            clientEventId: clientEventId,
           );
         }
       } catch (e, st) {
