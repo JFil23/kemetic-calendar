@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mobile/data/decan_reflection_model.dart';
+import 'package:mobile/data/maat_guidance_model.dart';
 import 'package:mobile/features/reflections/decan_reflection_archive_page.dart';
 
 void main() {
@@ -46,6 +47,34 @@ void main() {
     );
   });
 
+  test('archive rows include opened and acted decan openings only', () {
+    final rows = buildDecanOpeningArchiveRowsForTesting([
+      _opening('opened-opening', MaatGuidanceStatus.opened),
+      _opening('acted-opening', MaatGuidanceStatus.acted),
+      _opening('pending-opening', MaatGuidanceStatus.pending),
+    ]);
+
+    expect(
+      rows.map((row) => row.id),
+      containsAll(<String>['opened-opening', 'acted-opening']),
+    );
+    expect(rows.map((row) => row.id), isNot(contains('pending-opening')));
+    expect(
+      rows.map((row) => row.route),
+      contains('/maat-guidance/opened-opening'),
+    );
+    expect(rows.first.title, startsWith('Opening'));
+  });
+
+  test('archive-only openings are understood by the archive surface', () {
+    final rows = buildDecanOpeningArchiveRowsForTesting([
+      _opening('archive-only-opening', MaatGuidanceStatus.archiveOnly),
+    ]);
+
+    expect(rows, hasLength(1));
+    expect(rows.single.id, 'archive-only-opening');
+  });
+
   test('prompt dismissed state is not an archive visibility filter', () async {
     final source = await File(
       'lib/features/reflections/decan_reflection_archive_page.dart',
@@ -55,4 +84,21 @@ void main() {
     expect(source, isNot(contains('hasInteracted(')));
     expect(source, isNot(contains('hasDismissed(')));
   });
+}
+
+MaatGuidanceDelivery _opening(String id, MaatGuidanceStatus status) {
+  return MaatGuidanceDelivery(
+    id: id,
+    kind: MaatGuidanceKind.decanOpening,
+    decanPeriodKey: '2026-05-29:2026-06-07:3-2',
+    status: status,
+    priority: 10,
+    teaserText: 'Open the decan with one measured act.',
+    bodyText: 'This decan opens through Hathor.',
+    payload: const <String, dynamic>{},
+    ctaType: MaatGuidanceCtaType.flowTemplate,
+    ctaRef: 'the-decan-watch',
+    triggerReason: 'decan_boundary',
+    createdAt: DateTime.utc(2026, 5, 29),
+  );
 }

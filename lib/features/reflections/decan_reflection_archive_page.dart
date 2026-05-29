@@ -201,8 +201,14 @@ List<_ArchiveEntry> _buildArchiveEntries({
 }) {
   return <_ArchiveEntry>[
     ...reflections.map(_ArchiveEntry.reflection),
-    ...openings.map(_ArchiveEntry.opening),
+    ...openings.where(_isArchivedOpening).map(_ArchiveEntry.opening),
   ]..sort((a, b) => b.sortDate.compareTo(a.sortDate));
+}
+
+bool _isArchivedOpening(MaatGuidanceDelivery delivery) {
+  return delivery.status == MaatGuidanceStatus.opened ||
+      delivery.status == MaatGuidanceStatus.acted ||
+      delivery.status == MaatGuidanceStatus.archiveOnly;
 }
 
 @visibleForTesting
@@ -223,6 +229,25 @@ buildDecanReflectionArchiveRowsForTesting(List<DecanReflection> reflections) {
         openings: const <MaatGuidanceDelivery>[],
       )
       .where((entry) => entry.type == _ArchiveEntryType.reflection)
+      .map(
+        (entry) => (
+          id: entry.id,
+          title: entry.title,
+          route: entry.route,
+          preview: entry.preview,
+        ),
+      )
+      .toList(growable: false);
+}
+
+@visibleForTesting
+List<({String id, String title, String route, String preview})>
+buildDecanOpeningArchiveRowsForTesting(List<MaatGuidanceDelivery> openings) {
+  return _buildArchiveEntries(
+        reflections: const <DecanReflection>[],
+        openings: openings,
+      )
+      .where((entry) => entry.type == _ArchiveEntryType.opening)
       .map(
         (entry) => (
           id: entry.id,

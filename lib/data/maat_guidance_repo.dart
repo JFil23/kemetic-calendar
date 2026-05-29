@@ -168,8 +168,9 @@ class MaatGuidanceRepo implements MaatGuidanceDataSource {
           .eq('user_id', uid)
           .eq('kind', MaatGuidanceKind.decanOpening.dbValue)
           .inFilter('status', <String>[
-            MaatGuidanceStatus.opened.name,
-            MaatGuidanceStatus.acted.name,
+            MaatGuidanceStatus.opened.dbValue,
+            MaatGuidanceStatus.acted.dbValue,
+            MaatGuidanceStatus.archiveOnly.dbValue,
           ])
           .order('created_at', ascending: false);
       final rows = (res as List)

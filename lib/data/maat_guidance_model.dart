@@ -44,13 +44,29 @@ enum MaatGuidanceStatus {
   dismissed,
   opened,
   acted,
-  expired;
+  expired,
+  archiveOnly;
 
   static MaatGuidanceStatus fromDb(String? value) {
+    if (value == 'archive_only') return MaatGuidanceStatus.archiveOnly;
     for (final status in MaatGuidanceStatus.values) {
       if (status.name == value) return status;
     }
     return MaatGuidanceStatus.pending;
+  }
+
+  String get dbValue {
+    switch (this) {
+      case MaatGuidanceStatus.archiveOnly:
+        return 'archive_only';
+      case MaatGuidanceStatus.pending:
+      case MaatGuidanceStatus.shown:
+      case MaatGuidanceStatus.dismissed:
+      case MaatGuidanceStatus.opened:
+      case MaatGuidanceStatus.acted:
+      case MaatGuidanceStatus.expired:
+        return name;
+    }
   }
 }
 

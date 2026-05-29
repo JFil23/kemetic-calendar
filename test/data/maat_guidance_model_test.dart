@@ -42,6 +42,20 @@ void main() {
     expect(delivery.hasCta, isFalse);
   });
 
+  test('archive_only status round-trips from database value', () {
+    final delivery = MaatGuidanceDelivery.fromJson({
+      'id': 'archive-only',
+      'kind': 'decan_opening',
+      'decan_period_key': '2026-05-29:2026-06-07:3-2',
+      'status': 'archive_only',
+      'teaser_text': 'Archived guidance.',
+      'body_text': 'Archived guidance.',
+    });
+
+    expect(delivery.status, MaatGuidanceStatus.archiveOnly);
+    expect(delivery.status.dbValue, 'archive_only');
+  });
+
   test('opening node CTA uses user-facing label', () {
     final delivery = MaatGuidanceDelivery.fromJson({
       'id': 'opening-node',
