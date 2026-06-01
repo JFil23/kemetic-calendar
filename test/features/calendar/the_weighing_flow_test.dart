@@ -77,7 +77,7 @@ void main() {
     expect(ids.last, 'the-weighing-event-09');
   });
 
-  test('detail text contains spoken line, steps, optional, and source', () {
+  test('detail text contains spoken line, steps, optional, and no source', () {
     final event = kTheWeighingEvents.first;
     final detail = theWeighingDetailText(event, lens: TheWeighingLens.djehuty);
 
@@ -86,7 +86,8 @@ void main() {
     expect(detail, contains('Steps\n1. Write down one number'));
     expect(detail, contains('Optional\n- Place a cup of water'));
     expect(detail, contains('Lens\nLet Djehuty'));
-    expect(detail, contains('Source\n'));
+    expect(detail, isNot(contains('Privacy\n')));
+    expect(detail, isNot(contains('Source\n')));
   });
 
   test('canonical detail rebuilds a stored weighing event', () {

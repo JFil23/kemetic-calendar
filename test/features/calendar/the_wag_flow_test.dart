@@ -119,23 +119,25 @@ void main() {
     expect(payload.toString(), isNot(contains('grandmother')));
   });
 
-  test('detail text names privacy, offerings, lens, and next Wag', () {
-    final event = kWagEvents.last;
-    final detail = wagDetailText(
-      event,
-      lens: WagLens.anpu,
-      nextWagDate: wagNextFeastGregorian(2),
-    );
+  test(
+    'detail text names offerings, private note, lens, next Wag, and no source',
+    () {
+      final event = kWagEvents.last;
+      final detail = wagDetailText(
+        event,
+        lens: WagLens.anpu,
+        nextWagDate: wagNextFeastGregorian(2),
+      );
 
-    expect(detail, contains(kTheWagConfidenceLabel));
-    expect(
-      detail,
-      contains('Ancestor names and Wag notes stay on this device'),
-    );
-    expect(detail, contains('Water first'));
-    expect(detail, contains('Lens\nLet Anpu'));
-    expect(detail, contains('Next Wag\n'));
-  });
+      expect(detail, contains(kTheWagConfidenceLabel));
+      expect(detail, contains('Private note: keep ancestor names'));
+      expect(detail, isNot(contains('Source\n')));
+      expect(detail, isNot(contains('stay on this device')));
+      expect(detail, contains('Water first'));
+      expect(detail, contains('Lens\nLet Anpu'));
+      expect(detail, contains('Next Wag\n'));
+    },
+  );
 
   test(
     'calendar UI and join branch use designated Wag windows and M1 dates',

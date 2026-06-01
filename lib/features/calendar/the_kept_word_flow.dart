@@ -737,12 +737,10 @@ String keptWordDetailText(KeptWordEvent event, {required KeptWordLens lens}) {
     'Words\n"${event.spokenLine}"',
     'Steps\n${_numberedLines(event.steps)}',
     if (optional.isNotEmpty) 'Optional\n$optional',
+    'Private note: keep household names and agreements in your local journal unless you intentionally choose to share them.',
     if (lensLine.isNotEmpty) 'Lens\n$lensLine',
-    'Privacy\nYour household notes stay on this device.',
     if (event.eventNumber == 5)
       'Completion\nIf the conversation has not been marked complete, choose Conversation pending.',
-    if ((event.sourceNote ?? '').trim().isNotEmpty)
-      'Source\n${event.sourceNote!.trim()}',
   ].join('\n\n');
 }
 

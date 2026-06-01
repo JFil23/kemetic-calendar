@@ -298,9 +298,6 @@ String moonReturnDetailText(
 }) {
   final lensLine = lens.detailLine.trim();
   final variant = _moonReturnVariantLine(occurrence.variant);
-  final source = occurrence.kind == MoonReturnEventKind.emptyEye
-      ? 'The new moon marks the Eye at its greatest absence before restoration begins. The household act here is reconstructed from the attested lunar threshold and Eye of Heru cycle.'
-      : '"Horus has filled you complete with his eye" appears in Pyramid Text offering ritual. The full moon makes the restored Eye visible in the sky.';
   return <String>[
     'Confidence\n$kMoonReturnConfidenceLabel',
     'Purpose\n${_moonReturnPurpose(occurrence.kind)}',
@@ -309,7 +306,6 @@ String moonReturnDetailText(
     'Steps\n${_numberedLines(_moonReturnSteps(occurrence.kind, occurrence.variant))}',
     'Outdoor\n${_moonReturnOutdoorLine(occurrence.kind)}',
     if (lensLine.isNotEmpty) 'Lens\n$lensLine',
-    'Source\n$source',
   ].join('\n\n');
 }
 

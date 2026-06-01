@@ -697,11 +697,9 @@ String djedDetailText(DjedEvent event, {required DjedLens lens}) {
       'Safety\nThe mock battle means direct engagement with a structural threat: a conversation, stopping a pattern, restarting a practice, or making a decision. It is not harmful confrontation.',
     'Words\n"${event.spokenLine}"',
     'Steps\n${_numberedLines(event.steps)}',
-    'Privacy\nSpine labels, wobble notes, battle commitments, and post-battle details stay on this device.',
+    'Private note: keep personal stability and safety details in your local journal unless you intentionally choose to share them.',
     if (lensLine.isNotEmpty) 'Lens\n$lensLine',
     'Confidence\n$kDjedConfidenceLabel',
-    if ((event.sourceNote ?? '').trim().isNotEmpty)
-      'Source\n${event.sourceNote!.trim()}',
   ].join('\n\n');
 }
 

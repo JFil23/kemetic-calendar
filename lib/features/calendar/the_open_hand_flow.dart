@@ -736,14 +736,12 @@ String openHandDetailText(OpenHandEvent event, {required OpenHandLens lens}) {
     'Words\n"${event.spokenLine}"',
     'Steps\n${_numberedLines(event.steps)}',
     if (event.requiresOutwardAct)
-      'Outward act\nComplete the provision act before marking this event observed. Names, needs, and act details stay on this device.',
+      'Outward act\nComplete the provision act before marking this event observed.',
     if (event.strangerAct)
       'If skipped\nName a specific future date for the stranger act and keep the record honest.',
-    'Privacy\nRecipient names, needs, and giving records are device-only. Server detail stores only generic practice copy and completion state.',
+    'Private note: keep names, needs, and recipient details in your local journal unless you intentionally choose to share them.',
     if (lensLine.isNotEmpty) 'Lens\n$lensLine',
     'Confidence\n$kOpenHandConfidenceLabel',
-    if ((event.sourceNote ?? '').trim().isNotEmpty)
-      'Source\n${event.sourceNote!.trim()}',
   ].join('\n\n');
 }
 

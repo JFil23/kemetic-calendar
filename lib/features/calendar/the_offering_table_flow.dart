@@ -727,8 +727,6 @@ String offeringTableDetailText(
     'Provision\n${day.provisionAct}',
     if (optional.isNotEmpty) 'Optional\n$optional',
     'Drink\nDrink the water. This is reversion: provision returns through the living body, not left on the table.',
-    if ((day.sourceNote ?? '').trim().isNotEmpty)
-      'Source\n${day.sourceNote!.trim()}',
   ].join('\n\n');
 }
 

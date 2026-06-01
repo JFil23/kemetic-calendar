@@ -633,8 +633,6 @@ String theWeighingDetailText(
     'Steps\n${_numberedLines(event.steps)}',
     if (optional.isNotEmpty) 'Optional\n$optional',
     if (lensLine.isNotEmpty) 'Lens\n$lensLine',
-    if ((event.sourceNote ?? '').trim().isNotEmpty)
-      'Source\n${event.sourceNote!.trim()}',
   ].join('\n\n');
 }
 

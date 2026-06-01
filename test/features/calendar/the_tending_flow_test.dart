@@ -74,8 +74,8 @@ void main() {
         expect(payload['flow_key'], 'the-tending');
         expect(payload['missed_event_rule'], 'expire_quietly');
         expect(payload['local_prompt'], event.localPrompt.key);
-      expect(encoded, isNot(contains('Name One')));
-      expect(encoded, isNot(contains('medicine')));
+        expect(encoded, isNot(contains('Name One')));
+        expect(encoded, isNot(contains('medicine')));
         ids.add(theTendingActionId(event));
       }
 
@@ -85,17 +85,21 @@ void main() {
     },
   );
 
-  test('detail text contains privacy boundary and no user care data', () {
-    final event = kTheTendingEvents.first;
-    final detail = theTendingDetailText(event, lens: TheTendingLens.heru);
+  test(
+    'detail text keeps a private note without source sections or user care data',
+    () {
+      final event = kTheTendingEvents.first;
+      final detail = theTendingDetailText(event, lens: TheTendingLens.heru);
 
-    expect(detail, contains('Purpose\n'));
-    expect(detail, contains('Words\n"${event.spokenLine}"'));
-    expect(detail, contains('Steps\n1. Name who is in your care'));
-    expect(detail, contains('Privacy\nYour care notes stay on this device.'));
-    expect(detail, contains('Lens\nLet Heru'));
-    expect(detail, isNot(contains('CareListEntry')));
-  });
+      expect(detail, contains('Purpose\n'));
+      expect(detail, contains('Words\n"${event.spokenLine}"'));
+      expect(detail, contains('Steps\n1. Name who is in your care'));
+      expect(detail, contains('Private note: keep names and care details'));
+      expect(detail, isNot(contains('Source\n')));
+      expect(detail, contains('Lens\nLet Heru'));
+      expect(detail, isNot(contains('CareListEntry')));
+    },
+  );
 
   test('canonical detail rebuilds a stored tending event', () {
     final detail = canonicalTheTendingDetailTextForEvent(

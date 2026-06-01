@@ -674,7 +674,7 @@ String wagDetailText(
       : 'Next year\'s Wag feast returns on ${_isoDate(nextWagDate)}.';
   return <String>[
     'Confidence\n$kTheWagConfidenceLabel',
-    'Privacy\nAncestor names and Wag notes stay on this device. Server events contain only generic steps.',
+    'Private note: keep ancestor names and private remembrance details in your local journal unless you intentionally choose to share them.',
     'Purpose\n${_wagPurpose(event)}',
     if (variantLine.isNotEmpty) 'Variant\n$variantLine',
     'Words\n"${event.spokenLine}"',
@@ -689,8 +689,6 @@ String wagDetailText(
     if (event.kind == WagEventKind.cycleConfirmed && nextWagLine.isNotEmpty)
       'Next Wag\n$nextWagLine',
     if (lensLine.isNotEmpty) 'Lens\n$lensLine',
-    if ((event.sourceNote ?? '').trim().isNotEmpty)
-      'Source\n${event.sourceNote!.trim()}',
   ].join('\n\n');
 }
 

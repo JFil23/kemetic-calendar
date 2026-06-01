@@ -194,9 +194,8 @@ String decanWatchDetailText(
     'Words\n"$kDecanWatchRequiredLine"',
     'Steps\n${_numberedLines(const <String>['Go outside. Phone down; open sky for at least one minute.', 'Look up. Face north first for the Imperishable Stars, then scan the full sky.', 'Speak the required line.', 'Note the sky in one line. A clouded sky is still a valid record.', 'Open the ḥꜣw day card. Read the decan name, quality, and Ma’at principle.', 'Reset intention. Name one bearing for the coming ten days.'])}',
     'Day Card\n$dayCardLine',
-    'Local Notes\nSky note and decan intention stay on this device only. They are not synced in event detail or completion metadata.',
+    'Private note: keep sky notes and local observation details in your local journal unless you intentionally choose to share them.',
     if (lensLine.isNotEmpty) 'Lens\n$lensLine',
-    'Source\nThe decans were thirty-six star groups used to keep night time and ten-day calendar order. The household act here reconstructs that sky-counting pattern without requiring star identification.',
   ].join('\n\n');
 }
 

@@ -458,11 +458,9 @@ String daysOutsideDetailText(
       'Optional\nLight a candle or oil lamp if that is safe. Water is enough.',
     if (event.kind == DaysOutsideEventKind.wepRonpetOpening)
       'Share\nIf you share, share one word only: the quality or intention you carry into the year. Do not share the full private reflection.',
-    'Privacy\nYear-close names, received qualities, and year intention stay on this device. Server events contain only generic steps.',
+    'Private note: keep year-close reflections in your local journal unless you intentionally choose to share them.',
     if (variant == DaysOutsideCopyVariant.setSolarEclipse2026)
       'Eclipse\nToday is Set\'s day. The Sun goes dark at midday. This is Set\'s work - not Isfet, but the necessary contest between light and darkness that makes Ra\'s passage real.',
-    if (event.sourceNote != null && event.sourceNote!.trim().isNotEmpty)
-      'Source\n${event.sourceNote!.trim()}',
   ];
   return lines.join('\n\n');
 }

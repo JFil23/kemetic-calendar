@@ -736,10 +736,8 @@ String theTendingDetailText(
     'Words\n"${event.spokenLine}"',
     'Steps\n${_numberedLines(event.steps)}',
     if (optional.isNotEmpty) 'Optional\n$optional',
+    'Private note: keep names and care details in your local journal unless you intentionally choose to share them.',
     if (lensLine.isNotEmpty) 'Lens\n$lensLine',
-    'Privacy\nYour care notes stay on this device.',
-    if ((event.sourceNote ?? '').trim().isNotEmpty)
-      'Source\n${event.sourceNote!.trim()}',
   ].join('\n\n');
 }
 

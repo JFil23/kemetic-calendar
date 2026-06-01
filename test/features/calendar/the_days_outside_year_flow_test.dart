@@ -163,17 +163,25 @@ void main() {
     );
   });
 
-  test('detail text names confidence, privacy, and one-word share', () {
-    final detail = daysOutsideDetailText(
-      kDaysOutsideEvents.last,
-      closingKYear: 2,
-      variant: DaysOutsideCopyVariant.standard,
-    );
+  test(
+    'detail text names confidence, one-word share, private note, and no source',
+    () {
+      final detail = daysOutsideDetailText(
+        kDaysOutsideEvents.last,
+        closingKYear: 2,
+        variant: DaysOutsideCopyVariant.standard,
+      );
 
-    expect(detail, contains(kDaysOutsideTheYearConfidenceLabel));
-    expect(detail, contains('Server events contain only generic steps'));
-    expect(detail, contains('share one word only'));
-  });
+      expect(detail, contains(kDaysOutsideTheYearConfidenceLabel));
+      expect(detail, contains('Private note: keep year-close reflections'));
+      expect(detail, isNot(contains('Source\n')));
+      expect(
+        detail,
+        isNot(contains('Server events contain only generic steps')),
+      );
+      expect(detail, contains('share one word only'));
+    },
+  );
 
   test('calendar UI and join branch use designated year-closing windows', () {
     final detailSource = File(

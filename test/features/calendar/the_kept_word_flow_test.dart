@@ -87,7 +87,7 @@ void main() {
   });
 
   test(
-    'detail text contains privacy boundary and no private agreement data',
+    'detail text keeps a private note without source sections or private data',
     () {
       final event = kKeptWordEvents.first;
       final detail = keptWordDetailText(event, lens: KeptWordLens.maat);
@@ -96,8 +96,9 @@ void main() {
       expect(detail, contains('Words\n"${event.spokenLine}"'));
       expect(
         detail,
-        contains('Privacy\nYour household notes stay on this device.'),
+        contains('Private note: keep household names and agreements'),
       );
+      expect(detail, isNot(contains('Source\n')));
       expect(detail, contains('Lens\nLet Ma\'at'));
       expect(detail, isNot(contains('KeptWordAgreementEntry')));
     },

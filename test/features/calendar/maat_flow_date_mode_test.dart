@@ -47,6 +47,72 @@ void main() {
     expect(source, contains('gradient: _useKemetic ? goldGloss : whiteGloss'));
   });
 
+  test('Ma_at preview event cells expand inline with full details', () {
+    final source = File(
+      'lib/features/calendar/calendar_maat_flows.dart',
+    ).readAsStringSync();
+
+    expect(source, contains('Widget _buildExpandableFlowEventTile'));
+    expect(source, contains('ExpansionTile'));
+    expect(source, isNot(contains('_showFlowEventDetails')));
+    expect(source, isNot(contains('DraggableScrollableSheet')));
+
+    for (final branch in _previewInlineDetailBranches) {
+      final tile = _sourceBetween(source, branch.start, branch.end);
+
+      expect(
+        tile,
+        contains('_buildExpandableFlowEventTile'),
+        reason: '${branch.name} event cells should expand inline.',
+      );
+      expect(
+        tile,
+        isNot(contains('showModalBottomSheet')),
+        reason: '${branch.name} should not use modal detail sheets.',
+      );
+      expect(
+        tile,
+        contains(branch.detailFunction),
+        reason: '${branch.name} should use its canonical detail text.',
+      );
+      expect(
+        tile,
+        isNot(contains('onTap: ()')),
+        reason:
+            '${branch.name} detail cells should use expansion, not tap handlers.',
+      );
+    }
+  });
+
+  test('Ma_at event detail builders omit source sections', () {
+    for (final sourceFile in _maatEventDetailSourceFiles) {
+      final source = File(sourceFile).readAsStringSync();
+
+      expect(
+        source,
+        isNot(contains("'Source\\n")),
+        reason: '$sourceFile should not build Source event-note sections.',
+      );
+      expect(
+        source,
+        isNot(contains('"Source\\n')),
+        reason: '$sourceFile should not build Source event-note sections.',
+      );
+    }
+  });
+
+  test('sensitive Ma_at detail builders keep concise private notes', () {
+    for (final sourceFile in _sensitiveMaatEventDetailSourceFiles) {
+      final source = File(sourceFile).readAsStringSync();
+
+      expect(
+        source,
+        contains('Private note:'),
+        reason: '$sourceFile should keep concise local/private guidance.',
+      );
+    }
+  });
+
   test(
     'Ma_at flow date references route through the shared date formatter',
     () {
@@ -2342,6 +2408,80 @@ const _previewEnrollmentBranches = [
     scaffoldStart: 'Widget _buildDaysOutsideYearScaffold',
     scaffoldEnd: 'Widget _buildMoonReturnScaffold',
     throwingApi: 'daysOutsideYearNextEnrollmentWindow',
+  ),
+];
+
+const _maatEventDetailSourceFiles = [
+  'lib/features/calendar/track_sky_flow.dart',
+  'lib/features/calendar/dawn_house_rite_flow.dart',
+  'lib/features/calendar/evening_threshold_rite_flow.dart',
+  'lib/features/calendar/the_weighing_flow.dart',
+  'lib/features/calendar/the_offering_table_flow.dart',
+  'lib/features/calendar/the_tending_flow.dart',
+  'lib/features/calendar/the_kept_word_flow.dart',
+  'lib/features/calendar/the_course_flow.dart',
+  'lib/features/calendar/moon_return_flow.dart',
+  'lib/features/calendar/the_wag_flow.dart',
+  'lib/features/calendar/the_decan_watch_flow.dart',
+  'lib/features/calendar/the_days_outside_year_flow.dart',
+  'lib/features/calendar/the_open_hand_flow.dart',
+  'lib/features/calendar/the_djed_flow.dart',
+  'lib/features/calendar/maat_decan_flow.dart',
+];
+
+const _sensitiveMaatEventDetailSourceFiles = [
+  'lib/features/calendar/the_tending_flow.dart',
+  'lib/features/calendar/the_kept_word_flow.dart',
+  'lib/features/calendar/the_wag_flow.dart',
+  'lib/features/calendar/the_decan_watch_flow.dart',
+  'lib/features/calendar/the_days_outside_year_flow.dart',
+  'lib/features/calendar/the_open_hand_flow.dart',
+  'lib/features/calendar/the_djed_flow.dart',
+];
+
+const _previewInlineDetailBranches = [
+  (
+    name: 'Moon Return',
+    start: 'Widget _buildMoonReturnOccurrenceTile',
+    end: 'WagEnrollmentWindow? _resolveWagPreviewWindow',
+    detailFunction: 'moonReturnDetailText',
+  ),
+  (
+    name: 'Wag',
+    start: 'Widget _buildWagEventTile',
+    end: 'DecanWatchEnrollmentWindow? _resolveDecanWatchPreviewWindow',
+    detailFunction: 'wagDetailText',
+  ),
+  (
+    name: 'Decan Watch',
+    start: 'Widget _buildDecanWatchOccurrenceTile',
+    end: 'Widget _buildDecanWatchScaffold',
+    detailFunction: 'decanWatchDetailText',
+  ),
+  (
+    name: 'Open Hand',
+    start: 'Widget _buildOpenHandEventTile',
+    end: 'DecanWatchEnrollmentWindow? _resolveMaatDecanPreviewWindow',
+    detailFunction: 'openHandDetailText',
+  ),
+  (
+    name: 'Ma’at Decan',
+    start: 'Widget _buildMaatDecanFlowEventTile',
+    end: 'Widget _buildMaatDecanFlowScaffold',
+    detailFunction: 'maatDecanFlowDetailText',
+  ),
+  (
+    name: 'Djed',
+    start: 'Widget _buildDjedEventTile',
+    end:
+        'DaysOutsideYearEnrollmentWindow? _resolveDaysOutsideYearPreviewWindow',
+    detailFunction: 'djedDetailText',
+  ),
+  (
+    name: 'Days Outside the Year',
+    start: 'Widget _buildDaysOutsideYearEventTile',
+    end: 'Widget _buildDaysOutsideYearScaffold',
+    detailFunction: 'daysOutsideDetailText',
   ),
 ];
 

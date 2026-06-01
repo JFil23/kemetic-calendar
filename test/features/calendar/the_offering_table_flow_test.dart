@@ -111,7 +111,8 @@ void main() {
     expect(detail, contains('Lens\nLet Hapy'));
     expect(detail, contains('Provision\nBefore food'));
     expect(detail, contains('Drink\nDrink the water'));
-    expect(detail, contains('Source\n'));
+    expect(detail, isNot(contains('Privacy\n')));
+    expect(detail, isNot(contains('Source\n')));
   });
 
   test('canonical detail rebuilds a stored offering table day', () {
