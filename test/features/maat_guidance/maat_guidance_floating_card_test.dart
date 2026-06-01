@@ -28,6 +28,12 @@ void main() {
     expect(find.byType(Tooltip), findsNothing);
     expect(find.byIcon(Icons.close), findsOneWidget);
     expect(find.text('Read guidance'), findsOneWidget);
+    expect(find.text('You are in ḥry-ib sꜣḥ'), findsOneWidget);
+    expect(
+      find.textContaining('ḥry-ib sꜣḥ asks for truth to become practical'),
+      findsOneWidget,
+    );
+    expect(find.textContaining('This decan asks'), findsNothing);
   });
 
   testWidgets('floating card has an explicit open button', (tester) async {
@@ -63,13 +69,13 @@ MaatGuidanceDelivery _delivery() {
   return MaatGuidanceDelivery(
     id: 'opening',
     kind: MaatGuidanceKind.decanOpening,
-    decanPeriodKey: '2026-05-19:2026-05-28:3-1',
+    decanPeriodKey: '2026-05-29:2026-06-07:3-2',
     status: MaatGuidanceStatus.pending,
     priority: 10,
     teaserText:
         'This decan asks for truth to become practical. Begin with one measured act.',
     bodyText: 'This decan opens through Paopi.',
-    payload: const <String, dynamic>{},
+    payload: const <String, dynamic>{'decan_short_name': 'ḥry-ib sꜣḥ'},
     ctaType: MaatGuidanceCtaType.none,
     ctaRef: null,
     triggerReason: 'decan_boundary',
@@ -81,13 +87,16 @@ MaatGuidanceDelivery _deliveryWithNode() {
   return MaatGuidanceDelivery(
     id: 'opening',
     kind: MaatGuidanceKind.decanOpening,
-    decanPeriodKey: '2026-05-19:2026-05-28:3-1',
+    decanPeriodKey: '2026-05-29:2026-06-07:3-2',
     status: MaatGuidanceStatus.pending,
     priority: 10,
     teaserText:
         'This decan asks for truth to become practical. Begin with one measured act.',
     bodyText: 'This decan opens through Paopi.',
-    payload: const <String, dynamic>{'node_ref': 'maat'},
+    payload: const <String, dynamic>{
+      'decan_short_name': 'ḥry-ib sꜣḥ',
+      'node_ref': 'maat',
+    },
     ctaType: MaatGuidanceCtaType.node,
     ctaRef: 'maat',
     triggerReason: 'decan_boundary',

@@ -71,6 +71,25 @@ void main() {
     expect(delivery.ctaLabel, 'Read the guiding node');
   });
 
+  test('opening title and teaser name the decan when payload provides it', () {
+    final delivery = MaatGuidanceDelivery.fromJson({
+      'id': 'opening-named',
+      'kind': 'decan_opening',
+      'decan_period_key': '2026-05-29:2026-06-07:3-2',
+      'teaser_text':
+          'This decan marks harmonization. Say clearly who you build with.',
+      'body_text': 'Opening body.',
+      'payload': {'decan_short_name': 'ḥry-ib sꜣḥ'},
+    });
+
+    expect(delivery.decanDisplayName, 'ḥry-ib sꜣḥ');
+    expect(delivery.bannerTitle, 'You are in ḥry-ib sꜣḥ');
+    expect(
+      delivery.displayTeaserText,
+      'ḥry-ib sꜣḥ marks harmonization. Say clearly who you build with.',
+    );
+  });
+
   test('personalized flow CTA parses as consent action', () {
     final delivery = MaatGuidanceDelivery.fromJson({
       'id': 'drift-flow',

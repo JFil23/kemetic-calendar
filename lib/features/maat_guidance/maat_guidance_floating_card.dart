@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import '../../data/maat_guidance_model.dart';
+import 'package:mobile/features/onboarding/guided_onboarding_overlay.dart';
 import '../../shared/glossy_text.dart';
 import 'maat_guidance_controller.dart';
 
@@ -19,22 +20,29 @@ class MaatGuidanceOverlayHost extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final delivery = controller.current;
-    if (!visible || delivery == null) {
-      return const SizedBox.shrink();
-    }
+    return AnimatedBuilder(
+      animation: GuidedOnboardingController.instance,
+      builder: (context, _) {
+        final delivery = controller.current;
+        if (!visible ||
+            GuidedOnboardingController.instance.suppressExternalOverlays ||
+            delivery == null) {
+          return const SizedBox.shrink();
+        }
 
-    return Positioned.fill(
-      child: _MaatGuidanceScrim(
-        onDismiss: () => unawaited(controller.dismissCurrent()),
-        child: Center(
-          child: MaatGuidanceFloatingCard(
-            delivery: delivery,
+        return Positioned.fill(
+          child: _MaatGuidanceScrim(
             onDismiss: () => unawaited(controller.dismissCurrent()),
-            onOpen: () => onOpen(delivery),
+            child: Center(
+              child: MaatGuidanceFloatingCard(
+                delivery: delivery,
+                onDismiss: () => unawaited(controller.dismissCurrent()),
+                onOpen: () => onOpen(delivery),
+              ),
+            ),
           ),
-        ),
-      ),
+        );
+      },
     );
   }
 }
@@ -85,8 +93,9 @@ class MaatGuidanceFloatingCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final width = MediaQuery.sizeOf(context).width;
+    final title = delivery.bannerTitle;
     return Semantics(
-      label: delivery.kind.title,
+      label: title,
       button: true,
       child: ConstrainedBox(
         constraints: BoxConstraints(
@@ -131,7 +140,7 @@ class MaatGuidanceFloatingCard extends StatelessWidget {
                         children: [
                           Expanded(
                             child: KemeticGold.text(
-                              delivery.kind.title,
+                              title,
                               style: const TextStyle(
                                 fontSize: 15,
                                 fontWeight: FontWeight.w700,
@@ -156,7 +165,7 @@ class MaatGuidanceFloatingCard extends StatelessWidget {
                       ),
                       const SizedBox(height: 8),
                       Text(
-                        delivery.teaserText,
+                        delivery.displayTeaserText,
                         maxLines: 5,
                         overflow: TextOverflow.ellipsis,
                         style: const TextStyle(

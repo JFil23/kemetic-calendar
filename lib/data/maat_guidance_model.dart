@@ -153,6 +153,30 @@ class MaatGuidanceDelivery {
 
   bool get hasCta => ctaType != MaatGuidanceCtaType.none && ctaRef != null;
 
+  String get decanDisplayName {
+    if (kind != MaatGuidanceKind.decanOpening) return '';
+    return _trimmed(payload['decan_short_name']) ??
+        _shortDecanName(_trimmed(payload['decan_display_name'])) ??
+        _shortDecanName(_trimmed(payload['decan_label'])) ??
+        '';
+  }
+
+  String get bannerTitle {
+    final decanName = decanDisplayName;
+    if (kind == MaatGuidanceKind.decanOpening && decanName.isNotEmpty) {
+      return 'You are in $decanName';
+    }
+    return kind.title;
+  }
+
+  String get displayTeaserText {
+    final decanName = decanDisplayName;
+    if (kind != MaatGuidanceKind.decanOpening || decanName.isEmpty) {
+      return teaserText;
+    }
+    return _replaceThisDecanReference(teaserText, decanName);
+  }
+
   String get ctaLabel {
     switch (ctaType) {
       case MaatGuidanceCtaType.node:
@@ -179,6 +203,22 @@ Map<String, dynamic> _jsonMap(Object? raw) {
 String? _trimmed(Object? raw) {
   final text = raw?.toString().trim();
   return text == null || text.isEmpty ? null : text;
+}
+
+String? _shortDecanName(String? value) {
+  if (value == null) return null;
+  final emDash = value.lastIndexOf('—');
+  final withoutMonth = emDash >= 0 ? value.substring(emDash + 1).trim() : value;
+  final withoutGloss = withoutMonth.replaceFirst(
+    RegExp(r'\s*\([^)]*\)\s*$'),
+    '',
+  );
+  final text = withoutGloss.trim();
+  return text.isEmpty ? null : text;
+}
+
+String _replaceThisDecanReference(String text, String decanName) {
+  return text.replaceFirst(RegExp(r'\b[Tt]his decan\b'), decanName);
 }
 
 DateTime? _dateTime(Object? raw) {
