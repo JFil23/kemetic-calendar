@@ -12,6 +12,10 @@
 /install.js /install.js 200
 /main.dart.js /main.dart.js 200
 /manifest.json /manifest.json 200
+/delete-account /delete-account.html 200
+/delete-account/ /delete-account.html 200
+/account-deletion /delete-account.html 200
+/account-deletion/ /delete-account.html 200
 /privacy /privacy.html 200
 /privacy/ /privacy.html 200
 /support /support.html 200

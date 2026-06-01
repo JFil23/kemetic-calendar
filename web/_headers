@@ -10,6 +10,22 @@
 /manifest.json
   Cache-Control: no-cache
 
+/delete-account
+  Cache-Control: no-store, must-revalidate
+  Content-Type: text/html; charset=utf-8
+
+/delete-account.html
+  Cache-Control: no-store, must-revalidate
+  Content-Type: text/html; charset=utf-8
+
+/account-deletion
+  Cache-Control: no-store, must-revalidate
+  Content-Type: text/html; charset=utf-8
+
+/account-deletion/
+  Cache-Control: no-store, must-revalidate
+  Content-Type: text/html; charset=utf-8
+
 /privacy
   Cache-Control: no-store, must-revalidate
   Content-Type: text/html; charset=utf-8

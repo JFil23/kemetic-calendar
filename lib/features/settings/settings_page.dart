@@ -31,6 +31,7 @@ class _SettingsPageState extends State<SettingsPage> {
   static const String _speechPreviewUtteranceId = 'settings:speech-preview';
   static const String _privacyPolicyUrl = 'https://maat.app/privacy';
   static const String _termsUrl = 'https://maat.app/terms';
+  static const String _accountDeletionUrl = 'https://maat.app/delete-account';
   static const String _supportMailUrl =
       'mailto:support@maat.app?subject=Kemetic%20Calendar%20support';
   static const String _lastPushTestDeliveryKeyPref =
@@ -1695,6 +1696,11 @@ class _SettingsPageState extends State<SettingsPage> {
                       ? (_accountStatus ??
                             'Account deletion permanently removes your sign-in and account data.')
                       : 'Sign in to manage or delete your account.',
+                ),
+                TextButton(
+                  onPressed: () =>
+                      _openExternalSupportTarget(_accountDeletionUrl),
+                  child: const Text('Account deletion help'),
                 ),
               ],
             ),
