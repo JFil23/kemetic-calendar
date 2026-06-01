@@ -30,6 +30,7 @@ class SettingsPage extends StatefulWidget {
 class _SettingsPageState extends State<SettingsPage> {
   static const String _speechPreviewUtteranceId = 'settings:speech-preview';
   static const String _privacyPolicyUrl = 'https://maat.app/privacy';
+  static const String _termsUrl = 'https://maat.app/terms';
   static const String _supportMailUrl =
       'mailto:support@maat.app?subject=Kemetic%20Calendar%20support';
   static const String _lastPushTestDeliveryKeyPref =
@@ -1630,14 +1631,19 @@ class _SettingsPageState extends State<SettingsPage> {
             ),
             const SizedBox(height: 16),
             _sectionCard(
-              title: 'Account & Privacy',
+              title: 'Account & Legal',
               description:
-                  'Review the privacy policy, contact support, or remove your account when you no longer want Kemetic Calendar to keep account data.',
+                  'Review the terms and privacy policy, contact support, or remove your account when you no longer want Kemetic Calendar to keep account data.',
               children: [
                 _primaryButton(
                   onPressed: () =>
                       _openExternalSupportTarget(_privacyPolicyUrl),
                   child: const Text('Open privacy policy'),
+                ),
+                const SizedBox(height: 12),
+                _primaryButton(
+                  onPressed: () => _openExternalSupportTarget(_termsUrl),
+                  child: const Text('Open terms and conditions'),
                 ),
                 const SizedBox(height: 12),
                 SizedBox(

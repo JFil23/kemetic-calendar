@@ -16,6 +16,8 @@
 /privacy/ /privacy.html 200
 /support /support.html 200
 /support/ /support.html 200
+/terms /terms.html 200
+/terms/ /terms.html 200
 /version.json /version.json 200
 /widgets/* /widgets/:splat 200
 /* /index.html 200
