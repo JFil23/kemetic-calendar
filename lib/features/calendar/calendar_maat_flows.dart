@@ -5953,6 +5953,26 @@ class _MaatFlowTemplateDetailPageState
                 ),
               ),
               const SizedBox(height: 12),
+              if (definition.safetyNote != null) ...[
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF0B0C0F),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: _gold, width: 1.1),
+                  ),
+                  child: Text(
+                    definition.safetyNote!,
+                    style: const TextStyle(
+                      color: Color(0xFFFFD486),
+                      fontSize: 13,
+                      height: 1.35,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 12),
+              ],
               Text(
                 definition.confidenceLabel,
                 style: const TextStyle(

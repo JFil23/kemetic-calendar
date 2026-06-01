@@ -3198,6 +3198,34 @@ final List<_MaatFlowTemplate> _kMaatFlowTemplates = [
     color: const Color(0xFF6F7F99),
     kind: _MaatFlowTemplateKind.maatDecan,
   ),
+  _MaatFlowTemplate(
+    key: kClearingFlowKey,
+    title: kClearingTitle,
+    overview: kClearingOverview,
+    color: const Color(0xFF8FA76B),
+    kind: _MaatFlowTemplateKind.maatDecan,
+  ),
+  _MaatFlowTemplate(
+    key: kWanderingFlowKey,
+    title: kWanderingTitle,
+    overview: kWanderingOverview,
+    color: const Color(0xFF5D728A),
+    kind: _MaatFlowTemplateKind.maatDecan,
+  ),
+  _MaatFlowTemplate(
+    key: kKhatFlowKey,
+    title: kKhatTitle,
+    overview: kKhatOverview,
+    color: const Color(0xFF9A735F),
+    kind: _MaatFlowTemplateKind.maatDecan,
+  ),
+  _MaatFlowTemplate(
+    key: kOracleFlowKey,
+    title: kOracleTitle,
+    overview: kOracleOverview,
+    color: const Color(0xFF7C6EA6),
+    kind: _MaatFlowTemplateKind.maatDecan,
+  ),
 ];
 
 String _maatFlowTemplateDurationLabel(_MaatFlowTemplate template) {

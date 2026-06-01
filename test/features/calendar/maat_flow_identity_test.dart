@@ -113,6 +113,34 @@ void main() {
         ),
         MaatFlowKind.livingText,
       );
+      expect(
+        resolveMaatFlowKind(
+          behaviorPayload: const <String, dynamic>{
+            'kind': 'maat_clearing_event',
+          },
+        ),
+        MaatFlowKind.clearing,
+      );
+      expect(
+        resolveMaatFlowKind(
+          behaviorPayload: const <String, dynamic>{
+            'kind': 'maat_wandering_event',
+          },
+        ),
+        MaatFlowKind.wandering,
+      );
+      expect(
+        resolveMaatFlowKind(
+          behaviorPayload: const <String, dynamic>{'kind': 'maat_khat_event'},
+        ),
+        MaatFlowKind.khat,
+      );
+      expect(
+        resolveMaatFlowKind(
+          behaviorPayload: const <String, dynamic>{'kind': 'maat_oracle_event'},
+        ),
+        MaatFlowKind.oracle,
+      );
     });
 
     test('resolves action ids for migrated Ma’at families', () {
@@ -192,6 +220,22 @@ void main() {
         resolveMaatFlowKind(actionId: 'the-living-text-event-02'),
         MaatFlowKind.livingText,
       );
+      expect(
+        resolveMaatFlowKind(actionId: 'the-clearing-event-02'),
+        MaatFlowKind.clearing,
+      );
+      expect(
+        resolveMaatFlowKind(actionId: 'the-wandering-event-02'),
+        MaatFlowKind.wandering,
+      );
+      expect(
+        resolveMaatFlowKind(actionId: 'the-khat-event-02'),
+        MaatFlowKind.khat,
+      );
+      expect(
+        resolveMaatFlowKind(actionId: 'the-oracle-event-02'),
+        MaatFlowKind.oracle,
+      );
     });
 
     test('resolves legacy flow-name fallbacks exactly', () {
@@ -252,6 +296,16 @@ void main() {
         resolveMaatFlowKind(flowName: kLivingTextTitle),
         MaatFlowKind.livingText,
       );
+      expect(
+        resolveMaatFlowKind(flowName: kClearingTitle),
+        MaatFlowKind.clearing,
+      );
+      expect(
+        resolveMaatFlowKind(flowName: kWanderingTitle),
+        MaatFlowKind.wandering,
+      );
+      expect(resolveMaatFlowKind(flowName: kKhatTitle), MaatFlowKind.khat);
+      expect(resolveMaatFlowKind(flowName: kOracleTitle), MaatFlowKind.oracle);
       expect(resolveMaatFlowKind(flowName: 'The Moon Returned'), isNull);
     });
   });

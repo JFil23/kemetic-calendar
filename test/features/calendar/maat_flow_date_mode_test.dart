@@ -1239,7 +1239,7 @@ void main() {
       'if (template.kind == _MaatFlowTemplateKind.trackSky)',
       "// Current Ma'at templates must use explicit branches above;",
     );
-    const explicitTemplateCount = 27;
+    const explicitTemplateCount = 31;
     const explicitKinds = [
       'trackSky',
       'dawnHouseRite',

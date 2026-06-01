@@ -8,7 +8,7 @@ void main() {
         .map((definition) => definition.key)
         .toList(growable: false);
 
-    expect(keys, hasLength(13));
+    expect(keys, hasLength(17));
     expect(
       keys,
       containsAll(<String>[
@@ -25,6 +25,10 @@ void main() {
         kLivingPatternFlowKey,
         kTrueNameFlowKey,
         kLivingTextFlowKey,
+        kClearingFlowKey,
+        kWanderingFlowKey,
+        kKhatFlowKey,
+        kOracleFlowKey,
       ]),
     );
 
@@ -191,6 +195,32 @@ void main() {
       )!.events.last.extraCompletionStatusLabels,
       containsPair('colophon_written', 'Colophon written'),
     );
+    expect(
+      maatDecanFlowEventByNumber(
+        maatDecanFlowDefinitionForKey(kClearingFlowKey)!,
+        5,
+      )?.extraCompletionStatusLabels,
+      containsPair('from_the_clearing', 'from the clearing'),
+    );
+    expect(
+      maatDecanFlowDefinitionForKey(
+        kWanderingFlowKey,
+      )!.events.expand((event) => event.extraCompletionStatusLabels.keys),
+      isEmpty,
+    );
+    expect(
+      maatDecanFlowEventByNumber(
+        maatDecanFlowDefinitionForKey(kKhatFlowKey)!,
+        7,
+      )?.extraCompletionStatusLabels,
+      containsPair('moved', 'Moved'),
+    );
+    expect(
+      maatDecanFlowDefinitionForKey(
+        kOracleFlowKey,
+      )!.events.last.extraCompletionStatusLabels,
+      containsPair('oracle_complete', 'Oracle complete'),
+    );
   });
 
   test('new Ma’at flow events keep direct event notes and action gates', () {
@@ -201,6 +231,10 @@ void main() {
       maatDecanFlowDefinitionForKey(kLivingPatternFlowKey)!,
       maatDecanFlowDefinitionForKey(kTrueNameFlowKey)!,
       maatDecanFlowDefinitionForKey(kLivingTextFlowKey)!,
+      maatDecanFlowDefinitionForKey(kClearingFlowKey)!,
+      maatDecanFlowDefinitionForKey(kWanderingFlowKey)!,
+      maatDecanFlowDefinitionForKey(kKhatFlowKey)!,
+      maatDecanFlowDefinitionForKey(kOracleFlowKey)!,
     ]) {
       for (final event in definition.events) {
         expect(event.steps.length, inInclusiveRange(2, 4));
@@ -227,7 +261,73 @@ void main() {
       )!.events.last.requiresRealWorldAction,
       isTrue,
     );
+    expect(
+      maatDecanFlowEventByNumber(
+        maatDecanFlowDefinitionForKey(kClearingFlowKey)!,
+        5,
+      )!.requiresRealWorldAction,
+      isTrue,
+    );
+    expect(
+      maatDecanFlowDefinitionForKey(
+        kWanderingFlowKey,
+      )!.events.last.requiresRealWorldAction,
+      isTrue,
+    );
+    expect(
+      maatDecanFlowEventByNumber(
+        maatDecanFlowDefinitionForKey(kKhatFlowKey)!,
+        7,
+      )!.requiresRealWorldAction,
+      isTrue,
+    );
+    expect(
+      maatDecanFlowDefinitionForKey(
+        kOracleFlowKey,
+      )!.events.last.requiresRealWorldAction,
+      isTrue,
+    );
   });
+
+  test(
+    'sensitive Ma’at decan flows include safety boundaries without source blocks',
+    () {
+      final wandering = maatDecanFlowDefinitionForKey(kWanderingFlowKey)!;
+      final khat = maatDecanFlowDefinitionForKey(kKhatFlowKey)!;
+      final oracle = maatDecanFlowDefinitionForKey(kOracleFlowKey)!;
+
+      expect(wandering.safetyNote, contains('988 in the US'));
+      expect(
+        wandering.events.any((event) => event.sharePromptOnComplete),
+        isFalse,
+      );
+      expect(
+        maatDecanFlowDetailText(wandering, wandering.events.first),
+        contains('This flow accompanies grief'),
+      );
+
+      final khatDetail = maatDecanFlowDetailText(khat, khat.events.first);
+      expect(khatDetail, contains('This flow is not medical care'));
+      expect(khatDetail.toLowerCase(), isNot(contains('appearance')));
+      expect(khatDetail.toLowerCase(), isNot(contains('weight loss')));
+      expect(khat.events.any((event) => event.sharePromptOnComplete), isFalse);
+
+      final oracleDetail = maatDecanFlowDetailText(oracle, oracle.events.first);
+      expect(oracleDetail, contains('disturbing dream content'));
+
+      for (final definition in <MaatDecanFlowDefinition>[
+        wandering,
+        khat,
+        oracle,
+      ]) {
+        for (final event in definition.events) {
+          final detail = maatDecanFlowDetailText(definition, event);
+          expect(detail, isNot(contains('Source\n')));
+          expect(detail, isNot(contains('Confidence\n')));
+        }
+      }
+    },
+  );
 
   test('Ma’at decan detail notes stay event-action focused', () {
     final definition = maatDecanFlowDefinitionForKey(kLivingRecordFlowKey)!;

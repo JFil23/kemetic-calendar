@@ -26,6 +26,10 @@ enum MaatFlowKind {
   livingPattern,
   trueName,
   livingText,
+  clearing,
+  wandering,
+  khat,
+  oracle,
 }
 
 extension MaatFlowKindIdentity on MaatFlowKind {
@@ -85,6 +89,14 @@ extension MaatFlowKindIdentity on MaatFlowKind {
         return 'the-true-name';
       case MaatFlowKind.livingText:
         return 'the-living-text';
+      case MaatFlowKind.clearing:
+        return 'the-clearing';
+      case MaatFlowKind.wandering:
+        return 'the-wandering';
+      case MaatFlowKind.khat:
+        return 'the-khat';
+      case MaatFlowKind.oracle:
+        return 'the-oracle';
     }
   }
 }
@@ -166,6 +178,10 @@ const Map<String, MaatFlowKind> _flowKeyKinds = <String, MaatFlowKind>{
   'the-living-pattern': MaatFlowKind.livingPattern,
   'the-true-name': MaatFlowKind.trueName,
   'the-living-text': MaatFlowKind.livingText,
+  'the-clearing': MaatFlowKind.clearing,
+  'the-wandering': MaatFlowKind.wandering,
+  'the-khat': MaatFlowKind.khat,
+  'the-oracle': MaatFlowKind.oracle,
 };
 
 const Map<String, MaatFlowKind> _behaviorKindKinds = <String, MaatFlowKind>{
@@ -194,6 +210,10 @@ const Map<String, MaatFlowKind> _behaviorKindKinds = <String, MaatFlowKind>{
   'maat_living_pattern_event': MaatFlowKind.livingPattern,
   'maat_true_name_event': MaatFlowKind.trueName,
   'maat_living_text_event': MaatFlowKind.livingText,
+  'maat_clearing_event': MaatFlowKind.clearing,
+  'maat_wandering_event': MaatFlowKind.wandering,
+  'maat_khat_event': MaatFlowKind.khat,
+  'maat_oracle_event': MaatFlowKind.oracle,
 };
 
 const Map<String, MaatFlowKind> _behaviorKindPrefixKinds =
@@ -226,6 +246,10 @@ const Map<String, MaatFlowKind> _actionIdPrefixKinds = <String, MaatFlowKind>{
   'the-living-pattern-event-': MaatFlowKind.livingPattern,
   'the-true-name-event-': MaatFlowKind.trueName,
   'the-living-text-event-': MaatFlowKind.livingText,
+  'the-clearing-event-': MaatFlowKind.clearing,
+  'the-wandering-event-': MaatFlowKind.wandering,
+  'the-khat-event-': MaatFlowKind.khat,
+  'the-oracle-event-': MaatFlowKind.oracle,
 };
 
 const Map<String, MaatFlowKind> _flowNameKinds = <String, MaatFlowKind>{
@@ -258,6 +282,10 @@ const Map<String, MaatFlowKind> _flowNameKinds = <String, MaatFlowKind>{
   'the living pattern': MaatFlowKind.livingPattern,
   'the true name': MaatFlowKind.trueName,
   'the living text': MaatFlowKind.livingText,
+  'the clearing': MaatFlowKind.clearing,
+  'the wandering': MaatFlowKind.wandering,
+  'the khat': MaatFlowKind.khat,
+  'the oracle': MaatFlowKind.oracle,
 };
 
 String? _maatKeyFromNotes(String? flowNotes) {

@@ -83,6 +83,28 @@ const String kLivingTextGlyph = '𓏞𓏤𓆄';
 const String kLivingTextTagline =
     'The Library was written by those who came before. What do you add?';
 
+const String kClearingFlowKey = 'the-clearing';
+const String kClearingTitle = 'The Clearing';
+const String kClearingGlyph = '𓇳𓏏𓀀𓆄';
+const String kClearingTagline =
+    'Its fruit is something sweet, its shade is pleasant, and it reaches its end in a grove.';
+
+const String kWanderingFlowKey = 'the-wandering';
+const String kWanderingTitle = 'The Wandering';
+const String kWanderingGlyph = '𓂀𓇳𓆄';
+const String kWanderingTagline = 'I found, I found.';
+
+const String kKhatFlowKey = 'the-khat';
+const String kKhatTitle = 'The Khat';
+const String kKhatGlyph = '𓀀𓆄';
+const String kKhatTagline = 'Teti is sound because of his body.';
+
+const String kOracleFlowKey = 'the-oracle';
+const String kOracleTitle = 'The Oracle';
+const String kOracleGlyph = '𓂀𓇳𓌀𓆄';
+const String kOracleTagline =
+    'Thutmose placed himself in the shadow of the Great God and rested. The god came to him in the night. He awoke and acted.';
+
 const int kMaatDecanFlowDefaultMiddayHour = 11;
 const int kMaatDecanFlowDefaultMiddayMinute = 0;
 const int kMaatDecanFlowEveningFallbackMinutes =
@@ -133,6 +155,7 @@ class MaatDecanFlowDefinition {
   final String burdenLabel;
   final String rhythmLabel;
   final String? specialRequirementLabel;
+  final String? safetyNote;
   final List<MaatDecanFlowEvent> events;
 
   const MaatDecanFlowDefinition({
@@ -150,6 +173,7 @@ class MaatDecanFlowDefinition {
     this.burdenLabel = 'Low',
     this.rhythmLabel = 'Decan',
     this.specialRequirementLabel,
+    this.safetyNote,
     required this.events,
   });
 }
@@ -257,6 +281,18 @@ const String kTrueNameOverview =
 const String kLivingTextOverview =
     'A 30-day Library practice: read carefully, add reflections, questions, connections, and close with a colophon naming what your life added to the living text.';
 
+const String kClearingOverview =
+    'A 30-day practice of temperance before response: identify where heat drives action, create space before reply, and act once from the cleared state.';
+
+const String kWanderingOverview =
+    'A 30-day evening grief accompaniment: name the loss, search for what remains, and gently notice which capacities begin to open again.';
+
+const String kKhatOverview =
+    'A 30-day body-care practice: listen to the body, provide food, water, washing, rest, and movement, then close with a grounded body record.';
+
+const String kOracleOverview =
+    'A 30-day dream-question practice: prepare one specific oracle question, receive and record the night without early interpretation, then act on one grounded indication.';
+
 const String kFairHearingConfidence =
     'Fair judgment - hearing fully, applying the same measure, and pronouncing the decision - is directly attested in Kemetic wisdom and administrative texts. This household flow is a careful modern reconstruction.';
 
@@ -295,6 +331,27 @@ const String kTrueNameConfidence =
 
 const String kLivingTextConfidence =
     'The Living Text draws on scribal copying, colophon, variant, and commentary practices. This household flow reconstructs the Library as a living transmission.';
+
+const String kClearingConfidence =
+    'The Clearing draws on Instruction of Amenemope’s teaching of the temperate person as a tree in a sunlit field. This household flow reconstructs stillness as the space before right response.';
+
+const String kWanderingConfidence =
+    'The Wandering draws on Aset and Nebet-Het’s search, lament, and finding in the Pyramid Texts. This household flow accompanies grief without treating it as something to win.';
+
+const String kKhatConfidence =
+    'The Khat draws on the physical restoration language of the Pyramid Texts: the body assembled, washed, fed, anointed, watered, and raised. This household flow reconstructs body care at household scale.';
+
+const String kOracleConfidence =
+    'The Oracle draws on Kemetic dream incubation, dream books, and the Dream Stela of Thutmose IV. This household flow reconstructs the practice as question, reception, record, interpretation, and action.';
+
+const String kWanderingSafetyNote =
+    'This flow accompanies grief. It is not crisis support, therapy, or medical care. If you are in acute distress, please reach out to someone you trust or to 988 in the US, or findahelpline.com internationally, before returning here.';
+
+const String kKhatSafetyNote =
+    'This flow is not medical care. If your body is signaling something that may require medical attention, let the flow support seeking care, not replace it.';
+
+const String kOracleSafetyNote =
+    'This flow is not mental health care. If disturbing dream content appears, bring it to a qualified professional or trusted support rather than relying only on this flow.';
 
 const List<MaatDecanFlowDefinition>
 kMaatDecanFlowDefinitions = <MaatDecanFlowDefinition>[
@@ -2677,6 +2734,687 @@ kMaatDecanFlowDefinitions = <MaatDecanFlowDefinition>[
       ),
     ],
   ),
+  MaatDecanFlowDefinition(
+    key: kClearingFlowKey,
+    title: kClearingTitle,
+    eventTitlePrefix: 'Clearing',
+    glyph: kClearingGlyph,
+    tagline: kClearingTagline,
+    overview: kClearingOverview,
+    confidenceLabel: kClearingConfidence,
+    routingSummary:
+        'Best for reactivity, anger, conflict, heated speech, patience, temper, stillness, and creating space before response.',
+    notesPrefix: 'clearing',
+    behaviorKind: 'maat_clearing_event',
+    graphNodeSlugs: <String>['maat', 'ra', 'sekhmet', 'djehuty'],
+    burdenLabel: 'Low',
+    specialRequirementLabel: 'Practice stillness before response',
+    events: <MaatDecanFlowEvent>[
+      MaatDecanFlowEvent(
+        eventNumber: 1,
+        flowDay: 1,
+        decanSection: 'Indoor Tree',
+        title: 'Find the Indoor Tree',
+        timing: MaatDecanFlowTiming.morning,
+        durationMinutesMin: 8,
+        durationMinutesMax: 8,
+        purpose:
+            'Name where heat drives action before the cleared state is available.',
+        spokenLine:
+            'The hot-headed man is like a tree grown in an enclosed space.',
+        steps: <String>[
+          'Name one situation where heat or reaction drives your actions before the cleared state is available.',
+          'Write the specific situation and what generates the heat.',
+          'Record what the heat-driven pattern has cost.',
+        ],
+      ),
+      MaatDecanFlowEvent(
+        eventNumber: 2,
+        flowDay: 5,
+        decanSection: 'Indoor Tree',
+        title: 'What Has the Heat Cost?',
+        timing: MaatDecanFlowTiming.morning,
+        durationMinutesMin: 5,
+        durationMinutesMax: 8,
+        purpose: 'Name one concrete cost of the heat-driven pattern.',
+        spokenLine: 'In a moment is its loss of foliage.',
+        steps: <String>[
+          'Return to the situation from Event 1.',
+          'Name one specific cost of the heat-driven pattern: relationship, work, energy, goodwill, or opportunity.',
+          'Write what would change if the response came from steadiness instead.',
+        ],
+      ),
+      MaatDecanFlowEvent(
+        eventNumber: 3,
+        flowDay: 9,
+        decanSection: 'Indoor Tree',
+        title: 'Where Is the Clearing Already Present?',
+        timing: MaatDecanFlowTiming.morning,
+        durationMinutesMin: 5,
+        durationMinutesMax: 8,
+        purpose: 'Find an existing domain of steadiness.',
+        spokenLine: 'The truly temperate person sets himself apart.',
+        steps: <String>[
+          'Name one domain where you already act from steadiness rather than heat.',
+          'Write what this clearing produces.',
+          'Name how it feels different from the heat-driven situation.',
+        ],
+      ),
+      MaatDecanFlowEvent(
+        eventNumber: 4,
+        flowDay: 11,
+        decanSection: 'Sunlit Field',
+        title: 'Set Yourself Apart',
+        timing: MaatDecanFlowTiming.morning,
+        durationMinutesMin: 5,
+        durationMinutesMax: 8,
+        purpose: 'Choose one act that creates space before response.',
+        spokenLine: 'Set yourself apart before the response forms.',
+        steps: <String>[
+          'Choose one physical or procedural act that creates space before response.',
+          'Use a concrete practice: wait one hour, walk outside, write before sending, sleep on it, or consult the day card first.',
+          'Write when you will use it and what heat situation it interrupts.',
+        ],
+      ),
+      MaatDecanFlowEvent(
+        eventNumber: 5,
+        flowDay: 15,
+        decanSection: 'Sunlit Field',
+        title: 'One Act From the Clearing',
+        timing: MaatDecanFlowTiming.morning,
+        durationMinutesMin: 5,
+        durationMinutesMax: 8,
+        purpose: 'Take one real action from the cleared state before logging.',
+        spokenLine: 'The clearing acts without heat.',
+        steps: <String>[
+          'Take one real action from the cleared state before logging.',
+          'Record the situation and what the heat response would have been.',
+          'Write what you did instead and what changed.',
+        ],
+        requiresRealWorldAction: true,
+        extraCompletionStatusLabels: <String, String>{
+          'from_the_clearing': 'from the clearing',
+        },
+      ),
+      MaatDecanFlowEvent(
+        eventNumber: 6,
+        flowDay: 19,
+        decanSection: 'Sunlit Field',
+        title: 'What Your Clearing Has Already Produced',
+        timing: MaatDecanFlowTiming.morning,
+        durationMinutesMin: 5,
+        durationMinutesMax: 8,
+        purpose: 'Account for the output of steadiness.',
+        spokenLine: 'It becomes verdant and doubles its yield.',
+        steps: <String>[
+          'Return to the domain where the clearing already exists.',
+          'Name what has grown there and what has become easier.',
+          'Write what output came from steadiness instead of strain.',
+        ],
+      ),
+      MaatDecanFlowEvent(
+        eventNumber: 7,
+        flowDay: 21,
+        decanSection: 'Fruit and Shade',
+        title: 'The Grove',
+        timing: MaatDecanFlowTiming.morning,
+        durationMinutesMin: 5,
+        durationMinutesMax: 8,
+        purpose: 'Name the ecosystem your cleared state supports.',
+        spokenLine: 'It reaches its end in a grove.',
+        steps: <String>[
+          'Name the relationship, community, household, or work ecosystem that your cleared state supports.',
+          'Write what your steadiness contributes to the grove.',
+          'Name one way the grove changes when you act from heat instead.',
+        ],
+      ),
+      MaatDecanFlowEvent(
+        eventNumber: 8,
+        flowDay: 25,
+        decanSection: 'Fruit and Shade',
+        title: 'The Fruit',
+        timing: MaatDecanFlowTiming.morning,
+        durationMinutesMin: 5,
+        durationMinutesMax: 8,
+        purpose: 'Name fruit others received from your cleared state.',
+        spokenLine: 'Its fruit is something sweet.',
+        steps: <String>[
+          'Name three specific things your cleared state has produced that others received.',
+          'Focus on fruit that came without depletion, resentment, or reactive heat.',
+          'Write which fruit you want to keep producing.',
+        ],
+      ),
+      MaatDecanFlowEvent(
+        eventNumber: 9,
+        flowDay: 29,
+        decanSection: 'Fruit and Shade',
+        title: 'The Shade',
+        timing: MaatDecanFlowTiming.evening,
+        durationMinutesMin: 5,
+        durationMinutesMax: 8,
+        purpose:
+            'Close with the shade your cleared state will continue to provide.',
+        spokenLine: 'Its shade is pleasant.',
+        steps: <String>[
+          'Name one person or situation that benefits from your shade.',
+          'Write the heat situation where you will continue setting yourself apart.',
+          'Record the shade you intend to provide. Optionally share only the one-line commitment.',
+        ],
+        sharePromptOnComplete: true,
+      ),
+    ],
+  ),
+  MaatDecanFlowDefinition(
+    key: kWanderingFlowKey,
+    title: kWanderingTitle,
+    eventTitlePrefix: 'Wandering',
+    glyph: kWanderingGlyph,
+    tagline: kWanderingTagline,
+    overview: kWanderingOverview,
+    confidenceLabel: kWanderingConfidence,
+    routingSummary:
+        'Best for grief, loss, mourning, missing, memory, breakup, searching, finding, restoration, support, body, and evening practice. Never a substitute for crisis support.',
+    notesPrefix: 'wandering',
+    behaviorKind: 'maat_wandering_event',
+    graphNodeSlugs: <String>['maat', 'aset', 'nebet_het', 'anpu'],
+    burdenLabel: 'Very low',
+    specialRequirementLabel: 'Grief accompaniment',
+    safetyNote: kWanderingSafetyNote,
+    events: <MaatDecanFlowEvent>[
+      MaatDecanFlowEvent(
+        eventNumber: 1,
+        flowDay: 1,
+        decanSection: 'The Search',
+        title: 'Name What Was Lost',
+        timing: MaatDecanFlowTiming.evening,
+        durationMinutesMin: 5,
+        durationMinutesMax: 8,
+        purpose: 'Name the loss specifically and drink water slowly after.',
+        spokenLine: 'My brother, for I have searched for you.',
+        steps: <String>[
+          'Write the name of what was lost. If it is not a person, name it as specifically as one.',
+          'Write one sentence about what it gave you that you cannot get elsewhere right now.',
+          'Place water nearby and drink slowly after.',
+        ],
+      ),
+      MaatDecanFlowEvent(
+        eventNumber: 2,
+        flowDay: 5,
+        decanSection: 'The Search',
+        title: 'What Has the Loss Closed?',
+        timing: MaatDecanFlowTiming.evening,
+        durationMinutesMin: 5,
+        durationMinutesMax: 8,
+        purpose: 'Name what grief has closed without trying to reopen it.',
+        spokenLine: 'The ears are plugged; the mouth is shut.',
+        steps: <String>[
+          'Name what grief has closed: mouth, ears, eyes, body.',
+          'Write what no longer tastes, sounds, looks, or feels the same.',
+          'Do not try to reopen it yet.',
+        ],
+      ),
+      MaatDecanFlowEvent(
+        eventNumber: 3,
+        flowDay: 9,
+        decanSection: 'The Search',
+        title: 'Begin the Search',
+        timing: MaatDecanFlowTiming.evening,
+        durationMinutesMin: 5,
+        durationMinutesMax: 8,
+        purpose: 'Go toward what carries what was loved.',
+        spokenLine: 'I have searched for you.',
+        steps: <String>[
+          'Go to one place, object, memory, or person that carries what was loved.',
+          'Look for what remains, not for what is gone to return.',
+          'Write what you found.',
+        ],
+      ),
+      MaatDecanFlowEvent(
+        eventNumber: 4,
+        flowDay: 11,
+        decanSection: 'The Finding',
+        title: 'Where Do You Keep Looking?',
+        timing: MaatDecanFlowTiming.evening,
+        durationMinutesMin: 5,
+        durationMinutesMax: 8,
+        purpose: 'Notice where grief keeps returning.',
+        spokenLine: 'The search has places it returns to.',
+        steps: <String>[
+          'Notice where grief keeps returning: places, songs, objects, dreams, people, memories.',
+          'Write where you keep looking.',
+          'Name what draws you there.',
+        ],
+      ),
+      MaatDecanFlowEvent(
+        eventNumber: 5,
+        flowDay: 15,
+        decanSection: 'The Finding',
+        title: 'The First Finding',
+        timing: MaatDecanFlowTiming.evening,
+        durationMinutesMin: 5,
+        durationMinutesMax: 8,
+        purpose: 'Name one genuine finding from the search.',
+        spokenLine: 'I found, I found.',
+        steps: <String>[
+          'Name one thing the search has genuinely found.',
+          'Write what remains of the love.',
+          'Name where it has gone now.',
+        ],
+      ),
+      MaatDecanFlowEvent(
+        eventNumber: 6,
+        flowDay: 19,
+        decanSection: 'The Finding',
+        title: 'The Second Finding',
+        timing: MaatDecanFlowTiming.evening,
+        durationMinutesMin: 5,
+        durationMinutesMax: 8,
+        purpose: 'Listen to what the sound of grief revealed.',
+        spokenLine: 'I have found.',
+        steps: <String>[
+          'Name what the sound of grief has revealed: crying, speaking, silence, or bodily expression.',
+          'Write what the calling-out showed.',
+          'Name what searching alone did not show.',
+        ],
+      ),
+      MaatDecanFlowEvent(
+        eventNumber: 7,
+        flowDay: 21,
+        decanSection: 'The Opening',
+        title: 'What the Loss Is Teaching',
+        timing: MaatDecanFlowTiming.evening,
+        durationMinutesMin: 5,
+        durationMinutesMax: 8,
+        purpose: 'Name one thing known from inside the loss.',
+        spokenLine: 'The loss is not for a reason; the record is still honest.',
+        steps: <String>[
+          'Gently name one thing you know now that you could only know from inside this loss.',
+          'Do not frame the loss as for a reason.',
+          'Write only what is true enough to hold tonight.',
+        ],
+      ),
+      MaatDecanFlowEvent(
+        eventNumber: 8,
+        flowDay: 25,
+        decanSection: 'The Opening',
+        title: 'What Is Beginning to Open',
+        timing: MaatDecanFlowTiming.evening,
+        durationMinutesMin: 5,
+        durationMinutesMax: 8,
+        purpose: 'Return to the closures and name only what has truly shifted.',
+        spokenLine:
+            'The mouth, ear, eye, body, and breath open in their own time.',
+        steps: <String>[
+          'Return to the closures from Event 2.',
+          'Ask whether anything has partially opened: taste, speech, sound, sight, body, movement, or breath.',
+          'Name only what has truly shifted.',
+        ],
+      ),
+      MaatDecanFlowEvent(
+        eventNumber: 9,
+        flowDay: 29,
+        decanSection: 'The Opening',
+        title: 'Stand Up',
+        timing: MaatDecanFlowTiming.evening,
+        durationMinutesMin: 5,
+        durationMinutesMax: 8,
+        purpose: 'Stand and choose one small act using a restored capacity.',
+        spokenLine: 'Stand up for me.',
+        steps: <String>[
+          'Stand physically before logging.',
+          'Choose one small act using a restored capacity: eat something wanted, listen to music, see something beautiful, or speak the name of what was lost to someone safe.',
+          'Record the act.',
+        ],
+        requiresRealWorldAction: true,
+      ),
+    ],
+  ),
+  MaatDecanFlowDefinition(
+    key: kKhatFlowKey,
+    title: kKhatTitle,
+    eventTitlePrefix: 'Khat',
+    glyph: kKhatGlyph,
+    tagline: kKhatTagline,
+    overview: kKhatOverview,
+    confidenceLabel: kKhatConfidence,
+    routingSummary:
+        'Best for body care, tiredness, fatigue, sleep, water, food, movement, pain, tension, physical rest, exercise, and embodiment. Does not diagnose medical issues.',
+    notesPrefix: 'khat',
+    behaviorKind: 'maat_khat_event',
+    graphNodeSlugs: <String>['maat', 'ka', 'hapy', 'anpu'],
+    burdenLabel: 'Low-Medium',
+    specialRequirementLabel: 'Body-care practice',
+    safetyNote: kKhatSafetyNote,
+    events: <MaatDecanFlowEvent>[
+      MaatDecanFlowEvent(
+        eventNumber: 1,
+        flowDay: 1,
+        decanSection: 'Attend',
+        title: 'Listen to the Body',
+        timing: MaatDecanFlowTiming.morning,
+        durationMinutesMin: 8,
+        durationMinutesMax: 8,
+        purpose: 'Listen to what the body is communicating now.',
+        spokenLine: 'Teti is sound because of his body.',
+        steps: <String>[
+          'Sit or lie down.',
+          'Move attention from feet to face.',
+          'Write three things the body is communicating right now, without judging or correcting them.',
+        ],
+      ),
+      MaatDecanFlowEvent(
+        eventNumber: 2,
+        flowDay: 5,
+        decanSection: 'Attend',
+        title: 'The Earth on Your Flesh',
+        timing: MaatDecanFlowTiming.morning,
+        durationMinutesMin: 5,
+        durationMinutesMax: 8,
+        purpose:
+            'Name what has accumulated on the body and clear one small thing.',
+        spokenLine: 'The earth on your flesh has been cleared away.',
+        steps: <String>[
+          'Name what has accumulated on the body: tension, fatigue, shallow breath, posture, clenching, or held stress.',
+          'Do one immediate small clearing act.',
+          'Record what changed, even if the change is small.',
+        ],
+      ),
+      MaatDecanFlowEvent(
+        eventNumber: 3,
+        flowDay: 9,
+        decanSection: 'Attend',
+        title: 'What the Body Has Not Been Receiving',
+        timing: MaatDecanFlowTiming.morning,
+        durationMinutesMin: 5,
+        durationMinutesMax: 8,
+        purpose: 'Name one specific thing the body has been asking for.',
+        spokenLine: 'Provision must be named before it can be received.',
+        steps: <String>[
+          'Name one specific thing the body has been asking for and not receiving.',
+          'Choose from sleep, water, food timing, movement, rest, touch, or less of something excessive.',
+          'Write the smallest honest way to provide it this decan.',
+        ],
+      ),
+      MaatDecanFlowEvent(
+        eventNumber: 4,
+        flowDay: 11,
+        decanSection: 'Provide',
+        title: 'Feed the Body',
+        timing: MaatDecanFlowTiming.morning,
+        durationMinutesMin: 10,
+        durationMinutesMax: 15,
+        purpose: 'Eat one meal with full attention.',
+        spokenLine: 'The body receives what is given with attention.',
+        steps: <String>[
+          'At one meal today, eat with full attention and no screens.',
+          'Record what the body received.',
+          'Write what the body communicated during or after the meal.',
+        ],
+        requiresRealWorldAction: true,
+      ),
+      MaatDecanFlowEvent(
+        eventNumber: 5,
+        flowDay: 15,
+        decanSection: 'Provide',
+        title: 'The Anointing',
+        timing: MaatDecanFlowTiming.morning,
+        durationMinutesMin: 5,
+        durationMinutesMax: 8,
+        purpose: 'Return deliberate care to part of the body.',
+        spokenLine: 'Ointment returns attention to the body.',
+        steps: <String>[
+          'After washing, apply oil, lotion, cream, or water to part of the body with deliberate attention.',
+          'Record what the act returned to your relationship with the body.',
+          'Keep body details private by default.',
+        ],
+        requiresRealWorldAction: true,
+      ),
+      MaatDecanFlowEvent(
+        eventNumber: 6,
+        flowDay: 19,
+        decanSection: 'Provide',
+        title: 'Rest That the Body Actually Receives',
+        timing: MaatDecanFlowTiming.evening,
+        durationMinutesMin: 5,
+        durationMinutesMax: 8,
+        purpose: 'Set up rest the body can receive.',
+        spokenLine: 'Rest is provision when the body can receive it.',
+        steps: <String>[
+          'Before sleep, give the body a real rest setup: consistent hour, dark/cool/quiet space, five slow breaths, and no screens for 30 minutes if possible.',
+          'Record the sleep quality in the morning.',
+          'Name one setup element that helped or one that was missing.',
+        ],
+        requiresRealWorldAction: true,
+      ),
+      MaatDecanFlowEvent(
+        eventNumber: 7,
+        flowDay: 21,
+        decanSection: 'Move',
+        title: 'Stand Up',
+        timing: MaatDecanFlowTiming.morning,
+        durationMinutesMin: 20,
+        durationMinutesMax: 20,
+        purpose: 'Move deliberately for at least 20 minutes before logging.',
+        spokenLine:
+            'Stand up, repel your earth, clear away your dust, raise yourself.',
+        steps: <String>[
+          'Move deliberately for at least 20 minutes before logging.',
+          'Walking, stretching, dancing, swimming, lifting, gardening, or physical cleaning all count if sustained and attended to.',
+          'Record what the movement returned to the body.',
+        ],
+        requiresRealWorldAction: true,
+        extraCompletionStatusLabels: <String, String>{'moved': 'Moved'},
+      ),
+      MaatDecanFlowEvent(
+        eventNumber: 8,
+        flowDay: 25,
+        decanSection: 'Move',
+        title: 'Water',
+        timing: MaatDecanFlowTiming.anyTime,
+        durationMinutesMin: 5,
+        durationMinutesMax: 10,
+        purpose: 'Use water deliberately and attend to the sensation.',
+        spokenLine: 'Water cleans, restores, and returns sensation.',
+        steps: <String>[
+          'Use water deliberately: bath, shower, swim, or hands under running water.',
+          'Give the sensation your full attention.',
+          'Record what the water returned to the body.',
+        ],
+        requiresRealWorldAction: true,
+      ),
+      MaatDecanFlowEvent(
+        eventNumber: 9,
+        flowDay: 29,
+        decanSection: 'Move',
+        title: 'The Assembled Body',
+        timing: MaatDecanFlowTiming.morning,
+        durationMinutesMin: 8,
+        durationMinutesMax: 10,
+        purpose: 'Close with the body record compared to Event 1.',
+        spokenLine: 'The bones are assembled; the body is present.',
+        steps: <String>[
+          'Return to the three body reports from Event 1.',
+          'Write what shifted.',
+          'Stand fully at the end and record the khat’s current state compared to Day 1.',
+        ],
+        requiresRealWorldAction: true,
+      ),
+    ],
+  ),
+  MaatDecanFlowDefinition(
+    key: kOracleFlowKey,
+    title: kOracleTitle,
+    eventTitlePrefix: 'Oracle',
+    glyph: kOracleGlyph,
+    tagline: kOracleTagline,
+    overview: kOracleOverview,
+    confidenceLabel: kOracleConfidence,
+    routingSummary:
+        'Best for dreams, sleep, oracle questions, guidance, signs, symbols, night records, waking impressions, uncertainty, and grounded action after interpretation.',
+    notesPrefix: 'oracle',
+    behaviorKind: 'maat_oracle_event',
+    graphNodeSlugs: <String>['maat', 'djehuty', 'ba', 'heka'],
+    burdenLabel: 'Low',
+    specialRequirementLabel: 'Dream question practice',
+    safetyNote: kOracleSafetyNote,
+    events: <MaatDecanFlowEvent>[
+      MaatDecanFlowEvent(
+        eventNumber: 1,
+        flowDay: 1,
+        decanSection: 'Preparation',
+        title: 'Prepare the Reception Chamber',
+        timing: MaatDecanFlowTiming.evening,
+        durationMinutesMin: 10,
+        durationMinutesMax: 10,
+        purpose: 'Prepare the sleep space and oracle question.',
+        spokenLine: 'I place myself in the shadow of the Great God.',
+        steps: <String>[
+          'Before sleep, clear the space near your head.',
+          'Place one small object there.',
+          'Write your oracle question on paper and set it under or beside the object.',
+        ],
+        requiresRealWorldAction: true,
+      ),
+      MaatDecanFlowEvent(
+        eventNumber: 2,
+        flowDay: 5,
+        decanSection: 'Preparation',
+        title: 'The Pre-Sleep Purification',
+        timing: MaatDecanFlowTiming.evening,
+        durationMinutesMin: 5,
+        durationMinutesMax: 8,
+        purpose: 'Purify before sleep and hold the question clearly.',
+        spokenLine: 'The question is held clearly before sleep.',
+        steps: <String>[
+          'Before sleep, wash your face and hands with cool water.',
+          'Hold the oracle question clearly.',
+          'Lie down with the question present.',
+        ],
+        requiresRealWorldAction: true,
+      ),
+      MaatDecanFlowEvent(
+        eventNumber: 3,
+        flowDay: 9,
+        decanSection: 'Preparation',
+        title: 'The Invocation',
+        timing: MaatDecanFlowTiming.evening,
+        durationMinutesMin: 5,
+        durationMinutesMax: 8,
+        purpose: 'Speak the question once before sleep.',
+        spokenLine: 'The question is spoken once, then silence receives.',
+        steps: <String>[
+          'Speak the invocation before sleep.',
+          'Address the deity, principle, Ba, Ka, Ma’at, or divine presence you are asking.',
+          'Speak the question clearly once. Do not speak again before sleep.',
+        ],
+        requiresRealWorldAction: true,
+      ),
+      MaatDecanFlowEvent(
+        eventNumber: 4,
+        flowDay: 11,
+        decanSection: 'Reception',
+        title: 'Record Upon Waking',
+        timing: MaatDecanFlowTiming.morning,
+        durationMinutesMin: 10,
+        durationMinutesMax: 10,
+        purpose: 'Record the dream before phone, speech, or interpretation.',
+        spokenLine: 'The night record is written before interpretation.',
+        steps: <String>[
+          'Immediately upon waking, before phone or conversation, write what you remember.',
+          'Record images, words, feelings, colors, sequence, and atmosphere.',
+          'Do not interpret yet.',
+        ],
+        requiresRealWorldAction: true,
+      ),
+      MaatDecanFlowEvent(
+        eventNumber: 5,
+        flowDay: 15,
+        decanSection: 'Reception',
+        title: 'Distinguish Oracle from Ordinary',
+        timing: MaatDecanFlowTiming.anyTime,
+        durationMinutesMin: 8,
+        durationMinutesMax: 10,
+        purpose: 'Mark possible oracle material without forcing meaning.',
+        spokenLine: 'Not every dream is the oracle.',
+        steps: <String>[
+          'Review the dream records.',
+          'Mark possible oracle material: unusually vivid, direct address, clear relation to the question, or strong waking impression.',
+          'Mark ordinary dreams honestly.',
+        ],
+      ),
+      MaatDecanFlowEvent(
+        eventNumber: 6,
+        flowDay: 19,
+        decanSection: 'Reception',
+        title: 'The Recurring Element',
+        timing: MaatDecanFlowTiming.anyTime,
+        durationMinutesMin: 8,
+        durationMinutesMax: 10,
+        purpose: 'Name what appeared more than once.',
+        spokenLine: 'What returns asks to be examined.',
+        steps: <String>[
+          'Review all recorded dreams from the first two decans.',
+          'Name what appeared more than once: figure, color, place, action, sound, feeling, or symbol.',
+          'Keep the recurring element tied to the record.',
+        ],
+      ),
+      MaatDecanFlowEvent(
+        eventNumber: 7,
+        flowDay: 21,
+        decanSection: 'Interpretation',
+        title: 'The Kemetic Framework',
+        timing: MaatDecanFlowTiming.anyTime,
+        durationMinutesMin: 10,
+        durationMinutesMax: 10,
+        purpose:
+            'Interpret the recurring element through four grounded questions.',
+        spokenLine: 'Interpretation serves action.',
+        steps: <String>[
+          'Interpret the recurring element with four questions.',
+          'Ask what it does, what principle it carries, how it relates to the oracle question, and what action it indicates.',
+          'Do not treat disturbing dream content as definitive truth.',
+        ],
+      ),
+      MaatDecanFlowEvent(
+        eventNumber: 8,
+        flowDay: 25,
+        decanSection: 'Interpretation',
+        title: 'What the Oracle Indicates',
+        timing: MaatDecanFlowTiming.anyTime,
+        durationMinutesMin: 8,
+        durationMinutesMax: 10,
+        purpose: 'Name one specific direction or admit what remains unclear.',
+        spokenLine:
+            'The indication is named only as clearly as it was received.',
+        steps: <String>[
+          'Write one specific direction or action the oracle appears to indicate.',
+          'If unclear, say so honestly.',
+          'Record the strongest impression received so far.',
+        ],
+      ),
+      MaatDecanFlowEvent(
+        eventNumber: 9,
+        flowDay: 29,
+        decanSection: 'Interpretation',
+        title: 'Act on What Was Received',
+        timing: MaatDecanFlowTiming.anyTime,
+        durationMinutesMin: 10,
+        durationMinutesMax: 15,
+        purpose:
+            'Take one indicated action before logging and close the oracle record.',
+        spokenLine: 'He awoke and acted.',
+        steps: <String>[
+          'Take one specific action indicated by the oracle before logging.',
+          'Write the complete oracle record: question, what the night sent, what it indicated, and what action was taken.',
+          'If the oracle stayed unclear, record that honestly and do only the grounded action you can justify.',
+        ],
+        requiresRealWorldAction: true,
+        extraCompletionStatusLabels: <String, String>{
+          'oracle_complete': 'Oracle complete',
+        },
+      ),
+    ],
+  ),
 ];
 
 bool _maatDecanTimeZonesInitialized = false;
@@ -2951,6 +3689,7 @@ Map<String, dynamic> maatDecanFlowBehaviorPayload({
     'rhythm': _snake(definition.rhythmLabel),
     if (definition.specialRequirementLabel != null)
       'special_requirement': definition.specialRequirementLabel,
+    if (definition.safetyNote != null) 'safety_note': definition.safetyNote,
     'routing_summary': definition.routingSummary,
     'schedule': <String, dynamic>{
       'type': schedule.scheduleType,
@@ -2978,6 +3717,7 @@ String maatDecanFlowDetailText(
     'Steps\n${_numberedLines(event.steps)}',
     if (event.optionalSteps.isNotEmpty)
       'Optional\n${_numberedLines(event.optionalSteps)}',
+    if (definition.safetyNote != null) 'Safety\n${definition.safetyNote}',
     if (event.requiresRealWorldAction || specialStatuses.isNotEmpty)
       'Complete\n${_completionDetail(definition, event, specialStatuses)}',
   ].join('\n\n');
