@@ -59,7 +59,7 @@ class _MaatFlowsListPageWithSnapshotState
   }
 }
 
-class _MaatFlowsListPage extends StatelessWidget {
+class _MaatFlowsListPage extends StatefulWidget {
   const _MaatFlowsListPage({
     required this.hasActiveForKey,
     required this.onPickTemplate,
@@ -75,6 +75,61 @@ class _MaatFlowsListPage extends StatelessWidget {
   final List<_MaatFlowTemplate> templates;
 
   @override
+  State<_MaatFlowsListPage> createState() => _MaatFlowsListPageState();
+}
+
+class _MaatFlowsListPageState extends State<_MaatFlowsListPage> {
+  final GlobalKey _flowBuilderHelperKey = GlobalKey(
+    debugLabel: 'flow_builder_helper',
+  );
+  bool _helperPrompted = false;
+
+  @override
+  void initState() {
+    super.initState();
+    unawaited(_maybeShowFlowBuilderHelper());
+  }
+
+  Future<void> _maybeShowFlowBuilderHelper() async {
+    if (_helperPrompted) return;
+    _helperPrompted = true;
+    final userId = Supabase.instance.client.auth.currentUser?.id;
+    if (userId == null || userId.isEmpty) return;
+    final storage = OnboardingProgressStorage();
+    final progress = await storage.load(userId);
+    if (!mounted ||
+        !progress.completedOnboarding ||
+        progress.seenHelpers.contains(OnboardingHelperIds.flowBuilder)) {
+      return;
+    }
+    await Future<void>.delayed(const Duration(milliseconds: 450));
+    if (!mounted) return;
+    GuidedOnboardingController.instance.show(
+      CoachmarkTarget(
+        key: _flowBuilderHelperKey,
+        title: 'Build your own rhythm',
+        body:
+            'Create personal flows for study, health, family, writing, business, or spiritual practice.',
+        placement: CoachmarkPlacement.below,
+        variant: CoachmarkVariant.helperBubble,
+        showDismissButton: true,
+        dismissLabel: 'Got it',
+        onDismiss: () async {
+          GuidedOnboardingController.instance.clear();
+          final updated = progress.markHelperSeen(
+            OnboardingHelperIds.flowBuilder,
+          );
+          await storage.save(userId, updated);
+          await Events.trackIfAuthed(
+            'helper_seen_flow_builder',
+            const <String, dynamic>{},
+          );
+        },
+      ),
+    );
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: _bg,
@@ -82,19 +137,20 @@ class _MaatFlowsListPage extends StatelessWidget {
         backgroundColor: Colors.black,
         elevation: 0.5,
         title: GlossyText(
-          text: title,
+          text: widget.title,
           style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w600),
           gradient: goldGloss,
         ),
         actions: [
           IconButton(
+            key: _flowBuilderHelperKey,
             tooltip: 'New flow',
             icon: const Icon(Icons.add, color: _silver),
-            onPressed: onCreateNew,
+            onPressed: widget.onCreateNew,
           ),
         ],
       ),
-      body: templates.isEmpty
+      body: widget.templates.isEmpty
           ? const Center(
               child: Padding(
                 padding: EdgeInsets.symmetric(horizontal: 24),
@@ -107,14 +163,14 @@ class _MaatFlowsListPage extends StatelessWidget {
             )
           : ListView.separated(
               padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
-              itemCount: templates.length,
+              itemCount: widget.templates.length,
               separatorBuilder: (_, _) =>
                   const Divider(height: 12, color: Colors.white10),
               itemBuilder: (ctx, i) {
-                final t = templates[i];
-                final added = hasActiveForKey(t.key);
+                final t = widget.templates[i];
+                final added = widget.hasActiveForKey(t.key);
                 return ListTile(
-                  onTap: () async => onPickTemplate(t),
+                  onTap: () async => widget.onPickTemplate(t),
                   leading: Container(
                     width: 18,
                     height: 18,
@@ -158,6 +214,438 @@ class _MaatFlowsListPage extends StatelessWidget {
                 );
               },
             ),
+    );
+  }
+}
+
+/* ───────────────────────── First Ma'at flow onboarding ───────────────────────── */
+
+class _FirstMaatFlowOnboardingSheet extends StatefulWidget {
+  const _FirstMaatFlowOnboardingSheet({
+    required this.templates,
+    required this.onAddFlow,
+  });
+
+  final List<_MaatFlowTemplate> templates;
+  final Future<void> Function(_MaatFlowTemplate template) onAddFlow;
+
+  @override
+  State<_FirstMaatFlowOnboardingSheet> createState() =>
+      _FirstMaatFlowOnboardingSheetState();
+}
+
+class _FirstMaatFlowOnboardingSheetState
+    extends State<_FirstMaatFlowOnboardingSheet> {
+  FirstRhythmGoal? _goal;
+  RhythmTimePreference? _timePreference;
+  RhythmDuration? _duration;
+  String? _selectedTemplateKey;
+  bool _adding = false;
+
+  bool get _answered =>
+      _goal != null && _timePreference != null && _duration != null;
+
+  Map<String, _MaatFlowTemplate> get _templateByKey => {
+    for (final template in widget.templates) template.key: template,
+  };
+
+  List<StarterMaatFlow> get _recommendations {
+    final goal = _goal;
+    final timePreference = _timePreference;
+    final duration = _duration;
+    if (goal == null || timePreference == null || duration == null) {
+      return const <StarterMaatFlow>[];
+    }
+    final templates = _templateByKey;
+    return const StarterFlowRecommendationService()
+        .recommend(
+          goal: goal,
+          timePreference: timePreference,
+          duration: duration,
+        )
+        .where((flow) => templates.containsKey(flow.templateKey))
+        .toList(growable: false);
+  }
+
+  Future<void> _addSelectedFlow() async {
+    final selectedKey = _selectedTemplateKey;
+    if (selectedKey == null || _adding) return;
+    final template = _templateByKey[selectedKey];
+    if (template == null) return;
+    setState(() => _adding = true);
+    try {
+      await widget.onAddFlow(template);
+    } finally {
+      if (mounted) setState(() => _adding = false);
+    }
+  }
+
+  String _goalLabel(FirstRhythmGoal goal) {
+    switch (goal) {
+      case FirstRhythmGoal.followTheSky:
+        return 'Follow the sky';
+      case FirstRhythmGoal.buildDailyDiscipline:
+        return 'Build daily discipline';
+      case FirstRhythmGoal.reflectAndJournal:
+        return 'Reflect and journal';
+      case FirstRhythmGoal.careForTheBody:
+        return 'Care for the body';
+      case FirstRhythmGoal.studyAndRemember:
+        return 'Study and remember';
+    }
+  }
+
+  String _timeLabel(RhythmTimePreference time) {
+    switch (time) {
+      case RhythmTimePreference.dawn:
+        return 'Dawn';
+      case RhythmTimePreference.midday:
+        return 'Midday';
+      case RhythmTimePreference.evening:
+        return 'Evening';
+      case RhythmTimePreference.flexible:
+        return 'Flexible';
+    }
+  }
+
+  String _durationLabel(RhythmDuration duration) {
+    switch (duration) {
+      case RhythmDuration.twoMinutes:
+        return '2 minutes';
+      case RhythmDuration.tenMinutes:
+        return '10 minutes';
+      case RhythmDuration.twentyMinutes:
+        return '20 minutes';
+    }
+  }
+
+  Widget _question<T>({
+    required String title,
+    required T? value,
+    required List<T> values,
+    required String Function(T value) labelFor,
+    required ValueChanged<T> onChanged,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          title,
+          style: const TextStyle(
+            color: Color(0xFFFFE6A3),
+            fontSize: 14,
+            fontWeight: FontWeight.w800,
+          ),
+        ),
+        const SizedBox(height: 10),
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: [
+            for (final option in values)
+              _choiceChip<T>(
+                value: option,
+                groupValue: value,
+                label: labelFor(option),
+                onChanged: onChanged,
+              ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _choiceChip<T>({
+    required T value,
+    required T? groupValue,
+    required String label,
+    required ValueChanged<T> onChanged,
+  }) {
+    final selected = value == groupValue;
+    return ChoiceChip(
+      selected: selected,
+      label: Text(label),
+      showCheckmark: false,
+      labelStyle: TextStyle(
+        color: selected ? Colors.black : Colors.white.withValues(alpha: 0.84),
+        fontSize: 13,
+        fontWeight: FontWeight.w700,
+      ),
+      selectedColor: KemeticGold.base,
+      backgroundColor: Colors.white.withValues(alpha: 0.07),
+      side: BorderSide(
+        color: selected
+            ? KemeticGold.base
+            : Colors.white.withValues(alpha: 0.16),
+      ),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+      onSelected: (_) => onChanged(value),
+    );
+  }
+
+  Widget _recommendationCard(StarterMaatFlow suggestion) {
+    final template = _templateByKey[suggestion.templateKey];
+    if (template == null) return const SizedBox.shrink();
+    final selected = _selectedTemplateKey == suggestion.templateKey;
+    return InkWell(
+      borderRadius: BorderRadius.circular(8),
+      onTap: _adding
+          ? null
+          : () => setState(() => _selectedTemplateKey = suggestion.templateKey),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 160),
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: selected
+              ? KemeticGold.base.withValues(alpha: 0.16)
+              : Colors.white.withValues(alpha: 0.055),
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(
+            color: selected || suggestion.prominent
+                ? KemeticGold.base.withValues(alpha: 0.86)
+                : Colors.white.withValues(alpha: 0.14),
+            width: selected ? 1.6 : 1.0,
+          ),
+          boxShadow: suggestion.prominent
+              ? [
+                  BoxShadow(
+                    color: KemeticGold.base.withValues(alpha: 0.14),
+                    blurRadius: 18,
+                    spreadRadius: 1,
+                  ),
+                ]
+              : null,
+        ),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Container(
+              width: 22,
+              height: 22,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                gradient: _glossFromColor(template.color),
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Expanded(
+                        child: KemeticGold.text(
+                          suggestion.title,
+                          style: const TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                      ),
+                      if (suggestion.prominent)
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 7,
+                            vertical: 3,
+                          ),
+                          decoration: BoxDecoration(
+                            color: KemeticGold.base.withValues(alpha: 0.16),
+                            borderRadius: BorderRadius.circular(999),
+                            border: Border.all(
+                              color: KemeticGold.base.withValues(alpha: 0.55),
+                            ),
+                          ),
+                          child: const Text(
+                            'Dawn',
+                            style: TextStyle(
+                              color: Color(0xFFFFE4A0),
+                              fontSize: 11,
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    suggestion.description,
+                    style: TextStyle(
+                      color: Colors.white.withValues(alpha: 0.76),
+                      fontSize: 13,
+                      height: 1.34,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final recommendations = _recommendations;
+    if (_answered &&
+        _selectedTemplateKey == null &&
+        recommendations.isNotEmpty) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted || _selectedTemplateKey != null) return;
+        setState(
+          () => _selectedTemplateKey = recommendations.first.templateKey,
+        );
+      });
+    }
+
+    return FractionallySizedBox(
+      heightFactor: 0.92,
+      child: ClipRRect(
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(18)),
+        child: Material(
+          color: const Color(0xFF050505),
+          child: SafeArea(
+            top: false,
+            child: Column(
+              children: [
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(18, 14, 8, 8),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: KemeticGold.text(
+                          'Begin with Ma’at.',
+                          style: const TextStyle(
+                            fontSize: 24,
+                            fontWeight: FontWeight.w900,
+                          ),
+                        ),
+                      ),
+                      IconButton(
+                        tooltip: 'Close',
+                        onPressed: _adding
+                            ? null
+                            : () => Navigator.of(context).maybePop(),
+                        icon: const Icon(Icons.close, color: Colors.white70),
+                      ),
+                    ],
+                  ),
+                ),
+                Expanded(
+                  child: ListView(
+                    padding: const EdgeInsets.fromLTRB(18, 0, 18, 24),
+                    children: [
+                      Text(
+                        'Ma’at is the living order of balance, truth, rhythm, and right action. Connect to the spirit of Ma’at by adding your first flow.',
+                        style: TextStyle(
+                          color: Colors.white.withValues(alpha: 0.80),
+                          fontSize: 14,
+                          height: 1.42,
+                        ),
+                      ),
+                      const SizedBox(height: 22),
+                      _question<FirstRhythmGoal>(
+                        title:
+                            'What do you want your first rhythm to help you do?',
+                        value: _goal,
+                        values: FirstRhythmGoal.values,
+                        labelFor: _goalLabel,
+                        onChanged: (value) {
+                          setState(() {
+                            _goal = value;
+                            _selectedTemplateKey = null;
+                          });
+                        },
+                      ),
+                      const SizedBox(height: 20),
+                      _question<RhythmTimePreference>(
+                        title: 'When do you want this rhythm to meet you?',
+                        value: _timePreference,
+                        values: RhythmTimePreference.values,
+                        labelFor: _timeLabel,
+                        onChanged: (value) {
+                          setState(() {
+                            _timePreference = value;
+                            _selectedTemplateKey = null;
+                          });
+                        },
+                      ),
+                      const SizedBox(height: 20),
+                      _question<RhythmDuration>(
+                        title: 'How much time do you want to give it?',
+                        value: _duration,
+                        values: RhythmDuration.values,
+                        labelFor: _durationLabel,
+                        onChanged: (value) {
+                          setState(() {
+                            _duration = value;
+                            _selectedTemplateKey = null;
+                          });
+                        },
+                      ),
+                      if (_answered) ...[
+                        const SizedBox(height: 24),
+                        KemeticGold.text(
+                          'Starter Ma’at Flows',
+                          style: const TextStyle(
+                            fontSize: 17,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        for (final suggestion in recommendations) ...[
+                          _recommendationCard(suggestion),
+                          const SizedBox(height: 10),
+                        ],
+                      ],
+                    ],
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(18, 8, 18, 18),
+                  child: SizedBox(
+                    width: double.infinity,
+                    child: FilledButton(
+                      style: FilledButton.styleFrom(
+                        backgroundColor: KemeticGold.base,
+                        foregroundColor: Colors.black,
+                        disabledBackgroundColor: KemeticGold.base.withValues(
+                          alpha: 0.28,
+                        ),
+                        disabledForegroundColor: Colors.black.withValues(
+                          alpha: 0.42,
+                        ),
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                      ),
+                      onPressed:
+                          _answered && _selectedTemplateKey != null && !_adding
+                          ? _addSelectedFlow
+                          : null,
+                      child: _adding
+                          ? const SizedBox(
+                              width: 18,
+                              height: 18,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: Colors.black,
+                              ),
+                            )
+                          : const Text(
+                              'Add This Flow',
+                              style: TextStyle(fontWeight: FontWeight.w900),
+                            ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
     );
   }
 }

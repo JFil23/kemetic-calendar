@@ -8,6 +8,7 @@ import '../../core/navigation_fallback.dart';
 import '../../data/profile_avatar_glyphs.dart';
 import '../../data/profile_model.dart';
 import '../../data/profile_repo.dart';
+import '../onboarding/onboarding_progress.dart';
 import '../../widgets/kemetic_keyboard.dart';
 import '../../widgets/keyboard_aware.dart';
 import '../../widgets/profile_avatar.dart';
@@ -16,11 +17,13 @@ import 'profile_glyph_avatar_composer.dart';
 class EditProfilePage extends StatefulWidget {
   final UserProfile initialProfile;
   final bool requireCompletion;
+  final bool onboardingMode;
 
   const EditProfilePage({
     super.key,
     required this.initialProfile,
     this.requireCompletion = false,
+    this.onboardingMode = false,
   });
 
   @override
@@ -133,6 +136,14 @@ class _EditProfilePageState extends State<EditProfilePage> {
   Future<void> _saveProfile() async {
     if (!_formKey.currentState!.validate()) return;
     if (_handleError != null) return;
+    if (widget.onboardingMode && _avatarGlyphIds.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Build a glyph avatar to continue onboarding.'),
+        ),
+      );
+      return;
+    }
 
     final hadInitialAvatarUrl =
         (widget.initialProfile.avatarUrl?.trim().isNotEmpty ?? false);
@@ -160,7 +171,22 @@ class _EditProfilePageState extends State<EditProfilePage> {
       if (!mounted) return;
 
       if (success) {
-        popOrGo(context, '/profile/me', result: true);
+        if (widget.onboardingMode) {
+          final userId = Supabase.instance.client.auth.currentUser?.id;
+          if (userId != null) {
+            await OnboardingProgressStorage().update(
+              userId,
+              (progress) => progress.copyWith(
+                hasCompletedProfileBasics: true,
+                currentStep: TrueOnboardingStep.profileBasics,
+              ),
+            );
+          }
+          if (!mounted) return;
+          popOrGo(context, '/profile/me?onboarding=1', result: true);
+        } else {
+          popOrGo(context, '/profile/me', result: true);
+        }
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
@@ -270,7 +296,9 @@ class _EditProfilePageState extends State<EditProfilePage> {
                                 const SizedBox(height: 6),
                                 Text(
                                   widget.requireCompletion
-                                      ? 'Create your display name and username to finish setup. You can adjust the rest later.'
+                                      ? (widget.onboardingMode
+                                            ? 'Create your glyph avatar and basic name so your flows, reflections, and shared activity have a clear identity. You can adjust the rest later.'
+                                            : 'Create your display name and username to finish setup. You can adjust the rest later.')
                                       : 'Add a display name and username so your profile can be found and shared.',
                                   style: TextStyle(
                                     color: Colors.white.withValues(alpha: 0.72),

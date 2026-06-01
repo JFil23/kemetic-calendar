@@ -24,7 +24,7 @@ import '../../data/profile_model.dart';
 import '../../data/profile_repo.dart';
 import '../journal/journal_controller.dart';
 import '../../core/ui_guards.dart';
-import '../../main.dart' show routeObserver, Events;
+import '../../main.dart' show routeObserver, Events, globalMenuButtonKey;
 import '../sharing/share_flow_sheet.dart';
 import '../../data/share_models.dart';
 import '../../data/share_repo.dart';
@@ -111,8 +111,11 @@ import '../nodes/node_user_insights_section.dart';
 import '../invites/pending_event_invite_overlay.dart';
 import '../onboarding/calendar_month_coachmark.dart';
 import '../onboarding/calendar_toggle_coachmark.dart';
+import 'package:mobile/features/onboarding/guided_onboarding_overlay.dart';
 import '../onboarding/onboarding_overlay.dart';
+import '../onboarding/onboarding_progress.dart';
 import '../onboarding/onboarding_storage.dart';
+import '../onboarding/starter_maat_flow_recommendation.dart';
 import '../rhythm/data/rhythm_repo.dart';
 import '../rhythm/event_todo_action.dart';
 import '../rhythm/event_todo_builder.dart';
@@ -3461,6 +3464,8 @@ String _maatFlowTemplateDurationLabel(_MaatFlowTemplate template) {
 
 final Map<String, GlobalKey> _calendarMonthKeys = <String, GlobalKey>{};
 final Map<String, GlobalKey> _calendarMonthHeaderKeys = <String, GlobalKey>{};
+final Map<String, GlobalKey> _calendarCurrentDecanHeaderKeys =
+    <String, GlobalKey>{};
 
 GlobalKey keyForMonth(int ky, int km) {
   final id = 'y${ky}m$km';
@@ -3475,6 +3480,14 @@ GlobalKey keyForMonthHeader(int ky, int km) {
   return _calendarMonthHeaderKeys.putIfAbsent(
     id,
     () => GlobalKey(debugLabel: 'calendar_month_header_$id'),
+  );
+}
+
+GlobalKey keyForCurrentDecanHeader(int ky, int km, int decanIndex) {
+  final id = 'y${ky}m${km}d$decanIndex';
+  return _calendarCurrentDecanHeaderKeys.putIfAbsent(
+    id,
+    () => GlobalKey(debugLabel: 'calendar_current_decan_header_$id'),
   );
 }
 
@@ -9815,6 +9828,29 @@ class CalendarPageState extends State<CalendarPage>
   bool _showCalendarMonthCoachmark = false;
   bool _showCalendarToggleCoachmark = false;
   bool _onboardingPresentationScheduled = false;
+  final OnboardingProgressStorage _onboardingProgressStorage =
+      OnboardingProgressStorage();
+  OnboardingProgress _onboardingProgress = const OnboardingProgress();
+  bool _firstMaatFlowSheetOpenOrOpening = false;
+  bool _showingCurrentDecanIntroCoachmark = false;
+  bool _showingFirstFlowDayCoachmark = false;
+  bool _showingFirstFlowEventCoachmark = false;
+  bool _calendarAfterOnboardingHelperPrompted = false;
+  ({int ky, int km, int kd})? _firstMaatFlowEventKDate;
+  int? _firstMaatFlowId;
+  String? _firstMaatFlowEventClientEventId;
+  final GlobalKey _firstFlowDayKey = GlobalKey(
+    debugLabel: 'onboarding_first_flow_day',
+  );
+  final GlobalKey _firstFlowEventBlockKey = GlobalKey(
+    debugLabel: 'onboarding_first_flow_event_block',
+  );
+  final GlobalKey _firstFlowObservedKey = GlobalKey(
+    debugLabel: 'onboarding_observed_button',
+  );
+  final GlobalKey _firstFlowJournalKey = GlobalKey(
+    debugLabel: 'onboarding_add_to_journal_button',
+  );
   _OnboardingContinuationStage _onboardingContinuationStage =
       _OnboardingContinuationStage.none;
   bool _canShowCalendarToggleCoachmarkOnReturn = false;
@@ -9824,17 +9860,6 @@ class CalendarPageState extends State<CalendarPage>
   static bool _hasPresentedOnboardingThisLaunch = false;
   static const String _onboardingContinuationStageKeyPrefix =
       'onboarding_v1_continuation_stage';
-  static const List<int> _onboardingHighlightDays = [
-    8,
-    9,
-    10,
-    18,
-    19,
-    20,
-    28,
-    29,
-    30,
-  ];
   static const List<int> _onboardingAnchorDays = [
     1,
     2,
@@ -9888,7 +9913,20 @@ class CalendarPageState extends State<CalendarPage>
     return _onboardingHighlightDayKeys[kDay];
   }
 
+  bool _matchesFirstMaatFlowEventDate(int kYear, int kMonth, int kDay) {
+    final target = _firstMaatFlowEventKDate;
+    return target != null &&
+        target.ky == kYear &&
+        target.km == kMonth &&
+        target.kd == kDay;
+  }
+
   Key? _calendarDayAnchorKeyFor(int kYear, int kMonth, int kDay) {
+    if (_onboardingProgress.currentStep ==
+            TrueOnboardingStep.firstFlowCalendarDay &&
+        _matchesFirstMaatFlowEventDate(kYear, kMonth, kDay)) {
+      return _firstFlowDayKey;
+    }
     final viewKy = _lastViewKy;
     final viewKm = _lastViewKm;
     final viewKd = _lastViewKd;
@@ -10097,68 +10135,12 @@ class CalendarPageState extends State<CalendarPage>
   }
 
   List<OnboardingSlide> _buildOnboardingSlides() {
-    final todayDayKey = _getKemeticDayKey(
-      _today.kYear,
-      _today.kMonth,
-      _today.kDay,
-    );
-
     return [
       const OnboardingSlide(
         title: 'Remember who you\'re becoming.',
         description: '',
         primaryActionLabel: 'Begin Your Journey',
         visual: OnboardingWelcomeVisual(),
-      ),
-      OnboardingSlide(
-        title: 'Time that gives you space.',
-        description:
-            'Ten-day decans replace seven-day weeks.\nMore time to plan and grow.',
-        primaryActionLabel: 'Continue',
-        visual: OnboardingLiveCalendarHighlightVisual(
-          dayKeys: {
-            for (final day in _onboardingHighlightDays)
-              day: _onboardingHighlightDayKeys[day]!,
-          },
-        ),
-        backdropOpacity: 0.16,
-        backdropBlurSigma: 0,
-        textBackplateOpacity: 0.68,
-        textBackplateBlurSigma: 14,
-      ),
-      OnboardingSlide(
-        title: 'Wisdom that moves with you.',
-        description: 'Daily Kemetic insights keep you inspired and aligned.',
-        primaryActionLabel: 'Continue',
-        visual: OnboardingDayInsightVisual(
-          dayKey: todayDayKey,
-          kYear: _today.kYear,
-          kMonth: _today.kMonth,
-          kDay: _today.kDay,
-        ),
-        textBackplateOpacity: 0.56,
-        textBackplateBlurSigma: 14,
-      ),
-      const OnboardingSlide(
-        title: 'Ideas become your daily path.',
-        description:
-            'Generate Flows from any goal. Track easily. Reflect at decan\'s end. Share what you\'re building.',
-        primaryActionLabel: 'Continue',
-        visual: OnboardingActionPathVisual(),
-        textBackplateOpacity: 0.60,
-        textBackplateBlurSigma: 14,
-      ),
-      const OnboardingSlide(
-        eyebrow: 'Shared growth',
-        title: 'Walk the rhythm with others.',
-        description:
-            'Share meaning, receive confirmation, and see how others are reading the same pattern.',
-        primaryActionLabel: 'Start Building Today',
-        visual: OnboardingSocialFeedVisual(),
-        backdropOpacity: 0.16,
-        backdropBlurSigma: 0,
-        textBackplateOpacity: 0.50,
-        textBackplateBlurSigma: 14,
       ),
     ];
   }
@@ -10397,6 +10379,30 @@ class CalendarPageState extends State<CalendarPage>
     });
   }
 
+  String? get _currentUserId =>
+      Supabase.instance.client.auth.currentUser?.id.trim();
+
+  Future<bool> _waitForOnboardingCalendarReady([int attempt = 0]) async {
+    if (!mounted) return false;
+    if (_restored && _initialViewportSettled) return true;
+    if (attempt >= 24) return _restored;
+    await Future<void>.delayed(const Duration(milliseconds: 120));
+    return _waitForOnboardingCalendarReady(attempt + 1);
+  }
+
+  Future<void> _saveOnboardingProgress(OnboardingProgress progress) async {
+    _onboardingProgress = progress;
+    final userId = _currentUserId;
+    if (userId == null || userId.isEmpty) return;
+    await _onboardingProgressStorage.save(userId, progress);
+  }
+
+  Future<void> _updateOnboardingProgress(
+    OnboardingProgress Function(OnboardingProgress progress) update,
+  ) async {
+    await _saveOnboardingProgress(update(_onboardingProgress));
+  }
+
   String _onboardingContinuationStageKeyForUser(String userId) =>
       '$_onboardingContinuationStageKeyPrefix:$userId';
 
@@ -10424,6 +10430,7 @@ class CalendarPageState extends State<CalendarPage>
     }
   }
 
+  // ignore: unused_element
   Future<_OnboardingContinuationStage> _loadOnboardingContinuationStage(
     String userId,
   ) async {
@@ -10454,64 +10461,124 @@ class CalendarPageState extends State<CalendarPage>
   Future<void> _maybePresentOnboarding() async {
     if (!mounted || _showOnboarding) return;
 
-    final userId = Supabase.instance.client.auth.currentUser?.id;
+    final userId = _currentUserId;
     if (userId == null) return;
 
     if (_replayOnboardingOnEveryLaunch) {
       if (_hasPresentedOnboardingThisLaunch) return;
       _hasPresentedOnboardingThisLaunch = true;
+      await _saveOnboardingProgress(const OnboardingProgress());
+      GuidedOnboardingController.instance.setExternalOverlaySuppressed(true);
       setState(() => _showOnboarding = true);
       return;
     }
 
+    final progress = await _onboardingProgressStorage.load(userId);
+    _onboardingProgress = progress;
+    _hydrateFirstFlowTargetFromProgress(progress);
+
     final hasCompleted = await _onboardingStorage.hasCompleted(userId);
     if (!mounted) return;
-    if (hasCompleted) {
+    if (hasCompleted || progress.completedOnboarding) {
+      final effectiveProgress = progress.completedOnboarding
+          ? progress
+          : progress.copyWith(
+              currentStep: TrueOnboardingStep.complete,
+              completedOnboarding: true,
+            );
+      if (!progress.completedOnboarding) {
+        await _saveOnboardingProgress(effectiveProgress);
+      }
       _onboardingContinuationStage = _OnboardingContinuationStage.none;
       _canShowCalendarToggleCoachmarkOnReturn = false;
       await _persistOnboardingContinuationStage(
         _OnboardingContinuationStage.none,
       );
+      unawaited(_maybeShowCalendarHelperAfterOnboarding(effectiveProgress));
       return;
     }
 
-    final continuationStage = await _loadOnboardingContinuationStage(userId);
+    await _waitForOnboardingCalendarReady();
     if (!mounted) return;
-
-    if (continuationStage == _OnboardingContinuationStage.none) {
-      setState(() => _showOnboarding = true);
-      return;
-    }
-
-    setState(() {
-      _onboardingContinuationStage = continuationStage;
-      _canShowCalendarToggleCoachmarkOnReturn =
-          continuationStage ==
-          _OnboardingContinuationStage.awaitingCalendarReturnToggle;
-    });
+    await _presentTrueOnboardingStep(progress.currentStep);
   }
 
   Future<void> _dismissOnboarding() async {
     if (!mounted) return;
 
+    GuidedOnboardingController.instance.setExternalOverlaySuppressed(false);
     setState(() => _showOnboarding = false);
   }
 
   void _handleOnboardingSkip() {
-    unawaited(_finishOnboardingFlow());
+    unawaited(_skipOnboarding(confirm: false));
   }
 
   void _handleOnboardingComplete() {
-    unawaited(_finishOnboardingFlow());
+    unawaited(_completeWelcomeOnboarding());
   }
 
-  Future<void> _finishOnboardingFlow() async {
+  Future<void> _completeWelcomeOnboarding() async {
     await _dismissOnboarding();
-    final profileCompleted = await _requireProfileSetupAfterOnboarding();
-    if (!profileCompleted || !mounted) return;
-    await _promptForNotificationsAfterOnboarding();
+    await _updateOnboardingProgress(
+      (progress) => progress.copyWith(
+        hasSeenWelcome: true,
+        currentStep: TrueOnboardingStep.currentDecanIntro,
+      ),
+    );
+    unawaited(
+      Events.trackIfAuthed('onboarding_started', const <String, dynamic>{}),
+    );
     if (!mounted) return;
-    await _showCalendarMonthCoachmarkAfterOnboarding();
+    await _presentTrueOnboardingStep(TrueOnboardingStep.currentDecanIntro);
+  }
+
+  Future<void> _skipOnboarding({required bool confirm}) async {
+    if (confirm && mounted) {
+      final shouldSkip = await showDialog<bool>(
+        context: context,
+        builder: (dialogContext) {
+          return AlertDialog(
+            backgroundColor: const Color(0xFF090909),
+            title: const Text(
+              'Skip setup?',
+              style: TextStyle(color: Colors.white),
+            ),
+            content: const Text(
+              'You can still create Ma’at Flows later from the Flows page.',
+              style: TextStyle(color: Colors.white70),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(dialogContext).pop(false),
+                child: const Text('Stay'),
+              ),
+              FilledButton(
+                onPressed: () => Navigator.of(dialogContext).pop(true),
+                child: const Text('Skip'),
+              ),
+            ],
+          );
+        },
+      );
+      if (shouldSkip != true) return;
+    }
+
+    GuidedOnboardingController.instance.clear();
+    await _dismissOnboarding();
+    await _updateOnboardingProgress(
+      (progress) => progress.copyWith(
+        currentStep: TrueOnboardingStep.complete,
+        completedOnboarding: true,
+      ),
+    );
+    unawaited(
+      Events.trackIfAuthed('onboarding_skipped', const <String, dynamic>{}),
+    );
+    await _markOnboardingCompletedIfNeeded();
+    if (mounted) {
+      context.go('/');
+    }
   }
 
   Future<void> _markOnboardingCompletedIfNeeded() async {
@@ -10524,9 +10591,530 @@ class CalendarPageState extends State<CalendarPage>
     await _persistOnboardingContinuationStage(
       _OnboardingContinuationStage.none,
     );
+    _onboardingProgress = _onboardingProgress.copyWith(
+      currentStep: TrueOnboardingStep.complete,
+      completedOnboarding: true,
+    );
+    await _onboardingProgressStorage.save(userId, _onboardingProgress);
     await _onboardingStorage.markCompleted(userId);
   }
 
+  void _hydrateFirstFlowTargetFromProgress(OnboardingProgress progress) {
+    _firstMaatFlowId = int.tryParse(progress.firstMaatFlowId ?? '');
+    _firstMaatFlowEventClientEventId = progress.firstMaatFlowEventClientEventId;
+    final eventDate = progress.firstMaatFlowEventDate;
+    if (eventDate == null) {
+      _firstMaatFlowEventKDate = null;
+    } else {
+      final kDate = KemeticMath.fromGregorian(DateUtils.dateOnly(eventDate));
+      _firstMaatFlowEventKDate = (
+        ky: kDate.kYear,
+        km: kDate.kMonth,
+        kd: kDate.kDay,
+      );
+    }
+  }
+
+  Future<void> _presentTrueOnboardingStep(TrueOnboardingStep step) async {
+    if (!mounted) return;
+    if (step != TrueOnboardingStep.complete) {
+      GuidedOnboardingController.instance.setExternalOverlaySuppressed(true);
+    }
+    switch (step) {
+      case TrueOnboardingStep.welcome:
+        setState(() => _showOnboarding = true);
+        return;
+      case TrueOnboardingStep.currentDecanIntro:
+        _showCurrentDecanIntroCoachmark();
+        return;
+      case TrueOnboardingStep.profileBasics:
+        await _routeToProfileBasics();
+        return;
+      case TrueOnboardingStep.firstMaatFlow:
+        unawaited(_openFirstMaatFlowOnboardingSheet());
+        return;
+      case TrueOnboardingStep.firstFlowCalendarDay:
+        _hydrateFirstFlowTargetFromProgress(_onboardingProgress);
+        _alignCalendarToFirstFlowEvent();
+        _showFirstFlowCalendarDayCoachmark();
+        return;
+      case TrueOnboardingStep.firstFlowDayEvent:
+        _showFirstFlowDayEventCoachmark();
+        return;
+      case TrueOnboardingStep.eventDetailObservedJournal:
+        return;
+      case TrueOnboardingStep.menuExplore:
+        _showMenuExploreCoachmark();
+        return;
+      case TrueOnboardingStep.complete:
+        return;
+    }
+  }
+
+  String _currentDecanName({bool expanded = true}) {
+    return DecanMetadata.decanNameFor(
+      kMonth: _today.kMonth.clamp(1, 12).toInt(),
+      kDay: _today.kDay,
+      expanded: expanded,
+    );
+  }
+
+  String _currentDecanSynopsis() {
+    final dayKey = _getKemeticDayKey(_today.kYear, _today.kMonth, _today.kDay);
+    final info = KemeticDayData.getInfoForDay(dayKey);
+    final context = info?.cosmicContext.trim();
+    if (context != null && context.isNotEmpty) {
+      final sentences = context
+          .split(RegExp(r'(?<=[.!?])\s+'))
+          .where((part) => part.trim().isNotEmpty)
+          .take(2)
+          .join(' ');
+      if (sentences.trim().isNotEmpty) return sentences.trim();
+    }
+    return 'This ten-day rhythm gives you a place to observe, return, and realign. Use it to notice what is rising in your life and what needs to be brought back into order.';
+  }
+
+  void _showCurrentDecanIntroCoachmark() {
+    if (!mounted || _showingCurrentDecanIntroCoachmark) return;
+    _showingCurrentDecanIntroCoachmark = true;
+    final decanIndex = decanForDay(_today.kDay) - 1;
+    final targetKey = keyForCurrentDecanHeader(
+      _today.kYear,
+      _today.kMonth.clamp(1, 12).toInt(),
+      decanIndex.clamp(0, 2).toInt(),
+    );
+    _setView(_today.kYear, _today.kMonth, kd: _today.kDay);
+    _centerMonth(_today.kYear, _today.kMonth);
+    GuidedOnboardingController.instance.show(
+      CoachmarkTarget(
+        key: targetKey,
+        title: 'You are in ${_currentDecanName()}.',
+        body: _currentDecanSynopsis(),
+        instruction: 'Tap the decan name to learn more about its meaning.',
+        placement: CoachmarkPlacement.below,
+        allowBackgroundInteraction: true,
+        showNextButton: true,
+        showSkipButton: true,
+        onSkip: () => unawaited(_skipOnboarding(confirm: true)),
+        onNext: () => unawaited(_handleCurrentDecanNext()),
+      ),
+    );
+    unawaited(
+      Events.trackIfAuthed('onboarding_current_decan_seen', <String, dynamic>{
+        'decan': _currentDecanName(expanded: false),
+      }),
+    );
+  }
+
+  Future<void> _handleCurrentDecanNext() async {
+    _showingCurrentDecanIntroCoachmark = false;
+    GuidedOnboardingController.instance.clear();
+    await _updateOnboardingProgress(
+      (progress) => progress.copyWith(
+        hasSeenCurrentDecanIntro: true,
+        currentStep: TrueOnboardingStep.profileBasics,
+      ),
+    );
+    if (!mounted) return;
+    await _routeToProfileBasics();
+  }
+
+  Future<bool> _hasCompletedProfileBasics() async {
+    final userId = _currentUserId;
+    if (userId == null || userId.isEmpty) return false;
+    final profile =
+        await ProfileRepo(Supabase.instance.client).getMyProfile() ??
+        UserProfile(
+          id: userId,
+          isDiscoverable: true,
+          allowIncomingShares: true,
+        );
+    return hasCompletedProfileBasics(
+      avatarGlyphIds: profile.avatarGlyphIds,
+      displayName: profile.displayName,
+      handle: profile.handle,
+    );
+  }
+
+  Future<void> _routeToProfileBasics() async {
+    if (!mounted) return;
+    GuidedOnboardingController.instance.setExternalOverlaySuppressed(true);
+    final complete = await _hasCompletedProfileBasics();
+    if (!mounted) return;
+    if (complete) {
+      context.go('/profile/me?onboarding=1');
+    } else {
+      context.go('/profile/me/edit?requireCompletion=1&onboarding=1');
+    }
+  }
+
+  Future<void> _openFirstMaatFlowOnboardingSheet() async {
+    if (!mounted || _firstMaatFlowSheetOpenOrOpening) return;
+    _firstMaatFlowSheetOpenOrOpening = true;
+    GuidedOnboardingController.instance.clear();
+    unawaited(
+      Events.trackIfAuthed(
+        'onboarding_first_maat_flow_sheet_opened',
+        const <String, dynamic>{},
+      ),
+    );
+
+    try {
+      await _loadFromDisk(source: 'onboarding_first_maat_flow');
+      if (!mounted) return;
+      await showModalBottomSheet<void>(
+        context: context,
+        useSafeArea: true,
+        isScrollControlled: true,
+        backgroundColor: Colors.transparent,
+        builder: (sheetContext) {
+          return _FirstMaatFlowOnboardingSheet(
+            templates: _kMaatFlowTemplates,
+            onAddFlow: (template) async {
+              final id = await _addMaatFlowInstance(
+                template: template,
+                startDate: DateTime.now(),
+              );
+              if (id <= 0) return;
+              if (sheetContext.mounted) {
+                Navigator.of(sheetContext).pop();
+              }
+              await _handleFirstMaatFlowAdded(template, id);
+            },
+          );
+        },
+      );
+    } finally {
+      _firstMaatFlowSheetOpenOrOpening = false;
+    }
+  }
+
+  Future<void> _handleFirstMaatFlowAdded(
+    _MaatFlowTemplate template,
+    int flowId,
+  ) async {
+    await _loadFromDisk(source: 'onboarding_first_maat_flow_added');
+    final firstEvent = _firstUpcomingNoteForFlow(flowId);
+    final eventDate = firstEvent == null
+        ? DateUtils.dateOnly(DateTime.now())
+        : DateUtils.dateOnly(
+            KemeticMath.toGregorian(
+              firstEvent.ky,
+              firstEvent.km,
+              firstEvent.kd,
+            ),
+          );
+    final kDate = firstEvent == null
+        ? KemeticMath.fromGregorian(eventDate)
+        : (kYear: firstEvent.ky, kMonth: firstEvent.km, kDay: firstEvent.kd);
+
+    _firstMaatFlowId = flowId;
+    _firstMaatFlowEventClientEventId = firstEvent?.note.clientEventId;
+    _firstMaatFlowEventKDate = (
+      ky: kDate.kYear,
+      km: kDate.kMonth,
+      kd: kDate.kDay,
+    );
+
+    await _updateOnboardingProgress(
+      (progress) => progress.copyWith(
+        hasChosenFirstMaatFlow: true,
+        firstMaatFlowId: flowId.toString(),
+        firstMaatFlowTemplateId: template.key,
+        firstMaatFlowEventDate: eventDate,
+        firstMaatFlowEventClientEventId: firstEvent?.note.clientEventId,
+        currentStep: TrueOnboardingStep.firstFlowCalendarDay,
+      ),
+    );
+    unawaited(
+      Events.trackIfAuthed(
+        'onboarding_first_maat_flow_added',
+        <String, dynamic>{'flow_id': flowId, 'template_key': template.key},
+      ),
+    );
+    if (!mounted) return;
+    context.go('/');
+    _alignCalendarToFirstFlowEvent();
+    _showFirstFlowCalendarDayCoachmark();
+  }
+
+  ({int ky, int km, int kd, _Note note})? _firstUpcomingNoteForFlow(
+    int flowId,
+  ) {
+    final today = DateUtils.dateOnly(DateTime.now());
+    final candidates =
+        <({int ky, int km, int kd, DateTime date, _Note note})>[];
+    for (final entry in _notes.entries) {
+      final parts = entry.key.split('-');
+      if (parts.length != 3) continue;
+      final ky = int.tryParse(parts[0]);
+      final km = int.tryParse(parts[1]);
+      final kd = int.tryParse(parts[2]);
+      if (ky == null || km == null || kd == null) continue;
+      final date = DateUtils.dateOnly(KemeticMath.toGregorian(ky, km, kd));
+      for (final note in entry.value) {
+        if (note.flowId == flowId) {
+          candidates.add((ky: ky, km: km, kd: kd, date: date, note: note));
+        }
+      }
+    }
+    if (candidates.isEmpty) return null;
+    candidates.sort((a, b) {
+      final aFuture = !a.date.isBefore(today);
+      final bFuture = !b.date.isBefore(today);
+      if (aFuture != bFuture) return aFuture ? -1 : 1;
+      final byDate = a.date.compareTo(b.date);
+      if (byDate != 0) return byDate;
+      final aStart = a.note.allDay
+          ? 0
+          : (a.note.start?.hour ?? 9) * 60 + (a.note.start?.minute ?? 0);
+      final bStart = b.note.allDay
+          ? 0
+          : (b.note.start?.hour ?? 9) * 60 + (b.note.start?.minute ?? 0);
+      return aStart.compareTo(bStart);
+    });
+    final first = candidates.first;
+    return (ky: first.ky, km: first.km, kd: first.kd, note: first.note);
+  }
+
+  _Note? _firstFlowTargetNoteForDay(int ky, int km, int kd) {
+    final notes = _notes['$ky-$km-$kd'] ?? const <_Note>[];
+    final targetClientEventId = _firstMaatFlowEventClientEventId?.trim();
+    if (targetClientEventId != null && targetClientEventId.isNotEmpty) {
+      for (final note in notes) {
+        if (note.clientEventId == targetClientEventId) return note;
+      }
+    }
+    final flowId = _firstMaatFlowId;
+    if (flowId != null) {
+      for (final note in notes) {
+        if (note.flowId == flowId) return note;
+      }
+    }
+    return notes.isEmpty ? null : notes.first;
+  }
+
+  void _alignCalendarToFirstFlowEvent() {
+    final target = _firstMaatFlowEventKDate;
+    if (target == null || !mounted) return;
+    _setView(target.ky, target.km, kd: target.kd);
+    _centerMonth(target.ky, target.km);
+  }
+
+  void _showFirstFlowCalendarDayCoachmark() {
+    if (!mounted || _showingFirstFlowDayCoachmark) return;
+    _showingFirstFlowDayCoachmark = true;
+    _alignCalendarToFirstFlowEvent();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted ||
+          _onboardingProgress.currentStep !=
+              TrueOnboardingStep.firstFlowCalendarDay) {
+        return;
+      }
+      GuidedOnboardingController.instance.show(
+        CoachmarkTarget(
+          key: _firstFlowDayKey,
+          title: 'Time that gives you space.',
+          body:
+              'Ten-day decans give your goals room to breathe. Your first Ma’at Flow is now placed inside the calendar.',
+          instruction: 'Tap the glowing day to see your first event.',
+          placement: CoachmarkPlacement.above,
+          allowBackgroundInteraction: true,
+          showSkipButton: true,
+          onSkip: () => unawaited(_skipOnboarding(confirm: true)),
+        ),
+      );
+    });
+  }
+
+  void _showFirstFlowDayEventCoachmark() {
+    if (!mounted || _showingFirstFlowEventCoachmark) return;
+    _showingFirstFlowEventCoachmark = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      Future<void>.delayed(const Duration(milliseconds: 420), () {
+        if (!mounted ||
+            _onboardingProgress.currentStep !=
+                TrueOnboardingStep.firstFlowDayEvent) {
+          return;
+        }
+        GuidedOnboardingController.instance.show(
+          CoachmarkTarget(
+            key: _firstFlowEventBlockKey,
+            title: 'Your flow lives here.',
+            body:
+                'Each event is a step in the rhythm you chose. Tap the event to open its details.',
+            placement: CoachmarkPlacement.above,
+            allowBackgroundInteraction: true,
+            showSkipButton: true,
+            onSkip: () => unawaited(_skipOnboarding(confirm: true)),
+          ),
+        );
+      });
+    });
+  }
+
+  Future<void> _handleFirstFlowEventOpened() async {
+    if (_onboardingProgress.currentStep !=
+        TrueOnboardingStep.firstFlowDayEvent) {
+      return;
+    }
+    _showingFirstFlowEventCoachmark = false;
+    GuidedOnboardingController.instance.clear();
+    await _updateOnboardingProgress(
+      (progress) => progress.copyWith(
+        hasOpenedFirstFlowEvent: true,
+        currentStep: TrueOnboardingStep.eventDetailObservedJournal,
+      ),
+    );
+    unawaited(
+      Events.trackIfAuthed(
+        'onboarding_first_flow_event_opened',
+        const <String, dynamic>{},
+      ),
+    );
+  }
+
+  Future<void> _handleObservedJournalPromptNext() async {
+    await _updateOnboardingProgress(
+      (progress) => progress.copyWith(
+        hasSeenObservedJournalPrompt: true,
+        currentStep: TrueOnboardingStep.menuExplore,
+      ),
+    );
+    _showMenuExploreCoachmark();
+  }
+
+  void _showMenuExploreCoachmark() {
+    if (!mounted) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      Future<void>.delayed(const Duration(milliseconds: 260), () {
+        if (!mounted) return;
+        GuidedOnboardingController.instance.show(
+          CoachmarkTarget(
+            key: globalMenuButtonKey,
+            title: 'Explore the rest of ḥꜣw.',
+            body:
+                'Your calendar, flows, journal, profile, library, and community all connect from here. Tap the menu anytime to move through the app.',
+            placement: CoachmarkPlacement.above,
+            showNextButton: true,
+            nextLabel: 'Enter ḥꜣw',
+            allowBackgroundInteraction: true,
+            onNext: () => unawaited(_completeTrueOnboarding()),
+          ),
+        );
+      });
+    });
+  }
+
+  Future<void> _completeTrueOnboarding() async {
+    GuidedOnboardingController.instance.clear();
+    GuidedOnboardingController.instance.setExternalOverlaySuppressed(false);
+    await _updateOnboardingProgress(
+      (progress) => progress.copyWith(
+        hasSeenMenuPrompt: true,
+        currentStep: TrueOnboardingStep.complete,
+        completedOnboarding: true,
+      ),
+    );
+    await _markOnboardingCompletedIfNeeded();
+    unawaited(
+      Events.trackIfAuthed('onboarding_completed', const <String, dynamic>{}),
+    );
+  }
+
+  Future<void> _maybeShowCalendarHelperAfterOnboarding(
+    OnboardingProgress progress,
+  ) async {
+    if (!mounted ||
+        _calendarAfterOnboardingHelperPrompted ||
+        !progress.completedOnboarding) {
+      return;
+    }
+
+    final helper = _nextCalendarHelper(progress);
+    if (helper == null) return;
+    _calendarAfterOnboardingHelperPrompted = true;
+
+    await Future<void>.delayed(const Duration(milliseconds: 700));
+    if (!mounted) return;
+    GuidedOnboardingController.instance.show(
+      CoachmarkTarget(
+        key: helper.key,
+        title: helper.title,
+        body: helper.body,
+        placement: helper.placement,
+        variant: CoachmarkVariant.helperBubble,
+        showDismissButton: true,
+        dismissLabel: 'Got it',
+        onDismiss: () async {
+          GuidedOnboardingController.instance.clear();
+          _calendarAfterOnboardingHelperPrompted = false;
+          late OnboardingProgress updated;
+          await _updateOnboardingProgress((current) {
+            updated = current.markHelperSeen(helper.id);
+            return updated;
+          });
+          unawaited(
+            Events.trackIfAuthed(
+              helper.analyticsEvent,
+              const <String, dynamic>{},
+            ),
+          );
+          unawaited(_maybeShowCalendarHelperAfterOnboarding(updated));
+        },
+      ),
+    );
+  }
+
+  ({
+    String id,
+    GlobalKey key,
+    String title,
+    String body,
+    String analyticsEvent,
+    CoachmarkPlacement placement,
+  })?
+  _nextCalendarHelper(OnboardingProgress progress) {
+    if (!progress.seenHelpers.contains(OnboardingHelperIds.calendarToggle)) {
+      return (
+        id: OnboardingHelperIds.calendarToggle,
+        key: _calendarToggleKey,
+        title: 'Switch calendar views',
+        body:
+            'Tap ḥꜣw to toggle between the Kemetic calendar and the Gregorian calendar at any time.',
+        analyticsEvent: 'helper_seen_calendar_toggle',
+        placement: CoachmarkPlacement.below,
+      );
+    }
+    if (!progress.seenHelpers.contains(OnboardingHelperIds.monthDetails)) {
+      final decanIndex = decanForDay(_today.kDay) - 1;
+      return (
+        id: OnboardingHelperIds.monthDetails,
+        key: keyForCurrentDecanHeader(
+          _today.kYear,
+          _today.kMonth.clamp(1, 12).toInt(),
+          decanIndex.clamp(0, 2).toInt(),
+        ),
+        title: 'Month details',
+        body: 'Tap the month or decan name for lore, structure, and meaning.',
+        analyticsEvent: 'helper_seen_month_details',
+        placement: CoachmarkPlacement.below,
+      );
+    }
+    if (!progress.seenHelpers.contains(OnboardingHelperIds.dayCardLongPress)) {
+      return (
+        id: OnboardingHelperIds.dayCardLongPress,
+        key: _todayDayKey,
+        title: 'Reveal the day card',
+        body: 'Long press a day to reveal its card.',
+        analyticsEvent: 'helper_seen_day_card_long_press',
+        placement: CoachmarkPlacement.above,
+      );
+    }
+    return null;
+  }
+
+  // ignore: unused_element
   Future<bool> _requireProfileSetupAfterOnboarding() async {
     final userId = Supabase.instance.client.auth.currentUser?.id;
     if (userId == null || !mounted) return false;
@@ -10560,6 +11148,7 @@ class CalendarPageState extends State<CalendarPage>
     }
   }
 
+  // ignore: unused_element
   Future<void> _promptForNotificationsAfterOnboarding() async {
     final currentUser = Supabase.instance.client.auth.currentUser;
     if (currentUser == null) return;
@@ -10746,6 +11335,7 @@ class CalendarPageState extends State<CalendarPage>
     );
   }
 
+  // ignore: unused_element
   Future<void> _showCalendarMonthCoachmarkAfterOnboarding() async {
     if (!mounted) return;
     await Future<void>.delayed(const Duration(milliseconds: 1500));
@@ -10904,9 +11494,7 @@ class CalendarPageState extends State<CalendarPage>
     _handleMonthHeaderTapped(context, targetKy, targetKm);
   }
 
-  bool get _shouldShowDayCardRevealCoachmarkFromOnboarding =>
-      _onboardingContinuationStage ==
-      _OnboardingContinuationStage.awaitingDayViewReveal;
+  bool get _shouldShowDayCardRevealCoachmarkFromOnboarding => false;
 
   Future<void> _handleDayCardRevealCoachmarkCompletedFromOnboarding() async {
     if (_onboardingContinuationStage !=
@@ -11898,6 +12486,7 @@ class CalendarPageState extends State<CalendarPage>
     }
     _scrollCtrl.dispose();
     _dayViewDataVersion.dispose();
+    GuidedOnboardingController.instance.setExternalOverlaySuppressed(false);
     super.dispose();
   }
 
@@ -20380,6 +20969,38 @@ class CalendarPageState extends State<CalendarPage>
     _restorationInteractedSinceBoot = true;
     final shouldShowDayCardRevealCoachmark =
         _shouldShowDayCardRevealCoachmarkFromOnboarding;
+    final isFirstFlowOnboardingDay =
+        _onboardingProgress.currentStep ==
+            TrueOnboardingStep.firstFlowCalendarDay &&
+        _matchesFirstMaatFlowEventDate(kYear, kMonth, kDay);
+    final onboardingFocusNote = isFirstFlowOnboardingDay
+        ? _firstFlowTargetNoteForDay(kYear, kMonth, kDay)
+        : null;
+    final resolvedFocusEvent =
+        focusEvent ??
+        (onboardingFocusNote == null
+            ? null
+            : _noteToEventItem(onboardingFocusNote));
+    if (isFirstFlowOnboardingDay) {
+      _showingFirstFlowDayCoachmark = false;
+      GuidedOnboardingController.instance.clear();
+      _onboardingProgress = _onboardingProgress.copyWith(
+        hasTappedFirstFlowDay: true,
+        currentStep: TrueOnboardingStep.firstFlowDayEvent,
+      );
+      final userId = _currentUserId;
+      if (userId != null) {
+        unawaited(_onboardingProgressStorage.save(userId, _onboardingProgress));
+      }
+      unawaited(
+        Events.trackIfAuthed(
+          'onboarding_first_flow_day_opened',
+          const <String, dynamic>{},
+        ),
+      );
+    }
+    final shouldPassFirstFlowOnboardingTargets =
+        _onboardingProgress.currentStep == TrueOnboardingStep.firstFlowDayEvent;
     final resolvedShowGregorian = initialShowGregorian ?? _showGregorian;
     final resolvedInitialFirstVisibleMinute =
         initialFirstVisibleMinute ??
@@ -20509,9 +21130,9 @@ class CalendarPageState extends State<CalendarPage>
           getMonthName: getMonthName,
           initialFirstVisibleMinute: resolvedInitialFirstVisibleMinute,
           initialScrollOffset: initialScrollOffset,
-          focusStartMin: focusEvent?.startMin,
-          focusFlowId: focusEvent?.flowId,
-          focusTitle: focusEvent?.title,
+          focusStartMin: resolvedFocusEvent?.startMin,
+          focusFlowId: resolvedFocusEvent?.flowId,
+          focusTitle: resolvedFocusEvent?.title,
           initialEventDetailRestorationState:
               initialEventDetailRestorationState,
           onClose: () => Navigator.of(context).pop(),
@@ -20587,6 +21208,28 @@ class CalendarPageState extends State<CalendarPage>
                 metadata: metadata,
               ),
           onUnrecordCompletion: _unrecordEventCompletion,
+          onboardingEventClientEventId: shouldPassFirstFlowOnboardingTargets
+              ? _firstMaatFlowEventClientEventId
+              : null,
+          onboardingEventTargetKey: shouldPassFirstFlowOnboardingTargets
+              ? _firstFlowEventBlockKey
+              : null,
+          onboardingObservedKey: shouldPassFirstFlowOnboardingTargets
+              ? _firstFlowObservedKey
+              : null,
+          onboardingJournalKey: shouldPassFirstFlowOnboardingTargets
+              ? _firstFlowJournalKey
+              : null,
+          onOnboardingEventOpened: shouldPassFirstFlowOnboardingTargets
+              ? () {
+                  unawaited(_handleFirstFlowEventOpened());
+                }
+              : null,
+          onOnboardingObservedJournalNext: shouldPassFirstFlowOnboardingTargets
+              ? () {
+                  unawaited(_handleObservedJournalPromptNext());
+                }
+              : null,
           onRestorationStateChanged:
               ({
                 required int kYear,
@@ -20648,6 +21291,9 @@ class CalendarPageState extends State<CalendarPage>
       }
       UiGuards.enableJournalSwipe();
     });
+    if (isFirstFlowOnboardingDay) {
+      _showFirstFlowDayEventCoachmark();
+    }
   }
 
   /* ───── Day Sheet ───── */

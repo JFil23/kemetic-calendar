@@ -617,6 +617,9 @@ class _MonthCard extends StatelessWidget {
     final names =
         DecanMetadata.decanNames[kMonth] ??
         const ['Decan A', 'Decan B', 'Decan C'];
+    final currentDecanIndex = todayMonth == kMonth && todayDay != null
+        ? decanForDay(todayDay!) - 1
+        : null;
 
     double decanHeightFor(int decanIndex) {
       // Only adjust in details mode; otherwise use the global sizing.
@@ -741,18 +744,23 @@ class _MonthCard extends StatelessWidget {
                           maintainState: true,
                           maintainAnimation: true,
                           maintainSize: true,
-                          child: GestureDetector(
-                            onTap: () {
-                              if (onDecanTap != null) {
-                                onDecanTap!(context, i);
-                              } else {
-                                _openDecanInfo(context, i);
-                              }
-                            },
-                            child: GlossyText(
-                              text: names[i],
-                              style: _decanStyle,
-                              gradient: silverGloss,
+                          child: KeyedSubtree(
+                            key: currentDecanIndex == i
+                                ? keyForCurrentDecanHeader(kYear, kMonth, i)
+                                : null,
+                            child: GestureDetector(
+                              onTap: () {
+                                if (onDecanTap != null) {
+                                  onDecanTap!(context, i);
+                                } else {
+                                  _openDecanInfo(context, i);
+                                }
+                              },
+                              child: GlossyText(
+                                text: names[i],
+                                style: _decanStyle,
+                                gradient: silverGloss,
+                              ),
                             ),
                           ),
                         ),

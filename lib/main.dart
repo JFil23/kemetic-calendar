@@ -56,6 +56,7 @@ import 'features/maat_guidance/maat_guidance_floating_card.dart';
 import 'features/nodes/kemetic_node_library.dart';
 import 'features/nodes/kemetic_node_list_page.dart';
 import 'features/nodes/kemetic_node_reader_page.dart';
+import 'package:mobile/features/onboarding/guided_onboarding_overlay.dart';
 import 'features/profile/edit_profile_page.dart';
 import 'features/profile/flow_post_detail_page.dart';
 import 'features/profile/flow_post_picker_page.dart';
@@ -484,6 +485,9 @@ final ValueNotifier<bool> _launchOverlayDismissed = ValueNotifier<bool>(false);
 final ValueNotifier<int> _maatGuidancePostEnsureRefresh = ValueNotifier<int>(0);
 final _FloatingMenuRouteObserver _floatingMenuRouteObserver =
     _FloatingMenuRouteObserver();
+final GlobalKey globalMenuButtonKey = GlobalKey(
+  debugLabel: 'global_bottom_menu_button',
+);
 const Duration _floatingMenuModalSettleDelay = Duration(milliseconds: 80);
 const Duration _globalBottomMenuBarTransitionDuration = Duration(
   milliseconds: 220,
@@ -1019,6 +1023,7 @@ final _router = GoRouter(
         child: EditProfileRoutePage(
           requireCompletion:
               state.uri.queryParameters['requireCompletion'] == '1',
+          onboardingMode: state.uri.queryParameters['onboarding'] == '1',
         ),
       ),
     ),
@@ -1502,10 +1507,12 @@ class _AppChromeState extends State<_AppChrome> {
       return widget.child;
     }
 
-    return _LaunchShell(
-      child: _GlobalFloatingMenuShell(
-        router: widget.router,
-        child: KemeticKeyboardHost(child: widget.child),
+    return GuidedOnboardingOverlayHost(
+      child: _LaunchShell(
+        child: _GlobalFloatingMenuShell(
+          router: widget.router,
+          child: KemeticKeyboardHost(child: widget.child),
+        ),
       ),
     );
   }
@@ -1546,6 +1553,7 @@ class _GlobalFloatingMenuShellState extends State<_GlobalFloatingMenuShell>
       _handleMaatGuidancePostEnsureRefresh,
     );
     _maatGuidanceController.addListener(_scheduleRebuild);
+    GuidedOnboardingController.instance.addListener(_scheduleRebuild);
     _authSub = supabase.auth.onAuthStateChange.listen((_) {
       if (supabase.auth.currentSession == null) {
         _resetFloatingMenuState();
@@ -1588,6 +1596,7 @@ class _GlobalFloatingMenuShellState extends State<_GlobalFloatingMenuShell>
       _handleMaatGuidancePostEnsureRefresh,
     );
     _maatGuidanceController.removeListener(_scheduleRebuild);
+    GuidedOnboardingController.instance.removeListener(_scheduleRebuild);
     _maatGuidanceController.dispose();
     unawaited(_authSub?.cancel());
     super.dispose();
@@ -1665,8 +1674,12 @@ class _GlobalFloatingMenuShellState extends State<_GlobalFloatingMenuShell>
     if (_floatingMenuModalDepth.value > 0) return true;
     if (_menuMounted || _menuOpen) return true;
     if (MediaQuery.viewInsetsOf(context).bottom > 0) return true;
+    if (GuidedOnboardingController.instance.suppressExternalOverlays) {
+      return true;
+    }
 
     final path = _currentUri.path;
+    if (_currentUri.queryParameters['onboarding'] == '1') return true;
     if (path.startsWith('/maat-guidance/')) return true;
     if (path.startsWith('/rhythm/editor/')) return true;
     return false;
@@ -1889,6 +1902,7 @@ class _GlobalBottomMenuBar extends StatelessWidget {
               duration: _globalBottomMenuBarTransitionDuration,
               curve: _globalBottomMenuBarTransitionCurve,
               child: Semantics(
+                key: globalMenuButtonKey,
                 container: true,
                 label: 'Menu',
                 button: true,
@@ -3087,9 +3101,14 @@ class _SharedFlowRoutePageState extends State<SharedFlowRoutePage> {
 }
 
 class EditProfileRoutePage extends StatefulWidget {
-  const EditProfileRoutePage({super.key, this.requireCompletion = false});
+  const EditProfileRoutePage({
+    super.key,
+    this.requireCompletion = false,
+    this.onboardingMode = false,
+  });
 
   final bool requireCompletion;
+  final bool onboardingMode;
 
   @override
   State<EditProfileRoutePage> createState() => _EditProfileRoutePageState();
@@ -3130,6 +3149,7 @@ class _EditProfileRoutePageState extends State<EditProfileRoutePage> {
           return EditProfilePage(
             initialProfile: profile,
             requireCompletion: widget.requireCompletion,
+            onboardingMode: widget.onboardingMode,
           );
         }
         if (snapshot.connectionState == ConnectionState.done) {

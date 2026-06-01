@@ -9,6 +9,7 @@ import 'package:mobile/core/global_bottom_menu_metrics.dart';
 import 'package:mobile/core/touch_targets.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../core/navigation_fallback.dart';
+import '../../main.dart' show Events;
 import '../../data/profile_avatar_glyphs.dart';
 import '../../data/profile_model.dart';
 import '../../data/profile_repo.dart';
@@ -23,6 +24,8 @@ import '_post_glossy_helper.dart';
 import 'follow_list_page.dart';
 import '../calendar/calendar_page.dart';
 import '../calendar/kemetic_month_metadata.dart' show getMonthById;
+import 'package:mobile/features/onboarding/guided_onboarding_overlay.dart';
+import '../onboarding/onboarding_progress.dart';
 import 'flow_post_engagement_row.dart';
 import 'package:mobile/shared/glossy_text.dart';
 import '../../widgets/kemetic_app_bar_action.dart';
@@ -166,6 +169,9 @@ class _ProfilePageState extends State<ProfilePage>
   late final ScrollController _feedScrollController;
   late final AnimationController _feedBloomController;
   final GlobalKey _feedRevealHintKey = GlobalKey();
+  final GlobalKey _profileBasicsOnboardingKey = GlobalKey(
+    debugLabel: 'profile_basics_onboarding',
+  );
   UserProfile? _profile;
   bool _loading = true;
   bool _cacheHydrating = true;
@@ -193,6 +199,8 @@ class _ProfilePageState extends State<ProfilePage>
   double? _pendingProfileScrollOffset;
   double? _pendingFeedScrollOffset;
   String? _pendingExpandedFeedIdentity;
+  bool _profileBasicsOnboardingPrompted = false;
+  bool _profileCommunityHelperPrompted = false;
 
   String get _surfaceKey => 'profile:${widget.userId}';
 
@@ -436,6 +444,7 @@ class _ProfilePageState extends State<ProfilePage>
       _loading = false;
       _cacheHydrating = false;
     });
+    _maybeShowProfileOnboarding(profile);
 
     unawaited(() async {
       final posts = await postsFuture;
@@ -448,6 +457,119 @@ class _ProfilePageState extends State<ProfilePage>
       if (!mounted || loadSerial != _profileLoadSerial) return;
       _applyInsightPosts(posts);
     }());
+  }
+
+  Future<void> _maybeShowProfileOnboarding(UserProfile profile) async {
+    if (!_isViewingOwnProfile || _profileBasicsOnboardingPrompted) return;
+    final userId = _currentUserId;
+    if (userId == null) return;
+    final storage = OnboardingProgressStorage();
+    final progress = await storage.load(userId);
+    if (!mounted ||
+        progress.completedOnboarding ||
+        progress.currentStep != TrueOnboardingStep.profileBasics) {
+      if (progress.completedOnboarding) {
+        unawaited(_maybeShowProfileCommunityHelper(progress));
+      }
+      return;
+    }
+
+    if (!hasCompletedProfileBasics(
+      avatarGlyphIds: profile.avatarGlyphIds,
+      displayName: profile.displayName,
+      handle: profile.handle,
+    )) {
+      context.go('/profile/me/edit?requireCompletion=1&onboarding=1');
+      return;
+    }
+
+    _profileBasicsOnboardingPrompted = true;
+    await storage.save(
+      userId,
+      progress.copyWith(hasCompletedProfileBasics: true),
+    );
+    if (!mounted) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      GuidedOnboardingController.instance.show(
+        CoachmarkTarget(
+          key: _profileBasicsOnboardingKey,
+          title: 'Create your glyph avatar.',
+          body:
+              'Your glyph avatar becomes your mark inside ḥꜣw. Complete your basic profile so your flows, reflections, and shared activity have a clear identity.',
+          instruction:
+              'Your required profile basics are saved. Continue to Ma’at Flows.',
+          placement: CoachmarkPlacement.below,
+          showNextButton: true,
+          onNext: () async {
+            GuidedOnboardingController.instance.clear();
+            await storage.update(
+              userId,
+              (current) => current.copyWith(
+                hasCompletedProfileBasics: true,
+                currentStep: TrueOnboardingStep.firstMaatFlow,
+              ),
+            );
+            if (!mounted) return;
+            context.go('/');
+          },
+        ),
+      );
+    });
+  }
+
+  Future<void> _maybeShowProfileCommunityHelper([
+    OnboardingProgress? loadedProgress,
+  ]) async {
+    if (!_isViewingOwnProfile || _profileCommunityHelperPrompted) return;
+    final userId = _currentUserId;
+    if (userId == null) return;
+    final storage = OnboardingProgressStorage();
+    final progress = loadedProgress ?? await storage.load(userId);
+    if (!mounted ||
+        !progress.completedOnboarding ||
+        progress.seenHelpers.contains(
+          OnboardingHelperIds.profileCommunityFeed,
+        )) {
+      return;
+    }
+    _profileCommunityHelperPrompted = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || _feedRevealed) return;
+      GuidedOnboardingController.instance.show(
+        CoachmarkTarget(
+          key: _feedRevealHintKey,
+          title: 'Your community lives below',
+          body:
+              'Scroll down to reveal the community feed, where shared flows and confirmations begin to gather.',
+          placement: CoachmarkPlacement.auto,
+          variant: CoachmarkVariant.helperBubble,
+          showDismissButton: true,
+          dismissLabel: 'Got it',
+          onDismiss: () {
+            GuidedOnboardingController.instance.clear();
+            unawaited(_markProfileCommunityHelperSeen());
+          },
+        ),
+      );
+    });
+  }
+
+  Future<void> _markProfileCommunityHelperSeen() async {
+    final userId = _currentUserId;
+    if (userId == null) return;
+    GuidedOnboardingController.instance.clear();
+    await OnboardingProgressStorage().update(
+      userId,
+      (progress) =>
+          progress.markHelperSeen(OnboardingHelperIds.profileCommunityFeed),
+    );
+    unawaited(
+      Events.trackIfAuthed(
+        'helper_seen_profile_community_feed',
+        const <String, dynamic>{},
+      ),
+    );
   }
 
   Future<void> _restoreCachedPostedContent(int loadSerial) async {
@@ -578,6 +700,7 @@ class _ProfilePageState extends State<ProfilePage>
     _feedTopPullDistance = 0;
     unawaited(AppHaptics.mediumImpact(reason: 'profile_feed_reveal'));
     setState(() => _feedRevealed = true);
+    unawaited(_markProfileCommunityHelperSeen());
     _scheduleContinuitySave();
     unawaited(_feedBloomController.forward(from: 0));
     await _loadFeedPage(reset: true);
@@ -1359,7 +1482,14 @@ class _ProfilePageState extends State<ProfilePage>
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          _buildHeroSection(profile, topInset: topInset, height: heroHeight),
+          KeyedSubtree(
+            key: _profileBasicsOnboardingKey,
+            child: _buildHeroSection(
+              profile,
+              topInset: topInset,
+              height: heroHeight,
+            ),
+          ),
           Padding(
             padding: const EdgeInsets.fromLTRB(20, 8, 20, 0),
             child: Column(

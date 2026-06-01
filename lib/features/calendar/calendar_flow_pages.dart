@@ -2481,7 +2481,7 @@ enum FlowListTab { active, saved }
 
 /* ───────────────────────── Flow Hub (entry page) ───────────────────────── */
 
-class _FlowHubPage extends StatelessWidget {
+class _FlowHubPage extends StatefulWidget {
   const _FlowHubPage({
     required this.openMyFlows,
     required this.openMaatFlows,
@@ -2491,6 +2491,61 @@ class _FlowHubPage extends StatelessWidget {
   final VoidCallback openMyFlows;
   final VoidCallback openMaatFlows;
   final VoidCallback onCreateNew;
+
+  @override
+  State<_FlowHubPage> createState() => _FlowHubPageState();
+}
+
+class _FlowHubPageState extends State<_FlowHubPage> {
+  final GlobalKey _flowBuilderHelperKey = GlobalKey(
+    debugLabel: 'flow_hub_builder_helper',
+  );
+  bool _helperPrompted = false;
+
+  @override
+  void initState() {
+    super.initState();
+    unawaited(_maybeShowFlowBuilderHelper());
+  }
+
+  Future<void> _maybeShowFlowBuilderHelper() async {
+    if (_helperPrompted) return;
+    _helperPrompted = true;
+    final userId = Supabase.instance.client.auth.currentUser?.id;
+    if (userId == null || userId.isEmpty) return;
+    final storage = OnboardingProgressStorage();
+    final progress = await storage.load(userId);
+    if (!mounted ||
+        !progress.completedOnboarding ||
+        progress.seenHelpers.contains(OnboardingHelperIds.flowBuilder)) {
+      return;
+    }
+    await Future<void>.delayed(const Duration(milliseconds: 500));
+    if (!mounted) return;
+    GuidedOnboardingController.instance.show(
+      CoachmarkTarget(
+        key: _flowBuilderHelperKey,
+        title: 'Build your own rhythm',
+        body:
+            'Create personal flows for study, health, family, writing, business, or spiritual practice.',
+        placement: CoachmarkPlacement.below,
+        variant: CoachmarkVariant.helperBubble,
+        showDismissButton: true,
+        dismissLabel: 'Got it',
+        onDismiss: () async {
+          GuidedOnboardingController.instance.clear();
+          final updated = progress.markHelperSeen(
+            OnboardingHelperIds.flowBuilder,
+          );
+          await storage.save(userId, updated);
+          await Events.trackIfAuthed(
+            'helper_seen_flow_builder',
+            const <String, dynamic>{},
+          );
+        },
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -2514,19 +2569,20 @@ class _FlowHubPage extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
                     _FlowHubCell(
+                      key: _flowBuilderHelperKey,
                       title: 'Add Flow',
                       subtitle: 'Create a new flow',
-                      onTap: onCreateNew,
+                      onTap: widget.onCreateNew,
                     ),
                     _FlowHubCell(
                       title: 'My Flows',
                       subtitle: 'Your saved and active flows',
-                      onTap: openMyFlows,
+                      onTap: widget.openMyFlows,
                     ),
                     _FlowHubCell(
                       title: _kMaatFlowsDisplayTitle,
                       subtitle: "Ma'at template flows",
-                      onTap: openMaatFlows,
+                      onTap: widget.openMaatFlows,
                     ),
                   ],
                 ),
@@ -2541,6 +2597,7 @@ class _FlowHubPage extends StatelessWidget {
 
 class _FlowHubCell extends StatelessWidget {
   const _FlowHubCell({
+    super.key,
     required this.title,
     required this.subtitle,
     required this.onTap,

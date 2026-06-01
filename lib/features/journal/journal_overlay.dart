@@ -38,6 +38,7 @@ class JournalOverlay extends StatefulWidget {
   final bool isPortrait;
   final VoidCallback onClose;
   final JournalPresentationMode presentationMode;
+  final GlobalKey? badgeAreaKey;
 
   const JournalOverlay({
     super.key,
@@ -45,6 +46,7 @@ class JournalOverlay extends StatefulWidget {
     required this.isPortrait,
     required this.onClose,
     this.presentationMode = JournalPresentationMode.overlay,
+    this.badgeAreaKey,
   });
 
   @override
@@ -1024,6 +1026,7 @@ class _JournalOverlayState extends State<JournalOverlay>
         : '${badges.length} badge${badges.length == 1 ? '' : 's'}';
 
     return AnimatedContainer(
+      key: widget.badgeAreaKey,
       duration: const Duration(milliseconds: 180),
       curve: Curves.easeOut,
       height: height,

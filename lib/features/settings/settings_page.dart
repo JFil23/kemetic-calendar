@@ -7,6 +7,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:mobile/shared/glossy_text.dart';
 
 import '../../core/navigation_fallback.dart';
+import '../../main.dart' show Events;
 import '../../services/calendar_sync_service.dart';
 import '../../services/push_notifications.dart';
 import '../../services/speech/speech_service.dart';
@@ -14,6 +15,8 @@ import '../../utils/external_link_utils.dart';
 import '../calendar/calendar_page.dart';
 import '../calendar/notify.dart';
 import '../calendar/speech_resolver.dart';
+import 'package:mobile/features/onboarding/guided_onboarding_overlay.dart';
+import '../onboarding/onboarding_progress.dart';
 import 'settings_prefs.dart';
 import 'us_holiday_seeder.dart';
 
@@ -46,6 +49,7 @@ class _SettingsPageState extends State<SettingsPage> {
   bool _loadingSpeechVoices = false;
   bool _savingSpeechVoice = false;
   bool _deletingAccount = false;
+  bool _settingsHelperPrompted = false;
   String? _pushStatus;
   String? _pushTestDeliveryKey;
   String? _speechVoiceStatus;
@@ -55,6 +59,9 @@ class _SettingsPageState extends State<SettingsPage> {
   PushDeliveryReceiptStatus? _pushTestReceiptStatus;
   List<SpeechVoiceOption> _speechVoices = const [];
   String? _selectedSpeechVoiceId;
+  final GlobalKey _settingsControlsHelperKey = GlobalKey(
+    debugLabel: 'settings_controls_helper',
+  );
 
   bool get _hasSession => Supabase.instance.client.auth.currentSession != null;
   bool get _nativeCalendarSyncAvailable => !kIsWeb;
@@ -105,6 +112,46 @@ class _SettingsPageState extends State<SettingsPage> {
     if (_pushTestDeliveryKey != null) {
       unawaited(_refreshPushTestReceiptStatus());
     }
+    unawaited(_maybeShowSettingsHelper());
+  }
+
+  Future<void> _maybeShowSettingsHelper() async {
+    if (_settingsHelperPrompted) return;
+    _settingsHelperPrompted = true;
+    final userId = Supabase.instance.client.auth.currentUser?.id;
+    if (userId == null || userId.isEmpty) return;
+    final storage = OnboardingProgressStorage();
+    final progress = await storage.load(userId);
+    if (!mounted ||
+        !progress.completedOnboarding ||
+        progress.seenHelpers.contains(OnboardingHelperIds.settingsControl)) {
+      return;
+    }
+    await Future<void>.delayed(const Duration(milliseconds: 500));
+    if (!mounted) return;
+    GuidedOnboardingController.instance.show(
+      CoachmarkTarget(
+        key: _settingsControlsHelperKey,
+        title: 'Control the experience',
+        body:
+            'Manage notifications, calendar preferences, profile settings, and privacy here.',
+        placement: CoachmarkPlacement.auto,
+        variant: CoachmarkVariant.helperBubble,
+        showDismissButton: true,
+        dismissLabel: 'Got it',
+        onDismiss: () async {
+          GuidedOnboardingController.instance.clear();
+          final updated = progress.markHelperSeen(
+            OnboardingHelperIds.settingsControl,
+          );
+          await storage.save(userId, updated);
+          await Events.trackIfAuthed(
+            'helper_seen_settings_control',
+            const <String, dynamic>{},
+          );
+        },
+      ),
+    );
   }
 
   Future<void> _save() async {
@@ -1323,11 +1370,14 @@ class _SettingsPageState extends State<SettingsPage> {
               description:
                   'Push alerts are opt-in per device. Scheduled reminder notifications continue to be driven by the events and reminders you create.',
               children: [
-                _settingSwitch(
-                  title: 'Push alerts on this device',
-                  subtitle: _pushToggleSubtitle(),
-                  value: _realTimeAlerts,
-                  onChanged: _requestingPush ? null : _setRealTimeAlerts,
+                KeyedSubtree(
+                  key: _settingsControlsHelperKey,
+                  child: _settingSwitch(
+                    title: 'Push alerts on this device',
+                    subtitle: _pushToggleSubtitle(),
+                    value: _realTimeAlerts,
+                    onChanged: _requestingPush ? null : _setRealTimeAlerts,
+                  ),
                 ),
                 const SizedBox(height: 16),
                 _primaryButton(

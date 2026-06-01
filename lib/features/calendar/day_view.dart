@@ -43,6 +43,7 @@ import 'the_djed_flow.dart';
 import 'the_djed_local_store.dart';
 import 'decan_id.dart';
 import '../onboarding/day_view_date_coachmark.dart';
+import 'package:mobile/features/onboarding/guided_onboarding_overlay.dart';
 import '../../widgets/kemetic_day_info.dart';
 import 'package:mobile/core/day_key.dart';
 import 'package:mobile/telemetry/telemetry.dart';
@@ -2025,6 +2026,12 @@ class DayViewPage extends StatefulWidget {
   })?
   onRecordCompletion;
   final Future<void> Function(String clientEventId)? onUnrecordCompletion;
+  final String? onboardingEventClientEventId;
+  final GlobalKey? onboardingEventTargetKey;
+  final GlobalKey? onboardingObservedKey;
+  final GlobalKey? onboardingJournalKey;
+  final VoidCallback? onOnboardingEventOpened;
+  final VoidCallback? onOnboardingObservedJournalNext;
   final bool showDayCardRevealCoachmarkForOnboarding;
   final VoidCallback? onDayCardRevealCoachmarkCompleted;
   final DayViewRestorationCallback? onRestorationStateChanged;
@@ -2071,6 +2078,12 @@ class DayViewPage extends StatefulWidget {
     this.loadCompletedClientEventIds,
     this.onRecordCompletion,
     this.onUnrecordCompletion,
+    this.onboardingEventClientEventId,
+    this.onboardingEventTargetKey,
+    this.onboardingObservedKey,
+    this.onboardingJournalKey,
+    this.onOnboardingEventOpened,
+    this.onOnboardingObservedJournalNext,
     this.showDayCardRevealCoachmarkForOnboarding = false,
     this.onDayCardRevealCoachmarkCompleted,
     this.onRestorationStateChanged,
@@ -2811,6 +2824,16 @@ class _DayViewPageState extends State<DayViewPage> {
                                 widget.loadCompletedClientEventIds,
                             onRecordCompletion: widget.onRecordCompletion,
                             onUnrecordCompletion: widget.onUnrecordCompletion,
+                            onboardingEventClientEventId:
+                                widget.onboardingEventClientEventId,
+                            onboardingEventTargetKey:
+                                widget.onboardingEventTargetKey,
+                            onboardingObservedKey: widget.onboardingObservedKey,
+                            onboardingJournalKey: widget.onboardingJournalKey,
+                            onOnboardingEventOpened:
+                                widget.onOnboardingEventOpened,
+                            onOnboardingObservedJournalNext:
+                                widget.onOnboardingObservedJournalNext,
                             initialEventDetailRestorationState:
                                 _activeEventDetailRestoration,
                             onEventDetailRestorationChanged:
@@ -2919,6 +2942,12 @@ class DayViewGrid extends StatefulWidget {
   })?
   onRecordCompletion;
   final Future<void> Function(String clientEventId)? onUnrecordCompletion;
+  final String? onboardingEventClientEventId;
+  final GlobalKey? onboardingEventTargetKey;
+  final GlobalKey? onboardingObservedKey;
+  final GlobalKey? onboardingJournalKey;
+  final VoidCallback? onOnboardingEventOpened;
+  final VoidCallback? onOnboardingObservedJournalNext;
   final EventDetailRestorationState? initialEventDetailRestorationState;
   final ValueChanged<EventDetailRestorationState?>?
   onEventDetailRestorationChanged;
@@ -2968,6 +2997,12 @@ class DayViewGrid extends StatefulWidget {
     this.loadCompletedClientEventIds,
     this.onRecordCompletion,
     this.onUnrecordCompletion,
+    this.onboardingEventClientEventId,
+    this.onboardingEventTargetKey,
+    this.onboardingObservedKey,
+    this.onboardingJournalKey,
+    this.onOnboardingEventOpened,
+    this.onOnboardingObservedJournalNext,
     this.initialEventDetailRestorationState,
     this.onEventDetailRestorationChanged,
     this.shouldPreserveEventDetailRestorationOnClose,
@@ -3002,6 +3037,14 @@ class _DayViewGridState extends State<DayViewGrid> {
   String? _initialEventDetailRestoreKey;
   bool _initialEventDetailRestoreInFlight = false;
   int? get _focusStartMin => widget.focusStartMin;
+
+  bool _isOnboardingTargetEvent(EventItem event) {
+    final targetClientEventId = widget.onboardingEventClientEventId?.trim();
+    if (targetClientEventId != null && targetClientEventId.isNotEmpty) {
+      return event.clientEventId == targetClientEventId;
+    }
+    return false;
+  }
 
   ButtonStyle _endButtonStyle(BuildContext context) {
     // Slightly smaller footprint (~12% shorter) to avoid pushing other controls.
@@ -3106,9 +3149,11 @@ class _DayViewGridState extends State<DayViewGrid> {
     required int km,
     required int kd,
     required BuildContext actionContext,
+    Key? buttonKey,
   }) {
     final enabled = widget.onAppendToJournal != null;
     return OutlinedButton.icon(
+      key: buttonKey,
       style: _journalPillStyle(actionContext),
       onPressed: enabled
           ? () => _handleAddToJournal(
@@ -4573,21 +4618,37 @@ class _DayViewGridState extends State<DayViewGrid> {
       );
     }
 
+    final isOnboardingTarget = _isOnboardingTargetEvent(event);
+    Widget wrapOnboardingTarget(Widget child) {
+      final key = widget.onboardingEventTargetKey;
+      if (!isOnboardingTarget || key == null) return child;
+      return KeyedSubtree(key: key, child: child);
+    }
+
+    void openEventDetail() {
+      if (isOnboardingTarget) {
+        widget.onOnboardingEventOpened?.call();
+      }
+      _showEventDetail(event);
+    }
+
     if (!_isEventDraggable(event)) {
       final visual = _buildEventBlock(block, isPreview: false);
-      return GestureDetector(
-        behavior: HitTestBehavior.opaque,
-        onTap: () => _showEventDetail(event),
-        onLongPress: () {
-          unawaited(AppHaptics.mediumImpact());
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text("This event can't be moved"),
-              duration: Duration(milliseconds: 1200),
-            ),
-          );
-        },
-        child: buildHitTarget(visual),
+      return wrapOnboardingTarget(
+        GestureDetector(
+          behavior: HitTestBehavior.opaque,
+          onTap: openEventDetail,
+          onLongPress: () {
+            unawaited(AppHaptics.mediumImpact());
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text("This event can't be moved"),
+                duration: Duration(milliseconds: 1200),
+              ),
+            );
+          },
+          child: buildHitTarget(visual),
+        ),
       );
     }
 
@@ -4597,7 +4658,7 @@ class _DayViewGridState extends State<DayViewGrid> {
       return Opacity(opacity: opacity, child: visual);
     }
 
-    return LongPressDraggable<_DragPayload>(
+    final draggable = LongPressDraggable<_DragPayload>(
       data: _DragPayload(event),
       delay: const Duration(milliseconds: 350),
       feedback: Material(
@@ -4632,10 +4693,11 @@ class _DayViewGridState extends State<DayViewGrid> {
       },
       child: GestureDetector(
         behavior: HitTestBehavior.opaque,
-        onTap: () => _showEventDetail(event),
+        onTap: openEventDetail,
         child: buildHitTarget(buildVisual()),
       ),
     );
+    return wrapOnboardingTarget(draggable);
   }
 
   double _eventVisualHeight(EventItem event) {
@@ -5531,6 +5593,7 @@ class _DayViewGridState extends State<DayViewGrid> {
   Widget _buildEventDetailSheetPage({
     required DayViewSheetEventTarget target,
     bool scrollable = true,
+    bool includeOnboardingKeys = true,
   }) {
     final currentEvent = target.event;
     final flow = _chromeFlowForId(currentEvent.flowId);
@@ -5902,6 +5965,10 @@ class _DayViewGridState extends State<DayViewGrid> {
             km: target.km,
             kd: target.kd,
             onRecordCompletion: widget.onRecordCompletion,
+            observedButtonKey:
+                includeOnboardingKeys && _isOnboardingTargetEvent(currentEvent)
+                ? widget.onboardingObservedKey
+                : null,
           ),
         ],
       ],
@@ -5954,6 +6021,9 @@ class _DayViewGridState extends State<DayViewGrid> {
             km: target.km,
             kd: target.kd,
             actionContext: sheetContext,
+            buttonKey: _isOnboardingTargetEvent(currentEvent)
+                ? widget.onboardingJournalKey
+                : null,
           )
         else if (endAction == _DetailSheetEndAction.flow)
           _buildEndFlowButton(target, actionContext: sheetContext)
@@ -6323,6 +6393,7 @@ class _DayViewGridState extends State<DayViewGrid> {
     PageController sheetPageController = PageController(
       initialPage: initialPages.currentIndex,
     );
+    var onboardingDetailPromptScheduled = false;
 
     if (kDebugMode) {
       debugPrint('[_showEventDetail] Event: "${event.title}"');
@@ -6372,6 +6443,13 @@ class _DayViewGridState extends State<DayViewGrid> {
     }
 
     void releaseSheet() {
+      final activeCoachmark = GuidedOnboardingController.instance.target;
+      final journalKey = widget.onboardingJournalKey;
+      if (activeCoachmark?.key == widget.onboardingObservedKey ||
+          (journalKey != null &&
+              (activeCoachmark?.secondaryKeys.contains(journalKey) ?? false))) {
+        GuidedOnboardingController.instance.clear();
+      }
       currentTarget.dispose();
       measuredHeights.dispose();
       sheetPageController.dispose();
@@ -6399,6 +6477,40 @@ class _DayViewGridState extends State<DayViewGrid> {
                   final pageViewKey = ValueKey<String>(
                     '$currentKey:${pages.currentIndex}:${pages.pages.length}',
                   );
+                  if (!onboardingDetailPromptScheduled &&
+                      _isOnboardingTargetEvent(target.event) &&
+                      widget.onboardingObservedKey != null) {
+                    onboardingDetailPromptScheduled = true;
+                    WidgetsBinding.instance.addPostFrameCallback((_) {
+                      Future<
+                        void
+                      >.delayed(const Duration(milliseconds: 320), () {
+                        if (!mounted) return;
+                        GuidedOnboardingController.instance.show(
+                          CoachmarkTarget(
+                            key: widget.onboardingObservedKey,
+                            secondaryKeys: [
+                              if (widget.onboardingJournalKey != null)
+                                widget.onboardingJournalKey!,
+                            ],
+                            title: 'Mark what you lived.',
+                            body:
+                                'Tap Observed when you complete the event. Add a journal note when you want to remember what happened, what changed, or what you noticed.',
+                            placement: CoachmarkPlacement.above,
+                            allowBackgroundInteraction: true,
+                            showNextButton: true,
+                            onNext: () {
+                              GuidedOnboardingController.instance.clear();
+                              if (sheetContext.mounted) {
+                                Navigator.of(sheetContext).maybePop();
+                              }
+                              widget.onOnboardingObservedJournalNext?.call();
+                            },
+                          ),
+                        );
+                      });
+                    });
+                  }
 
                   return ValueListenableBuilder<Map<String, double>>(
                     valueListenable: measuredHeights,
@@ -6435,6 +6547,7 @@ class _DayViewGridState extends State<DayViewGrid> {
                                         child: _buildEventDetailSheetPage(
                                           target: pageTarget,
                                           scrollable: false,
+                                          includeOnboardingKeys: false,
                                         ),
                                       ),
                                     ),
@@ -7139,6 +7252,7 @@ class _MaatFlowCompletionPanel extends StatefulWidget {
     required this.km,
     required this.kd,
     required this.onRecordCompletion,
+    this.observedButtonKey,
   });
 
   final EventItem event;
@@ -7153,6 +7267,7 @@ class _MaatFlowCompletionPanel extends StatefulWidget {
     Map<String, dynamic>? metadata,
   })?
   onRecordCompletion;
+  final Key? observedButtonKey;
 
   @override
   State<_MaatFlowCompletionPanel> createState() =>
@@ -7376,6 +7491,7 @@ class _MaatFlowCompletionPanelState extends State<_MaatFlowCompletionPanel> {
     final selected = _status == status;
     return Expanded(
       child: OutlinedButton(
+        key: status == 'observed' ? widget.observedButtonKey : null,
         style: OutlinedButton.styleFrom(
           foregroundColor: selected ? Colors.black : Colors.white,
           backgroundColor: selected ? _dayGold : Colors.transparent,
