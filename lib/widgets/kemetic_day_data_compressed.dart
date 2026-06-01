@@ -6,603 +6,667 @@ part of 'kemetic_day_info.dart';
 final List<DecanDayInfo> _compressedThothFlowRows1 = [
   DecanDayInfo(
     day: 1,
-    theme: 'Place Attention Correctly',
-    action: 'Watch the first signs of the covered world before acting.',
-    reflection: '“Where must my attention be placed first?”',
+    theme: 'Genesis of Speech',
+    action: 'Speak your intention for the year clearly — out loud or written.',
+    reflection: '"What truth am I willing to build upon?"',
   ),
   DecanDayInfo(
     day: 2,
-    theme: 'Watch the Water',
-    action:
-        'Observe what has changed in the field, body, schedule, or relationship.',
-    reflection: '“What has the flood altered?”',
+    theme: 'Vision Declared',
+    action: 'Map the image of what balance looks like for you.',
+    reflection: '"How does my life look when it is aligned?"',
   ),
   DecanDayInfo(
     day: 3,
-    theme: 'Find the Horizon',
-    action: 'Look for one reliable marker that can orient the next step.',
-    reflection: '“What sign gives me bearing?”',
+    theme: 'Foundation of Order',
+    action: 'Cleanse your space; remove what contradicts your new truth.',
+    reflection: '"What must be cleared to make way?"',
   ),
   DecanDayInfo(
     day: 4,
-    theme: 'Refuse Premature Action',
-    action: 'Delay one action until the measure is clearer.',
-    reflection: '“What am I trying to do before I truly know?”',
+    theme: 'Naming Power',
+    action: 'Name your projects, goals, or vows with sacred clarity.',
+    reflection: '"What do I call forth into being?"',
   ),
   DecanDayInfo(
     day: 5,
-    theme: 'Name the First Boundary',
-    action: 'Identify one line that will later need restoration.',
-    reflection: '“What boundary has disappeared beneath the waters?”',
+    theme: 'Alignment Day',
+    action:
+        'Perform a Ma\'at ritual — balance the scales of speech and action.',
+    reflection: '"Are my words matching my deeds?"',
   ),
   DecanDayInfo(
     day: 6,
-    theme: 'Listen to the Sky',
+    theme: 'First Offering',
     action:
-        'Notice repeating signals from time, pattern, body, or outer circumstance.',
-    reflection: '“What is the sky telling me about the year?”',
+        'Give something symbolic to the world: art, gratitude, time, or service.',
+    reflection: '"How does giving anchor truth?"',
   ),
   DecanDayInfo(
     day: 7,
-    theme: 'Hold the Stillness',
-    action: 'Remain present without forcing a decision.',
-    reflection: '“Can I wait without becoming passive?”',
+    theme: 'Purification',
+    action:
+        'Fast, bathe, or enter intentional silence to reset signal versus noise.',
+    reflection: '"What noise needs to quiet for clarity to speak?"',
   ),
   DecanDayInfo(
     day: 8,
-    theme: 'Record the Sign',
-    action: 'Write the first evidence clearly.',
-    reflection: '“What must be preserved before memory distorts it?”',
+    theme: 'Insight Rising',
+    action: 'Journal or meditate; record what rises without forcing it.',
+    reflection: '"What truth emerges when I listen?"',
   ),
   DecanDayInfo(
     day: 9,
-    theme: 'Place the Measure',
-    action: 'Choose one simple measurement that will guide later action.',
-    reflection: '“What count, limit, or record makes the next step possible?”',
+    theme: 'Order Manifest',
+    action: 'Take one measurable action in line with your declaration.',
+    reflection: '"What is the first visible sign of alignment?"',
   ),
   DecanDayInfo(
     day: 10,
-    theme: 'Seal Orientation',
-    action: 'Name what has been observed and what must wait.',
-    reflection: '“What has been seen clearly enough to carry forward?”',
+    theme: 'Completion of Utterance',
+    action: 'Re-read Day 1. Seal it with gratitude and decision.',
+    reflection: '"What cycle have I begun?"',
   ),
 ];
 
 final List<DecanDayInfo> _compressedThothFlowRows2 = [
   DecanDayInfo(
     day: 11,
-    theme: 'Bring Signs to the Heart',
-    action: 'Pause and gather observations before speaking.',
-    reflection: '“What have I seen that needs coherence?”',
+    theme: 'Offering Begins',
+    action: 'Dedicate your current project to something beyond self.',
+    reflection: '"Who benefits from my effort?"',
   ),
   DecanDayInfo(
     day: 12,
-    theme: 'Connect Water and Sky',
-    action: 'Relate outer events to inner timing.',
-    reflection: '“What belongs together?”',
+    theme: 'Exchange',
+    action: 'Trade or share an idea or resource.',
+    reflection: '"What flows because I gave?"',
   ),
   DecanDayInfo(
     day: 13,
-    theme: 'Read the Pattern',
-    action: 'Look for repetition rather than isolated signs.',
-    reflection: '“What keeps returning?”',
+    theme: 'Circulation',
+    action: 'Move, travel, or stretch your field.',
+    reflection: '"What did I learn from contact?"',
   ),
   DecanDayInfo(
     day: 14,
-    theme: 'Correct the First Assumption',
-    action: 'Revise one conclusion made too quickly.',
-    reflection: '“Where was my first reading incomplete?”',
+    theme: 'Refinement',
+    action: 'Edit, polish, or temper excess.',
+    reflection: '"What strengthens through restraint?"',
   ),
   DecanDayInfo(
     day: 15,
-    theme: 'Hold the Count',
-    action: 'Keep the measure steady while uncertainty remains.',
-    reflection: '“What count should not be abandoned?”',
+    theme: 'Balance Check',
+    action: 'Rest or take a partial fast; measure output against cost.',
+    reflection: '"Where am I overspending energy?"',
   ),
   DecanDayInfo(
     day: 16,
-    theme: 'Let the Heart Weigh',
-    action: 'Use discernment before giving instruction.',
-    reflection: '“What does the heart know now?”',
+    theme: 'Reconnection',
+    action: 'Reach out or reconnect with someone aligned to your purpose.',
+    reflection: '"Who restores my alignment?"',
   ),
   DecanDayInfo(
     day: 17,
-    theme: 'Remove Confusion',
-    action: 'Separate signal from noise.',
-    reflection: '“What is distracting me from the real pattern?”',
+    theme: 'Recommitment',
+    action: 'Re-state your vow, but louder and more specific.',
+    reflection: '"What deserves another push?"',
   ),
   DecanDayInfo(
     day: 18,
-    theme: 'Prepare the Word',
-    action: 'Shape the message before releasing it.',
-    reflection: '“What must be said accurately?”',
+    theme: 'Abundance Flow',
+    action: 'Accept prosperity or recognition gracefully.',
+    reflection: '"How do I receive with Ma\'at?"',
   ),
   DecanDayInfo(
     day: 19,
-    theme: 'Record the Coherence',
-    action: 'Write the pattern, not only the events.',
-    reflection: '“What relationship among things must be remembered?”',
+    theme: 'Return Offering',
+    action: 'Give back again; close the loop you opened on Day 11.',
+    reflection: '"How can I close this exchange?"',
   ),
   DecanDayInfo(
     day: 20,
-    theme: 'Seal Integration',
-    action: 'Name what has become knowable.',
-    reflection: '“What has the heart brought into order?”',
+    theme: 'Transition',
+    action:
+        'Prepare for the next decan. Archive what matters and release what does not.',
+    reflection: '"What lesson is ready to move forward?"',
   ),
 ];
 
 final List<DecanDayInfo> _compressedThothFlowRows3 = [
   DecanDayInfo(
     day: 21,
-    theme: 'Release the Record',
-    action: 'Share one true measure in a usable form.',
-    reflection: '“What knowledge must leave my private mind?”',
+    theme: 'Claim Authority',
+    action:
+        'State clearly, to yourself or aloud, who you are in this season. Title yourself.',
+    reflection: '"What role do I hold now, without apology?"',
   ),
   DecanDayInfo(
     day: 22,
-    theme: 'Speak What Was Seen',
-    action: 'Say the clean sentence without ornament.',
-    reflection: '“What is the truth as simply as it can be spoken?”',
+    theme: 'Set Boundaries',
+    action: 'Draw one boundary that protects your work or energy.',
+    reflection: '"What drains me that I will no longer permit?"',
   ),
   DecanDayInfo(
     day: 23,
-    theme: 'Write the Boundary',
-    action: 'Record what will need restoration later.',
-    reflection: '“What line must be remembered?”',
+    theme: 'Structure Workflow',
+    action: 'Define repeatable structure: hours, rituals, checkpoints.',
+    reflection: '"What predictable rhythm keeps me aligned?"',
   ),
   DecanDayInfo(
     day: 24,
-    theme: 'Make Knowledge Useful',
-    action: 'Turn observation into guidance.',
-    reflection: '“Who or what can this record help?”',
+    theme: 'Protect Focus',
+    action:
+        'Remove distractions, access, or obligations that fracture attention.',
+    reflection: '"Who or what pulls me off my path?"',
   ),
   DecanDayInfo(
     day: 25,
-    theme: 'Protect the Name',
-    action: 'Keep the wording accurate and clean.',
-    reflection: '“What must not be distorted?”',
+    theme: 'Stability Check',
+    action: 'Audit your material base: money, tools, space.',
+    reflection: '"Do I have what I need to sustain this identity?"',
   ),
   DecanDayInfo(
     day: 26,
-    theme: 'Carry the Measure Forward',
-    action: 'Let the record guide one action.',
-    reflection: '“How does this measure shape the next step?”',
+    theme: 'Lineage Alignment',
+    action: 'Connect your purpose to ancestry, legacy, or historical current.',
+    reflection: '"Who walked this pattern before me?"',
   ),
   DecanDayInfo(
     day: 27,
-    theme: 'Correct the Ledger',
-    action: 'Fix one false or vague account.',
-    reflection: '“Where does the record need truth?”',
+    theme: 'Public Presentation',
+    action:
+        'Present yourself in alignment: appearance, language, posture, bio, portfolio, or feed.',
+    reflection: '"Does the world see the real current I\'m carrying?"',
   ),
   DecanDayInfo(
     day: 28,
-    theme: 'Teach the Sign',
-    action: 'Explain one pattern so another hand can use it.',
-    reflection: '“What can be taught clearly now?”',
+    theme: 'Codify Standard',
+    action:
+        'Write or record your code: how you operate, what you do, and what you do not do.',
+    reflection: '"What law do I live under?"',
   ),
   DecanDayInfo(
     day: 29,
-    theme: 'Place the Record',
-    action: 'Put knowledge where it can be found.',
-    reflection: '“Where will future action look for this?”',
+    theme: 'Fortify the Perimeter',
+    action:
+        'Put protection in place: legal, financial, emotional, or time-guarding.',
+    reflection: '"How do I defend this standard?"',
   ),
   DecanDayInfo(
     day: 30,
-    theme: 'Seal Expression',
-    action: 'Close the opening month with truth preserved.',
-    reflection: '“What has been measured enough to return to order?”',
+    theme: 'Lock the Identity',
+    action:
+        'Close the month of Thoth: archive lessons and name this month\'s core truth.',
+    reflection: '"What identity is now permanent going forward?"',
   ),
 ];
 
 final List<DecanDayInfo> _compressedPaopiFlowRows1 = [
   DecanDayInfo(
     day: 1,
-    theme: 'Begin the Crossing',
-    action: 'Take the first measured movement.',
-    reflection: '“What is ready to move now?”',
+    theme: 'Accept the Load',
+    action: 'Name what you are now carrying forward from last month.',
+    reflection: '"What work is truly mine to move?"',
   ),
   DecanDayInfo(
     day: 2,
-    theme: 'Balance the Load',
-    action: 'Adjust what is being carried before moving farther.',
-    reflection: '“What must be balanced before the crossing?”',
+    theme: 'Join the Current',
+    action:
+        'Re-sync with your people, crew, or household so you are not dragging alone.',
+    reflection: '"Who is moving beside me in this season?"',
   ),
   DecanDayInfo(
     day: 3,
-    theme: 'Trust the Channel',
-    action: 'Use the route that measure has shown.',
-    reflection: '“What path is open enough to trust?”',
+    theme: 'Steady the Pace',
+    action: 'Choose a repeatable pace instead of panic bursts.',
+    reflection: '"Can I continue this rhythm for 10 days without collapse?"',
   ),
   DecanDayInfo(
     day: 4,
-    theme: 'Move Without Haste',
-    action: 'Take one step without panic.',
-    reflection: '“Where does motion need calm?”',
+    theme: 'Carry With Grace',
+    action: 'Treat the work as sacred process, not humiliation or desperation.',
+    reflection: '"Do I see my labor as honor or insult?"',
   ),
   DecanDayInfo(
     day: 5,
-    theme: 'Carry the Message',
-    action: 'Send or deliver what must move in truth.',
-    reflection: '“What must reach its place?”',
+    theme: 'Shared Provisioning',
+    action: 'Shift weight, redistribute load, ask for help, and give help.',
+    reflection: '"Where can balanced effort keep us all upright?"',
   ),
   DecanDayInfo(
     day: 6,
-    theme: 'Protect the Cargo',
-    action: 'Guard what is being transported.',
-    reflection: '“What could be spilled or distorted?”',
+    theme: 'Alignment in Motion',
+    action:
+        'Audit the cargo: am I hauling what serves my path, or someone else\'s chaos?',
+    reflection: '"Does this weight belong to my purpose?"',
   ),
   DecanDayInfo(
     day: 7,
-    theme: 'Read the Current',
-    action: 'Observe how the path responds while moving.',
-    reflection: '“What does movement reveal?”',
+    theme: 'Voice of the Procession',
+    action:
+        'Speak in alignment with the work you do. Announce yourself like part of a sacred procession.',
+    reflection: '"Does my language reflect who I actually am?"',
   ),
   DecanDayInfo(
     day: 8,
-    theme: 'Keep the Crew Aligned',
-    action: 'Coordinate with those who carry beside you.',
-    reflection: '“Who must move in rhythm with me?”',
+    theme: 'Nourish the Carrier',
+    action:
+        'Restore the body doing the carrying: rest, water, minerals, food, breath.',
+    reflection: '"What restores the one holding the load?"',
   ),
   DecanDayInfo(
     day: 9,
-    theme: 'Record the Movement',
-    action: 'Account for what has moved and what remains.',
-    reflection: '“What actually traveled?”',
+    theme: 'Honor the Route',
+    action:
+        'Name where this work is headed, and why it matters when it reaches there.',
+    reflection: '"Where is this going, and who will it feed?"',
   ),
   DecanDayInfo(
     day: 10,
-    theme: 'Seal the First Crossing',
-    action: 'Name what began in measure.',
-    reflection: '“Did the first movement preserve Ma’at?”',
+    theme: 'Consecrate the Labor',
+    action: 'Declare: this is not struggle theater; this is offering.',
+    reflection: '"How does my work stabilize Ma\'at around me?"',
   ),
 ];
 
 final List<DecanDayInfo> _compressedPaopiFlowRows2 = [
   DecanDayInfo(
     day: 11,
-    theme: 'Bring Motion to the Heart',
-    action: 'Let discernment regulate effort.',
-    reflection: '“What governs this movement?”',
+    theme: 'Spark the Outposts',
+    action:
+        'Identify every place, person, or pocket of your world that needs touch, presence, or supply from you.',
+    reflection: '"Who depends on me staying connected, not disappearing?"',
   ),
   DecanDayInfo(
     day: 12,
-    theme: 'Keep the Pace',
-    action: 'Choose a rhythm that can continue.',
-    reflection: '“What pace can hold?”',
+    theme: 'Send the Carry Forward',
+    action:
+        'Deliver something outward: a resource, message, payment, repair, comfort, or protection, even if it is small.',
+    reflection: '"What can I send that proves you are not abandoned?"',
   ),
   DecanDayInfo(
     day: 13,
-    theme: 'Adjust While Moving',
-    action: 'Correct the route without stopping the passage.',
-    reflection: '“What needs adjustment in motion?”',
+    theme: 'Establish Channels',
+    action:
+        'Formalize the lane: schedule, route, contact rhythm, or standing check-in.',
+    reflection: '"How do I keep this connection alive without chaos?"',
   ),
   DecanDayInfo(
     day: 14,
-    theme: 'Protect the Carrier',
-    action: 'Care for the body, tool, or system that carries.',
-    reflection: '“What carries this and what does it need?”',
+    theme: 'Exchange, Not Extraction',
+    action:
+        'Make sure the flow goes both ways; this is partnership, not tribute.',
+    reflection:
+        '"Is this relationship mutual, or am I draining or being drained?"',
   ),
   DecanDayInfo(
     day: 15,
-    theme: 'Keep the Word True',
-    action: 'Do not distort the message across distance.',
-    reflection: '“Does my word remain accurate while moving?”',
+    theme: 'Witness the Remote Labor',
+    action:
+        'Acknowledge work happening away from you. Name and respect what others are carrying where you cannot see them.',
+    reflection: '"Who is holding it down in silence, and have I honored them?"',
   ),
   DecanDayInfo(
     day: 16,
-    theme: 'Share the Work',
-    action: 'Redistribute what one person should not carry alone.',
-    reflection: '“What needs another shoulder?”',
+    theme: 'Reinforce Weak Zones',
+    action:
+        'Go where the system is thin, tired, or unstable and strengthen it.',
+    reflection:
+        '"Where is Ma\'at wobbling right now, and how can I steady it?"',
   ),
   DecanDayInfo(
     day: 17,
-    theme: 'Cool the Strain',
-    action: 'Remove heat from effort.',
-    reflection: '“Where is movement becoming too hot?”',
+    theme: 'Carry Messages of Ma\'at',
+    action:
+        'Speak peace, structure, and clarity across distance. Set emotional tone in the spaces you touch.',
+    reflection: '"What tone am I sending into rooms I\'m not physically in?"',
   ),
   DecanDayInfo(
     day: 18,
-    theme: 'Continue Cleanly',
-    action: 'Take the next step without drama.',
-    reflection: '“Can I move without making strain my identity?”',
+    theme: 'Tend the Network Health',
+    action:
+        'Check for resentment, isolation, miscommunication, or resource starving. Repair tension fast.',
+    reflection: '"Where is fracture starting?"',
   ),
   DecanDayInfo(
     day: 19,
-    theme: 'Count the Distance',
-    action: 'Record cost, progress, and remaining path.',
-    reflection: '“What has this effort carried forward?”',
+    theme: 'Account for the Web',
+    action:
+        'Step back and map the whole web: where resources are, where they need to go next.',
+    reflection:
+        '"Do I understand the system I\'m part of, or am I just reacting?"',
   ),
   DecanDayInfo(
     day: 20,
-    theme: 'Seal Sustained Effort',
-    action: 'Name what lets motion remain lawful.',
-    reflection: '“How will this movement continue in Ma’at?”',
+    theme: 'Bless the Distributed Body',
+    action:
+        'Offer gratitude and blessing to everyone in the network, including yourself.',
+    reflection:
+        '"Can I honor this whole body of effort, not just the piece I touch?"',
   ),
 ];
 
 final List<DecanDayInfo> _compressedPaopiFlowRows3 = [
   DecanDayInfo(
     day: 21,
-    theme: 'Recognize Stable Motion',
-    action: 'Notice what now travels reliably.',
-    reflection: '“What movement has proven steady?”',
+    theme: 'Step Into Stewardship',
+    action:
+        'Accept that you are now responsible for guarding what was moved and shared.',
+    reflection:
+        '"What territory, people, or system am I responsible for protecting right now?"',
   ),
   DecanDayInfo(
     day: 22,
-    theme: 'Trust the Route',
-    action: 'Use the known path without rechecking from fear.',
-    reflection: '“What path has earned trust?”',
+    theme: 'Inspect the Channels',
+    action:
+        'Check for leaks, blockages, weak banks, damage, theft, or decay in the routes of money, emotion, resource, or attention.',
+    reflection: '"Where is loss happening?"',
   ),
   DecanDayInfo(
     day: 23,
-    theme: 'Make the Delivery',
-    action: 'Place what has arrived into the right hands.',
-    reflection: '“What has reached its destination?”',
+    theme: 'Verify the Storehouse',
+    action:
+        'Count what is actually there versus what was promised. No fantasy math.',
+    reflection: '"Are the accounts honest?"',
   ),
   DecanDayInfo(
     day: 24,
-    theme: 'Repair the Boat',
-    action: 'Maintain the vessel after movement.',
-    reflection: '“What carried the work and now needs care?”',
+    theme: 'Call Out Rot',
+    action:
+        'Name corruption, laziness, sabotage, or lies calmly and factually.',
+    reflection:
+        '"Where is someone faking alignment with Ma\'at but actually draining it?"',
   ),
   DecanDayInfo(
     day: 25,
-    theme: 'Share the Result',
-    action: 'Let stable motion benefit the relation it serves.',
-    reflection: '“Who should receive from this arrival?”',
+    theme: 'Restore Standards',
+    action: 'Reassert boundaries, expectations, and codes of conduct.',
+    reflection: '"What line must be redrawn so balance survives?"',
   ),
   DecanDayInfo(
     day: 26,
-    theme: 'Refuse Drift',
-    action: 'Do not keep moving without purpose.',
-    reflection: '“Where has motion become wandering?”',
+    theme: 'Reassign Responsibility',
+    action:
+        'Move duties to the people who can actually carry them without collapse or betrayal.',
+    reflection: '"Who should really be holding this role?"',
   ),
   DecanDayInfo(
     day: 27,
-    theme: 'Set the Next Route',
-    action: 'Prepare the next movement from the stable one.',
-    reflection: '“What route opens from here?”',
+    theme: 'Seal the Agreements',
+    action:
+        'Make it explicit: who is doing what, for whom, by when, and with what support.',
+    reflection: '"Do we all understand what we just agreed to?"',
   ),
   DecanDayInfo(
     day: 28,
-    theme: 'Record the Stable Pattern',
-    action: 'Preserve the method that worked.',
-    reflection: '“What should be repeated?”',
+    theme: 'Report Up to the Light',
+    action:
+        'Acknowledge openly, to yourself, your people, or Source, what is true: progress and failures.',
+    reflection: '"Can I speak the real status without flinching?"',
   ),
   DecanDayInfo(
     day: 29,
-    theme: 'Rest After Arrival',
-    action: 'Allow motion to settle.',
-    reflection: '“What can stop because it has arrived?”',
+    theme: 'Stabilize the System',
+    action:
+        'Patch, repair, redistribute, and lock things down so they hold through the next month.',
+    reflection: '"What needs to be fixed today so it won\'t break tomorrow?"',
   ),
   DecanDayInfo(
     day: 30,
-    theme: 'Seal Stability',
-    action: 'Close Paopi with movement made trustworthy.',
-    reflection: '“What can now travel without losing its measure?”',
+    theme: 'Offer Stewardship Back to Ra',
+    action:
+        'Close the cycle by saying: I watched this in truth. I protected it. I stayed clean.',
+    reflection: '"Did I act as keeper of Ma\'at, or as owner?"',
   ),
 ];
 
 final List<DecanDayInfo> _compressedHathorFlowRows1 = [
   DecanDayInfo(
     day: 1,
-    theme: 'Feel the Ground Hold',
+    theme: 'Read the Field',
     action:
-        'Walk slowly through the structures of life and identify what has actually stabilized.',
-    reflection: '“What in my life has proven it can endure?”',
+        'Walk whatever territory the flood season touched — home, body, bonds, work — and record honestly what remains. Not how it made you feel. The actual condition.',
+    reflection:
+        '"What held, and at what cost? What broke, and who is owed for it?"',
   ),
   DecanDayInfo(
     day: 2,
-    theme: 'Return to the Path',
+    theme: 'Maintain the Vessel',
     action:
-        'Resume one rhythm or responsibility that disruption pushed out of place.',
-    reflection: '“What part of my life is ready to become regular again?”',
+        'Tend the body as you would a temple instrument: water, food, rest, movement. Not as reward. As maintenance of the Ka\'s dwelling place.',
+    reflection:
+        '"Where have I treated my body as expendable rather than as the vessel through which I serve?"',
   ),
   DecanDayInfo(
     day: 3,
-    theme: 'Release the Brace',
-    action: 'Relax one place in the body or mind that still expects collapse.',
-    reflection: '“Where am I still protecting myself from yesterday?”',
+    theme: 'Clear the Threshold',
+    action:
+        'Remove disorder from the spaces through which life passes: doorway, altar corner, workspace, kitchen. Restore proper arrangement.',
+    reflection:
+        '"What disorder have I been living around because correcting it felt like one thing too many?"',
   ),
   DecanDayInfo(
     day: 4,
-    theme: 'Trust the Structure',
-    action: 'Use what has been built instead of hovering over it anxiously.',
-    reflection: '“Do I trust my foundations enough to stand on them?”',
+    theme: 'Announce That Order Holds',
+    action:
+        'Choose one deliberate act of delight — music, prepared food, fragrance, beauty made or shared — and perform it as declaration, not as escape.',
+    reflection:
+        '"When I choose joy today, what am I publicly claiming about what has been preserved?"',
   ),
   DecanDayInfo(
     day: 5,
-    theme: 'Re-enter Beauty',
+    theme: 'Restore the Household',
     action:
-        'Bring music, fragrance, sunlight, order, or softness back into the environment.',
+        'Tend the home as you would an outer temple court: with attention, offering, and the recognition that domestic order is not incidental.',
     reflection:
-        '“What makes my life feel inhabited again instead of merely survived?”',
+        '"Does my household reflect the level of Maʿat I say I am committed to?"',
   ),
   DecanDayInfo(
     day: 6,
-    theme: 'Work Without Strain',
-    action: 'Continue labor steadily while removing unnecessary urgency.',
-    reflection: '“Where am I making the work heavier than it truly is?”',
+    theme: 'Return What Was Borrowed',
+    action:
+        'Give real, unhurried, undistracted presence to those from whom you withdrew during the hard months.',
+    reflection:
+        '"Whose weeping have I caused this season by withholding what I owed them?"',
   ),
   DecanDayInfo(
     day: 7,
-    theme: 'Recognize What Returned',
-    action: 'Name something once feared lost that has now come back into form.',
-    reflection: '“What has quietly returned to me?”',
+    theme: 'Produce Beauty as Service',
+    action:
+        'Make or share one thing of beauty — not for display, but directed toward someone or something that needs it.',
+    reflection:
+        '"Is what I made today for me, or for the world that sustains me?"',
   ),
   DecanDayInfo(
     day: 8,
-    theme: 'Share the Stability',
+    theme: 'Name What Your Labor Serves',
     action:
-        'Offer reassurance, steadiness, or support to someone still living in uncertainty.',
-    reflection: '“How can my stability become shelter for someone else?”',
+        'Before the main work of the day begins, state aloud what it is in service of. Then proceed on that basis alone.',
+    reflection:
+        '"Am I working to restore order, or to perform the appearance of effort?"',
   ),
   DecanDayInfo(
     day: 9,
-    theme: 'Let Joy Enter Carefully',
-    action: 'Allow relief and pleasure to return without guilt or excess.',
-    reflection: '“Can I receive joy without distrusting it?”',
+    theme: 'Carry Yourself According to Your Conduct',
+    action:
+        'Review your actions across this decan. Carry yourself with the bearing those actions have earned — no more, no less.',
+    reflection:
+        '"What does my conduct actually say I am? Is that the person I am willing to publicly stand as?"',
   ),
   DecanDayInfo(
     day: 10,
-    theme: 'Confirm Continuity',
+    theme: 'Seal the Account',
     action:
-        'Mark the end of the decan by recognizing what remained standing through change.',
-    reflection: '“What in my life now feels trustworthy again?”',
+        'Name every force that sustained you this decan — people, practices, divine presences. Offer something to each. Seal the reckoning before ḥry-ib sꜣḥ opens.',
+    reflection:
+        '"What debts of gratitude am I carrying into the next cycle because I have not yet named and offered them?"',
   ),
 ];
 
 final List<DecanDayInfo> _compressedHathorFlowRows2 = [
   DecanDayInfo(
     day: 11,
-    theme: 'Find the Shared Rhythm',
+    theme: 'Name the Bond',
     action:
-        'Name the people, spaces, or systems that now have to move in rhythm with you.',
+        'Declare aloud who you stand with — in labor, household, or purpose. The naming makes the bond answerable.',
     reflection:
-        '“Who is affected by my stability, and who must I move with in balance?”',
+        '"What bonds am I drawing from without formally acknowledging them?"',
   ),
   DecanDayInfo(
     day: 12,
-    theme: 'Name the Relation',
+    theme: 'Align the Tempo',
     action:
-        'Speak clearly about the bond, role, agreement, or shared duty that needs definition.',
+        'Identify where your rhythm and another\'s are in collision. Negotiate the shared cadence: work time, rest time, decision pace.',
     reflection:
-        '“What relationship needs to be named honestly before it can become harmonious?”',
+        '"Where does our timing create damage that neither of us has addressed?"',
   ),
   DecanDayInfo(
     day: 13,
-    theme: 'Balance the Load',
+    theme: 'Redistribute the Load',
     action:
-        'Look for uneven weight in household, work, care, money, emotional labor, or planning.',
+        'Audit who carries what in the bonds you belong to. Where the weight is unequal, make the correction material — not conversational.',
     reflection:
-        '“Where has one person or one part of the system been carrying too much?”',
+        '"Who is carrying more than their portion in a bond I am part of, and what have I actually done about it?"',
   ),
   DecanDayInfo(
     day: 14,
-    theme: 'Speak Before Tension Hardens',
+    theme: 'Speak the Difficult Truth',
     action:
-        'Address one point of friction while it is still small enough to be repaired cleanly.',
+        'Name one thing that is not working in the bond — directly, without accusation, without softening it past meaning.',
     reflection:
-        '“What truth needs to be spoken before silence turns into resentment?”',
+        '"What am I allowing to remain unspoken because speaking it requires something of me?"',
   ),
   DecanDayInfo(
     day: 15,
-    theme: 'Repair the Common Space',
+    theme: 'Maintain What You Share',
     action:
-        'Tend one shared structure: room, schedule, account, agreement, workspace, meal rhythm, or boundary.',
+        'Identify one shared system that has been neglected — money, schedule, household structure, agreed terms — and repair it.',
     reflection:
-        '“What shared structure needs repair so everyone can breathe again?”',
+        '"What shared structure have I been benefiting from without contributing to?"',
   ),
   DecanDayInfo(
     day: 16,
-    theme: 'Protect Mutual Dignity',
+    theme: 'Guard the Name in Absence',
     action:
-        'Defend someone’s name, privacy, effort, or humanity where it has been exposed or weakened.',
+        'In every conversation today where those you are bonded with are not present, defend their name and dignity as standing practice.',
     reflection:
-        '“Do I protect dignity when the person is not present to defend it?”',
+        '"Would the people I am bonded with recognize themselves in how I describe them when they are not in the room?"',
   ),
   DecanDayInfo(
     day: 17,
-    theme: 'Let Beauty Coordinate',
+    theme: 'Correct the Attribution',
     action:
-        'Use beauty, warmth, music, shared food, kind words, or ordered space to restore cooperation.',
-    reflection: '“How can beauty help this system move together again?”',
+        'Wherever shared work might be credited only to you, name the others. Correct the record in the moment, not after.',
+    reflection:
+        '"Where have I received credit for what was carried with others and not corrected that?"',
   ),
   DecanDayInfo(
     day: 18,
-    theme: 'Adjust the Pattern',
+    theme: 'Check the Alignment',
     action:
-        'Change the rhythm so it becomes sustainable for everyone involved.',
-    reflection: '“What adjustment would make this pattern easier to maintain?”',
+        'Examine one aspect of the bond for gradual drift from agreed terms. Correct it now, while the correction is still small.',
+    reflection:
+        '"What has quietly shifted from what was agreed, and how long has it been shifting without address?"',
   ),
   DecanDayInfo(
     day: 19,
-    theme: 'Rest in the Same Peace',
-    action: 'Share quiet without fixing, proving, explaining, or managing.',
+    theme: 'Rest in Shared Space',
+    action:
+        'Be still in the presence of someone you are bonded with — no agenda, no management, no usefulness required as justification for being there.',
     reflection:
-        '“Can I be still with others without turning stillness into performance?”',
+        '"Can this bond hold me in stillness, or does it only hold me when I am producing something?"',
   ),
   DecanDayInfo(
     day: 20,
-    theme: 'Confirm Harmony',
+    theme: 'Declare What the Bond Produces',
     action:
-        'Close the decan by naming what now moves more smoothly because relation was restored.',
+        'State plainly what this partnership is for — what Maʿat it sustains in the world beyond the two of you.',
     reflection:
-        '“What has become more balanced because it was brought back into right relation?”',
+        '"If this bond were described only by what it builds in the world, what would that description be?"',
   ),
 ];
 
 final List<DecanDayInfo> _compressedHathorFlowRows3 = [
   DecanDayInfo(
     day: 21,
-    theme: 'Let Order Be Seen',
+    theme: 'State What Must Be Built',
     action:
-        'Allow one stable part of life, work, body, or character to become visible without apology.',
+        'Name one thing the order requires you to bring into material existence. Not what you want to create — what is actually needed from you in this season.',
     reflection:
-        '“What is ready to be seen because it has actually become stable?”',
+        '"Am I building what I want, or what Maʿat requires of me right now?"',
   ),
   DecanDayInfo(
     day: 22,
-    theme: 'Refine the Surface',
-    action: 'Polish the visible layer of something that already holds.',
-    reflection: '“Does the outer form honor the order underneath it?”',
+    theme: 'Orient Before Building',
+    action:
+        'Before beginning, establish the alignment that precedes personal preference: purpose, direction, and the larger order this build must answer to.',
+    reflection:
+        '"Have I checked this against what it must serve, or only against what I intend?"',
   ),
   DecanDayInfo(
     day: 23,
-    theme: 'Reflect the Light',
+    theme: 'Begin the Dialogue With Matter',
     action:
-        'Return praise, visibility, or attention toward the source that made this stability possible.',
-    reflection: '“What light am I reflecting, and where did it come from?”',
+        'Start forming — draft, sketch, frame, shape. Do not wait for the final form before beginning the conversation with the material.',
+    reflection:
+        '"Where is my demand for the perfect form preventing me from beginning at all?"',
   ),
   DecanDayInfo(
     day: 24,
-    theme: 'Remove False Shine',
+    theme: 'Make It Exist',
     action:
-        'Strip away one performance, exaggeration, or decorative layer that does not serve truth.',
+        'Place the first visible, material piece of this into the world today — not planned, not noted, but existing outside your mind.',
     reflection:
-        '“Where am I trying to look whole instead of letting what is whole show naturally?”',
+        '"What stands in material form today that did not exist yesterday because of what I did?"',
   ),
   DecanDayInfo(
     day: 25,
-    theme: 'Make Beauty Useful',
-    action: 'Use beauty to improve function.',
-    reflection: '“How can beauty help this thing serve life better?”',
+    theme: 'Inscribe the Purpose',
+    action:
+        'Write, speak, or otherwise declare what this structure is for, for whom, and what it must sustain. Not a plan — a consecration.',
+    reflection:
+        '"Could someone other than me know what this is for without being told?"',
   ),
   DecanDayInfo(
     day: 26,
-    theme: 'Share Joy Without Waste',
-    action: 'Offer joy in a measured way.',
+    theme: 'Seal the Weakness',
+    action:
+        'Inspect what you have raised for the place where entropy or opportunism will enter first. Seal it before it becomes a failure.',
     reflection:
-        '“Does this joy nourish the pattern, or does it spend what should be preserved?”',
+        '"Where have I left the build undefended because I preferred to believe it was secure?"',
   ),
   DecanDayInfo(
     day: 27,
-    theme: 'Stand in Worth',
-    action: 'Carry yourself according to the dignity of what has endured.',
-    reflection: '“Where do I still act smaller than what I have become?”',
+    theme: 'Complete the Surface',
+    action:
+        'Attend to the finish: presentation, coherence, the care visible in the final layer. Complete it as if the divine were judging whether it is fit for purpose.',
+    reflection:
+        '"Is the surface of this work worthy of the purpose I declared for it?"',
   ),
   DecanDayInfo(
     day: 28,
-    theme: 'Cool the Eye',
+    theme: 'Release Ownership, Accept Stewardship',
     action:
-        'Notice where visibility, praise, desire, or heat could turn into excess.',
-    reflection: '“Where does my radiance need cooling so it can remain clean?”',
+        'Formally hand the build over to its stated purpose. You are now its keeper. You are not its possessor.',
+    reflection:
+        '"What am I still gripping in this build that belongs to its purpose and not to me?"',
   ),
   DecanDayInfo(
     day: 29,
-    theme: 'Leave a Sign of Order',
+    theme: 'Use It',
     action:
-        'Create or mark one visible sign that beauty, stability, and right relation have been restored.',
+        'Engage what you built — the system, the practice, the structure. Not to evaluate it. To sustain the dedication through actual, repeated use.',
     reflection:
-        '“What can remain after today as evidence that Ma’at was strengthened?”',
+        '"What have I built that sits unused, and what does that say about whether the dedication was sincere?"',
   ),
   DecanDayInfo(
     day: 30,
-    theme: 'Seal the Radiance',
+    theme: 'Write the Record',
     action:
-        'Close Hathor by naming what beauty now protects, nourishes, and makes visible.',
+        'Document what was built this month, who contributed, what it is for, and what it now sustains. This is the account Maʿat holds.',
     reflection:
-        '“What joy can I carry forward because it has proven itself in Ma’at?”',
+        '"If this record were read after I am gone, would it honestly reflect what happened this month?"',
   ),
 ];
 
@@ -612,7 +676,8 @@ final List<DecanDayInfo> _compressedKaherkaFlowRows1 = [
     theme: 'Recognize Returning Strength',
     action:
         'Notice one place where energy, stability, or willingness has begun to return.',
-    reflection: '“Where is life quietly coming back into me?”',
+    reflection:
+        '"Where is vitality accumulating that I have not yet acknowledged?"',
   ),
   DecanDayInfo(
     day: 2,
@@ -620,59 +685,66 @@ final List<DecanDayInfo> _compressedKaherkaFlowRows1 = [
     action:
         'Try one small action that confirms capacity without forcing full performance.',
     reflection:
-        '“What can I do now without pretending I am ready for everything?”',
+        '"What does this small action tell me about what I am actually ready to do?"',
   ),
   DecanDayInfo(
     day: 3,
     theme: 'Gather the Body',
     action:
         'Bring attention back to breath, food, sleep, posture, movement, and physical rhythm.',
-    reflection: '“What part of my body needs to be gathered back into care?”',
+    reflection:
+        '"Which physical function has gone unfed longest — and what is the cost to everything that depends on it?"',
   ),
   DecanDayInfo(
     day: 4,
     theme: 'Protect the Root',
     action:
         'Guard what is newly returning from criticism, overuse, or premature exposure.',
-    reflection: '“What is still too young to be handled roughly?”',
+    reflection:
+        '"What am I exposing to demand before it has developed the capacity to meet that demand?"',
   ),
   DecanDayInfo(
     day: 5,
     theme: 'Feed the Ka',
     action: 'Give real nourishment to what is trying to continue.',
-    reflection: '“What must be fed if it is going to live?”',
+    reflection:
+        '"What would grow if I fed it correctly? What is diminishing because I have not?"',
   ),
   DecanDayInfo(
     day: 6,
     theme: 'Strength Without Display',
     action: 'Use power quietly today.',
-    reflection: '“Can I trust strength that does not announce itself?”',
+    reflection:
+        '"Where am I spending returned strength on display rather than on use?"',
   ),
   DecanDayInfo(
     day: 7,
     theme: 'Brace Before Motion',
     action: 'Prepare the support before taking the larger step.',
-    reflection: '“What must be braced before I move forward?”',
+    reflection:
+        '"What preparation is being skipped in the desire to move quickly?"',
   ),
   DecanDayInfo(
     day: 8,
     theme: 'Move One Limb',
     action:
         'Take one controlled step toward the life-pattern returning to form.',
-    reflection: '“What single movement proves I am returning?”',
+    reflection:
+        '"Which single movement, completed today, would prove that this restoration is real?"',
   ),
   DecanDayInfo(
     day: 9,
     theme: 'Confirm Capacity',
     action: 'Review what the body, mind, and situation can now carry honestly.',
-    reflection: '“What can I carry now that I could not carry before?”',
+    reflection:
+        '"If I counted what I can genuinely carry right now — not what I wish I could, not what I could before — what is the honest number?"',
   ),
   DecanDayInfo(
     day: 10,
     theme: 'Seal Renewed Strength',
     action: 'Name the strength that has returned and how it must be protected.',
     reflection:
-        '“What strength has come back, and what law will keep it alive?”',
+        '"What does the body know now that it could not have known ten days ago?"',
   ),
 ];
 
@@ -681,59 +753,68 @@ final List<DecanDayInfo> _compressedKaherkaFlowRows2 = [
     day: 11,
     theme: 'Bring Strength to the Heart',
     action: 'Pause before using returned energy.',
-    reflection: '“What strength has returned, and what should govern it?”',
+    reflection:
+        '"What does the ib say about how this strength should move today?"',
   ),
   DecanDayInfo(
     day: 12,
     theme: 'Name the Impulse',
     action:
         'Notice the urge to rush, prove, fix, control, or overgive before acting.',
-    reflection: '“What impulse wants to move before it has been measured?”',
+    reflection:
+        '"What is this impulse actually trying to accomplish — and is that what I intend?"',
   ),
   DecanDayInfo(
     day: 13,
     theme: 'Choose the Right Load',
     action: 'Select one responsibility that truly belongs to this stage.',
-    reflection: '“What load is mine now, and what load is not yet lawful?”',
+    reflection:
+        '"Which load, if taken on today, would deplete what is still accumulating rather than serve what is already established?"',
   ),
   DecanDayInfo(
     day: 14,
     theme: 'Moderate the Effort',
     action: 'Reduce excess force.',
-    reflection: '“Where am I using more force than the moment requires?”',
+    reflection:
+        '"What is the sign that I have exceeded the measure this situation can absorb?"',
   ),
   DecanDayInfo(
     day: 15,
     theme: 'Protect the Root From Excess',
     action:
         'Guard the new growth from overuse, exposure, pressure, or old patterns.',
-    reflection: '“What would damage this growth if I handled it too hard?”',
+    reflection:
+        '"What would continue to grow without my intervention, if I stopped treating growth as something that requires me?"',
   ),
   DecanDayInfo(
     day: 16,
     theme: 'Let the Heart Correct the Hand',
     action:
         'Correct one action, habit, or plan that has begun moving out of proportion.',
-    reflection: '“Where does my hand need the heart’s correction?”',
+    reflection:
+        '"What has my hand done today that, referred to the ib, would be corrected — and in what direction?"',
   ),
   DecanDayInfo(
     day: 17,
     theme: 'Speak From Steadiness',
     action: 'Use speech to protect balance.',
-    reflection: '“Does my speech carry strength under measure?”',
+    reflection:
+        '"Is what I am about to say grounded in what I have confirmed, or in the energy of what I hope is now possible?"',
   ),
   DecanDayInfo(
     day: 18,
     theme: 'Repair Overreach',
     action: 'Undo one place where returned strength became too much.',
-    reflection: '“Where did I overreach, and how can I restore proportion?”',
+    reflection:
+        '"What did I extend into this period that has revealed itself to be more than what is actually available right now?"',
   ),
   DecanDayInfo(
     day: 19,
     theme: 'Set the Law of Use',
     action:
         'Define how this renewed strength will be used, protected, paced, and refused.',
-    reflection: '“What law must govern this power so it serves Ma’at?”',
+    reflection:
+        '"If I name the law of use today, what does it require — and what does it explicitly prohibit?"',
   ),
   DecanDayInfo(
     day: 20,
@@ -741,7 +822,7 @@ final List<DecanDayInfo> _compressedKaherkaFlowRows2 = [
     action:
         'Name the difference between strength that serves and strength that consumes.',
     reflection:
-        '“How will I know when my strength is still in right relation?”',
+        '"What does it mean that this strength has now passed through the ib? What is different about it?"',
   ),
 ];
 
@@ -750,64 +831,73 @@ final List<DecanDayInfo> _compressedKaherkaFlowRows3 = [
     day: 21,
     theme: 'Place Strength Into Service',
     action: 'Choose one concrete place where renewed strength can serve life.',
-    reflection: '“Where is my strength actually needed?”',
+    reflection:
+        '"Of everything that needs what I now have, which need is most genuinely unmet?"',
   ),
   DecanDayInfo(
     day: 22,
     theme: 'Begin With the Necessary Task',
     action: 'Do the task that supports continuity first.',
-    reflection: '“What work matters because it keeps life moving?”',
+    reflection:
+        '"Which task, if left undone, creates a gap that everything else has to compensate for?"',
   ),
   DecanDayInfo(
     day: 23,
     theme: 'Use Power With Precision',
     action: 'Apply effort exactly where it is needed.',
     reflection:
-        '“Where will one precise action do more than ten scattered ones?”',
+        '"Where is my effort covering ground rather than serving the specific point of actual need?"',
   ),
   DecanDayInfo(
     day: 24,
     theme: 'Support What Is Growing',
     action: 'Strengthen the condition around new life.',
-    reflection: '“What support would help this growth continue?”',
+    reflection:
+        '"What is already growing that I could strengthen today, rather than beginning something new?"',
   ),
   DecanDayInfo(
     day: 25,
     theme: 'Refuse Wasteful Force',
     action: 'Stop one action that spends energy without serving the root.',
-    reflection: '“Where am I using strength just because I have it?”',
+    reflection:
+        '"What am I doing with returned strength today that I would not do if I were still in scarcity?"',
   ),
   DecanDayInfo(
     day: 26,
     theme: 'Carry the Right Weight',
     action: 'Accept one rightful responsibility and release one false burden.',
-    reflection: '“What weight strengthens me, and what weight distorts me?”',
+    reflection:
+        '"If I carried only what was mine and set down what belongs to someone else, what would change?"',
   ),
   DecanDayInfo(
     day: 27,
     theme: 'Make the Work Reliable',
     action:
         'Turn one useful action into a repeatable rhythm, system, or standard.',
-    reflection: '“How can this become dependable instead of occasional?”',
+    reflection:
+        '"What is the gap between doing this well and doing this reliably — and am I willing to close it?"',
   ),
   DecanDayInfo(
     day: 28,
     theme: 'Let Service Be Seen',
     action: 'Allow disciplined strength to become visible without performance.',
-    reflection: '“What proof of service can stand without boasting?”',
+    reflection:
+        '"What have I done in this month\'s labor that I have kept quiet — and does it deserve to be kept quiet?"',
   ),
   DecanDayInfo(
     day: 29,
     theme: 'Offer the Result',
     action:
         'Return some fruit of the work to household, community, altar, ancestor, or future need.',
-    reflection: '“Who or what should receive from what my strength produced?”',
+    reflection:
+        '"From what this month\'s strength has produced, what goes back to what made it possible?"',
   ),
   DecanDayInfo(
     day: 30,
     theme: 'Seal Applied Strength',
-    action: 'Name how renewed strength will continue to serve Ma’at.',
-    reflection: '“How will this strength remain useful after this month ends?”',
+    action: 'Name how renewed strength will continue to serve Ma\'at.',
+    reflection:
+        '"What can I carry into Šef-Bedet that Ka-ḥer-Ka has confirmed — not hoped for, not aspired to, but verified?"',
   ),
 ];
 
@@ -816,70 +906,70 @@ final List<DecanDayInfo> _compressedShefbedetFlowRows1 = [
     day: 1,
     theme: 'Notice the Fragile Growth',
     action:
-        'Notice the Fragile Growth in one concrete way, keeping the act measured and answerable to Ma’at.',
+        'Scan one living system — body, relationship, or project — for early signs of weakness before they become visible damage.',
     reflection: '“What does notice the fragile growth require now?”',
   ),
   DecanDayInfo(
     day: 2,
     theme: 'Check the Water',
     action:
-        'Check the Water in one concrete way, keeping the act measured and answerable to Ma’at.',
+        'Examine the quality and quantity of what nourishes something you are tending — time, attention, money, or care — and adjust what is off.',
     reflection: '“What does check the water require now?”',
   ),
   DecanDayInfo(
     day: 3,
     theme: 'Find the Uneven Place',
     action:
-        'Find the Uneven Place in one concrete way, keeping the act measured and answerable to Ma’at.',
+        'Identify one area receiving too much or too little and name the imbalance precisely before attempting to correct it.',
     reflection: '“What does find the uneven place require now?”',
   ),
   DecanDayInfo(
     day: 4,
     theme: 'Tend Without Smothering',
     action:
-        'Tend Without Smothering in one concrete way, keeping the act measured and answerable to Ma’at.',
+        'Offer one act of care that strengthens without controlling, then withdraw your hand.',
     reflection: '“What does tend without smothering require now?”',
   ),
   DecanDayInfo(
     day: 5,
     theme: 'Protect the Tender Root',
     action:
-        'Protect the Tender Root in one concrete way, keeping the act measured and answerable to Ma’at.',
+        'Name one new or fragile thing that needs shielding from exposure, overuse, or premature judgment.',
     reflection: '“What does protect the tender root require now?”',
   ),
   DecanDayInfo(
     day: 6,
     theme: 'Feed the Right Place',
     action:
-        'Feed the Right Place in one concrete way, keeping the act measured and answerable to Ma’at.',
+        'Direct one unit of energy — attention, money, or time — specifically where genuine need is, not where habit points.',
     reflection: '“What does feed the right place require now?”',
   ),
   DecanDayInfo(
     day: 7,
     theme: 'Remove the Drain',
     action:
-        'Remove the Drain in one concrete way, keeping the act measured and answerable to Ma’at.',
+        'Identify and stop one thing that takes without returning — a habit, obligation, or pattern drawing more than it gives.',
     reflection: '“What does remove the drain require now?”',
   ),
   DecanDayInfo(
     day: 8,
     theme: 'Record the Signs',
     action:
-        'Record the Signs in one concrete way, keeping the act measured and answerable to Ma’at.',
+        'Write one observation about how something is growing or struggling so it can be compared against the next observation.',
     reflection: '“What does record the signs require now?”',
   ),
   DecanDayInfo(
     day: 9,
     theme: 'Strengthen the Care Rhythm',
     action:
-        'Strengthen the Care Rhythm in one concrete way, keeping the act measured and answerable to Ma’at.',
+        'Turn one act of nourishment into a repeatable pattern rather than an occasional effort.',
     reflection: '“What does strengthen the care rhythm require now?”',
   ),
   DecanDayInfo(
     day: 10,
     theme: 'Seal Early Nourishment',
     action:
-        'Seal Early Nourishment in one concrete way, keeping the act measured and answerable to Ma’at.',
+        'Name what you have seen, what you have tended, and what the field now needs to continue.',
     reflection: '“What does seal early nourishment require now?”',
   ),
 ];
@@ -889,70 +979,70 @@ final List<DecanDayInfo> _compressedShefbedetFlowRows2 = [
     day: 11,
     theme: 'Bring Care to the Heart',
     action:
-        'Bring Care to the Heart in one concrete way, keeping the act measured and answerable to Ma’at.',
+        'Before acting on someone\'s need, pause and ask what they actually require — not what you assume or what is convenient to give.',
     reflection: '“What does bring care to the heart require now?”',
   ),
   DecanDayInfo(
     day: 12,
     theme: 'Read the True Need',
     action:
-        'Read the True Need in one concrete way, keeping the act measured and answerable to Ma’at.',
+        'Look carefully at what is actually lacking, separate from what is being asked for or what you have been offering by default.',
     reflection: '“What does read the true need require now?”',
   ),
   DecanDayInfo(
     day: 13,
     theme: 'Adjust the Measure',
     action:
-        'Adjust the Measure in one concrete way, keeping the act measured and answerable to Ma’at.',
+        'Reduce or increase one form of provision — less intervention, or more consistent attention — based on what you now observe, not what you assumed.',
     reflection: '“What does adjust the measure require now?”',
   ),
   DecanDayInfo(
     day: 14,
     theme: 'Feed Without Draining',
     action:
-        'Feed Without Draining in one concrete way, keeping the act measured and answerable to Ma’at.',
+        'Give what is needed without emptying yourself — choose a method of care that you can sustain through the rest of the season.',
     reflection: '“What does feed without draining require now?”',
   ),
   DecanDayInfo(
     day: 15,
     theme: 'Protect the Giver',
     action:
-        'Protect the Giver in one concrete way, keeping the act measured and answerable to Ma’at.',
+        'Identify one way that generous giving has been quietly depleting the one who gives, and address it before depletion becomes damage.',
     reflection: '“What does protect the giver require now?”',
   ),
   DecanDayInfo(
     day: 16,
     theme: 'Correct Distorted Care',
     action:
-        'Correct Distorted Care in one concrete way, keeping the act measured and answerable to Ma’at.',
+        'Name one way care has become control, fear, or performance — and redirect it toward genuine provision.',
     reflection: '“What does correct distorted care require now?”',
   ),
   DecanDayInfo(
     day: 17,
     theme: 'Distribute Nourishment Fairly',
     action:
-        'Distribute Nourishment Fairly in one concrete way, keeping the act measured and answerable to Ma’at.',
+        'Check whether attention, resources, and care are being shared proportionally across everyone who depends on them.',
     reflection: '“What does distribute nourishment fairly require now?”',
   ),
   DecanDayInfo(
     day: 18,
     theme: 'Listen for Response',
     action:
-        'Listen for Response in one concrete way, keeping the act measured and answerable to Ma’at.',
+        'Stop providing and observe: is what you are giving actually producing growth, or strain?',
     reflection: '“What does listen for response require now?”',
   ),
   DecanDayInfo(
     day: 19,
     theme: 'Make Provision Sustainable',
     action:
-        'Make Provision Sustainable in one concrete way, keeping the act measured and answerable to Ma’at.',
+        'Build one change that makes long-term care possible without exhausting the source of it.',
     reflection: '“What does make provision sustainable require now?”',
   ),
   DecanDayInfo(
     day: 20,
     theme: 'Seal Intelligent Nourishment',
     action:
-        'Seal Intelligent Nourishment in one concrete way, keeping the act measured and answerable to Ma’at.',
+        'Name what you now know about how this system or person is best nourished, and commit to applying it consistently.',
     reflection: '“What does seal intelligent nourishment require now?”',
   ),
 ];
@@ -962,70 +1052,70 @@ final List<DecanDayInfo> _compressedShefbedetFlowRows3 = [
     day: 21,
     theme: 'Trust the Care Already Given',
     action:
-        'Trust the Care Already Given in one concrete way, keeping the act measured and answerable to Ma’at.',
+        'Choose one thing you have tended carefully and allow it to continue without interference today.',
     reflection: '“What does trust the care already given require now?”',
   ),
   DecanDayInfo(
     day: 22,
     theme: 'Step Back Without Abandoning',
     action:
-        'Step Back Without Abandoning in one concrete way, keeping the act measured and answerable to Ma’at.',
+        'Reduce your active intervention by one degree while maintaining your attention and availability.',
     reflection: '“What does step back without abandoning require now?”',
   ),
   DecanDayInfo(
     day: 23,
     theme: 'Let Growth Reach Light',
     action:
-        'Let Growth Reach Light in one concrete way, keeping the act measured and answerable to Ma’at.',
+        'Remove one obstacle — even a well-intentioned one — that is blocking something from developing under its own strength.',
     reflection: '“What does let growth reach light require now?”',
   ),
   DecanDayInfo(
     day: 24,
     theme: 'Guard the Boundary',
     action:
-        'Guard the Boundary in one concrete way, keeping the act measured and answerable to Ma’at.',
+        'Protect the conditions of growth from one external pressure or demand that would damage what is developing.',
     reflection: '“What does guard the boundary require now?”',
   ),
   DecanDayInfo(
     day: 25,
     theme: 'Feed Steadily',
     action:
-        'Feed Steadily in one concrete way, keeping the act measured and answerable to Ma’at.',
+        'Continue one nourishing act without varying the pace — consistency now matters more than intensity.',
     reflection: '“What does feed steadily require now?”',
   ),
   DecanDayInfo(
     day: 26,
     theme: 'Prepare the Future Share',
     action:
-        'Prepare the Future Share in one concrete way, keeping the act measured and answerable to Ma’at.',
+        'Set aside one portion of what is growing — resources, time, or care — for those who will need it after this season.',
     reflection: '“What does prepare the future share require now?”',
   ),
   DecanDayInfo(
     day: 27,
     theme: 'Recognize Maturing Growth',
     action:
-        'Recognize Maturing Growth in one concrete way, keeping the act measured and answerable to Ma’at.',
+        'Name one thing that has moved from fragile to established — and treat it accordingly, with less anxiety and more trust.',
     reflection: '“What does recognize maturing growth require now?”',
   ),
   DecanDayInfo(
     day: 28,
     theme: 'Share Confidence',
     action:
-        'Share Confidence in one concrete way, keeping the act measured and answerable to Ma’at.',
+        'Tell someone under your care explicitly that they are doing well and can trust their own developing strength.',
     reflection: '“What does share confidence require now?”',
   ),
   DecanDayInfo(
     day: 29,
     theme: 'Bless What Continues',
     action:
-        'Bless What Continues in one concrete way, keeping the act measured and answerable to Ma’at.',
+        'Place one explicit acknowledgment — spoken, written, or enacted — on what has survived and proven itself this season.',
     reflection: '“What does bless what continues require now?”',
   ),
   DecanDayInfo(
     day: 30,
     theme: 'Seal Nourished Trust',
     action:
-        'Seal Nourished Trust in one concrete way, keeping the act measured and answerable to Ma’at.',
+        'Name what is now capable of continuing without constant tending, and release it into its own rhythm.',
     reflection: '“What does seal nourished trust require now?”',
   ),
 ];
@@ -1035,70 +1125,70 @@ final List<DecanDayInfo> _compressedRekhwerFlowRows1 = [
     day: 1,
     theme: 'Recognize the Raw Material',
     action:
-        'Recognize the Raw Material in one concrete way, keeping the act measured and answerable to Ma’at.',
+        'Identify one area of work, skill, or practice that holds potential but has not yet been shaped into useful form.',
     reflection: '“What does recognize the raw material require now?”',
   ),
   DecanDayInfo(
     day: 2,
     theme: 'Prepare the Wheel',
     action:
-        'Prepare the Wheel in one concrete way, keeping the act measured and answerable to Ma’at.',
+        'Set up the conditions for focused formation: clear the space, gather the tools, protect the time.',
     reflection: '“What does prepare the wheel require now?”',
   ),
   DecanDayInfo(
     day: 3,
     theme: 'Soften the Clay',
     action:
-        'Soften the Clay in one concrete way, keeping the act measured and answerable to Ma’at.',
+        'Make one rigid or resistant thing more workable — through rest, research, or deliberate loosening before shaping begins.',
     reflection: '“What does soften the clay require now?”',
   ),
   DecanDayInfo(
     day: 4,
     theme: 'Center the Form',
     action:
-        'Center the Form in one concrete way, keeping the act measured and answerable to Ma’at.',
+        'Before applying pressure, ensure the material is balanced — re-read, re-examine, or re-plan from the center outward.',
     reflection: '“What does center the form require now?”',
   ),
   DecanDayInfo(
     day: 5,
     theme: 'Apply Measured Pressure',
     action:
-        'Apply Measured Pressure in one concrete way, keeping the act measured and answerable to Ma’at.',
+        'Move one part of the work forward with deliberate, controlled effort — not more than the form can currently receive.',
     reflection: '“What does apply measured pressure require now?”',
   ),
   DecanDayInfo(
     day: 6,
     theme: 'Check the Proportion',
     action:
-        'Check the Proportion in one concrete way, keeping the act measured and answerable to Ma’at.',
+        'Step back from what you are building and examine whether the parts relate to each other correctly.',
     reflection: '“What does check the proportion require now?”',
   ),
   DecanDayInfo(
     day: 7,
     theme: 'Correct the Collapse',
     action:
-        'Correct the Collapse in one concrete way, keeping the act measured and answerable to Ma’at.',
+        'Find one place where the form has lost its shape and address it before it hardens incorrectly.',
     reflection: '“What does correct the collapse require now?”',
   ),
   DecanDayInfo(
     day: 8,
     theme: 'Strengthen the Vessel',
     action:
-        'Strengthen the Vessel in one concrete way, keeping the act measured and answerable to Ma’at.',
+        'Reinforce one weak point in your work, knowledge, or practice before moving to the next stage.',
     reflection: '“What does strengthen the vessel require now?”',
   ),
   DecanDayInfo(
     day: 9,
     theme: 'Name the Function',
     action:
-        'Name the Function in one concrete way, keeping the act measured and answerable to Ma’at.',
+        'State clearly what the thing you are building is actually for — who it serves, what it does, why it exists.',
     reflection: '“What does name the function require now?”',
   ),
   DecanDayInfo(
     day: 10,
     theme: 'Seal the Form',
     action:
-        'Seal the Form in one concrete way, keeping the act measured and answerable to Ma’at.',
+        'Complete one unit of work to the point where it can hold its shape without your constant attention.',
     reflection: '“What does seal the form require now?”',
   ),
 ];
@@ -1108,70 +1198,70 @@ final List<DecanDayInfo> _compressedRekhwerFlowRows2 = [
     day: 11,
     theme: 'Bring Skill to the Heart',
     action:
-        'Bring Skill to the Heart in one concrete way, keeping the act measured and answerable to Ma’at.',
+        'Before working, ask what the work actually needs from you today — not what you want to demonstrate.',
     reflection: '“What does bring skill to the heart require now?”',
   ),
   DecanDayInfo(
     day: 12,
     theme: 'Listen to the Form',
     action:
-        'Listen to the Form in one concrete way, keeping the act measured and answerable to Ma’at.',
+        'Let what you are building tell you where it is straining — look for resistance or misalignment before applying more force.',
     reflection: '“What does listen to the form require now?”',
   ),
   DecanDayInfo(
     day: 13,
     theme: 'Separate Error From Material',
     action:
-        'Separate Error From Material in one concrete way, keeping the act measured and answerable to Ma’at.',
+        'Distinguish between a flaw in your method and a limitation in the material — correct only what can be corrected.',
     reflection: '“What does separate error from material require now?”',
   ),
   DecanDayInfo(
     day: 14,
     theme: 'Refine the Hand',
     action:
-        'Refine the Hand in one concrete way, keeping the act measured and answerable to Ma’at.',
+        'Practice one part of your craft more slowly than usual, with attention to precision rather than speed.',
     reflection: '“What does refine the hand require now?”',
   ),
   DecanDayInfo(
     day: 15,
     theme: 'Receive Correction',
     action:
-        'Receive Correction in one concrete way, keeping the act measured and answerable to Ma’at.',
+        'Accept one piece of feedback, observation, or evidence that your current approach needs adjustment.',
     reflection: '“What does receive correction require now?”',
   ),
   DecanDayInfo(
     day: 16,
     theme: 'Remove Excess',
     action:
-        'Remove Excess in one concrete way, keeping the act measured and answerable to Ma’at.',
+        'Strip one unnecessary element from your work — complexity or habitual addition that the form does not require.',
     reflection: '“What does remove excess require now?”',
   ),
   DecanDayInfo(
     day: 17,
     theme: 'Strengthen the Center',
     action:
-        'Strengthen the Center in one concrete way, keeping the act measured and answerable to Ma’at.',
+        'Return to the core purpose of what you are building and shore up one place where it has drifted from that center.',
     reflection: '“What does strengthen the center require now?”',
   ),
   DecanDayInfo(
     day: 18,
     theme: 'Test Under Use',
     action:
-        'Test Under Use in one concrete way, keeping the act measured and answerable to Ma’at.',
+        'Apply what you have built in a real situation — not a controlled one — and observe what holds and what gives.',
     reflection: '“What does test under use require now?”',
   ),
   DecanDayInfo(
     day: 19,
     theme: 'Record the Method',
     action:
-        'Record the Method in one concrete way, keeping the act measured and answerable to Ma’at.',
+        'Write down the steps, proportions, or decisions that produced the best result today while they are clear.',
     reflection: '“What does record the method require now?”',
   ),
   DecanDayInfo(
     day: 20,
     theme: 'Seal Discerned Skill',
     action:
-        'Seal Discerned Skill in one concrete way, keeping the act measured and answerable to Ma’at.',
+        'Name one thing you now know how to do that you could not do reliably at the beginning of this month.',
     reflection: '“What does seal discerned skill require now?”',
   ),
 ];
@@ -1181,70 +1271,70 @@ final List<DecanDayInfo> _compressedRekhwerFlowRows3 = [
     day: 21,
     theme: 'Let Skill Become Reliable',
     action:
-        'Let Skill Become Reliable in one concrete way, keeping the act measured and answerable to Ma’at.',
+        'Repeat one technique or method without instructions and note where it holds and where it still falters.',
     reflection: '“What does let skill become reliable require now?”',
   ),
   DecanDayInfo(
     day: 22,
     theme: 'Repeat the Method',
     action:
-        'Repeat the Method in one concrete way, keeping the act measured and answerable to Ma’at.',
+        'Do the same task twice: once to produce, once to confirm the method — remove variation until the result is predictable.',
     reflection: '“What does repeat the method require now?”',
   ),
   DecanDayInfo(
     day: 23,
     theme: 'Remove Performance From Practice',
     action:
-        'Remove Performance From Practice in one concrete way, keeping the act measured and answerable to Ma’at.',
+        'Work without an audience today — let the quality of the work itself be sufficient.',
     reflection: '“What does remove performance from practice require now?”',
   ),
   DecanDayInfo(
     day: 24,
     theme: 'Strengthen the Weak Point',
     action:
-        'Strengthen the Weak Point in one concrete way, keeping the act measured and answerable to Ma’at.',
+        'Address the one step in your practice that consistently produces less reliable results.',
     reflection: '“What does strengthen the weak point require now?”',
   ),
   DecanDayInfo(
     day: 25,
     theme: 'Let the Vessel Hold More',
     action:
-        'Let the Vessel Hold More in one concrete way, keeping the act measured and answerable to Ma’at.',
+        'Apply your competence to something slightly more demanding than your recent work — test the capacity of what you have built.',
     reflection: '“What does let the vessel hold more require now?”',
   ),
   DecanDayInfo(
     day: 26,
     theme: 'Teach the Method',
     action:
-        'Teach the Method in one concrete way, keeping the act measured and answerable to Ma’at.',
+        'Explain one technique or decision to someone who needs to understand it — clarity in teaching confirms real understanding.',
     reflection: '“What does teach the method require now?”',
   ),
   DecanDayInfo(
     day: 27,
     theme: 'Guard Against Cleverness',
     action:
-        'Guard Against Cleverness in one concrete way, keeping the act measured and answerable to Ma’at.',
+        'Refuse one shortcut or impressive-but-unstable technique in favor of the slower, reliable method.',
     reflection: '“What does guard against cleverness require now?”',
   ),
   DecanDayInfo(
     day: 28,
     theme: 'Serve Through Competence',
     action:
-        'Serve Through Competence in one concrete way, keeping the act measured and answerable to Ma’at.',
+        'Use a developed skill in direct service of someone else\'s need — not as demonstration, but as contribution.',
     reflection: '“What does serve through competence require now?”',
   ),
   DecanDayInfo(
     day: 29,
     theme: 'Preserve the Standard',
     action:
-        'Preserve the Standard in one concrete way, keeping the act measured and answerable to Ma’at.',
+        'Write or commit to one quality threshold you will not lower, regardless of pressure or convenience.',
     reflection: '“What does preserve the standard require now?”',
   ),
   DecanDayInfo(
     day: 30,
     theme: 'Seal Great Knowing',
     action:
-        'Seal Great Knowing in one concrete way, keeping the act measured and answerable to Ma’at.',
+        'Name what you now do reliably, who else needs this knowledge, and how it will be carried forward.',
     reflection: '“What does seal great knowing require now?”',
   ),
 ];
@@ -1254,70 +1344,70 @@ final List<DecanDayInfo> _compressedRekhnedjesFlowRows1 = [
     day: 1,
     theme: 'Enter the Trial',
     action:
-        'Enter the Trial in one concrete way, keeping the act measured and answerable to Ma’at.',
+        'Move toward the pressure point in your current work, relationship, or practice rather than around it.',
     reflection: '“What does enter the trial require now?”',
   ),
   DecanDayInfo(
     day: 2,
     theme: 'Notice the First Pressure',
     action:
-        'Notice the First Pressure in one concrete way, keeping the act measured and answerable to Ma’at.',
+        'Observe your first reaction to difficulty today — where does strain appear first in body, speech, or decision?',
     reflection: '“What does notice the first pressure require now?”',
   ),
   DecanDayInfo(
     day: 3,
     theme: 'Hold the Standard',
     action:
-        'Hold the Standard in one concrete way, keeping the act measured and answerable to Ma’at.',
+        'Maintain one quality or commitment that you held going into difficulty — do not lower it because conditions are hard.',
     reflection: '“What does hold the standard require now?”',
   ),
   DecanDayInfo(
     day: 4,
     theme: 'Separate Strain From Failure',
     action:
-        'Separate Strain From Failure in one concrete way, keeping the act measured and answerable to Ma’at.',
+        'Distinguish between \'this is difficult\' and \'this is broken\' — acknowledge difficulty without declaring collapse.',
     reflection: '“What does separate strain from failure require now?”',
   ),
   DecanDayInfo(
     day: 5,
     theme: 'Cool the Reaction',
     action:
-        'Cool the Reaction in one concrete way, keeping the act measured and answerable to Ma’at.',
+        'Before responding to friction, pause — let heat dissipate before the word or the action.',
     reflection: '“What does cool the reaction require now?”',
   ),
   DecanDayInfo(
     day: 6,
     theme: 'Read the Weak Point',
     action:
-        'Read the Weak Point in one concrete way, keeping the act measured and answerable to Ma’at.',
+        'Name specifically where pressure has revealed a gap in your knowledge, skill, or resolve.',
     reflection: '“What does read the weak point require now?”',
   ),
   DecanDayInfo(
     day: 7,
     theme: 'Continue Without Drama',
     action:
-        'Continue Without Drama in one concrete way, keeping the act measured and answerable to Ma’at.',
+        'Take the next required step without narrating the difficulty or building a story around the strain.',
     reflection: '“What does continue without drama require now?”',
   ),
   DecanDayInfo(
     day: 8,
     theme: 'Refuse False Rescue',
     action:
-        'Refuse False Rescue in one concrete way, keeping the act measured and answerable to Ma’at.',
+        'Decline one shortcut or external relief that would remove the pressure before you have learned what it contains.',
     reflection: '“What does refuse false rescue require now?”',
   ),
   DecanDayInfo(
     day: 9,
     theme: 'Preserve the Lesson',
     action:
-        'Preserve the Lesson in one concrete way, keeping the act measured and answerable to Ma’at.',
+        'Write one thing pressure has revealed about your method or character that calm conditions would not have shown.',
     reflection: '“What does preserve the lesson require now?”',
   ),
   DecanDayInfo(
     day: 10,
     theme: 'Seal the First Trial',
     action:
-        'Seal the First Trial in one concrete way, keeping the act measured and answerable to Ma’at.',
+        'Name what held, what broke, what was learned, and what must be repaired before the next stage of work.',
     reflection: '“What does seal the first trial require now?”',
   ),
 ];
@@ -1327,70 +1417,70 @@ final List<DecanDayInfo> _compressedRekhnedjesFlowRows2 = [
     day: 11,
     theme: 'Bring the Trial to the Heart',
     action:
-        'Bring the Trial to the Heart in one concrete way, keeping the act measured and answerable to Ma’at.',
+        'Sit with what has been difficult — not to amplify it, but to discern what it actually requires from you.',
     reflection: '“What does bring the trial to the heart require now?”',
   ),
   DecanDayInfo(
     day: 12,
     theme: 'Distinguish Test From Attack',
     action:
-        'Distinguish Test From Attack in one concrete way, keeping the act measured and answerable to Ma’at.',
+        'Determine whether this difficulty is revealing something true, or is simply destructive pressure that warrants refusal.',
     reflection: '“What does distinguish test from attack require now?”',
   ),
   DecanDayInfo(
     day: 13,
     theme: 'Adjust Without Abandoning',
     action:
-        'Adjust Without Abandoning in one concrete way, keeping the act measured and answerable to Ma’at.',
+        'Change one aspect of your approach — pace, method, or scale — without abandoning the core commitment.',
     reflection: '“What does adjust without abandoning require now?”',
   ),
   DecanDayInfo(
     day: 14,
     theme: 'Ask for Counsel',
     action:
-        'Ask for Counsel in one concrete way, keeping the act measured and answerable to Ma’at.',
+        'Bring one genuine difficulty to someone whose judgment you trust, and receive their perspective without defending your current approach.',
     reflection: '“What does ask for counsel require now?”',
   ),
   DecanDayInfo(
     day: 15,
     theme: 'Receive the Mirror',
     action:
-        'Receive the Mirror in one concrete way, keeping the act measured and answerable to Ma’at.',
+        'Allow one observation or criticism to land fully — let it change something before you respond.',
     reflection: '“What does receive the mirror require now?”',
   ),
   DecanDayInfo(
     day: 16,
     theme: 'Refine the Response',
     action:
-        'Refine the Response in one concrete way, keeping the act measured and answerable to Ma’at.',
+        'Revise one answer or method in light of what pressure has taught — make it more accurate, not more comfortable.',
     reflection: '“What does refine the response require now?”',
   ),
   DecanDayInfo(
     day: 17,
     theme: 'Strengthen the Weak Place',
     action:
-        'Strengthen the Weak Place in one concrete way, keeping the act measured and answerable to Ma’at.',
+        'Take one concrete action to address the specific point where your practice broke down under trial.',
     reflection: '“What does strengthen the weak place require now?”',
   ),
   DecanDayInfo(
     day: 18,
     theme: 'Return to the Field',
     action:
-        'Return to the Field in one concrete way, keeping the act measured and answerable to Ma’at.',
+        'Re-engage with the area that was difficult — bring the corrected approach back into contact with real conditions.',
     reflection: '“What does return to the field require now?”',
   ),
   DecanDayInfo(
     day: 19,
     theme: 'Measure the Change',
     action:
-        'Measure the Change in one concrete way, keeping the act measured and answerable to Ma’at.',
+        'Compare your current approach to your approach at the beginning of the month and name what is genuinely different.',
     reflection: '“What does measure the change require now?”',
   ),
   DecanDayInfo(
     day: 20,
     theme: 'Seal Adapted Knowing',
     action:
-        'Seal Adapted Knowing in one concrete way, keeping the act measured and answerable to Ma’at.',
+        'Name what you now understand about your knowledge that could only have been learned through exposure to pressure.',
     reflection: '“What does seal adapted knowing require now?”',
   ),
 ];
@@ -1400,70 +1490,70 @@ final List<DecanDayInfo> _compressedRekhnedjesFlowRows3 = [
     day: 21,
     theme: 'Let Competence Be Quiet',
     action:
-        'Let Competence Be Quiet in one concrete way, keeping the act measured and answerable to Ma’at.',
+        'Complete one task you are genuinely skilled at without announcing it or seeking acknowledgment.',
     reflection: '“What does let competence be quiet require now?”',
   ),
   DecanDayInfo(
     day: 22,
     theme: 'Return to the Standard',
     action:
-        'Return to the Standard in one concrete way, keeping the act measured and answerable to Ma’at.',
+        'Measure your current work against the standard you held before difficulty — close the gap without drama.',
     reflection: '“What does return to the standard require now?”',
   ),
   DecanDayInfo(
     day: 23,
     theme: 'Work Without Heat',
     action:
-        'Work Without Heat in one concrete way, keeping the act measured and answerable to Ma’at.',
+        'Work steadily through one full session without urgency, irritation, or the need to demonstrate effort.',
     reflection: '“What does work without heat require now?”',
   ),
   DecanDayInfo(
     day: 24,
     theme: 'Trust the Corrected Method',
     action:
-        'Trust the Corrected Method in one concrete way, keeping the act measured and answerable to Ma’at.',
+        'Apply the adjusted approach with full commitment — stop second-guessing the correction you already made.',
     reflection: '“What does trust the corrected method require now?”',
   ),
   DecanDayInfo(
     day: 25,
     theme: 'Hold Under Ordinary Pressure',
     action:
-        'Hold Under Ordinary Pressure in one concrete way, keeping the act measured and answerable to Ma’at.',
+        'Face one routine difficulty and maintain your measure without treating it as a crisis.',
     reflection: '“What does hold under ordinary pressure require now?”',
   ),
   DecanDayInfo(
     day: 26,
     theme: 'Refuse the Need to Prove',
     action:
-        'Refuse the Need to Prove in one concrete way, keeping the act measured and answerable to Ma’at.',
+        'Do the work without seeking confirmation that you have been tested and survived.',
     reflection: '“What does refuse the need to prove require now?”',
   ),
   DecanDayInfo(
     day: 27,
     theme: 'Let the Result Stand',
     action:
-        'Let the Result Stand in one concrete way, keeping the act measured and answerable to Ma’at.',
+        'Complete one piece of work and leave it without revision or apology — let it be what it is.',
     reflection: '“What does let the result stand require now?”',
   ),
   DecanDayInfo(
     day: 28,
     theme: 'Become Reliable to Others',
     action:
-        'Become Reliable to Others in one concrete way, keeping the act measured and answerable to Ma’at.',
+        'Complete something steady and on time today — reliability is the final form of tested knowledge.',
     reflection: '“What does become reliable to others require now?”',
   ),
   DecanDayInfo(
     day: 29,
     theme: 'Preserve the Quiet Lesson',
     action:
-        'Preserve the Quiet Lesson in one concrete way, keeping the act measured and answerable to Ma’at.',
+        'Write one principle that emerged from this month\'s pressure — not a story of suffering, but a clean instruction.',
     reflection: '“What does preserve the quiet lesson require now?”',
   ),
   DecanDayInfo(
     day: 30,
     theme: 'Seal Quiet Competence',
     action:
-        'Seal Quiet Competence in one concrete way, keeping the act measured and answerable to Ma’at.',
+        'Name what you can now be trusted to do under pressure, and commit to maintaining that standard.',
     reflection: '“What does seal quiet competence require now?”',
   ),
 ];
@@ -1473,71 +1563,81 @@ final List<DecanDayInfo> _compressedRenwetFlowRows1 = [
     day: 1,
     theme: 'Recognize the First Return',
     action:
-        'Recognize the First Return in one concrete way, keeping the act measured and answerable to Ma’at.',
-    reflection: '“What does recognize the first return require now?”',
+        'Name one concrete result or gain that has come back from work invested earlier in the year.',
+    reflection:
+        '"Am I still striving past the point where receiving is what Maʿat now requires?"',
   ),
   DecanDayInfo(
     day: 2,
     theme: 'Receive Without Grasping',
     action:
-        'Receive Without Grasping in one concrete way, keeping the act measured and answerable to Ma’at.',
-    reflection: '“What does receive without grasping require now?”',
+        'Accept what has returned without immediately calculating how to increase it, spend it, or secure more.',
+    reflection:
+        '"Does the harvest reflect what was actually done, or what I want to believe was done?"',
   ),
   DecanDayInfo(
     day: 3,
     theme: 'Inspect the First Yield',
     action:
-        'Inspect the First Yield in one concrete way, keeping the act measured and answerable to Ma’at.',
-    reflection: '“What does inspect the first yield require now?”',
+        'Examine the quality of what has returned — is it what you expected, better, or different in ways that require adjustment?',
+    reflection:
+        '"Am I inflating the yield to feel good about the year, or deflating it from habit? What is actually here?"',
   ),
   DecanDayInfo(
     day: 4,
     theme: 'Honor the Source',
     action:
-        'Honor the Source in one concrete way, keeping the act measured and answerable to Ma’at.',
-    reflection: '“What does honor the source require now?”',
+        'Name explicitly what — labor, relationship, skill, or prior investment — made this return possible.',
+    reflection:
+        '"Whose labor am I benefiting from without naming in the harvest record?"',
   ),
   DecanDayInfo(
     day: 5,
     theme: 'Separate the First Share',
     action:
-        'Separate the First Share in one concrete way, keeping the act measured and answerable to Ma’at.',
-    reflection: '“What does separate the first share require now?”',
+        'Before distributing broadly, identify the portion that belongs to offerings, obligations, and those whose work made it possible.',
+    reflection:
+        '"Am I distributing from an accurate count, or from a general sense of abundance that may not be accurate?"',
   ),
   DecanDayInfo(
     day: 6,
     theme: 'Pay the Hands',
     action:
-        'Pay the Hands in one concrete way, keeping the act measured and answerable to Ma’at.',
-    reflection: '“What does pay the hands require now?”',
+        'Compensate, acknowledge, or return something to those whose labor or care contributed directly to what you have received.',
+    reflection:
+        '"What am I claiming entirely for myself that has roots in what I did not produce alone?"',
   ),
   DecanDayInfo(
     day: 7,
     theme: 'Do Not Mistake Return for Completion',
     action:
-        'Do Not Mistake Return for Completion in one concrete way, keeping the act measured and answerable to Ma’at.',
-    reflection: '“What does do not mistake return for completion require now?”',
+        'Recognize that the first yield is evidence of direction, not arrival — name what still needs to continue.',
+    reflection:
+        '"Am I consuming the full harvest because it is here, without accounting for what comes after?"',
   ),
   DecanDayInfo(
     day: 8,
     theme: 'Guard Against Waste',
     action:
-        'Guard Against Waste in one concrete way, keeping the act measured and answerable to Ma’at.',
-    reflection: '“What does guard against waste require now?”',
+        'Identify one way what has returned could be squandered through celebration beyond proportion or careless consumption.',
+    reflection:
+        '"Where am I deferring the harvest out of habit, fear, or the refusal to acknowledge what was earned?"',
   ),
   DecanDayInfo(
     day: 9,
     theme: 'Record What Came In',
     action:
-        'Record What Came In in one concrete way, keeping the act measured and answerable to Ma’at.',
-    reflection: '“What does record what came in require now?”',
+        'Write a clear account of what was received, from where, and in what condition.',
+    reflection:
+        '"Does the harvest reflect the quality of care I gave to what I tended? If not, what does it actually reflect?"',
   ),
   DecanDayInfo(
     day: 10,
     theme: 'Seal the First Return',
     action:
-        'Seal the First Return in one concrete way, keeping the act measured and answerable to Ma’at.',
-    reflection: '“What does seal the first return require now?”',
+        'Name what has been recognized, honored, shared, and recorded — and what the return now makes possible.',
+    reflection:
+        '"What exits the first decan of the beautiful year with its honest accounting complete?"',
   ),
 ];
 
@@ -1546,71 +1646,81 @@ final List<DecanDayInfo> _compressedRenwetFlowRows2 = [
     day: 11,
     theme: 'Bring the Harvest to the Heart',
     action:
-        'Bring the Harvest to the Heart in one concrete way, keeping the act measured and answerable to Ma’at.',
-    reflection: '“What does bring the harvest to the heart require now?”',
+        'Before distributing what has returned, sit with the full weight of the year\'s investment — let gratitude and responsibility arrive equally.',
+    reflection:
+        '"Who has a claim on what this year produced that I have not yet discharged?"',
   ),
   DecanDayInfo(
     day: 12,
     theme: 'Weigh the Appetite',
     action:
-        'Weigh the Appetite in one concrete way, keeping the act measured and answerable to Ma’at.',
-    reflection: '“What does weigh the appetite require now?”',
+        'Examine your desire to keep or consume what you have received — distinguish genuine need from excess.',
+    reflection:
+        '"Who needs what I have that I am not giving because they did not contribute to producing it?"',
   ),
   DecanDayInfo(
     day: 13,
     theme: 'Name What Is Owed',
     action:
-        'Name What Is Owed in one concrete way, keeping the act measured and answerable to Ma’at.',
-    reflection: '“What does name what is owed require now?”',
+        'List explicitly: netjeru, household, workers, those who gave first, seed for the next cycle — name each claim before distributing.',
+    reflection:
+        '"Whose contribution to my harvest am I receiving without acknowledging or distributing toward?"',
   ),
   DecanDayInfo(
     day: 14,
     theme: 'Feed the Household',
     action:
-        'Feed the Household in one concrete way, keeping the act measured and answerable to Ma’at.',
-    reflection: '“What does feed the household require now?”',
+        'Ensure those immediately dependent on you receive a sufficient share before any secondary distribution.',
+    reflection:
+        '"Where am I framing an obligation as a generosity, which lets me decide against it?"',
   ),
   DecanDayInfo(
     day: 15,
     theme: 'Protect the Vulnerable',
     action:
-        'Protect the Vulnerable in one concrete way, keeping the act measured and answerable to Ma’at.',
-    reflection: '“What does protect the vulnerable require now?”',
+        'Identify one person or system in your circle with genuine need but weak claims, and include them in the distribution.',
+    reflection:
+        '"What has been owed since the harvest arrived that I have not yet closed?"',
   ),
   DecanDayInfo(
     day: 16,
     theme: 'Return the Offering',
     action:
-        'Return the Offering in one concrete way, keeping the act measured and answerable to Ma’at.',
-    reflection: '“What does return the offering require now?”',
+        'Give a portion of what has returned to something larger than yourself — altar, community, or future — as an explicit act of relation.',
+    reflection:
+        '"What am I holding that exceeds my share while someone else\'s need goes unmet?"',
   ),
   DecanDayInfo(
     day: 17,
     theme: 'Refuse Hoarding',
     action:
-        'Refuse Hoarding in one concrete way, keeping the act measured and answerable to Ma’at.',
-    reflection: '“What does refuse hoarding require now?”',
+        'Release one share you have been holding beyond its proper time — in resources, credit, or responsibility.',
+    reflection:
+        '"Am I grateful only for what was pleasant, or for the complete arc of what this year required?"',
   ),
   DecanDayInfo(
     day: 18,
     theme: 'Distribute With Clarity',
     action:
-        'Distribute With Clarity in one concrete way, keeping the act measured and answerable to Ma’at.',
-    reflection: '“What does distribute with clarity require now?”',
+        'Give with named purpose — say or write what each share is for and why, so the distribution holds its form.',
+    reflection:
+        '"Is my gratitude specific enough to create accountability in the next cycle?"',
   ),
   DecanDayInfo(
     day: 19,
     theme: 'Check the Balance After Giving',
     action:
-        'Check the Balance After Giving in one concrete way, keeping the act measured and answerable to Ma’at.',
-    reflection: '“What does check the balance after giving require now?”',
+        'Review what remains: is it enough for continuity, or has generosity depleted the foundation?',
+    reflection:
+        '"Where have I given from the harvest without receiving what the exchange produces in return?"',
   ),
   DecanDayInfo(
     day: 20,
     theme: 'Seal Right Distribution',
     action:
-        'Seal Right Distribution in one concrete way, keeping the act measured and answerable to Ma’at.',
-    reflection: '“What does seal right distribution require now?”',
+        'Name what was received, shared, preserved, and what the distribution demonstrated about your values.',
+    reflection:
+        '"Does the distribution reflect Maʿat — given according to obligation, not according to preference?"',
   ),
 ];
 
@@ -1619,71 +1729,81 @@ final List<DecanDayInfo> _compressedRenwetFlowRows3 = [
     day: 21,
     theme: 'Store the Reward',
     action:
-        'Store the Reward in one concrete way, keeping the act measured and answerable to Ma’at.',
-    reflection: '“What does store the reward require now?”',
+        'Place what remains from the harvest into safe, deliberate preservation — not consumption, not investment, but stable holding.',
+    reflection:
+        '"What has this year produced that, seeded forward, would yield better in the next?"',
   ),
   DecanDayInfo(
     day: 22,
     theme: 'Protect the Storehouse',
     action:
-        'Protect the Storehouse in one concrete way, keeping the act measured and answerable to Ma’at.',
-    reflection: '“What does protect the storehouse require now?”',
+        'Identify one threat to what you have preserved — waste, decay, or careless access — and address it.',
+    reflection:
+        '"Am I consuming what should be seeded because it is here and the future feels distant?"',
   ),
   DecanDayInfo(
     day: 23,
     theme: 'Count What Remains',
     action:
-        'Count What Remains in one concrete way, keeping the act measured and answerable to Ma’at.',
-    reflection: '“What does count what remains require now?”',
+        'Take a clear account of what is held in reserve — resources, energy, goodwill, or time — without inflation or diminishment.',
+    reflection:
+        '"Am I seeding the next year with the best of this one, or with what is convenient to keep?"',
   ),
   DecanDayInfo(
     day: 24,
     theme: 'Respect the Tools',
     action:
-        'Respect the Tools in one concrete way, keeping the act measured and answerable to Ma’at.',
-    reflection: '“What does respect the tools require now?”',
+        'Care for the instruments, relationships, and systems that produced the harvest — they will be needed again.',
+    reflection:
+        '"Is what I am holding back from this year held as a vow, or merely as storage?"',
   ),
   DecanDayInfo(
     day: 25,
     theme: 'Name the Lesson',
     action:
-        'Name the Lesson in one concrete way, keeping the act measured and answerable to Ma’at.',
-    reflection: '“What does name the lesson require now?”',
+        'State one thing the full arc of this harvest cycle has taught you that you did not know before it.',
+    reflection:
+        '"Is the record honest enough to be useful in the next cycle — or to those who come after?"',
   ),
   DecanDayInfo(
     day: 26,
     theme: 'Preserve the Seed',
     action:
-        'Preserve the Seed in one concrete way, keeping the act measured and answerable to Ma’at.',
-    reflection: '“What does preserve the seed require now?”',
+        'Separate and protect the portion that must not be consumed — the part that carries the next cycle forward.',
+    reflection:
+        '"What do I understand about this year that I could not have understood while inside any single month of it?"',
   ),
   DecanDayInfo(
     day: 27,
     theme: 'Rest the Source',
     action:
-        'Rest the Source in one concrete way, keeping the act measured and answerable to Ma’at.',
-    reflection: '“What does rest the source require now?”',
+        'Give deliberate rest to whatever produced the return — body, land, relationship, or practice — before asking it to produce again.',
+    reflection:
+        '"Am I giving thanks for the year, or only for its comfortable portions?"',
   ),
   DecanDayInfo(
     day: 28,
     theme: 'Bless the Continuation',
     action:
-        'Bless the Continuation in one concrete way, keeping the act measured and answerable to Ma’at.',
-    reflection: '“What does bless the continuation require now?”',
+        'Give one form of gratitude that acknowledges the harvest as a renewal of capacity rather than an ending.',
+    reflection:
+        '"What would be missing from the year if any of its difficult months had not happened?"',
   ),
   DecanDayInfo(
     day: 29,
     theme: 'Prepare the Handoff',
     action:
-        'Prepare the Handoff in one concrete way, keeping the act measured and answerable to Ma’at.',
-    reflection: '“What does prepare the handoff require now?”',
+        'Identify what portion of what you have preserved needs to be transmitted to those who will need it next.',
+    reflection:
+        '"What do the remaining months of Shemu require that this month must have prepared?"',
   ),
   DecanDayInfo(
     day: 30,
     theme: 'Seal Sustained Reward',
     action:
-        'Seal Sustained Reward in one concrete way, keeping the act measured and answerable to Ma’at.',
-    reflection: '“What does seal sustained reward require now?”',
+        'Name what has been preserved, what will continue, and what you now owe the next season of work.',
+    reflection:
+        '"Is the first harvest month complete in all its obligations, or does anything remain undischarged?"',
   ),
 ];
 
@@ -1692,70 +1812,70 @@ final List<DecanDayInfo> _compressedHnswFlowRows1 = [
     day: 1,
     theme: 'Enter the Path',
     action:
-        'Enter the Path in one concrete way, keeping the act measured and answerable to Ma’at.',
+        'Begin the journey, communication, or undertaking you have been preparing — take the first real step today.',
     reflection: '“What does enter the path require now?”',
   ),
   DecanDayInfo(
     day: 2,
     theme: 'Measure the Constraint',
     action:
-        'Measure the Constraint in one concrete way, keeping the act measured and answerable to Ma’at.',
+        'Name the specific limitations of this journey — resistance, distance, cost, or time — and work within them rather than against them.',
     reflection: '“What does measure the constraint require now?”',
   ),
   DecanDayInfo(
     day: 3,
-    theme: 'Carry Ma’at First',
+    theme: 'Carry Ma\'at First',
     action:
-        'Carry Ma’at First in one concrete way, keeping the act measured and answerable to Ma’at.',
+        'Before considering what you want from this movement, name what you are obligated to carry — what must arrive, to whom, in what condition.',
     reflection: '“What does carry ma’at first require now?”',
   ),
   DecanDayInfo(
     day: 4,
     theme: 'Pack Only What Serves',
     action:
-        'Pack Only What Serves in one concrete way, keeping the act measured and answerable to Ma’at.',
+        'Release one thing you were planning to carry that is not actually needed — reduce the load to what the journey requires.',
     reflection: '“What does pack only what serves require now?”',
   ),
   DecanDayInfo(
     day: 5,
     theme: 'Protect the Vessel',
     action:
-        'Protect the Vessel in one concrete way, keeping the act measured and answerable to Ma’at.',
+        'Ensure the body, relationship, tool, or system carrying this through the journey is in adequate condition before the midpoint.',
     reflection: '“What does protect the vessel require now?”',
   ),
   DecanDayInfo(
     day: 6,
     theme: 'Move With Purpose',
     action:
-        'Move With Purpose in one concrete way, keeping the act measured and answerable to Ma’at.',
+        'Take one step that serves the destination rather than the motion itself — refuse movement that has no clear direction.',
     reflection: '“What does move with purpose require now?”',
   ),
   DecanDayInfo(
     day: 7,
     theme: 'Read the Road',
     action:
-        'Read the Road in one concrete way, keeping the act measured and answerable to Ma’at.',
+        'Observe what the journey is revealing — resistance, opening, changed conditions — and let it inform the next choice.',
     reflection: '“What does read the road require now?”',
   ),
   DecanDayInfo(
     day: 8,
     theme: 'Keep the Word Clean',
     action:
-        'Keep the Word Clean in one concrete way, keeping the act measured and answerable to Ma’at.',
+        'Ensure that what you said you would carry, deliver, or accomplish remains true and undistorted across distance and time.',
     reflection: '“What does keep the word clean require now?”',
   ),
   DecanDayInfo(
     day: 9,
     theme: 'Record the Distance',
     action:
-        'Record the Distance in one concrete way, keeping the act measured and answerable to Ma’at.',
+        'Note what has been covered, what remains, and whether the original plan still fits the real conditions.',
     reflection: '“What does record the distance require now?”',
   ),
   DecanDayInfo(
     day: 10,
     theme: 'Close the First Passage',
     action:
-        'Close the First Passage in one concrete way, keeping the act measured and answerable to Ma’at.',
+        'Name what was carried, what arrived intact, and what this road teaches that will inform the next crossing.',
     reflection: '“What does close the first passage require now?”',
   ),
 ];
@@ -1765,70 +1885,70 @@ final List<DecanDayInfo> _compressedHnswFlowRows2 = [
     day: 11,
     theme: 'Lift the Load Correctly',
     action:
-        'Lift the Load Correctly in one concrete way, keeping the act measured and answerable to Ma’at.',
+        'Before pushing through the middle distance, re-examine how the burden is carried — rebalance before force compounds the problem.',
     reflection: '“What does lift the load correctly require now?”',
   ),
   DecanDayInfo(
     day: 12,
     theme: 'Set the Terms',
     action:
-        'Set the Terms in one concrete way, keeping the act measured and answerable to Ma’at.',
+        'Name explicitly what you will and will not carry further, and what conditions the continuation of this journey requires.',
     reflection: '“What does set the terms require now?”',
   ),
   DecanDayInfo(
     day: 13,
     theme: 'Balance the Shoulder',
     action:
-        'Balance the Shoulder in one concrete way, keeping the act measured and answerable to Ma’at.',
+        'Redistribute one asymmetric burden — in responsibility, workload, or emotional weight — before it damages the carrier.',
     reflection: '“What does balance the shoulder require now?”',
   ),
   DecanDayInfo(
     day: 14,
     theme: 'Keep the Pace',
     action:
-        'Keep the Pace in one concrete way, keeping the act measured and answerable to Ma’at.',
+        'Maintain a consistent rhythm today rather than sprinting or stalling — let the pace be what the full distance requires.',
     reflection: '“What does keep the pace require now?”',
   ),
   DecanDayInfo(
     day: 15,
     theme: 'Guard Against Heat',
     action:
-        'Guard Against Heat in one concrete way, keeping the act measured and answerable to Ma’at.',
+        'Identify one place where urgency or frustration is increasing the cost of the journey unnecessarily — cool it before it becomes damage.',
     reflection: '“What does guard against heat require now?”',
   ),
   DecanDayInfo(
     day: 16,
     theme: 'Redistribute What Bends',
     action:
-        'Redistribute What Bends in one concrete way, keeping the act measured and answerable to Ma’at.',
+        'Move one part of the load from where it is straining to where it can be borne without damage to the carrier or the cargo.',
     reflection: '“What does redistribute what bends require now?”',
   ),
   DecanDayInfo(
     day: 17,
     theme: 'Honor the Carrier',
     action:
-        'Honor the Carrier in one concrete way, keeping the act measured and answerable to Ma’at.',
+        'Give explicit acknowledgment — to yourself or another — for what has been sustained under sustained weight.',
     reflection: '“What does honor the carrier require now?”',
   ),
   DecanDayInfo(
     day: 18,
     theme: 'Continue Without Complaint',
     action:
-        'Continue Without Complaint in one concrete way, keeping the act measured and answerable to Ma’at.',
+        'Move the next stage of the journey without narrating its difficulty — let the act of continuing be the testimony.',
     reflection: '“What does continue without complaint require now?”',
   ),
   DecanDayInfo(
     day: 19,
     theme: 'Record the Carried Distance',
     action:
-        'Record the Carried Distance in one concrete way, keeping the act measured and answerable to Ma’at.',
+        'Write an honest account of what has been carried, how far, at what cost, and what condition the carrier is in now.',
     reflection: '“What does record the carried distance require now?”',
   ),
   DecanDayInfo(
     day: 20,
     theme: 'Seal Sustainable Endurance',
     action:
-        'Seal Sustainable Endurance in one concrete way, keeping the act measured and answerable to Ma’at.',
+        'Name what made this continuation possible, and what would need to change to make the next stage as sustainable.',
     reflection: '“What does seal sustainable endurance require now?”',
   ),
 ];
@@ -1838,70 +1958,70 @@ final List<DecanDayInfo> _compressedHnswFlowRows3 = [
     day: 21,
     theme: 'Lower the Load',
     action:
-        'Lower the Load in one concrete way, keeping the act measured and answerable to Ma’at.',
+        'Set down one thing you have been carrying that does not need to travel further — place it, do not drop it.',
     reflection: '“What does lower the load require now?”',
   ),
   DecanDayInfo(
     day: 22,
     theme: 'Recover the Body',
     action:
-        'Recover the Body in one concrete way, keeping the act measured and answerable to Ma’at.',
+        'Give one explicit act of recovery to whatever has sustained this journey — not rest as avoidance, but rest as repair.',
     reflection: '“What does recover the body require now?”',
   ),
   DecanDayInfo(
     day: 23,
     theme: 'Reduce the Pace',
     action:
-        'Reduce the Pace in one concrete way, keeping the act measured and answerable to Ma’at.',
+        'Slow deliberately — choose the speed of settling rather than the speed of motion, even if the goal is visible.',
     reflection: '“What does reduce the pace require now?”',
   ),
   DecanDayInfo(
     day: 24,
     theme: 'Set Down What Arrived',
     action:
-        'Set Down What Arrived in one concrete way, keeping the act measured and answerable to Ma’at.',
+        'Place what has been delivered into its proper location and let it stop moving — resist the impulse to carry it further.',
     reflection: '“What does set down what arrived require now?”',
   ),
   DecanDayInfo(
     day: 25,
     theme: 'Cool the Road',
     action:
-        'Cool the Road in one concrete way, keeping the act measured and answerable to Ma’at.',
+        'Address one way the journey created heat — in relationships, finances, or unresolved tension — before the next departure.',
     reflection: '“What does cool the road require now?”',
   ),
   DecanDayInfo(
     day: 26,
     theme: 'Repair Travel Wear',
     action:
-        'Repair Travel Wear in one concrete way, keeping the act measured and answerable to Ma’at.',
+        'Fix, rest, clean, or restore one thing the journey used hard — tool, relationship, or body — before asking it to work again.',
     reflection: '“What does repair travel wear require now?”',
   ),
   DecanDayInfo(
     day: 27,
     theme: 'Return to Center',
     action:
-        'Return to Center in one concrete way, keeping the act measured and answerable to Ma’at.',
+        'Reestablish connection to source — home, practice, stillness — whatever returns you to yourself after sustained movement.',
     reflection: '“What does return to center require now?”',
   ),
   DecanDayInfo(
     day: 28,
     theme: 'Give the Travel Report',
     action:
-        'Give the Travel Report in one concrete way, keeping the act measured and answerable to Ma’at.',
+        'Account clearly for what was carried, what arrived, what was lost or changed, and what the journey cost and produced.',
     reflection: '“What does give the travel report require now?”',
   ),
   DecanDayInfo(
     day: 29,
     theme: 'Bless the Arrival',
     action:
-        'Bless the Arrival in one concrete way, keeping the act measured and answerable to Ma’at.',
+        'Mark the completion of this passage with a deliberate gesture — the arrival deserves more than an unconscious passing.',
     reflection: '“What does bless the arrival require now?”',
   ),
   DecanDayInfo(
     day: 30,
     theme: 'Seal the Journey',
     action:
-        'Seal the Journey in one concrete way, keeping the act measured and answerable to Ma’at.',
+        'Name what moved, what arrived, what was learned, and what this passage has made possible for the next.',
     reflection: '“What does seal the journey require now?”',
   ),
 ];
@@ -1911,70 +2031,70 @@ final List<DecanDayInfo> _compressedHentihetFlowRows1 = [
     day: 1,
     theme: 'Stand Watch Over the Store',
     action:
-        'Stand Watch Over the Store in one concrete way, keeping the act measured and answerable to Ma’at.',
+        'Survey what you have accumulated — resources, relationships, knowledge, or position — with the eyes of a guardian, not an owner.',
     reflection: '“What does stand watch over the store require now?”',
   ),
   DecanDayInfo(
     day: 2,
     theme: 'Name the Authority',
     action:
-        'Name the Authority in one concrete way, keeping the act measured and answerable to Ma’at.',
+        'Identify who rightfully holds responsibility for what has been gathered — including yourself — and make it explicit.',
     reflection: '“What does name the authority require now?”',
   ),
   DecanDayInfo(
     day: 3,
     theme: 'Guard Without Grasping',
     action:
-        'Guard Without Grasping in one concrete way, keeping the act measured and answerable to Ma’at.',
+        'Protect one thing you hold in trust by keeping it available to its proper recipients rather than tightening your hold.',
     reflection: '“What does guard without grasping require now?”',
   ),
   DecanDayInfo(
     day: 4,
     theme: 'Inspect for Heat',
     action:
-        'Inspect for Heat in one concrete way, keeping the act measured and answerable to Ma’at.',
+        'Look for one place where the energy of having — possession, pride, or success — is beginning to generate protective aggression.',
     reflection: '“What does inspect for heat require now?”',
   ),
   DecanDayInfo(
     day: 5,
     theme: 'Cool the Hand',
     action:
-        'Cool the Hand in one concrete way, keeping the act measured and answerable to Ma’at.',
+        'Deliberately release one grip — on recognition, position, resource, or control — before it hardens into hoarding.',
     reflection: '“What does cool the hand require now?”',
   ),
   DecanDayInfo(
     day: 6,
     theme: 'Protect the Rightful Claim',
     action:
-        'Protect the Rightful Claim in one concrete way, keeping the act measured and answerable to Ma’at.',
+        'Ensure that one person or system with a legitimate claim on what has been gathered receives what they are owed.',
     reflection: '“What does protect the rightful claim require now?”',
   ),
   DecanDayInfo(
     day: 7,
     theme: 'Refuse Appetite in Power',
     action:
-        'Refuse Appetite in Power in one concrete way, keeping the act measured and answerable to Ma’at.',
+        'Decline one use of authority or abundance that would serve your wants rather than the order you are supposed to protect.',
     reflection: '“What does refuse appetite in power require now?”',
   ),
   DecanDayInfo(
     day: 8,
     theme: 'Return Force to Purpose',
     action:
-        'Return Force to Purpose in one concrete way, keeping the act measured and answerable to Ma’at.',
+        'Redirect one deployment of strength or authority back toward its original justification — away from momentum and back to its reason.',
     reflection: '“What does return force to purpose require now?”',
   ),
   DecanDayInfo(
     day: 9,
     theme: 'Record the Watch',
     action:
-        'Record the Watch in one concrete way, keeping the act measured and answerable to Ma’at.',
+        'Write what you hold, what you guard, what claims exist on it, and what you have done with the authority entrusted to you.',
     reflection: '“What does record the watch require now?”',
   ),
   DecanDayInfo(
     day: 10,
     theme: 'Seal Watchful Authority',
     action:
-        'Seal Watchful Authority in one concrete way, keeping the act measured and answerable to Ma’at.',
+        'Name what you have protected, what you have refused, and what keeping watch has cost and preserved.',
     reflection: '“What does seal watchful authority require now?”',
   ),
 ];
@@ -1984,70 +2104,70 @@ final List<DecanDayInfo> _compressedHentihetFlowRows2 = [
     day: 11,
     theme: 'Bring Power to the Heart',
     action:
-        'Bring Power to the Heart in one concrete way, keeping the act measured and answerable to Ma’at.',
+        'Before acting from strength or abundance, ask the ib what this power is actually for and what it must not do.',
     reflection: '“What does bring power to the heart require now?”',
   ),
   DecanDayInfo(
     day: 12,
     theme: 'Name the Fire',
     action:
-        'Name the Fire in one concrete way, keeping the act measured and answerable to Ma’at.',
+        'Identify the heat in you right now — desire, anger, ambition, or urgency — and call it by its true name.',
     reflection: '“What does name the fire require now?”',
   ),
   DecanDayInfo(
     day: 13,
     theme: 'Purify the Intention',
     action:
-        'Purify the Intention in one concrete way, keeping the act measured and answerable to Ma’at.',
+        'Examine one action you are planning and ask whether its source is duty or appetite — let the answer change something.',
     reflection: '“What does purify the intention require now?”',
   ),
   DecanDayInfo(
     day: 14,
     theme: 'Sweeten the Flame',
     action:
-        'Sweeten the Flame in one concrete way, keeping the act measured and answerable to Ma’at.',
+        'Transform one reactive or possessive impulse into a gesture of genuine relation — offer what was about to become a demand.',
     reflection: '“What does sweeten the flame require now?”',
   ),
   DecanDayInfo(
     day: 15,
     theme: 'Repair Harm Done in Heat',
     action:
-        'Repair Harm Done in Heat in one concrete way, keeping the act measured and answerable to Ma’at.',
+        'Address one consequence of previous excess — something said, withheld, or taken in a moment of force that was not justified.',
     reflection: '“What does repair harm done in heat require now?”',
   ),
   DecanDayInfo(
     day: 16,
     theme: 'Speak Under Oath',
     action:
-        'Speak Under Oath in one concrete way, keeping the act measured and answerable to Ma’at.',
+        'Say one important thing as if your name depended on it — with the precision and accountability that true speech requires.',
     reflection: '“What does speak under oath require now?”',
   ),
   DecanDayInfo(
     day: 17,
     theme: 'Remove What Feeds the Fire',
     action:
-        'Remove What Feeds the Fire in one concrete way, keeping the act measured and answerable to Ma’at.',
+        'Eliminate one input that consistently inflames heat without producing useful result — a grievance, comparison, or provocative habit.',
     reflection: '“What does remove what feeds the fire require now?”',
   ),
   DecanDayInfo(
     day: 18,
     theme: 'Offer Strength as Service',
     action:
-        'Offer Strength as Service in one concrete way, keeping the act measured and answerable to Ma’at.',
+        'Use one capability you hold — influence, knowledge, or resource — in deliberate service of someone who needs it.',
     reflection: '“What does offer strength as service require now?”',
   ),
   DecanDayInfo(
     day: 19,
     theme: 'Hold Still in the Blaze',
     action:
-        'Hold Still in the Blaze in one concrete way, keeping the act measured and answerable to Ma’at.',
+        'Remain present and measured through one high-stakes situation without forcing resolution or fleeing it.',
     reflection: '“What does hold still in the blaze require now?”',
   ),
   DecanDayInfo(
     day: 20,
     theme: 'Seal Governed Fire',
     action:
-        'Seal Governed Fire in one concrete way, keeping the act measured and answerable to Ma’at.',
+        'Name what has been cooled, purified, and offered — and what restraint has made possible.',
     reflection: '“What does seal governed fire require now?”',
   ),
 ];
@@ -2057,70 +2177,70 @@ final List<DecanDayInfo> _compressedHentihetFlowRows3 = [
     day: 21,
     theme: 'Recognize What Is Complete',
     action:
-        'Recognize What Is Complete in one concrete way, keeping the act measured and answerable to Ma’at.',
+        'Identify one task, season, or commitment that has genuinely finished and acknowledge the completion explicitly.',
     reflection: '“What does recognize what is complete require now?”',
   ),
   DecanDayInfo(
     day: 22,
     theme: 'Open the Hand',
     action:
-        'Open the Hand in one concrete way, keeping the act measured and answerable to Ma’at.',
+        'Release one thing you have been holding — an expectation, a resource, a story, or a claim — that has served its time.',
     reflection: '“What does open the hand require now?”',
   ),
   DecanDayInfo(
     day: 23,
     theme: 'Place the Due Portion',
     action:
-        'Place the Due Portion in one concrete way, keeping the act measured and answerable to Ma’at.',
+        'Give explicitly and with correct direction — not casually, not later — something owed to netjeru, ancestor, household, or community.',
     reflection: '“What does place the due portion require now?”',
   ),
   DecanDayInfo(
     day: 24,
     theme: 'Return Excess',
     action:
-        'Return Excess in one concrete way, keeping the act measured and answerable to Ma’at.',
+        'Identify what you have accumulated beyond what you need and find its proper recipient.',
     reflection: '“What does return excess require now?”',
   ),
   DecanDayInfo(
     day: 25,
     theme: 'Let the Body Stand Down',
     action:
-        'Let the Body Stand Down in one concrete way, keeping the act measured and answerable to Ma’at.',
+        'Release the physical posture of vigilance and effort — give the body explicit permission to settle.',
     reflection: '“What does let the body stand down require now?”',
   ),
   DecanDayInfo(
     day: 26,
     theme: 'Mend What Force Wore Down',
     action:
-        'Mend What Force Wore Down in one concrete way, keeping the act measured and answerable to Ma’at.',
+        'Repair one thing that sustained damage from the season\'s exertion before asking it to serve again.',
     reflection: '“What does mend what force wore down require now?”',
   ),
   DecanDayInfo(
     day: 27,
     theme: 'Restore Peace to the House',
     action:
-        'Restore Peace to the House in one concrete way, keeping the act measured and answerable to Ma’at.',
+        'Address one unresolved tension in the household, workspace, or community that has been deferred through the season of effort.',
     reflection: '“What does restore peace to the house require now?”',
   ),
   DecanDayInfo(
     day: 28,
     theme: 'Record the Release',
     action:
-        'Record the Release in one concrete way, keeping the act measured and answerable to Ma’at.',
+        'Write what was held, what was offered, what was released, and how the distribution measured against Ma\'at.',
     reflection: '“What does record the release require now?”',
   ),
   DecanDayInfo(
     day: 29,
     theme: 'Rest in Hotep',
     action:
-        'Rest in Hotep in one concrete way, keeping the act measured and answerable to Ma’at.',
+        'Allow the body, mind, and household to arrive at the condition that offering produces — right relation fully settled.',
     reflection: '“What does rest in hotep require now?”',
   ),
   DecanDayInfo(
     day: 30,
     theme: 'Seal the Offering',
     action:
-        'Seal the Offering in one concrete way, keeping the act measured and answerable to Ma’at.',
+        'Name what was given, to whom, with what intention — and mark the month complete.',
     reflection: '“What does seal the offering require now?”',
   ),
 ];
@@ -2130,70 +2250,70 @@ final List<DecanDayInfo> _compressedPaipiFlowRows1 = [
     day: 1,
     theme: 'Recognize What Endured',
     action:
-        'Recognize What Endured in one concrete way, keeping the act measured and answerable to Ma’at.',
+        'Name one thing — practice, relationship, value, or commitment — that survived the full year without breaking.',
     reflection: '“What does recognize what endured require now?”',
   ),
   DecanDayInfo(
     day: 2,
     theme: 'Speak the Name',
     action:
-        'Speak the Name in one concrete way, keeping the act measured and answerable to Ma’at.',
+        'Say aloud or write one name — of a person, an ancestor, or a formative thing — that deserves to be spoken before the year ends.',
     reflection: '“What does speak the name require now?”',
   ),
   DecanDayInfo(
     day: 3,
     theme: 'Return to the Place of Memory',
     action:
-        'Return to the Place of Memory in one concrete way, keeping the act measured and answerable to Ma’at.',
+        'Revisit one source — physical place, object, text, or practice — that holds something important from your history.',
     reflection: '“What does return to the place of memory require now?”',
   ),
   DecanDayInfo(
     day: 4,
     theme: 'Feed the Ka',
     action:
-        'Feed the Ka in one concrete way, keeping the act measured and answerable to Ma’at.',
+        'Perform one act of offering or remembrance that directs provision toward an ancestor, a lineage, or a source you carry forward.',
     reflection: '“What does feed the ka require now?”',
   ),
   DecanDayInfo(
     day: 5,
     theme: 'Sort the Inheritance',
     action:
-        'Sort the Inheritance in one concrete way, keeping the act measured and answerable to Ma’at.',
+        'Distinguish one thing you have inherited that serves you from one you carry out of habit rather than need.',
     reflection: '“What does sort the inheritance require now?”',
   ),
   DecanDayInfo(
     day: 6,
     theme: 'Repair the Broken Chain',
     action:
-        'Repair the Broken Chain in one concrete way, keeping the act measured and answerable to Ma’at.',
+        'Identify one connection — to a practice, a person, or an ancestor — that has been neglected and take one step to restore it.',
     reflection: '“What does repair the broken chain require now?”',
   ),
   DecanDayInfo(
     day: 7,
     theme: 'Honor the Mourning',
     action:
-        'Honor the Mourning in one concrete way, keeping the act measured and answerable to Ma’at.',
+        'Give proper form to one grief that has not yet been acknowledged — name the loss, let it be real, let it be placed.',
     reflection: '“What does honor the mourning require now?”',
   ),
   DecanDayInfo(
     day: 8,
     theme: 'Preserve the Record',
     action:
-        'Preserve the Record in one concrete way, keeping the act measured and answerable to Ma’at.',
+        'Write, record, or protect one account of something that happened this year that would otherwise be lost.',
     reflection: '“What does preserve the record require now?”',
   ),
   DecanDayInfo(
     day: 9,
     theme: 'Carry Forward What Held',
     action:
-        'Carry Forward What Held in one concrete way, keeping the act measured and answerable to Ma’at.',
+        'Name one thing that proved itself this year and commit to carrying it into the next cycle as a guide.',
     reflection: '“What does carry forward what held require now?”',
   ),
   DecanDayInfo(
     day: 10,
     theme: 'Seal Remembrance',
     action:
-        'Seal Remembrance in one concrete way, keeping the act measured and answerable to Ma’at.',
+        'Name what you have spoken, honored, preserved, and chosen to carry — and acknowledge the living chain you are part of.',
     reflection: '“What does seal remembrance require now?”',
   ),
 ];
@@ -2203,70 +2323,70 @@ final List<DecanDayInfo> _compressedPaipiFlowRows2 = [
     day: 11,
     theme: 'Bring Memory to the Heart',
     action:
-        'Bring Memory to the Heart in one concrete way, keeping the act measured and answerable to Ma’at.',
+        'Sit with one memory and let the heart determine what it contains beyond the surface feeling.',
     reflection: '“What does bring memory to the heart require now?”',
   ),
   DecanDayInfo(
     day: 12,
     theme: 'Distinguish Presence From Weight',
     action:
-        'Distinguish Presence From Weight in one concrete way, keeping the act measured and answerable to Ma’at.',
+        'Separate one memory that strengthens you from one that burdens you — both may endure, but they are not the same thing.',
     reflection: '“What does distinguish presence from weight require now?”',
   ),
   DecanDayInfo(
     day: 13,
     theme: 'Weigh the Inheritance',
     action:
-        'Weigh the Inheritance in one concrete way, keeping the act measured and answerable to Ma’at.',
+        'Assess one received pattern — habit, belief, or way of working — and determine whether it strengthens or strains what you are building.',
     reflection: '“What does weigh the inheritance require now?”',
   ),
   DecanDayInfo(
     day: 14,
     theme: 'Let Grief Teach Cleanly',
     action:
-        'Let Grief Teach Cleanly in one concrete way, keeping the act measured and answerable to Ma’at.',
+        'Allow one sorrow to complete its teaching without becoming resentment or identity — receive the instruction and release the wound.',
     reflection: '“What does let grief teach cleanly require now?”',
   ),
   DecanDayInfo(
     day: 15,
     theme: 'Correct the Record',
     action:
-        'Correct the Record in one concrete way, keeping the act measured and answerable to Ma’at.',
+        'Revise one thing you have told yourself about the past that is more distorted than accurate.',
     reflection: '“What does correct the record require now?”',
   ),
   DecanDayInfo(
     day: 16,
     theme: 'Return Blame to Measure',
     action:
-        'Return Blame to Measure in one concrete way, keeping the act measured and answerable to Ma’at.',
+        'Restore one instance of blame or self-condemnation to its actual proportion — neither too large nor entirely dissolved.',
     reflection: '“What does return blame to measure require now?”',
   ),
   DecanDayInfo(
     day: 17,
     theme: 'Make Peace With the Unfinished',
     action:
-        'Make Peace With the Unfinished in one concrete way, keeping the act measured and answerable to Ma’at.',
+        'Acknowledge one thing from this year that did not complete and will not — name it and release the expectation.',
     reflection: '“What does make peace with the unfinished require now?”',
   ),
   DecanDayInfo(
     day: 18,
     theme: 'Choose the Living Thread',
     action:
-        'Choose the Living Thread in one concrete way, keeping the act measured and answerable to Ma’at.',
+        'Select one story from the year that gives useful instruction rather than unnecessary pain, and make that the thread you carry forward.',
     reflection: '“What does choose the living thread require now?”',
   ),
   DecanDayInfo(
     day: 19,
     theme: 'Give Memory a Form',
     action:
-        'Give Memory a Form in one concrete way, keeping the act measured and answerable to Ma’at.',
+        'Write, draw, or create one artifact that gives durable form to something worth preserving from this year.',
     reflection: '“What does give memory a form require now?”',
   ),
   DecanDayInfo(
     day: 20,
     theme: 'Seal Integrated Memory',
     action:
-        'Seal Integrated Memory in one concrete way, keeping the act measured and answerable to Ma’at.',
+        'Name what has been weighed, corrected, released, and chosen — and acknowledge what you are carrying into the new year with intention.',
     reflection: '“What does seal integrated memory require now?”',
   ),
 ];
@@ -2276,70 +2396,70 @@ final List<DecanDayInfo> _compressedPaipiFlowRows3 = [
     day: 21,
     theme: 'Name What Continues',
     action:
-        'Name What Continues in one concrete way, keeping the act measured and answerable to Ma’at.',
+        'State explicitly — to yourself or another — what you are choosing to carry forward from this year into the next.',
     reflection: '“What does name what continues require now?”',
   ),
   DecanDayInfo(
     day: 22,
     theme: 'Prepare the Vessel',
     action:
-        'Prepare the Vessel in one concrete way, keeping the act measured and answerable to Ma’at.',
+        'Make one concrete preparation that ensures what you intend to transmit will actually arrive — write it, organize it, or protect it.',
     reflection: '“What does prepare the vessel require now?”',
   ),
   DecanDayInfo(
     day: 23,
     theme: 'Speak to the Future',
     action:
-        'Speak to the Future in one concrete way, keeping the act measured and answerable to Ma’at.',
+        'Say or write something addressed directly to what is coming — a commitment, a lesson, or a transmission of what has been learned.',
     reflection: '“What does speak to the future require now?”',
   ),
   DecanDayInfo(
     day: 24,
     theme: 'Protect the Name',
     action:
-        'Protect the Name in one concrete way, keeping the act measured and answerable to Ma’at.',
+        'Ensure one name — yours, an ancestor\'s, or a teaching\'s — will be accurately preserved and correctly spoken going forward.',
     reflection: '“What does protect the name require now?”',
   ),
   DecanDayInfo(
     day: 25,
     theme: 'Release What Cannot Travel',
     action:
-        'Release What Cannot Travel in one concrete way, keeping the act measured and answerable to Ma’at.',
+        'Identify one thing you have been trying to carry into the next cycle that does not belong there — and consciously leave it behind.',
     reflection: '“What does release what cannot travel require now?”',
   ),
   DecanDayInfo(
     day: 26,
     theme: 'Make Remembrance Repeatable',
     action:
-        'Make Remembrance Repeatable in one concrete way, keeping the act measured and answerable to Ma’at.',
+        'Turn one act of honoring into something that can be done reliably in every cycle — give it a repeatable form.',
     reflection: '“What does make remembrance repeatable require now?”',
   ),
   DecanDayInfo(
     day: 27,
     theme: 'Join the Chain',
     action:
-        'Join the Chain in one concrete way, keeping the act measured and answerable to Ma’at.',
+        'Name the lineage you are part of — what you received and what you are adding — and acknowledge the link in both directions.',
     reflection: '“What does join the chain require now?”',
   ),
   DecanDayInfo(
     day: 28,
     theme: 'Bless the Line',
     action:
-        'Bless the Line in one concrete way, keeping the act measured and answerable to Ma’at.',
+        'Give a formal acknowledgment to both what came before you and what will come after.',
     reflection: '“What does bless the line require now?”',
   ),
   DecanDayInfo(
     day: 29,
     theme: 'Hand Forward Cleanly',
     action:
-        'Hand Forward Cleanly in one concrete way, keeping the act measured and answerable to Ma’at.',
+        'Complete the transmission — give what must be given to its recipient without remainder, condition, or revision.',
     reflection: '“What does hand forward cleanly require now?”',
   ),
   DecanDayInfo(
     day: 30,
     theme: 'Seal Continuity',
     action:
-        'Seal Continuity in one concrete way, keeping the act measured and answerable to Ma’at.',
+        'Name what was gathered, remembered, chosen, and transmitted — and close this month as a completed act of passage.',
     reflection: '“What does seal continuity require now?”',
   ),
 ];
@@ -2349,71 +2469,81 @@ final List<DecanDayInfo> _compressedMesutraFlowRows1 = [
     day: 1,
     theme: 'Enter the Hidden Chamber',
     action:
-        'Enter the Hidden Chamber in one concrete way, keeping the act measured and answerable to Ma’at.',
-    reflection: '“What does enter the hidden chamber require now?”',
+        'Find or create one space of genuine quietude where the work of completion can happen without disturbance.',
+    reflection:
+        '"What am I still treating as active when the year has already completed it?"',
   ),
   DecanDayInfo(
     day: 2,
     theme: 'Recognize Latent Power',
     action:
-        'Recognize Latent Power in one concrete way, keeping the act measured and answerable to Ma’at.',
-    reflection: '“What does recognize latent power require now?”',
+        'Name one capacity, intention, or direction that has been forming beneath the surface of this year but has not yet emerged as action.',
+    reflection:
+        '"What has been sitting on the altar that was never truly offered?"',
   ),
   DecanDayInfo(
     day: 3,
     theme: 'Stop Forcing Emergence',
     action:
-        'Stop Forcing Emergence in one concrete way, keeping the act measured and answerable to Ma’at.',
-    reflection: '“What does stop forcing emergence require now?”',
+        'Release one expectation of clarity or outcome that is not yet due — allow what is not ready to remain in formation.',
+    reflection:
+        '"What record am I leaving open that will drag its incompletion into the next cycle?"',
   ),
   DecanDayInfo(
     day: 4,
     theme: 'Guard the Depth',
     action:
-        'Guard the Depth in one concrete way, keeping the act measured and answerable to Ma’at.',
-    reflection: '“What does guard the depth require now?”',
+        'Protect one inner direction or forming intention from premature expression, judgment, or exposure.',
+    reflection:
+        '"What residue from the year am I carrying that does not belong in the next cycle?"',
   ),
   DecanDayInfo(
     day: 5,
     theme: 'Feed the Hidden Process',
     action:
-        'Feed the Hidden Process in one concrete way, keeping the act measured and answerable to Ma’at.',
-    reflection: '“What does feed the hidden process require now?”',
+        'Give one unit of care to what is forming but not yet visible — rest, silence, study, or preparation that serves what cannot yet be named.',
+    reflection:
+        '"What am I insisting on continuing past its completion because I am not ready to acknowledge the ending?"',
   ),
   DecanDayInfo(
     day: 6,
     theme: 'Listen Beneath the Surface',
     action:
-        'Listen Beneath the Surface in one concrete way, keeping the act measured and answerable to Ma’at.',
-    reflection: '“What does listen beneath the surface require now?”',
+        'Set aside one hour for attentive stillness — not solving, not planning — simply listening for what is forming beneath conscious attention.',
+    reflection:
+        '"What am I checking, touching, or exposing that needs to gather without interference?"',
   ),
   DecanDayInfo(
     day: 7,
     theme: 'Refuse Premature Naming',
     action:
-        'Refuse Premature Naming in one concrete way, keeping the act measured and answerable to Ma’at.',
-    reflection: '“What does refuse premature naming require now?”',
+        'Resist the impulse to declare or announce something that is still in formative stage — let it complete before it is spoken.',
+    reflection:
+        '"Where am I refusing to allow something to enter the dark when its time has come?"',
   ),
   DecanDayInfo(
     day: 8,
     theme: 'Strengthen the Womb of Becoming',
     action:
-        'Strengthen the Womb of Becoming in one concrete way, keeping the act measured and answerable to Ma’at.',
-    reflection: '“What does strengthen the womb of becoming require now?”',
+        'Improve one condition that allows the next thing to develop properly — rest, uncluttered space, protected time, or resolved distraction.',
+    reflection:
+        '"What am I still pressing that has already given all it has to give this year?"',
   ),
   DecanDayInfo(
     day: 9,
     theme: 'Record the Stirring',
     action:
-        'Record the Stirring in one concrete way, keeping the act measured and answerable to Ma’at.',
-    reflection: '“What does record the stirring require now?”',
+        'Write briefly what you sense is forming — not as commitment or announcement, but as faithful witness to what is gathering.',
+    reflection:
+        '"Does my conduct in the year\'s stillest month reflect the standing I am building?"',
   ),
   DecanDayInfo(
     day: 10,
     theme: 'Seal Hidden Emergence',
     action:
-        'Seal Hidden Emergence in one concrete way, keeping the act measured and answerable to Ma’at.',
-    reflection: '“What does seal hidden emergence require now?”',
+        'Acknowledge that what is forming is real and present even though unseen — and commit to protecting it until its proper hour.',
+    reflection:
+        '"What exits this decan in right condition for the hidden passage? What has not yet been cleared?"',
   ),
 ];
 
@@ -2422,71 +2552,81 @@ final List<DecanDayInfo> _compressedMesutraFlowRows2 = [
     day: 11,
     theme: 'Keep the Heart Awake',
     action:
-        'Keep the Heart Awake in one concrete way, keeping the act measured and answerable to Ma’at.',
-    reflection: '“What does keep the heart awake require now?”',
+        'Rest without disengaging — let the body be still while attention remains gently present to what is happening in the hidden space.',
+    reflection:
+        '"Am I genuinely awake in this stillness, or have I mistaken quiet for permission to stop attending?"',
   ),
   DecanDayInfo(
     day: 12,
     theme: 'Listen to the Dark',
     action:
-        'Listen to the Dark in one concrete way, keeping the act measured and answerable to Ma’at.',
-    reflection: '“What does listen to the dark require now?”',
+        'Remain with one unresolved question without demanding resolution — listen to what the silence holds.',
+    reflection:
+        '"Where am I shortening a stage that the ordered passage requires to be complete?"',
   ),
   DecanDayInfo(
     day: 13,
     theme: 'Separate Stillness From Avoidance',
     action:
-        'Separate Stillness From Avoidance in one concrete way, keeping the act measured and answerable to Ma’at.',
-    reflection: '“What does separate stillness from avoidance require now?”',
+        'Ask honestly: is this quietude genuine receptivity, or is it a way of not looking at something that needs to be seen?',
+    reflection:
+        '"Am I closing this because I understand it, or to avoid having to understand it?"',
   ),
   DecanDayInfo(
     day: 14,
     theme: 'Guard the Inner Chamber',
     action:
-        'Guard the Inner Chamber in one concrete way, keeping the act measured and answerable to Ma’at.',
-    reflection: '“What does guard the inner chamber require now?”',
+        'Protect your attentive stillness from intrusion today — decline one external demand that would pull you from this quality of presence.',
+    reflection:
+        '"What have I been carrying as something I will get to, that must be placed before the year closes?"',
   ),
   DecanDayInfo(
     day: 15,
     theme: 'Hold the Unclear Thing Gently',
     action:
-        'Hold the Unclear Thing Gently in one concrete way, keeping the act measured and answerable to Ma’at.',
-    reflection: '“What does hold the unclear thing gently require now?”',
+        'Stay with one ambiguous situation, feeling, or direction without forcing it to resolve — hold it without grip.',
+    reflection:
+        '"Has readiness been maintained, or has disorder re-entered what was cleared?"',
   ),
   DecanDayInfo(
     day: 16,
     theme: 'Watch the Gate',
     action:
-        'Watch the Gate in one concrete way, keeping the act measured and answerable to Ma’at.',
-    reflection: '“What does watch the gate require now?”',
+        'Maintain alertness at the threshold — notice what is trying to enter the new cycle and whether it belongs there.',
+    reflection:
+        '"Where am I beginning the new year inside the old one because waiting in stillness is uncomfortable?"',
   ),
   DecanDayInfo(
     day: 17,
     theme: 'Keep the Lamp Low',
     action:
-        'Keep the Lamp Low in one concrete way, keeping the act measured and answerable to Ma’at.',
-    reflection: '“What does keep the lamp low require now?”',
+        'Continue with enough illumination to remain oriented but not so much that you force premature visibility.',
+    reflection:
+        '"What distraction am I using to avoid the deepest point of the year\'s completion?"',
   ),
   DecanDayInfo(
     day: 18,
     theme: 'Trust the Ordered Passage',
     action:
-        'Trust the Ordered Passage in one concrete way, keeping the act measured and answerable to Ma’at.',
-    reflection: '“What does trust the ordered passage require now?”',
+        'Release one anxiety about what is forming by trusting that a correctly prepared passage produces what is needed.',
+    reflection:
+        '"Is my stillness active and attended, or passive and drifting?"',
   ),
   DecanDayInfo(
     day: 19,
     theme: 'Record the Night Watch',
     action:
-        'Record the Night Watch in one concrete way, keeping the act measured and answerable to Ma’at.',
-    reflection: '“What does record the night watch require now?”',
+        'Write briefly what has been present in the stillness of this month — not conclusions, but faithful witness to what the darkness has held.',
+    reflection:
+        '"What am I tempted to announce or act on that needs more time in the hidden condition?"',
   ),
   DecanDayInfo(
     day: 20,
     theme: 'Seal Attentive Stillness',
     action:
-        'Seal Attentive Stillness in one concrete way, keeping the act measured and answerable to Ma’at.',
-    reflection: '“What does seal attentive stillness require now?”',
+        'Name what has been protected, what has been present, and what the quality of this month\'s silence has prepared.',
+    reflection:
+        '"What has the hidden passage required of me? Have I given it?"',
   ),
 ];
 
@@ -2495,113 +2635,123 @@ final List<DecanDayInfo> _compressedMesutraFlowRows3 = [
     day: 21,
     theme: 'Stand at the Threshold',
     action:
-        'Stand at the Threshold in one concrete way, keeping the act measured and answerable to Ma’at.',
-    reflection: '“What does stand at the threshold require now?”',
+        'Acknowledge explicitly that you are between years — neither the cycle that ended nor the one about to open. Stay with that honestly.',
+    reflection:
+        '"Can I read the final measure accurately, without adding anxiety or premature hope?"',
   ),
   DecanDayInfo(
     day: 22,
     theme: 'Stop Adding to the Old Cycle',
     action:
-        'Stop Adding to the Old Cycle in one concrete way, keeping the act measured and answerable to Ma’at.',
-    reflection: '“What does stop adding to the old cycle require now?”',
+        'Refuse one new project or commitment that would burden the old year further — let its account close.',
+    reflection:
+        '"What am I adding because readiness makes me anxious, rather than because it is genuinely needed?"',
   ),
   DecanDayInfo(
     day: 23,
     theme: 'Clear the Gate',
     action:
-        'Clear the Gate in one concrete way, keeping the act measured and answerable to Ma’at.',
-    reflection: '“What does clear the gate require now?”',
+        'Complete or release one unfinished thing that would otherwise carry disorder across the threshold into the new year.',
+    reflection:
+        '"Can I hold the form of becoming without rushing it toward either the old year or the new?"',
   ),
   DecanDayInfo(
     day: 24,
     theme: 'Gather the Necessary Things',
-    action:
-        'Gather the Necessary Things in one concrete way, keeping the act measured and answerable to Ma’at.',
-    reflection: '“What does gather the necessary things require now?”',
+    action: 'Name what you genuinely need to carry forward — and only that.',
+    reflection:
+        '"Am I respecting the timing that Ma\'at requires, or my own desire for the new year to begin?"',
   ),
   DecanDayInfo(
     day: 25,
     theme: 'Refuse the False Dawn',
     action:
-        'Refuse the False Dawn in one concrete way, keeping the act measured and answerable to Ma’at.',
-    reflection: '“What does refuse the false dawn require now?”',
+        'Decline one premature beginning that is attempting to open before the old year has properly closed.',
+    reflection:
+        '"Is there anything standing between the year\'s completion and a clean crossing into Heriu Renpet?"',
   ),
   DecanDayInfo(
     day: 26,
     theme: 'Keep the Body Ready',
     action:
-        'Keep the Body Ready in one concrete way, keeping the act measured and answerable to Ma’at.',
-    reflection: '“What does keep the body ready require now?”',
+        'Give the body one act of physical preparation — rest, nourishment, or movement — that readies it for the new cycle without launching it prematurely.',
+    reflection:
+        '"What am I keeping burning that should go out so the new fire can arise?"',
   ),
   DecanDayInfo(
     day: 27,
     theme: 'Honor the Last Darkness',
     action:
-        'Honor the Last Darkness in one concrete way, keeping the act measured and answerable to Ma’at.',
-    reflection: '“What does honor the last darkness require now?”',
+        'Give one deliberate act of acknowledgment to the completion of this year — not celebration, but honest recognition.',
+    reflection:
+        '"Have I given the ending of the year the acknowledgment that its completion deserves?"',
   ),
   DecanDayInfo(
     day: 28,
     theme: 'Listen for the First Light',
     action:
-        'Listen for the First Light in one concrete way, keeping the act measured and answerable to Ma’at.',
-    reflection: '“What does listen for the first light require now?”',
+        'Hold the readiness of the watcher before dawn — not creating the light, but prepared to recognize it the moment it arrives.',
+    reflection:
+        '"Can I recognize completion without immediately filling it with the next beginning?"',
   ),
   DecanDayInfo(
     day: 29,
     theme: 'Seal the Night Passage',
     action:
-        'Seal the Night Passage in one concrete way, keeping the act measured and answerable to Ma’at.',
-    reflection: '“What does seal the night passage require now?”',
+        'Name what the year contained, what has been completed, what has been released, and what will not be carried forward.',
+    reflection:
+        '"Can I be ready without being active? Can I hold the threshold without pushing through it?"',
   ),
   DecanDayInfo(
     day: 30,
     theme: 'Wait at the Edge of Birth',
     action:
-        'Wait at the Edge of Birth in one concrete way, keeping the act measured and answerable to Ma’at.',
-    reflection: '“What does wait at the edge of birth require now?”',
+        'Do nothing to hasten what is coming — remain at the threshold in readiness, without interference, until the new year opens under Ma\'at.',
+    reflection:
+        '"Has the year been sealed with the honor its completion deserves?"',
   ),
 ];
 
 final List<DecanDayInfo> _compressedHeriuRenpetFlowRows = [
   DecanDayInfo(
     day: 1,
-    theme: 'Birth of Ausar',
+    theme: 'Receive the First Birth — Ausar',
     action:
-        'Name what has ended, what must be gathered, and what can still become fertile after loss.',
+        'Acknowledge one disruption from the year that proved necessary — that led to restoration rather than simple loss. Name what was restored through it.',
     reflection:
-        '“What broken thing is asking to be gathered into a new form of life?”',
+        '"What passed through disruption this year that became stronger for having been broken and gathered?"',
   ),
   DecanDayInfo(
     day: 2,
-    theme: 'Birth of Heru the Elder',
+    theme: 'Receive the Second Birth — Heru the Elder',
     action:
-        'Rise above the scattered pieces and look for the larger field of order.',
+        'Take the full span of the year in sight — not a partial view, not only the difficult or the easy, but the whole arc. Name what the complete span shows.',
     reflection:
-        '“What becomes visible when I stop looking only from the wound?”',
+        '"When I see the year from horizon to horizon, what does the whole reveal that the parts could not?"',
   ),
   DecanDayInfo(
     day: 3,
-    theme: 'Birth of Set',
+    theme: 'Receive the Third Birth — Set',
     action:
-        'Name the force, disruption, anger, or boundary-power that must be placed before it becomes destructive.',
+        'Identify one form of force or boundary-energy in yourself that needs to be placed correctly — not eliminated, not given free rein, but placed where it guards rather than damages.',
     reflection:
-        '“What power in me needs a rightful place before it turns against the whole?”',
+        '"Where is my force out of its proper place? Where would placing it rightly strengthen what it currently threatens?"',
   ),
   DecanDayInfo(
     day: 4,
-    theme: 'Birth of Aset',
+    theme: 'Receive the Fourth Birth — Aset',
     action:
-        'Gather the name, word, spell, plan, or intelligence that can restore what force alone cannot repair.',
-    reflection: '“What wisdom knows how to restore what strength cannot?”',
+        'Name one thing in the coming year that will require finding what is broken and knowing the words that restore it. Prepare to carry Aset\'s intelligence into the new cycle.',
+    reflection:
+        '"What will require skillful protection — the intelligence that restores what force alone cannot repair — in the year opening before me?"',
   ),
   DecanDayInfo(
     day: 5,
-    theme: 'Birth of Nebet-Het',
+    theme: 'Receive the Fifth Birth — Nebet-Het',
     action:
-        'Stand at the threshold with what is ending and give transition a clean form.',
+        'Hold the threshold between the old year and the new with the quality of Nebet-Het\'s mourning: full acknowledgment of what ended, full presence at the edge, without abandoning what is about to begin.',
     reflection:
-        '“What must be mourned, guarded, and released before the new year opens?”',
+        '"Can I mourn the year that is ending and welcome the one that is opening — without abandoning one for the other?"',
   ),
 ];
 
@@ -2609,3065 +2759,2762 @@ final Map<String, KemeticDayInfo> _compressedDayInfoMap = {
   'thoth_1_1': KemeticDayInfo(
     kemeticDate: 'Thoth I, Day 1',
     season: '🌊 Akhet – Season of Inundation',
-    month: 'Thoth (Ḏḥwty) — The Measuring of the World as It Returns to Water',
-    decanName: 'tpy-ꜥ sbꜣw',
+    month: 'Thoth (Djehuty) – Month of Divine Order and Rebirth',
+    decanName: 'tpy-ꜥ sbꜣw ("Foremost of the Stars")',
     starCluster:
         '✨ tpy-ꜥ sbꜣw — a modest decanal star group watched near the eastern horizon during this ten-day interval; exact modern identification is uncertain',
-    maatPrinciple: 'Place Attention Correctly',
+    maatPrinciple: 'Truth & Right Speech — the spoken word as cosmic law',
     cosmicContext: '''
-The Nile has risen and the measured world has returned to water. Djehuty stands at the opening of the year as ibis at the waterline, baboon at dawn, lunar measure, divine scribe, and keeper of ritual time. The work is not to force action, but to observe, measure, record, and let dissolution become renewal rather than erasure.
-
-This day belongs to tpy-ꜥ sbꜣw, the first star-time movement, where attention is placed correctly before the covered land can be acted upon. The star-time movement does not function as decoration. It gives the day a position in the cycle: what appears in the sky, what is happening in the year, and what the heart must practice are held together.
-
-Day 1 turns that movement toward place attention correctly.
-
-The question is simple: Where must my attention be placed first?
+This is the first breath of the Kemetic year.
+The rising of Sopdet marks renewal: flood, fertility, order returning.
+Today's words are not casual — they are vows.
+To speak truth now is to write the law of your year.
 ''',
     decanFlow: _compressedThothFlowRows1,
     meduNeter: MeduNeterKey(
-      glyph: 'Reed pen, waterline, and dawn baboon',
-      colorFrequency: 'Nile blue, moon silver, and measured gold',
-      mantra: '“I practice place attention correctly in Ma’at.”',
+      glyph: '𓂀 (Eye of Djehuty) — sacred sight, truthful witnessing',
+      colorFrequency: 'Deep indigo and silver — clarity emerging from night',
+      mantra: '"My word becomes world."',
     ),
   ),
   'thoth_2_1': KemeticDayInfo(
     kemeticDate: 'Thoth I, Day 2',
     season: '🌊 Akhet – Season of Inundation',
-    month: 'Thoth (Ḏḥwty) — The Measuring of the World as It Returns to Water',
-    decanName: 'tpy-ꜥ sbꜣw',
+    month: 'Thoth (Djehuty) – Month of Divine Order and Rebirth',
+    decanName: 'tpy-ꜥ sbꜣw ("Foremost of the Stars")',
     starCluster:
         '✨ tpy-ꜥ sbꜣw — a modest decanal star group watched near the eastern horizon during this ten-day interval; exact modern identification is uncertain',
-    maatPrinciple: 'Watch the Water',
+    maatPrinciple: 'Vision in Right Measure — seeing what is sustainable',
     cosmicContext: '''
-The Nile has risen and the measured world has returned to water. Djehuty stands at the opening of the year as ibis at the waterline, baboon at dawn, lunar measure, divine scribe, and keeper of ritual time. The work is not to force action, but to observe, measure, record, and let dissolution become renewal rather than erasure.
-
-This day belongs to tpy-ꜥ sbꜣw, the first star-time movement, where attention is placed correctly before the covered land can be acted upon. The star-time movement does not function as decoration. It gives the day a position in the cycle: what appears in the sky, what is happening in the year, and what the heart must practice are held together.
-
-Day 2 turns that movement toward watch the water.
-
-The question is simple: What has the flood altered?
+Day 2 clarifies vision.
+You've spoken truth; now you draw its architecture.
+Describe what balance looks and feels like when lived.
 ''',
     decanFlow: _compressedThothFlowRows1,
     meduNeter: MeduNeterKey(
-      glyph: 'Reed pen, waterline, and dawn baboon',
-      colorFrequency: 'Nile blue, moon silver, and measured gold',
-      mantra: '“I practice watch the water in Ma’at.”',
+      glyph: '𓏏 (Palette and Reed) — intention becoming design',
+      colorFrequency: 'White over blue — clarity on deep order',
+      mantra: '"I see through Ma\'at\'s measure."',
     ),
   ),
   'thoth_3_1': KemeticDayInfo(
     kemeticDate: 'Thoth I, Day 3',
     season: '🌊 Akhet – Season of Inundation',
-    month: 'Thoth (Ḏḥwty) — The Measuring of the World as It Returns to Water',
-    decanName: 'tpy-ꜥ sbꜣw',
+    month: 'Thoth (Djehuty) – Month of Divine Order and Rebirth',
+    decanName: 'tpy-ꜥ sbꜣw ("Foremost of the Stars")',
     starCluster:
         '✨ tpy-ꜥ sbꜣw — a modest decanal star group watched near the eastern horizon during this ten-day interval; exact modern identification is uncertain',
-    maatPrinciple: 'Find the Horizon',
+    maatPrinciple: 'Purification Before Building',
     cosmicContext: '''
-The Nile has risen and the measured world has returned to water. Djehuty stands at the opening of the year as ibis at the waterline, baboon at dawn, lunar measure, divine scribe, and keeper of ritual time. The work is not to force action, but to observe, measure, record, and let dissolution become renewal rather than erasure.
-
-This day belongs to tpy-ꜥ sbꜣw, the first star-time movement, where attention is placed correctly before the covered land can be acted upon. The star-time movement does not function as decoration. It gives the day a position in the cycle: what appears in the sky, what is happening in the year, and what the heart must practice are held together.
-
-Day 3 turns that movement toward find the horizon.
-
-The question is simple: What sign gives me bearing?
+Flood waters leave both fertile silt and debris.
+Day 3 cleans the field before planting.
+Remove habits and clutter that choke growth.
 ''',
     decanFlow: _compressedThothFlowRows1,
     meduNeter: MeduNeterKey(
-      glyph: 'Reed pen, waterline, and dawn baboon',
-      colorFrequency: 'Nile blue, moon silver, and measured gold',
-      mantra: '“I practice find the horizon in Ma’at.”',
+      glyph: '𓋹 (Ankh) — life-force renewed by clearing',
+      colorFrequency: 'Pale blue and white — rinse, reset',
+      mantra: '"I renew life through clarity."',
     ),
   ),
   'thoth_4_1': KemeticDayInfo(
     kemeticDate: 'Thoth I, Day 4',
     season: '🌊 Akhet – Season of Inundation',
-    month: 'Thoth (Ḏḥwty) — The Measuring of the World as It Returns to Water',
-    decanName: 'tpy-ꜥ sbꜣw',
+    month: 'Thoth (Djehuty) – Month of Divine Order and Rebirth',
+    decanName: 'tpy-ꜥ sbꜣw ("Foremost of the Stars")',
     starCluster:
         '✨ tpy-ꜥ sbꜣw — a modest decanal star group watched near the eastern horizon during this ten-day interval; exact modern identification is uncertain',
-    maatPrinciple: 'Refuse Premature Action',
+    maatPrinciple: 'Naming as Creation',
     cosmicContext: '''
-The Nile has risen and the measured world has returned to water. Djehuty stands at the opening of the year as ibis at the waterline, baboon at dawn, lunar measure, divine scribe, and keeper of ritual time. The work is not to force action, but to observe, measure, record, and let dissolution become renewal rather than erasure.
-
-This day belongs to tpy-ꜥ sbꜣw, the first star-time movement, where attention is placed correctly before the covered land can be acted upon. The star-time movement does not function as decoration. It gives the day a position in the cycle: what appears in the sky, what is happening in the year, and what the heart must practice are held together.
-
-Day 4 turns that movement toward refuse premature action.
-
-The question is simple: What am I trying to do before I truly know?
+To name is to bind into existence.
+Assign names to your projects and disciplines with clarity —
+so the universe can respond.
 ''',
     decanFlow: _compressedThothFlowRows1,
     meduNeter: MeduNeterKey(
-      glyph: 'Reed pen, waterline, and dawn baboon',
-      colorFrequency: 'Nile blue, moon silver, and measured gold',
-      mantra: '“I practice refuse premature action in Ma’at.”',
+      glyph: '𓏠 (Ink Pot & Reed Pen) — authorship of reality',
+      colorFrequency: 'Cobalt blue and black — script on cosmic backdrop',
+      mantra: '"My words draw the lines of creation."',
     ),
   ),
   'thoth_5_1': KemeticDayInfo(
     kemeticDate: 'Thoth I, Day 5',
     season: '🌊 Akhet – Season of Inundation',
-    month: 'Thoth (Ḏḥwty) — The Measuring of the World as It Returns to Water',
-    decanName: 'tpy-ꜥ sbꜣw',
+    month: 'Thoth (Djehuty) – Month of Divine Order and Rebirth',
+    decanName: 'tpy-ꜥ sbꜣw ("Foremost of the Stars")',
     starCluster:
         '✨ tpy-ꜥ sbꜣw — a modest decanal star group watched near the eastern horizon during this ten-day interval; exact modern identification is uncertain',
-    maatPrinciple: 'Name the First Boundary',
+    maatPrinciple: 'Alignment of Speech and Deed',
     cosmicContext: '''
-The Nile has risen and the measured world has returned to water. Djehuty stands at the opening of the year as ibis at the waterline, baboon at dawn, lunar measure, divine scribe, and keeper of ritual time. The work is not to force action, but to observe, measure, record, and let dissolution become renewal rather than erasure.
-
-This day belongs to tpy-ꜥ sbꜣw, the first star-time movement, where attention is placed correctly before the covered land can be acted upon. The star-time movement does not function as decoration. It gives the day a position in the cycle: what appears in the sky, what is happening in the year, and what the heart must practice are held together.
-
-Day 5 turns that movement toward name the first boundary.
-
-The question is simple: What boundary has disappeared beneath the waters?
+Day 5 is the heart's weighing.
+Compare promise to practice and re-align without shame.
+Integrity keeps the year on course.
 ''',
     decanFlow: _compressedThothFlowRows1,
     meduNeter: MeduNeterKey(
-      glyph: 'Reed pen, waterline, and dawn baboon',
-      colorFrequency: 'Nile blue, moon silver, and measured gold',
-      mantra: '“I practice name the first boundary in Ma’at.”',
+      glyph: '𓂻 (Feet toward the Scales) — walking your talk',
+      colorFrequency: 'Gold on black — truth held to light',
+      mantra: '"I am balanced in truth."',
     ),
   ),
   'thoth_6_1': KemeticDayInfo(
     kemeticDate: 'Thoth I, Day 6',
     season: '🌊 Akhet – Season of Inundation',
-    month: 'Thoth (Ḏḥwty) — The Measuring of the World as It Returns to Water',
-    decanName: 'tpy-ꜥ sbꜣw',
+    month: 'Thoth (Djehuty) – Month of Divine Order and Rebirth',
+    decanName: 'tpy-ꜥ sbꜣw ("Foremost of the Stars")',
     starCluster:
         '✨ tpy-ꜥ sbꜣw — a modest decanal star group watched near the eastern horizon during this ten-day interval; exact modern identification is uncertain',
-    maatPrinciple: 'Listen to the Sky',
+    maatPrinciple: 'Right Exchange / Sacred Reciprocity',
     cosmicContext: '''
-The Nile has risen and the measured world has returned to water. Djehuty stands at the opening of the year as ibis at the waterline, baboon at dawn, lunar measure, divine scribe, and keeper of ritual time. The work is not to force action, but to observe, measure, record, and let dissolution become renewal rather than erasure.
-
-This day belongs to tpy-ꜥ sbꜣw, the first star-time movement, where attention is placed correctly before the covered land can be acted upon. The star-time movement does not function as decoration. It gives the day a position in the cycle: what appears in the sky, what is happening in the year, and what the heart must practice are held together.
-
-Day 6 turns that movement toward listen to the sky.
-
-The question is simple: What is the sky telling me about the year?
+Energy must circulate.
+Offer something today — service, gratitude, art.
+Giving keeps Ma'at's current alive.
 ''',
     decanFlow: _compressedThothFlowRows1,
     meduNeter: MeduNeterKey(
-      glyph: 'Reed pen, waterline, and dawn baboon',
-      colorFrequency: 'Nile blue, moon silver, and measured gold',
-      mantra: '“I practice listen to the sky in Ma’at.”',
+      glyph: '𓋴 (Ka in motion) — energy extended outward',
+      colorFrequency: 'Deep gold / warm copper — circulation',
+      mantra: '"My offering sustains the balance."',
     ),
   ),
   'thoth_7_1': KemeticDayInfo(
     kemeticDate: 'Thoth I, Day 7',
     season: '🌊 Akhet – Season of Inundation',
-    month: 'Thoth (Ḏḥwty) — The Measuring of the World as It Returns to Water',
-    decanName: 'tpy-ꜥ sbꜣw',
+    month: 'Thoth (Djehuty) – Month of Divine Order and Rebirth',
+    decanName: 'tpy-ꜥ sbꜣw ("Foremost of the Stars")',
     starCluster:
         '✨ tpy-ꜥ sbꜣw — a modest decanal star group watched near the eastern horizon during this ten-day interval; exact modern identification is uncertain',
-    maatPrinciple: 'Hold the Stillness',
+    maatPrinciple: 'Purity / Quieting Interference',
     cosmicContext: '''
-The Nile has risen and the measured world has returned to water. Djehuty stands at the opening of the year as ibis at the waterline, baboon at dawn, lunar measure, divine scribe, and keeper of ritual time. The work is not to force action, but to observe, measure, record, and let dissolution become renewal rather than erasure.
-
-This day belongs to tpy-ꜥ sbꜣw, the first star-time movement, where attention is placed correctly before the covered land can be acted upon. The star-time movement does not function as decoration. It gives the day a position in the cycle: what appears in the sky, what is happening in the year, and what the heart must practice are held together.
-
-Day 7 turns that movement toward hold the stillness.
-
-The question is simple: Can I wait without becoming passive?
+The river settles; clarity returns.
+Fast, bathe, or enter silence.
+Stillness separates signal from noise.
 ''',
     decanFlow: _compressedThothFlowRows1,
     meduNeter: MeduNeterKey(
-      glyph: 'Reed pen, waterline, and dawn baboon',
-      colorFrequency: 'Nile blue, moon silver, and measured gold',
-      mantra: '“I practice hold the stillness in Ma’at.”',
+      glyph: '𓈖 (Water ripple) — calm surface, depth below',
+      colorFrequency: 'Blue-white — rinsed and quiet',
+      mantra: '"In stillness I return to Ma\'at."',
     ),
   ),
   'thoth_8_1': KemeticDayInfo(
     kemeticDate: 'Thoth I, Day 8',
     season: '🌊 Akhet – Season of Inundation',
-    month: 'Thoth (Ḏḥwty) — The Measuring of the World as It Returns to Water',
-    decanName: 'tpy-ꜥ sbꜣw',
+    month: 'Thoth (Djehuty) – Month of Divine Order and Rebirth',
+    decanName: 'tpy-ꜥ sbꜣw ("Foremost of the Stars")',
     starCluster:
         '✨ tpy-ꜥ sbꜣw — a modest decanal star group watched near the eastern horizon during this ten-day interval; exact modern identification is uncertain',
-    maatPrinciple: 'Record the Sign',
+    maatPrinciple: 'Receiving Wisdom',
     cosmicContext: '''
-The Nile has risen and the measured world has returned to water. Djehuty stands at the opening of the year as ibis at the waterline, baboon at dawn, lunar measure, divine scribe, and keeper of ritual time. The work is not to force action, but to observe, measure, record, and let dissolution become renewal rather than erasure.
-
-This day belongs to tpy-ꜥ sbꜣw, the first star-time movement, where attention is placed correctly before the covered land can be acted upon. The star-time movement does not function as decoration. It gives the day a position in the cycle: what appears in the sky, what is happening in the year, and what the heart must practice are held together.
-
-Day 8 turns that movement toward record the sign.
-
-The question is simple: What must be preserved before memory distorts it?
+From silence comes message.
+Listen for truth that feels like recognition, not novelty.
+Write it down — your year is speaking.
 ''',
     decanFlow: _compressedThothFlowRows1,
     meduNeter: MeduNeterKey(
-      glyph: 'Reed pen, waterline, and dawn baboon',
-      colorFrequency: 'Nile blue, moon silver, and measured gold',
-      mantra: '“I practice record the sign in Ma’at.”',
+      glyph: '𓅓 (Ibis of Djehuty) — divine intellect',
+      colorFrequency: 'Pearl gray — moonlit logic',
+      mantra: '"I hear the language of light."',
     ),
   ),
   'thoth_9_1': KemeticDayInfo(
     kemeticDate: 'Thoth I, Day 9',
     season: '🌊 Akhet – Season of Inundation',
-    month: 'Thoth (Ḏḥwty) — The Measuring of the World as It Returns to Water',
-    decanName: 'tpy-ꜥ sbꜣw',
+    month: 'Thoth (Djehuty) – Month of Divine Order and Rebirth',
+    decanName: 'tpy-ꜥ sbꜣw ("Foremost of the Stars")',
     starCluster:
         '✨ tpy-ꜥ sbꜣw — a modest decanal star group watched near the eastern horizon during this ten-day interval; exact modern identification is uncertain',
-    maatPrinciple: 'Place the Measure',
+    maatPrinciple: 'Action in Harmony',
     cosmicContext: '''
-The Nile has risen and the measured world has returned to water. Djehuty stands at the opening of the year as ibis at the waterline, baboon at dawn, lunar measure, divine scribe, and keeper of ritual time. The work is not to force action, but to observe, measure, record, and let dissolution become renewal rather than erasure.
-
-This day belongs to tpy-ꜥ sbꜣw, the first star-time movement, where attention is placed correctly before the covered land can be acted upon. The star-time movement does not function as decoration. It gives the day a position in the cycle: what appears in the sky, what is happening in the year, and what the heart must practice are held together.
-
-Day 9 turns that movement toward place the measure.
-
-The question is simple: What count, limit, or record makes the next step possible?
+Take one physical act that matches your intention.
+Small motion anchors spirit into timeline.
 ''',
     decanFlow: _compressedThothFlowRows1,
     meduNeter: MeduNeterKey(
-      glyph: 'Reed pen, waterline, and dawn baboon',
-      colorFrequency: 'Nile blue, moon silver, and measured gold',
-      mantra: '“I practice place the measure in Ma’at.”',
+      glyph: '𓂧 (Hand in act) — will translated into deed',
+      colorFrequency: 'Bronze — living will in motion',
+      mantra: '"I move as truth moves."',
     ),
   ),
   'thoth_10_1': KemeticDayInfo(
     kemeticDate: 'Thoth I, Day 10',
     season: '🌊 Akhet – Season of Inundation',
-    month: 'Thoth (Ḏḥwty) — The Measuring of the World as It Returns to Water',
-    decanName: 'tpy-ꜥ sbꜣw',
+    month: 'Thoth (Djehuty) – Month of Divine Order and Rebirth',
+    decanName: 'tpy-ꜥ sbꜣw ("Foremost of the Stars")',
     starCluster:
         '✨ tpy-ꜥ sbꜣw — a modest decanal star group watched near the eastern horizon during this ten-day interval; exact modern identification is uncertain',
-    maatPrinciple: 'Seal Orientation',
+    maatPrinciple: 'Completion with Gratitude',
     cosmicContext: '''
-The Nile has risen and the measured world has returned to water. Djehuty stands at the opening of the year as ibis at the waterline, baboon at dawn, lunar measure, divine scribe, and keeper of ritual time. The work is not to force action, but to observe, measure, record, and let dissolution become renewal rather than erasure.
-
-This day belongs to tpy-ꜥ sbꜣw, the first star-time movement, where attention is placed correctly before the covered land can be acted upon. The star-time movement does not function as decoration. It gives the day a position in the cycle: what appears in the sky, what is happening in the year, and what the heart must practice are held together.
-
-Day 10 turns that movement toward seal orientation.
-
-The question is simple: What has been seen clearly enough to carry forward?
+Close the first cycle with thanks.
+Gratitude seals the container so your energy doesn't leak.
+Witness what you've built in ten days.
 ''',
     decanFlow: _compressedThothFlowRows1,
     meduNeter: MeduNeterKey(
-      glyph: 'Reed pen, waterline, and dawn baboon',
-      colorFrequency: 'Nile blue, moon silver, and measured gold',
-      mantra: '“I practice seal orientation in Ma’at.”',
+      glyph: '𓏞 (Rolled papyrus) — sealed decree',
+      colorFrequency: 'Gold on ivory — sacred contract formalized',
+      mantra: '"I seal truth with gratitude."',
     ),
   ),
   'thoth_11_2': KemeticDayInfo(
-    kemeticDate: 'Thoth II, Day 1',
+    kemeticDate: 'Thoth II, Day 11',
     season: '🌊 Akhet – Season of Inundation',
-    month: 'Thoth (Ḏḥwty) — The Measuring of the World as It Returns to Water',
-    decanName: 'ḥry-ib sbꜣw',
+    month: 'Thoth (Djehuty) – Month of Divine Order and Rebirth',
+    decanName: 'ḥry-ib sbꜣw ("Heart of the Stars")',
     starCluster:
         '✨ ḥry-ib sbꜣw — a modest decanal star group watched near the eastern horizon during this ten-day interval; exact modern identification is uncertain',
-    maatPrinciple: 'Bring Signs to the Heart',
+    maatPrinciple:
+        'Sacred Service — aligning your effort to something beyond yourself',
     cosmicContext: '''
-The Nile has risen and the measured world has returned to water. Djehuty stands at the opening of the year as ibis at the waterline, baboon at dawn, lunar measure, divine scribe, and keeper of ritual time. The work is not to force action, but to observe, measure, record, and let dissolution become renewal rather than erasure.
+The first decan was about declaration, cleansing, naming, and alignment.
 
-This day belongs to ḥry-ib sbꜣw, the heart of the stars, where signs from sky, water, body, and boundary are brought into coherence. The star-time movement does not function as decoration. It gives the day a position in the cycle: what appears in the sky, what is happening in the year, and what the heart must practice are held together.
+Now, in this second decan, you become a carrier of what you spoke. Day 11 is the handoff point:
+"This is no longer just my desire — this is my assignment."
 
-Day 1 turns that movement toward bring signs to the heart.
+You dedicate your work to something larger than ego: family line, community, balance, restoration.
 
-The question is simple: What have I seen that needs coherence?
+This is the moment you stop treating your path like a wish, and start treating it like a responsibility.
 ''',
     decanFlow: _compressedThothFlowRows2,
     meduNeter: MeduNeterKey(
-      glyph: 'Reed pen, waterline, and dawn baboon',
-      colorFrequency: 'Nile blue, moon silver, and measured gold',
-      mantra: '“I practice bring signs to the heart in Ma’at.”',
+      glyph:
+          '𓋴 (Ka in motion) — energy extended outward in rightful proportion',
+      colorFrequency: 'Deep gold / warm copper — energy in motion, not hoarded',
+      mantra: '"My offering sustains the balance."',
     ),
   ),
   'thoth_12_2': KemeticDayInfo(
-    kemeticDate: 'Thoth II, Day 2',
+    kemeticDate: 'Thoth II, Day 12',
     season: '🌊 Akhet – Season of Inundation',
-    month: 'Thoth (Ḏḥwty) — The Measuring of the World as It Returns to Water',
-    decanName: 'ḥry-ib sbꜣw',
+    month: 'Thoth (Djehuty) – Month of Divine Order and Rebirth',
+    decanName: 'ḥry-ib sbꜣw ("Heart of the Stars")',
     starCluster:
         '✨ ḥry-ib sbꜣw — a modest decanal star group watched near the eastern horizon during this ten-day interval; exact modern identification is uncertain',
-    maatPrinciple: 'Connect Water and Sky',
+    maatPrinciple: 'Reciprocity / Right Exchange',
     cosmicContext: '''
-The Nile has risen and the measured world has returned to water. Djehuty stands at the opening of the year as ibis at the waterline, baboon at dawn, lunar measure, divine scribe, and keeper of ritual time. The work is not to force action, but to observe, measure, record, and let dissolution become renewal rather than erasure.
+Day 12 is about exchange, not extraction.
 
-This day belongs to ḥry-ib sbꜣw, the heart of the stars, where signs from sky, water, body, and boundary are brought into coherence. The star-time movement does not function as decoration. It gives the day a position in the cycle: what appears in the sky, what is happening in the year, and what the heart must practice are held together.
+This is not networking. This is sacred commerce: idea for idea, help for help, resource for resource, in fairness.
 
-Day 2 turns that movement toward connect water and sky.
+In Kemet, balance was not only spiritual — it was economic. Fair exchange was Ma'at. Unfair exchange was isfet.
 
-The question is simple: What belongs together?
+Today, ask: am I moving in circles where energy truly circulates, or am I leaking?
 ''',
     decanFlow: _compressedThothFlowRows2,
     meduNeter: MeduNeterKey(
-      glyph: 'Reed pen, waterline, and dawn baboon',
-      colorFrequency: 'Nile blue, moon silver, and measured gold',
-      mantra: '“I practice connect water and sky in Ma’at.”',
+      glyph: '𓋴 (Ka in motion) — the hand extended, not clenched',
+      colorFrequency: 'Warm copper — circulation of value',
+      mantra: '"Balance is a living exchange."',
     ),
   ),
   'thoth_13_2': KemeticDayInfo(
-    kemeticDate: 'Thoth II, Day 3',
+    kemeticDate: 'Thoth II, Day 13',
     season: '🌊 Akhet – Season of Inundation',
-    month: 'Thoth (Ḏḥwty) — The Measuring of the World as It Returns to Water',
-    decanName: 'ḥry-ib sbꜣw',
+    month: 'Thoth (Djehuty) – Month of Divine Order and Rebirth',
+    decanName: 'ḥry-ib sbꜣw ("Heart of the Stars")',
     starCluster:
         '✨ ḥry-ib sbꜣw — a modest decanal star group watched near the eastern horizon during this ten-day interval; exact modern identification is uncertain',
-    maatPrinciple: 'Read the Pattern',
+    maatPrinciple: 'Circulation of Presence',
     cosmicContext: '''
-The Nile has risen and the measured world has returned to water. Djehuty stands at the opening of the year as ibis at the waterline, baboon at dawn, lunar measure, divine scribe, and keeper of ritual time. The work is not to force action, but to observe, measure, record, and let dissolution become renewal rather than erasure.
+Day 13 is a move-your-body, move-your-field day.
 
-This day belongs to ḥry-ib sbꜣw, the heart of the stars, where signs from sky, water, body, and boundary are brought into coherence. The star-time movement does not function as decoration. It gives the day a position in the cycle: what appears in the sky, what is happening in the year, and what the heart must practice are held together.
+In Kemetic rhythm, truth is not supposed to sit still. You carry it. You walk it into new rooms, new people, new opportunities.
 
-Day 3 turns that movement toward read the pattern.
-
-The question is simple: What keeps returning?
+Today is for showing up physically where your purpose needs to be seen — even if that is just one intentional trip, one conversation in person, one presence-making act.
 ''',
     decanFlow: _compressedThothFlowRows2,
     meduNeter: MeduNeterKey(
-      glyph: 'Reed pen, waterline, and dawn baboon',
-      colorFrequency: 'Nile blue, moon silver, and measured gold',
-      mantra: '“I practice read the pattern in Ma’at.”',
+      glyph: '𓋴 (Ka in motion) — force projected outward, actively carried',
+      colorFrequency: 'Sun-warmed bronze — kinetic energy',
+      mantra: '"My purpose travels with me."',
     ),
   ),
   'thoth_14_2': KemeticDayInfo(
-    kemeticDate: 'Thoth II, Day 4',
+    kemeticDate: 'Thoth II, Day 14',
     season: '🌊 Akhet – Season of Inundation',
-    month: 'Thoth (Ḏḥwty) — The Measuring of the World as It Returns to Water',
-    decanName: 'ḥry-ib sbꜣw',
+    month: 'Thoth (Djehuty) – Month of Divine Order and Rebirth',
+    decanName: 'ḥry-ib sbꜣw ("Heart of the Stars")',
     starCluster:
         '✨ ḥry-ib sbꜣw — a modest decanal star group watched near the eastern horizon during this ten-day interval; exact modern identification is uncertain',
-    maatPrinciple: 'Correct the First Assumption',
+    maatPrinciple: 'Refinement / Tempering',
     cosmicContext: '''
-The Nile has risen and the measured world has returned to water. Djehuty stands at the opening of the year as ibis at the waterline, baboon at dawn, lunar measure, divine scribe, and keeper of ritual time. The work is not to force action, but to observe, measure, record, and let dissolution become renewal rather than erasure.
+Day 14 is your sharpening stone.
 
-This day belongs to ḥry-ib sbꜣw, the heart of the stars, where signs from sky, water, body, and boundary are brought into coherence. The star-time movement does not function as decoration. It gives the day a position in the cycle: what appears in the sky, what is happening in the year, and what the heart must practice are held together.
+This is where you cut off the extra, the sloppy, the unfocused. You edit. You refine. You correct tone. You set standards.
 
-Day 4 turns that movement toward correct the first assumption.
+The energy of this day is: I respect this work enough to polish it.
 
-The question is simple: Where was my first reading incomplete?
+In Kemet, that is sacred. Sloppiness is a form of disrespect to the divine pattern.
 ''',
     decanFlow: _compressedThothFlowRows2,
     meduNeter: MeduNeterKey(
-      glyph: 'Reed pen, waterline, and dawn baboon',
-      colorFrequency: 'Nile blue, moon silver, and measured gold',
-      mantra: '“I practice correct the first assumption in Ma’at.”',
+      glyph:
+          '𓃒 / blade / cutting symbol (controlled edge) — discipline, precision',
+      colorFrequency: 'Tempered gold — not flashy, refined',
+      mantra: '"Precision is devotion."',
     ),
   ),
   'thoth_15_2': KemeticDayInfo(
-    kemeticDate: 'Thoth II, Day 5',
+    kemeticDate: 'Thoth II, Day 15',
     season: '🌊 Akhet – Season of Inundation',
-    month: 'Thoth (Ḏḥwty) — The Measuring of the World as It Returns to Water',
-    decanName: 'ḥry-ib sbꜣw',
+    month: 'Thoth (Djehuty) – Month of Divine Order and Rebirth',
+    decanName: 'ḥry-ib sbꜣw ("Heart of the Stars")',
     starCluster:
         '✨ ḥry-ib sbꜣw — a modest decanal star group watched near the eastern horizon during this ten-day interval; exact modern identification is uncertain',
-    maatPrinciple: 'Hold the Count',
+    maatPrinciple: 'Energetic Accounting',
     cosmicContext: '''
-The Nile has risen and the measured world has returned to water. Djehuty stands at the opening of the year as ibis at the waterline, baboon at dawn, lunar measure, divine scribe, and keeper of ritual time. The work is not to force action, but to observe, measure, record, and let dissolution become renewal rather than erasure.
+Day 15 is not laziness. It is intelligent conservation.
 
-This day belongs to ḥry-ib sbꜣw, the heart of the stars, where signs from sky, water, body, and boundary are brought into coherence. The star-time movement does not function as decoration. It gives the day a position in the cycle: what appears in the sky, what is happening in the year, and what the heart must practice are held together.
+The question today is: are you overspending yourself to prove you are serious? That is ego, not Ma'at.
 
-Day 5 turns that movement toward hold the count.
+Ancient Kemet prized sustainability — crops had to last the whole season. Your energy is the same.
 
-The question is simple: What count should not be abandoned?
+Do a balance check now so you do not burn out in the next decan.
 ''',
     decanFlow: _compressedThothFlowRows2,
     meduNeter: MeduNeterKey(
-      glyph: 'Reed pen, waterline, and dawn baboon',
-      colorFrequency: 'Nile blue, moon silver, and measured gold',
-      mantra: '“I practice hold the count in Ma’at.”',
+      glyph: '𓂋 (mouth/measure) + ⚖️ (scales) — self-audit of expenditure',
+      colorFrequency:
+          'Muted bronze and charcoal — controlled burn, not wildfire',
+      mantra: '"I spend energy in balance."',
     ),
   ),
   'thoth_16_2': KemeticDayInfo(
-    kemeticDate: 'Thoth II, Day 6',
+    kemeticDate: 'Thoth II, Day 16',
     season: '🌊 Akhet – Season of Inundation',
-    month: 'Thoth (Ḏḥwty) — The Measuring of the World as It Returns to Water',
-    decanName: 'ḥry-ib sbꜣw',
+    month: 'Thoth (Djehuty) – Month of Divine Order and Rebirth',
+    decanName: 'ḥry-ib sbꜣw ("Heart of the Stars")',
     starCluster:
         '✨ ḥry-ib sbꜣw — a modest decanal star group watched near the eastern horizon during this ten-day interval; exact modern identification is uncertain',
-    maatPrinciple: 'Let the Heart Weigh',
+    maatPrinciple: 'Right Relationship',
     cosmicContext: '''
-The Nile has risen and the measured world has returned to water. Djehuty stands at the opening of the year as ibis at the waterline, baboon at dawn, lunar measure, divine scribe, and keeper of ritual time. The work is not to force action, but to observe, measure, record, and let dissolution become renewal rather than erasure.
+Day 16 is reconnection.
 
-This day belongs to ḥry-ib sbꜣw, the heart of the stars, where signs from sky, water, body, and boundary are brought into coherence. The star-time movement does not function as decoration. It gives the day a position in the cycle: what appears in the sky, what is happening in the year, and what the heart must practice are held together.
+In Kemetic cosmology, you are not a lone hero. You are a node in a living network of responsibility and power.
 
-Day 6 turns that movement toward let the heart weigh.
+Today is about reaching back to someone, human or ancestor, who stabilizes you — the one who reminds you who you actually are when you drift.
 
-The question is simple: What does the heart know now?
+This is maintenance of alignment through relationship.
 ''',
     decanFlow: _compressedThothFlowRows2,
     meduNeter: MeduNeterKey(
-      glyph: 'Reed pen, waterline, and dawn baboon',
-      colorFrequency: 'Nile blue, moon silver, and measured gold',
-      mantra: '“I practice let the heart weigh in Ma’at.”',
+      glyph:
+          '𓇋𓇋 (paired reeds / partnership) — connection, alliance, mutual strengthening',
+      colorFrequency:
+          'Warm gold beside deep blue — companionship next to purpose',
+      mantra: '"I keep the ones who keep me aligned."',
     ),
   ),
   'thoth_17_2': KemeticDayInfo(
-    kemeticDate: 'Thoth II, Day 7',
+    kemeticDate: 'Thoth II, Day 17',
     season: '🌊 Akhet – Season of Inundation',
-    month: 'Thoth (Ḏḥwty) — The Measuring of the World as It Returns to Water',
-    decanName: 'ḥry-ib sbꜣw',
+    month: 'Thoth (Djehuty) – Month of Divine Order and Rebirth',
+    decanName: 'ḥry-ib sbꜣw ("Heart of the Stars")',
     starCluster:
         '✨ ḥry-ib sbꜣw — a modest decanal star group watched near the eastern horizon during this ten-day interval; exact modern identification is uncertain',
-    maatPrinciple: 'Remove Confusion',
+    maatPrinciple: 'Recommitment with Specificity',
     cosmicContext: '''
-The Nile has risen and the measured world has returned to water. Djehuty stands at the opening of the year as ibis at the waterline, baboon at dawn, lunar measure, divine scribe, and keeper of ritual time. The work is not to force action, but to observe, measure, record, and let dissolution become renewal rather than erasure.
+Day 17 is: say it again, but sharper.
 
-This day belongs to ḥry-ib sbꜣw, the heart of the stars, where signs from sky, water, body, and boundary are brought into coherence. The star-time movement does not function as decoration. It gives the day a position in the cycle: what appears in the sky, what is happening in the year, and what the heart must practice are held together.
+You return to your vow with upgraded precision. Not: I will be healthier. Instead: I will walk 30 minutes before 9am daily.
 
-Day 7 turns that movement toward remove confusion.
-
-The question is simple: What is distracting me from the real pattern?
+In Kemet, repetition was not weakness — repetition was spellcraft. Repetition carved reality into stone.
 ''',
     decanFlow: _compressedThothFlowRows2,
     meduNeter: MeduNeterKey(
-      glyph: 'Reed pen, waterline, and dawn baboon',
-      colorFrequency: 'Nile blue, moon silver, and measured gold',
-      mantra: '“I practice remove confusion in Ma’at.”',
+      glyph: '𓏞 (sealed decree / papyrus roll) — vow renewed and re-stamped',
+      colorFrequency: 'Ivory with gold edge — formal commitment',
+      mantra: '"I restate my oath in clarity."',
     ),
   ),
   'thoth_18_2': KemeticDayInfo(
-    kemeticDate: 'Thoth II, Day 8',
+    kemeticDate: 'Thoth II, Day 18',
     season: '🌊 Akhet – Season of Inundation',
-    month: 'Thoth (Ḏḥwty) — The Measuring of the World as It Returns to Water',
-    decanName: 'ḥry-ib sbꜣw',
+    month: 'Thoth (Djehuty) – Month of Divine Order and Rebirth',
+    decanName: 'ḥry-ib sbꜣw ("Heart of the Stars")',
     starCluster:
         '✨ ḥry-ib sbꜣw — a modest decanal star group watched near the eastern horizon during this ten-day interval; exact modern identification is uncertain',
-    maatPrinciple: 'Prepare the Word',
+    maatPrinciple: 'Receiving Without Corruption',
     cosmicContext: '''
-The Nile has risen and the measured world has returned to water. Djehuty stands at the opening of the year as ibis at the waterline, baboon at dawn, lunar measure, divine scribe, and keeper of ritual time. The work is not to force action, but to observe, measure, record, and let dissolution become renewal rather than erasure.
+Day 18 is about letting abundance land without guilt or distortion.
 
-This day belongs to ḥry-ib sbꜣw, the heart of the stars, where signs from sky, water, body, and boundary are brought into coherence. The star-time movement does not function as decoration. It gives the day a position in the cycle: what appears in the sky, what is happening in the year, and what the heart must practice are held together.
+You did the work. You held alignment. You served. If praise, money, opportunity, visibility, or help shows up — accept it in dignity.
 
-Day 8 turns that movement toward prepare the word.
+Kemet did not teach shrink yourself. It taught carry power in balance.
 
-The question is simple: What must be said accurately?
+Today you practice receiving clean.
 ''',
     decanFlow: _compressedThothFlowRows2,
     meduNeter: MeduNeterKey(
-      glyph: 'Reed pen, waterline, and dawn baboon',
-      colorFrequency: 'Nile blue, moon silver, and measured gold',
-      mantra: '“I practice prepare the word in Ma’at.”',
+      glyph: '𓅨 (open hands) — acceptance, blessing received',
+      colorFrequency: 'Soft gold — prosperity acknowledged, not hidden',
+      mantra: '"I receive in balance and remain clean."',
     ),
   ),
   'thoth_19_2': KemeticDayInfo(
-    kemeticDate: 'Thoth II, Day 9',
+    kemeticDate: 'Thoth II, Day 19',
     season: '🌊 Akhet – Season of Inundation',
-    month: 'Thoth (Ḏḥwty) — The Measuring of the World as It Returns to Water',
-    decanName: 'ḥry-ib sbꜣw',
+    month: 'Thoth (Djehuty) – Month of Divine Order and Rebirth',
+    decanName: 'ḥry-ib sbꜣw ("Heart of the Stars")',
     starCluster:
         '✨ ḥry-ib sbꜣw — a modest decanal star group watched near the eastern horizon during this ten-day interval; exact modern identification is uncertain',
-    maatPrinciple: 'Record the Coherence',
+    maatPrinciple: 'Closing the Loop',
     cosmicContext: '''
-The Nile has risen and the measured world has returned to water. Djehuty stands at the opening of the year as ibis at the waterline, baboon at dawn, lunar measure, divine scribe, and keeper of ritual time. The work is not to force action, but to observe, measure, record, and let dissolution become renewal rather than erasure.
+Day 19 is return offering.
 
-This day belongs to ḥry-ib sbꜣw, the heart of the stars, where signs from sky, water, body, and boundary are brought into coherence. The star-time movement does not function as decoration. It gives the day a position in the cycle: what appears in the sky, what is happening in the year, and what the heart must practice are held together.
+Whatever you have received — insight, support, resources — now send some of that energy back into the field so the circuit is complete.
 
-Day 9 turns that movement toward record the coherence.
-
-The question is simple: What relationship among things must be remembered?
+Without this step, flow becomes hoarding. With this step, flow becomes lineage.
 ''',
     decanFlow: _compressedThothFlowRows2,
     meduNeter: MeduNeterKey(
-      glyph: 'Reed pen, waterline, and dawn baboon',
-      colorFrequency: 'Nile blue, moon silver, and measured gold',
-      mantra: '“I practice record the coherence in Ma’at.”',
+      glyph: '𓍑 (loop / tied cord) — completion, knot, obligation honored',
+      colorFrequency: 'Copper sealed with dark umber — flow closed, bond kept',
+      mantra: '"I return what was given, in balance."',
     ),
   ),
   'thoth_20_2': KemeticDayInfo(
-    kemeticDate: 'Thoth II, Day 10',
+    kemeticDate: 'Thoth II, Day 20',
     season: '🌊 Akhet – Season of Inundation',
-    month: 'Thoth (Ḏḥwty) — The Measuring of the World as It Returns to Water',
-    decanName: 'ḥry-ib sbꜣw',
+    month: 'Thoth (Djehuty) – Month of Divine Order and Rebirth',
+    decanName: 'ḥry-ib sbꜣw ("Heart of the Stars")',
     starCluster:
         '✨ ḥry-ib sbꜣw — a modest decanal star group watched near the eastern horizon during this ten-day interval; exact modern identification is uncertain',
-    maatPrinciple: 'Seal Integration',
+    maatPrinciple: 'Integration and Transition',
     cosmicContext: '''
-The Nile has risen and the measured world has returned to water. Djehuty stands at the opening of the year as ibis at the waterline, baboon at dawn, lunar measure, divine scribe, and keeper of ritual time. The work is not to force action, but to observe, measure, record, and let dissolution become renewal rather than erasure.
+Day 20 is the bridge.
 
-This day belongs to ḥry-ib sbꜣw, the heart of the stars, where signs from sky, water, body, and boundary are brought into coherence. The star-time movement does not function as decoration. It gives the day a position in the cycle: what appears in the sky, what is happening in the year, and what the heart must practice are held together.
+You are not just ending a cycle — you are deciding what carries forward into the next one and what stays behind.
 
-Day 10 turns that movement toward seal integration.
+Ancient Kemet ran on smooth transitions. No chaos, no lurching. Archive the teachings of this decan so the next one does not have to restart from zero.
 
-The question is simple: What has the heart brought into order?
+This is where wisdom becomes infrastructure.
 ''',
     decanFlow: _compressedThothFlowRows2,
     meduNeter: MeduNeterKey(
-      glyph: 'Reed pen, waterline, and dawn baboon',
-      colorFrequency: 'Nile blue, moon silver, and measured gold',
-      mantra: '“I practice seal integration in Ma’at.”',
+      glyph:
+          '𓂦 (archive / bound scroll / carried bundle) — prepared transfer of knowledge',
+      colorFrequency:
+          'Deep gold edge on matte black — wisdom packed, ready for the next phase',
+      mantra: '"I carry forward only what serves Ma\'at."',
     ),
   ),
   'thoth_21_3': KemeticDayInfo(
-    kemeticDate: 'Thoth III, Day 1',
+    kemeticDate: 'Thoth III, Day 21',
     season: '🌊 Akhet – Season of Inundation',
-    month: 'Thoth (Ḏḥwty) — The Measuring of the World as It Returns to Water',
-    decanName: 'sbꜣw',
+    month: 'Thoth (Djehuty) – Month of Divine Order and Rebirth',
+    decanName: 'sbꜣw ("The Stars")',
     starCluster:
         '✨ sbꜣw — a modest decanal star group watched near the eastern horizon during this ten-day interval; exact modern identification is uncertain',
-    maatPrinciple: 'Release the Record',
+    maatPrinciple: 'Standing in Role',
     cosmicContext: '''
-The Nile has risen and the measured world has returned to water. Djehuty stands at the opening of the year as ibis at the waterline, baboon at dawn, lunar measure, divine scribe, and keeper of ritual time. The work is not to force action, but to observe, measure, record, and let dissolution become renewal rather than erasure.
+The first decan was: speak truth.
+The second decan was: carry truth into the world.
+The third decan is: I am that truth now.
 
-This day belongs to sbꜣw, the stars released into shared order, where observation becomes record and record becomes guidance. The star-time movement does not function as decoration. It gives the day a position in the cycle: what appears in the sky, what is happening in the year, and what the heart must practice are held together.
-
-Day 1 turns that movement toward release the record.
-
-The question is simple: What knowledge must leave my private mind?
+Day 21 is the moment you assume the throne of your own life. You are not pitching who you are becoming — you are embodying who you are. You move like a person whose path is not up for casual debate.
 ''',
     decanFlow: _compressedThothFlowRows3,
     meduNeter: MeduNeterKey(
-      glyph: 'Reed pen, waterline, and dawn baboon',
-      colorFrequency: 'Nile blue, moon silver, and measured gold',
-      mantra: '“I practice release the record in Ma’at.”',
+      glyph:
+          '𓂝 (upraised arm / commanded force) — authority exercised with consciousness',
+      colorFrequency:
+          'Matte black edged in gold — sovereign, contained, self-defined',
+      mantra: '"I hold my position in Ma\'at."',
     ),
   ),
   'thoth_22_3': KemeticDayInfo(
-    kemeticDate: 'Thoth III, Day 2',
+    kemeticDate: 'Thoth III, Day 22',
     season: '🌊 Akhet – Season of Inundation',
-    month: 'Thoth (Ḏḥwty) — The Measuring of the World as It Returns to Water',
-    decanName: 'sbꜣw',
+    month: 'Thoth (Djehuty) – Month of Divine Order and Rebirth',
+    decanName: 'sbꜣw ("The Stars")',
     starCluster:
         '✨ sbꜣw — a modest decanal star group watched near the eastern horizon during this ten-day interval; exact modern identification is uncertain',
-    maatPrinciple: 'Speak What Was Seen',
+    maatPrinciple: 'Protection of the Field',
     cosmicContext: '''
-The Nile has risen and the measured world has returned to water. Djehuty stands at the opening of the year as ibis at the waterline, baboon at dawn, lunar measure, divine scribe, and keeper of ritual time. The work is not to force action, but to observe, measure, record, and let dissolution become renewal rather than erasure.
+Day 22 is boundary-setting.
 
-This day belongs to sbꜣw, the stars released into shared order, where observation becomes record and record becomes guidance. The star-time movement does not function as decoration. It gives the day a position in the cycle: what appears in the sky, what is happening in the year, and what the heart must practice are held together.
+In Kemet, sacred spaces were defended. Temples had restricted zones. Not everyone had access to every chamber.
 
-Day 2 turns that movement toward speak what was seen.
+Same with you: not everyone gets direct access to your focus, your emotional channel, your sacred hours.
 
-The question is simple: What is the truth as simply as it can be spoken?
+If you do not guard the field, the field is not sacred — it is public. Day 22 fixes that.
 ''',
     decanFlow: _compressedThothFlowRows3,
     meduNeter: MeduNeterKey(
-      glyph: 'Reed pen, waterline, and dawn baboon',
-      colorFrequency: 'Nile blue, moon silver, and measured gold',
-      mantra: '“I practice speak what was seen in Ma’at.”',
+      glyph:
+          '𓂝 (raised arm in defense / command) — active enforcement, not passive hoping',
+      colorFrequency:
+          'Obsidian edged in copper — do-not-cross-this-line energy',
+      mantra: '"My field is protected."',
     ),
   ),
   'thoth_23_3': KemeticDayInfo(
-    kemeticDate: 'Thoth III, Day 3',
+    kemeticDate: 'Thoth III, Day 23',
     season: '🌊 Akhet – Season of Inundation',
-    month: 'Thoth (Ḏḥwty) — The Measuring of the World as It Returns to Water',
-    decanName: 'sbꜣw',
+    month: 'Thoth (Djehuty) – Month of Divine Order and Rebirth',
+    decanName: 'sbꜣw ("The Stars")',
     starCluster:
         '✨ sbꜣw — a modest decanal star group watched near the eastern horizon during this ten-day interval; exact modern identification is uncertain',
-    maatPrinciple: 'Write the Boundary',
+    maatPrinciple: 'Rhythmic Order',
     cosmicContext: '''
-The Nile has risen and the measured world has returned to water. Djehuty stands at the opening of the year as ibis at the waterline, baboon at dawn, lunar measure, divine scribe, and keeper of ritual time. The work is not to force action, but to observe, measure, record, and let dissolution become renewal rather than erasure.
+Day 23 is about workflow as ritual.
 
-This day belongs to sbꜣw, the stars released into shared order, where observation becomes record and record becomes guidance. The star-time movement does not function as decoration. It gives the day a position in the cycle: what appears in the sky, what is happening in the year, and what the heart must practice are held together.
+You are not trying to be disciplined; you are installing a sacred rhythm. In Kemet, offerings and temple cleanings happened at exact, repeating intervals. That was energetic hygiene.
 
-Day 3 turns that movement toward write the boundary.
-
-In practical life, this is where the old pattern meets the present body. Progress may ask for action, but not every action is Ma’at. Obstacles may ask for endurance, but not every burden should be carried. A return may ask for receiving, but not every gain should be consumed.
-
-The question is simple: What line must be remembered?
+Define what repeats in your life because it supports balance.
 ''',
     decanFlow: _compressedThothFlowRows3,
     meduNeter: MeduNeterKey(
-      glyph: 'Reed pen, waterline, and dawn baboon',
-      colorFrequency: 'Nile blue, moon silver, and measured gold',
-      mantra: '“I practice write the boundary in Ma’at.”',
+      glyph:
+          '𓏛 (tied bundle / ordered arrangement) — organized, repeatable process',
+      colorFrequency: 'Deep brown + gold threads — woven stability',
+      mantra: '"My rhythm is sacred."',
     ),
   ),
   'thoth_24_3': KemeticDayInfo(
-    kemeticDate: 'Thoth III, Day 4',
+    kemeticDate: 'Thoth III, Day 24',
     season: '🌊 Akhet – Season of Inundation',
-    month: 'Thoth (Ḏḥwty) — The Measuring of the World as It Returns to Water',
-    decanName: 'sbꜣw',
+    month: 'Thoth (Djehuty) – Month of Divine Order and Rebirth',
+    decanName: 'sbꜣw ("The Stars")',
     starCluster:
         '✨ sbꜣw — a modest decanal star group watched near the eastern horizon during this ten-day interval; exact modern identification is uncertain',
-    maatPrinciple: 'Make Knowledge Useful',
+    maatPrinciple: 'Focus Is Sacred',
     cosmicContext: '''
-The Nile has risen and the measured world has returned to water. Djehuty stands at the opening of the year as ibis at the waterline, baboon at dawn, lunar measure, divine scribe, and keeper of ritual time. The work is not to force action, but to observe, measure, record, and let dissolution become renewal rather than erasure.
+Day 24 is surgical.
 
-This day belongs to sbꜣw, the stars released into shared order, where observation becomes record and record becomes guidance. The star-time movement does not function as decoration. It gives the day a position in the cycle: what appears in the sky, what is happening in the year, and what the heart must practice are held together.
+Identify what pulls you off-path: distractions, fake urgency, obligations that do not serve Ma'at. Then cut them.
 
-Day 4 turns that movement toward make knowledge useful.
+This is the difference between being busy and being effective.
 
-The question is simple: Who or what can this record help?
+In Kemetic terms, remove access to the inner sanctuary from anything that is not divine.
 ''',
     decanFlow: _compressedThothFlowRows3,
     meduNeter: MeduNeterKey(
-      glyph: 'Reed pen, waterline, and dawn baboon',
-      colorFrequency: 'Nile blue, moon silver, and measured gold',
-      mantra: '“I practice make knowledge useful in Ma’at.”',
+      glyph: '𓃒 / cutting edge / defensive posture — controlled exclusion',
+      colorFrequency:
+          'Matte black with a thin gold line — focus ring, keep out',
+      mantra: '"Distraction does not enter the sanctuary."',
     ),
   ),
   'thoth_25_3': KemeticDayInfo(
-    kemeticDate: 'Thoth III, Day 5',
+    kemeticDate: 'Thoth III, Day 25',
     season: '🌊 Akhet – Season of Inundation',
-    month: 'Thoth (Ḏḥwty) — The Measuring of the World as It Returns to Water',
-    decanName: 'sbꜣw',
+    month: 'Thoth (Djehuty) – Month of Divine Order and Rebirth',
+    decanName: 'sbꜣw ("The Stars")',
     starCluster:
         '✨ sbꜣw — a modest decanal star group watched near the eastern horizon during this ten-day interval; exact modern identification is uncertain',
-    maatPrinciple: 'Protect the Name',
+    maatPrinciple: 'Stability / Resourcing',
     cosmicContext: '''
-The Nile has risen and the measured world has returned to water. Djehuty stands at the opening of the year as ibis at the waterline, baboon at dawn, lunar measure, divine scribe, and keeper of ritual time. The work is not to force action, but to observe, measure, record, and let dissolution become renewal rather than erasure.
+Day 25 is inventory.
 
-This day belongs to sbꜣw, the stars released into shared order, where observation becomes record and record becomes guidance. The star-time movement does not function as decoration. It gives the day a position in the cycle: what appears in the sky, what is happening in the year, and what the heart must practice are held together.
+Check the physical world: money, tools, workspace, health, sleep, nourishment. Can this body and environment support the identity you have claimed — not just today, but sustainably?
 
-Day 5 turns that movement toward protect the name.
-
-In practical life, this is where the old pattern meets the present body. Progress may ask for action, but not every action is Ma’at. Obstacles may ask for endurance, but not every burden should be carried. A return may ask for receiving, but not every gain should be consumed.
-
-The question is simple: What must not be distorted?
+In Kemet, power was logistics. You cannot embody divine order if your practical base is chaos.
 ''',
     decanFlow: _compressedThothFlowRows3,
     meduNeter: MeduNeterKey(
-      glyph: 'Reed pen, waterline, and dawn baboon',
-      colorFrequency: 'Nile blue, moon silver, and measured gold',
-      mantra: '“I practice protect the name in Ma’at.”',
+      glyph:
+          '𓊖 (walled estate / enclosed domain) — resources arranged under your control',
+      colorFrequency: 'Earth gold + stone gray — grounded power',
+      mantra: '"My foundation is secured."',
     ),
   ),
   'thoth_26_3': KemeticDayInfo(
-    kemeticDate: 'Thoth III, Day 6',
+    kemeticDate: 'Thoth III, Day 26',
     season: '🌊 Akhet – Season of Inundation',
-    month: 'Thoth (Ḏḥwty) — The Measuring of the World as It Returns to Water',
-    decanName: 'sbꜣw',
+    month: 'Thoth (Djehuty) – Month of Divine Order and Rebirth',
+    decanName: 'sbꜣw ("The Stars")',
     starCluster:
         '✨ sbꜣw — a modest decanal star group watched near the eastern horizon during this ten-day interval; exact modern identification is uncertain',
-    maatPrinciple: 'Carry the Measure Forward',
+    maatPrinciple: 'Lineage / Continuity',
     cosmicContext: '''
-The Nile has risen and the measured world has returned to water. Djehuty stands at the opening of the year as ibis at the waterline, baboon at dawn, lunar measure, divine scribe, and keeper of ritual time. The work is not to force action, but to observe, measure, record, and let dissolution become renewal rather than erasure.
+Day 26 plugs you into why this matters beyond you.
 
-This day belongs to sbꜣw, the stars released into shared order, where observation becomes record and record becomes guidance. The star-time movement does not function as decoration. It gives the day a position in the cycle: what appears in the sky, what is happening in the year, and what the heart must practice are held together.
+You are not just doing this for yourself; you are carrying a current that existed before you and will exist after you.
 
-Day 6 turns that movement toward carry the measure forward.
+In Kemet, nothing was only mine. It was ours across time.
 
-The question is simple: How does this measure shape the next step?
+When you see your work like that, it stops being ego performance and becomes custodianship.
 ''',
     decanFlow: _compressedThothFlowRows3,
     meduNeter: MeduNeterKey(
-      glyph: 'Reed pen, waterline, and dawn baboon',
-      colorFrequency: 'Nile blue, moon silver, and measured gold',
-      mantra: '“I practice carry the measure forward in Ma’at.”',
+      glyph:
+          '𓀭 (ancestor / deified forebear) — ancestral presence walking with you',
+      colorFrequency: 'Deep amber with dark wine red — bloodline + sunline',
+      mantra: '"I walk with those who walked before me."',
     ),
   ),
   'thoth_27_3': KemeticDayInfo(
-    kemeticDate: 'Thoth III, Day 7',
+    kemeticDate: 'Thoth III, Day 27',
     season: '🌊 Akhet – Season of Inundation',
-    month: 'Thoth (Ḏḥwty) — The Measuring of the World as It Returns to Water',
-    decanName: 'sbꜣw',
+    month: 'Thoth (Djehuty) – Month of Divine Order and Rebirth',
+    decanName: 'sbꜣw ("The Stars")',
     starCluster:
         '✨ sbꜣw — a modest decanal star group watched near the eastern horizon during this ten-day interval; exact modern identification is uncertain',
-    maatPrinciple: 'Correct the Ledger',
+    maatPrinciple: 'Presentation / Signaling',
     cosmicContext: '''
-The Nile has risen and the measured world has returned to water. Djehuty stands at the opening of the year as ibis at the waterline, baboon at dawn, lunar measure, divine scribe, and keeper of ritual time. The work is not to force action, but to observe, measure, record, and let dissolution become renewal rather than erasure.
+Day 27 is about how you show up publicly.
 
-This day belongs to sbꜣw, the stars released into shared order, where observation becomes record and record becomes guidance. The star-time movement does not function as decoration. It gives the day a position in the cycle: what appears in the sky, what is happening in the year, and what the heart must practice are held together.
+Kemet understood appearance, posture, speech style, and titles as part of sacred order. The way you present yourself teaches others how to treat you.
 
-Day 7 turns that movement toward correct the ledger.
-
-The question is simple: Where does the record need truth?
+Does your exterior presentation match the current you are actually carrying, or are you visually underselling yourself?
 ''',
     decanFlow: _compressedThothFlowRows3,
     meduNeter: MeduNeterKey(
-      glyph: 'Reed pen, waterline, and dawn baboon',
-      colorFrequency: 'Nile blue, moon silver, and measured gold',
-      mantra: '“I practice correct the ledger in Ma’at.”',
+      glyph:
+          '𓌂 (scepter / staff of office) — visible authority, presence carried in public',
+      colorFrequency: 'Polished gold on black — unmistakable signal',
+      mantra: '"I present myself as I am."',
     ),
   ),
   'thoth_28_3': KemeticDayInfo(
-    kemeticDate: 'Thoth III, Day 8',
+    kemeticDate: 'Thoth III, Day 28',
     season: '🌊 Akhet – Season of Inundation',
-    month: 'Thoth (Ḏḥwty) — The Measuring of the World as It Returns to Water',
-    decanName: 'sbꜣw',
+    month: 'Thoth (Djehuty) – Month of Divine Order and Rebirth',
+    decanName: 'sbꜣw ("The Stars")',
     starCluster:
         '✨ sbꜣw — a modest decanal star group watched near the eastern horizon during this ten-day interval; exact modern identification is uncertain',
-    maatPrinciple: 'Teach the Sign',
+    maatPrinciple: 'Codifying the Standard',
     cosmicContext: '''
-The Nile has risen and the measured world has returned to water. Djehuty stands at the opening of the year as ibis at the waterline, baboon at dawn, lunar measure, divine scribe, and keeper of ritual time. The work is not to force action, but to observe, measure, record, and let dissolution become renewal rather than erasure.
+Day 28 is where you write your code.
 
-This day belongs to sbꜣw, the stars released into shared order, where observation becomes record and record becomes guidance. The star-time movement does not function as decoration. It gives the day a position in the cycle: what appears in the sky, what is happening in the year, and what the heart must practice are held together.
+In Kemet, royal houses, temples, and guilds had explicit standards: this is how we do things here.
 
-Day 8 turns that movement toward teach the sign.
+You are doing that for yourself: your rules, your non-negotiables, your operating instructions.
 
-The question is simple: What can be taught clearly now?
+This is how future-you, and anyone in your orbit, knows what is sacred and what is off-limits.
 ''',
     decanFlow: _compressedThothFlowRows3,
     meduNeter: MeduNeterKey(
-      glyph: 'Reed pen, waterline, and dawn baboon',
-      colorFrequency: 'Nile blue, moon silver, and measured gold',
-      mantra: '“I practice teach the sign in Ma’at.”',
+      glyph:
+          '𓏠 (ink pot and reed pen) — law recorded, structure made explicit',
+      colorFrequency: 'Cobalt on parchment ivory — script on living order',
+      mantra: '"My code is written."',
     ),
   ),
   'thoth_29_3': KemeticDayInfo(
-    kemeticDate: 'Thoth III, Day 9',
+    kemeticDate: 'Thoth III, Day 29',
     season: '🌊 Akhet – Season of Inundation',
-    month: 'Thoth (Ḏḥwty) — The Measuring of the World as It Returns to Water',
-    decanName: 'sbꜣw',
+    month: 'Thoth (Djehuty) – Month of Divine Order and Rebirth',
+    decanName: 'sbꜣw ("The Stars")',
     starCluster:
         '✨ sbꜣw — a modest decanal star group watched near the eastern horizon during this ten-day interval; exact modern identification is uncertain',
-    maatPrinciple: 'Place the Record',
+    maatPrinciple: 'Fortification / Defense',
     cosmicContext: '''
-The Nile has risen and the measured world has returned to water. Djehuty stands at the opening of the year as ibis at the waterline, baboon at dawn, lunar measure, divine scribe, and keeper of ritual time. The work is not to force action, but to observe, measure, record, and let dissolution become renewal rather than erasure.
+Day 29 is defense build-out.
 
-This day belongs to sbꜣw, the stars released into shared order, where observation becomes record and record becomes guidance. The star-time movement does not function as decoration. It gives the day a position in the cycle: what appears in the sky, what is happening in the year, and what the heart must practice are held together.
+Your identity needs walls, contracts, protections. Think like a strategist: LLCs, NDAs, insurance, time blocks, emotional no-go zones, and clear terms for how people engage you.
 
-Day 9 turns that movement toward place the record.
-
-The question is simple: Where will future action look for this?
+You are not hardening your heart. You are hardening your perimeter.
 ''',
     decanFlow: _compressedThothFlowRows3,
     meduNeter: MeduNeterKey(
-      glyph: 'Reed pen, waterline, and dawn baboon',
-      colorFrequency: 'Nile blue, moon silver, and measured gold',
-      mantra: '“I practice place the record in Ma’at.”',
+      glyph:
+          '𓉐 (walled house / fortified enclosure) — protected domain, secured boundary',
+      colorFrequency: 'Stone gray with gold seams — defended, but alive',
+      mantra: '"What I am building will be kept."',
     ),
   ),
   'thoth_30_3': KemeticDayInfo(
-    kemeticDate: 'Thoth III, Day 10',
+    kemeticDate: 'Thoth III, Day 30',
     season: '🌊 Akhet – Season of Inundation',
-    month: 'Thoth (Ḏḥwty) — The Measuring of the World as It Returns to Water',
-    decanName: 'sbꜣw',
+    month: 'Thoth (Djehuty) – Month of Divine Order and Rebirth',
+    decanName: 'sbꜣw ("The Stars")',
     starCluster:
         '✨ sbꜣw — a modest decanal star group watched near the eastern horizon during this ten-day interval; exact modern identification is uncertain',
-    maatPrinciple: 'Seal Expression',
+    maatPrinciple: 'Sealing Identity',
     cosmicContext: '''
-The Nile has risen and the measured world has returned to water. Djehuty stands at the opening of the year as ibis at the waterline, baboon at dawn, lunar measure, divine scribe, and keeper of ritual time. The work is not to force action, but to observe, measure, record, and let dissolution become renewal rather than erasure.
+Day 30 closes the month of Thoth.
 
-This day belongs to sbꜣw, the stars released into shared order, where observation becomes record and record becomes guidance. The star-time movement does not function as decoration. It gives the day a position in the cycle: what appears in the sky, what is happening in the year, and what the heart must practice are held together.
+Today you name the identity that is now permanent. This is not a mood. This is a station.
 
-Day 10 turns that movement toward seal expression.
+In Kemetic logic, once something is ritually sealed, it is binding — and reality orients around it.
 
-The question is simple: What has been measured enough to return to order?
+Declare: this is who I am going into the next month. You leave Thoth as someone with order, boundaries, rhythm, lineage, and protection.
 ''',
     decanFlow: _compressedThothFlowRows3,
     meduNeter: MeduNeterKey(
-      glyph: 'Reed pen, waterline, and dawn baboon',
-      colorFrequency: 'Nile blue, moon silver, and measured gold',
-      mantra: '“I practice seal expression in Ma’at.”',
+      glyph:
+          '𓅓 + 𓏞 (the scribe\'s ibis + sealed decree) — wisdom recorded, identity ratified',
+      colorFrequency: 'Gold sealed on matte black — royal decree energy',
+      mantra: '"This is my station going forward."',
     ),
   ),
   'paophi_1_1': KemeticDayInfo(
     kemeticDate: 'Paopi I, Day 1',
     season: '🌊 Akhet – Season of Inundation',
-    month: 'Paopi (Mnḫt) — Carrying the Measured World Forward',
-    decanName: 'ꜥḥꜣy',
+    month: 'Paopi (Menkhet – "The Carrying," "The Bringing")',
+    decanName: 'ꜥḥꜣy ("The Riser")',
     starCluster:
         '✨ ꜥḥꜣy — a modest decanal star group watched near the eastern horizon during this ten-day interval; exact modern identification is uncertain',
-    maatPrinciple: 'Begin the Crossing',
+    maatPrinciple: 'Intention Becomes Motion',
     cosmicContext: '''
-The flood remains, but the first confusion has passed. What was measured in Thoth must now be carried across water, household, temple, record, and road. Paopi teaches motion that keeps its measure: boats, offerings, duties, messages, and burdens moving without losing Ma’at.
-
-This day belongs to ꜥḥꜣy, the riser, where the first movement begins after measure has been taken. The star-time movement does not function as decoration. It gives the day a position in the cycle: what appears in the sky, what is happening in the year, and what the heart must practice are held together.
-
-Day 1 turns that movement toward begin the crossing.
-
-In practical life, this is where the old pattern meets the present body. Progress may ask for action, but not every action is Ma’at. Obstacles may ask for endurance, but not every burden should be carried. A return may ask for receiving, but not every gain should be consumed.
-
-The question is simple: What is ready to move now?
+This is the moment you stop planning and start carrying.
+Thoth gave you order in the mind. Paopi forces that order into the body.
+In Kemet, as ꜥḥꜣy rose, workers re-entered the floodplain, clearing channels and preparing seed. It was understood as sacred restart — not back to work like a slave, but rejoining the current of life.
+Day 1 is you picking up the first load of the new cycle and saying: I am active again.
 ''',
     decanFlow: _compressedPaopiFlowRows1,
     meduNeter: MeduNeterKey(
-      glyph: 'Boat, balanced load, and measured current',
-      colorFrequency: 'Nile blue, moon silver, and measured gold',
-      mantra: '“I practice begin the crossing in Ma’at.”',
+      glyph:
+          '𓍿 (yoke / pole across the shoulders) — literal carrying, sacred duty embodied',
+      colorFrequency:
+          'Wet silt brown with Nile blue — the body moving offerings along the flooded banks',
+      mantra: '"What I shoulder is holy."',
     ),
   ),
   'paophi_2_1': KemeticDayInfo(
     kemeticDate: 'Paopi I, Day 2',
     season: '🌊 Akhet – Season of Inundation',
-    month: 'Paopi (Mnḫt) — Carrying the Measured World Forward',
-    decanName: 'ꜥḥꜣy',
+    month: 'Paopi (Menkhet – "The Carrying," "The Bringing")',
+    decanName: 'ꜥḥꜣy ("The Riser")',
     starCluster:
         '✨ ꜥḥꜣy — a modest decanal star group watched near the eastern horizon during this ten-day interval; exact modern identification is uncertain',
-    maatPrinciple: 'Balance the Load',
+    maatPrinciple: 'Movement As One Body',
     cosmicContext: '''
-The flood remains, but the first confusion has passed. What was measured in Thoth must now be carried across water, household, temple, record, and road. Paopi teaches motion that keeps its measure: boats, offerings, duties, messages, and burdens moving without losing Ma’at.
-
-This day belongs to ꜥḥꜣy, the riser, where the first movement begins after measure has been taken. The star-time movement does not function as decoration. It gives the day a position in the cycle: what appears in the sky, what is happening in the year, and what the heart must practice are held together.
-
-Day 2 turns that movement toward balance the load.
-
-In practical life, this is where the old pattern meets the present body. Progress may ask for action, but not every action is Ma’at. Obstacles may ask for endurance, but not every burden should be carried. A return may ask for receiving, but not every gain should be consumed.
-
-The question is simple: What must be balanced before the crossing?
+Today is about rejoining the current.
+In Paopi, nobody pretends to be an island. Labor is communal choreography. Barge pullers chant together. Porters walk shoulder-to-shoulder. Tribute travels in processions, not in secret.
+Day 2 asks: who are you moving with? You are allowed to carry as part of a body. That is Ma'at.
 ''',
     decanFlow: _compressedPaopiFlowRows1,
     meduNeter: MeduNeterKey(
-      glyph: 'Boat, balanced load, and measured current',
-      colorFrequency: 'Nile blue, moon silver, and measured gold',
-      mantra: '“I practice balance the load in Ma’at.”',
+      glyph:
+          '𓉐 + 𓈗 (house + flowing water) — the household moving in rhythm with the river, not against it',
+      colorFrequency:
+          'Nile blue lined with gold — shared motion, honored by the divine current',
+      mantra: '"We move this together."',
     ),
   ),
   'paophi_3_1': KemeticDayInfo(
     kemeticDate: 'Paopi I, Day 3',
     season: '🌊 Akhet – Season of Inundation',
-    month: 'Paopi (Mnḫt) — Carrying the Measured World Forward',
-    decanName: 'ꜥḥꜣy',
+    month: 'Paopi (Menkhet – "The Carrying," "The Bringing")',
+    decanName: 'ꜥḥꜣy ("The Riser")',
     starCluster:
         '✨ ꜥḥꜣy — a modest decanal star group watched near the eastern horizon during this ten-day interval; exact modern identification is uncertain',
-    maatPrinciple: 'Trust the Channel',
+    maatPrinciple: 'Rhythmic Endurance',
     cosmicContext: '''
-The flood remains, but the first confusion has passed. What was measured in Thoth must now be carried across water, household, temple, record, and road. Paopi teaches motion that keeps its measure: boats, offerings, duties, messages, and burdens moving without losing Ma’at.
-
-This day belongs to ꜥḥꜣy, the riser, where the first movement begins after measure has been taken. The star-time movement does not function as decoration. It gives the day a position in the cycle: what appears in the sky, what is happening in the year, and what the heart must practice are held together.
-
-Day 3 turns that movement toward trust the channel.
-
-In practical life, this is where the old pattern meets the present body. Progress may ask for action, but not every action is Ma’at. Obstacles may ask for endurance, but not every burden should be carried. A return may ask for receiving, but not every gain should be consumed.
-
-The question is simple: What path is open enough to trust?
+Day 3 is about pace.
+The floodplain labor did not explode in chaos. It settled into repeatable cadence: song, chant, footfall, pull-pause-pull.
+Sustainability is holy.
+Ask whether you can carry this pace for 10 days without injuring yourself, burning out, or poisoning your mood. If not, adjust. That is Ma'at.
 ''',
     decanFlow: _compressedPaopiFlowRows1,
     meduNeter: MeduNeterKey(
-      glyph: 'Boat, balanced load, and measured current',
-      colorFrequency: 'Nile blue, moon silver, and measured gold',
-      mantra: '“I practice trust the channel in Ma’at.”',
+      glyph:
+          '𓏌 (looped cord / measured tether) — controlled tempo, not frantic flailing',
+      colorFrequency: 'Deep river blue in even bands — the Nile\'s steady pull',
+      mantra: '"My pace is intelligent."',
     ),
   ),
   'paophi_4_1': KemeticDayInfo(
     kemeticDate: 'Paopi I, Day 4',
     season: '🌊 Akhet – Season of Inundation',
-    month: 'Paopi (Mnḫt) — Carrying the Measured World Forward',
-    decanName: 'ꜥḥꜣy',
+    month: 'Paopi (Menkhet – "The Carrying," "The Bringing")',
+    decanName: 'ꜥḥꜣy ("The Riser")',
     starCluster:
         '✨ ꜥḥꜣy — a modest decanal star group watched near the eastern horizon during this ten-day interval; exact modern identification is uncertain',
-    maatPrinciple: 'Move Without Haste',
+    maatPrinciple: 'Sacred Labor, Not Humiliation',
     cosmicContext: '''
-The flood remains, but the first confusion has passed. What was measured in Thoth must now be carried across water, household, temple, record, and road. Paopi teaches motion that keeps its measure: boats, offerings, duties, messages, and burdens moving without losing Ma’at.
-
-This day belongs to ꜥḥꜣy, the riser, where the first movement begins after measure has been taken. The star-time movement does not function as decoration. It gives the day a position in the cycle: what appears in the sky, what is happening in the year, and what the heart must practice are held together.
-
-Day 4 turns that movement toward move without haste.
-
-In practical life, this is where the old pattern meets the present body. Progress may ask for action, but not every action is Ma’at. Obstacles may ask for endurance, but not every burden should be carried. A return may ask for receiving, but not every gain should be consumed.
-
-The question is simple: Where does motion need calm?
+Day 4 is about how you regard your own effort.
+In Paopi, carrying tribute for the nome, hauling reeds for repair, bringing fish and papyrus up from the flood — these were ceremonial. You were feeding the nation, the temple, and continuity.
+If you narrate your work as struggle only, you poison it. If you narrate it as feeding the system that feeds us, you align it with Ma'at.
+Today: rename your labor.
 ''',
     decanFlow: _compressedPaopiFlowRows1,
     meduNeter: MeduNeterKey(
-      glyph: 'Boat, balanced load, and measured current',
-      colorFrequency: 'Nile blue, moon silver, and measured gold',
-      mantra: '“I practice move without haste in Ma’at.”',
+      glyph:
+          '𓎡 (uplifted hands bearing something upward) — carrying as devotion, not subservience',
+      colorFrequency: 'Sun-warm gold over Nile blue — honored work in motion',
+      mantra: '"My work is worthy."',
     ),
   ),
   'paophi_5_1': KemeticDayInfo(
     kemeticDate: 'Paopi I, Day 5',
     season: '🌊 Akhet – Season of Inundation',
-    month: 'Paopi (Mnḫt) — Carrying the Measured World Forward',
-    decanName: 'ꜥḥꜣy',
+    month: 'Paopi (Menkhet – "The Carrying," "The Bringing")',
+    decanName: 'ꜥḥꜣy ("The Riser")',
     starCluster:
         '✨ ꜥḥꜣy — a modest decanal star group watched near the eastern horizon during this ten-day interval; exact modern identification is uncertain',
-    maatPrinciple: 'Carry the Message',
+    maatPrinciple: 'Shared Load / Shared Survival',
     cosmicContext: '''
-The flood remains, but the first confusion has passed. What was measured in Thoth must now be carried across water, household, temple, record, and road. Paopi teaches motion that keeps its measure: boats, offerings, duties, messages, and burdens moving without losing Ma’at.
-
-This day belongs to ꜥḥꜣy, the riser, where the first movement begins after measure has been taken. The star-time movement does not function as decoration. It gives the day a position in the cycle: what appears in the sky, what is happening in the year, and what the heart must practice are held together.
-
-Day 5 turns that movement toward carry the message.
-
-In practical life, this is where the old pattern meets the present body. Progress may ask for action, but not every action is Ma’at. Obstacles may ask for endurance, but not every burden should be carried. A return may ask for receiving, but not every gain should be consumed.
-
-The question is simple: What must reach its place?
+Day 5 is redistribution of weight.
+Nobody lets one body snap while the rest watch. You rotate. You carry for someone; they carry for you.
+That is Ma'at in motion.
+Where are you quietly breaking while pretending you are fine? Who around you is breaking while pretending they are fine?
 ''',
     decanFlow: _compressedPaopiFlowRows1,
     meduNeter: MeduNeterKey(
-      glyph: 'Boat, balanced load, and measured current',
-      colorFrequency: 'Nile blue, moon silver, and measured gold',
-      mantra: '“I practice carry the message in Ma’at.”',
+      glyph:
+          '𓃒 (yoke / two-point carry) — weight shared across more than one shoulder',
+      colorFrequency: 'Copper, wet clay, deep river blue — living cooperation',
+      mantra: '"Balance is shared, or it\'s not Ma\'at."',
     ),
   ),
   'paophi_6_1': KemeticDayInfo(
     kemeticDate: 'Paopi I, Day 6',
     season: '🌊 Akhet – Season of Inundation',
-    month: 'Paopi (Mnḫt) — Carrying the Measured World Forward',
-    decanName: 'ꜥḥꜣy',
+    month: 'Paopi (Menkhet – "The Carrying," "The Bringing")',
+    decanName: 'ꜥḥꜣy ("The Riser")',
     starCluster:
         '✨ ꜥḥꜣy — a modest decanal star group watched near the eastern horizon during this ten-day interval; exact modern identification is uncertain',
-    maatPrinciple: 'Protect the Cargo',
+    maatPrinciple: 'Only Carry What\'s Aligned',
     cosmicContext: '''
-The flood remains, but the first confusion has passed. What was measured in Thoth must now be carried across water, household, temple, record, and road. Paopi teaches motion that keeps its measure: boats, offerings, duties, messages, and burdens moving without losing Ma’at.
-
-This day belongs to ꜥḥꜣy, the riser, where the first movement begins after measure has been taken. The star-time movement does not function as decoration. It gives the day a position in the cycle: what appears in the sky, what is happening in the year, and what the heart must practice are held together.
-
-Day 6 turns that movement toward protect the cargo.
-
-In practical life, this is where the old pattern meets the present body. Progress may ask for action, but not every action is Ma’at. Obstacles may ask for endurance, but not every burden should be carried. A return may ask for receiving, but not every gain should be consumed.
-
-The question is simple: What could be spilled or distorted?
+Day 6 is ruthless.
+This is the moment in the procession where you look at what is on your shoulder and ask: does this belong to me?
+Many people bleed under loads that are someone else's neglect, laziness, or crisis.
+In Paopi logic, carrying misaligned weight is not noble. It is disordered.
+Today: drop what is not yours.
 ''',
     decanFlow: _compressedPaopiFlowRows1,
     meduNeter: MeduNeterKey(
-      glyph: 'Boat, balanced load, and measured current',
-      colorFrequency: 'Nile blue, moon silver, and measured gold',
-      mantra: '“I practice protect the cargo in Ma’at.”',
+      glyph:
+          '𓌡 (standard / emblem carried on a pole) — I carry what represents me, not what erases me',
+      colorFrequency:
+          'Black edged in gold — authority over what you agree to bear',
+      mantra: '"I refuse loads that are not mine."',
     ),
   ),
   'paophi_7_1': KemeticDayInfo(
     kemeticDate: 'Paopi I, Day 7',
     season: '🌊 Akhet – Season of Inundation',
-    month: 'Paopi (Mnḫt) — Carrying the Measured World Forward',
-    decanName: 'ꜥḥꜣy',
+    month: 'Paopi (Menkhet – "The Carrying," "The Bringing")',
+    decanName: 'ꜥḥꜣy ("The Riser")',
     starCluster:
         '✨ ꜥḥꜣy — a modest decanal star group watched near the eastern horizon during this ten-day interval; exact modern identification is uncertain',
-    maatPrinciple: 'Read the Current',
+    maatPrinciple: 'Speak From Your Station',
     cosmicContext: '''
-The flood remains, but the first confusion has passed. What was measured in Thoth must now be carried across water, household, temple, record, and road. Paopi teaches motion that keeps its measure: boats, offerings, duties, messages, and burdens moving without losing Ma’at.
-
-This day belongs to ꜥḥꜣy, the riser, where the first movement begins after measure has been taken. The star-time movement does not function as decoration. It gives the day a position in the cycle: what appears in the sky, what is happening in the year, and what the heart must practice are held together.
-
-Day 7 turns that movement toward read the current.
-
-In practical life, this is where the old pattern meets the present body. Progress may ask for action, but not every action is Ma’at. Obstacles may ask for endurance, but not every burden should be carried. A return may ask for receiving, but not every gain should be consumed.
-
-The question is simple: What does movement reveal?
+Day 7 is voice alignment.
+In Nile processions, you did not just lift. You declared: bearer of the house, messenger of the west, offering-bearer for the nome.
+Your mouth matched your duty.
+Stop talking like you are nobody doing random chores. Speak like someone entrusted with delivery.
+Your language teaches the world how to regard your work.
 ''',
     decanFlow: _compressedPaopiFlowRows1,
     meduNeter: MeduNeterKey(
-      glyph: 'Boat, balanced load, and measured current',
-      colorFrequency: 'Nile blue, moon silver, and measured gold',
-      mantra: '“I practice read the current in Ma’at.”',
+      glyph:
+          '𓂋 (mouth / voice) beside 𓌡 (standard) — the voice that carries authority, not apology',
+      colorFrequency:
+          'Gold over river blue — declared function moving through the floodplain',
+      mantra: '"My voice matches my work."',
     ),
   ),
   'paophi_8_1': KemeticDayInfo(
     kemeticDate: 'Paopi I, Day 8',
     season: '🌊 Akhet – Season of Inundation',
-    month: 'Paopi (Mnḫt) — Carrying the Measured World Forward',
-    decanName: 'ꜥḥꜣy',
+    month: 'Paopi (Menkhet – "The Carrying," "The Bringing")',
+    decanName: 'ꜥḥꜣy ("The Riser")',
     starCluster:
         '✨ ꜥḥꜣy — a modest decanal star group watched near the eastern horizon during this ten-day interval; exact modern identification is uncertain',
-    maatPrinciple: 'Keep the Crew Aligned',
+    maatPrinciple: 'Maintain the Carrier',
     cosmicContext: '''
-The flood remains, but the first confusion has passed. What was measured in Thoth must now be carried across water, household, temple, record, and road. Paopi teaches motion that keeps its measure: boats, offerings, duties, messages, and burdens moving without losing Ma’at.
-
-This day belongs to ꜥḥꜣy, the riser, where the first movement begins after measure has been taken. The star-time movement does not function as decoration. It gives the day a position in the cycle: what appears in the sky, what is happening in the year, and what the heart must practice are held together.
-
-Day 8 turns that movement toward keep the crew aligned.
-
-In practical life, this is where the old pattern meets the present body. Progress may ask for action, but not every action is Ma’at. Obstacles may ask for endurance, but not every burden should be carried. A return may ask for receiving, but not every gain should be consumed.
-
-The question is simple: Who must move in rhythm with me?
+Day 8 is repair and restoration.
+Paopi is physical. Shoulders bruise. Hands tear. Knees swell. Backs lock.
+Ancients understood this, which is why carriers were fed, cooled, massaged, and sung to. The carrier is infrastructure.
+Today is not pampering yourself because you earned it. Today is maintaining the machine because the machine is sacred.
 ''',
     decanFlow: _compressedPaopiFlowRows1,
     meduNeter: MeduNeterKey(
-      glyph: 'Boat, balanced load, and measured current',
-      colorFrequency: 'Nile blue, moon silver, and measured gold',
-      mantra: '“I practice keep the crew aligned in Ma’at.”',
+      glyph:
+          '𓏏 (bread / sustenance) with 𓈗 (water) — feed, water, cool the carrier',
+      colorFrequency:
+          'Clay brown + warm amber + Nile blue — body tended, not ignored',
+      mantra: '"The carrier is worth preserving."',
     ),
   ),
   'paophi_9_1': KemeticDayInfo(
     kemeticDate: 'Paopi I, Day 9',
     season: '🌊 Akhet – Season of Inundation',
-    month: 'Paopi (Mnḫt) — Carrying the Measured World Forward',
-    decanName: 'ꜥḥꜣy',
+    month: 'Paopi (Menkhet – "The Carrying," "The Bringing")',
+    decanName: 'ꜥḥꜣy ("The Riser")',
     starCluster:
         '✨ ꜥḥꜣy — a modest decanal star group watched near the eastern horizon during this ten-day interval; exact modern identification is uncertain',
-    maatPrinciple: 'Record the Movement',
+    maatPrinciple: 'Honor the Route / Know the Destination',
     cosmicContext: '''
-The flood remains, but the first confusion has passed. What was measured in Thoth must now be carried across water, household, temple, record, and road. Paopi teaches motion that keeps its measure: boats, offerings, duties, messages, and burdens moving without losing Ma’at.
-
-This day belongs to ꜥḥꜣy, the riser, where the first movement begins after measure has been taken. The star-time movement does not function as decoration. It gives the day a position in the cycle: what appears in the sky, what is happening in the year, and what the heart must practice are held together.
-
-Day 9 turns that movement toward record the movement.
-
-In practical life, this is where the old pattern meets the present body. Progress may ask for action, but not every action is Ma’at. Obstacles may ask for endurance, but not every burden should be carried. A return may ask for receiving, but not every gain should be consumed.
-
-The question is simple: What actually traveled?
+Day 9 is clarity of destination.
+You are not just working hard. You are transporting meaning.
+In Paopi, the procession was delivery: lotus, fish, papyrus, herbs, beer — offerings for Hathor, the nome, the household, the year.
+Where is this load supposed to arrive? Who will eat because you carried this? Who will rest because you carried this?
 ''',
     decanFlow: _compressedPaopiFlowRows1,
     meduNeter: MeduNeterKey(
-      glyph: 'Boat, balanced load, and measured current',
-      colorFrequency: 'Nile blue, moon silver, and measured gold',
-      mantra: '“I practice record the movement in Ma’at.”',
+      glyph: '𓈗 (river / channel) — the path itself is sacred',
+      colorFrequency:
+          'Deep Nile blue edged with gold — guided current with purpose',
+      mantra: '"My movement has a destination."',
     ),
   ),
   'paophi_10_1': KemeticDayInfo(
     kemeticDate: 'Paopi I, Day 10',
     season: '🌊 Akhet – Season of Inundation',
-    month: 'Paopi (Mnḫt) — Carrying the Measured World Forward',
-    decanName: 'ꜥḥꜣy',
+    month: 'Paopi (Menkhet – "The Carrying," "The Bringing")',
+    decanName: 'ꜥḥꜣy ("The Riser")',
     starCluster:
         '✨ ꜥḥꜣy — a modest decanal star group watched near the eastern horizon during this ten-day interval; exact modern identification is uncertain',
-    maatPrinciple: 'Seal the First Crossing',
+    maatPrinciple: 'Labor As Offering',
     cosmicContext: '''
-The flood remains, but the first confusion has passed. What was measured in Thoth must now be carried across water, household, temple, record, and road. Paopi teaches motion that keeps its measure: boats, offerings, duties, messages, and burdens moving without losing Ma’at.
-
-This day belongs to ꜥḥꜣy, the riser, where the first movement begins after measure has been taken. The star-time movement does not function as decoration. It gives the day a position in the cycle: what appears in the sky, what is happening in the year, and what the heart must practice are held together.
-
-Day 10 turns that movement toward seal the first crossing.
-
-In practical life, this is where the old pattern meets the present body. Progress may ask for action, but not every action is Ma’at. Obstacles may ask for endurance, but not every burden should be carried. A return may ask for receiving, but not every gain should be consumed.
-
-The question is simple: Did the first movement preserve Ma’at?
+Day 10 seals the decan of ꜥḥꜣy.
+When the procession delivered what it carried, that moment was ritual. Goods were not dropped off. They were presented to Hathor, the nome chief, the home, or the ancestors.
+Acknowledge: I placed something of value in the world. I delivered.
+You are allowed to call that sacred.
 ''',
     decanFlow: _compressedPaopiFlowRows1,
     meduNeter: MeduNeterKey(
-      glyph: 'Boat, balanced load, and measured current',
-      colorFrequency: 'Nile blue, moon silver, and measured gold',
-      mantra: '“I practice seal the first crossing in Ma’at.”',
+      glyph:
+          '𓊤 (two arms presenting an offering forward) — receive what I have carried',
+      colorFrequency:
+          'Gold laid over deep Nile blue — tribute delivered to life itself',
+      mantra: '"My work lands as an offering."',
     ),
   ),
   'paophi_11_2': KemeticDayInfo(
-    kemeticDate: 'Paopi II, Day 1',
+    kemeticDate: 'Paopi II, Day 11',
     season: '🌊 Akhet – Season of Inundation',
-    month: 'Paopi (Mnḫt) — Carrying the Measured World Forward',
-    decanName: 'ḥry-ib ꜥḥꜣy',
+    month: 'Paopi (Menkhet – "The Carrying," "The Bringing")',
+    decanName: 'ḥry-ib ꜥḥꜣy ("Heart of the Riser")',
     starCluster:
         '✨ ḥry-ib ꜥḥꜣy — a modest decanal star group watched near the eastern horizon during this ten-day interval; exact modern identification is uncertain',
-    maatPrinciple: 'Bring Motion to the Heart',
+    maatPrinciple: 'Many Small Fires Keep the Land Alive',
     cosmicContext: '''
-The flood remains, but the first confusion has passed. What was measured in Thoth must now be carried across water, household, temple, record, and road. Paopi teaches motion that keeps its measure: boats, offerings, duties, messages, and burdens moving without losing Ma’at.
-
-This day belongs to ḥry-ib ꜥḥꜣy, the heart of the riser, where motion must be governed from within. The star-time movement does not function as decoration. It gives the day a position in the cycle: what appears in the sky, what is happening in the year, and what the heart must practice are held together.
-
-Day 1 turns that movement toward bring motion to the heart.
-
-In practical life, this is where the old pattern meets the present body. Progress may ask for action, but not every action is Ma’at. Obstacles may ask for endurance, but not every burden should be carried. A return may ask for receiving, but not every gain should be consumed.
-
-The question is simple: What governs this movement?
+The first decan of Paopi was one spear of motion: everyone shoulders together, one procession, one surge.
+Now ḥry-ib ꜥḥꜣy begins. The procession breaks apart and spreads.
+Day 11 is about lighting the outposts. Acknowledge every place that still needs you: children, elders, clients, allies, crew, neighbors, distant family, supporters of your work.
+You are responsible to more than the one place where you stand.
 ''',
     decanFlow: _compressedPaopiFlowRows2,
     meduNeter: MeduNeterKey(
-      glyph: 'Boat, balanced load, and measured current',
-      colorFrequency: 'Nile blue, moon silver, and measured gold',
-      mantra: '“I practice bring motion to the heart in Ma’at.”',
+      glyph:
+          '𓇋𓏤 repeated (points/sparks / each one lit) scattered along 𓈗 (water line) — little lights along the flood channels',
+      colorFrequency: 'Ember orange over Nile blue — sparks across the current',
+      mantra: '"I keep every fire lit."',
     ),
   ),
   'paophi_12_2': KemeticDayInfo(
-    kemeticDate: 'Paopi II, Day 2',
+    kemeticDate: 'Paopi II, Day 12',
     season: '🌊 Akhet – Season of Inundation',
-    month: 'Paopi (Mnḫt) — Carrying the Measured World Forward',
-    decanName: 'ḥry-ib ꜥḥꜣy',
+    month: 'Paopi (Menkhet – "The Carrying," "The Bringing")',
+    decanName: 'ḥry-ib ꜥḥꜣy ("Heart of the Riser")',
     starCluster:
         '✨ ḥry-ib ꜥḥꜣy — a modest decanal star group watched near the eastern horizon during this ten-day interval; exact modern identification is uncertain',
-    maatPrinciple: 'Keep the Pace',
+    maatPrinciple: 'Send the Provision Outward',
     cosmicContext: '''
-The flood remains, but the first confusion has passed. What was measured in Thoth must now be carried across water, household, temple, record, and road. Paopi teaches motion that keeps its measure: boats, offerings, duties, messages, and burdens moving without losing Ma’at.
-
-This day belongs to ḥry-ib ꜥḥꜣy, the heart of the riser, where motion must be governed from within. The star-time movement does not function as decoration. It gives the day a position in the cycle: what appears in the sky, what is happening in the year, and what the heart must practice are held together.
-
-Day 2 turns that movement toward keep the pace.
-
-In practical life, this is where the old pattern meets the present body. Progress may ask for action, but not every action is Ma’at. Obstacles may ask for endurance, but not every burden should be carried. A return may ask for receiving, but not every gain should be consumed.
-
-The question is simple: What pace can hold?
+Day 12 is not about hoarding. It is circulation.
+Boats run between nomes carrying fish, papyrus, oil, herbs, grain, tools. The point is not what I have. The point is what I keep alive by sending.
+In modern terms: a transfer, a phone call, a warm meal dropped off, a text that stabilizes somebody, fixing a thing for them.
+You prove someone is not abandoned.
 ''',
     decanFlow: _compressedPaopiFlowRows2,
     meduNeter: MeduNeterKey(
-      glyph: 'Boat, balanced load, and measured current',
-      colorFrequency: 'Nile blue, moon silver, and measured gold',
-      mantra: '“I practice keep the pace in Ma’at.”',
+      glyph:
+          '𓂞 (libation / poured-out gift) along a channel — giving as life support, not showing off',
+      colorFrequency:
+          'Copper and deep water blue — supply flowing out along the river routes',
+      mantra: '"I keep the others fed."',
     ),
   ),
   'paophi_13_2': KemeticDayInfo(
-    kemeticDate: 'Paopi II, Day 3',
+    kemeticDate: 'Paopi II, Day 13',
     season: '🌊 Akhet – Season of Inundation',
-    month: 'Paopi (Mnḫt) — Carrying the Measured World Forward',
-    decanName: 'ḥry-ib ꜥḥꜣy',
+    month: 'Paopi (Menkhet – "The Carrying," "The Bringing")',
+    decanName: 'ḥry-ib ꜥḥꜣy ("Heart of the Riser")',
     starCluster:
         '✨ ḥry-ib ꜥḥꜣy — a modest decanal star group watched near the eastern horizon during this ten-day interval; exact modern identification is uncertain',
-    maatPrinciple: 'Adjust While Moving',
+    maatPrinciple: 'Build the Lane, Don\'t Wing It',
     cosmicContext: '''
-The flood remains, but the first confusion has passed. What was measured in Thoth must now be carried across water, household, temple, record, and road. Paopi teaches motion that keeps its measure: boats, offerings, duties, messages, and burdens moving without losing Ma’at.
-
-This day belongs to ḥry-ib ꜥḥꜣy, the heart of the riser, where motion must be governed from within. The star-time movement does not function as decoration. It gives the day a position in the cycle: what appears in the sky, what is happening in the year, and what the heart must practice are held together.
-
-Day 3 turns that movement toward adjust while moving.
-
-In practical life, this is where the old pattern meets the present body. Progress may ask for action, but not every action is Ma’at. Obstacles may ask for endurance, but not every burden should be carried. A return may ask for receiving, but not every gain should be consumed.
-
-The question is simple: What needs adjustment in motion?
+Day 13 is where you formalize the route.
+In Kemet, this was not vibes. They set patterns: this boat runs between these nomes every three days; this cousin checks on that elder every morning; this storage jar always refills that household.
+That is civilization.
+Lock in cadence. Do not just say: hit me if you need anything. Build an actual channel.
 ''',
     decanFlow: _compressedPaopiFlowRows2,
     meduNeter: MeduNeterKey(
-      glyph: 'Boat, balanced load, and measured current',
-      colorFrequency: 'Nile blue, moon silver, and measured gold',
-      mantra: '“I practice adjust while moving in Ma’at.”',
+      glyph:
+          '𓈉 (district / territory marker) linked to 𓈗 (waterway) — fixed route between places',
+      colorFrequency:
+          'River blue crossed with boundary gold — structured connection',
+      mantra: '"I build the lane."',
     ),
   ),
   'paophi_14_2': KemeticDayInfo(
-    kemeticDate: 'Paopi II, Day 4',
+    kemeticDate: 'Paopi II, Day 14',
     season: '🌊 Akhet – Season of Inundation',
-    month: 'Paopi (Mnḫt) — Carrying the Measured World Forward',
-    decanName: 'ḥry-ib ꜥḥꜣy',
+    month: 'Paopi (Menkhet – "The Carrying," "The Bringing")',
+    decanName: 'ḥry-ib ꜥḥꜣy ("Heart of the Riser")',
     starCluster:
         '✨ ḥry-ib ꜥḥꜣy — a modest decanal star group watched near the eastern horizon during this ten-day interval; exact modern identification is uncertain',
-    maatPrinciple: 'Protect the Carrier',
+    maatPrinciple: 'Exchange, Not Extraction',
     cosmicContext: '''
-The flood remains, but the first confusion has passed. What was measured in Thoth must now be carried across water, household, temple, record, and road. Paopi teaches motion that keeps its measure: boats, offerings, duties, messages, and burdens moving without losing Ma’at.
-
-This day belongs to ḥry-ib ꜥḥꜣy, the heart of the riser, where motion must be governed from within. The star-time movement does not function as decoration. It gives the day a position in the cycle: what appears in the sky, what is happening in the year, and what the heart must practice are held together.
-
-Day 4 turns that movement toward protect the carrier.
-
-In practical life, this is where the old pattern meets the present body. Progress may ask for action, but not every action is Ma’at. Obstacles may ask for endurance, but not every burden should be carried. A return may ask for receiving, but not every gain should be consumed.
-
-The question is simple: What carries this and what does it need?
+Day 14 is about reciprocity.
+Kemet understood that if flow only goes one direction, resentment rots the bond and Ma'at fractures.
+Boats do not only drop off. They also pick up. Care does not only move down from power; it moves sideways, neighbor to neighbor.
+Check whether this relationship is mutual, or whether somebody is being used.
 ''',
     decanFlow: _compressedPaopiFlowRows2,
     meduNeter: MeduNeterKey(
-      glyph: 'Boat, balanced load, and measured current',
-      colorFrequency: 'Nile blue, moon silver, and measured gold',
-      mantra: '“I practice protect the carrier in Ma’at.”',
+      glyph:
+          '𓍢 (two-way exchange / dual-arms passing) — mutual giving, not one-way tribute',
+      colorFrequency:
+          'Paired amber lights over dark water — warmth flowing in both directions',
+      mantra: '"We feed each other."',
     ),
   ),
   'paophi_15_2': KemeticDayInfo(
-    kemeticDate: 'Paopi II, Day 5',
+    kemeticDate: 'Paopi II, Day 15',
     season: '🌊 Akhet – Season of Inundation',
-    month: 'Paopi (Mnḫt) — Carrying the Measured World Forward',
-    decanName: 'ḥry-ib ꜥḥꜣy',
+    month: 'Paopi (Menkhet – "The Carrying," "The Bringing")',
+    decanName: 'ḥry-ib ꜥḥꜣy ("Heart of the Riser")',
     starCluster:
         '✨ ḥry-ib ꜥḥꜣy — a modest decanal star group watched near the eastern horizon during this ten-day interval; exact modern identification is uncertain',
-    maatPrinciple: 'Keep the Word True',
+    maatPrinciple: 'See the Work You Can\'t See',
     cosmicContext: '''
-The flood remains, but the first confusion has passed. What was measured in Thoth must now be carried across water, household, temple, record, and road. Paopi teaches motion that keeps its measure: boats, offerings, duties, messages, and burdens moving without losing Ma’at.
-
-This day belongs to ḥry-ib ꜥḥꜣy, the heart of the riser, where motion must be governed from within. The star-time movement does not function as decoration. It gives the day a position in the cycle: what appears in the sky, what is happening in the year, and what the heart must practice are held together.
-
-Day 5 turns that movement toward keep the word true.
-
-In practical life, this is where the old pattern meets the present body. Progress may ask for action, but not every action is Ma’at. Obstacles may ask for endurance, but not every burden should be carried. A return may ask for receiving, but not every gain should be consumed.
-
-The question is simple: Does my word remain accurate while moving?
+Day 15 is about witnessing remote labor.
+In Paopi, different nomes carry different weight: fishing here, reed-cutting there, repairing levees somewhere else. You do not always see it, but you live off it.
+Name and respect the people carrying what you benefit from but do not touch: emotional labor, financial support, home care, holding children, doing the boring stability work.
+You do not ignore invisible carriers and still claim Ma'at.
 ''',
     decanFlow: _compressedPaopiFlowRows2,
     meduNeter: MeduNeterKey(
-      glyph: 'Boat, balanced load, and measured current',
-      colorFrequency: 'Nile blue, moon silver, and measured gold',
-      mantra: '“I practice keep the word true in Ma’at.”',
+      glyph: '𓁐 (watchful eye) above 𓂡 (working arm) — I see your work',
+      colorFrequency:
+          'Ember orange on deep indigo — respect given to distant, often unseen fire',
+      mantra: '"I honor the labor I don\'t witness."',
     ),
   ),
   'paophi_16_2': KemeticDayInfo(
-    kemeticDate: 'Paopi II, Day 6',
+    kemeticDate: 'Paopi II, Day 16',
     season: '🌊 Akhet – Season of Inundation',
-    month: 'Paopi (Mnḫt) — Carrying the Measured World Forward',
-    decanName: 'ḥry-ib ꜥḥꜣy',
+    month: 'Paopi (Menkhet – "The Carrying," "The Bringing")',
+    decanName: 'ḥry-ib ꜥḥꜣy ("Heart of the Riser")',
     starCluster:
         '✨ ḥry-ib ꜥḥꜣy — a modest decanal star group watched near the eastern horizon during this ten-day interval; exact modern identification is uncertain',
-    maatPrinciple: 'Share the Work',
+    maatPrinciple: 'Reinforce the Weak Points',
     cosmicContext: '''
-The flood remains, but the first confusion has passed. What was measured in Thoth must now be carried across water, household, temple, record, and road. Paopi teaches motion that keeps its measure: boats, offerings, duties, messages, and burdens moving without losing Ma’at.
-
-This day belongs to ḥry-ib ꜥḥꜣy, the heart of the riser, where motion must be governed from within. The star-time movement does not function as decoration. It gives the day a position in the cycle: what appears in the sky, what is happening in the year, and what the heart must practice are held together.
-
-Day 6 turns that movement toward share the work.
-
-In practical life, this is where the old pattern meets the present body. Progress may ask for action, but not every action is Ma’at. Obstacles may ask for endurance, but not every burden should be carried. A return may ask for receiving, but not every gain should be consumed.
-
-The question is simple: What needs another shoulder?
+Day 16 is repair duty.
+You are not just circulating supplies. You are shoring up where the system is failing: the overwhelmed friend, the kid slipping, the collapsing routine, the money leak, the structural crack.
+Go where Ma'at is wobbling and stabilize it.
+That is holy work.
 ''',
     decanFlow: _compressedPaopiFlowRows2,
     meduNeter: MeduNeterKey(
-      glyph: 'Boat, balanced load, and measured current',
-      colorFrequency: 'Nile blue, moon silver, and measured gold',
-      mantra: '“I practice share the work in Ma’at.”',
+      glyph:
+          '𓂧 (hand placing / repairing / setting in place) reinforcing 𓉐 (house/structure) — active stabilization',
+      colorFrequency:
+          'Clay, brick red, protective gold — patching the wall before it cracks',
+      mantra: '"I go where the balance shakes."',
     ),
   ),
   'paophi_17_2': KemeticDayInfo(
-    kemeticDate: 'Paopi II, Day 7',
+    kemeticDate: 'Paopi II, Day 17',
     season: '🌊 Akhet – Season of Inundation',
-    month: 'Paopi (Mnḫt) — Carrying the Measured World Forward',
-    decanName: 'ḥry-ib ꜥḥꜣy',
+    month: 'Paopi (Menkhet – "The Carrying," "The Bringing")',
+    decanName: 'ḥry-ib ꜥḥꜣy ("Heart of the Riser")',
     starCluster:
         '✨ ḥry-ib ꜥḥꜣy — a modest decanal star group watched near the eastern horizon during this ten-day interval; exact modern identification is uncertain',
-    maatPrinciple: 'Cool the Strain',
+    maatPrinciple: 'Carry Ma\'at In Your Mouth',
     cosmicContext: '''
-The flood remains, but the first confusion has passed. What was measured in Thoth must now be carried across water, household, temple, record, and road. Paopi teaches motion that keeps its measure: boats, offerings, duties, messages, and burdens moving without losing Ma’at.
-
-This day belongs to ḥry-ib ꜥḥꜣy, the heart of the riser, where motion must be governed from within. The star-time movement does not function as decoration. It gives the day a position in the cycle: what appears in the sky, what is happening in the year, and what the heart must practice are held together.
-
-Day 7 turns that movement toward cool the strain.
-
-In practical life, this is where the old pattern meets the present body. Progress may ask for action, but not every action is Ma’at. Obstacles may ask for endurance, but not every burden should be carried. A return may ask for receiving, but not every gain should be consumed.
-
-The question is simple: Where is movement becoming too hot?
+Day 17 is messaging.
+When boats moved between nomes, they did not just move goods. They moved tone. They carried news, reassurance, warnings, terms of peace.
+You are doing that constantly. Your words set atmosphere in spaces you are not physically inside — by text, call, post, reputation, or silence.
+What are you exporting emotionally?
 ''',
     decanFlow: _compressedPaopiFlowRows2,
     meduNeter: MeduNeterKey(
-      glyph: 'Boat, balanced load, and measured current',
-      colorFrequency: 'Nile blue, moon silver, and measured gold',
-      mantra: '“I practice cool the strain in Ma’at.”',
+      glyph:
+          '𓂋 (mouth/voice) carried above 𓈗 (water path) — words traveling on the current',
+      colorFrequency:
+          'Blue-black water with lines of gold — messages sent like light on a river',
+      mantra: '"I export Ma\'at with my voice."',
     ),
   ),
   'paophi_18_2': KemeticDayInfo(
-    kemeticDate: 'Paopi II, Day 8',
+    kemeticDate: 'Paopi II, Day 18',
     season: '🌊 Akhet – Season of Inundation',
-    month: 'Paopi (Mnḫt) — Carrying the Measured World Forward',
-    decanName: 'ḥry-ib ꜥḥꜣy',
+    month: 'Paopi (Menkhet – "The Carrying," "The Bringing")',
+    decanName: 'ḥry-ib ꜥḥꜣy ("Heart of the Riser")',
     starCluster:
         '✨ ḥry-ib ꜥḥꜣy — a modest decanal star group watched near the eastern horizon during this ten-day interval; exact modern identification is uncertain',
-    maatPrinciple: 'Continue Cleanly',
+    maatPrinciple: 'Tend the Web Before It Tears',
     cosmicContext: '''
-The flood remains, but the first confusion has passed. What was measured in Thoth must now be carried across water, household, temple, record, and road. Paopi teaches motion that keeps its measure: boats, offerings, duties, messages, and burdens moving without losing Ma’at.
-
-This day belongs to ḥry-ib ꜥḥꜣy, the heart of the riser, where motion must be governed from within. The star-time movement does not function as decoration. It gives the day a position in the cycle: what appears in the sky, what is happening in the year, and what the heart must practice are held together.
-
-Day 8 turns that movement toward continue cleanly.
-
-In practical life, this is where the old pattern meets the present body. Progress may ask for action, but not every action is Ma’at. Obstacles may ask for endurance, but not every burden should be carried. A return may ask for receiving, but not every gain should be consumed.
-
-The question is simple: Can I move without making strain my identity?
+Day 18 is early conflict resolution.
+Distributed systems break from silence, not from drama. Resentment builds quietly in the outposts. Someone feels ignored. Someone feels used. Someone feels like the only one doing real work.
+Scan for fracture lines — envy, fatigue, miscommunication, hunger — and treat them before rupture.
 ''',
     decanFlow: _compressedPaopiFlowRows2,
     meduNeter: MeduNeterKey(
-      glyph: 'Boat, balanced load, and measured current',
-      colorFrequency: 'Nile blue, moon silver, and measured gold',
-      mantra: '“I practice continue cleanly in Ma’at.”',
+      glyph:
+          '𓏚 (cord/binding) repaired before it snaps — keeping connection intact',
+      colorFrequency:
+          'Ember orange around a stress point in dark blue — heat where the break would start',
+      mantra: '"I fix the tension early."',
     ),
   ),
   'paophi_19_2': KemeticDayInfo(
-    kemeticDate: 'Paopi II, Day 9',
+    kemeticDate: 'Paopi II, Day 19',
     season: '🌊 Akhet – Season of Inundation',
-    month: 'Paopi (Mnḫt) — Carrying the Measured World Forward',
-    decanName: 'ḥry-ib ꜥḥꜣy',
+    month: 'Paopi (Menkhet – "The Carrying," "The Bringing")',
+    decanName: 'ḥry-ib ꜥḥꜣy ("Heart of the Riser")',
     starCluster:
         '✨ ḥry-ib ꜥḥꜣy — a modest decanal star group watched near the eastern horizon during this ten-day interval; exact modern identification is uncertain',
-    maatPrinciple: 'Count the Distance',
+    maatPrinciple: 'See the Whole Network',
     cosmicContext: '''
-The flood remains, but the first confusion has passed. What was measured in Thoth must now be carried across water, household, temple, record, and road. Paopi teaches motion that keeps its measure: boats, offerings, duties, messages, and burdens moving without losing Ma’at.
-
-This day belongs to ḥry-ib ꜥḥꜣy, the heart of the riser, where motion must be governed from within. The star-time movement does not function as decoration. It gives the day a position in the cycle: what appears in the sky, what is happening in the year, and what the heart must practice are held together.
-
-Day 9 turns that movement toward count the distance.
-
-In practical life, this is where the old pattern meets the present body. Progress may ask for action, but not every action is Ma’at. Obstacles may ask for endurance, but not every burden should be carried. A return may ask for receiving, but not every gain should be consumed.
-
-The question is simple: What has this effort carried forward?
+Day 19 is wide-angle vision.
+Zoom out and map the field: where are my resources, weak points, workers, surplus, starvation, stable places, thin places?
+Ancient administrators did this constantly — not as greed, but as balance management.
+Do you understand the system you are inside, or are you reacting to every ping?
 ''',
     decanFlow: _compressedPaopiFlowRows2,
     meduNeter: MeduNeterKey(
-      glyph: 'Boat, balanced load, and measured current',
-      colorFrequency: 'Nile blue, moon silver, and measured gold',
-      mantra: '“I practice count the distance in Ma’at.”',
+      glyph:
+          '𓇾 (papyrus marsh / district map) over 𓈗 (waterways) — a managed web of sites and channels',
+      colorFrequency:
+          'Deep blue with branching gold lines — the living network visualized',
+      mantra: '"I see the whole field."',
     ),
   ),
   'paophi_20_2': KemeticDayInfo(
-    kemeticDate: 'Paopi II, Day 10',
+    kemeticDate: 'Paopi II, Day 20',
     season: '🌊 Akhet – Season of Inundation',
-    month: 'Paopi (Mnḫt) — Carrying the Measured World Forward',
-    decanName: 'ḥry-ib ꜥḥꜣy',
+    month: 'Paopi (Menkhet – "The Carrying," "The Bringing")',
+    decanName: 'ḥry-ib ꜥḥꜣy ("Heart of the Riser")',
     starCluster:
         '✨ ḥry-ib ꜥḥꜣy — a modest decanal star group watched near the eastern horizon during this ten-day interval; exact modern identification is uncertain',
-    maatPrinciple: 'Seal Sustained Effort',
+    maatPrinciple: 'Bless the Distributed Body',
     cosmicContext: '''
-The flood remains, but the first confusion has passed. What was measured in Thoth must now be carried across water, household, temple, record, and road. Paopi teaches motion that keeps its measure: boats, offerings, duties, messages, and burdens moving without losing Ma’at.
-
-This day belongs to ḥry-ib ꜥḥꜣy, the heart of the riser, where motion must be governed from within. The star-time movement does not function as decoration. It gives the day a position in the cycle: what appears in the sky, what is happening in the year, and what the heart must practice are held together.
-
-Day 10 turns that movement toward seal sustained effort.
-
-In practical life, this is where the old pattern meets the present body. Progress may ask for action, but not every action is Ma’at. Obstacles may ask for endurance, but not every burden should be carried. A return may ask for receiving, but not every gain should be consumed.
-
-The question is simple: How will this movement continue in Ma’at?
+Day 20 ends the decan of ḥry-ib ꜥḥꜣy.
+The teaching is humility: you are not the whole system. You are one spark in a constellation that keeps the land alive.
+Openly honor the network: helpers, runners, fixers, watchers, steady ones, early risers, quiet holders, givers of warmth.
+Include yourself in that blessing. You are part of why balance still exists.
 ''',
     decanFlow: _compressedPaopiFlowRows2,
     meduNeter: MeduNeterKey(
-      glyph: 'Boat, balanced load, and measured current',
-      colorFrequency: 'Nile blue, moon silver, and measured gold',
-      mantra: '“I practice seal sustained effort in Ma’at.”',
+      glyph:
+          '𓊤 (offering arms) radiating small sparks 𓇋𓇋𓇋 — blessing sent out to all nodes',
+      colorFrequency:
+          'Ember gold on midnight blue — a constellation, not a spotlight',
+      mantra: '"We keep Ma\'at alive together."',
     ),
   ),
   'paophi_21_3': KemeticDayInfo(
-    kemeticDate: 'Paopi III, Day 1',
+    kemeticDate: 'Paopi III, Day 21',
     season: '🌊 Akhet – Season of Inundation',
-    month: 'Paopi (Mnḫt) — Carrying the Measured World Forward',
-    decanName: 'sbꜣ nfr',
+    month: 'Paopi (Menkhet – "The Carrying," "The Bringing")',
+    decanName: 'sbꜣ nfr ("The Beautiful Star")',
     starCluster:
         '✨ sbꜣ nfr — a modest horizon-rising decanal marker in the night order; exact modern identification is uncertain',
-    maatPrinciple: 'Recognize Stable Motion',
+    maatPrinciple: 'You Are Now Responsible',
     cosmicContext: '''
-The flood remains, but the first confusion has passed. What was measured in Thoth must now be carried across water, household, temple, record, and road. Paopi teaches motion that keeps its measure: boats, offerings, duties, messages, and burdens moving without losing Ma’at.
+The first Paopi decan was muscle.
+The second was distribution and connection.
+Now sbꜣ nfr begins, and the energy shifts: stewardship.
 
-This day belongs to sbꜣ nfr, the beautiful star, where movement becomes reliable enough to guide. The star-time movement does not function as decoration. It gives the day a position in the cycle: what appears in the sky, what is happening in the year, and what the heart must practice are held together.
+Day 21 is accepting that you are not just a mover in the system — you are a keeper of the system. That is different.
 
-Day 1 turns that movement toward recognize stable motion.
-
-In practical life, this is where the old pattern meets the present body. Progress may ask for action, but not every action is Ma’at. Obstacles may ask for endurance, but not every burden should be carried. A return may ask for receiving, but not every gain should be consumed.
-
-The question is simple: What movement has proven steady?
+Carry yourself like you answer to light, not to ego.
 ''',
     decanFlow: _compressedPaopiFlowRows3,
     meduNeter: MeduNeterKey(
-      glyph: 'Boat, balanced load, and measured current',
-      colorFrequency: 'Nile blue, moon silver, and measured gold',
-      mantra: '“I practice recognize stable motion in Ma’at.”',
+      glyph:
+          '𓌡 (standard / banner) carried before the sun — I am carrying responsibility in front of the light',
+      colorFrequency:
+          'Solar gold above deep river blue — earthly labor answerable to higher order',
+      mantra: '"I am keeper, not consumer."',
     ),
   ),
   'paophi_22_3': KemeticDayInfo(
-    kemeticDate: 'Paopi III, Day 2',
+    kemeticDate: 'Paopi III, Day 22',
     season: '🌊 Akhet – Season of Inundation',
-    month: 'Paopi (Mnḫt) — Carrying the Measured World Forward',
-    decanName: 'sbꜣ nfr',
+    month: 'Paopi (Menkhet – "The Carrying," "The Bringing")',
+    decanName: 'sbꜣ nfr ("The Beautiful Star")',
     starCluster:
         '✨ sbꜣ nfr — a modest horizon-rising decanal marker in the night order; exact modern identification is uncertain',
-    maatPrinciple: 'Trust the Route',
+    maatPrinciple: 'Inspect the Channels',
     cosmicContext: '''
-The flood remains, but the first confusion has passed. What was measured in Thoth must now be carried across water, household, temple, record, and road. Paopi teaches motion that keeps its measure: boats, offerings, duties, messages, and burdens moving without losing Ma’at.
+Day 22 is literal inspection.
+In Kemet, this is where you walk the canals and levees and check for breaches, blockages, theft, and weak banks.
 
-This day belongs to sbꜣ nfr, the beautiful star, where movement becomes reliable enough to guide. The star-time movement does not function as decoration. It gives the day a position in the cycle: what appears in the sky, what is happening in the year, and what the heart must practice are held together.
+In your life, canals are the paths where energy, resources, emotion, money, and attention are supposed to travel.
+If a canal is leaking, Ma'at drains out.
 
-Day 2 turns that movement toward trust the route.
-
-In practical life, this is where the old pattern meets the present body. Progress may ask for action, but not every action is Ma’at. Obstacles may ask for endurance, but not every burden should be carried. A return may ask for receiving, but not every gain should be consumed.
-
-The question is simple: What path has earned trust?
+Go look. Stop assuming it is fine because you are tired of checking.
 ''',
     decanFlow: _compressedPaopiFlowRows3,
     meduNeter: MeduNeterKey(
-      glyph: 'Boat, balanced load, and measured current',
-      colorFrequency: 'Nile blue, moon silver, and measured gold',
-      mantra: '“I practice trust the route in Ma’at.”',
+      glyph:
+          '𓈗 (waterway / canal) under 𓁹 (the eye) — the channels are being watched',
+      colorFrequency:
+          'Nile blue under clear gold — light tracing the waterlines',
+      mantra: '"I check where the lifeblood flows."',
     ),
   ),
   'paophi_23_3': KemeticDayInfo(
-    kemeticDate: 'Paopi III, Day 3',
+    kemeticDate: 'Paopi III, Day 23',
     season: '🌊 Akhet – Season of Inundation',
-    month: 'Paopi (Mnḫt) — Carrying the Measured World Forward',
-    decanName: 'sbꜣ nfr',
+    month: 'Paopi (Menkhet – "The Carrying," "The Bringing")',
+    decanName: 'sbꜣ nfr ("The Beautiful Star")',
     starCluster:
         '✨ sbꜣ nfr — a modest horizon-rising decanal marker in the night order; exact modern identification is uncertain',
-    maatPrinciple: 'Make the Delivery',
+    maatPrinciple: 'Verify the Storehouse',
     cosmicContext: '''
-The flood remains, but the first confusion has passed. What was measured in Thoth must now be carried across water, household, temple, record, and road. Paopi teaches motion that keeps its measure: boats, offerings, duties, messages, and burdens moving without losing Ma’at.
+Day 23 is audit day.
+Ancient temple accountants counted grain, oil, fish, linen, incense, silver, and beer.
+No: we are good. Show me the jar. Open the seal.
 
-This day belongs to sbꜣ nfr, the beautiful star, where movement becomes reliable enough to guide. The star-time movement does not function as decoration. It gives the day a position in the cycle: what appears in the sky, what is happening in the year, and what the heart must practice are held together.
+For you: check cash, time, energy, promises.
+Are the numbers real, or are you lying to yourself to feel safe?
 
-Day 3 turns that movement toward make the delivery.
-
-In practical life, this is where the old pattern meets the present body. Progress may ask for action, but not every action is Ma’at. Obstacles may ask for endurance, but not every burden should be carried. A return may ask for receiving, but not every gain should be consumed.
-
-The question is simple: What has reached its destination?
+There is no Ma'at in cooked books.
 ''',
     decanFlow: _compressedPaopiFlowRows3,
     meduNeter: MeduNeterKey(
-      glyph: 'Boat, balanced load, and measured current',
-      colorFrequency: 'Nile blue, moon silver, and measured gold',
-      mantra: '“I practice make the delivery in Ma’at.”',
+      glyph:
+          '𓎝 (sealed jar / store vessel) under inspection — counted in front of the banner of Ra',
+      colorFrequency:
+          'Clay jar brown and solar gold — resources measured in truth',
+      mantra: '"I count what is real, not what I wish."',
     ),
   ),
   'paophi_24_3': KemeticDayInfo(
-    kemeticDate: 'Paopi III, Day 4',
+    kemeticDate: 'Paopi III, Day 24',
     season: '🌊 Akhet – Season of Inundation',
-    month: 'Paopi (Mnḫt) — Carrying the Measured World Forward',
-    decanName: 'sbꜣ nfr',
+    month: 'Paopi (Menkhet – "The Carrying," "The Bringing")',
+    decanName: 'sbꜣ nfr ("The Beautiful Star")',
     starCluster:
         '✨ sbꜣ nfr — a modest horizon-rising decanal marker in the night order; exact modern identification is uncertain',
-    maatPrinciple: 'Repair the Boat',
+    maatPrinciple: 'Call Out Rot',
     cosmicContext: '''
-The flood remains, but the first confusion has passed. What was measured in Thoth must now be carried across water, household, temple, record, and road. Paopi teaches motion that keeps its measure: boats, offerings, duties, messages, and burdens moving without losing Ma’at.
+Day 24 is uncomfortable but necessary.
+If someone is sabotaging the flow — stealing resources, poisoning morale, playing victim to dodge duty, pretending loyalty while draining you — name it. Calm. Direct. Clean.
 
-This day belongs to sbꜣ nfr, the beautiful star, where movement becomes reliable enough to guide. The star-time movement does not function as decoration. It gives the day a position in the cycle: what appears in the sky, what is happening in the year, and what the heart must practice are held together.
+This is not drama. This is sanitation.
+Kemet did not confuse keeping peace with hiding rot. Rot spreads.
 
-Day 4 turns that movement toward repair the boat.
-
-In practical life, this is where the old pattern meets the present body. Progress may ask for action, but not every action is Ma’at. Obstacles may ask for endurance, but not every burden should be carried. A return may ask for receiving, but not every gain should be consumed.
-
-The question is simple: What carried the work and now needs care?
+You are allowed to say: this is corruption, and still be in Ma'at.
 ''',
     decanFlow: _compressedPaopiFlowRows3,
     meduNeter: MeduNeterKey(
-      glyph: 'Boat, balanced load, and measured current',
-      colorFrequency: 'Nile blue, moon silver, and measured gold',
-      mantra: '“I practice repair the boat in Ma’at.”',
+      glyph:
+          '𓂋 (mouth / declaration) + 𓆣 (coil / decay / snake imagery) — naming the corruption so it can be removed',
+      colorFrequency: 'Bright gold against dark rot — light exposing infection',
+      mantra: '"I expose what would rot the balance."',
     ),
   ),
   'paophi_25_3': KemeticDayInfo(
-    kemeticDate: 'Paopi III, Day 5',
+    kemeticDate: 'Paopi III, Day 25',
     season: '🌊 Akhet – Season of Inundation',
-    month: 'Paopi (Mnḫt) — Carrying the Measured World Forward',
-    decanName: 'sbꜣ nfr',
+    month: 'Paopi (Menkhet – "The Carrying," "The Bringing")',
+    decanName: 'sbꜣ nfr ("The Beautiful Star")',
     starCluster:
         '✨ sbꜣ nfr — a modest horizon-rising decanal marker in the night order; exact modern identification is uncertain',
-    maatPrinciple: 'Share the Result',
+    maatPrinciple: 'Restore Standards',
     cosmicContext: '''
-The flood remains, but the first confusion has passed. What was measured in Thoth must now be carried across water, household, temple, record, and road. Paopi teaches motion that keeps its measure: boats, offerings, duties, messages, and burdens moving without losing Ma’at.
+Day 25 is boundary work.
+Once you have named the rot, reset the line:
 
-This day belongs to sbꜣ nfr, the beautiful star, where movement becomes reliable enough to guide. The star-time movement does not function as decoration. It gives the day a position in the cycle: what appears in the sky, what is happening in the year, and what the heart must practice are held together.
+This is how we move.
+This is what is acceptable.
+This is what will not happen anymore.
 
-Day 5 turns that movement toward share the result.
+In Nile terms: re-mark the canal banks so the flood will not eat the village.
+In modern terms: policy, rule, expectation, vow, consequence.
 
-In practical life, this is where the old pattern meets the present body. Progress may ask for action, but not every action is Ma’at. Obstacles may ask for endurance, but not every burden should be carried. A return may ask for receiving, but not every gain should be consumed.
-
-The question is simple: Who should receive from this arrival?
+That is protection of Ma'at.
 ''',
     decanFlow: _compressedPaopiFlowRows3,
     meduNeter: MeduNeterKey(
-      glyph: 'Boat, balanced load, and measured current',
-      colorFrequency: 'Nile blue, moon silver, and measured gold',
-      mantra: '“I practice share the result in Ma’at.”',
+      glyph:
+          '𓏭 (boundary marker / staked limit) next to 𓌡 (standard) — the law carried in public',
+      colorFrequency:
+          'Bright line of gold cutting across deep blue — the boundary re-drawn so water does not swallow the village',
+      mantra: '"I state the line, and I hold it."',
     ),
   ),
   'paophi_26_3': KemeticDayInfo(
-    kemeticDate: 'Paopi III, Day 6',
+    kemeticDate: 'Paopi III, Day 26',
     season: '🌊 Akhet – Season of Inundation',
-    month: 'Paopi (Mnḫt) — Carrying the Measured World Forward',
-    decanName: 'sbꜣ nfr',
+    month: 'Paopi (Menkhet – "The Carrying," "The Bringing")',
+    decanName: 'sbꜣ nfr ("The Beautiful Star")',
     starCluster:
         '✨ sbꜣ nfr — a modest horizon-rising decanal marker in the night order; exact modern identification is uncertain',
-    maatPrinciple: 'Refuse Drift',
+    maatPrinciple: 'Put the Right People in the Right Role',
     cosmicContext: '''
-The flood remains, but the first confusion has passed. What was measured in Thoth must now be carried across water, household, temple, record, and road. Paopi teaches motion that keeps its measure: boats, offerings, duties, messages, and burdens moving without losing Ma’at.
+Day 26 is reassignment.
+This is where you say: you cannot hold this role. You keep dropping it. You burn it. You corrupt it. I am moving this to someone who can.
 
-This day belongs to sbꜣ nfr, the beautiful star, where movement becomes reliable enough to guide. The star-time movement does not function as decoration. It gives the day a position in the cycle: what appears in the sky, what is happening in the year, and what the heart must practice are held together.
+In Kemet, that stopped famine.
+In families, that stops resentment.
+In teams, that stops collapse.
 
-Day 6 turns that movement toward refuse drift.
-
-In practical life, this is where the old pattern meets the present body. Progress may ask for action, but not every action is Ma’at. Obstacles may ask for endurance, but not every burden should be carried. A return may ask for receiving, but not every gain should be consumed.
-
-The question is simple: Where has motion become wandering?
+It is not punishment. It is correcting misalignment so Ma'at can survive the next season.
 ''',
     decanFlow: _compressedPaopiFlowRows3,
     meduNeter: MeduNeterKey(
-      glyph: 'Boat, balanced load, and measured current',
-      colorFrequency: 'Nile blue, moon silver, and measured gold',
-      mantra: '“I practice refuse drift in Ma’at.”',
+      glyph:
+          '𓂧 (hand placing / assigning) over 𓌡 (standard / charge) — I place this standard in your hands now',
+      colorFrequency:
+          'Gold (authority) being set into clay (real world) — duty placed where it can live',
+      mantra: '"I give the role to the true carrier."',
     ),
   ),
   'paophi_27_3': KemeticDayInfo(
-    kemeticDate: 'Paopi III, Day 7',
+    kemeticDate: 'Paopi III, Day 27',
     season: '🌊 Akhet – Season of Inundation',
-    month: 'Paopi (Mnḫt) — Carrying the Measured World Forward',
-    decanName: 'sbꜣ nfr',
+    month: 'Paopi (Menkhet – "The Carrying," "The Bringing")',
+    decanName: 'sbꜣ nfr ("The Beautiful Star")',
     starCluster:
         '✨ sbꜣ nfr — a modest horizon-rising decanal marker in the night order; exact modern identification is uncertain',
-    maatPrinciple: 'Set the Next Route',
+    maatPrinciple: 'Seal the Agreements',
     cosmicContext: '''
-The flood remains, but the first confusion has passed. What was measured in Thoth must now be carried across water, household, temple, record, and road. Paopi teaches motion that keeps its measure: boats, offerings, duties, messages, and burdens moving without losing Ma’at.
+Day 27 is contract energy.
+After reassignment, lock in who is doing what, on what timeline, with what support, and what success looks like. No ambiguity.
 
-This day belongs to sbꜣ nfr, the beautiful star, where movement becomes reliable enough to guide. The star-time movement does not function as decoration. It gives the day a position in the cycle: what appears in the sky, what is happening in the year, and what the heart must practice are held together.
+In Nile terms: who tends which canal bank, who owes which rations, who keeps which storehouse clean.
+In modern terms: here is exactly what we are doing, and here is what you can expect from me.
 
-Day 7 turns that movement toward set the next route.
-
-In practical life, this is where the old pattern meets the present body. Progress may ask for action, but not every action is Ma’at. Obstacles may ask for endurance, but not every burden should be carried. A return may ask for receiving, but not every gain should be consumed.
-
-The question is simple: What route opens from here?
+Ma'at does not run on vibes. It runs on clarity.
 ''',
     decanFlow: _compressedPaopiFlowRows3,
     meduNeter: MeduNeterKey(
-      glyph: 'Boat, balanced load, and measured current',
-      colorFrequency: 'Nile blue, moon silver, and measured gold',
-      mantra: '“I practice set the next route in Ma’at.”',
+      glyph:
+          '𓏭 (boundary mark / contract line) + 𓂋 (spoken word) — agreement spoken and fixed',
+      colorFrequency: 'Gold line sealed into clay — a promise made real',
+      mantra: '"We move in declared agreement."',
     ),
   ),
   'paophi_28_3': KemeticDayInfo(
-    kemeticDate: 'Paopi III, Day 8',
+    kemeticDate: 'Paopi III, Day 28',
     season: '🌊 Akhet – Season of Inundation',
-    month: 'Paopi (Mnḫt) — Carrying the Measured World Forward',
-    decanName: 'sbꜣ nfr',
+    month: 'Paopi (Menkhet – "The Carrying," "The Bringing")',
+    decanName: 'sbꜣ nfr ("The Beautiful Star")',
     starCluster:
         '✨ sbꜣ nfr — a modest horizon-rising decanal marker in the night order; exact modern identification is uncertain',
-    maatPrinciple: 'Record the Stable Pattern',
+    maatPrinciple: 'Report Up to the Light',
     cosmicContext: '''
-The flood remains, but the first confusion has passed. What was measured in Thoth must now be carried across water, household, temple, record, and road. Paopi teaches motion that keeps its measure: boats, offerings, duties, messages, and burdens moving without losing Ma’at.
+Day 28 is accountability upward.
+Speak the real status: what is healthy, what is damaged, what you fixed, what you could not, what support you need. Do not hide it to appear strong.
 
-This day belongs to sbꜣ nfr, the beautiful star, where movement becomes reliable enough to guide. The star-time movement does not function as decoration. It gives the day a position in the cycle: what appears in the sky, what is happening in the year, and what the heart must practice are held together.
-
-Day 8 turns that movement toward record the stable pattern.
-
-In practical life, this is where the old pattern meets the present body. Progress may ask for action, but not every action is Ma’at. Obstacles may ask for endurance, but not every burden should be carried. A return may ask for receiving, but not every gain should be consumed.
-
-The question is simple: What should be repeated?
+In Old Kingdom practice, this is priestly and administrative reporting.
+Spiritually, it is confession without shame: here is the truth of my domain.
 ''',
     decanFlow: _compressedPaopiFlowRows3,
     meduNeter: MeduNeterKey(
-      glyph: 'Boat, balanced load, and measured current',
-      colorFrequency: 'Nile blue, moon silver, and measured gold',
-      mantra: '“I practice record the stable pattern in Ma’at.”',
+      glyph:
+          '𓁹 (the Eye / divine sight) above 𓌡 (the standard) — I report under the gaze of light',
+      colorFrequency:
+          'Solar gold over dark blue — truth delivered to the light without flinching',
+      mantra: '"I tell the truth upward."',
     ),
   ),
   'paophi_29_3': KemeticDayInfo(
-    kemeticDate: 'Paopi III, Day 9',
+    kemeticDate: 'Paopi III, Day 29',
     season: '🌊 Akhet – Season of Inundation',
-    month: 'Paopi (Mnḫt) — Carrying the Measured World Forward',
-    decanName: 'sbꜣ nfr',
+    month: 'Paopi (Menkhet – "The Carrying," "The Bringing")',
+    decanName: 'sbꜣ nfr ("The Beautiful Star")',
     starCluster:
         '✨ sbꜣ nfr — a modest horizon-rising decanal marker in the night order; exact modern identification is uncertain',
-    maatPrinciple: 'Rest After Arrival',
+    maatPrinciple: 'Stabilize the System',
     cosmicContext: '''
-The flood remains, but the first confusion has passed. What was measured in Thoth must now be carried across water, household, temple, record, and road. Paopi teaches motion that keeps its measure: boats, offerings, duties, messages, and burdens moving without losing Ma’at.
+Day 29 is reinforcement and lock-down.
+Now that you have inspected, audited, called out rot, reassigned, and sealed agreements, physically patch things so they survive the next cycle.
 
-This day belongs to sbꜣ nfr, the beautiful star, where movement becomes reliable enough to guide. The star-time movement does not function as decoration. It gives the day a position in the cycle: what appears in the sky, what is happening in the year, and what the heart must practice are held together.
-
-Day 9 turns that movement toward rest after arrival.
-
-In practical life, this is where the old pattern meets the present body. Progress may ask for action, but not every action is Ma’at. Obstacles may ask for endurance, but not every burden should be carried. A return may ask for receiving, but not every gain should be consumed.
-
-The question is simple: What can stop because it has arrived?
+In Nile terms: reinforce the canal bank before the water drops and the walls crack.
+In you: repair, redistribute, finalize, set guards, put systems in place so things do not fall apart the second you look away.
 ''',
     decanFlow: _compressedPaopiFlowRows3,
     meduNeter: MeduNeterKey(
-      glyph: 'Boat, balanced load, and measured current',
-      colorFrequency: 'Nile blue, moon silver, and measured gold',
-      mantra: '“I practice rest after arrival in Ma’at.”',
+      glyph:
+          '𓉐 (house / structure) reinforced by 𓂧 (hand setting support in place) — fortifying the structure',
+      colorFrequency: 'Clay red and steady gold — repaired walls holding firm',
+      mantra: '"I leave this stable, not shaky."',
     ),
   ),
   'paophi_30_3': KemeticDayInfo(
-    kemeticDate: 'Paopi III, Day 10',
+    kemeticDate: 'Paopi III, Day 30',
     season: '🌊 Akhet – Season of Inundation',
-    month: 'Paopi (Mnḫt) — Carrying the Measured World Forward',
-    decanName: 'sbꜣ nfr',
+    month: 'Paopi (Menkhet – "The Carrying," "The Bringing")',
+    decanName: 'sbꜣ nfr ("The Beautiful Star")',
     starCluster:
         '✨ sbꜣ nfr — a modest horizon-rising decanal marker in the night order; exact modern identification is uncertain',
-    maatPrinciple: 'Seal Stability',
+    maatPrinciple: 'Stewardship Before the Sun',
     cosmicContext: '''
-The flood remains, but the first confusion has passed. What was measured in Thoth must now be carried across water, household, temple, record, and road. Paopi teaches motion that keeps its measure: boats, offerings, duties, messages, and burdens moving without losing Ma’at.
+Day 30 ends Paopi.
+Paopi began with bodies carrying.
+It spread into a network of living connection.
+It ends under sbꜣ nfr, with you standing in front of the light saying:
 
-This day belongs to sbꜣ nfr, the beautiful star, where movement becomes reliable enough to guide. The star-time movement does not function as decoration. It gives the day a position in the cycle: what appears in the sky, what is happening in the year, and what the heart must practice are held together.
+I watched it. I protected it. I corrected it. I did not pretend.
 
-Day 10 turns that movement toward seal stability.
-
-In practical life, this is where the old pattern meets the present body. Progress may ask for action, but not every action is Ma’at. Obstacles may ask for endurance, but not every burden should be carried. A return may ask for receiving, but not every gain should be consumed.
-
-The question is simple: What can now travel without losing its measure?
+This is not pride. This is accountability to Ma'at.
+You hand the month back clean.
 ''',
     decanFlow: _compressedPaopiFlowRows3,
     meduNeter: MeduNeterKey(
-      glyph: 'Boat, balanced load, and measured current',
-      colorFrequency: 'Nile blue, moon silver, and measured gold',
-      mantra: '“I practice seal stability in Ma’at.”',
+      glyph:
+          '𓌡 (standard / banner) lifted before 𓂀 (Ra\'s eye/light) — presenting clean stewardship to the sun',
+      colorFrequency:
+          'Full solar gold over deep indigo — work raised up to be judged in light',
+      mantra: '"I return this in truth."',
     ),
   ),
   'hathor_1_1': KemeticDayInfo(
     kemeticDate: 'Hathor I, Day 1',
-    season: '🌿 Peret – Season of Emergence',
-    month: 'Hathor (Ḥwt-Ḥr) — Joy That Sustains the World',
-    decanName: 'sꜣḥ',
+    season: '🌊 Akhet – Season of Inundation',
+    month: 'Hathor (Ḥwt-Ḥr) — Joy Held in Right Measure',
+    decanName: 'ḫntt ẖrt',
     starCluster:
         '✨ sꜣḥ — a marker in the Sah/Orion star field, physically recognized through the broad Orion figure with its three aligned belt stars and surrounding bright points',
-    maatPrinciple: 'Feel the Ground Hold',
+    maatPrinciple: 'Inventory Before Action',
     cosmicContext: '''
-The ground has begun to hold after flood and movement. Hathor enters as joy held in right measure: house of Heru, sky-cow, golden one, Eye returned to relation, music, beauty, and softness that make order livable without letting delight become excess.
-
-This day belongs to sꜣḥ, Sah/Orion, the restored form that proves what endured after disruption. The star-time movement does not function as decoration. It gives the day a position in the cycle: what appears in the sky, what is happening in the year, and what the heart must practice are held together.
-
-Day 1 turns that movement toward feel the ground hold.
-
-In practical life, this is where the old pattern meets the present body. Progress may ask for action, but not every action is Ma’at. Obstacles may ask for endurance, but not every burden should be carried. A return may ask for receiving, but not every gain should be consumed.
-
-The question is simple: What in my life has proven it can endure?
-''',
+The flood has pulled back. Black earth shows at the field edge.
+In Kemet, the first act after the water receded was not planting — it was walking the field to read what remained.
+What held, what eroded, what the water took: the accounting precedes everything.
+Hathor's month does not begin with joy. It begins with honest reading of what the season has left.''',
     decanFlow: _compressedHathorFlowRows1,
     meduNeter: MeduNeterKey(
-      glyph: 'Mirror, lotus, and steady pillar',
-      colorFrequency: 'Deep blue, living gold, and earth green',
-      mantra: '“I practice feel the ground hold in Ma’at.”',
+      glyph:
+          'ḥwt-ḥr (𓉗𓅃) — "House of Horus"; the enclosure that holds and accounts for what the flood season left behind',
+      colorFrequency:
+          'Fertile black earth at flood\'s edge, a thin line of first-light gold',
+      mantra: '"I read what is actually here before I act."',
     ),
   ),
   'hathor_2_1': KemeticDayInfo(
     kemeticDate: 'Hathor I, Day 2',
-    season: '🌿 Peret – Season of Emergence',
-    month: 'Hathor (Ḥwt-Ḥr) — Joy That Sustains the World',
-    decanName: 'sꜣḥ',
+    season: '🌊 Akhet – Season of Inundation',
+    month: 'Hathor (Ḥwt-Ḥr) — Joy Held in Right Measure',
+    decanName: 'ḫntt ẖrt',
     starCluster:
         '✨ sꜣḥ — a marker in the Sah/Orion star field, physically recognized through the broad Orion figure with its three aligned belt stars and surrounding bright points',
-    maatPrinciple: 'Return to the Path',
+    maatPrinciple: 'The Vessel Must Be Maintained',
     cosmicContext: '''
-The ground has begun to hold after flood and movement. Hathor enters as joy held in right measure: house of Heru, sky-cow, golden one, Eye returned to relation, music, beauty, and softness that make order livable without letting delight become excess.
-
-This day belongs to sꜣḥ, Sah/Orion, the restored form that proves what endured after disruption. The star-time movement does not function as decoration. It gives the day a position in the cycle: what appears in the sky, what is happening in the year, and what the heart must practice are held together.
-
-Day 2 turns that movement toward return to the path.
-
-In practical life, this is where the old pattern meets the present body. Progress may ask for action, but not every action is Ma’at. Obstacles may ask for endurance, but not every burden should be carried. A return may ask for receiving, but not every gain should be consumed.
-
-The question is simple: What part of my life is ready to become regular again?
-''',
+The Ka lives in the body. Kemetic physicians and priests held one thing in common: the vessel answers to what it carries.
+An untended body cannot bear Maʿat reliably out of the flood months.
+Tending yourself after the strain is not rest from obligation.
+It is maintenance of the instrument through which the obligation moves.''',
     decanFlow: _compressedHathorFlowRows1,
     meduNeter: MeduNeterKey(
-      glyph: 'Mirror, lotus, and steady pillar',
-      colorFrequency: 'Deep blue, living gold, and earth green',
-      mantra: '“I practice return to the path in Ma’at.”',
+      glyph:
+          'Djed pillar (𓊽) — the Ka\'s spine, the vessel of stability maintained through attention',
+      colorFrequency: 'Warm earth beneath milk-white pre-dawn sky',
+      mantra: '"I tend the vessel Maʿat moves through."',
     ),
   ),
   'hathor_3_1': KemeticDayInfo(
     kemeticDate: 'Hathor I, Day 3',
-    season: '🌿 Peret – Season of Emergence',
-    month: 'Hathor (Ḥwt-Ḥr) — Joy That Sustains the World',
-    decanName: 'sꜣḥ',
+    season: '🌊 Akhet – Season of Inundation',
+    month: 'Hathor (Ḥwt-Ḥr) — Joy Held in Right Measure',
+    decanName: 'ḫntt ẖrt',
     starCluster:
         '✨ sꜣḥ — a marker in the Sah/Orion star field, physically recognized through the broad Orion figure with its three aligned belt stars and surrounding bright points',
-    maatPrinciple: 'Release the Brace',
+    maatPrinciple: 'The Threshold Is Obligated',
     cosmicContext: '''
-The ground has begun to hold after flood and movement. Hathor enters as joy held in right measure: house of Heru, sky-cow, golden one, Eye returned to relation, music, beauty, and softness that make order livable without letting delight become excess.
-
-This day belongs to sꜣḥ, Sah/Orion, the restored form that proves what endured after disruption. The star-time movement does not function as decoration. It gives the day a position in the cycle: what appears in the sky, what is happening in the year, and what the heart must practice are held together.
-
-Day 3 turns that movement toward release the brace.
-
-In practical life, this is where the old pattern meets the present body. Progress may ask for action, but not every action is Ma’at. Obstacles may ask for endurance, but not every burden should be carried. A return may ask for receiving, but not every gain should be consumed.
-
-The question is simple: Where am I still protecting myself from yesterday?
-''',
+In the temple system, the priestly cleaning began at the threshold, not inside it.
+Disorder at the doorway was a cosmological problem: what needed to cross could not cross what was blocked.
+The altar corner, the doorway, the workspace all carry last season's residue.
+Clear it because the threshold answers to Maʿat, not because the clearing will make you feel lighter.''',
     decanFlow: _compressedHathorFlowRows1,
     meduNeter: MeduNeterKey(
-      glyph: 'Mirror, lotus, and steady pillar',
-      colorFrequency: 'Deep blue, living gold, and earth green',
-      mantra: '“I practice release the brace in Ma’at.”',
+      glyph:
+          'Sweeping arm (𓂣) before the ḥwt threshold — the priestly act of making a proper crossing',
+      colorFrequency:
+          'Black earth swept to pale bare ground — readiness, not comfort',
+      mantra: '"The threshold is my obligation. I keep it."',
     ),
   ),
   'hathor_4_1': KemeticDayInfo(
     kemeticDate: 'Hathor I, Day 4',
-    season: '🌿 Peret – Season of Emergence',
-    month: 'Hathor (Ḥwt-Ḥr) — Joy That Sustains the World',
-    decanName: 'sꜣḥ',
+    season: '🌊 Akhet – Season of Inundation',
+    month: 'Hathor (Ḥwt-Ḥr) — Joy Held in Right Measure',
+    decanName: 'ḫntt ẖrt',
     starCluster:
         '✨ sꜣḥ — a marker in the Sah/Orion star field, physically recognized through the broad Orion figure with its three aligned belt stars and surrounding bright points',
-    maatPrinciple: 'Trust the Structure',
+    maatPrinciple: 'Joy Announces the Return',
     cosmicContext: '''
-The ground has begun to hold after flood and movement. Hathor enters as joy held in right measure: house of Heru, sky-cow, golden one, Eye returned to relation, music, beauty, and softness that make order livable without letting delight become excess.
-
-This day belongs to sꜣḥ, Sah/Orion, the restored form that proves what endured after disruption. The star-time movement does not function as decoration. It gives the day a position in the cycle: what appears in the sky, what is happening in the year, and what the heart must practice are held together.
-
-Day 4 turns that movement toward trust the structure.
-
-In practical life, this is where the old pattern meets the present body. Progress may ask for action, but not every action is Ma’at. Obstacles may ask for endurance, but not every burden should be carried. A return may ask for receiving, but not every gain should be consumed.
-
-The question is simple: Do I trust my foundations enough to stand on them?
-''',
+The sistrum was not invented as entertainment. It was made to soothe the Eye of Ra.
+When Sekhmet, sent to destroy humanity, had to be turned back to Hathor, it was music that converted the destructive force into the generative one.
+Every act of joy in this month is that choice, remade: the force that survived the flood deciding to nourish rather than to continue burning.
+Choose delight today as a cosmological act, not a personal one.''',
     decanFlow: _compressedHathorFlowRows1,
     meduNeter: MeduNeterKey(
-      glyph: 'Mirror, lotus, and steady pillar',
-      colorFrequency: 'Deep blue, living gold, and earth green',
-      mantra: '“I practice trust the structure in Ma’at.”',
+      glyph:
+          'Sistrum (ššt) — the instrument of return; the destructive Eye soothed back into life',
+      colorFrequency:
+          'Rose-gold over deep blue — the Eye returning to the face of the sky-cow',
+      mantra: '"Joy is the force that chose to nourish rather than to burn."',
     ),
   ),
   'hathor_5_1': KemeticDayInfo(
     kemeticDate: 'Hathor I, Day 5',
-    season: '🌿 Peret – Season of Emergence',
-    month: 'Hathor (Ḥwt-Ḥr) — Joy That Sustains the World',
-    decanName: 'sꜣḥ',
+    season: '🌊 Akhet – Season of Inundation',
+    month: 'Hathor (Ḥwt-Ḥr) — Joy Held in Right Measure',
+    decanName: 'ḫntt ẖrt',
     starCluster:
         '✨ sꜣḥ — a marker in the Sah/Orion star field, physically recognized through the broad Orion figure with its three aligned belt stars and surrounding bright points',
-    maatPrinciple: 'Re-enter Beauty',
+    maatPrinciple: 'The Household Answers to Maʿat',
     cosmicContext: '''
-The ground has begun to hold after flood and movement. Hathor enters as joy held in right measure: house of Heru, sky-cow, golden one, Eye returned to relation, music, beauty, and softness that make order livable without letting delight become excess.
-
-This day belongs to sꜣḥ, Sah/Orion, the restored form that proves what endured after disruption. The star-time movement does not function as decoration. It gives the day a position in the cycle: what appears in the sky, what is happening in the year, and what the heart must practice are held together.
-
-Day 5 turns that movement toward re-enter beauty.
-
-In practical life, this is where the old pattern meets the present body. Progress may ask for action, but not every action is Ma’at. Obstacles may ask for endurance, but not every burden should be carried. A return may ask for receiving, but not every gain should be consumed.
-
-The question is simple: What makes my life feel inhabited again instead of merely survived?
-''',
+In every Kemetic home the Ka shrine received daily offerings. The household was not secular space — it was the outermost ring of the temple system.
+When the home is ordered — swept, oiled, provisioned, intentionally arranged — what it sustains radiates outward.
+When it is not, the disorder radiates outward just the same.
+Restore the household as you would restore an outer temple court.''',
     decanFlow: _compressedHathorFlowRows1,
     meduNeter: MeduNeterKey(
-      glyph: 'Mirror, lotus, and steady pillar',
-      colorFrequency: 'Deep blue, living gold, and earth green',
-      mantra: '“I practice re-enter beauty in Ma’at.”',
+      glyph:
+          'Ka shrine (𓁇) within the house enclosure (𓉐) — the domestic as temple, not as incidental',
+      colorFrequency: 'Linen white and household gold — order made livable',
+      mantra: '"My household answers to Maʿat."',
     ),
   ),
   'hathor_6_1': KemeticDayInfo(
     kemeticDate: 'Hathor I, Day 6',
-    season: '🌿 Peret – Season of Emergence',
-    month: 'Hathor (Ḥwt-Ḥr) — Joy That Sustains the World',
-    decanName: 'sꜣḥ',
+    season: '🌊 Akhet – Season of Inundation',
+    month: 'Hathor (Ḥwt-Ḥr) — Joy Held in Right Measure',
+    decanName: 'ḫntt ẖrt',
     starCluster:
         '✨ sꜣḥ — a marker in the Sah/Orion star field, physically recognized through the broad Orion figure with its three aligned belt stars and surrounding bright points',
-    maatPrinciple: 'Work Without Strain',
+    maatPrinciple: 'Return What Was Borrowed',
     cosmicContext: '''
-The ground has begun to hold after flood and movement. Hathor enters as joy held in right measure: house of Heru, sky-cow, golden one, Eye returned to relation, music, beauty, and softness that make order livable without letting delight become excess.
-
-This day belongs to sꜣḥ, Sah/Orion, the restored form that proves what endured after disruption. The star-time movement does not function as decoration. It gives the day a position in the cycle: what appears in the sky, what is happening in the year, and what the heart must practice are held together.
-
-Day 6 turns that movement toward work without strain.
-
-In practical life, this is where the old pattern meets the present body. Progress may ask for action, but not every action is Ma’at. Obstacles may ask for endurance, but not every burden should be carried. A return may ask for receiving, but not every gain should be consumed.
-
-The question is simple: Where am I making the work heavier than it truly is?
-''',
+"I did not cause anyone to weep" — this is among the 42 Declarations of Innocence.
+In the flood months, the withdrawal of warmth was perhaps necessary. The account is still open.
+Hathor does not recognize the permanent withdrawal of warmth as a virtue that outlived its season.
+What was borrowed from those who stayed must be returned.''',
     decanFlow: _compressedHathorFlowRows1,
     meduNeter: MeduNeterKey(
-      glyph: 'Mirror, lotus, and steady pillar',
-      colorFrequency: 'Deep blue, living gold, and earth green',
-      mantra: '“I practice work without strain in Ma’at.”',
+      glyph: 'Two arms in embrace — debt of presence, not performance, repaid',
+      colorFrequency:
+          'Soft rose and skin-warm gold — warmth with weight behind it',
+      mantra:
+          '"What I withheld to survive, I return now that the flood has passed."',
     ),
   ),
   'hathor_7_1': KemeticDayInfo(
     kemeticDate: 'Hathor I, Day 7',
-    season: '🌿 Peret – Season of Emergence',
-    month: 'Hathor (Ḥwt-Ḥr) — Joy That Sustains the World',
-    decanName: 'sꜣḥ',
+    season: '🌊 Akhet – Season of Inundation',
+    month: 'Hathor (Ḥwt-Ḥr) — Joy Held in Right Measure',
+    decanName: 'ḫntt ẖrt',
     starCluster:
         '✨ sꜣḥ — a marker in the Sah/Orion star field, physically recognized through the broad Orion figure with its three aligned belt stars and surrounding bright points',
-    maatPrinciple: 'Recognize What Returned',
+    maatPrinciple: 'Beauty Is Priestly Labor',
     cosmicContext: '''
-The ground has begun to hold after flood and movement. Hathor enters as joy held in right measure: house of Heru, sky-cow, golden one, Eye returned to relation, music, beauty, and softness that make order livable without letting delight become excess.
-
-This day belongs to sꜣḥ, Sah/Orion, the restored form that proves what endured after disruption. The star-time movement does not function as decoration. It gives the day a position in the cycle: what appears in the sky, what is happening in the year, and what the heart must practice are held together.
-
-Day 7 turns that movement toward recognize what returned.
-
-In practical life, this is where the old pattern meets the present body. Progress may ask for action, but not every action is Ma’at. Obstacles may ask for endurance, but not every burden should be carried. A return may ask for receiving, but not every gain should be consumed.
-
-The question is simple: What has quietly returned to me?
-''',
+The ḥmwt-nṯr ḥwt-ḥr — servants of the goddess at Dendera — produced beauty as priestly duty.
+Music, fragrance, garland, and careful adornment were not decoration. They were what sustained the conditions under which life could continue.
+Beauty in Hathor's theology is not self-expression. It is world-maintenance.
+What you make beautiful today, you give. It is not for you.''',
     decanFlow: _compressedHathorFlowRows1,
     meduNeter: MeduNeterKey(
-      glyph: 'Mirror, lotus, and steady pillar',
-      colorFrequency: 'Deep blue, living gold, and earth green',
-      mantra: '“I practice recognize what returned in Ma’at.”',
+      glyph:
+          'Offering arms (𓊤) lifting a lotus (𓆸) — beauty raised as priestly duty, not display',
+      colorFrequency:
+          'Lotus blue and honey gold — the offering, not the performance of the offering',
+      mantra: '"What I make beautiful, I give."',
     ),
   ),
   'hathor_8_1': KemeticDayInfo(
     kemeticDate: 'Hathor I, Day 8',
-    season: '🌿 Peret – Season of Emergence',
-    month: 'Hathor (Ḥwt-Ḥr) — Joy That Sustains the World',
-    decanName: 'sꜣḥ',
+    season: '🌊 Akhet – Season of Inundation',
+    month: 'Hathor (Ḥwt-Ḥr) — Joy Held in Right Measure',
+    decanName: 'ḫntt ẖrt',
     starCluster:
         '✨ sꜣḥ — a marker in the Sah/Orion star field, physically recognized through the broad Orion figure with its three aligned belt stars and surrounding bright points',
-    maatPrinciple: 'Share the Stability',
+    maatPrinciple: 'Motive Determines the Offering',
     cosmicContext: '''
-The ground has begun to hold after flood and movement. Hathor enters as joy held in right measure: house of Heru, sky-cow, golden one, Eye returned to relation, music, beauty, and softness that make order livable without letting delight become excess.
-
-This day belongs to sꜣḥ, Sah/Orion, the restored form that proves what endured after disruption. The star-time movement does not function as decoration. It gives the day a position in the cycle: what appears in the sky, what is happening in the year, and what the heart must practice are held together.
-
-Day 8 turns that movement toward share the stability.
-
-In practical life, this is where the old pattern meets the present body. Progress may ask for action, but not every action is Ma’at. Obstacles may ask for endurance, but not every burden should be carried. A return may ask for receiving, but not every gain should be consumed.
-
-The question is simple: How can my stability become shelter for someone else?
-''',
+Ptahhotep taught that Maʿat is ꜣḫ — both morally right and practically effective. The two are not separate.
+Labor that restores order is offering. Labor that performs virtue without serving anything is performance.
+The quality of the work is not determined by how hard it was but by what it actually served.
+Name what your effort is for before you place it in the field.''',
     decanFlow: _compressedHathorFlowRows1,
     meduNeter: MeduNeterKey(
-      glyph: 'Mirror, lotus, and steady pillar',
-      colorFrequency: 'Deep blue, living gold, and earth green',
-      mantra: '“I practice share the stability in Ma’at.”',
+      glyph:
+          'Working arm (𓂡) beside the Maʿat feather — labor measured by what it serves, not by its volume',
+      colorFrequency: 'Gold over calm earth brown — effort with direction',
+      mantra: '"I name what my labor serves before I begin."',
     ),
   ),
   'hathor_9_1': KemeticDayInfo(
     kemeticDate: 'Hathor I, Day 9',
-    season: '🌿 Peret – Season of Emergence',
-    month: 'Hathor (Ḥwt-Ḥr) — Joy That Sustains the World',
-    decanName: 'sꜣḥ',
+    season: '🌊 Akhet – Season of Inundation',
+    month: 'Hathor (Ḥwt-Ḥr) — Joy Held in Right Measure',
+    decanName: 'ḫntt ẖrt',
     starCluster:
         '✨ sꜣḥ — a marker in the Sah/Orion star field, physically recognized through the broad Orion figure with its three aligned belt stars and surrounding bright points',
-    maatPrinciple: 'Let Joy Enter Carefully',
+    maatPrinciple: 'Conduct Earns Standing',
     cosmicContext: '''
-The ground has begun to hold after flood and movement. Hathor enters as joy held in right measure: house of Heru, sky-cow, golden one, Eye returned to relation, music, beauty, and softness that make order livable without letting delight become excess.
-
-This day belongs to sꜣḥ, Sah/Orion, the restored form that proves what endured after disruption. The star-time movement does not function as decoration. It gives the day a position in the cycle: what appears in the sky, what is happening in the year, and what the heart must practice are held together.
-
-Day 9 turns that movement toward let joy enter carefully.
-
-In practical life, this is where the old pattern meets the present body. Progress may ask for action, but not every action is Ma’at. Obstacles may ask for endurance, but not every burden should be carried. A return may ask for receiving, but not every gain should be consumed.
-
-The question is simple: Can I receive joy without distrusting it?
-''',
+Imꜣḫ — reveredness — is the social-spiritual standing of one who has lived in Maʿat and is recognized as such by the community.
+It is not claimed. It accretes through named acts: "I gave bread to the hungry. I defended the orphan. I judged the humble and the powerful alike."
+You carry yourself with Hathor's bearing not because you have declared your worth but because your conduct has earned a certain posture.
+Act accordingly. Let the standing follow.''',
     decanFlow: _compressedHathorFlowRows1,
     meduNeter: MeduNeterKey(
-      glyph: 'Mirror, lotus, and steady pillar',
-      colorFrequency: 'Deep blue, living gold, and earth green',
-      mantra: '“I practice let joy enter carefully in Ma’at.”',
+      glyph:
+          'Imꜣḫ sign — reveredness earned through what was done, acknowledged by those who witnessed it',
+      colorFrequency:
+          'Polished gold and deep returning blue — the face that was always there, now visible',
+      mantra: '"My bearing is earned by what I do."',
     ),
   ),
   'hathor_10_1': KemeticDayInfo(
     kemeticDate: 'Hathor I, Day 10',
-    season: '🌿 Peret – Season of Emergence',
-    month: 'Hathor (Ḥwt-Ḥr) — Joy That Sustains the World',
-    decanName: 'sꜣḥ',
+    season: '🌊 Akhet – Season of Inundation',
+    month: 'Hathor (Ḥwt-Ḥr) — Joy Held in Right Measure',
+    decanName: 'ḫntt ẖrt',
     starCluster:
         '✨ sꜣḥ — a marker in the Sah/Orion star field, physically recognized through the broad Orion figure with its three aligned belt stars and surrounding bright points',
-    maatPrinciple: 'Confirm Continuity',
+    maatPrinciple: 'Seal the Account',
     cosmicContext: '''
-The ground has begun to hold after flood and movement. Hathor enters as joy held in right measure: house of Heru, sky-cow, golden one, Eye returned to relation, music, beauty, and softness that make order livable without letting delight become excess.
-
-This day belongs to sꜣḥ, Sah/Orion, the restored form that proves what endured after disruption. The star-time movement does not function as decoration. It gives the day a position in the cycle: what appears in the sky, what is happening in the year, and what the heart must practice are held together.
-
-Day 10 turns that movement toward confirm continuity.
-
-In practical life, this is where the old pattern meets the present body. Progress may ask for action, but not every action is Ma’at. Obstacles may ask for endurance, but not every burden should be carried. A return may ask for receiving, but not every gain should be consumed.
-
-The question is simple: What in my life now feels trustworthy again?
-''',
+In Kemetic rite, the decan close was not sentiment. It was formal reckoning.
+You named each force that sustained you, offered what was due, and sealed the accounting.
+An un-closed account does not dissolve — it travels into the next cycle and compounds there.
+Name what sustained you across these ten days. Offer what is owed. Close sꜣḥ's watch cleanly.''',
     decanFlow: _compressedHathorFlowRows1,
     meduNeter: MeduNeterKey(
-      glyph: 'Mirror, lotus, and steady pillar',
-      colorFrequency: 'Deep blue, living gold, and earth green',
-      mantra: '“I practice confirm continuity in Ma’at.”',
+      glyph:
+          'Offering arms (𓊤) beside a sealed papyrus roll — the reckoning completed and bound',
+      colorFrequency:
+          'Honey gold, lotus blue, fertile black earth — the decan closed with full accounting',
+      mantra:
+          '"I name what sustained me, offer what is owed, and close the account."',
     ),
   ),
   'hathor_11_2': KemeticDayInfo(
-    kemeticDate: 'Hathor II, Day 1',
-    season: '🌿 Peret – Season of Emergence',
-    month: 'Hathor (Ḥwt-Ḥr) — Joy That Sustains the World',
-    decanName: 'ḥry-ib sꜣḥ',
+    kemeticDate: 'Hathor II, Day 11',
+    season: '🌊 Akhet – Season of Inundation',
+    month: 'Hathor (Ḥwt-Ḥr) — Joy Held in Right Measure',
+    decanName: 'ṯms n ḫntt',
     starCluster:
         '✨ ḥry-ib sꜣḥ — a marker in the Sah/Orion star field, physically recognized through the broad Orion figure with its three aligned belt stars and surrounding bright points',
-    maatPrinciple: 'Find the Shared Rhythm',
+    maatPrinciple: 'The Named Bond Is Answerable',
     cosmicContext: '''
-The ground has begun to hold after flood and movement. Hathor enters as joy held in right measure: house of Heru, sky-cow, golden one, Eye returned to relation, music, beauty, and softness that make order livable without letting delight become excess.
-
-This day belongs to ḥry-ib sꜣḥ, the heart of Sah, where stability enters relation, rhythm, and shared life. The star-time movement does not function as decoration. It gives the day a position in the cycle: what appears in the sky, what is happening in the year, and what the heart must practice are held together.
-
-Day 1 turns that movement toward find the shared rhythm.
-
-In practical life, this is where the old pattern meets the present body. Progress may ask for action, but not every action is Ma’at. Obstacles may ask for endurance, but not every burden should be carried. A return may ask for receiving, but not every gain should be consumed.
-
-The question is simple: Who is affected by my stability, and who must I move with in balance?
-''',
+ḥry-ib sꜣḥ opens the decan of harmonization: relation held through timing, not proximity alone.
+In Kemet, a work crew named its members before beginning. The naming made the bond accountable.
+What is left unnamed can be dissolved without consequence.
+Name who you stand with today, and in what.''',
     decanFlow: _compressedHathorFlowRows2,
     meduNeter: MeduNeterKey(
-      glyph: 'Mirror, lotus, and steady pillar',
-      colorFrequency: 'Deep blue, living gold, and earth green',
-      mantra: '“I practice find the shared rhythm in Ma’at.”',
+      glyph:
+          'Two figures walking beneath one standard — companionship made formal, not implied',
+      colorFrequency:
+          'Twin gold lines over rich earth brown — partnership with weight behind it',
+      mantra: '"I name who I stand with. The naming makes it answerable."',
     ),
   ),
   'hathor_12_2': KemeticDayInfo(
-    kemeticDate: 'Hathor II, Day 2',
-    season: '🌿 Peret – Season of Emergence',
-    month: 'Hathor (Ḥwt-Ḥr) — Joy That Sustains the World',
-    decanName: 'ḥry-ib sꜣḥ',
+    kemeticDate: 'Hathor II, Day 12',
+    season: '🌊 Akhet – Season of Inundation',
+    month: 'Hathor (Ḥwt-Ḥr) — Joy Held in Right Measure',
+    decanName: 'ṯms n ḫntt',
     starCluster:
         '✨ ḥry-ib sꜣḥ — a marker in the Sah/Orion star field, physically recognized through the broad Orion figure with its three aligned belt stars and surrounding bright points',
-    maatPrinciple: 'Name the Relation',
+    maatPrinciple: 'Right Rhythm Is Obligation',
     cosmicContext: '''
-The ground has begun to hold after flood and movement. Hathor enters as joy held in right measure: house of Heru, sky-cow, golden one, Eye returned to relation, music, beauty, and softness that make order livable without letting delight become excess.
-
-This day belongs to ḥry-ib sꜣḥ, the heart of Sah, where stability enters relation, rhythm, and shared life. The star-time movement does not function as decoration. It gives the day a position in the cycle: what appears in the sky, what is happening in the year, and what the heart must practice are held together.
-
-Day 2 turns that movement toward name the relation.
-
-In practical life, this is where the old pattern meets the present body. Progress may ask for action, but not every action is Ma’at. Obstacles may ask for endurance, but not every burden should be carried. A return may ask for receiving, but not every gain should be consumed.
-
-The question is simple: What relationship needs to be named honestly before it can become harmonious?
-''',
+Hathor's music at Dendera was ritual requirement. Wrong timing between instruments broke the offering — regardless of how skilled each player was alone.
+Two people in a household or partnership operate on the same law.
+When your rhythms collide without address, you are breaking the offering together.
+Align the tempo. It must be made deliberately; it does not arise on its own.''',
     decanFlow: _compressedHathorFlowRows2,
     meduNeter: MeduNeterKey(
-      glyph: 'Mirror, lotus, and steady pillar',
-      colorFrequency: 'Deep blue, living gold, and earth green',
-      mantra: '“I practice name the relation in Ma’at.”',
+      glyph:
+          'Paired feet in stride beside a measuring cord — shared tempo as structural requirement',
+      colorFrequency:
+          'Gold pulse over deep river blue — rhythm as the mechanism of relation',
+      mantra: '"We set the shared tempo deliberately. It is not incidental."',
     ),
   ),
   'hathor_13_2': KemeticDayInfo(
-    kemeticDate: 'Hathor II, Day 3',
-    season: '🌿 Peret – Season of Emergence',
-    month: 'Hathor (Ḥwt-Ḥr) — Joy That Sustains the World',
-    decanName: 'ḥry-ib sꜣḥ',
+    kemeticDate: 'Hathor II, Day 13',
+    season: '🌊 Akhet – Season of Inundation',
+    month: 'Hathor (Ḥwt-Ḥr) — Joy Held in Right Measure',
+    decanName: 'ṯms n ḫntt',
     starCluster:
         '✨ ḥry-ib sꜣḥ — a marker in the Sah/Orion star field, physically recognized through the broad Orion figure with its three aligned belt stars and surrounding bright points',
-    maatPrinciple: 'Balance the Load',
+    maatPrinciple: 'Equal Load Is Equal Justice',
     cosmicContext: '''
-The ground has begun to hold after flood and movement. Hathor enters as joy held in right measure: house of Heru, sky-cow, golden one, Eye returned to relation, music, beauty, and softness that make order livable without letting delight become excess.
-
-This day belongs to ḥry-ib sꜣḥ, the heart of Sah, where stability enters relation, rhythm, and shared life. The star-time movement does not function as decoration. It gives the day a position in the cycle: what appears in the sky, what is happening in the year, and what the heart must practice are held together.
-
-Day 3 turns that movement toward balance the load.
-
-In practical life, this is where the old pattern meets the present body. Progress may ask for action, but not every action is Ma’at. Obstacles may ask for endurance, but not every burden should be carried. A return may ask for receiving, but not every gain should be consumed.
-
-The question is simple: Where has one person or one part of the system been carrying too much?
-''',
+"I did not take more than my share" — this is among the 42 Declarations.
+The reverse is also a Maʿat question.
+When one person in a bond consistently carries more than their portion, the one carrying less has been taking something — not through malice, perhaps, but the account is still open.
+Look at the distribution of weight. Correct it. That is justice, not accommodation.''',
     decanFlow: _compressedHathorFlowRows2,
     meduNeter: MeduNeterKey(
-      glyph: 'Mirror, lotus, and steady pillar',
-      colorFrequency: 'Deep blue, living gold, and earth green',
-      mantra: '“I practice balance the load in Ma’at.”',
+      glyph:
+          'Load-bearing pole balanced across two shoulders — the weight divided as justice requires',
+      colorFrequency: 'Paired earth-brown beneath a shared band of gold',
+      mantra: '"The weight between us is a question of justice."',
     ),
   ),
   'hathor_14_2': KemeticDayInfo(
-    kemeticDate: 'Hathor II, Day 4',
-    season: '🌿 Peret – Season of Emergence',
-    month: 'Hathor (Ḥwt-Ḥr) — Joy That Sustains the World',
-    decanName: 'ḥry-ib sꜣḥ',
+    kemeticDate: 'Hathor II, Day 14',
+    season: '🌊 Akhet – Season of Inundation',
+    month: 'Hathor (Ḥwt-Ḥr) — Joy Held in Right Measure',
+    decanName: 'ṯms n ḫntt',
     starCluster:
         '✨ ḥry-ib sꜣḥ — a marker in the Sah/Orion star field, physically recognized through the broad Orion figure with its three aligned belt stars and surrounding bright points',
-    maatPrinciple: 'Speak Before Tension Hardens',
+    maatPrinciple: 'False Speech Inside the Bond',
     cosmicContext: '''
-The ground has begun to hold after flood and movement. Hathor enters as joy held in right measure: house of Heru, sky-cow, golden one, Eye returned to relation, music, beauty, and softness that make order livable without letting delight become excess.
-
-This day belongs to ḥry-ib sꜣḥ, the heart of Sah, where stability enters relation, rhythm, and shared life. The star-time movement does not function as decoration. It gives the day a position in the cycle: what appears in the sky, what is happening in the year, and what the heart must practice are held together.
-
-Day 4 turns that movement toward speak before tension hardens.
-
-In practical life, this is where the old pattern meets the present body. Progress may ask for action, but not every action is Ma’at. Obstacles may ask for endurance, but not every burden should be carried. A return may ask for receiving, but not every gain should be consumed.
-
-The question is simple: What truth needs to be spoken before silence turns into resentment?
-''',
+"I did not speak falsely to anyone" — this declaration belongs inside the bond as much as at the door of the Hall of Two Truths.
+Silence that allows resentment to accumulate, agreement offered to manage rather than resolve, words shaped to soothe rather than to tell — these are forms of false speech.
+Harmony in Kemet was not the absence of friction. It was friction resolved in proportion.
+The difficult truth, stated directly and without cruelty, is what the bond requires.''',
     decanFlow: _compressedHathorFlowRows2,
     meduNeter: MeduNeterKey(
-      glyph: 'Mirror, lotus, and steady pillar',
-      colorFrequency: 'Deep blue, living gold, and earth green',
-      mantra: '“I practice speak before tension hardens in Ma’at.”',
+      glyph:
+          'Mouth (𓂋) placed between two figures — truth as what is placed between, not hurled',
+      colorFrequency:
+          'Gold line linking two forms — not dividing them, not fusing them',
+      mantra: '"I speak truth inside the bond."',
     ),
   ),
   'hathor_15_2': KemeticDayInfo(
-    kemeticDate: 'Hathor II, Day 5',
-    season: '🌿 Peret – Season of Emergence',
-    month: 'Hathor (Ḥwt-Ḥr) — Joy That Sustains the World',
-    decanName: 'ḥry-ib sꜣḥ',
+    kemeticDate: 'Hathor II, Day 15',
+    season: '🌊 Akhet – Season of Inundation',
+    month: 'Hathor (Ḥwt-Ḥr) — Joy Held in Right Measure',
+    decanName: 'ṯms n ḫntt',
     starCluster:
         '✨ ḥry-ib sꜣḥ — a marker in the Sah/Orion star field, physically recognized through the broad Orion figure with its three aligned belt stars and surrounding bright points',
-    maatPrinciple: 'Repair the Common Space',
+    maatPrinciple: 'Shared Benefit, Shared Obligation',
     cosmicContext: '''
-The ground has begun to hold after flood and movement. Hathor enters as joy held in right measure: house of Heru, sky-cow, golden one, Eye returned to relation, music, beauty, and softness that make order livable without letting delight become excess.
-
-This day belongs to ḥry-ib sꜣḥ, the heart of Sah, where stability enters relation, rhythm, and shared life. The star-time movement does not function as decoration. It gives the day a position in the cycle: what appears in the sky, what is happening in the year, and what the heart must practice are held together.
-
-Day 5 turns that movement toward repair the common space.
-
-In practical life, this is where the old pattern meets the present body. Progress may ask for action, but not every action is Ma’at. Obstacles may ask for endurance, but not every burden should be carried. A return may ask for receiving, but not every gain should be consumed.
-
-The question is simple: What shared structure needs repair so everyone can breathe again?
-''',
+The canal wall between two fields was maintained by those it protected.
+Failure to tend what you use was not neutral — it was a withdrawal from the obligation that shared use creates.
+The shared systems in any bond — household, money, schedule, agreed terms — are that canal wall.
+What both of you draw from, both of you are required to maintain.''',
     decanFlow: _compressedHathorFlowRows2,
     meduNeter: MeduNeterKey(
-      glyph: 'Mirror, lotus, and steady pillar',
-      colorFrequency: 'Deep blue, living gold, and earth green',
-      mantra: '“I practice repair the common space in Ma’at.”',
+      glyph:
+          'Canal wall (𓈗) with repair hand (𓂧) — shared infrastructure, shared obligation',
+      colorFrequency:
+          'Mud brown reinforced with steady gold — maintenance as the practice of love',
+      mantra: '"What I draw from, I am obligated to maintain."',
     ),
   ),
   'hathor_16_2': KemeticDayInfo(
-    kemeticDate: 'Hathor II, Day 6',
-    season: '🌿 Peret – Season of Emergence',
-    month: 'Hathor (Ḥwt-Ḥr) — Joy That Sustains the World',
-    decanName: 'ḥry-ib sꜣḥ',
+    kemeticDate: 'Hathor II, Day 16',
+    season: '🌊 Akhet – Season of Inundation',
+    month: 'Hathor (Ḥwt-Ḥr) — Joy Held in Right Measure',
+    decanName: 'ṯms n ḫntt',
     starCluster:
         '✨ ḥry-ib sꜣḥ — a marker in the Sah/Orion star field, physically recognized through the broad Orion figure with its three aligned belt stars and surrounding bright points',
-    maatPrinciple: 'Protect Mutual Dignity',
+    maatPrinciple: 'Guard the Name in Absence',
     cosmicContext: '''
-The ground has begun to hold after flood and movement. Hathor enters as joy held in right measure: house of Heru, sky-cow, golden one, Eye returned to relation, music, beauty, and softness that make order livable without letting delight become excess.
-
-This day belongs to ḥry-ib sꜣḥ, the heart of Sah, where stability enters relation, rhythm, and shared life. The star-time movement does not function as decoration. It gives the day a position in the cycle: what appears in the sky, what is happening in the year, and what the heart must practice are held together.
-
-Day 6 turns that movement toward protect mutual dignity.
-
-In practical life, this is where the old pattern meets the present body. Progress may ask for action, but not every action is Ma’at. Obstacles may ask for endurance, but not every burden should be carried. A return may ask for receiving, but not every gain should be consumed.
-
-The question is simple: Do I protect dignity when the person is not present to defend it?
-''',
+The autobiographical inscriptions were specific: "I spoke for the widow." "I defended the orphan." Not when convenient — as standing practice.
+In Kemet, reputation was infrastructure. A name that could not be trusted destroyed the person who carried it.
+Defending the name and dignity of those you are bonded with, in rooms they are not part of, is not a favor.
+It is what you owe the bond.''',
     decanFlow: _compressedHathorFlowRows2,
     meduNeter: MeduNeterKey(
-      glyph: 'Mirror, lotus, and steady pillar',
-      colorFrequency: 'Deep blue, living gold, and earth green',
-      mantra: '“I practice protect mutual dignity in Ma’at.”',
+      glyph:
+          'Protective arm curved around a figure — standing obligation, not situational charity',
+      colorFrequency: 'Deep indigo of the night watch and protective gold',
+      mantra: '"I hold the name of those I am bonded with."',
     ),
   ),
   'hathor_17_2': KemeticDayInfo(
-    kemeticDate: 'Hathor II, Day 7',
-    season: '🌿 Peret – Season of Emergence',
-    month: 'Hathor (Ḥwt-Ḥr) — Joy That Sustains the World',
-    decanName: 'ḥry-ib sꜣḥ',
+    kemeticDate: 'Hathor II, Day 17',
+    season: '🌊 Akhet – Season of Inundation',
+    month: 'Hathor (Ḥwt-Ḥr) — Joy Held in Right Measure',
+    decanName: 'ṯms n ḫntt',
     starCluster:
         '✨ ḥry-ib sꜣḥ — a marker in the Sah/Orion star field, physically recognized through the broad Orion figure with its three aligned belt stars and surrounding bright points',
-    maatPrinciple: 'Let Beauty Coordinate',
+    maatPrinciple: 'Correct the Attribution',
     cosmicContext: '''
-The ground has begun to hold after flood and movement. Hathor enters as joy held in right measure: house of Heru, sky-cow, golden one, Eye returned to relation, music, beauty, and softness that make order livable without letting delight become excess.
-
-This day belongs to ḥry-ib sꜣḥ, the heart of Sah, where stability enters relation, rhythm, and shared life. The star-time movement does not function as decoration. It gives the day a position in the cycle: what appears in the sky, what is happening in the year, and what the heart must practice are held together.
-
-Day 7 turns that movement toward let beauty coordinate.
-
-In practical life, this is where the old pattern meets the present body. Progress may ask for action, but not every action is Ma’at. Obstacles may ask for endurance, but not every burden should be carried. A return may ask for receiving, but not every gain should be consumed.
-
-The question is simple: How can beauty help this system move together again?
-''',
+The Kemite autobiographies named specific people helped, specific co-workers credited, specific acts done.
+A record that attributes shared labor only to its most visible member is false in Maʿat's account.
+The false record does not require malice. It only requires silence.
+Correct the attribution today, in the moment, not after.''',
     decanFlow: _compressedHathorFlowRows2,
     meduNeter: MeduNeterKey(
-      glyph: 'Mirror, lotus, and steady pillar',
-      colorFrequency: 'Deep blue, living gold, and earth green',
-      mantra: '“I practice let beauty coordinate in Ma’at.”',
+      glyph:
+          'Clasped wrists — the record of shared work, acknowledged in the moment it is made',
+      colorFrequency: 'Paired gold — two names, not one',
+      mantra: '"I name those who carried this with me."',
     ),
   ),
   'hathor_18_2': KemeticDayInfo(
-    kemeticDate: 'Hathor II, Day 8',
-    season: '🌿 Peret – Season of Emergence',
-    month: 'Hathor (Ḥwt-Ḥr) — Joy That Sustains the World',
-    decanName: 'ḥry-ib sꜣḥ',
+    kemeticDate: 'Hathor II, Day 18',
+    season: '🌊 Akhet – Season of Inundation',
+    month: 'Hathor (Ḥwt-Ḥr) — Joy Held in Right Measure',
+    decanName: 'ṯms n ḫntt',
     starCluster:
         '✨ ḥry-ib sꜣḥ — a marker in the Sah/Orion star field, physically recognized through the broad Orion figure with its three aligned belt stars and surrounding bright points',
-    maatPrinciple: 'Adjust the Pattern',
+    maatPrinciple: 'Drift Uncorrected Becomes Isfet',
     cosmicContext: '''
-The ground has begun to hold after flood and movement. Hathor enters as joy held in right measure: house of Heru, sky-cow, golden one, Eye returned to relation, music, beauty, and softness that make order livable without letting delight become excess.
-
-This day belongs to ḥry-ib sꜣḥ, the heart of Sah, where stability enters relation, rhythm, and shared life. The star-time movement does not function as decoration. It gives the day a position in the cycle: what appears in the sky, what is happening in the year, and what the heart must practice are held together.
-
-Day 8 turns that movement toward adjust the pattern.
-
-In practical life, this is where the old pattern meets the present body. Progress may ask for action, but not every action is Ma’at. Obstacles may ask for endurance, but not every burden should be carried. A return may ask for receiving, but not every gain should be consumed.
-
-The question is simple: What adjustment would make this pattern easier to maintain?
-''',
+A half-degree misalignment at the foundation becomes a wall visibly out of true before the year ends.
+Partnership drifts the same way: each accommodation quietly accepted, each resentment stored in silence, each arrangement that serves one at the cost of the other — these compound.
+Entropy moves through every un-corrected gap.
+Check the axis now. Correct it while it is still small.''',
     decanFlow: _compressedHathorFlowRows2,
     meduNeter: MeduNeterKey(
-      glyph: 'Mirror, lotus, and steady pillar',
-      colorFrequency: 'Deep blue, living gold, and earth green',
-      mantra: '“I practice adjust the pattern in Ma’at.”',
+      glyph:
+          'Plumb line checking a wall — early correction as the discipline of Maʿat',
+      colorFrequency:
+          'Calm river blue with a line of gold — alignment, maintained',
+      mantra: '"I correct the drift now, while it is still small."',
     ),
   ),
   'hathor_19_2': KemeticDayInfo(
-    kemeticDate: 'Hathor II, Day 9',
-    season: '🌿 Peret – Season of Emergence',
-    month: 'Hathor (Ḥwt-Ḥr) — Joy That Sustains the World',
-    decanName: 'ḥry-ib sꜣḥ',
+    kemeticDate: 'Hathor II, Day 19',
+    season: '🌊 Akhet – Season of Inundation',
+    month: 'Hathor (Ḥwt-Ḥr) — Joy Held in Right Measure',
+    decanName: 'ṯms n ḫntt',
     starCluster:
         '✨ ḥry-ib sꜣḥ — a marker in the Sah/Orion star field, physically recognized through the broad Orion figure with its three aligned belt stars and surrounding bright points',
-    maatPrinciple: 'Rest in the Same Peace',
+    maatPrinciple: 'Integrity Holds in Stillness',
     cosmicContext: '''
-The ground has begun to hold after flood and movement. Hathor enters as joy held in right measure: house of Heru, sky-cow, golden one, Eye returned to relation, music, beauty, and softness that make order livable without letting delight become excess.
-
-This day belongs to ḥry-ib sꜣḥ, the heart of Sah, where stability enters relation, rhythm, and shared life. The star-time movement does not function as decoration. It gives the day a position in the cycle: what appears in the sky, what is happening in the year, and what the heart must practice are held together.
-
-Day 9 turns that movement toward rest in the same peace.
-
-In practical life, this is where the old pattern meets the present body. Progress may ask for action, but not every action is Ma’at. Obstacles may ask for endurance, but not every burden should be carried. A return may ask for receiving, but not every gain should be consumed.
-
-The question is simple: Can I be still with others without turning stillness into performance?
-''',
+The bond that only holds under shared function has not yet become Maʿat.
+In Kemet, the right to rest in shared space without obligation was a marker of genuine kin — those whose relation survived the removal of utility.
+If you cannot be still in the same room without managing the relation, the harmony is conditional.
+Rest together. Let the alignment prove itself without assistance.''',
     decanFlow: _compressedHathorFlowRows2,
     meduNeter: MeduNeterKey(
-      glyph: 'Mirror, lotus, and steady pillar',
-      colorFrequency: 'Deep blue, living gold, and earth green',
-      mantra: '“I practice rest in the same peace in Ma’at.”',
+      glyph:
+          'Two figures at ease under one enclosure — bond held in stillness, without justification',
+      colorFrequency:
+          'Lotus blue and warm clay brown — quiet, grounded presence',
+      mantra: '"This bond holds in stillness too."',
     ),
   ),
   'hathor_20_2': KemeticDayInfo(
-    kemeticDate: 'Hathor II, Day 10',
-    season: '🌿 Peret – Season of Emergence',
-    month: 'Hathor (Ḥwt-Ḥr) — Joy That Sustains the World',
-    decanName: 'ḥry-ib sꜣḥ',
+    kemeticDate: 'Hathor II, Day 20',
+    season: '🌊 Akhet – Season of Inundation',
+    month: 'Hathor (Ḥwt-Ḥr) — Joy Held in Right Measure',
+    decanName: 'ṯms n ḫntt',
     starCluster:
         '✨ ḥry-ib sꜣḥ — a marker in the Sah/Orion star field, physically recognized through the broad Orion figure with its three aligned belt stars and surrounding bright points',
-    maatPrinciple: 'Confirm Harmony',
+    maatPrinciple: 'Right Relation Multiplies Maʿat',
     cosmicContext: '''
-The ground has begun to hold after flood and movement. Hathor enters as joy held in right measure: house of Heru, sky-cow, golden one, Eye returned to relation, music, beauty, and softness that make order livable without letting delight become excess.
-
-This day belongs to ḥry-ib sꜣḥ, the heart of Sah, where stability enters relation, rhythm, and shared life. The star-time movement does not function as decoration. It gives the day a position in the cycle: what appears in the sky, what is happening in the year, and what the heart must practice are held together.
-
-Day 10 turns that movement toward confirm harmony.
-
-In practical life, this is where the old pattern meets the present body. Progress may ask for action, but not every action is Ma’at. Obstacles may ask for endurance, but not every burden should be carried. A return may ask for receiving, but not every gain should be consumed.
-
-The question is simple: What has become more balanced because it was brought back into right relation?
-''',
+The partnership is not valuable because it feels good.
+Two people in right relation carry more Maʿat into the world than either can carry alone — this is the structural teaching.
+The feeling is evidence, not the point.
+Seal the decan by naming what this bond produces beyond the two of you.''',
     decanFlow: _compressedHathorFlowRows2,
     meduNeter: MeduNeterKey(
-      glyph: 'Mirror, lotus, and steady pillar',
-      colorFrequency: 'Deep blue, living gold, and earth green',
-      mantra: '“I practice confirm harmony in Ma’at.”',
+      glyph:
+          'Shared standard (𓌡) above two linked figures — the bond as an instrument, not an arrangement',
+      colorFrequency:
+          'Twin golds converging — the pairing as a single act of Maʿat',
+      mantra: '"This bond produces Maʿat beyond the two of us."',
     ),
   ),
   'hathor_21_3': KemeticDayInfo(
-    kemeticDate: 'Hathor III, Day 1',
-    season: '🌿 Peret – Season of Emergence',
-    month: 'Hathor (Ḥwt-Ḥr) — Joy That Sustains the World',
-    decanName: 'sbꜣ sꜣḥ',
+    kemeticDate: 'Hathor III, Day 21',
+    season: '🌊 Akhet – Season of Inundation',
+    month: 'Hathor (Ḥwt-Ḥr) — Joy Held in Right Measure',
+    decanName: 'ḳdty',
     starCluster:
         '✨ sbꜣ sꜣḥ — a marker in the Sah/Orion star field, physically recognized through the broad Orion figure with its three aligned belt stars and surrounding bright points',
-    maatPrinciple: 'Let Order Be Seen',
+    maatPrinciple: 'Build What Is Required',
     cosmicContext: '''
-The ground has begun to hold after flood and movement. Hathor enters as joy held in right measure: house of Heru, sky-cow, golden one, Eye returned to relation, music, beauty, and softness that make order livable without letting delight become excess.
-
-This day belongs to sbꜣ sꜣḥ, the star of Sah, where order becomes visible as beauty without leaving Ma’at. The star-time movement does not function as decoration. It gives the day a position in the cycle: what appears in the sky, what is happening in the year, and what the heart must practice are held together.
-
-Day 1 turns that movement toward let order be seen.
-
-In practical life, this is where the old pattern meets the present body. Progress may ask for action, but not every action is Ma’at. Obstacles may ask for endurance, but not every burden should be carried. A return may ask for receiving, but not every gain should be consumed.
-
-The question is simple: What is ready to be seen because it has actually become stable?
-''',
+sbꜣ sꜣḥ rises patient and late. The Kemite builder's first question was not "what do I want to make?"
+It was: what does this place require? What does the order need here?
+You are not expressing yourself. You are answering a need.
+Name what Maʿat requires you to bring into material existence now.''',
     decanFlow: _compressedHathorFlowRows3,
     meduNeter: MeduNeterKey(
-      glyph: 'Mirror, lotus, and steady pillar',
-      colorFrequency: 'Deep blue, living gold, and earth green',
-      mantra: '“I practice let order be seen in Ma’at.”',
+      glyph:
+          'Mason\'s hand with chisel at a block — precision in service of what is required',
+      colorFrequency:
+          'Clay red and steady gold — earth being lifted toward its proper form',
+      mantra: '"I build what is required."',
     ),
   ),
   'hathor_22_3': KemeticDayInfo(
-    kemeticDate: 'Hathor III, Day 2',
-    season: '🌿 Peret – Season of Emergence',
-    month: 'Hathor (Ḥwt-Ḥr) — Joy That Sustains the World',
-    decanName: 'sbꜣ sꜣḥ',
+    kemeticDate: 'Hathor III, Day 22',
+    season: '🌊 Akhet – Season of Inundation',
+    month: 'Hathor (Ḥwt-Ḥr) — Joy Held in Right Measure',
+    decanName: 'ḳdty',
     starCluster:
         '✨ sbꜣ sꜣḥ — a marker in the Sah/Orion star field, physically recognized through the broad Orion figure with its three aligned belt stars and surrounding bright points',
-    maatPrinciple: 'Refine the Surface',
+    maatPrinciple: 'Orient Before Building',
     cosmicContext: '''
-The ground has begun to hold after flood and movement. Hathor enters as joy held in right measure: house of Heru, sky-cow, golden one, Eye returned to relation, music, beauty, and softness that make order livable without letting delight become excess.
-
-This day belongs to sbꜣ sꜣḥ, the star of Sah, where order becomes visible as beauty without leaving Ma’at. The star-time movement does not function as decoration. It gives the day a position in the cycle: what appears in the sky, what is happening in the year, and what the heart must practice are held together.
-
-Day 2 turns that movement toward refine the surface.
-
-In practical life, this is where the old pattern meets the present body. Progress may ask for action, but not every action is Ma’at. Obstacles may ask for endurance, but not every burden should be carried. A return may ask for receiving, but not every gain should be consumed.
-
-The question is simple: Does the outer form honor the order underneath it?
-''',
+Before the first stone was placed, the Kemetic builder aligned the structure to the cardinal directions and the sky.
+The build had to answer to larger alignments before it answered to the builder's vision.
+Foundation work done wrong cannot be corrected later except by tearing everything down.
+Orient to what this build must answer to. Then begin.''',
     decanFlow: _compressedHathorFlowRows3,
     meduNeter: MeduNeterKey(
-      glyph: 'Mirror, lotus, and steady pillar',
-      colorFrequency: 'Deep blue, living gold, and earth green',
-      mantra: '“I practice refine the surface in Ma’at.”',
+      glyph:
+          'Measuring cord stretched taut across prepared ground — orientation before construction',
+      colorFrequency:
+          'Wet earth brown under a thin line of first-light gold — readiness',
+      mantra: '"I orient before I build."',
     ),
   ),
   'hathor_23_3': KemeticDayInfo(
-    kemeticDate: 'Hathor III, Day 3',
-    season: '🌿 Peret – Season of Emergence',
-    month: 'Hathor (Ḥwt-Ḥr) — Joy That Sustains the World',
-    decanName: 'sbꜣ sꜣḥ',
+    kemeticDate: 'Hathor III, Day 23',
+    season: '🌊 Akhet – Season of Inundation',
+    month: 'Hathor (Ḥwt-Ḥr) — Joy Held in Right Measure',
+    decanName: 'ḳdty',
     starCluster:
         '✨ sbꜣ sꜣḥ — a marker in the Sah/Orion star field, physically recognized through the broad Orion figure with its three aligned belt stars and surrounding bright points',
-    maatPrinciple: 'Reflect the Light',
+    maatPrinciple: 'First Form Is Dialogue',
     cosmicContext: '''
-The ground has begun to hold after flood and movement. Hathor enters as joy held in right measure: house of Heru, sky-cow, golden one, Eye returned to relation, music, beauty, and softness that make order livable without letting delight become excess.
-
-This day belongs to sbꜣ sꜣḥ, the star of Sah, where order becomes visible as beauty without leaving Ma’at. The star-time movement does not function as decoration. It gives the day a position in the cycle: what appears in the sky, what is happening in the year, and what the heart must practice are held together.
-
-Day 3 turns that movement toward reflect the light.
-
-In practical life, this is where the old pattern meets the present body. Progress may ask for action, but not every action is Ma’at. Obstacles may ask for endurance, but not every burden should be carried. A return may ask for receiving, but not every gain should be consumed.
-
-The question is simple: What light am I reflecting, and where did it come from?
-''',
+Khnum's wheel turns. Clay responds to pressure — too little gives no form, too much collapses the vessel.
+The craftsman is not imposing on the material. The first rough form is a conversation between intention and matter.
+Perfectionism ends the conversation before it has begun, and the thing never exists.
+Shape now. Refine after.''',
     decanFlow: _compressedHathorFlowRows3,
     meduNeter: MeduNeterKey(
-      glyph: 'Mirror, lotus, and steady pillar',
-      colorFrequency: 'Deep blue, living gold, and earth green',
-      mantra: '“I practice reflect the light in Ma’at.”',
+      glyph:
+          'Khnum at the potter\'s wheel — first form as dialogue, not declaration',
+      colorFrequency: 'Raw clay red — unpolished, responsive, in process',
+      mantra: '"I begin the dialogue with matter."',
     ),
   ),
   'hathor_24_3': KemeticDayInfo(
-    kemeticDate: 'Hathor III, Day 4',
-    season: '🌿 Peret – Season of Emergence',
-    month: 'Hathor (Ḥwt-Ḥr) — Joy That Sustains the World',
-    decanName: 'sbꜣ sꜣḥ',
+    kemeticDate: 'Hathor III, Day 24',
+    season: '🌊 Akhet – Season of Inundation',
+    month: 'Hathor (Ḥwt-Ḥr) — Joy Held in Right Measure',
+    decanName: 'ḳdty',
     starCluster:
         '✨ sbꜣ sꜣḥ — a marker in the Sah/Orion star field, physically recognized through the broad Orion figure with its three aligned belt stars and surrounding bright points',
-    maatPrinciple: 'Remove False Shine',
+    maatPrinciple: 'Intention Must Become Matter',
     cosmicContext: '''
-The ground has begun to hold after flood and movement. Hathor enters as joy held in right measure: house of Heru, sky-cow, golden one, Eye returned to relation, music, beauty, and softness that make order livable without letting delight become excess.
-
-This day belongs to sbꜣ sꜣḥ, the star of Sah, where order becomes visible as beauty without leaving Ma’at. The star-time movement does not function as decoration. It gives the day a position in the cycle: what appears in the sky, what is happening in the year, and what the heart must practice are held together.
-
-Day 4 turns that movement toward remove false shine.
-
-In practical life, this is where the old pattern meets the present body. Progress may ask for action, but not every action is Ma’at. Obstacles may ask for endurance, but not every burden should be carried. A return may ask for receiving, but not every gain should be consumed.
-
-The question is simple: Where am I trying to look whole instead of letting what is whole show naturally?
-''',
+In Kemet, what was promised to the gods had to become physical to count in the record.
+A plan that remains a plan, a structure that remains a sketch, a vow that remains a feeling — these are open accounts.
+They carry the weight of what was declared without delivering what was owed.
+Make it exist today. Not planned. Existing.''',
     decanFlow: _compressedHathorFlowRows3,
     meduNeter: MeduNeterKey(
-      glyph: 'Mirror, lotus, and steady pillar',
-      colorFrequency: 'Deep blue, living gold, and earth green',
-      mantra: '“I practice remove false shine in Ma’at.”',
+      glyph:
+          'Upright pillar raised by two hands — stability entering the world from the mind',
+      colorFrequency:
+          'Stone grey kissed with gold at the capstone — unfinished but undeniably present',
+      mantra: '"It exists now."',
     ),
   ),
   'hathor_25_3': KemeticDayInfo(
-    kemeticDate: 'Hathor III, Day 5',
-    season: '🌿 Peret – Season of Emergence',
-    month: 'Hathor (Ḥwt-Ḥr) — Joy That Sustains the World',
-    decanName: 'sbꜣ sꜣḥ',
+    kemeticDate: 'Hathor III, Day 25',
+    season: '🌊 Akhet – Season of Inundation',
+    month: 'Hathor (Ḥwt-Ḥr) — Joy Held in Right Measure',
+    decanName: 'ḳdty',
     starCluster:
         '✨ sbꜣ sꜣḥ — a marker in the Sah/Orion star field, physically recognized through the broad Orion figure with its three aligned belt stars and surrounding bright points',
-    maatPrinciple: 'Make Beauty Useful',
+    maatPrinciple: 'Inscribe the Purpose',
     cosmicContext: '''
-The ground has begun to hold after flood and movement. Hathor enters as joy held in right measure: house of Heru, sky-cow, golden one, Eye returned to relation, music, beauty, and softness that make order livable without letting delight become excess.
-
-This day belongs to sbꜣ sꜣḥ, the star of Sah, where order becomes visible as beauty without leaving Ma’at. The star-time movement does not function as decoration. It gives the day a position in the cycle: what appears in the sky, what is happening in the year, and what the heart must practice are held together.
-
-Day 5 turns that movement toward make beauty useful.
-
-In practical life, this is where the old pattern meets the present body. Progress may ask for action, but not every action is Ma’at. Obstacles may ask for endurance, but not every burden should be carried. A return may ask for receiving, but not every gain should be consumed.
-
-The question is simple: How can beauty help this thing serve life better?
-''',
+Without declared purpose, what you build will drift toward whatever use happens to claim it.
+The declaration is not ceremony. It is what transforms stone into offering, system into Maʿat, structure into something the divine order can recognize and sustain.
+A practice without commitment, a plan without stated aim, a relationship without named terms — all drift toward whoever wants them.
+Inscribe the purpose while the stone is still soft enough to take the chisel.''',
     decanFlow: _compressedHathorFlowRows3,
     meduNeter: MeduNeterKey(
-      glyph: 'Mirror, lotus, and steady pillar',
-      colorFrequency: 'Deep blue, living gold, and earth green',
-      mantra: '“I practice make beauty useful in Ma’at.”',
+      glyph:
+          'Chisel inscribing stone — purpose as the act that makes the structure real',
+      colorFrequency: 'Deep carved stone with gold meaning-inlay',
+      mantra: '"I declare what this is for."',
     ),
   ),
   'hathor_26_3': KemeticDayInfo(
-    kemeticDate: 'Hathor III, Day 6',
-    season: '🌿 Peret – Season of Emergence',
-    month: 'Hathor (Ḥwt-Ḥr) — Joy That Sustains the World',
-    decanName: 'sbꜣ sꜣḥ',
+    kemeticDate: 'Hathor III, Day 26',
+    season: '🌊 Akhet – Season of Inundation',
+    month: 'Hathor (Ḥwt-Ḥr) — Joy Held in Right Measure',
+    decanName: 'ḳdty',
     starCluster:
         '✨ sbꜣ sꜣḥ — a marker in the Sah/Orion star field, physically recognized through the broad Orion figure with its three aligned belt stars and surrounding bright points',
-    maatPrinciple: 'Share Joy Without Waste',
+    maatPrinciple: 'Neglect Is Withdrawal',
     cosmicContext: '''
-The ground has begun to hold after flood and movement. Hathor enters as joy held in right measure: house of Heru, sky-cow, golden one, Eye returned to relation, music, beauty, and softness that make order livable without letting delight become excess.
-
-This day belongs to sbꜣ sꜣḥ, the star of Sah, where order becomes visible as beauty without leaving Ma’at. The star-time movement does not function as decoration. It gives the day a position in the cycle: what appears in the sky, what is happening in the year, and what the heart must practice are held together.
-
-Day 6 turns that movement toward share joy without waste.
-
-In practical life, this is where the old pattern meets the present body. Progress may ask for action, but not every action is Ma’at. Obstacles may ask for endurance, but not every burden should be carried. A return may ask for receiving, but not every gain should be consumed.
-
-The question is simple: Does this joy nourish the pattern, or does it spend what should be preserved?
-''',
+Neglect is not passive. It is the active withdrawal of the maintenance Maʿat requires.
+Entropy and opportunism move through every gap that is left un-sealed.
+The joint that has not been checked, the boundary that has begun to loosen, the gap in the grain-store wall — these do not wait.
+Find the weakness in what you have raised. Seal it now.''',
     decanFlow: _compressedHathorFlowRows3,
     meduNeter: MeduNeterKey(
-      glyph: 'Mirror, lotus, and steady pillar',
-      colorFrequency: 'Deep blue, living gold, and earth green',
-      mantra: '“I practice share joy without waste in Ma’at.”',
+      glyph:
+          'Bound knot around a sealed vessel — protection against the active force of entropy',
+      colorFrequency:
+          'Deep clay red and guarding black — sealed against what moves through gaps',
+      mantra: '"I seal the weakness before it becomes a failure."',
     ),
   ),
   'hathor_27_3': KemeticDayInfo(
-    kemeticDate: 'Hathor III, Day 7',
-    season: '🌿 Peret – Season of Emergence',
-    month: 'Hathor (Ḥwt-Ḥr) — Joy That Sustains the World',
-    decanName: 'sbꜣ sꜣḥ',
+    kemeticDate: 'Hathor III, Day 27',
+    season: '🌊 Akhet – Season of Inundation',
+    month: 'Hathor (Ḥwt-Ḥr) — Joy Held in Right Measure',
+    decanName: 'ḳdty',
     starCluster:
         '✨ sbꜣ sꜣḥ — a marker in the Sah/Orion star field, physically recognized through the broad Orion figure with its three aligned belt stars and surrounding bright points',
-    maatPrinciple: 'Stand in Worth',
+    maatPrinciple: 'Finish Is Obligation',
     cosmicContext: '''
-The ground has begun to hold after flood and movement. Hathor enters as joy held in right measure: house of Heru, sky-cow, golden one, Eye returned to relation, music, beauty, and softness that make order livable without letting delight become excess.
-
-This day belongs to sbꜣ sꜣḥ, the star of Sah, where order becomes visible as beauty without leaving Ma’at. The star-time movement does not function as decoration. It gives the day a position in the cycle: what appears in the sky, what is happening in the year, and what the heart must practice are held together.
-
-Day 7 turns that movement toward stand in worth.
-
-In practical life, this is where the old pattern meets the present body. Progress may ask for action, but not every action is Ma’at. Obstacles may ask for endurance, but not every burden should be carried. A return may ask for receiving, but not every gain should be consumed.
-
-The question is simple: Where do I still act smaller than what I have become?
-''',
+The temple at Dendera needed to be hospitable to the divine. The surface was how the structure announced its fitness for that purpose.
+The correctness of the underlying form does not excuse carelessness in what it shows the world.
+An offering presented poorly is a lesser offering, regardless of the quality of the intention behind it.
+Complete the surface. The offering is not done until it is finished.''',
     decanFlow: _compressedHathorFlowRows3,
     meduNeter: MeduNeterKey(
-      glyph: 'Mirror, lotus, and steady pillar',
-      colorFrequency: 'Deep blue, living gold, and earth green',
-      mantra: '“I practice stand in worth in Ma’at.”',
+      glyph:
+          'Perfume jar and palette in Hathor\'s rite — the final layer as an act of devotion, not decoration',
+      colorFrequency:
+          'Honey gold and lotus blue — finish made with the same attention as foundation',
+      mantra: '"The offering is not complete until the finish is."',
     ),
   ),
   'hathor_28_3': KemeticDayInfo(
-    kemeticDate: 'Hathor III, Day 8',
-    season: '🌿 Peret – Season of Emergence',
-    month: 'Hathor (Ḥwt-Ḥr) — Joy That Sustains the World',
-    decanName: 'sbꜣ sꜣḥ',
+    kemeticDate: 'Hathor III, Day 28',
+    season: '🌊 Akhet – Season of Inundation',
+    month: 'Hathor (Ḥwt-Ḥr) — Joy Held in Right Measure',
+    decanName: 'ḳdty',
     starCluster:
         '✨ sbꜣ sꜣḥ — a marker in the Sah/Orion star field, physically recognized through the broad Orion figure with its three aligned belt stars and surrounding bright points',
-    maatPrinciple: 'Cool the Eye',
+    maatPrinciple: 'Stewardship, Not Ownership',
     cosmicContext: '''
-The ground has begun to hold after flood and movement. Hathor enters as joy held in right measure: house of Heru, sky-cow, golden one, Eye returned to relation, music, beauty, and softness that make order livable without letting delight become excess.
-
-This day belongs to sbꜣ sꜣḥ, the star of Sah, where order becomes visible as beauty without leaving Ma’at. The star-time movement does not function as decoration. It gives the day a position in the cycle: what appears in the sky, what is happening in the year, and what the heart must practice are held together.
-
-Day 8 turns that movement toward cool the eye.
-
-In practical life, this is where the old pattern meets the present body. Progress may ask for action, but not every action is Ma’at. Obstacles may ask for endurance, but not every burden should be carried. A return may ask for receiving, but not every gain should be consumed.
-
-The question is simple: Where does my radiance need cooling so it can remain clean?
-''',
+The builder does not own the building. After dedication, the structure answers to its purpose.
+What you hold too tightly, you prevent from being what it was built to be.
+The work that is kept under your control rather than released to its function remains unfinished regardless of how complete it appears.
+State what it is for. Release your grip on it. You are now its keeper.''',
     decanFlow: _compressedHathorFlowRows3,
     meduNeter: MeduNeterKey(
-      glyph: 'Mirror, lotus, and steady pillar',
-      colorFrequency: 'Deep blue, living gold, and earth green',
-      mantra: '“I practice cool the eye in Ma’at.”',
+      glyph:
+          'Offering arms (𓊤) raised over a completed pillar — the builder handing over to what was declared',
+      colorFrequency: 'Gold and incense-smoke white — the moment of transfer',
+      mantra: '"I am its steward, not its owner."',
     ),
   ),
   'hathor_29_3': KemeticDayInfo(
-    kemeticDate: 'Hathor III, Day 9',
-    season: '🌿 Peret – Season of Emergence',
-    month: 'Hathor (Ḥwt-Ḥr) — Joy That Sustains the World',
-    decanName: 'sbꜣ sꜣḥ',
+    kemeticDate: 'Hathor III, Day 29',
+    season: '🌊 Akhet – Season of Inundation',
+    month: 'Hathor (Ḥwt-Ḥr) — Joy Held in Right Measure',
+    decanName: 'ḳdty',
     starCluster:
         '✨ sbꜣ sꜣḥ — a marker in the Sah/Orion star field, physically recognized through the broad Orion figure with its three aligned belt stars and surrounding bright points',
-    maatPrinciple: 'Leave a Sign of Order',
+    maatPrinciple: 'Use Sustains the Dedication',
     cosmicContext: '''
-The ground has begun to hold after flood and movement. Hathor enters as joy held in right measure: house of Heru, sky-cow, golden one, Eye returned to relation, music, beauty, and softness that make order livable without letting delight become excess.
-
-This day belongs to sbꜣ sꜣḥ, the star of Sah, where order becomes visible as beauty without leaving Ma’at. The star-time movement does not function as decoration. It gives the day a position in the cycle: what appears in the sky, what is happening in the year, and what the heart must practice are held together.
-
-Day 9 turns that movement toward leave a sign of order.
-
-In practical life, this is where the old pattern meets the present body. Progress may ask for action, but not every action is Ma’at. Obstacles may ask for endurance, but not every burden should be carried. A return may ask for receiving, but not every gain should be consumed.
-
-The question is simple: What can remain after today as evidence that Ma’at was strengthened?
-''',
+An altar that receives no offering is furniture. A canal gate that is never opened is rubble.
+The dedication is either sustained by use or abandoned by the absence of it.
+Right use is not applying something already secured. It is the ongoing act by which the vow remains true.
+Use what you built. Not to evaluate it. To keep the dedication alive.''',
     decanFlow: _compressedHathorFlowRows3,
     meduNeter: MeduNeterKey(
-      glyph: 'Mirror, lotus, and steady pillar',
-      colorFrequency: 'Deep blue, living gold, and earth green',
-      mantra: '“I practice leave a sign of order in Ma’at.”',
+      glyph:
+          'House (𓉐) in active use — the structure sustained by what passes through it daily',
+      colorFrequency:
+          'Warm clay and stored-grain gold — purpose made real through use',
+      mantra: '"I use what I built. Use is the ongoing vow."',
     ),
   ),
   'hathor_30_3': KemeticDayInfo(
-    kemeticDate: 'Hathor III, Day 10',
-    season: '🌿 Peret – Season of Emergence',
-    month: 'Hathor (Ḥwt-Ḥr) — Joy That Sustains the World',
-    decanName: 'sbꜣ sꜣḥ',
+    kemeticDate: 'Hathor III, Day 30',
+    season: '🌊 Akhet – Season of Inundation',
+    month: 'Hathor (Ḥwt-Ḥr) — Joy Held in Right Measure',
+    decanName: 'ḳdty',
     starCluster:
         '✨ sbꜣ sꜣḥ — a marker in the Sah/Orion star field, physically recognized through the broad Orion figure with its three aligned belt stars and surrounding bright points',
-    maatPrinciple: 'Seal the Radiance',
+    maatPrinciple: 'Write the Record',
     cosmicContext: '''
-The ground has begun to hold after flood and movement. Hathor enters as joy held in right measure: house of Heru, sky-cow, golden one, Eye returned to relation, music, beauty, and softness that make order livable without letting delight become excess.
-
-This day belongs to sbꜣ sꜣḥ, the star of Sah, where order becomes visible as beauty without leaving Ma’at. The star-time movement does not function as decoration. It gives the day a position in the cycle: what appears in the sky, what is happening in the year, and what the heart must practice are held together.
-
-Day 10 turns that movement toward seal the radiance.
-
-In practical life, this is where the old pattern meets the present body. Progress may ask for action, but not every action is Ma’at. Obstacles may ask for endurance, but not every burden should be carried. A return may ask for receiving, but not every gain should be consumed.
-
-The question is simple: What joy can I carry forward because it has proven itself in Ma’at?
-''',
+What is unrecorded can be denied, disputed, or forgotten.
+The scribe's record of the month's building was as sacred as the building because it made the acts of the month permanent — available to those who come after, accountable to what was declared.
+This is not documentation. It is how Maʿat holds what you did this month.
+Write what was built, who contributed, and what it now sustains.''',
     decanFlow: _compressedHathorFlowRows3,
     meduNeter: MeduNeterKey(
-      glyph: 'Mirror, lotus, and steady pillar',
-      colorFrequency: 'Deep blue, living gold, and earth green',
-      mantra: '“I practice seal the radiance in Ma’at.”',
+      glyph:
+          'Scribe\'s palette and papyrus roll beside a finished pillar — the record as the final act of building',
+      colorFrequency:
+          'Ink black on gold — permanence earned by the act of writing',
+      mantra:
+          '"I write what was built, who carried it, and what it now serves."',
     ),
   ),
   'kaherka_1_1': KemeticDayInfo(
     kemeticDate: 'Ka-ḥer-Ka I, Day 1',
     season: '🌿 Peret – Season of Emergence',
-    month: 'Ka-ḥer-Ka (Kȝ-ḥr-Kȝ) — Life Upon Life',
+    month:
+        'Ka-ḥer-Ka (Kȝ-ḥr-Kȝ) — Life Upon Life — Vitality Placed Into the Earth',
     decanName: 'msḥtjw',
     starCluster:
         '✨ msḥtjw — the northern Foreleg star group, commonly associated with the Big Dipper form: seven bright stars making a bowl and bent handle around the northern sky',
     maatPrinciple: 'Recognize Returning Strength',
     cosmicContext: '''
-Seed has entered the black earth. Ka upon Ka names vitality layered into continuity: the ka fed, the field entrusted, strength returning, and life placed into hiddenness so it can later rise. The force of the month must be protected, governed, and applied.
+Peret opens the ground. The black earth seeded in silence now holds within it what was placed there — not yet visible, but present and accumulating. Ka-ḥer-Ka names this condition precisely: ka upon ka, vitality layered over vitality, the doubled life-force that occurs not when new strength arrives from outside but when what was always there begins to restore over itself.
 
-This day belongs to msḥtjw, the Foreleg, where power returns as a bracing limb before full motion. The star-time movement does not function as decoration. It gives the day a position in the cycle: what appears in the sky, what is happening in the year, and what the heart must practice are held together.
-
-Day 1 turns that movement toward recognize returning strength.
-
-In practical life, this is where the old pattern meets the present body. Progress may ask for action, but not every action is Ma’at. Obstacles may ask for endurance, but not every burden should be carried. A return may ask for receiving, but not every gain should be consumed.
-
-The question is simple: Where is life quietly coming back into me?
+msḥtjw — the Foreleg — circles the northern pole without setting. The circumpolar stars were called the imperishable ones because they never disappeared below the horizon. Strength that truly belongs to you does the same: it does not die in the hard seasons, it recedes, and in Peret it becomes visible again. Today is not the day to use what has returned. It is the day to recognize that something has.
 ''',
     decanFlow: _compressedKaherkaFlowRows1,
     meduNeter: MeduNeterKey(
-      glyph: 'Ka arms, seed, and braced foreleg',
-      colorFrequency: 'Deep blue, living gold, and earth green',
-      mantra: '“I practice recognize returning strength in Ma’at.”',
+      glyph:
+          'msḥtjw (the Foreleg) circling the pole — the imperishable limb, always present, now visible again',
+      colorFrequency:
+          'Deep northern night and the first recognizable gold — the circumpolar star found again',
+      mantra: '"Life layers back over itself. I receive what returns."',
     ),
   ),
   'kaherka_2_1': KemeticDayInfo(
     kemeticDate: 'Ka-ḥer-Ka I, Day 2',
     season: '🌿 Peret – Season of Emergence',
-    month: 'Ka-ḥer-Ka (Kȝ-ḥr-Kȝ) — Life Upon Life',
+    month:
+        'Ka-ḥer-Ka (Kȝ-ḥr-Kȝ) — Life Upon Life — Vitality Placed Into the Earth',
     decanName: 'msḥtjw',
     starCluster:
         '✨ msḥtjw — the northern Foreleg star group, commonly associated with the Big Dipper form: seven bright stars making a bowl and bent handle around the northern sky',
     maatPrinciple: 'Test the Ground Gently',
     cosmicContext: '''
-Seed has entered the black earth. Ka upon Ka names vitality layered into continuity: the ka fed, the field entrusted, strength returning, and life placed into hiddenness so it can later rise. The force of the month must be protected, governed, and applied.
+After the flood recedes, the first act is not planting. It is walking. The farmer who strides onto the newly revealed field falls through what appears solid. The correct step is careful, attentive, testing what holds before committing the seed to ground that may not yet support it.
 
-This day belongs to msḥtjw, the Foreleg, where power returns as a bracing limb before full motion. The star-time movement does not function as decoration. It gives the day a position in the cycle: what appears in the sky, what is happening in the year, and what the heart must practice are held together.
-
-Day 2 turns that movement toward test the ground gently.
-
-In practical life, this is where the old pattern meets the present body. Progress may ask for action, but not every action is Ma’at. Obstacles may ask for endurance, but not every burden should be carried. A return may ask for receiving, but not every gain should be consumed.
-
-The question is simple: What can I do now without pretending I am ready for everything?
+The Foreleg in the northern sky does not lunge. It pivots slowly around the pole. Its permanence is not urgency — it is the steadiness of something that has learned where it stands. The returning strength does not yet know its own current limits. This is not weakness. It is the accurate condition of something newly restored. Test carefully so you do not discover the edge at the wrong moment.
 ''',
     decanFlow: _compressedKaherkaFlowRows1,
     meduNeter: MeduNeterKey(
-      glyph: 'Ka arms, seed, and braced foreleg',
-      colorFrequency: 'Deep blue, living gold, and earth green',
-      mantra: '“I practice test the ground gently in Ma’at.”',
+      glyph:
+          'Careful foot testing flooded ground — what holds beneath the surface before the weight is committed',
+      colorFrequency:
+          'Wet black earth and pale proving-light — the ground tested before the step is trusted',
+      mantra: '"I press lightly. What holds will hold."',
     ),
   ),
   'kaherka_3_1': KemeticDayInfo(
     kemeticDate: 'Ka-ḥer-Ka I, Day 3',
     season: '🌿 Peret – Season of Emergence',
-    month: 'Ka-ḥer-Ka (Kȝ-ḥr-Kȝ) — Life Upon Life',
+    month:
+        'Ka-ḥer-Ka (Kȝ-ḥr-Kȝ) — Life Upon Life — Vitality Placed Into the Earth',
     decanName: 'msḥtjw',
     starCluster:
         '✨ msḥtjw — the northern Foreleg star group, commonly associated with the Big Dipper form: seven bright stars making a bowl and bent handle around the northern sky',
     maatPrinciple: 'Gather the Body',
     cosmicContext: '''
-Seed has entered the black earth. Ka upon Ka names vitality layered into continuity: the ka fed, the field entrusted, strength returning, and life placed into hiddenness so it can later rise. The force of the month must be protected, governed, and applied.
+The Ka lives in the body. This is not metaphor — it is the structural claim of Kemetic thought about how vital force inhabits a person. When the body is scattered — breath shallow, sleep uneven, food irregular, posture abandoned — the Ka cannot fully occupy the vessel it is supposed to inhabit. Restoration of the Ka begins with restoration of the body that holds it.
 
-This day belongs to msḥtjw, the Foreleg, where power returns as a bracing limb before full motion. The star-time movement does not function as decoration. It gives the day a position in the cycle: what appears in the sky, what is happening in the year, and what the heart must practice are held together.
-
-Day 3 turns that movement toward gather the body.
-
-In practical life, this is where the old pattern meets the present body. Progress may ask for action, but not every action is Ma’at. Obstacles may ask for endurance, but not every burden should be carried. A return may ask for receiving, but not every gain should be consumed.
-
-The question is simple: What part of my body needs to be gathered back into care?
+The Opening of the Mouth ritual used an adze shaped like the Foreleg to restore physical function to what had ceased: mouth, eyes, ears, each faculty returned in sequence. The rite was methodical. One organ at a time. Not a general revival but a specific restoration of each capacity. Today belongs to this same work — bringing the physical back to coherence, not because it is pleasant but because everything else depends on a gathered instrument.
 ''',
     decanFlow: _compressedKaherkaFlowRows1,
     meduNeter: MeduNeterKey(
-      glyph: 'Ka arms, seed, and braced foreleg',
-      colorFrequency: 'Deep blue, living gold, and earth green',
-      mantra: '“I practice gather the body in Ma’at.”',
+      glyph:
+          'The adze of the Opening of the Mouth — the tool that restores function to the vessel, one faculty at a time',
+      colorFrequency:
+          'Warm clay and the first earth green — the body that receives tending',
+      mantra: '"The Ka needs a gathered body. I tend the vessel now."',
     ),
   ),
   'kaherka_4_1': KemeticDayInfo(
     kemeticDate: 'Ka-ḥer-Ka I, Day 4',
     season: '🌿 Peret – Season of Emergence',
-    month: 'Ka-ḥer-Ka (Kȝ-ḥr-Kȝ) — Life Upon Life',
+    month:
+        'Ka-ḥer-Ka (Kȝ-ḥr-Kȝ) — Life Upon Life — Vitality Placed Into the Earth',
     decanName: 'msḥtjw',
     starCluster:
         '✨ msḥtjw — the northern Foreleg star group, commonly associated with the Big Dipper form: seven bright stars making a bowl and bent handle around the northern sky',
     maatPrinciple: 'Protect the Root',
     cosmicContext: '''
-Seed has entered the black earth. Ka upon Ka names vitality layered into continuity: the ka fed, the field entrusted, strength returning, and life placed into hiddenness so it can later rise. The force of the month must be protected, governed, and applied.
+The seed underground has committed to growth. It has cracked open its shell and begun the reaching that cannot be reversed. This is the most vulnerable moment: the seed cannot protect itself, cannot retreat back into dormancy, cannot resist what the soil does to it. Everything depends on the conditions around it — soil density, moisture, temperature, the absence of what would consume it.
 
-This day belongs to msḥtjw, the Foreleg, where power returns as a bracing limb before full motion. The star-time movement does not function as decoration. It gives the day a position in the cycle: what appears in the sky, what is happening in the year, and what the heart must practice are held together.
-
-Day 4 turns that movement toward protect the root.
-
-In practical life, this is where the old pattern meets the present body. Progress may ask for action, but not every action is Ma’at. Obstacles may ask for endurance, but not every burden should be carried. A return may ask for receiving, but not every gain should be consumed.
-
-The question is simple: What is still too young to be handled roughly?
+Ka-upon-Ka returns slowly. The vitality that has begun accumulating is real but not yet consolidated. Treating it as though the restoration is complete — loading it immediately with full demand — is how the new growth is lost before it breaches the surface. The name of this day is not caution. It is accurate protection of something that cannot yet protect itself.
 ''',
     decanFlow: _compressedKaherkaFlowRows1,
     meduNeter: MeduNeterKey(
-      glyph: 'Ka arms, seed, and braced foreleg',
-      colorFrequency: 'Deep blue, living gold, and earth green',
-      mantra: '“I practice protect the root in Ma’at.”',
+      glyph:
+          'Seed cracked open in sealed earth — the committed growth that requires protection, not proof',
+      colorFrequency:
+          'Deep black soil and sheltered gold — the root held in the dark before it surfaces',
+      mantra:
+          '"The root cannot be handled roughly yet. I guard what is still forming."',
     ),
   ),
   'kaherka_5_1': KemeticDayInfo(
     kemeticDate: 'Ka-ḥer-Ka I, Day 5',
     season: '🌿 Peret – Season of Emergence',
-    month: 'Ka-ḥer-Ka (Kȝ-ḥr-Kȝ) — Life Upon Life',
+    month:
+        'Ka-ḥer-Ka (Kȝ-ḥr-Kȝ) — Life Upon Life — Vitality Placed Into the Earth',
     decanName: 'msḥtjw',
     starCluster:
         '✨ msḥtjw — the northern Foreleg star group, commonly associated with the Big Dipper form: seven bright stars making a bowl and bent handle around the northern sky',
     maatPrinciple: 'Feed the Ka',
     cosmicContext: '''
-Seed has entered the black earth. Ka upon Ka names vitality layered into continuity: the ka fed, the field entrusted, strength returning, and life placed into hiddenness so it can later rise. The force of the month must be protected, governed, and applied.
+The offering formula — ḥtp dj nswt — was not ceremony. It was the acknowledgment that vital force requires continuous feeding to maintain and grow. The Ka of a person, a household, an ancestor was sustained by offerings placed with regularity and intention. The ka that received offerings grew and doubled. The ka without offerings contracted and diminished. There was no neutral state.
 
-This day belongs to msḥtjw, the Foreleg, where power returns as a bracing limb before full motion. The star-time movement does not function as decoration. It gives the day a position in the cycle: what appears in the sky, what is happening in the year, and what the heart must practice are held together.
-
-Day 5 turns that movement toward feed the ka.
-
-In practical life, this is where the old pattern meets the present body. Progress may ask for action, but not every action is Ma’at. Obstacles may ask for endurance, but not every burden should be carried. A return may ask for receiving, but not every gain should be consumed.
-
-The question is simple: What must be fed if it is going to live?
+Ka-ḥer-Ka names a doubling. But the doubling does not happen automatically. It requires the correct offering directed at what is actually trying to continue — not what has already consolidated, not what performs stability well without needing it. The offering goes to the genuine need, the live root, the real fragility. Feed what is fragile first. Feed what is stable after.
 ''',
     decanFlow: _compressedKaherkaFlowRows1,
     meduNeter: MeduNeterKey(
-      glyph: 'Ka arms, seed, and braced foreleg',
-      colorFrequency: 'Deep blue, living gold, and earth green',
-      mantra: '“I practice feed the ka in Ma’at.”',
+      glyph:
+          'The offering stand before the Ka emblem — provision directed toward the living force that requires it',
+      colorFrequency:
+          'Altar gold over black earth — the offering that feeds what is below the surface',
+      mantra: '"The Ka grows through offering. I feed what needs to live."',
     ),
   ),
   'kaherka_6_1': KemeticDayInfo(
     kemeticDate: 'Ka-ḥer-Ka I, Day 6',
     season: '🌿 Peret – Season of Emergence',
-    month: 'Ka-ḥer-Ka (Kȝ-ḥr-Kȝ) — Life Upon Life',
+    month:
+        'Ka-ḥer-Ka (Kȝ-ḥr-Kȝ) — Life Upon Life — Vitality Placed Into the Earth',
     decanName: 'msḥtjw',
     starCluster:
         '✨ msḥtjw — the northern Foreleg star group, commonly associated with the Big Dipper form: seven bright stars making a bowl and bent handle around the northern sky',
     maatPrinciple: 'Strength Without Display',
     cosmicContext: '''
-Seed has entered the black earth. Ka upon Ka names vitality layered into continuity: the ka fed, the field entrusted, strength returning, and life placed into hiddenness so it can later rise. The force of the month must be protected, governed, and applied.
+The Foreleg circles the northern pole in darkness. The ancient watchers who knew it was there had to track it carefully — its presence required attention, not spectacle. It did not announce itself with rising and setting like the other stars. Its permanence was visible only to those who had learned to look.
 
-This day belongs to msḥtjw, the Foreleg, where power returns as a bracing limb before full motion. The star-time movement does not function as decoration. It gives the day a position in the cycle: what appears in the sky, what is happening in the year, and what the heart must practice are held together.
-
-Day 6 turns that movement toward strength without display.
-
-In practical life, this is where the old pattern meets the present body. Progress may ask for action, but not every action is Ma’at. Obstacles may ask for endurance, but not every burden should be carried. A return may ask for receiving, but not every gain should be consumed.
-
-The question is simple: Can I trust strength that does not announce itself?
+Ka-upon-Ka holds a specific temptation at this stage: the energy of returned vitality can reach for demonstration before it has consolidated. Strength that performs its return before the return is complete uses what should be accumulating to produce evidence of accumulation. This is the circular motion that depletes rather than doubles. The strength that circles in the dark, certain of itself without requiring acknowledgment, is the strength that will be available when it is needed.
 ''',
     decanFlow: _compressedKaherkaFlowRows1,
     meduNeter: MeduNeterKey(
-      glyph: 'Ka arms, seed, and braced foreleg',
-      colorFrequency: 'Deep blue, living gold, and earth green',
-      mantra: '“I practice strength without display in Ma’at.”',
+      glyph:
+          'msḥtjw circling in northern darkness — the imperishable limb that does not announce itself, only persists',
+      colorFrequency:
+          'Deep night blue and contained inner gold — the circumpolar star, present without spectacle',
+      mantra: '"What circles in silence is always there. Presence is enough."',
     ),
   ),
   'kaherka_7_1': KemeticDayInfo(
     kemeticDate: 'Ka-ḥer-Ka I, Day 7',
     season: '🌿 Peret – Season of Emergence',
-    month: 'Ka-ḥer-Ka (Kȝ-ḥr-Kȝ) — Life Upon Life',
+    month:
+        'Ka-ḥer-Ka (Kȝ-ḥr-Kȝ) — Life Upon Life — Vitality Placed Into the Earth',
     decanName: 'msḥtjw',
     starCluster:
         '✨ msḥtjw — the northern Foreleg star group, commonly associated with the Big Dipper form: seven bright stars making a bowl and bent handle around the northern sky',
     maatPrinciple: 'Brace Before Motion',
     cosmicContext: '''
-Seed has entered the black earth. Ka upon Ka names vitality layered into continuity: the ka fed, the field entrusted, strength returning, and life placed into hiddenness so it can later rise. The force of the month must be protected, governed, and applied.
+The foreleg of the ox was prized specifically because it stabilized before it carried. The animal's weight transfers through the forelegs first — they brace against the ground, receive the load, and only then does the full motion begin. The brace is not hesitation. It is the prerequisite of the carry.
 
-This day belongs to msḥtjw, the Foreleg, where power returns as a bracing limb before full motion. The star-time movement does not function as decoration. It gives the day a position in the cycle: what appears in the sky, what is happening in the year, and what the heart must practice are held together.
-
-Day 7 turns that movement toward brace before motion.
-
-In practical life, this is where the old pattern meets the present body. Progress may ask for action, but not every action is Ma’at. Obstacles may ask for endurance, but not every burden should be carried. A return may ask for receiving, but not every gain should be consumed.
-
-The question is simple: What must be braced before I move forward?
+In Peret the entire agricultural year begins to move again — from preparation to action, from seed to growth, from held to released. But the sequence mattered. What was loaded before the brace could receive it collapsed under the weight and brought down more than the immediate effort. There is a preparatory step before the full motion. It is smaller, quieter, and the motion depends on it.
 ''',
     decanFlow: _compressedKaherkaFlowRows1,
     meduNeter: MeduNeterKey(
-      glyph: 'Ka arms, seed, and braced foreleg',
-      colorFrequency: 'Deep blue, living gold, and earth green',
-      mantra: '“I practice brace before motion in Ma’at.”',
+      glyph:
+          'The foreleg braced against ground before the load transfers — the stabilization that makes carrying possible',
+      colorFrequency:
+          'Earth brown and bracing gold — the ground made firm before the weight is committed',
+      mantra: '"Brace before motion. The foreleg holds the load."',
     ),
   ),
   'kaherka_8_1': KemeticDayInfo(
     kemeticDate: 'Ka-ḥer-Ka I, Day 8',
     season: '🌿 Peret – Season of Emergence',
-    month: 'Ka-ḥer-Ka (Kȝ-ḥr-Kȝ) — Life Upon Life',
+    month:
+        'Ka-ḥer-Ka (Kȝ-ḥr-Kȝ) — Life Upon Life — Vitality Placed Into the Earth',
     decanName: 'msḥtjw',
     starCluster:
         '✨ msḥtjw — the northern Foreleg star group, commonly associated with the Big Dipper form: seven bright stars making a bowl and bent handle around the northern sky',
     maatPrinciple: 'Move One Limb',
     cosmicContext: '''
-Seed has entered the black earth. Ka upon Ka names vitality layered into continuity: the ka fed, the field entrusted, strength returning, and life placed into hiddenness so it can later rise. The force of the month must be protected, governed, and applied.
+The Opening of the Mouth ritual moved through each organ in sequence. Mouth. Eyes. Ears. The restoration of function to what had been inert was specific and ordered — not a general revival but a careful, sequential return of each separate capacity. The adze did not touch everything at once. It touched each place correctly, in the correct order, with the correct intention.
 
-This day belongs to msḥtjw, the Foreleg, where power returns as a bracing limb before full motion. The star-time movement does not function as decoration. It gives the day a position in the cycle: what appears in the sky, what is happening in the year, and what the heart must practice are held together.
-
-Day 8 turns that movement toward move one limb.
-
-In practical life, this is where the old pattern meets the present body. Progress may ask for action, but not every action is Ma’at. Obstacles may ask for endurance, but not every burden should be carried. A return may ask for receiving, but not every gain should be consumed.
-
-The question is simple: What single movement proves I am returning?
+Ka-upon-Ka accumulates through sequence. One movement, completed honestly, establishes the ground for the next. The error of this stage is attempting to resume the full pattern before confirming that each component is genuinely present. The seed does not attempt to produce fruit before it has produced a stem. One controlled step is not a concession to weakness. It is the correct application of what is available.
 ''',
     decanFlow: _compressedKaherkaFlowRows1,
     meduNeter: MeduNeterKey(
-      glyph: 'Ka arms, seed, and braced foreleg',
-      colorFrequency: 'Deep blue, living gold, and earth green',
-      mantra: '“I practice move one limb in Ma’at.”',
+      glyph:
+          'The adze touching each faculty in sequence — restoration that is specific, not general',
+      colorFrequency:
+          'Stone and careful gold — movement made deliberately, one faculty returned at a time',
+      mantra:
+          '"One controlled step is not a small thing. It is the correct thing."',
     ),
   ),
   'kaherka_9_1': KemeticDayInfo(
     kemeticDate: 'Ka-ḥer-Ka I, Day 9',
     season: '🌿 Peret – Season of Emergence',
-    month: 'Ka-ḥer-Ka (Kȝ-ḥr-Kȝ) — Life Upon Life',
+    month:
+        'Ka-ḥer-Ka (Kȝ-ḥr-Kȝ) — Life Upon Life — Vitality Placed Into the Earth',
     decanName: 'msḥtjw',
     starCluster:
         '✨ msḥtjw — the northern Foreleg star group, commonly associated with the Big Dipper form: seven bright stars making a bowl and bent handle around the northern sky',
     maatPrinciple: 'Confirm Capacity',
     cosmicContext: '''
-Seed has entered the black earth. Ka upon Ka names vitality layered into continuity: the ka fed, the field entrusted, strength returning, and life placed into hiddenness so it can later rise. The force of the month must be protected, governed, and applied.
+The scribe's account at this stage of the year was not a record of what had been produced. It was an assessment of what was now possible. What had the flood taken? What had the field recovered? What tools remained intact? The honest assessment of present capacity was what made the planting plan accurate and the season productive.
 
-This day belongs to msḥtjw, the Foreleg, where power returns as a bracing limb before full motion. The star-time movement does not function as decoration. It gives the day a position in the cycle: what appears in the sky, what is happening in the year, and what the heart must practice are held together.
-
-Day 9 turns that movement toward confirm capacity.
-
-In practical life, this is where the old pattern meets the present body. Progress may ask for action, but not every action is Ma’at. Obstacles may ask for endurance, but not every burden should be carried. A return may ask for receiving, but not every gain should be consumed.
-
-The question is simple: What can I carry now that I could not carry before?
+The body that overestimates its restoration takes on more than it can hold and fails before it completes what it took on. The body that underestimates its restoration leaves genuine capacity idle, which is also a form of waste. Neither assessment serves Maʿat. The accurate account of what can now actually be carried — not what was possible before, not what one hopes is possible, but what is confirmed to be possible now — is the foundation of the next decan's work.
 ''',
     decanFlow: _compressedKaherkaFlowRows1,
     meduNeter: MeduNeterKey(
-      glyph: 'Ka arms, seed, and braced foreleg',
-      colorFrequency: 'Deep blue, living gold, and earth green',
-      mantra: '“I practice confirm capacity in Ma’at.”',
+      glyph:
+          'The scribe\'s account of present capacity — not record of past, not plan for future, but the honest measure of now',
+      colorFrequency:
+          'Counting gold and honest black — the reckoning that precedes the next movement',
+      mantra: '"I count what I can carry now. This number is the truth."',
     ),
   ),
   'kaherka_10_1': KemeticDayInfo(
     kemeticDate: 'Ka-ḥer-Ka I, Day 10',
     season: '🌿 Peret – Season of Emergence',
-    month: 'Ka-ḥer-Ka (Kȝ-ḥr-Kȝ) — Life Upon Life',
+    month:
+        'Ka-ḥer-Ka (Kȝ-ḥr-Kȝ) — Life Upon Life — Vitality Placed Into the Earth',
     decanName: 'msḥtjw',
     starCluster:
         '✨ msḥtjw — the northern Foreleg star group, commonly associated with the Big Dipper form: seven bright stars making a bowl and bent handle around the northern sky',
     maatPrinciple: 'Seal Renewed Strength',
     cosmicContext: '''
-Seed has entered the black earth. Ka upon Ka names vitality layered into continuity: the ka fed, the field entrusted, strength returning, and life placed into hiddenness so it can later rise. The force of the month must be protected, governed, and applied.
+Decan closings in the Kemetic calendar were not merely endings. They were formal sealings — the accounting of what the ten-day watch had confirmed, placed in the record, and bound forward into the next interval. What was unclear at the opening of the decan had been either established or revealed as illusory by the closing. The closing was what the next decan's ground was built on.
 
-This day belongs to msḥtjw, the Foreleg, where power returns as a bracing limb before full motion. The star-time movement does not function as decoration. It gives the day a position in the cycle: what appears in the sky, what is happening in the year, and what the heart must practice are held together.
-
-Day 10 turns that movement toward seal renewed strength.
-
-In practical life, this is where the old pattern meets the present body. Progress may ask for action, but not every action is Ma’at. Obstacles may ask for endurance, but not every burden should be carried. A return may ask for receiving, but not every gain should be consumed.
-
-The question is simple: What strength has come back, and what law will keep it alive?
+The Foreleg has completed its first circuit. What was recognized as returning at the opening of this month has been tested, gathered, protected, fed, and moved. The evidence is now available. Name what held. Name what is confirmed to be real in the returned strength. This is what passes forward — not hope, not aspiration, but the verified fact.
 ''',
     decanFlow: _compressedKaherkaFlowRows1,
     meduNeter: MeduNeterKey(
-      glyph: 'Ka arms, seed, and braced foreleg',
-      colorFrequency: 'Deep blue, living gold, and earth green',
-      mantra: '“I practice seal renewed strength in Ma’at.”',
+      glyph:
+          'The sealed decan record — the first watch of Ka-ḥer-Ka closed, the confirmed strength bound forward',
+      colorFrequency:
+          'Deep gold sealed on black — the first decan complete, the account closed and ready to carry',
+      mantra:
+          '"What was confirmed here is real. I seal it and carry it forward."',
     ),
   ),
   'kaherka_11_2': KemeticDayInfo(
     kemeticDate: 'Ka-ḥer-Ka II, Day 1',
     season: '🌿 Peret – Season of Emergence',
-    month: 'Ka-ḥer-Ka (Kȝ-ḥr-Kȝ) — Life Upon Life',
+    month:
+        'Ka-ḥer-Ka (Kȝ-ḥr-Kȝ) — Life Upon Life — Vitality Placed Into the Earth',
     decanName: 'ḥry-ib msḥtjw',
     starCluster:
         '✨ ḥry-ib msḥtjw — the northern Foreleg star group, commonly associated with the Big Dipper form: seven bright stars making a bowl and bent handle around the northern sky',
     maatPrinciple: 'Bring Strength to the Heart',
     cosmicContext: '''
-Seed has entered the black earth. Ka upon Ka names vitality layered into continuity: the ka fed, the field entrusted, strength returning, and life placed into hiddenness so it can later rise. The force of the month must be protected, governed, and applied.
+In Kemetic theology, the ib — the heart — was the organ of moral intelligence. Not the brain, not the will: the heart. The organ weighed at the Hall of Two Truths. The organ that knew what had actually been done across a lifetime. To govern strength through the ib was to place the most potent force available under the oversight of the most honest part of the self.
 
-This day belongs to ḥry-ib msḥtjw, the heart of the Foreleg, where strength is governed from within. The star-time movement does not function as decoration. It gives the day a position in the cycle: what appears in the sky, what is happening in the year, and what the heart must practice are held together.
-
-Day 1 turns that movement toward bring strength to the heart.
-
-In practical life, this is where the old pattern meets the present body. Progress may ask for action, but not every action is Ma’at. Obstacles may ask for endurance, but not every burden should be carried. A return may ask for receiving, but not every gain should be consumed.
-
-The question is simple: What strength has returned, and what should govern it?
+Ka-upon-Ka doubles in this decan. Doubled force moves faster than ungoverned force, and it reaches further — for better or for worse. The heart of the Foreleg marks the moment when the returned strength that was carefully tended in the first decan becomes available for use, and that availability creates the risk of premature deployment. The correction is not to weaken the strength. It is to pass it through the heart before the hand moves.
 ''',
     decanFlow: _compressedKaherkaFlowRows2,
     meduNeter: MeduNeterKey(
-      glyph: 'Ka arms, seed, and braced foreleg',
-      colorFrequency: 'Deep blue, living gold, and earth green',
-      mantra: '“I practice bring strength to the heart in Ma’at.”',
+      glyph:
+          'The ib beside the Foreleg — the heart\'s authority over the limb before it acts',
+      colorFrequency:
+          'Deep heart-red and governed gold — the strength held at the chest before the hand extends',
+      mantra: '"The hand does not move before the heart speaks."',
     ),
   ),
   'kaherka_12_2': KemeticDayInfo(
     kemeticDate: 'Ka-ḥer-Ka II, Day 2',
     season: '🌿 Peret – Season of Emergence',
-    month: 'Ka-ḥer-Ka (Kȝ-ḥr-Kȝ) — Life Upon Life',
+    month:
+        'Ka-ḥer-Ka (Kȝ-ḥr-Kȝ) — Life Upon Life — Vitality Placed Into the Earth',
     decanName: 'ḥry-ib msḥtjw',
     starCluster:
         '✨ ḥry-ib msḥtjw — the northern Foreleg star group, commonly associated with the Big Dipper form: seven bright stars making a bowl and bent handle around the northern sky',
     maatPrinciple: 'Name the Impulse',
     cosmicContext: '''
-Seed has entered the black earth. Ka upon Ka names vitality layered into continuity: the ka fed, the field entrusted, strength returning, and life placed into hiddenness so it can later rise. The force of the month must be protected, governed, and applied.
+Ptahhotep observed: the impulsive man destroys what the steady one built. The impulse is not the same as the intention. The impulse is returned vitality reaching for the first available target without the intelligence of purpose. It is neither bad nor good — it is unexamined force, which is the same as ungoverned force.
 
-This day belongs to ḥry-ib msḥtjw, the heart of the Foreleg, where strength is governed from within. The star-time movement does not function as decoration. It gives the day a position in the cycle: what appears in the sky, what is happening in the year, and what the heart must practice are held together.
-
-Day 2 turns that movement toward name the impulse.
-
-In practical life, this is where the old pattern meets the present body. Progress may ask for action, but not every action is Ma’at. Obstacles may ask for endurance, but not every burden should be carried. A return may ask for receiving, but not every gain should be consumed.
-
-The question is simple: What impulse wants to move before it has been measured?
+The circumpolar stars do not rush toward the parts of the sky they prefer. They complete their circuit with absolute regularity, the same distance from the pole on every pass. Their steadiness is not the absence of energy. It is energy organized by a fixed relationship to a fixed point. The heart of the Foreleg asks: what is your fixed point? Before acting on the impulse, name it. Naming is how the ib regains authority over the hand.
 ''',
     decanFlow: _compressedKaherkaFlowRows2,
     meduNeter: MeduNeterKey(
-      glyph: 'Ka arms, seed, and braced foreleg',
-      colorFrequency: 'Deep blue, living gold, and earth green',
-      mantra: '“I practice name the impulse in Ma’at.”',
+      glyph:
+          'The mouth before the action — the naming that holds the force still long enough for the heart to speak',
+      colorFrequency:
+          'Urgent gold arrested by deep blue — the impulse held at the threshold of the ib',
+      mantra:
+          '"I name the impulse before I let it move. Naming is the first governance."',
     ),
   ),
   'kaherka_13_2': KemeticDayInfo(
     kemeticDate: 'Ka-ḥer-Ka II, Day 3',
     season: '🌿 Peret – Season of Emergence',
-    month: 'Ka-ḥer-Ka (Kȝ-ḥr-Kȝ) — Life Upon Life',
+    month:
+        'Ka-ḥer-Ka (Kȝ-ḥr-Kȝ) — Life Upon Life — Vitality Placed Into the Earth',
     decanName: 'ḥry-ib msḥtjw',
     starCluster:
         '✨ ḥry-ib msḥtjw — the northern Foreleg star group, commonly associated with the Big Dipper form: seven bright stars making a bowl and bent handle around the northern sky',
     maatPrinciple: 'Choose the Right Load',
     cosmicContext: '''
-Seed has entered the black earth. Ka upon Ka names vitality layered into continuity: the ka fed, the field entrusted, strength returning, and life placed into hiddenness so it can later rise. The force of the month must be protected, governed, and applied.
+In Peret, not every available task belongs to this season of the work. The seed underground cannot be harvested — that time has not come. The levee already intact does not require repair. The household already stable does not need reorganization. The person who seizes every available task in the energy of returned vitality drains what should be accumulating.
 
-This day belongs to ḥry-ib msḥtjw, the heart of the Foreleg, where strength is governed from within. The star-time movement does not function as decoration. It gives the day a position in the cycle: what appears in the sky, what is happening in the year, and what the heart must practice are held together.
-
-Day 3 turns that movement toward choose the right load.
-
-In practical life, this is where the old pattern meets the present body. Progress may ask for action, but not every action is Ma’at. Obstacles may ask for endurance, but not every burden should be carried. A return may ask for receiving, but not every gain should be consumed.
-
-The question is simple: What load is mine now, and what load is not yet lawful?
+Ka-upon-Ka names a specific doubling: vitality added to vitality that serves. Not vitality scattered across every available demand until it spreads so thin it is no longer accumulating. The heart of the Foreleg governs which loads the returning strength should accept. The question is not whether to work. It is which work is genuinely yours to carry at this stage of the year.
 ''',
     decanFlow: _compressedKaherkaFlowRows2,
     meduNeter: MeduNeterKey(
-      glyph: 'Ka arms, seed, and braced foreleg',
-      colorFrequency: 'Deep blue, living gold, and earth green',
-      mantra: '“I practice choose the right load in Ma’at.”',
+      glyph:
+          'The balanced carrying pole — loads chosen for the carrier, not simply whatever presented itself',
+      colorFrequency:
+          'Warm earth gold and measured green — the correct load accepted, the mismatched load declined',
+      mantra: '"The right load strengthens. The wrong load drains. I choose."',
     ),
   ),
   'kaherka_14_2': KemeticDayInfo(
     kemeticDate: 'Ka-ḥer-Ka II, Day 4',
     season: '🌿 Peret – Season of Emergence',
-    month: 'Ka-ḥer-Ka (Kȝ-ḥr-Kȝ) — Life Upon Life',
+    month:
+        'Ka-ḥer-Ka (Kȝ-ḥr-Kȝ) — Life Upon Life — Vitality Placed Into the Earth',
     decanName: 'ḥry-ib msḥtjw',
     starCluster:
         '✨ ḥry-ib msḥtjw — the northern Foreleg star group, commonly associated with the Big Dipper form: seven bright stars making a bowl and bent handle around the northern sky',
     maatPrinciple: 'Moderate the Effort',
     cosmicContext: '''
-Seed has entered the black earth. Ka upon Ka names vitality layered into continuity: the ka fed, the field entrusted, strength returning, and life placed into hiddenness so it can later rise. The force of the month must be protected, governed, and applied.
+The irrigation channels of the Nile delta were not opened at full capacity. Water was released through sluices in measured flow — enough to saturate the specific field, not enough to wash the seedlings out. Too little water left the roots dry. Too much water drowned what it was meant to nourish. The sluice-keeper's skill was calibration: matching the release to what the current state of the field could absorb.
 
-This day belongs to ḥry-ib msḥtjw, the heart of the Foreleg, where strength is governed from within. The star-time movement does not function as decoration. It gives the day a position in the cycle: what appears in the sky, what is happening in the year, and what the heart must practice are held together.
-
-Day 4 turns that movement toward moderate the effort.
-
-In practical life, this is where the old pattern meets the present body. Progress may ask for action, but not every action is Ma’at. Obstacles may ask for endurance, but not every burden should be carried. A return may ask for receiving, but not every gain should be consumed.
-
-The question is simple: Where am I using more force than the moment requires?
+The heart of the Foreleg is the sluice. The returning strength is the water. The measure required is not the measure of what the field could receive at full health — it is the measure of what it can receive now, in its current state of recovery. The plant that receives more water than it can absorb does not grow faster. It rots.
 ''',
     decanFlow: _compressedKaherkaFlowRows2,
     meduNeter: MeduNeterKey(
-      glyph: 'Ka arms, seed, and braced foreleg',
-      colorFrequency: 'Deep blue, living gold, and earth green',
-      mantra: '“I practice moderate the effort in Ma’at.”',
+      glyph:
+          'The canal sluice — the measured release that determines whether the field flourishes or drowns',
+      colorFrequency:
+          'Nile blue and moderated gold — the flow calibrated to what the ground can receive',
+      mantra:
+          '"Right measure is not restraint. It is what the field can actually hold."',
     ),
   ),
   'kaherka_15_2': KemeticDayInfo(
     kemeticDate: 'Ka-ḥer-Ka II, Day 5',
     season: '🌿 Peret – Season of Emergence',
-    month: 'Ka-ḥer-Ka (Kȝ-ḥr-Kȝ) — Life Upon Life',
+    month:
+        'Ka-ḥer-Ka (Kȝ-ḥr-Kȝ) — Life Upon Life — Vitality Placed Into the Earth',
     decanName: 'ḥry-ib msḥtjw',
     starCluster:
         '✨ ḥry-ib msḥtjw — the northern Foreleg star group, commonly associated with the Big Dipper form: seven bright stars making a bowl and bent handle around the northern sky',
     maatPrinciple: 'Protect the Root From Excess',
     cosmicContext: '''
-Seed has entered the black earth. Ka upon Ka names vitality layered into continuity: the ka fed, the field entrusted, strength returning, and life placed into hiddenness so it can later rise. The force of the month must be protected, governed, and applied.
+There is a form of damage that looks like care. The farmer who overfeeds the seedling, who waters from anxiety rather than observation, who lifts the soil around the tender root to check on it repeatedly — this farmer does the harm that pests cannot. The root is harmed by excess attention as surely as by neglect. The harm from excess leaves no clear culprit. It looks like love.
 
-This day belongs to ḥry-ib msḥtjw, the heart of the Foreleg, where strength is governed from within. The star-time movement does not function as decoration. It gives the day a position in the cycle: what appears in the sky, what is happening in the year, and what the heart must practice are held together.
-
-Day 5 turns that movement toward protect the root from excess.
-
-In practical life, this is where the old pattern meets the present body. Progress may ask for action, but not every action is Ma’at. Obstacles may ask for endurance, but not every burden should be carried. A return may ask for receiving, but not every gain should be consumed.
-
-The question is simple: What would damage this growth if I handled it too hard?
+Ka-upon-Ka at this stage of the heart decan reveals this risk: the vitality returning to body, practice, and work needs space to consolidate, not constant testing of whether it has consolidated yet. What was new in the first decan is still new. Let it be what it is without the interference that masquerades as protection. The most loving act available today may be to keep your hands away from what is quietly taking root.
 ''',
     decanFlow: _compressedKaherkaFlowRows2,
     meduNeter: MeduNeterKey(
-      glyph: 'Ka arms, seed, and braced foreleg',
-      colorFrequency: 'Deep blue, living gold, and earth green',
-      mantra: '“I practice protect the root from excess in Ma’at.”',
+      glyph:
+          'Still hands at the edge of the seedling bed — protection enacted through restraint, not through action',
+      colorFrequency:
+          'Earth green emerging in guarded space — growth that needs the ground to itself',
+      mantra:
+          '"I protect by keeping my hands still. The root does not need me in it."',
     ),
   ),
   'kaherka_16_2': KemeticDayInfo(
     kemeticDate: 'Ka-ḥer-Ka II, Day 6',
     season: '🌿 Peret – Season of Emergence',
-    month: 'Ka-ḥer-Ka (Kȝ-ḥr-Kȝ) — Life Upon Life',
+    month:
+        'Ka-ḥer-Ka (Kȝ-ḥr-Kȝ) — Life Upon Life — Vitality Placed Into the Earth',
     decanName: 'ḥry-ib msḥtjw',
     starCluster:
         '✨ ḥry-ib msḥtjw — the northern Foreleg star group, commonly associated with the Big Dipper form: seven bright stars making a bowl and bent handle around the northern sky',
     maatPrinciple: 'Let the Heart Correct the Hand',
     cosmicContext: '''
-Seed has entered the black earth. Ka upon Ka names vitality layered into continuity: the ka fed, the field entrusted, strength returning, and life placed into hiddenness so it can later rise. The force of the month must be protected, governed, and applied.
+The adze of the Opening of the Mouth ritual was not wielded. It was presented — held in a specific way, directed at the specific point the rite required. The gesture that restored the faculty was precise in form and direction. The adze applied without the rite's correct form and intent did not restore anything. The rite required that the gesture answer to what the rite was for.
 
-This day belongs to ḥry-ib msḥtjw, the heart of the Foreleg, where strength is governed from within. The star-time movement does not function as decoration. It gives the day a position in the cycle: what appears in the sky, what is happening in the year, and what the heart must practice are held together.
-
-Day 6 turns that movement toward let the heart correct the hand.
-
-In practical life, this is where the old pattern meets the present body. Progress may ask for action, but not every action is Ma’at. Obstacles may ask for endurance, but not every burden should be carried. A return may ask for receiving, but not every gain should be consumed.
-
-The question is simple: Where does my hand need the heart’s correction?
+When the hand acts before the heart has given its authority, the action may succeed in its immediate object and fail in what it was supposed to serve. The heart of the Foreleg does not restrict action — it ensures that action moves in the direction the heart has sanctioned. Where has the hand moved ahead of the ib today? The correction is almost always available if addressed now, before the action hardens into a pattern.
 ''',
     decanFlow: _compressedKaherkaFlowRows2,
     meduNeter: MeduNeterKey(
-      glyph: 'Ka arms, seed, and braced foreleg',
-      colorFrequency: 'Deep blue, living gold, and earth green',
-      mantra: '“I practice let the heart correct the hand in Ma’at.”',
+      glyph:
+          'The adze presented at the correct angle — the precise gesture that only works when directed by the right intent',
+      colorFrequency:
+          'Governed gold on correction blue — the hand brought back under the authority that sanctioned it',
+      mantra:
+          '"Heart corrects hand. This is not weakness. It is the higher function."',
     ),
   ),
   'kaherka_17_2': KemeticDayInfo(
     kemeticDate: 'Ka-ḥer-Ka II, Day 7',
     season: '🌿 Peret – Season of Emergence',
-    month: 'Ka-ḥer-Ka (Kȝ-ḥr-Kȝ) — Life Upon Life',
+    month:
+        'Ka-ḥer-Ka (Kȝ-ḥr-Kȝ) — Life Upon Life — Vitality Placed Into the Earth',
     decanName: 'ḥry-ib msḥtjw',
     starCluster:
         '✨ ḥry-ib msḥtjw — the northern Foreleg star group, commonly associated with the Big Dipper form: seven bright stars making a bowl and bent handle around the northern sky',
     maatPrinciple: 'Speak From Steadiness',
     cosmicContext: '''
-Seed has entered the black earth. Ka upon Ka names vitality layered into continuity: the ka fed, the field entrusted, strength returning, and life placed into hiddenness so it can later rise. The force of the month must be protected, governed, and applied.
+The Kemetic ideal of right speech was not only about content. Ptahhotep was specific: the quality of what is said is rooted in the quality of the speaker's inner condition. The man who speaks from agitation, from the energy of returned vitality that has not yet settled, speaks things that may be true in general but are not accurate for the specific moment. The ground from which the speech rises determines what the speech can actually do.
 
-This day belongs to ḥry-ib msḥtjw, the heart of the Foreleg, where strength is governed from within. The star-time movement does not function as decoration. It gives the day a position in the cycle: what appears in the sky, what is happening in the year, and what the heart must practice are held together.
-
-Day 7 turns that movement toward speak from steadiness.
-
-In practical life, this is where the old pattern meets the present body. Progress may ask for action, but not every action is Ma’at. Obstacles may ask for endurance, but not every burden should be carried. A return may ask for receiving, but not every gain should be consumed.
-
-The question is simple: Does my speech carry strength under measure?
+Ka-upon-Ka at this stage of the heart decan holds a specific risk in speech: the returning strength can produce confidence that outruns what is confirmed. The strength that feels fully restored is not always the strength that has fully restored. Speak from what is stable. Not from what is hoped for, not from the energy of accumulation that feels like completion.
 ''',
     decanFlow: _compressedKaherkaFlowRows2,
     meduNeter: MeduNeterKey(
-      glyph: 'Ka arms, seed, and braced foreleg',
-      colorFrequency: 'Deep blue, living gold, and earth green',
-      mantra: '“I practice speak from steadiness in Ma’at.”',
+      glyph:
+          '𓂋 (mouth) grounded in still water — speech that rises from a settled source, not an agitated one',
+      colorFrequency:
+          'Still deep blue and measured gold — the surface calm enough for the words to emerge clearly',
+      mantra: '"I speak from the ground I can stand on. No further."',
     ),
   ),
   'kaherka_18_2': KemeticDayInfo(
     kemeticDate: 'Ka-ḥer-Ka II, Day 8',
     season: '🌿 Peret – Season of Emergence',
-    month: 'Ka-ḥer-Ka (Kȝ-ḥr-Kȝ) — Life Upon Life',
+    month:
+        'Ka-ḥer-Ka (Kȝ-ḥr-Kȝ) — Life Upon Life — Vitality Placed Into the Earth',
     decanName: 'ḥry-ib msḥtjw',
     starCluster:
         '✨ ḥry-ib msḥtjw — the northern Foreleg star group, commonly associated with the Big Dipper form: seven bright stars making a bowl and bent handle around the northern sky',
     maatPrinciple: 'Repair Overreach',
     cosmicContext: '''
-Seed has entered the black earth. Ka upon Ka names vitality layered into continuity: the ka fed, the field entrusted, strength returning, and life placed into hiddenness so it can later rise. The force of the month must be protected, governed, and applied.
+Overreach in Peret is specific. The field planted with too much seed produces nothing — the plants compete with themselves, none reaching full height, the same land that would produce abundance at correct density producing only crowded failure. The error is not intention. It is the mismatch between what was planted and what the ground can support.
 
-This day belongs to ḥry-ib msḥtjw, the heart of the Foreleg, where strength is governed from within. The star-time movement does not function as decoration. It gives the day a position in the cycle: what appears in the sky, what is happening in the year, and what the heart must practice are held together.
-
-Day 8 turns that movement toward repair overreach.
-
-In practical life, this is where the old pattern meets the present body. Progress may ask for action, but not every action is Ma’at. Obstacles may ask for endurance, but not every burden should be carried. A return may ask for receiving, but not every gain should be consumed.
-
-The question is simple: Where did I overreach, and how can I restore proportion?
+Ka-upon-Ka reveals overreach at this stage of the heart decan. The returning strength was real, and the desire to use it was natural, and some of what was taken on was more than the current state of consolidation can sustain. The repair is still available. It is the correction the ib exists to make. This is not failure — it is the heart of the Foreleg working correctly, naming what needs to be brought back to the correct measure before the next stage of work begins.
 ''',
     decanFlow: _compressedKaherkaFlowRows2,
     meduNeter: MeduNeterKey(
-      glyph: 'Ka arms, seed, and braced foreleg',
-      colorFrequency: 'Deep blue, living gold, and earth green',
-      mantra: '“I practice repair overreach in Ma’at.”',
+      glyph:
+          'Seed redistributed at correct density — the planting corrected before overcrowding prevents all growth',
+      colorFrequency:
+          'Warm earth and correction gold — the field restored to the measure that allows it to produce',
+      mantra:
+          '"Overreach corrected is not defeat. It is the heart reasserting its authority."',
     ),
   ),
   'kaherka_19_2': KemeticDayInfo(
     kemeticDate: 'Ka-ḥer-Ka II, Day 9',
     season: '🌿 Peret – Season of Emergence',
-    month: 'Ka-ḥer-Ka (Kȝ-ḥr-Kȝ) — Life Upon Life',
+    month:
+        'Ka-ḥer-Ka (Kȝ-ḥr-Kȝ) — Life Upon Life — Vitality Placed Into the Earth',
     decanName: 'ḥry-ib msḥtjw',
     starCluster:
         '✨ ḥry-ib msḥtjw — the northern Foreleg star group, commonly associated with the Big Dipper form: seven bright stars making a bowl and bent handle around the northern sky',
     maatPrinciple: 'Set the Law of Use',
     cosmicContext: '''
-Seed has entered the black earth. Ka upon Ka names vitality layered into continuity: the ka fed, the field entrusted, strength returning, and life placed into hiddenness so it can later rise. The force of the month must be protected, governed, and applied.
+In the Kemetic administrative system, the resources of the nome were governed by explicit laws of use — not by the preferences of whoever administered them in any given season, but by standing instructions that determined what could be drawn, when, and in what quantities. These laws of use protected the resource across changing conditions. The resource without a law of use was depleted by whoever had access to it.
 
-This day belongs to ḥry-ib msḥtjw, the heart of the Foreleg, where strength is governed from within. The star-time movement does not function as decoration. It gives the day a position in the cycle: what appears in the sky, what is happening in the year, and what the heart must practice are held together.
-
-Day 9 turns that movement toward set the law of use.
-
-In practical life, this is where the old pattern meets the present body. Progress may ask for action, but not every action is Ma’at. Obstacles may ask for endurance, but not every burden should be carried. A return may ask for receiving, but not every gain should be consumed.
-
-The question is simple: What law must govern this power so it serves Ma’at?
+The vitality returning through Ka-ḥer-Ka is a resource. Without a named law of use — without the explicit governance of how this strength will be deployed, how it will be paced, what it will refuse — it will be consumed by whatever presents itself. The heart of the Foreleg names this today as its central work: before the third decan places this strength in service, set the law under which it will operate.
 ''',
     decanFlow: _compressedKaherkaFlowRows2,
     meduNeter: MeduNeterKey(
-      glyph: 'Ka arms, seed, and braced foreleg',
-      colorFrequency: 'Deep blue, living gold, and earth green',
-      mantra: '“I practice set the law of use in Ma’at.”',
+      glyph:
+          'The nome administrative seal — the law of use that precedes the deployment of any resource',
+      colorFrequency:
+          'Gold sealed in clay — the law placed before the demand arrives, not after',
+      mantra:
+          '"I name the law before the demand arrives. The law governs, not the demand."',
     ),
   ),
   'kaherka_20_2': KemeticDayInfo(
     kemeticDate: 'Ka-ḥer-Ka II, Day 10',
     season: '🌿 Peret – Season of Emergence',
-    month: 'Ka-ḥer-Ka (Kȝ-ḥr-Kȝ) — Life Upon Life',
+    month:
+        'Ka-ḥer-Ka (Kȝ-ḥr-Kȝ) — Life Upon Life — Vitality Placed Into the Earth',
     decanName: 'ḥry-ib msḥtjw',
     starCluster:
         '✨ ḥry-ib msḥtjw — the northern Foreleg star group, commonly associated with the Big Dipper form: seven bright stars making a bowl and bent handle around the northern sky',
     maatPrinciple: 'Seal Disciplined Strength',
     cosmicContext: '''
-Seed has entered the black earth. Ka upon Ka names vitality layered into continuity: the ka fed, the field entrusted, strength returning, and life placed into hiddenness so it can later rise. The force of the month must be protected, governed, and applied.
+The heart of the Foreleg completes its watch. The strength that entered this decan as confirmed but raw has passed through the ib: it has been governed, moderated, corrected, protected from excess, given its law of use, and brought back to the correct measure when it overreached. What passes from this decan into the third is not the same vitality.
 
-This day belongs to ḥry-ib msḥtjw, the heart of the Foreleg, where strength is governed from within. The star-time movement does not function as decoration. It gives the day a position in the cycle: what appears in the sky, what is happening in the year, and what the heart must practice are held together.
-
-Day 10 turns that movement toward seal disciplined strength.
-
-In practical life, this is where the old pattern meets the present body. Progress may ask for action, but not every action is Ma’at. Obstacles may ask for endurance, but not every burden should be carried. A return may ask for receiving, but not every gain should be consumed.
-
-The question is simple: How will I know when my strength is still in right relation?
+In Kemetic architecture, the structure that had passed through quality inspection — measured, verified, sealed by the overseer — was different from the unverified structure, though they might appear identical to the eye. The sealed one had been through the governance that made it reliable. Name the difference between the strength you entered this decan with and the strength you now carry into the work that awaits it.
 ''',
     decanFlow: _compressedKaherkaFlowRows2,
     meduNeter: MeduNeterKey(
-      glyph: 'Ka arms, seed, and braced foreleg',
-      colorFrequency: 'Deep blue, living gold, and earth green',
-      mantra: '“I practice seal disciplined strength in Ma’at.”',
+      glyph:
+          'The overseer\'s seal on verified stone — strength that has passed through the heart\'s accounting, now reliable',
+      colorFrequency:
+          'Deep governed gold on confirmed earth — the second watch sealed, the discipline established',
+      mantra:
+          '"What has been governed by the ib is not the same strength that entered. It has become reliable."',
     ),
   ),
   'kaherka_21_3': KemeticDayInfo(
     kemeticDate: 'Ka-ḥer-Ka III, Day 1',
     season: '🌿 Peret – Season of Emergence',
-    month: 'Ka-ḥer-Ka (Kȝ-ḥr-Kȝ) — Life Upon Life',
+    month:
+        'Ka-ḥer-Ka (Kȝ-ḥr-Kȝ) — Life Upon Life — Vitality Placed Into the Earth',
     decanName: 'sbꜣ msḥtjw',
     starCluster:
         '✨ sbꜣ msḥtjw — the northern Foreleg star group, commonly associated with the Big Dipper form: seven bright stars making a bowl and bent handle around the northern sky',
     maatPrinciple: 'Place Strength Into Service',
     cosmicContext: '''
-Seed has entered the black earth. Ka upon Ka names vitality layered into continuity: the ka fed, the field entrusted, strength returning, and life placed into hiddenness so it can later rise. The force of the month must be protected, governed, and applied.
+Ka-upon-Ka doubles. But doubling that accumulates without directing outward eventually becomes its opposite. The vitality that has been confirmed in the first decan and governed in the second reaches its correct completion when it is placed in service of what the field actually needs. Accumulation as an end in itself is not the goal of this month — it is the preparation for this decan's work.
 
-This day belongs to sbꜣ msḥtjw, the star of the Foreleg, where strength becomes useful service. The star-time movement does not function as decoration. It gives the day a position in the cycle: what appears in the sky, what is happening in the year, and what the heart must practice are held together.
-
-Day 1 turns that movement toward place strength into service.
-
-In practical life, this is where the old pattern meets the present body. Progress may ask for action, but not every action is Ma’at. Obstacles may ask for endurance, but not every burden should be carried. A return may ask for receiving, but not every gain should be consumed.
-
-The question is simple: Where is my strength actually needed?
+The star of the Foreleg rises on the outer reach of the circumpolar arc. It moves further from the center, toward the portion of sky that receives less attention. This is the motion of service: strength that has been verified and governed, now directed outward toward the genuine need. The question is no longer whether strength has returned. That was the first decan's work. The question now is where the world requires it.
 ''',
     decanFlow: _compressedKaherkaFlowRows3,
     meduNeter: MeduNeterKey(
-      glyph: 'Ka arms, seed, and braced foreleg',
-      colorFrequency: 'Deep blue, living gold, and earth green',
-      mantra: '“I practice place strength into service in Ma’at.”',
+      glyph:
+          'The foreleg extended outward — the confirmed and governed limb now in deliberate service',
+      colorFrequency:
+          'Living earth green and outward gold — the strength that has turned from gathering toward giving',
+      mantra:
+          '"Strength that serves is strength completed. I bring it where it belongs."',
     ),
   ),
   'kaherka_22_3': KemeticDayInfo(
     kemeticDate: 'Ka-ḥer-Ka III, Day 2',
     season: '🌿 Peret – Season of Emergence',
-    month: 'Ka-ḥer-Ka (Kȝ-ḥr-Kȝ) — Life Upon Life',
+    month:
+        'Ka-ḥer-Ka (Kȝ-ḥr-Kȝ) — Life Upon Life — Vitality Placed Into the Earth',
     decanName: 'sbꜣ msḥtjw',
     starCluster:
         '✨ sbꜣ msḥtjw — the northern Foreleg star group, commonly associated with the Big Dipper form: seven bright stars making a bowl and bent handle around the northern sky',
     maatPrinciple: 'Begin With the Necessary Task',
     cosmicContext: '''
-Seed has entered the black earth. Ka upon Ka names vitality layered into continuity: the ka fed, the field entrusted, strength returning, and life placed into hiddenness so it can later rise. The force of the month must be protected, governed, and applied.
+The Kemetic principle of ꜣḫ — effectiveness, practical virtue — taught that work performed with correct priority produced more than greater effort applied to the wrong object. The necessary task was the one whose completion kept the system moving: without it, everything else compensated for its absence. The optional task could wait. The necessary task's absence was felt by everything that depended on it.
 
-This day belongs to sbꜣ msḥtjw, the star of the Foreleg, where strength becomes useful service. The star-time movement does not function as decoration. It gives the day a position in the cycle: what appears in the sky, what is happening in the year, and what the heart must practice are held together.
-
-Day 2 turns that movement toward begin with the necessary task.
-
-In practical life, this is where the old pattern meets the present body. Progress may ask for action, but not every action is Ma’at. Obstacles may ask for endurance, but not every burden should be carried. A return may ask for receiving, but not every gain should be consumed.
-
-The question is simple: What work matters because it keeps life moving?
+Ka-upon-Ka at this stage asks a simple question: of all the work available, which is the single task whose completion keeps life moving in the correct direction? Not the most visible task, not the most impressive one, not the one with the most immediate payoff. The one that keeps the structure of the year alive and functional. Begin there, not because it is satisfying, but because it is the ground everything else rests on.
 ''',
     decanFlow: _compressedKaherkaFlowRows3,
     meduNeter: MeduNeterKey(
-      glyph: 'Ka arms, seed, and braced foreleg',
-      colorFrequency: 'Deep blue, living gold, and earth green',
-      mantra: '“I practice begin with the necessary task in Ma’at.”',
+      glyph:
+          'The carrying pole directed to the primary destination — work that begins where continuity requires, not where preference points',
+      colorFrequency:
+          'Purposeful earth and foundational gold — the necessary task first, before anything else',
+      mantra: '"I begin where life continues. Not where I prefer."',
     ),
   ),
   'kaherka_23_3': KemeticDayInfo(
     kemeticDate: 'Ka-ḥer-Ka III, Day 3',
     season: '🌿 Peret – Season of Emergence',
-    month: 'Ka-ḥer-Ka (Kȝ-ḥr-Kȝ) — Life Upon Life',
+    month:
+        'Ka-ḥer-Ka (Kȝ-ḥr-Kȝ) — Life Upon Life — Vitality Placed Into the Earth',
     decanName: 'sbꜣ msḥtjw',
     starCluster:
         '✨ sbꜣ msḥtjw — the northern Foreleg star group, commonly associated with the Big Dipper form: seven bright stars making a bowl and bent handle around the northern sky',
     maatPrinciple: 'Use Power With Precision',
     cosmicContext: '''
-Seed has entered the black earth. Ka upon Ka names vitality layered into continuity: the ka fed, the field entrusted, strength returning, and life placed into hiddenness so it can later rise. The force of the month must be protected, governed, and applied.
+The adze of the Opening of the Mouth was not swung. It was held and presented — the precise gesture at the precise point the rite required. A larger motion would have missed the specific faculty to be restored. The power of the rite came from accuracy, not force. One hundred units of effort placed incorrectly accomplishes what ten units placed correctly could not.
 
-This day belongs to sbꜣ msḥtjw, the star of the Foreleg, where strength becomes useful service. The star-time movement does not function as decoration. It gives the day a position in the cycle: what appears in the sky, what is happening in the year, and what the heart must practice are held together.
-
-Day 3 turns that movement toward use power with precision.
-
-In practical life, this is where the old pattern meets the present body. Progress may ask for action, but not every action is Ma’at. Obstacles may ask for endurance, but not every burden should be carried. A return may ask for receiving, but not every gain should be consumed.
-
-The question is simple: Where will one precise action do more than ten scattered ones?
+Ka-upon-Ka has accumulated genuine force by the third decan. The risk of accumulated force is its misapplication — using it broadly where it should be used precisely. The field prepared carefully for specific planting does not benefit from general irrigation across the whole acreage. It benefits from water delivered to the specific root. Precision does what force cannot. The point of application determines everything.
 ''',
     decanFlow: _compressedKaherkaFlowRows3,
     meduNeter: MeduNeterKey(
-      glyph: 'Ka arms, seed, and braced foreleg',
-      colorFrequency: 'Deep blue, living gold, and earth green',
-      mantra: '“I practice use power with precision in Ma’at.”',
+      glyph:
+          'The adze touching the exact point — precision that restores what force alone cannot reach',
+      colorFrequency:
+          'Concentrated gold on specific earth — the effort that finds its mark and does not spread past it',
+      mantra: '"Precision does what force cannot. I place the effort exactly."',
     ),
   ),
   'kaherka_24_3': KemeticDayInfo(
     kemeticDate: 'Ka-ḥer-Ka III, Day 4',
     season: '🌿 Peret – Season of Emergence',
-    month: 'Ka-ḥer-Ka (Kȝ-ḥr-Kȝ) — Life Upon Life',
+    month:
+        'Ka-ḥer-Ka (Kȝ-ḥr-Kȝ) — Life Upon Life — Vitality Placed Into the Earth',
     decanName: 'sbꜣ msḥtjw',
     starCluster:
         '✨ sbꜣ msḥtjw — the northern Foreleg star group, commonly associated with the Big Dipper form: seven bright stars making a bowl and bent handle around the northern sky',
     maatPrinciple: 'Support What Is Growing',
     cosmicContext: '''
-Seed has entered the black earth. Ka upon Ka names vitality layered into continuity: the ka fed, the field entrusted, strength returning, and life placed into hiddenness so it can later rise. The force of the month must be protected, governed, and applied.
+In Peret, the farmer's role shifts. Planting is done. The seed has committed — it has cracked open, sent roots down, begun its reach upward. The farmer's vigilance moves from the ground to what is above the ground: weeds that compete for light and water, pests that take what is not theirs, gaps in the support structure that would let the tender stem bend and break. The preparation season is over. The support season has begun.
 
-This day belongs to sbꜣ msḥtjw, the star of the Foreleg, where strength becomes useful service. The star-time movement does not function as decoration. It gives the day a position in the cycle: what appears in the sky, what is happening in the year, and what the heart must practice are held together.
-
-Day 4 turns that movement toward support what is growing.
-
-In practical life, this is where the old pattern meets the present body. Progress may ask for action, but not every action is Ma’at. Obstacles may ask for endurance, but not every burden should be carried. A return may ask for receiving, but not every gain should be consumed.
-
-The question is simple: What support would help this growth continue?
+Ka-upon-Ka holds this same movement. What was seeded in Hathor and established in the first two decans of this month is now visible and above ground. What it needs is not more seeding. It needs support: removal of what competes, provision of what nourishes, protection from what damages. Place the confirmed strength in service of what is already growing. The new planting can wait.
 ''',
     decanFlow: _compressedKaherkaFlowRows3,
     meduNeter: MeduNeterKey(
-      glyph: 'Ka arms, seed, and braced foreleg',
-      colorFrequency: 'Deep blue, living gold, and earth green',
-      mantra: '“I practice support what is growing in Ma’at.”',
+      glyph:
+          'The farmer tending what has emerged — attention moved from the seed to the growing thing above the surface',
+      colorFrequency:
+          'Living green above black earth — the growth that is already there, now receiving its support',
+      mantra:
+          '"What has already broken ground has my attention now. I tend what is alive."',
     ),
   ),
   'kaherka_25_3': KemeticDayInfo(
     kemeticDate: 'Ka-ḥer-Ka III, Day 5',
     season: '🌿 Peret – Season of Emergence',
-    month: 'Ka-ḥer-Ka (Kȝ-ḥr-Kȝ) — Life Upon Life',
+    month:
+        'Ka-ḥer-Ka (Kȝ-ḥr-Kȝ) — Life Upon Life — Vitality Placed Into the Earth',
     decanName: 'sbꜣ msḥtjw',
     starCluster:
         '✨ sbꜣ msḥtjw — the northern Foreleg star group, commonly associated with the Big Dipper form: seven bright stars making a bowl and bent handle around the northern sky',
     maatPrinciple: 'Refuse Wasteful Force',
     cosmicContext: '''
-Seed has entered the black earth. Ka upon Ka names vitality layered into continuity: the ka fed, the field entrusted, strength returning, and life placed into hiddenness so it can later rise. The force of the month must be protected, governed, and applied.
+The Kemetic scribe who copied sacred texts was trained in economy. The material was expensive, the space finite, the craft measured by how completely the necessary was rendered and how completely the unnecessary was omitted. No stroke that did not serve the inscription. No word placed that did not belong. The quality of the work was visible in what was not there as much as in what was.
 
-This day belongs to sbꜣ msḥtjw, the star of the Foreleg, where strength becomes useful service. The star-time movement does not function as decoration. It gives the day a position in the cycle: what appears in the sky, what is happening in the year, and what the heart must practice are held together.
-
-Day 5 turns that movement toward refuse wasteful force.
-
-In practical life, this is where the old pattern meets the present body. Progress may ask for action, but not every action is Ma’at. Obstacles may ask for endurance, but not every burden should be carried. A return may ask for receiving, but not every gain should be consumed.
-
-The question is simple: Where am I using strength just because I have it?
+Ka-upon-Ka carries vitality that was not available at the beginning of the year. The temptation is to use it in proportion to how much it was missed — to demonstrate its return through expenditure, to do now what could not be done before, simply because the capacity is present. This is the mistake the star of the Foreleg names: strength used to prove itself is strength spent before it serves. The test of returned vitality is not its performance but its conservation in service of what actually matters.
 ''',
     decanFlow: _compressedKaherkaFlowRows3,
     meduNeter: MeduNeterKey(
-      glyph: 'Ka arms, seed, and braced foreleg',
-      colorFrequency: 'Deep blue, living gold, and earth green',
-      mantra: '“I practice refuse wasteful force in Ma’at.”',
+      glyph:
+          'The scribe\'s restrained brush — the economy of the trained hand that places nothing it does not mean to place',
+      colorFrequency:
+          'Refined gold on conserved black — strength kept for use that serves, not use that demonstrates',
+      mantra:
+          '"Force that serves a real need is never wasted. Force that performs is always wasted."',
     ),
   ),
   'kaherka_26_3': KemeticDayInfo(
     kemeticDate: 'Ka-ḥer-Ka III, Day 6',
     season: '🌿 Peret – Season of Emergence',
-    month: 'Ka-ḥer-Ka (Kȝ-ḥr-Kȝ) — Life Upon Life',
+    month:
+        'Ka-ḥer-Ka (Kȝ-ḥr-Kȝ) — Life Upon Life — Vitality Placed Into the Earth',
     decanName: 'sbꜣ msḥtjw',
     starCluster:
         '✨ sbꜣ msḥtjw — the northern Foreleg star group, commonly associated with the Big Dipper form: seven bright stars making a bowl and bent handle around the northern sky',
     maatPrinciple: 'Carry the Right Weight',
     cosmicContext: '''
-Seed has entered the black earth. Ka upon Ka names vitality layered into continuity: the ka fed, the field entrusted, strength returning, and life placed into hiddenness so it can later rise. The force of the month must be protected, governed, and applied.
+The ox's foreleg was prized not only for its strength but for the correct application of that strength. An animal hitched to a load mismatched to its capacity — too heavy or misaligned — did not work more effectively. It damaged itself and the load. The correct yoke, the correctly distributed weight, the load matched to the specific capacity of the specific animal on this specific day: this was the condition under which maximum useful work was possible.
 
-This day belongs to sbꜣ msḥtjw, the star of the Foreleg, where strength becomes useful service. The star-time movement does not function as decoration. It gives the day a position in the cycle: what appears in the sky, what is happening in the year, and what the heart must practice are held together.
-
-Day 6 turns that movement toward carry the right weight.
-
-In practical life, this is where the old pattern meets the present body. Progress may ask for action, but not every action is Ma’at. Obstacles may ask for endurance, but not every burden should be carried. A return may ask for receiving, but not every gain should be consumed.
-
-The question is simple: What weight strengthens me, and what weight distorts me?
+Ka-upon-Ka at this stage requires the same assessment. Not all available weight should be accepted. Not all available weight should be declined. The correct load exercises what has returned without exceeding what is consolidated. There is a responsibility that is genuinely yours — it builds the strength you have. And there is one you are carrying that belongs to someone else — it depletes the strength you have. Know the difference.
 ''',
     decanFlow: _compressedKaherkaFlowRows3,
     meduNeter: MeduNeterKey(
-      glyph: 'Ka arms, seed, and braced foreleg',
-      colorFrequency: 'Deep blue, living gold, and earth green',
-      mantra: '“I practice carry the right weight in Ma’at.”',
+      glyph:
+          'The yoke fitted to the animal — the load matched to the actual capacity, not the wished-for capacity',
+      colorFrequency:
+          'Working earth and balanced gold — the load that builds rather than depletes the carrier',
+      mantra:
+          '"The right weight builds strength. The wrong weight drains it. I know the difference."',
     ),
   ),
   'kaherka_27_3': KemeticDayInfo(
     kemeticDate: 'Ka-ḥer-Ka III, Day 7',
     season: '🌿 Peret – Season of Emergence',
-    month: 'Ka-ḥer-Ka (Kȝ-ḥr-Kȝ) — Life Upon Life',
+    month:
+        'Ka-ḥer-Ka (Kȝ-ḥr-Kȝ) — Life Upon Life — Vitality Placed Into the Earth',
     decanName: 'sbꜣ msḥtjw',
     starCluster:
         '✨ sbꜣ msḥtjw — the northern Foreleg star group, commonly associated with the Big Dipper form: seven bright stars making a bowl and bent handle around the northern sky',
     maatPrinciple: 'Make the Work Reliable',
     cosmicContext: '''
-Seed has entered the black earth. Ka upon Ka names vitality layered into continuity: the ka fed, the field entrusted, strength returning, and life placed into hiddenness so it can later rise. The force of the month must be protected, governed, and applied.
+The circumpolar stars are the Kemetic symbol of reliability above all others. They never fail to appear. They complete their circuit without variation. The priests who set their calendars by the stars depended on this reliability as the foundation of the entire temporal system. A star that was mostly circumpolar — present on most nights but occasionally absent — could not serve the same function. The imperishable ones were imperishable in the specific sense of never failing.
 
-This day belongs to sbꜣ msḥtjw, the star of the Foreleg, where strength becomes useful service. The star-time movement does not function as decoration. It gives the day a position in the cycle: what appears in the sky, what is happening in the year, and what the heart must practice are held together.
-
-Day 7 turns that movement toward make the work reliable.
-
-In practical life, this is where the old pattern meets the present body. Progress may ask for action, but not every action is Ma’at. Obstacles may ask for endurance, but not every burden should be carried. A return may ask for receiving, but not every gain should be consumed.
-
-The question is simple: How can this become dependable instead of occasional?
+Ka-upon-Ka names the doubling of vital force. The completed form of doubled vitality is reliability: not only present but consistently present, not only capable but dependably capable. What one person did well once has not yet become reliable. What they do well, consistently, in varied conditions, across time — this is the reliability that others can build on and systems can depend on. The star of the Foreleg asks: what would it take to make one part of this work into something that never fails to appear?
 ''',
     decanFlow: _compressedKaherkaFlowRows3,
     meduNeter: MeduNeterKey(
-      glyph: 'Ka arms, seed, and braced foreleg',
-      colorFrequency: 'Deep blue, living gold, and earth green',
-      mantra: '“I practice make the work reliable in Ma’at.”',
+      glyph:
+          'msḥtjw completing its circuit — the consistency that is measured across many nights, not one',
+      colorFrequency:
+          'Steady circumpolar gold — the reliability that makes the calendar possible',
+      mantra:
+          '"Reliability is strength that has committed to returning. Like the circumpolar stars."',
     ),
   ),
   'kaherka_28_3': KemeticDayInfo(
     kemeticDate: 'Ka-ḥer-Ka III, Day 8',
     season: '🌿 Peret – Season of Emergence',
-    month: 'Ka-ḥer-Ka (Kȝ-ḥr-Kȝ) — Life Upon Life',
+    month:
+        'Ka-ḥer-Ka (Kȝ-ḥr-Kȝ) — Life Upon Life — Vitality Placed Into the Earth',
     decanName: 'sbꜣ msḥtjw',
     starCluster:
         '✨ sbꜣ msḥtjw — the northern Foreleg star group, commonly associated with the Big Dipper form: seven bright stars making a bowl and bent handle around the northern sky',
     maatPrinciple: 'Let Service Be Seen',
     cosmicContext: '''
-Seed has entered the black earth. Ka upon Ka names vitality layered into continuity: the ka fed, the field entrusted, strength returning, and life placed into hiddenness so it can later rise. The force of the month must be protected, governed, and applied.
+The Kemetic autobiographical inscription was a form of public accounting. "I gave bread to the hungry. I clothed the naked. I did not let the weak be harmed by the powerful." These declarations were not boasting — they were the record of what a life had actually done, placed in permanent inscription for the community and the divine to witness. The record existed because correct conduct required acknowledgment to complete its social function.
 
-This day belongs to sbꜣ msḥtjw, the star of the Foreleg, where strength becomes useful service. The star-time movement does not function as decoration. It gives the day a position in the cycle: what appears in the sky, what is happening in the year, and what the heart must practice are held together.
-
-Day 8 turns that movement toward let service be seen.
-
-In practical life, this is where the old pattern meets the present body. Progress may ask for action, but not every action is Ma’at. Obstacles may ask for endurance, but not every burden should be carried. A return may ask for receiving, but not every gain should be consumed.
-
-The question is simple: What proof of service can stand without boasting?
+Ka-upon-Ka in service does not require concealment. Strength confirmed, governed, and placed in genuine service of what needs it does not need to hide itself. The hiding of service is its own distortion — a form of false modesty that withholds the standing that correct conduct earns, and simultaneously deprives the community of the accurate record it depends on. Let what has been done stand. Not with pride that exceeds the doing. With the honest presentation of what is actually there.
 ''',
     decanFlow: _compressedKaherkaFlowRows3,
     meduNeter: MeduNeterKey(
-      glyph: 'Ka arms, seed, and braced foreleg',
-      colorFrequency: 'Deep blue, living gold, and earth green',
-      mantra: '“I practice let service be seen in Ma’at.”',
+      glyph:
+          'The autobiographical inscription — the record of what was done, placed in the permanent account',
+      colorFrequency:
+          'Standing gold on witnessed earth — the service made visible as the record it belongs to',
+      mantra:
+          '"The record of right action is not vanity. It is the accounting that Maʿat requires."',
     ),
   ),
   'kaherka_29_3': KemeticDayInfo(
     kemeticDate: 'Ka-ḥer-Ka III, Day 9',
     season: '🌿 Peret – Season of Emergence',
-    month: 'Ka-ḥer-Ka (Kȝ-ḥr-Kȝ) — Life Upon Life',
+    month:
+        'Ka-ḥer-Ka (Kȝ-ḥr-Kȝ) — Life Upon Life — Vitality Placed Into the Earth',
     decanName: 'sbꜣ msḥtjw',
     starCluster:
         '✨ sbꜣ msḥtjw — the northern Foreleg star group, commonly associated with the Big Dipper form: seven bright stars making a bowl and bent handle around the northern sky',
     maatPrinciple: 'Offer the Result',
     cosmicContext: '''
-Seed has entered the black earth. Ka upon Ka names vitality layered into continuity: the ka fed, the field entrusted, strength returning, and life placed into hiddenness so it can later rise. The force of the month must be protected, governed, and applied.
+In the Kemetic offering system, the result of labor was not kept by the one who labored. It was first offered — directed toward netjeru, ancestor, household, community — and then received back in the form of the standing the offering produced. The farmer who kept the entire harvest did not gain more than the farmer who offered correctly. The farmer who offered correctly kept the system that produced the harvest alive to produce again.
 
-This day belongs to sbꜣ msḥtjw, the star of the Foreleg, where strength becomes useful service. The star-time movement does not function as decoration. It gives the day a position in the cycle: what appears in the sky, what is happening in the year, and what the heart must practice are held together.
-
-Day 9 turns that movement toward offer the result.
-
-In practical life, this is where the old pattern meets the present body. Progress may ask for action, but not every action is Ma’at. Obstacles may ask for endurance, but not every burden should be carried. A return may ask for receiving, but not every gain should be consumed.
-
-The question is simple: Who or what should receive from what my strength produced?
+Ka-upon-Ka has produced something across this month. Some fruit of the returned and deployed strength is available. Before that fruit is claimed or consumed, the offering question arises: what portion returns to what made this possible? To the ancestor whose practice you carry, to the household whose stability freed you to do this work, to the practice itself that sustained the capacity, to the future that will need the seed of what you learned.
 ''',
     decanFlow: _compressedKaherkaFlowRows3,
     meduNeter: MeduNeterKey(
-      glyph: 'Ka arms, seed, and braced foreleg',
-      colorFrequency: 'Deep blue, living gold, and earth green',
-      mantra: '“I practice offer the result in Ma’at.”',
+      glyph:
+          'Offering arms before the first fruit — the result that returns before it is claimed',
+      colorFrequency:
+          'Offering gold rising from harvest earth — the first portion directed before the remainder is received',
+      mantra:
+          '"I offer before I receive. The offering keeps the system alive."',
     ),
   ),
   'kaherka_30_3': KemeticDayInfo(
     kemeticDate: 'Ka-ḥer-Ka III, Day 10',
     season: '🌿 Peret – Season of Emergence',
-    month: 'Ka-ḥer-Ka (Kȝ-ḥr-Kȝ) — Life Upon Life',
+    month:
+        'Ka-ḥer-Ka (Kȝ-ḥr-Kȝ) — Life Upon Life — Vitality Placed Into the Earth',
     decanName: 'sbꜣ msḥtjw',
     starCluster:
         '✨ sbꜣ msḥtjw — the northern Foreleg star group, commonly associated with the Big Dipper form: seven bright stars making a bowl and bent handle around the northern sky',
     maatPrinciple: 'Seal Applied Strength',
     cosmicContext: '''
-Seed has entered the black earth. Ka upon Ka names vitality layered into continuity: the ka fed, the field entrusted, strength returning, and life placed into hiddenness so it can later rise. The force of the month must be protected, governed, and applied.
+Ka-ḥer-Ka closes. The month that opened with strength barely recognizable as returning ends with strength confirmed, governed, placed in service, bearing fruit, and sealed in the record. The Foreleg that braced at the month's opening has carried its full arc — from the careful test of Day 2 to the offering of Day 29. What passes forward is not the same vitality that entered this month. It has been shaped by use.
 
-This day belongs to sbꜣ msḥtjw, the star of the Foreleg, where strength becomes useful service. The star-time movement does not function as decoration. It gives the day a position in the cycle: what appears in the sky, what is happening in the year, and what the heart must practice are held together.
-
-Day 10 turns that movement toward seal applied strength.
-
-In practical life, this is where the old pattern meets the present body. Progress may ask for action, but not every action is Ma’at. Obstacles may ask for endurance, but not every burden should be carried. A return may ask for receiving, but not every gain should be consumed.
-
-The question is simple: How will this strength remain useful after this month ends?
+The circumpolar stars do not change. But the observer who watches them across thirty days has changed. What was recognized as possibility at the opening of Ka-ḥer-Ka is established as fact at its close. Seal that fact. Name it with the specificity it has earned. It is the ground Šef-Bedet stands on — not hoped-for strength, not aspired capacity, but what has been tested, governed, deployed, and confirmed to be real.
 ''',
     decanFlow: _compressedKaherkaFlowRows3,
     meduNeter: MeduNeterKey(
-      glyph: 'Ka arms, seed, and braced foreleg',
-      colorFrequency: 'Deep blue, living gold, and earth green',
-      mantra: '“I practice seal applied strength in Ma’at.”',
+      glyph:
+          'The sealed scroll beside the standing Foreleg — the month\'s accounting complete, the confirmed vitality bound forward',
+      colorFrequency:
+          'Sealed gold and verified earth green — the month closed with what was proved, not what was wished',
+      mantra:
+          '"What passes forward from Ka-ḥer-Ka is confirmed strength. I seal it and carry it."',
     ),
   ),
   'sefbedet_1_1': KemeticDayInfo(
@@ -8012,782 +7859,663 @@ The question is simple: What does seal quiet competence require now?
   ),
   'renwet_1_1': KemeticDayInfo(
     kemeticDate: 'Renwet I, Day 1',
-    season: '☀️ Shemu – Season of Harvest',
-    month: 'Renwet (Rnnwt) — Nourishment Fulfilled and Destiny Made Visible',
-    decanName: 'ꜥpdw',
+    season: '🌾 Shemu – Season of Harvest',
+    month:
+        'Renwet (Rnnwt) — Renenutet, the nourishing serpent; the return of the harvest; receiving, distributing, and seeding the next cycle',
+    decanName: 'tpy-ꜥ renpet',
     starCluster:
         '✨ ꜥpdw — a modest decanal star group watched near the eastern horizon during this ten-day interval; exact modern identification is uncertain',
-    maatPrinciple: 'Recognize the First Return',
+    maatPrinciple: 'Receive What Was Earned',
     cosmicContext: '''
-What was planted, fed, and tested now returns. Renwet belongs to Renenutet: harvest, granary, nursing, destiny, and guarded provision. Receiving becomes a test of Ma’at because abundance must be divided, offered, stored, shared, and preserved.
-
-This day belongs to ꜥpdw, the Birds, where the first signs of answer gather where life has concentrated. The star-time movement does not function as decoration. It gives the day a position in the cycle: what appears in the sky, what is happening in the year, and what the heart must practice are held together.
-
-Day 1 turns that movement toward recognize the first return.
-
-In practical life, this is where the old pattern meets the present body. Progress may ask for action, but not every action is Ma’at. Obstacles may ask for endurance, but not every burden should be carried. A return may ask for receiving, but not every gain should be consumed.
-
-The question is simple: What does recognize the first return require now?
-''',
+Renwet opens Shemu — the first harvest month, when the long labor of Akhet and Peret finally yields.
+The harvest gate is not only reward. It is an obligation — to actually walk through it, assess what is there, and receive it rightly.
+Many who strived through the hard months arrive at the harvest gate and continue striving past the moment where receiving is what Maʿat requires.
+Receive what the year produced.''',
     decanFlow: _compressedRenwetFlowRows1,
     meduNeter: MeduNeterKey(
-      glyph: 'Grain basket, bird, and guarded storehouse',
-      colorFrequency: 'Harvest gold, deep blue, and offering white',
-      mantra: '“I practice recognize the first return in Ma’at.”',
+      glyph:
+          'Open granary gate — the harvest gate walked through, not passed by',
+      colorFrequency:
+          'Harvest gold and open-gate morning — the first light of Shemu',
+      mantra: '"I receive what the year produced."',
     ),
   ),
   'renwet_2_1': KemeticDayInfo(
     kemeticDate: 'Renwet I, Day 2',
-    season: '☀️ Shemu – Season of Harvest',
-    month: 'Renwet (Rnnwt) — Nourishment Fulfilled and Destiny Made Visible',
-    decanName: 'ꜥpdw',
+    season: '🌾 Shemu – Season of Harvest',
+    month:
+        'Renwet (Rnnwt) — Renenutet, the nourishing serpent; the return of the harvest',
+    decanName: 'tpy-ꜥ renpet',
     starCluster:
         '✨ ꜥpdw — a modest decanal star group watched near the eastern horizon during this ten-day interval; exact modern identification is uncertain',
-    maatPrinciple: 'Receive Without Grasping',
+    maatPrinciple: 'The Harvest Is the Truth',
     cosmicContext: '''
-What was planted, fed, and tested now returns. Renwet belongs to Renenutet: harvest, granary, nursing, destiny, and guarded provision. Receiving becomes a test of Ma’at because abundance must be divided, offered, stored, shared, and preserved.
-
-This day belongs to ꜥpdw, the Birds, where the first signs of answer gather where life has concentrated. The star-time movement does not function as decoration. It gives the day a position in the cycle: what appears in the sky, what is happening in the year, and what the heart must practice are held together.
-
-Day 2 turns that movement toward receive without grasping.
-
-In practical life, this is where the old pattern meets the present body. Progress may ask for action, but not every action is Ma’at. Obstacles may ask for endurance, but not every burden should be carried. A return may ask for receiving, but not every gain should be consumed.
-
-The question is simple: What does receive without grasping require now?
-''',
+The yield cannot be negotiated. The field produces according to what was actually done to it across the whole year.
+What was planted, tended, protected, neglected — all of it appears in the harvest. Nothing is hidden from the grain.
+The beautiful year is beautiful not because it was easy but because what was done in it was done correctly.
+Read the harvest honestly.''',
     decanFlow: _compressedRenwetFlowRows1,
     meduNeter: MeduNeterKey(
-      glyph: 'Grain basket, bird, and guarded storehouse',
-      colorFrequency: 'Harvest gold, deep blue, and offering white',
-      mantra: '“I practice receive without grasping in Ma’at.”',
+      glyph:
+          'Grain head heavy with what the year produced — the truth of the field visible',
+      colorFrequency:
+          'Honest gold and field truth — the harvest that does not negotiate',
+      mantra: '"The harvest is the truth of the year."',
     ),
   ),
   'renwet_3_1': KemeticDayInfo(
     kemeticDate: 'Renwet I, Day 3',
-    season: '☀️ Shemu – Season of Harvest',
-    month: 'Renwet (Rnnwt) — Nourishment Fulfilled and Destiny Made Visible',
-    decanName: 'ꜥpdw',
+    season: '🌾 Shemu – Season of Harvest',
+    month: 'Renwet (Rnnwt)',
+    decanName: 'tpy-ꜥ renpet',
     starCluster:
         '✨ ꜥpdw — a modest decanal star group watched near the eastern horizon during this ten-day interval; exact modern identification is uncertain',
-    maatPrinciple: 'Inspect the First Yield',
+    maatPrinciple: 'Assess the Actual Yield',
     cosmicContext: '''
-What was planted, fed, and tested now returns. Renwet belongs to Renenutet: harvest, granary, nursing, destiny, and guarded provision. Receiving becomes a test of Ma’at because abundance must be divided, offered, stored, shared, and preserved.
-
-This day belongs to ꜥpdw, the Birds, where the first signs of answer gather where life has concentrated. The star-time movement does not function as decoration. It gives the day a position in the cycle: what appears in the sky, what is happening in the year, and what the heart must practice are held together.
-
-Day 3 turns that movement toward inspect the first yield.
-
-In practical life, this is where the old pattern meets the present body. Progress may ask for action, but not every action is Ma’at. Obstacles may ask for endurance, but not every burden should be carried. A return may ask for receiving, but not every gain should be consumed.
-
-The question is simple: What does inspect the first yield require now?
-''',
+Before anything is taken or distributed, the harvest must be assessed accurately.
+Not the hoped-for harvest. Not the planned harvest from planting season. The actual yield of the actual field.
+The inflated assessment creates debt when the stores run short. The deflated one creates false scarcity that withholds what is actually available.
+Assess what is actually here.''',
     decanFlow: _compressedRenwetFlowRows1,
     meduNeter: MeduNeterKey(
-      glyph: 'Grain basket, bird, and guarded storehouse',
-      colorFrequency: 'Harvest gold, deep blue, and offering white',
-      mantra: '“I practice inspect the first yield in Ma’at.”',
+      glyph:
+          'Scribe counting grain — the measure taken before anything else is done',
+      colorFrequency:
+          'Measurement gold and honest black — the count that precedes the celebration',
+      mantra: '"I assess the actual yield, not the hoped-for one."',
     ),
   ),
   'renwet_4_1': KemeticDayInfo(
     kemeticDate: 'Renwet I, Day 4',
-    season: '☀️ Shemu – Season of Harvest',
-    month: 'Renwet (Rnnwt) — Nourishment Fulfilled and Destiny Made Visible',
-    decanName: 'ꜥpdw',
+    season: '🌾 Shemu – Season of Harvest',
+    month: 'Renwet (Rnnwt)',
+    decanName: 'tpy-ꜥ renpet',
     starCluster:
         '✨ ꜥpdw — a modest decanal star group watched near the eastern horizon during this ten-day interval; exact modern identification is uncertain',
-    maatPrinciple: 'Honor the Source',
+    maatPrinciple: 'Name Who Produced This',
     cosmicContext: '''
-What was planted, fed, and tested now returns. Renwet belongs to Renenutet: harvest, granary, nursing, destiny, and guarded provision. Receiving becomes a test of Ma’at because abundance must be divided, offered, stored, shared, and preserved.
-
-This day belongs to ꜥpdw, the Birds, where the first signs of answer gather where life has concentrated. The star-time movement does not function as decoration. It gives the day a position in the cycle: what appears in the sky, what is happening in the year, and what the heart must practice are held together.
-
-Day 4 turns that movement toward honor the source.
-
-In practical life, this is where the old pattern meets the present body. Progress may ask for action, but not every action is Ma’at. Obstacles may ask for endurance, but not every burden should be carried. A return may ask for receiving, but not every gain should be consumed.
-
-The question is simple: What does honor the source require now?
-''',
+In Kemet, the harvest record named those who labored before any grain was taken.
+The obligation to name precedes the right to claim — this was structural, not ceremonial.
+The harvest was produced by specific people, specific decisions, specific labor under specific conditions.
+Name who produced the yield before anything is claimed from it.''',
     decanFlow: _compressedRenwetFlowRows1,
     meduNeter: MeduNeterKey(
-      glyph: 'Grain basket, bird, and guarded storehouse',
-      colorFrequency: 'Harvest gold, deep blue, and offering white',
-      mantra: '“I practice honor the source in Ma’at.”',
+      glyph:
+          'Harvest record with named laborers — the naming that precedes the taking',
+      colorFrequency:
+          'Named gold and record ink — the acknowledgment that makes claiming honest',
+      mantra: '"I name who produced this before anything is claimed."',
     ),
   ),
   'renwet_5_1': KemeticDayInfo(
     kemeticDate: 'Renwet I, Day 5',
-    season: '☀️ Shemu – Season of Harvest',
-    month: 'Renwet (Rnnwt) — Nourishment Fulfilled and Destiny Made Visible',
-    decanName: 'ꜥpdw',
+    season: '🌾 Shemu – Season of Harvest',
+    month: 'Renwet (Rnnwt)',
+    decanName: 'tpy-ꜥ renpet',
     starCluster:
         '✨ ꜥpdw — a modest decanal star group watched near the eastern horizon during this ten-day interval; exact modern identification is uncertain',
-    maatPrinciple: 'Separate the First Share',
+    maatPrinciple: 'Count Before Distributing',
     cosmicContext: '''
-What was planted, fed, and tested now returns. Renwet belongs to Renenutet: harvest, granary, nursing, destiny, and guarded provision. Receiving becomes a test of Ma’at because abundance must be divided, offered, stored, shared, and preserved.
-
-This day belongs to ꜥpdw, the Birds, where the first signs of answer gather where life has concentrated. The star-time movement does not function as decoration. It gives the day a position in the cycle: what appears in the sky, what is happening in the year, and what the heart must practice are held together.
-
-Day 5 turns that movement toward separate the first share.
-
-In practical life, this is where the old pattern meets the present body. Progress may ask for action, but not every action is Ma’at. Obstacles may ask for endurance, but not every burden should be carried. A return may ask for receiving, but not every gain should be consumed.
-
-The question is simple: What does separate the first share require now?
-''',
+The granary must be counted before distribution. What is held determines what can be given and what must be kept.
+In Kemet, the scribe's count was the foundation of just distribution — without the accurate number, justice was impossible.
+Generosity from an uncounted store is not virtue. It is guesswork that may leave others without what they require.
+Count what you have before you begin giving it.''',
     decanFlow: _compressedRenwetFlowRows1,
     meduNeter: MeduNeterKey(
-      glyph: 'Grain basket, bird, and guarded storehouse',
-      colorFrequency: 'Harvest gold, deep blue, and offering white',
-      mantra: '“I practice separate the first share in Ma’at.”',
+      glyph: 'Granary scribe — the count that makes just distribution possible',
+      colorFrequency:
+          'Counting gold and granary red-brown — the accurate measure before any door opens',
+      mantra: '"I count what I have before I distribute it."',
     ),
   ),
   'renwet_6_1': KemeticDayInfo(
     kemeticDate: 'Renwet I, Day 6',
-    season: '☀️ Shemu – Season of Harvest',
-    month: 'Renwet (Rnnwt) — Nourishment Fulfilled and Destiny Made Visible',
-    decanName: 'ꜥpdw',
+    season: '🌾 Shemu – Season of Harvest',
+    month: 'Renwet (Rnnwt)',
+    decanName: 'tpy-ꜥ renpet',
     starCluster:
         '✨ ꜥpdw — a modest decanal star group watched near the eastern horizon during this ten-day interval; exact modern identification is uncertain',
-    maatPrinciple: 'Pay the Hands',
+    maatPrinciple: 'Offer the First Portion',
     cosmicContext: '''
-What was planted, fed, and tested now returns. Renwet belongs to Renenutet: harvest, granary, nursing, destiny, and guarded provision. Receiving becomes a test of Ma’at because abundance must be divided, offered, stored, shared, and preserved.
-
-This day belongs to ꜥpdw, the Birds, where the first signs of answer gather where life has concentrated. The star-time movement does not function as decoration. It gives the day a position in the cycle: what appears in the sky, what is happening in the year, and what the heart must practice are held together.
-
-Day 6 turns that movement toward pay the hands.
-
-In practical life, this is where the old pattern meets the present body. Progress may ask for action, but not every action is Ma’at. Obstacles may ask for endurance, but not every burden should be carried. A return may ask for receiving, but not every gain should be consumed.
-
-The question is simple: What does pay the hands require now?
-''',
+The first portion of the harvest in Kemet was offered — to the temple, to the divine order, to the acknowledgment that the harvest was produced within Maʿat, not by human effort alone.
+This was not tax. It was the recognition of what made the harvest possible.
+The first portion offered anchors the rest of the distribution in right relationship.
+Offer the first portion before you receive the rest.''',
     decanFlow: _compressedRenwetFlowRows1,
     meduNeter: MeduNeterKey(
-      glyph: 'Grain basket, bird, and guarded storehouse',
-      colorFrequency: 'Harvest gold, deep blue, and offering white',
-      mantra: '“I practice pay the hands in Ma’at.”',
+      glyph:
+          'First portion raised toward the divine — the offering that precedes the consuming',
+      colorFrequency:
+          'Offering gold rising from harvest amber — the acknowledgment that opens the distribution',
+      mantra: '"I offer the first portion before I receive the rest."',
     ),
   ),
   'renwet_7_1': KemeticDayInfo(
     kemeticDate: 'Renwet I, Day 7',
-    season: '☀️ Shemu – Season of Harvest',
-    month: 'Renwet (Rnnwt) — Nourishment Fulfilled and Destiny Made Visible',
-    decanName: 'ꜥpdw',
+    season: '🌾 Shemu – Season of Harvest',
+    month: 'Renwet (Rnnwt)',
+    decanName: 'tpy-ꜥ renpet',
     starCluster:
         '✨ ꜥpdw — a modest decanal star group watched near the eastern horizon during this ten-day interval; exact modern identification is uncertain',
-    maatPrinciple: 'Do Not Mistake Return for Completion',
+    maatPrinciple: 'Store for What Follows',
     cosmicContext: '''
-What was planted, fed, and tested now returns. Renwet belongs to Renenutet: harvest, granary, nursing, destiny, and guarded provision. Receiving becomes a test of Ma’at because abundance must be divided, offered, stored, shared, and preserved.
-
-This day belongs to ꜥpdw, the Birds, where the first signs of answer gather where life has concentrated. The star-time movement does not function as decoration. It gives the day a position in the cycle: what appears in the sky, what is happening in the year, and what the heart must practice are held together.
-
-Day 7 turns that movement toward do not mistake return for completion.
-
-In practical life, this is where the old pattern meets the present body. Progress may ask for action, but not every action is Ma’at. Obstacles may ask for endurance, but not every burden should be carried. A return may ask for receiving, but not every gain should be consumed.
-
-The question is simple: What does do not mistake return for completion require now?
-''',
+The Egyptian granary stored against the lean season — not merely as prudence, but as the acknowledgment that abundance now is preparation for scarcity later.
+The person who eats the full harvest at harvest is the person who starves at flood.
+Storing correctly is not an option for those who want to be careful. It is an obligation of the beautiful year.
+Store what must be held for what comes after.''',
     decanFlow: _compressedRenwetFlowRows1,
     meduNeter: MeduNeterKey(
-      glyph: 'Grain basket, bird, and guarded storehouse',
-      colorFrequency: 'Harvest gold, deep blue, and offering white',
-      mantra: '“I practice do not mistake return for completion in Ma’at.”',
+      glyph:
+          'Sealed granary — the storage that honors the lean season from within the full one',
+      colorFrequency:
+          'Sealed harvest gold and forward-looking blue — abundance held against what follows',
+      mantra: '"I store what must be held for what comes after."',
     ),
   ),
   'renwet_8_1': KemeticDayInfo(
     kemeticDate: 'Renwet I, Day 8',
-    season: '☀️ Shemu – Season of Harvest',
-    month: 'Renwet (Rnnwt) — Nourishment Fulfilled and Destiny Made Visible',
-    decanName: 'ꜥpdw',
+    season: '🌾 Shemu – Season of Harvest',
+    month: 'Renwet (Rnnwt)',
+    decanName: 'tpy-ꜥ renpet',
     starCluster:
         '✨ ꜥpdw — a modest decanal star group watched near the eastern horizon during this ten-day interval; exact modern identification is uncertain',
-    maatPrinciple: 'Guard Against Waste',
+    maatPrinciple: 'Receive the Harvest Fully',
     cosmicContext: '''
-What was planted, fed, and tested now returns. Renwet belongs to Renenutet: harvest, granary, nursing, destiny, and guarded provision. Receiving becomes a test of Ma’at because abundance must be divided, offered, stored, shared, and preserved.
-
-This day belongs to ꜥpdw, the Birds, where the first signs of answer gather where life has concentrated. The star-time movement does not function as decoration. It gives the day a position in the cycle: what appears in the sky, what is happening in the year, and what the heart must practice are held together.
-
-Day 8 turns that movement toward guard against waste.
-
-In practical life, this is where the old pattern meets the present body. Progress may ask for action, but not every action is Ma’at. Obstacles may ask for endurance, but not every burden should be carried. A return may ask for receiving, but not every gain should be consumed.
-
-The question is simple: What does guard against waste require now?
-''',
+Walking through the harvest gate is itself a Maʿat obligation.
+The person who cannot receive what was earned — who continues striving past the moment where receiving is what is required — withholds from themselves what the divine order provided.
+The inability to receive is not humility. It is the refusal of what the year produced.
+Receive the harvest fully.''',
     decanFlow: _compressedRenwetFlowRows1,
     meduNeter: MeduNeterKey(
-      glyph: 'Grain basket, bird, and guarded storehouse',
-      colorFrequency: 'Harvest gold, deep blue, and offering white',
-      mantra: '“I practice guard against waste in Ma’at.”',
+      glyph:
+          'Open hands receiving the harvest — the full reception, not the partial one',
+      colorFrequency:
+          'Receiving gold and harvest amber — the hands that accept what was earned',
+      mantra: '"I receive the harvest fully."',
     ),
   ),
   'renwet_9_1': KemeticDayInfo(
     kemeticDate: 'Renwet I, Day 9',
-    season: '☀️ Shemu – Season of Harvest',
-    month: 'Renwet (Rnnwt) — Nourishment Fulfilled and Destiny Made Visible',
-    decanName: 'ꜥpdw',
+    season: '🌾 Shemu – Season of Harvest',
+    month: 'Renwet (Rnnwt)',
+    decanName: 'tpy-ꜥ renpet',
     starCluster:
         '✨ ꜥpdw — a modest decanal star group watched near the eastern horizon during this ten-day interval; exact modern identification is uncertain',
-    maatPrinciple: 'Record What Came In',
+    maatPrinciple: 'The Yield Names Its Producers',
     cosmicContext: '''
-What was planted, fed, and tested now returns. Renwet belongs to Renenutet: harvest, granary, nursing, destiny, and guarded provision. Receiving becomes a test of Ma’at because abundance must be divided, offered, stored, shared, and preserved.
-
-This day belongs to ꜥpdw, the Birds, where the first signs of answer gather where life has concentrated. The star-time movement does not function as decoration. It gives the day a position in the cycle: what appears in the sky, what is happening in the year, and what the heart must practice are held together.
-
-Day 9 turns that movement toward record what came in.
-
-In practical life, this is where the old pattern meets the present body. Progress may ask for action, but not every action is Ma’at. Obstacles may ask for endurance, but not every burden should be carried. A return may ask for receiving, but not every gain should be consumed.
-
-The question is simple: What does record what came in require now?
-''',
+The beautiful year honors those who produced it by naming them in the record.
+In Kemet, Imꜣḫ at harvest was confirmed by the grain — the visible, undeniable evidence of what the year of labor produced.
+The farmer's standing was not claimed. It was announced by the field.
+Let the yield name you accurately. Make sure what it says is what you intended.''',
     decanFlow: _compressedRenwetFlowRows1,
     meduNeter: MeduNeterKey(
-      glyph: 'Grain basket, bird, and guarded storehouse',
-      colorFrequency: 'Harvest gold, deep blue, and offering white',
-      mantra: '“I practice record what came in in Ma’at.”',
+      glyph:
+          'Standing figure beside the full harvest — Imꜣḫ confirmed by what the year produced',
+      colorFrequency:
+          'Standing-stone gold and harvest amber — the standing that the field announces',
+      mantra: '"The yield names its producers. Let it name me accurately."',
     ),
   ),
   'renwet_10_1': KemeticDayInfo(
     kemeticDate: 'Renwet I, Day 10',
-    season: '☀️ Shemu – Season of Harvest',
-    month: 'Renwet (Rnnwt) — Nourishment Fulfilled and Destiny Made Visible',
-    decanName: 'ꜥpdw',
+    season: '🌾 Shemu – Season of Harvest',
+    month: 'Renwet (Rnnwt)',
+    decanName: 'tpy-ꜥ renpet',
     starCluster:
         '✨ ꜥpdw — a modest decanal star group watched near the eastern horizon during this ten-day interval; exact modern identification is uncertain',
-    maatPrinciple: 'Seal the First Return',
+    maatPrinciple: 'Account for the Entry Into Harvest',
     cosmicContext: '''
-What was planted, fed, and tested now returns. Renwet belongs to Renenutet: harvest, granary, nursing, destiny, and guarded provision. Receiving becomes a test of Ma’at because abundance must be divided, offered, stored, shared, and preserved.
-
-This day belongs to ꜥpdw, the Birds, where the first signs of answer gather where life has concentrated. The star-time movement does not function as decoration. It gives the day a position in the cycle: what appears in the sky, what is happening in the year, and what the heart must practice are held together.
-
-Day 10 turns that movement toward seal the first return.
-
-In practical life, this is where the old pattern meets the present body. Progress may ask for action, but not every action is Ma’at. Obstacles may ask for endurance, but not every burden should be carried. A return may ask for receiving, but not every gain should be consumed.
-
-The question is simple: What does seal the first return require now?
-''',
+The first decan of Renwet closes — the harvest gate has been walked through.
+What has been received, assessed, named, offered, and stored is now a specific accounting.
+The year's yield entered honestly is what makes the distribution that follows just.
+Account for the entry into harvest. Close the first watch.''',
     decanFlow: _compressedRenwetFlowRows1,
     meduNeter: MeduNeterKey(
-      glyph: 'Grain basket, bird, and guarded storehouse',
-      colorFrequency: 'Harvest gold, deep blue, and offering white',
-      mantra: '“I practice seal the first return in Ma’at.”',
+      glyph:
+          'Harvest accounting scroll — the entry into Shemu recorded and ready for distribution',
+      colorFrequency:
+          'Accounting gold and harvest amber — the honest reckoning that opens the second decan',
+      mantra: '"I account for the entry into harvest."',
     ),
   ),
   'renwet_11_2': KemeticDayInfo(
-    kemeticDate: 'Renwet II, Day 1',
-    season: '☀️ Shemu – Season of Harvest',
-    month: 'Renwet (Rnnwt) — Nourishment Fulfilled and Destiny Made Visible',
-    decanName: 'ḥry-ib ꜥpdw',
+    kemeticDate: 'Renwet II, Day 11',
+    season: '🌾 Shemu – Season of Harvest',
+    month:
+        'Renwet (Rnnwt) — "Renwet, the Nourishing Serpent; return, distribution, and the seed within the harvest"; the obligation of distribution; what the harvest owes',
+    decanName: 'ḥry-ib renpet',
     starCluster:
         '✨ ḥry-ib ꜥpdw — a modest decanal star group watched near the eastern horizon during this ten-day interval; exact modern identification is uncertain',
-    maatPrinciple: 'Bring the Harvest to the Heart',
+    maatPrinciple: 'Give From What Was Received',
     cosmicContext: '''
-What was planted, fed, and tested now returns. Renwet belongs to Renenutet: harvest, granary, nursing, destiny, and guarded provision. Receiving becomes a test of Ma’at because abundance must be divided, offered, stored, shared, and preserved.
-
-This day belongs to ḥry-ib ꜥpdw, the heart of the Birds, where abundance is weighed and portioned. The star-time movement does not function as decoration. It gives the day a position in the cycle: what appears in the sky, what is happening in the year, and what the heart must practice are held together.
-
-Day 1 turns that movement toward bring the harvest to the heart.
-
-In practical life, this is where the old pattern meets the present body. Progress may ask for action, but not every action is Ma’at. Obstacles may ask for endurance, but not every burden should be carried. A return may ask for receiving, but not every gain should be consumed.
-
-The question is simple: What does bring the harvest to the heart require now?
-''',
+The distribution begins. The grain in the granary has an obligation attached to it.
+"I gave bread to the hungry" — this Declaration becomes specific at harvest: not metaphorical bread, not bread when it's convenient, but the actual giving of what the harvest produced.
+Renenutet's watch does not end when the harvest is in. She stands at the distribution as she stood at the growing.
+Give from what was received.''',
     decanFlow: _compressedRenwetFlowRows2,
     meduNeter: MeduNeterKey(
-      glyph: 'Grain basket, bird, and guarded storehouse',
-      colorFrequency: 'Harvest gold, deep blue, and offering white',
-      mantra: '“I practice bring the harvest to the heart in Ma’at.”',
+      glyph:
+          'Bread given from the harvest store — the obligation discharged, not the generosity performed',
+      colorFrequency:
+          'Giving gold and bread amber — the harvest distributed as it was produced',
+      mantra: '"I give bread from what the harvest produced."',
     ),
   ),
   'renwet_12_2': KemeticDayInfo(
-    kemeticDate: 'Renwet II, Day 2',
-    season: '☀️ Shemu – Season of Harvest',
-    month: 'Renwet (Rnnwt) — Nourishment Fulfilled and Destiny Made Visible',
-    decanName: 'ḥry-ib ꜥpdw',
+    kemeticDate: 'Renwet II, Day 12',
+    season: '🌾 Shemu – Season of Harvest',
+    month: 'Renwet (Rnnwt)',
+    decanName: 'ḥry-ib renpet',
     starCluster:
         '✨ ḥry-ib ꜥpdw — a modest decanal star group watched near the eastern horizon during this ten-day interval; exact modern identification is uncertain',
-    maatPrinciple: 'Weigh the Appetite',
+    maatPrinciple: 'Distribute According to Need',
     cosmicContext: '''
-What was planted, fed, and tested now returns. Renwet belongs to Renenutet: harvest, granary, nursing, destiny, and guarded provision. Receiving becomes a test of Ma’at because abundance must be divided, offered, stored, shared, and preserved.
-
-This day belongs to ḥry-ib ꜥpdw, the heart of the Birds, where abundance is weighed and portioned. The star-time movement does not function as decoration. It gives the day a position in the cycle: what appears in the sky, what is happening in the year, and what the heart must practice are held together.
-
-Day 2 turns that movement toward weigh the appetite.
-
-In practical life, this is where the old pattern meets the present body. Progress may ask for action, but not every action is Ma’at. Obstacles may ask for endurance, but not every burden should be carried. A return may ask for receiving, but not every gain should be consumed.
-
-The question is simple: What does weigh the appetite require now?
-''',
+In Kemet, the harvest distribution accounted for those who could not produce for themselves — the widow, the orphan, the elderly.
+Equal distribution was not equal share for equal contribution. It was sufficient for each according to what they required.
+"I did not let anyone go hungry when I had enough" — the Declaration this day demands.
+Distribute according to need.''',
     decanFlow: _compressedRenwetFlowRows2,
     meduNeter: MeduNeterKey(
-      glyph: 'Grain basket, bird, and guarded storehouse',
-      colorFrequency: 'Harvest gold, deep blue, and offering white',
-      mantra: '“I practice weigh the appetite in Ma’at.”',
+      glyph:
+          'Grain distributed by need — the measure given by what is required, not what was earned',
+      colorFrequency:
+          'Just distribution gold — the harvest given where it is needed, not only where it is deserved',
+      mantra: '"I distribute according to need."',
     ),
   ),
   'renwet_13_2': KemeticDayInfo(
-    kemeticDate: 'Renwet II, Day 3',
-    season: '☀️ Shemu – Season of Harvest',
-    month: 'Renwet (Rnnwt) — Nourishment Fulfilled and Destiny Made Visible',
-    decanName: 'ḥry-ib ꜥpdw',
+    kemeticDate: 'Renwet II, Day 13',
+    season: '🌾 Shemu – Season of Harvest',
+    month: 'Renwet (Rnnwt)',
+    decanName: 'ḥry-ib renpet',
     starCluster:
         '✨ ḥry-ib ꜥpdw — a modest decanal star group watched near the eastern horizon during this ten-day interval; exact modern identification is uncertain',
-    maatPrinciple: 'Name What Is Owed',
+    maatPrinciple: 'The Harvest Feeds Beyond Its Producers',
     cosmicContext: '''
-What was planted, fed, and tested now returns. Renwet belongs to Renenutet: harvest, granary, nursing, destiny, and guarded provision. Receiving becomes a test of Ma’at because abundance must be divided, offered, stored, shared, and preserved.
-
-This day belongs to ḥry-ib ꜥpdw, the heart of the Birds, where abundance is weighed and portioned. The star-time movement does not function as decoration. It gives the day a position in the cycle: what appears in the sky, what is happening in the year, and what the heart must practice are held together.
-
-Day 3 turns that movement toward name what is owed.
-
-In practical life, this is where the old pattern meets the present body. Progress may ask for action, but not every action is Ma’at. Obstacles may ask for endurance, but not every burden should be carried. A return may ask for receiving, but not every gain should be consumed.
-
-The question is simple: What does name what is owed require now?
-''',
+The grain the family produced does not belong only to the family that produced it.
+The canal wall builder, the temple that prayed for rain, the neighbor who shared labor in flood season — all have claims on the harvest.
+These claims are not charity. They are part of the network that made the harvest possible.
+Account for all claims before the grain is consumed.''',
     decanFlow: _compressedRenwetFlowRows2,
     meduNeter: MeduNeterKey(
-      glyph: 'Grain basket, bird, and guarded storehouse',
-      colorFrequency: 'Harvest gold, deep blue, and offering white',
-      mantra: '“I practice name what is owed in Ma’at.”',
+      glyph:
+          'Harvest distributed across many hands — the network of claims that made the harvest real',
+      colorFrequency:
+          'Community gold and many-hands amber — the harvest that feeds its full circle',
+      mantra: '"The harvest feeds beyond those who grew it."',
     ),
   ),
   'renwet_14_2': KemeticDayInfo(
-    kemeticDate: 'Renwet II, Day 4',
-    season: '☀️ Shemu – Season of Harvest',
-    month: 'Renwet (Rnnwt) — Nourishment Fulfilled and Destiny Made Visible',
-    decanName: 'ḥry-ib ꜥpdw',
+    kemeticDate: 'Renwet II, Day 14',
+    season: '🌾 Shemu – Season of Harvest',
+    month: 'Renwet (Rnnwt)',
+    decanName: 'ḥry-ib renpet',
     starCluster:
         '✨ ḥry-ib ꜥpdw — a modest decanal star group watched near the eastern horizon during this ten-day interval; exact modern identification is uncertain',
-    maatPrinciple: 'Feed the Household',
+    maatPrinciple: 'Sharing Is Obligation',
     cosmicContext: '''
-What was planted, fed, and tested now returns. Renwet belongs to Renenutet: harvest, granary, nursing, destiny, and guarded provision. Receiving becomes a test of Ma’at because abundance must be divided, offered, stored, shared, and preserved.
-
-This day belongs to ḥry-ib ꜥpdw, the heart of the Birds, where abundance is weighed and portioned. The star-time movement does not function as decoration. It gives the day a position in the cycle: what appears in the sky, what is happening in the year, and what the heart must practice are held together.
-
-Day 4 turns that movement toward feed the household.
-
-In practical life, this is where the old pattern meets the present body. Progress may ask for action, but not every action is Ma’at. Obstacles may ask for endurance, but not every burden should be carried. A return may ask for receiving, but not every gain should be consumed.
-
-The question is simple: What does feed the household require now?
-''',
+In Kemet, giving from the harvest was not a gift — it was the discharge of what was owed.
+The grain given to the temple, the bread given to the hungry, the portion to the laborer — these were due, not generous.
+Maʿat does not credit generosity. It credits the discharge of what was owed.
+Sharing at harvest is obligation, not generosity.''',
     decanFlow: _compressedRenwetFlowRows2,
     meduNeter: MeduNeterKey(
-      glyph: 'Grain basket, bird, and guarded storehouse',
-      colorFrequency: 'Harvest gold, deep blue, and offering white',
-      mantra: '“I practice feed the household in Ma’at.”',
+      glyph:
+          'Discharged obligation — the giving that closes an account, not the giving that creates gratitude',
+      colorFrequency:
+          'Obligation gold and closed-account amber — the harvest debt paid',
+      mantra: '"Sharing at harvest is obligation, not generosity."',
     ),
   ),
   'renwet_15_2': KemeticDayInfo(
-    kemeticDate: 'Renwet II, Day 5',
-    season: '☀️ Shemu – Season of Harvest',
-    month: 'Renwet (Rnnwt) — Nourishment Fulfilled and Destiny Made Visible',
-    decanName: 'ḥry-ib ꜥpdw',
+    kemeticDate: 'Renwet II, Day 15',
+    season: '🌾 Shemu – Season of Harvest',
+    month: 'Renwet (Rnnwt)',
+    decanName: 'ḥry-ib renpet',
     starCluster:
         '✨ ḥry-ib ꜥpdw — a modest decanal star group watched near the eastern horizon during this ten-day interval; exact modern identification is uncertain',
-    maatPrinciple: 'Protect the Vulnerable',
+    maatPrinciple: 'Discharge the Harvest Obligations',
     cosmicContext: '''
-What was planted, fed, and tested now returns. Renwet belongs to Renenutet: harvest, granary, nursing, destiny, and guarded provision. Receiving becomes a test of Ma’at because abundance must be divided, offered, stored, shared, and preserved.
-
-This day belongs to ḥry-ib ꜥpdw, the heart of the Birds, where abundance is weighed and portioned. The star-time movement does not function as decoration. It gives the day a position in the cycle: what appears in the sky, what is happening in the year, and what the heart must practice are held together.
-
-Day 5 turns that movement toward protect the vulnerable.
-
-In practical life, this is where the old pattern meets the present body. Progress may ask for action, but not every action is Ma’at. Obstacles may ask for endurance, but not every burden should be carried. A return may ask for receiving, but not every gain should be consumed.
-
-The question is simple: What does protect the vulnerable require now?
-''',
+The harvest obligations do not wait for a convenient season.
+"I did not defer what was owed" — the Declaration applies to the harvest as to any other debt.
+What is given cannot be un-given. What is discharged is closed. What is deferred becomes the debt that travels into the next cycle.
+Discharge the harvest obligations now.''',
     decanFlow: _compressedRenwetFlowRows2,
     meduNeter: MeduNeterKey(
-      glyph: 'Grain basket, bird, and guarded storehouse',
-      colorFrequency: 'Harvest gold, deep blue, and offering white',
-      mantra: '“I practice protect the vulnerable in Ma’at.”',
+      glyph: 'Sealed discharge — the harvest obligation closed and sealed',
+      colorFrequency:
+          'Discharge gold and closed blue — the account that can no longer be opened',
+      mantra: '"I discharge the harvest obligations now."',
     ),
   ),
   'renwet_16_2': KemeticDayInfo(
-    kemeticDate: 'Renwet II, Day 6',
-    season: '☀️ Shemu – Season of Harvest',
-    month: 'Renwet (Rnnwt) — Nourishment Fulfilled and Destiny Made Visible',
-    decanName: 'ḥry-ib ꜥpdw',
+    kemeticDate: 'Renwet II, Day 16',
+    season: '🌾 Shemu – Season of Harvest',
+    month: 'Renwet (Rnnwt)',
+    decanName: 'ḥry-ib renpet',
     starCluster:
         '✨ ḥry-ib ꜥpdw — a modest decanal star group watched near the eastern horizon during this ten-day interval; exact modern identification is uncertain',
-    maatPrinciple: 'Return the Offering',
+    maatPrinciple: 'Hoarding at Harvest Is Taking',
     cosmicContext: '''
-What was planted, fed, and tested now returns. Renwet belongs to Renenutet: harvest, granary, nursing, destiny, and guarded provision. Receiving becomes a test of Ma’at because abundance must be divided, offered, stored, shared, and preserved.
-
-This day belongs to ḥry-ib ꜥpdw, the heart of the Birds, where abundance is weighed and portioned. The star-time movement does not function as decoration. It gives the day a position in the cycle: what appears in the sky, what is happening in the year, and what the heart must practice are held together.
-
-Day 6 turns that movement toward return the offering.
-
-In practical life, this is where the old pattern meets the present body. Progress may ask for action, but not every action is Ma’at. Obstacles may ask for endurance, but not every burden should be carried. A return may ask for receiving, but not every gain should be consumed.
-
-The question is simple: What does return the offering require now?
-''',
+"I did not hoard food while others starved" — this Declaration is specifically for the harvest.
+The person who stores more than their share while others in the community go without has not saved well. They have taken from the community what the community produced together.
+The granary that overflows while the neighbor's is empty is not abundance. It is theft of the collective yield.
+Take your share. Not more.''',
     decanFlow: _compressedRenwetFlowRows2,
     meduNeter: MeduNeterKey(
-      glyph: 'Grain basket, bird, and guarded storehouse',
-      colorFrequency: 'Harvest gold, deep blue, and offering white',
-      mantra: '“I practice return the offering in Ma’at.”',
+      glyph:
+          'Overflowing granary beside an empty one — the Declaration written in the contrast',
+      colorFrequency:
+          'Share gold and collective amber — the limit that Maʿat sets on the harvest',
+      mantra: '"I take my share. Not more."',
     ),
   ),
   'renwet_17_2': KemeticDayInfo(
-    kemeticDate: 'Renwet II, Day 7',
-    season: '☀️ Shemu – Season of Harvest',
-    month: 'Renwet (Rnnwt) — Nourishment Fulfilled and Destiny Made Visible',
-    decanName: 'ḥry-ib ꜥpdw',
+    kemeticDate: 'Renwet II, Day 17',
+    season: '🌾 Shemu – Season of Harvest',
+    month: 'Renwet (Rnnwt)',
+    decanName: 'ḥry-ib renpet',
     starCluster:
         '✨ ḥry-ib ꜥpdw — a modest decanal star group watched near the eastern horizon during this ten-day interval; exact modern identification is uncertain',
-    maatPrinciple: 'Refuse Hoarding',
+    maatPrinciple: 'Beauty Is Completeness',
     cosmicContext: '''
-What was planted, fed, and tested now returns. Renwet belongs to Renenutet: harvest, granary, nursing, destiny, and guarded provision. Receiving becomes a test of Ma’at because abundance must be divided, offered, stored, shared, and preserved.
-
-This day belongs to ḥry-ib ꜥpdw, the heart of the Birds, where abundance is weighed and portioned. The star-time movement does not function as decoration. It gives the day a position in the cycle: what appears in the sky, what is happening in the year, and what the heart must practice are held together.
-
-Day 7 turns that movement toward refuse hoarding.
-
-In practical life, this is where the old pattern meets the present body. Progress may ask for action, but not every action is Ma’at. Obstacles may ask for endurance, but not every burden should be carried. A return may ask for receiving, but not every gain should be consumed.
-
-The question is simple: What does refuse hoarding require now?
-''',
+The beautiful year is beautiful not because it was easy but because the complete arc of what was done was done in Maʿat.
+The flood and the underground passage and the contested knowing are part of the beautiful year — not exceptions to it.
+A year called beautiful only for its pleasant months has not been honestly seen.
+Name the full year as beautiful, not only the harvest month.''',
     decanFlow: _compressedRenwetFlowRows2,
     meduNeter: MeduNeterKey(
-      glyph: 'Grain basket, bird, and guarded storehouse',
-      colorFrequency: 'Harvest gold, deep blue, and offering white',
-      mantra: '“I practice refuse hoarding in Ma’at.”',
+      glyph:
+          'Full year arc — flood, seed, growth, contest, and harvest held as one beautiful thing',
+      colorFrequency:
+          'Complete arc gold — the beauty that is completeness, not ease',
+      mantra: '"The beautiful year includes the hard months."',
     ),
   ),
   'renwet_18_2': KemeticDayInfo(
-    kemeticDate: 'Renwet II, Day 8',
-    season: '☀️ Shemu – Season of Harvest',
-    month: 'Renwet (Rnnwt) — Nourishment Fulfilled and Destiny Made Visible',
-    decanName: 'ḥry-ib ꜥpdw',
+    kemeticDate: 'Renwet II, Day 18',
+    season: '🌾 Shemu – Season of Harvest',
+    month: 'Renwet (Rnnwt)',
+    decanName: 'ḥry-ib renpet',
     starCluster:
         '✨ ḥry-ib ꜥpdw — a modest decanal star group watched near the eastern horizon during this ten-day interval; exact modern identification is uncertain',
-    maatPrinciple: 'Distribute With Clarity',
+    maatPrinciple: 'Gratitude Is Specific',
     cosmicContext: '''
-What was planted, fed, and tested now returns. Renwet belongs to Renenutet: harvest, granary, nursing, destiny, and guarded provision. Receiving becomes a test of Ma’at because abundance must be divided, offered, stored, shared, and preserved.
-
-This day belongs to ḥry-ib ꜥpdw, the heart of the Birds, where abundance is weighed and portioned. The star-time movement does not function as decoration. It gives the day a position in the cycle: what appears in the sky, what is happening in the year, and what the heart must practice are held together.
-
-Day 8 turns that movement toward distribute with clarity.
-
-In practical life, this is where the old pattern meets the present body. Progress may ask for action, but not every action is Ma’at. Obstacles may ask for endurance, but not every burden should be carried. A return may ask for receiving, but not every gain should be consumed.
-
-The question is simple: What does distribute with clarity require now?
-''',
+Gratitude at harvest in Kemet named what was given, by whom, at what cost, in what season.
+The generalized thanksgiving that does not name is not gratitude — it is the performance of gratitude without the obligation that naming creates.
+What is named specifically can be honored in the next cycle. What is vaguely appreciated cannot.
+Name specifically what made the harvest possible.''',
     decanFlow: _compressedRenwetFlowRows2,
     meduNeter: MeduNeterKey(
-      glyph: 'Grain basket, bird, and guarded storehouse',
-      colorFrequency: 'Harvest gold, deep blue, and offering white',
-      mantra: '“I practice distribute with clarity in Ma’at.”',
+      glyph:
+          'Specific naming in the harvest record — gratitude that creates accountability',
+      colorFrequency:
+          'Named gratitude gold and acknowledgment ink — the thanks that honors what it names',
+      mantra: '"I name specifically what made the harvest possible."',
     ),
   ),
   'renwet_19_2': KemeticDayInfo(
-    kemeticDate: 'Renwet II, Day 9',
-    season: '☀️ Shemu – Season of Harvest',
-    month: 'Renwet (Rnnwt) — Nourishment Fulfilled and Destiny Made Visible',
-    decanName: 'ḥry-ib ꜥpdw',
+    kemeticDate: 'Renwet II, Day 19',
+    season: '🌾 Shemu – Season of Harvest',
+    month: 'Renwet (Rnnwt)',
+    decanName: 'ḥry-ib renpet',
     starCluster:
         '✨ ḥry-ib ꜥpdw — a modest decanal star group watched near the eastern horizon during this ten-day interval; exact modern identification is uncertain',
-    maatPrinciple: 'Check the Balance After Giving',
+    maatPrinciple: 'Complete Both Sides',
     cosmicContext: '''
-What was planted, fed, and tested now returns. Renwet belongs to Renenutet: harvest, granary, nursing, destiny, and guarded provision. Receiving becomes a test of Ma’at because abundance must be divided, offered, stored, shared, and preserved.
-
-This day belongs to ḥry-ib ꜥpdw, the heart of the Birds, where abundance is weighed and portioned. The star-time movement does not function as decoration. It gives the day a position in the cycle: what appears in the sky, what is happening in the year, and what the heart must practice are held together.
-
-Day 9 turns that movement toward check the balance after giving.
-
-In practical life, this is where the old pattern meets the present body. Progress may ask for action, but not every action is Ma’at. Obstacles may ask for endurance, but not every burden should be carried. A return may ask for receiving, but not every gain should be consumed.
-
-The question is simple: What does check the balance after giving require now?
-''',
+The harvest closes the exchange between those who produced and those who received.
+Each party in a harvest exchange has a side to complete: the provider receives standing, the community receives grain.
+An exchange with one side completed and one deferred leaves an open account that travels into the next year.
+Complete both sides of the exchange.''',
     decanFlow: _compressedRenwetFlowRows2,
     meduNeter: MeduNeterKey(
-      glyph: 'Grain basket, bird, and guarded storehouse',
-      colorFrequency: 'Harvest gold, deep blue, and offering white',
-      mantra: '“I practice check the balance after giving in Ma’at.”',
+      glyph:
+          'Exchange completed on both sides — the full harvest transaction closed',
+      colorFrequency:
+          'Two-sided gold — the exchange complete, both parties received',
+      mantra: '"I complete both sides of the exchange."',
     ),
   ),
   'renwet_20_2': KemeticDayInfo(
-    kemeticDate: 'Renwet II, Day 10',
-    season: '☀️ Shemu – Season of Harvest',
-    month: 'Renwet (Rnnwt) — Nourishment Fulfilled and Destiny Made Visible',
-    decanName: 'ḥry-ib ꜥpdw',
+    kemeticDate: 'Renwet II, Day 20',
+    season: '🌾 Shemu – Season of Harvest',
+    month: 'Renwet (Rnnwt)',
+    decanName: 'ḥry-ib renpet',
     starCluster:
         '✨ ḥry-ib ꜥpdw — a modest decanal star group watched near the eastern horizon during this ten-day interval; exact modern identification is uncertain',
-    maatPrinciple: 'Seal Right Distribution',
+    maatPrinciple: 'Account for the Distribution',
     cosmicContext: '''
-What was planted, fed, and tested now returns. Renwet belongs to Renenutet: harvest, granary, nursing, destiny, and guarded provision. Receiving becomes a test of Ma’at because abundance must be divided, offered, stored, shared, and preserved.
-
-This day belongs to ḥry-ib ꜥpdw, the heart of the Birds, where abundance is weighed and portioned. The star-time movement does not function as decoration. It gives the day a position in the cycle: what appears in the sky, what is happening in the year, and what the heart must practice are held together.
-
-Day 10 turns that movement toward seal right distribution.
-
-In practical life, this is where the old pattern meets the present body. Progress may ask for action, but not every action is Ma’at. Obstacles may ask for endurance, but not every burden should be carried. A return may ask for receiving, but not every gain should be consumed.
-
-The question is simple: What does seal right distribution require now?
-''',
+The second watch of Renwet closes — the distribution is complete.
+What was given from the harvest, to whom, in what amounts, by what obligation — this is the accounting that closes the distribution.
+A distribution that cannot be accounted for was not made in Maʿat.
+Account for the distribution. Close the second watch.''',
     decanFlow: _compressedRenwetFlowRows2,
     meduNeter: MeduNeterKey(
-      glyph: 'Grain basket, bird, and guarded storehouse',
-      colorFrequency: 'Harvest gold, deep blue, and offering white',
-      mantra: '“I practice seal right distribution in Ma’at.”',
+      glyph:
+          'Distribution record sealed — the heart of the harvest obligation discharged',
+      colorFrequency:
+          'Distribution gold and sealed amber — the giving accounted for and closed',
+      mantra: '"I account for the distribution."',
     ),
   ),
   'renwet_21_3': KemeticDayInfo(
-    kemeticDate: 'Renwet III, Day 1',
-    season: '☀️ Shemu – Season of Harvest',
-    month: 'Renwet (Rnnwt) — Nourishment Fulfilled and Destiny Made Visible',
-    decanName: 'sbꜣ ꜥpdw',
+    kemeticDate: 'Renwet III, Day 21',
+    season: '🌾 Shemu – Season of Harvest',
+    month:
+        'Renwet (Rnnwt) — "Renwet, the Nourishing Serpent; return, distribution, and the seed within the harvest"; the seed within the harvest; what the year carries forward',
+    decanName: 'sbꜣ renpet',
     starCluster:
         '✨ sbꜣ ꜥpdw — a modest decanal star group watched near the eastern horizon during this ten-day interval; exact modern identification is uncertain',
-    maatPrinciple: 'Store the Reward',
+    maatPrinciple: 'Seed Within the Harvest',
     cosmicContext: '''
-What was planted, fed, and tested now returns. Renwet belongs to Renenutet: harvest, granary, nursing, destiny, and guarded provision. Receiving becomes a test of Ma’at because abundance must be divided, offered, stored, shared, and preserved.
-
-This day belongs to sbꜣ ꜥpdw, the star of the Birds, where reward becomes sustained provision. The star-time movement does not function as decoration. It gives the day a position in the cycle: what appears in the sky, what is happening in the year, and what the heart must practice are held together.
-
-Day 1 turns that movement toward store the reward.
-
-In practical life, this is where the old pattern meets the present body. Progress may ask for action, but not every action is Ma’at. Obstacles may ask for endurance, but not every burden should be carried. A return may ask for receiving, but not every gain should be consumed.
-
-The question is simple: What does store the reward require now?
-''',
+The beautiful year does not only celebrate what it produced — it prepares what comes after, within the harvest itself.
+The seed selection is the first act of the next year, performed within the last acts of this one.
+In Kemet, the farmer who neglected to save seed grain had not completed the harvest — they had consumed it.
+Select the seed from the harvest before the harvest is finished.''',
     decanFlow: _compressedRenwetFlowRows3,
     meduNeter: MeduNeterKey(
-      glyph: 'Grain basket, bird, and guarded storehouse',
-      colorFrequency: 'Harvest gold, deep blue, and offering white',
-      mantra: '“I practice store the reward in Ma’at.”',
+      glyph:
+          'Seed grain set apart from the harvest — the next year\'s planting held within this year\'s yield',
+      colorFrequency:
+          'Seed gold within harvest amber — the future held inside the present',
+      mantra: '"The harvest seeds the next year."',
     ),
   ),
   'renwet_22_3': KemeticDayInfo(
-    kemeticDate: 'Renwet III, Day 2',
-    season: '☀️ Shemu – Season of Harvest',
-    month: 'Renwet (Rnnwt) — Nourishment Fulfilled and Destiny Made Visible',
-    decanName: 'sbꜣ ꜥpdw',
+    kemeticDate: 'Renwet III, Day 22',
+    season: '🌾 Shemu – Season of Harvest',
+    month: 'Renwet (Rnnwt)',
+    decanName: 'sbꜣ renpet',
     starCluster:
         '✨ sbꜣ ꜥpdw — a modest decanal star group watched near the eastern horizon during this ten-day interval; exact modern identification is uncertain',
-    maatPrinciple: 'Protect the Storehouse',
+    maatPrinciple: 'Distinguish Food From Seed',
     cosmicContext: '''
-What was planted, fed, and tested now returns. Renwet belongs to Renenutet: harvest, granary, nursing, destiny, and guarded provision. Receiving becomes a test of Ma’at because abundance must be divided, offered, stored, shared, and preserved.
-
-This day belongs to sbꜣ ꜥpdw, the star of the Birds, where reward becomes sustained provision. The star-time movement does not function as decoration. It gives the day a position in the cycle: what appears in the sky, what is happening in the year, and what the heart must practice are held together.
-
-Day 2 turns that movement toward protect the storehouse.
-
-In practical life, this is where the old pattern meets the present body. Progress may ask for action, but not every action is Ma’at. Obstacles may ask for endurance, but not every burden should be carried. A return may ask for receiving, but not every gain should be consumed.
-
-The question is simple: What does protect the storehouse require now?
-''',
+Not all grain is seed grain. Some is food for now. Some must be held for planting.
+The person who eats the seed does not have a bad harvest — they have no next harvest.
+The distinction between what is for now and what is for next is the obligation that makes the cycle possible.
+Distinguish food from seed before the granary closes.''',
     decanFlow: _compressedRenwetFlowRows3,
     meduNeter: MeduNeterKey(
-      glyph: 'Grain basket, bird, and guarded storehouse',
-      colorFrequency: 'Harvest gold, deep blue, and offering white',
-      mantra: '“I practice protect the storehouse in Ma’at.”',
+      glyph:
+          'Two grain portions distinguished — food for now and seed for next, kept separate',
+      colorFrequency:
+          'Present gold and future green — the two kinds of grain given their proper purposes',
+      mantra: '"I distinguish what is food from what is seed."',
     ),
   ),
   'renwet_23_3': KemeticDayInfo(
-    kemeticDate: 'Renwet III, Day 3',
-    season: '☀️ Shemu – Season of Harvest',
-    month: 'Renwet (Rnnwt) — Nourishment Fulfilled and Destiny Made Visible',
-    decanName: 'sbꜣ ꜥpdw',
+    kemeticDate: 'Renwet III, Day 23',
+    season: '🌾 Shemu – Season of Harvest',
+    month: 'Renwet (Rnnwt)',
+    decanName: 'sbꜣ renpet',
     starCluster:
         '✨ sbꜣ ꜥpdw — a modest decanal star group watched near the eastern horizon during this ten-day interval; exact modern identification is uncertain',
-    maatPrinciple: 'Count What Remains',
+    maatPrinciple: 'Choose the Best for Seed',
     cosmicContext: '''
-What was planted, fed, and tested now returns. Renwet belongs to Renenutet: harvest, granary, nursing, destiny, and guarded provision. Receiving becomes a test of Ma’at because abundance must be divided, offered, stored, shared, and preserved.
-
-This day belongs to sbꜣ ꜥpdw, the star of the Birds, where reward becomes sustained provision. The star-time movement does not function as decoration. It gives the day a position in the cycle: what appears in the sky, what is happening in the year, and what the heart must practice are held together.
-
-Day 3 turns that movement toward count what remains.
-
-In practical life, this is where the old pattern meets the present body. Progress may ask for action, but not every action is Ma’at. Obstacles may ask for endurance, but not every burden should be carried. A return may ask for receiving, but not every gain should be consumed.
-
-The question is simple: What does count what remains require now?
-''',
+In Kemet, farmers selected seed grain from the strongest, fullest heads — not what remained after the good grain was consumed.
+The seed is the vow to the next planting. It should be made from the best available, not the convenient remainder.
+What is seeded determines what is possible in the next cycle.
+Choose the best for seed.''',
     decanFlow: _compressedRenwetFlowRows3,
     meduNeter: MeduNeterKey(
-      glyph: 'Grain basket, bird, and guarded storehouse',
-      colorFrequency: 'Harvest gold, deep blue, and offering white',
-      mantra: '“I practice count what remains in Ma’at.”',
+      glyph:
+          'Best grain chosen for seed — the deliberate selection from what was produced best',
+      colorFrequency:
+          'Best-selection gold — the deliberate choice that honors the next planting',
+      mantra: '"I choose the best for seed."',
     ),
   ),
   'renwet_24_3': KemeticDayInfo(
-    kemeticDate: 'Renwet III, Day 4',
-    season: '☀️ Shemu – Season of Harvest',
-    month: 'Renwet (Rnnwt) — Nourishment Fulfilled and Destiny Made Visible',
-    decanName: 'sbꜣ ꜥpdw',
+    kemeticDate: 'Renwet III, Day 24',
+    season: '🌾 Shemu – Season of Harvest',
+    month: 'Renwet (Rnnwt)',
+    decanName: 'sbꜣ renpet',
     starCluster:
         '✨ sbꜣ ꜥpdw — a modest decanal star group watched near the eastern horizon during this ten-day interval; exact modern identification is uncertain',
-    maatPrinciple: 'Respect the Tools',
+    maatPrinciple: 'The Held-Back Grain Is a Vow',
     cosmicContext: '''
-What was planted, fed, and tested now returns. Renwet belongs to Renenutet: harvest, granary, nursing, destiny, and guarded provision. Receiving becomes a test of Ma’at because abundance must be divided, offered, stored, shared, and preserved.
-
-This day belongs to sbꜣ ꜥpdw, the star of the Birds, where reward becomes sustained provision. The star-time movement does not function as decoration. It gives the day a position in the cycle: what appears in the sky, what is happening in the year, and what the heart must practice are held together.
-
-Day 4 turns that movement toward respect the tools.
-
-In practical life, this is where the old pattern meets the present body. Progress may ask for action, but not every action is Ma’at. Obstacles may ask for endurance, but not every burden should be carried. A return may ask for receiving, but not every gain should be consumed.
-
-The question is simple: What does respect the tools require now?
-''',
+What is held back from the harvest feast is held for the future.
+This is not deprivation — it is the concrete form of the commitment to continue.
+In Kemet, the seed grain set aside was kept under the protection of the divine order — not merely saved, but dedicated.
+Consecrate what is held for planting. It is a vow, not a reserve.''',
     decanFlow: _compressedRenwetFlowRows3,
     meduNeter: MeduNeterKey(
-      glyph: 'Grain basket, bird, and guarded storehouse',
-      colorFrequency: 'Harvest gold, deep blue, and offering white',
-      mantra: '“I practice respect the tools in Ma’at.”',
+      glyph:
+          'Consecrated seed grain under divine protection — the vow that the cycle continues',
+      colorFrequency:
+          'Consecrated gold and vow blue — the seed held as sacred commitment',
+      mantra: '"What is held back from the feast is held for the future."',
     ),
   ),
   'renwet_25_3': KemeticDayInfo(
-    kemeticDate: 'Renwet III, Day 5',
-    season: '☀️ Shemu – Season of Harvest',
-    month: 'Renwet (Rnnwt) — Nourishment Fulfilled and Destiny Made Visible',
-    decanName: 'sbꜣ ꜥpdw',
+    kemeticDate: 'Renwet III, Day 25',
+    season: '🌾 Shemu – Season of Harvest',
+    month: 'Renwet (Rnnwt)',
+    decanName: 'sbꜣ renpet',
     starCluster:
         '✨ sbꜣ ꜥpdw — a modest decanal star group watched near the eastern horizon during this ten-day interval; exact modern identification is uncertain',
-    maatPrinciple: 'Name the Lesson',
+    maatPrinciple: 'Record the Complete Year',
     cosmicContext: '''
-What was planted, fed, and tested now returns. Renwet belongs to Renenutet: harvest, granary, nursing, destiny, and guarded provision. Receiving becomes a test of Ma’at because abundance must be divided, offered, stored, shared, and preserved.
-
-This day belongs to sbꜣ ꜥpdw, the star of the Birds, where reward becomes sustained provision. The star-time movement does not function as decoration. It gives the day a position in the cycle: what appears in the sky, what is happening in the year, and what the heart must practice are held together.
-
-Day 5 turns that movement toward name the lesson.
-
-In practical life, this is where the old pattern meets the present body. Progress may ask for action, but not every action is Ma’at. Obstacles may ask for endurance, but not every burden should be carried. A return may ask for receiving, but not every gain should be consumed.
-
-The question is simple: What does name the lesson require now?
-''',
+The record of the beautiful year covers the whole arc: what was seeded in the dark, tended without witness, contested and held, harvested, distributed, and seeded forward.
+The record that covers only the harvest has not recorded the year.
+Djehuty's scroll at the end of the year names every season, not only the abundant one.
+Record the complete year.''',
     decanFlow: _compressedRenwetFlowRows3,
     meduNeter: MeduNeterKey(
-      glyph: 'Grain basket, bird, and guarded storehouse',
-      colorFrequency: 'Harvest gold, deep blue, and offering white',
-      mantra: '“I practice name the lesson in Ma’at.”',
+      glyph:
+          'Djehuty\'s full-year scroll — every season in the record, not only the harvest',
+      colorFrequency:
+          'Complete year gold — the record that covers the whole arc',
+      mantra: '"I record the complete year."',
     ),
   ),
   'renwet_26_3': KemeticDayInfo(
-    kemeticDate: 'Renwet III, Day 6',
-    season: '☀️ Shemu – Season of Harvest',
-    month: 'Renwet (Rnnwt) — Nourishment Fulfilled and Destiny Made Visible',
-    decanName: 'sbꜣ ꜥpdw',
+    kemeticDate: 'Renwet III, Day 26',
+    season: '🌾 Shemu – Season of Harvest',
+    month: 'Renwet (Rnnwt)',
+    decanName: 'sbꜣ renpet',
     starCluster:
         '✨ sbꜣ ꜥpdw — a modest decanal star group watched near the eastern horizon during this ten-day interval; exact modern identification is uncertain',
-    maatPrinciple: 'Preserve the Seed',
+    maatPrinciple: 'Read the Year as a Whole',
     cosmicContext: '''
-What was planted, fed, and tested now returns. Renwet belongs to Renenutet: harvest, granary, nursing, destiny, and guarded provision. Receiving becomes a test of Ma’at because abundance must be divided, offered, stored, shared, and preserved.
-
-This day belongs to sbꜣ ꜥpdw, the star of the Birds, where reward becomes sustained provision. The star-time movement does not function as decoration. It gives the day a position in the cycle: what appears in the sky, what is happening in the year, and what the heart must practice are held together.
-
-Day 6 turns that movement toward preserve the seed.
-
-In practical life, this is where the old pattern meets the present body. Progress may ask for action, but not every action is Ma’at. Obstacles may ask for endurance, but not every burden should be carried. A return may ask for receiving, but not every gain should be consumed.
-
-The question is simple: What does preserve the seed require now?
-''',
+The Ka-ḥer-ka descent that seemed like loss and the Rekh-Nedjes contest that seemed like endless delay — together, they prepared what the harvest is.
+Individual months of the year obscure the arc. Reading the year as a whole reveals what the months could not show separately.
+The beautiful year is visible as beautiful only when its full shape is held at once.
+Read the year as a whole.''',
     decanFlow: _compressedRenwetFlowRows3,
     meduNeter: MeduNeterKey(
-      glyph: 'Grain basket, bird, and guarded storehouse',
-      colorFrequency: 'Harvest gold, deep blue, and offering white',
-      mantra: '“I practice preserve the seed in Ma’at.”',
+      glyph:
+          'Full year arc held in one view — the shape that becomes visible only from the end',
+      colorFrequency:
+          'Whole-year gold — the beauty that is only visible in the complete arc',
+      mantra: '"I read the year as a whole."',
     ),
   ),
   'renwet_27_3': KemeticDayInfo(
-    kemeticDate: 'Renwet III, Day 7',
-    season: '☀️ Shemu – Season of Harvest',
-    month: 'Renwet (Rnnwt) — Nourishment Fulfilled and Destiny Made Visible',
-    decanName: 'sbꜣ ꜥpdw',
+    kemeticDate: 'Renwet III, Day 27',
+    season: '🌾 Shemu – Season of Harvest',
+    month: 'Renwet (Rnnwt)',
+    decanName: 'sbꜣ renpet',
     starCluster:
         '✨ sbꜣ ꜥpdw — a modest decanal star group watched near the eastern horizon during this ten-day interval; exact modern identification is uncertain',
-    maatPrinciple: 'Rest the Source',
+    maatPrinciple: 'Thank the Complete Year',
     cosmicContext: '''
-What was planted, fed, and tested now returns. Renwet belongs to Renenutet: harvest, granary, nursing, destiny, and guarded provision. Receiving becomes a test of Ma’at because abundance must be divided, offered, stored, shared, and preserved.
-
-This day belongs to sbꜣ ꜥpdw, the star of the Birds, where reward becomes sustained provision. The star-time movement does not function as decoration. It gives the day a position in the cycle: what appears in the sky, what is happening in the year, and what the heart must practice are held together.
-
-Day 7 turns that movement toward rest the source.
-
-In practical life, this is where the old pattern meets the present body. Progress may ask for action, but not every action is Ma’at. Obstacles may ask for endurance, but not every burden should be carried. A return may ask for receiving, but not every gain should be consumed.
-
-The question is simple: What does rest the source require now?
-''',
+Gratitude given only to what was pleasant is not gratitude to the year. It is gratitude to the convenient parts.
+The flood that made the planting possible, the darkness that made the transformation possible, the contest that made the vindication possible — all of these belong in the thanksgiving.
+The complete gratitude is what honors the complete year.
+Give thanks for the complete year.''',
     decanFlow: _compressedRenwetFlowRows3,
     meduNeter: MeduNeterKey(
-      glyph: 'Grain basket, bird, and guarded storehouse',
-      colorFrequency: 'Harvest gold, deep blue, and offering white',
-      mantra: '“I practice rest the source in Ma’at.”',
+      glyph:
+          'Thanksgiving offered to the full arc — the gratitude that names every season',
+      colorFrequency:
+          'Complete gratitude gold — the thanks that does not select only the pleasant',
+      mantra: '"I give thanks for the complete year."',
     ),
   ),
   'renwet_28_3': KemeticDayInfo(
-    kemeticDate: 'Renwet III, Day 8',
-    season: '☀️ Shemu – Season of Harvest',
-    month: 'Renwet (Rnnwt) — Nourishment Fulfilled and Destiny Made Visible',
-    decanName: 'sbꜣ ꜥpdw',
+    kemeticDate: 'Renwet III, Day 28',
+    season: '🌾 Shemu – Season of Harvest',
+    month: 'Renwet (Rnnwt)',
+    decanName: 'sbꜣ renpet',
     starCluster:
         '✨ sbꜣ ꜥpdw — a modest decanal star group watched near the eastern horizon during this ten-day interval; exact modern identification is uncertain',
-    maatPrinciple: 'Bless the Continuation',
+    maatPrinciple: 'Name the Year\'s Completeness',
     cosmicContext: '''
-What was planted, fed, and tested now returns. Renwet belongs to Renenutet: harvest, granary, nursing, destiny, and guarded provision. Receiving becomes a test of Ma’at because abundance must be divided, offered, stored, shared, and preserved.
-
-This day belongs to sbꜣ ꜥpdw, the star of the Birds, where reward becomes sustained provision. The star-time movement does not function as decoration. It gives the day a position in the cycle: what appears in the sky, what is happening in the year, and what the heart must practice are held together.
-
-Day 8 turns that movement toward bless the continuation.
-
-In practical life, this is where the old pattern meets the present body. Progress may ask for action, but not every action is Ma’at. Obstacles may ask for endurance, but not every burden should be carried. A return may ask for receiving, but not every gain should be consumed.
-
-The question is simple: What does bless the continuation require now?
-''',
+Renwet takes its name from the whole: not a good harvest, not a good month, but a good year.
+The year is beautiful because every month of it served Maʿat in its proper form.
+The flood, the underground passage, the growing, the knowing, the contest, and the harvest — together, they constitute the year as beautiful.
+Name the year's completeness.''',
     decanFlow: _compressedRenwetFlowRows3,
     meduNeter: MeduNeterKey(
-      glyph: 'Grain basket, bird, and guarded storehouse',
-      colorFrequency: 'Harvest gold, deep blue, and offering white',
-      mantra: '“I practice bless the continuation in Ma’at.”',
+      glyph:
+          'The beautiful year named whole — the complete arc received as one beautiful thing',
+      colorFrequency:
+          'Year-completeness gold — the name given to what the full arc produced',
+      mantra: '"I name the year\'s completeness."',
     ),
   ),
   'renwet_29_3': KemeticDayInfo(
-    kemeticDate: 'Renwet III, Day 9',
-    season: '☀️ Shemu – Season of Harvest',
-    month: 'Renwet (Rnnwt) — Nourishment Fulfilled and Destiny Made Visible',
-    decanName: 'sbꜣ ꜥpdw',
+    kemeticDate: 'Renwet III, Day 29',
+    season: '🌾 Shemu – Season of Harvest',
+    month: 'Renwet (Rnnwt)',
+    decanName: 'sbꜣ renpet',
     starCluster:
         '✨ sbꜣ ꜥpdw — a modest decanal star group watched near the eastern horizon during this ten-day interval; exact modern identification is uncertain',
-    maatPrinciple: 'Prepare the Handoff',
+    maatPrinciple: 'Prepare the Transition',
     cosmicContext: '''
-What was planted, fed, and tested now returns. Renwet belongs to Renenutet: harvest, granary, nursing, destiny, and guarded provision. Receiving becomes a test of Ma’at because abundance must be divided, offered, stored, shared, and preserved.
-
-This day belongs to sbꜣ ꜥpdw, the star of the Birds, where reward becomes sustained provision. The star-time movement does not function as decoration. It gives the day a position in the cycle: what appears in the sky, what is happening in the year, and what the heart must practice are held together.
-
-Day 9 turns that movement toward prepare the handoff.
-
-In practical life, this is where the old pattern meets the present body. Progress may ask for action, but not every action is Ma’at. Obstacles may ask for endurance, but not every burden should be carried. A return may ask for receiving, but not every gain should be consumed.
-
-The question is simple: What does prepare the handoff require now?
-''',
+Shemu continues. The remaining harvest months carry what Renwet prepared.
+The seed is held. The distribution is made. The record exists.
+What is carried into Wep-Renpet and beyond must be named before the passage.
+Prepare what the remaining months require.''',
     decanFlow: _compressedRenwetFlowRows3,
     meduNeter: MeduNeterKey(
-      glyph: 'Grain basket, bird, and guarded storehouse',
-      colorFrequency: 'Harvest gold, deep blue, and offering white',
-      mantra: '“I practice prepare the handoff in Ma’at.”',
+      glyph: 'Prepared passage — the seed and record ready to carry forward',
+      colorFrequency:
+          'Transition gold and forward-moving amber — what the remaining months will inherit',
+      mantra: '"I prepare what the remaining months will require."',
     ),
   ),
   'renwet_30_3': KemeticDayInfo(
-    kemeticDate: 'Renwet III, Day 10',
-    season: '☀️ Shemu – Season of Harvest',
-    month: 'Renwet (Rnnwt) — Nourishment Fulfilled and Destiny Made Visible',
-    decanName: 'sbꜣ ꜥpdw',
+    kemeticDate: 'Renwet III, Day 30',
+    season: '🌾 Shemu – Season of Harvest',
+    month: 'Renwet (Rnnwt)',
+    decanName: 'sbꜣ renpet',
     starCluster:
         '✨ sbꜣ ꜥpdw — a modest decanal star group watched near the eastern horizon during this ten-day interval; exact modern identification is uncertain',
-    maatPrinciple: 'Seal Sustained Reward',
+    maatPrinciple: 'Seal the First Harvest Month',
     cosmicContext: '''
-What was planted, fed, and tested now returns. Renwet belongs to Renenutet: harvest, granary, nursing, destiny, and guarded provision. Receiving becomes a test of Ma’at because abundance must be divided, offered, stored, shared, and preserved.
-
-This day belongs to sbꜣ ꜥpdw, the star of the Birds, where reward becomes sustained provision. The star-time movement does not function as decoration. It gives the day a position in the cycle: what appears in the sky, what is happening in the year, and what the heart must practice are held together.
-
-Day 10 turns that movement toward seal sustained reward.
-
-In practical life, this is where the old pattern meets the present body. Progress may ask for action, but not every action is Ma’at. Obstacles may ask for endurance, but not every burden should be carried. A return may ask for receiving, but not every gain should be consumed.
-
-The question is simple: What does seal sustained reward require now?
-''',
+Renwet closes. The first harvest month is complete.
+The yield was received, the producers named, the first portion offered, the distribution made, the seed selected, and the record written.
+The cycle that began in Thoth has yielded here and seeded what follows.
+Seal the first harvest month and carry the seed forward.''',
     decanFlow: _compressedRenwetFlowRows3,
     meduNeter: MeduNeterKey(
-      glyph: 'Grain basket, bird, and guarded storehouse',
-      colorFrequency: 'Harvest gold, deep blue, and offering white',
-      mantra: '“I practice seal sustained reward in Ma’at.”',
+      glyph:
+          'Sealed first harvest month — the yield received, distributed, seeded, and recorded',
+      colorFrequency:
+          'Sealed harvest gold — the beautiful year\'s first harvest month complete',
+      mantra: '"I seal the first harvest month and carry the seed forward."',
     ),
   ),
   'hnsw_1_1': KemeticDayInfo(
@@ -9573,7 +9301,8 @@ The question is simple: What does seal the journey require now?
   'henti_1_1': KemeticDayInfo(
     kemeticDate: 'Ḥenti-ḥet I, Day 1',
     season: '☀️ Shemu – Season of Harvest',
-    month: 'Ḥenti-ḥet (Ḥnt-ḥtj) — Foremost of Offerings',
+    month:
+        'Ḥenti-ḥet (Ḥnt-ḥtj) — Foremost of Offerings — Power Returned to Measure',
     decanName: 'ḥr-sꜣḥ',
     starCluster:
         '✨ ḥr-sꜣḥ — a decanal star marker described in relation to Heru and Sah/Orion; exact modern identification is uncertain, so it is best treated as a modest point or small group near the Orion region',
@@ -9599,7 +9328,8 @@ The question is simple: What does stand watch over the store require now?
   'henti_2_1': KemeticDayInfo(
     kemeticDate: 'Ḥenti-ḥet I, Day 2',
     season: '☀️ Shemu – Season of Harvest',
-    month: 'Ḥenti-ḥet (Ḥnt-ḥtj) — Foremost of Offerings',
+    month:
+        'Ḥenti-ḥet (Ḥnt-ḥtj) — Foremost of Offerings — Power Returned to Measure',
     decanName: 'ḥr-sꜣḥ',
     starCluster:
         '✨ ḥr-sꜣḥ — a decanal star marker described in relation to Heru and Sah/Orion; exact modern identification is uncertain, so it is best treated as a modest point or small group near the Orion region',
@@ -9625,7 +9355,8 @@ The question is simple: What does name the authority require now?
   'henti_3_1': KemeticDayInfo(
     kemeticDate: 'Ḥenti-ḥet I, Day 3',
     season: '☀️ Shemu – Season of Harvest',
-    month: 'Ḥenti-ḥet (Ḥnt-ḥtj) — Foremost of Offerings',
+    month:
+        'Ḥenti-ḥet (Ḥnt-ḥtj) — Foremost of Offerings — Power Returned to Measure',
     decanName: 'ḥr-sꜣḥ',
     starCluster:
         '✨ ḥr-sꜣḥ — a decanal star marker described in relation to Heru and Sah/Orion; exact modern identification is uncertain, so it is best treated as a modest point or small group near the Orion region',
@@ -9651,7 +9382,8 @@ The question is simple: What does guard without grasping require now?
   'henti_4_1': KemeticDayInfo(
     kemeticDate: 'Ḥenti-ḥet I, Day 4',
     season: '☀️ Shemu – Season of Harvest',
-    month: 'Ḥenti-ḥet (Ḥnt-ḥtj) — Foremost of Offerings',
+    month:
+        'Ḥenti-ḥet (Ḥnt-ḥtj) — Foremost of Offerings — Power Returned to Measure',
     decanName: 'ḥr-sꜣḥ',
     starCluster:
         '✨ ḥr-sꜣḥ — a decanal star marker described in relation to Heru and Sah/Orion; exact modern identification is uncertain, so it is best treated as a modest point or small group near the Orion region',
@@ -9677,7 +9409,8 @@ The question is simple: What does inspect for heat require now?
   'henti_5_1': KemeticDayInfo(
     kemeticDate: 'Ḥenti-ḥet I, Day 5',
     season: '☀️ Shemu – Season of Harvest',
-    month: 'Ḥenti-ḥet (Ḥnt-ḥtj) — Foremost of Offerings',
+    month:
+        'Ḥenti-ḥet (Ḥnt-ḥtj) — Foremost of Offerings — Power Returned to Measure',
     decanName: 'ḥr-sꜣḥ',
     starCluster:
         '✨ ḥr-sꜣḥ — a decanal star marker described in relation to Heru and Sah/Orion; exact modern identification is uncertain, so it is best treated as a modest point or small group near the Orion region',
@@ -9703,7 +9436,8 @@ The question is simple: What does cool the hand require now?
   'henti_6_1': KemeticDayInfo(
     kemeticDate: 'Ḥenti-ḥet I, Day 6',
     season: '☀️ Shemu – Season of Harvest',
-    month: 'Ḥenti-ḥet (Ḥnt-ḥtj) — Foremost of Offerings',
+    month:
+        'Ḥenti-ḥet (Ḥnt-ḥtj) — Foremost of Offerings — Power Returned to Measure',
     decanName: 'ḥr-sꜣḥ',
     starCluster:
         '✨ ḥr-sꜣḥ — a decanal star marker described in relation to Heru and Sah/Orion; exact modern identification is uncertain, so it is best treated as a modest point or small group near the Orion region',
@@ -9729,7 +9463,8 @@ The question is simple: What does protect the rightful claim require now?
   'henti_7_1': KemeticDayInfo(
     kemeticDate: 'Ḥenti-ḥet I, Day 7',
     season: '☀️ Shemu – Season of Harvest',
-    month: 'Ḥenti-ḥet (Ḥnt-ḥtj) — Foremost of Offerings',
+    month:
+        'Ḥenti-ḥet (Ḥnt-ḥtj) — Foremost of Offerings — Power Returned to Measure',
     decanName: 'ḥr-sꜣḥ',
     starCluster:
         '✨ ḥr-sꜣḥ — a decanal star marker described in relation to Heru and Sah/Orion; exact modern identification is uncertain, so it is best treated as a modest point or small group near the Orion region',
@@ -9755,7 +9490,8 @@ The question is simple: What does refuse appetite in power require now?
   'henti_8_1': KemeticDayInfo(
     kemeticDate: 'Ḥenti-ḥet I, Day 8',
     season: '☀️ Shemu – Season of Harvest',
-    month: 'Ḥenti-ḥet (Ḥnt-ḥtj) — Foremost of Offerings',
+    month:
+        'Ḥenti-ḥet (Ḥnt-ḥtj) — Foremost of Offerings — Power Returned to Measure',
     decanName: 'ḥr-sꜣḥ',
     starCluster:
         '✨ ḥr-sꜣḥ — a decanal star marker described in relation to Heru and Sah/Orion; exact modern identification is uncertain, so it is best treated as a modest point or small group near the Orion region',
@@ -9781,7 +9517,8 @@ The question is simple: What does return force to purpose require now?
   'henti_9_1': KemeticDayInfo(
     kemeticDate: 'Ḥenti-ḥet I, Day 9',
     season: '☀️ Shemu – Season of Harvest',
-    month: 'Ḥenti-ḥet (Ḥnt-ḥtj) — Foremost of Offerings',
+    month:
+        'Ḥenti-ḥet (Ḥnt-ḥtj) — Foremost of Offerings — Power Returned to Measure',
     decanName: 'ḥr-sꜣḥ',
     starCluster:
         '✨ ḥr-sꜣḥ — a decanal star marker described in relation to Heru and Sah/Orion; exact modern identification is uncertain, so it is best treated as a modest point or small group near the Orion region',
@@ -9807,7 +9544,8 @@ The question is simple: What does record the watch require now?
   'henti_10_1': KemeticDayInfo(
     kemeticDate: 'Ḥenti-ḥet I, Day 10',
     season: '☀️ Shemu – Season of Harvest',
-    month: 'Ḥenti-ḥet (Ḥnt-ḥtj) — Foremost of Offerings',
+    month:
+        'Ḥenti-ḥet (Ḥnt-ḥtj) — Foremost of Offerings — Power Returned to Measure',
     decanName: 'ḥr-sꜣḥ',
     starCluster:
         '✨ ḥr-sꜣḥ — a decanal star marker described in relation to Heru and Sah/Orion; exact modern identification is uncertain, so it is best treated as a modest point or small group near the Orion region',
@@ -9833,7 +9571,8 @@ The question is simple: What does seal watchful authority require now?
   'henti_11_2': KemeticDayInfo(
     kemeticDate: 'Ḥenti-ḥet II, Day 1',
     season: '☀️ Shemu – Season of Harvest',
-    month: 'Ḥenti-ḥet (Ḥnt-ḥtj) — Foremost of Offerings',
+    month:
+        'Ḥenti-ḥet (Ḥnt-ḥtj) — Foremost of Offerings — Power Returned to Measure',
     decanName: 'ḥry-ib ḥr-sꜣḥ',
     starCluster:
         '✨ ḥry-ib ḥr-sꜣḥ — a decanal star marker described in relation to Heru and Sah/Orion; exact modern identification is uncertain, so it is best treated as a modest point or small group near the Orion region',
@@ -9859,7 +9598,8 @@ The question is simple: What does bring power to the heart require now?
   'henti_12_2': KemeticDayInfo(
     kemeticDate: 'Ḥenti-ḥet II, Day 2',
     season: '☀️ Shemu – Season of Harvest',
-    month: 'Ḥenti-ḥet (Ḥnt-ḥtj) — Foremost of Offerings',
+    month:
+        'Ḥenti-ḥet (Ḥnt-ḥtj) — Foremost of Offerings — Power Returned to Measure',
     decanName: 'ḥry-ib ḥr-sꜣḥ',
     starCluster:
         '✨ ḥry-ib ḥr-sꜣḥ — a decanal star marker described in relation to Heru and Sah/Orion; exact modern identification is uncertain, so it is best treated as a modest point or small group near the Orion region',
@@ -9885,7 +9625,8 @@ The question is simple: What does name the fire require now?
   'henti_13_2': KemeticDayInfo(
     kemeticDate: 'Ḥenti-ḥet II, Day 3',
     season: '☀️ Shemu – Season of Harvest',
-    month: 'Ḥenti-ḥet (Ḥnt-ḥtj) — Foremost of Offerings',
+    month:
+        'Ḥenti-ḥet (Ḥnt-ḥtj) — Foremost of Offerings — Power Returned to Measure',
     decanName: 'ḥry-ib ḥr-sꜣḥ',
     starCluster:
         '✨ ḥry-ib ḥr-sꜣḥ — a decanal star marker described in relation to Heru and Sah/Orion; exact modern identification is uncertain, so it is best treated as a modest point or small group near the Orion region',
@@ -9911,7 +9652,8 @@ The question is simple: What does purify the intention require now?
   'henti_14_2': KemeticDayInfo(
     kemeticDate: 'Ḥenti-ḥet II, Day 4',
     season: '☀️ Shemu – Season of Harvest',
-    month: 'Ḥenti-ḥet (Ḥnt-ḥtj) — Foremost of Offerings',
+    month:
+        'Ḥenti-ḥet (Ḥnt-ḥtj) — Foremost of Offerings — Power Returned to Measure',
     decanName: 'ḥry-ib ḥr-sꜣḥ',
     starCluster:
         '✨ ḥry-ib ḥr-sꜣḥ — a decanal star marker described in relation to Heru and Sah/Orion; exact modern identification is uncertain, so it is best treated as a modest point or small group near the Orion region',
@@ -9937,7 +9679,8 @@ The question is simple: What does sweeten the flame require now?
   'henti_15_2': KemeticDayInfo(
     kemeticDate: 'Ḥenti-ḥet II, Day 5',
     season: '☀️ Shemu – Season of Harvest',
-    month: 'Ḥenti-ḥet (Ḥnt-ḥtj) — Foremost of Offerings',
+    month:
+        'Ḥenti-ḥet (Ḥnt-ḥtj) — Foremost of Offerings — Power Returned to Measure',
     decanName: 'ḥry-ib ḥr-sꜣḥ',
     starCluster:
         '✨ ḥry-ib ḥr-sꜣḥ — a decanal star marker described in relation to Heru and Sah/Orion; exact modern identification is uncertain, so it is best treated as a modest point or small group near the Orion region',
@@ -9963,7 +9706,8 @@ The question is simple: What does repair harm done in heat require now?
   'henti_16_2': KemeticDayInfo(
     kemeticDate: 'Ḥenti-ḥet II, Day 6',
     season: '☀️ Shemu – Season of Harvest',
-    month: 'Ḥenti-ḥet (Ḥnt-ḥtj) — Foremost of Offerings',
+    month:
+        'Ḥenti-ḥet (Ḥnt-ḥtj) — Foremost of Offerings — Power Returned to Measure',
     decanName: 'ḥry-ib ḥr-sꜣḥ',
     starCluster:
         '✨ ḥry-ib ḥr-sꜣḥ — a decanal star marker described in relation to Heru and Sah/Orion; exact modern identification is uncertain, so it is best treated as a modest point or small group near the Orion region',
@@ -9989,7 +9733,8 @@ The question is simple: What does speak under oath require now?
   'henti_17_2': KemeticDayInfo(
     kemeticDate: 'Ḥenti-ḥet II, Day 7',
     season: '☀️ Shemu – Season of Harvest',
-    month: 'Ḥenti-ḥet (Ḥnt-ḥtj) — Foremost of Offerings',
+    month:
+        'Ḥenti-ḥet (Ḥnt-ḥtj) — Foremost of Offerings — Power Returned to Measure',
     decanName: 'ḥry-ib ḥr-sꜣḥ',
     starCluster:
         '✨ ḥry-ib ḥr-sꜣḥ — a decanal star marker described in relation to Heru and Sah/Orion; exact modern identification is uncertain, so it is best treated as a modest point or small group near the Orion region',
@@ -10015,7 +9760,8 @@ The question is simple: What does remove what feeds the fire require now?
   'henti_18_2': KemeticDayInfo(
     kemeticDate: 'Ḥenti-ḥet II, Day 8',
     season: '☀️ Shemu – Season of Harvest',
-    month: 'Ḥenti-ḥet (Ḥnt-ḥtj) — Foremost of Offerings',
+    month:
+        'Ḥenti-ḥet (Ḥnt-ḥtj) — Foremost of Offerings — Power Returned to Measure',
     decanName: 'ḥry-ib ḥr-sꜣḥ',
     starCluster:
         '✨ ḥry-ib ḥr-sꜣḥ — a decanal star marker described in relation to Heru and Sah/Orion; exact modern identification is uncertain, so it is best treated as a modest point or small group near the Orion region',
@@ -10041,7 +9787,8 @@ The question is simple: What does offer strength as service require now?
   'henti_19_2': KemeticDayInfo(
     kemeticDate: 'Ḥenti-ḥet II, Day 9',
     season: '☀️ Shemu – Season of Harvest',
-    month: 'Ḥenti-ḥet (Ḥnt-ḥtj) — Foremost of Offerings',
+    month:
+        'Ḥenti-ḥet (Ḥnt-ḥtj) — Foremost of Offerings — Power Returned to Measure',
     decanName: 'ḥry-ib ḥr-sꜣḥ',
     starCluster:
         '✨ ḥry-ib ḥr-sꜣḥ — a decanal star marker described in relation to Heru and Sah/Orion; exact modern identification is uncertain, so it is best treated as a modest point or small group near the Orion region',
@@ -10067,7 +9814,8 @@ The question is simple: What does hold still in the blaze require now?
   'henti_20_2': KemeticDayInfo(
     kemeticDate: 'Ḥenti-ḥet II, Day 10',
     season: '☀️ Shemu – Season of Harvest',
-    month: 'Ḥenti-ḥet (Ḥnt-ḥtj) — Foremost of Offerings',
+    month:
+        'Ḥenti-ḥet (Ḥnt-ḥtj) — Foremost of Offerings — Power Returned to Measure',
     decanName: 'ḥry-ib ḥr-sꜣḥ',
     starCluster:
         '✨ ḥry-ib ḥr-sꜣḥ — a decanal star marker described in relation to Heru and Sah/Orion; exact modern identification is uncertain, so it is best treated as a modest point or small group near the Orion region',
@@ -10093,7 +9841,8 @@ The question is simple: What does seal governed fire require now?
   'henti_21_3': KemeticDayInfo(
     kemeticDate: 'Ḥenti-ḥet III, Day 1',
     season: '☀️ Shemu – Season of Harvest',
-    month: 'Ḥenti-ḥet (Ḥnt-ḥtj) — Foremost of Offerings',
+    month:
+        'Ḥenti-ḥet (Ḥnt-ḥtj) — Foremost of Offerings — Power Returned to Measure',
     decanName: 'sbꜣ ḥr-sꜣḥ',
     starCluster:
         '✨ sbꜣ ḥr-sꜣḥ — a decanal star marker described in relation to Heru and Sah/Orion; exact modern identification is uncertain, so it is best treated as a modest point or small group near the Orion region',
@@ -10119,7 +9868,8 @@ The question is simple: What does recognize what is complete require now?
   'henti_22_3': KemeticDayInfo(
     kemeticDate: 'Ḥenti-ḥet III, Day 2',
     season: '☀️ Shemu – Season of Harvest',
-    month: 'Ḥenti-ḥet (Ḥnt-ḥtj) — Foremost of Offerings',
+    month:
+        'Ḥenti-ḥet (Ḥnt-ḥtj) — Foremost of Offerings — Power Returned to Measure',
     decanName: 'sbꜣ ḥr-sꜣḥ',
     starCluster:
         '✨ sbꜣ ḥr-sꜣḥ — a decanal star marker described in relation to Heru and Sah/Orion; exact modern identification is uncertain, so it is best treated as a modest point or small group near the Orion region',
@@ -10145,7 +9895,8 @@ The question is simple: What does open the hand require now?
   'henti_23_3': KemeticDayInfo(
     kemeticDate: 'Ḥenti-ḥet III, Day 3',
     season: '☀️ Shemu – Season of Harvest',
-    month: 'Ḥenti-ḥet (Ḥnt-ḥtj) — Foremost of Offerings',
+    month:
+        'Ḥenti-ḥet (Ḥnt-ḥtj) — Foremost of Offerings — Power Returned to Measure',
     decanName: 'sbꜣ ḥr-sꜣḥ',
     starCluster:
         '✨ sbꜣ ḥr-sꜣḥ — a decanal star marker described in relation to Heru and Sah/Orion; exact modern identification is uncertain, so it is best treated as a modest point or small group near the Orion region',
@@ -10171,7 +9922,8 @@ The question is simple: What does place the due portion require now?
   'henti_24_3': KemeticDayInfo(
     kemeticDate: 'Ḥenti-ḥet III, Day 4',
     season: '☀️ Shemu – Season of Harvest',
-    month: 'Ḥenti-ḥet (Ḥnt-ḥtj) — Foremost of Offerings',
+    month:
+        'Ḥenti-ḥet (Ḥnt-ḥtj) — Foremost of Offerings — Power Returned to Measure',
     decanName: 'sbꜣ ḥr-sꜣḥ',
     starCluster:
         '✨ sbꜣ ḥr-sꜣḥ — a decanal star marker described in relation to Heru and Sah/Orion; exact modern identification is uncertain, so it is best treated as a modest point or small group near the Orion region',
@@ -10197,7 +9949,8 @@ The question is simple: What does return excess require now?
   'henti_25_3': KemeticDayInfo(
     kemeticDate: 'Ḥenti-ḥet III, Day 5',
     season: '☀️ Shemu – Season of Harvest',
-    month: 'Ḥenti-ḥet (Ḥnt-ḥtj) — Foremost of Offerings',
+    month:
+        'Ḥenti-ḥet (Ḥnt-ḥtj) — Foremost of Offerings — Power Returned to Measure',
     decanName: 'sbꜣ ḥr-sꜣḥ',
     starCluster:
         '✨ sbꜣ ḥr-sꜣḥ — a decanal star marker described in relation to Heru and Sah/Orion; exact modern identification is uncertain, so it is best treated as a modest point or small group near the Orion region',
@@ -10223,7 +9976,8 @@ The question is simple: What does let the body stand down require now?
   'henti_26_3': KemeticDayInfo(
     kemeticDate: 'Ḥenti-ḥet III, Day 6',
     season: '☀️ Shemu – Season of Harvest',
-    month: 'Ḥenti-ḥet (Ḥnt-ḥtj) — Foremost of Offerings',
+    month:
+        'Ḥenti-ḥet (Ḥnt-ḥtj) — Foremost of Offerings — Power Returned to Measure',
     decanName: 'sbꜣ ḥr-sꜣḥ',
     starCluster:
         '✨ sbꜣ ḥr-sꜣḥ — a decanal star marker described in relation to Heru and Sah/Orion; exact modern identification is uncertain, so it is best treated as a modest point or small group near the Orion region',
@@ -10249,7 +10003,8 @@ The question is simple: What does mend what force wore down require now?
   'henti_27_3': KemeticDayInfo(
     kemeticDate: 'Ḥenti-ḥet III, Day 7',
     season: '☀️ Shemu – Season of Harvest',
-    month: 'Ḥenti-ḥet (Ḥnt-ḥtj) — Foremost of Offerings',
+    month:
+        'Ḥenti-ḥet (Ḥnt-ḥtj) — Foremost of Offerings — Power Returned to Measure',
     decanName: 'sbꜣ ḥr-sꜣḥ',
     starCluster:
         '✨ sbꜣ ḥr-sꜣḥ — a decanal star marker described in relation to Heru and Sah/Orion; exact modern identification is uncertain, so it is best treated as a modest point or small group near the Orion region',
@@ -10275,7 +10030,8 @@ The question is simple: What does restore peace to the house require now?
   'henti_28_3': KemeticDayInfo(
     kemeticDate: 'Ḥenti-ḥet III, Day 8',
     season: '☀️ Shemu – Season of Harvest',
-    month: 'Ḥenti-ḥet (Ḥnt-ḥtj) — Foremost of Offerings',
+    month:
+        'Ḥenti-ḥet (Ḥnt-ḥtj) — Foremost of Offerings — Power Returned to Measure',
     decanName: 'sbꜣ ḥr-sꜣḥ',
     starCluster:
         '✨ sbꜣ ḥr-sꜣḥ — a decanal star marker described in relation to Heru and Sah/Orion; exact modern identification is uncertain, so it is best treated as a modest point or small group near the Orion region',
@@ -10301,7 +10057,8 @@ The question is simple: What does record the release require now?
   'henti_29_3': KemeticDayInfo(
     kemeticDate: 'Ḥenti-ḥet III, Day 9',
     season: '☀️ Shemu – Season of Harvest',
-    month: 'Ḥenti-ḥet (Ḥnt-ḥtj) — Foremost of Offerings',
+    month:
+        'Ḥenti-ḥet (Ḥnt-ḥtj) — Foremost of Offerings — Power Returned to Measure',
     decanName: 'sbꜣ ḥr-sꜣḥ',
     starCluster:
         '✨ sbꜣ ḥr-sꜣḥ — a decanal star marker described in relation to Heru and Sah/Orion; exact modern identification is uncertain, so it is best treated as a modest point or small group near the Orion region',
@@ -10327,7 +10084,8 @@ The question is simple: What does rest in hotep require now?
   'henti_30_3': KemeticDayInfo(
     kemeticDate: 'Ḥenti-ḥet III, Day 10',
     season: '☀️ Shemu – Season of Harvest',
-    month: 'Ḥenti-ḥet (Ḥnt-ḥtj) — Foremost of Offerings',
+    month:
+        'Ḥenti-ḥet (Ḥnt-ḥtj) — Foremost of Offerings — Power Returned to Measure',
     decanName: 'sbꜣ ḥr-sꜣḥ',
     starCluster:
         '✨ sbꜣ ḥr-sꜣḥ — a decanal star marker described in relation to Heru and Sah/Orion; exact modern identification is uncertain, so it is best treated as a modest point or small group near the Orion region',
@@ -11132,961 +10890,786 @@ The question is simple: What does seal continuity require now?
   ),
   'mswtRa_1_1': KemeticDayInfo(
     kemeticDate: 'Mesut-Ra I, Day 1',
-    season: '☀️ Shemu – Season of Harvest',
+    season: '🌾 Shemu – Season of Harvest',
     month:
-        'Mesut-Ra (Mswt-Rꜥ) — The Birth of Ra and the Stillness Before Emergence',
-    decanName: 'msḥtjw ḫt',
+        'Mesut-Ra (Mswt-Rꜥ) — "The Birth of Ra"; the stillness before emergence; the year entering its hidden completion',
+    decanName:
+        'msḥtjw ḫt ("The Crocodiles of the Offering") — strength gathering in stillness; the power present before it is displayed',
     starCluster:
         '✨ msḥtjw ḫt — a modest horizon-rising decanal marker in the Crocodiles of the Offering sequence; exact modern constellation identification is uncertain',
-    maatPrinciple: 'Enter the Hidden Chamber',
+    maatPrinciple: 'Enter the Stillness',
     cosmicContext: '''
-The visible work of the year is nearly complete. Mesut-Ra enters the hidden passage before birth: Ra in the Duat, Nut holding the sun, Khepri waiting, and the next light forming beneath silence.
-
-This day belongs to msḥtjw ḫt, the Crocodiles of the Offering, where hidden power gathers before appearance. The star-time movement does not function as decoration. It gives the day a position in the cycle: what appears in the sky, what is happening in the year, and what the heart must practice are held together.
-
-Day 1 turns that movement toward enter the hidden chamber.
-
-In practical life, this is where the old pattern meets the present body. Progress may ask for action, but not every action is Ma’at. Obstacles may ask for endurance, but not every burden should be carried. A return may ask for receiving, but not every gain should be consumed.
-
-The question is simple: What does enter the hidden chamber require now?
-''',
+Mesut-Ra — the Birth of Ra — begins not with birth but with the stillness that makes birth possible.
+The year has given everything it will give. The crocodile descends below the surface.
+Its power does not disappear. It gathers.
+Enter the stillness. Do not mistake it for absence.''',
     decanFlow: _compressedMesutraFlowRows1,
     meduNeter: MeduNeterKey(
-      glyph: 'Duat gate, hidden sun, and crocodile',
-      colorFrequency: 'Duat black, ancestor white, and hidden gold',
-      mantra: '“I practice enter the hidden chamber in Ma’at.”',
+      glyph:
+          'Crocodile beneath still water — hidden power gathering, not absent',
+      colorFrequency:
+          'Deep water black and gathering gold — the stillness that is active work',
+      mantra: '"I enter the stillness. It is not absence."',
     ),
   ),
   'mswtRa_2_1': KemeticDayInfo(
     kemeticDate: 'Mesut-Ra I, Day 2',
-    season: '☀️ Shemu – Season of Harvest',
-    month:
-        'Mesut-Ra (Mswt-Rꜥ) — The Birth of Ra and the Stillness Before Emergence',
-    decanName: 'msḥtjw ḫt',
+    season: '🌾 Shemu – Season of Harvest',
+    month: 'Mesut-Ra (Mswt-Rꜥ) — "The Birth of Ra"',
+    decanName: 'msḥtjw ḫt ("The Crocodiles of the Offering")',
     starCluster:
         '✨ msḥtjw ḫt — a modest horizon-rising decanal marker in the Crocodiles of the Offering sequence; exact modern constellation identification is uncertain',
-    maatPrinciple: 'Recognize Latent Power',
+    maatPrinciple: 'Clear What Has Accumulated',
     cosmicContext: '''
-The visible work of the year is nearly complete. Mesut-Ra enters the hidden passage before birth: Ra in the Duat, Nut holding the sun, Khepri waiting, and the next light forming beneath silence.
-
-This day belongs to msḥtjw ḫt, the Crocodiles of the Offering, where hidden power gathers before appearance. The star-time movement does not function as decoration. It gives the day a position in the cycle: what appears in the sky, what is happening in the year, and what the heart must practice are held together.
-
-Day 2 turns that movement toward recognize latent power.
-
-In practical life, this is where the old pattern meets the present body. Progress may ask for action, but not every action is Ma’at. Obstacles may ask for endurance, but not every burden should be carried. A return may ask for receiving, but not every gain should be consumed.
-
-The question is simple: What does recognize latent power require now?
-''',
+The altar cleared is the altar ready.
+What has accumulated on the altar without being offered — the unresolved, the uncompleted, the held-back — cannot remain when the year must end.
+The cleared altar is not empty. It is prepared for what the new cycle will place on it.
+Clear what has accumulated. The preparation is itself an act.''',
     decanFlow: _compressedMesutraFlowRows1,
     meduNeter: MeduNeterKey(
-      glyph: 'Duat gate, hidden sun, and crocodile',
-      colorFrequency: 'Duat black, ancestor white, and hidden gold',
-      mantra: '“I practice recognize latent power in Ma’at.”',
+      glyph:
+          'Altar cleared to bare surface — the preparation that makes it ready to receive again',
+      colorFrequency:
+          'Cleared gold on empty surface — readiness through removal',
+      mantra: '"I clear what has accumulated."',
     ),
   ),
   'mswtRa_3_1': KemeticDayInfo(
     kemeticDate: 'Mesut-Ra I, Day 3',
-    season: '☀️ Shemu – Season of Harvest',
-    month:
-        'Mesut-Ra (Mswt-Rꜥ) — The Birth of Ra and the Stillness Before Emergence',
-    decanName: 'msḥtjw ḫt',
+    season: '🌾 Shemu – Season of Harvest',
+    month: 'Mesut-Ra (Mswt-Rꜥ)',
+    decanName: 'msḥtjw ḫt ("The Crocodiles of the Offering")',
     starCluster:
         '✨ msḥtjw ḫt — a modest horizon-rising decanal marker in the Crocodiles of the Offering sequence; exact modern constellation identification is uncertain',
-    maatPrinciple: 'Stop Forcing Emergence',
+    maatPrinciple: 'Close the Records',
     cosmicContext: '''
-The visible work of the year is nearly complete. Mesut-Ra enters the hidden passage before birth: Ra in the Duat, Nut holding the sun, Khepri waiting, and the next light forming beneath silence.
-
-This day belongs to msḥtjw ḫt, the Crocodiles of the Offering, where hidden power gathers before appearance. The star-time movement does not function as decoration. It gives the day a position in the cycle: what appears in the sky, what is happening in the year, and what the heart must practice are held together.
-
-Day 3 turns that movement toward stop forcing emergence.
-
-In practical life, this is where the old pattern meets the present body. Progress may ask for action, but not every action is Ma’at. Obstacles may ask for endurance, but not every burden should be carried. A return may ask for receiving, but not every gain should be consumed.
-
-The question is simple: What does stop forcing emergence require now?
-''',
+The year's accounting is complete. What remains open will drag into the new year as an unclosed account.
+In Kemet, scribal records were closed at the cycle's end — the scrolls sealed, the tallies confirmed, the measures finalized.
+A record left open is an invitation for the new year to begin from incompletion.
+Close the records.''',
     decanFlow: _compressedMesutraFlowRows1,
     meduNeter: MeduNeterKey(
-      glyph: 'Duat gate, hidden sun, and crocodile',
-      colorFrequency: 'Duat black, ancestor white, and hidden gold',
-      mantra: '“I practice stop forcing emergence in Ma’at.”',
+      glyph:
+          'Sealed scroll — the record closed so it cannot be reopened by the new year\'s momentum',
+      colorFrequency:
+          'Sealed ink and finished gold — the accounting that has been closed',
+      mantra: '"I close the records of the year."',
     ),
   ),
   'mswtRa_4_1': KemeticDayInfo(
     kemeticDate: 'Mesut-Ra I, Day 4',
-    season: '☀️ Shemu – Season of Harvest',
-    month:
-        'Mesut-Ra (Mswt-Rꜥ) — The Birth of Ra and the Stillness Before Emergence',
-    decanName: 'msḥtjw ḫt',
+    season: '🌾 Shemu – Season of Harvest',
+    month: 'Mesut-Ra (Mswt-Rꜥ)',
+    decanName: 'msḥtjw ḫt ("The Crocodiles of the Offering")',
     starCluster:
         '✨ msḥtjw ḫt — a modest horizon-rising decanal marker in the Crocodiles of the Offering sequence; exact modern constellation identification is uncertain',
-    maatPrinciple: 'Guard the Depth',
+    maatPrinciple: 'Purify Before the Threshold',
     cosmicContext: '''
-The visible work of the year is nearly complete. Mesut-Ra enters the hidden passage before birth: Ra in the Duat, Nut holding the sun, Khepri waiting, and the next light forming beneath silence.
-
-This day belongs to msḥtjw ḫt, the Crocodiles of the Offering, where hidden power gathers before appearance. The star-time movement does not function as decoration. It gives the day a position in the cycle: what appears in the sky, what is happening in the year, and what the heart must practice are held together.
-
-Day 4 turns that movement toward guard the depth.
-
-In practical life, this is where the old pattern meets the present body. Progress may ask for action, but not every action is Ma’at. Obstacles may ask for endurance, but not every burden should be carried. A return may ask for receiving, but not every gain should be consumed.
-
-The question is simple: What does guard the depth require now?
-''',
+Natron, water, silence. The Kemetic purification rites at year's end removed the accumulation of the cycle.
+Purification is not punishment. It is the preparation of the vessel for what the new year will require.
+The vessel that enters the new cycle clean can receive what the residue-carrying vessel cannot.
+Purify before the threshold.''',
     decanFlow: _compressedMesutraFlowRows1,
     meduNeter: MeduNeterKey(
-      glyph: 'Duat gate, hidden sun, and crocodile',
-      colorFrequency: 'Duat black, ancestor white, and hidden gold',
-      mantra: '“I practice guard the depth in Ma’at.”',
+      glyph:
+          'Purification vessel — natron and water preparing the vessel for the new cycle',
+      colorFrequency:
+          'Purification white and water blue — the clearing that belongs to the year\'s end',
+      mantra: '"I purify before the threshold."',
     ),
   ),
   'mswtRa_5_1': KemeticDayInfo(
     kemeticDate: 'Mesut-Ra I, Day 5',
-    season: '☀️ Shemu – Season of Harvest',
-    month:
-        'Mesut-Ra (Mswt-Rꜥ) — The Birth of Ra and the Stillness Before Emergence',
-    decanName: 'msḥtjw ḫt',
+    season: '🌾 Shemu – Season of Harvest',
+    month: 'Mesut-Ra (Mswt-Rꜥ)',
+    decanName: 'msḥtjw ḫt ("The Crocodiles of the Offering")',
     starCluster:
         '✨ msḥtjw ḫt — a modest horizon-rising decanal marker in the Crocodiles of the Offering sequence; exact modern constellation identification is uncertain',
-    maatPrinciple: 'Feed the Hidden Process',
+    maatPrinciple: 'Allow the Ending',
     cosmicContext: '''
-The visible work of the year is nearly complete. Mesut-Ra enters the hidden passage before birth: Ra in the Duat, Nut holding the sun, Khepri waiting, and the next light forming beneath silence.
-
-This day belongs to msḥtjw ḫt, the Crocodiles of the Offering, where hidden power gathers before appearance. The star-time movement does not function as decoration. It gives the day a position in the cycle: what appears in the sky, what is happening in the year, and what the heart must practice are held together.
-
-Day 5 turns that movement toward feed the hidden process.
-
-In practical life, this is where the old pattern meets the present body. Progress may ask for action, but not every action is Ma’at. Obstacles may ask for endurance, but not every burden should be carried. A return may ask for receiving, but not every gain should be consumed.
-
-The question is simple: What does feed the hidden process require now?
-''',
+The year that insists on continuing past its completion becomes the obstacle to the next cycle.
+Ra must enter the Duat before he can be born again at dawn. He does not pause at the western horizon and debate whether to continue.
+Allowing what is ending to end is not defeat. It is the act that makes renewal possible.
+Allow the ending.''',
     decanFlow: _compressedMesutraFlowRows1,
     meduNeter: MeduNeterKey(
-      glyph: 'Duat gate, hidden sun, and crocodile',
-      colorFrequency: 'Duat black, ancestor white, and hidden gold',
-      mantra: '“I practice feed the hidden process in Ma’at.”',
+      glyph:
+          'Ra entering the western horizon — the descent that makes the next dawn possible',
+      colorFrequency:
+          'Western gold and entering darkness — the completion that does not resist its form',
+      mantra: '"I allow what is ending to end."',
     ),
   ),
   'mswtRa_6_1': KemeticDayInfo(
     kemeticDate: 'Mesut-Ra I, Day 6',
-    season: '☀️ Shemu – Season of Harvest',
-    month:
-        'Mesut-Ra (Mswt-Rꜥ) — The Birth of Ra and the Stillness Before Emergence',
-    decanName: 'msḥtjw ḫt',
+    season: '🌾 Shemu – Season of Harvest',
+    month: 'Mesut-Ra (Mswt-Rꜥ)',
+    decanName: 'msḥtjw ḫt ("The Crocodiles of the Offering")',
     starCluster:
         '✨ msḥtjw ḫt — a modest horizon-rising decanal marker in the Crocodiles of the Offering sequence; exact modern constellation identification is uncertain',
-    maatPrinciple: 'Listen Beneath the Surface',
+    maatPrinciple: 'Hidden Gathering Is Active Work',
     cosmicContext: '''
-The visible work of the year is nearly complete. Mesut-Ra enters the hidden passage before birth: Ra in the Duat, Nut holding the sun, Khepri waiting, and the next light forming beneath silence.
-
-This day belongs to msḥtjw ḫt, the Crocodiles of the Offering, where hidden power gathers before appearance. The star-time movement does not function as decoration. It gives the day a position in the cycle: what appears in the sky, what is happening in the year, and what the heart must practice are held together.
-
-Day 6 turns that movement toward listen beneath the surface.
-
-In practical life, this is where the old pattern meets the present body. Progress may ask for action, but not every action is Ma’at. Obstacles may ask for endurance, but not every burden should be carried. A return may ask for receiving, but not every gain should be consumed.
-
-The question is simple: What does listen beneath the surface require now?
-''',
+The crocodile beneath the water does not sleep. It is completely still and completely present.
+Its power is gathering — not absent.
+msḥtjw ḫt marks the hour when hidden strength assembles in silence before it can act rightly in the world.
+Let what is forming gather without being disturbed.''',
     decanFlow: _compressedMesutraFlowRows1,
     meduNeter: MeduNeterKey(
-      glyph: 'Duat gate, hidden sun, and crocodile',
-      colorFrequency: 'Duat black, ancestor white, and hidden gold',
-      mantra: '“I practice listen beneath the surface in Ma’at.”',
+      glyph:
+          'Crocodile motionless in deep water — the active gathering that looks like stillness',
+      colorFrequency:
+          'Deep water and concentrated gold — the power that is present in its gathering form',
+      mantra: '"Hidden gathering is active work."',
     ),
   ),
   'mswtRa_7_1': KemeticDayInfo(
     kemeticDate: 'Mesut-Ra I, Day 7',
-    season: '☀️ Shemu – Season of Harvest',
-    month:
-        'Mesut-Ra (Mswt-Rꜥ) — The Birth of Ra and the Stillness Before Emergence',
-    decanName: 'msḥtjw ḫt',
+    season: '🌾 Shemu – Season of Harvest',
+    month: 'Mesut-Ra (Mswt-Rꜥ)',
+    decanName: 'msḥtjw ḫt ("The Crocodiles of the Offering")',
     starCluster:
         '✨ msḥtjw ḫt — a modest horizon-rising decanal marker in the Crocodiles of the Offering sequence; exact modern constellation identification is uncertain',
-    maatPrinciple: 'Refuse Premature Naming',
+    maatPrinciple: 'Disappearance Is Containment',
     cosmicContext: '''
-The visible work of the year is nearly complete. Mesut-Ra enters the hidden passage before birth: Ra in the Duat, Nut holding the sun, Khepri waiting, and the next light forming beneath silence.
-
-This day belongs to msḥtjw ḫt, the Crocodiles of the Offering, where hidden power gathers before appearance. The star-time movement does not function as decoration. It gives the day a position in the cycle: what appears in the sky, what is happening in the year, and what the heart must practice are held together.
-
-Day 7 turns that movement toward refuse premature naming.
-
-In practical life, this is where the old pattern meets the present body. Progress may ask for action, but not every action is Ma’at. Obstacles may ask for endurance, but not every burden should be carried. A return may ask for receiving, but not every gain should be consumed.
-
-The question is simple: What does refuse premature naming require now?
-''',
+Nut swallows the sun at evening and gives birth to him at dawn.
+In her body, disappearance is not loss. It is containment — the condition required before emergence can happen.
+The year enters that same condition. What looks like ending is Nut's body: the place of hidden completion.
+Disappearance is containment. It prepares what must emerge.''',
     decanFlow: _compressedMesutraFlowRows1,
     meduNeter: MeduNeterKey(
-      glyph: 'Duat gate, hidden sun, and crocodile',
-      colorFrequency: 'Duat black, ancestor white, and hidden gold',
-      mantra: '“I practice refuse premature naming in Ma’at.”',
+      glyph:
+          'Nut\'s body arched over the disappearing sun — the containing darkness that is preparation',
+      colorFrequency:
+          'Night sky and held gold — the containment that is not loss',
+      mantra: '"In stillness, what disappears is being held."',
     ),
   ),
   'mswtRa_8_1': KemeticDayInfo(
     kemeticDate: 'Mesut-Ra I, Day 8',
-    season: '☀️ Shemu – Season of Harvest',
-    month:
-        'Mesut-Ra (Mswt-Rꜥ) — The Birth of Ra and the Stillness Before Emergence',
-    decanName: 'msḥtjw ḫt',
+    season: '🌾 Shemu – Season of Harvest',
+    month: 'Mesut-Ra (Mswt-Rꜥ)',
+    decanName: 'msḥtjw ḫt ("The Crocodiles of the Offering")',
     starCluster:
         '✨ msḥtjw ḫt — a modest horizon-rising decanal marker in the Crocodiles of the Offering sequence; exact modern constellation identification is uncertain',
-    maatPrinciple: 'Strengthen the Womb of Becoming',
+    maatPrinciple: 'Do Not Demand From What Has Given',
     cosmicContext: '''
-The visible work of the year is nearly complete. Mesut-Ra enters the hidden passage before birth: Ra in the Duat, Nut holding the sun, Khepri waiting, and the next light forming beneath silence.
-
-This day belongs to msḥtjw ḫt, the Crocodiles of the Offering, where hidden power gathers before appearance. The star-time movement does not function as decoration. It gives the day a position in the cycle: what appears in the sky, what is happening in the year, and what the heart must practice are held together.
-
-Day 8 turns that movement toward strengthen the womb of becoming.
-
-In practical life, this is where the old pattern meets the present body. Progress may ask for action, but not every action is Ma’at. Obstacles may ask for endurance, but not every burden should be carried. A return may ask for receiving, but not every gain should be consumed.
-
-The question is simple: What does strengthen the womb of becoming require now?
-''',
+Nothing more is demanded from the old year.
+The land that gave its harvest has given what it will give. The field pressed past its season does not produce more — it exhausts what will be needed for the next cycle.
+The year has done its appointed work.
+Do not demand from what has already given.''',
     decanFlow: _compressedMesutraFlowRows1,
     meduNeter: MeduNeterKey(
-      glyph: 'Duat gate, hidden sun, and crocodile',
-      colorFrequency: 'Duat black, ancestor white, and hidden gold',
-      mantra: '“I practice strengthen the womb of becoming in Ma’at.”',
+      glyph:
+          'Withdrawn hand from the resting field — the demand released from what has already given',
+      colorFrequency:
+          'Resting field and withdrawn gold — the respect for completion',
+      mantra: '"I do not demand from what has already given."',
     ),
   ),
   'mswtRa_9_1': KemeticDayInfo(
     kemeticDate: 'Mesut-Ra I, Day 9',
-    season: '☀️ Shemu – Season of Harvest',
-    month:
-        'Mesut-Ra (Mswt-Rꜥ) — The Birth of Ra and the Stillness Before Emergence',
-    decanName: 'msḥtjw ḫt',
+    season: '🌾 Shemu – Season of Harvest',
+    month: 'Mesut-Ra (Mswt-Rꜥ)',
+    decanName: 'msḥtjw ḫt ("The Crocodiles of the Offering")',
     starCluster:
         '✨ msḥtjw ḫt — a modest horizon-rising decanal marker in the Crocodiles of the Offering sequence; exact modern constellation identification is uncertain',
-    maatPrinciple: 'Record the Stirring',
+    maatPrinciple: 'Holding Stillness Earns Standing',
     cosmicContext: '''
-The visible work of the year is nearly complete. Mesut-Ra enters the hidden passage before birth: Ra in the Duat, Nut holding the sun, Khepri waiting, and the next light forming beneath silence.
-
-This day belongs to msḥtjw ḫt, the Crocodiles of the Offering, where hidden power gathers before appearance. The star-time movement does not function as decoration. It gives the day a position in the cycle: what appears in the sky, what is happening in the year, and what the heart must practice are held together.
-
-Day 9 turns that movement toward record the stirring.
-
-In practical life, this is where the old pattern meets the present body. Progress may ask for action, but not every action is Ma’at. Obstacles may ask for endurance, but not every burden should be carried. A return may ask for receiving, but not every gain should be consumed.
-
-The question is simple: What does record the stirring require now?
-''',
+The community sees those who hold the year's stillness correctly — who clear and close and purify without forcing the new year to begin before the old has finished.
+Imꜣḫ in Mesut-Ra belongs to those who allow completion: who let the altars be cleared, the records be closed, and the hidden passage have its full time.
+The standing of one who knows when to stop doing.
+Holding stillness correctly earns standing.''',
     decanFlow: _compressedMesutraFlowRows1,
     meduNeter: MeduNeterKey(
-      glyph: 'Duat gate, hidden sun, and crocodile',
-      colorFrequency: 'Duat black, ancestor white, and hidden gold',
-      mantra: '“I practice record the stirring in Ma’at.”',
+      glyph:
+          'Still figure at the cleared altar — Imꜣḫ earned through the discipline of not forcing',
+      colorFrequency:
+          'Standing gold in the year\'s final quiet — the conduct that holds through the month of stillness',
+      mantra: '"Holding stillness correctly earns standing."',
     ),
   ),
   'mswtRa_10_1': KemeticDayInfo(
     kemeticDate: 'Mesut-Ra I, Day 10',
-    season: '☀️ Shemu – Season of Harvest',
-    month:
-        'Mesut-Ra (Mswt-Rꜥ) — The Birth of Ra and the Stillness Before Emergence',
-    decanName: 'msḥtjw ḫt',
+    season: '🌾 Shemu – Season of Harvest',
+    month: 'Mesut-Ra (Mswt-Rꜥ)',
+    decanName: 'msḥtjw ḫt ("The Crocodiles of the Offering")',
     starCluster:
         '✨ msḥtjw ḫt — a modest horizon-rising decanal marker in the Crocodiles of the Offering sequence; exact modern constellation identification is uncertain',
-    maatPrinciple: 'Seal Hidden Emergence',
+    maatPrinciple: 'Account for What Was Cleared',
     cosmicContext: '''
-The visible work of the year is nearly complete. Mesut-Ra enters the hidden passage before birth: Ra in the Duat, Nut holding the sun, Khepri waiting, and the next light forming beneath silence.
-
-This day belongs to msḥtjw ḫt, the Crocodiles of the Offering, where hidden power gathers before appearance. The star-time movement does not function as decoration. It gives the day a position in the cycle: what appears in the sky, what is happening in the year, and what the heart must practice are held together.
-
-Day 10 turns that movement toward seal hidden emergence.
-
-In practical life, this is where the old pattern meets the present body. Progress may ask for action, but not every action is Ma’at. Obstacles may ask for endurance, but not every burden should be carried. A return may ask for receiving, but not every gain should be consumed.
-
-The question is simple: What does seal hidden emergence require now?
-''',
+msḥtjw ḫt completes its first watch — the altars cleared, the records closed, the purification begun, and nothing forced outward.
+The hidden gathering has been allowed to begin in proper conditions.
+Account for what was cleared, closed, and allowed to enter stillness across these ten days.
+Close the first watch.''',
     decanFlow: _compressedMesutraFlowRows1,
     meduNeter: MeduNeterKey(
-      glyph: 'Duat gate, hidden sun, and crocodile',
-      colorFrequency: 'Duat black, ancestor white, and hidden gold',
-      mantra: '“I practice seal hidden emergence in Ma’at.”',
+      glyph:
+          'First watch of Mesut-Ra complete — the year\'s gathering in proper condition',
+      colorFrequency:
+          'Cleared gold and accounted blue — the first watch sealed before the deep stillness begins',
+      mantra:
+          '"I account for what was cleared, closed, and entered into stillness."',
     ),
   ),
   'mswtRa_11_2': KemeticDayInfo(
-    kemeticDate: 'Mesut-Ra II, Day 1',
-    season: '☀️ Shemu – Season of Harvest',
+    kemeticDate: 'Mesut-Ra II, Day 11',
+    season: '🌾 Shemu – Season of Harvest',
     month:
-        'Mesut-Ra (Mswt-Rꜥ) — The Birth of Ra and the Stillness Before Emergence',
-    decanName: 'ḥry-ib msḥtjw ḫt',
+        'Mesut-Ra (Mswt-Rꜥ) — "The Birth of Ra"; attentive stillness; the heart awake in the ordered darkness',
+    decanName:
+        'ḥry-ib msḥtjw ḫt ("Heart of the Crocodiles of the Offering") — the heart awake in silence; wakeful containment',
     starCluster:
         '✨ ḥry-ib msḥtjw ḫt — a modest horizon-rising decanal marker in the Crocodiles of the Offering sequence; exact modern constellation identification is uncertain',
-    maatPrinciple: 'Keep the Heart Awake',
+    maatPrinciple: 'Remain Awake in Stillness',
     cosmicContext: '''
-The visible work of the year is nearly complete. Mesut-Ra enters the hidden passage before birth: Ra in the Duat, Nut holding the sun, Khepri waiting, and the next light forming beneath silence.
-
-This day belongs to ḥry-ib msḥtjw ḫt, the heart of the Crocodiles, where the heart watches without forcing. The star-time movement does not function as decoration. It gives the day a position in the cycle: what appears in the sky, what is happening in the year, and what the heart must practice are held together.
-
-Day 1 turns that movement toward keep the heart awake.
-
-In practical life, this is where the old pattern meets the present body. Progress may ask for action, but not every action is Ma’at. Obstacles may ask for endurance, but not every burden should be carried. A return may ask for receiving, but not every gain should be consumed.
-
-The question is simple: What does keep the heart awake require now?
-''',
+The heart must remain awake while the hands refrain from action.
+Stillness without attention is drift. The Duat's twelve hours are not chaos — each has its beings, its gates, its proper sequence.
+The year's hidden passage is not featureless. It has order, and that order must be observed from within.
+Remain awake in the stillness.''',
     decanFlow: _compressedMesutraFlowRows2,
     meduNeter: MeduNeterKey(
-      glyph: 'Duat gate, hidden sun, and crocodile',
-      colorFrequency: 'Duat black, ancestor white, and hidden gold',
-      mantra: '“I practice keep the heart awake in Ma’at.”',
+      glyph:
+          'Heart awake in the Duat\'s darkness — the attention that distinguishes stillness from drift',
+      colorFrequency:
+          'Wakeful gold in deep night — the heart open while the hands are still',
+      mantra: '"I remain awake in the stillness."',
     ),
   ),
   'mswtRa_12_2': KemeticDayInfo(
-    kemeticDate: 'Mesut-Ra II, Day 2',
-    season: '☀️ Shemu – Season of Harvest',
-    month:
-        'Mesut-Ra (Mswt-Rꜥ) — The Birth of Ra and the Stillness Before Emergence',
-    decanName: 'ḥry-ib msḥtjw ḫt',
+    kemeticDate: 'Mesut-Ra II, Day 12',
+    season: '🌾 Shemu – Season of Harvest',
+    month: 'Mesut-Ra (Mswt-Rꜥ)',
+    decanName: 'ḥry-ib msḥtjw ḫt ("Heart of the Crocodiles of the Offering")',
     starCluster:
         '✨ ḥry-ib msḥtjw ḫt — a modest horizon-rising decanal marker in the Crocodiles of the Offering sequence; exact modern constellation identification is uncertain',
-    maatPrinciple: 'Listen to the Dark',
+    maatPrinciple: 'The Hidden Passage Has Order',
     cosmicContext: '''
-The visible work of the year is nearly complete. Mesut-Ra enters the hidden passage before birth: Ra in the Duat, Nut holding the sun, Khepri waiting, and the next light forming beneath silence.
-
-This day belongs to ḥry-ib msḥtjw ḫt, the heart of the Crocodiles, where the heart watches without forcing. The star-time movement does not function as decoration. It gives the day a position in the cycle: what appears in the sky, what is happening in the year, and what the heart must practice are held together.
-
-Day 2 turns that movement toward listen to the dark.
-
-In practical life, this is where the old pattern meets the present body. Progress may ask for action, but not every action is Ma’at. Obstacles may ask for endurance, but not every burden should be carried. A return may ask for receiving, but not every gain should be consumed.
-
-The question is simple: What does listen to the dark require now?
-''',
+The Amduat preserves Ra's night journey through twelve ordered hours.
+Each hour has its place, its beings, its gates that must be passed. None can be skipped. Each requires its own traversal.
+The hidden passage of the year has the same structure: stages that must be passed in order before renewal can arrive.
+Respect the order of the hidden passage.''',
     decanFlow: _compressedMesutraFlowRows2,
     meduNeter: MeduNeterKey(
-      glyph: 'Duat gate, hidden sun, and crocodile',
-      colorFrequency: 'Duat black, ancestor white, and hidden gold',
-      mantra: '“I practice listen to the dark in Ma’at.”',
+      glyph:
+          'Amduat\'s ordered hours — the night passage with its proper sequence of gates',
+      colorFrequency:
+          'Ordered night and sequential gold — the darkness that has structure',
+      mantra: '"The hidden passage has order. I observe it."',
     ),
   ),
   'mswtRa_13_2': KemeticDayInfo(
-    kemeticDate: 'Mesut-Ra II, Day 3',
-    season: '☀️ Shemu – Season of Harvest',
-    month:
-        'Mesut-Ra (Mswt-Rꜥ) — The Birth of Ra and the Stillness Before Emergence',
-    decanName: 'ḥry-ib msḥtjw ḫt',
+    kemeticDate: 'Mesut-Ra II, Day 13',
+    season: '🌾 Shemu – Season of Harvest',
+    month: 'Mesut-Ra (Mswt-Rꜥ)',
+    decanName: 'ḥry-ib msḥtjw ḫt ("Heart of the Crocodiles of the Offering")',
     starCluster:
         '✨ ḥry-ib msḥtjw ḫt — a modest horizon-rising decanal marker in the Crocodiles of the Offering sequence; exact modern constellation identification is uncertain',
-    maatPrinciple: 'Separate Stillness From Avoidance',
+    maatPrinciple: 'Understand Before Closing',
     cosmicContext: '''
-The visible work of the year is nearly complete. Mesut-Ra enters the hidden passage before birth: Ra in the Duat, Nut holding the sun, Khepri waiting, and the next light forming beneath silence.
-
-This day belongs to ḥry-ib msḥtjw ḫt, the heart of the Crocodiles, where the heart watches without forcing. The star-time movement does not function as decoration. It gives the day a position in the cycle: what appears in the sky, what is happening in the year, and what the heart must practice are held together.
-
-Day 3 turns that movement toward separate stillness from avoidance.
-
-In practical life, this is where the old pattern meets the present body. Progress may ask for action, but not every action is Ma’at. Obstacles may ask for endurance, but not every burden should be carried. A return may ask for receiving, but not every gain should be consumed.
-
-The question is simple: What does separate stillness from avoidance require now?
-''',
+Records are closed when they are understood, not merely when they are sealed.
+A record sealed without having been read carries unexamined content into the next cycle.
+Djehuty's scroll is closed after the full accounting has been read and confirmed — not before.
+Understand before closing. Then close.''',
     decanFlow: _compressedMesutraFlowRows2,
     meduNeter: MeduNeterKey(
-      glyph: 'Duat gate, hidden sun, and crocodile',
-      colorFrequency: 'Duat black, ancestor white, and hidden gold',
-      mantra: '“I practice separate stillness from avoidance in Ma’at.”',
+      glyph:
+          'Scroll read before sealing — the understanding that makes closing complete',
+      colorFrequency:
+          'Read gold and sealed ink — the closing that follows comprehension',
+      mantra: '"I understand before I close."',
     ),
   ),
   'mswtRa_14_2': KemeticDayInfo(
-    kemeticDate: 'Mesut-Ra II, Day 4',
-    season: '☀️ Shemu – Season of Harvest',
-    month:
-        'Mesut-Ra (Mswt-Rꜥ) — The Birth of Ra and the Stillness Before Emergence',
-    decanName: 'ḥry-ib msḥtjw ḫt',
+    kemeticDate: 'Mesut-Ra II, Day 14',
+    season: '🌾 Shemu – Season of Harvest',
+    month: 'Mesut-Ra (Mswt-Rꜥ)',
+    decanName: 'ḥry-ib msḥtjw ḫt ("Heart of the Crocodiles of the Offering")',
     starCluster:
         '✨ ḥry-ib msḥtjw ḫt — a modest horizon-rising decanal marker in the Crocodiles of the Offering sequence; exact modern constellation identification is uncertain',
-    maatPrinciple: 'Guard the Inner Chamber',
+    maatPrinciple: 'Complete the Offerings',
     cosmicContext: '''
-The visible work of the year is nearly complete. Mesut-Ra enters the hidden passage before birth: Ra in the Duat, Nut holding the sun, Khepri waiting, and the next light forming beneath silence.
-
-This day belongs to ḥry-ib msḥtjw ḫt, the heart of the Crocodiles, where the heart watches without forcing. The star-time movement does not function as decoration. It gives the day a position in the cycle: what appears in the sky, what is happening in the year, and what the heart must practice are held together.
-
-Day 4 turns that movement toward guard the inner chamber.
-
-In practical life, this is where the old pattern meets the present body. Progress may ask for action, but not every action is Ma’at. Obstacles may ask for endurance, but not every burden should be carried. A return may ask for receiving, but not every gain should be consumed.
-
-The question is simple: What does guard the inner chamber require now?
-''',
+Any offering still outstanding must be made before the year closes.
+The uncompleted offering that crosses into Heriu Renpet carries an open account across the year's boundary.
+The offering formula names what is due, places it, and seals it. What has not been placed is not yet offered.
+Complete the outstanding offerings.''',
     decanFlow: _compressedMesutraFlowRows2,
     meduNeter: MeduNeterKey(
-      glyph: 'Duat gate, hidden sun, and crocodile',
-      colorFrequency: 'Duat black, ancestor white, and hidden gold',
-      mantra: '“I practice guard the inner chamber in Ma’at.”',
+      glyph:
+          'Outstanding offering placed before the year closes — the account sealed, not deferred',
+      colorFrequency:
+          'Offering gold and closed account — the debt discharged in its proper season',
+      mantra: '"I complete the offerings."',
     ),
   ),
   'mswtRa_15_2': KemeticDayInfo(
-    kemeticDate: 'Mesut-Ra II, Day 5',
-    season: '☀️ Shemu – Season of Harvest',
-    month:
-        'Mesut-Ra (Mswt-Rꜥ) — The Birth of Ra and the Stillness Before Emergence',
-    decanName: 'ḥry-ib msḥtjw ḫt',
+    kemeticDate: 'Mesut-Ra II, Day 15',
+    season: '🌾 Shemu – Season of Harvest',
+    month: 'Mesut-Ra (Mswt-Rꜥ)',
+    decanName: 'ḥry-ib msḥtjw ḫt ("Heart of the Crocodiles of the Offering")',
     starCluster:
         '✨ ḥry-ib msḥtjw ḫt — a modest horizon-rising decanal marker in the Crocodiles of the Offering sequence; exact modern constellation identification is uncertain',
-    maatPrinciple: 'Hold the Unclear Thing Gently',
+    maatPrinciple: 'Maintain the Condition of Readiness',
     cosmicContext: '''
-The visible work of the year is nearly complete. Mesut-Ra enters the hidden passage before birth: Ra in the Duat, Nut holding the sun, Khepri waiting, and the next light forming beneath silence.
-
-This day belongs to ḥry-ib msḥtjw ḫt, the heart of the Crocodiles, where the heart watches without forcing. The star-time movement does not function as decoration. It gives the day a position in the cycle: what appears in the sky, what is happening in the year, and what the heart must practice are held together.
-
-Day 5 turns that movement toward hold the unclear thing gently.
-
-In practical life, this is where the old pattern meets the present body. Progress may ask for action, but not every action is Ma’at. Obstacles may ask for endurance, but not every burden should be carried. A return may ask for receiving, but not every gain should be consumed.
-
-The question is simple: What does hold the unclear thing gently require now?
-''',
+The condition of purification is not a state that, once achieved, maintains itself.
+What was cleared at the beginning of the month accumulates again if attention lapses.
+The Kemetic rites of purification were repeated, not performed once and considered complete.
+Maintain the condition of readiness through the middle of the stillness.''',
     decanFlow: _compressedMesutraFlowRows2,
     meduNeter: MeduNeterKey(
-      glyph: 'Duat gate, hidden sun, and crocodile',
-      colorFrequency: 'Duat black, ancestor white, and hidden gold',
-      mantra: '“I practice hold the unclear thing gently in Ma’at.”',
+      glyph:
+          'Purification renewed — the maintenance of what was cleared rather than assuming it holds',
+      colorFrequency:
+          'Maintained white and renewed blue — readiness that requires continued attention',
+      mantra: '"I maintain the condition of readiness."',
     ),
   ),
   'mswtRa_16_2': KemeticDayInfo(
-    kemeticDate: 'Mesut-Ra II, Day 6',
-    season: '☀️ Shemu – Season of Harvest',
-    month:
-        'Mesut-Ra (Mswt-Rꜥ) — The Birth of Ra and the Stillness Before Emergence',
-    decanName: 'ḥry-ib msḥtjw ḫt',
+    kemeticDate: 'Mesut-Ra II, Day 16',
+    season: '🌾 Shemu – Season of Harvest',
+    month: 'Mesut-Ra (Mswt-Rꜥ)',
+    decanName: 'ḥry-ib msḥtjw ḫt ("Heart of the Crocodiles of the Offering")',
     starCluster:
         '✨ ḥry-ib msḥtjw ḫt — a modest horizon-rising decanal marker in the Crocodiles of the Offering sequence; exact modern constellation identification is uncertain',
-    maatPrinciple: 'Watch the Gate',
+    maatPrinciple: 'Do Not Begin Before the Ending',
     cosmicContext: '''
-The visible work of the year is nearly complete. Mesut-Ra enters the hidden passage before birth: Ra in the Duat, Nut holding the sun, Khepri waiting, and the next light forming beneath silence.
-
-This day belongs to ḥry-ib msḥtjw ḫt, the heart of the Crocodiles, where the heart watches without forcing. The star-time movement does not function as decoration. It gives the day a position in the cycle: what appears in the sky, what is happening in the year, and what the heart must practice are held together.
-
-Day 6 turns that movement toward watch the gate.
-
-In practical life, this is where the old pattern meets the present body. Progress may ask for action, but not every action is Ma’at. Obstacles may ask for endurance, but not every burden should be carried. A return may ask for receiving, but not every gain should be consumed.
-
-The question is simple: What does watch the gate require now?
-''',
+The great temptation of the final month is to begin the new year before the old year has finished.
+New year energy arrives before Wp Rnpt. Plans form. Intentions quicken. The scarab wants to rise early.
+But Khepri does not rise before the night has done its full work. The incomplete passage produces an incomplete emergence.
+Do not begin before the ending is complete.''',
     decanFlow: _compressedMesutraFlowRows2,
     meduNeter: MeduNeterKey(
-      glyph: 'Duat gate, hidden sun, and crocodile',
-      colorFrequency: 'Duat black, ancestor white, and hidden gold',
-      mantra: '“I practice watch the gate in Ma’at.”',
+      glyph:
+          'Khepri waiting at the horizon\'s edge — the becoming that does not rise before its time',
+      colorFrequency:
+          'Pre-dawn restraint and waiting gold — the patience that produces a complete emergence',
+      mantra: '"I do not begin before the ending is complete."',
     ),
   ),
   'mswtRa_17_2': KemeticDayInfo(
-    kemeticDate: 'Mesut-Ra II, Day 7',
-    season: '☀️ Shemu – Season of Harvest',
-    month:
-        'Mesut-Ra (Mswt-Rꜥ) — The Birth of Ra and the Stillness Before Emergence',
-    decanName: 'ḥry-ib msḥtjw ḫt',
+    kemeticDate: 'Mesut-Ra II, Day 17',
+    season: '🌾 Shemu – Season of Harvest',
+    month: 'Mesut-Ra (Mswt-Rꜥ)',
+    decanName: 'ḥry-ib msḥtjw ḫt ("Heart of the Crocodiles of the Offering")',
     starCluster:
         '✨ ḥry-ib msḥtjw ḫt — a modest horizon-rising decanal marker in the Crocodiles of the Offering sequence; exact modern constellation identification is uncertain',
-    maatPrinciple: 'Keep the Lamp Low',
+    maatPrinciple: 'Pass Through the Deepest Point',
     cosmicContext: '''
-The visible work of the year is nearly complete. Mesut-Ra enters the hidden passage before birth: Ra in the Duat, Nut holding the sun, Khepri waiting, and the next light forming beneath silence.
-
-This day belongs to ḥry-ib msḥtjw ḫt, the heart of the Crocodiles, where the heart watches without forcing. The star-time movement does not function as decoration. It gives the day a position in the cycle: what appears in the sky, what is happening in the year, and what the heart must practice are held together.
-
-Day 7 turns that movement toward keep the lamp low.
-
-In practical life, this is where the old pattern meets the present body. Progress may ask for action, but not every action is Ma’at. Obstacles may ask for endurance, but not every burden should be carried. A return may ask for receiving, but not every gain should be consumed.
-
-The question is simple: What does keep the lamp low require now?
-''',
+Ra passes through the deepest point of the Duat — the hidden center where movement is most concealed and renewal is most fully in preparation.
+This is the hour when nothing should be disturbed, because everything is in the most sensitive phase of formation.
+The deepest point of the year's hidden passage is here.
+Pass through the deepest point without disturbance.''',
     decanFlow: _compressedMesutraFlowRows2,
     meduNeter: MeduNeterKey(
-      glyph: 'Duat gate, hidden sun, and crocodile',
-      colorFrequency: 'Duat black, ancestor white, and hidden gold',
-      mantra: '“I practice keep the lamp low in Ma’at.”',
+      glyph:
+          'Ra at the Duat\'s deepest center — the hidden heart of renewal that must not be disturbed',
+      colorFrequency:
+          'Deep Duat black and forming gold — the most sensitive point in the year\'s passage',
+      mantra: '"I pass through the deepest point without disturbance."',
     ),
   ),
   'mswtRa_18_2': KemeticDayInfo(
-    kemeticDate: 'Mesut-Ra II, Day 8',
-    season: '☀️ Shemu – Season of Harvest',
-    month:
-        'Mesut-Ra (Mswt-Rꜥ) — The Birth of Ra and the Stillness Before Emergence',
-    decanName: 'ḥry-ib msḥtjw ḫt',
+    kemeticDate: 'Mesut-Ra II, Day 18',
+    season: '🌾 Shemu – Season of Harvest',
+    month: 'Mesut-Ra (Mswt-Rꜥ)',
+    decanName: 'ḥry-ib msḥtjw ḫt ("Heart of the Crocodiles of the Offering")',
     starCluster:
         '✨ ḥry-ib msḥtjw ḫt — a modest horizon-rising decanal marker in the Crocodiles of the Offering sequence; exact modern constellation identification is uncertain',
-    maatPrinciple: 'Trust the Ordered Passage',
+    maatPrinciple: 'Hold Wakeful Containment',
     cosmicContext: '''
-The visible work of the year is nearly complete. Mesut-Ra enters the hidden passage before birth: Ra in the Duat, Nut holding the sun, Khepri waiting, and the next light forming beneath silence.
-
-This day belongs to ḥry-ib msḥtjw ḫt, the heart of the Crocodiles, where the heart watches without forcing. The star-time movement does not function as decoration. It gives the day a position in the cycle: what appears in the sky, what is happening in the year, and what the heart must practice are held together.
-
-Day 8 turns that movement toward trust the ordered passage.
-
-In practical life, this is where the old pattern meets the present body. Progress may ask for action, but not every action is Ma’at. Obstacles may ask for endurance, but not every burden should be carried. A return may ask for receiving, but not every gain should be consumed.
-
-The question is simple: What does trust the ordered passage require now?
-''',
+Wakeful containment is the correct state of Mesut-Ra's heart: records understood and closed, offerings completed, purification maintained, and full attention held on what is forming below the surface.
+This is not passive waiting. It is the most disciplined form of active presence.
+The Amduat's ordered passage requires this quality throughout each of its twelve hours.
+Hold wakeful containment.''',
     decanFlow: _compressedMesutraFlowRows2,
     meduNeter: MeduNeterKey(
-      glyph: 'Duat gate, hidden sun, and crocodile',
-      colorFrequency: 'Duat black, ancestor white, and hidden gold',
-      mantra: '“I practice trust the ordered passage in Ma’at.”',
+      glyph:
+          'Heart in full wakefulness within the stillness — the active presence that the hidden passage requires',
+      colorFrequency:
+          'Wakeful gold in contained night — the discipline of attending without acting',
+      mantra: '"I hold wakeful containment."',
     ),
   ),
   'mswtRa_19_2': KemeticDayInfo(
-    kemeticDate: 'Mesut-Ra II, Day 9',
-    season: '☀️ Shemu – Season of Harvest',
-    month:
-        'Mesut-Ra (Mswt-Rꜥ) — The Birth of Ra and the Stillness Before Emergence',
-    decanName: 'ḥry-ib msḥtjw ḫt',
+    kemeticDate: 'Mesut-Ra II, Day 19',
+    season: '🌾 Shemu – Season of Harvest',
+    month: 'Mesut-Ra (Mswt-Rꜥ)',
+    decanName: 'ḥry-ib msḥtjw ḫt ("Heart of the Crocodiles of the Offering")',
     starCluster:
         '✨ ḥry-ib msḥtjw ḫt — a modest horizon-rising decanal marker in the Crocodiles of the Offering sequence; exact modern constellation identification is uncertain',
-    maatPrinciple: 'Record the Night Watch',
+    maatPrinciple: 'What Is Forming Must Not Be Rushed',
     cosmicContext: '''
-The visible work of the year is nearly complete. Mesut-Ra enters the hidden passage before birth: Ra in the Duat, Nut holding the sun, Khepri waiting, and the next light forming beneath silence.
-
-This day belongs to ḥry-ib msḥtjw ḫt, the heart of the Crocodiles, where the heart watches without forcing. The star-time movement does not function as decoration. It gives the day a position in the cycle: what appears in the sky, what is happening in the year, and what the heart must practice are held together.
-
-Day 9 turns that movement toward record the night watch.
-
-In practical life, this is where the old pattern meets the present body. Progress may ask for action, but not every action is Ma’at. Obstacles may ask for endurance, but not every burden should be carried. A return may ask for receiving, but not every gain should be consumed.
-
-The question is simple: What does record the night watch require now?
-''',
+The Book of Coming Forth by Day names Ra as "the Lord of Resurrections, the one who comes forth from dusk, whose birth is from the House of Death."
+What is forming in that house must remain there until the transformation is complete.
+What is pulled into visibility too soon comes incomplete. The emergence forced before its time carries the incompleteness of the forcing.
+What is forming must not be rushed.''',
     decanFlow: _compressedMesutraFlowRows2,
     meduNeter: MeduNeterKey(
-      glyph: 'Duat gate, hidden sun, and crocodile',
-      colorFrequency: 'Duat black, ancestor white, and hidden gold',
-      mantra: '“I practice record the night watch in Ma’at.”',
+      glyph:
+          'Hidden transformation in Nut\'s body — the forming that must not be pulled out too soon',
+      colorFrequency:
+          'Protected dark and forming gold — the becoming that needs its full time',
+      mantra: '"What is forming must not be rushed."',
     ),
   ),
   'mswtRa_20_2': KemeticDayInfo(
-    kemeticDate: 'Mesut-Ra II, Day 10',
-    season: '☀️ Shemu – Season of Harvest',
-    month:
-        'Mesut-Ra (Mswt-Rꜥ) — The Birth of Ra and the Stillness Before Emergence',
-    decanName: 'ḥry-ib msḥtjw ḫt',
+    kemeticDate: 'Mesut-Ra II, Day 20',
+    season: '🌾 Shemu – Season of Harvest',
+    month: 'Mesut-Ra (Mswt-Rꜥ)',
+    decanName: 'ḥry-ib msḥtjw ḫt ("Heart of the Crocodiles of the Offering")',
     starCluster:
         '✨ ḥry-ib msḥtjw ḫt — a modest horizon-rising decanal marker in the Crocodiles of the Offering sequence; exact modern constellation identification is uncertain',
-    maatPrinciple: 'Seal Attentive Stillness',
+    maatPrinciple: 'Account for the Hidden Passage',
     cosmicContext: '''
-The visible work of the year is nearly complete. Mesut-Ra enters the hidden passage before birth: Ra in the Duat, Nut holding the sun, Khepri waiting, and the next light forming beneath silence.
-
-This day belongs to ḥry-ib msḥtjw ḫt, the heart of the Crocodiles, where the heart watches without forcing. The star-time movement does not function as decoration. It gives the day a position in the cycle: what appears in the sky, what is happening in the year, and what the heart must practice are held together.
-
-Day 10 turns that movement toward seal attentive stillness.
-
-In practical life, this is where the old pattern meets the present body. Progress may ask for action, but not every action is Ma’at. Obstacles may ask for endurance, but not every burden should be carried. A return may ask for receiving, but not every gain should be consumed.
-
-The question is simple: What does seal attentive stillness require now?
-''',
+The second watch of Mesut-Ra closes — the heart has been awake through the ordered hours of the hidden passage.
+The deepest point has been passed. The condition of readiness has been maintained.
+Account for what was observed, understood, completed, and held in wakeful stillness across these ten days.
+Seal the hidden passage watch.''',
     decanFlow: _compressedMesutraFlowRows2,
     meduNeter: MeduNeterKey(
-      glyph: 'Duat gate, hidden sun, and crocodile',
-      colorFrequency: 'Duat black, ancestor white, and hidden gold',
-      mantra: '“I practice seal attentive stillness in Ma’at.”',
+      glyph:
+          'Heart completing the Duat\'s hours — the wakeful passage sealed before the threshold opens',
+      colorFrequency:
+          'Completed passage gold and threshold blue — the accounting of the hidden watch',
+      mantra: '"I account for the hidden passage."',
     ),
   ),
   'mswtRa_21_3': KemeticDayInfo(
-    kemeticDate: 'Mesut-Ra III, Day 1',
-    season: '☀️ Shemu – Season of Harvest',
+    kemeticDate: 'Mesut-Ra III, Day 21',
+    season: '🌾 Shemu – Season of Harvest',
     month:
-        'Mesut-Ra (Mswt-Rꜥ) — The Birth of Ra and the Stillness Before Emergence',
-    decanName: 'sbꜣ msḥtjw ḫt',
+        'Mesut-Ra (Mswt-Rꜥ) — "The Birth of Ra"; readiness before rebirth; the final threshold of the year',
+    decanName:
+        'sbꜣ msḥtjw ḫt ("Star of the Crocodiles of the Offering") — readiness before rebirth; the threshold star',
     starCluster:
         '✨ sbꜣ msḥtjw ḫt — a modest horizon-rising decanal marker in the Crocodiles of the Offering sequence; exact modern constellation identification is uncertain',
-    maatPrinciple: 'Stand at the Threshold',
+    maatPrinciple: 'Read the Final Measure',
     cosmicContext: '''
-The visible work of the year is nearly complete. Mesut-Ra enters the hidden passage before birth: Ra in the Duat, Nut holding the sun, Khepri waiting, and the next light forming beneath silence.
-
-This day belongs to sbꜣ msḥtjw ḫt, the star of the Crocodiles, where the edge of birth is guarded until its hour. The star-time movement does not function as decoration. It gives the day a position in the cycle: what appears in the sky, what is happening in the year, and what the heart must practice are held together.
-
-Day 1 turns that movement toward stand at the threshold.
-
-In practical life, this is where the old pattern meets the present body. Progress may ask for action, but not every action is Ma’at. Obstacles may ask for endurance, but not every burden should be carried. A return may ask for receiving, but not every gain should be consumed.
-
-The question is simple: What does stand at the threshold require now?
-''',
+sbꜣ msḥtjw ḫt rises — the threshold star; the announcement that the night has reached its final measure.
+A star before dawn does not create the sun. It announces that emergence is near.
+The year has reached its final measure. The threshold is near.
+Read the final measure without forcing what it announces.''',
     decanFlow: _compressedMesutraFlowRows3,
     meduNeter: MeduNeterKey(
-      glyph: 'Duat gate, hidden sun, and crocodile',
-      colorFrequency: 'Duat black, ancestor white, and hidden gold',
-      mantra: '“I practice stand at the threshold in Ma’at.”',
+      glyph:
+          'Star before dawn — the announcement of what is near without forcing what must arrive',
+      colorFrequency:
+          'Pre-dawn star gold and threshold night — the final measure of the old cycle',
+      mantra: '"I read the final measure without forcing what it announces."',
     ),
   ),
   'mswtRa_22_3': KemeticDayInfo(
-    kemeticDate: 'Mesut-Ra III, Day 2',
-    season: '☀️ Shemu – Season of Harvest',
-    month:
-        'Mesut-Ra (Mswt-Rꜥ) — The Birth of Ra and the Stillness Before Emergence',
-    decanName: 'sbꜣ msḥtjw ḫt',
+    kemeticDate: 'Mesut-Ra III, Day 22',
+    season: '🌾 Shemu – Season of Harvest',
+    month: 'Mesut-Ra (Mswt-Rꜥ)',
+    decanName: 'sbꜣ msḥtjw ḫt ("Star of the Crocodiles of the Offering")',
     starCluster:
         '✨ sbꜣ msḥtjw ḫt — a modest horizon-rising decanal marker in the Crocodiles of the Offering sequence; exact modern constellation identification is uncertain',
-    maatPrinciple: 'Stop Adding to the Old Cycle',
+    maatPrinciple: 'Readiness Is Complete',
     cosmicContext: '''
-The visible work of the year is nearly complete. Mesut-Ra enters the hidden passage before birth: Ra in the Duat, Nut holding the sun, Khepri waiting, and the next light forming beneath silence.
-
-This day belongs to sbꜣ msḥtjw ḫt, the star of the Crocodiles, where the edge of birth is guarded until its hour. The star-time movement does not function as decoration. It gives the day a position in the cycle: what appears in the sky, what is happening in the year, and what the heart must practice are held together.
-
-Day 2 turns that movement toward stop adding to the old cycle.
-
-In practical life, this is where the old pattern meets the present body. Progress may ask for action, but not every action is Ma’at. Obstacles may ask for endurance, but not every burden should be carried. A return may ask for receiving, but not every gain should be consumed.
-
-The question is simple: What does stop adding to the old cycle require now?
-''',
+Readiness is complete when nothing more needs to be added.
+The altar cleared, the record closed, the offering placed, the purification maintained — all of this is what readiness is.
+No further effort can improve what must now pass by timing.
+Nothing more is required from you. What must happen will happen under Ma'at.''',
     decanFlow: _compressedMesutraFlowRows3,
     meduNeter: MeduNeterKey(
-      glyph: 'Duat gate, hidden sun, and crocodile',
-      colorFrequency: 'Duat black, ancestor white, and hidden gold',
-      mantra: '“I practice stop adding to the old cycle in Ma’at.”',
+      glyph:
+          'The completed threshold — nothing more to add, the readiness whole',
+      colorFrequency:
+          'Complete gold and resting blue — the readiness that does not need more',
+      mantra: '"Nothing more is required. Readiness is complete."',
     ),
   ),
   'mswtRa_23_3': KemeticDayInfo(
-    kemeticDate: 'Mesut-Ra III, Day 3',
-    season: '☀️ Shemu – Season of Harvest',
-    month:
-        'Mesut-Ra (Mswt-Rꜥ) — The Birth of Ra and the Stillness Before Emergence',
-    decanName: 'sbꜣ msḥtjw ḫt',
+    kemeticDate: 'Mesut-Ra III, Day 23',
+    season: '🌾 Shemu – Season of Harvest',
+    month: 'Mesut-Ra (Mswt-Rꜥ)',
+    decanName: 'sbꜣ msḥtjw ḫt ("Star of the Crocodiles of the Offering")',
     starCluster:
         '✨ sbꜣ msḥtjw ḫt — a modest horizon-rising decanal marker in the Crocodiles of the Offering sequence; exact modern constellation identification is uncertain',
-    maatPrinciple: 'Clear the Gate',
+    maatPrinciple: 'Hold the Form of Becoming',
     cosmicContext: '''
-The visible work of the year is nearly complete. Mesut-Ra enters the hidden passage before birth: Ra in the Duat, Nut holding the sun, Khepri waiting, and the next light forming beneath silence.
-
-This day belongs to sbꜣ msḥtjw ḫt, the star of the Crocodiles, where the edge of birth is guarded until its hour. The star-time movement does not function as decoration. It gives the day a position in the cycle: what appears in the sky, what is happening in the year, and what the heart must practice are held together.
-
-Day 3 turns that movement toward clear the gate.
-
-In practical life, this is where the old pattern meets the present body. Progress may ask for action, but not every action is Ma’at. Obstacles may ask for endurance, but not every burden should be carried. A return may ask for receiving, but not every gain should be consumed.
-
-The question is simple: What does clear the gate require now?
-''',
+Khepri is the form Ra takes in the moment of becoming — not yet fully born, not still in the death-dark, but the sacred transformation itself.
+He is not the sunrise. He is what the sunrise emerges from.
+The year stands in that same condition: not ended, not yet begun, but the transformation itself.
+Hold the form of becoming without rushing it past.''',
     decanFlow: _compressedMesutraFlowRows3,
     meduNeter: MeduNeterKey(
-      glyph: 'Duat gate, hidden sun, and crocodile',
-      colorFrequency: 'Duat black, ancestor white, and hidden gold',
-      mantra: '“I practice clear the gate in Ma’at.”',
+      glyph:
+          'Khepri at the horizon — the transformation that is neither the night nor the dawn but the becoming',
+      colorFrequency:
+          'Becoming gold and threshold dark — the sacred moment between what was and what will be',
+      mantra: '"I hold the form of becoming without rushing it."',
     ),
   ),
   'mswtRa_24_3': KemeticDayInfo(
-    kemeticDate: 'Mesut-Ra III, Day 4',
-    season: '☀️ Shemu – Season of Harvest',
-    month:
-        'Mesut-Ra (Mswt-Rꜥ) — The Birth of Ra and the Stillness Before Emergence',
-    decanName: 'sbꜣ msḥtjw ḫt',
+    kemeticDate: 'Mesut-Ra III, Day 24',
+    season: '🌾 Shemu – Season of Harvest',
+    month: 'Mesut-Ra (Mswt-Rꜥ)',
+    decanName: 'sbꜣ msḥtjw ḫt ("Star of the Crocodiles of the Offering")',
     starCluster:
         '✨ sbꜣ msḥtjw ḫt — a modest horizon-rising decanal marker in the Crocodiles of the Offering sequence; exact modern constellation identification is uncertain',
-    maatPrinciple: 'Gather the Necessary Things',
+    maatPrinciple: 'The Proper Moment Arrives Under Ma\'at',
     cosmicContext: '''
-The visible work of the year is nearly complete. Mesut-Ra enters the hidden passage before birth: Ra in the Duat, Nut holding the sun, Khepri waiting, and the next light forming beneath silence.
-
-This day belongs to sbꜣ msḥtjw ḫt, the star of the Crocodiles, where the edge of birth is guarded until its hour. The star-time movement does not function as decoration. It gives the day a position in the cycle: what appears in the sky, what is happening in the year, and what the heart must practice are held together.
-
-Day 4 turns that movement toward gather the necessary things.
-
-In practical life, this is where the old pattern meets the present body. Progress may ask for action, but not every action is Ma’at. Obstacles may ask for endurance, but not every burden should be carried. A return may ask for receiving, but not every gain should be consumed.
-
-The question is simple: What does gather the necessary things require now?
-''',
+Nut releases Ra at the proper moment — not at the moment of Ra's desire or the watcher's impatience, but when the night's work is complete.
+The proper moment is not arbitrary. It arrives when the conditions that readiness requires are present.
+Ma'at governs the timing of emergence. Forcing emergence past that moment violates the order the night prepared.
+Let the proper moment arrive under Ma'at.''',
     decanFlow: _compressedMesutraFlowRows3,
     meduNeter: MeduNeterKey(
-      glyph: 'Duat gate, hidden sun, and crocodile',
-      colorFrequency: 'Duat black, ancestor white, and hidden gold',
-      mantra: '“I practice gather the necessary things in Ma’at.”',
+      glyph:
+          'Nut releasing Ra at the proper moment — emergence governed by completion, not desire',
+      colorFrequency:
+          'Released gold and Ma\'at-governed blue — the emergence that arrives when it is ready',
+      mantra: '"I let the proper moment arrive under Ma\'at."',
     ),
   ),
   'mswtRa_25_3': KemeticDayInfo(
-    kemeticDate: 'Mesut-Ra III, Day 5',
-    season: '☀️ Shemu – Season of Harvest',
-    month:
-        'Mesut-Ra (Mswt-Rꜥ) — The Birth of Ra and the Stillness Before Emergence',
-    decanName: 'sbꜣ msḥtjw ḫt',
+    kemeticDate: 'Mesut-Ra III, Day 25',
+    season: '🌾 Shemu – Season of Harvest',
+    month: 'Mesut-Ra (Mswt-Rꜥ)',
+    decanName: 'sbꜣ msḥtjw ḫt ("Star of the Crocodiles of the Offering")',
     starCluster:
         '✨ sbꜣ msḥtjw ḫt — a modest horizon-rising decanal marker in the Crocodiles of the Offering sequence; exact modern constellation identification is uncertain',
-    maatPrinciple: 'Refuse the False Dawn',
+    maatPrinciple: 'Keep the Threshold Intact',
     cosmicContext: '''
-The visible work of the year is nearly complete. Mesut-Ra enters the hidden passage before birth: Ra in the Duat, Nut holding the sun, Khepri waiting, and the next light forming beneath silence.
-
-This day belongs to sbꜣ msḥtjw ḫt, the star of the Crocodiles, where the edge of birth is guarded until its hour. The star-time movement does not function as decoration. It gives the day a position in the cycle: what appears in the sky, what is happening in the year, and what the heart must practice are held together.
-
-Day 5 turns that movement toward refuse the false dawn.
-
-In practical life, this is where the old pattern meets the present body. Progress may ask for action, but not every action is Ma’at. Obstacles may ask for endurance, but not every burden should be carried. A return may ask for receiving, but not every gain should be consumed.
-
-The question is simple: What does refuse the false dawn require now?
-''',
+The threshold must be kept intact — what would disturb the passage through it must be removed from its approach.
+A threshold compromised by unfinished disorder cannot hold what passes through it cleanly.
+The year's final threshold is this threshold. What crosses it crosses into Heriu Renpet and then into the new year.
+Keep the threshold intact.''',
     decanFlow: _compressedMesutraFlowRows3,
     meduNeter: MeduNeterKey(
-      glyph: 'Duat gate, hidden sun, and crocodile',
-      colorFrequency: 'Duat black, ancestor white, and hidden gold',
-      mantra: '“I practice refuse the false dawn in Ma’at.”',
+      glyph:
+          'Clear approach to the threshold — the final disorder removed before the passage',
+      colorFrequency:
+          'Clear threshold gold and open passage — the approach maintained for clean crossing',
+      mantra: '"I keep the threshold intact."',
     ),
   ),
   'mswtRa_26_3': KemeticDayInfo(
-    kemeticDate: 'Mesut-Ra III, Day 6',
-    season: '☀️ Shemu – Season of Harvest',
-    month:
-        'Mesut-Ra (Mswt-Rꜥ) — The Birth of Ra and the Stillness Before Emergence',
-    decanName: 'sbꜣ msḥtjw ḫt',
+    kemeticDate: 'Mesut-Ra III, Day 26',
+    season: '🌾 Shemu – Season of Harvest',
+    month: 'Mesut-Ra (Mswt-Rꜥ)',
+    decanName: 'sbꜣ msḥtjw ḫt ("Star of the Crocodiles of the Offering")',
     starCluster:
         '✨ sbꜣ msḥtjw ḫt — a modest horizon-rising decanal marker in the Crocodiles of the Offering sequence; exact modern constellation identification is uncertain',
-    maatPrinciple: 'Keep the Body Ready',
+    maatPrinciple: 'Allow the Light to Change',
     cosmicContext: '''
-The visible work of the year is nearly complete. Mesut-Ra enters the hidden passage before birth: Ra in the Duat, Nut holding the sun, Khepri waiting, and the next light forming beneath silence.
-
-This day belongs to sbꜣ msḥtjw ḫt, the star of the Crocodiles, where the edge of birth is guarded until its hour. The star-time movement does not function as decoration. It gives the day a position in the cycle: what appears in the sky, what is happening in the year, and what the heart must practice are held together.
-
-Day 6 turns that movement toward keep the body ready.
-
-In practical life, this is where the old pattern meets the present body. Progress may ask for action, but not every action is Ma’at. Obstacles may ask for endurance, but not every burden should be carried. A return may ask for receiving, but not every gain should be consumed.
-
-The question is simple: What does keep the body ready require now?
-''',
+The lamps of the old year are allowed to go out.
+New light does not come from the sustained burning of old lamps. It comes from the new fire — the sun that rises from Nut's body renewed.
+The light that would persist past its season uses what the new year needs to begin.
+Allow the light to change.''',
     decanFlow: _compressedMesutraFlowRows3,
     meduNeter: MeduNeterKey(
-      glyph: 'Duat gate, hidden sun, and crocodile',
-      colorFrequency: 'Duat black, ancestor white, and hidden gold',
-      mantra: '“I practice keep the body ready in Ma’at.”',
+      glyph:
+          'Old lamp going out — the making-way for the new light that cannot come from the old flame',
+      colorFrequency:
+          'Extinguishing amber and making-way dark — the change of light that renewal requires',
+      mantra: '"I allow the light to change."',
     ),
   ),
   'mswtRa_27_3': KemeticDayInfo(
-    kemeticDate: 'Mesut-Ra III, Day 7',
-    season: '☀️ Shemu – Season of Harvest',
-    month:
-        'Mesut-Ra (Mswt-Rꜥ) — The Birth of Ra and the Stillness Before Emergence',
-    decanName: 'sbꜣ msḥtjw ḫt',
+    kemeticDate: 'Mesut-Ra III, Day 27',
+    season: '🌾 Shemu – Season of Harvest',
+    month: 'Mesut-Ra (Mswt-Rꜥ)',
+    decanName: 'sbꜣ msḥtjw ḫt ("Star of the Crocodiles of the Offering")',
     starCluster:
         '✨ sbꜣ msḥtjw ḫt — a modest horizon-rising decanal marker in the Crocodiles of the Offering sequence; exact modern constellation identification is uncertain',
-    maatPrinciple: 'Honor the Last Darkness',
+    maatPrinciple: 'Let the Year End',
     cosmicContext: '''
-The visible work of the year is nearly complete. Mesut-Ra enters the hidden passage before birth: Ra in the Duat, Nut holding the sun, Khepri waiting, and the next light forming beneath silence.
-
-This day belongs to sbꜣ msḥtjw ḫt, the star of the Crocodiles, where the edge of birth is guarded until its hour. The star-time movement does not function as decoration. It gives the day a position in the cycle: what appears in the sky, what is happening in the year, and what the heart must practice are held together.
-
-Day 7 turns that movement toward honor the last darkness.
-
-In practical life, this is where the old pattern meets the present body. Progress may ask for action, but not every action is Ma’at. Obstacles may ask for endurance, but not every burden should be carried. A return may ask for receiving, but not every gain should be consumed.
-
-The question is simple: What does honor the last darkness require now?
-''',
+What has ended must be allowed to end — the final and simplest obligation of Mesut-Ra.
+Every attempt to continue what has completed delays the completion.
+The year that is ending has done what it was here to do.
+Honor it by allowing it to end fully.''',
     decanFlow: _compressedMesutraFlowRows3,
     meduNeter: MeduNeterKey(
-      glyph: 'Duat gate, hidden sun, and crocodile',
-      colorFrequency: 'Duat black, ancestor white, and hidden gold',
-      mantra: '“I practice honor the last darkness in Ma’at.”',
+      glyph:
+          'The year honored in its ending — the completion that is allowed to be complete',
+      colorFrequency:
+          'Ending gold and honored blue — the year that ends with the dignity of completion',
+      mantra: '"I let the year end."',
     ),
   ),
   'mswtRa_28_3': KemeticDayInfo(
-    kemeticDate: 'Mesut-Ra III, Day 8',
-    season: '☀️ Shemu – Season of Harvest',
-    month:
-        'Mesut-Ra (Mswt-Rꜥ) — The Birth of Ra and the Stillness Before Emergence',
-    decanName: 'sbꜣ msḥtjw ḫt',
+    kemeticDate: 'Mesut-Ra III, Day 28',
+    season: '🌾 Shemu – Season of Harvest',
+    month: 'Mesut-Ra (Mswt-Rꜥ)',
+    decanName: 'sbꜣ msḥtjw ḫt ("Star of the Crocodiles of the Offering")',
     starCluster:
         '✨ sbꜣ msḥtjw ḫt — a modest horizon-rising decanal marker in the Crocodiles of the Offering sequence; exact modern constellation identification is uncertain',
-    maatPrinciple: 'Listen for the First Light',
+    maatPrinciple: 'The Transformation Is Complete',
     cosmicContext: '''
-The visible work of the year is nearly complete. Mesut-Ra enters the hidden passage before birth: Ra in the Duat, Nut holding the sun, Khepri waiting, and the next light forming beneath silence.
-
-This day belongs to sbꜣ msḥtjw ḫt, the star of the Crocodiles, where the edge of birth is guarded until its hour. The star-time movement does not function as decoration. It gives the day a position in the cycle: what appears in the sky, what is happening in the year, and what the heart must practice are held together.
-
-Day 8 turns that movement toward listen for the first light.
-
-In practical life, this is where the old pattern meets the present body. Progress may ask for action, but not every action is Ma’at. Obstacles may ask for endurance, but not every burden should be carried. A return may ask for receiving, but not every gain should be consumed.
-
-The question is simple: What does listen for the first light require now?
-''',
+The hidden transformation completes. Khepri is present. The new form is not yet visible, but it exists.
+The crocodile is about to rise. The star before dawn is about to be followed by the sun.
+The night has done its work. The preparation is complete. The emergence is imminent.
+The transformation is complete.''',
     decanFlow: _compressedMesutraFlowRows3,
     meduNeter: MeduNeterKey(
-      glyph: 'Duat gate, hidden sun, and crocodile',
-      colorFrequency: 'Duat black, ancestor white, and hidden gold',
-      mantra: '“I practice listen for the first light in Ma’at.”',
+      glyph:
+          'Khepri present at the threshold — the transformation complete, the emergence imminent',
+      colorFrequency:
+          'Transformation gold at the edge of dawn — the becoming that has completed its hidden work',
+      mantra: '"The transformation is complete."',
     ),
   ),
   'mswtRa_29_3': KemeticDayInfo(
-    kemeticDate: 'Mesut-Ra III, Day 9',
-    season: '☀️ Shemu – Season of Harvest',
-    month:
-        'Mesut-Ra (Mswt-Rꜥ) — The Birth of Ra and the Stillness Before Emergence',
-    decanName: 'sbꜣ msḥtjw ḫt',
+    kemeticDate: 'Mesut-Ra III, Day 29',
+    season: '🌾 Shemu – Season of Harvest',
+    month: 'Mesut-Ra (Mswt-Rꜥ)',
+    decanName: 'sbꜣ msḥtjw ḫt ("Star of the Crocodiles of the Offering")',
     starCluster:
         '✨ sbꜣ msḥtjw ḫt — a modest horizon-rising decanal marker in the Crocodiles of the Offering sequence; exact modern constellation identification is uncertain',
-    maatPrinciple: 'Seal the Night Passage',
+    maatPrinciple: 'Nothing More Is Required',
     cosmicContext: '''
-The visible work of the year is nearly complete. Mesut-Ra enters the hidden passage before birth: Ra in the Duat, Nut holding the sun, Khepri waiting, and the next light forming beneath silence.
-
-This day belongs to sbꜣ msḥtjw ḫt, the star of the Crocodiles, where the edge of birth is guarded until its hour. The star-time movement does not function as decoration. It gives the day a position in the cycle: what appears in the sky, what is happening in the year, and what the heart must practice are held together.
-
-Day 9 turns that movement toward seal the night passage.
-
-In practical life, this is where the old pattern meets the present body. Progress may ask for action, but not every action is Ma’at. Obstacles may ask for endurance, but not every burden should be carried. A return may ask for receiving, but not every gain should be consumed.
-
-The question is simple: What does seal the night passage require now?
-''',
+Nothing more is required.
+The records are closed. The offerings are placed. The purification is complete. The threshold stands intact.
+What the year needed to be, it has been. What must now happen will happen without additional effort.
+Hold readiness. Do not add more.''',
     decanFlow: _compressedMesutraFlowRows3,
     meduNeter: MeduNeterKey(
-      glyph: 'Duat gate, hidden sun, and crocodile',
-      colorFrequency: 'Duat black, ancestor white, and hidden gold',
-      mantra: '“I practice seal the night passage in Ma’at.”',
+      glyph:
+          'Readiness held without addition — the completion that does not need one more act',
+      colorFrequency: 'Complete and resting gold — the readiness that is whole',
+      mantra: '"Nothing more is required."',
     ),
   ),
   'mswtRa_30_3': KemeticDayInfo(
-    kemeticDate: 'Mesut-Ra III, Day 10',
-    season: '☀️ Shemu – Season of Harvest',
-    month:
-        'Mesut-Ra (Mswt-Rꜥ) — The Birth of Ra and the Stillness Before Emergence',
-    decanName: 'sbꜣ msḥtjw ḫt',
+    kemeticDate: 'Mesut-Ra III, Day 30',
+    season: '🌾 Shemu – Season of Harvest',
+    month: 'Mesut-Ra (Mswt-Rꜥ)',
+    decanName: 'sbꜣ msḥtjw ḫt ("Star of the Crocodiles of the Offering")',
     starCluster:
         '✨ sbꜣ msḥtjw ḫt — a modest horizon-rising decanal marker in the Crocodiles of the Offering sequence; exact modern constellation identification is uncertain',
-    maatPrinciple: 'Wait at the Edge of Birth',
+    maatPrinciple: 'Seal the Year',
     cosmicContext: '''
-The visible work of the year is nearly complete. Mesut-Ra enters the hidden passage before birth: Ra in the Duat, Nut holding the sun, Khepri waiting, and the next light forming beneath silence.
-
-This day belongs to sbꜣ msḥtjw ḫt, the star of the Crocodiles, where the edge of birth is guarded until its hour. The star-time movement does not function as decoration. It gives the day a position in the cycle: what appears in the sky, what is happening in the year, and what the heart must practice are held together.
-
-Day 10 turns that movement toward wait at the edge of birth.
-
-In practical life, this is where the old pattern meets the present body. Progress may ask for action, but not every action is Ma’at. Obstacles may ask for endurance, but not every burden should be carried. A return may ask for receiving, but not every gain should be consumed.
-
-The question is simple: What does wait at the edge of birth require now?
-''',
+Mesut-Ra closes. The Birth of Ra approaches.
+The sun has passed through Nut's body and stands at the threshold of the new year.
+Heriu Renpet will hold the five days of suspension before Wp Rnpt opens the cycle.
+Seal the final month. Hold the threshold. What will be born is ready.''',
     decanFlow: _compressedMesutraFlowRows3,
     meduNeter: MeduNeterKey(
-      glyph: 'Duat gate, hidden sun, and crocodile',
-      colorFrequency: 'Duat black, ancestor white, and hidden gold',
-      mantra: '“I practice wait at the edge of birth in Ma’at.”',
+      glyph:
+          'Sealed year at the threshold of Heriu Renpet — the final month complete, the new cycle waiting',
+      colorFrequency:
+          'Sealed year gold and threshold night — the end and the beginning held at once',
+      mantra: '"I seal the year and hold the threshold."',
     ),
   ),
   'epagomenal_1_1': KemeticDayInfo(
-    kemeticDate: 'Heriu Renpet, Day 1',
+    kemeticDate: 'Heriu Renpet, Day 1 — Birth of Ausar',
     season: '✨ Heriu Renpet – Days Upon the Year',
-    month: 'Heriu Renpet (ḥr.w rnpt) — Days Upon the Year',
-    decanName: 'Outside the Decans',
+    month:
+        'Heriu Renpet (ḥr.w rnpt) — "Days Upon the Year"; the five days outside the counted cycle; the threshold where the gods are born',
+    decanName:
+        'No decan — these days stand outside the counted cycle and outside the star sequence',
     starCluster:
         '✨ Imperishable northern stars — the circumpolar star field around the north celestial pole, visible through the night from Kemet and not setting below the horizon',
-    maatPrinciple: 'Restoration Begins in Gathering',
+    maatPrinciple: 'Disruption Held Rightly Becomes Restoration',
     cosmicContext: '''
-Heriu Renpet begins outside the counted months.
-
-The year has completed its ordinary cycle. These days do not belong fully to the year that has ended or the year about to begin. They stand between.
-
-Day 1 belongs to the birth of Ausar.
-
-Ausar is not untouched life. He is life gathered after rupture. His body is broken, searched for, joined, mourned, and restored into another kind of sovereignty. He becomes the deep source of continuity, fertility, judgment, and renewal in the hidden place.
-
-This day asks for gathering.
-
-Not fixing everything.
-
-Gathering.
-
-What has been scattered across the year? What grief has not been placed? What strength remained hidden inside loss? What broken thing may still become fertile if it is gathered correctly?
-
-Ausar teaches that restoration does not begin by pretending nothing happened. It begins with gathering what remains under Ma’at.
-''',
+Nut births Ausar first — the one who will be disrupted, gathered from pieces, and made ruler of the Duat.
+His power is not despite disruption. His authority comes through it.
+Every new year carries the knowledge that what is broken correctly can be restored correctly.
+The cycle requires the willingness to pass through disruption and emerge restored.''',
     decanFlow: _compressedHeriuRenpetFlowRows,
     meduNeter: MeduNeterKey(
-      glyph: 'Wrapped form of Ausar beneath imperishable stars',
-      colorFrequency: 'Duat black, fertile green, and star gold',
-      mantra: '“What is gathered in Ma’at can become fertile again.”',
+      glyph:
+          'Ausar restored — the disrupted one gathered and made whole; the condition of all restoration',
+      colorFrequency:
+          'Duat black and restored gold — the green of Ausar\'s return; the power that passes through breaking',
+      mantra: '"What is broken correctly can be restored correctly."',
     ),
   ),
   'epagomenal_2_1': KemeticDayInfo(
-    kemeticDate: 'Heriu Renpet, Day 2',
+    kemeticDate: 'Heriu Renpet, Day 2 — Birth of Heru the Elder',
     season: '✨ Heriu Renpet – Days Upon the Year',
-    month: 'Heriu Renpet (ḥr.w rnpt) — Days Upon the Year',
-    decanName: 'Outside the Decans',
+    month:
+        'Heriu Renpet (ḥr.w rnpt) — "Days Upon the Year"; the five days outside the counted cycle',
+    decanName: 'No decan — these days stand outside the counted cycle',
     starCluster:
         '✨ Imperishable northern stars — the circumpolar star field around the north celestial pole, visible through the night from Kemet and not setting below the horizon',
-    maatPrinciple: 'Sight Above Fragmentation',
+    maatPrinciple: 'See the Year From Horizon to Horizon',
     cosmicContext: '''
-Day 2 belongs to the birth of Heru the Elder.
-
-This is sky-power: the elder horizon-force, the wide sight of the falcon, the divine eye that sees from above the field of conflict.
-
-After gathering, sight is needed. A person who remains too close to the broken pieces may lose the whole pattern. The wound becomes the horizon. The scattered part becomes the entire world. The year is remembered only by fracture, not by the order that still held through it.
-
-Heru the Elder asks for a higher view.
-
-The falcon does not deny the earth by rising. It sees the earth more fully. From height, boundaries, roads, fields, water, and movement become legible again.
-
-This day asks for perspective before the new year opens: not detachment from feeling, but larger sight that keeps feeling from becoming the only measure.
-''',
+Nut births Heru the Elder — the great falcon whose eyes are the sun and moon, who spans the horizon from east to west.
+He sees because he encompasses the full span. Not the partial view but the whole sky.
+The new year needs sight that holds the complete picture without collapsing into one side of it.
+The cycle requires the sight that sees the whole.''',
     decanFlow: _compressedHeriuRenpetFlowRows,
     meduNeter: MeduNeterKey(
-      glyph: 'Falcon eye above the horizon and northern stars',
-      colorFrequency: 'Sky blue, solar gold, and horizon red',
-      mantra: '“I rise high enough to see the whole field.”',
+      glyph:
+          'Heru the Elder spanning the horizon — the falcon whose sight is the full arc from dawn to dusk',
+      colorFrequency:
+          'Horizon gold and sky blue — the full span that sight requires; eyes of sun and moon',
+      mantra: '"I take the full year in sight — from horizon to horizon."',
     ),
   ),
   'epagomenal_3_1': KemeticDayInfo(
-    kemeticDate: 'Heriu Renpet, Day 3',
+    kemeticDate: 'Heriu Renpet, Day 3 — Birth of Set',
     season: '✨ Heriu Renpet – Days Upon the Year',
-    month: 'Heriu Renpet (ḥr.w rnpt) — Days Upon the Year',
-    decanName: 'Outside the Decans',
+    month:
+        'Heriu Renpet (ḥr.w rnpt) — "Days Upon the Year"; the five days outside the counted cycle',
+    decanName: 'No decan — these days stand outside the counted cycle',
     starCluster:
         '✨ Imperishable northern stars — the circumpolar star field around the north celestial pole, visible through the night from Kemet and not setting below the horizon',
-    maatPrinciple: 'Force Given Its Place',
+    maatPrinciple: 'Place Force Where It Guards',
     cosmicContext: '''
-Day 3 belongs to the birth of Set.
-
-Set is not simple evil. He is force, disruption, desert heat, storm, boundary, rupture, and the power that tests whether order is truly ordered. When placed rightly, force can defend the solar bark and cut through stagnation. When unplaced, it becomes violence, appetite, envy, and disorder.
-
-Heriu Renpet needs Set because every new year will contain pressure.
-
-The question is not whether force exists.
-
-The question is where it belongs.
-
-Day 3 asks for disruptive power to be named before it rules from the dark. Anger, heat, desire, refusal, boundary, restlessness, and the strength to say no must all be placed under Ma’at.
-
-Force must be named, measured, and placed where it serves Ma’at instead of tearing the field apart.
-''',
+Nut births Set — the necessary force at the boundary; dangerous when it refuses its place, essential when placed correctly.
+In the Duat, Set guards the solar bark against Apep. Without his power, Ra cannot complete the night crossing.
+Force is not the enemy of Ma'at. Unplaced force is.
+The cycle requires force at the boundary — guarding, not claiming; placed, not wandering.''',
     decanFlow: _compressedHeriuRenpetFlowRows,
     meduNeter: MeduNeterKey(
-      glyph: 'Set-animal standing at the desert edge beneath fixed stars',
-      colorFrequency: 'Desert red, storm black, and sharp gold',
-      mantra: '“My force has a place, or it becomes danger.”',
+      glyph:
+          'Set at the prow of the bark — force placed in its proper position, guarding rather than claiming',
+      colorFrequency:
+          'Boundary red and placed force gold — the power that serves when positioned rightly',
+      mantra: '"I place my force where it guards, not where it damages."',
     ),
   ),
   'epagomenal_4_1': KemeticDayInfo(
-    kemeticDate: 'Heriu Renpet, Day 4',
+    kemeticDate: 'Heriu Renpet, Day 4 — Birth of Aset',
     season: '✨ Heriu Renpet – Days Upon the Year',
-    month: 'Heriu Renpet (ḥr.w rnpt) — Days Upon the Year',
-    decanName: 'Outside the Decans',
+    month:
+        'Heriu Renpet (ḥr.w rnpt) — "Days Upon the Year"; the five days outside the counted cycle',
+    decanName: 'No decan — these days stand outside the counted cycle',
     starCluster:
         '✨ Imperishable northern stars — the circumpolar star field around the north celestial pole, visible through the night from Kemet and not setting below the horizon',
-    maatPrinciple: 'Restoration Through Wisdom',
+    maatPrinciple: 'Carry the Intelligence That Restores',
     cosmicContext: '''
-Day 4 belongs to the birth of Aset.
-
-After gathering, sight, and force, restoration needs intelligence.
-
-Aset is throne, mother, mourner, magician, strategist, protector, and the one whose speech can restore what violence has broken. She does not heal by force alone. She knows the name. She knows the word. She knows how to gather power without becoming reckless with it.
-
-This is the day of sacred intelligence.
-
-What cannot be repaired by strength? What requires the right word? What requires patience, timing, memory, ritual, or strategy?
-
-Aset teaches that love is not helpless. Grief is not passive. Protection is not only force. Wisdom can enter the broken place and begin arranging the conditions for life to return.
-''',
+Nut births Aset — throne, speech, protective intelligence; the one who gathers what force has broken and speaks the words that restore.
+She found the scattered pieces of Ausar. She formed the words of power. She did what grief and force together could not do alone.
+The year needs Aset's intelligence: the capacity to find what is broken, know the words that restore it, and protect what has been made whole.
+The cycle requires skillful protection — the intelligence that restores what force cannot repair.''',
     decanFlow: _compressedHeriuRenpetFlowRows,
     meduNeter: MeduNeterKey(
-      glyph: 'Throne sign and winged Aset beside a written name',
-      colorFrequency: 'Royal blue, throne gold, and protective white',
-      mantra: '“Wisdom restores what force cannot repair.”',
+      glyph:
+          'Aset with wings extended — the throne, the speech, the protective intelligence over what has been gathered',
+      colorFrequency:
+          'Throne gold and protective blue — the intelligent care that restores what force scattered',
+      mantra:
+          '"I carry Aset\'s intelligence: find what is broken; speak what restores."',
     ),
   ),
   'epagomenal_5_1': KemeticDayInfo(
-    kemeticDate: 'Heriu Renpet, Day 5',
+    kemeticDate: 'Heriu Renpet, Day 5 — Birth of Nebet-Het',
     season: '✨ Heriu Renpet – Days Upon the Year',
-    month: 'Heriu Renpet (ḥr.w rnpt) — Days Upon the Year',
-    decanName: 'Outside the Decans',
+    month:
+        'Heriu Renpet (ḥr.w rnpt) — "Days Upon the Year"; the five days outside the counted cycle',
+    decanName: 'No decan — these days stand outside the counted cycle',
     starCluster:
         '✨ Imperishable northern stars — the circumpolar star field around the north celestial pole, visible through the night from Kemet and not setting below the horizon',
-    maatPrinciple: 'Threshold Guarded',
+    maatPrinciple: 'Hold the Threshold Between Ending and Beginning',
     cosmicContext: '''
-Day 5 belongs to the birth of Nebet-Het.
-
-She stands at the edge: guardian of threshold, mourner, sister, boundary-keeper, and companion where one condition becomes another. She does not force the dead to return. She does not rush the living past grief. She guards transition so it does not become abandonment.
-
-This is the final day before Wp Renpet.
-
-The year has ended, but the new year has not yet opened. The chamber is full of powers the next cycle will need: restoration, sight, force, wisdom, and boundary.
-
-Day 5 asks what must be mourned, guarded, and released before the new year begins.
-
-Mourn what ended. Guard what remains. Release what cannot travel. Stand at the threshold until the year opens in Ma’at.
-''',
+Nut births Nebet-Het last — mistress of the house, guardian of the edge, the mourner who keeps transition from becoming abandonment.
+She mourns without being consumed by mourning. She guards the boundary without sealing it shut.
+The threshold between the old year and the new must be held by someone who can mourn what has ended without abandoning what comes next.
+Wp Rnpt opens tomorrow. Hold the threshold tonight.''',
     decanFlow: _compressedHeriuRenpetFlowRows,
     meduNeter: MeduNeterKey(
-      glyph: 'Nebet-Het standing at a closed threshold with an offering bowl',
+      glyph:
+          'Nebet-Het at the year\'s threshold — the guardian who mourns and remains present through the passage',
       colorFrequency:
-          'Threshold black, mourning blue, altar white, and dawn gold',
-      mantra: '“I guard the edge so the new year opens clean.”',
+          'Threshold night and opening dawn — the mourning that holds without abandoning',
+      mantra:
+          '"I hold the threshold. I mourn the ending. I welcome the opening."',
     ),
   ),
 };

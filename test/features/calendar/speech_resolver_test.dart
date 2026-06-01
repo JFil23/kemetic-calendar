@@ -7,7 +7,7 @@ void main() {
     test('builds natural spoken cue phrases for decans', () {
       final spoken = SpeechResolver.decan(
         decanId: 1,
-        displayName: 'tpy-ꜣ sbꜣw',
+        displayName: 'tpy-ꜥ sbꜣw',
         englishCue: 'Foremost of the Stars',
       );
 
@@ -18,10 +18,10 @@ void main() {
       final spoken = SpeechResolver.decan(
         decanId: 34,
         displayName: 'msḥtjw ḫt',
-        englishCue: 'The Sacred Foreleg',
+        englishCue: 'The Crocodiles of the Offering',
       );
 
-      expect(spoken, 'Meshetyu Khet, The Sacred Foreleg');
+      expect(spoken, 'Meshetyu Khet, The Crocodiles of the Offering');
     });
 
     test('exposes the same prose formatter for generic labels', () {

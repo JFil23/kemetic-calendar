@@ -5,8 +5,9 @@ final Map<String, KemeticDayInfo> _dayInfoMapBase4 = {
     kemeticDate: 'Mswt-Rꜥ III, Day 27',
     season: '☀️ Shemu',
     month: 'Mswt-Rꜥ',
-    decanName: 'sbꜣ msḥtjw ḫt ("Star of the Sacred Foreleg")',
-    starCluster: '✨ Star of the Sacred Foreleg — ready at the threshold.',
+    decanName: 'sbꜣ msḥtjw ḫt ("Star of the Crocodiles of the Offering")',
+    starCluster:
+        '✨ Star of the Crocodiles of the Offering — readiness at the threshold.',
     maatPrinciple: 'Order Assembles Itself',
     cosmicContext: '''Osiris is almost whole.
 
@@ -44,8 +45,9 @@ This day ensures your return will be durable.''',
     kemeticDate: 'Mswt-Rꜥ III, Day 28',
     season: '☀️ Shemu',
     month: 'Mswt-Rꜥ',
-    decanName: 'sbꜣ msḥtjw ḫt ("Star of the Sacred Foreleg")',
-    starCluster: '✨ Star of the Sacred Foreleg — ready at the threshold.',
+    decanName: 'sbꜣ msḥtjw ḫt ("Star of the Crocodiles of the Offering")',
+    starCluster:
+        '✨ Star of the Crocodiles of the Offering — readiness at the threshold.',
     maatPrinciple: 'Wholeness Approaches',
     cosmicContext: '''Rebirth is not just restoration — it is decision.
 
@@ -76,8 +78,9 @@ A sealed shape is a declaration.''',
     kemeticDate: 'Mswt-Rꜥ III, Day 29',
     season: '☀️ Shemu',
     month: 'Mswt-Rꜥ',
-    decanName: 'sbꜣ msḥtjw ḫt ("Star of the Sacred Foreleg")',
-    starCluster: '✨ Star of the Sacred Foreleg — ready at the threshold.',
+    decanName: 'sbꜣ msḥtjw ḫt ("Star of the Crocodiles of the Offering")',
+    starCluster:
+        '✨ Star of the Crocodiles of the Offering — readiness at the threshold.',
     maatPrinciple: 'Life Stirs Within Silence',
     cosmicContext: '''This is the day Osiris rises.
 
@@ -108,8 +111,9 @@ You sit on your own restored throne.''',
     kemeticDate: 'Mswt-Rꜥ III, Day 30',
     season: '☀️ Shemu',
     month: 'Mswt-Rꜥ',
-    decanName: 'sbꜣ msḥtjw ḫt ("Star of the Sacred Foreleg")',
-    starCluster: '✨ Star of the Sacred Foreleg — ready at the threshold.',
+    decanName: 'sbꜣ msḥtjw ḫt ("Star of the Crocodiles of the Offering")',
+    starCluster:
+        '✨ Star of the Crocodiles of the Offering — readiness at the threshold.',
     maatPrinciple: 'Completion Before Creation',
     cosmicContext: '''The last day of the year.
 

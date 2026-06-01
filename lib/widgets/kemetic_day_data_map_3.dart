@@ -2469,8 +2469,9 @@ Now you stand upright and say: "I am here, in order, under Maʿat. I will carry.
     kemeticDate: 'Mswt-Rꜥ I, Day 1',
     season: '🌞 Threshold of Heriu Renpet — the womb before birth',
     month: 'Mswt-Rꜥ ("The Birth of Ra," the gestation of renewal)',
-    decanName: 'msḥtjw ḫt ("The Sacred Foreleg")',
-    starCluster: '✨ The Sacred Foreleg — strength held in reserve.',
+    decanName: 'msḥtjw ḫt ("The Crocodiles of the Offering")',
+    starCluster:
+        '✨ The Crocodiles of the Offering — strength gathering in stillness.',
     maatPrinciple: 'Surrender to Stillness',
     cosmicContext: '''Day 1 is stillness by obedience, not collapse.
 In Kemet, stillness was not laziness — it was ritual. The lamps in the temples of the old year were extinguished on purpose, not because the fire died, but because the priests said "Rest now. The god is being prepared."
@@ -2493,8 +2494,9 @@ Stillness is not retreat. Stillness is preparation for reassembly.''',
     kemeticDate: 'Mswt-Rꜥ I, Day 2',
     season: '🌞 Heriu Renpet approaches',
     month: 'Mswt-Rꜥ ("The Birth of Ra")',
-    decanName: 'msḥtjw ḫt ("The Sacred Foreleg")',
-    starCluster: '✨ The Sacred Foreleg — strength held in reserve.',
+    decanName: 'msḥtjw ḫt ("The Crocodiles of the Offering")',
+    starCluster:
+        '✨ The Crocodiles of the Offering — strength gathering in stillness.',
     maatPrinciple: 'Lay Down Weapons',
     cosmicContext: '''Day 2 is disarmament.
 In the restoration myth, Asar (Osiris) is not raised with his rage — he is raised with his dignity. The rage belongs to Set. The Dignity belongs to Asar.
@@ -2516,8 +2518,9 @@ Lay it down for one day. See what remains of you when you are not busy defending
     kemeticDate: 'Mswt-Rꜥ I, Day 3',
     season: '🌞 Heriu Renpet approaches',
     month: 'Mswt-Rꜥ',
-    decanName: 'msḥtjw ḫt ("The Sacred Foreleg")',
-    starCluster: '✨ The Sacred Foreleg — strength held in reserve.',
+    decanName: 'msḥtjw ḫt ("The Crocodiles of the Offering")',
+    starCluster:
+        '✨ The Crocodiles of the Offering — strength gathering in stillness.',
     maatPrinciple: 'Loosen the Jaw / Breathe',
     cosmicContext:
         '''Day 3 is breath returned to the body like water poured back into a dry canal.
@@ -2539,8 +2542,9 @@ Sah rises in silence so the nervous system of the land can follow.''',
     kemeticDate: 'Mswt-Rꜥ I, Day 4',
     season: '🌞 Heriu Renpet approaches',
     month: 'Mswt-Rꜥ ("The Birth of Ra")',
-    decanName: 'msḥtjw ḫt ("The Sacred Foreleg")',
-    starCluster: '✨ The Sacred Foreleg — strength held in reserve.',
+    decanName: 'msḥtjw ḫt ("The Crocodiles of the Offering")',
+    starCluster:
+        '✨ The Crocodiles of the Offering — strength gathering in stillness.',
     maatPrinciple: 'Return to Body',
     cosmicContext: '''Day 4 is re-entering yourself.
 When the body is in chronic defense, parts of you go offline — throat tight, belly numb, chest armored, hands cold. The Kemite healer would place hands and name where life had retreated. Naming was medicine.
@@ -2561,8 +2565,9 @@ To be reborn under Ra, you must first be fully present under Nut.''',
     kemeticDate: 'Mswt-Rꜥ I, Day 5',
     season: '🌞 Heriu Renpet approaches',
     month: 'Mswt-Rꜥ',
-    decanName: 'msḥtjw ḫt ("The Sacred Foreleg")',
-    starCluster: '✨ The Sacred Foreleg — strength held in reserve.',
+    decanName: 'msḥtjw ḫt ("The Crocodiles of the Offering")',
+    starCluster:
+        '✨ The Crocodiles of the Offering — strength gathering in stillness.',
     maatPrinciple: 'Offer the Remains',
     cosmicContext: '''Day 5 is honest offering.
 In the myth, Aset (Isis) does not demand that Asar (Osiris) "be whole" before she loves him. She gathers even the broken parts and says: "This is still my lord." That act itself calls resurrection.
@@ -2583,8 +2588,9 @@ This is how the next birth begins: not with perfection, but with truth placed in
     kemeticDate: 'Mswt-Rꜥ I, Day 6',
     season: '🌞 Heriu Renpet approaches',
     month: 'Mswt-Rꜥ ("The Birth of Ra")',
-    decanName: 'msḥtjw ḫt ("The Sacred Foreleg")',
-    starCluster: '✨ The Sacred Foreleg — strength held in reserve.',
+    decanName: 'msḥtjw ḫt ("The Crocodiles of the Offering")',
+    starCluster:
+        '✨ The Crocodiles of the Offering — strength gathering in stillness.',
     maatPrinciple: 'Receive Reassembly',
     cosmicContext: '''Day 6 is letting yourself be helped without shame.
 Aset (Isis) and Nebet-Het do not ask Asar (Osiris), "Can you get up on your own?" They build him back. Limb, breath, name. That rebuilding is holy, not humiliating.
@@ -2604,8 +2610,9 @@ You are not weak for needing that. You are in ceremony.''',
     kemeticDate: 'Mswt-Rꜥ I, Day 7',
     season: '🌞 Heriu Renpet approaches',
     month: 'Mswt-Rꜥ',
-    decanName: 'msḥtjw ḫt ("The Sacred Foreleg")',
-    starCluster: '✨ The Sacred Foreleg — strength held in reserve.',
+    decanName: 'msḥtjw ḫt ("The Crocodiles of the Offering")',
+    starCluster:
+        '✨ The Crocodiles of the Offering — strength gathering in stillness.',
     maatPrinciple: 'Raise the Djed',
     cosmicContext: '''Day 7 is spine.
 The rite of "Raising the Djed" in temple scenes is not body-building bravado. It is the quiet, disciplined act of re-stabilizing the world. The pillar stands, and with it, the kingdom stands.
@@ -2625,8 +2632,9 @@ When you sit like Djed, the room knows balance has returned.''',
     kemeticDate: 'Mswt-Rꜥ I, Day 8',
     season: '🌞 Heriu Renpet approaches',
     month: 'Mswt-Rꜥ ("The Birth of Ra")',
-    decanName: 'msḥtjw ḫt ("The Sacred Foreleg")',
-    starCluster: '✨ The Sacred Foreleg — strength held in reserve.',
+    decanName: 'msḥtjw ḫt ("The Crocodiles of the Offering")',
+    starCluster:
+        '✨ The Crocodiles of the Offering — strength gathering in stillness.',
     maatPrinciple: 'Accept the Naming',
     cosmicContext: '''Day 8 is reclamation of name.
 You have been called lazy, angry, too much, too soft, unreliable, dangerous, ungrateful, crazy, disposable. None of those are your true name. Those are chains.
@@ -2647,8 +2655,9 @@ Say it out loud. The body hears you. The soul hears you. Maʿat hears you.''',
     kemeticDate: 'Mswt-Rꜥ I, Day 9',
     season: '🌞 Heriu Renpet approaches',
     month: 'Mswt-Rꜥ',
-    decanName: 'msḥtjw ḫt ("The Sacred Foreleg")',
-    starCluster: '✨ The Sacred Foreleg — strength held in reserve.',
+    decanName: 'msḥtjw ḫt ("The Crocodiles of the Offering")',
+    starCluster:
+        '✨ The Crocodiles of the Offering — strength gathering in stillness.',
     maatPrinciple: 'Keep Silent Watch',
     cosmicContext: '''Day 9 is quiet guard.
 You do not argue. You do not plead. You observe. You decide what may enter and what may not.
@@ -2669,8 +2678,9 @@ You are not required to drag any of that into rebirth. You are allowed to say, "
     kemeticDate: 'Mswt-Rꜥ I, Day 10',
     season: '🌞 Heriu Renpet approaches',
     month: 'Mswt-Rꜥ ("The Birth of Ra")',
-    decanName: 'msḥtjw ḫt ("The Sacred Foreleg")',
-    starCluster: '✨ The Sacred Foreleg — strength held in reserve.',
+    decanName: 'msḥtjw ḫt ("The Crocodiles of the Offering")',
+    starCluster:
+        '✨ The Crocodiles of the Offering — strength gathering in stillness.',
     maatPrinciple: 'Hold the Gate',
     cosmicContext: '''Day 10 is readiness without desperation.
 Rebirth is close. But you do not claw at it. You do not beg the dawn to hurry. You stand like Sah: assembled, named, guarded, breathing, upright.
@@ -2695,8 +2705,9 @@ You are standing at the door of the next cycle as living structure, holding Maʿ
     kemeticDate: 'Mswt-Rꜥ II, Day 11',
     season: '☀️ Shemu — The Closing Heat',
     month: 'Mswt-Rꜥ ("Births of Ra") — msi = to give birth, emergence',
-    decanName: 'ḥry-ib msḥtjw ḫt ("Heart of the Sacred Foreleg")',
-    starCluster: '✨ Heart of the Sacred Foreleg — aware stillness.',
+    decanName: 'ḥry-ib msḥtjw ḫt ("Heart of the Crocodiles of the Offering")',
+    starCluster:
+        '✨ Heart of the Crocodiles of the Offering — attentive stillness.',
     maatPrinciple: 'Enter the Hidden',
     cosmicContext: '''Today begins the inward turn of the final month.
 In Kemet, the disappearance of Sirius was not fear but reverence — the belief that even stars require dark chambers to be remade.
@@ -2719,8 +2730,9 @@ What goes quiet today will bloom in a way that loudness could never achieve.''',
     kemeticDate: 'Mswt-Rꜥ II, Day 12',
     season: '☀️ Shemu',
     month: 'Mswt-Rꜥ ("The Births of Ra")',
-    decanName: 'ḥry-ib msḥtjw ḫt ("Heart of the Sacred Foreleg")',
-    starCluster: '✨ Heart of the Sacred Foreleg — aware stillness.',
+    decanName: 'ḥry-ib msḥtjw ḫt ("Heart of the Crocodiles of the Offering")',
+    starCluster:
+        '✨ Heart of the Crocodiles of the Offering — attentive stillness.',
     maatPrinciple: 'Release the Light',
     cosmicContext: '''Day 12 teaches that not all light is helpful.
 The Kemite understood that even radiance can exhaust, distract, or blind when held past its purpose.
@@ -2741,8 +2753,9 @@ Let go so you can rise without the weight of old brightness.''',
     kemeticDate: 'Mswt-Rꜥ II, Day 13',
     season: '☀️ Shemu',
     month: 'Mswt-Rꜥ',
-    decanName: 'ḥry-ib msḥtjw ḫt ("Heart of the Sacred Foreleg")',
-    starCluster: '✨ Heart of the Sacred Foreleg — aware stillness.',
+    decanName: 'ḥry-ib msḥtjw ḫt ("Heart of the Crocodiles of the Offering")',
+    starCluster:
+        '✨ Heart of the Crocodiles of the Offering — attentive stillness.',
     maatPrinciple: 'Sink into Trust',
     cosmicContext: '''Day 13 is surrender to the unseen.
 The Kemite watched Sirius disappear into the brightness of Ra and understood a secret:
@@ -2764,8 +2777,9 @@ Trust does not weaken you; it frees your energy for what is coming.''',
     kemeticDate: 'Mswt-Rꜥ II, Day 14',
     season: '☀️ Shemu',
     month: 'Mswt-Rꜥ',
-    decanName: 'ḥry-ib msḥtjw ḫt ("Heart of the Sacred Foreleg")',
-    starCluster: '✨ Heart of the Sacred Foreleg — aware stillness.',
+    decanName: 'ḥry-ib msḥtjw ḫt ("Heart of the Crocodiles of the Offering")',
+    starCluster:
+        '✨ Heart of the Crocodiles of the Offering — attentive stillness.',
     maatPrinciple: 'Prepare the Vessel',
     cosmicContext: '''Day 14 is the cleansing before the birth.
 In Kemet, no shrine received rebirth-water unless it had been washed with natron and swept with palm fibers.
@@ -2787,8 +2801,9 @@ The gods are preparing for birth — your life must not be cluttered when the ne
     kemeticDate: 'Mswt-Rꜥ II, Day 15',
     season: '☀️ Shemu',
     month: 'Mswt-Rꜥ',
-    decanName: 'ḥry-ib msḥtjw ḫt ("Heart of the Sacred Foreleg")',
-    starCluster: '✨ Heart of the Sacred Foreleg — aware stillness.',
+    decanName: 'ḥry-ib msḥtjw ḫt ("Heart of the Crocodiles of the Offering")',
+    starCluster:
+        '✨ Heart of the Crocodiles of the Offering — attentive stillness.',
     maatPrinciple: 'Seal the Silence',
     cosmicContext: '''Day 15 is the locking of the chamber.
 In temple ritual, before the great births of the epagomenal days, the sanctuary was sealed — no sound, no incense, no movement except the breath of the gods.
@@ -2812,8 +2827,9 @@ You are guarding the unborn within you.''',
     kemeticDate: 'Mswt-Rꜥ II, Day 16',
     season: '☀️ Shemu',
     month: 'Mswt-Rꜥ ("Births of Ra")',
-    decanName: 'ḥry-ib msḥtjw ḫt ("Heart of the Sacred Foreleg")',
-    starCluster: '✨ Heart of the Sacred Foreleg — aware stillness.',
+    decanName: 'ḥry-ib msḥtjw ḫt ("Heart of the Crocodiles of the Offering")',
+    starCluster:
+        '✨ Heart of the Crocodiles of the Offering — attentive stillness.',
     maatPrinciple: 'Hold the Unborn',
     cosmicContext: '''Day 16 is patient expectation.
 In Kemet, this was the softest day of the year — the day when even priests spoke less, sensing the weightless fullness of something forming beyond sight.
@@ -2835,8 +2851,9 @@ Everything unborn needs warmth, not pressure.''',
     kemeticDate: 'Mswt-Rꜥ II, Day 17',
     season: '☀️ Shemu',
     month: 'Mswt-Rꜥ',
-    decanName: 'ḥry-ib msḥtjw ḫt ("Heart of the Sacred Foreleg")',
-    starCluster: '✨ Heart of the Sacred Foreleg — aware stillness.',
+    decanName: 'ḥry-ib msḥtjw ḫt ("Heart of the Crocodiles of the Offering")',
+    starCluster:
+        '✨ Heart of the Crocodiles of the Offering — attentive stillness.',
     maatPrinciple: 'Warm the Inner Flame',
     cosmicContext: '''Day 17 is the kindling of the internal fire.
 Though the outer world remains still, the inner world begins to heat — the same way the womb of Nut warms before the births of the gods.
@@ -2858,8 +2875,9 @@ This heat is what will empower you to cross the year's threshold with strength.'
     kemeticDate: 'Mswt-Rꜥ II, Day 18',
     season: '☀️ Shemu',
     month: 'Mswt-Rꜥ',
-    decanName: 'ḥry-ib msḥtjw ḫt ("Heart of the Sacred Foreleg")',
-    starCluster: '✨ Heart of the Sacred Foreleg — aware stillness.',
+    decanName: 'ḥry-ib msḥtjw ḫt ("Heart of the Crocodiles of the Offering")',
+    starCluster:
+        '✨ Heart of the Crocodiles of the Offering — attentive stillness.',
     maatPrinciple: 'Call the Ancestors',
     cosmicContext: '''Day 18 is remembrance with purpose.
 In Mswt-Rꜥ, the people of Kemet knew: no one crosses into a new year alone.
@@ -2882,8 +2900,9 @@ Today your lineage becomes your fuel.''',
     kemeticDate: 'Mswt-Rꜥ II, Day 19',
     season: '☀️ Shemu',
     month: 'Mswt-Rꜥ',
-    decanName: 'ḥry-ib msḥtjw ḫt ("Heart of the Sacred Foreleg")',
-    starCluster: '✨ Heart of the Sacred Foreleg — aware stillness.',
+    decanName: 'ḥry-ib msḥtjw ḫt ("Heart of the Crocodiles of the Offering")',
+    starCluster:
+        '✨ Heart of the Crocodiles of the Offering — attentive stillness.',
     maatPrinciple: 'Discern the Signs',
     cosmicContext: '''Day 19 is subtle revelation.
 When Sirius was invisible, priests studied tiny changes: the color of the horizon, the shapes of clouds at dusk, the behavior of birds, or the stillness of wind.
@@ -2906,8 +2925,9 @@ The future is announcing itself gently.''',
     kemeticDate: 'Mswt-Rꜥ II, Day 20',
     season: '☀️ Shemu',
     month: 'Mswt-Rꜥ',
-    decanName: 'ḥry-ib msḥtjw ḫt ("Heart of the Sacred Foreleg")',
-    starCluster: '✨ Heart of the Sacred Foreleg — aware stillness.',
+    decanName: 'ḥry-ib msḥtjw ḫt ("Heart of the Crocodiles of the Offering")',
+    starCluster:
+        '✨ Heart of the Crocodiles of the Offering — attentive stillness.',
     maatPrinciple: 'Stand at the Threshold',
     cosmicContext: '''Day 20 is the final doorway.
 The Kemite understood that the night is darkest just before Sopdet begins her heliacal return — and just before the five Heriu Renpet, the birthdays of the gods.
@@ -2933,12 +2953,13 @@ You are one breath away from the birth of the gods — and from your own renewal
     kemeticDate: 'Mswt-Rꜥ III, Day 21',
     season: '☀️ Shemu',
     month: 'Mswt-Rꜥ',
-    decanName: 'sbꜣ msḥtjw ḫt ("Star of the Sacred Foreleg")',
-    starCluster: '✨ Star of the Sacred Foreleg — ready at the threshold.',
+    decanName: 'sbꜣ msḥtjw ḫt ("Star of the Crocodiles of the Offering")',
+    starCluster:
+        '✨ Star of the Crocodiles of the Offering — readiness at the threshold.',
     maatPrinciple: 'The First Fracture',
     cosmicContext:
         '''This day honors the moment of breaking — not as tragedy, but as divine engineering.
-In myth, the Sacred Foreleg is the dismembered limb of the Bull of Heaven, carried into the sky as a constellation.
+The crocodile belongs to both surface and depth, carrying force that gathers before it appears.
 Its separation makes resurrection possible.
 
 The Kemite did not fear the break.
@@ -2961,8 +2982,9 @@ Some things must break so they can be rebuilt on Maʿat.''',
     kemeticDate: 'Mswt-Rꜥ III, Day 22',
     season: '☀️ Shemu',
     month: 'Mswt-Rꜥ',
-    decanName: 'sbꜣ msḥtjw ḫt ("Star of the Sacred Foreleg")',
-    starCluster: '✨ Star of the Sacred Foreleg — ready at the threshold.',
+    decanName: 'sbꜣ msḥtjw ḫt ("Star of the Crocodiles of the Offering")',
+    starCluster:
+        '✨ Star of the Crocodiles of the Offering — readiness at the threshold.',
     maatPrinciple: 'What Breaks, Begins',
     cosmicContext: '''Isis did not gather Osiris blindly.
 She knew the location of every limb, every bone, every fragment.
@@ -3001,8 +3023,9 @@ This is inventory before resurrection.''',
     kemeticDate: 'Mswt-Rꜥ III, Day 23',
     season: '☀️ Shemu',
     month: 'Mswt-Rꜥ',
-    decanName: 'sbꜣ msḥtjw ḫt ("Star of the Sacred Foreleg")',
-    starCluster: '✨ Star of the Sacred Foreleg — ready at the threshold.',
+    decanName: 'sbꜣ msḥtjw ḫt ("Star of the Crocodiles of the Offering")',
+    starCluster:
+        '✨ Star of the Crocodiles of the Offering — readiness at the threshold.',
     maatPrinciple: 'Restoration Requires Seeking',
     cosmicContext: '''Isis did not merely locate Osiris's pieces —
 she summoned them.
@@ -3036,8 +3059,9 @@ Something will stir.''',
     kemeticDate: 'Mswt-Rꜥ III, Day 24',
     season: '☀️ Shemu',
     month: 'Mswt-Rꜥ',
-    decanName: 'sbꜣ msḥtjw ḫt ("Star of the Sacred Foreleg")',
-    starCluster: '✨ Star of the Sacred Foreleg — ready at the threshold.',
+    decanName: 'sbꜣ msḥtjw ḫt ("Star of the Crocodiles of the Offering")',
+    starCluster:
+        '✨ Star of the Crocodiles of the Offering — readiness at the threshold.',
     maatPrinciple: 'Strength Returns in Pieces',
     cosmicContext: '''Reassembly begins.
 
@@ -3073,8 +3097,9 @@ Day 24 restores coherence.''',
     kemeticDate: 'Mswt-Rꜥ III, Day 25',
     season: '☀️ Shemu',
     month: 'Mswt-Rꜥ',
-    decanName: 'sbꜣ msḥtjw ḫt ("Star of the Sacred Foreleg")',
-    starCluster: '✨ Star of the Sacred Foreleg — ready at the threshold.',
+    decanName: 'sbꜣ msḥtjw ḫt ("Star of the Crocodiles of the Offering")',
+    starCluster:
+        '✨ Star of the Crocodiles of the Offering — readiness at the threshold.',
     maatPrinciple: 'The Body Remembers',
     cosmicContext:
         '''Once Osiris was reassembled, priests removed anything foreign — weeds from linen, dust from resin, insects from oils.
@@ -3112,8 +3137,9 @@ Day 25 is a blade — precise, clean, sacred.''',
     kemeticDate: 'Mswt-Rꜥ III, Day 26',
     season: '☀️ Shemu',
     month: 'Mswt-Rꜥ',
-    decanName: 'sbꜣ msḥtjw ḫt ("Star of the Sacred Foreleg")',
-    starCluster: '✨ Star of the Sacred Foreleg — ready at the threshold.',
+    decanName: 'sbꜣ msḥtjw ḫt ("Star of the Crocodiles of the Offering")',
+    starCluster:
+        '✨ Star of the Crocodiles of the Offering — readiness at the threshold.',
     maatPrinciple: 'Stillness Before Wholeness',
     cosmicContext: '''This is the day of tenderness.
 
