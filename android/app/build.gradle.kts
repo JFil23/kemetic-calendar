@@ -5,7 +5,26 @@ plugins {
     id("kotlin-android")
     // The Flutter Gradle Plugin must be applied after the Android and Kotlin Gradle plugins.
     id("dev.flutter.flutter-gradle-plugin")
-    id("com.google.gms.google-services")
+}
+
+val googleServicesFile = file("google-services.json")
+val hasGoogleServices = googleServicesFile.exists()
+val requestedTasks = gradle.startParameter.taskNames.joinToString(" ").lowercase()
+val isReleaseLikeBuild =
+    requestedTasks.contains("release") || requestedTasks.contains("bundle")
+
+if (!hasGoogleServices && isReleaseLikeBuild) {
+    throw GradleException(
+        "Missing android/app/google-services.json. Release builds require a real Firebase config."
+    )
+}
+
+if (hasGoogleServices) {
+    apply(plugin = "com.google.gms.google-services")
+} else {
+    logger.lifecycle(
+        "android/app/google-services.json missing; skipping Google Services for debug/local build."
+    )
 }
 
 val keystoreProperties = Properties()
