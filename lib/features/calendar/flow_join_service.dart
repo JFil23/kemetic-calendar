@@ -1163,6 +1163,124 @@ class FlowJoinService {
     );
   }
 
+  Future<FlowJoinResult> joinMaatDecanFlowHeadless({
+    required MaatDecanFlowDefinition definition,
+    required String templateOverview,
+    required Color templateColor,
+    required String? personalCalendarId,
+    required TrackSkyTimeZone timezone,
+    DateTime? startDate,
+    int alertOffsetMinutes = 0,
+  }) async {
+    final window = _resolveDecanWatchWindow(
+      timezone: timezone,
+      startDate: startDate,
+    );
+    if (window == null) {
+      return const FlowJoinResult.failure(
+        FlowJoinFailureCode.noEnrollmentWindow,
+      );
+    }
+
+    final events = definition.events;
+    if (events.isEmpty) {
+      return const FlowJoinResult.failure(FlowJoinFailureCode.noOccurrences);
+    }
+
+    final flowStart = DateUtils.dateOnly(window.opensAtLocal);
+    final schedules = <MaatDecanFlowEvent, MaatDecanFlowOccurrenceSchedule>{
+      for (final event in events)
+        event: maatDecanFlowScheduleForEvent(event, flowStart, timezone),
+    };
+    final dates = <DateTime>{
+      for (final schedule in schedules.values)
+        DateUtils.dateOnly(schedule.startLocal),
+    };
+    if (dates.isEmpty) {
+      return const FlowJoinResult.failure(FlowJoinFailureCode.noOccurrences);
+    }
+
+    final nowLocal = maatDecanFlowNowInZone(timezone);
+    final startIso = CalendarPage._formatDetachedGregorian(flowStart);
+    final prefix = definition.notesPrefix;
+    final notes = [
+      'mode=gregorian',
+      'split=1',
+      if (templateOverview.trim().isNotEmpty)
+        'ov=${Uri.encodeComponent(templateOverview.trim())}',
+      'maat=${definition.key}',
+      '${prefix}_start=$startIso',
+      '${prefix}_tz=${timezone.key}',
+      '${prefix}_anchor_hour=$kMaatDecanFlowDefaultMiddayHour',
+      '${prefix}_anchor_minute=$kMaatDecanFlowDefaultMiddayMinute',
+      '${prefix}_decan_kyear=${window.openingOccurrence.kYear}',
+      '${prefix}_decan_month=${window.openingOccurrence.kMonth}',
+      '${prefix}_decan_day=${window.openingOccurrence.decanStartDay}',
+      '${prefix}_enrolled_at=${nowLocal.toIso8601String()}',
+    ].join(';');
+
+    final flowId = await _upsertFlowRow(
+      id: null,
+      name: definition.title,
+      color: templateColor.toARGB32(),
+      active: true,
+      calendarId: personalCalendarId,
+      startDate: flowStart,
+      endDate: flowStart.add(const Duration(days: 29)),
+      notes: notes,
+      rules: jsonEncode(
+        <FlowRule>[
+          _RuleDates(dates: dates),
+        ].map(CalendarPageState.ruleToJson).toList(),
+      ),
+      originType: 'template',
+    );
+
+    final clientEventIds = <String>[];
+    for (final event in events) {
+      final schedule = schedules[event]!;
+      final clientEventId = maatDecanFlowClientEventId(
+        flowId: flowId,
+        definition: definition,
+        event: event,
+      );
+      final title = maatDecanFlowEventTitle(definition, event);
+      final detail = maatDecanFlowDetailText(definition, event);
+      await _upsertEventRow(
+        clientEventId: clientEventId,
+        title: title,
+        startsAtUtc: schedule.startUtc,
+        detail: detail,
+        allDay: false,
+        endsAtUtc: schedule.endUtc,
+        calendarId: personalCalendarId,
+        flowLocalId: flowId,
+        category: 'Ritual',
+        actionId: maatDecanFlowActionId(definition, event),
+        behaviorPayload: maatDecanFlowBehaviorPayload(
+          definition: definition,
+          event: event,
+          schedule: schedule,
+        ),
+        caller: 'maat_decan_flow_join_headless',
+      );
+      clientEventIds.add(clientEventId);
+      await _fileHeadlessJoinDelivery(
+        debugLabel: 'maatDecanFlowHeadless',
+        clientEventId: clientEventId,
+        startsAtLocal: schedule.startLocal,
+        alertOffsetMinutes: alertOffsetMinutes,
+        title: title,
+        body: detail,
+      );
+    }
+
+    return _completeHeadlessJoin(
+      flowId: flowId,
+      clientEventIds: clientEventIds,
+    );
+  }
+
   Future<FlowJoinResult> joinDawnHouseRiteHeadless({
     required String templateKey,
     required String templateTitle,

@@ -41,6 +41,7 @@ import 'the_open_hand_flow.dart';
 import 'the_open_hand_local_store.dart';
 import 'the_djed_flow.dart';
 import 'the_djed_local_store.dart';
+import 'maat_decan_flow.dart';
 import 'decan_id.dart';
 import '../onboarding/day_view_date_coachmark.dart';
 import 'package:mobile/features/onboarding/guided_onboarding_overlay.dart';
@@ -195,6 +196,14 @@ class _MaatFlowCompletionContext {
       'observed_from_inside' => 0.65,
       'names_spoken' => 0.75,
       'raised' => 1.0,
+      'decision_pronounced' => 1.0,
+      'transmitted' => 1.0,
+      'stones_placed' => 1.0,
+      'cooled' => 1.0,
+      'spoken' => 1.0,
+      'record_complete' => 1.0,
+      'beer_poured' => 1.0,
+      'golden_one_present' => 1.0,
       'conversation_pending' => 0.3,
       'skipped' => 0.2,
       _ => 0.0,
@@ -276,6 +285,32 @@ List<String> _maatGraphNodeSlugsForFlow({
       return const <String>['maat', 'hapy', 'nile'];
     case kTheDjedFlowKey:
       return const <String>['maat', 'djed', 'ausar', 'ptah'];
+    case kFairHearingFlowKey:
+      return const <String>['maat', 'djehuty', 'anpu', 'heru'];
+    case kHouseOfLifeFlowKey:
+      return const <String>['maat', 'djehuty', 'ptah', 'ren'];
+    case kBoundaryStoneFlowKey:
+      return const <String>['maat', 'isfet', 'set', 'djehuty'];
+    case kHotepFlowKey:
+      return const <String>['maat', 'hapy', 'anpu', 'heru'];
+    case kOpenMouthFlowKey:
+      return const <String>['maat', 'ptah', 'djehuty', 'aset'];
+    case kLivingRecordFlowKey:
+      return const <String>['maat', 'djehuty', 'house_of_life', 'ren'];
+    case kHetHeruFlowKey:
+      return const <String>['maat', 'hathor', 'sekhmet', 'eye_of_ra', 'ra'];
+    case kTheShoreFlowKey:
+      return const <String>['maat', 'djehuty', 'hapy', 'renenutet'];
+    case kTheAutobiographyFlowKey:
+      return const <String>['maat', 'ren', 'ka', 'djehuty'];
+    case kFirstArrangementFlowKey:
+      return const <String>['maat', 'ptah', 'anpu', 'hapy'];
+    case kLivingPatternFlowKey:
+      return const <String>['maat', 'ra', 'hapy', 'anpu', 'khepri'];
+    case kTrueNameFlowKey:
+      return const <String>['maat', 'ren', 'aset', 'anpu'];
+    case kLivingTextFlowKey:
+      return const <String>['maat', 'djehuty', 'ptah', 'ren'];
     case 'track-the-sky':
       final category = eventCategory?.trim().toLowerCase() ?? '';
       return _dedupeMaatNodeSlugs(<String>[
@@ -465,6 +500,32 @@ _MaatFlowCompletionContext? _maatFlowCompletionContextForEvent(
           : const <String, String>{},
       graphNodeSlugs: _maatGraphNodeSlugsForFlow(
         flowKey: kTheDjedFlowKey,
+        eventCategory: event.category,
+      ),
+    );
+  }
+
+  final maatDecanDefinition =
+      maatDecanFlowDefinitionFromNotes(flow?.notes) ??
+      maatDecanFlowDefinitionForTitle(flowName);
+  if (maatDecanDefinition != null) {
+    final maatDecanEvent = maatDecanFlowEventForEvent(
+      definition: maatDecanDefinition,
+      title: event.title,
+    );
+    if (maatDecanEvent == null) return null;
+    return _MaatFlowCompletionContext(
+      flowKey: maatDecanDefinition.key,
+      flowTitle: maatDecanDefinition.title,
+      eventTitle: event.title,
+      eventCategory: event.category,
+      eventNumber: maatDecanEvent.eventNumber,
+      flowDay: maatDecanEvent.flowDay,
+      sharePromptOnComplete: maatDecanEvent.sharePromptOnComplete,
+      shareButtonLabel: 'Share the practice',
+      extraStatusLabels: maatDecanEvent.extraCompletionStatusLabels,
+      graphNodeSlugs: _maatGraphNodeSlugsForFlow(
+        flowKey: maatDecanDefinition.key,
         eventCategory: event.category,
       ),
     );

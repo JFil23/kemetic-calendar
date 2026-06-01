@@ -13,6 +13,19 @@ enum MaatFlowKind {
   daysOutsideTheYear,
   theOpenHand,
   theDjed,
+  fairHearing,
+  houseOfLife,
+  boundaryStone,
+  hotep,
+  openMouth,
+  livingRecord,
+  hetHeru,
+  theShore,
+  theAutobiography,
+  firstArrangement,
+  livingPattern,
+  trueName,
+  livingText,
 }
 
 extension MaatFlowKindIdentity on MaatFlowKind {
@@ -46,6 +59,32 @@ extension MaatFlowKindIdentity on MaatFlowKind {
         return 'the-open-hand';
       case MaatFlowKind.theDjed:
         return 'the-djed';
+      case MaatFlowKind.fairHearing:
+        return 'the-fair-hearing';
+      case MaatFlowKind.houseOfLife:
+        return 'the-house-of-life';
+      case MaatFlowKind.boundaryStone:
+        return 'the-boundary-stone';
+      case MaatFlowKind.hotep:
+        return 'hotep';
+      case MaatFlowKind.openMouth:
+        return 'the-open-mouth';
+      case MaatFlowKind.livingRecord:
+        return 'the-living-record';
+      case MaatFlowKind.hetHeru:
+        return 'het-heru';
+      case MaatFlowKind.theShore:
+        return 'the-shore';
+      case MaatFlowKind.theAutobiography:
+        return 'the-autobiography';
+      case MaatFlowKind.firstArrangement:
+        return 'the-first-arrangement';
+      case MaatFlowKind.livingPattern:
+        return 'the-living-pattern';
+      case MaatFlowKind.trueName:
+        return 'the-true-name';
+      case MaatFlowKind.livingText:
+        return 'the-living-text';
     }
   }
 }
@@ -114,6 +153,19 @@ const Map<String, MaatFlowKind> _flowKeyKinds = <String, MaatFlowKind>{
   'the-days-outside-the-year': MaatFlowKind.daysOutsideTheYear,
   'the-open-hand': MaatFlowKind.theOpenHand,
   'the-djed': MaatFlowKind.theDjed,
+  'the-fair-hearing': MaatFlowKind.fairHearing,
+  'the-house-of-life': MaatFlowKind.houseOfLife,
+  'the-boundary-stone': MaatFlowKind.boundaryStone,
+  'hotep': MaatFlowKind.hotep,
+  'the-open-mouth': MaatFlowKind.openMouth,
+  'the-living-record': MaatFlowKind.livingRecord,
+  'het-heru': MaatFlowKind.hetHeru,
+  'the-shore': MaatFlowKind.theShore,
+  'the-autobiography': MaatFlowKind.theAutobiography,
+  'the-first-arrangement': MaatFlowKind.firstArrangement,
+  'the-living-pattern': MaatFlowKind.livingPattern,
+  'the-true-name': MaatFlowKind.trueName,
+  'the-living-text': MaatFlowKind.livingText,
 };
 
 const Map<String, MaatFlowKind> _behaviorKindKinds = <String, MaatFlowKind>{
@@ -129,6 +181,19 @@ const Map<String, MaatFlowKind> _behaviorKindKinds = <String, MaatFlowKind>{
   'maat_days_outside_year': MaatFlowKind.daysOutsideTheYear,
   'maat_open_hand_event': MaatFlowKind.theOpenHand,
   'maat_djed_event': MaatFlowKind.theDjed,
+  'maat_fair_hearing_event': MaatFlowKind.fairHearing,
+  'maat_house_of_life_event': MaatFlowKind.houseOfLife,
+  'maat_boundary_stone_event': MaatFlowKind.boundaryStone,
+  'maat_hotep_event': MaatFlowKind.hotep,
+  'maat_open_mouth_event': MaatFlowKind.openMouth,
+  'maat_living_record_event': MaatFlowKind.livingRecord,
+  'maat_het_heru_event': MaatFlowKind.hetHeru,
+  'maat_shore_event': MaatFlowKind.theShore,
+  'maat_autobiography_event': MaatFlowKind.theAutobiography,
+  'maat_first_arrangement_event': MaatFlowKind.firstArrangement,
+  'maat_living_pattern_event': MaatFlowKind.livingPattern,
+  'maat_true_name_event': MaatFlowKind.trueName,
+  'maat_living_text_event': MaatFlowKind.livingText,
 };
 
 const Map<String, MaatFlowKind> _behaviorKindPrefixKinds =
@@ -148,6 +213,19 @@ const Map<String, MaatFlowKind> _actionIdPrefixKinds = <String, MaatFlowKind>{
   'the-days-outside-year-event-': MaatFlowKind.daysOutsideTheYear,
   'the-open-hand-event-': MaatFlowKind.theOpenHand,
   'the-djed-event-': MaatFlowKind.theDjed,
+  'the-fair-hearing-event-': MaatFlowKind.fairHearing,
+  'the-house-of-life-event-': MaatFlowKind.houseOfLife,
+  'the-boundary-stone-event-': MaatFlowKind.boundaryStone,
+  'hotep-event-': MaatFlowKind.hotep,
+  'the-open-mouth-event-': MaatFlowKind.openMouth,
+  'the-living-record-event-': MaatFlowKind.livingRecord,
+  'het-heru-event-': MaatFlowKind.hetHeru,
+  'the-shore-event-': MaatFlowKind.theShore,
+  'the-autobiography-event-': MaatFlowKind.theAutobiography,
+  'the-first-arrangement-event-': MaatFlowKind.firstArrangement,
+  'the-living-pattern-event-': MaatFlowKind.livingPattern,
+  'the-true-name-event-': MaatFlowKind.trueName,
+  'the-living-text-event-': MaatFlowKind.livingText,
 };
 
 const Map<String, MaatFlowKind> _flowNameKinds = <String, MaatFlowKind>{
@@ -166,6 +244,20 @@ const Map<String, MaatFlowKind> _flowNameKinds = <String, MaatFlowKind>{
   'the days outside the year': MaatFlowKind.daysOutsideTheYear,
   'the open hand': MaatFlowKind.theOpenHand,
   'the djed': MaatFlowKind.theDjed,
+  'the fair hearing': MaatFlowKind.fairHearing,
+  'the house of life': MaatFlowKind.houseOfLife,
+  'the boundary stone': MaatFlowKind.boundaryStone,
+  'hotep': MaatFlowKind.hotep,
+  'the open mouth': MaatFlowKind.openMouth,
+  'the living record': MaatFlowKind.livingRecord,
+  'het-heru': MaatFlowKind.hetHeru,
+  'het heru': MaatFlowKind.hetHeru,
+  'the shore': MaatFlowKind.theShore,
+  'the autobiography': MaatFlowKind.theAutobiography,
+  'the first arrangement': MaatFlowKind.firstArrangement,
+  'the living pattern': MaatFlowKind.livingPattern,
+  'the true name': MaatFlowKind.trueName,
+  'the living text': MaatFlowKind.livingText,
 };
 
 String? _maatKeyFromNotes(String? flowNotes) {

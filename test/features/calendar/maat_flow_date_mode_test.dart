@@ -488,7 +488,7 @@ void main() {
     final djedHeadless = _sourceBetween(
       source,
       'if (template.kind == _MaatFlowTemplateKind.theDjed)',
-      'if (template.kind == _MaatFlowTemplateKind.decanWatch)',
+      'if (template.kind == _MaatFlowTemplateKind.maatDecan)',
     );
 
     expect(djedHeadless, contains('FlowJoinService'));
@@ -506,7 +506,7 @@ void main() {
     final djedService = _sourceBetween(
       source,
       'Future<FlowJoinResult> joinDjedHeadless',
-      'Future<FlowJoinResult> joinDawnHouseRiteHeadless',
+      'Future<FlowJoinResult> joinMaatDecanFlowHeadless',
     );
 
     expect(djedService, contains('djed_join_headless'));
@@ -1173,6 +1173,7 @@ void main() {
       'if (template.kind == _MaatFlowTemplateKind.trackSky)',
       "// Current Ma'at templates must use explicit branches above;",
     );
+    const explicitTemplateCount = 27;
     const explicitKinds = [
       'trackSky',
       'dawnHouseRite',
@@ -1188,16 +1189,17 @@ void main() {
       'daysOutsideTheYear',
       'theOpenHand',
       'theDjed',
+      'maatDecan',
     ];
 
     expect(
       _countOccurrences(templateList, '_MaatFlowTemplate('),
-      explicitKinds.length,
+      explicitTemplateCount,
       reason: 'Every current Ma_at template should be represented here.',
     );
     expect(
       _countOccurrences(templateList, 'kind: _MaatFlowTemplateKind.'),
-      explicitKinds.length,
+      explicitTemplateCount,
       reason: 'Current templates must declare explicit kinds.',
     );
     expect(
@@ -2223,8 +2225,14 @@ const _serviceBackedHeadlessMaatEnrollmentBranches = [
   (
     name: 'Djed',
     start: 'if (template.kind == _MaatFlowTemplateKind.theDjed)',
-    end: 'if (template.kind == _MaatFlowTemplateKind.decanWatch)',
+    end: 'if (template.kind == _MaatFlowTemplateKind.maatDecan)',
     method: 'joinDjedHeadless',
+  ),
+  (
+    name: 'Ma’at Decan',
+    start: 'if (template.kind == _MaatFlowTemplateKind.maatDecan)',
+    end: 'if (template.kind == _MaatFlowTemplateKind.decanWatch)',
+    method: 'joinMaatDecanFlowHeadless',
   ),
   (
     name: 'Decan Watch',
@@ -2365,11 +2373,22 @@ const _mountedSafeEnrollmentBranches = [
         'DaysOutsideYearEnrollmentWindow? _resolveMountedDaysOutsideYearJoinWindow',
     branchStart:
         'if (template.kind == _MaatFlowTemplateKind.daysOutsideTheYear)',
-    branchEnd: 'if (template.kind == _MaatFlowTemplateKind.theOpenHand)',
+    branchEnd: 'if (template.kind == _MaatFlowTemplateKind.maatDecan)',
     mountedResolver: '_resolveMountedDaysOutsideYearJoinWindow',
     safeResolver: 'resolveDaysOutsideYearEnrollmentWindowSafely',
     throwingNextApi: 'daysOutsideYearNextEnrollmentWindow(',
     throwingSelectedApi: 'daysOutsideYearEnrollmentWindowForStartDate(',
+  ),
+  (
+    name: 'Ma’at Decan',
+    resolverStart:
+        'DecanWatchEnrollmentWindow? _resolveMountedDecanWatchJoinWindow',
+    branchStart: 'if (template.kind == _MaatFlowTemplateKind.maatDecan)',
+    branchEnd: 'if (template.kind == _MaatFlowTemplateKind.theOpenHand)',
+    mountedResolver: '_resolveMountedDecanWatchJoinWindow',
+    safeResolver: 'resolveDecanWatchEnrollmentWindowSafely',
+    throwingNextApi: 'decanWatchNextEnrollmentWindow(',
+    throwingSelectedApi: 'decanWatchEnrollmentWindowForStartDate(',
   ),
   (
     name: 'Open Hand',

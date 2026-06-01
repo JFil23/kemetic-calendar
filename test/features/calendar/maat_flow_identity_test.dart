@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mobile/features/calendar/dawn_house_rite_flow.dart';
+import 'package:mobile/features/calendar/maat_decan_flow.dart';
 import 'package:mobile/features/calendar/maat_flow_identity.dart';
 import 'package:mobile/features/calendar/moon_return_flow.dart';
 import 'package:mobile/features/calendar/the_course_flow.dart';
@@ -74,6 +75,44 @@ void main() {
         ),
         MaatFlowKind.theOpenHand,
       );
+      expect(
+        resolveMaatFlowKind(
+          behaviorPayload: const <String, dynamic>{
+            'kind': 'maat_open_mouth_event',
+          },
+        ),
+        MaatFlowKind.openMouth,
+      );
+      expect(
+        resolveMaatFlowKind(
+          behaviorPayload: const <String, dynamic>{
+            'kind': 'maat_living_record_event',
+          },
+        ),
+        MaatFlowKind.livingRecord,
+      );
+      expect(
+        resolveMaatFlowKind(
+          behaviorPayload: const <String, dynamic>{
+            'kind': 'maat_het_heru_event',
+          },
+        ),
+        MaatFlowKind.hetHeru,
+      );
+      expect(
+        resolveMaatFlowKind(
+          behaviorPayload: const <String, dynamic>{'kind': 'maat_shore_event'},
+        ),
+        MaatFlowKind.theShore,
+      );
+      expect(
+        resolveMaatFlowKind(
+          behaviorPayload: const <String, dynamic>{
+            'kind': 'maat_living_text_event',
+          },
+        ),
+        MaatFlowKind.livingText,
+      );
     });
 
     test('resolves action ids for migrated Ma’at families', () {
@@ -101,6 +140,58 @@ void main() {
         resolveMaatFlowKind(actionId: 'the-djed-event-02'),
         MaatFlowKind.theDjed,
       );
+      expect(
+        resolveMaatFlowKind(actionId: 'the-fair-hearing-event-02'),
+        MaatFlowKind.fairHearing,
+      );
+      expect(
+        resolveMaatFlowKind(actionId: 'the-house-of-life-event-02'),
+        MaatFlowKind.houseOfLife,
+      );
+      expect(
+        resolveMaatFlowKind(actionId: 'the-boundary-stone-event-02'),
+        MaatFlowKind.boundaryStone,
+      );
+      expect(
+        resolveMaatFlowKind(actionId: 'hotep-event-02'),
+        MaatFlowKind.hotep,
+      );
+      expect(
+        resolveMaatFlowKind(actionId: 'the-open-mouth-event-02'),
+        MaatFlowKind.openMouth,
+      );
+      expect(
+        resolveMaatFlowKind(actionId: 'the-living-record-event-02'),
+        MaatFlowKind.livingRecord,
+      );
+      expect(
+        resolveMaatFlowKind(actionId: 'het-heru-event-02'),
+        MaatFlowKind.hetHeru,
+      );
+      expect(
+        resolveMaatFlowKind(actionId: 'the-shore-event-02'),
+        MaatFlowKind.theShore,
+      );
+      expect(
+        resolveMaatFlowKind(actionId: 'the-autobiography-event-02'),
+        MaatFlowKind.theAutobiography,
+      );
+      expect(
+        resolveMaatFlowKind(actionId: 'the-first-arrangement-event-02'),
+        MaatFlowKind.firstArrangement,
+      );
+      expect(
+        resolveMaatFlowKind(actionId: 'the-living-pattern-event-02'),
+        MaatFlowKind.livingPattern,
+      );
+      expect(
+        resolveMaatFlowKind(actionId: 'the-true-name-event-02'),
+        MaatFlowKind.trueName,
+      );
+      expect(
+        resolveMaatFlowKind(actionId: 'the-living-text-event-02'),
+        MaatFlowKind.livingText,
+      );
     });
 
     test('resolves legacy flow-name fallbacks exactly', () {
@@ -111,6 +202,55 @@ void main() {
       expect(
         resolveMaatFlowKind(flowName: '  The Moon Return  '),
         MaatFlowKind.moonReturn,
+      );
+      expect(
+        resolveMaatFlowKind(flowName: kFairHearingTitle),
+        MaatFlowKind.fairHearing,
+      );
+      expect(
+        resolveMaatFlowKind(flowName: kHouseOfLifeTitle),
+        MaatFlowKind.houseOfLife,
+      );
+      expect(
+        resolveMaatFlowKind(flowName: kBoundaryStoneTitle),
+        MaatFlowKind.boundaryStone,
+      );
+      expect(resolveMaatFlowKind(flowName: kHotepTitle), MaatFlowKind.hotep);
+      expect(
+        resolveMaatFlowKind(flowName: kOpenMouthTitle),
+        MaatFlowKind.openMouth,
+      );
+      expect(
+        resolveMaatFlowKind(flowName: kLivingRecordTitle),
+        MaatFlowKind.livingRecord,
+      );
+      expect(
+        resolveMaatFlowKind(flowName: kHetHeruTitle),
+        MaatFlowKind.hetHeru,
+      );
+      expect(
+        resolveMaatFlowKind(flowName: kTheShoreTitle),
+        MaatFlowKind.theShore,
+      );
+      expect(
+        resolveMaatFlowKind(flowName: kTheAutobiographyTitle),
+        MaatFlowKind.theAutobiography,
+      );
+      expect(
+        resolveMaatFlowKind(flowName: kFirstArrangementTitle),
+        MaatFlowKind.firstArrangement,
+      );
+      expect(
+        resolveMaatFlowKind(flowName: kLivingPatternTitle),
+        MaatFlowKind.livingPattern,
+      );
+      expect(
+        resolveMaatFlowKind(flowName: kTrueNameTitle),
+        MaatFlowKind.trueName,
+      );
+      expect(
+        resolveMaatFlowKind(flowName: kLivingTextTitle),
+        MaatFlowKind.livingText,
       );
       expect(resolveMaatFlowKind(flowName: 'The Moon Returned'), isNull);
     });

@@ -6,6 +6,7 @@ import 'package:mobile/features/calendar/calendar_invalidation.dart';
 import 'package:mobile/features/calendar/calendar_page.dart';
 import 'package:mobile/features/calendar/dawn_house_rite_flow.dart';
 import 'package:mobile/features/calendar/evening_threshold_rite_flow.dart';
+import 'package:mobile/features/calendar/maat_decan_flow.dart';
 import 'package:mobile/features/calendar/moon_return_astronomy.dart';
 import 'package:mobile/features/calendar/moon_return_flow.dart';
 import 'package:mobile/features/calendar/the_days_outside_year_enrollment.dart';
@@ -1754,6 +1755,210 @@ void main() {
         CalendarInvalidationReason.flowJoined,
       );
       expect(invalidations.single.flowId, 231);
+      expect(invalidations.single.clientEventIds, expectedIds);
+    },
+  );
+
+  test(
+    'headless Ma’at decan join persists events, files at-time delivery, invalidates once, and returns success',
+    () async {
+      final timezone = TrackSkyTimeZone.pacific;
+      final selectedStart = DateTime(2026, 12, 1);
+      final definition = maatDecanFlowDefinitionForKey(kFairHearingFlowKey)!;
+      final openingOccurrence = DecanWatchOccurrence(
+        kYear: 3,
+        kMonth: 7,
+        decanIndex: 1,
+        decanStartDay: 1,
+        globalDecanId: 19,
+        decanName: 'Test Fair Hearing Decan',
+        eventDateIso: '2026-12-01',
+        timezone: timezone,
+        scheduleHour: kDecanWatchDefaultHour,
+        scheduleMinute: kDecanWatchDefaultMinute,
+        startLocal: selectedStart,
+        endLocal: selectedStart.add(
+          const Duration(minutes: kDecanWatchDurationMinutes),
+        ),
+        startUtc: DateTime.utc(2026, 12, 1, 16),
+        endUtc: DateTime.utc(2026, 12, 1, 16, kDecanWatchDurationMinutes),
+      );
+      final window = DecanWatchEnrollmentWindow(
+        opensAtLocal: selectedStart,
+        closesAtLocal: DateTime(2026, 12, 2),
+        openingOccurrence: openingOccurrence,
+      );
+
+      final flowCalls = <Map<String, Object?>>[];
+      final eventCalls = <Map<String, Object?>>[];
+      final deliveryCalls = <Map<String, Object?>>[];
+      final invalidations = <CalendarInvalidated>[];
+
+      final service = FlowJoinService(
+        resolveDecanWatchWindow: ({required timezone, startDate}) {
+          expect(timezone, TrackSkyTimeZone.pacific);
+          expect(startDate, selectedStart);
+          return window;
+        },
+        upsertFlow:
+            ({
+              id,
+              required name,
+              required color,
+              required active,
+              calendarId,
+              startDate,
+              endDate,
+              notes,
+              required rules,
+              originType,
+            }) async {
+              flowCalls.add({
+                'name': name,
+                'active': active,
+                'calendarId': calendarId,
+                'startDate': startDate,
+                'endDate': endDate,
+                'notes': notes,
+                'rules': rules,
+                'originType': originType,
+              });
+              return 240;
+            },
+        upsertEvent:
+            ({
+              required clientEventId,
+              required title,
+              required startsAtUtc,
+              detail,
+              allDay = false,
+              endsAtUtc,
+              flowLocalId,
+              category,
+              actionId,
+              behaviorPayload,
+              calendarId,
+              caller,
+            }) async {
+              eventCalls.add({
+                'clientEventId': clientEventId,
+                'title': title,
+                'startsAtUtc': startsAtUtc,
+                'detail': detail,
+                'allDay': allDay,
+                'endsAtUtc': endsAtUtc,
+                'flowLocalId': flowLocalId,
+                'category': category,
+                'actionId': actionId,
+                'behaviorPayload': behaviorPayload,
+                'calendarId': calendarId,
+                'caller': caller,
+              });
+            },
+        fileHeadlessEventDelivery:
+            ({
+              required eventFiling,
+              required debugLabel,
+              required clientEventId,
+              required startsAtLocal,
+              required alertOffsetMinutes,
+              required title,
+              body,
+            }) async {
+              deliveryCalls.add({
+                'debugLabel': debugLabel,
+                'clientEventId': clientEventId,
+                'startsAtLocal': startsAtLocal,
+                'alertOffsetMinutes': alertOffsetMinutes,
+                'title': title,
+                'body': body,
+              });
+            },
+        publishHeadlessCalendarInvalidation:
+            ({required reason, required flowId, required clientEventIds}) {
+              invalidations.add(
+                CalendarInvalidated(
+                  reason: reason,
+                  flowId: flowId,
+                  clientEventIds: List<String>.from(clientEventIds),
+                ),
+              );
+            },
+      );
+
+      final result = await service.joinMaatDecanFlowHeadless(
+        definition: definition,
+        templateOverview: kFairHearingOverview,
+        templateColor: Colors.amber,
+        personalCalendarId: 'personal-calendar',
+        timezone: timezone,
+        startDate: selectedStart,
+        alertOffsetMinutes: 0,
+      );
+
+      final expectedIds = <String>[
+        for (final event in definition.events)
+          'the-fair-hearing:240:event-${event.eventNumber}',
+      ];
+
+      expect(result.succeeded, isTrue);
+      expect(result.flowId, 240);
+      expect(result.clientEventIds, expectedIds);
+
+      expect(flowCalls, hasLength(1));
+      expect(flowCalls.single['name'], kFairHearingTitle);
+      expect(flowCalls.single['calendarId'], 'personal-calendar');
+      expect(flowCalls.single['startDate'], selectedStart);
+      expect(
+        flowCalls.single['endDate'],
+        selectedStart.add(const Duration(days: 29)),
+      );
+      expect(flowCalls.single['originType'], 'template');
+      expect(flowCalls.single['notes'], contains('maat=$kFairHearingFlowKey'));
+      expect(
+        flowCalls.single['notes'],
+        contains('fair_hearing_start=2026-12-01'),
+      );
+      expect(flowCalls.single['notes'], contains('fair_hearing_tz=pacific'));
+      expect(flowCalls.single['notes'], contains('fair_hearing_decan_kyear=3'));
+      final rules = jsonDecode(flowCalls.single['rules']! as String) as List;
+      expect(rules.single, containsPair('type', 'dates'));
+
+      expect(eventCalls, hasLength(definition.events.length));
+      expect(deliveryCalls, hasLength(definition.events.length));
+      expect(
+        eventCalls.map((call) => call['clientEventId']).toList(),
+        expectedIds,
+      );
+      final firstEvent = definition.events.first;
+      expect(
+        eventCalls.first['title'],
+        maatDecanFlowEventTitle(definition, firstEvent),
+      );
+      expect(eventCalls.first['flowLocalId'], 240);
+      expect(eventCalls.first['category'], 'Ritual');
+      expect(eventCalls.first['caller'], 'maat_decan_flow_join_headless');
+      expect(
+        eventCalls.first['actionId'],
+        maatDecanFlowActionId(definition, firstEvent),
+      );
+      final firstPayload =
+          eventCalls.first['behaviorPayload']! as Map<String, dynamic>;
+      expect(firstPayload['kind'], 'maat_fair_hearing_event');
+      expect(firstPayload['flow_key'], kFairHearingFlowKey);
+      expect(firstPayload['event_number'], firstEvent.eventNumber);
+      expect(firstPayload['flow_day'], firstEvent.flowDay);
+
+      expect(deliveryCalls.first['clientEventId'], expectedIds.first);
+      expect(deliveryCalls.first['alertOffsetMinutes'], 0);
+      expect(deliveryCalls.first['debugLabel'], 'maatDecanFlowHeadless');
+
+      expect(invalidations, hasLength(1));
+      expect(
+        invalidations.single.reason,
+        CalendarInvalidationReason.flowJoined,
+      );
+      expect(invalidations.single.flowId, 240);
       expect(invalidations.single.clientEventIds, expectedIds);
     },
   );

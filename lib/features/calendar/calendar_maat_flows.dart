@@ -169,27 +169,78 @@ class _MaatFlowsListPageState extends State<_MaatFlowsListPage> {
               itemBuilder: (ctx, i) {
                 final t = widget.templates[i];
                 final added = widget.hasActiveForKey(t.key);
+                final maatDecanDefinition =
+                    t.kind == _MaatFlowTemplateKind.maatDecan
+                    ? maatDecanFlowDefinitionForKey(t.key)
+                    : null;
+                final subtitleParts = <String>[
+                  _maatFlowTemplateDurationLabel(t),
+                  if (maatDecanDefinition != null)
+                    maatDecanDefinition.burdenLabel,
+                  if (maatDecanDefinition != null)
+                    maatDecanDefinition.rhythmLabel,
+                  if (maatDecanDefinition?.specialRequirementLabel != null)
+                    maatDecanDefinition!.specialRequirementLabel!,
+                ];
                 return ListTile(
                   onTap: () async => widget.onPickTemplate(t),
-                  leading: Container(
-                    width: 18,
-                    height: 18,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      gradient: _glossFromColor(t.color),
-                    ),
+                  leading: maatDecanDefinition != null
+                      ? SizedBox(
+                          width: 32,
+                          child: Text(
+                            maatDecanDefinition.glyph,
+                            textAlign: TextAlign.center,
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 22,
+                            ),
+                          ),
+                        )
+                      : Container(
+                          width: 18,
+                          height: 18,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            gradient: _glossFromColor(t.color),
+                          ),
+                        ),
+                  title: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      GlossyText(
+                        text: t.title,
+                        style: const TextStyle(
+                          fontSize: 17,
+                          fontWeight: FontWeight.w600,
+                        ),
+                        gradient: goldGloss,
+                      ),
+                      if (maatDecanDefinition != null)
+                        Padding(
+                          padding: const EdgeInsets.only(top: 2),
+                          child: Text(
+                            maatDecanDefinition.tagline,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              color: Colors.white54,
+                              fontSize: 11.5,
+                              fontStyle: FontStyle.italic,
+                            ),
+                          ),
+                        ),
+                    ],
                   ),
-                  title: GlossyText(
-                    text: t.title,
-                    style: const TextStyle(
-                      fontSize: 17,
-                      fontWeight: FontWeight.w600,
+                  subtitle: Padding(
+                    padding: const EdgeInsets.only(top: 4),
+                    child: Text(
+                      '${subtitleParts.join(' • ')} • ${t.overview.isEmpty ? '—' : 'Tap for details'}',
+                      style: const TextStyle(
+                        color: Colors.white70,
+                        fontSize: 12,
+                        height: 1.25,
+                      ),
                     ),
-                    gradient: goldGloss,
-                  ),
-                  subtitle: Text(
-                    '${_maatFlowTemplateDurationLabel(t)} • ${t.overview.isEmpty ? '—' : 'Tap for details'}',
-                    style: const TextStyle(color: Colors.white70, fontSize: 12),
                   ),
                   trailing: added
                       ? Container(
@@ -735,6 +786,8 @@ class _MaatFlowTemplateDetailPageState
   DjedLens _djedLens = DjedLens.neutral;
   bool _djedStartDateTouched = false;
   bool _djedJoinInFlight = false;
+  bool _maatDecanStartDateTouched = false;
+  bool _maatDecanJoinInFlight = false;
 
   @override
   void initState() {
@@ -773,6 +826,8 @@ class _MaatFlowTemplateDetailPageState
       _picked = defaultTheOpenHandStartDate(_previewTrackSkyTimeZone);
     } else if (widget.template.kind == _MaatFlowTemplateKind.theDjed) {
       _picked = defaultTheDjedStartDate(_previewTrackSkyTimeZone);
+    } else if (widget.template.kind == _MaatFlowTemplateKind.maatDecan) {
+      _picked = defaultTheDecanWatchStartDate(_previewTrackSkyTimeZone);
     }
   }
 
@@ -963,6 +1018,10 @@ class _MaatFlowTemplateDetailPageState
     }
     if (widget.template.kind == _MaatFlowTemplateKind.theDjed) {
       await _pickDjedWindowDate();
+      return;
+    }
+    if (widget.template.kind == _MaatFlowTemplateKind.maatDecan) {
+      await _pickMaatDecanWindowDate();
       return;
     }
     bool localKemetic = _useKemetic;
@@ -1954,6 +2013,122 @@ class _MaatFlowTemplateDetailPageState
     );
   }
 
+  Future<void> _pickMaatDecanWindowDate() async {
+    final windows = decanWatchUpcomingEnrollmentWindows(
+      _previewTrackSkyTimeZone,
+      count: 12,
+    );
+    if (windows.isEmpty) return;
+    final l10n = MaterialLocalizations.of(context);
+    String timeLabel(DateTime value) {
+      return l10n.formatTimeOfDay(
+        TimeOfDay(hour: value.hour, minute: value.minute),
+      );
+    }
+
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.black,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (sheetCtx) {
+        return SafeArea(
+          top: false,
+          child: Padding(
+            padding: EdgeInsets.fromLTRB(
+              16,
+              12,
+              16,
+              16 + MediaQuery.of(sheetCtx).padding.bottom,
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Center(
+                  child: Container(
+                    width: 36,
+                    height: 4,
+                    margin: const EdgeInsets.only(bottom: 12),
+                    decoration: BoxDecoration(
+                      color: Colors.white24,
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  ),
+                ),
+                GlossyText(
+                  text: '${widget.template.title} Start Windows',
+                  gradient: _maatBadgeGoldGloss,
+                  style: const TextStyle(
+                    fontSize: 17,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                const SizedBox(height: 6),
+                const Text(
+                  'This picker only shows designated decan-opening enrollment windows.',
+                  style: TextStyle(color: Colors.white70, fontSize: 13),
+                ),
+                const SizedBox(height: 12),
+                Flexible(
+                  child: ListView.separated(
+                    shrinkWrap: true,
+                    itemCount: windows.length,
+                    separatorBuilder: (_, _) =>
+                        const Divider(color: Colors.white10, height: 1),
+                    itemBuilder: (context, index) {
+                      final window = windows[index];
+                      final occurrence = window.openingOccurrence;
+                      final selected =
+                          _picked != null &&
+                          DateUtils.isSameDay(
+                            DateUtils.dateOnly(_picked!),
+                            DateUtils.dateOnly(window.opensAtLocal),
+                          );
+                      return ListTile(
+                        contentPadding: EdgeInsets.zero,
+                        leading: Icon(
+                          selected
+                              ? Icons.radio_button_checked
+                              : Icons.radio_button_unchecked,
+                          color: selected ? _gold : Colors.white38,
+                        ),
+                        title: Text(
+                          occurrence.decanName,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        subtitle: Text(
+                          '${window.opensAtLocal.year} · M${occurrence.kMonth} D${occurrence.decanStartDay} · opens ${_dateLabel(context, window.opensAtLocal)} at ${timeLabel(window.opensAtLocal)}',
+                          style: const TextStyle(
+                            color: Colors.white60,
+                            fontSize: 12,
+                            height: 1.3,
+                          ),
+                        ),
+                        onTap: () {
+                          setState(() {
+                            _picked = DateUtils.dateOnly(window.opensAtLocal);
+                            _maatDecanStartDateTouched = true;
+                          });
+                          Navigator.pop(sheetCtx);
+                        },
+                      );
+                    },
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
   Future<void> _pickDaysOutsideYearWindowDate() async {
     final windows = daysOutsideYearUpcomingEnrollmentWindows(
       _previewTrackSkyTimeZone,
@@ -2122,6 +2297,9 @@ class _MaatFlowTemplateDetailPageState
       } else if (widget.template.kind == _MaatFlowTemplateKind.theDjed &&
           !_djedStartDateTouched) {
         _picked = defaultTheDjedStartDate(timezone);
+      } else if (widget.template.kind == _MaatFlowTemplateKind.maatDecan &&
+          !_maatDecanStartDateTouched) {
+        _picked = defaultTheDecanWatchStartDate(timezone);
       }
     });
   }
@@ -2778,6 +2956,49 @@ class _MaatFlowTemplateDetailPageState
     });
   }
 
+  Future<void> _joinMaatDecanFlow(
+    DateTime selectedStart,
+    MaatDecanFlowDefinition definition,
+  ) async {
+    if (_maatDecanJoinInFlight) return;
+    setState(() {
+      _maatDecanJoinInFlight = true;
+    });
+
+    final int id;
+    try {
+      id = await widget.addInstance(
+        template: widget.template,
+        startDate: selectedStart,
+        trackSkyTimeZone: _previewTrackSkyTimeZone,
+      );
+    } catch (e, st) {
+      if (kDebugMode) {
+        _calendarDebugPrint('[${definition.key}] join failed: $e');
+        _calendarDebugPrint('$st');
+      }
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Could not join ${definition.title}. Please retry.'),
+        ),
+      );
+      setState(() {
+        _maatDecanJoinInFlight = false;
+      });
+      return;
+    }
+
+    if (!mounted) return;
+    if (id > 0) {
+      Navigator.of(context).pop(id);
+      return;
+    }
+    setState(() {
+      _maatDecanJoinInFlight = false;
+    });
+  }
+
   Future<void> _joinDaysOutsideYearFlow(DateTime selectedStart) async {
     if (_daysOutsideYearJoinInFlight) return;
     setState(() {
@@ -3196,6 +3417,8 @@ class _MaatFlowTemplateDetailPageState
           tilePadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
           collapsedIconColor: _silver,
           iconColor: _gold,
+          expandedAlignment: Alignment.centerLeft,
+          expandedCrossAxisAlignment: CrossAxisAlignment.start,
           childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
           title: Text(
             event.title,
@@ -3253,6 +3476,98 @@ class _MaatFlowTemplateDetailPageState
             style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
             gradient: goldGloss,
           ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildExpandableFlowEventTile({
+    required String title,
+    required String subtitle,
+    required String detailText,
+    List<String> badges = const <String>[],
+    Color borderColor = Colors.white12,
+    Color badgeAccent = _gold,
+  }) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 10),
+      decoration: BoxDecoration(
+        color: const Color(0xFF0B0C0F),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: borderColor),
+      ),
+      child: Theme(
+        data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
+        child: ExpansionTile(
+          tilePadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+          collapsedIconColor: _silver,
+          iconColor: _gold,
+          childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+          title: Text(
+            title,
+            style: const TextStyle(
+              color: Colors.white,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          subtitle: Padding(
+            padding: const EdgeInsets.only(top: 4),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  subtitle,
+                  style: const TextStyle(color: Colors.white60, fontSize: 12),
+                ),
+                if (badges.isNotEmpty) ...[
+                  const SizedBox(height: 8),
+                  _buildEventBadgeRow(badges, accent: badgeAccent),
+                ],
+              ],
+            ),
+          ),
+          children: [
+            SizedBox(
+              width: double.infinity,
+              child: Text(
+                detailText.trim(),
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 13.5,
+                  height: 1.45,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildEventBadgeRow(List<String> badges, {required Color accent}) {
+    return Wrap(
+      spacing: 8,
+      runSpacing: 8,
+      children: badges
+          .map((badge) => _buildEventBadge(badge, accent: accent))
+          .toList(growable: false),
+    );
+  }
+
+  Widget _buildEventBadge(String label, {required Color accent}) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: accent.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: accent.withValues(alpha: 0.75), width: 1),
+      ),
+      child: Text(
+        label,
+        style: TextStyle(
+          color: accent,
+          fontSize: 11,
+          fontWeight: FontWeight.w700,
         ),
       ),
     );
@@ -4880,34 +5195,19 @@ class _MaatFlowTemplateDetailPageState
         minute: occurrence.startLocal.minute,
       ),
     );
-    return Container(
-      margin: const EdgeInsets.only(bottom: 10),
-      decoration: BoxDecoration(
-        color: const Color(0xFF0B0C0F),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: occurrence.variant == MoonReturnCopyVariant.standard
-              ? Colors.white12
-              : const Color(0xFF8FA8FF),
-        ),
-      ),
-      child: ListTile(
-        contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
-        title: Text(
-          moonReturnEventTitle(occurrence),
-          style: const TextStyle(
-            color: Colors.white,
-            fontWeight: FontWeight.w600,
-          ),
-        ),
-        subtitle: Padding(
-          padding: const EdgeInsets.only(top: 4),
-          child: Text(
-            '${_dateLabel(context, occurrence.startLocal)} at $time • ${occurrence.variant.label}',
-            style: const TextStyle(color: Colors.white60, fontSize: 12),
-          ),
-        ),
-      ),
+    final title = moonReturnEventTitle(occurrence);
+    final subtitle =
+        '${_dateLabel(context, occurrence.startLocal)} at $time • ${occurrence.variant.label}';
+    final highlight = occurrence.variant != MoonReturnCopyVariant.standard;
+    final accent = highlight ? const Color(0xFF8FA8FF) : _silver;
+    final badges = <String>[if (highlight) occurrence.variant.label];
+    return _buildExpandableFlowEventTile(
+      title: title,
+      subtitle: subtitle,
+      detailText: moonReturnDetailText(occurrence, lens: _moonReturnLens),
+      badges: badges,
+      borderColor: highlight ? accent : Colors.white12,
+      badgeAccent: accent,
     );
   }
 
@@ -4938,36 +5238,22 @@ class _MaatFlowTemplateDetailPageState
         minute: schedule.startLocal.minute,
       ),
     );
-    return Container(
-      margin: const EdgeInsets.only(bottom: 10),
-      decoration: BoxDecoration(
-        color: const Color(0xFF0B0C0F),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color:
-              event.kind == WagEventKind.vigil ||
-                  event.kind == WagEventKind.feast
-              ? _gold
-              : Colors.white12,
-        ),
-      ),
-      child: ListTile(
-        contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
-        title: Text(
-          wagEventTitle(event),
-          style: const TextStyle(
-            color: Colors.white,
-            fontWeight: FontWeight.w600,
-          ),
-        ),
-        subtitle: Padding(
-          padding: const EdgeInsets.only(top: 4),
-          child: Text(
-            '${wagTimingLabel(event)} • ${_dateLabel(context, schedule.startLocal)} at $time',
-            style: const TextStyle(color: Colors.white60, fontSize: 12),
-          ),
-        ),
-      ),
+    final highlight =
+        event.kind == WagEventKind.vigil || event.kind == WagEventKind.feast;
+    final badges = <String>[
+      if (event.kind == WagEventKind.vigil) 'Vigil',
+      if (event.kind == WagEventKind.feast) 'Feast',
+    ];
+    final title = wagEventTitle(event);
+    final subtitle =
+        '${wagTimingLabel(event)} • ${_dateLabel(context, schedule.startLocal)} at $time';
+    return _buildExpandableFlowEventTile(
+      title: title,
+      subtitle: subtitle,
+      detailText: wagDetailText(event, lens: _wagLens),
+      badges: badges,
+      borderColor: highlight ? _gold : Colors.white12,
+      badgeAccent: _gold,
     );
   }
 
@@ -5219,30 +5505,13 @@ class _MaatFlowTemplateDetailPageState
         minute: occurrence.startLocal.minute,
       ),
     );
-    return Container(
-      margin: const EdgeInsets.only(bottom: 10),
-      decoration: BoxDecoration(
-        color: const Color(0xFF0B0C0F),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.white12),
-      ),
-      child: ListTile(
-        contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
-        title: Text(
-          decanWatchEventTitle(occurrence),
-          style: const TextStyle(
-            color: Colors.white,
-            fontWeight: FontWeight.w600,
-          ),
-        ),
-        subtitle: Padding(
-          padding: const EdgeInsets.only(top: 4),
-          child: Text(
-            'M${occurrence.kMonth} D${occurrence.decanStartDay} · ${_dateLabel(context, occurrence.startLocal)} at $time',
-            style: const TextStyle(color: Colors.white60, fontSize: 12),
-          ),
-        ),
-      ),
+    final title = decanWatchEventTitle(occurrence);
+    final subtitle =
+        'M${occurrence.kMonth} D${occurrence.decanStartDay} · ${_dateLabel(context, occurrence.startLocal)} at $time';
+    return _buildExpandableFlowEventTile(
+      title: title,
+      subtitle: subtitle,
+      detailText: decanWatchDetailText(occurrence, lens: _decanWatchLens),
     );
   }
 
@@ -5534,31 +5803,279 @@ class _MaatFlowTemplateDetailPageState
         minute: schedule.startLocal.minute,
       ),
     );
-    return Container(
-      margin: const EdgeInsets.only(bottom: 10),
-      decoration: BoxDecoration(
-        color: const Color(0xFF0B0C0F),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: event.requiresOutwardAct ? _gold : Colors.white12,
-        ),
+    final badges = <String>[
+      if (event.requiresOutwardAct) 'Action',
+      if (event.strangerAct) 'Stranger act',
+    ];
+    final title = openHandEventTitle(event);
+    final subtitle =
+        '${openHandTimingLabel(event)} · ${_dateLabel(context, schedule.startLocal)} at $time${event.requiresOutwardAct ? ' · act first' : ''}';
+    return _buildExpandableFlowEventTile(
+      title: title,
+      subtitle: subtitle,
+      detailText: openHandDetailText(event, lens: _openHandLens),
+      badges: badges,
+      borderColor: event.requiresOutwardAct ? _gold : Colors.white12,
+      badgeAccent: _gold,
+    );
+  }
+
+  DecanWatchEnrollmentWindow? _resolveMaatDecanPreviewWindow() {
+    return _tryEnrollmentWindow('maatDecan:${widget.template.key}', () {
+      final picked = _picked;
+      if (picked != null) {
+        final selected = decanWatchEnrollmentWindowForStartDate(
+          picked,
+          _previewTrackSkyTimeZone,
+        );
+        if (selected != null) return selected;
+      }
+      return decanWatchNextEnrollmentWindow(_previewTrackSkyTimeZone);
+    });
+  }
+
+  Widget _buildMaatDecanFlowEventTile(
+    BuildContext context,
+    MaatDecanFlowDefinition definition,
+    MaatDecanFlowEvent event,
+    DateTime flowStart,
+  ) {
+    final schedule = maatDecanFlowScheduleForEvent(
+      event,
+      flowStart,
+      _previewTrackSkyTimeZone,
+    );
+    final l10n = MaterialLocalizations.of(context);
+    final time = l10n.formatTimeOfDay(
+      TimeOfDay(
+        hour: schedule.startLocal.hour,
+        minute: schedule.startLocal.minute,
       ),
-      child: ListTile(
-        contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
-        title: Text(
-          openHandEventTitle(event),
-          style: const TextStyle(
-            color: Colors.white,
-            fontWeight: FontWeight.w600,
+    );
+    final highlight =
+        event.requiresRealWorldAction ||
+        event.extraCompletionStatusLabels.isNotEmpty;
+    final badges = <String>[
+      if (event.requiresRealWorldAction) 'Action',
+      if (event.extraCompletionStatusLabels.isNotEmpty) 'Milestone',
+    ];
+    final title = maatDecanFlowEventTitle(definition, event);
+    final subtitle =
+        '${maatDecanFlowTimingLabel(event)} · ${_dateLabel(context, schedule.startLocal)} at $time${event.requiresRealWorldAction ? ' · act first' : ''}';
+    return _buildExpandableFlowEventTile(
+      title: title,
+      subtitle: subtitle,
+      detailText: maatDecanFlowDetailText(definition, event),
+      badges: badges,
+      borderColor: highlight ? _gold : Colors.white12,
+      badgeAccent: _gold,
+    );
+  }
+
+  Widget _buildMaatDecanFlowScaffold(BuildContext context) {
+    final definition = maatDecanFlowDefinitionForKey(widget.template.key);
+    if (definition == null) {
+      return _buildEnrollmentUnavailableScaffold(
+        context,
+        debugLabel: 'maatDecan:${widget.template.key}',
+      );
+    }
+    final media = MediaQuery.of(context);
+    final buttonWidth = math.min(media.size.width - 32, 280.0);
+    final ctaBottom = media.padding.bottom + 12;
+    final DecanWatchEnrollmentWindow? window = _resolveMaatDecanPreviewWindow();
+    if (window == null) {
+      return _buildEnrollmentUnavailableScaffold(
+        context,
+        debugLabel: definition.key,
+      );
+    }
+    final flowStart = DateUtils.dateOnly(window.opensAtLocal);
+
+    return Scaffold(
+      backgroundColor: _bg,
+      appBar: AppBar(
+        backgroundColor: Colors.black,
+        elevation: 0.5,
+        title: _buildDateModeTitle(title: widget.template.title),
+      ),
+      body: Stack(
+        children: [
+          ListView(
+            padding: EdgeInsets.fromLTRB(16, 16, 16, ctaBottom + 104),
+            children: [
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  Text(
+                    definition.glyph,
+                    style: const TextStyle(fontSize: 28, color: Colors.white),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        _buildDateModeTitle(title: widget.template.title),
+                        const SizedBox(height: 2),
+                        Text(
+                          definition.tagline,
+                          style: const TextStyle(
+                            color: Colors.white70,
+                            fontStyle: FontStyle.italic,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              Text(
+                widget.template.overview,
+                style: const TextStyle(color: Colors.white, height: 1.35),
+              ),
+              const SizedBox(height: 12),
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF0B0C0F),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: _gold, width: 1.1),
+                ),
+                child: Text(
+                  'Selected decan opening: ${_dateLabel(context, window.opensAtLocal)}, when ${window.openingOccurrence.decanName} begins. Add it now and the nine sittings will prompt from that start date.',
+                  style: const TextStyle(
+                    color: Color(0xFFFFD486),
+                    height: 1.35,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 12),
+              Text(
+                definition.confidenceLabel,
+                style: const TextStyle(
+                  color: Colors.white70,
+                  fontSize: 13,
+                  height: 1.35,
+                  fontStyle: FontStyle.italic,
+                ),
+              ),
+              const SizedBox(height: 16),
+              const GlossyText(
+                text: 'Routing',
+                style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700),
+                gradient: silverGloss,
+              ),
+              const SizedBox(height: 6),
+              Text(
+                definition.routingSummary,
+                style: const TextStyle(
+                  color: Colors.white70,
+                  fontSize: 13,
+                  height: 1.35,
+                ),
+              ),
+              const SizedBox(height: 12),
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF0B0C0F),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: Colors.white12),
+                ),
+                child: const Text(
+                  'Private names, judgments, needs, speech records, and commitments stay on this device. Push notifications carry only the sitting title and practice copy.',
+                  style: TextStyle(
+                    color: Colors.white70,
+                    fontSize: 13,
+                    height: 1.35,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+              const GlossyText(
+                text: 'Timezone',
+                style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700),
+                gradient: silverGloss,
+              ),
+              const SizedBox(height: 8),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: TrackSkyTimeZone.values.map((timezone) {
+                  return ChoiceChip(
+                    label: Text(timezone.shortLabel),
+                    selected: _previewTrackSkyTimeZone == timezone,
+                    onSelected: (_) => _setTrackSkyPreviewTimeZone(timezone),
+                    selectedColor: _gold,
+                    labelStyle: TextStyle(
+                      color: _previewTrackSkyTimeZone == timezone
+                          ? Colors.black
+                          : Colors.white,
+                      fontWeight: FontWeight.w600,
+                    ),
+                    backgroundColor: const Color(0xFF15171B),
+                    side: const BorderSide(color: Colors.white24),
+                  );
+                }).toList(),
+              ),
+              const SizedBox(height: 10),
+              const Text(
+                'Morning sittings use dawn + 30 minutes, any-time sittings default to 11:00 local, and evening sittings use sunset + 30 minutes.',
+                style: TextStyle(
+                  color: Colors.white70,
+                  fontSize: 13,
+                  height: 1.35,
+                ),
+              ),
+              const SizedBox(height: 12),
+              SizedBox(
+                width: double.infinity,
+                child: OutlinedButton(
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: Colors.white,
+                    side: const BorderSide(color: silver, width: 1.25),
+                    alignment: Alignment.centerLeft,
+                  ),
+                  onPressed: _pickDate,
+                  child: Text(
+                    'Window opens: ${_dateLabel(context, window.opensAtLocal)}',
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+              const GlossyText(
+                text: 'Nine Sittings',
+                style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700),
+                gradient: silverGloss,
+              ),
+              const SizedBox(height: 8),
+              ...definition.events.map(
+                (event) => _buildMaatDecanFlowEventTile(
+                  context,
+                  definition,
+                  event,
+                  flowStart,
+                ),
+              ),
+            ],
           ),
-        ),
-        subtitle: Padding(
-          padding: const EdgeInsets.only(top: 4),
-          child: Text(
-            '${openHandTimingLabel(event)} · ${_dateLabel(context, schedule.startLocal)} at $time${event.requiresOutwardAct ? ' · act first' : ''}',
-            style: const TextStyle(color: Colors.white60, fontSize: 12),
+          Positioned(
+            left: 0,
+            right: 0,
+            bottom: ctaBottom,
+            child: _buildTemplateStickyJoinButton(
+              buttonWidth: buttonWidth,
+              text: _maatDecanJoinInFlight ? 'Joining…' : 'Add Flow',
+              onPressed: _maatDecanJoinInFlight
+                  ? null
+                  : () => _joinMaatDecanFlow(flowStart, definition),
+            ),
           ),
-        ),
+        ],
       ),
     );
   }
@@ -5833,38 +6350,27 @@ class _MaatFlowTemplateDetailPageState
       ),
     );
     final highlight = event.physicalRaising || event.requiresDirectEngagement;
-    return Container(
-      margin: const EdgeInsets.only(bottom: 10),
-      decoration: BoxDecoration(
-        color: const Color(0xFF0B0C0F),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: event.physicalRaising
-              ? const Color(0xFF9BD0A5)
-              : highlight
-              ? _gold
-              : Colors.white12,
-        ),
-      ),
-      child: ListTile(
-        contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
-        title: Text(
-          djedEventTitle(event),
-          style: const TextStyle(
-            color: Colors.white,
-            fontWeight: FontWeight.w600,
-          ),
-        ),
-        subtitle: Padding(
-          padding: const EdgeInsets.only(top: 4),
-          child: Text(
-            '${djedTimingLabel(event)} · ${_dateLabel(context, schedule.startLocal)} at $time'
-            '${event.requiresDirectEngagement ? ' · direct engagement' : ''}'
-            '${event.physicalRaising ? ' · stand + raise' : ''}',
-            style: const TextStyle(color: Colors.white60, fontSize: 12),
-          ),
-        ),
-      ),
+    final accent = event.physicalRaising
+        ? const Color(0xFF9BD0A5)
+        : highlight
+        ? _gold
+        : _silver;
+    final badges = <String>[
+      if (event.requiresDirectEngagement) 'Direct engagement',
+      if (event.physicalRaising) 'Stand + raise',
+    ];
+    final title = djedEventTitle(event);
+    final subtitle =
+        '${djedTimingLabel(event)} · ${_dateLabel(context, schedule.startLocal)} at $time'
+        '${event.requiresDirectEngagement ? ' · direct engagement' : ''}'
+        '${event.physicalRaising ? ' · stand + raise' : ''}';
+    return _buildExpandableFlowEventTile(
+      title: title,
+      subtitle: subtitle,
+      detailText: djedDetailText(event, lens: _djedLens),
+      badges: badges,
+      borderColor: highlight ? accent : Colors.white12,
+      badgeAccent: accent,
     );
   }
 
@@ -6139,30 +6645,36 @@ class _MaatFlowTemplateDetailPageState
         : event.kMonth == 13
         ? const Color(0xFFB8A8FF)
         : Colors.white12;
-    return Container(
-      margin: const EdgeInsets.only(bottom: 10),
-      decoration: BoxDecoration(
-        color: const Color(0xFF0B0C0F),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: border),
+    final variant = daysOutsideCopyVariantForEvent(
+      event: event,
+      gregorianDate: schedule.startLocal,
+    );
+    final badges = <String>[
+      if (event.kind == DaysOutsideEventKind.wepRonpetOpening) 'Wep Ronpet',
+      if (event.kMonth == 13) 'Birth',
+      if (variant != DaysOutsideCopyVariant.standard) 'Eclipse',
+    ];
+    final title = daysOutsideEventTitle(event);
+    final subtitle =
+        'M${event.kMonth} D${event.kDay} · ${event.schedule.label} · ${_dateLabel(context, schedule.startLocal)} at $time';
+    final accent = variant != DaysOutsideCopyVariant.standard
+        ? const Color(0xFFB8A8FF)
+        : event.kind == DaysOutsideEventKind.wepRonpetOpening
+        ? _gold
+        : event.kMonth == 13
+        ? const Color(0xFFB8A8FF)
+        : _silver;
+    return _buildExpandableFlowEventTile(
+      title: title,
+      subtitle: subtitle,
+      detailText: daysOutsideDetailText(
+        event,
+        closingKYear: closingKYear,
+        variant: variant,
       ),
-      child: ListTile(
-        contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
-        title: Text(
-          daysOutsideEventTitle(event),
-          style: const TextStyle(
-            color: Colors.white,
-            fontWeight: FontWeight.w600,
-          ),
-        ),
-        subtitle: Padding(
-          padding: const EdgeInsets.only(top: 4),
-          child: Text(
-            'M${event.kMonth} D${event.kDay} · ${event.schedule.label} · ${_dateLabel(context, schedule.startLocal)} at $time',
-            style: const TextStyle(color: Colors.white60, fontSize: 12),
-          ),
-        ),
-      ),
+      badges: badges,
+      borderColor: border,
+      badgeAccent: accent,
     );
   }
 
@@ -7392,6 +7904,9 @@ class _MaatFlowTemplateDetailPageState
     }
     if (widget.template.kind == _MaatFlowTemplateKind.theDjed) {
       return _buildDjedScaffold(context);
+    }
+    if (widget.template.kind == _MaatFlowTemplateKind.maatDecan) {
+      return _buildMaatDecanFlowScaffold(context);
     }
     return _buildSequenceScaffold(context);
   }

@@ -28,11 +28,20 @@ void main() {
     expect(source, contains("flowKey: kDaysOutsideTheYearFlowKey"));
     expect(source, contains("flowKey: kTheOpenHandFlowKey"));
     expect(source, contains("flowKey: kTheDjedFlowKey"));
+    expect(source, contains('flowKey: maatDecanDefinition.key'));
     expect(source, contains('showPartly: false'));
     expect(source, contains("'conversation_pending': 'Conversation pending'"));
     expect(source, contains("'names_spoken': 'Names spoken'"));
     expect(source, contains("'observed_from_inside': 'Inside'"));
     expect(source, contains("'raised': 'Raised'"));
+    expect(source, contains("'decision_pronounced'"));
+    expect(source, contains("'transmitted'"));
+    expect(source, contains("'stones_placed'"));
+    expect(source, contains("'cooled'"));
+    expect(source, contains("'spoken'"));
+    expect(source, contains("'record_complete'"));
+    expect(source, contains("'beer_poured'"));
+    expect(source, contains("'golden_one_present'"));
   });
 
   test(
