@@ -1,13 +1,11 @@
 part of 'kemetic_day_info.dart';
 
 /// Dropdown card widget for displaying Kemetic day information
-class KemeticDayDropdown extends StatelessWidget {
+class KemeticDayDropdown extends StatefulWidget {
   final KemeticDayInfo dayInfo;
   final VoidCallback onClose;
   final String dayKey;
   final int kYear;
-  static const List<String> _meduFontFallback = ['GentiumPlus'];
-  static const double _infoLineHeight = 1.35;
 
   const KemeticDayDropdown({
     super.key,
@@ -18,35 +16,51 @@ class KemeticDayDropdown extends StatelessWidget {
   });
 
   @override
+  State<KemeticDayDropdown> createState() => _KemeticDayDropdownState();
+}
+
+class _KemeticDayDropdownState extends State<KemeticDayDropdown> {
+  final ScrollController _scrollController = ScrollController();
+
+  static const List<String> _meduFontFallback = ['GentiumPlus'];
+  static const double _infoLineHeight = 1.35;
+
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final parsedKey = _parseDayKey(dayKey);
+    final parsedKey = _parseDayKey(widget.dayKey);
     final bool isEpagomenal =
-        parsedKey?.month == 13 || dayKey.startsWith('epagomenal_');
+        parsedKey?.month == 13 || widget.dayKey.startsWith('epagomenal_');
     final int? epagomenalDay = isEpagomenal ? parsedKey?.day : null;
-    final parsedDecan = _parseDayKeyForDecan(dayKey);
+    final parsedDecan = _parseDayKeyForDecan(widget.dayKey);
 
     final String monthLine = isEpagomenal
-        ? (dayInfo.month.isNotEmpty
-              ? dayInfo.month
+        ? (widget.dayInfo.month.isNotEmpty
+              ? widget.dayInfo.month
               : 'Heriu Renpet — The Births of the Gods — five days beyond the year')
-        : dayInfo.month;
+        : widget.dayInfo.month;
     final screenWidth = MediaQuery.of(context).size.width;
     final cardWidth = screenWidth > 600 ? 500.0 : screenWidth * 0.85;
-    final canonicalDecanName = _canonicalDecanName(dayKey).trim();
+    final canonicalDecanName = _canonicalDecanName(widget.dayKey).trim();
     final resolvedDecanName = canonicalDecanName.isNotEmpty
         ? canonicalDecanName
-        : dayInfo.decanName.trim();
+        : widget.dayInfo.decanName.trim();
 
     final String decanLine = isEpagomenal
-        ? (dayInfo.decanName.isNotEmpty
-              ? dayInfo.decanName
+        ? (widget.dayInfo.decanName.isNotEmpty
+              ? widget.dayInfo.decanName
               : _epagomenalDayTitle(epagomenalDay))
         : resolvedDecanName;
 
     // Calculate the date string
     final String gregorianDateString = KemeticDayData.calculateGregorianDate(
-      dayKey,
-      kYearParam: kYear,
+      widget.dayKey,
+      kYearParam: widget.kYear,
     );
 
     // Build speech lines (prefer curated speechName overrides when available)
@@ -61,7 +75,7 @@ class KemeticDayDropdown extends StatelessWidget {
             month: monthMeta,
             displayName: _stripEnglishCue(monthLine),
           )
-        : _stripEnglishCue(dayInfo.month);
+        : _stripEnglishCue(widget.dayInfo.month);
 
     String decanSpeakLine;
     if (!isEpagomenal &&
@@ -145,7 +159,7 @@ class KemeticDayDropdown extends StatelessWidget {
                             icon: KemeticGold.icon(Icons.close),
                             onPressed: () {
                               SpeechService.instance.stop();
-                              onClose();
+                              widget.onClose();
                             },
                             padding: expandedIconButtonPadding(context),
                             constraints: expandedIconButtonConstraints(context),
@@ -165,7 +179,9 @@ class KemeticDayDropdown extends StatelessWidget {
               Flexible(
                 child: Scrollbar(
                   thumbVisibility: true,
+                  controller: _scrollController,
                   child: SingleChildScrollView(
+                    controller: _scrollController,
                     padding: const EdgeInsets.all(20),
                     child: DefaultTextStyle.merge(
                       style: const TextStyle(
@@ -180,9 +196,9 @@ class KemeticDayDropdown extends StatelessWidget {
                           ),
                           _buildInfoSection(
                             'Kemetic Date:',
-                            dayInfo.kemeticDate,
+                            widget.dayInfo.kemeticDate,
                           ),
-                          _buildInfoSection('Season:', dayInfo.season),
+                          _buildInfoSection('Season:', widget.dayInfo.season),
                           _buildInfoSectionWithSpeech(
                             label: 'Month:',
                             value: monthLine,
@@ -202,17 +218,17 @@ class KemeticDayDropdown extends StatelessWidget {
                           if (!isEpagomenal)
                             _buildInfoSection(
                               'Star Cluster:',
-                              dayInfo.starCluster,
+                              widget.dayInfo.starCluster,
                             ),
                           _buildInfoSection(
                             'Ma\'at Principle:',
-                            dayInfo.maatPrinciple,
+                            widget.dayInfo.maatPrinciple,
                           ),
                           const SizedBox(height: 20),
                           _buildSectionHeader('△ Cosmic Context'),
                           const SizedBox(height: 8),
                           Text(
-                            dayInfo.cosmicContext,
+                            widget.dayInfo.cosmicContext,
                             style: const TextStyle(
                               fontSize: 14,
                               color: Color(0xFFCCCCCC),
@@ -432,14 +448,14 @@ class KemeticDayDropdown extends StatelessWidget {
             ),
           ),
           // Table Data Rows
-          ...dayInfo.decanFlow.map((day) {
+          ...widget.dayInfo.decanFlow.map((day) {
             return Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
                 border: Border(
                   bottom: BorderSide(
                     color: const Color(0xFF3A3A3A),
-                    width: day == dayInfo.decanFlow.last ? 0 : 1,
+                    width: day == widget.dayInfo.decanFlow.last ? 0 : 1,
                   ),
                 ),
               ),
@@ -522,7 +538,7 @@ class KemeticDayDropdown extends StatelessWidget {
               ),
               children: [
                 _goldLabelSpan('• Glyph: '),
-                TextSpan(text: dayInfo.meduNeter.glyph),
+                TextSpan(text: widget.dayInfo.meduNeter.glyph),
               ],
             ),
           ),
@@ -538,7 +554,7 @@ class KemeticDayDropdown extends StatelessWidget {
               ),
               children: [
                 _goldLabelSpan('• Color Frequency: '),
-                TextSpan(text: dayInfo.meduNeter.colorFrequency),
+                TextSpan(text: widget.dayInfo.meduNeter.colorFrequency),
               ],
             ),
           ),
@@ -552,7 +568,7 @@ class KemeticDayDropdown extends StatelessWidget {
             ),
             children: [
               _goldLabelSpan('• Mantra: '),
-              TextSpan(text: dayInfo.meduNeter.mantra),
+              TextSpan(text: widget.dayInfo.meduNeter.mantra),
             ],
           ),
         ),

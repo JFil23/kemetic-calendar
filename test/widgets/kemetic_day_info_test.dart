@@ -119,5 +119,35 @@ void main() {
         expect(textSpan.style?.height, 1.35);
       },
     );
+
+    testWidgets('opens in a constrained overlay without scrollbar assertions', (
+      tester,
+    ) async {
+      final dayInfo = KemeticDayData.getInfoForDay('hathor_13_2');
+      expect(dayInfo, isNotNull);
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Material(
+            child: Center(
+              child: SizedBox(
+                width: 360,
+                height: 320,
+                child: KemeticDayDropdown(
+                  dayInfo: dayInfo!,
+                  onClose: () {},
+                  dayKey: 'hathor_13_2',
+                  kYear: 2,
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(tester.takeException(), isNull);
+      expect(find.byType(Scrollbar), findsOneWidget);
+    });
   });
 }
