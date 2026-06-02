@@ -12,7 +12,9 @@ import '../../widgets/kemetic_date_picker.dart';
 import '../../widgets/gregorian_date_picker.dart';
 import '../../widgets/keyboard_aware.dart';
 import 'package:mobile/shared/glossy_text.dart';
+import 'flow_prompt_classifier.dart';
 import 'flow_duration_parser.dart';
+import 'itinerary_prompt_parser.dart';
 
 // Your flow palette from Flow Studio
 const _flowPalette = [
@@ -174,6 +176,13 @@ class _AIFlowGenerationModalState extends State<AIFlowGenerationModal> {
     if (_manualDateRangeEdited) {
       return 'Manual range overrides prompt duration.';
     }
+    final range = resolveAiFlowDateRange(
+      prompt: _descriptionController.text,
+      defaultStartDate: _defaultStartDate,
+    );
+    if (range.source == FlowDateRangeSource.itinerarySchedule) {
+      return 'Detected itinerary dates from your schedule. Tap dates to override.';
+    }
     final promptDays = extractFlowDurationDays(_descriptionController.text);
     if (promptDays != null) {
       return 'Using $promptDays day${promptDays == 1 ? '' : 's'} from your prompt. Tap dates to override.';
@@ -275,6 +284,45 @@ class _AIFlowGenerationModalState extends State<AIFlowGenerationModal> {
         throw StateError(
           'Invalid color conversion: $colorValue -> $colorAsHex',
         );
+      }
+
+      if (classifyFlowPrompt(_descriptionController.text) ==
+          FlowPromptType.itinerarySchedule) {
+        final parsed = parseItineraryPrompt(
+          _descriptionController.text,
+          selectedStartDate: startDate,
+          now: _defaultStartDate,
+        );
+        if (parsed != null && parsed.events.isNotEmpty) {
+          final response = parsed.toAIFlowGenerationResponse(
+            flowColor: colorAsHex,
+          );
+          _stopVisibleThinking();
+          Navigator.of(context).pop(response);
+
+          final flowName = response.flowName ?? 'Itinerary';
+          final notesCount = response.notesCount ?? 0;
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Row(
+                children: [
+                  const Icon(Icons.check_circle, color: gold),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'Created "$flowName" with $notesCount events',
+                      style: const TextStyle(color: Colors.white),
+                    ),
+                  ),
+                ],
+              ),
+              backgroundColor: const Color(0xFF1E1E1E),
+              behavior: SnackBarBehavior.floating,
+              duration: const Duration(seconds: 3),
+            ),
+          );
+          return;
+        }
       }
 
       // ✅ Get IANA timezone name (e.g., "America/Los_Angeles") instead of "PST"/"PDT"

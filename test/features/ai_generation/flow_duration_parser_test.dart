@@ -88,5 +88,27 @@ void main() {
       expect(range.endDate, DateTime(2026, 7, 12));
       expect(range.durationDays, 3);
     });
+
+    test('itinerary date headers override the default duration', () {
+      final range = resolveAiFlowDateRange(
+        prompt: '''
+NYC itinerary
+Thursday June 4
+10:30 AM Arrive
+Friday June 5
+8:00 AM Breakfast
+Saturday June 6
+12:00 PM Performance
+Sunday June 7
+3:45 AM Uber to JFK
+''',
+        defaultStartDate: start,
+      );
+
+      expect(range.source, FlowDateRangeSource.itinerarySchedule);
+      expect(range.startDate, DateTime(2026, 6, 4));
+      expect(range.endDate, DateTime(2026, 6, 7));
+      expect(range.durationDays, 4);
+    });
   });
 }

@@ -1,6 +1,9 @@
+import 'flow_prompt_classifier.dart';
+import 'itinerary_prompt_parser.dart';
+
 const int defaultAiFlowDurationDays = 10;
 
-enum FlowDateRangeSource { prompt, defaultDuration, manual }
+enum FlowDateRangeSource { prompt, itinerarySchedule, defaultDuration, manual }
 
 class FlowDateRange {
   const FlowDateRange({
@@ -62,6 +65,24 @@ FlowDateRange resolveAiFlowDateRange({
       durationDays: end.difference(start).inDays + 1,
       source: FlowDateRangeSource.manual,
     );
+  }
+
+  if (classifyFlowPrompt(prompt) == FlowPromptType.itinerarySchedule) {
+    final itineraryRange = inferItineraryDateRange(
+      prompt,
+      selectedStartDate: defaultStartDate,
+      now: defaultStartDate,
+    );
+    if (itineraryRange != null) {
+      return FlowDateRange(
+        startDate: dateOnlyForAiFlow(itineraryRange.startDate),
+        endDate: dateOnlyForAiFlow(itineraryRange.endDate),
+        durationDays:
+            itineraryRange.endDate.difference(itineraryRange.startDate).inDays +
+            1,
+        source: FlowDateRangeSource.itinerarySchedule,
+      );
+    }
   }
 
   final promptDuration = extractFlowDurationDays(prompt);
