@@ -4417,6 +4417,14 @@ class CalendarPage extends StatefulWidget {
             onOpenFlowStudio ?? () => openFlowStudioFromAnyContext(context),
       ),
       _CalendarAction(
+        glyph: MeduNeterGlyphs.library,
+        glyphSize: 20,
+        gradient: goldGloss,
+        label: 'Library',
+        dispatchBeforeClose: true,
+        onSelected: () => navigate('/nodes'),
+      ),
+      _CalendarAction(
         glyph: MeduNeterGlyphs.journal,
         gradient: goldGloss,
         label: 'Journal',
@@ -4437,14 +4445,6 @@ class CalendarPage extends StatefulWidget {
         label: 'Calendars',
         onSelected:
             onOpenCalendars ?? () => openSharedCalendarsFromAnyContext(context),
-      ),
-      _CalendarAction(
-        glyph: MeduNeterGlyphs.library,
-        glyphSize: 20,
-        gradient: goldGloss,
-        label: 'Library',
-        dispatchBeforeClose: true,
-        onSelected: () => navigate('/nodes'),
       ),
       _CalendarAction(
         glyph: MeduNeterGlyphs.reflections,
@@ -17273,6 +17273,13 @@ class CalendarPageState extends State<CalendarPage>
         onSelected: () => _getFlowStudioCallback()(null),
       ),
       _CalendarAction(
+        glyph: MeduNeterGlyphs.library,
+        glyphSize: 20,
+        gradient: goldGloss,
+        label: 'Library',
+        onSelected: () => _openKemeticNodes(context),
+      ),
+      _CalendarAction(
         glyph: MeduNeterGlyphs.journal,
         gradient: goldGloss,
         label: 'Journal',
@@ -17290,13 +17297,6 @@ class CalendarPageState extends State<CalendarPage>
         gradient: goldGloss,
         label: 'Calendars',
         onSelected: _openSharedCalendarsSheet,
-      ),
-      _CalendarAction(
-        glyph: MeduNeterGlyphs.library,
-        glyphSize: 20,
-        gradient: goldGloss,
-        label: 'Library',
-        onSelected: () => _openKemeticNodes(context),
       ),
       _CalendarAction(
         glyph: MeduNeterGlyphs.reflections,

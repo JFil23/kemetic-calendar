@@ -8,6 +8,18 @@ import 'package:mobile/features/calendar/calendar_page.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+const _expectedDetachedGlobalMenuOrder = <String>[
+  'Planner',
+  'Flow Studio',
+  'Library',
+  'Journal',
+  'Inbox',
+  'Calendars',
+  'Reflections',
+  'Home',
+  'Settings',
+];
+
 Future<void> _ensureSupabaseInitialized() async {
   try {
     Supabase.instance.client;
@@ -33,6 +45,31 @@ void main() {
   });
 
   group('app bar action guard', () {
+    testWidgets('detached menu renders global actions in grid order', (
+      tester,
+    ) async {
+      tester.view.physicalSize = const Size(1170, 2532);
+      tester.view.devicePixelRatio = 3;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: Builder(
+              builder: (context) => CalendarPage.buildDetachedActionsMenuPanel(
+                context,
+                includeNewNote: false,
+                closeMenu: () async {},
+              ),
+            ),
+          ),
+        ),
+      );
+
+      expect(_detachedMenuLabels(tester), _expectedDetachedGlobalMenuOrder);
+    });
+
     testWidgets('detached menu buttons close and dispatch in every path', (
       tester,
     ) async {
@@ -66,13 +103,13 @@ void main() {
       );
 
       const expectedRoutes = <String, String>{
-        'Journal': '/journal',
         'Planner': '/rhythm/today',
+        'Library': '/nodes',
+        'Journal': '/journal',
         'Inbox': '/inbox',
         'Reflections': '/reflections',
-        'Library': '/nodes',
-        'Settings': '/settings',
         'Home': '/',
+        'Settings': '/settings',
       };
 
       for (final entry in expectedRoutes.entries) {
@@ -86,7 +123,7 @@ void main() {
       }
       expect(navigations, expectedRoutes.values.toList(growable: false));
 
-      const sheetActions = <String>['Calendars', 'Flow Studio', 'New note'];
+      const sheetActions = <String>['Flow Studio', 'Calendars'];
       for (final label in sheetActions) {
         await tester.tap(find.text(label));
         await tester.pump();
@@ -96,9 +133,16 @@ void main() {
           reason: '$label should dispatch its sheet/action callback',
         );
       }
+      await tester.tap(find.text('New note'));
+      await tester.pump();
+      expect(
+        launchedSheets.last,
+        'New note',
+        reason: 'New note should dispatch its separate callback',
+      );
 
-      expect(closeCount, expectedRoutes.length + sheetActions.length);
-      expect(launchedSheets, sheetActions);
+      expect(closeCount, expectedRoutes.length + sheetActions.length + 1);
+      expect(launchedSheets, <String>['Flow Studio', 'Calendars', 'New note']);
     });
 
     testWidgets('landscape detached menu is bounded and scrollable', (
@@ -269,8 +313,18 @@ void main() {
         'Future<void> _showActionsMenu(',
       );
 
-      _expectCalendarMenuAction(actions, 'Journal', '_openJournalFromAppBar');
+      _expectCalendarMenuOrder(actions, <String>[
+        ..._expectedDetachedGlobalMenuOrder,
+        'New note',
+      ]);
       _expectCalendarMenuAction(actions, 'Planner', '_openPlannerPage');
+      _expectCalendarMenuAction(
+        actions,
+        'Flow Studio',
+        '_getFlowStudioCallback',
+      );
+      _expectCalendarMenuAction(actions, 'Library', '_openKemeticNodes');
+      _expectCalendarMenuAction(actions, 'Journal', '_openJournalFromAppBar');
       _expectCalendarMenuAction(actions, 'Inbox', '_openInboxFromMenu');
       _expectCalendarMenuAction(
         actions,
@@ -282,14 +336,8 @@ void main() {
         'Reflections',
         '_openReflectionsFromMenu',
       );
-      _expectCalendarMenuAction(actions, 'Library', '_openKemeticNodes');
-      _expectCalendarMenuAction(actions, 'Settings', '_openSettingsFromMenu');
       _expectCalendarMenuAction(actions, 'Home', "context.go('/')");
-      _expectCalendarMenuAction(
-        actions,
-        'Flow Studio',
-        '_getFlowStudioCallback',
-      );
+      _expectCalendarMenuAction(actions, 'Settings', '_openSettingsFromMenu');
       _expectCalendarMenuAction(actions, 'New note', '_openQuickAddSheet');
     });
 
@@ -1079,6 +1127,26 @@ void _expectTooltipAction(
         'No "$tooltip" action contained all expected markers: '
         '${expectedNeedles.join(', ')}',
   );
+}
+
+List<String> _detachedMenuLabels(WidgetTester tester) {
+  const gridKey = ValueKey<String>('calendar-actions-grid');
+  return tester
+      .widgetList<Text>(
+        find.descendant(of: find.byKey(gridKey), matching: find.byType(Text)),
+      )
+      .map((text) => text.data)
+      .whereType<String>()
+      .where(_expectedDetachedGlobalMenuOrder.contains)
+      .toList(growable: false);
+}
+
+void _expectCalendarMenuOrder(String source, List<String> expectedLabels) {
+  final labels = RegExp(
+    r"label: '([^']+)'",
+  ).allMatches(source).map((match) => match.group(1)!).toList(growable: false);
+
+  expect(labels, expectedLabels);
 }
 
 void _expectCalendarMenuAction(
