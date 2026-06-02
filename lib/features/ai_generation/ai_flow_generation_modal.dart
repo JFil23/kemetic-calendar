@@ -7,6 +7,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../../models/ai_flow_generation_response.dart';
 import '../../services/ai_flow_generation_service.dart';
 import '../../widgets/kemetic_date_picker.dart';
 import '../../widgets/gregorian_date_picker.dart';
@@ -46,7 +47,39 @@ LinearGradient _glossFromColor(Color c) {
   );
 }
 
+String buildCanonicalAiFlowPromptText({
+  String? description,
+  String? sourceText,
+  String? pastedPromptBody,
+}) {
+  final seen = <String>{};
+  final parts = <String>[];
+  for (final raw in [description, sourceText, pastedPromptBody]) {
+    final trimmed = raw?.trim();
+    if (trimmed == null || trimmed.isEmpty) continue;
+    final key = trimmed.toLowerCase().replaceAll(RegExp(r'\s+'), ' ');
+    if (seen.add(key)) parts.add(trimmed);
+  }
+  return parts.join('\n\n');
+}
+
+String _formatAiFlowDateOnly(DateTime d) {
+  return '${d.year.toString().padLeft(4, '0')}-'
+      '${d.month.toString().padLeft(2, '0')}-'
+      '${d.day.toString().padLeft(2, '0')}';
+}
+
 enum CalendarMode { kemetic, gregorian }
+
+typedef AIFlowGenerateCallback =
+    Future<AIFlowGenerationResponse> Function({
+      required String description,
+      required DateTime startDate,
+      required DateTime endDate,
+      String? flowColor,
+      String? timezone,
+      String? sourceText,
+    });
 
 class _VisibleThinkingStep {
   const _VisibleThinkingStep({required this.title, required this.detail});
@@ -61,18 +94,20 @@ class AIFlowGenerationModal extends StatefulWidget {
     this.initialStartDate,
     this.initialEndDate,
     this.initialDateRangeIsManual = false,
+    this.generateFlowForTesting,
   });
 
   final DateTime? initialStartDate;
   final DateTime? initialEndDate;
   final bool initialDateRangeIsManual;
+  final AIFlowGenerateCallback? generateFlowForTesting;
 
   @override
   State<AIFlowGenerationModal> createState() => _AIFlowGenerationModalState();
 }
 
 class _AIFlowGenerationModalState extends State<AIFlowGenerationModal> {
-  final _service = AIFlowGenerationService(Supabase.instance.client);
+  AIFlowGenerationService? _service;
   final _descriptionController = TextEditingController();
   final _formKey = GlobalKey<FormState>();
 
@@ -132,9 +167,16 @@ class _AIFlowGenerationModalState extends State<AIFlowGenerationModal> {
     _applyPromptOrDefaultRange();
   }
 
+  String _currentCanonicalPromptText({String? sourceText}) {
+    return buildCanonicalAiFlowPromptText(
+      description: _descriptionController.text,
+      sourceText: sourceText,
+    );
+  }
+
   void _applyPromptOrDefaultRange({bool notify = true}) {
     final range = resolveAiFlowDateRange(
-      prompt: _descriptionController.text,
+      prompt: _currentCanonicalPromptText(),
       defaultStartDate: _defaultStartDate,
     );
     if (_startDate == range.startDate && _endDate == range.endDate) return;
@@ -153,7 +195,7 @@ class _AIFlowGenerationModalState extends State<AIFlowGenerationModal> {
 
   FlowDateRange _effectiveDateRange() {
     return resolveAiFlowDateRange(
-      prompt: _descriptionController.text,
+      prompt: _currentCanonicalPromptText(),
       defaultStartDate: _defaultStartDate,
       manualStartDate: _startDate,
       manualEndDate: _endDate,
@@ -168,7 +210,7 @@ class _AIFlowGenerationModalState extends State<AIFlowGenerationModal> {
       final days = end.difference(start).inDays + 1;
       if (days > 0) return days;
     }
-    return extractFlowDurationDays(_descriptionController.text) ??
+    return extractFlowDurationDays(_currentCanonicalPromptText()) ??
         defaultAiFlowDurationDays;
   }
 
@@ -177,13 +219,13 @@ class _AIFlowGenerationModalState extends State<AIFlowGenerationModal> {
       return 'Manual range overrides prompt duration.';
     }
     final range = resolveAiFlowDateRange(
-      prompt: _descriptionController.text,
+      prompt: _currentCanonicalPromptText(),
       defaultStartDate: _defaultStartDate,
     );
     if (range.source == FlowDateRangeSource.itinerarySchedule) {
       return 'Detected itinerary dates from your schedule. Tap dates to override.';
     }
-    final promptDays = extractFlowDurationDays(_descriptionController.text);
+    final promptDays = extractFlowDurationDays(_currentCanonicalPromptText());
     if (promptDays != null) {
       return 'Using $promptDays day${promptDays == 1 ? '' : 's'} from your prompt. Tap dates to override.';
     }
@@ -237,7 +279,47 @@ class _AIFlowGenerationModalState extends State<AIFlowGenerationModal> {
   Future<void> _generate() async {
     if (!_formKey.currentState!.validate()) return;
 
-    final dateRange = _effectiveDateRange();
+    final split = _splitForFlowApi(_descriptionController.text);
+    final canonicalPrompt = _currentCanonicalPromptText(
+      sourceText: split.sourceText,
+    );
+    final promptType = classifyFlowPrompt(canonicalPrompt);
+    debugPrint('[AI Modal] promptType=${promptType.name}');
+
+    final selectedDateForParsing = _startDate ?? _defaultStartDate;
+    final parsedItinerary = promptType == FlowPromptType.itinerarySchedule
+        ? parseItineraryPrompt(
+            canonicalPrompt,
+            selectedStartDate: selectedDateForParsing,
+            now: _defaultStartDate,
+          )
+        : null;
+
+    if (promptType == FlowPromptType.itinerarySchedule &&
+        (parsedItinerary == null || parsedItinerary.events.isEmpty)) {
+      debugPrint(
+        '[AI Modal] deterministic itinerary parser found no usable events; skipping AI service',
+      );
+      setState(() {
+        _error =
+            'Some dates or times could not be resolved. Review the pasted itinerary and try again.';
+        _isGenerating = false;
+      });
+      return;
+    }
+
+    final dateRange = parsedItinerary == null
+        ? _effectiveDateRange()
+        : FlowDateRange(
+            startDate: parsedItinerary.startDate,
+            endDate: parsedItinerary.endDate,
+            durationDays:
+                parsedItinerary.endDate
+                    .difference(parsedItinerary.startDate)
+                    .inDays +
+                1,
+            source: FlowDateRangeSource.itinerarySchedule,
+          );
     final startDate = dateRange.startDate;
     final endDate = dateRange.endDate;
     if (_startDate != startDate || _endDate != endDate) {
@@ -247,7 +329,6 @@ class _AIFlowGenerationModalState extends State<AIFlowGenerationModal> {
       });
     }
 
-    final split = _splitForFlowApi(_descriptionController.text);
     final enrichedDescription = split.description;
     final rangeDays = endDate.difference(startDate).inDays + 1;
     final visibleThinkingSteps = _buildVisibleThinkingSteps(
@@ -286,43 +367,41 @@ class _AIFlowGenerationModalState extends State<AIFlowGenerationModal> {
         );
       }
 
-      if (classifyFlowPrompt(_descriptionController.text) ==
-          FlowPromptType.itinerarySchedule) {
-        final parsed = parseItineraryPrompt(
-          _descriptionController.text,
-          selectedStartDate: startDate,
-          now: _defaultStartDate,
+      if (parsedItinerary != null) {
+        debugPrint(
+          '[AI Modal] using deterministic itinerary import '
+          'events=${parsedItinerary.events.length} '
+          'range=${_formatAiFlowDateOnly(parsedItinerary.startDate)}..'
+          '${_formatAiFlowDateOnly(parsedItinerary.endDate)}',
         );
-        if (parsed != null && parsed.events.isNotEmpty) {
-          final response = parsed.toAIFlowGenerationResponse(
-            flowColor: colorAsHex,
-          );
-          _stopVisibleThinking();
-          Navigator.of(context).pop(response);
+        final response = parsedItinerary.toAIFlowGenerationResponse(
+          flowColor: colorAsHex,
+        );
+        _stopVisibleThinking();
+        Navigator.of(context).pop(response);
 
-          final flowName = response.flowName ?? 'Itinerary';
-          final notesCount = response.notesCount ?? 0;
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Row(
-                children: [
-                  const Icon(Icons.check_circle, color: gold),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      'Created "$flowName" with $notesCount events',
-                      style: const TextStyle(color: Colors.white),
-                    ),
+        final flowName = response.flowName ?? 'Itinerary';
+        final notesCount = response.notesCount ?? 0;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Row(
+              children: [
+                const Icon(Icons.check_circle, color: gold),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    'Created "$flowName" with $notesCount events',
+                    style: const TextStyle(color: Colors.white),
                   ),
-                ],
-              ),
-              backgroundColor: const Color(0xFF1E1E1E),
-              behavior: SnackBarBehavior.floating,
-              duration: const Duration(seconds: 3),
+                ),
+              ],
             ),
-          );
-          return;
-        }
+            backgroundColor: const Color(0xFF1E1E1E),
+            behavior: SnackBarBehavior.floating,
+            duration: const Duration(seconds: 3),
+          ),
+        );
+        return;
       }
 
       // ✅ Get IANA timezone name (e.g., "America/Los_Angeles") instead of "PST"/"PDT"
@@ -348,7 +427,7 @@ class _AIFlowGenerationModalState extends State<AIFlowGenerationModal> {
       debugPrint('[AI Modal] About to call _service.generate()...');
 
       // Generate flow using new simplified service API
-      final response = await _service.generate(
+      final response = await _invokeGenerateFlow(
         description: enrichedDescription,
         startDate: startDate,
         endDate: endDate,
@@ -423,6 +502,39 @@ class _AIFlowGenerationModalState extends State<AIFlowGenerationModal> {
         _isGenerating = false;
       });
     }
+  }
+
+  Future<AIFlowGenerationResponse> _invokeGenerateFlow({
+    required String description,
+    required DateTime startDate,
+    required DateTime endDate,
+    String? flowColor,
+    String? timezone,
+    String? sourceText,
+  }) {
+    final generateForTesting = widget.generateFlowForTesting;
+    if (generateForTesting != null) {
+      return generateForTesting(
+        description: description,
+        startDate: startDate,
+        endDate: endDate,
+        flowColor: flowColor,
+        timezone: timezone,
+        sourceText: sourceText,
+      );
+    }
+
+    final service = _service ??= AIFlowGenerationService(
+      Supabase.instance.client,
+    );
+    return service.generate(
+      description: description,
+      startDate: startDate,
+      endDate: endDate,
+      flowColor: flowColor,
+      timezone: timezone,
+      sourceText: sourceText,
+    );
   }
 
   List<_VisibleThinkingStep> _buildVisibleThinkingSteps({

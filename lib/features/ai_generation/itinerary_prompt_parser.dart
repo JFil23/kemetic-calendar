@@ -343,16 +343,7 @@ DateTime? resolveItineraryDate({
 }
 
 List<String> _normalizedLines(String prompt) {
-  return prompt
-      .replaceAll('\r', '')
-      .split('\n')
-      .map(_cleanLine)
-      .where((line) => line.isNotEmpty)
-      .toList(growable: false);
-}
-
-String _cleanLine(String line) {
-  return line.trim().replaceFirst(RegExp(r'^(?:[-*]|\u2022)+\s*'), '').trim();
+  return normalizeFlowPromptLinesForSchedule(prompt);
 }
 
 List<_DateHeader> _extractDateHeaders(List<String> lines) {

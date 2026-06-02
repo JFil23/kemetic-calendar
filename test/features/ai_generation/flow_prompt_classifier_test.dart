@@ -20,6 +20,32 @@ THURSDAY JUNE 4
       expect(classifyFlowPrompt(prompt), FlowPromptType.itinerarySchedule);
     });
 
+    test('detects the NYC itinerary when pasted as one dense line', () {
+      final prompt =
+          '''
+NYC ITINERARY
+HOTEL
+Embassy Suites by Hilton New York Manhattan Times Square
+60 W 37th St, New York, NY 10018
+For Subway Travel Setup Metro Tap https://omny.info/register
+THURSDAY JUNE 4
+10:30 AM Arrive in NYC
+12:30 PM Arrive/check in at hotel
+1:30 PM Lunch at Rubirosa
+235 Mulberry St, New York, NY 10012
+4:30 PM Museum of Ice Cream
+558 Broadway, New York, NY 10012
+FRIDAY JUNE 5
+8:00 AM Free Hotel Breakfast
+9:15 AM Walk around Harlem
+'''
+              .split('\n')
+              .map((line) => line.trim())
+              .join(' ');
+
+      expect(classifyFlowPrompt(prompt), FlowPromptType.itinerarySchedule);
+    });
+
     test('detects a wedding weekend schedule without month dates', () {
       const prompt = '''
 Wedding weekend schedule

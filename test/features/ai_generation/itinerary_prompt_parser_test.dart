@@ -144,6 +144,25 @@ void main() {
         '2026-06-07 08:00 Free hotel breakfast',
       ]);
     });
+
+    test('extracts the NYC itinerary when pasted as one dense line', () {
+      final result = parseItineraryPrompt(
+        _nycItineraryOneLine,
+        selectedStartDate: DateTime(2026, 6, 2),
+        now: DateTime(2026, 6, 2),
+      );
+
+      expect(result, isNotNull);
+      expect(result!.flowTitle, 'NYC Itinerary');
+      expect(result.startDate, DateTime(2026, 6, 4));
+      expect(result.endDate, DateTime(2026, 6, 7));
+      expect(result.events, hasLength(23));
+      expect(
+        result.events.map((event) => event.title),
+        contains('Free Hotel Breakfast'),
+      );
+      expect(result.context.setupUrls, contains('https://omny.info/register'));
+    });
   });
 
   group('resolveItineraryDate', () {
@@ -257,3 +276,9 @@ Jordyn, October, and Monroe Uber to JFK
 8:00 AM
 Free hotel breakfast
 ''';
+
+final _nycItineraryOneLine = _nycItinerary
+    .split('\n')
+    .map((line) => line.trim())
+    .where((line) => line.isNotEmpty)
+    .join(' ');

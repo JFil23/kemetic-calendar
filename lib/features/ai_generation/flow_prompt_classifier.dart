@@ -45,12 +45,7 @@ FlowPromptType classifyFlowPrompt(
 }
 
 bool looksLikeItinerarySchedulePrompt(String prompt) {
-  final lines = prompt
-      .replaceAll('\r', '')
-      .split('\n')
-      .map((line) => line.trim())
-      .where((line) => line.isNotEmpty)
-      .toList(growable: false);
+  final lines = normalizeFlowPromptLinesForSchedule(prompt);
   if (lines.isEmpty) return false;
 
   final timeCount = _timePattern.allMatches(prompt).length;
@@ -78,6 +73,54 @@ bool looksLikeItinerarySchedulePrompt(String prompt) {
   if (hasScheduleCue && dayHeaderCount >= 1 && timeCount >= 3) return true;
 
   return false;
+}
+
+List<String> normalizeFlowPromptLinesForSchedule(String prompt) {
+  final expanded = _expandInlineScheduleText(prompt);
+  return expanded
+      .replaceAll('\r', '\n')
+      .split('\n')
+      .map(_cleanScheduleLine)
+      .where((line) => line.isNotEmpty)
+      .toList(growable: false);
+}
+
+String _expandInlineScheduleText(String prompt) {
+  var text = prompt.replaceAll('\r', '\n').replaceAll(RegExp(r'[ \t]+'), ' ');
+
+  text = text.replaceAllMapped(_inlineHotelHeaderPattern, (match) {
+    return '\n${match.group(0)!.trim()}\n';
+  });
+  text = text.replaceAllMapped(_inlineWeekdayMonthDayHeaderPattern, (match) {
+    return '\n${match.group(0)!.trim()}\n';
+  });
+  text = text.replaceAllMapped(_inlineWeekdaySlashDateHeaderPattern, (match) {
+    return '\n${match.group(0)!.trim()}\n';
+  });
+  text = text.replaceAllMapped(_inlineTimeBlockPattern, (match) {
+    return '\n${match.group(0)!.trim()}\n';
+  });
+  text = text.replaceAllMapped(_inlineNumberedAddressPattern, (match) {
+    return '\n${match.group(1)!.trim()}';
+  });
+  text = text.replaceAllMapped(_inlinePlaceAddressPattern, (match) {
+    final previous = match.start > 0 ? text[match.start - 1] : '';
+    final lineStart = match.start <= 0
+        ? -1
+        : text.lastIndexOf('\n', match.start - 1);
+    final beforeOnLine = text.substring(lineStart + 1, match.start).trimRight();
+    if (RegExp(r'\d').hasMatch(previous) ||
+        RegExp(r'(?:^|\s)\d+\s+[^,\n]*$').hasMatch(beforeOnLine)) {
+      return match.group(0)!;
+    }
+    return '\n${match.group(1)!.trim()}';
+  });
+
+  return text.replaceAll(RegExp(r'\n{2,}'), '\n').trim();
+}
+
+String _cleanScheduleLine(String line) {
+  return line.trim().replaceFirst(RegExp(r'^(?:[-*]|\u2022)+\s*'), '').trim();
 }
 
 bool _looksLikeEditPrompt(String prompt) {
@@ -111,8 +154,21 @@ final RegExp _timePattern = RegExp(
   r'\b(?:[1-9]|1[0-2])(?::[0-5][0-9])?\s*(?:AM|PM)\b',
   caseSensitive: false,
 );
+final RegExp _inlineTimeBlockPattern = RegExp(
+  r'\b(?:[1-9]|1[0-2])(?::[0-5][0-9])?\s*(?:AM|PM)\s*(?:(?:-|to|\u2013|\u2014)\s*(?:(?:[1-9]|1[0-2])(?::[0-5][0-9])?\s*(?:AM|PM)|sunset))?',
+  caseSensitive: false,
+);
 final RegExp _urlPattern = RegExp(
   r'\b(?:https?:\/\/|www\.)\S+',
+  caseSensitive: false,
+);
+final RegExp _inlineHotelHeaderPattern = RegExp(r'\bHOTEL\b');
+final RegExp _inlineWeekdayMonthDayHeaderPattern = RegExp(
+  r'\b(?:mon(?:day)?|tue(?:sday)?|wed(?:nesday)?|thu(?:rsday)?|fri(?:day)?|sat(?:urday)?|sun(?:day)?)\b\s*(?:[\u2022.\-]\s*)?\b(?:jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|jun(?:e)?|jul(?:y)?|aug(?:ust)?|sep(?:tember)?|sept|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?)\s+\d{1,2}(?:\s*,?\s*\d{4})?\b',
+  caseSensitive: false,
+);
+final RegExp _inlineWeekdaySlashDateHeaderPattern = RegExp(
+  r'\b(?:mon(?:day)?|tue(?:sday)?|wed(?:nesday)?|thu(?:rsday)?|fri(?:day)?|sat(?:urday)?|sun(?:day)?)\b\s*(?:[\u2022.\-]\s*)?\b\d{1,2}[\/-]\d{1,2}(?:[\/-]\d{2,4})?\b',
   caseSensitive: false,
 );
 final RegExp _weekdayMonthDayHeaderPattern = RegExp(
@@ -137,6 +193,14 @@ final RegExp _numberedAddressPattern = RegExp(
 );
 final RegExp _placeAddressPattern = RegExp(
   r"^[A-Za-z0-9 .#&'-]+,\s*[A-Za-z .'-]+,\s*[A-Z]{2}(?:\s+\d{5}(?:-\d{4})?)?$",
+  caseSensitive: false,
+);
+final RegExp _inlineNumberedAddressPattern = RegExp(
+  r"\s+(\d+\s+[^,\n]+,\s*[A-Z][A-Za-z .'-]+,\s*[A-Z]{2}\s+\d{5}(?:-\d{4})?)",
+  caseSensitive: false,
+);
+final RegExp _inlinePlaceAddressPattern = RegExp(
+  r"\s+([A-Z][A-Za-z0-9 .#&'-]{1,48},\s*[A-Z][A-Za-z .'-]+,\s*[A-Z]{2}\s+\d{5}(?:-\d{4})?)",
   caseSensitive: false,
 );
 final RegExp _travelPattern = RegExp(
