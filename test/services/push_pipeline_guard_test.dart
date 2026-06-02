@@ -87,9 +87,29 @@ void main() {
       expect(pushNavigationSource, contains("kind == 'reminder_10min'"));
       expect(
         pushNavigationSource,
-        contains('await _openCalendarEventFromPush(clientEventId)'),
+        contains('CalendarPushOpenIntent.fromNotificationData(data)'),
+      );
+      expect(
+        pushNavigationSource,
+        contains('await _openCalendarEventFromPush('),
       );
       expect(pushNavigationSource, contains("_router.go('/')"));
+
+      final calendarSource = await File(
+        'lib/features/calendar/calendar_page.dart',
+      ).readAsString();
+      final calendarPushOpenSource = _sourceBetween(
+        calendarSource,
+        'Future<void> _openCalendarEventFromPush(',
+        'TimeOfDay? _timeOfDayFromSession(',
+      );
+      expect(
+        calendarPushOpenSource,
+        contains('initialEventDetailRestorationState'),
+      );
+      expect(calendarPushOpenSource, isNot(contains('_openDaySheet(')));
+      expect(calendarSource, contains('onAddNote: (ky, km, kd) =>'));
+      expect(calendarSource, contains('_openDaySheet(ky, km, kd'));
     });
 
     test('decan reflection pushes route directly to reflection detail', () async {

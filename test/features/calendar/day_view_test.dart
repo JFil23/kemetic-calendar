@@ -269,6 +269,171 @@ void main() {
 
   group('DayViewGrid detail sheet refresh', () {
     testWidgets(
+      'flow event notification restoration opens the matching detail sheet',
+      (tester) async {
+        await _setPhoneViewport(tester);
+
+        await tester.pumpWidget(
+          _RestoredDetailGridHarness(
+            notes: [
+              _timedNote(
+                clientEventId: 'cid-flow-target',
+                title: 'Dawn Practice',
+                startHour: 6,
+                startMinute: 0,
+                endHour: 6,
+                endMinute: 30,
+                flowId: 42,
+              ),
+              _timedNote(
+                clientEventId: 'cid-flow-other',
+                title: 'Evening Practice',
+                startHour: 18,
+                startMinute: 0,
+                endHour: 18,
+                endMinute: 30,
+                flowId: 42,
+              ),
+            ],
+            flowIndex: const {
+              42: FlowData(
+                id: 42,
+                name: 'Daily Practice Flow',
+                color: Colors.green,
+                active: true,
+              ),
+            },
+            restoration: const EventDetailRestorationState(
+              kYear: 1,
+              kMonth: 1,
+              kDay: 1,
+              identityType: eventDetailIdentityClientEventId,
+              identityValue: 'cid-flow-target',
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        expect(find.byType(BottomSheet), findsOneWidget);
+        expect(find.text('Dawn Practice'), findsWidgets);
+        expect(find.text('6:00 AM – 6:30 AM'), findsOneWidget);
+        expect(find.text('Daily Practice Flow'), findsWidgets);
+        expect(find.text('New Event'), findsNothing);
+      },
+    );
+
+    testWidgets(
+      'note notification restoration opens existing note detail, not creation',
+      (tester) async {
+        await _setPhoneViewport(tester);
+
+        await tester.pumpWidget(
+          _RestoredDetailGridHarness(
+            notes: [
+              _timedNote(
+                id: 'event-note-target',
+                clientEventId: 'cid-note-target',
+                title: 'Existing Note',
+                startHour: 10,
+                startMinute: 0,
+                endHour: 10,
+                endMinute: 45,
+              ),
+            ],
+            restoration: const EventDetailRestorationState(
+              kYear: 1,
+              kMonth: 1,
+              kDay: 1,
+              identityType: eventDetailIdentityClientEventId,
+              identityValue: 'cid-note-target',
+            ),
+            onDeleteNote: (_, _, _, _) async {},
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        expect(find.byType(BottomSheet), findsOneWidget);
+        expect(find.text('Existing Note'), findsWidgets);
+        expect(find.text('10:00 AM – 10:45 AM'), findsOneWidget);
+        expect(find.text('End Note'), findsOneWidget);
+        expect(find.text('New Event'), findsNothing);
+      },
+    );
+
+    testWidgets(
+      'reminder notification restoration opens the matching reminder detail',
+      (tester) async {
+        await _setPhoneViewport(tester);
+
+        await tester.pumpWidget(
+          _RestoredDetailGridHarness(
+            notes: [
+              _timedReminderNote(
+                clientEventId: 'cid-reminder-target',
+                reminderId: 'reminder-target',
+                title: 'Hydrate',
+                startHour: 9,
+              ),
+              _timedReminderNote(
+                clientEventId: 'cid-reminder-other',
+                reminderId: 'reminder-other',
+                title: 'Stretch',
+                startHour: 10,
+              ),
+            ],
+            restoration: const EventDetailRestorationState(
+              kYear: 1,
+              kMonth: 1,
+              kDay: 1,
+              identityType: eventDetailIdentityReminderId,
+              identityValue: 'reminder-target',
+            ),
+            onEndReminder: (_) async {},
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        expect(find.byType(BottomSheet), findsOneWidget);
+        expect(find.text('Hydrate'), findsWidgets);
+        expect(find.text('9:00 AM – 9:30 AM'), findsOneWidget);
+        expect(find.text('End Reminder'), findsOneWidget);
+        expect(find.text('Stretch'), findsOneWidget);
+        expect(find.text('New Event'), findsNothing);
+      },
+    );
+
+    testWidgets('generic new-note UI still invokes the create-note action', (
+      tester,
+    ) async {
+      await _setPhoneViewport(tester);
+      var openedCreateNote = false;
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: DayViewPage(
+            initialKy: 1,
+            initialKm: 1,
+            initialKd: 1,
+            showGregorian: false,
+            notesForDay: (_, _, _) => const <NoteData>[],
+            flowIndex: const {},
+            getMonthName: _gregorianMonthName,
+            onOpenQuickAdd: (_) async {
+              openedCreateNote = true;
+            },
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.byTooltip('New note'));
+      await tester.pumpAndSettle();
+
+      expect(openedCreateNote, isTrue);
+      expect(find.byType(BottomSheet), findsNothing);
+    });
+
+    testWidgets(
       'tap consumes echoed detail restoration state without opening a second sheet',
       (tester) async {
         await _setPhoneViewport(tester);
@@ -1185,6 +1350,44 @@ class _DayViewHarness extends StatelessWidget {
           activeLedgerFlowIds: activeLedgerFlowIds ?? flowIndex.keys.toSet(),
           initialScrollOffset: initialScrollOffset,
           onEndFlow: onEndFlow,
+        ),
+      ),
+    );
+  }
+}
+
+class _RestoredDetailGridHarness extends StatelessWidget {
+  const _RestoredDetailGridHarness({
+    required this.notes,
+    required this.restoration,
+    this.flowIndex = const <int, FlowData>{},
+    this.onDeleteNote,
+    this.onEndReminder,
+  });
+
+  final List<NoteData> notes;
+  final EventDetailRestorationState restoration;
+  final Map<int, FlowData> flowIndex;
+  final Future<void> Function(int ky, int km, int kd, EventItem event)?
+  onDeleteNote;
+  final Future<void> Function(String reminderId)? onEndReminder;
+
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      home: Scaffold(
+        body: DayViewGrid(
+          ky: 1,
+          km: 1,
+          kd: 1,
+          notes: notes,
+          showGregorian: false,
+          flowIndex: flowIndex,
+          activeLedgerFlowIds: flowIndex.keys.toSet(),
+          initialScrollOffset: 8 * 60,
+          initialEventDetailRestorationState: restoration,
+          onDeleteNote: onDeleteNote,
+          onEndReminder: onEndReminder,
         ),
       ),
     );

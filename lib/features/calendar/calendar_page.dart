@@ -4665,6 +4665,11 @@ class CalendarPage extends StatefulWidget {
     required int? alertOffsetMinutes,
     required String title,
     String? body,
+    int? kYear,
+    int? kMonth,
+    int? kDay,
+    String? eventId,
+    int? flowId,
   }) async {
     try {
       await eventFiling.fileDelivery(
@@ -4673,6 +4678,17 @@ class CalendarPage extends StatefulWidget {
         alertOffsetMinutes: alertOffsetMinutes,
         title: title,
         body: body,
+        payload: _calendarNotificationPayloadJson(
+          itemType: flowId != null && flowId > 0
+              ? calendarPushItemTypeFlowEvent
+              : calendarPushItemTypeNote,
+          kYear: kYear,
+          kMonth: kMonth,
+          kDay: kDay,
+          eventId: eventId,
+          clientEventId: clientEventId,
+          flowId: flowId,
+        ),
       );
     } catch (e, st) {
       if (kDebugMode) {
@@ -4682,6 +4698,47 @@ class CalendarPage extends StatefulWidget {
         _calendarDebugPrint('$st');
       }
     }
+  }
+
+  static String _calendarNotificationPayloadJson({
+    required String itemType,
+    int? kYear,
+    int? kMonth,
+    int? kDay,
+    String? eventId,
+    String? clientEventId,
+    String? reminderId,
+    int? flowId,
+  }) {
+    DateTime? gregorianDay;
+    if (kYear != null && kMonth != null && kDay != null) {
+      gregorianDay = KemeticMath.toGregorian(kYear, kMonth, kDay);
+    }
+
+    final payload = <String, dynamic>{
+      'kind': 'calendar_event',
+      'item_type': itemType,
+      if (kYear != null) 'k_year': kYear,
+      if (kMonth != null) 'k_month': kMonth,
+      if (kDay != null) 'k_day': kDay,
+      if (gregorianDay != null) 'local_date': _formatIsoDate(gregorianDay),
+      if (eventId != null && eventId.trim().isNotEmpty)
+        'event_id': eventId.trim(),
+      if (clientEventId != null && clientEventId.trim().isNotEmpty)
+        'client_event_id': clientEventId.trim(),
+      if (reminderId != null && reminderId.trim().isNotEmpty)
+        'reminder_id': reminderId.trim(),
+      if (flowId != null && flowId > 0) 'flow_id': flowId,
+    };
+    return jsonEncode(payload);
+  }
+
+  static String _formatIsoDate(DateTime date) {
+    return [
+      date.year.toString().padLeft(4, '0'),
+      date.month.toString().padLeft(2, '0'),
+      date.day.toString().padLeft(2, '0'),
+    ].join('-');
   }
 
   static void _publishHeadlessCalendarInvalidation({
@@ -5943,7 +6000,7 @@ class CalendarPage extends StatefulWidget {
         );
         clientEventIds.add(cid);
 
-        await userEventsRepo.upsertByClientId(
+        final savedEvent = await userEventsRepo.upsertByClientId(
           clientEventId: cid,
           title: n.title,
           startsAtUtc: startsAt.toUtc(),
@@ -5971,6 +6028,11 @@ class CalendarPage extends StatefulWidget {
           alertOffsetMinutes: n.alertOffsetMinutes,
           title: n.title,
           body: bodyLines.isEmpty ? null : bodyLines.join('\n'),
+          kYear: p.ky,
+          kMonth: p.km,
+          kDay: p.kd,
+          eventId: savedEvent.id,
+          flowId: savedId,
         );
       }
     }
@@ -10123,7 +10185,7 @@ class CalendarPageState extends State<CalendarPage>
     if (intent == null) return;
     if (_lastHandledCalendarPushIntentNonce == intent.nonce) return;
     _lastHandledCalendarPushIntentNonce = intent.nonce;
-    unawaited(_openCalendarEventFromPush(intent.clientEventId));
+    unawaited(_openCalendarEventFromPush(intent));
   }
 
   Future<void> _restoreDaySheetIfNeeded([int attempt = 0]) async {
@@ -10206,27 +10268,29 @@ class CalendarPageState extends State<CalendarPage>
     );
     if (!mounted || entry == null) return;
 
-    final clientEventId = (entry.payload['clientEventId'] as String?)?.trim();
-    if (clientEventId == null || clientEventId.isEmpty) {
+    final intent = CalendarPushOpenIntent.fromNotificationData(entry.payload);
+    if (intent == null) {
       return;
     }
 
-    await _openCalendarEventFromPush(clientEventId);
+    await _openCalendarEventFromPush(intent);
   }
 
   ({int kYear, int kMonth, int kDay, int index, _Note note})?
-  _findNoteLocationByClientEventId(String clientEventId) {
-    final trimmed = clientEventId.trim();
-    if (trimmed.isEmpty) return null;
+  _findNoteLocationByPushIntent(CalendarPushOpenIntent intent) {
+    final keys = intent.hasKemeticDate
+        ? <String>[_kKey(intent.kYear!, intent.kMonth!, intent.kDay!)]
+        : _notes.keys.toList(growable: false);
 
-    for (final entry in _notes.entries) {
-      final index = _findNoteIndexByIdOrClientId(
-        entry.key,
-        clientEventId: trimmed,
-      );
+    for (final key in keys) {
+      final notes = _notes[key];
+      if (notes == null || notes.isEmpty) continue;
+      final index = notes.indexWhere((note) {
+        return _noteMatchesCalendarPushIntent(note, intent);
+      });
       if (index < 0) continue;
 
-      final parts = entry.key.split('-');
+      final parts = key.split('-');
       if (parts.length != 3) continue;
       final kYear = int.tryParse(parts[0]);
       final kMonth = int.tryParse(parts[1]);
@@ -10238,7 +10302,99 @@ class CalendarPageState extends State<CalendarPage>
         kMonth: kMonth,
         kDay: kDay,
         index: index,
-        note: entry.value[index],
+        note: notes[index],
+      );
+    }
+
+    return null;
+  }
+
+  bool _noteMatchesCalendarPushIntent(
+    _Note note,
+    CalendarPushOpenIntent intent,
+  ) {
+    final eventId = _trimmedCalendarPushValue(intent.eventId);
+    if (eventId != null && (note.id?.trim() ?? '') == eventId) {
+      return true;
+    }
+
+    final clientEventId = _trimmedCalendarPushValue(intent.clientEventId);
+    if (clientEventId != null &&
+        (note.clientEventId?.trim() ?? '') == clientEventId) {
+      return true;
+    }
+
+    final reminderId = _trimmedCalendarPushValue(intent.reminderId);
+    if (intent.itemType == calendarPushItemTypeReminder &&
+        reminderId != null &&
+        note.isReminder &&
+        (note.reminderId?.trim() ?? '') == reminderId) {
+      return true;
+    }
+
+    final flowId = intent.flowId;
+    if (intent.itemType == calendarPushItemTypeFlowEvent &&
+        flowId != null &&
+        flowId > 0 &&
+        note.flowId == flowId) {
+      return true;
+    }
+
+    return false;
+  }
+
+  String? _trimmedCalendarPushValue(String? raw) {
+    final value = raw?.trim();
+    return value == null || value.isEmpty ? null : value;
+  }
+
+  EventDetailRestorationState? _eventDetailRestorationStateForPushIntent(
+    CalendarPushOpenIntent intent, {
+    required int kYear,
+    required int kMonth,
+    required int kDay,
+    _Note? note,
+    String? eventId,
+    String? clientEventId,
+  }) {
+    final resolvedClientEventId =
+        _trimmedCalendarPushValue(clientEventId) ??
+        _trimmedCalendarPushValue(note?.clientEventId) ??
+        _trimmedCalendarPushValue(intent.clientEventId);
+    if (resolvedClientEventId != null) {
+      return EventDetailRestorationState(
+        kYear: kYear,
+        kMonth: kMonth,
+        kDay: kDay,
+        identityType: eventDetailIdentityClientEventId,
+        identityValue: resolvedClientEventId,
+      );
+    }
+
+    final resolvedReminderId =
+        _trimmedCalendarPushValue(note?.reminderId) ??
+        _trimmedCalendarPushValue(intent.reminderId);
+    if (resolvedReminderId != null) {
+      return EventDetailRestorationState(
+        kYear: kYear,
+        kMonth: kMonth,
+        kDay: kDay,
+        identityType: eventDetailIdentityReminderId,
+        identityValue: resolvedReminderId,
+      );
+    }
+
+    final resolvedEventId =
+        _trimmedCalendarPushValue(eventId) ??
+        _trimmedCalendarPushValue(note?.id) ??
+        _trimmedCalendarPushValue(intent.eventId);
+    if (resolvedEventId != null) {
+      return EventDetailRestorationState(
+        kYear: kYear,
+        kMonth: kMonth,
+        kDay: kDay,
+        identityType: eventDetailIdentityEventId,
+        identityValue: resolvedEventId,
       );
     }
 
@@ -10246,7 +10402,7 @@ class CalendarPageState extends State<CalendarPage>
   }
 
   Future<void> _openCalendarEventFromPush(
-    String clientEventId, [
+    CalendarPushOpenIntent intent, [
     int attempt = 0,
   ]) async {
     if (!mounted) return;
@@ -10254,30 +10410,51 @@ class CalendarPageState extends State<CalendarPage>
       if (attempt >= 20) return;
       await Future<void>.delayed(const Duration(milliseconds: 120));
       if (!mounted) return;
-      return _openCalendarEventFromPush(clientEventId, attempt + 1);
+      return _openCalendarEventFromPush(intent, attempt + 1);
     }
 
-    final localMatch = _findNoteLocationByClientEventId(clientEventId);
+    final localMatch = _findNoteLocationByPushIntent(intent);
     if (localMatch != null) {
       final note = localMatch.note;
+      final detail = _eventDetailRestorationStateForPushIntent(
+        intent,
+        kYear: localMatch.kYear,
+        kMonth: localMatch.kMonth,
+        kDay: localMatch.kDay,
+        note: note,
+      );
+      if (detail == null) return;
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (!mounted) return;
-        _openDaySheet(
+        _openDayView(
+          context,
           localMatch.kYear,
           localMatch.kMonth,
           localMatch.kDay,
-          allowDateChange: true,
-          persistAsRestoration: false,
-          initialTitle: note.title,
-          initialLocation: note.location,
-          initialDetail: note.detail,
-          initialAllDay: note.allDay,
-          initialStartTime: note.start,
-          initialEndTime: note.end,
-          initialColor: note.manualColor,
-          initialCategory: note.category,
-          initialAlertMinutes: note.alertOffsetMinutes,
-          editingIndex: localMatch.index,
+          initialEventDetailRestorationState: detail,
+        );
+      });
+      return;
+    }
+
+    final clientEventId = _trimmedCalendarPushValue(intent.clientEventId);
+    if (clientEventId == null) {
+      if (!intent.hasKemeticDate) return;
+      final detail = _eventDetailRestorationStateForPushIntent(
+        intent,
+        kYear: intent.kYear!,
+        kMonth: intent.kMonth!,
+        kDay: intent.kDay!,
+      );
+      if (detail == null) return;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        _openDayView(
+          context,
+          intent.kYear!,
+          intent.kMonth!,
+          intent.kDay!,
+          initialEventDetailRestorationState: detail,
         );
       });
       return;
@@ -10289,28 +10466,25 @@ class CalendarPageState extends State<CalendarPage>
     if (!mounted || event == null) return;
 
     final localStart = event.startsAt.toLocal();
-    final localEnd = event.endsAt?.toLocal();
     final kDate = KemeticMath.fromGregorian(localStart);
+    final detail = _eventDetailRestorationStateForPushIntent(
+      intent,
+      kYear: kDate.kYear,
+      kMonth: kDate.kMonth,
+      kDay: kDate.kDay,
+      eventId: event.id,
+      clientEventId: event.clientEventId ?? clientEventId,
+    );
+    if (detail == null) return;
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
-      _openDaySheet(
+      _openDayView(
+        context,
         kDate.kYear,
         kDate.kMonth,
         kDate.kDay,
-        allowDateChange: false,
-        persistAsRestoration: false,
-        initialTitle: event.title,
-        initialLocation: event.location,
-        initialDetail: event.detail,
-        initialAllDay: event.allDay,
-        initialStartTime: event.allDay
-            ? null
-            : TimeOfDay(hour: localStart.hour, minute: localStart.minute),
-        initialEndTime: event.allDay || localEnd == null
-            ? null
-            : TimeOfDay(hour: localEnd.hour, minute: localEnd.minute),
-        initialCategory: event.category,
+        initialEventDetailRestorationState: detail,
       );
     });
   }
@@ -16552,7 +16726,19 @@ class CalendarPageState extends State<CalendarPage>
                 scheduledAt: alertLocal,
                 title: reminderNote.title,
                 body: bodyLines.isEmpty ? null : bodyLines.join('\n'),
-                payload: '{}',
+                payload: CalendarPage._calendarNotificationPayloadJson(
+                  itemType:
+                      reminderNote.flowId != null && reminderNote.flowId! > 0
+                      ? calendarPushItemTypeFlowEvent
+                      : calendarPushItemTypeNote,
+                  kYear: ky,
+                  kMonth: km,
+                  kDay: kd,
+                  eventId: updated.id,
+                  clientEventId: updated.clientEventId,
+                  reminderId: reminderNote.reminderId,
+                  flowId: reminderNote.flowId,
+                ),
               );
           if (scheduleResult.needsUserVisibleWarning) {
             _showNotificationScheduleWarning(scheduleResult.message);
@@ -25717,13 +25903,27 @@ class CalendarPageState extends State<CalendarPage>
       if (cleanedDetail.isNotEmpty) cleanedDetail,
     ];
     final body = bodyLines.isEmpty ? null : bodyLines.join('\n');
+    final itemType = note.isReminder
+        ? calendarPushItemTypeReminder
+        : ((note.flowId != null && note.flowId! > 0)
+              ? calendarPushItemTypeFlowEvent
+              : calendarPushItemTypeNote);
 
     final result = await Notify.scheduleAlertWithPersistenceResult(
       clientEventId: clientEventId,
       scheduledAt: alertAtLocal,
       title: note.title,
       body: body,
-      payload: '{}',
+      payload: CalendarPage._calendarNotificationPayloadJson(
+        itemType: itemType,
+        kYear: ky,
+        kMonth: km,
+        kDay: kd,
+        eventId: eventId ?? note.id,
+        clientEventId: clientEventId,
+        reminderId: note.reminderId,
+        flowId: note.flowId,
+      ),
     );
 
     final reminderId = _reminderIdForNote(note, alertAtLocal.toUtc());

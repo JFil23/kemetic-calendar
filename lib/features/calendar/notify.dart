@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart' show debugPrint, kDebugMode;
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter/services.dart' show PlatformException;
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../../core/push_intent_bus.dart';
 import '../settings/settings_prefs.dart';
 
 // Timezone DB (we schedule in LOCAL timezone)
@@ -128,6 +129,7 @@ class Notify {
   static bool _localReconcileNeedsRefresh = false;
   static bool? _canScheduleExactAlarms;
   static bool _loggedInexactAlarmFallback = false;
+  static final Set<String> _handledNotificationResponses = <String>{};
 
   static String _notificationIdentity(
     String clientEventId,
@@ -721,8 +723,18 @@ class Notify {
       macOS: darwinInit,
     );
 
-    await _plugin.initialize(initSettings);
+    await _plugin.initialize(
+      initSettings,
+      onDidReceiveNotificationResponse: _handleNotificationResponse,
+    );
     _log('initialize() complete');
+
+    final launchDetails = await _plugin.getNotificationAppLaunchDetails();
+    final launchResponse = launchDetails?.notificationResponse;
+    if (launchDetails?.didNotificationLaunchApp == true &&
+        launchResponse != null) {
+      _handleNotificationResponse(launchResponse);
+    }
 
     // 4) Android permissions status only. Startup initialization must not open
     // runtime permission dialogs or the Android exact-alarm settings screen,
@@ -768,6 +780,20 @@ class Notify {
 
     // 6) Apply this device's delivery mode to scheduled notifications.
     await syncLocalDeliveryMode();
+  }
+
+  static void _handleNotificationResponse(NotificationResponse response) {
+    final signature =
+        '${response.id}:${response.actionId ?? ''}:${response.payload ?? ''}';
+    if (_handledNotificationResponses.contains(signature)) return;
+    _handledNotificationResponses.add(signature);
+    while (_handledNotificationResponses.length > 24) {
+      _handledNotificationResponses.remove(_handledNotificationResponses.first);
+    }
+
+    final intent = CalendarPushOpenIntent.fromPayloadString(response.payload);
+    if (intent == null) return;
+    emitCalendarPushOpenIntent(intent);
   }
 
   /// Immediate test alert (use your "Test alert" button).

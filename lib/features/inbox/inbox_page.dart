@@ -1827,7 +1827,7 @@ class _InboxPageState extends State<InboxPage> {
     if (clientEventId != null && clientEventId.isNotEmpty) {
       context.go('/');
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        emitCalendarPushOpenIntent(clientEventId);
+        emitCalendarPushOpenClientEventId(clientEventId);
       });
     }
   }

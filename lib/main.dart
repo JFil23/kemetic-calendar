@@ -986,6 +986,18 @@ Map<String, dynamic>? _pushIntentDataFromQuery(Map<String, String> params) {
         ) !=
         null)
       'client_event_id': params['client_event_id'] ?? params['clientEventId'],
+    if (_trimmedPushValue(params['item_type'] ?? params['itemType']) != null)
+      'item_type': params['item_type'] ?? params['itemType'],
+    if (_trimmedPushValue(params['k_year'] ?? params['kYear']) != null)
+      'k_year': params['k_year'] ?? params['kYear'],
+    if (_trimmedPushValue(params['k_month'] ?? params['kMonth']) != null)
+      'k_month': params['k_month'] ?? params['kMonth'],
+    if (_trimmedPushValue(params['k_day'] ?? params['kDay']) != null)
+      'k_day': params['k_day'] ?? params['kDay'],
+    if (_trimmedPushValue(params['event_id'] ?? params['eventId']) != null)
+      'event_id': params['event_id'] ?? params['eventId'],
+    if (_trimmedPushValue(params['flow_id'] ?? params['flowId']) != null)
+      'flow_id': params['flow_id'] ?? params['flowId'],
     if (_trimmedPushValue(params['flow_post_id'] ?? params['flowPostId']) !=
         null)
       'flow_post_id': params['flow_post_id'] ?? params['flowPostId'],
@@ -1017,7 +1029,10 @@ String? _initialLocationFromPushData(
   final clientEventId = _trimmedPushValue(
     data['client_event_id'] ?? data['clientEventId'],
   );
-  if (kind == null && clientEventId == null) return null;
+  final calendarIntent = CalendarPushOpenIntent.fromNotificationData(data);
+  if (kind == null && clientEventId == null && calendarIntent == null) {
+    return null;
+  }
   if (!hasSession) return '/';
 
   if (kind == 'maat_guidance') {
@@ -1083,7 +1098,8 @@ String? _initialLocationFromPushData(
       kind == 'scheduled_notification' ||
       kind == 'reminder_10min' ||
       (clientEventId != null && kind == 'reminder') ||
-      clientEventId != null) {
+      clientEventId != null ||
+      calendarIntent != null) {
     return '/';
   }
 
@@ -2293,6 +2309,7 @@ class _PushIntentBridgeState extends State<PushIntentBridge> {
   final Map<String, int> _handledPushNavigationKeys = <String, int>{};
   Map<String, dynamic>? _pendingPushData;
   bool _initialTasksStarted = false;
+  int? _lastHandledCalendarBusIntentNonce;
 
   @override
   void initState() {
@@ -2340,7 +2357,9 @@ class _PushIntentBridgeState extends State<PushIntentBridge> {
       }, onError: _logPushBridgeError);
     });
 
+    calendarPushOpenIntent.addListener(_handleCalendarBusIntent);
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      _handleCalendarBusIntent();
       _startInitialTasks();
     });
   }
@@ -2349,6 +2368,7 @@ class _PushIntentBridgeState extends State<PushIntentBridge> {
   void dispose() {
     _pushNavSub?.cancel();
     _authSub?.cancel();
+    calendarPushOpenIntent.removeListener(_handleCalendarBusIntent);
     super.dispose();
   }
 
@@ -2507,7 +2527,13 @@ class _PushIntentBridgeState extends State<PushIntentBridge> {
         (deliveryKeyForKind?.startsWith('maat_guidance:') == true
             ? 'maat_guidance'
             : null);
-    if (kind == null) return false;
+    final calendarIntent = CalendarPushOpenIntent.fromNotificationData(data);
+    final clientEventId = _trimmedValue(
+      data['client_event_id'] ?? data['clientEventId'],
+    );
+    if (kind == null && calendarIntent == null && clientEventId == null) {
+      return false;
+    }
     final shareKind = _trimmedValue(data['share_kind'] ?? data['shareKind']);
 
     final reflectionId = _trimmedValue(
@@ -2600,15 +2626,20 @@ class _PushIntentBridgeState extends State<PushIntentBridge> {
       return true;
     }
 
-    final clientEventId = _trimmedValue(
-      data['client_event_id'] ?? data['clientEventId'],
-    );
     if (kind == 'calendar_event' ||
         kind == 'scheduled_notification' ||
         kind == 'reminder_10min' ||
-        (clientEventId != null && kind == 'reminder')) {
-      if (clientEventId != null) {
-        await _openCalendarEventFromPush(clientEventId);
+        (clientEventId != null && kind == 'reminder') ||
+        calendarIntent != null) {
+      if (calendarIntent != null) {
+        await _openCalendarEventFromPush(calendarIntent);
+      } else if (clientEventId != null) {
+        await _openCalendarEventFromPush(
+          CalendarPushOpenIntent(
+            clientEventId: clientEventId,
+            nonce: DateTime.now().microsecondsSinceEpoch,
+          ),
+        );
       } else {
         _router.go('/');
       }
@@ -2616,7 +2647,12 @@ class _PushIntentBridgeState extends State<PushIntentBridge> {
     }
 
     if (clientEventId != null) {
-      await _openCalendarEventFromPush(clientEventId);
+      await _openCalendarEventFromPush(
+        CalendarPushOpenIntent(
+          clientEventId: clientEventId,
+          nonce: DateTime.now().microsecondsSinceEpoch,
+        ),
+      );
       return true;
     }
 
@@ -2821,13 +2857,29 @@ class _PushIntentBridgeState extends State<PushIntentBridge> {
     _router.go('/inbox');
   }
 
-  Future<void> _openCalendarEventFromPush(String clientEventId) async {
+  Future<void> _openCalendarEventFromPush(CalendarPushOpenIntent intent) async {
     await SessionResumeService.saveResumeEntry(
       baseRoute: '/',
       kind: _kCalendarPushResumeKind,
-      payload: {'clientEventId': clientEventId},
+      payload: intent.toJson(),
     );
-    emitCalendarPushOpenIntent(clientEventId);
+    emitCalendarPushOpenIntent(intent);
+    _router.go('/');
+  }
+
+  void _handleCalendarBusIntent() {
+    final intent = calendarPushOpenIntent.value;
+    if (intent == null) return;
+    if (_lastHandledCalendarBusIntentNonce == intent.nonce) return;
+    _lastHandledCalendarBusIntentNonce = intent.nonce;
+
+    unawaited(
+      SessionResumeService.saveResumeEntry(
+        baseRoute: '/',
+        kind: _kCalendarPushResumeKind,
+        payload: intent.toJson(),
+      ),
+    );
     _router.go('/');
   }
 
