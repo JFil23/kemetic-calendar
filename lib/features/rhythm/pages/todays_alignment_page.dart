@@ -3270,7 +3270,9 @@ class _TodaysAlignmentPageState extends State<TodaysAlignmentPage> {
 
         final progress = _progress();
         final plannerAction = _todayPlannerAction();
-        final listBottomPadding = bottomPaddingAboveGlobalMenu(context, 32);
+        final listBottomPadding = embedded
+            ? bottomPaddingAboveGlobalMenu(context, 32)
+            : 32.0;
         final keyboardInset = keyboardInsetOf(context);
         final effectiveListBottomPadding = math.max(
           listBottomPadding,

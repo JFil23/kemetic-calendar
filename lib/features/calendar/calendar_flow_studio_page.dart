@@ -3850,7 +3850,12 @@ class _FlowStudioPageState extends State<_FlowStudioPage>
         ? null
         : _calendarPageState?._calendarSummariesById[selectedCalendarId];
     final canEditSelectedCalendar = _canEditCalendar(selectedCalendarId);
-    const bodyPadding = EdgeInsets.fromLTRB(16, 16, 16, 24);
+    final bodyPadding = EdgeInsets.fromLTRB(
+      16,
+      16,
+      16,
+      AppBottomInsets.contentBottomPadding(context),
+    );
     const fieldScrollPadding = keyboardManagedTextFieldScrollPadding;
 
     return Scaffold(
@@ -3917,168 +3922,163 @@ class _FlowStudioPageState extends State<_FlowStudioPage>
           ),
         ],
       ),
-      body: Padding(
+      body: ListView(
         padding: bodyPadding,
-        child: ListView(
-          children: [
-            const Text('Name', style: TextStyle(color: _silver, fontSize: 12)),
-            const SizedBox(height: 6),
-            TextField(
-              controller: _nameCtrl,
-              scrollPadding: fieldScrollPadding,
-              style: const TextStyle(color: Colors.white),
-              decoration: _darkInput('Flow name'),
+        children: [
+          const Text('Name', style: TextStyle(color: _silver, fontSize: 12)),
+          const SizedBox(height: 6),
+          TextField(
+            controller: _nameCtrl,
+            scrollPadding: fieldScrollPadding,
+            style: const TextStyle(color: Colors.white),
+            decoration: _darkInput('Flow name'),
+          ),
+          const SizedBox(height: 14),
+          const Text(
+            'Overview',
+            style: TextStyle(color: _silver, fontSize: 12),
+          ),
+          const SizedBox(height: 6),
+          TextField(
+            controller: _overviewCtrl,
+            scrollPadding: fieldScrollPadding,
+            style: const TextStyle(color: Colors.white),
+            keyboardType: TextInputType.multiline,
+            textInputAction: TextInputAction.newline,
+            minLines: 4,
+            maxLines: 8,
+            decoration: _darkInput(
+              'Flow overview',
+              hint:
+                  'Describe the purpose, product list, outcomes, links, or context for this flow.',
             ),
-            const SizedBox(height: 14),
-            const Text(
-              'Overview',
-              style: TextStyle(color: _silver, fontSize: 12),
-            ),
-            const SizedBox(height: 6),
-            TextField(
-              controller: _overviewCtrl,
-              scrollPadding: fieldScrollPadding,
-              style: const TextStyle(color: Colors.white),
-              keyboardType: TextInputType.multiline,
-              textInputAction: TextInputAction.newline,
-              minLines: 4,
-              maxLines: 8,
-              decoration: _darkInput(
-                'Flow overview',
-                hint:
-                    'Describe the purpose, product list, outcomes, links, or context for this flow.',
-              ),
-            ),
-            const SizedBox(height: 8),
+          ),
+          const SizedBox(height: 8),
 
-            SwitchListTile(
-              contentPadding: EdgeInsets.zero,
-              value: _active,
-              onChanged: (v) => setState(() => _active = v),
-              title: const Text(
-                'Active',
-                style: TextStyle(color: Colors.white),
-              ),
-              activeThumbColor: _gold,
-            ),
+          SwitchListTile(
+            contentPadding: EdgeInsets.zero,
+            value: _active,
+            onChanged: (v) => setState(() => _active = v),
+            title: const Text('Active', style: TextStyle(color: Colors.white)),
+            activeThumbColor: _gold,
+          ),
 
-            const SizedBox(height: 8),
-            InkWell(
-              onTap: _editableCalendars.isEmpty || !canEditSelectedCalendar
-                  ? null
-                  : () async {
-                      final chosenId = await showCupertinoModalPopup<String>(
-                        context: context,
-                        builder: (popupCtx) {
-                          return CupertinoActionSheet(
-                            title: const GlossyText(
-                              text: 'Calendar',
-                              gradient: silverGloss,
-                              style: TextStyle(fontSize: 18),
-                            ),
-                            actions: [
-                              for (final calendar in _editableCalendars)
-                                CupertinoActionSheetAction(
-                                  onPressed: () {
-                                    Navigator.of(popupCtx).pop(calendar.id);
-                                  },
-                                  child: Text(
-                                    calendar.name,
-                                    style: TextStyle(
-                                      color: calendar.color,
-                                      fontSize: 17,
-                                      fontWeight: FontWeight.w600,
-                                    ),
+          const SizedBox(height: 8),
+          InkWell(
+            onTap: _editableCalendars.isEmpty || !canEditSelectedCalendar
+                ? null
+                : () async {
+                    final chosenId = await showCupertinoModalPopup<String>(
+                      context: context,
+                      builder: (popupCtx) {
+                        return CupertinoActionSheet(
+                          title: const GlossyText(
+                            text: 'Calendar',
+                            gradient: silverGloss,
+                            style: TextStyle(fontSize: 18),
+                          ),
+                          actions: [
+                            for (final calendar in _editableCalendars)
+                              CupertinoActionSheetAction(
+                                onPressed: () {
+                                  Navigator.of(popupCtx).pop(calendar.id);
+                                },
+                                child: Text(
+                                  calendar.name,
+                                  style: TextStyle(
+                                    color: calendar.color,
+                                    fontSize: 17,
+                                    fontWeight: FontWeight.w600,
                                   ),
                                 ),
-                            ],
-                            cancelButton: CupertinoActionSheetAction(
-                              isDestructiveAction: true,
-                              onPressed: () => Navigator.of(popupCtx).pop(),
-                              child: const Text('Cancel'),
-                            ),
-                          );
-                        },
-                      );
-                      if (chosenId == null) return;
-                      setState(() {
-                        _selectedCalendarId = chosenId;
-                      });
-                    },
-              child: Container(
-                padding: const EdgeInsets.symmetric(vertical: 12),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    const GlossyText(
-                      text: 'Calendar',
-                      gradient: silverGloss,
-                      style: TextStyle(fontSize: 14),
-                    ),
-                    Row(
-                      children: [
-                        Text(
-                          _calendarLabelFor(selectedCalendarId),
-                          style: TextStyle(
-                            color: selectedCalendar?.color ?? _gold,
-                            fontSize: 14,
-                            fontWeight: FontWeight.w600,
+                              ),
+                          ],
+                          cancelButton: CupertinoActionSheetAction(
+                            isDestructiveAction: true,
+                            onPressed: () => Navigator.of(popupCtx).pop(),
+                            child: const Text('Cancel'),
                           ),
+                        );
+                      },
+                    );
+                    if (chosenId == null) return;
+                    setState(() {
+                      _selectedCalendarId = chosenId;
+                    });
+                  },
+            child: Container(
+              padding: const EdgeInsets.symmetric(vertical: 12),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const GlossyText(
+                    text: 'Calendar',
+                    gradient: silverGloss,
+                    style: TextStyle(fontSize: 14),
+                  ),
+                  Row(
+                    children: [
+                      Text(
+                        _calendarLabelFor(selectedCalendarId),
+                        style: TextStyle(
+                          color: selectedCalendar?.color ?? _gold,
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
                         ),
-                        const SizedBox(width: 4),
-                        const Icon(
-                          Icons.chevron_right,
-                          size: 18,
-                          color: Colors.white54,
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
+                      ),
+                      const SizedBox(width: 4),
+                      const Icon(
+                        Icons.chevron_right,
+                        size: 18,
+                        color: Colors.white54,
+                      ),
+                    ],
+                  ),
+                ],
               ),
             ),
-            if (!canEditSelectedCalendar) ...[
-              const SizedBox(height: 4),
-              const Text(
-                'You can view this calendar, but you cannot edit it.',
-                style: TextStyle(color: Colors.white54, fontSize: 12),
-              ),
-            ],
-            const SizedBox(height: 8),
-            const GlossyText(
-              text: 'Color',
-              style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
-              gradient: silverGloss,
+          ),
+          if (!canEditSelectedCalendar) ...[
+            const SizedBox(height: 4),
+            const Text(
+              'You can view this calendar, but you cannot edit it.',
+              style: TextStyle(color: Colors.white54, fontSize: 12),
             ),
-            const SizedBox(height: 8),
-            SizedBox(
-              height: 36,
-              child: ListView.builder(
-                scrollDirection: Axis.horizontal,
-                itemCount: _flowPalette.length,
-                itemBuilder: (_, i) => _colorDot(i),
-              ),
-            ),
-
-            const SizedBox(height: 12),
-            _modeToggle(),
-
-            const SizedBox(height: 12),
-            _dateRangeSection(),
-
-            const SizedBox(height: 6),
-            if (!_hasFullRange)
-              _preRulesHint()
-            else if (_useKemetic)
-              (_splitByPeriod ? _kemeticPerDecan() : _kemeticSingleRow())
-            else
-              (_splitByPeriod ? _gregorianPerWeek() : _gregorianSingleRow()),
-
-            // editors (pattern in repeat mode, per-day in customize mode)
-            SizedBox(key: _editorsAnchorKey, height: 0),
-            _notesEditorsPanel(),
           ],
-        ),
+          const SizedBox(height: 8),
+          const GlossyText(
+            text: 'Color',
+            style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+            gradient: silverGloss,
+          ),
+          const SizedBox(height: 8),
+          SizedBox(
+            height: 36,
+            child: ListView.builder(
+              scrollDirection: Axis.horizontal,
+              itemCount: _flowPalette.length,
+              itemBuilder: (_, i) => _colorDot(i),
+            ),
+          ),
+
+          const SizedBox(height: 12),
+          _modeToggle(),
+
+          const SizedBox(height: 12),
+          _dateRangeSection(),
+
+          const SizedBox(height: 6),
+          if (!_hasFullRange)
+            _preRulesHint()
+          else if (_useKemetic)
+            (_splitByPeriod ? _kemeticPerDecan() : _kemeticSingleRow())
+          else
+            (_splitByPeriod ? _gregorianPerWeek() : _gregorianSingleRow()),
+
+          // editors (pattern in repeat mode, per-day in customize mode)
+          SizedBox(key: _editorsAnchorKey, height: 0),
+          _notesEditorsPanel(),
+        ],
       ),
     );
   }

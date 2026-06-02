@@ -4535,7 +4535,13 @@ class _AuthGateState extends State<AuthGate> with WidgetsBindingObserver {
 
     // Authenticated
     return Scaffold(
-      body: SessionTrackedRoute(location: '/', child: CalendarPage()),
+      body: SessionTrackedRoute(
+        location: '/',
+        // Main calendar uses infinite scroll and intentionally manages its own
+        // bottom spacing.
+        applyBottomNavInset: false,
+        child: CalendarPage(),
+      ),
     );
   }
 }

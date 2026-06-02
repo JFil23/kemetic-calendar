@@ -38,17 +38,9 @@ void main() {
       expect(appBar, contains('onPressed: _signingOut ? null : _signOut'));
     });
 
-    test('scroll padding clears the global bottom menu', () {
-      expect(
-        source,
-        contains("import '../../core/global_bottom_menu_metrics.dart';"),
-      );
-      expect(
-        source,
-        contains(
-          'final scrollBottomPadding = bottomPaddingAboveGlobalMenu(context, 32);',
-        ),
-      );
+    test('scroll padding does not duplicate the route bottom inset', () {
+      expect(source, isNot(contains('bottomPaddingAboveGlobalMenu')));
+      expect(source, contains('const scrollBottomPadding = 32.0;'));
 
       final scrollView = _sourceBetween(
         source,

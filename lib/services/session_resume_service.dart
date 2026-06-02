@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/widgets.dart';
+import 'package:mobile/core/global_bottom_menu_metrics.dart';
 import 'package:mobile/features/calendar/notify.dart';
 import 'package:mobile/services/restoration_coordinator.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -262,11 +263,13 @@ class SessionTrackedRoute extends StatefulWidget {
     required this.location,
     required this.child,
     this.enabled = true,
+    this.applyBottomNavInset = true,
   });
 
   final String location;
   final Widget child;
   final bool enabled;
+  final bool applyBottomNavInset;
 
   @override
   State<SessionTrackedRoute> createState() => _SessionTrackedRouteState();
@@ -299,7 +302,12 @@ class _SessionTrackedRouteState extends State<SessionTrackedRoute> {
   }
 
   @override
-  Widget build(BuildContext context) => widget.child;
+  Widget build(BuildContext context) {
+    return AppPageScaffold(
+      applyBottomNavInset: widget.applyBottomNavInset,
+      child: widget.child,
+    );
+  }
 }
 
 class SessionLifecycleBridge extends StatefulWidget {

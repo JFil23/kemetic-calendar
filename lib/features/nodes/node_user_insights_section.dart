@@ -32,6 +32,10 @@ double insightEntryEditorSheetHeight({
   return keyboardSafeHeight.clamp(180.0, media.size.height * 0.96).toDouble();
 }
 
+const nodeUserInsightsEmptyCardKey = ValueKey<String>(
+  'node-user-insights-empty-card',
+);
+
 class NodeUserInsightsSection extends StatefulWidget {
   final KemeticNode node;
 
@@ -250,6 +254,7 @@ class _NodeUserInsightsSectionState extends State<NodeUserInsightsSection> {
         const SizedBox(height: 10),
         if (_entries.isEmpty)
           Container(
+            key: nodeUserInsightsEmptyCardKey,
             width: double.infinity,
             padding: const EdgeInsets.all(14),
             decoration: BoxDecoration(

@@ -9,7 +9,6 @@ import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:mobile/services/app_haptics.dart';
 import 'package:mobile/shared/glossy_text.dart';
-import '../../core/global_bottom_menu_metrics.dart';
 import '../../data/share_models.dart';
 import '../../data/share_repo.dart';
 import '../../repositories/inbox_repo.dart';
@@ -546,10 +545,7 @@ class _InboxConversationPageState extends State<InboxConversationPage> {
                       );
                     }
 
-                    final listBottomPadding = bottomPaddingAboveGlobalMenu(
-                      context,
-                      80,
-                    );
+                    const listBottomPadding = 24.0;
 
                     return ListView.builder(
                       controller: _scrollController,
@@ -784,13 +780,10 @@ class _InboxConversationPageState extends State<InboxConversationPage> {
   }
 
   Widget _buildComposer() {
-    final keyboardInset = keyboardInsetOf(context);
-    final menuInset = keyboardInset > 0 ? 0.0 : globalBottomMenuHeight(context);
-
     return AnimatedPadding(
       duration: const Duration(milliseconds: 150),
       curve: Curves.easeOut,
-      padding: EdgeInsets.only(bottom: menuInset),
+      padding: EdgeInsets.zero,
       child: Container(
         color: const Color(0xFF000000),
         padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),

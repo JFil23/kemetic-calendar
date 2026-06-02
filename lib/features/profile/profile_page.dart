@@ -5,7 +5,6 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import 'package:mobile/core/global_bottom_menu_metrics.dart';
 import 'package:mobile/core/touch_targets.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../core/navigation_fallback.dart';
@@ -1559,7 +1558,7 @@ class _ProfilePageState extends State<ProfilePage>
     final height = MediaQuery.sizeOf(context).height;
     final heroHeight = (height * 0.54).clamp(420.0, 560.0);
     final bio = profile.bio?.trim() ?? '';
-    final bottomPadding = bottomPaddingAboveGlobalMenu(context, 32);
+    const bottomPadding = 32.0;
 
     return SingleChildScrollView(
       controller: _profileScrollController,
@@ -1618,7 +1617,7 @@ class _ProfilePageState extends State<ProfilePage>
 
   Widget _buildFeedMode() {
     final topInset = MediaQuery.paddingOf(context).top + kToolbarHeight;
-    final bottomPadding = bottomPaddingAboveGlobalMenu(context, 32);
+    const bottomPadding = 32.0;
 
     return NotificationListener<ScrollNotification>(
       onNotification: _handleFeedScrollNotification,

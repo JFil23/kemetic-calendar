@@ -353,7 +353,8 @@ void main() {
       expect(routes, isNot(contains('restorationScopeId:')));
       expect(authedApp, isNot(contains('restorationScopeId:')));
       expect(nodeRoutes, isNot(contains('enabled: false')));
-      expect(authRoot, contains("SessionTrackedRoute(location: '/'"));
+      expect(authRoot, contains("location: '/'"));
+      expect(authRoot, contains('applyBottomNavInset: false'));
       expect(routes, isNot(contains("path: '/calendar'")));
       expect(routes, isNot(contains("path: 'day/:kYear/:kMonth/:kDay'")));
       expect(routes, isNot(contains("path: 'shared-calendars'")));

@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import 'package:mobile/core/global_bottom_menu_metrics.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../core/navigation_fallback.dart';
 import '../../data/journal_repo.dart';
@@ -57,7 +56,7 @@ class _JournalEntryDetailPageState extends State<JournalEntryDetailPage> {
 
   @override
   Widget build(BuildContext context) {
-    final bodyBottomPadding = bottomPaddingAboveGlobalMenu(context, 16);
+    const bodyBottomPadding = 16.0;
 
     return Scaffold(
       backgroundColor: Colors.black,

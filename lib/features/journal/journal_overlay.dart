@@ -6,7 +6,6 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import 'package:mobile/core/daily_reflection_question.dart';
-import 'package:mobile/core/global_bottom_menu_metrics.dart';
 import 'package:go_router/go_router.dart';
 import 'package:mobile/core/touch_targets.dart';
 import 'package:mobile/shared/glossy_text.dart';
@@ -589,9 +588,6 @@ class _JournalOverlayState extends State<JournalOverlay>
     _keyboardVisible = MediaQuery.of(context).viewInsets.bottom > 0;
     final isTablet = MediaQuery.of(context).size.shortestSide >= 600;
     final isFullPage = widget.presentationMode == JournalPresentationMode.page;
-    final bottomMenuPadding = isFullPage
-        ? globalBottomMenuHeight(context)
-        : 0.0;
 
     // Show archive if requested
     if (_showingArchive) {
@@ -622,7 +618,7 @@ class _JournalOverlayState extends State<JournalOverlay>
             backgroundColor: Colors.black,
             resizeToAvoidBottomInset: true,
             body: SafeArea(
-              minimum: EdgeInsets.only(bottom: bottomMenuPadding),
+              minimum: EdgeInsets.zero,
               child: GestureDetector(
                 behavior: HitTestBehavior.translucent,
                 onTap: _dismissKeyboard,

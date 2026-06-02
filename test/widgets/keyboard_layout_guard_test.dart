@@ -26,9 +26,11 @@ void main() {
         'lib/features/calendar/calendar_flow_studio_page.dart',
       ).readAsStringSync();
 
+      expect(source, contains('final bodyPadding = EdgeInsets.fromLTRB('));
+      expect(source, contains('AppBottomInsets.contentBottomPadding(context)'));
       expect(
         source,
-        contains('const bodyPadding = EdgeInsets.fromLTRB(16, 16, 16, 24);'),
+        contains('body: ListView(\n        padding: bodyPadding,'),
       );
       expect(source, contains('resizeToAvoidBottomInset: true'));
       expect(
@@ -53,12 +55,9 @@ void main() {
         source,
         contains('KemeticKeyboardRevealScope(enabled: false, child: content)'),
       );
-      expect(
-        source,
-        contains(
-          'final listBottomPadding = bottomPaddingAboveGlobalMenu(context, 32);',
-        ),
-      );
+      expect(source, contains('final listBottomPadding = embedded'));
+      expect(source, contains('? bottomPaddingAboveGlobalMenu(context, 32)'));
+      expect(source, contains(': 32.0'));
       expect(
         source,
         contains('scrollPadding: keyboardManagedTextFieldScrollPadding'),

@@ -14,6 +14,92 @@ double globalBottomMenuHeight(BuildContext context) {
       MediaQuery.paddingOf(context).bottom;
 }
 
+class AppBottomInsets {
+  const AppBottomInsets._();
+
+  static const double pageGap = 16;
+
+  static double contentBottomPadding(
+    BuildContext context, {
+    double extraSpacing = pageGap,
+  }) {
+    return globalBottomMenuHeight(context) + extraSpacing;
+  }
+
+  static double scrollBottomPadding(BuildContext context, double basePadding) {
+    return contentBottomPadding(context, extraSpacing: basePadding);
+  }
+}
+
 double bottomPaddingAboveGlobalMenu(BuildContext context, double basePadding) {
-  return basePadding + globalBottomMenuHeight(context);
+  return AppBottomInsets.scrollBottomPadding(context, basePadding);
+}
+
+class AppPageScaffold extends StatelessWidget {
+  const AppPageScaffold({
+    super.key,
+    required this.child,
+    this.applyBottomNavInset = true,
+    this.extraSpacing = AppBottomInsets.pageGap,
+    this.disableWhenKeyboardVisible = true,
+  });
+
+  final Widget child;
+  final bool applyBottomNavInset;
+  final double extraSpacing;
+  final bool disableWhenKeyboardVisible;
+
+  @override
+  Widget build(BuildContext context) {
+    final keyboardVisible = MediaQuery.viewInsetsOf(context).bottom > 0;
+    final shouldApply =
+        applyBottomNavInset && !(disableWhenKeyboardVisible && keyboardVisible);
+    final bottomPadding = shouldApply
+        ? AppBottomInsets.contentBottomPadding(
+            context,
+            extraSpacing: extraSpacing,
+          )
+        : 0.0;
+
+    final content = shouldApply
+        ? MediaQuery.removePadding(
+            context: context,
+            removeBottom: true,
+            child: child,
+          )
+        : child;
+
+    return Padding(
+      padding: EdgeInsets.only(bottom: bottomPadding),
+      child: content,
+    );
+  }
+}
+
+class AppScrollPage extends StatelessWidget {
+  const AppScrollPage({
+    super.key,
+    required this.children,
+    this.padding = const EdgeInsets.symmetric(horizontal: 20),
+    this.applyBottomNavInset = true,
+  });
+
+  final List<Widget> children;
+  final EdgeInsets padding;
+  final bool applyBottomNavInset;
+
+  @override
+  Widget build(BuildContext context) {
+    final bottomPadding = applyBottomNavInset
+        ? AppBottomInsets.contentBottomPadding(context)
+        : 0.0;
+
+    return SingleChildScrollView(
+      padding: padding.copyWith(bottom: padding.bottom + bottomPadding),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: children,
+      ),
+    );
+  }
 }

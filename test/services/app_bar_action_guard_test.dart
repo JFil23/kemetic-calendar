@@ -492,7 +492,7 @@ void main() {
       expect(bottomBar, isNot(contains('onPointerUp')));
     });
 
-    test('inbox list reserves bottom scroll space for the menu', () async {
+    test('inbox list avoids duplicate route bottom inset', () async {
       final source = await File(
         'lib/features/inbox/inbox_page.dart',
       ).readAsString();
@@ -502,11 +502,12 @@ void main() {
         'ConversationUser _resolveOtherProfile',
       );
 
-      expect(body, contains('bottomPaddingAboveGlobalMenu(context, 16)'));
+      expect(body, contains('const listBottomPadding = 16.0;'));
       expect(
         body,
         contains('EdgeInsets.fromLTRB(16, 16, 16, listBottomPadding)'),
       );
+      expect(body, isNot(contains('bottomPaddingAboveGlobalMenu')));
       expect(body, isNot(contains('padding: const EdgeInsets.all(16)')));
     });
 
@@ -528,26 +529,12 @@ void main() {
         );
 
         expect(body, contains('bottom: false'));
-        expect(body, contains('bottomPaddingAboveGlobalMenu('));
+        expect(body, contains('const listBottomPadding = 24.0;'));
         expect(body, contains('listBottomPadding'));
-        expect(
-          composer,
-          contains('final keyboardInset = keyboardInsetOf(context);'),
-        );
-        expect(
-          composer,
-          contains(
-            'final menuInset = keyboardInset > 0 ? 0.0 : globalBottomMenuHeight(context);',
-          ),
-        );
-        expect(
-          composer,
-          contains('padding: EdgeInsets.only(bottom: menuInset)'),
-        );
-        expect(
-          composer,
-          isNot(contains('padding: EdgeInsets.only(bottom: keyboardInset)')),
-        );
+        expect(body, isNot(contains('bottomPaddingAboveGlobalMenu(')));
+        expect(composer, contains('padding: EdgeInsets.zero'));
+        expect(composer, isNot(contains('globalBottomMenuHeight(context)')));
+        expect(composer, isNot(contains('bottomPaddingAboveGlobalMenu')));
       },
     );
 
@@ -638,25 +625,31 @@ void main() {
       expect(entry, contains('fallbackLocation: widget.fallbackLocation'));
     });
 
-    test('planner and decan reflection lists reserve menu space', () async {
-      final planner = await File(
-        'lib/features/rhythm/pages/todays_alignment_page.dart',
-      ).readAsString();
-      final reflections = await File(
-        'lib/features/reflections/decan_reflection_archive_page.dart',
-      ).readAsString();
+    test(
+      'planner embedded mode keeps menu space while routed lists do not',
+      () async {
+        final planner = await File(
+          'lib/features/rhythm/pages/todays_alignment_page.dart',
+        ).readAsString();
+        final reflections = await File(
+          'lib/features/reflections/decan_reflection_archive_page.dart',
+        ).readAsString();
 
-      expect(planner, contains('bottomPaddingAboveGlobalMenu(context, 32)'));
-      expect(planner, contains('keyboardInsetOf(context)'));
-      expect(
-        reflections,
-        contains('bottomPaddingAboveGlobalMenu(context, 16)'),
-      );
-      expect(
-        reflections,
-        contains('padding: EdgeInsets.fromLTRB(0, 0, 0, listBottomPadding)'),
-      );
-    });
+        expect(planner, contains('final listBottomPadding = embedded'));
+        expect(
+          planner,
+          contains('? bottomPaddingAboveGlobalMenu(context, 32)'),
+        );
+        expect(planner, contains(': 32.0'));
+        expect(planner, contains('keyboardInsetOf(context)'));
+        expect(reflections, contains('const listBottomPadding = 16.0;'));
+        expect(reflections, isNot(contains('bottomPaddingAboveGlobalMenu')));
+        expect(
+          reflections,
+          contains('padding: EdgeInsets.fromLTRB(0, 0, 0, listBottomPadding)'),
+        );
+      },
+    );
 
     test('expired sessions refresh before restored pages load data', () async {
       final source = await File('lib/main.dart').readAsString();

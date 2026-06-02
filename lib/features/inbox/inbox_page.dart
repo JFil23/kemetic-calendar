@@ -4,7 +4,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import '../../core/global_bottom_menu_metrics.dart';
 import '../../core/navigation_fallback.dart';
 import '../../core/push_intent_bus.dart';
 import '../../data/share_models.dart';
@@ -410,7 +409,7 @@ class _InboxPageState extends State<InboxPage> {
   }
 
   Widget _buildBody() {
-    final listBottomPadding = bottomPaddingAboveGlobalMenu(context, 16);
+    const listBottomPadding = 16.0;
 
     return RefreshIndicator(
       onRefresh: _handleRefresh,

@@ -6,7 +6,6 @@ import 'dart:convert';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import 'package:mobile/core/global_bottom_menu_metrics.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../data/insight_link_model.dart';
@@ -419,7 +418,7 @@ class _JournalArchivePageState extends State<JournalArchivePage> {
   }
 
   Widget _buildEntryList() {
-    final listBottomPadding = bottomPaddingAboveGlobalMenu(context, 16);
+    const listBottomPadding = 16.0;
 
     if (_loading) {
       return const Center(
@@ -564,9 +563,7 @@ class _JournalArchivePageState extends State<JournalArchivePage> {
     final header = _formatArchiveDate(date);
     final entryDoc = _entryToDocument(entry);
     final keyboardVisible = keyboardInsetOf(context) > 0;
-    final contentBottomPadding = keyboardVisible
-        ? 16.0
-        : bottomPaddingAboveGlobalMenu(context, 16);
+    const contentBottomPadding = 16.0;
 
     return Column(
       children: [

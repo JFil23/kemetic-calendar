@@ -234,7 +234,12 @@ class _MaatFlowsListPageState extends State<_MaatFlowsListPage> {
               ),
             )
           : ListView.separated(
-              padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
+              padding: EdgeInsets.fromLTRB(
+                16,
+                12,
+                16,
+                AppBottomInsets.contentBottomPadding(context),
+              ),
               itemCount: widget.templates.length,
               separatorBuilder: (_, _) =>
                   const Divider(height: 12, color: Colors.white10),
@@ -631,7 +636,12 @@ class _FirstMaatFlowOnboardingSheetState
                 ),
                 Expanded(
                   child: ListView(
-                    padding: const EdgeInsets.fromLTRB(18, 0, 18, 24),
+                    padding: EdgeInsets.fromLTRB(
+                      18,
+                      0,
+                      18,
+                      AppBottomInsets.contentBottomPadding(context),
+                    ),
                     children: [
                       Text(
                         'Ma’at is the living order of balance, truth, rhythm, and right action. Connect to the spirit of Ma’at by adding your first flow.',
@@ -929,7 +939,6 @@ class _MaatFlowTemplateDetailPageState
     BuildContext context, {
     required String debugLabel,
   }) {
-    final media = MediaQuery.of(context);
     return Scaffold(
       backgroundColor: _bg,
       appBar: AppBar(
@@ -938,8 +947,14 @@ class _MaatFlowTemplateDetailPageState
         title: _buildDateModeTitle(title: widget.template.title),
       ),
       body: SafeArea(
+        bottom: false,
         child: ListView(
-          padding: EdgeInsets.fromLTRB(16, 16, 16, 24 + media.padding.bottom),
+          padding: EdgeInsets.fromLTRB(
+            16,
+            16,
+            16,
+            AppBottomInsets.contentBottomPadding(context),
+          ),
           children: [
             _buildDateModeTitle(title: widget.template.title),
             const SizedBox(height: 12),
@@ -3622,7 +3637,10 @@ class _MaatFlowTemplateDetailPageState
   Widget _buildTrackSkyScaffold(BuildContext context) {
     final media = MediaQuery.of(context);
     final buttonWidth = math.min(media.size.width - 32, 280.0);
-    final ctaBottom = media.padding.bottom + 12;
+    final ctaBottom = AppBottomInsets.contentBottomPadding(
+      context,
+      extraSpacing: 12,
+    );
     return Scaffold(
       backgroundColor: _bg,
       appBar: AppBar(
@@ -3820,7 +3838,10 @@ class _MaatFlowTemplateDetailPageState
   Widget _buildDawnHouseRiteScaffold(BuildContext context) {
     final media = MediaQuery.of(context);
     final buttonWidth = math.min(media.size.width - 32, 280.0);
-    final ctaBottom = media.padding.bottom + 12;
+    final ctaBottom = AppBottomInsets.contentBottomPadding(
+      context,
+      extraSpacing: 12,
+    );
     final l10n = MaterialLocalizations.of(context);
     final selectedStart =
         _picked ?? defaultDawnHouseRiteStartDate(_previewTrackSkyTimeZone);
@@ -4069,7 +4090,10 @@ class _MaatFlowTemplateDetailPageState
   Widget _buildEveningThresholdRiteScaffold(BuildContext context) {
     final media = MediaQuery.of(context);
     final buttonWidth = math.min(media.size.width - 32, 280.0);
-    final ctaBottom = media.padding.bottom + 12;
+    final ctaBottom = AppBottomInsets.contentBottomPadding(
+      context,
+      extraSpacing: 12,
+    );
     final l10n = MaterialLocalizations.of(context);
     final selectedStart =
         _picked ??
@@ -4349,7 +4373,10 @@ class _MaatFlowTemplateDetailPageState
   Widget _buildTheWeighingScaffold(BuildContext context) {
     final media = MediaQuery.of(context);
     final buttonWidth = math.min(media.size.width - 32, 280.0);
-    final ctaBottom = media.padding.bottom + 12;
+    final ctaBottom = AppBottomInsets.contentBottomPadding(
+      context,
+      extraSpacing: 12,
+    );
     final l10n = MaterialLocalizations.of(context);
     final selectedStart =
         _picked ?? defaultTheWeighingStartDate(_previewTrackSkyTimeZone);
@@ -4610,7 +4637,10 @@ class _MaatFlowTemplateDetailPageState
   Widget _buildTheTendingScaffold(BuildContext context) {
     final media = MediaQuery.of(context);
     final buttonWidth = math.min(media.size.width - 32, 280.0);
-    final ctaBottom = media.padding.bottom + 12;
+    final ctaBottom = AppBottomInsets.contentBottomPadding(
+      context,
+      extraSpacing: 12,
+    );
     final l10n = MaterialLocalizations.of(context);
     final selectedStart =
         _picked ?? defaultTheTendingStartDate(_previewTrackSkyTimeZone);
@@ -4883,7 +4913,10 @@ class _MaatFlowTemplateDetailPageState
   Widget _buildKeptWordScaffold(BuildContext context) {
     final media = MediaQuery.of(context);
     final buttonWidth = math.min(media.size.width - 32, 280.0);
-    final ctaBottom = media.padding.bottom + 12;
+    final ctaBottom = AppBottomInsets.contentBottomPadding(
+      context,
+      extraSpacing: 12,
+    );
     final l10n = MaterialLocalizations.of(context);
     final selectedStart =
         _picked ?? defaultKeptWordStartDate(_previewTrackSkyTimeZone);
@@ -5274,7 +5307,10 @@ class _MaatFlowTemplateDetailPageState
   Widget _buildWagScaffold(BuildContext context) {
     final media = MediaQuery.of(context);
     final buttonWidth = math.min(media.size.width - 32, 280.0);
-    final ctaBottom = media.padding.bottom + 12;
+    final ctaBottom = AppBottomInsets.contentBottomPadding(
+      context,
+      extraSpacing: 12,
+    );
     final WagEnrollmentWindow? window = _resolveWagPreviewWindow();
     if (window == null) {
       return _buildEnrollmentUnavailableScaffold(context, debugLabel: 'theWag');
@@ -5508,7 +5544,10 @@ class _MaatFlowTemplateDetailPageState
   Widget _buildDecanWatchScaffold(BuildContext context) {
     final media = MediaQuery.of(context);
     final buttonWidth = math.min(media.size.width - 32, 280.0);
-    final ctaBottom = media.padding.bottom + 12;
+    final ctaBottom = AppBottomInsets.contentBottomPadding(
+      context,
+      extraSpacing: 12,
+    );
     final DecanWatchEnrollmentWindow? window =
         _resolveDecanWatchPreviewWindow();
     if (window == null) {
@@ -5863,7 +5902,10 @@ class _MaatFlowTemplateDetailPageState
     }
     final media = MediaQuery.of(context);
     final buttonWidth = math.min(media.size.width - 32, 280.0);
-    final ctaBottom = media.padding.bottom + 12;
+    final ctaBottom = AppBottomInsets.contentBottomPadding(
+      context,
+      extraSpacing: 12,
+    );
     final DecanWatchEnrollmentWindow? window = _resolveMaatDecanPreviewWindow();
     if (window == null) {
       return _buildEnrollmentUnavailableScaffold(
@@ -6037,7 +6079,10 @@ class _MaatFlowTemplateDetailPageState
   Widget _buildOpenHandScaffold(BuildContext context) {
     final media = MediaQuery.of(context);
     final buttonWidth = math.min(media.size.width - 32, 280.0);
-    final ctaBottom = media.padding.bottom + 12;
+    final ctaBottom = AppBottomInsets.contentBottomPadding(
+      context,
+      extraSpacing: 12,
+    );
     final OpenHandEnrollmentWindow? window = _resolveOpenHandPreviewWindow();
     if (window == null) {
       return _buildEnrollmentUnavailableScaffold(
@@ -6304,7 +6349,10 @@ class _MaatFlowTemplateDetailPageState
   Widget _buildDjedScaffold(BuildContext context) {
     final media = MediaQuery.of(context);
     final buttonWidth = math.min(media.size.width - 32, 280.0);
-    final ctaBottom = media.padding.bottom + 12;
+    final ctaBottom = AppBottomInsets.contentBottomPadding(
+      context,
+      extraSpacing: 12,
+    );
     final DjedEnrollmentWindow? window = _resolveDjedPreviewWindow();
     if (window == null) {
       return _buildEnrollmentUnavailableScaffold(context, debugLabel: 'djed');
@@ -6599,7 +6647,10 @@ class _MaatFlowTemplateDetailPageState
   Widget _buildDaysOutsideYearScaffold(BuildContext context) {
     final media = MediaQuery.of(context);
     final buttonWidth = math.min(media.size.width - 32, 320.0);
-    final ctaBottom = media.padding.bottom + 12;
+    final ctaBottom = AppBottomInsets.contentBottomPadding(
+      context,
+      extraSpacing: 12,
+    );
     final DaysOutsideYearEnrollmentWindow? window =
         _resolveDaysOutsideYearPreviewWindow();
     if (window == null) {
@@ -6814,7 +6865,10 @@ class _MaatFlowTemplateDetailPageState
   Widget _buildMoonReturnScaffold(BuildContext context) {
     final media = MediaQuery.of(context);
     final buttonWidth = math.min(media.size.width - 32, 280.0);
-    final ctaBottom = media.padding.bottom + 12;
+    final ctaBottom = AppBottomInsets.contentBottomPadding(
+      context,
+      extraSpacing: 12,
+    );
     final l10n = MaterialLocalizations.of(context);
     final MoonReturnEnrollmentWindow? window =
         _resolveMoonReturnPreviewWindow();
@@ -7058,7 +7112,10 @@ class _MaatFlowTemplateDetailPageState
   Widget _buildCourseScaffold(BuildContext context) {
     final media = MediaQuery.of(context);
     final buttonWidth = math.min(media.size.width - 32, 280.0);
-    final ctaBottom = media.padding.bottom + 12;
+    final ctaBottom = AppBottomInsets.contentBottomPadding(
+      context,
+      extraSpacing: 12,
+    );
     final l10n = MaterialLocalizations.of(context);
     final selectedStart =
         _picked ?? defaultTheCourseStartDate(_previewTrackSkyTimeZone);
@@ -7351,7 +7408,10 @@ class _MaatFlowTemplateDetailPageState
   Widget _buildOfferingTableScaffold(BuildContext context) {
     final media = MediaQuery.of(context);
     final buttonWidth = math.min(media.size.width - 32, 280.0);
-    final ctaBottom = media.padding.bottom + 12;
+    final ctaBottom = AppBottomInsets.contentBottomPadding(
+      context,
+      extraSpacing: 12,
+    );
     final l10n = MaterialLocalizations.of(context);
     final selectedStart =
         _picked ?? defaultOfferingTableStartDate(_previewTrackSkyTimeZone);
@@ -7626,7 +7686,12 @@ class _MaatFlowTemplateDetailPageState
         title: _buildDateModeTitle(title: widget.template.title),
       ),
       body: ListView(
-        padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
+        padding: EdgeInsets.fromLTRB(
+          16,
+          16,
+          16,
+          AppBottomInsets.contentBottomPadding(context),
+        ),
         children: [
           _buildDateModeTitle(title: widget.template.title),
           const SizedBox(height: 8),

@@ -7,7 +7,6 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:mobile/shared/glossy_text.dart';
 
-import '../../core/global_bottom_menu_metrics.dart';
 import '../../core/navigation_fallback.dart';
 import '../../main.dart' show Events;
 import '../../services/calendar_sync_service.dart';
@@ -1489,7 +1488,7 @@ class _SettingsPageState extends State<SettingsPage> {
     final pushDiagnosticLines = _pushDiagnosticLines();
     final pushReceiptLines = _pushTestReceiptLines();
     final speechStatusLines = _speechStatusLines();
-    final scrollBottomPadding = bottomPaddingAboveGlobalMenu(context, 32);
+    const scrollBottomPadding = 32.0;
 
     return Scaffold(
       backgroundColor: Colors.black,
