@@ -37,6 +37,7 @@ class _FlowPostDetailPageState extends State<FlowPostDetailPage> {
   late int _activeIndex;
   bool _saving = false;
   bool _removing = false;
+  bool _safetyActionRunning = false;
 
   FlowPost get _activePost => _posts[_activeIndex];
   bool get _showsPager => _posts.length > 1;
@@ -159,7 +160,13 @@ class _FlowPostDetailPageState extends State<FlowPostDetailPage> {
                     width: double.infinity,
                     child: widget.isOwner
                         ? _buildRemoveButton()
-                        : _buildSaveButton(),
+                        : Row(
+                            children: [
+                              Expanded(child: _buildSaveButton()),
+                              const SizedBox(width: 8),
+                              _buildSafetyMenu(),
+                            ],
+                          ),
                   ),
                 ],
               ),
@@ -213,6 +220,35 @@ class _FlowPostDetailPageState extends State<FlowPostDetailPage> {
     );
   }
 
+  Widget _buildSafetyMenu() {
+    return PopupMenuButton<_FlowPostSafetyAction>(
+      enabled: !_safetyActionRunning,
+      tooltip: 'Post options',
+      icon: const Icon(Icons.more_vert, color: Colors.white70),
+      color: const Color(0xFF151515),
+      onSelected: (action) {
+        switch (action) {
+          case _FlowPostSafetyAction.report:
+            _reportPost();
+            break;
+          case _FlowPostSafetyAction.block:
+            _confirmBlockAuthor();
+            break;
+        }
+      },
+      itemBuilder: (context) => const [
+        PopupMenuItem(
+          value: _FlowPostSafetyAction.report,
+          child: Text('Report post'),
+        ),
+        PopupMenuItem(
+          value: _FlowPostSafetyAction.block,
+          child: Text('Block user'),
+        ),
+      ],
+    );
+  }
+
   Future<void> _save() async {
     setState(() => _saving = true);
     final flowId = await _repo.saveFlowPostToMyFlows(_activePost);
@@ -255,4 +291,75 @@ class _FlowPostDetailPageState extends State<FlowPostDetailPage> {
       result: true,
     );
   }
+
+  Future<void> _reportPost() async {
+    setState(() => _safetyActionRunning = true);
+    final ok = await _repo.reportContent(
+      contentType: 'flow_post',
+      contentId: _activePost.id,
+      reportedUserId: _activePost.userId,
+      reason: 'user_report',
+    );
+    if (!mounted) return;
+    setState(() => _safetyActionRunning = false);
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          ok
+              ? 'Report sent.'
+              : 'Could not send report. Please contact support.',
+        ),
+        backgroundColor: ok ? KemeticGold.base : Colors.red,
+      ),
+    );
+  }
+
+  Future<void> _confirmBlockAuthor() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: const Color(0xFF0D0D0F),
+        title: const Text('Block user?', style: TextStyle(color: Colors.white)),
+        content: const Text(
+          'Their posts and comments will be hidden from your refreshed feeds.',
+          style: TextStyle(color: Colors.white70),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            style: TextButton.styleFrom(foregroundColor: Colors.redAccent),
+            child: const Text('Block user'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+    await _blockAuthor();
+  }
+
+  Future<void> _blockAuthor() async {
+    setState(() => _safetyActionRunning = true);
+    final ok = await _repo.blockUser(_activePost.userId);
+    if (!mounted) return;
+    setState(() => _safetyActionRunning = false);
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          ok
+              ? 'User blocked.'
+              : 'Could not block user. Please contact support.',
+        ),
+        backgroundColor: ok ? KemeticGold.base : Colors.red,
+      ),
+    );
+    if (ok) {
+      popOrGo(context, '/profile/me');
+    }
+  }
 }
+
+enum _FlowPostSafetyAction { report, block }

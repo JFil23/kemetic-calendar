@@ -177,6 +177,7 @@ class _ProfilePageState extends State<ProfilePage>
   bool _cacheHydrating = true;
   bool _isFollowing = false;
   bool _followUpdating = false;
+  bool _profileSafetyUpdating = false;
   List<FlowPost> _posts = const [];
   List<InsightPost> _insightPosts = const [];
   List<ProfileFeedItem> _feedItems = const [];
@@ -1288,6 +1289,77 @@ class _ProfilePageState extends State<ProfilePage>
     }
   }
 
+  Future<void> _reportProfile() async {
+    if (_profileSafetyUpdating || _isViewingOwnProfile) return;
+    setState(() => _profileSafetyUpdating = true);
+    final ok = await _repo.reportContent(
+      contentType: 'profile',
+      contentId: widget.userId,
+      reportedUserId: widget.userId,
+      reason: 'user_report',
+    );
+    if (!mounted) return;
+    setState(() => _profileSafetyUpdating = false);
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          ok
+              ? 'Report sent.'
+              : 'Could not send report. Please contact support.',
+        ),
+        backgroundColor: ok ? _profileGoldBase : Colors.red,
+      ),
+    );
+  }
+
+  Future<void> _confirmBlockProfile() async {
+    if (_profileSafetyUpdating || _isViewingOwnProfile) return;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: const Color(0xFF0D0D0F),
+        title: const Text('Block user?', style: TextStyle(color: Colors.white)),
+        content: const Text(
+          'Their posts and comments will be hidden from your refreshed feeds.',
+          style: TextStyle(color: Colors.white70),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            style: TextButton.styleFrom(foregroundColor: Colors.redAccent),
+            child: const Text('Block user'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+    await _blockProfile();
+  }
+
+  Future<void> _blockProfile() async {
+    setState(() => _profileSafetyUpdating = true);
+    final ok = await _repo.blockUser(widget.userId);
+    if (!mounted) return;
+    setState(() => _profileSafetyUpdating = false);
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          ok
+              ? 'User blocked.'
+              : 'Could not block user. Please contact support.',
+        ),
+        backgroundColor: ok ? _profileGoldBase : Colors.red,
+      ),
+    );
+    if (ok) {
+      context.go('/profile/me');
+    }
+  }
+
   Future<void> _openCalendarQuickAdd() async {
     await CalendarPage.openQuickAddFromAnyContext(context);
   }
@@ -1889,6 +1961,76 @@ class _ProfilePageState extends State<ProfilePage>
     );
   }
 
+  Widget _buildProfileSafetyMenu() {
+    return SizedBox(
+      width: 46,
+      height: useExpandedTouchTargets(context) ? kMinInteractiveDimension : 40,
+      child: OutlinedButton(
+        onPressed: _profileSafetyUpdating
+            ? null
+            : () {
+                showModalBottomSheet<void>(
+                  context: context,
+                  backgroundColor: const Color(0xFF0D0D0F),
+                  builder: (context) => SafeArea(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        ListTile(
+                          leading: const Icon(
+                            Icons.flag_outlined,
+                            color: Colors.white70,
+                          ),
+                          title: const Text(
+                            'Report user',
+                            style: TextStyle(color: Colors.white),
+                          ),
+                          onTap: () {
+                            Navigator.of(context).pop();
+                            _reportProfile();
+                          },
+                        ),
+                        ListTile(
+                          leading: const Icon(
+                            Icons.block,
+                            color: Colors.redAccent,
+                          ),
+                          title: const Text(
+                            'Block user',
+                            style: TextStyle(color: Colors.redAccent),
+                          ),
+                          onTap: () {
+                            Navigator.of(context).pop();
+                            _confirmBlockProfile();
+                          },
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              },
+        style: OutlinedButton.styleFrom(
+          foregroundColor: _profileGoldText,
+          side: BorderSide(color: _profileGoldMid.withValues(alpha: 0.42)),
+          padding: EdgeInsets.zero,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(999),
+          ),
+        ),
+        child: _profileSafetyUpdating
+            ? const SizedBox(
+                width: 16,
+                height: 16,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  valueColor: AlwaysStoppedAnimation<Color>(_profileGoldText),
+                ),
+              )
+            : _profileGoldIcon(Icons.more_horiz_rounded, size: 20),
+      ),
+    );
+  }
+
   Widget _buildEditButton() {
     return _buildActionButton(
       label: 'Edit Profile',
@@ -1939,7 +2081,7 @@ class _ProfilePageState extends State<ProfilePage>
             _buildPostFlowButton(),
             _buildPostInsightButton(),
           ]
-        : <Widget>[_buildFollowButton()];
+        : <Widget>[_buildFollowButton(), _buildProfileSafetyMenu()];
 
     return Wrap(
       alignment: WrapAlignment.center,

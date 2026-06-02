@@ -639,6 +639,7 @@ class _FlowPostCommentsSheetState extends State<_FlowPostCommentsSheet> {
   final FocusNode _commentFocusNode = FocusNode();
   final Set<String> _commentLikeUpdatingIds = <String>{};
   final Set<String> _commentDeleteUpdatingIds = <String>{};
+  final Set<String> _commentSafetyUpdatingIds = <String>{};
 
   bool _commentsLoading = true;
   bool _commentSubmitting = false;
@@ -962,6 +963,98 @@ class _FlowPostCommentsSheetState extends State<_FlowPostCommentsSheet> {
     }
   }
 
+  Future<void> _reportComment(FlowPostComment comment) async {
+    if (_commentSafetyUpdatingIds.contains(comment.id)) return;
+    final userId = _currentUserId;
+    if (userId == null) {
+      _showAuthError();
+      return;
+    }
+
+    setState(() => _commentSafetyUpdatingIds.add(comment.id));
+    final ok = await widget.repo.reportContent(
+      contentType: 'flow_post_comment',
+      contentId: comment.id,
+      reportedUserId: comment.userId,
+      reason: 'user_report',
+    );
+    if (!mounted) return;
+    setState(() => _commentSafetyUpdatingIds.remove(comment.id));
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          ok
+              ? 'Report sent.'
+              : 'Could not send report. Please contact support.',
+        ),
+        backgroundColor: ok ? KemeticGold.base : Colors.red,
+      ),
+    );
+  }
+
+  Future<void> _confirmBlockCommentUser(FlowPostComment comment) async {
+    if (_commentSafetyUpdatingIds.contains(comment.id)) return;
+    final userId = _currentUserId;
+    if (userId == null) {
+      _showAuthError();
+      return;
+    }
+    if (comment.userId == userId) return;
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: const Color(0xFF0D0D0F),
+        title: const Text('Block user?', style: TextStyle(color: Colors.white)),
+        content: const Text(
+          'Their posts and comments will be hidden from your refreshed feeds.',
+          style: TextStyle(color: Colors.white70),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            style: TextButton.styleFrom(foregroundColor: Colors.redAccent),
+            child: const Text('Block user'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+    await _blockCommentUser(comment);
+  }
+
+  Future<void> _blockCommentUser(FlowPostComment comment) async {
+    setState(() => _commentSafetyUpdatingIds.add(comment.id));
+    final ok = await widget.repo.blockUser(comment.userId);
+    if (!mounted) return;
+    setState(() {
+      _commentSafetyUpdatingIds.remove(comment.id);
+      if (ok) {
+        _comments = _comments
+            .where((entry) => entry.userId != comment.userId)
+            .toList(growable: false);
+        if (_replyingToCommentId != null &&
+            _findCommentById(_replyingToCommentId) == null) {
+          _replyingToCommentId = null;
+        }
+      }
+    });
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          ok
+              ? 'User blocked.'
+              : 'Could not block user. Please contact support.',
+        ),
+        backgroundColor: ok ? KemeticGold.base : Colors.red,
+      ),
+    );
+  }
+
   void _beginReplyTo(FlowPostComment comment) {
     setState(() {
       _replyingToCommentId = comment.id;
@@ -1095,6 +1188,7 @@ class _FlowPostCommentsSheetState extends State<_FlowPostCommentsSheet> {
     final parent = _findCommentById(comment.parentCommentId);
     final updatingLike = _commentLikeUpdatingIds.contains(comment.id);
     final deleting = _commentDeleteUpdatingIds.contains(comment.id);
+    final safetyUpdating = _commentSafetyUpdatingIds.contains(comment.id);
     final canDelete = comment.userId == _currentUserId;
     final authorLabel = comment.displayName ?? comment.handle ?? 'User';
     final parentLabel = parent?.displayName ?? parent?.handle ?? 'User';
@@ -1171,6 +1265,39 @@ class _FlowPostCommentsSheetState extends State<_FlowPostCommentsSheet> {
                         fontSize: 12,
                       ),
                     ),
+                    if (!canDelete && _currentUserId != null) ...[
+                      const SizedBox(width: 2),
+                      PopupMenuButton<_CommentSafetyAction>(
+                        enabled: !deleting && !safetyUpdating,
+                        tooltip: 'Comment options',
+                        icon: Icon(
+                          Icons.more_vert,
+                          size: 18,
+                          color: Colors.white.withValues(alpha: 0.62),
+                        ),
+                        color: const Color(0xFF151515),
+                        onSelected: (action) {
+                          switch (action) {
+                            case _CommentSafetyAction.report:
+                              _reportComment(comment);
+                              break;
+                            case _CommentSafetyAction.block:
+                              _confirmBlockCommentUser(comment);
+                              break;
+                          }
+                        },
+                        itemBuilder: (context) => const [
+                          PopupMenuItem(
+                            value: _CommentSafetyAction.report,
+                            child: Text('Report comment'),
+                          ),
+                          PopupMenuItem(
+                            value: _CommentSafetyAction.block,
+                            child: Text('Block user'),
+                          ),
+                        ],
+                      ),
+                    ],
                   ],
                 ),
                 const SizedBox(height: 4),
@@ -1430,6 +1557,8 @@ class _FlowPostCommentsSheetState extends State<_FlowPostCommentsSheet> {
     _showErrorSnackBar(context, message);
   }
 }
+
+enum _CommentSafetyAction { report, block }
 
 String _formatCommentDate(DateTime dt) {
   final local = dt.toLocal();

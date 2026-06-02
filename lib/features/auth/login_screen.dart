@@ -5,12 +5,17 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../shared/glossy_text.dart';
+import '../../utils/external_link_utils.dart';
 
 const String emailConfirmationRequiredMessage =
     'Check your email to confirm your account, then sign in.';
 const String passwordResetEmailSentMessage =
-    'Check your email for a password reset link.';
-const String passwordUpdatedMessage = 'Password updated.';
+    'Check your email for a password reset link. Open the link from this device to set a new password.';
+const String passwordUpdatedMessage =
+    'Password updated. You can now sign in with your new password.';
+const String termsUrl = 'https://maat.app/terms';
+const String privacyPolicyUrl = 'https://maat.app/privacy';
+const String nativeAuthRedirectUrl = 'kemet.app://login-callback';
 
 abstract class EmailAuthClient {
   Future<EmailAuthResult> createAccount({
@@ -48,7 +53,7 @@ class SupabaseEmailAuthClient implements EmailAuthClient {
         .signUp(
           email: email,
           password: password,
-          emailRedirectTo: _authRedirectTo(),
+          emailRedirectTo: authRedirectTo(),
         )
         .timeout(_requestTimeout);
     return EmailAuthResult(hasSession: response.session != null);
@@ -68,7 +73,7 @@ class SupabaseEmailAuthClient implements EmailAuthClient {
   @override
   Future<void> sendPasswordResetEmail({required String email}) async {
     await Supabase.instance.client.auth
-        .resetPasswordForEmail(email, redirectTo: _authRedirectTo())
+        .resetPasswordForEmail(email, redirectTo: authRedirectTo())
         .timeout(_requestTimeout);
   }
 
@@ -80,14 +85,14 @@ class SupabaseEmailAuthClient implements EmailAuthClient {
   }
 }
 
-String _authRedirectTo() {
+String authRedirectTo() {
   if (kIsWeb) {
     return Uri.base
         .removeFragment()
         .replace(queryParameters: const {})
         .toString();
   }
-  return 'kemet.app://login-callback';
+  return nativeAuthRedirectUrl;
 }
 
 @visibleForTesting
@@ -344,6 +349,45 @@ class _LoginScreenState extends State<LoginScreen> {
     }
   }
 
+  Future<void> _openLegalLink(String target) async {
+    final opened = await launchExternalTarget(target, fallbackToMaps: false);
+    if (!mounted || opened) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: const Text('Could not open this link on this device.'),
+        backgroundColor: Colors.red.shade700,
+      ),
+    );
+  }
+
+  Widget _signupLegalSentence() {
+    const textStyle = TextStyle(color: Colors.white60, fontSize: 12);
+    return Semantics(
+      label:
+          'By creating an account, you agree to the Terms and acknowledge the Privacy Policy.',
+      child: Wrap(
+        alignment: WrapAlignment.center,
+        crossAxisAlignment: WrapCrossAlignment.center,
+        children: [
+          const Text(
+            'By creating an account, you agree to the ',
+            style: textStyle,
+          ),
+          _InlineLegalLink(
+            label: 'Terms',
+            onPressed: _busy ? null : () => _openLegalLink(termsUrl),
+          ),
+          const Text(' and acknowledge the ', style: textStyle),
+          _InlineLegalLink(
+            label: 'Privacy Policy',
+            onPressed: _busy ? null : () => _openLegalLink(privacyPolicyUrl),
+          ),
+          const Text('.', style: textStyle),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final textTheme = Theme.of(context).textTheme;
@@ -433,6 +477,10 @@ class _LoginScreenState extends State<LoginScreen> {
                               ),
                             ),
                           ),
+                          if (_creatingAccount) ...[
+                            const SizedBox(height: 8),
+                            _signupLegalSentence(),
+                          ],
                           SizedBox(
                             width: double.infinity,
                             child: TextButton(
@@ -516,6 +564,29 @@ class _LoginScreenState extends State<LoginScreen> {
           },
         ),
       ),
+    );
+  }
+}
+
+class _InlineLegalLink extends StatelessWidget {
+  const _InlineLegalLink({required this.label, required this.onPressed});
+
+  final String label;
+  final VoidCallback? onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    return TextButton(
+      key: ValueKey('signup_${label.toLowerCase().replaceAll(' ', '_')}_link'),
+      onPressed: onPressed,
+      style: TextButton.styleFrom(
+        foregroundColor: KemeticGold.base,
+        padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 2),
+        minimumSize: Size.zero,
+        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+        textStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
+      ),
+      child: Text(label),
     );
   }
 }

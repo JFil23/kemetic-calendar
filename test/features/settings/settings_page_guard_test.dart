@@ -64,6 +64,44 @@ void main() {
         isNot(contains('EdgeInsets.fromLTRB(16, 12, 16, 24)')),
       );
     });
+
+    test('legal support visibility and account rows stay in compact footer', () {
+      expect(
+        source,
+        contains("static const String _termsUrl = 'https://maat.app/terms';"),
+      );
+      expect(
+        source,
+        contains(
+          "static const String _privacyPolicyUrl = 'https://maat.app/privacy';",
+        ),
+      );
+      expect(
+        source,
+        contains(
+          "static const String _supportUrl = 'https://maat.app/support';",
+        ),
+      );
+      expect(source, contains("_footerHeading('Legal & Support')"));
+      expect(source, contains("_footerHeading('Danger Zone')"));
+      expect(source, contains("title: 'Terms'"));
+      expect(source, contains("title: 'Privacy'"));
+      expect(source, contains("title: 'Support'"));
+      expect(source, contains("title: _deletingAccount"));
+      expect(source, contains("? 'Deleting account...'"));
+      expect(source, contains(": 'Delete account'"));
+      expect(
+        source,
+        contains("title: _signingOut ? 'Signing out...' : 'Sign out'"),
+      );
+      expect(source, contains('Privacy & visibility'));
+      expect(
+        source,
+        contains(
+          'Your private journal, calendar, and personal flow activity are private by default.',
+        ),
+      );
+    });
   });
 }
 

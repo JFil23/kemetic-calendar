@@ -87,6 +87,14 @@ import 'utils/web_history.dart'
 // ---- Supabase configuration via --dart-define ----
 const supabaseUrlEnv = String.fromEnvironment('SUPABASE_URL');
 const supabaseAnonKeyEnv = String.fromEnvironment('SUPABASE_ANON_KEY');
+const appEnvironmentEnv = String.fromEnvironment(
+  'APP_ENV',
+  defaultValue: 'dev',
+);
+const appSiteUrlEnv = String.fromEnvironment(
+  'APP_SITE_URL',
+  defaultValue: 'https://maat.app',
+);
 
 // Silences console output in release/profile builds to keep store reviews clean
 final ZoneSpecification _releasePrintSilencer = ZoneSpecification(
@@ -135,6 +143,127 @@ Future<({String url, String anonKey})> _loadSupabaseConfig() async {
   }
 
   return (url: url, anonKey: anonKey);
+}
+
+List<String> _runtimeConfigErrors(({String url, String anonKey}) config) {
+  final errors = <String>[];
+  final url = config.url.trim();
+  final anonKey = config.anonKey.trim();
+  final envName = appEnvironmentEnv.trim().toLowerCase();
+  final siteUrl = appSiteUrlEnv.trim();
+  final nativeRedirect = Uri.tryParse(nativeAuthRedirectUrl);
+
+  if (url.isEmpty) {
+    errors.add('SUPABASE_URL is missing.');
+  } else {
+    final parsed = Uri.tryParse(url);
+    final lowerUrl = url.toLowerCase();
+    if (parsed == null ||
+        parsed.scheme != 'https' ||
+        !parsed.host.endsWith('.supabase.co') ||
+        _looksLikePlaceholder(lowerUrl)) {
+      errors.add('SUPABASE_URL must be a real https://*.supabase.co URL.');
+    }
+  }
+
+  final lowerAnon = anonKey.toLowerCase();
+  if (anonKey.length <= 20) {
+    errors.add('SUPABASE_ANON_KEY is missing or too short.');
+  } else if (_looksLikePlaceholder(lowerAnon)) {
+    errors.add('SUPABASE_ANON_KEY still looks like a placeholder.');
+  } else if (lowerAnon.contains('service_role') ||
+      lowerAnon.contains('service-role')) {
+    errors.add('SUPABASE_ANON_KEY must not be a service role key.');
+  }
+
+  if (envName.isEmpty) {
+    errors.add('APP_ENV is missing.');
+  } else if (!const {'dev', 'staging', 'prod'}.contains(envName)) {
+    errors.add('APP_ENV must be one of dev, staging, or prod.');
+  }
+
+  if ((kReleaseMode || kProfileMode) && envName == 'dev') {
+    errors.add('Release/profile builds must set APP_ENV to staging or prod.');
+  }
+
+  final site = Uri.tryParse(siteUrl);
+  if (siteUrl.isEmpty ||
+      site == null ||
+      site.scheme != 'https' ||
+      site.host.isEmpty ||
+      _looksLikePlaceholder(siteUrl.toLowerCase())) {
+    errors.add('APP_SITE_URL must be a real https URL.');
+  }
+
+  if (nativeRedirect == null ||
+      nativeRedirect.scheme != 'kemet.app' ||
+      nativeRedirect.host != 'login-callback') {
+    errors.add('Native auth redirect must remain kemet.app://login-callback.');
+  }
+
+  return errors;
+}
+
+bool _looksLikePlaceholder(String value) {
+  return value.contains('your-') ||
+      value.contains('your_') ||
+      value.contains('your_project') ||
+      value.contains('placeholder') ||
+      value.contains('example') ||
+      value.contains('change-me');
+}
+
+Widget _runtimeConfigErrorApp(List<String> errors) {
+  final visibleErrors = kDebugMode
+      ? errors
+      : const <String>['Production app configuration is incomplete.'];
+  return MaterialApp(
+    debugShowCheckedModeBanner: false,
+    home: Scaffold(
+      backgroundColor: Colors.black,
+      body: SafeArea(
+        child: Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 520),
+            child: Padding(
+              padding: const EdgeInsets.all(24),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Missing App Configuration',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 22,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  const Text(
+                    'The app cannot start until required public runtime config is provided.',
+                    style: TextStyle(color: Colors.white70, height: 1.4),
+                  ),
+                  const SizedBox(height: 16),
+                  for (final error in visibleErrors)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 8),
+                      child: Text(
+                        '- $error',
+                        style: const TextStyle(
+                          color: Colors.white70,
+                          height: 1.35,
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    ),
+  );
 }
 
 final GlobalKey<NavigatorState> _rootNavigatorKey = GlobalKey<NavigatorState>();
@@ -199,15 +328,9 @@ Future<void> main() async {
       );
     }
 
-    if (supabaseConfig.url.isEmpty || supabaseConfig.anonKey.length <= 20) {
-      runApp(
-        const MaterialApp(
-          debugShowCheckedModeBanner: false,
-          home: Scaffold(
-            body: Center(child: Text('Missing Supabase configuration.')),
-          ),
-        ),
-      );
+    final runtimeConfigErrors = _runtimeConfigErrors(supabaseConfig);
+    if (runtimeConfigErrors.isNotEmpty) {
+      runApp(_runtimeConfigErrorApp(runtimeConfigErrors));
       return;
     }
 
@@ -403,9 +526,7 @@ Future<bool> _exchangeAuthCallbackUri(Uri uri) async {
 }
 
 Future<void> _startGoogleSignIn(BuildContext context) async {
-  final redirect = kIsWeb
-      ? Uri.base.removeFragment().replace(queryParameters: const {}).toString()
-      : 'kemet.app://login-callback';
+  final redirect = authRedirectTo();
   try {
     if (kIsWeb) {
       await supabase.auth.signInWithOAuth(

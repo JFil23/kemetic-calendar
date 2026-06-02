@@ -30,6 +30,8 @@ import sys
 source_path, out_path = sys.argv[1], sys.argv[2]
 
 defaults = {
+    "APP_ENV": "prod",
+    "APP_SITE_URL": "https://maat.app",
     "FIREBASE_WEB_API_KEY": "AIzaSyDxi7_OQx76JaPgjBTEF-Rfv2-1EZh0GeY",
     "FIREBASE_WEB_APP_ID": "1:867956659884:web:08c4b8b604332669727109",
     "FIREBASE_WEB_PROJECT_ID": "kemet-ead9d",
@@ -41,6 +43,8 @@ defaults = {
 }
 
 known_keys = [
+    "APP_ENV",
+    "APP_SITE_URL",
     "SUPABASE_URL",
     "SUPABASE_ANON_KEY",
     "FIREBASE_WEB_API_KEY",
@@ -73,8 +77,12 @@ for key in known_keys:
 
 url = str(merged.get("SUPABASE_URL", "")).strip()
 anon = str(merged.get("SUPABASE_ANON_KEY", "")).strip()
+app_env = str(merged.get("APP_ENV", "")).strip().lower()
+site_url = str(merged.get("APP_SITE_URL", "")).strip()
 
 errors: list[str] = []
+placeholder_re = re.compile(r"(your-|YOUR_|example|placeholder)", re.IGNORECASE)
+
 if not url:
     errors.append("SUPABASE_URL is missing.")
 elif "YOUR_PROJECT" in url or not url.startswith("https://") or not re.search(r"\.supabase\.co/?$", url):
@@ -84,6 +92,31 @@ if not anon:
     errors.append("SUPABASE_ANON_KEY is missing.")
 elif "YOUR_SUPABASE_ANON_KEY" in anon or len(anon) <= 20:
     errors.append("SUPABASE_ANON_KEY still looks like a placeholder.")
+elif "service_role" in anon.lower() or "service-role" in anon.lower():
+    errors.append("SUPABASE_ANON_KEY must be an anon key, not a service role key.")
+
+if app_env not in {"staging", "prod"}:
+    errors.append("APP_ENV must be staging or prod for release web builds.")
+
+if not site_url or not site_url.startswith("https://") or "your-" in site_url.lower():
+    errors.append("APP_SITE_URL must be a real https URL.")
+
+for key in (
+    "FIREBASE_WEB_API_KEY",
+    "FIREBASE_WEB_APP_ID",
+    "FIREBASE_WEB_PROJECT_ID",
+    "FIREBASE_WEB_SENDER_ID",
+    "FIREBASE_WEB_AUTH_DOMAIN",
+    "FIREBASE_WEB_STORAGE_BUCKET",
+):
+    value = str(merged.get(key, "")).strip()
+    if not value or placeholder_re.search(value):
+        errors.append(f"{key} is missing or still looks like a placeholder.")
+
+for key in ("FIREBASE_WEB_VAPID_KEY", "WEB_PUSH_PUBLIC_KEY"):
+    value = str(merged.get(key, "")).strip()
+    if not value or len(value) <= 20 or placeholder_re.search(value):
+        errors.append(f"{key} is missing or still looks like a placeholder.")
 
 if errors:
     print("❌ Web build configuration is incomplete.", file=sys.stderr)
@@ -102,6 +135,8 @@ with open(out_path, "w", encoding="utf-8") as handle:
 masked = f"{anon[:4]}...{anon[-4:]}" if len(anon) >= 8 else anon
 source_label = source_path or "<environment variables/defaults>"
 print(f"▶ Web build env source: {source_label}")
+print(f"▶ APP_ENV: {app_env}")
+print(f"▶ APP_SITE_URL: {site_url}")
 print(f"▶ SUPABASE_URL: {url}")
 print(f"▶ SUPABASE_ANON_KEY: {masked} (len={len(anon)})")
 PY

@@ -804,8 +804,9 @@ class ProfileRepo {
           .cast<Map<String, dynamic>>()
           .map(FlowPost.fromJson)
           .toList();
-      unawaited(_cacheFlowPosts(userId: userId, posts: posts));
-      return posts;
+      final visiblePosts = await _filterBlockedFlowPosts(posts);
+      unawaited(_cacheFlowPosts(userId: userId, posts: visiblePosts));
+      return visiblePosts;
     } catch (e) {
       _log('[ProfileRepo] Error fetching flow posts: $e');
       return await restoreCachedFlowPosts(userId) ?? const [];
@@ -827,8 +828,9 @@ class ProfileRepo {
           .cast<Map<String, dynamic>>()
           .map(InsightPost.fromJson)
           .toList();
-      unawaited(_cacheInsightPosts(userId: userId, posts: posts));
-      return posts;
+      final visiblePosts = await _filterBlockedInsightPosts(posts);
+      unawaited(_cacheInsightPosts(userId: userId, posts: visiblePosts));
+      return visiblePosts;
     } catch (e) {
       _log('[ProfileRepo] Error fetching insight posts: $e');
       return await restoreCachedInsightPosts(userId) ?? const [];
@@ -846,10 +848,11 @@ class ProfileRepo {
         ),
       );
       final rows = (response as List<dynamic>?) ?? const [];
-      return rows
+      final posts = rows
           .whereType<Map>()
           .map((row) => FlowPost.fromJson(Map<String, dynamic>.from(row)))
           .toList();
+      return _filterBlockedFlowPosts(posts);
     } catch (e) {
       _log('[ProfileRepo] Error fetching flow feed: $e');
       return _getFlowFeedFallback(limit: limit, offset: offset);
@@ -876,7 +879,7 @@ class ProfileRepo {
             (row) => ProfileFeedItem.fromJson(Map<String, dynamic>.from(row)),
           )
           .toList(growable: false);
-      return ProfileFeedResult(data: items);
+      return ProfileFeedResult(data: await _filterBlockedFeedItems(items));
     } catch (e) {
       _log('[ProfileRepo] Error fetching profile feed: $e');
       return _getProfileFeedFallbackResult(
@@ -905,7 +908,9 @@ class ProfileRepo {
           .maybeSingle();
 
       if (row == null) return null;
-      return FlowPost.fromJson(Map<String, dynamic>.from(row as Map));
+      final post = FlowPost.fromJson(Map<String, dynamic>.from(row as Map));
+      final visiblePosts = await _filterBlockedFlowPosts(<FlowPost>[post]);
+      return visiblePosts.isEmpty ? null : visiblePosts.single;
     } catch (e) {
       if (kDebugMode) {
         debugPrint('[ProfileRepo] Error fetching flow post by id: $e');
@@ -1370,15 +1375,96 @@ class ProfileRepo {
     }
   }
 
+  Future<Set<String>> getBlockedUserIds() async {
+    final userId = _client.auth.currentUser?.id;
+    if (userId == null) return const <String>{};
+
+    try {
+      final rows = await _client
+          .from('user_blocks')
+          .select('blocked_user_id')
+          .eq('blocker_user_id', userId);
+      return ((rows as List<dynamic>?) ?? const [])
+          .map((row) => (row as Map)['blocked_user_id'] as String?)
+          .whereType<String>()
+          .toSet();
+    } catch (e) {
+      if (_isMissingTable(e, 'user_blocks')) return const <String>{};
+      _log('[ProfileRepo] Error fetching blocked users: $e');
+      return const <String>{};
+    }
+  }
+
+  Future<bool> blockUser(String blockedUserId) async {
+    try {
+      final userId = _client.auth.currentUser?.id;
+      if (userId == null || blockedUserId == userId) return false;
+
+      await _client.from('user_blocks').upsert({
+        'blocker_user_id': userId,
+        'blocked_user_id': blockedUserId,
+      }, onConflict: 'blocker_user_id,blocked_user_id');
+      return true;
+    } catch (e) {
+      if (_isMissingTable(e, 'user_blocks')) {
+        _log('[ProfileRepo] user_blocks table is missing.');
+        return false;
+      }
+      _log('[ProfileRepo] Error blocking user: $e');
+      return false;
+    }
+  }
+
+  Future<bool> reportContent({
+    required String contentType,
+    required String contentId,
+    String? reportedUserId,
+    String reason = 'other',
+    String? details,
+  }) async {
+    try {
+      final userId = _client.auth.currentUser?.id;
+      if (userId == null) return false;
+
+      await _client.from('content_reports').insert({
+        'reporter_user_id': userId,
+        'content_type': contentType,
+        'content_id': contentId,
+        if (reportedUserId != null) 'reported_user_id': reportedUserId,
+        'reason': reason.trim().isEmpty ? 'other' : reason.trim(),
+        if (details != null && details.trim().isNotEmpty)
+          'details': details.trim(),
+      });
+      return true;
+    } catch (e) {
+      if (_isMissingTable(e, 'content_reports')) {
+        _log('[ProfileRepo] content_reports table is missing.');
+        return false;
+      }
+      _log('[ProfileRepo] Error reporting content: $e');
+      return false;
+    }
+  }
+
   /// List comments for a flow post (oldest first).
   Future<List<FlowPostComment>> getFlowPostComments(String postId) async {
     try {
       final currentUserId = _client.auth.currentUser?.id;
       final rows = await _selectFlowPostCommentsRows(postId);
 
-      final comments = (rows as List<dynamic>)
+      final parsedComments = (rows as List<dynamic>)
           .map((r) => FlowPostComment.fromJson(r as Map<String, dynamic>))
           .toList();
+      final blocked = await getBlockedUserIds();
+      final comments = blocked.isEmpty
+          ? parsedComments
+          : parsedComments
+                .where(
+                  (comment) =>
+                      comment.userId == currentUserId ||
+                      !blocked.contains(comment.userId),
+                )
+                .toList(growable: false);
 
       if (comments.isEmpty) {
         return const [];
@@ -1570,6 +1656,49 @@ class ProfileRepo {
         .toLowerCase();
   }
 
+  Future<List<FlowPost>> _filterBlockedFlowPosts(List<FlowPost> posts) async {
+    if (posts.isEmpty) return posts;
+    final currentUserId = _client.auth.currentUser?.id;
+    final blocked = await getBlockedUserIds();
+    if (blocked.isEmpty) return posts;
+    return posts
+        .where(
+          (post) =>
+              post.userId == currentUserId || !blocked.contains(post.userId),
+        )
+        .toList(growable: false);
+  }
+
+  Future<List<InsightPost>> _filterBlockedInsightPosts(
+    List<InsightPost> posts,
+  ) async {
+    if (posts.isEmpty) return posts;
+    final currentUserId = _client.auth.currentUser?.id;
+    final blocked = await getBlockedUserIds();
+    if (blocked.isEmpty) return posts;
+    return posts
+        .where(
+          (post) =>
+              post.userId == currentUserId || !blocked.contains(post.userId),
+        )
+        .toList(growable: false);
+  }
+
+  Future<List<ProfileFeedItem>> _filterBlockedFeedItems(
+    List<ProfileFeedItem> items,
+  ) async {
+    if (items.isEmpty) return items;
+    final currentUserId = _client.auth.currentUser?.id;
+    final blocked = await getBlockedUserIds();
+    if (blocked.isEmpty) return items;
+    return items
+        .where(
+          (item) =>
+              item.userId == currentUserId || !blocked.contains(item.userId),
+        )
+        .toList(growable: false);
+  }
+
   Future<List<FlowPost>> _getFlowFeedFallback({
     required int limit,
     required int offset,
@@ -1586,10 +1715,11 @@ class ProfileRepo {
             .order('created_at', ascending: false)
             .range(offset, offset + limit - 1),
       );
-      return ((rows as List<dynamic>?) ?? const [])
+      final posts = ((rows as List<dynamic>?) ?? const [])
           .whereType<Map>()
           .map((row) => FlowPost.fromJson(Map<String, dynamic>.from(row)))
           .toList();
+      return _filterBlockedFlowPosts(posts);
     } catch (e) {
       _log('[ProfileRepo] Flow feed fallback failed: $e');
       return const [];
@@ -1638,7 +1768,11 @@ class ProfileRepo {
             ),
           );
 
-      final merged = [...flowItems, ...insightItems].toList()
+      final visible = await _filterBlockedFeedItems([
+        ...flowItems,
+        ...insightItems,
+      ]);
+      final merged = visible.toList()
         ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
 
       if (offset >= merged.length) {

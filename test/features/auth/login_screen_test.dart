@@ -114,6 +114,30 @@ void main() {
       expect(googleCalls, 1);
     });
 
+    testWidgets('shows tappable Terms and Privacy links on signup', (
+      tester,
+    ) async {
+      await _pumpLoginScreen(tester, auth: _FakeEmailAuthClient());
+      await _switchToCreateAccount(tester);
+
+      expect(find.text('Terms'), findsOneWidget);
+      expect(find.text('Privacy Policy'), findsOneWidget);
+      expect(
+        find.text('By creating an account, you agree to the '),
+        findsOneWidget,
+      );
+      expect(find.text(' and acknowledge the '), findsOneWidget);
+
+      final termsButton = tester.widget<TextButton>(
+        find.byKey(const ValueKey('signup_terms_link')),
+      );
+      final privacyButton = tester.widget<TextButton>(
+        find.byKey(const ValueKey('signup_privacy_policy_link')),
+      );
+      expect(termsButton.onPressed, isNotNull);
+      expect(privacyButton.onPressed, isNotNull);
+    });
+
     testWidgets('sends password reset email from forgot password action', (
       tester,
     ) async {
@@ -322,9 +346,12 @@ void main() {
       final iosInfoPlist = await File('ios/Runner/Info.plist').readAsString();
 
       expect(loginSource, contains('resetPasswordForEmail('));
-      expect(loginSource, contains('redirectTo: _authRedirectTo()'));
-      expect(loginSource, contains("'kemet.app://login-callback'"));
-      expect(mainSource, contains("'kemet.app://login-callback'"));
+      expect(loginSource, contains('redirectTo: authRedirectTo()'));
+      expect(
+        loginSource,
+        contains("nativeAuthRedirectUrl = 'kemet.app://login-callback'"),
+      );
+      expect(mainSource, contains('authRedirectTo()'));
       expect(androidManifest, contains('android:scheme="kemet.app"'));
       expect(androidManifest, contains('android:host="login-callback"'));
       expect(iosInfoPlist, contains('<string>kemet.app</string>'));

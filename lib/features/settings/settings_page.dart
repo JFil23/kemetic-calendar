@@ -33,9 +33,7 @@ class _SettingsPageState extends State<SettingsPage> {
   static const String _speechPreviewUtteranceId = 'settings:speech-preview';
   static const String _privacyPolicyUrl = 'https://maat.app/privacy';
   static const String _termsUrl = 'https://maat.app/terms';
-  static const String _accountDeletionUrl = 'https://maat.app/delete-account';
-  static const String _supportMailUrl =
-      'mailto:support@maat.app?subject=Kemetic%20Calendar%20support';
+  static const String _supportUrl = 'https://maat.app/support';
   static const String _lastPushTestDeliveryKeyPref =
       'push.lastSelfTestDeliveryKey';
 
@@ -1304,6 +1302,116 @@ class _SettingsPageState extends State<SettingsPage> {
     );
   }
 
+  Widget _footerHeading(String text) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(4, 8, 4, 6),
+      child: Text(
+        text,
+        style: const TextStyle(
+          color: Colors.white,
+          fontSize: 13,
+          fontWeight: FontWeight.w700,
+          letterSpacing: 0,
+        ),
+      ),
+    );
+  }
+
+  Widget _compactFooterRow({
+    required IconData icon,
+    required String title,
+    required VoidCallback? onPressed,
+    String? subtitle,
+    bool destructive = false,
+  }) {
+    final foreground = destructive ? Colors.red.shade200 : Colors.white;
+    final iconColor = destructive
+        ? Colors.red.shade300
+        : KemeticGold.base.withValues(alpha: 0.9);
+    return InkWell(
+      onTap: onPressed,
+      borderRadius: BorderRadius.circular(12),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 10),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            Icon(icon, color: iconColor, size: 20),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: TextStyle(
+                      color: onPressed == null
+                          ? foreground.withValues(alpha: 0.42)
+                          : foreground,
+                      fontSize: 15,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  if (subtitle != null && subtitle.trim().isNotEmpty) ...[
+                    const SizedBox(height: 3),
+                    Text(
+                      subtitle,
+                      style: TextStyle(
+                        color: Colors.white.withValues(alpha: 0.58),
+                        fontSize: 12,
+                        height: 1.25,
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+            if (onPressed != null)
+              Icon(
+                Icons.chevron_right,
+                color: Colors.white.withValues(alpha: 0.32),
+                size: 20,
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _thinDivider() {
+    return const Divider(color: Color(0xFF1D1D1D), height: 1);
+  }
+
+  Widget _visibilityNotice() {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: const Color(0xFF0C0C0C),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: const Color(0xFF242424)),
+      ),
+      child: const Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Privacy & visibility',
+            style: TextStyle(
+              color: Colors.white,
+              fontSize: 15,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          SizedBox(height: 6),
+          Text(
+            'Your private journal, calendar, and personal flow activity are private by default. Profile details, posts, comments, and shared activity may be visible to others when you choose to share or post.',
+            style: TextStyle(color: Colors.white70, fontSize: 13, height: 1.4),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _statusLine(String text) {
     return Padding(
       padding: const EdgeInsets.only(top: 10),
@@ -1677,78 +1785,47 @@ class _SettingsPageState extends State<SettingsPage> {
               ],
             ),
             const SizedBox(height: 16),
-            _sectionCard(
-              title: 'Account & Legal',
-              description:
-                  'Review the terms and privacy policy, contact support, or remove your account when you no longer want Kemetic Calendar to keep account data.',
-              children: [
-                _primaryButton(
-                  onPressed: () =>
-                      _openExternalSupportTarget(_privacyPolicyUrl),
-                  child: const Text('Open privacy policy'),
-                ),
-                const SizedBox(height: 12),
-                _primaryButton(
-                  onPressed: () => _openExternalSupportTarget(_termsUrl),
-                  child: const Text('Open terms and conditions'),
-                ),
-                const SizedBox(height: 12),
-                SizedBox(
-                  width: double.infinity,
-                  child: OutlinedButton(
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: Colors.white,
-                      side: const BorderSide(color: Color(0xFF3A3A3A)),
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 14,
-                      ),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(16),
-                      ),
-                    ),
-                    onPressed: () =>
-                        _openExternalSupportTarget(_supportMailUrl),
-                    child: const Text('Contact support'),
-                  ),
-                ),
-                const SizedBox(height: 12),
-                SizedBox(
-                  width: double.infinity,
-                  child: OutlinedButton(
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: Colors.red.shade200,
-                      side: BorderSide(color: Colors.red.shade300),
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 14,
-                      ),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(16),
-                      ),
-                    ),
-                    onPressed: _deletingAccount || !_hasSession
-                        ? null
-                        : _deleteAccount,
-                    child: Text(
-                      _deletingAccount
-                          ? 'Deleting account...'
-                          : 'Delete account',
-                    ),
-                  ),
-                ),
-                _statusLine(
-                  _hasSession
-                      ? (_accountStatus ??
-                            'Account deletion permanently removes your sign-in and account data.')
-                      : 'Sign in to manage or delete your account.',
-                ),
-                TextButton(
-                  onPressed: () =>
-                      _openExternalSupportTarget(_accountDeletionUrl),
-                  child: const Text('Account deletion help'),
-                ),
-              ],
+            _visibilityNotice(),
+            const SizedBox(height: 18),
+            _footerHeading('Legal & Support'),
+            _compactFooterRow(
+              icon: Icons.description_outlined,
+              title: 'Terms',
+              onPressed: () => _openExternalSupportTarget(_termsUrl),
+            ),
+            _thinDivider(),
+            _compactFooterRow(
+              icon: Icons.privacy_tip_outlined,
+              title: 'Privacy',
+              onPressed: () => _openExternalSupportTarget(_privacyPolicyUrl),
+            ),
+            _thinDivider(),
+            _compactFooterRow(
+              icon: Icons.help_outline,
+              title: 'Support',
+              onPressed: () => _openExternalSupportTarget(_supportUrl),
+            ),
+            const SizedBox(height: 18),
+            _footerHeading('Danger Zone'),
+            _compactFooterRow(
+              icon: Icons.delete_outline,
+              title: _deletingAccount
+                  ? 'Deleting account...'
+                  : 'Delete account',
+              subtitle: _hasSession
+                  ? (_accountStatus ??
+                        'Permanently removes your sign-in and account data.')
+                  : 'Sign in to manage or delete your account.',
+              destructive: true,
+              onPressed: _deletingAccount || !_hasSession
+                  ? null
+                  : _deleteAccount,
+            ),
+            _thinDivider(),
+            _compactFooterRow(
+              icon: Icons.logout,
+              title: _signingOut ? 'Signing out...' : 'Sign out',
+              onPressed: _signingOut ? null : _signOut,
             ),
             const SizedBox(height: 16),
             const Text(
