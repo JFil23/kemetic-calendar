@@ -139,7 +139,7 @@ class ItineraryParseResult {
       success: true,
       flowName: flowTitle,
       flowColor: flowColor,
-      overviewTitle: 'Detected: Itinerary / Schedule',
+      overviewTitle: null,
       overviewSummary: _buildOverviewSummary(),
       notes: jsonEncode(notesJson),
       notesCount: notesJson.length,
@@ -156,28 +156,41 @@ class ItineraryParseResult {
   }
 
   String _buildOverviewSummary() {
-    final lines = <String>[
-      'Detected: Itinerary / Schedule',
-      'We found dates, times, locations, and links. Review the extracted schedule before saving.',
-    ];
+    final lines = <String>[];
     if (context.hotelName != null || context.hotelAddress != null) {
-      lines.add('');
       lines.add('Hotel:');
       if (context.hotelName != null) lines.add(context.hotelName!);
       if (context.hotelAddress != null) lines.add(context.hotelAddress!);
     }
     if (context.setupNotes.isNotEmpty || context.setupUrls.isNotEmpty) {
-      lines.add('');
-      lines.add('Travel setup:');
-      lines.addAll(context.setupNotes);
+      if (lines.isNotEmpty) lines.add('');
+      lines.add('Setup:');
+      lines.addAll(context.setupNotes.map(_cleanSetupNote));
       lines.addAll(context.setupUrls);
     }
     if (warnings.isNotEmpty) {
-      lines.add('');
+      if (lines.isNotEmpty) lines.add('');
       lines.add('Warnings:');
       lines.addAll(warnings);
     }
     return lines.join('\n');
+  }
+
+  String _cleanSetupNote(String raw) {
+    final trimmed = raw.trim();
+    final lower = trimmed.toLowerCase();
+    if (lower.contains('metro') && lower.contains('tap')) {
+      return lower.contains('omny') ? 'Metro Tap / OMNY' : 'Metro Tap';
+    }
+    return trimmed
+        .replaceFirst(
+          RegExp(
+            r'^(?:for\s+)?(?:subway\s+)?(?:travel\s+)?setup\s+',
+            caseSensitive: false,
+          ),
+          '',
+        )
+        .trim();
   }
 }
 

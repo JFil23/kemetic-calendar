@@ -82,6 +82,21 @@ class _FlowStudioPageState extends State<_FlowStudioPage>
   CalendarPageState? get _calendarPageState =>
       CalendarPage.globalKey.currentState;
 
+  bool get _isItineraryImport =>
+      widget.importData?.aiMetadata?['prompt_type'] == 'itinerarySchedule';
+
+  Future<void> _ensureCalendarChoicesLoaded() async {
+    final pageState = _calendarPageState;
+    if (pageState == null || pageState._calendarStateLoaded) return;
+    try {
+      await pageState._loadCalendarState();
+    } catch (e) {
+      if (kDebugMode) {
+        _calendarDebugPrint('[FlowStudio] calendar choices load failed: $e');
+      }
+    }
+  }
+
   List<SharedCalendarSummary> get _editableCalendars {
     final pageState = _calendarPageState;
     if (pageState == null) return const <SharedCalendarSummary>[];
@@ -3046,12 +3061,14 @@ class _FlowStudioPageState extends State<_FlowStudioPage>
   Future<void> _initializeFromImport(ImportFlowData data) async {
     _nameCtrl = TextEditingController(text: data.name);
     _markNameControllerReady();
-    _selectedCalendarId = _defaultCalendarId();
     _active = true;
     _isLoadingFlow = true;
     setState(() {});
 
     try {
+      await _ensureCalendarChoicesLoaded();
+      _selectedCalendarId = data.calendarId ?? _defaultCalendarId();
+
       final colorIdx = _flowPalette.indexWhere(
         (c) => c.toARGB32() == data.color,
       );
@@ -3338,6 +3355,48 @@ class _FlowStudioPageState extends State<_FlowStudioPage>
   }
 
   // ---------- UI bits ----------
+
+  Widget _itineraryImportBadge() {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        color: _gold.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: _gold.withValues(alpha: 0.36)),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Icon(Icons.event_note, color: _gold, size: 18),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: const [
+                Text(
+                  'Detected: Itinerary / Schedule',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                SizedBox(height: 2),
+                Text(
+                  'Review the extracted dates, times, locations, and links before saving.',
+                  style: TextStyle(
+                    color: Colors.white70,
+                    fontSize: 12,
+                    height: 1.25,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 
   Widget _colorDot(int i) {
     final selected = i == _selectedColorIndex;
@@ -3934,6 +3993,10 @@ class _FlowStudioPageState extends State<_FlowStudioPage>
             decoration: _darkInput('Flow name'),
           ),
           const SizedBox(height: 14),
+          if (_isItineraryImport) ...[
+            _itineraryImportBadge(),
+            const SizedBox(height: 14),
+          ],
           const Text(
             'Overview',
             style: TextStyle(color: _silver, fontSize: 12),
@@ -3965,11 +4028,24 @@ class _FlowStudioPageState extends State<_FlowStudioPage>
 
           const SizedBox(height: 8),
           InkWell(
-            onTap: _editableCalendars.isEmpty || !canEditSelectedCalendar
+            onTap: !canEditSelectedCalendar
                 ? null
                 : () async {
+                    await _ensureCalendarChoicesLoaded();
+                    if (!context.mounted) return;
+                    if (_selectedCalendarId == null) {
+                      final defaultCalendarId = _defaultCalendarId();
+                      if (defaultCalendarId != null) {
+                        setState(() {
+                          _selectedCalendarId = defaultCalendarId;
+                        });
+                      }
+                    }
+                    final calendars = _editableCalendars;
+                    if (calendars.isEmpty) return;
+                    final sheetContext = context;
                     final chosenId = await showCupertinoModalPopup<String>(
-                      context: context,
+                      context: sheetContext,
                       builder: (popupCtx) {
                         return CupertinoActionSheet(
                           title: const GlossyText(
@@ -3978,7 +4054,7 @@ class _FlowStudioPageState extends State<_FlowStudioPage>
                             style: TextStyle(fontSize: 18),
                           ),
                           actions: [
-                            for (final calendar in _editableCalendars)
+                            for (final calendar in calendars)
                               CupertinoActionSheetAction(
                                 onPressed: () {
                                   Navigator.of(popupCtx).pop(calendar.id);

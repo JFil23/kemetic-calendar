@@ -57,6 +57,99 @@ void main() {
       contains('suppressesClient: false'),
     );
   });
+
+  test('itinerary import helper copy stays out of saved overview content', () {
+    final parserSource = File(
+      'lib/features/ai_generation/itinerary_prompt_parser.dart',
+    ).readAsStringSync();
+    final studioSource = File(
+      'lib/features/calendar/calendar_flow_studio_page.dart',
+    ).readAsStringSync();
+
+    final overviewStart = parserSource.indexOf(
+      'String _buildOverviewSummary()',
+    );
+    final overviewEnd = parserSource.indexOf(
+      'ItineraryParseResult? parseItineraryPrompt',
+    );
+    expect(overviewStart, isNonNegative);
+    expect(overviewEnd, greaterThan(overviewStart));
+    final overviewBuilder = parserSource.substring(overviewStart, overviewEnd);
+
+    expect(overviewBuilder, isNot(contains('Detected: Itinerary / Schedule')));
+    expect(overviewBuilder, isNot(contains('Review the extracted schedule')));
+    expect(overviewBuilder, contains('Hotel:'));
+    expect(overviewBuilder, contains('Setup:'));
+    expect(studioSource, contains('Widget _itineraryImportBadge()'));
+    expect(studioSource, contains('Detected: Itinerary / Schedule'));
+  });
+
+  test(
+    'Flow Studio import calendar selection remains editable and persists',
+    () {
+      final source = File(
+        'lib/features/calendar/calendar_flow_studio_page.dart',
+      ).readAsStringSync();
+
+      final importStart = source.indexOf(
+        'Future<void> _initializeFromImport(ImportFlowData data) async',
+      );
+      final importEnd = source.indexOf('/// Helper to load a flow from DB');
+      expect(importStart, isNonNegative);
+      expect(importEnd, greaterThan(importStart));
+      final importInit = source.substring(importStart, importEnd);
+      expect(importInit, contains('await _ensureCalendarChoicesLoaded();'));
+      expect(
+        importInit,
+        contains(
+          '_selectedCalendarId = data.calendarId ?? _defaultCalendarId();',
+        ),
+      );
+
+      final buildStart = source.indexOf('Widget build(BuildContext context)');
+      final buildEnd = source.length;
+      expect(buildStart, isNonNegative);
+      expect(buildEnd, greaterThan(buildStart));
+      final buildSection = source.substring(buildStart, buildEnd);
+      expect(
+        buildSection,
+        isNot(contains('onTap: _editableCalendars.isEmpty')),
+      );
+      expect(buildSection, contains('await _ensureCalendarChoicesLoaded();'));
+      expect(buildSection, contains('final calendars = _editableCalendars;'));
+      expect(buildSection, contains('_selectedCalendarId = chosenId;'));
+
+      final saveStart = source.indexOf('Future<void> _save() async');
+      final saveEnd = source.indexOf('void _delete()');
+      expect(saveStart, isNonNegative);
+      expect(saveEnd, greaterThan(saveStart));
+      final saveSection = source.substring(saveStart, saveEnd);
+      expect(saveSection, contains('calendarId: selectedCalendarId,'));
+
+      final calendarPageSource = File(
+        'lib/features/calendar/calendar_page.dart',
+      ).readAsStringSync();
+      final persistStart = calendarPageSource.indexOf(
+        'Future<int?> _persistFlowStudioResult(_FlowStudioResult r) async',
+      );
+      final persistEnd = calendarPageSource.indexOf(
+        'Future<({String clientEventId, String eventId})> _saveSingleNoteOnly',
+      );
+      expect(persistStart, isNonNegative);
+      expect(persistEnd, greaterThan(persistStart));
+      final persistSection = calendarPageSource.substring(
+        persistStart,
+        persistEnd,
+      );
+      expect(
+        persistSection,
+        contains(
+          'final flowCalendarId = saved?.calendarId ?? r.savedFlow?.calendarId;',
+        ),
+      );
+      expect(persistSection, contains('calendarId: flowCalendarId,'));
+    },
+  );
 }
 
 String _deleteCallFor(String source, String sourceFeatureNeedle) {

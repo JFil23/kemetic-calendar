@@ -516,6 +516,8 @@ class ImportFlowData {
   final InboxShareItem share;
   final String name;
   final int color;
+  final String? calendarId;
+  final String? calendarName;
   final String? notes;
   final List<dynamic> rules;
   final DateTime? suggestedStartDate;
@@ -530,6 +532,8 @@ class ImportFlowData {
     required this.share,
     required this.name,
     required this.color,
+    this.calendarId,
+    this.calendarName,
     this.notes,
     required this.rules,
     this.suggestedStartDate,

@@ -82,18 +82,23 @@ void main() {
           flowColor: '#4dd0e1',
         );
         final notes = jsonDecode(response.notes!) as List<dynamic>;
+        final importedOverview =
+            response.overviewSummary ?? response.overviewTitle ?? '';
 
         expect(response.success, isTrue);
         expect(response.flowName, 'NYC Itinerary');
         expect(
-          response.overviewSummary,
-          contains('Detected: Itinerary / Schedule'),
+          importedOverview,
+          isNot(contains('Detected: Itinerary / Schedule')),
         );
-        expect(response.overviewSummary, contains('Hotel:'));
         expect(
-          response.overviewSummary,
-          contains('https://omny.info/register'),
+          importedOverview,
+          isNot(contains('Review the extracted schedule')),
         );
+        expect(importedOverview, contains('Hotel:'));
+        expect(importedOverview, contains('Setup:'));
+        expect(importedOverview, contains('Metro Tap'));
+        expect(importedOverview, contains('https://omny.info/register'));
         expect(response.requestedStartDate, DateTime(2026, 6, 4));
         expect(response.requestedEndDate, DateTime(2026, 6, 7));
         expect(notes, hasLength(23));
