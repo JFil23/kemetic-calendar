@@ -39,11 +39,13 @@ const nodeUserInsightsEmptyCardKey = ValueKey<String>(
 class NodeUserInsightsSection extends StatefulWidget {
   final KemeticNode node;
   final bool openEditorOnLoad;
+  final VoidCallback? onRouteEditorConsumed;
 
   const NodeUserInsightsSection({
     super.key,
     required this.node,
     this.openEditorOnLoad = false,
+    this.onRouteEditorConsumed,
   });
 
   @override
@@ -106,6 +108,7 @@ class _NodeUserInsightsSectionState extends State<NodeUserInsightsSection> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted || _openedEditorFromRoute || _loading) return;
       _openedEditorFromRoute = true;
+      widget.onRouteEditorConsumed?.call();
       _openEditor();
     });
   }

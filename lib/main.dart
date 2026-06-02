@@ -42,6 +42,7 @@ import 'core/global_bottom_menu_metrics.dart';
 import 'core/global_menu_routes.dart';
 import 'core/planner_launch_intent.dart';
 import 'core/push_intent_bus.dart';
+import 'core/route_location_sanitizer.dart';
 import 'core/shared_file_intent.dart';
 import 'core/theme/app_theme.dart';
 import 'features/auth/login_screen.dart';
@@ -915,7 +916,17 @@ String? _restorableLaunchLocation(String? location) {
   if (normalized == null || normalized.isEmpty || normalized == '/') {
     return null;
   }
-  return _isContinuityRouteLocation(normalized) ? normalized : null;
+  final stableLocation = stableRouteLocationForContinuity(normalized);
+  if (stableLocation == null || stableLocation == '/') {
+    return null;
+  }
+  if (stableLocation != normalized && kDebugMode) {
+    debugPrint(
+      '[Router Restore] stripped one-shot route intent '
+      '$normalized -> $stableLocation',
+    );
+  }
+  return _isContinuityRouteLocation(stableLocation) ? stableLocation : null;
 }
 
 bool _isContinuityRouteLocation(String location) {
@@ -3555,7 +3566,7 @@ class _JournalRoutePageState extends State<JournalRoutePage>
   }
 }
 
-class NodeReaderRoutePage extends StatelessWidget {
+class NodeReaderRoutePage extends StatefulWidget {
   const NodeReaderRoutePage({
     super.key,
     required this.nodeId,
@@ -3566,8 +3577,55 @@ class NodeReaderRoutePage extends StatelessWidget {
   final bool openInsightEditorOnLoad;
 
   @override
+  State<NodeReaderRoutePage> createState() => _NodeReaderRoutePageState();
+}
+
+class _NodeReaderRoutePageState extends State<NodeReaderRoutePage> {
+  bool _pendingInsightEditorIntent = false;
+  String? _pendingInsightEditorNodeId;
+
+  @override
+  void initState() {
+    super.initState();
+    _captureInsightEditorIntentIfNeeded();
+  }
+
+  @override
+  void didUpdateWidget(covariant NodeReaderRoutePage oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.nodeId != widget.nodeId) {
+      _pendingInsightEditorIntent = false;
+      _pendingInsightEditorNodeId = null;
+    }
+    _captureInsightEditorIntentIfNeeded();
+  }
+
+  void _captureInsightEditorIntentIfNeeded() {
+    if (!widget.openInsightEditorOnLoad) return;
+    _pendingInsightEditorIntent = true;
+    _pendingInsightEditorNodeId = widget.nodeId;
+  }
+
+  bool get _shouldOpenInsightEditorOnLoad =>
+      _pendingInsightEditorIntent &&
+      _pendingInsightEditorNodeId == widget.nodeId;
+
+  void _consumeInsightEditorIntent() {
+    if (!_shouldOpenInsightEditorOnLoad) return;
+    setState(() {
+      _pendingInsightEditorIntent = false;
+      _pendingInsightEditorNodeId = null;
+    });
+    final stableLocation = '/nodes/${Uri.encodeComponent(widget.nodeId)}';
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      GoRouter.of(context).replace(stableLocation);
+    });
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final node = KemeticNodeLibrary.resolve(nodeId);
+    final node = KemeticNodeLibrary.resolve(widget.nodeId);
     if (node == null) {
       return const _RouteMissingScaffold(
         message: 'This library entry is no longer available.',
@@ -3576,7 +3634,8 @@ class NodeReaderRoutePage extends StatelessWidget {
     }
     return KemeticNodeReaderPage(
       node: node,
-      openInsightEditorOnLoad: openInsightEditorOnLoad,
+      openInsightEditorOnLoad: _shouldOpenInsightEditorOnLoad,
+      onInsightEditorIntentConsumed: _consumeInsightEditorIntent,
     );
   }
 }
@@ -4066,19 +4125,22 @@ class _AuthGateState extends State<AuthGate> with WidgetsBindingObserver {
         CalendarPage.restorableOverlayParentRouteFromStack(
           await AppRestorationService.instance.readOverlayStack(),
         );
-    final savedLocation =
+    final rawSavedLocation =
         overlayParentRoute ??
         await AppRestorationService.instance.readRouteLocation(
           includeRemote: true,
         ) ??
         await SessionResumeService.readRouteLocation();
+    final savedLocation = _restorableLaunchLocation(rawSavedLocation);
     if (!mounted ||
         savedLocation == null ||
         _deferSessionResumeForPushNavigation ||
         savedLocation.isEmpty ||
-        savedLocation == '/' ||
-        !_isContinuityRouteLocation(savedLocation)) {
+        savedLocation == '/') {
       return;
+    }
+    if (kDebugMode) {
+      debugPrint('[AuthGate] restoring saved route once: $savedLocation');
     }
     RestorationCoordinator.instance.beginLaunchRestore(
       reason: RestorationRestoreReason.authResume,

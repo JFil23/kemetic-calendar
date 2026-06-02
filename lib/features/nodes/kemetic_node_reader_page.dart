@@ -14,11 +14,13 @@ import 'node_user_insights_section.dart';
 class KemeticNodeReaderPage extends StatefulWidget {
   final KemeticNode node;
   final bool openInsightEditorOnLoad;
+  final VoidCallback? onInsightEditorIntentConsumed;
 
   const KemeticNodeReaderPage({
     super.key,
     required this.node,
     this.openInsightEditorOnLoad = false,
+    this.onInsightEditorIntentConsumed,
   });
 
   @override
@@ -240,6 +242,7 @@ class _KemeticNodeReaderPageState extends State<KemeticNodeReaderPage> {
                   NodeUserInsightsSection(
                     node: _node,
                     openEditorOnLoad: widget.openInsightEditorOnLoad,
+                    onRouteEditorConsumed: widget.onInsightEditorIntentConsumed,
                   ),
                 ],
               ),

@@ -7,6 +7,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:uuid/uuid.dart';
 
 import '../data/app_restoration_repo.dart';
+import '../core/route_location_sanitizer.dart';
 import 'app_window_service.dart';
 import 'app_window_platform_stub.dart'
     if (dart.library.html) 'app_window_platform_web.dart'
@@ -103,12 +104,25 @@ Map<String, dynamic> _coerceJsonMap(Map<String, dynamic> raw) {
   return result;
 }
 
+Map<String, dynamic> _coerceOverlayEntry(Map<String, dynamic> raw) {
+  final result = _coerceJsonMap(raw);
+  final parentRoute = stableRouteLocationForContinuity(
+    result['parentRoute'] as String?,
+  );
+  if (parentRoute == null) {
+    result.remove('parentRoute');
+  } else {
+    result['parentRoute'] = parentRoute;
+  }
+  return result;
+}
+
 List<Map<String, dynamic>> _coerceOverlayStack(
   List<Map<String, dynamic>> overlayStack,
 ) {
   return overlayStack
       .where((entry) => entry.isNotEmpty)
-      .map(_coerceJsonMap)
+      .map(_coerceOverlayEntry)
       .toList(growable: false);
 }
 
@@ -526,7 +540,9 @@ class AppRestorationSnapshot {
       userId: userId,
       windowId: windowId,
       updatedAtMs: updatedAtMs,
-      routeLocation: (raw['routeLocation'] as String?)?.trim(),
+      routeLocation: stableRouteLocationForContinuity(
+        raw['routeLocation'] as String?,
+      ),
       calendar: CalendarRestorationState.fromJson(raw['calendar']),
       dayView: DayViewRestorationState.fromJson(raw['dayView']),
       daySheet: _asJsonMap(daySheetRaw),
@@ -738,7 +754,24 @@ class AppRestorationService {
     }
     switch (version) {
       case schemaVersion:
-        return Map<String, dynamic>.from(raw);
+        final migrated = Map<String, dynamic>.from(raw);
+        final routeLocation = stableRouteLocationForContinuity(
+          migrated['routeLocation'] as String?,
+        );
+        if (routeLocation == null) {
+          migrated.remove('routeLocation');
+        } else {
+          migrated['routeLocation'] = routeLocation;
+        }
+        final overlayStack = _coerceOverlayStack(
+          _asJsonMapList(migrated['overlayStack']),
+        );
+        if (overlayStack.isEmpty) {
+          migrated.remove('overlayStack');
+        } else {
+          migrated['overlayStack'] = overlayStack;
+        }
+        return migrated;
       default:
         return null;
     }
@@ -1544,8 +1577,8 @@ class AppRestorationService {
   }
 
   Future<void> saveRouteLocation(String location) async {
-    final normalized = location.trim();
-    if (normalized.isEmpty) {
+    final normalized = stableRouteLocationForContinuity(location);
+    if (normalized == null || normalized.isEmpty) {
       return;
     }
     await _mutate((current) {
@@ -1557,8 +1590,8 @@ class AppRestorationService {
     String location,
     List<Map<String, dynamic>> overlayStack,
   ) async {
-    final normalized = location.trim();
-    if (normalized.isEmpty) {
+    final normalized = stableRouteLocationForContinuity(location);
+    if (normalized == null || normalized.isEmpty) {
       return;
     }
     await _mutate((current) {

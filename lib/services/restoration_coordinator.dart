@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/widgets.dart';
 
+import '../core/route_location_sanitizer.dart';
 import 'app_restoration_service.dart';
 
 enum RestorationRestoreReason {
@@ -161,8 +162,8 @@ class RestorationCoordinator {
   }
 
   Future<void> recordRouteLocation(String location) {
-    final normalized = location.trim();
-    if (normalized.isEmpty) {
+    final normalized = stableRouteLocationForContinuity(location);
+    if (normalized == null || normalized.isEmpty) {
       return Future<void>.value();
     }
     return AppRestorationService.instance.saveRouteLocation(normalized);
@@ -172,8 +173,8 @@ class RestorationCoordinator {
     String location,
     List<Map<String, dynamic>> overlayStack,
   ) {
-    final normalized = location.trim();
-    if (normalized.isEmpty) {
+    final normalized = stableRouteLocationForContinuity(location);
+    if (normalized == null || normalized.isEmpty) {
       return Future<void>.value();
     }
     return AppRestorationService.instance.saveRouteLocationWithOverlayStack(

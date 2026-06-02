@@ -163,6 +163,38 @@ void main() {
     );
   });
 
+  testWidgets('node route action is consumed into a stable route', (
+    tester,
+  ) async {
+    final node = KemeticNodeLibrary.resolve('maat')!;
+    final router = GoRouter(
+      initialLocation: '/nodes/maat?action=add_insight',
+      routes: [
+        GoRoute(
+          path: '/nodes/:nodeId',
+          builder: (context, state) {
+            final nodeId = Uri.decodeComponent(state.pathParameters['nodeId']!);
+            return app.NodeReaderRoutePage(
+              nodeId: nodeId,
+              openInsightEditorOnLoad: app
+                  .shouldOpenInsightEditorOnLoadFromNodeRoute(state.uri),
+            );
+          },
+        ),
+      ],
+    );
+    addTearDown(router.dispose);
+
+    await tester.pumpWidget(MaterialApp.router(routerConfig: router));
+    await tester.pumpAndSettle();
+
+    expect(find.text('New ${node.title} Insight'), findsOneWidget);
+    expect(
+      router.routerDelegate.currentConfiguration.uri.toString(),
+      '/nodes/maat',
+    );
+  });
+
   testWidgets('insights section opens route editor once across rebuilds', (
     tester,
   ) async {

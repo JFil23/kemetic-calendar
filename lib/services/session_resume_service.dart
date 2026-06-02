@@ -1,12 +1,15 @@
 import 'dart:async';
 import 'dart:convert';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
 import 'package:mobile/core/global_bottom_menu_metrics.dart';
 import 'package:mobile/features/calendar/notify.dart';
 import 'package:mobile/services/restoration_coordinator.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+
+import '../core/route_location_sanitizer.dart';
 
 typedef SessionJsonMap = Map<String, dynamic>;
 
@@ -134,12 +137,23 @@ class SessionResumeService {
     if (location == null || location.isEmpty) {
       return null;
     }
-    return location;
+    final stableLocation = stableRouteLocationForContinuity(location);
+    if (stableLocation == null) {
+      await _mutate((current) {
+        current.remove('routeLocation');
+        return current;
+      });
+      return null;
+    }
+    if (stableLocation != location) {
+      await saveRouteLocation(stableLocation);
+    }
+    return stableLocation;
   }
 
   static Future<void> saveRouteLocation(String location) async {
-    final normalized = location.trim();
-    if (normalized.isEmpty) return;
+    final normalized = stableRouteLocationForContinuity(location);
+    if (normalized == null || normalized.isEmpty) return;
     await _mutate((current) {
       current['routeLocation'] = normalized;
       return current;
@@ -294,10 +308,18 @@ class _SessionTrackedRouteState extends State<SessionTrackedRoute> {
   void _persistRoute() {
     if (!widget.enabled) return;
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      final stableLocation = stableRouteLocationForContinuity(widget.location);
+      if (stableLocation == null) return;
+      if (stableLocation != widget.location && kDebugMode) {
+        debugPrint(
+          '[SessionTrackedRoute] stripped one-shot route intent '
+          '${widget.location} -> $stableLocation',
+        );
+      }
       unawaited(
-        RestorationCoordinator.instance.recordRouteLocation(widget.location),
+        RestorationCoordinator.instance.recordRouteLocation(stableLocation),
       );
-      unawaited(SessionResumeService.saveRouteLocation(widget.location));
+      unawaited(SessionResumeService.saveRouteLocation(stableLocation));
     });
   }
 

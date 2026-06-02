@@ -254,6 +254,42 @@ void main() {
     },
   );
 
+  test('stores node action routes as stable node routes', () async {
+    await AppRestorationService.instance.saveRouteLocation(
+      '/nodes/human_emergence?action=add_insight',
+    );
+    await AppRestorationService.instance.flushPendingWrites();
+
+    expect(
+      await AppRestorationService.instance.readRouteLocation(),
+      '/nodes/human_emergence',
+    );
+
+    final prefs = await SharedPreferences.getInstance();
+    final raw =
+        jsonDecode(prefs.getString(_snapshotKey())!) as Map<String, dynamic>;
+    expect(raw['routeLocation'], '/nodes/human_emergence');
+    expect(raw['routeLocation'], isNot(contains('add_insight')));
+  });
+
+  test('cleans stale one-shot route intents from existing snapshots', () async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(
+      _snapshotKey(),
+      jsonEncode({
+        'schemaVersion': AppRestorationService.schemaVersion,
+        'userId': 'user-1',
+        'windowId': 'window-1',
+        'updatedAtMs': DateTime.now().millisecondsSinceEpoch,
+        'routeLocation': '/nodes/human_emergence?action=add_insight',
+      }),
+    );
+
+    final snapshot = await AppRestorationService.instance.readSnapshot();
+
+    expect(snapshot?.routeLocation, '/nodes/human_emergence');
+  });
+
   test('clears snapshots with unsupported schema versions', () async {
     final prefs = await SharedPreferences.getInstance();
     final key = _snapshotKey();
