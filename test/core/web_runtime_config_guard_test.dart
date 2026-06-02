@@ -28,6 +28,43 @@ void main() {
       );
     });
 
+    test('web release can derive defaults from raw Supabase dart defines', () {
+      expect(mainSource, contains('kIsWeb &&'));
+      expect(mainSource, contains('kReleaseMode &&'));
+      expect(
+        mainSource,
+        contains('_hasValidSupabaseRuntimeConfig(url, anonKey)'),
+      );
+      expect(mainSource, contains("appEnvironment = 'prod';"));
+      expect(mainSource, contains('appSiteUrl = defaultProductionAppSiteUrl;'));
+      expect(
+        mainSource,
+        contains("defaultProductionAppSiteUrl = 'https://maat.app'"),
+      );
+    });
+
+    test('web env.json fallback runs before release default derivation', () {
+      final webEnvIndex = mainSource.indexOf('_loadWebRuntimeEnvJson');
+      final defaultIndex = mainSource.indexOf(
+        '_hasValidSupabaseRuntimeConfig(url, anonKey)',
+      );
+
+      expect(webEnvIndex, greaterThanOrEqualTo(0));
+      expect(defaultIndex, greaterThan(webEnvIndex));
+    });
+
+    test('release defaults still depend on strict Supabase validation', () {
+      expect(mainSource, contains('_hasValidSupabaseUrl(url)'));
+      expect(mainSource, contains('_hasValidSupabaseAnonKey(anonKey)'));
+      expect(mainSource, contains("parsed.host.endsWith('.supabase.co')"));
+      expect(mainSource, contains("!lower.contains('service_role')"));
+      expect(mainSource, contains("!lower.contains('service-role')"));
+      expect(
+        mainSource,
+        contains('SUPABASE_ANON_KEY still looks like a placeholder.'),
+      );
+    });
+
     test('web release build still emits env.json and dart defines', () {
       expect(buildScriptSource, contains('--dart-define-from-file'));
       expect(

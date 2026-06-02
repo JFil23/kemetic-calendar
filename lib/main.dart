@@ -92,9 +92,10 @@ const appEnvironmentEnv = String.fromEnvironment(
   'APP_ENV',
   defaultValue: 'dev',
 );
+const defaultProductionAppSiteUrl = 'https://maat.app';
 const appSiteUrlEnv = String.fromEnvironment(
   'APP_SITE_URL',
-  defaultValue: 'https://maat.app',
+  defaultValue: defaultProductionAppSiteUrl,
 );
 
 typedef AppRuntimeConfig = ({
@@ -131,6 +132,16 @@ Future<AppRuntimeConfig> _loadSupabaseConfig() async {
       webEnv['APP_SITE_URL'],
       treatDefaultSiteAsUnset: true,
     );
+  }
+
+  if (kIsWeb && kReleaseMode && _hasValidSupabaseRuntimeConfig(url, anonKey)) {
+    final envName = appEnvironment.trim().toLowerCase();
+    if (envName.isEmpty || envName == 'dev') {
+      appEnvironment = 'prod';
+    }
+    if (appSiteUrl.trim().isEmpty) {
+      appSiteUrl = defaultProductionAppSiteUrl;
+    }
   }
 
   if ((url.isEmpty || anonKey.length <= 20) && !kReleaseMode) {
@@ -221,6 +232,29 @@ String _runtimeFallbackValue(
       (treatDefaultSiteAsUnset && lowerCurrent == 'https://maat.app');
 
   return currentLooksUnset ? next : current;
+}
+
+bool _hasValidSupabaseRuntimeConfig(String url, String anonKey) {
+  return _hasValidSupabaseUrl(url) && _hasValidSupabaseAnonKey(anonKey);
+}
+
+bool _hasValidSupabaseUrl(String url) {
+  final normalized = url.trim();
+  final parsed = Uri.tryParse(normalized);
+  return normalized.isNotEmpty &&
+      parsed != null &&
+      parsed.scheme == 'https' &&
+      parsed.host.endsWith('.supabase.co') &&
+      !_looksLikePlaceholder(normalized.toLowerCase());
+}
+
+bool _hasValidSupabaseAnonKey(String anonKey) {
+  final normalized = anonKey.trim();
+  final lower = normalized.toLowerCase();
+  return normalized.length > 20 &&
+      !_looksLikePlaceholder(lower) &&
+      !lower.contains('service_role') &&
+      !lower.contains('service-role');
 }
 
 List<String> _runtimeConfigErrors(AppRuntimeConfig config) {
