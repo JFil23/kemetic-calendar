@@ -273,13 +273,13 @@ const List<WagEvent> kWagEvents = <WagEvent>[
       'Write the known names on paper: parents, grandparents, great-grandparents, and the dead you personally knew.',
       'For unknown names, write: [Name unknown] - [their relationship to you].',
       'Add one ancestor of practice, craft, community, or way of being.',
-      'Read each name aloud once.',
+      'Read each name aloud once. Reading silently is not enough for this rite. The name spoken aloud is the name doing its work.',
     ],
     optionalSteps: <String>[
       'Use the local list only as a private backup; the handwritten page is the primary act.',
     ],
     sourceNote:
-        'The ren, or name, was treated as a living part of the person. Speaking the name maintained continuation.',
+        'The Kemite understood the ren — the name — as a constituent part of the person, as real as the body. A name not spoken eventually becomes as if it never existed. This sitting is not commemorative — it is active. Speaking the name continues what the name holds.',
     localPrompt: WagLocalPromptKind.ancestorNames,
   ),
   WagEvent(
@@ -295,10 +295,10 @@ const List<WagEvent> kWagEvents = <WagEvent>[
     steps: <String>[
       'Look at the Day 1 list and add anyone missing.',
       'Name one ancestor known only by story, or one ancestor of your practice or tradition.',
-      'Place water on the surface while you add to the list.',
+      'Place water on the surface while you add to the list. The water is already doing its work before the additional names are written.',
     ],
     sourceNote:
-        'The offering is not canceled by missing records; unknown ancestors can still be addressed by relationship.',
+        'Kemetic offering practice acknowledged that not all names were known — the formula could address ancestors by relationship rather than personal name. The gap in the record is not a gap in the obligation. Unknown ancestors are addressed as such, not omitted.',
     localPrompt: WagLocalPromptKind.extendedNames,
   ),
   WagEvent(
@@ -313,12 +313,12 @@ const List<WagEvent> kWagEvents = <WagEvent>[
     spokenLine:
         'I have not neglected the days concerning their meat offerings.',
     steps: <String>[
+      'Set water before you read any names. The water is the first provision — it goes before everything else.',
       'Read the complete list of names aloud.',
       'After each name, say: I speak your name. You live.',
-      'Set water before you begin. When you are done, drink it.',
     ],
     sourceNote:
-        'Spell 125 names neglecting the appointed offering days for the blessed dead as disorder.',
+        'Spell 125 lists neglect of the appointed offering days alongside more dramatic wrongs because the Kemite understood that the dead depended on the living\'s continued attention in a practical sense. The water drunk at the end is the reversion — the provision received by the one who gave it.',
     localPrompt: WagLocalPromptKind.tableConfirmation,
   ),
   WagEvent(
@@ -341,7 +341,7 @@ const List<WagEvent> kWagEvents = <WagEvent>[
       'Clear the surface now and leave it empty until the vigil.',
     ],
     sourceNote:
-        'The invocation-offering, prt-ḫrw, came forth through the living voice speaking the formula.',
+        'The prt-ḫrw — the "coming forth at the voice" — was the technical term for the invocation-offering. The provision came into existence through the act of speaking it. Naming who you are speaking for makes the voice\'s work specific.',
     requiresOfferings: true,
     localPrompt: WagLocalPromptKind.wagFocus,
   ),
@@ -359,11 +359,11 @@ const List<WagEvent> kWagEvents = <WagEvent>[
     steps: <String>[
       'Go to the surface prepared on Day 11.',
       'Place water, bread or food, and anything fragrant there now.',
-      'Read the complete list of names aloud at dusk.',
+      'Read the complete list of names aloud at dusk, without hurrying. The names read at the vigil call the dead to the table. Take the time the reading requires.',
       'Leave the offerings on the surface through the night.',
     ],
     sourceNote:
-        'The Neferhotep Stela describes joy for the dead at the calendrical offerings of the Wag festival.',
+        'The Neferhotep Stela places joy in the heart of the dead at their calendrical provision — not as metaphor but as the expected state of the blessed dead receiving what was owed. The vigil keeps the table open for that reception.',
     requiresOfferings: true,
     localPrompt: WagLocalPromptKind.vigilChecklist,
   ),
@@ -382,11 +382,11 @@ const List<WagEvent> kWagEvents = <WagEvent>[
       'Return to the prepared surface and add fresh water.',
       'Read the complete list of names slowly.',
       'After each name, speak: [Name] - this bread is yours. This water is yours. You live.',
-      'Speak the offering formula with the Wag focus name from Day 11.',
+      'Sit with memory before eating. Do not rush the reversion. The bread and water that follow are the offering returning through you — the rite completing in the body.',
       'Sit with memory, then eat the bread and drink the water as reversion.',
     ],
     sourceNote:
-        'The Wag is attested across Kemetic festival calendars and tomb texts; the thousand-offering formula activates provision through speech.',
+        'The thousand-offering formula activated provision through speech. The reversion that followed sustained the living person who gave it. Both acts complete the same provision cycle.',
     requiresOfferings: true,
     localPrompt: WagLocalPromptKind.feastNames,
   ),
@@ -405,10 +405,10 @@ const List<WagEvent> kWagEvents = <WagEvent>[
       'Choose one person among the dead and name one specific thing they gave you.',
       'Ask whether the living have heard that person named with this gift.',
       'Name one way to carry the gift forward more intentionally.',
-      'Drink water as acknowledgment that you are still living.',
+      'Drink water as acknowledgment that you are still living and therefore still responsible for the transmission.',
     ],
     sourceNote:
-        'Spell 125 names the cakes of the blessed dead; this event turns from offering to what is carried forward.',
+        'Spell 125\'s prohibition against stealing the dead\'s cakes was practical: the dead depended on that provision. The living equivalent is the gift received from the dead — carried forward, it sustains; left dormant, it depletes.',
     localPrompt: WagLocalPromptKind.inheritedGift,
   ),
   WagEvent(
@@ -424,7 +424,7 @@ const List<WagEvent> kWagEvents = <WagEvent>[
         'A man lives when his name is spoken. Speak the names. They live.',
     steps: <String>[
       'Write one sentence you would want spoken after your name at a future Wag.',
-      'Ask whether that thing is true of you now, partly true, or not yet true.',
+      'Ask whether that sentence is true of you now, partly true, or not yet true. This is not a guilt check — it is the living version of the autobiography, written while there is still time to edit it.',
       'Optional: add your own name to the continuity, not as dead, but as one who will eventually be spoken for.',
     ],
     sourceNote:
@@ -444,12 +444,12 @@ const List<WagEvent> kWagEvents = <WagEvent>[
         'I have made invocation-offerings for the blessed dead. Their names have been spoken. They live. I am their continuation. They are my foundation.',
     steps: <String>[
       'Read the complete list of names one final time.',
-      'Speak only the closing lines that are true: I spoke the names; I set water; I set bread; I did not neglect the appointed days; I received what they gave.',
+      'Speak only the lines that are true. Each is a fact-check, not a declaration of success.',
       'Write next year\'s Wag date somewhere you will see it.',
       'Place water one more time. Drink it. The cycle closes.',
     ],
     sourceNote:
-        'Harkhuf asks the living to speak offerings and promises reciprocal intercession; the living and dead remain in maintained relationship.',
+        'Harkhuf invited future passers-by to speak the offering formula in exchange for his intercession. The Wag operates on the same exchange: the living tend the dead, and the dead are available as foundation. The cycle closes with water that confirms both sides of the provision.',
     requiresOfferings: true,
     sharePromptOnComplete: true,
     localPrompt: WagLocalPromptKind.closingConfirmation,
@@ -706,23 +706,23 @@ String _wagVariantLine(WagCopyVariant variant) {
 String _wagPurpose(WagEvent event) {
   switch (event.kind) {
     case WagEventKind.beginNaming:
-      return 'Open the year by writing and speaking the names of the dead.';
+      return 'The name spoken is not symbolic — in Kemetic understanding, it is the mechanism of continuation. The Wag begins with the names because without them there is no table and no feast.';
     case WagEventKind.extendNames:
-      return 'Reach beyond the first list and include unknown, story-held, and practice ancestors.';
+      return 'The naming extends to the unknown because the offering is not limited by the record. Ancestors without known names still have names — they are simply lost. Addressing them by relationship is the honest substitute.';
     case WagEventKind.tableSet:
-      return 'Close the naming decan by confirming the list and first shared water.';
+      return 'Neglecting the appointed days for the dead was named in the Declaration of Innocence as a specific wrong. The table set before the feast is the household\'s answer to that accusation.';
     case WagEventKind.approach:
-      return 'Prepare the surface and the offerings before the Wag arrives.';
+      return 'The approach is the preparation — the surface chosen, the offerings gathered, the focus named. The invocation came forth through the living voice. The living voice must know who it is speaking for before it begins.';
     case WagEventKind.vigil:
-      return 'Call the dead to the table at dusk and leave the offerings overnight.';
+      return 'The vigil holds the night open for the dead. The offerings placed at dusk stay through the night because the Wag feast continues past the hour of the living\'s participation.';
     case WagEventKind.feast:
-      return 'Keep the annual feast: names, water, bread or food, formula, presence, reversion.';
+      return 'The feast is provision given and received. The thousand-offering formula activates provision through speech. The reversion — eating and drinking — closes the cycle by making the offering real in the body of the one who gave it.';
     case WagEventKind.whatTheyGave:
-      return 'Name the living gift carried from the dead into your conduct.';
+      return 'To receive what the dead gave and not carry it forward is the living equivalent of stealing their cakes — the transmission ends with you instead of passing through you.';
     case WagEventKind.whatYouLeave:
-      return 'Look forward and name what you are becoming for those who will speak after you.';
+      return 'The future Wag that speaks your name will speak what was actually done, not what was intended. This sitting asks which of those two things you are currently building.';
     case WagEventKind.cycleConfirmed:
-      return 'Close the annual cycle and set the next Wag in view.';
+      return 'The annual cycle closes with the names read one final time and the closing lines spoken only if they are true. The water drunk last is the offering returned through the body that gave it.';
   }
 }
 

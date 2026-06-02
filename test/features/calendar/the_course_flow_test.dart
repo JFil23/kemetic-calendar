@@ -127,7 +127,7 @@ void main() {
     );
 
     expect(detail, isNotNull);
-    expect(detail, contains('Mark dusk as the transition'));
+    expect(detail, contains('The visible day has actually ended.'));
     expect(detail, contains('Lens\nLet Ra'));
   });
 

@@ -65,7 +65,9 @@ void main() {
     expect(detail, isNot(contains('Completion:')));
     expect(
       detail,
-      contains('Purpose\nMark the passage from day-action into evening-rest.'),
+      contains(
+        'Purpose\nThe evening has no official start time. This rite marks one deliberately.',
+      ),
     );
     expect(detail, contains('Action\nPause near a window'));
     expect(detail, contains('Words\n"'));
@@ -103,6 +105,25 @@ void main() {
 
     expect(kEveningThresholdRiteDays, hasLength(30));
     expect(starts, hasLength(30));
+  });
+
+  test('purpose copy checkpoints match the upgraded thirty-evening rite', () {
+    expect(
+      kEveningThresholdRiteDays[0].purpose,
+      'The evening has no official start time. This rite marks one deliberately.',
+    );
+    expect(
+      kEveningThresholdRiteDays[9].purpose,
+      'What pattern appeared across the first ten closings? The recalibration asks before the next ten begin.',
+    );
+    expect(
+      kEveningThresholdRiteDays[19].purpose,
+      'Ten evenings of household attention. What did the house give back? What does it still need?',
+    );
+    expect(
+      kEveningThresholdRiteDays[29].purpose,
+      'Thirty evenings of deliberate closing. The practice is not finished — it is established. This rite marks what changed.',
+    );
   });
 
   test('calendar join waits for Evening event persistence before success', () {

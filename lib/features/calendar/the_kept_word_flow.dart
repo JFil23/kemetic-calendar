@@ -255,7 +255,7 @@ const List<KeptWordEvent> kKeptWordEvents = <KeptWordEvent>[
       'Mark each agreement kept, drifted, or broken. Mark any drifted or broken agreement for Decan 2.',
     ],
     sourceNote:
-        'The Teaching for King Merikare treats the palace as the immediate sphere where public order begins. The front of the house determines the back.',
+        'Merikare\'s teaching placed truth inside the palace first because that is where order is most likely to be protected or corrupted. Proximity makes drift comfortable — the closest agreements are the ones where it goes unnoticed longest.',
     localPrompt: KeptWordLocalPromptKind.agreementInventory,
   ),
   KeptWordEvent(
@@ -269,9 +269,9 @@ const List<KeptWordEvent> kKeptWordEvents = <KeptWordEvent>[
     spokenLine:
         'Do not utter falsehood, for you are a balance. Do not go off course, for you are impartiality. If it wavers, then you will waver.',
     steps: <String>[
-      'Name one shared rhythm that used to hold the household or relationship together and has drifted or stopped.',
-      'Write one sentence about when it stopped and why, without assigning blame.',
-      'Carry this named rhythm into Decan 2 with the broken agreements from Day 1.',
+      'Name one shared rhythm that used to hold the household or relationship together and has drifted or stopped. Not a dramatic break — the small regular pattern that used to create order between two people.',
+      'Name who was affected by the rhythm stopping.',
+      'Write one sentence about whether anyone has named the change directly.',
     ],
     sourceNote:
         'The Eloquent Peasant names the person as a balance. This sitting treats shared rhythm as part of the household measure.',
@@ -296,7 +296,7 @@ const List<KeptWordEvent> kKeptWordEvents = <KeptWordEvent>[
       'Before the decan closes, tell the person involved that you want a clear conversation about one thing in the next ten days.',
     ],
     sourceNote:
-        'Ptahhotep names greed as a force that creates dissension inside families and close bonds.',
+        'Ptahhotep\'s warning about greed specifically names what it separates: fathers from children, wives from husbands, friends from each other. The inventory closes by asking whether greed was the mechanism, because it is the one the holder rarely notices in themselves.',
     localPrompt: KeptWordLocalPromptKind.sealSeeingGreedCheck,
   ),
   KeptWordEvent(
@@ -310,9 +310,9 @@ const List<KeptWordEvent> kKeptWordEvents = <KeptWordEvent>[
     spokenLine:
         'Deliver the message exactly as it was given. Observe the truth; do not surpass it.',
     steps: <String>[
-      'Write the specific fact: We agreed to X. What has been happening is Y. I want to understand the gap.',
-      'Write what you think the other person\'s honest account may be.',
-      'Commit to a time for the conversation before Day 15.',
+      'Write the specific fact: We agreed to X. What has been happening is Y. I want to understand the gap. Keep it that short. The message that is longer than this has usually started editing the truth toward a preferred outcome.',
+      'Choose the least escalating medium that still counts as direct: spoken conversation, voice message, text, or written note.',
+      'Send or schedule the message before marking this event prepared.',
     ],
     optionalSteps: <String>[
       'If the conversation is not safe or possible, pause the flow locally and seek appropriate support.',
@@ -357,7 +357,7 @@ const List<KeptWordEvent> kKeptWordEvents = <KeptWordEvent>[
       'Name one accurate thing the other person said that you had been holding differently.',
     ],
     sourceNote:
-        'In The Blinding of Truth by Falsehood, the dispute is settled by bringing what was hidden into process.',
+        'The Blinding of Truth by Falsehood ends with the buried dispute made visible — not with instant resolution, but with the hidden thing brought into process. What has been named but not yet resolved has already cleared the hardest stage: it is no longer hidden.',
     requiresConversation: true,
     localPrompt: KeptWordLocalPromptKind.sealNaming,
   ),
@@ -372,9 +372,9 @@ const List<KeptWordEvent> kKeptWordEvents = <KeptWordEvent>[
     spokenLine:
         'Observe Ma\'at, that you may endure long upon the earth. An upright heart is becoming to a lord.',
     steps: <String>[
-      'Write the current agreement in plain language both people would recognize.',
-      'For the shared rhythm from Decan 1, name whether it was restored, replaced, or still blocked.',
-      'Read the written agreement aloud so the word becomes operative.',
+      'Write the renewed agreement in one or two sentences.',
+      'Name who needs to recognize it and how you will confirm recognition.',
+      'Read the written agreement aloud so the word becomes operative. The spoken agreement is more present than the written one.',
     ],
     localPrompt: KeptWordLocalPromptKind.renewedAgreement,
   ),
@@ -397,7 +397,7 @@ const List<KeptWordEvent> kKeptWordEvents = <KeptWordEvent>[
       'Make the correction short. Healthy agreements need small adjustments as they settle.',
     ],
     sourceNote:
-        'Ptahhotep treats household bonds as obligations that can be impoverished by selfishness.',
+        'Ptahhotep says the person who forsakes their relatives through selfishness becomes poor — not economically, but relationally. The rhythm check keeps the renewed agreement from drifting back into the old imbalance through small, unintentional taking.',
     localPrompt: KeptWordLocalPromptKind.rhythmCheck,
   ),
   KeptWordEvent(
@@ -419,7 +419,7 @@ const List<KeptWordEvent> kKeptWordEvents = <KeptWordEvent>[
       'If you share, share only the generic closing line. Do not share names, agreements, or conversation content.',
     ],
     sourceNote:
-        'The Kept Word closes where Merikare begins: speaking Ma\'at within the immediate house so order can flow outward.',
+        'The quality of the palace determined the quality of everything that radiated from it — Merikare\'s principle. The Kept Word returns there: the closest sphere, re-examined, re-negotiated, re-spoken. What is now true at the front of the house will determine what follows.',
     sharePromptOnComplete: true,
     localPrompt: KeptWordLocalPromptKind.closeInventory,
   ),
@@ -767,23 +767,23 @@ String _numberedLines(List<String> lines) {
 String _keptWordPurpose(KeptWordEvent event) {
   switch (event.eventNumber) {
     case 1:
-      return 'Begin by naming the agreements that currently govern your closest sphere.';
+      return 'The agreements that govern your closest sphere are running whether or not you look at them. This sitting makes the current terms visible so they can be honestly assessed.';
     case 2:
-      return 'Name one shared rhythm that quietly stopped holding the house.';
+      return 'Agreements have two kinds of failure: the promise broken, and the rhythm that quietly stopped. This sitting names the second kind.';
     case 3:
-      return 'Seal the first decan by choosing the clearest break to bring into process.';
+      return 'Greed breaks agreements from the inside — not through dramatic violation but through taking a little more than was agreed, a little longer than was promised. This closing checks whether that is what happened.';
     case 4:
-      return 'Prepare the conversation by carrying the message exactly, without additions.';
+      return 'The conversation starts with the fact, not the feeling. This sitting writes the message before it is delivered.';
     case 5:
-      return 'Confirm whether the conversation happened and record only the generic outcome locally.';
+      return 'The conversation is the event — not the outcome. This sitting records whether the direct exchange happened, not whether it resolved everything.';
     case 6:
-      return 'Close the naming by stating where the break now stands.';
+      return 'The naming decan closes with where the break actually stands. Resolved, in process, or named but unresolved — all three are honest positions.';
     case 7:
-      return 'Make the renewed agreement explicit enough to hold.';
+      return 'An agreement that both people would recognize is a real agreement. The test is whether you could each read it back and say: yes, that is what we agreed.';
     case 8:
-      return 'Check whether the renewed rhythm is holding in practice.';
+      return 'A renewed agreement shifts in practice before it shifts formally. This sitting catches the small drift before it becomes the next break.';
     case 9:
-      return 'Close with the one line that is now true, without exposing private agreements.';
+      return 'The flow closes with one line that is now true that was not true at the start. That line is the measure of the cycle.';
   }
   return 'What you speak within your house determines its order.';
 }

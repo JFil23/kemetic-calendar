@@ -139,6 +139,19 @@ void main() {
     },
   );
 
+  test('table water instruction is primary and source note is upgraded', () {
+    final table = kWagEvents.singleWhere((event) => event.eventNumber == 3);
+    const waterText =
+        'Set water before you read any names. The water is the first provision — it goes before everything else.';
+
+    expect(table.steps.first, waterText);
+    expect(table.optionalSteps, isNot(contains(waterText)));
+    expect(
+      kWagEvents.first.sourceNote,
+      'The Kemite understood the ren — the name — as a constituent part of the person, as real as the body. A name not spoken eventually becomes as if it never existed. This sitting is not commemorative — it is active. Speaking the name continues what the name holds.',
+    );
+  });
+
   test(
     'calendar UI and join branch use designated Wag windows and M1 dates',
     () {

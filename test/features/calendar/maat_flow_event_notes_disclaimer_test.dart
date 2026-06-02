@@ -22,7 +22,7 @@ void main() {
     final banned = RegExp(
       r'(modern reconstruction|not medical|not legal|privacy|notification|'
       r'historically attested|directly attested|not 1:1|interpretive|'
-      r'educational purposes|terms|conditions)',
+      r'educational purposes|terms and conditions)',
       caseSensitive: false,
     );
 

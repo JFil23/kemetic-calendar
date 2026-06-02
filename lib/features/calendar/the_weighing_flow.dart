@@ -144,16 +144,15 @@ const List<TheWeighingEvent> kTheWeighingEvents = <TheWeighingEvent>[
     slot: TheWeighingTimingSlot.openMorning,
     durationMinutesMin: 5,
     durationMinutesMax: 8,
-    spokenLine: 'I open my record without fear. What is here is what is true.',
+    spokenLine:
+        'Speak this before opening anything: I open my record without fear. What is here is what is true.',
     steps: <String>[
-      'Write down one number you have not looked at directly in the last decan: a balance, debt, supply, or physical record.',
+      'Place a cup of water on your surface before you begin. Let it sit while you write.',
+      'Write down one number you have not looked at directly in the last decan: a balance, debt, supply, or physical record. The number was there before you wrote it. Writing it makes it something you can actually weigh.',
       'Name one thing you received in the last decan that went unacknowledged. Say plainly: I received ___.',
     ],
-    optionalSteps: <String>[
-      'Place a cup of water on your surface before you begin. Let it sit while you write.',
-    ],
     sourceNote:
-        'Kemetic offering ritual begins with water before bread, oil, or incense. This sitting witnesses what sustains before adding anything.',
+        'The Kemite placed water first because the record must be witnessed before it can be weighed — not examined, not solved, but witnessed. What sustains you is named before anything else is counted.',
   ),
   TheWeighingEvent(
     eventNumber: 2,
@@ -170,7 +169,7 @@ const List<TheWeighingEvent> kTheWeighingEvents = <TheWeighingEvent>[
       'If the imbalance is correctable, choose one small restorative act before Decan 1 closes.',
     ],
     sourceNote:
-        'Drawn from Amenemope, Chapter 17: the measure belongs to Re and false measure belongs to theft.',
+        'Amenemope\'s Chapter 17 is specific: the grain measure belongs to Re, and tampering with it is theft from the god, not just from the transaction. The midpoint check is the moment the scale speaks again, without interference.',
   ),
   TheWeighingEvent(
     eventNumber: 3,
@@ -191,7 +190,7 @@ const List<TheWeighingEvent> kTheWeighingEvents = <TheWeighingEvent>[
       'Extinguish a light when you complete the event. What was open is now sealed.',
     ],
     sourceNote:
-        'Drawn from the Declaration of Innocence, Spell 125, where false balance and tampered scales are named directly.',
+        'The Declaration of Innocence names false balance and tampered scales in the same breath as murder and theft. The Kemite treated the distorted record as harm to the world, not as an inconvenience to the individual.',
   ),
   TheWeighingEvent(
     eventNumber: 4,
@@ -202,17 +201,15 @@ const List<TheWeighingEvent> kTheWeighingEvents = <TheWeighingEvent>[
     durationMinutesMin: 5,
     durationMinutesMax: 8,
     spokenLine:
-        'My tongue is the plummet. My heart is the weight. I do not utter falsehood, for I am a balance.',
+        'Before writing anything, speak this: My tongue is the plummet. My heart is the weight. I do not utter falsehood, for I am a balance.',
     steps: <String>[
+      'Place water on your surface before sitting. The record needs a clean instrument.',
       'Name one promise or agreement that remains open from the last decan.',
       'State what was said, what has been done, and what remains undone.',
       'Name one account you softened, exaggerated, or framed to favor yourself.',
     ],
-    optionalSteps: <String>[
-      'Place water on your surface before sitting as a reminder that the record needs a clean instrument.',
-    ],
     sourceNote:
-        'Drawn from The Eloquent Peasant, where the human speaker is described as a balance whose tongue, heart, and lips carry measure.',
+        'The Eloquent Peasant calls the honest person a balance whose tongue, heart, and lips carry the measure. A balance adjusted for convenience is no longer a balance — it is a prop. This sitting asks whether the spoken record has been a real balance.',
   ),
   TheWeighingEvent(
     eventNumber: 5,
@@ -230,7 +227,7 @@ const List<TheWeighingEvent> kTheWeighingEvents = <TheWeighingEvent>[
       'If the gap is small enough to close with one clear message, send it before this decan ends.',
     ],
     sourceNote:
-        'Drawn from Amenemope, Chapter 13, where false written witness is treated as a grave disorder.',
+        'Amenemope treats written false witness as a grave disorder — not because writing is sacred, but because what is written persists and shapes what follows. The spoken and written record do the same damage when they drift from what was actually agreed.',
   ),
   TheWeighingEvent(
     eventNumber: 6,
@@ -251,7 +248,7 @@ const List<TheWeighingEvent> kTheWeighingEvents = <TheWeighingEvent>[
       'Write the one thing you are carrying forward on paper, not a screen.',
     ],
     sourceNote:
-        'Drawn from Spell 125, where slander, pain, and weeping belong to the record of harm.',
+        'Spell 125 names slander and causing unnecessary pain alongside larger violations because Kemetic moral accounting treated them as the same category: disorder introduced into another person\'s life. The seal closes honestly about what the spoken record actually produced.',
   ),
   TheWeighingEvent(
     eventNumber: 7,
@@ -262,7 +259,7 @@ const List<TheWeighingEvent> kTheWeighingEvents = <TheWeighingEvent>[
     durationMinutesMin: 5,
     durationMinutesMax: 8,
     spokenLine:
-        'I have come before you, my lord, bringing Truth, having repelled for you falsehood.',
+        'Speak this standing, before reading the four lines: I have come before you, my lord, bringing Truth, having repelled for you falsehood.',
     steps: <String>[
       'Read slowly: I have not caused avoidable hunger in those who depend on me.',
       'Read slowly: I have not diverted what should have flowed.',
@@ -271,7 +268,7 @@ const List<TheWeighingEvent> kTheWeighingEvents = <TheWeighingEvent>[
       'If any line required a pause, write one corrective act completable before this decan closes.',
     ],
     sourceNote:
-        'The Declaration of Innocence is an early structured self-examination. This is honest accounting, not a simulation of judgment.',
+        'The Declaration of Innocence was spoken before the 42 Assessors as a formal account of conduct, not a confession. Each line was weighed on its own. A pause at any line is information, not judgment — it shows where the record needs attention before it is sealed.',
   ),
   TheWeighingEvent(
     eventNumber: 8,
@@ -289,7 +286,7 @@ const List<TheWeighingEvent> kTheWeighingEvents = <TheWeighingEvent>[
       'Write one sentence about what you think they would say.',
     ],
     sourceNote:
-        'Drawn from The Eloquent Peasant, where impartiality and balance are treated as conditions of truthful speech.',
+        'The Eloquent Peasant says impartiality is a condition of truthful speech — the judge who favors one side cannot call themselves a balance. This midpoint check asks whether the living record has applied the same measure to those with less and those with more.',
   ),
   TheWeighingEvent(
     eventNumber: 9,
@@ -299,7 +296,8 @@ const List<TheWeighingEvent> kTheWeighingEvents = <TheWeighingEvent>[
     slot: TheWeighingTimingSlot.sealEvening,
     durationMinutesMin: 8,
     durationMinutesMax: 10,
-    spokenLine: 'I am pure. I am pure. I am pure. I am pure.',
+    spokenLine:
+        'The closing declaration is spoken four times because one repetition is not enough to establish what has been witnessed. Speak each truth-check line only if it is accurate. Then: I am pure. I am pure. I am pure. I am pure.',
     steps: <String>[
       'Speak only the lines you can speak honestly; remain silent on any line that is not accurate.',
       'The material record of this decan was kept without distortion.',
@@ -310,12 +308,10 @@ const List<TheWeighingEvent> kTheWeighingEvents = <TheWeighingEvent>[
       'I did not adjust the scale to favor myself.',
       'Name one thing from this cycle that you will hold differently in the next.',
       'Name one thing the record shows you did well.',
-    ],
-    optionalSteps: <String>[
-      'Offer water. Place a cup. Complete the reckoning with provision, not self-punishment.',
+      'Offer water. Place a cup. The reckoning ends with provision, not punishment.',
     ],
     sourceNote:
-        'The Weighing of the Heart completes the record so continuation can begin from an honest position.',
+        'The Weighing of the Heart did not require perfection — it required honesty. The heart heavier or lighter than the feather had been inaccurate, not evil. The seal closes the record so continuation can begin from truth rather than pretense.',
     sharePromptOnComplete: true,
   ),
 ];
@@ -658,23 +654,23 @@ String _numberedLines(List<String> lines) {
 String _theWeighingPurpose(TheWeighingEvent event) {
   switch (event.eventNumber) {
     case 1:
-      return 'Face what is materially true before the cycle begins.';
+      return 'The number you haven\'t looked at is already operating on your life. This sitting names it — not to fix it, but because the unlooked-at thing cannot be weighed.';
     case 2:
-      return 'Make one honest midpoint check without turning it into a full reckoning.';
+      return 'The scale that is privately adjusted is still adjusted, even if no one saw it. Amenemope said the measure belongs to Re — meaning the accurate count exists independent of what you reported.';
     case 3:
-      return 'Close the first decan by carrying a fact, not a hope, into the next record.';
+      return 'The record sealed on a half-truth carries that half-truth into the next decan. The seal closes with what is actually true, not what is close enough.';
     case 4:
-      return 'Open the record of what has been said, agreed to, and promised.';
+      return 'An agreement is a record spoken aloud. This sitting finds the gap between what was said and what has happened since, and names it in the same medium — speech — where the agreement was made.';
     case 5:
-      return 'Check whether any spoken agreement has drifted since Day 11.';
+      return 'The person who understood your agreement differently is not necessarily wrong. This sitting asks whether the gap is a disagreement or a discrepancy — and which is yours to close.';
     case 6:
-      return 'Close the second decan with what is true about the spoken record.';
+      return 'The second decan closes with what is actually true about the spoken record, not what was intended. Intention does not seal a record — completion does.';
     case 7:
-      return 'Open the record shown by conduct, not intent or self-story.';
+      return 'The record you leave is not the one you intended — it is the one your conduct produced. These four lines are not aspirations. Read them as a fact-check.';
     case 8:
-      return 'Ask one plain question about how the living record may look from another side.';
+      return 'Someone with less power in your orbit has a different view of the same period. This sitting asks whether their account would recognize yours — not to accept it uncritically, but to check whether the gap is explainable.';
     case 9:
-      return 'Complete the flow by witnessing what was true in this thirty-day cycle.';
+      return 'These lines are not aspirational. Speak only the ones that are true. The seal closes with what was actually done.';
   }
   return 'Sit with what is true.';
 }

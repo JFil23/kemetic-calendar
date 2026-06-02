@@ -162,7 +162,7 @@ const List<CourseEvent> kTheCourseEvents = <CourseEvent>[
     durationMinutesMin: 3,
     durationMinutesMax: 5,
     spokenLine:
-        'Riser, Riser! Beetle, Beetle! Your life is related to mine; my life is related to yours. Sustenance is for my morning, Abundance is for my evening. Famine will not have control of this life.',
+        'Face east, or face the window: Riser, Riser! Beetle, Beetle! Your life is related to mine; my life is related to yours. Sustenance is for my morning, Abundance is for my evening. Famine will not have control of this life.',
     steps: <String>[
       'Open the ḥꜣw day card. Read the Kemetic date, decan name, and Ma\'at principle before you close it.',
       'Name one thing appropriate for the morning part of this particular day.',
@@ -172,7 +172,7 @@ const List<CourseEvent> kTheCourseEvents = <CourseEvent>[
       'Face east for a moment. This is the direction of return.',
     ],
     sourceNote:
-        'In Kemet, the day began at dawn. Pyramid Texts Utterance 388 addresses the returning Sun directly as Riser and Beetle.',
+        'Pyramid Texts Utterance 388 addressed the returning Sun as an entity that had just arrived and with whom the speaker was in reciprocal relationship. The day card locates you in the Kemetic count; facing east makes the location physical.',
   ),
   CourseEvent(
     eventNumber: 2,
@@ -185,9 +185,9 @@ const List<CourseEvent> kTheCourseEvents = <CourseEvent>[
     spokenLine:
         'The Sun\'s daily movement is a journey from birth to death, and its rebirth at dawn is made possible by what passes through the night. I have completed the visible portion of this day.',
     steps: <String>[
-      'Open the ḥꜣw day card before you mark the transition.',
-      'At dusk, stop one thing for thirty seconds and notice that the visible portion of the day has ended.',
-      'Name one thing accomplished in the visible hours and one thing that will pass through night.',
+      'Open the day card again at dusk and note what actually happened between dawn and dusk.',
+      'At dusk, stop one thing for thirty seconds and notice that the visible portion of the day has ended. Not as a meditation — as a fact.',
+      'Name one thing completed and one thing that now passes into night.',
     ],
     sourceNote:
         'The solar course moves from dawn birth through dusk completion and the hidden night passage.',
@@ -224,7 +224,7 @@ const List<CourseEvent> kTheCourseEvents = <CourseEvent>[
       'Name what this specific decan calls for in your life right now.',
     ],
     sourceNote:
-        'The decans divided Kemetic time into ten-day star arcs. Knowing the decan meant knowing the quality of the time.',
+        'The 36 decans were star groups that rose in the eastern sky at ten-day intervals, serving as the Kemetic clock. Each had a distinct character. This rite makes the current decan\'s quality something you actively work with, not just observe.',
   ),
   CourseEvent(
     eventNumber: 5,
@@ -259,6 +259,8 @@ const List<CourseEvent> kTheCourseEvents = <CourseEvent>[
     optionalSteps: <String>[
       'Read the next decan name and theme before the evening closes.',
     ],
+    sourceNote:
+        'The Pyramid Texts speak of agricultural labor as provision for the divine. The decan act does the same: whatever was done in this ten-day period is named as provision for the practice, for the record, for the cycle that continues.',
   ),
   CourseEvent(
     eventNumber: 7,
@@ -269,7 +271,7 @@ const List<CourseEvent> kTheCourseEvents = <CourseEvent>[
     durationMinutesMin: 5,
     durationMinutesMax: 8,
     spokenLine:
-        'I ordered everything in its proper place. Hapy gave me honor on every field, so that none hungered during my years, none thirsted therein.',
+        'Locate the current season first. Then speak: I ordered everything in its proper place. Hapy gave me honor on every field, so that none hungered during my years, none thirsted therein.',
     steps: <String>[
       'Open the ḥꜣw day card and locate the current season before speaking.',
       'Read the season branch shown here and name what this season asks in your life.',
@@ -277,7 +279,7 @@ const List<CourseEvent> kTheCourseEvents = <CourseEvent>[
     ],
     seasonAware: true,
     sourceNote:
-        'The Kemetic seasons were operational instructions: Akhet receives, Peret emerges, Shemu completes, and transition marks threshold.',
+        'Akhet, Peret, and Shemu were operational categories — descriptions of what each period called for. The seasonal act follows from this: not a general good intention, but the specific work that belongs to this period.',
   ),
   CourseEvent(
     eventNumber: 8,
@@ -316,7 +318,7 @@ const List<CourseEvent> kTheCourseEvents = <CourseEvent>[
       'If you share, share only one practice you will continue. Do not turn the private record into performance.',
     ],
     sourceNote:
-        'The Course closes at dawn because the practice is not finished; it is established as a way of moving through time.',
+        'The Course closes at dawn because the practice is not finished — it is established. The astronomer-priest did not retire; the decan clock kept running; the seasonal rites repeated with the year. The final line speaks from inside a continuing relationship with time, not from the completion of a temporary program.',
     sharePromptOnComplete: true,
   ),
 ];
@@ -712,23 +714,23 @@ String _numberedLines(List<String> lines) {
 String _coursePurpose(CourseEvent event) {
   switch (event.eventNumber) {
     case 1:
-      return 'Begin by locating yourself in the returning solar day.';
+      return 'The Pyramid Texts addressed the returning sun directly because it had actually just arrived. This rite does the same — the day has returned. Locating yourself in it before the tasks begin is not metaphorical.';
     case 2:
-      return 'Mark dusk as the transition where the visible day completes.';
+      return 'The solar barge crossed a threshold at dusk into the hidden passage. The visible day has actually ended. Naming one completed thing and one thing that passes through night is the scribe\'s record of the crossing.';
     case 3:
-      return 'Close the daily-course decan by naming the rhythm that actually formed.';
+      return 'Nine days of daily rhythm reveal a pattern. This sitting names it without editing — not what the rhythm should have been, but what it was.';
     case 4:
-      return 'Locate yourself inside the current ten-day decan.';
+      return 'The decan is not just a period of time — it is a quality of time with a specific astronomical marker. Knowing which decan you are in tells you what the sky is currently measuring.';
     case 5:
-      return 'Do one act that belongs to this decan rather than generic time.';
+      return 'The decan act is specific: one thing done today that belongs to this period\'s quality. Not any time, not when convenient.';
     case 6:
-      return 'Seal the decan arc by naming what it asked and what was given.';
+      return 'The decan arc closes with what was actually done in this period. Work not done is noted without self-punishment — it passes to the next period.';
     case 7:
-      return 'Locate yourself in Akhet, Peret, Shemu, or transition.';
+      return 'The Kemetic seasons were not just periods of climate — they were operational instructions. Akhet receives. Peret emerges. Shemu completes. Knowing which season you are in tells you what the time is asking for.';
     case 8:
-      return 'Do one act that belongs to the active Kemetic season.';
+      return 'The seasonal act is the one that could only belong to this period. Doing it in the right season is what makes it a seasonal act rather than a general good intention.';
     case 9:
-      return 'Confirm the day card, decan, and season as continuing practice.';
+      return 'The course does not complete — it becomes more accurate. This sitting names the one practice that will continue and speaks the final line from inside an ongoing relationship with time.';
   }
   return 'Know where you are in time. Act from there.';
 }

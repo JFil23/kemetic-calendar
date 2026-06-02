@@ -165,7 +165,8 @@ kEveningThresholdRiteDays = <EveningThresholdRiteDay>[
     dayNumber: 1,
     section: 'Closing the Visible Day',
     title: 'The Threshold',
-    purpose: 'Mark the passage from day-action into evening-rest.',
+    purpose:
+        'The evening has no official start time. This rite marks one deliberately.',
     action:
         'Pause near a window, doorway, lamp, or sink. Notice that the visible day has ended.',
     words: 'The visible day closes. I step across the threshold in Ma\'at.',
@@ -176,7 +177,8 @@ kEveningThresholdRiteDays = <EveningThresholdRiteDay>[
     dayNumber: 2,
     section: 'Closing the Visible Day',
     title: 'Extinguishing Excess',
-    purpose: 'Reduce the day’s noise and heat.',
+    purpose:
+        'The day\'s intensity rarely stops on its own. This rite interrupts it.',
     action: 'Dim one light, silence one alert, or step away from one screen.',
     words:
         'What has burned too brightly may now grow quiet. May excess fall away.',
@@ -186,7 +188,8 @@ kEveningThresholdRiteDays = <EveningThresholdRiteDay>[
     dayNumber: 3,
     section: 'Closing the Visible Day',
     title: 'Water at Evening',
-    purpose: 'Cool and settle the day.',
+    purpose:
+        'Water is the first Kemetic offering at every threshold. Evening is a threshold. Set water first.',
     action: 'Set a cup or bowl of water, or wash your hands at the sink.',
     words: 'Cool water for the close of day. May the heat of action be calmed.',
     eveningAct:
@@ -196,7 +199,8 @@ kEveningThresholdRiteDays = <EveningThresholdRiteDay>[
     dayNumber: 4,
     section: 'Closing the Visible Day',
     title: 'The Last Honest Word',
-    purpose: 'End the day without carrying avoidable falsehood.',
+    purpose:
+        'Falsehood carried to bed changes the quality of sleep and the state you wake from. One correction here is enough.',
     action: 'Think of one thing left unsaid, misspoken, or exaggerated.',
     words:
         'May my words return to truth before night. May falsehood not follow me into rest.',
@@ -206,7 +210,8 @@ kEveningThresholdRiteDays = <EveningThresholdRiteDay>[
     dayNumber: 5,
     section: 'Closing the Visible Day',
     title: 'Gratitude Before Hiddenness',
-    purpose: 'Offer thanks before the day disappears.',
+    purpose:
+        'What you don\'t name before it disappears disappears entirely. This rite catches it while the day is still present.',
     action:
         'Name three things received today: food, help, shelter, lesson, breath, patience, protection.',
     words:
@@ -218,7 +223,8 @@ kEveningThresholdRiteDays = <EveningThresholdRiteDay>[
     dayNumber: 6,
     section: 'Closing the Visible Day',
     title: 'Small Disorder',
-    purpose: 'Clear one visible disorder so the night begins lighter.',
+    purpose:
+        'Large disorder began as small disorder ignored. This rite handles it while it\'s still small.',
     action: 'Clean or put away one small thing for two minutes.',
     words: 'A small disorder is met. May this place rest more lightly.',
     eveningAct:
@@ -228,7 +234,8 @@ kEveningThresholdRiteDays = <EveningThresholdRiteDay>[
     dayNumber: 7,
     section: 'Closing the Visible Day',
     title: 'Release of Labor',
-    purpose: 'Separate work from rest.',
+    purpose:
+        'Work that doesn\'t end spreads into sleep. This rite makes the ending official.',
     action:
         'Close a laptop, put away a tool, remove work items from view, or write tomorrow’s first task.',
     words: 'Work has its measure. The day’s labor ends where night begins.',
@@ -239,7 +246,8 @@ kEveningThresholdRiteDays = <EveningThresholdRiteDay>[
     dayNumber: 8,
     section: 'Closing the Visible Day',
     title: 'Cooling Anger',
-    purpose: 'Prevent the day’s conflict from entering the hidden hours.',
+    purpose:
+        'Anger cools faster when named and set down than when carried. This rite creates the setting-down.',
     action: 'Wash hands or touch cool water. Exhale slowly.',
     words:
         'May anger cool before night. May I not feed what should be released.',
@@ -250,7 +258,8 @@ kEveningThresholdRiteDays = <EveningThresholdRiteDay>[
     dayNumber: 9,
     section: 'Closing the Visible Day',
     title: 'Safe Passage',
-    purpose: 'Recognize evening as the start of hidden travel.',
+    purpose:
+        'The solar barge passed through the night in sequence, each hour with its own character. Your night begins with one deliberate preparation.',
     action: 'Stand still in dim light or near the threshold.',
     words:
         'The day passes into hiddenness. May I pass safely from action into renewal.',
@@ -261,7 +270,8 @@ kEveningThresholdRiteDays = <EveningThresholdRiteDay>[
     dayNumber: 10,
     section: 'Closing the Visible Day',
     title: 'First Recalibration',
-    purpose: 'Complete the first ten evenings and reset.',
+    purpose:
+        'What pattern appeared across the first ten closings? The recalibration asks before the next ten begin.',
     action: 'Review the past nine evenings without guilt. Set or touch water.',
     words:
         'One measure closes. What is finished may rest. What remains may return in its proper time.',
@@ -271,7 +281,8 @@ kEveningThresholdRiteDays = <EveningThresholdRiteDay>[
     dayNumber: 11,
     section: 'Settling the House',
     title: 'House at Dusk',
-    purpose: 'Bring the household into evening order.',
+    purpose:
+        'The house holds what the day left in it. This rite begins moving the day\'s residue out before the night settles in.',
     action: 'Walk through one room or stand at the center of the home.',
     words: 'This house crosses into evening. May peace have a place to stand.',
     eveningAct:
@@ -281,7 +292,8 @@ kEveningThresholdRiteDays = <EveningThresholdRiteDay>[
     dayNumber: 12,
     section: 'Settling the House',
     title: 'Doorway Guard',
-    purpose: 'Protect the boundary between outside pressure and inner rest.',
+    purpose:
+        'The doorway is not a wall — things pass through it all day. This rite names what doesn\'t cross into the night.',
     action: 'Touch the door, lock it, check it, or simply pause near it.',
     words:
         'May what belongs outside remain outside. May what belongs within be kept in peace.',
@@ -292,7 +304,8 @@ kEveningThresholdRiteDays = <EveningThresholdRiteDay>[
     dayNumber: 13,
     section: 'Settling the House',
     title: 'Evening Meal',
-    purpose: 'Treat nourishment as the day’s settling.',
+    purpose:
+        'Eating while distracted is not receiving food. This rite makes the meal an act instead of a task.',
     action: 'Before or after food, pause with water or a plate.',
     words:
         'Food and water return strength to the house. May nourishment be received in Ma\'at.',
@@ -303,7 +316,8 @@ kEveningThresholdRiteDays = <EveningThresholdRiteDay>[
     dayNumber: 14,
     section: 'Settling the House',
     title: 'The Quiet Surface',
-    purpose: 'Give the eyes one ordered place before night.',
+    purpose:
+        'One clear surface where there wasn\'t one changes the quality of the room. Order is spatial before it is psychological.',
     action:
         'Clear one surface: table, counter, desk, nightstand, sink, or altar.',
     words: 'One clear place is enough to welcome quiet. May order begin here.',
@@ -314,7 +328,8 @@ kEveningThresholdRiteDays = <EveningThresholdRiteDay>[
     dayNumber: 15,
     section: 'Settling the House',
     title: 'Peaceful Speech',
-    purpose: 'Let the house enter night without unnecessary sharpness.',
+    purpose:
+        'What is said just before sleep shapes what the night holds. This rite makes the last word intentional.',
     action: 'Touch water to lips or hold silence for one breath.',
     words:
         'May speech in this house soften without losing truth. May night not inherit needless harm.',
@@ -325,7 +340,8 @@ kEveningThresholdRiteDays = <EveningThresholdRiteDay>[
     dayNumber: 16,
     section: 'Settling the House',
     title: 'Ancestor Evening',
-    purpose: 'Let remembrance enter the quiet hours.',
+    purpose:
+        'The dead were remembered at dusk as well as dawn. The evening name-speaking closes the day with continuity.',
     action:
         'Set water. Speak one name, family line, or "the remembered and forgotten dead."',
     words:
@@ -337,7 +353,8 @@ kEveningThresholdRiteDays = <EveningThresholdRiteDay>[
     dayNumber: 17,
     section: 'Settling the House',
     title: 'Hidden Practice',
-    purpose: 'Honor practice that no one sees.',
+    purpose:
+        'The rite performed in the dark, alone, with no record — this is the one that belongs entirely to Ma\'at rather than to the display of it.',
     action: 'Perform the rite silently at the sink, bedside, or in the dark.',
     words: 'Even unseen, Ma\'at remains. Even hidden, right action has weight.',
     eveningAct:
@@ -347,7 +364,8 @@ kEveningThresholdRiteDays = <EveningThresholdRiteDay>[
     dayNumber: 18,
     section: 'Settling the House',
     title: 'Lamp and Shadow',
-    purpose: 'Recognize that evening contains both light and darkness.',
+    purpose:
+        'Not every task needs completion today. This rite names what can rest in darkness without becoming abandoned.',
     action: 'Dim one lamp or turn one light off intentionally.',
     words:
         'Light has done its work. Shadow now teaches rest, protection, and renewal.',
@@ -358,7 +376,8 @@ kEveningThresholdRiteDays = <EveningThresholdRiteDay>[
     dayNumber: 19,
     section: 'Settling the House',
     title: 'The Cup Left Standing',
-    purpose: 'Use water as a sign of calm continuity.',
+    purpose:
+        'Water standing overnight is the simplest offering of continuity: the house holds still while you sleep.',
     action: 'Set a cup of clean water where the evening begins or ends.',
     words:
         'Water stands where the day has passed. May calm remain in this house.',
@@ -369,7 +388,8 @@ kEveningThresholdRiteDays = <EveningThresholdRiteDay>[
     dayNumber: 20,
     section: 'Settling the House',
     title: 'Household Recalibration',
-    purpose: 'Complete the household ten-day measure.',
+    purpose:
+        'Ten evenings of household attention. What did the house give back? What does it still need?',
     action:
         'Stand in the room where the household most gathers. Notice what has improved and what still weighs on the space.',
     words:
@@ -380,7 +400,8 @@ kEveningThresholdRiteDays = <EveningThresholdRiteDay>[
     dayNumber: 21,
     section: 'Entering Hidden Renewal',
     title: 'Return from the World',
-    purpose: 'Withdraw from public identity into inner renewal.',
+    purpose:
+        'You carry the day\'s public self past the doorway unless you deliberately set it down. This rite makes that moment explicit.',
     action:
         'Remove one public marker: shoes, work badge, outer layer, makeup, headphones, or work posture.',
     words:
@@ -391,7 +412,8 @@ kEveningThresholdRiteDays = <EveningThresholdRiteDay>[
     dayNumber: 22,
     section: 'Entering Hidden Renewal',
     title: 'Accounting of the Heart',
-    purpose: 'Review the day without cruelty or self-deception.',
+    purpose:
+        'The Kemite asked the heart to give its account before the scale. This evening accounting prepares the heart before sleep applies its own judgment.',
     action:
         'Sit or stand quietly. Ask: What did I do in Ma\'at? Where did I add disorder?',
     words:
@@ -402,7 +424,8 @@ kEveningThresholdRiteDays = <EveningThresholdRiteDay>[
     dayNumber: 23,
     section: 'Entering Hidden Renewal',
     title: 'Fair Closure',
-    purpose: 'End the day by giving what is due.',
+    purpose:
+        'Debts carried to bed become heavier by morning. One small settlement before sleep changes the texture of what you wake into.',
     action:
         'Think of obligations: money, time, credit, response, labor, attention.',
     words:
@@ -414,7 +437,8 @@ kEveningThresholdRiteDays = <EveningThresholdRiteDay>[
     dayNumber: 24,
     section: 'Entering Hidden Renewal',
     title: 'Protection Through Rest',
-    purpose: 'Treat rest as protection, not escape.',
+    purpose:
+        'Rest that is not prepared is less restorative than rest that is. One preparation act changes the quality of the night.',
     action:
         'Prepare one thing that supports sleep: water, bedding, medicine, darkness, alarm, clean clothes.',
     words:
@@ -425,7 +449,8 @@ kEveningThresholdRiteDays = <EveningThresholdRiteDay>[
     dayNumber: 25,
     section: 'Entering Hidden Renewal',
     title: 'Releasing Noise',
-    purpose: 'Make room for the hidden mind.',
+    purpose:
+        'The mind has a channel underneath its daily noise. This rite is the brief interruption that lets it speak.',
     action: 'Turn off or move away from one source of noise.',
     words:
         'May the noise of the day recede. May quiet reveal what haste concealed.',
@@ -435,7 +460,8 @@ kEveningThresholdRiteDays = <EveningThresholdRiteDay>[
     dayNumber: 26,
     section: 'Entering Hidden Renewal',
     title: 'Night Boundary',
-    purpose: 'Protect the night from endless demands.',
+    purpose:
+        'The night belongs to restoration, not extension. This rite names the line between them.',
     action:
         'Set a stopping point: no more work, no more argument, no more scrolling, no more planning.',
     words:
@@ -446,7 +472,8 @@ kEveningThresholdRiteDays = <EveningThresholdRiteDay>[
     dayNumber: 27,
     section: 'Entering Hidden Renewal',
     title: 'Mercy for the Unfinished',
-    purpose: 'Release perfectionism and preserve continuity.',
+    purpose:
+        'Unfinished is not failed. This rite places tomorrow\'s task where it belongs — in tomorrow — and closes the door.',
     action: 'Write or speak one unfinished thing and when it will return.',
     words:
         'What is unfinished is not abandoned. It returns at its proper time.',
@@ -456,7 +483,8 @@ kEveningThresholdRiteDays = <EveningThresholdRiteDay>[
     dayNumber: 28,
     section: 'Entering Hidden Renewal',
     title: 'Deep Gratitude',
-    purpose: 'Move beyond listing blessings into reverence for continuity.',
+    purpose:
+        'There is a level of gratitude that requires no list — just the acknowledgment that something held you through this day that did not have to. This rite names it.',
     action:
         'Set water. Name one person, force, place, ancestor, or unseen support that helped you endure.',
     words:
@@ -467,7 +495,8 @@ kEveningThresholdRiteDays = <EveningThresholdRiteDay>[
     dayNumber: 29,
     section: 'Entering Hidden Renewal',
     title: 'Descent into Quiet',
-    purpose: 'Accept evening as a sacred descent, not a loss of productivity.',
+    purpose:
+        'The sun went into hiddenness — not to die but to travel. This rite begins your own version of that passage.',
     action:
         'Lower the light. Slow your breathing. Let the room become quieter.',
     words:
@@ -478,7 +507,8 @@ kEveningThresholdRiteDays = <EveningThresholdRiteDay>[
     dayNumber: 30,
     section: 'Entering Hidden Renewal',
     title: 'Completion at the Threshold',
-    purpose: 'Complete the thirty-day cycle and release it into renewal.',
+    purpose:
+        'Thirty evenings of deliberate closing. The practice is not finished — it is established. This rite marks what changed.',
     action:
         'Wash hands. Set water. Dim or extinguish one light. Review the full flow without guilt.',
     words:

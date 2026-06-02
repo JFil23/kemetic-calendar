@@ -121,7 +121,8 @@ const List<OfferingTableDay> kOfferingTableDays = <OfferingTableDay>[
     dayNumber: 1,
     section: 'Personal Table',
     title: 'The First Water',
-    purpose: 'Begin with the simplest proof that life is being provisioned.',
+    purpose:
+        'The Kemetic offering table began with water before anything else — not because water is symbolic, but because it is the most immediate provision. This rite does the same.',
     provisionAct:
         'Before food, phone, or work, fill the cup. Name one basic need that has been unmet for three days or more.',
     optionalSteps: <String>[
@@ -135,7 +136,7 @@ const List<OfferingTableDay> kOfferingTableDays = <OfferingTableDay>[
     section: 'Personal Table',
     title: 'The Cup Before the Noise',
     purpose:
-        'Let water be the first intake before the day starts taking from you.',
+        'The day\'s demands begin competing for attention before the body has been given anything. This rite reverses that order.',
     provisionAct:
         'Drink water before opening any feed, message thread, or task list. Name what you want your first input to be today.',
     optionalSteps: <String>[
@@ -146,7 +147,8 @@ const List<OfferingTableDay> kOfferingTableDays = <OfferingTableDay>[
     dayNumber: 3,
     section: 'Personal Table',
     title: 'Bread Enough',
-    purpose: 'Treat food as provision, not as background fuel.',
+    purpose:
+        'Food treated as fuel is not being received — it\'s being used. This rite makes one meal an act of provision rather than consumption.',
     provisionAct:
         'Name your first real food for the day. If it is not planned, choose one reachable option before the morning moves on.',
     optionalSteps: <String>[
@@ -157,7 +159,8 @@ const List<OfferingTableDay> kOfferingTableDays = <OfferingTableDay>[
     dayNumber: 4,
     section: 'Personal Table',
     title: 'The Body Washed',
-    purpose: 'Give the body one visible sign that it has not been neglected.',
+    purpose:
+        'Neglect rarely announces itself — it accumulates in small deferrals. This rite names one and corrects it.',
     provisionAct:
         'Wash face, hands, or mouth with attention. Name one body-care task that has been delayed and choose its smallest version.',
     optionalSteps: <String>[
@@ -168,7 +171,8 @@ const List<OfferingTableDay> kOfferingTableDays = <OfferingTableDay>[
     dayNumber: 5,
     section: 'Personal Table',
     title: 'The Midpoint: Rest',
-    purpose: 'Make rest factual before exhaustion gets renamed as virtue.',
+    purpose:
+        'The Kemite counted rest as provision alongside bread and oil. This rite asks for the actual sleep count before it becomes a problem.',
     provisionAct:
         'Name last night\'s sleep hours as a fact. Name one thing likely to shorten sleep tonight, and reduce it by one small amount.',
     optionalSteps: <String>[
@@ -181,7 +185,8 @@ const List<OfferingTableDay> kOfferingTableDays = <OfferingTableDay>[
     dayNumber: 6,
     section: 'Personal Table',
     title: 'The Small Supply',
-    purpose: 'Check the material supports your body quietly depends on.',
+    purpose:
+        'The supplies that run out do so silently. This rite checks them while they can still be replenished easily.',
     provisionAct:
         'Check one supply: medication, water bottle, groceries, soap, clean clothes, or transit fare. Refill or list the next concrete step.',
     optionalSteps: <String>[
@@ -192,7 +197,8 @@ const List<OfferingTableDay> kOfferingTableDays = <OfferingTableDay>[
     dayNumber: 7,
     section: 'Personal Table',
     title: 'Dignity at the Table',
-    purpose: 'Provision includes the supports that let you remain human.',
+    purpose:
+        'The Kemetic offering table held ointment and linen alongside food — care for the body\'s surface, not only its interior. This rite addresses the same.',
     provisionAct:
         'Choose one act that protects dignity today: clean clothing, a seat to eat, a real pause, or not mocking your own need.',
     optionalSteps: <String>[
@@ -203,7 +209,8 @@ const List<OfferingTableDay> kOfferingTableDays = <OfferingTableDay>[
     dayNumber: 8,
     section: 'Personal Table',
     title: 'The Quiet Hunger',
-    purpose: 'Notice the need hidden under being fine.',
+    purpose:
+        'The hunger that doesn\'t feel like hunger is usually the oldest one. This rite names it before it gets louder.',
     provisionAct:
         'Name one hunger that is not food: sleep, touch, silence, medical care, sunlight, movement, or help. Give it one small portion.',
     optionalSteps: <String>[
@@ -214,7 +221,8 @@ const List<OfferingTableDay> kOfferingTableDays = <OfferingTableDay>[
     dayNumber: 9,
     section: 'Personal Table',
     title: 'The First Repair',
-    purpose: 'Close one small gap before the personal table seals.',
+    purpose:
+        'The first decan closes. One small gap is the only repair the seal requires — not everything, just the one that can move.',
     provisionAct:
         'Choose one provision repair completable before noon: drink, eat, wash, stretch, rest ten minutes, refill, or ask for help.',
     optionalSteps: <String>[
@@ -225,7 +233,8 @@ const List<OfferingTableDay> kOfferingTableDays = <OfferingTableDay>[
     dayNumber: 10,
     section: 'Personal Table',
     title: 'The Personal Table Sealed',
-    purpose: 'Carry a plain account of how you sustained yourself.',
+    purpose:
+        'The scribe\'s record closes with what is — not what was intended, but what actually happened. This rite produces that account.',
     provisionAct:
         'Name one personal need that was fed this decan and one need still asking for provision. Keep both statements short.',
     optionalSteps: <String>[
@@ -236,7 +245,8 @@ const List<OfferingTableDay> kOfferingTableDays = <OfferingTableDay>[
     dayNumber: 11,
     section: 'Household Table',
     title: 'The Household Table Opens',
-    purpose: 'Turn from self-provision to the people and beings in your care.',
+    purpose:
+        'You are provisioned now. The table extends outward. Who else depends on the same supply chain?',
     provisionAct:
         'Name one dependent, housemate, elder, child, animal, plant, or shared space. Name one unmet need at that table.',
     optionalSteps: <String>[
@@ -249,7 +259,8 @@ const List<OfferingTableDay> kOfferingTableDays = <OfferingTableDay>[
     dayNumber: 12,
     section: 'Household Table',
     title: 'The Dependent Named',
-    purpose: 'Make care specific enough to be answered.',
+    purpose:
+        'Abstract care changes nothing. Named care in exact words produces the act that can follow it.',
     provisionAct:
         'Choose one being who depends on you. Name what they need today in exact words: food, attention, money, medicine, safety, time, or repair.',
     optionalSteps: <String>[
@@ -260,7 +271,8 @@ const List<OfferingTableDay> kOfferingTableDays = <OfferingTableDay>[
     dayNumber: 13,
     section: 'Household Table',
     title: 'The Fair Share',
-    purpose: 'Look at whether the table is being carried evenly enough.',
+    purpose:
+        'Someone is always carrying more than their share — usually quietly. This rite asks whether it\'s you or someone else, and acts accordingly.',
     provisionAct:
         'Name one household resource you use: food, money, time, labor, attention, or space. Ask if you are taking, giving, or avoiding your share.',
     optionalSteps: <String>[
@@ -271,7 +283,8 @@ const List<OfferingTableDay> kOfferingTableDays = <OfferingTableDay>[
     dayNumber: 14,
     section: 'Household Table',
     title: 'The Waiting Bowl',
-    purpose: 'Notice what has been left empty because no one named it.',
+    purpose:
+        'Things run low without announcement. This rite finds the one that has been waiting for someone to notice.',
     provisionAct:
         'Find one empty or low thing in the household: pantry item, soap, patience, pet bowl, laundry, calendar space. Name the refill.',
     optionalSteps: <String>['Do the refill if it takes under three minutes.'],
@@ -280,7 +293,8 @@ const List<OfferingTableDay> kOfferingTableDays = <OfferingTableDay>[
     dayNumber: 15,
     section: 'Household Table',
     title: 'The Midpoint: Attention',
-    purpose: 'Treat attention as provision, not decoration.',
+    purpose:
+        'Attention given in full is rarer than bread. This rite names where the supply has been running short.',
     provisionAct:
         'Name one person or responsibility that has received your leftover attention. Give it one undistracted minute today.',
     optionalSteps: <String>['Place the phone face down during that minute.'],
@@ -291,7 +305,8 @@ const List<OfferingTableDay> kOfferingTableDays = <OfferingTableDay>[
     dayNumber: 16,
     section: 'Household Table',
     title: 'The Cost Named',
-    purpose: 'Stop pretending provision has no cost.',
+    purpose:
+        'Care that does not account for its own cost depletes the one giving it. This rite names the cost before it becomes resentment.',
     provisionAct:
         'Name one care cost honestly: money, time, patience, transport, planning, or recovery. Decide where that cost will be held today.',
     optionalSteps: <String>[
@@ -302,7 +317,8 @@ const List<OfferingTableDay> kOfferingTableDays = <OfferingTableDay>[
     dayNumber: 17,
     section: 'Household Table',
     title: 'The Care Message',
-    purpose: 'Use speech to keep a provision line open.',
+    purpose:
+        'The provision line breaks quietly through deferred communication. This rite names what needs to be said while saying it is still simple.',
     provisionAct:
         'Send or speak one practical care message: I have this, I need this, I will bring this, or I cannot do this today.',
     optionalSteps: <String>[
@@ -313,7 +329,8 @@ const List<OfferingTableDay> kOfferingTableDays = <OfferingTableDay>[
     dayNumber: 18,
     section: 'Household Table',
     title: 'The Shared Rest',
-    purpose: 'Protect rest as a household resource.',
+    purpose:
+        'Rest is a shared resource when multiple people live under one schedule. This rite asks what your pace is doing to the rest around it.',
     provisionAct:
         'Name one way your pace affects someone else\'s rest. Make one adjustment: volume, timing, chore, expectation, or interruption.',
     optionalSteps: <String>[
@@ -324,7 +341,8 @@ const List<OfferingTableDay> kOfferingTableDays = <OfferingTableDay>[
     dayNumber: 19,
     section: 'Household Table',
     title: 'The Unseen Labor',
-    purpose: 'Bring hidden provision into the record.',
+    purpose:
+        'What sustains a household without being recorded disappears from the account. This rite puts it in.',
     provisionAct:
         'Name one unseen labor that keeps your life or household functioning. If it is yours, acknowledge it. If it is another\'s, thank or lighten it.',
     optionalSteps: <String>[
@@ -335,7 +353,8 @@ const List<OfferingTableDay> kOfferingTableDays = <OfferingTableDay>[
     dayNumber: 20,
     section: 'Household Table',
     title: 'The Household Table Sealed',
-    purpose: 'Close the household decan with one true account.',
+    purpose:
+        'What improved? What still leaks? The second seal requires only these two facts, not a full solution.',
     provisionAct:
         'Name one household provision that improved and one that still leaks. Choose the next smallest patch.',
     optionalSteps: <String>[
@@ -347,7 +366,7 @@ const List<OfferingTableDay> kOfferingTableDays = <OfferingTableDay>[
     section: 'Flowing Table',
     title: 'The Flowing Table Opens',
     purpose:
-        'Turn toward the sources that feed you and what you block for others.',
+        'Hapy did not stop at the nearest field. The flood that flows past you is also serving something downstream. This rite asks whether you are helping or obstructing.',
     provisionAct:
         'Name one unacknowledged source: income, land, water, relationship, skill, ancestor, teacher, or public service. Ask if you block flow for someone else.',
     optionalSteps: <String>[
@@ -360,7 +379,8 @@ const List<OfferingTableDay> kOfferingTableDays = <OfferingTableDay>[
     dayNumber: 22,
     section: 'Flowing Table',
     title: 'The Source Named',
-    purpose: 'Remember that today\'s provision arrived through a chain.',
+    purpose:
+        'What you use today did not begin with you. This rite traces one step back in the chain before the day moves forward.',
     provisionAct:
         'Trace one thing you will use today back one step: who grew it, sent it, taught it, paid it, carried it, or kept it available?',
     optionalSteps: <String>[
@@ -371,7 +391,8 @@ const List<OfferingTableDay> kOfferingTableDays = <OfferingTableDay>[
     dayNumber: 23,
     section: 'Flowing Table',
     title: 'The River Unblocked',
-    purpose: 'Remove one unnecessary stop in the flow of support.',
+    purpose:
+        'Something you are holding — a reply, a payment, a permission — is keeping something else from moving. This rite moves it.',
     provisionAct:
         'Find one thing delayed by you: reply, payment, return, permission, food, help, or information. Move it one step downstream.',
     optionalSteps: <String>[
@@ -382,7 +403,8 @@ const List<OfferingTableDay> kOfferingTableDays = <OfferingTableDay>[
     dayNumber: 24,
     section: 'Flowing Table',
     title: 'The Hoard Checked',
-    purpose: 'Ask whether holding more is preventing enough somewhere else.',
+    purpose:
+        'Surplus is not a problem unless it\'s preventing flow. This rite checks the line between supply and obstruction.',
     provisionAct:
         'Name one surplus: object, food, money, attention, credit, time, or control. Decide whether any portion should circulate.',
     optionalSteps: <String>[
@@ -393,7 +415,8 @@ const List<OfferingTableDay> kOfferingTableDays = <OfferingTableDay>[
     dayNumber: 25,
     section: 'Flowing Table',
     title: 'The Midpoint: Hapy',
-    purpose: 'Let abundance be tested by movement.',
+    purpose:
+        'The flood was celebrated for its movement — what it reached and what grew because of it. This rite asks where your provision is reaching.',
     provisionAct:
         'Name one place where provision flowed to you this week. Name one place where you can let provision flow onward without self-erasure.',
     optionalSteps: <String>[
@@ -406,7 +429,8 @@ const List<OfferingTableDay> kOfferingTableDays = <OfferingTableDay>[
     dayNumber: 26,
     section: 'Flowing Table',
     title: 'The Return Given',
-    purpose: 'Practice reversion: what is offered returns through living use.',
+    purpose:
+        'In the temple, offerings were eventually consumed — that was called reversion, and it was sacred. Provision that is never received serves nothing. This rite uses what was given.',
     provisionAct:
         'Let one support return through action. Eat the food, drink the water, use the help, accept the rest, or put the tool to work.',
     optionalSteps: <String>[
@@ -417,7 +441,8 @@ const List<OfferingTableDay> kOfferingTableDays = <OfferingTableDay>[
     dayNumber: 27,
     section: 'Flowing Table',
     title: 'The Land Remembered',
-    purpose: 'Include place and environment in the table.',
+    purpose:
+        'The table never existed apart from the land that supplied it. This rite names the land\'s role before the debt goes unrecorded.',
     provisionAct:
         'Name one way land, water, weather, or public infrastructure provisions you today. Make one small return of care or restraint.',
     optionalSteps: <String>[
@@ -428,7 +453,8 @@ const List<OfferingTableDay> kOfferingTableDays = <OfferingTableDay>[
     dayNumber: 28,
     section: 'Flowing Table',
     title: 'The Relationship Fed',
-    purpose: 'Feed a bond before it has to survive on memory.',
+    purpose:
+        'Relationships sustained by history alone are slowly depleting. This rite adds one provision before the account needs to draw down.',
     provisionAct:
         'Choose one relationship that sustains you. Give it one provision: honest thanks, time, food, help, repair, or a clean boundary.',
     optionalSteps: <String>[
@@ -440,7 +466,7 @@ const List<OfferingTableDay> kOfferingTableDays = <OfferingTableDay>[
     section: 'Flowing Table',
     title: 'The Flow Prepared',
     purpose:
-        'Prepare tomorrow\'s provision so the cycle can begin honestly again.',
+        'The table that is set the night before is the table that works in the morning. This rite prepares one thing so tomorrow starts provisioned.',
     provisionAct:
         'Set up one support for the next morning: water, breakfast, medicine, clothes, message, money, or cleared space.',
     optionalSteps: <String>[
@@ -451,7 +477,8 @@ const List<OfferingTableDay> kOfferingTableDays = <OfferingTableDay>[
     dayNumber: 30,
     section: 'Flowing Table',
     title: 'The Table Is Complete',
-    purpose: 'Complete the thirty-day table with truth, not perfection.',
+    purpose:
+        'The table was never about perfection — it was about the record being honest. Speak what is true. The cycle closes with accuracy, not with achievement.',
     provisionAct:
         'Speak only the lines that are true:\n- My water was placed with attention.\n- Food, rest, or care was not treated as imaginary.\n- I fed one need before it became collapse.\n- I noticed who else depends on the table.\n- What flowed to me was allowed to return.\nThen name one shortfall and one provision that surprised you.',
     optionalSteps: <String>[

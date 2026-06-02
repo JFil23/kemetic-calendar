@@ -60,7 +60,12 @@ void main() {
 
     expect(detail, isNot(contains('Cycle:')));
     expect(detail, isNot(contains('Completion:')));
-    expect(detail, contains('Purpose\nEnter the day as ordered time.'));
+    expect(
+      detail,
+      contains(
+        'Purpose\nDawn is the daily proof that order returns. This rite enters that return deliberately.',
+      ),
+    );
     expect(
       detail,
       contains('Action\nWash hands and face. Set water. Face the light.'),
@@ -113,8 +118,32 @@ void main() {
     expect(detail, isNotNull);
     expect(detail, isNot(contains('Cycle:')));
     expect(detail, isNot(contains('Completion:')));
-    expect(detail, contains('Purpose\nEnter the day as ordered time.'));
+    expect(
+      detail,
+      contains(
+        'Purpose\nDawn is the daily proof that order returns. This rite enters that return deliberately.',
+      ),
+    );
     expect(detail, contains('Lens\nKeep one exact record'));
+  });
+
+  test('purpose copy checkpoints match the upgraded thirty-day rite', () {
+    expect(
+      dawnHouseRiteDayByNumber(1)?.purpose,
+      'Dawn is the daily proof that order returns. This rite enters that return deliberately.',
+    );
+    expect(
+      dawnHouseRiteDayByNumber(10)?.purpose,
+      'Ten days is one decan — enough time to see a pattern. This rite closes that measure and opens the next one clean.',
+    );
+    expect(
+      dawnHouseRiteDayByNumber(20)?.purpose,
+      'The second decan closes. What pattern did the household hold? What does it need to carry better into the next ten days?',
+    );
+    expect(
+      dawnHouseRiteDayByNumber(30)?.purpose,
+      'Thirty dawns have opened. The practice does not complete — it becomes more accurate. This rite marks what changed.',
+    );
   });
 
   test('calendar join waits for Dawn event persistence before success', () {

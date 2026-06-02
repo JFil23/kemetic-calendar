@@ -193,10 +193,10 @@ const List<DaysOutsideEvent> kDaysOutsideEvents = <DaysOutsideEvent>[
       'Name one thing the year gave you that you did not expect.',
       'Name one thing the year asked of you that you did not fully give.',
       'Name one thing that carries across the threshold into the five days.',
-      'Place water while you name these three things. Drink it when done.',
+      'Place water while you name the three things, not after. The water witnesses the closing while it is happening.',
     ],
     sourceNote:
-        'The Stela of Amenemhet at Beni Hasan lists the end-of-year festival among annual observances. The year is completed before the threshold is crossed.',
+        'The year-close festival acknowledged that the civil year\'s work was complete before the five days began. The threshold is crossed clean — what is named is set down at the door, not carried through it.',
     localPrompt: DaysOutsideLocalPromptKind.yearCloseTriple,
   ),
   DaysOutsideEvent(
@@ -211,13 +211,13 @@ const List<DaysOutsideEvent> kDaysOutsideEvents = <DaysOutsideEvent>[
     spokenLine:
         'Ausar (Osiris) shall live. The akh in Nedit shall live. What was scattered is gathered. What was diminished will endure.',
     steps: <String>[
-      'Pause at dawn before ordinary work begins.',
+      'Pause at dawn before ordinary work begins. The first day of the five belongs to Ausar. Begin it before the day\'s ordinary logic takes over.',
       'Name one thing in the new year that needs to be gathered back.',
       'Say: This needs to be gathered back. Restoration is what I carry.',
       'Place water while you speak.',
     ],
     sourceNote:
-        'Ausar enters the epagomenal days carrying the pattern of dispersal, gathering, and restoration.',
+        'The Osirian pattern is specifically: dispersal, gathering, restoration. Not defeat and victory — the movement of what was whole, what was scattered, and what can be gathered back. This day names what needs gathering before the new year opens.',
     localPrompt: DaysOutsideLocalPromptKind.ausarQuality,
     durationMinutes: 6,
   ),
@@ -233,13 +233,13 @@ const List<DaysOutsideEvent> kDaysOutsideEvents = <DaysOutsideEvent>[
     spokenLine:
         'Heru Wer (Horus the Elder), great god, lord of the sky. The eye that sees the field from above. I receive the quality of clear sight.',
     steps: <String>[
-      'Go outside briefly at dawn and face east.',
+      'Go outside at dawn and face east. This is not symbolic — Heru Wer\'s quality is directional and physical. Stand outside and look at the horizon before looking at anything else.',
       'Name what you need to see from a higher position.',
       'Name any rightful position that needs to be claimed by sound action.',
       'Say: Clear sight. Rightful position. I carry these from this day.',
     ],
     sourceNote:
-        'Heru Wer is the sky-hawk whose elevated position makes accurate sight possible.',
+        'Heru Wer\'s power was elevation, not strength. The falcon\'s height gave it sight that ground-level creatures couldn\'t have. This day asks what you need to see from that position, and what rightful place in your life requires that clarity.',
     localPrompt: DaysOutsideLocalPromptKind.heruWerQuality,
     durationMinutes: 6,
   ),
@@ -256,12 +256,12 @@ const List<DaysOutsideEvent> kDaysOutsideEvents = <DaysOutsideEvent>[
         'Set is born. Force and contest enter the world. What contests me sharpens me. I do not run from what is difficult. I place Set\'s quality in its proper position.',
     steps: <String>[
       'Name one difficult thing you have been avoiding.',
-      'Ask where force in you or around you has been misdirected.',
+      'Ask where force in you or around you has been misdirected. Undirected force does not disappear — it looks for somewhere to go. This day names the direction before the force finds its own.',
       'Name where that force must be pointed to defend Ma\'at.',
       'Say: Directed, it defends. Unplaced, it destroys. I choose the direction.',
     ],
     sourceNote:
-        'Set is the necessary force of contest and resistance; correctly placed, his strength protects the solar passage.',
+        'Set\'s role in the solar journey was essential: he stood at the prow of the solar barge and repelled Apophis. Force correctly placed defends Ma\'at. This day gives the force its direction.',
     localPrompt: DaysOutsideLocalPromptKind.setQuality,
     durationMinutes: 6,
   ),
@@ -279,11 +279,11 @@ const List<DaysOutsideEvent> kDaysOutsideEvents = <DaysOutsideEvent>[
     steps: <String>[
       'Name one true thing you know and have not yet said.',
       'Name what stops the speech: timing, fear, habit, or preparation.',
-      'Name the arrangement that must be made before the word is spoken.',
+      'Name the arrangement that must be made before the word is spoken. Aset did not speak Ra\'s name immediately — she prepared the conditions in which the word would work. What preparation does your unspoken truth require?',
       'Say: I carry Aset\'s quality: to know, wait, and speak with effect.',
     ],
     sourceNote:
-        'Aset restores through knowledge, timing, and precise speech: the word spoken when the moment can receive it.',
+        'Aset extracted Ra\'s secret name through precise timing and exact speech — she spoke only what would work, at the moment it would work. The quality she embodies is not just knowledge but effective knowledge: the right thing, said rightly, at the right moment.',
     localPrompt: DaysOutsideLocalPromptKind.asetQuality,
     durationMinutes: 6,
   ),
@@ -301,11 +301,11 @@ const List<DaysOutsideEvent> kDaysOutsideEvents = <DaysOutsideEvent>[
     steps: <String>[
       'Name one transition that needs presence more than a solution.',
       'Name who or what needs a threshold witness.',
-      'Name the threshold you have avoided looking at directly.',
+      'Name the threshold you have avoided looking at directly. Nebet-Het\'s role was specifically to stay where others couldn\'t — to witness what the other qualities could not hold.',
       'Say: I carry Nebet-Het\'s quality: to stand at the boundary and remain.',
     ],
     sourceNote:
-        'Nebet-Het stands at boundaries, present in lament, preparation, transition, and protection.',
+        'Nebet-Het was present at Ausar\'s death, at the vigil, at the preparation, at the funeral — not because she had answers but because her staying was the practice. The threshold witness is the one who does not look away.',
     localPrompt: DaysOutsideLocalPromptKind.nebetHetQuality,
     durationMinutes: 6,
   ),
@@ -321,13 +321,13 @@ const List<DaysOutsideEvent> kDaysOutsideEvents = <DaysOutsideEvent>[
     spokenLine:
         'Wep Ronpet. The year opens. I carry the five births across the first threshold. Ausar, Heru Wer, Set, Aset, Nebet-Het - restoration, sight, directed force, effective speech, threshold witness. These are what I enter this year carrying.',
     steps: <String>[
-      'Wash your hands and face at dawn.',
+      'Wash your hands and face at dawn before anything else. The Opening of the Year begins with purification — ordinary time restarts clean.',
       'Set fresh water on the surface and say: This water is for the year that opens.',
-      'Speak the five names and one word for each quality received.',
+      'Speak each of the five names and one word for the quality you received. Not the quality in general — the specific quality as it applies to your life entering this year.',
       'Name one orienting intention for the new year. Drink the water.',
     ],
     sourceNote:
-        'Wep Ronpet, the Opening of the Year, begins ordinary time again after the five days outside the year.',
+        'Wep Ronpet was the first day of the Kemetic civil calendar — the return of ordinary time after the threshold. The five qualities received during the five days outside were now active. The year begins carrying them.',
     optionalShareOnComplete: true,
     localPrompt: DaysOutsideLocalPromptKind.wepRonpetIntention,
   ),
@@ -451,6 +451,7 @@ String daysOutsideDetailText(
     'Timing\n${event.schedule.label}. This event belongs to this Kemetic calendar day only; missed days are not replayed later in the year.',
     if (event.netjeruLabel.isNotEmpty)
       'Birth\n${_netjeruDisplay(event.netjeruLabel)} — ${event.qualityLabel}.',
+    'Purpose\n${_daysOutsidePurpose(event)}',
     'Words\n"${event.spokenLine}"',
     'What to do\n${_numbered(event.steps)}',
     if (event.kind == DaysOutsideEventKind.yearClosing)
@@ -461,6 +462,26 @@ String daysOutsideDetailText(
       'Eclipse\nToday is Set\'s day. The Sun goes dark at midday. This is Set\'s work - not Isfet, but the necessary contest between light and darkness that makes Ra\'s passage real.',
   ];
   return lines.join('\n\n');
+}
+
+String _daysOutsidePurpose(DaysOutsideEvent event) {
+  switch (event.eventNumber) {
+    case 0:
+      return 'The year closes before the threshold is crossed. What is named here is what the five days receive — not a general reflection, but the three specific things: the unexpected gift, the ungiven ask, and what carries forward.';
+    case 1:
+      return 'Ausar is the pattern of what was scattered and returned. What in your life has been scattered across the closing year? This day receives one piece of it.';
+    case 2:
+      return 'Elevated position produces accurate sight — not because the sky-hawk is superior, but because height gives access to the full field. This day asks what you need to see from that position.';
+    case 3:
+      return 'Set is not the villain of the Kemetic system — he is the force that becomes one when undirected. On the day of his birth, name where your force has been going and where it should go.';
+    case 4:
+      return 'Aset\'s power was specific: she knew Ra\'s true name and spoke it at precisely the right moment. Knowledge without the right moment is not yet effective. This day names what is known, what stops the speech, and what arrangement would make it possible.';
+    case 5:
+      return 'Nebet-Het\'s quality is staying — not solving, not moving through, but remaining present at the boundary until the crossing is complete. This day names what in your life needs a witness, not a solution.';
+    case 6:
+      return 'The year opens at dawn. The five qualities received across the five days are spoken one more time — as what you are carrying into the year, not as what you observed. The intention is one thing, not a list.';
+  }
+  return 'Cross the threshold cleanly.';
 }
 
 String daysOutsideMissedCopy(DaysOutsideEvent event) {

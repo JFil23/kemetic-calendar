@@ -309,7 +309,7 @@ const List<DjedEvent> kDjedEvents = <DjedEvent>[
     ],
     localPrompt: DjedLocalPromptKind.spineInventory,
     sourceNote:
-        'Drawn from Pyramid Texts, Utterance 212, and the Djed as the backbone of Ausar.',
+        'The Djed pillar was Ausar\'s backbone — what remained when everything else was scattered. Your spine is the same: what persists when the rest is under pressure. Name it before the mock battle begins.',
   ),
   DjedEvent(
     eventNumber: 2,
@@ -328,7 +328,7 @@ const List<DjedEvent> kDjedEvents = <DjedEvent>[
     ],
     localPrompt: DjedLocalPromptKind.longestWobble,
     sourceNote:
-        'Drawn from Pyramid Texts language of being stable in Djedut, the city of the Djed.',
+        'Being stable in Djedut — the City of the Djed — was a specific Pyramid Texts aspiration: where the backbone held even amid what pressed against it. The longest wobble is the one most in need of that stability.',
   ),
   DjedEvent(
     eventNumber: 3,
@@ -365,7 +365,7 @@ const List<DjedEvent> kDjedEvents = <DjedEvent>[
     ],
     localPrompt: DjedLocalPromptKind.battleCommitment,
     sourceNote:
-        'The Djed Pillar Festival included a mock battle before the pillar was raised.',
+        'The Djed Pillar Festival included a mock battle because raising the pillar without engaging what had knocked it over was decoration, not restoration. The battle is the prerequisite.',
   ),
   DjedEvent(
     eventNumber: 5,
@@ -376,7 +376,7 @@ const List<DjedEvent> kDjedEvents = <DjedEvent>[
     durationMinutesMin: 5,
     durationMinutesMax: 5,
     spokenLine:
-        'Unis, raise yourself from your side! Do my command, you who hate sleep but were made slack.',
+        'Before checking the commitment, speak: Unis, raise yourself from your side! Do my command, you who hate sleep but were made slack. Then check: has the engagement happened?',
     steps: <String>[
       'Check whether the direct engagement committed on Day 11 has happened.',
       'If yes, record what occurred in one honest sentence.',
@@ -456,16 +456,16 @@ const List<DjedEvent> kDjedEvents = <DjedEvent>[
     spokenLine:
         'Stand up! Raise yourself like Ausar (Osiris)! Become established, become established. The Djed is raised. The spine holds. The identity endures.',
     steps: <String>[
-      'Complete the final inventory: solid, restored, released, or carried forward.',
-      'Stand upright with your spine straight. Raise your arms and hold for about 30 seconds.',
-      'Speak the required line while standing after the raising.',
-      'Sit down and write one line: what holds?',
+      'Name the spine elements that held across the full cycle.',
+      'Stand upright with your spine straight. Raise your arms and hold for approximately thirty seconds. The body declares what the record produced.',
+      'Speak the closing line while standing.',
+      'Choose the maintenance practice that keeps the Djed upright.',
     ],
     localPrompt: DjedLocalPromptKind.raisingRecord,
     physicalRaising: true,
     sharePromptOnComplete: true,
     sourceNote:
-        'The Djed was physically raised. This event requires the body to enact what the spirit claims.',
+        'The Djed was physically hauled upright by ropes while priests held the opposing lines. The raising was labor before it was ceremony. This final event requires the body to do the same: the claim is spoken while standing, not seated.',
   ),
 ];
 
@@ -723,15 +723,15 @@ String _numberedLines(List<String> lines) {
 String _djedPurpose(DjedEvent event) {
   switch (event.eventNumber) {
     case 1:
-      return 'Name the actual load-bearing elements of your life, not the aspirational ones.';
+      return 'The spine is what holds when everything around it is pressing. Not the aspirational structure — the actual load-bearing elements. Name what is currently holding you upright, not what should be.';
     case 2:
-      return 'Find the longest wobble and name what would move it toward solid.';
+      return 'The wobble that has been going longest is usually the one that has been quietly justified, tolerated, or renamed as acceptable. This sitting finds it.';
     case 3:
       return 'Complete the spine inventory at dawn before the mock battle begins.';
     case 4:
-      return 'Name the structural threat and commit to direct engagement.';
+      return 'The Djed was raised after a ceremonial battle, not before one. What threatens the spine is engaged directly — not in anger, not in confrontation, but in the specific act that meets the challenge instead of managing around it.';
     case 5:
-      return 'Engage the challenge directly or name the exact obstacle to engagement.';
+      return 'The midpoint check asks whether the battle happened — not whether it was won. The engagement is the event.';
     case 6:
       return 'Record what survived the battle without forcing a false victory.';
     case 7:
@@ -739,7 +739,7 @@ String _djedPurpose(DjedEvent event) {
     case 8:
       return 'Test whether the spine has functioned in daily pressure and prepare physical space for the raising.';
     case 9:
-      return 'Raise the Djed in the body: stand, lift, declare what holds.';
+      return 'The raising requires the body. This is not metaphorical — the Djed was physically raised. This event requires you to stand, lift your arms, and declare what holds while the body enacts the claim.';
   }
   return 'Become established.';
 }

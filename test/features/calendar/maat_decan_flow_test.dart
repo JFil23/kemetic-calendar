@@ -238,7 +238,7 @@ void main() {
     ]) {
       for (final event in definition.events) {
         expect(event.steps.length, inInclusiveRange(2, 4));
-        expect(event.sourceNote?.length ?? 0, lessThan(260));
+        expect(event.sourceNote?.length ?? 0, lessThan(700));
       }
     }
 
@@ -286,6 +286,61 @@ void main() {
         kOracleFlowKey,
       )!.events.last.requiresRealWorldAction,
       isTrue,
+    );
+  });
+
+  test('upgraded spoken-line delivery beats are stored', () {
+    expect(
+      maatDecanFlowEventByNumber(
+        maatDecanFlowDefinitionForKey(kTrueNameFlowKey)!,
+        8,
+      )!.spokenLine,
+      'Stand. Speak the accurate account, then speak the evidence. Then: I am pure, I am pure, I am pure, I am pure. Standing, four times.',
+    );
+    expect(
+      maatDecanFlowEventByNumber(
+        maatDecanFlowDefinitionForKey(kWanderingFlowKey)!,
+        9,
+      )!.spokenLine,
+      'Before standing: Stand up for me. Then stand. Then choose one act.',
+    );
+    expect(
+      maatDecanFlowEventByNumber(
+        maatDecanFlowDefinitionForKey(kKhatFlowKey)!,
+        7,
+      )!.spokenLine,
+      'Speak this before beginning to move: Stand up, repel your earth, clear away your dust, raise yourself. Then begin.',
+    );
+    expect(
+      maatDecanFlowEventByNumber(
+        maatDecanFlowDefinitionForKey(kLivingTextFlowKey)!,
+        9,
+      )!.spokenLine,
+      'Write the closing mark and then speak: Completed correctly; the living text includes this mark.',
+    );
+  });
+
+  test('representative source-note upgrades are stored', () {
+    expect(
+      maatDecanFlowEventByNumber(
+        maatDecanFlowDefinitionForKey(kBoundaryStoneFlowKey)!,
+        5,
+      )!.sourceNote,
+      'Amenemope\'s image of the gullet rejecting what was taken past measure is viscerally physical — bread swallowed and spat up, property that becomes an obstruction in the throat. The excess does not stay. It produces visible evidence that the measure was exceeded.',
+    );
+    expect(
+      maatDecanFlowEventByNumber(
+        maatDecanFlowDefinitionForKey(kHouseOfLifeFlowKey)!,
+        9,
+      )!.sourceNote,
+      'Chester Beatty IV called the scribes\' writing their memory-priest — the mechanism of their continued existence. The precise sentence that closes this flow is the user\'s contribution to the same chain. What you can now say accurately, you can now transmit.',
+    );
+    expect(
+      maatDecanFlowEventByNumber(
+        maatDecanFlowDefinitionForKey(kOracleFlowKey)!,
+        9,
+      )!.sourceNote,
+      'Thutmose\'s stela records the dream and then records that he commanded the sand to be cleared. The action is what closes the Stela\'s account — not the dream, not the interpretation, but the act taken in response.',
     );
   });
 

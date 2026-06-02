@@ -81,6 +81,13 @@ void main() {
     expect(payload.toString(), isNot(contains('battle_commitment')));
   });
 
+  test('Event 5 spoken-line delivery beat is preserved', () {
+    expect(
+      kDjedEvents.singleWhere((event) => event.eventNumber == 5).spokenLine,
+      'Before checking the commitment, speak: Unis, raise yourself from your side! Do my command, you who hate sleep but were made slack. Then check: has the engagement happened?',
+    );
+  });
+
   test('enrollment wrapper accepts picker rows and rejects ordinary dates', () {
     final window = djedNextEnrollmentWindow(TrackSkyTimeZone.pacific);
     final selected = DateTime(

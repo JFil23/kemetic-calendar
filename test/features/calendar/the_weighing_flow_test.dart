@@ -83,11 +83,58 @@ void main() {
 
     expect(detail, contains('Purpose\n'));
     expect(detail, contains('Words\n"${event.spokenLine}"'));
-    expect(detail, contains('Steps\n1. Write down one number'));
-    expect(detail, contains('Optional\n- Place a cup of water'));
+    expect(detail, contains('Steps\n1. Place a cup of water'));
+    expect(
+      detail,
+      contains('2. Write down one number you have not looked at directly'),
+    );
+    expect(detail, isNot(contains('Optional\n- Place a cup of water')));
     expect(detail, contains('Lens\nLet Djehuty'));
     expect(detail, isNot(contains('Privacy\n')));
     expect(detail, isNot(contains('Source\n')));
+  });
+
+  test('water promotion is primary for the specified reckoning events', () {
+    final expectedWater = <int, String>{
+      1: 'Place a cup of water on your surface before you begin. Let it sit while you write.',
+      4: 'Place water on your surface before sitting. The record needs a clean instrument.',
+      9: 'Offer water. Place a cup. The reckoning ends with provision, not punishment.',
+    };
+
+    for (final entry in expectedWater.entries) {
+      final event = kTheWeighingEvents.singleWhere(
+        (event) => event.eventNumber == entry.key,
+      );
+
+      expect(event.steps, contains(entry.value));
+      expect(event.optionalSteps, isNot(contains(entry.value)));
+    }
+  });
+
+  test('major spoken-line delivery beats are preserved', () {
+    expect(
+      kTheWeighingEvents[0].spokenLine,
+      'Speak this before opening anything: I open my record without fear. What is here is what is true.',
+    );
+    expect(
+      kTheWeighingEvents[3].spokenLine,
+      'Before writing anything, speak this: My tongue is the plummet. My heart is the weight. I do not utter falsehood, for I am a balance.',
+    );
+    expect(
+      kTheWeighingEvents[6].spokenLine,
+      'Speak this standing, before reading the four lines: I have come before you, my lord, bringing Truth, having repelled for you falsehood.',
+    );
+    expect(
+      kTheWeighingEvents[8].spokenLine,
+      'The closing declaration is spoken four times because one repetition is not enough to establish what has been witnessed. Speak each truth-check line only if it is accurate. Then: I am pure. I am pure. I am pure. I am pure.',
+    );
+  });
+
+  test('representative source note upgrade is stored', () {
+    expect(
+      kTheWeighingEvents.first.sourceNote,
+      'The Kemite placed water first because the record must be witnessed before it can be weighed — not examined, not solved, but witnessed. What sustains you is named before anything else is counted.',
+    );
   });
 
   test('canonical detail rebuilds a stored weighing event', () {

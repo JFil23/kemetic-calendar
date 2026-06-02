@@ -162,7 +162,8 @@ const List<DawnHouseRiteDay> kDawnHouseRiteDays = <DawnHouseRiteDay>[
     dayNumber: 1,
     section: 'Personal Ma\'at',
     title: 'Opening the Day',
-    purpose: 'Enter the day as ordered time.',
+    purpose:
+        'Dawn is the daily proof that order returns. This rite enters that return deliberately.',
     action: 'Wash hands and face. Set water. Face the light.',
     words:
         'The day opens. I enter it in Ma\'at. May my hands be clean, my speech be true, and my actions give life.',
@@ -172,7 +173,8 @@ const List<DawnHouseRiteDay> kDawnHouseRiteDays = <DawnHouseRiteDay>[
     dayNumber: 2,
     section: 'Personal Ma\'at',
     title: 'Purifying the Self',
-    purpose: 'Remove disorder before action.',
+    purpose:
+        'You accumulated things overnight — thought residue, yesterday\'s unfinished business. This rite clears before engaging.',
     action: 'Wash hands slowly. Touch water to lips or rinse the mouth.',
     words:
         'I am cleansed for the day. May falsehood fall away. May what is useful remain.',
@@ -183,7 +185,8 @@ const List<DawnHouseRiteDay> kDawnHouseRiteDays = <DawnHouseRiteDay>[
     dayNumber: 3,
     section: 'Personal Ma\'at',
     title: 'Right Speech',
-    purpose: 'Align the mouth before speaking into the world.',
+    purpose:
+        'What you say first shapes how you say everything after. This rite makes the mouth\'s first act intentional.',
     action:
         'Wash or touch the mouth with water. Pause before messages or conversation.',
     words:
@@ -195,7 +198,8 @@ const List<DawnHouseRiteDay> kDawnHouseRiteDays = <DawnHouseRiteDay>[
     dayNumber: 4,
     section: 'Personal Ma\'at',
     title: 'Clear Sight',
-    purpose: 'Move from night-confusion into visible order.',
+    purpose:
+        'Sleep clouds more than the eyes. This rite restores sight before you\'re asked to see clearly.',
     action: 'Wash face, especially brow or eyes. Look toward the light.',
     words:
         'The light returns. What was hidden becomes visible. May I see clearly and act in right measure.',
@@ -205,7 +209,8 @@ const List<DawnHouseRiteDay> kDawnHouseRiteDays = <DawnHouseRiteDay>[
     dayNumber: 5,
     section: 'Personal Ma\'at',
     title: 'Right Measure',
-    purpose: 'Resist excess, imbalance, and scattered action.',
+    purpose:
+        'Every imbalance started as a small drift. This rite sets the proportion before anything has gone too far.',
     action: 'Set water. Take three measured breaths before speaking.',
     words:
         'May I move in right measure. May I neither rush nor neglect. May my strength be used where it belongs.',
@@ -216,7 +221,8 @@ const List<DawnHouseRiteDay> kDawnHouseRiteDays = <DawnHouseRiteDay>[
     dayNumber: 6,
     section: 'Personal Ma\'at',
     title: 'Steady Hands',
-    purpose: 'Make the body an instrument of ordered action.',
+    purpose:
+        'Hands do what the day assigns them. This rite names what they\'re for before the assignments arrive.',
     action: 'Wash hands. Hold them open over the water.',
     words:
         'May my hands do what is useful. May they repair, feed, build, clean, and protect.',
@@ -227,7 +233,8 @@ const List<DawnHouseRiteDay> kDawnHouseRiteDays = <DawnHouseRiteDay>[
     dayNumber: 7,
     section: 'Personal Ma\'at',
     title: 'Repair',
-    purpose: 'Restore what can be restored.',
+    purpose:
+        'Left alone, the unrepaired thing stays broken. This rite names what can still be fixed before the day adds more.',
     action: 'Set water. Think of one neglected matter.',
     words:
         'What is broken should be repaired where repair is possible. May I restore without pride and correct without cruelty.',
@@ -237,7 +244,8 @@ const List<DawnHouseRiteDay> kDawnHouseRiteDays = <DawnHouseRiteDay>[
     dayNumber: 8,
     section: 'Personal Ma\'at',
     title: 'Protection from Isfet',
-    purpose: 'Set boundaries against disorder.',
+    purpose:
+        'Isfet enters through the same doors every time. This rite names one before it opens.',
     action: 'Touch water to forehead, chest, or doorframe.',
     words:
         'May this day be guarded from needless harm. May I not invite isfet through fear, anger, haste, or carelessness.',
@@ -247,7 +255,8 @@ const List<DawnHouseRiteDay> kDawnHouseRiteDays = <DawnHouseRiteDay>[
     dayNumber: 9,
     section: 'Personal Ma\'at',
     title: 'Gratitude',
-    purpose: 'Receive the day as a gift and answer it with right action.',
+    purpose:
+        'What sustains you is invisible until you name it. Naming it is the first act of answering it.',
     action: 'Set water. Name three things that sustain you.',
     words:
         'The day is given again. I remember what sustains me. May gratitude become right action.',
@@ -258,7 +267,8 @@ const List<DawnHouseRiteDay> kDawnHouseRiteDays = <DawnHouseRiteDay>[
     dayNumber: 10,
     section: 'Personal Ma\'at',
     title: 'Personal Recalibration',
-    purpose: 'Complete the first ten-day measure.',
+    purpose:
+        'Ten days is one decan — enough time to see a pattern. This rite closes that measure and opens the next one clean.',
     action:
         'Wash hands and face. Set water. Review the past nine days without guilt.',
     words:
@@ -269,7 +279,8 @@ const List<DawnHouseRiteDay> kDawnHouseRiteDays = <DawnHouseRiteDay>[
     dayNumber: 11,
     section: 'Household Ma\'at',
     title: 'Opening the House',
-    purpose: 'Let the household enter the day in order.',
+    purpose:
+        'You are not the only one who crosses the day\'s threshold. This rite extends the opening to the house.',
     action:
         'Open a curtain, door, or window if possible. Set water in the kitchen, entryway, desk, or shrine.',
     words:
@@ -281,7 +292,8 @@ const List<DawnHouseRiteDay> kDawnHouseRiteDays = <DawnHouseRiteDay>[
     dayNumber: 12,
     section: 'Household Ma\'at',
     title: 'Threshold',
-    purpose: 'Guard the boundary between inner and outer life.',
+    purpose:
+        'What comes in changes what\'s inside. This rite makes the doorway conscious.',
     action: 'Touch water to the doorframe or simply pause near the door.',
     words:
         'May what enters this house serve life. May what leaves this house carry truth.',
@@ -292,7 +304,8 @@ const List<DawnHouseRiteDay> kDawnHouseRiteDays = <DawnHouseRiteDay>[
     dayNumber: 13,
     section: 'Household Ma\'at',
     title: 'Hearth and Food',
-    purpose: 'Honor nourishment as an act of order.',
+    purpose:
+        'The offering table always held food first. Provision is not separate from practice — it is practice.',
     action:
         'Set water near where food is prepared. Add bread, fruit, grain, tea, or coffee if available.',
     words:
@@ -303,7 +316,8 @@ const List<DawnHouseRiteDay> kDawnHouseRiteDays = <DawnHouseRiteDay>[
     dayNumber: 14,
     section: 'Household Ma\'at',
     title: 'Clean Place',
-    purpose: 'Restore one part of the home as a field of Ma\'at.',
+    purpose:
+        'Order doesn\'t have to be total to be real. One clean surface is enough to begin.',
     action: 'Wash hands. Clean one small surface before or after speaking.',
     words:
         'A clean place welcomes clear action. May disorder be seen, named, and gently corrected.',
@@ -314,7 +328,8 @@ const List<DawnHouseRiteDay> kDawnHouseRiteDays = <DawnHouseRiteDay>[
     dayNumber: 15,
     section: 'Household Ma\'at',
     title: 'Household Speech',
-    purpose: 'Keep peace through truthful and measured speech at home.',
+    purpose:
+        'The heated household word crosses into the street. This rite governs speech at its source.',
     action:
         'Touch water to lips or hold water while thinking of household conversations.',
     words:
@@ -326,7 +341,8 @@ const List<DawnHouseRiteDay> kDawnHouseRiteDays = <DawnHouseRiteDay>[
     dayNumber: 16,
     section: 'Household Ma\'at',
     title: 'Ancestor Water',
-    purpose: 'Keep the dead within ordered remembrance.',
+    purpose:
+        'The name spoken is the name sustained. This rite places one name in the record before the day moves on.',
     action:
         'Set cool water. Speak one ancestor name, family name, lineage, or "the remembered and forgotten dead."',
     words:
@@ -339,7 +355,7 @@ const List<DawnHouseRiteDay> kDawnHouseRiteDays = <DawnHouseRiteDay>[
     section: 'Household Ma\'at',
     title: 'Hidden Practice',
     purpose:
-        'Make the rite possible even without visible shrine or public display.',
+        'Ma\'at practiced in private still counts — perhaps more so, since it is not performed for anyone.',
     action: 'Perform the whole rite at the sink, silently or quietly.',
     words:
         'Even hidden, Ma\'at is not absent. Even small, right action remains right action.',
@@ -349,7 +365,8 @@ const List<DawnHouseRiteDay> kDawnHouseRiteDays = <DawnHouseRiteDay>[
     dayNumber: 18,
     section: 'Household Ma\'at',
     title: 'Household Offering',
-    purpose: 'Practice reciprocity inside the home.',
+    purpose:
+        'What the house gives out must be replenished. This rite names one thing that has been depleted and answers it.',
     action:
         'Set water and one small offering: bread, fruit, flower, scent, or a clean empty cup if nothing else is available.',
     words:
@@ -362,7 +379,7 @@ const List<DawnHouseRiteDay> kDawnHouseRiteDays = <DawnHouseRiteDay>[
     section: 'Household Ma\'at',
     title: 'Peace in the Rooms',
     purpose:
-        'Reduce accumulated disorder in the emotional atmosphere of the home.',
+        'Arguments and irritants leave something in the air. This rite names it and starts moving it out.',
     action:
         'Walk through one room with water in hand, or simply stand in the center.',
     words:
@@ -374,7 +391,8 @@ const List<DawnHouseRiteDay> kDawnHouseRiteDays = <DawnHouseRiteDay>[
     dayNumber: 20,
     section: 'Household Ma\'at',
     title: 'Household Recalibration',
-    purpose: 'Complete the household ten-day measure.',
+    purpose:
+        'The second decan closes. What pattern did the household hold? What does it need to carry better into the next ten days?',
     action: 'Set water in the center of the home or where the day begins.',
     words:
         'A second measure is complete. May this house remember order. May what is unfinished be met without fear.',
@@ -384,7 +402,8 @@ const List<DawnHouseRiteDay> kDawnHouseRiteDays = <DawnHouseRiteDay>[
     dayNumber: 21,
     section: 'Communal Ma\'at',
     title: 'Entering the Community',
-    purpose: 'Carry Ma\'at beyond the self and house.',
+    purpose:
+        'Everything done so far has been preparation. This is where the practice meets the people outside.',
     action:
         'Wash hands. Face the light. Think of the people you will affect today.',
     words:
@@ -395,7 +414,8 @@ const List<DawnHouseRiteDay> kDawnHouseRiteDays = <DawnHouseRiteDay>[
     dayNumber: 22,
     section: 'Communal Ma\'at',
     title: 'Fair Dealing',
-    purpose: 'Practice justice in ordinary exchange.',
+    purpose:
+        'Most injustice is not spectacular. It lives in the small imbalances of daily exchange. This rite addresses those.',
     action: 'Set water. Think of money, work, trade, time, or obligation.',
     words:
         'May I give what is due and not take what is not mine. May my dealings be fair in word and measure.',
@@ -406,7 +426,8 @@ const List<DawnHouseRiteDay> kDawnHouseRiteDays = <DawnHouseRiteDay>[
     dayNumber: 23,
     section: 'Communal Ma\'at',
     title: 'Feeding the Living',
-    purpose: 'Connect Ma\'at to material care.',
+    purpose:
+        'Provision is not optional in Ma\'at — it is among the few things the Declaration names specifically. This rite enacts it.',
     action: 'Set water and, if possible, food.',
     words:
         'May the hungry be remembered. May life be sustained by more than words.',
@@ -417,7 +438,8 @@ const List<DawnHouseRiteDay> kDawnHouseRiteDays = <DawnHouseRiteDay>[
     dayNumber: 24,
     section: 'Communal Ma\'at',
     title: 'Protecting the Vulnerable',
-    purpose: 'Resist the disorder of neglect and exploitation.',
+    purpose:
+        'Power without direction harms. This rite asks where yours belongs today.',
     action: 'Touch water to hands. Hold them open.',
     words:
         'May my strength not harm the weak. May I protect where protection is mine to give.',
@@ -428,7 +450,8 @@ const List<DawnHouseRiteDay> kDawnHouseRiteDays = <DawnHouseRiteDay>[
     dayNumber: 25,
     section: 'Communal Ma\'at',
     title: 'True Witness',
-    purpose: 'See and name reality without distortion.',
+    purpose:
+        'What you do not name clearly you cannot act on clearly. This rite sharpens the account before the action follows.',
     action: 'Wash face or eyes. Look toward the light.',
     words:
         'May I witness truly. May I not hide what must be seen or invent what is not there.',
@@ -439,7 +462,8 @@ const List<DawnHouseRiteDay> kDawnHouseRiteDays = <DawnHouseRiteDay>[
     dayNumber: 26,
     section: 'Communal Ma\'at',
     title: 'Restraint',
-    purpose: 'Prevent disorder before it grows.',
+    purpose:
+        'Escalation always looks justified from inside it. This rite creates the pause before that decision is made.',
     action:
         'Set water. Take one breath before touching your phone, work, or obligations.',
     words:
@@ -451,7 +475,8 @@ const List<DawnHouseRiteDay> kDawnHouseRiteDays = <DawnHouseRiteDay>[
     dayNumber: 27,
     section: 'Communal Ma\'at',
     title: 'Service',
-    purpose: 'Make Ma\'at visible through useful action.',
+    purpose:
+        'Virtue claimed without labor is speech. This rite turns the claim into one specific act.',
     action: 'Wash hands. Name one person, group, or place that needs care.',
     words:
         'May I be of use. May service be done without pride and without resentment.',
@@ -462,7 +487,8 @@ const List<DawnHouseRiteDay> kDawnHouseRiteDays = <DawnHouseRiteDay>[
     dayNumber: 28,
     section: 'Communal Ma\'at',
     title: 'Reconciliation',
-    purpose: 'Restore right relationship where possible.',
+    purpose:
+        'Not every rupture can be repaired — but many that could be haven\'t been tried. This rite identifies which kind you\'re holding.',
     action:
         'Set water. Think of one strained relationship or community tension.',
     words:
@@ -474,7 +500,8 @@ const List<DawnHouseRiteDay> kDawnHouseRiteDays = <DawnHouseRiteDay>[
     dayNumber: 29,
     section: 'Communal Ma\'at',
     title: 'Shared Order',
-    purpose: 'Recognize that Ma\'at is collective, not private perfection.',
+    purpose:
+        'You pass through spaces that will exist after you. This rite asks what you left there.',
     action:
         'Face the light. Set water. Name your wider circle: neighborhood, workplace, family, city, land, or online community.',
     words:
@@ -486,7 +513,8 @@ const List<DawnHouseRiteDay> kDawnHouseRiteDays = <DawnHouseRiteDay>[
     dayNumber: 30,
     section: 'Communal Ma\'at',
     title: 'Completion and Return',
-    purpose: 'Complete the full thirty-day cycle and prepare to begin again.',
+    purpose:
+        'Thirty dawns have opened. The practice does not complete — it becomes more accurate. This rite marks what changed.',
     action:
         'Wash hands, face, and mouth if possible. Set fresh water. Review the whole cycle without guilt.',
     words:

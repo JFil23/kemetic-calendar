@@ -115,6 +115,32 @@ void main() {
     expect(detail, isNot(contains('Source\n')));
   });
 
+  test('purpose copy checkpoints match the upgraded offering table', () {
+    expect(
+      offeringTableDayByNumber(1)?.purpose,
+      'The Kemetic offering table began with water before anything else — not because water is symbolic, but because it is the most immediate provision. This rite does the same.',
+    );
+    expect(
+      offeringTableDayByNumber(10)?.purpose,
+      'The scribe\'s record closes with what is — not what was intended, but what actually happened. This rite produces that account.',
+    );
+    expect(
+      offeringTableDayByNumber(20)?.purpose,
+      'What improved? What still leaks? The second seal requires only these two facts, not a full solution.',
+    );
+    expect(
+      offeringTableDayByNumber(30)?.purpose,
+      'The table was never about perfection — it was about the record being honest. Speak what is true. The cycle closes with accuracy, not with achievement.',
+    );
+  });
+
+  test('representative source note is preserved', () {
+    expect(
+      kOfferingTableDays.first.sourceNote,
+      'Kemetic offering ritual begins with water before bread, oil, or incense. The table starts by acknowledging what sustains life first.',
+    );
+  });
+
   test('canonical detail rebuilds a stored offering table day', () {
     final detail = canonicalOfferingTableDetailTextForEvent(
       flowName: kOfferingTableTitle,

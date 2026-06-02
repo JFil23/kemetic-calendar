@@ -378,7 +378,7 @@ kMaatDecanFlowDefinitions = <MaatDecanFlowDefinition>[
         durationMinutesMin: 5,
         durationMinutesMax: 8,
         purpose:
-            'Begin by naming the real situations where your judgment affects another person.',
+            'The hearing begins before you think it does. The view formed before the full account is heard is already shaping what you will hear. This sitting names that view.',
         spokenLine:
             'Be patient, so that you may learn Ma\'at. Control your own preference, so that the humble petitioner may gain.',
         steps: <String>[
@@ -387,7 +387,7 @@ kMaatDecanFlowDefinitions = <MaatDecanFlowDefinition>[
           'Circle the situation where your preference is strongest. This is where the fair hearing is most needed.',
         ],
         sourceNote:
-            'Khunanup, the Eloquent Peasant, appealed to Rensi nine times after his goods were stolen. The hearing itself was part of the justice: who is before you, and what are they actually asking?',
+            'Khunanup appealed nine times because the first hearing produced no decision. The petitioner must persist; the judge must eventually decide. This sitting names who is waiting for a real hearing.',
       ),
       MaatDecanFlowEvent(
         eventNumber: 2,
@@ -434,17 +434,17 @@ kMaatDecanFlowDefinitions = <MaatDecanFlowDefinition>[
         durationMinutesMin: 5,
         durationMinutesMax: 8,
         purpose:
-            'Practice the first discipline: hear the full account before interrupting, redirecting, or deciding.',
+            'Ptahhotep said the wronged person needs to unburden the heart even when not every request can be granted. The full hearing is itself a form of justice, before the decision.',
         spokenLine:
             'Be patient when listening to the words of a petitioner. Do not dismiss him until he has completely unburdened himself.',
         steps: <String>[
           'Before the hearing, write one sentence about what you expect to hear.',
-          'Give the actual hearing: conversation, document, or full account. Do not interrupt or signal your conclusion.',
+          'Give the actual hearing. Do not interrupt. Do not signal your conclusion. The conclusion that forms while the person is still speaking is premature.',
           'Afterward, write one thing you heard that complicated or expanded your view.',
         ],
         requiresRealWorldAction: true,
         sourceNote:
-            'Ptahhotep says the wronged person needs to unburden the heart even when not every request can be granted. The full hearing is the first condition of fair judgment.',
+            'Ptahhotep\'s instruction is specific: do not dismiss the petitioner before they have completely unburdened themselves. A hearing that stops when the judge has enough for their existing conclusion is not a fair hearing — it is an efficient confirmation.',
       ),
       MaatDecanFlowEvent(
         eventNumber: 5,
@@ -473,7 +473,7 @@ kMaatDecanFlowDefinitions = <MaatDecanFlowDefinition>[
         durationMinutesMin: 5,
         durationMinutesMax: 5,
         purpose:
-            'A fair hearing is incomplete until the decision is named clearly to those it affects.',
+            'Indefinite postponement wearing the mask of patience is not patience — it is a different form of injustice. The hearing is complete when the decision is named clearly to those it affects.',
         spokenLine:
             'Turn away from this slothfulness, and let your decision be pronounced.',
         steps: <String>[
@@ -486,7 +486,7 @@ kMaatDecanFlowDefinitions = <MaatDecanFlowDefinition>[
           'decision_pronounced': 'Decision pronounced',
         },
         sourceNote:
-            'Rensi waited to hear the full case; that was patience. The failure named by the peasant is different: indefinite postponement wearing the mask of patience.',
+            'The target is not the dramatic silence of a judge prolonging a case for benefit. It is the ordinary silence of a decision deferred because pronouncing it is uncomfortable.',
       ),
       MaatDecanFlowEvent(
         eventNumber: 7,
@@ -533,7 +533,7 @@ kMaatDecanFlowDefinitions = <MaatDecanFlowDefinition>[
         durationMinutesMin: 5,
         durationMinutesMax: 8,
         purpose:
-            'Close by naming where the balance held, where it wavered, and what practice continues.',
+            'The balance that wavered during this cycle is not a failure — it is information. The closing names where the balance held and where it didn\'t, and what practice will correct the latter.',
         spokenLine:
             'Do not utter falsehood, for you are a balance. Great is Ma\'at, lasting in effect.',
         steps: <String>[
@@ -543,7 +543,7 @@ kMaatDecanFlowDefinitions = <MaatDecanFlowDefinition>[
           'Write one continuing practice: When I am called to judge, I will [practice] before I decide.',
         ],
         sourceNote:
-            'The Eloquent Peasant ends with judgment finally pronounced and the stolen goods restored. The balance protects the judged and the judge alike.',
+            'The Eloquent Peasant\'s nine appeals end with justice finally pronounced and goods restored. The balance protects both the judged and the judge. The judge who hears unfairly does not only harm the petitioner — they become an unreliable measure.',
       ),
     ],
   ),
@@ -571,13 +571,16 @@ kMaatDecanFlowDefinitions = <MaatDecanFlowDefinition>[
         timing: MaatDecanFlowTiming.anyTime,
         durationMinutesMin: 15,
         durationMinutesMax: 15,
-        purpose: 'See the chosen space before changing it.',
+        purpose:
+            'The space cannot be arranged until it is seen accurately — as it is right now, with every accumulated thing in its current position.',
         spokenLine: 'Order begins with seeing what is actually there.',
         steps: <String>[
           'Stand at the entrance of your chosen space.',
           'Write what is actually there, where it sits, and what the current arrangement communicates.',
           'Do not clean yet.',
         ],
+        sourceNote:
+            'Temple restoration texts began by inventorying what was present before anything was moved. The unseen object cannot be placed correctly.',
       ),
       MaatDecanFlowEvent(
         eventNumber: 2,
@@ -619,10 +622,11 @@ kMaatDecanFlowDefinitions = <MaatDecanFlowDefinition>[
         timing: MaatDecanFlowTiming.anyTime,
         durationMinutesMin: 30,
         durationMinutesMax: 60,
-        purpose: 'Physically remove what does not belong.',
+        purpose:
+            'Removal is the active half of ordering. The object in the wrong space does the same damage to the room\'s function as the boundary stone in the wrong field.',
         spokenLine: 'What does not belong here is set in its true place.',
         steps: <String>[
-          'Physically remove every item marked does not belong.',
+          'Physically remove every item marked "does not belong here." Each item goes where it truly belongs — not to the hallway, not to a corner of the same room. If it belongs nowhere you inhabit, release it.',
           'Put each item where it truly belongs, discard it, or release it.',
           'Record what remains.',
         ],
@@ -653,13 +657,16 @@ kMaatDecanFlowDefinitions = <MaatDecanFlowDefinition>[
         timing: MaatDecanFlowTiming.anyTime,
         durationMinutesMin: 30,
         durationMinutesMax: 60,
-        purpose: 'Arrange what remains by purpose and movement.',
+        purpose:
+            'Zep Tepi was not the creation of new things but the placing of existing things in right relationship. Each item goes where it belongs in relation to the center and the threshold.',
         spokenLine: 'For I ordered everything in its proper place.',
         steps: <String>[
           'Arrange what remains by purpose, proximity, clear path, clean surfaces, and orientation.',
           'Stand at the threshold.',
           'Write what the space now says.',
         ],
+        sourceNote:
+            '"For I ordered everything in its proper place" — the Kemetic standard for good governance applied to any space. The arrangement is relational first: what is in right relationship to the center, what is in right relationship to the entry, what has a clear path between them.',
         requiresRealWorldAction: true,
         extraCompletionStatusLabels: <String, String>{'arranged': 'Arranged'},
       ),
@@ -705,13 +712,16 @@ kMaatDecanFlowDefinitions = <MaatDecanFlowDefinition>[
         timing: MaatDecanFlowTiming.anyTime,
         durationMinutesMin: 5,
         durationMinutesMax: 10,
-        purpose: 'Create the continuing five-minute maintenance practice.',
+        purpose:
+            'The ordering established in Decan 2 returns to disorder without maintenance. The five-minute daily practice is what makes the ordering permanent rather than a one-time reset.',
         spokenLine: 'What is arranged must be returned to arrangement.',
         steps: <String>[
-          'Create a daily five-minute maintenance practice.',
+          'Write the maintenance practice as a specific instruction: When I [enter/leave] this space each [morning/evening], I will [specific acts]. Specific enough to follow on Day 31 without thinking about it.',
           'It must return objects, clear surfaces, and include one sensory act of purification.',
           'Share only the one-sentence statement of what the space now communicates.',
         ],
+        sourceNote:
+            'The offering ritual was daily — not because the offering expired, but because the space required continued attention to remain ordered. What is arranged once and not maintained is not an ordered space. It is a space that was arranged once.',
         extraCompletionStatusLabels: <String, String>{
           'maintenance_established': 'Maintenance established',
         },
@@ -742,13 +752,16 @@ kMaatDecanFlowDefinitions = <MaatDecanFlowDefinition>[
         timing: MaatDecanFlowTiming.anyTime,
         durationMinutesMin: 15,
         durationMinutesMax: 20,
-        purpose: 'Choose and observe one natural subject.',
+        purpose:
+            'The Kemite who observed the jackal did not decide in advance what it would mean. They watched. This rite begins the same way: choose the subject and look at it without deciding what it demonstrates.',
         spokenLine: 'Say what is. Do not interpret yet.',
         steps: <String>[
           'Go to your subject and observe for 15-20 minutes.',
           'Write only what actually happens.',
           'Do not interpret yet.',
         ],
+        sourceNote:
+            'The Anubis theology emerged from watching actual jackals at the boundary between living fields and the desert necropolis. The behavior came first; the principle followed. Choose the subject and begin watching — interpretation is Decan 2\'s work.',
       ),
       MaatDecanFlowEvent(
         eventNumber: 2,
@@ -822,10 +835,11 @@ kMaatDecanFlowDefinitions = <MaatDecanFlowDefinition>[
         timing: MaatDecanFlowTiming.anyTime,
         durationMinutesMin: 10,
         durationMinutesMax: 15,
-        purpose: 'Extract one principle from field notes.',
+        purpose:
+            'The principle must come from the observed behavior — not from what the subject is supposed to represent, but from what the specific observed pattern actually demonstrates.',
         spokenLine: 'The principle must come from observed behavior.',
         steps: <String>[
-          'Use your field notes.',
+          'Write one sentence beginning with "[Subject] demonstrates: [principle]." Reject any principle not directly traceable to a specific behavior you observed and recorded.',
           'Write one sentence: [Subject] demonstrates: [principle].',
           'Reject any principle that did not come from observed behavior.',
         ],
@@ -854,14 +868,18 @@ kMaatDecanFlowDefinitions = <MaatDecanFlowDefinition>[
         timing: MaatDecanFlowTiming.anyTime,
         durationMinutesMin: 10,
         durationMinutesMax: 15,
-        purpose: 'State one actionable lesson from the observation.',
-        spokenLine: 'Watching this taught me something I did not invent.',
+        purpose:
+            'The lesson is the observation\'s product — one actionable principle derived from patient watching over thirty days.',
+        spokenLine:
+            'Speak the lesson before writing it: Watching [subject] for thirty days taught me [lesson]. Say it aloud once. Then write it.',
         steps: <String>[
           'Write one actionable lesson: Watching ___ taught me ___.',
           'Keep it tied to the observed pattern.',
           'Optionally share the lesson to the feed.',
         ],
         sharePromptOnComplete: true,
+        sourceNote:
+            'The Anubis theology did not remain an observation — it became the threshold guardian, the weigher of hearts, the guide of the dead. The lesson extracted from the natural world becomes a principle of conduct. This sitting names that principle and commits it to the record.',
         extraCompletionStatusLabels: <String, String>{
           'lesson_extracted': 'Lesson extracted',
         },
@@ -909,7 +927,7 @@ kMaatDecanFlowDefinitions = <MaatDecanFlowDefinition>[
         durationMinutesMin: 5,
         durationMinutesMax: 8,
         purpose:
-            'Name what you are actively learning and whether you are learning it with scribal precision.',
+            'The Per Ankh was a working scriptorium — not a library where the learned went to read, but a workshop where texts were produced, tested, and transmitted. This sitting enters it as a practitioner, not a browser.',
         spokenLine:
             'Come to me, Djehuty, that you may give advice and make me skillful in your office.',
         steps: <String>[
@@ -918,7 +936,7 @@ kMaatDecanFlowDefinitions = <MaatDecanFlowDefinition>[
           'Name the weakest of the three. This is where the practice begins.',
         ],
         sourceNote:
-            'The Per Ankh was not a passive library. It was a working scriptorium where knowledge was copied, produced, preserved, and tested by use.',
+            'The Per Ankh\'s priests were not passive custodians — they copied, produced, interpreted, and applied what they held. Knowledge that sits in the archive without being used is not living knowledge. This sitting names what you are actively working with, and where the work is weakest.',
       ),
       MaatDecanFlowEvent(
         eventNumber: 2,
@@ -964,16 +982,16 @@ kMaatDecanFlowDefinitions = <MaatDecanFlowDefinition>[
         durationMinutesMin: 5,
         durationMinutesMax: 8,
         purpose:
-            'Produce knowledge actively: write one thing clearly enough for a future reader.',
+            'What you can write precisely has been learned. What you can only gesture at is still loose in the understanding. Writing is the test.',
         spokenLine:
             'Write with your hand, recite with your mouth, and converse with those more knowledgeable than you.',
         steps: <String>[
           'Write one complete account of something you have learned, as if the reader cannot ask you to clarify.',
           'Read it back and correct anything that depends on you standing beside the text.',
-          'Name what the writing revealed about the gaps in your understanding.',
+          'Name what the writing revealed about the gaps in your understanding. The gaps are not failures — they are the Per Ankh\'s next assignment.',
         ],
         sourceNote:
-            'The scribe was valued for writing accurately. What you can write precisely has been learned; what you can only gesture at is still loose.',
+            'The Kemetic scribe was valued for the accuracy of the hand — the transmission that neither added nor removed. Writing what you know precisely enough for a future reader who cannot ask you to clarify is the scribal standard. Where the writing breaks down is where the learning is still incomplete.',
       ),
       MaatDecanFlowEvent(
         eventNumber: 5,
@@ -984,12 +1002,12 @@ kMaatDecanFlowDefinitions = <MaatDecanFlowDefinition>[
         durationMinutesMin: 5,
         durationMinutesMax: 5,
         purpose:
-            'Speak one piece of what you know without notes. The gaps in speech are useful evidence.',
+            'The scribe who could recite what they copied had internalized it. The scribe who could only locate it in the text had stored it, not learned it.',
         spokenLine:
             'Write with your hand, recite with your mouth, and converse with those more knowledgeable than you.',
         steps: <String>[
           'Speak one concept or principle from memory, accurately and in order.',
-          'Notice what is fluent and what collapses when spoken.',
+          'Notice what is fluent and what collapses when spoken. Collapse is useful data — it shows where the understanding depends on the text rather than on itself.',
           'If someone asks a question you cannot answer accurately, write it as the next thing to learn.',
         ],
       ),
@@ -1001,7 +1019,8 @@ kMaatDecanFlowDefinitions = <MaatDecanFlowDefinition>[
         timing: MaatDecanFlowTiming.morning,
         durationMinutesMin: 5,
         durationMinutesMax: 8,
-        purpose: 'Seek the source your current understanding cannot replace.',
+        purpose:
+            'The Per Ankh was not an isolation practice — knowledge was transmitted through conversation with those who had more of it. The source your current understanding cannot replace is the one this sitting goes looking for.',
         spokenLine:
             'I am the servant of your house. Come to me that you may advise me.',
         steps: <String>[
@@ -1009,6 +1028,8 @@ kMaatDecanFlowDefinitions = <MaatDecanFlowDefinition>[
           'Ask one question your current study cannot answer.',
           'Write one thing you learned that you could not have gotten from yourself alone.',
         ],
+        sourceNote:
+            'The instruction texts frame the student\'s relationship to the teacher as: come, advise me, let me be your servant. The posture of seeking is part of the practice. The question you bring determines what you receive.',
         requiresRealWorldAction: true,
       ),
       MaatDecanFlowEvent(
@@ -1058,7 +1079,7 @@ kMaatDecanFlowDefinitions = <MaatDecanFlowDefinition>[
         durationMinutesMin: 5,
         durationMinutesMax: 8,
         purpose:
-            'Close with one precise sentence you can now transmit and one practice that continues.',
+            'The House of Life closes with one precise sentence on the subject studied and one practice that continues. The practice that continues is more important than the thirty-day record.',
         spokenLine:
             'Writing was their memory-priest. Better is this profession than all professions. It makes people great.',
         steps: <String>[
@@ -1072,7 +1093,7 @@ kMaatDecanFlowDefinitions = <MaatDecanFlowDefinition>[
           'transmitted': 'Transmitted',
         },
         sourceNote:
-            'The node library is the app\'s Per Ankh: a place where careful reading can become accurate knowledge and accurate knowledge can be given onward.',
+            'Chester Beatty IV called the scribes\' writing their memory-priest — the mechanism of their continued existence. The precise sentence that closes this flow is the user\'s contribution to the same chain. What you can now say accurately, you can now transmit.',
       ),
     ],
   ),
@@ -1099,7 +1120,7 @@ kMaatDecanFlowDefinitions = <MaatDecanFlowDefinition>[
         durationMinutesMin: 5,
         durationMinutesMax: 8,
         purpose:
-            'Map the domains where you have a claim and where someone else begins.',
+            'After the Nile flood, the boundaries were resurveyed because the water had moved them. The stone was replaced not according to memory but according to the original measurement. Map the four fields from the same starting question: what is actually mine?',
         spokenLine:
             'Do not move the markers on the boundaries of the fields, nor alter the measuring line.',
         steps: <String>[
@@ -1108,7 +1129,7 @@ kMaatDecanFlowDefinitions = <MaatDecanFlowDefinition>[
           'For force, name what level of pressure or authority is proportionate to the situation.',
         ],
         sourceNote:
-            'After the Nile flood, officials re-surveyed fields and replaced boundary markers. The stone was Ma\'at made visible in the land.',
+            'The boundary-stone surveyors worked from original records, not from what was convenient after the flood. This sitting maps four fields — resources, labor, credit, force — from the same starting question: what is actually mine, and where does someone else begin?',
       ),
       MaatDecanFlowEvent(
         eventNumber: 2,
@@ -1155,7 +1176,7 @@ kMaatDecanFlowDefinitions = <MaatDecanFlowDefinition>[
         durationMinutesMin: 5,
         durationMinutesMax: 8,
         purpose:
-            'Assess whether the stones are in their right places across the four domains.',
+            'The resurvey asked one question per field: where does the stone actually belong? Not where it ended up after the flood — where the original measurement said it should be.',
         spokenLine: 'One who transgresses the furrow shortens a lifetime.',
         steps: <String>[
           'For resources, ask whether you are consuming at the level that is actually yours.',
@@ -1164,7 +1185,7 @@ kMaatDecanFlowDefinitions = <MaatDecanFlowDefinition>[
           'For force, ask whether pressure or authority has continued past what the situation required.',
         ],
         sourceNote:
-            'The re-survey after the flood was not creative; it was restorative. The question was where the stone belonged before disruption moved it.',
+            'The re-survey after the Nile flood was restorative, not creative — it found where the stone belonged before disruption moved it. Not where the boundary has drifted, but where it should be if the original measure were applied honestly.',
       ),
       MaatDecanFlowEvent(
         eventNumber: 5,
@@ -1175,7 +1196,7 @@ kMaatDecanFlowDefinitions = <MaatDecanFlowDefinition>[
         durationMinutesMin: 5,
         durationMinutesMax: 5,
         purpose:
-            'Look for the evidence that what was taken past the measure cannot be kept.',
+            'What was taken past the measure is already being returned through a different mechanism. The gullet\'s rejection is not a metaphor — it is the actual consequence operating in the relationship, the situation, or the body of the one who took too much.',
         spokenLine:
             'The property of a dependent is an obstruction to the throat. Too much bread is swallowed and spat up.',
         steps: <String>[
@@ -1184,7 +1205,7 @@ kMaatDecanFlowDefinitions = <MaatDecanFlowDefinition>[
           'Write what enough would have looked like in that domain.',
         ],
         sourceNote:
-            'Amenemope gives the image of the gullet rejecting what was taken past measure. Excess is not additive; it empties you of your good.',
+            'Amenemope\'s image of the gullet rejecting what was taken past measure is viscerally physical — bread swallowed and spat up, property that becomes an obstruction in the throat. The excess does not stay. It produces visible evidence that the measure was exceeded.',
       ),
       MaatDecanFlowEvent(
         eventNumber: 6,
@@ -1253,7 +1274,7 @@ kMaatDecanFlowDefinitions = <MaatDecanFlowDefinition>[
         durationMinutesMin: 5,
         durationMinutesMax: 8,
         purpose:
-            'Close by naming which stones are placed, restored, or still displaced with a clear next commitment.',
+            'The survey closes with the stones named: placed, restored, or still displaced. What remains displaced is a named commitment — which is different from an unexamined situation.',
         spokenLine:
             'What is mine I hold. What is not mine I have set down. The fields are measured. The stones are placed.',
         steps: <String>[
@@ -1265,7 +1286,7 @@ kMaatDecanFlowDefinitions = <MaatDecanFlowDefinition>[
           'stones_placed': 'Stones placed',
         },
         sourceNote:
-            'The survey ends when the stone is placed, not when the displacement is identified. What remains is not failure; it is a named commitment.',
+            'The Kemetic resurvey was complete when every stone was accounted for — placed, replaced, or noted as requiring further work. What remains displaced has been located and named, which is the prerequisite for restoration.',
       ),
     ],
   ),
@@ -1292,17 +1313,17 @@ kMaatDecanFlowDefinitions = <MaatDecanFlowDefinition>[
         durationMinutesMin: 3,
         durationMinutesMax: 5,
         purpose:
-            'Name what you are actually offering in this period and what the measure of owed work is.',
+            'The offering is complete when it meets the measure of what was owed — not when the giver has given everything possible. This distinction is the practice.',
         spokenLine:
             'I have come having gotten Horus\'s eye, that your heart may become cool with it.',
         steps: <String>[
-          'Place water on your surface and sit somewhere you actually rest.',
+          'Place water on your surface and sit somewhere you actually rest. Not a working position — a resting one. Hotep does not happen at the desk.',
           'Write what you are currently offering: time, labor, care, attention, skill.',
           'Write what is owed. The offering is complete when it meets the measure, not when you can give no more.',
           'Drink the water.',
         ],
         sourceNote:
-            'The Pyramid Texts begin restoration with cool water. The cool heart is the heart met by an offering that has been named and completed.',
+            'The Pyramid Texts begin restoration with cool water because the heart that has been cooled can receive the offering\'s completion. The cool heart is what Hotep produces — not what you must bring to it.',
       ),
       MaatDecanFlowEvent(
         eventNumber: 2,
@@ -1349,16 +1370,16 @@ kMaatDecanFlowDefinitions = <MaatDecanFlowDefinition>[
         durationMinutesMin: 3,
         durationMinutesMax: 5,
         purpose:
-            'Ask the central question directly: has what was owed actually been given?',
+            'The central question of Hotep is not "have I done enough" — it is "have I done what was owed." These produce different answers.',
         spokenLine:
-            'Do not go to bed fearing tomorrow. God is success; man is failure.',
+            'Speak this before the question: Do not go to bed fearing tomorrow. God is success; man is failure. Then sit with the question for at least two minutes: Has the offering of this period been made?',
         steps: <String>[
           'Sit with the question for at least two minutes: Has the offering of this period been made?',
           'Answer with the Day 1 measure, not with a vague feeling of enough.',
           'Write: The offering is complete, or The offering is incomplete in [specific way].',
         ],
         sourceNote:
-            'Amenemope does not answer fear of tomorrow with productivity advice. What is yours is the offering made today; tomorrow is not yours to control.',
+            'Amenemope does not address fear of tomorrow with productivity advice. The answer is distinguishing between what is yours to do and what is tomorrow\'s problem. The offering made today closes today\'s account.',
       ),
       MaatDecanFlowEvent(
         eventNumber: 5,
@@ -1441,20 +1462,20 @@ kMaatDecanFlowDefinitions = <MaatDecanFlowDefinition>[
         durationMinutesMin: 5,
         durationMinutesMax: 8,
         purpose:
-            'Close as near to sleep as possible: the offering named, the heart cooled, the night entered without fear.',
+            'The cool heart is the product of the completed offering, not its prerequisite. This sitting produces the cool heart by closing the offering record and placing what cannot be controlled outside the sleeping space.',
         spokenLine:
             'These your cool waters have come from your son. Your heart will not become weary with it. Hotep.',
         steps: <String>[
           'Place water and sit where you will be before sleep.',
           'Name aloud what you offered across this flow: time, labor, care, presence, skill.',
           'Speak: What was owed has been given.',
-          'Write anything left in the bed that is not yours to control and place the paper away from where you sleep.',
+          'Write anything left in the bed that is not yours to control and place the paper away from where you sleep. The act is physical because the cool heart is physical.',
           'Drink the water. Lie down.',
           'sleep',
         ],
         extraCompletionStatusLabels: <String, String>{'cooled': 'Cooled'},
         sourceNote:
-            'The htp-di-nsw offering formula begins with Hotep: the offering made and the satisfaction received. This close returns the user to water, completion, and sleep.',
+            'The ḥtp formula began with "Hotep" — satisfaction received, offering made — and the provision followed. The peace comes first; the provision follows from it. This final event replicates that sequence: the record is closed, the water is drunk, the heart is cooled.',
       ),
     ],
   ),
@@ -1481,7 +1502,7 @@ kMaatDecanFlowDefinitions = <MaatDecanFlowDefinition>[
         durationMinutesMin: 5,
         durationMinutesMax: 8,
         purpose:
-            'Record what your mouth has actually been producing lately, not what you wish it produced.',
+            'What comes out of the mouth before the heart has governed it is not yet speech — it is reflex with sound. This sitting finds the reflex patterns before they are taken for speech.',
         spokenLine:
             'It is the heart and the tongue that have power. I open the record of what my tongue has been commanding.',
         steps: <String>[
@@ -1491,7 +1512,7 @@ kMaatDecanFlowDefinitions = <MaatDecanFlowDefinition>[
           'Name what needs to be said but has been swallowed.',
         ],
         sourceNote:
-            'In the Memphite Theology, the heart conceives and the tongue commands. Speech is not only expression; it participates in formation.',
+            'In the Memphite Theology, the heart conceives and the tongue commands — formation happens through speech. The mouth that produces without the heart\'s governance is not creating order; it is creating noise. This sitting opens the record of which category most of the recent speech has fallen into.',
       ),
       MaatDecanFlowEvent(
         eventNumber: 2,
@@ -1538,7 +1559,7 @@ kMaatDecanFlowDefinitions = <MaatDecanFlowDefinition>[
         durationMinutesMin: 5,
         durationMinutesMax: 8,
         purpose:
-            'Choose one discipline for the tongue: pause, accuracy, relevance, timing, or witness before speaking.',
+            'The tongue is the steering oar, not the pilot. The heart holds course; the tongue carries it out. This decan names the one discipline that keeps the oar from steering where the heart didn\'t direct it.',
         spokenLine: 'Be strong in your heart. Do not steer with your tongue.',
         steps: <String>[
           'Review the five disciplines: pause, accuracy, relevance, timing, witness before speaking.',
@@ -1546,7 +1567,7 @@ kMaatDecanFlowDefinitions = <MaatDecanFlowDefinition>[
           'Choose one discipline for this decan and define the specific practice.',
         ],
         sourceNote:
-            'Amenemope says the tongue is the steering oar, but not the pilot. The heart holds course; the tongue carries it out.',
+            'Amenemope\'s image of the tongue as a steering oar places the problem clearly: an oar not controlled by the navigator creates the illusion of movement while taking the vessel in the wrong direction. Choose the discipline most absent.',
       ),
       MaatDecanFlowEvent(
         eventNumber: 5,
@@ -1594,16 +1615,16 @@ kMaatDecanFlowDefinitions = <MaatDecanFlowDefinition>[
         durationMinutesMin: 5,
         durationMinutesMax: 8,
         purpose:
-            'Write the true thing that will be spoken in the final decan before the tongue declares it.',
+            'The heart conceives before the tongue declares. Writing the true thing first is the heart\'s work — making it real through speech is the tongue\'s work. This sitting completes the first half.',
         spokenLine:
             'Your tongue is the plummet. Your heart is the weight. I open my mouth with care.',
         steps: <String>[
           'Ask what your mouth has been creating across this flow.',
           'Name one specific, true, currently unspoken thing you will bring into the world by saying it.',
-          'Write it first. The heart conceives before the tongue declares.',
+          'Write it first. What is not fully conceived is not ready to be declared.',
         ],
         sourceNote:
-            'Khunanup calls the tongue a plummet and the heart its weight. Governed speech measures; it does not simply sound more polite.',
+            'The Memphite Theology describes creation as: heart conceives, tongue declares, world forms. The mouth that speaks before the heart has finished conceiving is interrupting the process. Writing the sentence first is the heart\'s work completed before the tongue takes over.',
       ),
       MaatDecanFlowEvent(
         eventNumber: 8,
@@ -1632,9 +1653,9 @@ kMaatDecanFlowDefinitions = <MaatDecanFlowDefinition>[
         durationMinutesMin: 8,
         durationMinutesMax: 10,
         purpose:
-            'Close by naming what the mouth created, what changed, and what was finally spoken.',
+            'The flow closes with what was spoken that needed to be spoken, and with one minute of intentional silence. The silence is not the absence of speech — it is the space the governed mouth creates.',
         spokenLine:
-            'My mouth is open. My speech is governed. What I command, I create with care.',
+            'Speak only what is true: My mouth is open. My speech is governed. What I command, I create with care. Then sit in intentional silence for one full minute.',
         steps: <String>[
           'Name the most significant speech pattern the inventory revealed.',
           'Name what the governance practice produced.',
@@ -1644,7 +1665,7 @@ kMaatDecanFlowDefinitions = <MaatDecanFlowDefinition>[
         ],
         extraCompletionStatusLabels: <String, String>{'spoken': 'Spoken'},
         sourceNote:
-            'The Opening of the Mouth restored speech, eating, and breath. The close is not perfection; it is a mouth more open and better governed than before.',
+            'The Opening of the Mouth ceremony restored speech, eating, and breath after they had been closed. This close makes silence available — the governed mouth can be silent when silence is right. The one minute at the end is the practice of that.',
       ),
     ],
   ),
@@ -1671,7 +1692,7 @@ kMaatDecanFlowDefinitions = <MaatDecanFlowDefinition>[
         durationMinutesMin: 5,
         durationMinutesMax: 5,
         purpose:
-            'Open the decan record by locating the day in Kemetic time before anything else is written.',
+            'The day card is the record\'s first entry — the dating before the work. Merer\'s logbook placed the date before naming the work because the work outside of time is not a record.',
         spokenLine:
             'What occurred must be placed within its time. What is placed within its time becomes record. What becomes record persists.',
         steps: <String>[
@@ -1681,7 +1702,7 @@ kMaatDecanFlowDefinitions = <MaatDecanFlowDefinition>[
         ],
         requiresRealWorldAction: true,
         sourceNote:
-            'Merer\'s logbook dated each entry before naming the work. The Palermo Stone bounded each year in its own compartment. The day card is the app\'s dating entry: work placed within time.',
+            'Merer\'s logbook dated each entry before naming the work because work outside of time is not a record — it is an anecdote. The day card does the same: it places the decan\'s activity inside the Kemetic count before anything is added to it.',
       ),
       MaatDecanFlowEvent(
         eventNumber: 2,
@@ -1731,17 +1752,17 @@ kMaatDecanFlowDefinitions = <MaatDecanFlowDefinition>[
         durationMinutesMin: 5,
         durationMinutesMax: 8,
         purpose:
-            'Use the journal as papyrus: the private record from which memory and guidance can be built.',
+            'The journal is the papyrus — the private record from which the guidance system builds its account. What is written with honesty and specificity produces more accurate guidance than what is performed there with care for appearance.',
         spokenLine:
             'Their writing was their memory-priest. The pen was their child. Their names endured.',
         steps: <String>[
           'Open the journal and write at least three substantive sentences.',
-          'Name what this decan has meant so far, what you actually did in Ma\'at, what resisted the period, and one unanswered question.',
+          'Write at least three substantive sentences about what this decan has meant, what you actually did in Ma\'at, what resisted the period, and one unanswered question. Specific is more useful than comprehensive.',
           'Notice any badges generated from the entry. They are signals that the record is being read.',
         ],
         requiresRealWorldAction: true,
         sourceNote:
-            'Papyrus Chester Beatty IV treats writing as survival: the writing becomes the memory-priest that keeps the name alive.',
+            'Chester Beatty IV calls writing the memory-priest that keeps the name alive. The journal\'s entries are that priest — they build the account the guidance system works from. Honest and specific entries produce honest and specific guidance.',
       ),
       MaatDecanFlowEvent(
         eventNumber: 5,
@@ -1814,7 +1835,7 @@ kMaatDecanFlowDefinitions = <MaatDecanFlowDefinition>[
         durationMinutesMin: 5,
         durationMinutesMax: 5,
         purpose:
-            'Read guidance as consultation: it witnesses the record before offering one act.',
+            'The guidance witnesses before it advises. It names what the record shows — not what you hope the record shows. Read it as a lector priest\'s consultation, not as a notification.',
         spokenLine:
             'The guidance comes when the pattern has been seen. It witnesses before advising. It names without shame. It offers one act.',
         steps: <String>[
@@ -1823,6 +1844,8 @@ kMaatDecanFlowDefinitions = <MaatDecanFlowDefinition>[
           'If possible, complete the act today. If not, write what the right response is.',
           'Write: Ma\'at guidance, Day 25: [what it said]. My response: [what I did or decided].',
         ],
+        sourceNote:
+            'The lector priest read the sacred texts aloud during ritual — the voice that activated what was written. The guidance reads the journal\'s record and names what is there. Reading it attentively, rather than skimming, completes the consultation.',
         requiresRealWorldAction: true,
       ),
       MaatDecanFlowEvent(
@@ -1875,7 +1898,7 @@ kMaatDecanFlowDefinitions = <MaatDecanFlowDefinition>[
         durationMinutesMin: 5,
         durationMinutesMax: 8,
         purpose:
-            'Name the fierce force in you that has gone further than intended and no longer comes back when called.',
+            'Sekhmet was sent by Ra for a legitimate reason, against a real threat. The force going further than intended is not a character flaw — it is what happens when the Eye has no beer. Name yours without assigning fault to its origin.',
         spokenLine:
             'Sekhmet, the Powerful One, the Eye of Ra, went out and did not come back when called. She is the same force as Het-Heru before the beer.',
         steps: <String>[
@@ -1885,7 +1908,7 @@ kMaatDecanFlowDefinitions = <MaatDecanFlowDefinition>[
           'Optional: name the beautiful thing this force used to make before it went too far.',
         ],
         sourceNote:
-            'In the Book of the Heavenly Cow, Ra sends his Eye as Sekhmet against humanity. When the slaughter will not stop, red beer is poured across the land. Sekhmet drinks, sleeps, and wakes as Het-Heru.',
+            'In the Book of the Heavenly Cow, Sekhmet\'s origin is Ra\'s wound and his legitimate anger. The force was right at the beginning. The problem arrived when it could not be recalled. This sitting names the force and its original purpose before deciding what the beer should be.',
       ),
       MaatDecanFlowEvent(
         eventNumber: 2,
@@ -1932,7 +1955,7 @@ kMaatDecanFlowDefinitions = <MaatDecanFlowDefinition>[
         durationMinutesMin: 5,
         durationMinutesMax: 8,
         purpose:
-            'Name the abundant, non-destructive thing that can fill the same hunger your Sekhmet has been feeding.',
+            'The beer must be abundant. Ra did not pour one jar — he poured seven thousand. Whatever the transforming thing is, it must be given generously enough that the underlying need is actually met.',
         spokenLine:
             'Seven thousand jars of beer were dyed red like blood. The force received what it could drink, and it was transformed.',
         steps: <String>[
@@ -1941,7 +1964,7 @@ kMaatDecanFlowDefinitions = <MaatDecanFlowDefinition>[
           'Make it abundant. Ra did not pour one jar; he flooded the field.',
         ],
         sourceNote:
-            'The myth names the scale: seven thousand jars. Transformation happens through abundance, not a sip. What is your field-flooding gift?',
+            'The myth names the scale: seven thousand jars, poured across the whole field of Lower Egypt. Transformation through a token gesture is not the Kemetic model. The beer that transforms must be given in the quantity that allows the need to be fully met.',
       ),
       MaatDecanFlowEvent(
         eventNumber: 5,
@@ -1992,17 +2015,17 @@ kMaatDecanFlowDefinitions = <MaatDecanFlowDefinition>[
         durationMinutesMin: 5,
         durationMinutesMax: 8,
         purpose:
-            'Let music be a sacred act of presence with Het-Heru, not background content.',
+            'The sistrum was not Het-Heru\'s symbol — it was her presence made audible. When it was shaken, the goddess arrived. This sitting makes music the main event, not the background.',
         spokenLine:
             'Het-Heru, the Golden One, Mistress of Joy, Lady of the Dance. The sistrum sounds and she is present.',
         steps: <String>[
-          'Listen to music that actually moves you. Let it be the main event.',
+          'Listen to music that actually moves you — not as background, not as accompaniment, but as the event itself.',
           'Notice what the music does to the place where Sekhmet was.',
           'Afterward write one word about what you felt. That is the whole record.',
         ],
         requiresRealWorldAction: true,
         sourceNote:
-            'The sistrum was Het-Heru\'s presence made audible. At Dendera, music was not entertainment; it was an offering that invited the goddess\'s joyful quality.',
+            'At Dendera, music was the primary act of worship, and the reception of that music was the offering returned. The sistrum sounds, and Het-Heru is present. The one word written after is the record of whether that presence arrived.',
       ),
       MaatDecanFlowEvent(
         eventNumber: 8,
@@ -2074,7 +2097,8 @@ kMaatDecanFlowDefinitions = <MaatDecanFlowDefinition>[
         timing: MaatDecanFlowTiming.morning,
         durationMinutesMin: 8,
         durationMinutesMax: 8,
-        purpose: 'Inventory what you can honestly offer now.',
+        purpose:
+            'The sailor offered oil to the Prince of Punt — the main product of the island he was standing on. The Prince laughed. Honest inventory prevents that error.',
         spokenLine: 'Do well, and you will attain influence.',
         steps: <String>[
           'Write an honest inventory of skills, labor, knowledge, and relationships you can offer now.',
@@ -2082,7 +2106,7 @@ kMaatDecanFlowDefinitions = <MaatDecanFlowDefinition>[
           'Finish: My boat is primarily full of ___.',
         ],
         sourceNote:
-            'The sailor at Punt could not offer Punt its own goods. The honest question is what is actually in your boat.',
+            'The Shipwrecked Sailor arrived with nothing and offered what the island already had. The exchange that worked was not the commercial offer — it was his honest presence and his true account of the situation. What is actually in your boat, not what you wish were there?',
       ),
       MaatDecanFlowEvent(
         eventNumber: 2,
@@ -2140,11 +2164,12 @@ kMaatDecanFlowDefinitions = <MaatDecanFlowDefinition>[
         timing: MaatDecanFlowTiming.anyTime,
         durationMinutesMin: 5,
         durationMinutesMax: 5,
-        purpose: 'Make one real exchange before logging the event.',
+        purpose:
+            'The shore is a physical place. The exchange must actually happen before this event is logged.',
         spokenLine:
             'The Ape sits by the balance, while his heart is the plummet.',
         steps: <String>[
-          'Make one real exchange before logging.',
+          'Make one real exchange before logging this event. The act is the event. Logging a planned exchange is not the same as recording a completed one.',
           'Record what was offered, what was received, and whether both sides received honest value.',
           'If it has not happened, name the blocker and the next concrete opening.',
         ],
@@ -2192,14 +2217,17 @@ kMaatDecanFlowDefinitions = <MaatDecanFlowDefinition>[
         timing: MaatDecanFlowTiming.anyTime,
         durationMinutesMin: 5,
         durationMinutesMax: 5,
-        purpose: 'Test whether the gain produced peace or anxiety.',
+        purpose:
+            'Amenemope returns to this formulation three times — not as a preference for simplicity over wealth, but as a diagnostic. Anxious bread means something in the exchange was not at honest measure.',
         spokenLine:
             'Better is bread when the mind is at ease than riches with anxiety.',
         steps: <String>[
-          'Eat something while reflecting on the exchange.',
+          'Eat something while doing this event. The bread test is practical: can this bread be eaten without planning how to protect what you have, or how to get more before it runs out?',
           'Ask whether this gain feels easy or anxious.',
           'Name what made it peaceful, or what made it uneasy.',
         ],
+        sourceNote:
+            'Amenemope\'s formulation is a diagnostic, not a moral preference. Bread eaten with an easy mind means the exchange was at honest measure. Bread eaten with anxiety means something went wrong in the gaining or the holding.',
       ),
       MaatDecanFlowEvent(
         eventNumber: 9,
@@ -2244,13 +2272,16 @@ kMaatDecanFlowDefinitions = <MaatDecanFlowDefinition>[
         timing: MaatDecanFlowTiming.morning,
         durationMinutesMin: 15,
         durationMinutesMax: 15,
-        purpose: 'Name the capacities built across years.',
+        purpose:
+            'What you can actually do now is different from what you could do at twenty. This survey names the difference — the capacities that the years specifically built.',
         spokenLine: 'Say what is and do not say what is not.',
         steps: <String>[
           'Look across your adult life.',
           'Name the capacities developed through years of work, failure, repetition, and attention.',
           'Write what you can actually do now, without inflation or deflation.',
         ],
+        sourceNote:
+            'The Kemetic autobiography opened with offices held and capacities demonstrated — not as a résumé but as a fact-check on what the years had actually produced. The capacities named here are the ones that required the full span to develop.',
       ),
       MaatDecanFlowEvent(
         eventNumber: 2,
@@ -2341,12 +2372,13 @@ kMaatDecanFlowDefinitions = <MaatDecanFlowDefinition>[
         timing: MaatDecanFlowTiming.morning,
         durationMinutesMin: 30,
         durationMinutesMax: 45,
-        purpose: 'Produce the four-section autobiography document.',
+        purpose:
+            'The four-section document is a fact-check on the life so far. Allow the full thirty to forty-five minutes. This is not a note — it is a document.',
         spokenLine: 'I will put my annals among people.',
         steps: <String>[
           'Write the four-section document: Capacities, Works, Gifts, Claim.',
           'Allow 30-45 minutes; this is a document, not a short note.',
-          'Correct anything inflated or deflated before closing the document.',
+          'Read the document back once and correct anything inflated or deflated. Not improved — corrected. The autobiography must be accurate.',
         ],
         extraCompletionStatusLabels: <String, String>{
           'autobiography_written': 'Autobiography written',
@@ -2378,13 +2410,16 @@ kMaatDecanFlowDefinitions = <MaatDecanFlowDefinition>[
         timing: MaatDecanFlowTiming.evening,
         durationMinutesMin: 10,
         durationMinutesMax: 10,
-        purpose: 'Name the work still required by the claim.',
+        purpose:
+            'The Claim commits the life to something. This sitting names what the autobiography still needs to contain to have made the Claim honest.',
         spokenLine: 'What remains is named. The autobiography continues.',
         steps: <String>[
           'Read the Claim section.',
           'Name the specific work, gift, or capacity still required to make the autobiography honest to its claim.',
           'Save the remaining work as a future-return field in your record.',
         ],
+        sourceNote:
+            'The Kemetic autobiography could be updated while the person lived — the carving was not closed until they were. This closing names what update the life still requires to make the Section 4 claim accurate.',
         extraCompletionStatusLabels: <String, String>{
           'remaining_work_named': 'Remaining work named',
         },
@@ -2415,7 +2450,8 @@ kMaatDecanFlowDefinitions = <MaatDecanFlowDefinition>[
         timing: MaatDecanFlowTiming.morning,
         durationMinutesMin: 8,
         durationMinutesMax: 10,
-        purpose: 'Name the account without judging it.',
+        purpose:
+            'The account that feels like "just the truth about me" is the one most worth examining. The account you chose to believe has friction; the one that feels like fact has been operating as premise long enough to lose its edges.',
         spokenLine:
             'The first account is not your fault; it is the account to be measured.',
         steps: <String>[
@@ -2423,6 +2459,8 @@ kMaatDecanFlowDefinitions = <MaatDecanFlowDefinition>[
           'Do not judge it yet and do not share this material.',
           'If what surfaces feels larger than this flow can hold, pause the flow and seek support.',
         ],
+        sourceNote:
+            'The Ren — the name — was a constituent part of the person, as real as the body. A name given by someone else and accepted as your own still operates as your name. This sitting finds the name you have been living under and asks whether it belongs to you.',
       ),
       MaatDecanFlowEvent(
         eventNumber: 2,
@@ -2514,14 +2552,17 @@ kMaatDecanFlowDefinitions = <MaatDecanFlowDefinition>[
         timing: MaatDecanFlowTiming.morning,
         durationMinutesMin: 8,
         durationMinutesMax: 10,
-        purpose: 'Imagine one current situation from the accurate account.',
+        purpose:
+            'The Memphite Theology places conception before declaration: the heart must know the form before the tongue can command it into existence. This sitting lets the heart conceive the accurate account in a specific current situation before the tongue is asked to declare it.',
         spokenLine:
             'The heart conceives; the tongue releases the word into form.',
         steps: <String>[
-          'Choose one current situation where the false account operates.',
+          'Choose one specific current situation where the false account operates. Not in general — one situation. The imagination must be specific to do its work.',
           'Imagine acting from the accurate account in specific detail.',
           'Write what that looks like before you attempt it.',
         ],
+        sourceNote:
+            'The heart conceives before the tongue commands — that is the Kemetic sequence. The imagination of acting from the accurate account in a specific situation is the heart\'s work before the declaration. What is vividly conceived with the heart\'s knowledge behind it is available to the tongue.',
       ),
       MaatDecanFlowEvent(
         eventNumber: 8,
@@ -2531,13 +2572,17 @@ kMaatDecanFlowDefinitions = <MaatDecanFlowDefinition>[
         timing: MaatDecanFlowTiming.anyTime,
         durationMinutesMin: 5,
         durationMinutesMax: 8,
-        purpose: 'Stand and speak the accurate account aloud.',
-        spokenLine: 'I am pure, I am pure, I am pure, I am pure.',
+        purpose:
+            'The Declaration of Innocence was spoken standing, before the divine court, aloud. Not written. Not thought. Spoken. This sitting follows the same form.',
+        spokenLine:
+            'Stand. Speak the accurate account, then speak the evidence. Then: I am pure, I am pure, I am pure, I am pure. Standing, four times.',
         steps: <String>[
-          'Stand.',
+          'Stand before speaking. The declaration is not made while seated.',
           'Speak the accurate account aloud, then speak the evidence.',
           'Close with: I am pure, I am pure, I am pure, I am pure. Then record what it felt like.',
         ],
+        sourceNote:
+            'The Declaration was spoken in a hall, before 42 Assessors, standing. The posture was not ceremonial — it was the form in which the declaration carried weight. This sitting follows it.',
         requiresRealWorldAction: true,
         extraCompletionStatusLabels: <String, String>{'declared': 'Declared'},
       ),
@@ -2585,13 +2630,16 @@ kMaatDecanFlowDefinitions = <MaatDecanFlowDefinition>[
         timing: MaatDecanFlowTiming.anyTime,
         durationMinutesMin: 8,
         durationMinutesMax: 10,
-        purpose: 'Begin by reading one Library entry fully.',
+        purpose:
+            'The entry that arrests attention is already communicating something. Reading it fully — not the first paragraph, the whole entry — is the first act of the scribe who copies to transmit rather than to survey.',
         spokenLine: 'The Library lives when it is read.',
         steps: <String>[
           'Open the Library and choose the entry that catches your attention.',
           'Read it fully.',
           'Write one new thought the entry opened in you.',
         ],
+        sourceNote:
+            'The Kemetic scribe copied what was assigned and what was sought out. The entry that arrests your attention is the one the Per Ankh is directing you to. Read it the way a scribe reads to copy: without assuming you know how it ends.',
       ),
       MaatDecanFlowEvent(
         eventNumber: 2,
@@ -2634,13 +2682,16 @@ kMaatDecanFlowDefinitions = <MaatDecanFlowDefinition>[
         timing: MaatDecanFlowTiming.anyTime,
         durationMinutesMin: 8,
         durationMinutesMax: 10,
-        purpose: 'Add a lived-experience reflection to the Library.',
+        purpose:
+            'A reflection is not a summary or a response. It is what the entry opened in you that the entry itself could not say — because the entry was written before you encountered it with your specific life.',
         spokenLine: 'Good advice may be found at the grindstones.',
         steps: <String>[
           'Return to the Day 1 entry.',
           'Add a reflection from your lived experience.',
           'Mark it private or public. Reflections are private by default.',
         ],
+        sourceNote:
+            'Scribal annotations in Kemetic manuscripts were often incorporated into subsequent copies — the reader\'s gloss became part of the text. What your experience adds to the entry belongs in the record alongside the original.',
         requiresRealWorldAction: true,
       ),
       MaatDecanFlowEvent(
@@ -2720,14 +2771,18 @@ kMaatDecanFlowDefinitions = <MaatDecanFlowDefinition>[
         timing: MaatDecanFlowTiming.anyTime,
         durationMinutesMin: 10,
         durationMinutesMax: 10,
-        purpose: 'Close by naming what you read and what you added.',
-        spokenLine: 'Completed correctly; the living text includes this mark.',
+        purpose:
+            'The colophon closed with the scribe\'s mark: who was here, what was completed. Not a flourish — a record. This sitting produces the same mark on the living text.',
+        spokenLine:
+            'Write the closing mark and then speak: Completed correctly; the living text includes this mark.',
         steps: <String>[
           'Write your closing mark: what you read, what you added, and how the Library is richer because of it.',
           'Name reflections, questions, and connections without calling them comments.',
           'Share the final line if desired.',
         ],
         sharePromptOnComplete: true,
+        sourceNote:
+            'The Kemetic colophon was a formal record, not a signature of pride. The scribe\'s name claimed engagement, not authorship. Your colophon does the same: not "I wrote this" but "I was here, I engaged with this, what I added belongs to it now."',
         extraCompletionStatusLabels: <String, String>{
           'colophon_written': 'Colophon written',
         },
@@ -2759,7 +2814,7 @@ kMaatDecanFlowDefinitions = <MaatDecanFlowDefinition>[
         durationMinutesMin: 8,
         durationMinutesMax: 8,
         purpose:
-            'Name where heat drives action before the cleared state is available.',
+            'The indoor tree is growing toward the available light, not toward the actual light. The direction it has been growing is visible in what it has been producing — and in what the heat has been costing.',
         spokenLine:
             'The hot-headed man is like a tree grown in an enclosed space.',
         steps: <String>[
@@ -2767,6 +2822,8 @@ kMaatDecanFlowDefinitions = <MaatDecanFlowDefinition>[
           'Write the specific situation and what generates the heat.',
           'Record what the heat-driven pattern has cost.',
         ],
+        sourceNote:
+            'Amenemope\'s image is precise: the indoor tree loses its foliage in a moment because it grew toward whatever light was available, not toward the actual sun. The heat-driven response does the same — it goes toward the available outlet, not the right one.',
       ),
       MaatDecanFlowEvent(
         eventNumber: 2,
@@ -2808,10 +2865,11 @@ kMaatDecanFlowDefinitions = <MaatDecanFlowDefinition>[
         timing: MaatDecanFlowTiming.morning,
         durationMinutesMin: 5,
         durationMinutesMax: 8,
-        purpose: 'Choose one act that creates space before response.',
+        purpose:
+            'The act of setting yourself apart is physical and procedural, not just intentional. The clearing is found by getting out of the enclosure, not by deciding the enclosure is no longer one.',
         spokenLine: 'Set yourself apart before the response forms.',
         steps: <String>[
-          'Choose one physical or procedural act that creates space before response.',
+          'Choose one physical or procedural act that creates space before response. Specific enough to follow without deciding in the moment. "Try to be calmer" is not the act. "Before responding to [situation], I will [specific act]" is.',
           'Use a concrete practice: wait one hour, walk outside, write before sending, sleep on it, or consult the day card first.',
           'Write when you will use it and what heat situation it interrupts.',
         ],
@@ -2893,13 +2951,15 @@ kMaatDecanFlowDefinitions = <MaatDecanFlowDefinition>[
         durationMinutesMin: 5,
         durationMinutesMax: 8,
         purpose:
-            'Close with the shade your cleared state will continue to provide.',
+            'The shade is pleasant — Amenemope is specific. Not merely useful, not protective, but pleasant. The cleared person is a pleasure to be near because their stillness creates a different climate.',
         spokenLine: 'Its shade is pleasant.',
         steps: <String>[
           'Name one person or situation that benefits from your shade.',
           'Write the heat situation where you will continue setting yourself apart.',
           'Record the shade you intend to provide. Optionally share only the one-line commitment.',
         ],
+        sourceNote:
+            'Amenemope says the temperate person reaches their end in a grove — surrounded by other trees, part of an ecosystem. The shade is not a side effect of the clearing. It is the clearing\'s gift to the people around it.',
         sharePromptOnComplete: true,
       ),
     ],
@@ -2929,13 +2989,16 @@ kMaatDecanFlowDefinitions = <MaatDecanFlowDefinition>[
         timing: MaatDecanFlowTiming.evening,
         durationMinutesMin: 5,
         durationMinutesMax: 8,
-        purpose: 'Name the loss specifically and drink water slowly after.',
+        purpose:
+            'The loss named specifically is the loss that can be searched for. Aset did not search for "what was gone" — she searched for Ausar. The name begins the search.',
         spokenLine: 'My brother, for I have searched for you.',
         steps: <String>[
           'Write the name of what was lost. If it is not a person, name it as specifically as one.',
           'Write one sentence about what it gave you that you cannot get elsewhere right now.',
-          'Place water nearby and drink slowly after.',
+          'Place water nearby and drink it slowly after writing the name. The provision the body needs when it is doing this work.',
         ],
+        sourceNote:
+            'Aset\'s search began with Ausar\'s specific identity — not with the category of loss but with the specific person. The specific name makes the search possible.',
       ),
       MaatDecanFlowEvent(
         eventNumber: 2,
@@ -2993,13 +3056,16 @@ kMaatDecanFlowDefinitions = <MaatDecanFlowDefinition>[
         timing: MaatDecanFlowTiming.evening,
         durationMinutesMin: 5,
         durationMinutesMax: 8,
-        purpose: 'Name one genuine finding from the search.',
+        purpose:
+            '"I found, I found" — the double testimony. The finding is not the return of what was lost — it is what remains of the love in the places the search visited.',
         spokenLine: 'I found, I found.',
         steps: <String>[
           'Name one thing the search has genuinely found.',
           'Write what remains of the love.',
           'Name where it has gone now.',
         ],
+        sourceNote:
+            'In the Pyramid Texts, the finding is announced twice: "I found, I found, said Isis; I have found, said Nephthys." The repetition is testimony. What is found by two witnesses has been genuinely found. This sitting names one genuine finding.',
       ),
       MaatDecanFlowEvent(
         eventNumber: 6,
@@ -3058,13 +3124,17 @@ kMaatDecanFlowDefinitions = <MaatDecanFlowDefinition>[
         timing: MaatDecanFlowTiming.evening,
         durationMinutesMin: 5,
         durationMinutesMax: 8,
-        purpose: 'Stand and choose one small act using a restored capacity.',
-        spokenLine: 'Stand up for me.',
+        purpose:
+            'The Pyramid Texts command to stand is not a demand to stop grieving — it is the voice of love that has searched, found, and now asks the found one to rise. The physical act is the event.',
+        spokenLine:
+            'Before standing: Stand up for me. Then stand. Then choose one act.',
         steps: <String>[
           'Stand physically before logging.',
           'Choose one small act using a restored capacity: eat something wanted, listen to music, see something beautiful, or speak the name of what was lost to someone safe.',
           'Record the act.',
         ],
+        sourceNote:
+            'The command to stand in the Pyramid Texts is spoken by those who love the one who is down — Isis\'s command, Nephthys\'s command, Horus\'s command. The standing is invited by love that has found what it was looking for. This sitting receives that invitation and enacts it in one small act of the restored capacity.',
         requiresRealWorldAction: true,
       ),
     ],
@@ -3094,13 +3164,16 @@ kMaatDecanFlowDefinitions = <MaatDecanFlowDefinition>[
         timing: MaatDecanFlowTiming.morning,
         durationMinutesMin: 8,
         durationMinutesMax: 8,
-        purpose: 'Listen to what the body is communicating now.',
+        purpose:
+            'The body is reporting something right now — not what you think it should be feeling, but what it is actually communicating in this moment.',
         spokenLine: 'Teti is sound because of his body.',
         steps: <String>[
-          'Sit or lie down.',
+          'Sit or lie down. Move attention from feet upward to face. The inventory is not an assessment — it is the act of listening to a report the body has been trying to give.',
           'Move attention from feet to face.',
           'Write three things the body is communicating right now, without judging or correcting them.',
         ],
+        sourceNote:
+            '"Teti is sound because of his body." The soundness was located in the physical form — bones assembled, limbs collected, earth on the flesh cleared away. The khat is not the vessel for the other four parts; it is one of the five. This sitting attends to it as such.',
       ),
       MaatDecanFlowEvent(
         eventNumber: 2,
@@ -3160,13 +3233,16 @@ kMaatDecanFlowDefinitions = <MaatDecanFlowDefinition>[
         timing: MaatDecanFlowTiming.morning,
         durationMinutesMin: 5,
         durationMinutesMax: 8,
-        purpose: 'Return deliberate care to part of the body.',
+        purpose:
+            'The anointing was not comfort — it was the mechanism of bodily agency: "you shall make him have control of his body." The body that receives deliberate care is the body the person can actually inhabit.',
         spokenLine: 'Ointment returns attention to the body.',
         steps: <String>[
-          'After washing, apply oil, lotion, cream, or water to part of the body with deliberate attention.',
+          'After washing, apply oil, lotion, cream, or water to some part of the body with deliberate attention — not as grooming but as care. The Pyramid Texts anointed the forehead first because the forehead is the face the person presents to the world.',
           'Record what the act returned to your relationship with the body.',
           'Keep body details private by default.',
         ],
+        sourceNote:
+            'The Pyramid Texts formula for anointing is specific: "you shall make it pleasant for him, wearing you; you shall make him have control of his body." The oil was the mechanism of control — the body that receives deliberate care is available to the person\'s intention.',
         requiresRealWorldAction: true,
       ),
       MaatDecanFlowEvent(
@@ -3194,14 +3270,17 @@ kMaatDecanFlowDefinitions = <MaatDecanFlowDefinition>[
         timing: MaatDecanFlowTiming.morning,
         durationMinutesMin: 20,
         durationMinutesMax: 20,
-        purpose: 'Move deliberately for at least 20 minutes before logging.',
+        purpose:
+            'The Pyramid Texts repeated this command because the rising is the primary physical act of restoration. Not the most dramatic, not the most strenuous — the most fundamental. Move before logging.',
         spokenLine:
-            'Stand up, repel your earth, clear away your dust, raise yourself.',
+            'Speak this before beginning to move: Stand up, repel your earth, clear away your dust, raise yourself. Then begin.',
         steps: <String>[
           'Move deliberately for at least 20 minutes before logging.',
           'Walking, stretching, dancing, swimming, lifting, gardening, or physical cleaning all count if sustained and attended to.',
           'Record what the movement returned to the body.',
         ],
+        sourceNote:
+            'The command to stand appears throughout the Pyramid Texts corpus with the same urgency — it is the foundational physical act that all others depend on. The twenty-minute movement demonstrates that the body can still do what the rite commands.',
         requiresRealWorldAction: true,
         extraCompletionStatusLabels: <String, String>{'moved': 'Moved'},
       ),
@@ -3266,13 +3345,16 @@ kMaatDecanFlowDefinitions = <MaatDecanFlowDefinition>[
         timing: MaatDecanFlowTiming.evening,
         durationMinutesMin: 10,
         durationMinutesMax: 10,
-        purpose: 'Prepare the sleep space and oracle question.',
+        purpose:
+            'Thutmose did not simply fall asleep near the Sphinx — he placed himself in the shadow deliberately. The preparation creates the conditions for reception.',
         spokenLine: 'I place myself in the shadow of the Great God.',
         steps: <String>[
           'Before sleep, clear the space near your head.',
           'Place one small object there.',
           'Write your oracle question on paper and set it under or beside the object.',
         ],
+        sourceNote:
+            'The Dream Stela records that Thutmose rested in the shadow of the Great God — a deliberate spatial act before the dream. The incubation at Kemetic temples followed the same logic: you position yourself within the field of divine presence and wait. The reception chamber is that positioning, made domestic.',
         requiresRealWorldAction: true,
       ),
       MaatDecanFlowEvent(
@@ -3300,13 +3382,16 @@ kMaatDecanFlowDefinitions = <MaatDecanFlowDefinition>[
         timing: MaatDecanFlowTiming.evening,
         durationMinutesMin: 5,
         durationMinutesMax: 8,
-        purpose: 'Speak the question once before sleep.',
+        purpose:
+            'The oracle consultation was formal — a specific address to a specific presence, with a specific question, in a specific posture of receiving. This invocation follows that form.',
         spokenLine: 'The question is spoken once, then silence receives.',
         steps: <String>[
-          'Speak the invocation before sleep.',
+          'Speak the invocation before lying down. Address who you are asking by name. Speak the question once, clearly, completely. Do not speak again before sleep.',
           'Address the deity, principle, Ba, Ka, Ma’at, or divine presence you are asking.',
           'Speak the question clearly once. Do not speak again before sleep.',
         ],
+        sourceNote:
+            'Temple dream incubation was a formal consultation — not a vague hope for inspiration but a specific request made in a specific place with specific preparation. The invocation formalizes the request so that what the night sends can be understood as responsive to it.',
         requiresRealWorldAction: true,
       ),
       MaatDecanFlowEvent(
@@ -3317,13 +3402,16 @@ kMaatDecanFlowDefinitions = <MaatDecanFlowDefinition>[
         timing: MaatDecanFlowTiming.morning,
         durationMinutesMin: 10,
         durationMinutesMax: 10,
-        purpose: 'Record the dream before phone, speech, or interpretation.',
+        purpose:
+            'The dream disperses immediately. Record before anything else — before the phone, before speaking, before the day\'s logic takes over.',
         spokenLine: 'The night record is written before interpretation.',
         steps: <String>[
-          'Immediately upon waking, before phone or conversation, write what you remember.',
+          'Immediately upon waking — before the phone, before speaking to anyone, before anything — reach for the notebook and write. What images. What words. What feelings. What atmosphere. Do not interpret yet.',
           'Record images, words, feelings, colors, sequence, and atmosphere.',
           'Do not interpret yet.',
         ],
+        sourceNote:
+            'The temple dream-reader received the dreamer\'s account immediately upon waking — before the dream had been edited by the waking mind. The dream written in the first thirty seconds is more accurate than the dream reconstructed an hour later.',
         requiresRealWorldAction: true,
       ),
       MaatDecanFlowEvent(
@@ -3401,13 +3489,15 @@ kMaatDecanFlowDefinitions = <MaatDecanFlowDefinition>[
         durationMinutesMin: 10,
         durationMinutesMax: 15,
         purpose:
-            'Take one indicated action before logging and close the oracle record.',
+            'The oracle completes when the action is taken. Thutmose cleared the sand from around the Sphinx. The dream that produces no action was not a consultation — it was a night\'s sleep.',
         spokenLine: 'He awoke and acted.',
         steps: <String>[
-          'Take one specific action indicated by the oracle before logging.',
+          'Take the specific action indicated before logging this event.',
           'Write the complete oracle record: question, what the night sent, what it indicated, and what action was taken.',
           'If the oracle stayed unclear, record that honestly and do only the grounded action you can justify.',
         ],
+        sourceNote:
+            'Thutmose\'s stela records the dream and then records that he commanded the sand to be cleared. The action is what closes the Stela\'s account — not the dream, not the interpretation, but the act taken in response.',
         requiresRealWorldAction: true,
         extraCompletionStatusLabels: <String, String>{
           'oracle_complete': 'Oracle complete',

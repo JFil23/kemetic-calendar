@@ -277,7 +277,7 @@ const List<OpenHandEvent> kOpenHandEvents = <OpenHandEvent>[
     ],
     localPrompt: OpenHandLocalPromptKind.needInventory,
     sourceNote:
-        'Drawn from Spell 125 and the virtue autobiography pattern: provision is recorded as specific action, not general intention.',
+        'Spell 125 and the virtue autobiographies named specific categories of provision because specificity was the evidence. "I was generous" is not a record. "I gave bread to the hungry" is. This sitting produces the record that the second decan will enact.',
   ),
   OpenHandEvent(
     eventNumber: 2,
@@ -289,14 +289,14 @@ const List<OpenHandEvent> kOpenHandEvents = <OpenHandEvent>[
     durationMinutesMax: 5,
     spokenLine: 'The righteous individual is he by whom others are sustained.',
     steps: <String>[
-      'Complete the act of provision identified on Day 1 before marking this event observed.',
-      'After the act, write one sentence about what was done and what happened.',
-      'Return to the Day 1 list and note whether another need is ready to be addressed this decan.',
+      'Complete the act of provision identified on Day 1 before marking this event observed. The act is the event. The logging follows the act, not the intention.',
+      'Record what was given and what changed for the other person, even if the change was small.',
+      'Name whether any further provision is genuinely yours to continue.',
     ],
     localPrompt: OpenHandLocalPromptKind.firstActRecord,
     requiresOutwardAct: true,
     sourceNote:
-        'Drawn from the Instruction of Ptahhotep, Maxim 22: righteousness is measured by whether others are sustained through you.',
+        'Ptahhotep\'s Maxim 22 defines righteousness by whether others are actually sustained through the person. The record here is the act completed — what changed in someone else\'s situation because of what you did.',
   ),
   OpenHandEvent(
     eventNumber: 3,
@@ -315,7 +315,7 @@ const List<OpenHandEvent> kOpenHandEvents = <OpenHandEvent>[
     ],
     localPrompt: OpenHandLocalPromptKind.carriedNeed,
     sourceNote:
-        'Drawn from The Eloquent Peasant, where satisfaction ending hunger and clothing ending nakedness are forms of restoring order.',
+        'The Eloquent Peasant\'s Third Appeal compares provision to the natural order restoring itself: satisfaction ending hunger, clothing ending nakedness — specific and physical. The closing names where the restoration was real and where it was only witnessed.',
   ),
   OpenHandEvent(
     eventNumber: 4,
@@ -328,13 +328,13 @@ const List<OpenHandEvent> kOpenHandEvents = <OpenHandEvent>[
     spokenLine:
         'I gave bread to the hungry and I clothed the naked. I brought to land the one who had no rowboat. I measured out grain from my own estate for the hungry I found.',
     steps: <String>[
-      'Write three named acts of outward provision for this decan: one for Day 11, one for Day 15, and one for Day 19.',
-      'Make them proportionate to your actual resources: real enough to count, not theatrical enough to collapse.',
-      'At least one act belongs to someone outside your immediate circle of obligation.',
+      'Write three named acts of outward provision for this decan. Named acts become commitments. The commitment becomes the record at the seal.',
+      'For each act, name the recipient or category of recipient.',
+      'Mark which act is easiest, which is most needed, and which one resists you.',
     ],
     localPrompt: OpenHandLocalPromptKind.threeActs,
     sourceNote:
-        'Drawn from Harkhuf and Hapidjefa, who recorded bread, clothing, transport, grain, and advocacy as evidence of Ma’at.',
+        'Harkhuf and Hapidjefa named specific recipients and specific provisions. The specificity was the evidence. This sitting produces that specificity before the acts happen so they can be measured against what was promised.',
   ),
   OpenHandEvent(
     eventNumber: 5,
@@ -347,16 +347,15 @@ const List<OpenHandEvent> kOpenHandEvents = <OpenHandEvent>[
     spokenLine:
         'The provisions of all mankind flow from the flood. You are Hapy who makes verdant the fields and revives the desert. To do Ma’at is the breath of the nostrils.',
     steps: <String>[
-      'Complete the provision act directed to someone outside your immediate circle before marking this event observed.',
-      'Notice any resistance. Giving to a stranger is supported by the principle, not by relationship.',
-      'Record what was given, to whom or what situation, and what you felt in giving it.',
-      'If skipped, name a specific future date for the stranger act instead of dissolving the commitment.',
+      'Choose one act from the Day 11 list that benefits someone outside your circle of obligation.',
+      'Notice any resistance. The resistance to giving without a relational claim is exactly what this act is designed to address.',
+      'Complete the act before marking this event observed, or choose the exact date it will be completed.',
     ],
     localPrompt: OpenHandLocalPromptKind.strangerAct,
     requiresOutwardAct: true,
     strangerAct: true,
     sourceNote:
-        'Drawn from The Eloquent Peasant, Third Appeal: provision should move like the flood, not stop at the nearest field.',
+        'The Eloquent Peasant invokes Hapy specifically because the flood provision moved without stopping at relationship — it reached whoever was in the field. The stranger act follows the flood, not the family.',
   ),
   OpenHandEvent(
     eventNumber: 6,
@@ -375,7 +374,7 @@ const List<OpenHandEvent> kOpenHandEvents = <OpenHandEvent>[
     ],
     localPrompt: OpenHandLocalPromptKind.commitmentStatuses,
     sourceNote:
-        'The scribe records what is: the gift, the modification, and the gap between commitment and completion.',
+        'The Kemetic scribe recorded what was — not what should have been. The seal works the same way. What was modified is noted as modified. What was not given is noted with the honest reason. The record stays accurate.',
   ),
   OpenHandEvent(
     eventNumber: 7,
@@ -388,13 +387,13 @@ const List<OpenHandEvent> kOpenHandEvents = <OpenHandEvent>[
     spokenLine:
         'You are Hapy who makes verdant the fields and revives the desert. The provisions of all mankind flow from you as from the flood. To do Ma’at is the breath of the nostrils.',
     steps: <String>[
-      'Ask whether giving feels like a practice now or still like isolated decisions.',
-      'Name the threshold where provision tends to stop with you.',
-      'Name one domain where provision could flow in the final decan that has not yet been addressed.',
+      'Map one kind of provision that entered your life this month: money, food, attention, skill, help, access, or time.',
+      'Name the threshold where provision tends to stop with you — not as self-criticism but as a material observation. The threshold is where the flood is pooling rather than flowing. Naming it is the first step in moving it.',
+      'Choose one way that provision can move beyond you in the final decan.',
     ],
     localPrompt: OpenHandLocalPromptKind.flowThreshold,
     sourceNote:
-        'Hapy is a model of provision as movement. A flood that stops at one field is not generous; it is broken.',
+        'The Hymns to Hapy praise the flood\'s movement as its defining virtue. Provision that reaches is provision doing its work. Provision that accumulates has lost its Hapy quality. This sitting asks where the current is pooling.',
   ),
   OpenHandEvent(
     eventNumber: 8,
@@ -433,7 +432,7 @@ const List<OpenHandEvent> kOpenHandEvents = <OpenHandEvent>[
     localPrompt: OpenHandLocalPromptKind.closingPractice,
     sharePromptOnComplete: true,
     sourceNote:
-        'The flow closes by making a record in the manner of the virtue autobiographies: what was given is real, and what is real endures.',
+        'The virtue autobiographies accumulated through a lifetime. This closing names what continues: the one act of outward provision that is now regular enough to be part of the record rather than an exception to it.',
   ),
 ];
 
@@ -765,23 +764,23 @@ String _numberedLines(List<String> lines) {
 String _openHandPurpose(OpenHandEvent event) {
   switch (event.eventNumber) {
     case 1:
-      return 'Begin by seeing specific local need before deciding what to give.';
+      return 'The Kemetic virtue autobiography recorded specific acts. Bread given to a specific hungry person. Water given to a specific thirsty one. This sitting names the specific need before deciding what to give.';
     case 2:
-      return 'Make the first provision act real and record what happened.';
+      return 'The act must be completed before this event is logged. Ptahhotep\'s standard was whether others were actually sustained through you — not whether you intended to sustain them.';
     case 3:
-      return 'Close the first seeing by naming what was seen, given, and carried forward.';
+      return 'The first decan closes with what was seen and given — and with one need that was seen but not acted on. That unacted-on need carries forward explicitly, not as guilt but as the next commitment.';
     case 4:
-      return 'Open the second decan by naming three specific acts of provision.';
+      return 'Three acts, named before they happen. Not aspirations — commitments. The virtue autobiographies recorded what was done; this sitting names what will be done so the record can close honestly.';
     case 5:
-      return 'Move provision beyond the circle of obligation to the stranger, community, or unknown recipient.';
+      return 'The flood did not stop at the nearest field. This act belongs to someone outside the circle of obligation — someone with no claim on you.';
     case 6:
-      return 'Seal the second decan by recording whether each promised act was given.';
+      return 'The seal closes with what was actually done: given as committed, modified, or not given. The scribe\'s record does not editorialize.';
     case 7:
-      return 'Ask whether provision has begun to flow through you or still stops at familiar thresholds.';
+      return 'Hapy was celebrated because the flood moved — not because it collected. A flood that stops at one field is not generous; it is stuck.';
     case 8:
       return 'Check what has changed because provision moved.';
     case 9:
-      return 'Close the flow by naming what was given and what practice continues.';
+      return 'The flow closes with the record of what was actually done, and the one practice that continues. The continuing practice is more important than the thirty-day record.';
   }
   return 'Let provision move outward.';
 }
