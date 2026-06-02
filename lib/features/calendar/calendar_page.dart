@@ -16534,13 +16534,17 @@ class CalendarPageState extends State<CalendarPage>
               updated.location!.trim(),
             if (cleanedDetail.isNotEmpty) cleanedDetail,
           ];
-          await Notify.scheduleAlertWithPersistence(
-            clientEventId: updated.clientEventId!,
-            scheduledAt: alertLocal,
-            title: reminderNote.title,
-            body: bodyLines.isEmpty ? null : bodyLines.join('\n'),
-            payload: '{}',
-          );
+          final scheduleResult =
+              await Notify.scheduleAlertWithPersistenceResult(
+                clientEventId: updated.clientEventId!,
+                scheduledAt: alertLocal,
+                title: reminderNote.title,
+                body: bodyLines.isEmpty ? null : bodyLines.join('\n'),
+                payload: '{}',
+              );
+          if (scheduleResult.isPermissionMissing) {
+            _showNotificationScheduleWarning(scheduleResult.message);
+          }
         }
       }
 
@@ -17395,6 +17399,7 @@ class CalendarPageState extends State<CalendarPage>
     final flowCalendarId = edited.savedFlow?.calendarId;
     final flowCalendarName = _calendarSummary(flowCalendarId)?.name;
     String? firstClientEventId;
+    String? notificationWarning;
 
     final deleteId = edited.deleteFlowId;
     if (deleteId != null) {
@@ -17506,7 +17511,7 @@ class CalendarPageState extends State<CalendarPage>
           );
           firstClientEventId ??= savedEvent.clientEventId ?? cid;
 
-          await _scheduleAlertForEvent(
+          final scheduleResult = await _scheduleAlertForEvent(
             note: persisted.copyWith(
               calendarId: flowCalendarId,
               calendarName: flowCalendarName,
@@ -17517,6 +17522,9 @@ class CalendarPageState extends State<CalendarPage>
             clientEventId: savedEvent.clientEventId ?? cid,
             eventId: savedEvent.id,
           );
+          if (scheduleResult?.isPermissionMissing == true) {
+            notificationWarning ??= scheduleResult?.message;
+          }
         } catch (e) {
           _calendarDebugPrint('persist planned notes (apply) failed: $e');
         }
@@ -17534,6 +17542,7 @@ class CalendarPageState extends State<CalendarPage>
         data: <String, dynamic>{'flow_id': finalFlowId},
       );
     }
+    _showNotificationScheduleWarning(notificationWarning);
   }
 
   // Slide-up Flow Studio shell with inner Navigator and draggable behavior
@@ -25664,7 +25673,7 @@ class CalendarPageState extends State<CalendarPage>
     return oldFlow.color != newFlow.color.toARGB32();
   }
 
-  Future<void> _scheduleAlertForEvent({
+  Future<NotificationScheduleResult?> _scheduleAlertForEvent({
     required _Note note,
     required int ky,
     required int km,
@@ -25678,7 +25687,7 @@ class CalendarPageState extends State<CalendarPage>
       } catch (_) {
         // Ignore cancellation failures; nothing else to do.
       }
-      return;
+      return null;
     }
 
     final alertAtLocal = _alertDateTimeLocal(
@@ -25688,7 +25697,7 @@ class CalendarPageState extends State<CalendarPage>
       kDay: kd,
     );
     final effectiveMinutes = _effectiveAlertMinutes(note.alertOffsetMinutes);
-    if (alertAtLocal == null || effectiveMinutes == null) return;
+    if (alertAtLocal == null || effectiveMinutes == null) return null;
 
     final cleanedDetail = _cleanDetail(note.detail);
     final bodyLines = <String>[
@@ -25697,7 +25706,7 @@ class CalendarPageState extends State<CalendarPage>
     ];
     final body = bodyLines.isEmpty ? null : bodyLines.join('\n');
 
-    await Notify.scheduleAlertWithPersistence(
+    final result = await Notify.scheduleAlertWithPersistenceResult(
       clientEventId: clientEventId,
       scheduledAt: alertAtLocal,
       title: note.title,
@@ -25717,6 +25726,15 @@ class CalendarPageState extends State<CalendarPage>
         createdAt: DateTime.now().toUtc(),
         updatedAt: DateTime.now().toUtc(),
       ),
+    );
+    return result;
+  }
+
+  void _showNotificationScheduleWarning(String? message) {
+    final text = message?.trim();
+    if (!mounted || text == null || text.isEmpty) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(text), backgroundColor: Colors.orange.shade800),
     );
   }
 
@@ -25869,23 +25887,25 @@ class CalendarPageState extends State<CalendarPage>
         : oldFlowRow!.aiMetadata?['generated'];
     final isAIFlow = aiGenerated is bool && aiGenerated;
     String? firstClientEventId;
+    String? notificationWarning;
 
     if (r.plannedNotes.isNotEmpty) {
       final repo2 = UserEventsRepo(Supabase.instance.client);
 
-      // For AI-generated flows, wipe existing events first to avoid duplicates
-      if (isAIFlow && flowId > 0) {
+      // Concrete planned-note edits replace the occurrence set. The CIDs include
+      // event time, so stale rows must be retired before new times are written.
+      if (flowId > 0) {
         try {
           await repo2.deleteByFlowId(
             flowId,
             semantic: 'flow_replace',
             suppressesClient: false,
             sourceFeature: 'CalendarPage._persistFlowStudioResult',
-            deleteScope: 'ai_flow_replace',
+            deleteScope: isAIFlow ? 'ai_flow_replace' : 'planned_flow_replace',
           );
           if (kDebugMode) {
             _calendarDebugPrint(
-              '[persistFlowStudio] Cleared existing events for AI flow $flowId to avoid duplicates',
+              '[persistFlowStudio] Cleared existing events for planned-note flow $flowId before replacement',
             );
           }
         } catch (e) {
@@ -25978,7 +25998,7 @@ class CalendarPageState extends State<CalendarPage>
         );
         firstClientEventId ??= savedEvent.clientEventId ?? cid;
 
-        await _scheduleAlertForEvent(
+        final scheduleResult = await _scheduleAlertForEvent(
           note: n.copyWith(
             calendarId: flowCalendarId,
             calendarName: flowCalendarName,
@@ -25989,6 +26009,9 @@ class CalendarPageState extends State<CalendarPage>
           clientEventId: savedEvent.clientEventId ?? cid,
           eventId: savedEvent.id,
         );
+        if (scheduleResult?.isPermissionMissing == true) {
+          notificationWarning ??= scheduleResult?.message;
+        }
       }
     }
 
@@ -26003,6 +26026,7 @@ class CalendarPageState extends State<CalendarPage>
         }
         setState(() {});
         _notifyDayViewDataChanged();
+        _showNotificationScheduleWarning(notificationWarning);
         return saved.id;
       }
       // If rules list was cleared (e.g., snapshot-only imports), skip scheduling.
@@ -26102,6 +26126,7 @@ class CalendarPageState extends State<CalendarPage>
 
     setState(() {});
     _notifyDayViewDataChanged();
+    _showNotificationScheduleWarning(notificationWarning);
     return saved?.id;
   }
 
@@ -26223,7 +26248,7 @@ class CalendarPageState extends State<CalendarPage>
         alertOffsetMinutes: alertMinutesBefore,
       );
 
-      await _scheduleAlertForEvent(
+      final scheduleResult = await _scheduleAlertForEvent(
         note: note.copyWith(
           id: updated.id,
           clientEventId: updated.clientEventId,
@@ -26236,6 +26261,9 @@ class CalendarPageState extends State<CalendarPage>
         clientEventId: updated.clientEventId ?? unifiedCid,
         eventId: updated.id,
       );
+      if (scheduleResult?.isPermissionMissing == true) {
+        _showNotificationScheduleWarning(scheduleResult?.message);
+      }
 
       await _notifySharedCalendarMembers(
         calendarId: calendarId,
@@ -26413,7 +26441,7 @@ class CalendarPageState extends State<CalendarPage>
       alertOffsetMinutes: alertMinutesBefore,
     );
 
-    await _scheduleAlertForEvent(
+    final scheduleResult = await _scheduleAlertForEvent(
       note: note.copyWith(id: updated.id, clientEventId: savedClientEventId),
       ky: selYear,
       km: selMonth,
@@ -26421,6 +26449,9 @@ class CalendarPageState extends State<CalendarPage>
       clientEventId: savedClientEventId,
       eventId: updated.id,
     );
+    if (scheduleResult?.isPermissionMissing == true) {
+      _showNotificationScheduleWarning(scheduleResult?.message);
+    }
 
     await _notifySharedCalendarMembers(
       calendarId: calendarId,

@@ -75,6 +75,42 @@ void main() {
   });
 
   test(
+    'explicit at-time offsets schedule exactly at the local event start',
+    () async {
+      DateTime? capturedScheduledAt;
+      final service = EventFilingService(
+        scheduleNotification:
+            ({
+              required clientEventId,
+              required scheduledAt,
+              required title,
+              body,
+              payload,
+              type = NotificationType.eventStart,
+            }) async {
+              capturedScheduledAt = scheduledAt;
+            },
+        cancelNotification: (_) async {
+          fail('at-time alert should not cancel notifications');
+        },
+      );
+
+      final startsAtLocal = DateTime(2026, 8, 17, 12);
+      final result = await service.fileDelivery(
+        clientEventId: 'custom-90-day-math:event-1',
+        startsAtLocal: startsAtLocal,
+        alertOffsetMinutes: 0,
+        title: 'Area of Square',
+      );
+
+      expect(result.outcome, EventFilingOutcome.scheduled);
+      expect(result.scheduledAt, startsAtLocal);
+      expect(capturedScheduledAt, startsAtLocal);
+      expect(capturedScheduledAt!.isUtc, isFalse);
+    },
+  );
+
+  test(
     'explicit no-alert offsets cancel delivery instead of scheduling',
     () async {
       final cancelled = <String>[];

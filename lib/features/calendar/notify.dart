@@ -30,6 +30,62 @@ class _PersistedNotification {
   final int notificationId;
 }
 
+enum NotificationScheduleOutcome {
+  scheduledLocally,
+  persistedForLocalReconcile,
+  persistedForPush,
+  permissionMissing,
+  skippedAlreadyDue,
+  duplicateInProgress,
+  failed,
+}
+
+class NotificationScheduleResult {
+  const NotificationScheduleResult._(
+    this.outcome, {
+    this.scheduledAt,
+    this.message,
+  });
+
+  const NotificationScheduleResult.scheduledLocally(DateTime scheduledAt)
+    : this._(
+        NotificationScheduleOutcome.scheduledLocally,
+        scheduledAt: scheduledAt,
+      );
+
+  const NotificationScheduleResult.persistedForLocalReconcile(
+    DateTime scheduledAt,
+  ) : this._(
+        NotificationScheduleOutcome.persistedForLocalReconcile,
+        scheduledAt: scheduledAt,
+      );
+
+  const NotificationScheduleResult.persistedForPush(DateTime scheduledAt)
+    : this._(
+        NotificationScheduleOutcome.persistedForPush,
+        scheduledAt: scheduledAt,
+      );
+
+  const NotificationScheduleResult.permissionMissing(String message)
+    : this._(NotificationScheduleOutcome.permissionMissing, message: message);
+
+  const NotificationScheduleResult.skippedAlreadyDue()
+    : this._(NotificationScheduleOutcome.skippedAlreadyDue);
+
+  const NotificationScheduleResult.duplicateInProgress()
+    : this._(NotificationScheduleOutcome.duplicateInProgress);
+
+  const NotificationScheduleResult.failed(String message)
+    : this._(NotificationScheduleOutcome.failed, message: message);
+
+  final NotificationScheduleOutcome outcome;
+  final DateTime? scheduledAt;
+  final String? message;
+
+  bool get isPermissionMissing =>
+      outcome == NotificationScheduleOutcome.permissionMissing;
+}
+
 class Notify {
   static final _plugin = FlutterLocalNotificationsPlugin();
 
@@ -39,6 +95,8 @@ class Notify {
   static const _minimumScheduleLead = Duration(seconds: 3);
   static const _maxConcurrentLocalNotifications = 450;
   static const _localReconcileDebounce = Duration(milliseconds: 350);
+  static const localPermissionMissingMessage =
+      'Notification permission is off for this device. Turn it on before event alerts can fire.';
 
   static bool _inited = false;
   static final Set<String> _schedulingInProgress = {};
@@ -215,6 +273,69 @@ class Notify {
     return !pushEnabled;
   }
 
+  static Future<bool> _localNotificationsEnabled({
+    bool requestIfMissing = false,
+  }) async {
+    final androidSpecific = _plugin
+        .resolvePlatformSpecificImplementation<
+          AndroidFlutterLocalNotificationsPlugin
+        >();
+    if (androidSpecific != null) {
+      final enabled = await androidSpecific.areNotificationsEnabled();
+      if (enabled == true || enabled == null) return true;
+      if (!requestIfMissing) return false;
+
+      final requested = await androidSpecific.requestNotificationsPermission();
+      if (requested == true) return true;
+      final afterRequest = await androidSpecific.areNotificationsEnabled();
+      return afterRequest == true;
+    }
+
+    if (!requestIfMissing) {
+      return true;
+    }
+
+    final iosSpecific = _plugin
+        .resolvePlatformSpecificImplementation<
+          IOSFlutterLocalNotificationsPlugin
+        >();
+    if (iosSpecific != null) {
+      final granted = await iosSpecific.requestPermissions(
+        alert: true,
+        badge: true,
+        sound: true,
+      );
+      return granted != false;
+    }
+
+    final macSpecific = _plugin
+        .resolvePlatformSpecificImplementation<
+          MacOSFlutterLocalNotificationsPlugin
+        >();
+    if (macSpecific != null) {
+      final granted = await macSpecific.requestPermissions(
+        alert: true,
+        badge: true,
+        sound: true,
+      );
+      return granted != false;
+    }
+
+    return true;
+  }
+
+  static Future<String?> localDeliveryPermissionWarning() async {
+    if (!_inited) {
+      await init();
+    }
+
+    final shouldScheduleLocally = await _shouldScheduleLocallyOnThisDevice();
+    if (!shouldScheduleLocally) return null;
+
+    final enabled = await _localNotificationsEnabled();
+    return enabled ? null : localPermissionMissingMessage;
+  }
+
   static Future<void> _cancelPendingLocalNotificationsOnly() async {
     if (!_inited) return;
     try {
@@ -269,6 +390,14 @@ class Notify {
           'Push alerts are enabled on this device; clearing local scheduled notifications',
         );
         await _cancelPendingLocalNotificationsOnly();
+        return;
+      }
+
+      final localNotificationsEnabled = await _localNotificationsEnabled();
+      if (!localNotificationsEnabled) {
+        _log(
+          '$localPermissionMissingMessage Skipping local schedule reconciliation.',
+        );
         return;
       }
 
@@ -665,6 +794,24 @@ class Notify {
     String? payload,
     NotificationType type = NotificationType.eventStart,
   }) async {
+    await scheduleAlertWithPersistenceResult(
+      clientEventId: clientEventId,
+      scheduledAt: scheduledAt,
+      title: title,
+      body: body,
+      payload: payload,
+      type: type,
+    );
+  }
+
+  static Future<NotificationScheduleResult> scheduleAlertWithPersistenceResult({
+    required String clientEventId,
+    required DateTime scheduledAt,
+    required String title,
+    String? body,
+    String? payload,
+    NotificationType type = NotificationType.eventStart,
+  }) async {
     if (!_inited) {
       await init();
     }
@@ -676,7 +823,7 @@ class Notify {
       _log(
         '⚠️ Already scheduling notification for $notificationIdentity, skipping duplicate',
       );
-      return;
+      return const NotificationScheduleResult.duplicateInProgress();
     }
 
     try {
@@ -698,7 +845,7 @@ class Notify {
           'Skipping already-due notification for $notificationIdentity '
           '(requested=$scheduledAt now=$now); retired any active row instead of re-arming it',
         );
-        return;
+        return const NotificationScheduleResult.skippedAlreadyDue();
       }
 
       // Check if existing notification needs update
@@ -743,10 +890,23 @@ class Notify {
           await _plugin.cancel(notificationId);
         }
 
+        final localNotificationsEnabled = await _localNotificationsEnabled();
+        if (!localNotificationsEnabled) {
+          _log(
+            '$localPermissionMissingMessage Persisted row for $notificationIdentity but did not arm a local notification.',
+          );
+          return const NotificationScheduleResult.permissionMissing(
+            localPermissionMissingMessage,
+          );
+        }
+
         if (persistedNotification != null) {
           _requestLocalWindowReconcile();
           _log(
             'Queued local schedule reconciliation for $notificationIdentity',
+          );
+          return NotificationScheduleResult.persistedForLocalReconcile(
+            scheduledAt,
           );
         } else {
           try {
@@ -760,10 +920,12 @@ class Notify {
             _log(
               '⚠️ Scheduled local fallback without database persistence for $notificationIdentity',
             );
+            return NotificationScheduleResult.scheduledLocally(scheduledAt);
           } catch (e) {
             _log(
               '⚠️ Local fallback scheduling failed for $notificationIdentity: $e',
             );
+            return NotificationScheduleResult.failed(e.toString());
           }
         }
       } else {
@@ -771,6 +933,7 @@ class Notify {
         _log(
           'Push alerts enabled on this device; persisted without local schedule for $notificationIdentity',
         );
+        return NotificationScheduleResult.persistedForPush(scheduledAt);
       }
     } finally {
       // Always remove from set, even if error occurs
