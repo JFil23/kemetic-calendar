@@ -9,6 +9,7 @@ import 'package:app_links/app_links.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:receive_sharing_intent/receive_sharing_intent.dart';
 import 'package:go_router/go_router.dart';
+import 'package:http/http.dart' as http;
 
 import 'data/user_events_repo.dart';
 import 'features/calendar/notify.dart';
@@ -96,6 +97,13 @@ const appSiteUrlEnv = String.fromEnvironment(
   defaultValue: 'https://maat.app',
 );
 
+typedef AppRuntimeConfig = ({
+  String url,
+  String anonKey,
+  String appEnvironment,
+  String appSiteUrl,
+});
+
 // Silences console output in release/profile builds to keep store reviews clean
 final ZoneSpecification _releasePrintSilencer = ZoneSpecification(
   print: (self, parent, zone, line) {
@@ -103,9 +111,27 @@ final ZoneSpecification _releasePrintSilencer = ZoneSpecification(
   },
 );
 
-Future<({String url, String anonKey})> _loadSupabaseConfig() async {
+Future<AppRuntimeConfig> _loadSupabaseConfig() async {
   var url = supabaseUrlEnv.trim();
   var anonKey = supabaseAnonKeyEnv.trim();
+  var appEnvironment = appEnvironmentEnv.trim();
+  var appSiteUrl = appSiteUrlEnv.trim();
+
+  if (kIsWeb) {
+    final webEnv = await _loadWebRuntimeEnvJson();
+    url = _runtimeFallbackValue(url, webEnv['SUPABASE_URL']);
+    anonKey = _runtimeFallbackValue(anonKey, webEnv['SUPABASE_ANON_KEY']);
+    appEnvironment = _runtimeFallbackValue(
+      appEnvironment,
+      webEnv['APP_ENV'],
+      treatDevAsUnset: true,
+    );
+    appSiteUrl = _runtimeFallbackValue(
+      appSiteUrl,
+      webEnv['APP_SITE_URL'],
+      treatDefaultSiteAsUnset: true,
+    );
+  }
 
   if ((url.isEmpty || anonKey.length <= 20) && !kReleaseMode) {
     try {
@@ -142,15 +168,67 @@ Future<({String url, String anonKey})> _loadSupabaseConfig() async {
     }
   }
 
-  return (url: url, anonKey: anonKey);
+  return (
+    url: url,
+    anonKey: anonKey,
+    appEnvironment: appEnvironment,
+    appSiteUrl: appSiteUrl,
+  );
 }
 
-List<String> _runtimeConfigErrors(({String url, String anonKey}) config) {
+Future<Map<String, String>> _loadWebRuntimeEnvJson() async {
+  if (!kIsWeb) return const {};
+
+  try {
+    final response = await http.get(Uri.base.resolve('env.json'));
+    if (response.statusCode != 200) {
+      if (kDebugMode) {
+        debugPrint('[env] env.json returned HTTP ${response.statusCode}');
+      }
+      return const {};
+    }
+
+    final decoded = jsonDecode(response.body);
+    if (decoded is! Map<String, dynamic>) return const {};
+
+    return decoded.map((key, value) {
+      final stringValue = value is String ? value.trim() : '';
+      return MapEntry(key, stringValue);
+    })..removeWhere((_, value) => value.isEmpty);
+  } catch (e) {
+    if (kDebugMode) {
+      debugPrint('[env] Failed to load web env.json: $e');
+    }
+    return const {};
+  }
+}
+
+String _runtimeFallbackValue(
+  String current,
+  String? candidate, {
+  bool treatDevAsUnset = false,
+  bool treatDefaultSiteAsUnset = false,
+}) {
+  final next = candidate?.trim() ?? '';
+  if (next.isEmpty) return current;
+
+  final normalizedCurrent = current.trim();
+  final lowerCurrent = normalizedCurrent.toLowerCase();
+  final currentLooksUnset =
+      normalizedCurrent.isEmpty ||
+      _looksLikePlaceholder(lowerCurrent) ||
+      (treatDevAsUnset && lowerCurrent == 'dev') ||
+      (treatDefaultSiteAsUnset && lowerCurrent == 'https://maat.app');
+
+  return currentLooksUnset ? next : current;
+}
+
+List<String> _runtimeConfigErrors(AppRuntimeConfig config) {
   final errors = <String>[];
   final url = config.url.trim();
   final anonKey = config.anonKey.trim();
-  final envName = appEnvironmentEnv.trim().toLowerCase();
-  final siteUrl = appSiteUrlEnv.trim();
+  final envName = config.appEnvironment.trim().toLowerCase();
+  final siteUrl = config.appSiteUrl.trim();
   final nativeRedirect = Uri.tryParse(nativeAuthRedirectUrl);
 
   if (url.isEmpty) {
