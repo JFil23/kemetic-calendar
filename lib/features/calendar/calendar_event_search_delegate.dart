@@ -6,14 +6,14 @@ class _EventSearchDelegate extends SearchDelegate<void> {
     required List<_Flow> flows,
     required this.monthName,
     required this.gregYearLabelFor,
-    required this.openDay,
+    required this.openResult,
   }) : _flowById = {for (final flow in flows) flow.id: flow};
 
   final Map<String, List<_Note>> notes;
   final Map<int, _Flow> _flowById;
   final String Function(int kMonth) monthName;
   final String Function(int kYear, int kMonth) gregYearLabelFor;
-  final void Function(int ky, int km, int kd) openDay;
+  final void Function(int ky, int km, int kd, _Note note) openResult;
 
   @override
   String get searchFieldLabel => 'Search notes…';
@@ -238,7 +238,7 @@ class _EventSearchDelegate extends SearchDelegate<void> {
         return SizedBox(
           width: double.infinity,
           child: ListTile(
-            onTap: () => openDay(it.ky, it.km, it.kd),
+            onTap: () => openResult(it.ky, it.km, it.kd, it.note),
             isThreeLine: snippet != null,
             title: Text(
               it.note.title,

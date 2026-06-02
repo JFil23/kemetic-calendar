@@ -3457,6 +3457,8 @@ class CalendarPage extends StatefulWidget {
   static final GlobalKey<CalendarPageState> globalKey =
       GlobalKey<CalendarPageState>();
   static _CalendarDetachedLaunchAction? _pendingDetachedLaunchAction;
+  static ({int ky, int km, int kd, EventDetailRestorationState? eventDetail})?
+  _pendingDetachedSearchResult;
   static ({int ky, int km, int kd})? _pendingDetachedSearchDay;
   static bool _detachedCalendarOverlayRestoreInFlight = false;
   static bool _detachedSharedCalendarsSheetOpenOrOpening = false;
@@ -4075,11 +4077,66 @@ class CalendarPage extends StatefulWidget {
       context: context,
       notes: snapshot.notes,
       flows: snapshot.flows,
-      openDay: (ky, km, kd) {
+      openResult: (ky, km, kd, note) {
         Navigator.of(context).pop();
-        _routeHomeForSearchDay(context, ky: ky, km: km, kd: kd);
+        final detail = _eventDetailRestorationStateForSearchNote(
+          kYear: ky,
+          kMonth: km,
+          kDay: kd,
+          note: note,
+        );
+        _routeHomeForSearchResult(
+          context,
+          ky: ky,
+          km: km,
+          kd: kd,
+          eventDetail: detail,
+        );
       },
     );
+  }
+
+  static EventDetailRestorationState?
+  _eventDetailRestorationStateForSearchNote({
+    required int kYear,
+    required int kMonth,
+    required int kDay,
+    required _Note note,
+  }) {
+    final clientEventId = note.clientEventId?.trim();
+    if (clientEventId != null && clientEventId.isNotEmpty) {
+      return EventDetailRestorationState(
+        kYear: kYear,
+        kMonth: kMonth,
+        kDay: kDay,
+        identityType: eventDetailIdentityClientEventId,
+        identityValue: clientEventId,
+      );
+    }
+
+    final eventId = note.id?.trim();
+    if (eventId != null && eventId.isNotEmpty) {
+      return EventDetailRestorationState(
+        kYear: kYear,
+        kMonth: kMonth,
+        kDay: kDay,
+        identityType: eventDetailIdentityEventId,
+        identityValue: eventId,
+      );
+    }
+
+    final reminderId = note.reminderId?.trim();
+    if (reminderId != null && reminderId.isNotEmpty) {
+      return EventDetailRestorationState(
+        kYear: kYear,
+        kMonth: kMonth,
+        kDay: kDay,
+        identityType: eventDetailIdentityReminderId,
+        identityValue: reminderId,
+      );
+    }
+
+    return null;
   }
 
   static Future<({Map<String, List<_Note>> notes, List<_Flow> flows})>
@@ -4247,7 +4304,7 @@ class CalendarPage extends StatefulWidget {
     required BuildContext context,
     required Map<String, List<_Note>> notes,
     required List<_Flow> flows,
-    required void Function(int ky, int km, int kd) openDay,
+    required void Function(int ky, int km, int kd, _Note note) openResult,
   }) async {
     UiGuards.disableJournalSwipe();
     try {
@@ -4258,7 +4315,7 @@ class CalendarPage extends StatefulWidget {
           flows: flows,
           monthName: (km) => getMonthById(km).displayFull,
           gregYearLabelFor: _gregYearLabelForSearch,
-          openDay: openDay,
+          openResult: openResult,
         ),
       );
     } finally {
@@ -4266,14 +4323,20 @@ class CalendarPage extends StatefulWidget {
     }
   }
 
-  static void _routeHomeForSearchDay(
+  static void _routeHomeForSearchResult(
     BuildContext context, {
     required int ky,
     required int km,
     required int kd,
+    required EventDetailRestorationState? eventDetail,
   }) {
     if (!context.mounted) return;
-    _pendingDetachedSearchDay = (ky: ky, km: km, kd: kd);
+    _pendingDetachedSearchResult = (
+      ky: ky,
+      km: km,
+      kd: kd,
+      eventDetail: eventDetail,
+    );
     context.go('/');
   }
 
@@ -5928,6 +5991,7 @@ class CalendarPage extends StatefulWidget {
       ],
     );
     CalendarPage._pendingDetachedLaunchAction = null;
+    CalendarPage._pendingDetachedSearchResult = null;
     CalendarPage._pendingDetachedSearchDay = null;
     _mountedState?._suppressPendingRestoresForUserNavigation();
     unawaited(RestorationCoordinator.instance.recordRouteLocation('/'));
@@ -7276,6 +7340,22 @@ class CalendarPageState extends State<CalendarPage>
   }
 
   bool _schedulePendingDetachedLaunchActionIfAny() {
+    final pendingSearchResult = CalendarPage._pendingDetachedSearchResult;
+    if (pendingSearchResult != null) {
+      CalendarPage._pendingDetachedSearchResult = null;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        _openDayView(
+          context,
+          pendingSearchResult.ky,
+          pendingSearchResult.km,
+          pendingSearchResult.kd,
+          initialEventDetailRestorationState: pendingSearchResult.eventDetail,
+        );
+      });
+      return true;
+    }
+
     final pendingSearchDay = CalendarPage._pendingDetachedSearchDay;
     if (pendingSearchDay != null) {
       CalendarPage._pendingDetachedSearchDay = null;
@@ -10428,6 +10508,7 @@ class CalendarPageState extends State<CalendarPage>
         if (widget.initialFlowIdToEdit == null &&
             !widget.openMyFlowsOnLaunch &&
             CalendarPage._pendingDetachedLaunchAction == null &&
+            CalendarPage._pendingDetachedSearchResult == null &&
             CalendarPage._pendingDetachedSearchDay == null) {
           _schedulePersistentOverlayRestore(reason: 'auth-early:${event.name}');
         }
@@ -17959,8 +18040,14 @@ class CalendarPageState extends State<CalendarPage>
         context: searchContext,
         notes: _notes,
         flows: _flows,
-        openDay: (ky, km, kd) {
+        openResult: (ky, km, kd, note) {
           Navigator.of(searchContext).pop();
+          final detail = CalendarPage._eventDetailRestorationStateForSearchNote(
+            kYear: ky,
+            kMonth: km,
+            kDay: kd,
+            note: note,
+          );
           WidgetsBinding.instance.addPostFrameCallback((_) {
             if (!mounted) return;
             final searchIsOnRoot =
@@ -17969,14 +18056,21 @@ class CalendarPageState extends State<CalendarPage>
                   CalendarPage._currentRouteLocationForContext(searchContext),
                 );
             if (searchIsOnRoot) {
-              _openDaySheet(ky, km, kd);
+              _openDayView(
+                context,
+                ky,
+                km,
+                kd,
+                initialEventDetailRestorationState: detail,
+              );
               return;
             }
-            CalendarPage._routeHomeForSearchDay(
+            CalendarPage._routeHomeForSearchResult(
               searchContext,
               ky: ky,
               km: km,
               kd: kd,
+              eventDetail: detail,
             );
           });
         },
@@ -24947,6 +25041,7 @@ class CalendarPageState extends State<CalendarPage>
         if (widget.initialFlowIdToEdit == null &&
             !widget.openMyFlowsOnLaunch &&
             CalendarPage._pendingDetachedLaunchAction == null &&
+            CalendarPage._pendingDetachedSearchResult == null &&
             CalendarPage._pendingDetachedSearchDay == null) {
           _schedulePersistentOverlayRestore(reason: 'init-early');
         }
