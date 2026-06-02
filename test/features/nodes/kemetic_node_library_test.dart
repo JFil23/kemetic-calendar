@@ -537,6 +537,15 @@ void main() {
         'The Offering Economy',
         'Abundance Under Ma\'at',
       ],
+      'haw': [
+        'The word for abundance is the same word for excess.',
+        'The Sign of Increase',
+        'Increase in Service of Order',
+        'Surplus as the Test of Character',
+        'When Ḥꜣw Exceeds Its Place',
+        'The Nile and the Measure of Ḥꜣw',
+        'Ḥꜣw in the Living Person',
+      ],
     };
 
     final expectedAliases = <String, List<String>>{
@@ -546,6 +555,15 @@ void main() {
         'Harvest Serpent',
         'Nourishing Cobra',
         'Lady of the Granary',
+      ],
+      'haw': [
+        'Haw',
+        'HAw',
+        'Increase',
+        'Surplus',
+        'Abundance',
+        'Excess',
+        'Wealth',
       ],
     };
 
@@ -587,6 +605,14 @@ void main() {
           .single
           .targetId,
       'akhet',
+    );
+
+    final haw = KemeticNodeLibrary.resolve('abundance')!;
+    expect(haw.id, 'haw');
+    expect(haw.glyph, '𓇉𓄿𓅱𓏛𓏥');
+    expect(
+      haw.linkMap.where((link) => link.phrase == 'Hapy').single.targetId,
+      'nile',
     );
   });
 
@@ -1359,6 +1385,7 @@ void main() {
       'rekh_wer': '𓁹𓏞',
       'set': '𓃩',
       'shai': '𓀭',
+      'haw': '𓇉𓄿𓅱𓏛𓏥',
       'offering_formula': '𓊵',
       'amduat': '𓇽',
       'instruction_amenemope': '𓏞',

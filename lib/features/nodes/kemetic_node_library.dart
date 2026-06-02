@@ -4526,6 +4526,151 @@ Where this is maintained, abundance holds within Ma'at. Where it is not, food be
     ],
   ),
   KemeticNode(
+    id: 'haw',
+    title: 'Ḥꜣw',
+    glyph: '𓇉𓄿𓅱𓏛𓏥',
+    aliases: [
+      'Haw',
+      'HAw',
+      'Increase',
+      'Surplus',
+      'Abundance',
+      'Excess',
+      'Wealth',
+      'haw',
+    ],
+    body: '''
+The word for abundance is the same word for excess.
+
+This is the first thing to understand about ḥꜣw — and it is where the Kemetic language says something that no amount of commentary afterward quite matches. The same root that names wealth and increase also names surplus and transgression. There is no separate word for having too much. There is only ḥꜣw: the amount that extends beyond the baseline, which is exactly what prosperity is — and exactly what becomes disorder when it is not held correctly.
+
+This is not imprecision. It is the language encoding the moral question inside the noun itself. Every time ḥꜣw was spoken, carved, or entered into a granary account, the problem of right relation to abundance was already present in the word. To receive ḥꜣw is to be placed inside a question: what will be done with what exceeds what was strictly required?
+
+## The Sign of Increase
+
+The standard spelling of ḥꜣw opens with the papyrus clump — the sign that reads ḥꜣ, the dense growth of reeds that rises above still water in the marginal ground between the cultivated land and the flood. This is not incidental. The papyrus grows precisely where the Nile's surplus deposits its richest material: growth that exceeds the ordinary bank, abundance that belongs to the zone between the given and the unclaimed. The phonetic complement and the word signs that follow extend the sense outward: the abstract determinative marks ḥꜣw as a quantity belonging to the realm of proportion and measure, while the plural strokes confirm that it is always understood as accumulation — not a single unit, but an amount that has gone beyond the base.
+
+TLA records 124 corpus occurrences spanning from the Old Kingdom through the Roman period. The word does not change meaning across those two and a half millennia. What changes is the context that reveals which of its two faces is present: the increase that serves the circuit, or the excess that departed from right proportion.
+
+## Increase in Service of Order
+
+The Abusir archive papyri from the reign of Djedkare Isesi preserve ḥꜣw in its oldest surviving administrative form: surplus recorded in the provision accounts of the royal funerary establishment. The amounts exceed what a strict provision would demand. The excess is entered into the record. Nothing is left unaccounted for. The surplus belongs to the institution that produced it and returns through the system — into offering, into labor, into the continuous provision the temple requires.
+
+— *Abusir papyri, Old Kingdom*
+
+This is ḥꜣw within Ma'at in its most practical expression. The scribe who records the surplus correctly does what Djehuty does at every scale: prevents the gap between what arrived and what was declared from becoming a place where Isfet can take hold. The Nile deposits more than a bare minimum would require. The granary receives it. The record holds it in place so distribution can follow.
+
+The Hymn to Hapy names what this looks like at the scale of the whole civilization: the storehouses filled, grain made, emmer created, fowl and cattle sustained. What Hapy provides in right measure is never exactly enough — it is ḥꜣw, abundance beyond mere survival, the increase that makes surplus offering possible, that makes the ka's continuous provision possible, that makes labor available for what does not merely feed but endures.
+
+— *Hymn to Hapy*
+
+The compound ḥꜣw-xt — the special offering, the additional provision beyond standard allocation — names the form this takes when ḥꜣw is returned to the sacred circuit by choice. The Ebers Papyrus uses the term in a ritual-medical context, but the compound appears across administrative and funerary texts as the voluntary surplus offered not because it was owed but because the abundance that right conduct produced exceeded what was required. Increase returned freely is ḥꜣw in its most correct form.
+
+— *Ebers Papyrus*
+
+## Surplus as the Test of Character
+
+Middle Kingdom biographical inscriptions preserve ḥꜣw in the register that reveals it most clearly: the official's relationship to capacity and authority that exceeded what any single task demanded.
+
+The Stela of Wepwawetaa declares among the official's markers of right conduct that he did not do more than was said.
+
+— *Stela of Wepwawetaa, Leiden V 4*
+
+The claim is precise. The official who holds a charge has been given reach and authority beyond the ordinary — ḥꜣw in the sense of power above the baseline. The declaration that this ḥꜣw was not deployed beyond the terms of the charge is the declaration that the surplus of authority was held within Ma'at. What was possible was not the same as what was permitted. The gap between them was observed and not entered.
+
+The Stela of Mentuhotep goes further, making freedom from excess a character formula in itself. To be "one free from excess" is to be the kind of person whose abundance — of force, speech, authority, or possession — never departed from right proportion.
+
+— *Stela of Mentuhotep, London UC 14333*
+
+This formulation does not describe poverty or powerlessness. It describes a person who held abundance correctly. The virtue is not the absence of ḥꜣw. The virtue is the relation to it.
+
+The Declarations of Innocence encode the same principle across forty-two domains of conduct. The deceased does not declare that nothing was received. The declarations address what was done with what was received: the grain measure was not falsified, the boundary was not moved beyond its correct position, the laborer's portion was not taken, what belonged to the temple was left for the temple. The heart holds not whether ḥꜣw arrived but what happened when it did.
+
+— *Book of Coming Forth by Day*
+
+## When Ḥꜣw Exceeds Its Place
+
+The same word names the departure.
+
+The Tale of the Shipwrecked Sailor uses ḥꜣw at line 13 in the context of verbal excess — speech that exceeded what the situation warranted, an increase of words beyond what knowledge or the moment required. The tongue, like the granary, can hold more than is fitting. When it gives out more than it rightly holds, what it produces is ḥꜣw in the register of language: a surplus of assertion that departs from the truth speech is meant to carry.
+
+— *Tale of the Shipwrecked Sailor*
+
+The Instruction of Ptahhotep treats the same failure mode in the domain of conduct. The person who reaches beyond the portion rightly theirs — who speaks beyond what is known, demands more than is offered, builds by taking what belongs to another's measure — has organized appetite around ḥꜣw rather than around what is right. The compound n-ḥꜣw, "excessive," names this condition: not merely having more, but having structured conduct around the more.
+
+— *Instruction of Ptahhotep*
+
+The Instruction of Amenemope approaches it from the side of wealth: what is gained by exceeding right proportion carries its disorder within it. A store of goods that arrived through false measure, through claiming more than was owed, through taking what the circuit required for another — this does not remain as stable abundance. It is ḥꜣw sealed outside the circuit, and it waits.
+
+— *Instruction of Amenemope*
+
+The Tomb of Paheri preserves the administrative form of this failure: the official who does more than the impost, who extracts above the levy. The word used is ḥꜣw-ḥr bꜣkw — exceeding the tax. The issue is not that the official had capacity for more. The issue is that the capacity was deployed against the persons it was supposed to serve.
+
+— *Tomb of Paheri*
+
+## The Nile and the Measure of Ḥꜣw
+
+The inundation embodies the ḥꜣw problem in the most visible terms.
+
+A flood that fails to rise is not ḥꜣw at all — it is deficiency, the black silt undeposited, the cycle broken at its source. A flood that rises in right measure is ḥꜣw in its correct form: abundance deposited where it is needed, withdrawn at the right time, leaving the soil that will sustain what follows. A flood that rises too high is ḥꜣw departed from Ma'at: settlements drowned, boundaries destroyed, infrastructure broken by the same force that in right proportion makes the civilization possible.
+
+The Palermo Stone records inundation height in the same register as royal acts and ritual observances because the measure of the flood's ḥꜣw was a matter of governance. What the Nilometer read was not merely practical information. It was the determination of what kind of ḥꜣw had arrived that year, and therefore what the levy, the planting, the distribution, and the offering could rightly claim from it. A correct reading made honest administration possible. A falsified reading corrupted everything built on it.
+
+— *Palermo Stone*
+
+The Pyramid Texts speak of the king entering the solar company where provisions are multiplied and abundance is sustained in right measure — ḥꜣw held within the divine order that governs what is given and what is received.
+
+— *Pyramid Texts*, Utterance 413
+
+## Ḥꜣw in the Living Person
+
+The word names the condition that every person in Kemet encountered seasonally, in every exchange, and in every moment where capacity exceeded obligation.
+
+There is always a gap between what was strictly required and what was available. The granary holds more than the household strictly needs. The official has more authority than any single task fully exhausts. The crop produces more than the portion already promised. Speech can be extended beyond what is known. In each case, ḥꜣw has arrived — and what happens in that gap is where the heart accumulates what the scale will eventually read.
+
+The Kemetic tradition did not treat this as a test to be passed once. Hapy returns each year. The granary fills again. The charge is renewed. The authority of the office is still present on the morning after the levy was correctly taken. The gap between what is required and what is available opens again and again, and each time the same question is present in the word: is this ḥꜣw held within Ma'at, or has it departed?
+
+Ḥꜣw defines a continuous condition:
+
+• what arrives beyond the base must be recognized for what it is
+• what is recognized must be held within right relation to the circuit that produced it
+• what is held correctly returns through offering, honest record, and right distribution
+• what is sealed outside the circuit while still appearing as abundance becomes Isfet in its most deceptive form
+
+Where this is maintained, ḥꜣw sustains the world it came from. Where it is not, the increase that was given becomes the disorder that consumes what it was supposed to protect.
+''',
+    linkMap: [
+      KemeticNodeLink(phrase: "Ma'at", targetId: 'maat'),
+      KemeticNodeLink(phrase: 'Isfet', targetId: 'isfet'),
+      KemeticNodeLink(phrase: 'Djehuty', targetId: 'djehuty'),
+      KemeticNodeLink(phrase: 'Nile', targetId: 'nile'),
+      KemeticNodeLink(phrase: 'Hapy', targetId: 'nile'),
+      KemeticNodeLink(phrase: 'Hymn to Hapy', targetId: 'nile'),
+      KemeticNodeLink(phrase: 'Palermo Stone', targetId: 'palermo_stone'),
+      KemeticNodeLink(phrase: 'ka', targetId: 'ka'),
+      KemeticNodeLink(phrase: 'offering', targetId: 'offering_formula'),
+      KemeticNodeLink(
+        phrase: 'Declarations of Innocence',
+        targetId: 'declarations_of_innocence',
+      ),
+      KemeticNodeLink(
+        phrase: 'Book of Coming Forth by Day',
+        targetId: 'book_of_the_dead',
+      ),
+      KemeticNodeLink(phrase: 'heart', targetId: 'ib'),
+      KemeticNodeLink(phrase: 'scale', targetId: 'declarations_of_innocence'),
+      KemeticNodeLink(
+        phrase: 'Instruction of Ptahhotep',
+        targetId: 'instruction_ptahhotep',
+      ),
+      KemeticNodeLink(
+        phrase: 'Instruction of Amenemope',
+        targetId: 'instruction_amenemope',
+      ),
+      KemeticNodeLink(phrase: 'Pyramid Texts', targetId: 'pyramid_texts'),
+    ],
+  ),
+  KemeticNode(
     id: 'house_of_life',
     title: 'House of Life',
     glyph: '𓉐𓋹',
