@@ -2,10 +2,12 @@ import 'dart:async';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:mobile/shared/glossy_text.dart';
 
+import '../../core/global_bottom_menu_metrics.dart';
 import '../../core/navigation_fallback.dart';
 import '../../main.dart' show Events;
 import '../../services/calendar_sync_service.dart';
@@ -48,6 +50,7 @@ class _SettingsPageState extends State<SettingsPage> {
   bool _loadingPushDiagnostics = false;
   bool _sendingPushTest = false;
   bool _checkingPushTestReceipt = false;
+  bool _signingOut = false;
   bool _loadingSpeechVoices = false;
   bool _savingSpeechVoice = false;
   bool _deletingAccount = false;
@@ -68,6 +71,30 @@ class _SettingsPageState extends State<SettingsPage> {
   bool get _hasSession => Supabase.instance.client.auth.currentSession != null;
   bool get _nativeCalendarSyncAvailable => !kIsWeb;
   bool get _calendarBusy => _syncingCalendar || _unlinkingCalendar;
+
+  Future<void> _signOut() async {
+    if (_signingOut) return;
+
+    final messenger = ScaffoldMessenger.of(context);
+    setState(() {
+      _signingOut = true;
+    });
+
+    try {
+      await Supabase.instance.client.auth.signOut();
+      if (!mounted) return;
+
+      context.go('/');
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _signingOut = false;
+      });
+      messenger.showSnackBar(
+        const SnackBar(content: Text('Could not sign out. Please try again.')),
+      );
+    }
+  }
 
   @override
   void initState() {
@@ -1344,6 +1371,7 @@ class _SettingsPageState extends State<SettingsPage> {
     final pushDiagnosticLines = _pushDiagnosticLines();
     final pushReceiptLines = _pushTestReceiptLines();
     final speechStatusLines = _speechStatusLines();
+    final scrollBottomPadding = bottomPaddingAboveGlobalMenu(context, 32);
 
     return Scaffold(
       backgroundColor: Colors.black,
@@ -1354,11 +1382,19 @@ class _SettingsPageState extends State<SettingsPage> {
           icon: KemeticGold.icon(Icons.arrow_back),
           onPressed: () => popOrGo(context, '/'),
         ),
+        centerTitle: true,
         title: const Text('Settings', style: TextStyle(color: Colors.white)),
         iconTheme: const IconThemeData(color: KemeticGold.base),
+        actions: [
+          IconButton(
+            tooltip: 'Sign out',
+            icon: KemeticGold.icon(Icons.logout),
+            onPressed: _signingOut ? null : _signOut,
+          ),
+        ],
       ),
       body: SingleChildScrollView(
-        padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
+        padding: EdgeInsets.fromLTRB(16, 12, 16, scrollBottomPadding),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
