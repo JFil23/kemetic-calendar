@@ -140,18 +140,24 @@ class _MaatFlowsListPageState extends State<_MaatFlowsListPage> {
 
   Future<void> _maybeShowFlowBuilderHelper() async {
     if (_helperPrompted) return;
-    _helperPrompted = true;
     final userId = Supabase.instance.client.auth.currentUser?.id;
     if (userId == null || userId.isEmpty) return;
     final storage = OnboardingProgressStorage();
-    final progress = await storage.load(userId);
-    if (!mounted ||
-        !progress.completedOnboarding ||
-        progress.seenHelpers.contains(OnboardingHelperIds.flowBuilder)) {
+    if (!await storage.shouldShowHelper(
+      userId,
+      OnboardingHelperIds.flowBuilder,
+    )) {
       return;
     }
+    _helperPrompted = true;
     await Future<void>.delayed(const Duration(milliseconds: 450));
     if (!mounted) return;
+    if (!await storage.shouldShowHelper(
+      userId,
+      OnboardingHelperIds.flowBuilder,
+    )) {
+      return;
+    }
     GuidedOnboardingController.instance.show(
       CoachmarkTarget(
         key: _flowBuilderHelperKey,
@@ -164,10 +170,10 @@ class _MaatFlowsListPageState extends State<_MaatFlowsListPage> {
         dismissLabel: 'Got it',
         onDismiss: () async {
           GuidedOnboardingController.instance.clear();
-          final updated = progress.markHelperSeen(
+          await storage.markHelperCompleted(
+            userId,
             OnboardingHelperIds.flowBuilder,
           );
-          await storage.save(userId, updated);
           await Events.trackIfAuthed(
             'helper_seen_flow_builder',
             const <String, dynamic>{},
@@ -175,6 +181,24 @@ class _MaatFlowsListPageState extends State<_MaatFlowsListPage> {
         },
       ),
     );
+  }
+
+  Future<void> _markFlowBuilderHelperCompleted() async {
+    final userId = Supabase.instance.client.auth.currentUser?.id;
+    if (userId == null || userId.isEmpty) return;
+    if (GuidedOnboardingController.instance.target?.variant ==
+        CoachmarkVariant.helperBubble) {
+      GuidedOnboardingController.instance.clear();
+    }
+    await OnboardingProgressStorage().markHelperCompleted(
+      userId,
+      OnboardingHelperIds.flowBuilder,
+    );
+  }
+
+  void _handleCreateNew() {
+    unawaited(_markFlowBuilderHelperCompleted());
+    widget.onCreateNew();
   }
 
   @override
@@ -194,7 +218,7 @@ class _MaatFlowsListPageState extends State<_MaatFlowsListPage> {
             key: _flowBuilderHelperKey,
             tooltip: 'New flow',
             icon: const Icon(Icons.add, color: _silver),
-            onPressed: widget.onCreateNew,
+            onPressed: _handleCreateNew,
           ),
         ],
       ),

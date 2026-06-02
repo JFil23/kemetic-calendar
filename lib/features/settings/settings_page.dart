@@ -146,18 +146,24 @@ class _SettingsPageState extends State<SettingsPage> {
 
   Future<void> _maybeShowSettingsHelper() async {
     if (_settingsHelperPrompted) return;
-    _settingsHelperPrompted = true;
     final userId = Supabase.instance.client.auth.currentUser?.id;
     if (userId == null || userId.isEmpty) return;
     final storage = OnboardingProgressStorage();
-    final progress = await storage.load(userId);
-    if (!mounted ||
-        !progress.completedOnboarding ||
-        progress.seenHelpers.contains(OnboardingHelperIds.settingsControl)) {
+    if (!await storage.shouldShowHelper(
+      userId,
+      OnboardingHelperIds.settingsControl,
+    )) {
       return;
     }
+    _settingsHelperPrompted = true;
     await Future<void>.delayed(const Duration(milliseconds: 500));
     if (!mounted) return;
+    if (!await storage.shouldShowHelper(
+      userId,
+      OnboardingHelperIds.settingsControl,
+    )) {
+      return;
+    }
     GuidedOnboardingController.instance.show(
       CoachmarkTarget(
         key: _settingsControlsHelperKey,
@@ -170,16 +176,20 @@ class _SettingsPageState extends State<SettingsPage> {
         dismissLabel: 'Got it',
         onDismiss: () async {
           GuidedOnboardingController.instance.clear();
-          final updated = progress.markHelperSeen(
+          await storage.markHelperCompleted(
+            userId,
             OnboardingHelperIds.settingsControl,
           );
-          await storage.save(userId, updated);
           await Events.trackIfAuthed(
             'helper_seen_settings_control',
             const <String, dynamic>{},
           );
         },
       ),
+    );
+    await storage.markHelperCompleted(
+      userId,
+      OnboardingHelperIds.settingsControl,
     );
   }
 

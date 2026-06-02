@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
@@ -246,6 +247,8 @@ class OnboardingProgress {
 
 class OnboardingProgressStorage {
   static const String _keyPrefix = 'onboarding_v2_progress';
+  static final Map<String, Future<void>> _helperCompletionQueues =
+      <String, Future<void>>{};
 
   String _keyForUser(String userId) => '$_keyPrefix:$userId';
 
@@ -282,6 +285,44 @@ class OnboardingProgressStorage {
   ) async {
     final current = await load(userId);
     await save(userId, update(current));
+  }
+
+  Future<bool> shouldShowHelper(String userId, String helperId) async {
+    final progress = await load(userId);
+    return progress.completedOnboarding &&
+        !progress.seenHelpers.contains(helperId);
+  }
+
+  Future<OnboardingProgress> markHelperCompleted(
+    String userId,
+    String helperId,
+  ) {
+    final queueKey = _keyForUser(userId);
+    final completer = Completer<OnboardingProgress>();
+    final previous = _helperCompletionQueues[queueKey] ?? Future<void>.value();
+
+    late final Future<void> current;
+    current = previous
+        .catchError((_) {})
+        .then((_) async {
+          final progress = await load(userId);
+          final updated = progress.markHelperSeen(helperId);
+          await save(userId, updated);
+          completer.complete(updated);
+        })
+        .catchError((Object error, StackTrace stackTrace) {
+          if (!completer.isCompleted) {
+            completer.completeError(error, stackTrace);
+          }
+        })
+        .whenComplete(() {
+          if (identical(_helperCompletionQueues[queueKey], current)) {
+            _helperCompletionQueues.remove(queueKey);
+          }
+        });
+
+    _helperCompletionQueues[queueKey] = current;
+    return completer.future;
   }
 }
 

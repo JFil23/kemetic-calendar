@@ -48,18 +48,24 @@ class _JournalPageState extends State<JournalPage> {
 
   Future<void> _maybeShowJournalHelper() async {
     if (_helperPrompted) return;
-    _helperPrompted = true;
     final userId = Supabase.instance.client.auth.currentUser?.id;
     if (userId == null || userId.isEmpty) return;
     final storage = OnboardingProgressStorage();
-    final progress = await storage.load(userId);
-    if (!mounted ||
-        !progress.completedOnboarding ||
-        progress.seenHelpers.contains(OnboardingHelperIds.journalBadges)) {
+    if (!await storage.shouldShowHelper(
+      userId,
+      OnboardingHelperIds.journalBadges,
+    )) {
       return;
     }
+    _helperPrompted = true;
     await Future<void>.delayed(const Duration(milliseconds: 500));
     if (!mounted) return;
+    if (!await storage.shouldShowHelper(
+      userId,
+      OnboardingHelperIds.journalBadges,
+    )) {
+      return;
+    }
     GuidedOnboardingController.instance.show(
       CoachmarkTarget(
         key: _journalHelperKey,
@@ -72,16 +78,20 @@ class _JournalPageState extends State<JournalPage> {
         dismissLabel: 'Got it',
         onDismiss: () async {
           GuidedOnboardingController.instance.clear();
-          final updated = progress.markHelperSeen(
+          await storage.markHelperCompleted(
+            userId,
             OnboardingHelperIds.journalBadges,
           );
-          await storage.save(userId, updated);
           await Events.trackIfAuthed(
             'helper_seen_journal_badges',
             const <String, dynamic>{},
           );
         },
       ),
+    );
+    await storage.markHelperCompleted(
+      userId,
+      OnboardingHelperIds.journalBadges,
     );
   }
 

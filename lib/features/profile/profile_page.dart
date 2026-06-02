@@ -525,44 +525,58 @@ class _ProfilePageState extends State<ProfilePage>
     final userId = _currentUserId;
     if (userId == null) return;
     final storage = OnboardingProgressStorage();
-    final progress = loadedProgress ?? await storage.load(userId);
-    if (!mounted ||
-        !progress.completedOnboarding ||
-        progress.seenHelpers.contains(
-          OnboardingHelperIds.profileCommunityFeed,
-        )) {
+    final shouldShow = loadedProgress == null
+        ? await storage.shouldShowHelper(
+            userId,
+            OnboardingHelperIds.profileCommunityFeed,
+          )
+        : loadedProgress.completedOnboarding &&
+              !loadedProgress.seenHelpers.contains(
+                OnboardingHelperIds.profileCommunityFeed,
+              );
+    if (!mounted || !shouldShow) {
       return;
     }
     _profileCommunityHelperPrompted = true;
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted || _feedRevealed) return;
-      GuidedOnboardingController.instance.show(
-        CoachmarkTarget(
-          key: _feedRevealHintKey,
-          title: 'Your community lives below',
-          body:
-              'Scroll down to reveal the community feed, where shared flows and confirmations begin to gather.',
-          placement: CoachmarkPlacement.auto,
-          variant: CoachmarkVariant.helperBubble,
-          showDismissButton: true,
-          dismissLabel: 'Got it',
-          onDismiss: () {
-            GuidedOnboardingController.instance.clear();
-            unawaited(_markProfileCommunityHelperSeen());
-          },
-        ),
-      );
+      unawaited(() async {
+        if (!mounted || _feedRevealed) return;
+        if (!await storage.shouldShowHelper(
+          userId,
+          OnboardingHelperIds.profileCommunityFeed,
+        )) {
+          return;
+        }
+        GuidedOnboardingController.instance.show(
+          CoachmarkTarget(
+            key: _feedRevealHintKey,
+            title: 'Your community lives below',
+            body:
+                'Scroll down to reveal the community feed, where shared flows and confirmations begin to gather.',
+            placement: CoachmarkPlacement.auto,
+            variant: CoachmarkVariant.helperBubble,
+            showDismissButton: true,
+            dismissLabel: 'Got it',
+            onDismiss: () {
+              GuidedOnboardingController.instance.clear();
+              unawaited(_markProfileCommunityHelperSeen());
+            },
+          ),
+        );
+      }());
     });
   }
 
   Future<void> _markProfileCommunityHelperSeen() async {
     final userId = _currentUserId;
     if (userId == null) return;
-    GuidedOnboardingController.instance.clear();
-    await OnboardingProgressStorage().update(
+    if (GuidedOnboardingController.instance.target?.variant ==
+        CoachmarkVariant.helperBubble) {
+      GuidedOnboardingController.instance.clear();
+    }
+    await OnboardingProgressStorage().markHelperCompleted(
       userId,
-      (progress) =>
-          progress.markHelperSeen(OnboardingHelperIds.profileCommunityFeed),
+      OnboardingHelperIds.profileCommunityFeed,
     );
     unawaited(
       Events.trackIfAuthed(

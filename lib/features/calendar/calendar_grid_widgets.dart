@@ -29,6 +29,7 @@ class _YearSection extends StatelessWidget {
     this.monthHeaderKeyProvider,
     this.dayAnchorKeyProvider,
     this.onMonthHeaderTap,
+    this.onDecanTap,
     this.todayDayKey,
   });
 
@@ -56,6 +57,8 @@ class _YearSection extends StatelessWidget {
   final List<Color> Function(int kYear, int kMonth, int kDay) flowColorsGetter;
 
   final void Function(BuildContext context, int kMonth)? onMonthHeaderTap;
+  final void Function(BuildContext context, int kMonth, int decanIndex)?
+  onDecanTap;
   final void Function(BuildContext, int kMonth, int kDay) onDayTap;
   final Key? Function(int kMonth)? monthAnchorKeyProvider;
   final Key? Function(int kMonth)? monthHeaderKeyProvider;
@@ -98,6 +101,9 @@ class _YearSection extends StatelessWidget {
           onMonthHeaderTap: onMonthHeaderTap == null
               ? null
               : (context) => onMonthHeaderTap!(context, 1),
+          onDecanTap: onDecanTap == null
+              ? null
+              : (context, decanIndex) => onDecanTap!(context, 1, decanIndex),
         ),
         const _GoldDivider(),
         _MonthCard(
@@ -129,6 +135,9 @@ class _YearSection extends StatelessWidget {
           onMonthHeaderTap: onMonthHeaderTap == null
               ? null
               : (context) => onMonthHeaderTap!(context, 2),
+          onDecanTap: onDecanTap == null
+              ? null
+              : (context, decanIndex) => onDecanTap!(context, 2, decanIndex),
         ),
         const _GoldDivider(),
         _MonthCard(
@@ -160,6 +169,9 @@ class _YearSection extends StatelessWidget {
           onMonthHeaderTap: onMonthHeaderTap == null
               ? null
               : (context) => onMonthHeaderTap!(context, 3),
+          onDecanTap: onDecanTap == null
+              ? null
+              : (context, decanIndex) => onDecanTap!(context, 3, decanIndex),
         ),
         const _GoldDivider(),
         _MonthCard(
@@ -191,6 +203,9 @@ class _YearSection extends StatelessWidget {
           onMonthHeaderTap: onMonthHeaderTap == null
               ? null
               : (context) => onMonthHeaderTap!(context, 4),
+          onDecanTap: onDecanTap == null
+              ? null
+              : (context, decanIndex) => onDecanTap!(context, 4, decanIndex),
         ),
         const _GoldDivider(),
 
@@ -224,6 +239,9 @@ class _YearSection extends StatelessWidget {
           onMonthHeaderTap: onMonthHeaderTap == null
               ? null
               : (context) => onMonthHeaderTap!(context, 5),
+          onDecanTap: onDecanTap == null
+              ? null
+              : (context, decanIndex) => onDecanTap!(context, 5, decanIndex),
         ),
         const _GoldDivider(),
         _MonthCard(
@@ -255,6 +273,9 @@ class _YearSection extends StatelessWidget {
           onMonthHeaderTap: onMonthHeaderTap == null
               ? null
               : (context) => onMonthHeaderTap!(context, 6),
+          onDecanTap: onDecanTap == null
+              ? null
+              : (context, decanIndex) => onDecanTap!(context, 6, decanIndex),
         ),
         const _GoldDivider(),
         _MonthCard(
@@ -286,6 +307,9 @@ class _YearSection extends StatelessWidget {
           onMonthHeaderTap: onMonthHeaderTap == null
               ? null
               : (context) => onMonthHeaderTap!(context, 7),
+          onDecanTap: onDecanTap == null
+              ? null
+              : (context, decanIndex) => onDecanTap!(context, 7, decanIndex),
         ),
         const _GoldDivider(),
         _MonthCard(
@@ -317,6 +341,9 @@ class _YearSection extends StatelessWidget {
           onMonthHeaderTap: onMonthHeaderTap == null
               ? null
               : (context) => onMonthHeaderTap!(context, 8),
+          onDecanTap: onDecanTap == null
+              ? null
+              : (context, decanIndex) => onDecanTap!(context, 8, decanIndex),
         ),
         const _GoldDivider(),
 
@@ -350,6 +377,9 @@ class _YearSection extends StatelessWidget {
           onMonthHeaderTap: onMonthHeaderTap == null
               ? null
               : (context) => onMonthHeaderTap!(context, 9),
+          onDecanTap: onDecanTap == null
+              ? null
+              : (context, decanIndex) => onDecanTap!(context, 9, decanIndex),
         ),
         const _GoldDivider(),
         _MonthCard(
@@ -381,6 +411,9 @@ class _YearSection extends StatelessWidget {
           onMonthHeaderTap: onMonthHeaderTap == null
               ? null
               : (context) => onMonthHeaderTap!(context, 10),
+          onDecanTap: onDecanTap == null
+              ? null
+              : (context, decanIndex) => onDecanTap!(context, 10, decanIndex),
         ),
         const _GoldDivider(),
         _MonthCard(
@@ -412,6 +445,9 @@ class _YearSection extends StatelessWidget {
           onMonthHeaderTap: onMonthHeaderTap == null
               ? null
               : (context) => onMonthHeaderTap!(context, 11),
+          onDecanTap: onDecanTap == null
+              ? null
+              : (context, decanIndex) => onDecanTap!(context, 11, decanIndex),
         ),
         const _GoldDivider(),
         _MonthCard(
@@ -443,6 +479,9 @@ class _YearSection extends StatelessWidget {
           onMonthHeaderTap: onMonthHeaderTap == null
               ? null
               : (context) => onMonthHeaderTap!(context, 12),
+          onDecanTap: onDecanTap == null
+              ? null
+              : (context, decanIndex) => onDecanTap!(context, 12, decanIndex),
         ),
         const _GoldDivider(),
 

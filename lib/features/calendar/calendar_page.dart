@@ -10362,6 +10362,28 @@ class CalendarPageState extends State<CalendarPage>
     await _saveOnboardingProgress(update(_onboardingProgress));
   }
 
+  Future<OnboardingProgress?> _markOnboardingHelperCompleted(
+    String helperId, {
+    bool clearActiveHelper = true,
+  }) async {
+    if (clearActiveHelper &&
+        GuidedOnboardingController.instance.target?.variant ==
+            CoachmarkVariant.helperBubble) {
+      GuidedOnboardingController.instance.clear();
+    }
+
+    final userId = _currentUserId;
+    if (userId == null || userId.isEmpty) return null;
+    final updated = await _onboardingProgressStorage.markHelperCompleted(
+      userId,
+      helperId,
+    );
+    if (mounted) {
+      _onboardingProgress = updated;
+    }
+    return updated;
+  }
+
   String _onboardingContinuationStageKeyForUser(String userId) =>
       '$_onboardingContinuationStageKeyPrefix:$userId';
 
@@ -10984,9 +11006,12 @@ class CalendarPageState extends State<CalendarPage>
   Future<void> _maybeShowCalendarHelperAfterOnboarding(
     OnboardingProgress progress,
   ) async {
+    final userId = _currentUserId;
     if (!mounted ||
         _calendarAfterOnboardingHelperPrompted ||
-        !progress.completedOnboarding) {
+        !progress.completedOnboarding ||
+        userId == null ||
+        userId.isEmpty) {
       return;
     }
 
@@ -10996,6 +11021,14 @@ class CalendarPageState extends State<CalendarPage>
 
     await Future<void>.delayed(const Duration(milliseconds: 700));
     if (!mounted) return;
+    final shouldShow = await _onboardingProgressStorage.shouldShowHelper(
+      userId,
+      helper.id,
+    );
+    if (!mounted || !shouldShow) {
+      _calendarAfterOnboardingHelperPrompted = false;
+      return;
+    }
     GuidedOnboardingController.instance.show(
       CoachmarkTarget(
         key: helper.key,
@@ -11008,18 +11041,21 @@ class CalendarPageState extends State<CalendarPage>
         onDismiss: () async {
           GuidedOnboardingController.instance.clear();
           _calendarAfterOnboardingHelperPrompted = false;
-          late OnboardingProgress updated;
-          await _updateOnboardingProgress((current) {
-            updated = current.markHelperSeen(helper.id);
-            return updated;
-          });
+          final updated = await _markOnboardingHelperCompleted(
+            helper.id,
+            clearActiveHelper: false,
+          );
           unawaited(
             Events.trackIfAuthed(
               helper.analyticsEvent,
               const <String, dynamic>{},
             ),
           );
-          unawaited(_maybeShowCalendarHelperAfterOnboarding(updated));
+          unawaited(
+            _maybeShowCalendarHelperAfterOnboarding(
+              updated ?? _onboardingProgress,
+            ),
+          );
         },
       ),
     );
@@ -11362,6 +11398,9 @@ class CalendarPageState extends State<CalendarPage>
     if (!mounted) return;
 
     _restorationInteractedSinceBoot = true;
+    unawaited(
+      _markOnboardingHelperCompleted(OnboardingHelperIds.calendarToggle),
+    );
     setState(() {
       _showGregorian = !_showGregorian;
       _showCalendarToggleCoachmark = false;
@@ -11377,7 +11416,11 @@ class CalendarPageState extends State<CalendarPage>
     return keyForMonthHeader(targetKy, targetKm);
   }
 
-  MaterialPageRoute<void> _buildMonthDetailRoute(int kYear, int kMonth) {
+  MaterialPageRoute<void> _buildMonthDetailRoute(
+    int kYear,
+    int kMonth, {
+    int? decanIndex,
+  }) {
     final todayMonth = kYear == _today.kYear ? _today.kMonth : null;
     final todayDay = kYear == _today.kYear ? _today.kDay : null;
 
@@ -11406,13 +11449,20 @@ class CalendarPageState extends State<CalendarPage>
         onAppendToJournal: _journalInitialized
             ? (text) => _journalController.appendToToday(text)
             : null,
-        decanIndex: null,
+        decanIndex: decanIndex,
       ),
     );
   }
 
-  void _openMonthInfo(BuildContext navigatorContext, int kYear, int kMonth) {
-    Navigator.of(navigatorContext).push(_buildMonthDetailRoute(kYear, kMonth));
+  void _openMonthInfo(
+    BuildContext navigatorContext,
+    int kYear,
+    int kMonth, {
+    int? decanIndex,
+  }) {
+    Navigator.of(
+      navigatorContext,
+    ).push(_buildMonthDetailRoute(kYear, kMonth, decanIndex: decanIndex));
   }
 
   void _handleMonthHeaderTapped(
@@ -11421,6 +11471,7 @@ class CalendarPageState extends State<CalendarPage>
     int kMonth,
   ) {
     if (!mounted) return;
+    unawaited(_markOnboardingHelperCompleted(OnboardingHelperIds.monthDetails));
 
     final shouldFinalizeOnboarding =
         _showCalendarMonthCoachmark &&
@@ -11444,6 +11495,17 @@ class CalendarPageState extends State<CalendarPage>
     }
 
     _openMonthInfo(navigatorContext, kYear, kMonth);
+  }
+
+  void _handleDecanHeaderTapped(
+    BuildContext navigatorContext,
+    int kYear,
+    int kMonth,
+    int decanIndex,
+  ) {
+    if (!mounted) return;
+    unawaited(_markOnboardingHelperCompleted(OnboardingHelperIds.monthDetails));
+    _openMonthInfo(navigatorContext, kYear, kMonth, decanIndex: decanIndex);
   }
 
   void _handleCalendarMonthCoachmarkTargetTap() {
@@ -21001,6 +21063,9 @@ class CalendarPageState extends State<CalendarPage>
     EventDetailRestorationState? initialEventDetailRestorationState,
   }) {
     _restorationInteractedSinceBoot = true;
+    unawaited(
+      _markOnboardingHelperCompleted(OnboardingHelperIds.dayCardLongPress),
+    );
     final shouldShowDayCardRevealCoachmark =
         _shouldShowDayCardRevealCoachmarkFromOnboarding;
     final isFirstFlowOnboardingDay =
@@ -28289,6 +28354,13 @@ class CalendarPageState extends State<CalendarPage>
                       _calendarDayAnchorKeyFor(kYear, m, d),
                   onMonthHeaderTap: (context, kMonth) =>
                       _handleMonthHeaderTapped(context, kYear, kMonth),
+                  onDecanTap: (context, kMonth, decanIndex) =>
+                      _handleDecanHeaderTapped(
+                        context,
+                        kYear,
+                        kMonth,
+                        decanIndex,
+                      ),
                   onDayTap: (c, m, d) => _openDayView(c, kYear, m, d),
                   notesGetter: (m, d) => _getNotes(kYear, m, d),
                   flowColorsGetter: (ky, km, kd) =>
@@ -28330,6 +28402,13 @@ class CalendarPageState extends State<CalendarPage>
               todayDayKey: _todayDayKey, // 🔑 pass day anchor
               onMonthHeaderTap: (context, kMonth) =>
                   _handleMonthHeaderTapped(context, kToday.kYear, kMonth),
+              onDecanTap: (context, kMonth, decanIndex) =>
+                  _handleDecanHeaderTapped(
+                    context,
+                    kToday.kYear,
+                    kMonth,
+                    decanIndex,
+                  ),
               onDayTap: (c, m, d) => _openDayView(c, kToday.kYear, m, d),
               notesGetter: (m, d) => _getNotes(kToday.kYear, m, d),
               flowColorsGetter: (ky, km, kd) => getFlowColorsForDay(ky, km, kd),
@@ -28369,6 +28448,13 @@ class CalendarPageState extends State<CalendarPage>
                       _calendarDayAnchorKeyFor(kYear, m, d),
                   onMonthHeaderTap: (context, kMonth) =>
                       _handleMonthHeaderTapped(context, kYear, kMonth),
+                  onDecanTap: (context, kMonth, decanIndex) =>
+                      _handleDecanHeaderTapped(
+                        context,
+                        kYear,
+                        kMonth,
+                        decanIndex,
+                      ),
                   onDayTap: (c, m, d) => _openDayView(c, kYear, m, d),
                   notesGetter: (m, d) => _getNotes(kYear, m, d),
                   flowColorsGetter: (ky, km, kd) =>
