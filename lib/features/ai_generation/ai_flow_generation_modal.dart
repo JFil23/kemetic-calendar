@@ -12,6 +12,7 @@ import '../../widgets/kemetic_date_picker.dart';
 import '../../widgets/gregorian_date_picker.dart';
 import '../../widgets/keyboard_aware.dart';
 import 'package:mobile/shared/glossy_text.dart';
+import 'flow_duration_parser.dart';
 
 // Your flow palette from Flow Studio
 const _flowPalette = [
@@ -53,7 +54,16 @@ class _VisibleThinkingStep {
 }
 
 class AIFlowGenerationModal extends StatefulWidget {
-  const AIFlowGenerationModal({super.key});
+  const AIFlowGenerationModal({
+    super.key,
+    this.initialStartDate,
+    this.initialEndDate,
+    this.initialDateRangeIsManual = false,
+  });
+
+  final DateTime? initialStartDate;
+  final DateTime? initialEndDate;
+  final bool initialDateRangeIsManual;
 
   @override
   State<AIFlowGenerationModal> createState() => _AIFlowGenerationModalState();
@@ -64,11 +74,13 @@ class _AIFlowGenerationModalState extends State<AIFlowGenerationModal> {
   final _descriptionController = TextEditingController();
   final _formKey = GlobalKey<FormState>();
 
+  late final DateTime _defaultStartDate;
   DateTime? _startDate;
   DateTime? _endDate;
   int _selectedColorIndex = 0;
   CalendarMode _mode = CalendarMode.gregorian;
   bool _isGenerating = false;
+  bool _manualDateRangeEdited = false;
   String? _error;
   Timer? _visibleThinkingTimer;
   List<_VisibleThinkingStep> _visibleThinkingSteps = const [];
@@ -84,10 +96,96 @@ class _AIFlowGenerationModalState extends State<AIFlowGenerationModal> {
   }
 
   @override
+  void initState() {
+    super.initState();
+    _defaultStartDate = dateOnlyForAiFlow(
+      widget.initialStartDate ?? DateTime.now(),
+    );
+    _startDate = widget.initialStartDate == null
+        ? null
+        : dateOnlyForAiFlow(widget.initialStartDate!);
+    _endDate = widget.initialEndDate == null
+        ? null
+        : dateOnlyForAiFlow(widget.initialEndDate!);
+    _manualDateRangeEdited =
+        widget.initialDateRangeIsManual &&
+        _startDate != null &&
+        _endDate != null;
+    if (!_manualDateRangeEdited) {
+      _applyPromptOrDefaultRange(notify: false);
+    }
+    _descriptionController.addListener(_handleDescriptionChanged);
+  }
+
+  @override
   void dispose() {
     _stopVisibleThinking();
+    _descriptionController.removeListener(_handleDescriptionChanged);
     _descriptionController.dispose();
     super.dispose();
+  }
+
+  void _handleDescriptionChanged() {
+    if (_manualDateRangeEdited || _isGenerating) return;
+    _applyPromptOrDefaultRange();
+  }
+
+  void _applyPromptOrDefaultRange({bool notify = true}) {
+    final range = resolveAiFlowDateRange(
+      prompt: _descriptionController.text,
+      defaultStartDate: _defaultStartDate,
+    );
+    if (_startDate == range.startDate && _endDate == range.endDate) return;
+
+    void assign() {
+      _startDate = range.startDate;
+      _endDate = range.endDate;
+    }
+
+    if (notify && mounted) {
+      setState(assign);
+    } else {
+      assign();
+    }
+  }
+
+  FlowDateRange _effectiveDateRange() {
+    return resolveAiFlowDateRange(
+      prompt: _descriptionController.text,
+      defaultStartDate: _defaultStartDate,
+      manualStartDate: _startDate,
+      manualEndDate: _endDate,
+      useManualRange: _manualDateRangeEdited,
+    );
+  }
+
+  int _currentDisplayedDurationDays() {
+    final start = _startDate;
+    final end = _endDate;
+    if (start != null && end != null) {
+      final days = end.difference(start).inDays + 1;
+      if (days > 0) return days;
+    }
+    return extractFlowDurationDays(_descriptionController.text) ??
+        defaultAiFlowDurationDays;
+  }
+
+  String _dateRangeHelperText() {
+    if (_manualDateRangeEdited) {
+      return 'Manual range overrides prompt duration.';
+    }
+    final promptDays = extractFlowDurationDays(_descriptionController.text);
+    if (promptDays != null) {
+      return 'Using $promptDays day${promptDays == 1 ? '' : 's'} from your prompt. Tap dates to override.';
+    }
+    return 'Using a 10-day default. Optional - you can also say "30 days" in your prompt.';
+  }
+
+  void _resetManualDateRange() {
+    setState(() {
+      _manualDateRangeEdited = false;
+      _applyPromptOrDefaultRange(notify: false);
+    });
   }
 
   Future<DateTime?> _showDatePickerForMode(DateTime? initialDate) {
@@ -101,10 +199,18 @@ class _AIFlowGenerationModalState extends State<AIFlowGenerationModal> {
     final picked = await _showDatePickerForMode(_startDate);
     if (!mounted || picked == null) return;
 
+    final pickedDate = dateOnlyForAiFlow(picked);
+    final wasManual = _manualDateRangeEdited;
+    final fallbackDays = wasManual ? 7 : _currentDisplayedDurationDays();
     setState(() {
-      _startDate = picked;
-      if (_endDate == null || _endDate!.isBefore(_startDate!)) {
-        _endDate = _startDate!.add(const Duration(days: 6));
+      _manualDateRangeEdited = true;
+      _startDate = pickedDate;
+      if (!wasManual || _endDate == null || _endDate!.isBefore(_startDate!)) {
+        _endDate = DateTime(
+          _startDate!.year,
+          _startDate!.month,
+          _startDate!.day + fallbackDays - 1,
+        );
       }
     });
   }
@@ -114,24 +220,27 @@ class _AIFlowGenerationModalState extends State<AIFlowGenerationModal> {
     if (!mounted || picked == null) return;
 
     setState(() {
-      _endDate = picked;
+      _manualDateRangeEdited = true;
+      _endDate = dateOnlyForAiFlow(picked);
     });
   }
 
   Future<void> _generate() async {
     if (!_formKey.currentState!.validate()) return;
 
-    // Require dates to be selected
-    if (_startDate == null || _endDate == null) {
+    final dateRange = _effectiveDateRange();
+    final startDate = dateRange.startDate;
+    final endDate = dateRange.endDate;
+    if (_startDate != startDate || _endDate != endDate) {
       setState(() {
-        _error = 'Please select start and end dates';
+        _startDate = startDate;
+        _endDate = endDate;
       });
-      return;
     }
 
     final split = _splitForFlowApi(_descriptionController.text);
     final enrichedDescription = split.description;
-    final rangeDays = _endDate!.difference(_startDate!).inDays + 1;
+    final rangeDays = endDate.difference(startDate).inDays + 1;
     final visibleThinkingSteps = _buildVisibleThinkingSteps(
       hasSourceText:
           split.sourceText != null && split.sourceText!.trim().isNotEmpty,
@@ -193,8 +302,8 @@ class _AIFlowGenerationModalState extends State<AIFlowGenerationModal> {
       // Generate flow using new simplified service API
       final response = await _service.generate(
         description: enrichedDescription,
-        startDate: _startDate!,
-        endDate: _endDate!,
+        startDate: startDate,
+        endDate: endDate,
         flowColor: colorAsHex,
         timezone:
             ianaTimezone, // ✅ IANA format (e.g., "America/Los_Angeles") for Edge Function
@@ -219,8 +328,8 @@ class _AIFlowGenerationModalState extends State<AIFlowGenerationModal> {
       _stopVisibleThinking();
       Navigator.of(context).pop(
         response.copyWith(
-          requestedStartDate: _startDate,
-          requestedEndDate: _endDate,
+          requestedStartDate: startDate,
+          requestedEndDate: endDate,
         ),
       );
 
@@ -504,7 +613,7 @@ class _AIFlowGenerationModalState extends State<AIFlowGenerationModal> {
                         style: const TextStyle(color: Colors.white),
                         decoration: InputDecoration(
                           hintText:
-                              'Paste a long plan or notes, pick your date range (e.g. 90 days), and ask to turn it into a flow…',
+                              'Paste a long plan or notes and ask for a flow. Add duration naturally, e.g. "make this a 30-day flow"...',
                           hintStyle: TextStyle(
                             color: Colors.white.withValues(alpha: 0.4),
                             fontSize: 14,
@@ -590,6 +699,15 @@ class _AIFlowGenerationModalState extends State<AIFlowGenerationModal> {
                         gradient: silverGloss,
                       ),
                       const SizedBox(height: 8),
+                      Text(
+                        _dateRangeHelperText(),
+                        style: const TextStyle(
+                          color: Color(0xFF999999),
+                          fontSize: 13,
+                          height: 1.25,
+                        ),
+                      ),
+                      const SizedBox(height: 10),
                       Row(
                         children: [
                           Expanded(
@@ -659,13 +777,23 @@ class _AIFlowGenerationModalState extends State<AIFlowGenerationModal> {
                       const SizedBox(height: 8),
 
                       // Helper text
-                      const Text(
-                        'Set a start and end date to define rules',
-                        style: TextStyle(
-                          color: Color(0xFF999999),
-                          fontSize: 14,
+                      if (_manualDateRangeEdited)
+                        Align(
+                          alignment: Alignment.centerLeft,
+                          child: TextButton.icon(
+                            onPressed: _isGenerating
+                                ? null
+                                : _resetManualDateRange,
+                            icon: const Icon(Icons.auto_awesome, size: 16),
+                            label: const Text('Use prompt duration'),
+                            style: TextButton.styleFrom(
+                              foregroundColor: gold,
+                              padding: EdgeInsets.zero,
+                              minimumSize: const Size(0, 32),
+                              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                            ),
+                          ),
                         ),
-                      ),
 
                       if (_startDate != null && _endDate != null) ...[
                         const SizedBox(height: 8),

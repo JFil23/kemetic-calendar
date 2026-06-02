@@ -36,6 +36,7 @@ class _FlowStudioPageState extends State<_FlowStudioPage>
 
   // date range (Gregorian local, date-only)
   DateTime? _startDate, _endDate;
+  bool _dateRangeEditedInCurrentEditor = false;
   bool get _hasFullRange => _startDate != null && _endDate != null;
 
   // Readiness gate: only allow sync when the editor's state is fully initialized.
@@ -337,6 +338,7 @@ class _FlowStudioPageState extends State<_FlowStudioPage>
       _useKemetic = draft.useKemetic;
       _startDate = draft.startDate;
       _endDate = draft.endDate;
+      _dateRangeEditedInCurrentEditor = draft.editingFlowId != null;
       _splitByPeriod = draft.splitByPeriod;
       _selectedDecanDays
         ..clear()
@@ -1264,7 +1266,10 @@ class _FlowStudioPageState extends State<_FlowStudioPage>
         ? await _pickKemeticDate(initial: _startDate)
         : await _pickGregorianDate(initial: _startDate);
     if (picked != null) {
-      setState(() => _startDate = _dateOnly(picked));
+      setState(() {
+        _startDate = _dateOnly(picked);
+        _dateRangeEditedInCurrentEditor = true;
+      });
       _applySelectionToDrafts();
     }
   }
@@ -1274,10 +1279,22 @@ class _FlowStudioPageState extends State<_FlowStudioPage>
         ? await _pickKemeticDate(initial: _endDate ?? _startDate)
         : await _pickGregorianDate(initial: _endDate ?? _startDate);
     if (picked != null) {
-      setState(() => _endDate = _dateOnly(picked));
+      setState(() {
+        _endDate = _dateOnly(picked);
+        _dateRangeEditedInCurrentEditor = true;
+      });
       _applySelectionToDrafts();
     }
   }
+
+  bool get _isEditingFlowContext =>
+      _editing != null ||
+      widget.editFlowId != null ||
+      widget.importData != null;
+
+  bool get _shouldSeedAiGenerationModalWithManualRange =>
+      _hasFullRange &&
+      (_isEditingFlowContext || _dateRangeEditedInCurrentEditor);
 
   // ---------- Overview support ----------
 
@@ -1699,11 +1716,17 @@ class _FlowStudioPageState extends State<_FlowStudioPage>
 
   /// Show AI Flow Generation Modal
   Future<void> _showAIGenerationModal() async {
+    final seedManualRange = _shouldSeedAiGenerationModalWithManualRange;
+    final seedCurrentStart = seedManualRange || _dateRangeEditedInCurrentEditor;
     final result = await showModalBottomSheet<AIFlowGenerationResponse>(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (context) => const AIFlowGenerationModal(),
+      builder: (context) => AIFlowGenerationModal(
+        initialStartDate: seedCurrentStart ? _startDate : null,
+        initialEndDate: seedManualRange ? _endDate : null,
+        initialDateRangeIsManual: seedManualRange,
+      ),
     );
 
     if (!mounted || result == null) return;
@@ -2198,6 +2221,7 @@ class _FlowStudioPageState extends State<_FlowStudioPage>
       _useKemetic = false;
       _startDate = null;
       _endDate = null;
+      _dateRangeEditedInCurrentEditor = false;
       _splitByPeriod = false;
 
       _selectedDecanDays.clear();
@@ -2256,6 +2280,7 @@ class _FlowStudioPageState extends State<_FlowStudioPage>
 
       _startDate = f.start == null ? null : _dateOnly(f.start!);
       _endDate = f.end == null ? null : _dateOnly(f.end!);
+      _dateRangeEditedInCurrentEditor = _hasFullRange;
 
       final meta = notesDecode(f.notes);
       _useKemetic = meta.kemetic;
@@ -2405,6 +2430,7 @@ class _FlowStudioPageState extends State<_FlowStudioPage>
       final meta = notesDecode(flowObj.notes);
       _startDate = flowObj.start == null ? null : _dateOnly(flowObj.start!);
       _endDate = flowObj.end == null ? null : _dateOnly(flowObj.end!);
+      _dateRangeEditedInCurrentEditor = _hasFullRange;
       _useKemetic = meta.kemetic;
       _splitByPeriod = true; // Force customize mode for AI flows
 
@@ -2697,6 +2723,7 @@ class _FlowStudioPageState extends State<_FlowStudioPage>
     // Match AI flow path EXACTLY: set dates OUTSIDE setState
     _startDate = startDate;
     _endDate = endDate;
+    _dateRangeEditedInCurrentEditor = _hasFullRange;
     _useKemetic = meta.kemetic;
     _splitByPeriod = true; // imported flows behave like customize mode
     _syncReady = true;
@@ -3036,6 +3063,7 @@ class _FlowStudioPageState extends State<_FlowStudioPage>
       final requestedEndDate = data.suggestedEndDate != null
           ? _dateOnly(data.suggestedEndDate!)
           : null;
+      _dateRangeEditedInCurrentEditor = data.suggestedStartDate != null;
 
       // For AI imports (payloadId == 'ai-local'), force Gregorian/simple mode
       final isAiImport = data.share.payloadId == 'ai-local';
