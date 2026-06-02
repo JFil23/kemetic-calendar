@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -112,6 +113,149 @@ void main() {
 
       expect(googleCalls, 1);
     });
+
+    testWidgets('sends password reset email from forgot password action', (
+      tester,
+    ) async {
+      final auth = _FakeEmailAuthClient();
+
+      await _pumpLoginScreen(tester, auth: auth);
+      await tester.enterText(
+        find.widgetWithText(TextField, 'Email'),
+        'person@example.com',
+      );
+      await tester.tap(find.text('Forgot password?'));
+      await tester.pump();
+
+      expect(auth.calls, [
+        const _EmailAuthCall(
+          kind: _EmailAuthCallKind.sendPasswordResetEmail,
+          email: 'person@example.com',
+        ),
+      ]);
+      expect(find.text(passwordResetEmailSentMessage), findsOneWidget);
+    });
+
+    testWidgets('shows readable password reset email failures', (tester) async {
+      final auth = _FakeEmailAuthClient(
+        passwordResetEmailError: TimeoutException('timed out'),
+      );
+
+      await _pumpLoginScreen(tester, auth: auth);
+      await tester.enterText(
+        find.widgetWithText(TextField, 'Email'),
+        'person@example.com',
+      );
+      await tester.tap(find.text('Forgot password?'));
+      await tester.pump();
+
+      expect(
+        find.text('Network error. Check your connection and try again.'),
+        findsOneWidget,
+      );
+      final forgotPasswordButton = tester.widget<TextButton>(
+        find.widgetWithText(TextButton, 'Forgot password?'),
+      );
+      expect(forgotPasswordButton.onPressed, isNotNull);
+    });
+
+    testWidgets('requires email before sending a password reset email', (
+      tester,
+    ) async {
+      final auth = _FakeEmailAuthClient();
+
+      await _pumpLoginScreen(tester, auth: auth);
+      await tester.tap(find.text('Forgot password?'));
+      await tester.pump();
+
+      expect(auth.calls, isEmpty);
+      expect(find.text('Enter your email address first.'), findsOneWidget);
+    });
+  });
+
+  group('PasswordRecoveryScreen', () {
+    testWidgets('updates password and continues into the app', (tester) async {
+      var continued = false;
+      final auth = _FakeEmailAuthClient();
+
+      await _pumpPasswordRecoveryScreen(
+        tester,
+        auth: auth,
+        onPasswordUpdated: () async {
+          continued = true;
+        },
+      );
+      await tester.enterText(
+        find.widgetWithText(TextField, 'New password'),
+        'newpassword123',
+      );
+      await tester.enterText(
+        find.widgetWithText(TextField, 'Confirm password'),
+        'newpassword123',
+      );
+      await tester.tap(find.widgetWithText(FilledButton, 'Update password'));
+      await tester.pump();
+
+      expect(auth.calls, [
+        const _EmailAuthCall(
+          kind: _EmailAuthCallKind.updatePassword,
+          password: 'newpassword123',
+        ),
+      ]);
+      expect(find.text(passwordUpdatedMessage), findsOneWidget);
+      expect(find.widgetWithText(FilledButton, 'Continue'), findsOneWidget);
+
+      await tester.tap(find.widgetWithText(FilledButton, 'Continue'));
+      await tester.pump();
+
+      expect(continued, isTrue);
+    });
+
+    testWidgets('shows readable update password failures', (tester) async {
+      final auth = _FakeEmailAuthClient(
+        updatePasswordError: const AuthException(
+          'Password should be at least 12 characters',
+          code: 'weak_password',
+        ),
+      );
+
+      await _pumpPasswordRecoveryScreen(tester, auth: auth);
+      await tester.enterText(
+        find.widgetWithText(TextField, 'New password'),
+        'newpassword123',
+      );
+      await tester.enterText(
+        find.widgetWithText(TextField, 'Confirm password'),
+        'newpassword123',
+      );
+      await tester.tap(find.widgetWithText(FilledButton, 'Update password'));
+      await tester.pump();
+
+      expect(find.text('Use a stronger password.'), findsOneWidget);
+      final updateButton = tester.widget<FilledButton>(
+        find.widgetWithText(FilledButton, 'Update password'),
+      );
+      expect(updateButton.onPressed, isNotNull);
+    });
+
+    testWidgets('validates matching passwords before updating', (tester) async {
+      final auth = _FakeEmailAuthClient();
+
+      await _pumpPasswordRecoveryScreen(tester, auth: auth);
+      await tester.enterText(
+        find.widgetWithText(TextField, 'New password'),
+        'newpassword123',
+      );
+      await tester.enterText(
+        find.widgetWithText(TextField, 'Confirm password'),
+        'different123',
+      );
+      await tester.tap(find.widgetWithText(FilledButton, 'Update password'));
+      await tester.pump();
+
+      expect(auth.calls, isEmpty);
+      expect(find.text('Passwords do not match.'), findsOneWidget);
+    });
   });
 
   group('email auth error messages', () {
@@ -165,6 +309,27 @@ void main() {
       );
     });
   });
+
+  group('auth redirect guard', () {
+    test('recovery and OAuth use the registered native callback', () async {
+      final loginSource = await File(
+        'lib/features/auth/login_screen.dart',
+      ).readAsString();
+      final mainSource = await File('lib/main.dart').readAsString();
+      final androidManifest = await File(
+        'android/app/src/main/AndroidManifest.xml',
+      ).readAsString();
+      final iosInfoPlist = await File('ios/Runner/Info.plist').readAsString();
+
+      expect(loginSource, contains('resetPasswordForEmail('));
+      expect(loginSource, contains('redirectTo: _authRedirectTo()'));
+      expect(loginSource, contains("'kemet.app://login-callback'"));
+      expect(mainSource, contains("'kemet.app://login-callback'"));
+      expect(androidManifest, contains('android:scheme="kemet.app"'));
+      expect(androidManifest, contains('android:host="login-callback"'));
+      expect(iosInfoPlist, contains('<string>kemet.app</string>'));
+    });
+  });
 }
 
 Future<void> _pumpLoginScreen(
@@ -178,6 +343,24 @@ Future<void> _pumpLoginScreen(
       home: LoginScreen(
         emailAuthClient: auth,
         onGoogleSignIn: onGoogleSignIn ?? () async {},
+      ),
+    ),
+  );
+}
+
+Future<void> _pumpPasswordRecoveryScreen(
+  WidgetTester tester, {
+  required EmailAuthClient auth,
+  Future<void> Function()? onPasswordUpdated,
+  Future<void> Function()? onCancel,
+}) async {
+  await tester.pumpWidget(
+    MaterialApp(
+      theme: AppTheme.dark,
+      home: PasswordRecoveryScreen(
+        emailAuthClient: auth,
+        onPasswordUpdated: onPasswordUpdated ?? () async {},
+        onCancel: onCancel ?? () async {},
       ),
     ),
   );
@@ -204,11 +387,15 @@ class _FakeEmailAuthClient implements EmailAuthClient {
     this.createAccountResult = const EmailAuthResult(hasSession: true),
     this.signInResult = const EmailAuthResult(hasSession: true),
     this.signInError,
+    this.passwordResetEmailError,
+    this.updatePasswordError,
   });
 
   final EmailAuthResult createAccountResult;
   final EmailAuthResult signInResult;
   final Object? signInError;
+  final Object? passwordResetEmailError;
+  final Object? updatePasswordError;
   final List<_EmailAuthCall> calls = [];
 
   @override
@@ -242,20 +429,45 @@ class _FakeEmailAuthClient implements EmailAuthClient {
     if (error != null) throw error;
     return signInResult;
   }
+
+  @override
+  Future<void> sendPasswordResetEmail({required String email}) async {
+    calls.add(
+      _EmailAuthCall(
+        kind: _EmailAuthCallKind.sendPasswordResetEmail,
+        email: email,
+      ),
+    );
+    final error = passwordResetEmailError;
+    if (error != null) throw error;
+  }
+
+  @override
+  Future<void> updatePassword({required String password}) async {
+    calls.add(
+      _EmailAuthCall(
+        kind: _EmailAuthCallKind.updatePassword,
+        password: password,
+      ),
+    );
+    final error = updatePasswordError;
+    if (error != null) throw error;
+  }
 }
 
-enum _EmailAuthCallKind { createAccount, signIn }
+enum _EmailAuthCallKind {
+  createAccount,
+  signIn,
+  sendPasswordResetEmail,
+  updatePassword,
+}
 
 class _EmailAuthCall {
-  const _EmailAuthCall({
-    required this.kind,
-    required this.email,
-    required this.password,
-  });
+  const _EmailAuthCall({required this.kind, this.email, this.password});
 
   final _EmailAuthCallKind kind;
-  final String email;
-  final String password;
+  final String? email;
+  final String? password;
 
   @override
   bool operator ==(Object other) {

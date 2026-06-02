@@ -1305,12 +1305,20 @@ class _MyAppState extends State<MyApp> {
   StreamSubscription<Uri>? _linkSub;
   AppLinks? _appLinks;
   bool _rebuildScheduled = false;
+  bool _passwordRecoverySession = false;
 
   @override
   void initState() {
     super.initState();
     _authSub = supabase.auth.onAuthStateChange.listen(
-      (_) => _scheduleRebuild(),
+      (data) {
+        if (data.event == AuthChangeEvent.passwordRecovery) {
+          _passwordRecoverySession = true;
+        } else if (data.event == AuthChangeEvent.signedOut) {
+          _passwordRecoverySession = false;
+        }
+        _scheduleRebuild();
+      },
       onError: (Object error, StackTrace stackTrace) {
         if (!kDebugMode) return;
         debugPrint('[MyApp] auth state stream failed: $error');
@@ -1422,6 +1430,30 @@ class _MyAppState extends State<MyApp> {
     );
   }
 
+  Widget _buildPasswordRecoveryApp() {
+    return MaterialApp(
+      debugShowCheckedModeBanner: false,
+      theme: AppTheme.dark,
+      builder: (context, child) {
+        return _scaledMediaQuery(
+          context: context,
+          child: child ?? const SizedBox.shrink(),
+        );
+      },
+      home: PasswordRecoveryScreen(
+        onPasswordUpdated: () async {
+          _passwordRecoverySession = false;
+          _scheduleRebuild();
+        },
+        onCancel: () async {
+          _passwordRecoverySession = false;
+          await supabase.auth.signOut();
+          _scheduleRebuild();
+        },
+      ),
+    );
+  }
+
   Widget _buildAuthedApp() {
     return MaterialApp.router(
       debugShowCheckedModeBanner: false,
@@ -1449,6 +1481,9 @@ class _MyAppState extends State<MyApp> {
   @override
   Widget build(BuildContext context) {
     final signedIn = supabase.auth.currentSession != null;
+    if (signedIn && _passwordRecoverySession) {
+      return _buildPasswordRecoveryApp();
+    }
     return signedIn ? _buildAuthedApp() : _buildLoginApp();
   }
 }

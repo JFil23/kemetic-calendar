@@ -8,6 +8,9 @@ import '../../shared/glossy_text.dart';
 
 const String emailConfirmationRequiredMessage =
     'Check your email to confirm your account, then sign in.';
+const String passwordResetEmailSentMessage =
+    'Check your email for a password reset link.';
+const String passwordUpdatedMessage = 'Password updated.';
 
 abstract class EmailAuthClient {
   Future<EmailAuthResult> createAccount({
@@ -19,6 +22,10 @@ abstract class EmailAuthClient {
     required String email,
     required String password,
   });
+
+  Future<void> sendPasswordResetEmail({required String email});
+
+  Future<void> updatePassword({required String password});
 }
 
 class EmailAuthResult {
@@ -56,6 +63,20 @@ class SupabaseEmailAuthClient implements EmailAuthClient {
         .signInWithPassword(email: email, password: password)
         .timeout(_requestTimeout);
     return EmailAuthResult(hasSession: response.session != null);
+  }
+
+  @override
+  Future<void> sendPasswordResetEmail({required String email}) async {
+    await Supabase.instance.client.auth
+        .resetPasswordForEmail(email, redirectTo: _authRedirectTo())
+        .timeout(_requestTimeout);
+  }
+
+  @override
+  Future<void> updatePassword({required String password}) async {
+    await Supabase.instance.client.auth
+        .updateUser(UserAttributes(password: password))
+        .timeout(_requestTimeout);
   }
 }
 
@@ -128,6 +149,14 @@ String emailAuthMessageForUnexpectedError(Object error) {
     return 'Network error. Check your connection and try again.';
   }
   return 'Sign-in failed. Try again.';
+}
+
+@visibleForTesting
+String passwordResetMessageForUnexpectedError(Object error) {
+  if (_looksLikeNetworkError(error)) {
+    return 'Network error. Check your connection and try again.';
+  }
+  return 'Password reset failed. Try again.';
 }
 
 bool _looksLikeNetworkError(Object error) {
@@ -252,6 +281,49 @@ class _LoginScreenState extends State<LoginScreen> {
 
   bool _looksLikeEmail(String email) {
     return RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$').hasMatch(email);
+  }
+
+  Future<void> _sendPasswordResetEmail() async {
+    final email = _emailController.text.trim();
+    if (!_looksLikeEmail(email)) {
+      setState(() {
+        _message = 'Enter your email address first.';
+      });
+      return;
+    }
+
+    FocusScope.of(context).unfocus();
+    setState(() {
+      _busy = true;
+      _message = null;
+    });
+
+    try {
+      await widget.emailAuthClient.sendPasswordResetEmail(email: email);
+      if (!mounted) return;
+      setState(() {
+        _message = passwordResetEmailSentMessage;
+      });
+    } on AuthException catch (error) {
+      if (!mounted) return;
+      setState(() {
+        _message = emailAuthMessageForAuthException(
+          error,
+          creatingAccount: false,
+        );
+      });
+    } catch (error) {
+      if (!mounted) return;
+      setState(() {
+        _message = passwordResetMessageForUnexpectedError(error);
+      });
+    } finally {
+      if (mounted) {
+        setState(() {
+          _busy = false;
+        });
+      }
+    }
   }
 
   Future<void> _submitGoogleAuth() async {
@@ -384,6 +456,16 @@ class _LoginScreenState extends State<LoginScreen> {
                               ),
                             ),
                           ),
+                          if (!_creatingAccount)
+                            SizedBox(
+                              width: double.infinity,
+                              child: TextButton(
+                                onPressed: _busy
+                                    ? null
+                                    : _sendPasswordResetEmail,
+                                child: const Text('Forgot password?'),
+                              ),
+                            ),
                           const Padding(
                             padding: EdgeInsets.symmetric(vertical: 8),
                             child: Row(
@@ -426,6 +508,227 @@ class _LoginScreenState extends State<LoginScreen> {
                           ],
                         ],
                       ),
+                    ),
+                  ),
+                ),
+              ],
+            );
+          },
+        ),
+      ),
+    );
+  }
+}
+
+class PasswordRecoveryScreen extends StatefulWidget {
+  const PasswordRecoveryScreen({
+    super.key,
+    required this.onPasswordUpdated,
+    required this.onCancel,
+    EmailAuthClient? emailAuthClient,
+  }) : emailAuthClient = emailAuthClient ?? const SupabaseEmailAuthClient();
+
+  final Future<void> Function() onPasswordUpdated;
+  final Future<void> Function() onCancel;
+  final EmailAuthClient emailAuthClient;
+
+  @override
+  State<PasswordRecoveryScreen> createState() => _PasswordRecoveryScreenState();
+}
+
+class _PasswordRecoveryScreenState extends State<PasswordRecoveryScreen> {
+  final _passwordController = TextEditingController();
+  final _confirmPasswordController = TextEditingController();
+
+  bool _busy = false;
+  bool _passwordUpdated = false;
+  String? _message;
+
+  @override
+  void dispose() {
+    _passwordController.dispose();
+    _confirmPasswordController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _updatePassword() async {
+    final password = _passwordController.text;
+    final confirmPassword = _confirmPasswordController.text;
+    if (password.length < 8) {
+      setState(() {
+        _message = 'Enter a new password with at least 8 characters.';
+      });
+      return;
+    }
+    if (password != confirmPassword) {
+      setState(() {
+        _message = 'Passwords do not match.';
+      });
+      return;
+    }
+
+    FocusScope.of(context).unfocus();
+    setState(() {
+      _busy = true;
+      _message = null;
+    });
+
+    try {
+      await widget.emailAuthClient.updatePassword(password: password);
+      if (!mounted) return;
+      setState(() {
+        _passwordUpdated = true;
+        _message = passwordUpdatedMessage;
+      });
+    } on AuthException catch (error) {
+      if (!mounted) return;
+      setState(() {
+        _message = emailAuthMessageForAuthException(
+          error,
+          creatingAccount: true,
+        );
+      });
+    } catch (error) {
+      if (!mounted) return;
+      setState(() {
+        _message = passwordResetMessageForUnexpectedError(error);
+      });
+    } finally {
+      if (mounted) {
+        setState(() {
+          _busy = false;
+        });
+      }
+    }
+  }
+
+  Future<void> _continueAfterUpdate() async {
+    setState(() {
+      _busy = true;
+    });
+    try {
+      await widget.onPasswordUpdated();
+    } finally {
+      if (mounted) {
+        setState(() {
+          _busy = false;
+        });
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final textTheme = Theme.of(context).textTheme;
+
+    return Scaffold(
+      backgroundColor: Colors.black,
+      body: SafeArea(
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final topPadding = ((constraints.maxHeight - 420) / 2).clamp(
+              24.0,
+              160.0,
+            );
+
+            return ListView(
+              keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+              padding: EdgeInsets.fromLTRB(24, topPadding, 24, 24),
+              children: [
+                Align(
+                  alignment: Alignment.topCenter,
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 420),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        KemeticGold.text(
+                          'Set a new password',
+                          textAlign: TextAlign.center,
+                          style: const TextStyle(
+                            fontSize: 30,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        Text(
+                          'Choose a new password for your account.',
+                          textAlign: TextAlign.center,
+                          style: textTheme.titleMedium?.copyWith(
+                            color: Colors.white70,
+                          ),
+                        ),
+                        const SizedBox(height: 28),
+                        TextField(
+                          controller: _passwordController,
+                          enabled: !_busy && !_passwordUpdated,
+                          obscureText: true,
+                          textInputAction: TextInputAction.next,
+                          autofillHints: const [AutofillHints.newPassword],
+                          decoration: const InputDecoration(
+                            labelText: 'New password',
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        TextField(
+                          controller: _confirmPasswordController,
+                          enabled: !_busy && !_passwordUpdated,
+                          obscureText: true,
+                          textInputAction: TextInputAction.done,
+                          autofillHints: const [AutofillHints.newPassword],
+                          decoration: const InputDecoration(
+                            labelText: 'Confirm password',
+                          ),
+                          onSubmitted: (_) {
+                            if (!_busy && !_passwordUpdated) {
+                              _updatePassword();
+                            }
+                          },
+                        ),
+                        const SizedBox(height: 16),
+                        SizedBox(
+                          width: double.infinity,
+                          child: FilledButton(
+                            onPressed: _busy
+                                ? null
+                                : _passwordUpdated
+                                ? _continueAfterUpdate
+                                : _updatePassword,
+                            style: FilledButton.styleFrom(
+                              backgroundColor: KemeticGold.base,
+                              foregroundColor: Colors.black,
+                            ),
+                            child: Text(
+                              _passwordUpdated ? 'Continue' : 'Update password',
+                              style: const TextStyle(
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                          ),
+                        ),
+                        SizedBox(
+                          width: double.infinity,
+                          child: TextButton(
+                            onPressed: _busy ? null : widget.onCancel,
+                            child: KemeticGold.text(
+                              'Back to sign in',
+                              maxLines: 1,
+                              textAlign: TextAlign.center,
+                              style: const TextStyle(
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ),
+                        ),
+                        if (_message != null) ...[
+                          const SizedBox(height: 12),
+                          Text(
+                            _message!,
+                            textAlign: TextAlign.center,
+                            style: const TextStyle(color: Colors.white70),
+                          ),
+                        ],
+                      ],
                     ),
                   ),
                 ),
