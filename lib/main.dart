@@ -988,6 +988,8 @@ Map<String, dynamic>? _pushIntentDataFromQuery(Map<String, String> params) {
       'client_event_id': params['client_event_id'] ?? params['clientEventId'],
     if (_trimmedPushValue(params['item_type'] ?? params['itemType']) != null)
       'item_type': params['item_type'] ?? params['itemType'],
+    if (_trimmedPushValue(params['item_id'] ?? params['itemId']) != null)
+      'item_id': params['item_id'] ?? params['itemId'],
     if (_trimmedPushValue(params['k_year'] ?? params['kYear']) != null)
       'k_year': params['k_year'] ?? params['kYear'],
     if (_trimmedPushValue(params['k_month'] ?? params['kMonth']) != null)
@@ -1004,6 +1006,10 @@ Map<String, dynamic>? _pushIntentDataFromQuery(Map<String, String> params) {
     if (_trimmedPushValue(params['reminder_id'] ?? params['reminderId']) !=
         null)
       'reminder_id': params['reminder_id'] ?? params['reminderId'],
+    if (_trimmedPushValue(params['note_id'] ?? params['noteId']) != null)
+      'note_id': params['note_id'] ?? params['noteId'],
+    if (_trimmedPushValue(params['task_id'] ?? params['taskId']) != null)
+      'task_id': params['task_id'] ?? params['taskId'],
     if (_trimmedPushValue(params['delivery_key'] ?? params['deliveryKey']) !=
         null)
       'delivery_key': params['delivery_key'] ?? params['deliveryKey'],
@@ -1094,7 +1100,8 @@ String? _initialLocationFromPushData(
     return '/flow-post/${Uri.encodeComponent(flowPostId)}$comments';
   }
 
-  if (kind == 'calendar_event' ||
+  if (kind == 'shared_calendar_item_added' ||
+      kind == 'calendar_event' ||
       kind == 'scheduled_notification' ||
       kind == 'reminder_10min' ||
       (clientEventId != null && kind == 'reminder') ||
@@ -2631,7 +2638,8 @@ class _PushIntentBridgeState extends State<PushIntentBridge> {
       return true;
     }
 
-    if (kind == 'calendar_event' ||
+    if (kind == 'shared_calendar_item_added' ||
+        kind == 'calendar_event' ||
         kind == 'scheduled_notification' ||
         kind == 'reminder_10min' ||
         (clientEventId != null && kind == 'reminder') ||

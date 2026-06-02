@@ -5923,6 +5923,7 @@ class CalendarPage extends StatefulWidget {
     // Saves
     if (r.savedFlow == null) return null;
     final f = r.savedFlow!;
+    final isNewFlowSave = f.id <= 0;
     final rulesJson = jsonEncode(
       f.rules.map(CalendarPageState.ruleToJson).toList(),
     );
@@ -5963,6 +5964,7 @@ class CalendarPage extends StatefulWidget {
 
     // Persist planned notes (with individual titles)
     final clientEventIds = <String>[];
+    String? firstClientEventId;
     if (r.plannedNotes.isNotEmpty) {
       final eventFiling = EventFilingService();
       for (final p in r.plannedNotes) {
@@ -6015,6 +6017,7 @@ class CalendarPage extends StatefulWidget {
           behaviorPayload: n.behaviorPayload,
           caller: 'flow_save_notes',
         );
+        firstClientEventId ??= savedEvent.clientEventId ?? cid;
 
         final bodyLines = <String>[
           if ((n.location ?? '').trim().isNotEmpty) n.location!.trim(),
@@ -6035,6 +6038,21 @@ class CalendarPage extends StatefulWidget {
           flowId: savedId,
         );
       }
+    }
+
+    if (isNewFlowSave) {
+      await SharedCalendarsRepo(
+        Supabase.instance.client,
+      ).notifySharedCalendarItemAdded(
+        calendarId: f.calendarId,
+        itemType: 'flow',
+        itemId: savedId.toString(),
+        itemTitle: f.name,
+        clientEventId: firstClientEventId,
+        flowId: savedId,
+        startDate: f.start,
+        endDate: f.end,
+      );
     }
 
     _publishHeadlessCalendarInvalidation(
@@ -9174,12 +9192,17 @@ class CalendarPageState extends State<CalendarPage>
     await repo.update(id: eventId, calendarId: calendarId);
     final optimisticTarget = _detailSheetTargetWithCalendar(target, calendarId);
     _applyDetailSheetCalendarToCache(target, calendarId);
-    await _notifySharedCalendarMembers(
+    await _notifySharedCalendarItemAdded(
       calendarId: calendarId,
-      title: _calendarDisplayName(calendarId),
-      body: 'Updated event: ${target.event.title}',
+      itemType: 'event',
+      itemId: eventId,
+      itemTitle: target.event.title,
       clientEventId: clientEventId,
-      data: <String, dynamic>{'event_id': eventId},
+      eventId: eventId,
+      startDate: KemeticMath.toGregorian(target.ky, target.km, target.kd),
+      kYear: target.ky,
+      kMonth: target.km,
+      kDay: target.kd,
     );
     final refreshed = await _refreshDetailTargetAfterCalendarChange(
       optimisticTarget,
@@ -9210,12 +9233,17 @@ class CalendarPageState extends State<CalendarPage>
     final optimisticTarget = _detailSheetTargetWithCalendar(target, calendarId);
     _applyDetailSheetCalendarToCache(target, calendarId);
 
-    await _notifySharedCalendarMembers(
+    await _notifySharedCalendarItemAdded(
       calendarId: calendarId,
-      title: _calendarDisplayName(calendarId),
-      body: 'Flow updated: $flowName',
+      itemType: 'flow',
+      itemId: flowId.toString(),
+      itemTitle: flowName,
       clientEventId: target.event.clientEventId,
-      data: <String, dynamic>{'flow_id': flowId},
+      flowId: flowId,
+      startDate: KemeticMath.toGregorian(target.ky, target.km, target.kd),
+      kYear: target.ky,
+      kMonth: target.km,
+      kDay: target.kd,
     );
     final refreshed = await _refreshDetailTargetAfterCalendarChange(
       optimisticTarget,
@@ -9242,6 +9270,29 @@ class CalendarPageState extends State<CalendarPage>
     }
 
     await _upsertReminderRule(rule.copyWith(calendarId: calendarId));
+    final dbUuid = _dbReminderUuidFromRuleId(rule.id);
+    final targetFlowId = target.event.flowId;
+    final flowId = targetFlowId != null && targetFlowId > 0
+        ? targetFlowId
+        : dbUuid == null
+        ? null
+        : await _findFlowIdByReminderUuid(dbUuid);
+    await _notifySharedCalendarItemAdded(
+      calendarId: calendarId,
+      itemType: 'reminder',
+      itemId: (flowId ?? reminderId).toString(),
+      itemTitle: rule.title,
+      clientEventId: target.event.clientEventId,
+      flowId: flowId,
+      reminderId: dbUuid ?? reminderId,
+      startDate: rule.startLocal,
+      endDate: rule.endLocal == null
+          ? null
+          : DateUtils.dateOnly(rule.endLocal!),
+      kYear: target.ky,
+      kMonth: target.km,
+      kDay: target.kd,
+    );
     final optimisticTarget = _detailSheetTargetWithCalendar(target, calendarId);
     _applyDetailSheetCalendarToCache(target, calendarId);
     if (!mounted) return null;
@@ -9336,6 +9387,45 @@ class CalendarPageState extends State<CalendarPage>
       title: title,
       body: body,
       data: payload,
+    );
+  }
+
+  Future<void> _notifySharedCalendarItemAdded({
+    required String? calendarId,
+    required String itemType,
+    required String itemId,
+    String? itemTitle,
+    String? clientEventId,
+    int? flowId,
+    String? eventId,
+    String? noteId,
+    String? reminderId,
+    String? taskId,
+    DateTime? startDate,
+    DateTime? endDate,
+    int? kYear,
+    int? kMonth,
+    int? kDay,
+  }) async {
+    final trimmedCalendarId = _normalizeCalendarId(calendarId);
+    if (trimmedCalendarId == null) return;
+
+    await _sharedCalendarsRepo.notifySharedCalendarItemAdded(
+      calendarId: trimmedCalendarId,
+      itemType: itemType,
+      itemId: itemId,
+      itemTitle: itemTitle,
+      clientEventId: clientEventId,
+      flowId: flowId,
+      eventId: eventId,
+      noteId: noteId,
+      reminderId: reminderId,
+      taskId: taskId,
+      startDate: startDate,
+      endDate: endDate,
+      kYear: kYear,
+      kMonth: kMonth,
+      kDay: kDay,
     );
   }
 
@@ -13102,17 +13192,18 @@ class CalendarPageState extends State<CalendarPage>
     }
     try {
       final flowsRepo = FlowsRepo(Supabase.instance.client);
+      final existingReminderFlowId = dbUuid == null
+          ? null
+          : await _findFlowIdByReminderUuid(dbUuid);
+      final isNewReminderFlow = existingReminderFlowId == null;
       final rulesJson =
           <Map<String, dynamic>>[]; // reminder recurrence handled separately
       FlowRow saved;
       if (rule.id.isNotEmpty) {
         // Try to find existing flow by reminder UUID
-        final existingId = dbUuid == null
-            ? null
-            : await _findFlowIdByReminderUuid(dbUuid);
-        if (existingId != null) {
+        if (existingReminderFlowId != null) {
           saved = await flowsRepo.upsert(
-            id: existingId,
+            id: existingReminderFlowId,
             name: effectiveRule.title,
             color: effectiveRule.color.toARGB32() & 0x00FFFFFF,
             active: effectiveRule.active,
@@ -13165,7 +13256,7 @@ class CalendarPageState extends State<CalendarPage>
       await _syncReminderEvents(refreshUi: false);
       // Refresh flows/reminders
       await _loadFromDisk();
-      if (effectiveCalendarId != null) {
+      if (effectiveCalendarId != null && isNewReminderFlow) {
         final windowStart = DateUtils.dateOnly(DateTime.now());
         final windowEnd = _reminderWindowEnd(windowStart, [effectiveRule]);
         final occurrences = _generateReminderOccurrences(
@@ -13180,15 +13271,16 @@ class CalendarPageState extends State<CalendarPage>
               '${firstDate.year.toString().padLeft(4, '0')}-${firstDate.month.toString().padLeft(2, '0')}-${firstDate.day.toString().padLeft(2, '0')}';
           clientEventId = 'reminder:${effectiveRule.id}:$cidDate';
         }
-        await _notifySharedCalendarMembers(
+        await _notifySharedCalendarItemAdded(
           calendarId: effectiveCalendarId,
-          title: _calendarDisplayName(effectiveCalendarId),
-          body: 'Reminder updated: ${effectiveRule.title}',
+          itemType: 'reminder',
+          itemId: saved.id.toString(),
+          itemTitle: effectiveRule.title,
           clientEventId: clientEventId,
-          data: <String, dynamic>{
-            'reminder_id': effectiveRule.id,
-            'flow_id': saved.id,
-          },
+          flowId: saved.id,
+          reminderId: dbUuid ?? effectiveRule.id,
+          startDate: effectiveRule.startLocal,
+          endDate: effectiveEndDate,
         );
       }
     } catch (e, st) {
@@ -17734,12 +17826,15 @@ class CalendarPageState extends State<CalendarPage>
     if (!notesAlreadyPersisted &&
         edited.savedFlow != null &&
         finalFlowId != null) {
-      await _notifySharedCalendarMembers(
+      await _notifySharedCalendarItemAdded(
         calendarId: flowCalendarId,
-        title: _calendarDisplayName(flowCalendarId),
-        body: 'Flow updated: ${edited.savedFlow!.name}',
+        itemType: 'flow',
+        itemId: finalFlowId.toString(),
+        itemTitle: edited.savedFlow!.name,
         clientEventId: firstClientEventId,
-        data: <String, dynamic>{'flow_id': finalFlowId},
+        flowId: finalFlowId,
+        startDate: edited.savedFlow!.start,
+        endDate: edited.savedFlow!.end,
       );
     }
     _showNotificationScheduleWarning(notificationWarning);
@@ -25957,6 +26052,7 @@ class CalendarPageState extends State<CalendarPage>
   // AFTER
   Future<int?> _persistFlowStudioResult(_FlowStudioResult r) async {
     final repo = UserEventsRepo(Supabase.instance.client);
+    final isNewFlowSave = r.savedFlow != null && r.savedFlow!.id <= 0;
 
     // 1) Deletes take precedence
     final deleteId = r.deleteFlowId;
@@ -26103,6 +26199,22 @@ class CalendarPageState extends State<CalendarPage>
     final isAIFlow = aiGenerated is bool && aiGenerated;
     String? firstClientEventId;
     String? notificationWarning;
+    bool flowAdditionNotified = false;
+
+    Future<void> notifyFlowAdditionIfNeeded() async {
+      if (flowAdditionNotified || !isNewFlowSave || saved == null) return;
+      flowAdditionNotified = true;
+      await _notifySharedCalendarItemAdded(
+        calendarId: saved.calendarId,
+        itemType: 'flow',
+        itemId: saved.id.toString(),
+        itemTitle: saved.name,
+        clientEventId: firstClientEventId,
+        flowId: saved.id,
+        startDate: saved.start,
+        endDate: saved.end,
+      );
+    }
 
     if (r.plannedNotes.isNotEmpty) {
       final repo2 = UserEventsRepo(Supabase.instance.client);
@@ -26240,6 +26352,7 @@ class CalendarPageState extends State<CalendarPage>
             '[persistFlowStudio] ✅ Skipping scheduleFlowNotes - using plannedNotes with individual titles',
           );
         }
+        await notifyFlowAdditionIfNeeded();
         setState(() {});
         _notifyDayViewDataChanged();
         _showNotificationScheduleWarning(notificationWarning);
@@ -26330,7 +26443,9 @@ class CalendarPageState extends State<CalendarPage>
       }
     }
 
-    if (saved != null) {
+    if (saved != null && isNewFlowSave) {
+      await notifyFlowAdditionIfNeeded();
+    } else if (saved != null) {
       await _notifySharedCalendarMembers(
         calendarId: saved.calendarId,
         title: _calendarDisplayName(saved.calendarId),
@@ -26481,12 +26596,18 @@ class CalendarPageState extends State<CalendarPage>
         _showNotificationScheduleWarning(scheduleResult?.message);
       }
 
-      await _notifySharedCalendarMembers(
-        calendarId: calendarId,
-        title: _calendarDisplayName(calendarId),
-        body: 'New event: $title',
+      await _notifySharedCalendarItemAdded(
+        calendarId: updated.calendarId ?? calendarId,
+        itemType: 'event',
+        itemId: updated.id,
+        itemTitle: title,
         clientEventId: savedClientEventId,
-        data: <String, dynamic>{'event_id': updated.id},
+        eventId: updated.id,
+        startDate: gDay,
+        endDate: endsAtUtc?.toLocal(),
+        kYear: selYear,
+        kMonth: selMonth,
+        kDay: selDay,
       );
 
       // Also log to app_events for analytics
@@ -26828,20 +26949,36 @@ class CalendarPageState extends State<CalendarPage>
     await _triggerFlowSchedule(flowId);
 
     String? firstClientEventId;
+    String? firstEventId;
     try {
       final events = await repo.getEventsForFlow(flowId);
       if (events.isNotEmpty) {
         firstClientEventId = events.first.clientEventId;
+        firstEventId = events.first.id;
       }
     } catch (_) {}
 
-    await _notifySharedCalendarMembers(
-      calendarId: flow.calendarId,
-      title: _calendarDisplayName(flow.calendarId),
-      body: 'Repeating note updated: $title',
-      clientEventId: firstClientEventId,
-      data: <String, dynamic>{'flow_id': flowId},
-    );
+    if (firstEventId != null) {
+      await _notifySharedCalendarItemAdded(
+        calendarId: flow.calendarId,
+        itemType: 'note',
+        itemId: firstEventId,
+        itemTitle: title,
+        clientEventId: firstClientEventId,
+        flowId: flowId,
+        noteId: firstEventId,
+        startDate: firstOccurrence,
+      );
+    } else {
+      await _notifySharedCalendarItemAdded(
+        calendarId: flow.calendarId,
+        itemType: 'flow',
+        itemId: flowId.toString(),
+        itemTitle: title,
+        flowId: flowId,
+        startDate: firstOccurrence,
+      );
+    }
 
     // 9. Refresh local caches so the new repeating note series shows up immediately.
     unawaited(_loadFromDisk(source: 'repeat_note_save'));

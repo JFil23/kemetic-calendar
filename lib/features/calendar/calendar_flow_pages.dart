@@ -587,12 +587,14 @@ class _FlowPreviewPageState extends State<_FlowPreviewPage> {
       } catch (_) {}
       final pageState = CalendarPage.globalKey.currentState;
       if (pageState != null) {
-        await pageState._notifySharedCalendarMembers(
+        await pageState._notifySharedCalendarItemAdded(
           calendarId: flow.calendarId,
-          title: pageState._calendarDisplayName(flow.calendarId),
-          body: 'Flow updated: ${flow.name}',
+          itemType: 'flow',
+          itemId: newId.toString(),
+          itemTitle: flow.name,
           clientEventId: firstClientEventId,
-          data: <String, dynamic>{'flow_id': newId},
+          flowId: newId,
+          startDate: startDate,
         );
       }
       if (!mounted) return;

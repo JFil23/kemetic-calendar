@@ -1075,6 +1075,70 @@ class SharedCalendarsRepo {
     }
   }
 
+  Future<void> notifySharedCalendarItemAdded({
+    required String? calendarId,
+    required String itemType,
+    required String itemId,
+    String? itemTitle,
+    String? clientEventId,
+    int? flowId,
+    String? eventId,
+    String? noteId,
+    String? reminderId,
+    String? taskId,
+    DateTime? startDate,
+    DateTime? endDate,
+    int? kYear,
+    int? kMonth,
+    int? kDay,
+  }) async {
+    String dateOnlyIso(DateTime value) {
+      final local = DateTime(value.year, value.month, value.day);
+      return local.toIso8601String();
+    }
+
+    final trimmedCalendarId = calendarId?.trim();
+    final trimmedItemType = itemType.trim();
+    final trimmedItemId = itemId.trim();
+    if (trimmedCalendarId == null ||
+        trimmedCalendarId.isEmpty ||
+        trimmedItemType.isEmpty ||
+        trimmedItemId.isEmpty) {
+      return;
+    }
+
+    try {
+      await _client.functions.invoke(
+        'notify_shared_calendar_item_added',
+        body: <String, dynamic>{
+          'calendar_id': trimmedCalendarId,
+          'item_type': trimmedItemType,
+          'item_id': trimmedItemId,
+          if (itemTitle != null && itemTitle.trim().isNotEmpty)
+            'item_title': itemTitle.trim(),
+          if (clientEventId != null && clientEventId.trim().isNotEmpty)
+            'client_event_id': clientEventId.trim(),
+          if (flowId != null && flowId > 0) 'flow_id': flowId,
+          if (eventId != null && eventId.trim().isNotEmpty)
+            'event_id': eventId.trim(),
+          if (noteId != null && noteId.trim().isNotEmpty)
+            'note_id': noteId.trim(),
+          if (reminderId != null && reminderId.trim().isNotEmpty)
+            'reminder_id': reminderId.trim(),
+          if (taskId != null && taskId.trim().isNotEmpty)
+            'task_id': taskId.trim(),
+          if (startDate != null) 'start_date': dateOnlyIso(startDate),
+          if (endDate != null) 'end_date': dateOnlyIso(endDate),
+          if (kYear != null) 'k_year': kYear,
+          if (kMonth != null) 'k_month': kMonth,
+          if (kDay != null) 'k_day': kDay,
+        },
+      );
+    } catch (e) {
+      _log('notifySharedCalendarItemAdded failed: $e');
+    }
+  }
+
   Future<({String name, int? colorValue})> _calendarPushMetadata({
     required String calendarId,
     String? fallbackName,
