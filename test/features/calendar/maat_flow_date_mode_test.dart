@@ -101,14 +101,14 @@ void main() {
     }
   });
 
-  test('sensitive Ma_at detail builders keep concise private notes', () {
+  test('sensitive Ma_at detail builders omit private-storage notes', () {
     for (final sourceFile in _sensitiveMaatEventDetailSourceFiles) {
       final source = File(sourceFile).readAsStringSync();
 
       expect(
         source,
-        contains('Private note:'),
-        reason: '$sourceFile should keep concise local/private guidance.',
+        isNot(contains('Private note:')),
+        reason: '$sourceFile should keep event details practice-focused.',
       );
     }
   });

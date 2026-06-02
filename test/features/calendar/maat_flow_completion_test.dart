@@ -92,14 +92,17 @@ void main() {
     },
   );
 
-  test('Days Outside detail keeps year threshold notes local only', () {
+  test('Days Outside detail keeps year threshold notes out of shares', () {
     final source = File(
       'lib/features/calendar/day_view.dart',
     ).readAsStringSync();
 
     expect(source, contains('class _DaysOutsideYearLocalNotesPanel'));
     expect(source, contains('DaysOutsideYearLocalStore'));
-    expect(source, contains('Your threshold notes stay on this device'));
+    expect(
+      source,
+      contains('Record the threshold note for this year-opening step.'),
+    );
     expect(source, contains("shareButtonLabel: 'Share one word'"));
     expect(source, isNot(contains("'year_intention':")));
   });

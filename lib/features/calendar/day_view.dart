@@ -7100,7 +7100,7 @@ class _DecanWatchLocalNotesPanelState
           ),
           const SizedBox(height: 6),
           Text(
-            'Your sky note and ${widget.decanName} intention stay on this device.',
+            'Record the sky note and ${widget.decanName} intention for this watch.',
             style: const TextStyle(
               color: Colors.white70,
               fontSize: 12,
@@ -7797,7 +7797,7 @@ class _TheTendingLocalNotesPanelState
           ),
           const SizedBox(height: 6),
           const Text(
-            'Your care notes stay on this device.',
+            'Record the care note for this tending step.',
             style: TextStyle(
               color: Colors.white70,
               fontSize: 12,
@@ -7818,7 +7818,7 @@ class _TheTendingLocalNotesPanelState
                   TheTendingLocalPromptKind.careInventory) ...[
             const SizedBox(height: 6),
             Text(
-              'Care inventory on device: $_careListCount ${_careListCount == 1 ? 'entry' : 'entries'}',
+              'Care inventory: $_careListCount ${_careListCount == 1 ? 'entry' : 'entries'}',
               style: const TextStyle(color: Colors.white54, fontSize: 12),
             ),
           ],
@@ -8067,7 +8067,7 @@ class _KeptWordLocalNotesPanelState extends State<_KeptWordLocalNotesPanel> {
           ),
           const SizedBox(height: 6),
           const Text(
-            'Your household notes stay on this device.',
+            'Record the household note for this step.',
             style: TextStyle(
               color: Colors.white70,
               fontSize: 12,
@@ -8088,7 +8088,7 @@ class _KeptWordLocalNotesPanelState extends State<_KeptWordLocalNotesPanel> {
                   KeptWordLocalPromptKind.agreementInventory) ...[
             const SizedBox(height: 6),
             Text(
-              'Agreement inventory on device: $_agreementCount ${_agreementCount == 1 ? 'entry' : 'entries'}',
+              'Agreement inventory: $_agreementCount ${_agreementCount == 1 ? 'entry' : 'entries'}',
               style: const TextStyle(color: Colors.white54, fontSize: 12),
             ),
           ],
@@ -8360,7 +8360,7 @@ class _TheWagLocalNotesPanelState extends State<_TheWagLocalNotesPanel> {
           ),
           const SizedBox(height: 6),
           const Text(
-            'Your ancestor notes stay on this device.',
+            'Record the ancestor note for this procession step.',
             style: TextStyle(
               color: Colors.white70,
               fontSize: 12,
@@ -8380,7 +8380,7 @@ class _TheWagLocalNotesPanelState extends State<_TheWagLocalNotesPanel> {
               widget.event.localPrompt != WagLocalPromptKind.ancestorNames) ...[
             const SizedBox(height: 6),
             Text(
-              'Ancestor names on device: $_ancestorCount ${_ancestorCount == 1 ? 'entry' : 'entries'}',
+              'Ancestor names: $_ancestorCount ${_ancestorCount == 1 ? 'entry' : 'entries'}',
               style: const TextStyle(color: Colors.white54, fontSize: 12),
             ),
           ],
@@ -8585,7 +8585,7 @@ class _DaysOutsideYearLocalNotesPanelState
           ),
           const SizedBox(height: 6),
           const Text(
-            'Your threshold notes stay on this device.',
+            'Record the threshold note for this year-opening step.',
             style: TextStyle(
               color: Colors.white70,
               fontSize: 12,
@@ -8835,7 +8835,7 @@ class _OpenHandLocalNotesPanelState extends State<_OpenHandLocalNotesPanel> {
           ),
           const SizedBox(height: 6),
           const Text(
-            'Names, needs, act details, and commitments stay on this device.',
+            'Record names, needs, act details, and commitments for this step.',
             style: TextStyle(
               color: Colors.white70,
               fontSize: 12,
@@ -8862,7 +8862,7 @@ class _OpenHandLocalNotesPanelState extends State<_OpenHandLocalNotesPanel> {
                 ),
               ),
               subtitle: const Text(
-                'Observed is gated on this local acknowledgment.',
+                'Observed unlocks after you mark the outward act complete.',
                 style: TextStyle(color: Colors.white54, fontSize: 12),
               ),
             ),
@@ -9101,7 +9101,7 @@ class _DjedLocalNotesPanelState extends State<_DjedLocalNotesPanel> {
           ),
           const SizedBox(height: 6),
           const Text(
-            'Spine labels, wobble notes, battle commitments, and raising notes stay on this device.',
+            'Record spine labels, wobble notes, battle commitments, and raising notes for this step.',
             style: TextStyle(
               color: Colors.white70,
               fontSize: 12,
@@ -9194,7 +9194,7 @@ class _DjedLocalNotesPanelState extends State<_DjedLocalNotesPanel> {
                 ),
               ),
               subtitle: const Text(
-                'Raised is gated on this local acknowledgment.',
+                'Raised unlocks after you mark the raising act complete.',
                 style: TextStyle(color: Colors.white54, fontSize: 12),
               ),
             ),

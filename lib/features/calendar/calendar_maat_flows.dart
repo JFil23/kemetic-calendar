@@ -1,5 +1,53 @@
 part of 'calendar_page.dart';
 
+class MaatFlowGlyph extends StatelessWidget {
+  const MaatFlowGlyph({required this.glyph, this.size = 34, super.key});
+
+  final String glyph;
+  final double size;
+
+  @override
+  Widget build(BuildContext context) {
+    assert(glyph.trim().isNotEmpty, 'Ma’at Flow glyph cannot be empty');
+
+    return SizedBox(
+      width: 48,
+      height: 48,
+      child: Center(
+        child: Text(
+          glyph,
+          textAlign: TextAlign.center,
+          maxLines: 1,
+          overflow: TextOverflow.visible,
+          style: TextStyle(
+            color: Colors.white,
+            fontSize: size,
+            height: 1.0,
+            letterSpacing: 0,
+            fontFamily: 'GentiumPlus',
+            fontFamilyFallback: meduNeterFontFallback,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _MaatFlowPrivacyFooter extends StatelessWidget {
+  const _MaatFlowPrivacyFooter();
+
+  @override
+  Widget build(BuildContext context) {
+    return const Padding(
+      padding: EdgeInsets.only(top: 8, bottom: 8),
+      child: Text(
+        'Privacy note: private reflections and names are never included in notification previews.',
+        style: TextStyle(color: Colors.white38, fontSize: 11.5, height: 1.35),
+      ),
+    );
+  }
+}
+
 class _MaatFlowsListPageWithSnapshot extends StatefulWidget {
   const _MaatFlowsListPageWithSnapshot({
     required this.initialSnapshot,
@@ -184,26 +232,7 @@ class _MaatFlowsListPageState extends State<_MaatFlowsListPage> {
                 ];
                 return ListTile(
                   onTap: () async => widget.onPickTemplate(t),
-                  leading: maatDecanDefinition != null
-                      ? SizedBox(
-                          width: 32,
-                          child: Text(
-                            maatDecanDefinition.glyph,
-                            textAlign: TextAlign.center,
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 22,
-                            ),
-                          ),
-                        )
-                      : Container(
-                          width: 18,
-                          height: 18,
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            gradient: _glossFromColor(t.color),
-                          ),
-                        ),
+                  leading: MaatFlowGlyph(glyph: t.glyph, size: 24),
                   title: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
@@ -470,14 +499,7 @@ class _FirstMaatFlowOnboardingSheetState
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Container(
-              width: 22,
-              height: 22,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                gradient: _glossFromColor(template.color),
-              ),
-            ),
+            MaatFlowGlyph(glyph: template.glyph, size: 22),
             const SizedBox(width: 12),
             Expanded(
               child: Column(
@@ -4646,23 +4668,6 @@ class _MaatFlowTemplateDetailPageState
                   fontWeight: FontWeight.w600,
                 ),
               ),
-              const SizedBox(height: 10),
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: const Color(0xFF0B0C0F),
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: const Color(0xFF7A6B9E)),
-                ),
-                child: const Text(
-                  'Privacy: care names and tending notes stay on this device. Synced calendar events contain only generic prompts.',
-                  style: TextStyle(
-                    color: Colors.white70,
-                    fontSize: 12.5,
-                    height: 1.35,
-                  ),
-                ),
-              ),
               const SizedBox(height: 16),
               const GlossyText(
                 text: 'Three-Decan Arc',
@@ -4731,7 +4736,7 @@ class _MaatFlowTemplateDetailPageState
               ),
               const SizedBox(height: 6),
               const Text(
-                'A lens adds one short framing line. It does not change the nine sittings, timing, privacy boundary, or completion states.',
+                'A lens adds one short framing line. It does not change the nine sittings, timing, or completion states.',
                 style: TextStyle(
                   color: Colors.white54,
                   fontSize: 12,
@@ -4782,6 +4787,7 @@ class _MaatFlowTemplateDetailPageState
               ...kTheTendingEvents.map(
                 (event) => _buildTheTendingEventTile(context, event),
               ),
+              const _MaatFlowPrivacyFooter(),
             ],
           ),
           Positioned(
@@ -4939,23 +4945,6 @@ class _MaatFlowTemplateDetailPageState
               Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: const Color(0xFF0B0C0F),
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: const Color(0xFF8B7355)),
-                ),
-                child: const Text(
-                  'Privacy: agreement inventories, names, and conversation notes stay on this device. Synced calendar events contain only generic prompts.',
-                  style: TextStyle(
-                    color: Colors.white70,
-                    fontSize: 12.5,
-                    height: 1.35,
-                  ),
-                ),
-              ),
-              const SizedBox(height: 10),
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
                   color: const Color(0xFF14100B),
                   borderRadius: BorderRadius.circular(12),
                   border: Border.all(
@@ -5039,7 +5028,7 @@ class _MaatFlowTemplateDetailPageState
               ),
               const SizedBox(height: 6),
               const Text(
-                'A lens adds one short framing line. It does not change the nine sittings, timing, privacy boundary, or completion states.',
+                'A lens adds one short framing line. It does not change the nine sittings, timing, or completion states.',
                 style: TextStyle(
                   color: Colors.white54,
                   fontSize: 12,
@@ -5090,6 +5079,7 @@ class _MaatFlowTemplateDetailPageState
               ...kKeptWordEvents.map(
                 (event) => _buildKeptWordEventTile(context, event),
               ),
+              const _MaatFlowPrivacyFooter(),
             ],
           ),
           Positioned(
@@ -5328,31 +5318,6 @@ class _MaatFlowTemplateDetailPageState
                   ),
                 ),
               ),
-              const SizedBox(height: 12),
-              const Text(
-                kTheWagConfidenceLabel,
-                style: TextStyle(
-                  color: Colors.white70,
-                  fontSize: 13,
-                  height: 1.35,
-                  fontStyle: FontStyle.italic,
-                ),
-              ),
-              const SizedBox(height: 16),
-              const GlossyText(
-                text: 'Privacy',
-                style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700),
-                gradient: silverGloss,
-              ),
-              const SizedBox(height: 6),
-              const Text(
-                'Ancestor names are sacred data. Write them on paper; optional in-app notes stay on this device and are never synced in event detail.',
-                style: TextStyle(
-                  color: Colors.white70,
-                  fontSize: 13,
-                  height: 1.35,
-                ),
-              ),
               const SizedBox(height: 16),
               const GlossyText(
                 text: 'Timezone',
@@ -5412,7 +5377,7 @@ class _MaatFlowTemplateDetailPageState
               ),
               const SizedBox(height: 6),
               const Text(
-                'A lens adds one short framing line. It does not change the annual dates, privacy rules, or completion states.',
+                'A lens adds one short framing line. It does not change the annual dates or completion states.',
                 style: TextStyle(
                   color: Colors.white54,
                   fontSize: 12,
@@ -5461,6 +5426,7 @@ class _MaatFlowTemplateDetailPageState
               ...kWagEvents.map(
                 (event) => _buildWagEventTile(context, event, window.kYear),
               ),
+              const _MaatFlowPrivacyFooter(),
             ],
           ),
           Positioned(
@@ -5599,16 +5565,6 @@ class _MaatFlowTemplateDetailPageState
                   ),
                 ),
               ),
-              const SizedBox(height: 12),
-              const Text(
-                kDecanWatchConfidenceLabel,
-                style: TextStyle(
-                  color: Colors.white70,
-                  fontSize: 13,
-                  height: 1.35,
-                  fontStyle: FontStyle.italic,
-                ),
-              ),
               const SizedBox(height: 16),
               const GlossyText(
                 text: 'Practice',
@@ -5617,7 +5573,7 @@ class _MaatFlowTemplateDetailPageState
               ),
               const SizedBox(height: 6),
               const Text(
-                'Outdoor is the default. If weather, safety, access, or mobility prevents that, use the inside/threshold completion state and keep the record honest. Sky note and intention stay on this device.',
+                'Outdoor is the default. If weather, safety, access, or mobility prevents that, use the inside/threshold completion state and keep the record honest.',
                 style: TextStyle(
                   color: Colors.white70,
                   fontSize: 13,
@@ -5753,6 +5709,7 @@ class _MaatFlowTemplateDetailPageState
                 (occurrence) =>
                     _buildDecanWatchOccurrenceTile(context, occurrence),
               ),
+              const _MaatFlowPrivacyFooter(),
             ],
           ),
           Positioned(
@@ -5952,36 +5909,6 @@ class _MaatFlowTemplateDetailPageState
                   ),
                 ),
               ),
-              const SizedBox(height: 12),
-              if (definition.safetyNote != null) ...[
-                Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF0B0C0F),
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: _gold, width: 1.1),
-                  ),
-                  child: Text(
-                    definition.safetyNote!,
-                    style: const TextStyle(
-                      color: Color(0xFFFFD486),
-                      fontSize: 13,
-                      height: 1.35,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 12),
-              ],
-              Text(
-                definition.confidenceLabel,
-                style: const TextStyle(
-                  color: Colors.white70,
-                  fontSize: 13,
-                  height: 1.35,
-                  fontStyle: FontStyle.italic,
-                ),
-              ),
               const SizedBox(height: 16),
               const GlossyText(
                 text: 'Routing',
@@ -5995,24 +5922,6 @@ class _MaatFlowTemplateDetailPageState
                   color: Colors.white70,
                   fontSize: 13,
                   height: 1.35,
-                ),
-              ),
-              const SizedBox(height: 12),
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: const Color(0xFF0B0C0F),
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: Colors.white12),
-                ),
-                child: const Text(
-                  'Private names, judgments, needs, speech records, and commitments stay on this device. Push notifications carry only the sitting title and practice copy.',
-                  style: TextStyle(
-                    color: Colors.white70,
-                    fontSize: 13,
-                    height: 1.35,
-                    fontWeight: FontWeight.w600,
-                  ),
                 ),
               ),
               const SizedBox(height: 16),
@@ -6081,6 +5990,7 @@ class _MaatFlowTemplateDetailPageState
                   flowStart,
                 ),
               ),
+              const _MaatFlowPrivacyFooter(),
             ],
           ),
           Positioned(
@@ -6173,16 +6083,6 @@ class _MaatFlowTemplateDetailPageState
                   ),
                 ),
               ),
-              const SizedBox(height: 12),
-              const Text(
-                kOpenHandConfidenceLabel,
-                style: TextStyle(
-                  color: Colors.white70,
-                  fontSize: 13,
-                  height: 1.35,
-                  fontStyle: FontStyle.italic,
-                ),
-              ),
               const SizedBox(height: 16),
               const GlossyText(
                 text: 'Provision',
@@ -6196,24 +6096,6 @@ class _MaatFlowTemplateDetailPageState
                   color: Colors.white70,
                   fontSize: 13,
                   height: 1.35,
-                ),
-              ),
-              const SizedBox(height: 12),
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: const Color(0xFF0B0C0F),
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: Colors.white12),
-                ),
-                child: const Text(
-                  'You have provisioned yourself in The Offering Table. The Open Hand extends provision outward. Names, needs, and giving records stay on this device.',
-                  style: TextStyle(
-                    color: Colors.white70,
-                    fontSize: 13,
-                    height: 1.35,
-                    fontWeight: FontWeight.w600,
-                  ),
                 ),
               ),
               const SizedBox(height: 16),
@@ -6319,6 +6201,7 @@ class _MaatFlowTemplateDetailPageState
               ...kOpenHandEvents.map(
                 (event) => _buildOpenHandEventTile(context, event, flowStart),
               ),
+              const _MaatFlowPrivacyFooter(),
             ],
           ),
           Positioned(
@@ -6464,16 +6347,6 @@ class _MaatFlowTemplateDetailPageState
                   ),
                 ),
               ),
-              const SizedBox(height: 12),
-              const Text(
-                kDjedConfidenceLabel,
-                style: TextStyle(
-                  color: Colors.white70,
-                  fontSize: 13,
-                  height: 1.35,
-                  fontStyle: FontStyle.italic,
-                ),
-              ),
               const SizedBox(height: 16),
               const GlossyText(
                 text: 'Practice Shape',
@@ -6500,7 +6373,7 @@ class _MaatFlowTemplateDetailPageState
                   ),
                 ),
                 child: const Text(
-                  'Event 9 requires standing room for about 30 seconds. Spine labels, wobble notes, and battle commitments stay on this device.',
+                  'Event 9 requires standing room for about 30 seconds. Name the spine, address the wobble, and complete the raising before marking it done.',
                   style: TextStyle(
                     color: Colors.white70,
                     fontSize: 13,
@@ -6610,6 +6483,7 @@ class _MaatFlowTemplateDetailPageState
               ...kDjedEvents.map(
                 (event) => _buildDjedEventTile(context, event, flowStart),
               ),
+              const _MaatFlowPrivacyFooter(),
             ],
           ),
           Positioned(
@@ -6786,16 +6660,6 @@ class _MaatFlowTemplateDetailPageState
                   ),
                 ),
               ),
-              const SizedBox(height: 12),
-              const Text(
-                kDaysOutsideTheYearConfidenceLabel,
-                style: TextStyle(
-                  color: Colors.white70,
-                  fontSize: 13,
-                  height: 1.35,
-                  fontStyle: FontStyle.italic,
-                ),
-              ),
               const SizedBox(height: 16),
               const GlossyText(
                 text: 'Calendar Anchor',
@@ -6817,21 +6681,6 @@ class _MaatFlowTemplateDetailPageState
                 style: const TextStyle(
                   color: Colors.white54,
                   fontSize: 12.5,
-                  height: 1.35,
-                ),
-              ),
-              const SizedBox(height: 16),
-              const GlossyText(
-                text: 'Privacy',
-                style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700),
-                gradient: silverGloss,
-              ),
-              const SizedBox(height: 6),
-              const Text(
-                'Year-close names, received qualities, and the year intention stay on this device. Event detail syncs generic steps only.',
-                style: TextStyle(
-                  color: Colors.white70,
-                  fontSize: 13,
                   height: 1.35,
                 ),
               ),
@@ -6918,6 +6767,7 @@ class _MaatFlowTemplateDetailPageState
                   window.closingKYear,
                 ),
               ),
+              const _MaatFlowPrivacyFooter(),
             ],
           ),
           Positioned(
@@ -7048,16 +6898,6 @@ class _MaatFlowTemplateDetailPageState
                   ),
                 ),
               ],
-              const SizedBox(height: 14),
-              const Text(
-                kMoonReturnConfidenceLabel,
-                style: TextStyle(
-                  color: Colors.white70,
-                  fontSize: 13,
-                  height: 1.35,
-                  fontStyle: FontStyle.italic,
-                ),
-              ),
               const SizedBox(height: 16),
               const GlossyText(
                 text: 'Timezone',
@@ -7171,6 +7011,7 @@ class _MaatFlowTemplateDetailPageState
                 (occurrence) =>
                     _buildMoonReturnOccurrenceTile(context, occurrence),
               ),
+              const _MaatFlowPrivacyFooter(),
             ],
           ),
           Positioned(

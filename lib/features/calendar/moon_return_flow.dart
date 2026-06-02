@@ -3,11 +3,11 @@ import 'track_sky_flow.dart';
 
 const String kMoonReturnFlowKey = 'the-moon-return';
 const String kMoonReturnTitle = 'The Moon Return';
-const String kMoonReturnGlyph = '𓇹𓆄';
+const String kMoonReturnGlyph = '𓇹';
 const String kMoonReturnTagline =
     'The eye empties and fills. Receive what the cycle gives.';
 const String kMoonReturnConfidenceLabel =
-    'New/full moon timing is attested in Kemetic sacred calendars. This household form is a careful modern reconstruction.';
+    'Draws on new/full moon timing in Kemetic sacred calendars and the Eye of Heru cycle.';
 const int kMoonReturnDurationMinutes = 5;
 
 const String kMoonReturnOverview =
@@ -299,7 +299,6 @@ String moonReturnDetailText(
   final lensLine = lens.detailLine.trim();
   final variant = _moonReturnVariantLine(occurrence.variant);
   return <String>[
-    'Confidence\n$kMoonReturnConfidenceLabel',
     'Purpose\n${_moonReturnPurpose(occurrence.kind)}',
     if (variant.isNotEmpty) 'Variant\n$variant',
     'Words\n"${_moonReturnSpokenLine(occurrence.kind)}"',

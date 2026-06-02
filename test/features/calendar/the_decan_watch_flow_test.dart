@@ -99,7 +99,7 @@ void main() {
     },
   );
 
-  test('detail text carries six steps and confidence label', () {
+  test('detail text carries six steps without confidence copy', () {
     final occurrence = decanWatchOccurrenceFor(
       kYear: 1,
       kMonth: 1,
@@ -108,7 +108,7 @@ void main() {
     );
     final detail = decanWatchDetailText(occurrence, lens: DecanWatchLens.nut);
 
-    expect(detail, contains(kDecanWatchConfidenceLabel));
+    expect(detail, isNot(contains('Confidence\n')));
     expect(detail, contains(kDecanWatchRequiredLine));
     expect(detail, contains('1. Go outside.'));
     expect(detail, contains('6. Reset intention.'));

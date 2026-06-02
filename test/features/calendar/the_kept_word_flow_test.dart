@@ -87,17 +87,14 @@ void main() {
   });
 
   test(
-    'detail text keeps a private note without source sections or private data',
+    'detail text stays action-focused without source or private-storage copy',
     () {
       final event = kKeptWordEvents.first;
       final detail = keptWordDetailText(event, lens: KeptWordLens.maat);
 
       expect(detail, contains('Purpose\n'));
       expect(detail, contains('Words\n"${event.spokenLine}"'));
-      expect(
-        detail,
-        contains('Private note: keep household names and agreements'),
-      );
+      expect(detail, isNot(contains('Private note:')));
       expect(detail, isNot(contains('Source\n')));
       expect(detail, contains('Lens\nLet Ma\'at'));
       expect(detail, isNot(contains('KeptWordAgreementEntry')));

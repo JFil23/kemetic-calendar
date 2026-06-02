@@ -4,13 +4,13 @@ import 'track_sky_flow.dart';
 
 const String kDecanWatchFlowKey = 'the-decan-watch';
 const String kDecanWatchTitle = 'The Decan Watch';
-const String kDecanWatchGlyph = '✵𓇳';
+const String kDecanWatchGlyph = '𓇼';
 const String kDecanWatchTagline =
     'The sky has been counting. Stand under it and add your count.';
 const String kDecanWatchOverview =
     'At each decan boundary, go outside, look up, note one line about the sky, read the day card, and name one bearing for the next ten days. The Decan Watch is an ongoing night-sky rhythm, not a drift-repair flow.';
 const String kDecanWatchConfidenceLabel =
-    'The ten-day sky observation pattern is attested in Kemetic astronomical practice. This household form is a careful modern reconstruction.';
+    'Draws on ten-day decan observation and Kemetic astronomical practice.';
 const String kDecanWatchRequiredLine =
     'The Imperishable Stars never set. They mark where I am in time. The decans have counted this night for longer than I can reckon. I stand under them and add my count.';
 
@@ -188,13 +188,11 @@ String decanWatchDetailText(
       ? 'Open the ḥꜣw day card for this decan opening. Read the decan name, quality, and Ma’at principle.'
       : 'Open the ḥꜣw day card for ${context.kemeticDateLabel}. Read ${context.decanName} and the Ma’at principle: ${context.maatPrinciple}';
   return <String>[
-    'Confidence\n$kDecanWatchConfidenceLabel',
     'Purpose\nStand under the night sky at the opening of ${occurrence.decanName} and take one bearing for the next ten days.',
     'Outdoor\nGo outside if you can. If safety, access, or weather prevents that, stand at a window or threshold and mark the completion as observed from inside.',
     'Words\n"$kDecanWatchRequiredLine"',
     'Steps\n${_numberedLines(const <String>['Go outside. Phone down; open sky for at least one minute.', 'Look up. Face north first for the Imperishable Stars, then scan the full sky.', 'Speak the required line.', 'Note the sky in one line. A clouded sky is still a valid record.', 'Open the ḥꜣw day card. Read the decan name, quality, and Ma’at principle.', 'Reset intention. Name one bearing for the coming ten days.'])}',
     'Day Card\n$dayCardLine',
-    'Private note: keep sky notes and local observation details in your local journal unless you intentionally choose to share them.',
     if (lensLine.isNotEmpty) 'Lens\n$lensLine',
   ].join('\n\n');
 }

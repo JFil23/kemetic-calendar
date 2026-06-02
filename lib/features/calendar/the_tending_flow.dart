@@ -8,7 +8,7 @@ import 'track_sky_flow.dart';
 
 const String kTheTendingFlowKey = 'the-tending';
 const String kTheTendingTitle = 'The Tending';
-const String kTheTendingGlyph = '𓅃𓁹';
+const String kTheTendingGlyph = '𓇐';
 const String kTheTendingTagline = 'Find who needs you. Do the labor.';
 const String kTheTendingEnrollmentCopy =
     'Not perfect caregiving - look at who is in your care and complete one specific act per sitting. The looking is the first labor.';
@@ -112,7 +112,7 @@ extension TheTendingLocalPromptKindX on TheTendingLocalPromptKind {
       case TheTendingLocalPromptKind.none:
         return '';
       case TheTendingLocalPromptKind.careInventory:
-        return 'List who is in your care and one perceived need for each. These names stay on this device.';
+        return 'List who is in your care and one perceived need for each.';
       case TheTendingLocalPromptKind.heardOneSentence:
         return 'Write one sentence you heard or noticed without dismissing it.';
       case TheTendingLocalPromptKind.sealSeeingStatuses:
@@ -413,7 +413,7 @@ const List<TheTendingEvent> kTheTendingEvents = <TheTendingEvent>[
       'If you share, share only the generic restoration line. Do not share names or care-list details.',
     ],
     sourceNote:
-        'The final seal closes the labor without exposing the care list. Restoration remains specific on device and generic in community.',
+        'The final seal closes the labor without exposing the care list; restoration stays specific in the practice and generic in community.',
     sharePromptOnComplete: true,
     localPrompt: TheTendingLocalPromptKind.closePerPerson,
   ),
@@ -736,7 +736,6 @@ String theTendingDetailText(
     'Words\n"${event.spokenLine}"',
     'Steps\n${_numberedLines(event.steps)}',
     if (optional.isNotEmpty) 'Optional\n$optional',
-    'Private note: keep names and care details in your local journal unless you intentionally choose to share them.',
     if (lensLine.isNotEmpty) 'Lens\n$lensLine',
   ].join('\n\n');
 }

@@ -177,8 +177,7 @@ kEveningThresholdRiteDays = <EveningThresholdRiteDay>[
     section: 'Closing the Visible Day',
     title: 'Extinguishing Excess',
     purpose: 'Reduce the day’s noise and heat.',
-    action:
-        'Dim one light, silence one notification, or step away from one screen.',
+    action: 'Dim one light, silence one alert, or step away from one screen.',
     words:
         'What has burned too brightly may now grow quiet. May excess fall away.',
     eveningAct: 'Remove one source of overstimulation.',

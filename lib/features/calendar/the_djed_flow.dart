@@ -4,7 +4,7 @@ import 'track_sky_flow.dart';
 
 const String kTheDjedFlowKey = 'the-djed';
 const String kTheDjedTitle = 'The Djed';
-const String kTheDjedGlyph = '𓌀𓆄';
+const String kTheDjedGlyph = '𓊽';
 const String kTheDjedTagline =
     'What holds you upright when everything around you shakes?';
 const int kDjedDefaultMiddayHour = 11;
@@ -12,7 +12,7 @@ const int kDjedDefaultMiddayMinute = 0;
 const int kDjedRaisingSeconds = 30;
 
 const String kDjedConfidenceLabel =
-    'The Djed pillar and annual raising are attested across the pharaonic period. This nine-sitting household practice is a careful modern reconstruction of stability, contest, and raising.';
+    'Draws on the Djed pillar, annual raising, stability, contest, and uprightness.';
 
 const String kDjedOverview =
     'Nine sittings across thirty days: name the load-bearing elements of your life, engage what threatens them, then raise the Djed by standing upright with arms raised and declaring the spine intact.';
@@ -694,12 +694,10 @@ String djedDetailText(DjedEvent event, {required DjedLens lens}) {
     if (event.physicalRaising)
       'Raise First\nStand upright, raise your arms for about 30 seconds, then speak the required line before marking Raised.',
     if (event.requiresDirectEngagement)
-      'Safety\nThe mock battle means direct engagement with a structural threat: a conversation, stopping a pattern, restarting a practice, or making a decision. It is not harmful confrontation.',
+      'Direct engagement\nChoose a concrete stabilizing act: a conversation, stopping a pattern, restarting a practice, or making a decision that addresses the structural threat.',
     'Words\n"${event.spokenLine}"',
     'Steps\n${_numberedLines(event.steps)}',
-    'Private note: keep personal stability and safety details in your local journal unless you intentionally choose to share them.',
     if (lensLine.isNotEmpty) 'Lens\n$lensLine',
-    'Confidence\n$kDjedConfidenceLabel',
   ].join('\n\n');
 }
 

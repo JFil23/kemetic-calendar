@@ -120,7 +120,7 @@ void main() {
   });
 
   test(
-    'detail text names offerings, private note, lens, next Wag, and no source',
+    'detail text names offerings, lens, next Wag, and no disclaimer copy',
     () {
       final event = kWagEvents.last;
       final detail = wagDetailText(
@@ -129,8 +129,8 @@ void main() {
         nextWagDate: wagNextFeastGregorian(2),
       );
 
-      expect(detail, contains(kTheWagConfidenceLabel));
-      expect(detail, contains('Private note: keep ancestor names'));
+      expect(detail, isNot(contains('Confidence\n')));
+      expect(detail, isNot(contains('Private note:')));
       expect(detail, isNot(contains('Source\n')));
       expect(detail, isNot(contains('stay on this device')));
       expect(detail, contains('Water first'));

@@ -1,10 +1,10 @@
 const String kDaysOutsideTheYearFlowKey = 'the-days-outside-the-year';
 const String kDaysOutsideTheYearTitle = 'The Days Outside the Year';
-const String kDaysOutsideTheYearGlyph = '𓇳𓏏𓏤𓏤𓏤𓏤𓏤';
+const String kDaysOutsideTheYearGlyph = '𓆱';
 const String kDaysOutsideTheYearTagline =
     'Five days that do not belong to any year. Receive what is born in them.';
 const String kDaysOutsideTheYearConfidenceLabel =
-    'The five epagomenal days and their associated deity births are historically attested in the Kemetic sacred calendar across multiple periods. The household observance form here - one specific act and reflection per day - is a careful modern reconstruction.';
+    'Draws on the five epagomenal days and their deity births in the Kemetic sacred calendar.';
 const String kDaysOutsideTheYearOverview =
     'Close the old Kemetic year, receive the five births of Ausar, Heru Wer, Set, Aset, and Nebet-Het across the epagomenal days, then open Wep Ronpet carrying one year intention. The Days Outside the Year is annual, fixed to the calendar, and not replayed later.';
 
@@ -447,7 +447,6 @@ String daysOutsideDetailText(
     event: event,
   );
   final lines = <String>[
-    'Confidence\n$kDaysOutsideTheYearConfidenceLabel',
     'Kemetic Date\nYear $eventYear · Month ${event.kMonth} · Day ${event.kDay}',
     'Timing\n${event.schedule.label}. This event belongs to this Kemetic calendar day only; missed days are not replayed later in the year.',
     if (event.netjeruLabel.isNotEmpty)
@@ -458,7 +457,6 @@ String daysOutsideDetailText(
       'Optional\nLight a candle or oil lamp if that is safe. Water is enough.',
     if (event.kind == DaysOutsideEventKind.wepRonpetOpening)
       'Share\nIf you share, share one word only: the quality or intention you carry into the year. Do not share the full private reflection.',
-    'Private note: keep year-close reflections in your local journal unless you intentionally choose to share them.',
     if (variant == DaysOutsideCopyVariant.setSolarEclipse2026)
       'Eclipse\nToday is Set\'s day. The Sun goes dark at midday. This is Set\'s work - not Isfet, but the necessary contest between light and darkness that makes Ra\'s passage real.',
   ];

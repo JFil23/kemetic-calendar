@@ -9,7 +9,7 @@ import 'track_sky_flow.dart';
 
 const String kTheCourseFlowKey = 'the-course';
 const String kTheCourseTitle = 'The Course';
-const String kTheCourseGlyph = '𓇳𓆄';
+const String kTheCourseGlyph = '𓈐';
 const String kTheCourseTagline = 'Know where you are in time. Act from there.';
 const String kTheCourseEnrollmentCopy =
     'Required: open the ḥꜣw day card, read where you are in time, and do one time-appropriate act.';

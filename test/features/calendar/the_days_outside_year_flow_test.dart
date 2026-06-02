@@ -164,7 +164,7 @@ void main() {
   });
 
   test(
-    'detail text names confidence, one-word share, private note, and no source',
+    'detail text names one-word share without disclaimer copy or source',
     () {
       final detail = daysOutsideDetailText(
         kDaysOutsideEvents.last,
@@ -172,8 +172,8 @@ void main() {
         variant: DaysOutsideCopyVariant.standard,
       );
 
-      expect(detail, contains(kDaysOutsideTheYearConfidenceLabel));
-      expect(detail, contains('Private note: keep year-close reflections'));
+      expect(detail, isNot(contains('Confidence\n')));
+      expect(detail, isNot(contains('Private note:')));
       expect(detail, isNot(contains('Source\n')));
       expect(
         detail,

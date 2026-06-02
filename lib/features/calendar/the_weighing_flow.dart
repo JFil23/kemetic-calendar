@@ -8,7 +8,7 @@ import 'track_sky_flow.dart';
 
 const String kTheWeighingFlowKey = 'the-weighing';
 const String kTheWeighingTitle = 'The Weighing';
-const String kTheWeighingGlyph = '𓆄⚖';
+const String kTheWeighingGlyph = '𓍝';
 const String kTheWeighingTagline = 'Sit with what is true.';
 const int kTheWeighingDefaultMiddayHour = 11;
 const int kTheWeighingDefaultMiddayMinute = 0;

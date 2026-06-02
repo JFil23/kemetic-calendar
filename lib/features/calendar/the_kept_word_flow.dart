@@ -8,7 +8,7 @@ import 'track_sky_flow.dart';
 
 const String kKeptWordFlowKey = 'the-kept-word';
 const String kKeptWordTitle = 'The Kept Word';
-const String kKeptWordGlyph = '𓂋𓏏𓆑';
+const String kKeptWordGlyph = '𓂋';
 const String kKeptWordTagline =
     'What you speak within your house determines its order.';
 const String kKeptWordEnrollmentCopy =
@@ -19,9 +19,9 @@ const int kKeptWordEveningFallbackMinutes =
     kEveningThresholdDefaultFallbackMinutes + 20;
 
 const String kKeptWordOverview =
-    'Three times per decan, name agreements and shared rhythms, bring one break to a direct conversation, and confirm renewed order in explicit terms. '
+    'Three times per decan, name agreements and shared rhythms, bring one break to a direct conversation, and confirm renewed order in plain words. '
     'The Kept Word is a low-medium burden thirty-day Ma\'at flow with nine sittings: Name the State, Bring to Process, and Confirm the Order. '
-    'It is not couples therapy, crisis mediation, or a guarantee of resolution; it is a practice of speaking what is true inside the closest sphere.';
+    'It practices speaking what is true inside the closest sphere while keeping the response of the other person outside your control.';
 
 enum KeptWordTimingSlot { openMorning, checkMidday, sealEvening }
 
@@ -737,7 +737,6 @@ String keptWordDetailText(KeptWordEvent event, {required KeptWordLens lens}) {
     'Words\n"${event.spokenLine}"',
     'Steps\n${_numberedLines(event.steps)}',
     if (optional.isNotEmpty) 'Optional\n$optional',
-    'Private note: keep household names and agreements in your local journal unless you intentionally choose to share them.',
     if (lensLine.isNotEmpty) 'Lens\n$lensLine',
     if (event.eventNumber == 5)
       'Completion\nIf the conversation has not been marked complete, choose Conversation pending.',

@@ -2,7 +2,7 @@ import 'maat_flow_identity.dart';
 
 const String kTheWagFlowKey = 'the-wag';
 const String kTheWagTitle = 'The Wag';
-const String kTheWagGlyph = '𓇋𓏏𓄣𓀀';
+const String kTheWagGlyph = '𓊝';
 const String kTheWagTagline =
     'Speak their names. Set the table. They are not gone.';
 const String kTheWagConfidenceLabel =
@@ -10,7 +10,7 @@ const String kTheWagConfidenceLabel =
 
 const String kTheWagOverview =
     'The Wag is an annual Ma\'at flow for the blessed dead: name ancestors, set water and bread, hold the Day 17 vigil, keep the Day 18 feast, then close with what they gave and what you will leave. '
-    'It is fixed to Kemetic Month 1, not thirty days from enrollment, and ancestor names stay on this device.';
+    'It is fixed to Kemetic Month 1, following the year opening rather than a rolling thirty-day enrollment.';
 
 enum WagEventKind {
   beginNaming,
@@ -673,8 +673,6 @@ String wagDetailText(
       ? ''
       : 'Next year\'s Wag feast returns on ${_isoDate(nextWagDate)}.';
   return <String>[
-    'Confidence\n$kTheWagConfidenceLabel',
-    'Private note: keep ancestor names and private remembrance details in your local journal unless you intentionally choose to share them.',
     'Purpose\n${_wagPurpose(event)}',
     if (variantLine.isNotEmpty) 'Variant\n$variantLine',
     'Words\n"${event.spokenLine}"',

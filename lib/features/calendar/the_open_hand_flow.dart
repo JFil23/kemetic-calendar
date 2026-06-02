@@ -8,7 +8,7 @@ import 'track_sky_flow.dart';
 
 const String kTheOpenHandFlowKey = 'the-open-hand';
 const String kTheOpenHandTitle = 'The Open Hand';
-const String kTheOpenHandGlyph = '𓂧𓆄';
+const String kTheOpenHandGlyph = '𓂧';
 const String kTheOpenHandTagline =
     'The righteous individual is he by whom others are sustained.';
 const int kOpenHandDefaultMiddayHour = 11;
@@ -17,7 +17,7 @@ const int kOpenHandEveningFallbackMinutes =
     kEveningThresholdDefaultFallbackMinutes + 20;
 
 const String kOpenHandConfidenceLabel =
-    'The bread-water-clothing-boat formula is historically attested across Kemetic biography and Spell 125. This nine-sitting household form is a careful modern reconstruction.';
+    'Draws on the bread-water-clothing-boat formula across Kemetic biography and Spell 125.';
 
 const String kOpenHandOverview =
     'Nine sittings across thirty days: see specific need, give something real beyond your circle, and confirm that provision is flowing through you like the flood. '
@@ -739,9 +739,7 @@ String openHandDetailText(OpenHandEvent event, {required OpenHandLens lens}) {
       'Outward act\nComplete the provision act before marking this event observed.',
     if (event.strangerAct)
       'If skipped\nName a specific future date for the stranger act and keep the record honest.',
-    'Private note: keep names, needs, and recipient details in your local journal unless you intentionally choose to share them.',
     if (lensLine.isNotEmpty) 'Lens\n$lensLine',
-    'Confidence\n$kOpenHandConfidenceLabel',
   ].join('\n\n');
 }
 

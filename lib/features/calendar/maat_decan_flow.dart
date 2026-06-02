@@ -8,100 +8,100 @@ import 'track_sky_flow.dart';
 
 const String kFairHearingFlowKey = 'the-fair-hearing';
 const String kFairHearingTitle = 'The Fair Hearing';
-const String kFairHearingGlyph = '𓆄𓂋';
+const String kFairHearingGlyph = '𓄔';
 const String kFairHearingTagline =
     'You are a balance. If it wavers, then you will waver.';
 
 const String kHouseOfLifeFlowKey = 'the-house-of-life';
 const String kHouseOfLifeTitle = 'The House of Life';
-const String kHouseOfLifeGlyph = '𓉐𓏠𓆄';
+const String kHouseOfLifeGlyph = '𓉐𓋹';
 const String kHouseOfLifeTagline =
     'What you learn accurately, you give to those who come after.';
 
 const String kBoundaryStoneFlowKey = 'the-boundary-stone';
 const String kBoundaryStoneTitle = 'The Boundary Stone';
-const String kBoundaryStoneGlyph = '𓇾𓆄';
+const String kBoundaryStoneGlyph = '𓊌';
 const String kBoundaryStoneTagline =
     'What is yours ends somewhere. Know where.';
 
 const String kHotepFlowKey = 'hotep';
 const String kHotepTitle = 'Hotep';
-const String kHotepGlyph = '𓊵𓆄';
+const String kHotepGlyph = '𓊵';
 const String kHotepTagline = 'What you have given is enough. Cool your heart.';
 
 const String kOpenMouthFlowKey = 'the-open-mouth';
 const String kOpenMouthTitle = 'The Open Mouth';
-const String kOpenMouthGlyph = '𓂋𓏏𓄣';
+const String kOpenMouthGlyph = '𓂋';
 const String kOpenMouthTagline =
     'What comes out of your mouth is what you are creating.';
 
 const String kLivingRecordFlowKey = 'the-living-record';
 const String kLivingRecordTitle = 'The Living Record';
-const String kLivingRecordGlyph = '𓏞𓆄';
+const String kLivingRecordGlyph = '𓏞';
 const String kLivingRecordTagline =
     'What is recorded persists. Build the record of this decan.';
 
 const String kHetHeruFlowKey = 'het-heru';
 const String kHetHeruTitle = 'Het-Heru';
-const String kHetHeruGlyph = '𓇳𓃀𓆄';
+const String kHetHeruGlyph = '𓉡';
 const String kHetHeruTagline =
     'The destroying eye and the goddess of joy are the same force.';
 
 const String kTheShoreFlowKey = 'the-shore';
 const String kTheShoreTitle = 'The Shore';
-const String kTheShoreGlyph = '𓇌𓏤𓆄';
+const String kTheShoreGlyph = '𓈘';
 const String kTheShoreTagline =
     'What is in your boat? Bring what you actually have.';
 
 const String kTheAutobiographyFlowKey = 'the-autobiography';
 const String kTheAutobiographyTitle = 'The Autobiography';
-const String kTheAutobiographyGlyph = '𓏞𓆭𓀀𓆄';
+const String kTheAutobiographyGlyph = '𓏞𓀀';
 const String kTheAutobiographyTagline =
     'I will put my annals among people and love of me among the gods.';
 
 const String kFirstArrangementFlowKey = 'the-first-arrangement';
 const String kFirstArrangementTitle = 'The First Arrangement';
-const String kFirstArrangementGlyph = '𓇾𓊹𓆄';
+const String kFirstArrangementGlyph = '𓇾';
 const String kFirstArrangementTagline =
     'For I ordered everything in its proper place.';
 
 const String kLivingPatternFlowKey = 'the-living-pattern';
 const String kLivingPatternTitle = 'The Living Pattern';
-const String kLivingPatternGlyph = '𓇳𓆭𓆄';
+const String kLivingPatternGlyph = '𓆭';
 const String kLivingPatternTagline =
     'The natural world is a text. Patient observation reveals one lesson at a time.';
 
 const String kTrueNameFlowKey = 'the-true-name';
 const String kTrueNameTitle = 'The True Name';
-const String kTrueNameGlyph = '𓂋𓈖𓆄';
+const String kTrueNameGlyph = '𓂋𓈖';
 const String kTrueNameTagline =
     'The account others gave you and the account the scale shows are not always the same.';
 
 const String kLivingTextFlowKey = 'the-living-text';
 const String kLivingTextTitle = 'The Living Text';
-const String kLivingTextGlyph = '𓏞𓏤𓆄';
+const String kLivingTextGlyph = '𓏛𓋹';
 const String kLivingTextTagline =
     'The Library was written by those who came before. What do you add?';
 
 const String kClearingFlowKey = 'the-clearing';
 const String kClearingTitle = 'The Clearing';
-const String kClearingGlyph = '𓇳𓏏𓀀𓆄';
+const String kClearingGlyph = '𓈖';
 const String kClearingTagline =
     'Its fruit is something sweet, its shade is pleasant, and it reaches its end in a grove.';
 
 const String kWanderingFlowKey = 'the-wandering';
 const String kWanderingTitle = 'The Wandering';
-const String kWanderingGlyph = '𓂀𓇳𓆄';
+const String kWanderingGlyph = '𓂻';
 const String kWanderingTagline = 'I found, I found.';
 
 const String kKhatFlowKey = 'the-khat';
 const String kKhatTitle = 'The Khat';
-const String kKhatGlyph = '𓀀𓆄';
+const String kKhatGlyph = '𓀾';
 const String kKhatTagline = 'Teti is sound because of his body.';
 
 const String kOracleFlowKey = 'the-oracle';
 const String kOracleTitle = 'The Oracle';
-const String kOracleGlyph = '𓂀𓇳𓌀𓆄';
+const String kOracleGlyph = '𓄔';
 const String kOracleTagline =
     'Thutmose placed himself in the shadow of the Great God and rested. The god came to him in the night. He awoke and acted.';
 
@@ -294,64 +294,64 @@ const String kOracleOverview =
     'A 30-day dream-question practice: prepare one specific oracle question, receive and record the night without early interpretation, then act on one grounded indication.';
 
 const String kFairHearingConfidence =
-    'Fair judgment - hearing fully, applying the same measure, and pronouncing the decision - is directly attested in Kemetic wisdom and administrative texts. This household flow is a careful modern reconstruction.';
+    'Draws on Kemetic wisdom and administrative scenes of hearing, weighing, and pronounced judgment.';
 
 const String kHouseOfLifeConfidence =
-    'The Per Ankh and scribal discipline are directly attested across Kemetic texts and temple practice. This household flow reconstructs the core disciplines of accurate learning and transmission.';
+    'Draws on Per Ankh learning, scribal copying, temple practice, and careful transmission.';
 
 const String kBoundaryStoneConfidence =
-    'The boundary stone as legal and moral order is directly attested in Kemetic administrative and wisdom texts. This household flow reconstructs the principle in daily domains.';
+    'Draws on boundary-stone language in administrative and wisdom settings.';
 
 const String kHotepConfidence =
-    'Hotep - the peace of completed offering - is directly attested from Pyramid Text cooling passages through offering formulas. This household flow reconstructs its daily application.';
+    'Draws on htp offering language, cooling passages, and the peace of completed presentation.';
 
 const String kOpenMouthConfidence =
-    'The formative power of speech is grounded in the Memphite Theology and the Opening of the Mouth ritual. This household flow is a careful modern reconstruction.';
+    'Draws on the formative power of speech in the Memphite Theology and Opening of the Mouth ritual.';
 
 const String kLivingRecordConfidence =
-    'Kemetic logbooks, royal annals, autobiographies, and scribal House of Life practice are directly attested. This flow reconstructs that record-keeping discipline across ḥꜣw surfaces.';
+    'Draws on Kemetic logbooks, royal annals, autobiographies, and scribal record practice.';
 
 const String kHetHeruConfidence =
-    'The transformation of Sekhmet into Hathor, the Feast of Drunkenness, and Hathor as Mistress of Joy are directly attested in Kemetic texts and temple inscriptions. This household flow is a careful modern reconstruction.';
+    'Draws on Sekhmet-Hathor transformation, the Feast of Drunkenness, and Hathor as Mistress of Joy.';
 
 const String kTheShoreConfidence =
     'The Shore draws on attested exchange practice, deben-weighted value, Amenemope balance language, and The Shipwrecked Sailor. This household flow reconstructs honest exchange at modern scale.';
 
 const String kTheAutobiographyConfidence =
-    'The autobiographical inscription is directly attested across Kemetic tomb and stela traditions. This household flow reconstructs the living account as a dated practice document.';
+    'Draws on Kemetic tomb and stela autobiography as a dated account of lived conduct.';
 
 const String kFirstArrangementConfidence =
-    'The First Arrangement draws on Zep Tepi, temple order, offering-table placement, and purification practice. This household flow reconstructs spatial Ma’at at household scale.';
+    'The First Arrangement draws on Zep Tepi, temple order, offering-table placement, and purification practice.';
 
 const String kLivingPatternConfidence =
-    'The Living Pattern reconstructs the attested Kemetic habit of reading natural phenomena as demonstrations of durable principles, beginning with observation before interpretation.';
+    'The Living Pattern reads natural phenomena as demonstrations of durable principles, beginning with observation before interpretation.';
 
 const String kTrueNameConfidence =
     'The True Name draws on Ren theology, Aset’s name-work, and declaration before the scale. This household flow frames identity as accurate account, not diagnosis.';
 
 const String kLivingTextConfidence =
-    'The Living Text draws on scribal copying, colophon, variant, and commentary practices. This household flow reconstructs the Library as a living transmission.';
+    'The Living Text draws on scribal copying, colophon, variant, and commentary practices.';
 
 const String kClearingConfidence =
-    'The Clearing draws on Instruction of Amenemope’s teaching of the temperate person as a tree in a sunlit field. This household flow reconstructs stillness as the space before right response.';
+    'The Clearing draws on Instruction of Amenemope’s teaching of the temperate person as a tree in a sunlit field.';
 
 const String kWanderingConfidence =
     'The Wandering draws on Aset and Nebet-Het’s search, lament, and finding in the Pyramid Texts. This household flow accompanies grief without treating it as something to win.';
 
 const String kKhatConfidence =
-    'The Khat draws on the physical restoration language of the Pyramid Texts: the body assembled, washed, fed, anointed, watered, and raised. This household flow reconstructs body care at household scale.';
+    'The Khat draws on the physical restoration language of the Pyramid Texts: the body assembled, washed, fed, anointed, watered, and raised.';
 
 const String kOracleConfidence =
-    'The Oracle draws on Kemetic dream incubation, dream books, and the Dream Stela of Thutmose IV. This household flow reconstructs the practice as question, reception, record, interpretation, and action.';
+    'The Oracle draws on Kemetic dream incubation, dream books, and the Dream Stela of Thutmose IV.';
 
 const String kWanderingSafetyNote =
-    'This flow accompanies grief. It is not crisis support, therapy, or medical care. If you are in acute distress, please reach out to someone you trust or to 988 in the US, or findahelpline.com internationally, before returning here.';
+    'If grief feels acute or unsafe, reach out to someone you trust, 988 in the US, or findahelpline.com internationally before returning here.';
 
 const String kKhatSafetyNote =
-    'This flow is not medical care. If your body is signaling something that may require medical attention, let the flow support seeking care, not replace it.';
+    'If your body is signaling something that may require medical attention, let this step support seeking care.';
 
 const String kOracleSafetyNote =
-    'This flow is not mental health care. If disturbing dream content appears, bring it to a qualified professional or trusted support rather than relying only on this flow.';
+    'If disturbing dream content appears, bring it to a qualified professional or trusted support before continuing.';
 
 const List<MaatDecanFlowDefinition>
 kMaatDecanFlowDefinitions = <MaatDecanFlowDefinition>[
@@ -1200,7 +1200,7 @@ kMaatDecanFlowDefinitions = <MaatDecanFlowDefinition>[
             'I have not taken more than my share. I have not used force beyond necessity.',
         steps: <String>[
           'For each moved stone, name what was taken beyond the measure and by how much.',
-          'For each, name what restoration would look like in concrete terms.',
+          'For each, name what restoration would look like in exact words.',
           'Carry these restorations into Decan 3 as commitments.',
         ],
       ),
@@ -1354,7 +1354,7 @@ kMaatDecanFlowDefinitions = <MaatDecanFlowDefinition>[
             'Do not go to bed fearing tomorrow. God is success; man is failure.',
         steps: <String>[
           'Sit with the question for at least two minutes: Has the offering of this period been made?',
-          'Answer in the terms named on Day 1, not with a vague feeling of enough.',
+          'Answer with the Day 1 measure, not with a vague feeling of enough.',
           'Write: The offering is complete, or The offering is incomplete in [specific way].',
         ],
         sourceNote:
@@ -2400,7 +2400,7 @@ kMaatDecanFlowDefinitions = <MaatDecanFlowDefinition>[
     overview: kTrueNameOverview,
     confidenceLabel: kTrueNameConfidence,
     routingSummary:
-        'Best for identity, confidence, self doubt, false belief, shame, accurate account, and acting from truth. This is self-accounting, not diagnosis.',
+        'Best for identity, confidence, self doubt, false belief, shame, accurate account, and acting from truth through self-accounting.',
     notesPrefix: 'true_name',
     behaviorKind: 'maat_true_name_event',
     graphNodeSlugs: <String>['maat', 'ren', 'aset', 'anpu'],
@@ -3717,7 +3717,6 @@ String maatDecanFlowDetailText(
     'Steps\n${_numberedLines(event.steps)}',
     if (event.optionalSteps.isNotEmpty)
       'Optional\n${_numberedLines(event.optionalSteps)}',
-    if (definition.safetyNote != null) 'Safety\n${definition.safetyNote}',
     if (event.requiresRealWorldAction || specialStatuses.isNotEmpty)
       'Complete\n${_completionDetail(definition, event, specialStatuses)}',
   ].join('\n\n');

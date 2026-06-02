@@ -86,7 +86,7 @@ void main() {
   );
 
   test(
-    'detail text keeps a private note without source sections or user care data',
+    'detail text stays action-focused without source or private-storage copy',
     () {
       final event = kTheTendingEvents.first;
       final detail = theTendingDetailText(event, lens: TheTendingLens.heru);
@@ -94,7 +94,7 @@ void main() {
       expect(detail, contains('Purpose\n'));
       expect(detail, contains('Words\n"${event.spokenLine}"'));
       expect(detail, contains('Steps\n1. Name who is in your care'));
-      expect(detail, contains('Private note: keep names and care details'));
+      expect(detail, isNot(contains('Private note:')));
       expect(detail, isNot(contains('Source\n')));
       expect(detail, contains('Lens\nLet Heru'));
       expect(detail, isNot(contains('CareListEntry')));

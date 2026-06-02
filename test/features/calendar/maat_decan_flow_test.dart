@@ -290,7 +290,7 @@ void main() {
   });
 
   test(
-    'sensitive Ma’at decan flows include safety boundaries without source blocks',
+    'sensitive Ma’at decan flows keep event notes free of disclaimer copy',
     () {
       final wandering = maatDecanFlowDefinitionForKey(kWanderingFlowKey)!;
       final khat = maatDecanFlowDefinitionForKey(kKhatFlowKey)!;
@@ -303,17 +303,17 @@ void main() {
       );
       expect(
         maatDecanFlowDetailText(wandering, wandering.events.first),
-        contains('This flow accompanies grief'),
+        isNot(contains('This flow accompanies grief')),
       );
 
       final khatDetail = maatDecanFlowDetailText(khat, khat.events.first);
-      expect(khatDetail, contains('This flow is not medical care'));
+      expect(khatDetail, isNot(contains('This flow is not medical care')));
       expect(khatDetail.toLowerCase(), isNot(contains('appearance')));
       expect(khatDetail.toLowerCase(), isNot(contains('weight loss')));
       expect(khat.events.any((event) => event.sharePromptOnComplete), isFalse);
 
       final oracleDetail = maatDecanFlowDetailText(oracle, oracle.events.first);
-      expect(oracleDetail, contains('disturbing dream content'));
+      expect(oracleDetail, isNot(contains('disturbing dream content')));
 
       for (final definition in <MaatDecanFlowDefinition>[
         wandering,

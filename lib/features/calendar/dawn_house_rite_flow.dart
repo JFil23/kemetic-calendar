@@ -286,7 +286,7 @@ const List<DawnHouseRiteDay> kDawnHouseRiteDays = <DawnHouseRiteDay>[
     words:
         'May what enters this house serve life. May what leaves this house carry truth.',
     maatAct:
-        'Make one boundary clear: schedule, privacy, safety, spending, visitors, or conversation.',
+        'Make one boundary clear: schedule, personal space, safety, spending, visitors, or conversation.',
   ),
   DawnHouseRiteDay(
     dayNumber: 13,

@@ -7,7 +7,7 @@ import 'track_sky_flow.dart';
 
 const String kOfferingTableFlowKey = 'the-offering-table';
 const String kOfferingTableTitle = 'The Offering Table';
-const String kOfferingTableGlyph = '𓇋𓏏𓄣';
+const String kOfferingTableGlyph = '𓊵';
 const String kOfferingTableTagline = 'Feed what needs to be fed.';
 const int kOfferingTableDurationMinutes = 3;
 const int kOfferingTableCompletionDurationMinutes = 5;
@@ -192,7 +192,7 @@ const List<OfferingTableDay> kOfferingTableDays = <OfferingTableDay>[
     dayNumber: 7,
     section: 'Personal Table',
     title: 'Dignity at the Table',
-    purpose: 'Provision includes the conditions that let you remain human.',
+    purpose: 'Provision includes the supports that let you remain human.',
     provisionAct:
         'Choose one act that protects dignity today: clean clothing, a seat to eat, a real pause, or not mocking your own need.',
     optionalSteps: <String>[
@@ -251,7 +251,7 @@ const List<OfferingTableDay> kOfferingTableDays = <OfferingTableDay>[
     title: 'The Dependent Named',
     purpose: 'Make care specific enough to be answered.',
     provisionAct:
-        'Choose one being who depends on you. Name what they need today in concrete terms: food, attention, money, medicine, safety, time, or repair.',
+        'Choose one being who depends on you. Name what they need today in exact words: food, attention, money, medicine, safety, time, or repair.',
     optionalSteps: <String>[
       'Send one clear check-in or complete one simple care task.',
     ],

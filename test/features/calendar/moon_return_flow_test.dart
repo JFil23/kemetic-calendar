@@ -147,10 +147,9 @@ void main() {
     expect(payload['completion_options'], <String>['observed', 'skipped']);
     expect(payload.toString(), isNot(contains('observed_partly')));
     expect(jsonDecode(jsonEncode(payload)), isA<Map<String, dynamic>>());
-    expect(
-      moonReturnDetailText(occurrence, lens: MoonReturnLens.heru),
-      contains(kMoonReturnConfidenceLabel),
-    );
+    final detail = moonReturnDetailText(occurrence, lens: MoonReturnLens.heru);
+    expect(detail, contains('Purpose\n'));
+    expect(detail, isNot(contains('Confidence\n')));
   });
 
   test('calendar UI and join branch enforce designated windows', () {
