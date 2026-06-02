@@ -1,12 +1,157 @@
+import 'dart:async';
+
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../shared/glossy_text.dart';
 
+const String emailConfirmationRequiredMessage =
+    'Check your email to confirm your account, then sign in.';
+
+abstract class EmailAuthClient {
+  Future<EmailAuthResult> createAccount({
+    required String email,
+    required String password,
+  });
+
+  Future<EmailAuthResult> signIn({
+    required String email,
+    required String password,
+  });
+}
+
+class EmailAuthResult {
+  const EmailAuthResult({required this.hasSession});
+
+  final bool hasSession;
+}
+
+class SupabaseEmailAuthClient implements EmailAuthClient {
+  const SupabaseEmailAuthClient();
+
+  static const Duration _requestTimeout = Duration(seconds: 30);
+
+  @override
+  Future<EmailAuthResult> createAccount({
+    required String email,
+    required String password,
+  }) async {
+    final response = await Supabase.instance.client.auth
+        .signUp(
+          email: email,
+          password: password,
+          emailRedirectTo: _authRedirectTo(),
+        )
+        .timeout(_requestTimeout);
+    return EmailAuthResult(hasSession: response.session != null);
+  }
+
+  @override
+  Future<EmailAuthResult> signIn({
+    required String email,
+    required String password,
+  }) async {
+    final response = await Supabase.instance.client.auth
+        .signInWithPassword(email: email, password: password)
+        .timeout(_requestTimeout);
+    return EmailAuthResult(hasSession: response.session != null);
+  }
+}
+
+String _authRedirectTo() {
+  if (kIsWeb) {
+    return Uri.base
+        .removeFragment()
+        .replace(queryParameters: const {})
+        .toString();
+  }
+  return 'kemet.app://login-callback';
+}
+
+@visibleForTesting
+String emailAuthMessageForAuthException(
+  AuthException error, {
+  required bool creatingAccount,
+}) {
+  final code = error.code?.toLowerCase();
+  final message = error.message.trim();
+  final normalized = message.toLowerCase();
+
+  if (code == 'email_not_confirmed' ||
+      normalized.contains('email not confirmed') ||
+      normalized.contains('email address not confirmed') ||
+      normalized.contains('not confirmed')) {
+    return 'Confirm your email address before signing in.';
+  }
+
+  if (code == 'invalid_credentials' ||
+      normalized.contains('invalid login credentials') ||
+      normalized.contains('invalid credentials')) {
+    return 'Email or password is incorrect.';
+  }
+
+  if (code == 'user_already_exists' ||
+      code == 'email_exists' ||
+      normalized.contains('already registered') ||
+      normalized.contains('already exists') ||
+      normalized.contains('user already')) {
+    return 'An account already exists for this email. Sign in instead.';
+  }
+
+  if (code == 'weak_password' ||
+      (normalized.contains('password') &&
+          (normalized.contains('weak') ||
+              normalized.contains('short') ||
+              normalized.contains('at least')))) {
+    return 'Use a stronger password.';
+  }
+
+  if (normalized.contains('invalid email') ||
+      normalized.contains('email address is invalid') ||
+      (normalized.contains('email') && normalized.contains('valid'))) {
+    return 'Enter a valid email address.';
+  }
+
+  if (message.isNotEmpty) {
+    return message;
+  }
+
+  return creatingAccount
+      ? 'Could not create the account. Try again.'
+      : 'Sign-in failed. Try again.';
+}
+
+@visibleForTesting
+String emailAuthMessageForUnexpectedError(Object error) {
+  if (_looksLikeNetworkError(error)) {
+    return 'Network error. Check your connection and try again.';
+  }
+  return 'Sign-in failed. Try again.';
+}
+
+bool _looksLikeNetworkError(Object error) {
+  if (error is TimeoutException) return true;
+  final normalized = error.toString().toLowerCase();
+  return normalized.contains('network') ||
+      normalized.contains('clientexception') ||
+      normalized.contains('socketexception') ||
+      normalized.contains('failed host lookup') ||
+      normalized.contains('connection refused') ||
+      normalized.contains('connection closed') ||
+      normalized.contains('timed out') ||
+      normalized.contains('xmlhttprequest');
+}
+
 class LoginScreen extends StatefulWidget {
-  const LoginScreen({super.key, required this.onGoogleSignIn});
+  const LoginScreen({
+    super.key,
+    required this.onGoogleSignIn,
+    EmailAuthClient? emailAuthClient,
+  }) : emailAuthClient = emailAuthClient ?? const SupabaseEmailAuthClient();
 
   final Future<void> Function() onGoogleSignIn;
+  final EmailAuthClient emailAuthClient;
 
   @override
   State<LoginScreen> createState() => _LoginScreenState();
@@ -30,7 +175,7 @@ class _LoginScreenState extends State<LoginScreen> {
   Future<void> _submitEmailAuth() async {
     final email = _emailController.text.trim();
     final password = _passwordController.text;
-    if (email.isEmpty || !email.contains('@') || password.length < 8) {
+    if (!_looksLikeEmail(email) || password.length < 8) {
       setState(() {
         _message = 'Enter a valid email and password (8+ characters).';
       });
@@ -44,33 +189,57 @@ class _LoginScreenState extends State<LoginScreen> {
     });
 
     try {
-      final auth = Supabase.instance.client.auth;
-      final response = _creatingAccount
-          ? await auth.signUp(email: email, password: password)
-          : await auth.signInWithPassword(email: email, password: password);
+      final creatingAccount = _creatingAccount;
+      final response = creatingAccount
+          ? await widget.emailAuthClient.createAccount(
+              email: email,
+              password: password,
+            )
+          : await widget.emailAuthClient.signIn(
+              email: email,
+              password: password,
+            );
 
       if (!mounted) return;
-      if (response.session == null && _creatingAccount) {
+      if (response.hasSession) {
         setState(() {
-          _message = 'Account created. Sign in with this email and password.';
+          _message = null;
+          if (creatingAccount) {
+            _creatingAccount = false;
+          }
+        });
+        return;
+      }
+      if (creatingAccount) {
+        setState(() {
+          _message = emailConfirmationRequiredMessage;
           _creatingAccount = false;
         });
         return;
       }
-      if (response.session == null) {
-        setState(() {
-          _message = 'Sign-in failed. Check email and password.';
-        });
-      }
+
+      setState(() {
+        _message =
+            'Sign-in did not complete. Confirm your email, then try again.';
+      });
     } on AuthException catch (error) {
       if (!mounted) return;
+      final creatingAccount = _creatingAccount;
       setState(() {
-        _message = error.message;
+        _message = emailAuthMessageForAuthException(
+          error,
+          creatingAccount: creatingAccount,
+        );
+        if (creatingAccount &&
+            _message ==
+                'An account already exists for this email. Sign in instead.') {
+          _creatingAccount = false;
+        }
       });
-    } catch (_) {
+    } catch (error) {
       if (!mounted) return;
       setState(() {
-        _message = 'Sign-in failed. Try again.';
+        _message = emailAuthMessageForUnexpectedError(error);
       });
     } finally {
       if (mounted) {
@@ -79,6 +248,10 @@ class _LoginScreenState extends State<LoginScreen> {
         });
       }
     }
+  }
+
+  bool _looksLikeEmail(String email) {
+    return RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$').hasMatch(email);
   }
 
   Future<void> _submitGoogleAuth() async {
