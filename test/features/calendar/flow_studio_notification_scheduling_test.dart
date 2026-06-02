@@ -1,6 +1,8 @@
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:timezone/data/latest_all.dart' as tzdata;
+import 'package:timezone/timezone.dart' as tz;
 
 String _sliceBetween(String source, String startNeedle, String endNeedle) {
   final start = source.indexOf(startNeedle);
@@ -36,6 +38,10 @@ void main() {
         'await repo2.upsertByClientId(',
         writeLoop,
       );
+      final localCleanup = body.indexOf(
+        '_removeLocalNotesForFlowReplacement(flowId)',
+        replaceCall,
+      );
       final scheduleCall = body.indexOf(
         'final scheduleResult = await _scheduleAlertForEvent(',
         upsertCall,
@@ -44,6 +50,8 @@ void main() {
       expect(plannedBranch, greaterThanOrEqualTo(0));
       expect(replaceCall, greaterThan(plannedBranch));
       expect(replaceCall, lessThan(writeLoop));
+      expect(localCleanup, greaterThan(replaceCall));
+      expect(localCleanup, lessThan(writeLoop));
       expect(body, contains("semantic: 'flow_replace'"));
       expect(body, contains('suppressesClient: false'));
       expect(body, contains("'planned_flow_replace'"));
@@ -109,14 +117,124 @@ void main() {
         notifySource,
         contains('return const NotificationScheduleResult.permissionMissing'),
       );
+      expect(notifySource, contains('needsUserVisibleWarning'));
       expect(
         pageSource,
-        contains('scheduleResult?.isPermissionMissing == true'),
+        contains('scheduleResult?.needsUserVisibleWarning == true'),
       );
       expect(
         pageSource,
         contains('_showNotificationScheduleWarning(notificationWarning)'),
       );
+    },
+  );
+
+  test(
+    'Android event reminders require exact scheduling when exact alarms are available',
+    () {
+      final source = File(
+        'lib/features/calendar/notify.dart',
+      ).readAsStringSync();
+      final scheduleLocal = _sliceBetween(
+        source,
+        'static Future<void> _scheduleLocalNotification',
+        'static Future<AndroidScheduleMode> _androidScheduleMode',
+      );
+      final modeSelector = _sliceBetween(
+        source,
+        'static Future<AndroidScheduleMode> _androidScheduleMode',
+        'static bool _isExactAlarmDenied',
+      );
+
+      expect(source, contains('_notificationRequiresExactLocalDelivery'));
+      expect(source, contains('case NotificationType.eventStart:'));
+      expect(source, contains('case NotificationType.reminder10min:'));
+      expect(scheduleLocal, contains('requireExact: requireExact'));
+      expect(scheduleLocal, contains('Android schedule mode selected'));
+      expect(modeSelector, contains('AndroidScheduleMode.exactAllowWhileIdle'));
+      expect(modeSelector, contains('requireExact'));
+      expect(modeSelector, contains('_androidExactAlarmsAvailable()'));
+    },
+  );
+
+  test(
+    'Android exact-alarm denial returns a visible warning instead of inexact event-time success',
+    () {
+      final notifySource = File(
+        'lib/features/calendar/notify.dart',
+      ).readAsStringSync();
+      final pageSource = File(
+        'lib/features/calendar/calendar_page.dart',
+      ).readAsStringSync();
+
+      expect(
+        notifySource,
+        contains('NotificationScheduleOutcome.exactAlarmUnavailable'),
+      );
+      expect(notifySource, contains('exactAlarmUnavailableMessage'));
+      expect(notifySource, contains('_ExactAlarmUnavailableException'));
+      expect(
+        notifySource,
+        contains(
+          'return const NotificationScheduleResult.exactAlarmUnavailable',
+        ),
+      );
+      expect(notifySource, contains('if (requireExact) {\n          _log('));
+      expect(pageSource, contains('needsUserVisibleWarning'));
+    },
+  );
+
+  test('Android manifest declares scheduled notification receivers', () {
+    final manifest = File(
+      'android/app/src/main/AndroidManifest.xml',
+    ).readAsStringSync();
+
+    expect(
+      manifest,
+      contains(
+        'com.dexterous.flutterlocalnotifications.ScheduledNotificationReceiver',
+      ),
+    );
+    expect(
+      manifest,
+      contains(
+        'com.dexterous.flutterlocalnotifications.ScheduledNotificationBootReceiver',
+      ),
+    );
+    expect(manifest, contains('android.intent.action.MY_PACKAGE_REPLACED'));
+  });
+
+  test(
+    'edited custom flow day view dedupes by logical flow event, not CID time',
+    () {
+      final calendarSource = File(
+        'lib/features/calendar/calendar_page.dart',
+      ).readAsStringSync();
+      final dayViewSource = File(
+        'lib/features/calendar/day_view.dart',
+      ).readAsStringSync();
+
+      expect(calendarSource, contains('_visibleDayFlowLogicalKey'));
+      expect(calendarSource, contains('flow-logical|\$flowId|\$titleKey'));
+      expect(dayViewSource, contains('flowLogicalIndexByKey'));
+      expect(dayViewSource, contains('flow-logical|\$flowId|\$titleKey'));
+    },
+  );
+
+  test(
+    'local timezone conversion keeps UTC starts_at at the PDT wall time',
+    () {
+      tzdata.initializeTimeZones();
+      final losAngeles = tz.getLocation('America/Los_Angeles');
+      final startsAtUtc = DateTime.parse('2026-06-02T10:57:00.000Z');
+      final local = tz.TZDateTime.from(startsAtUtc, losAngeles);
+
+      expect(local.year, 2026);
+      expect(local.month, 6);
+      expect(local.day, 2);
+      expect(local.hour, 3);
+      expect(local.minute, 57);
+      expect(local.timeZoneName, 'PDT');
     },
   );
 

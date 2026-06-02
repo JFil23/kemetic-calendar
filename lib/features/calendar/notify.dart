@@ -35,6 +35,7 @@ enum NotificationScheduleOutcome {
   persistedForLocalReconcile,
   persistedForPush,
   permissionMissing,
+  exactAlarmUnavailable,
   skippedAlreadyDue,
   duplicateInProgress,
   failed,
@@ -69,6 +70,12 @@ class NotificationScheduleResult {
   const NotificationScheduleResult.permissionMissing(String message)
     : this._(NotificationScheduleOutcome.permissionMissing, message: message);
 
+  const NotificationScheduleResult.exactAlarmUnavailable(String message)
+    : this._(
+        NotificationScheduleOutcome.exactAlarmUnavailable,
+        message: message,
+      );
+
   const NotificationScheduleResult.skippedAlreadyDue()
     : this._(NotificationScheduleOutcome.skippedAlreadyDue);
 
@@ -84,6 +91,19 @@ class NotificationScheduleResult {
 
   bool get isPermissionMissing =>
       outcome == NotificationScheduleOutcome.permissionMissing;
+
+  bool get isExactAlarmUnavailable =>
+      outcome == NotificationScheduleOutcome.exactAlarmUnavailable;
+
+  bool get needsUserVisibleWarning =>
+      isPermissionMissing || isExactAlarmUnavailable;
+}
+
+class _ExactAlarmUnavailableException implements Exception {
+  const _ExactAlarmUnavailableException();
+
+  @override
+  String toString() => Notify.exactAlarmUnavailableMessage;
 }
 
 class Notify {
@@ -97,6 +117,8 @@ class Notify {
   static const _localReconcileDebounce = Duration(milliseconds: 350);
   static const localPermissionMissingMessage =
       'Notification permission is off for this device. Turn it on before event alerts can fire.';
+  static const exactAlarmUnavailableMessage =
+      'Exact alarm permission is off for this device. Turn on Alarms & reminders before event-time alerts can fire at the event time.';
 
   static bool _inited = false;
   static final Set<String> _schedulingInProgress = {};
@@ -122,6 +144,18 @@ class Notify {
   }
 
   static bool _notificationRequiresEventExistence(NotificationType type) {
+    switch (type) {
+      case NotificationType.eventStart:
+      case NotificationType.reminder10min:
+        return true;
+      case NotificationType.dailyReview:
+      case NotificationType.flowStep:
+      case NotificationType.flowReminder:
+        return false;
+    }
+  }
+
+  static bool _notificationRequiresExactLocalDelivery(NotificationType type) {
     switch (type) {
       case NotificationType.eventStart:
       case NotificationType.reminder10min:
@@ -282,12 +316,17 @@ class Notify {
         >();
     if (androidSpecific != null) {
       final enabled = await androidSpecific.areNotificationsEnabled();
+      _log(
+        'areNotificationsEnabled(requestIfMissing=$requestIfMissing) => $enabled',
+      );
       if (enabled == true || enabled == null) return true;
       if (!requestIfMissing) return false;
 
       final requested = await androidSpecific.requestNotificationsPermission();
+      _log('requestNotificationsPermission() => $requested');
       if (requested == true) return true;
       final afterRequest = await androidSpecific.areNotificationsEnabled();
+      _log('areNotificationsEnabled(afterRequest) => $afterRequest');
       return afterRequest == true;
     }
 
@@ -509,19 +548,43 @@ class Notify {
       for (final notif in pending) {
         if (desiredIds.contains(notif.id)) continue;
         await _plugin.cancel(notif.id);
+        _log('Canceled stale pending local notification id=${notif.id}');
         canceled++;
       }
 
       int scheduled = 0;
       int refreshed = 0;
+      int exactBlocked = 0;
       for (final row in desiredRows) {
         final notificationId = row['notification_id'] as int;
+        final type = _notificationTypeFromValue(
+          row['notification_type'] as String?,
+        );
         final alreadyPending = pendingIds.contains(notificationId);
+        final requireExact = _notificationRequiresExactLocalDelivery(type);
+        if (requireExact && !await _androidExactAlarmsAvailable()) {
+          if (alreadyPending) {
+            await _plugin.cancel(notificationId);
+            _log(
+              'Canceled pending local notification id=$notificationId because exact alarms are unavailable',
+            );
+          }
+          exactBlocked++;
+          _log(
+            '$exactAlarmUnavailableMessage Skipping local schedule for '
+            'notification id=$notificationId type=${type.value} '
+            'clientEventId=${row['client_event_id']}.',
+          );
+          continue;
+        }
         if (alreadyPending && !shouldRefreshExisting) continue;
 
         try {
           if (alreadyPending) {
             await _plugin.cancel(notificationId);
+            _log(
+              'Canceled pending local notification id=$notificationId before refresh',
+            );
             refreshed++;
           }
 
@@ -539,6 +602,8 @@ class Notify {
               preferredBody: row['body'] as String?,
             ),
             payload: row['payload'] as String? ?? '{}',
+            type: type,
+            requireExact: requireExact,
           );
           scheduled++;
         } catch (e) {
@@ -552,7 +617,7 @@ class Notify {
         '✅ Local schedule window synced '
         '(eligible=${eligibleRows.length}, armed=${desiredRows.length}, '
         'scheduled=$scheduled, refreshed=$refreshed, canceled=$canceled, '
-        'retired=$retired, deferred=$deferredCount, '
+        'retired=$retired, exactBlocked=$exactBlocked, deferred=$deferredCount, '
         'max=$_maxConcurrentLocalNotifications)',
       );
     } catch (e) {
@@ -675,13 +740,17 @@ class Notify {
         importance: Importance.max,
       ),
     );
+    _log(
+      'Android notification channel ready '
+      '(id=$_androidChannelId, name=$_androidChannelName, importance=max)',
+    );
 
     final notificationsEnabled = await androidSpecific
         ?.areNotificationsEnabled();
     _log('areNotificationsEnabled() => $notificationsEnabled');
 
-    // 5) Android 12+ exact alarms status. If unavailable, scheduling will use
-    // AndroidScheduleMode.inexactAllowWhileIdle instead of launching Settings.
+    // 5) Android 12+ exact alarms status. Event-backed reminders require exact
+    // delivery and will report a user-visible warning if this is unavailable.
     try {
       final exactGranted = await androidSpecific
           ?.canScheduleExactNotifications();
@@ -857,6 +926,9 @@ class Notify {
           existing?['notification_id'] as int? ??
           _generateFallbackNotificationId(clientEventId, type: type);
       final shouldScheduleLocally = await _shouldScheduleLocallyOnThisDevice();
+      final requireExactLocalDelivery = _notificationRequiresExactLocalDelivery(
+        type,
+      );
       final sanitizedTitle = await _resolveNotificationTitle(
         clientEventId: clientEventId,
         preferredTitle: title,
@@ -888,6 +960,9 @@ class Notify {
       if (shouldScheduleLocally) {
         if (existing != null) {
           await _plugin.cancel(notificationId);
+          _log(
+            'Canceled existing local notification id=$notificationId before replacement',
+          );
         }
 
         final localNotificationsEnabled = await _localNotificationsEnabled();
@@ -900,10 +975,23 @@ class Notify {
           );
         }
 
+        if (requireExactLocalDelivery &&
+            !await _androidExactAlarmsAvailable()) {
+          _log(
+            '$exactAlarmUnavailableMessage Persisted row for '
+            '$notificationIdentity but did not arm local notification '
+            'id=$notificationId.',
+          );
+          return const NotificationScheduleResult.exactAlarmUnavailable(
+            exactAlarmUnavailableMessage,
+          );
+        }
+
         if (persistedNotification != null) {
           _requestLocalWindowReconcile();
           _log(
-            'Queued local schedule reconciliation for $notificationIdentity',
+            'Queued local schedule reconciliation for $notificationIdentity '
+            '(notificationId=$notificationId, requireExact=$requireExactLocalDelivery)',
           );
           return NotificationScheduleResult.persistedForLocalReconcile(
             scheduledAt,
@@ -916,6 +1004,8 @@ class Notify {
               title: sanitizedTitle,
               body: sanitizedBody,
               payload: payload ?? '{}',
+              type: type,
+              requireExact: requireExactLocalDelivery,
             );
             _log(
               '⚠️ Scheduled local fallback without database persistence for $notificationIdentity',
@@ -925,6 +1015,11 @@ class Notify {
             _log(
               '⚠️ Local fallback scheduling failed for $notificationIdentity: $e',
             );
+            if (e is _ExactAlarmUnavailableException) {
+              return const NotificationScheduleResult.exactAlarmUnavailable(
+                exactAlarmUnavailableMessage,
+              );
+            }
             return NotificationScheduleResult.failed(e.toString());
           }
         }
@@ -1134,6 +1229,8 @@ class Notify {
     required String title,
     String? body,
     String? payload,
+    NotificationType type = NotificationType.eventStart,
+    bool requireExact = false,
   }) async {
     // Convert to timezone-aware datetime
     final tzScheduled = tz.TZDateTime.from(scheduledAt, tz.local);
@@ -1142,6 +1239,10 @@ class Notify {
     _log('  UTC time: ${scheduledAt.toUtc()}');
     _log('  Local time: $tzScheduled');
     _log('  Will fire at: ${tzScheduled.toString()}');
+    _log(
+      '  Notification id=$id type=${type.value} requireExact=$requireExact '
+      'channel=$_androidChannelId/$_androidChannelName importance=max',
+    );
 
     // Android 15 compatible configuration - removed fullScreenIntent and showWhen
     const androidDetails = AndroidNotificationDetails(
@@ -1165,7 +1266,8 @@ class Notify {
       iOS: iosDetails,
     );
 
-    var scheduleMode = await _androidScheduleMode();
+    var scheduleMode = await _androidScheduleMode(requireExact: requireExact);
+    _log('  Android schedule mode selected: $scheduleMode');
     try {
       await _plugin.zonedSchedule(
         id,
@@ -1182,6 +1284,13 @@ class Notify {
       if (scheduleMode != AndroidScheduleMode.inexactAllowWhileIdle &&
           _isExactAlarmDenied(e)) {
         _canScheduleExactAlarms = false;
+        if (requireExact) {
+          _log(
+            '$exactAlarmUnavailableMessage Exact schedule failed for '
+            'notification id=$id type=${type.value}.',
+          );
+          throw const _ExactAlarmUnavailableException();
+        }
         scheduleMode = AndroidScheduleMode.inexactAllowWhileIdle;
         _logInexactAlarmFallback();
         await _plugin.zonedSchedule(
@@ -1201,12 +1310,38 @@ class Notify {
     }
   }
 
-  static Future<AndroidScheduleMode> _androidScheduleMode() async {
+  static Future<AndroidScheduleMode> _androidScheduleMode({
+    bool requireExact = false,
+  }) async {
+    final exactAvailable = await _androidExactAlarmsAvailable();
+    if (!exactAvailable) {
+      if (requireExact) {
+        _log(exactAlarmUnavailableMessage);
+        throw const _ExactAlarmUnavailableException();
+      }
+      _logInexactAlarmFallback();
+      _log(
+        'Android schedule mode selected: '
+        '${AndroidScheduleMode.inexactAllowWhileIdle} '
+        '(requireExact=$requireExact, exactAvailable=false)',
+      );
+      return AndroidScheduleMode.inexactAllowWhileIdle;
+    }
+
+    _log(
+      'Android schedule mode selected: '
+      '${AndroidScheduleMode.exactAllowWhileIdle} '
+      '(requireExact=$requireExact, exactAvailable=true)',
+    );
+    return AndroidScheduleMode.exactAllowWhileIdle;
+  }
+
+  static Future<bool> _androidExactAlarmsAvailable() async {
     final androidSpecific = _plugin
         .resolvePlatformSpecificImplementation<
           AndroidFlutterLocalNotificationsPlugin
         >();
-    if (androidSpecific == null) return AndroidScheduleMode.exactAllowWhileIdle;
+    if (androidSpecific == null) return true;
 
     var canScheduleExact = _canScheduleExactAlarms;
     if (canScheduleExact == null) {
@@ -1220,12 +1355,8 @@ class Notify {
       _canScheduleExactAlarms = canScheduleExact;
     }
 
-    if (canScheduleExact == false) {
-      _logInexactAlarmFallback();
-      return AndroidScheduleMode.inexactAllowWhileIdle;
-    }
-
-    return AndroidScheduleMode.exactAllowWhileIdle;
+    _log('canScheduleExactNotifications(cached) => $canScheduleExact');
+    return canScheduleExact != false;
   }
 
   static bool _isExactAlarmDenied(Object error) {

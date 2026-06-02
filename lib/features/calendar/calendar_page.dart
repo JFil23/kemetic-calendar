@@ -15116,6 +15116,18 @@ class CalendarPageState extends State<CalendarPage>
     return true;
   }
 
+  int _removeLocalNotesForFlowReplacement(int flowId) {
+    if (flowId <= 0) return 0;
+    var removed = 0;
+    _notes.removeWhere((_, bucket) {
+      final before = bucket.length;
+      bucket.removeWhere((note) => note.flowId == flowId);
+      removed += before - bucket.length;
+      return bucket.isEmpty;
+    });
+    return removed;
+  }
+
   _Note? _removeLocalNoteOnly(int kYear, int kMonth, int kDay, int index) {
     final k = _kKey(kYear, kMonth, kDay);
     final list = _notes[k];
@@ -16542,7 +16554,7 @@ class CalendarPageState extends State<CalendarPage>
                 body: bodyLines.isEmpty ? null : bodyLines.join('\n'),
                 payload: '{}',
               );
-          if (scheduleResult.isPermissionMissing) {
+          if (scheduleResult.needsUserVisibleWarning) {
             _showNotificationScheduleWarning(scheduleResult.message);
           }
         }
@@ -17522,7 +17534,7 @@ class CalendarPageState extends State<CalendarPage>
             clientEventId: savedEvent.clientEventId ?? cid,
             eventId: savedEvent.id,
           );
-          if (scheduleResult?.isPermissionMissing == true) {
+          if (scheduleResult?.needsUserVisibleWarning == true) {
             notificationWarning ??= scheduleResult?.message;
           }
         } catch (e) {
@@ -25903,9 +25915,10 @@ class CalendarPageState extends State<CalendarPage>
             sourceFeature: 'CalendarPage._persistFlowStudioResult',
             deleteScope: isAIFlow ? 'ai_flow_replace' : 'planned_flow_replace',
           );
+          final removedLocal = _removeLocalNotesForFlowReplacement(flowId);
           if (kDebugMode) {
             _calendarDebugPrint(
-              '[persistFlowStudio] Cleared existing events for planned-note flow $flowId before replacement',
+              '[persistFlowStudio] Cleared existing events for planned-note flow $flowId before replacement (localRemoved=$removedLocal)',
             );
           }
         } catch (e) {
@@ -26009,7 +26022,7 @@ class CalendarPageState extends State<CalendarPage>
           clientEventId: savedEvent.clientEventId ?? cid,
           eventId: savedEvent.id,
         );
-        if (scheduleResult?.isPermissionMissing == true) {
+        if (scheduleResult?.needsUserVisibleWarning == true) {
           notificationWarning ??= scheduleResult?.message;
         }
       }
@@ -26261,7 +26274,7 @@ class CalendarPageState extends State<CalendarPage>
         clientEventId: updated.clientEventId ?? unifiedCid,
         eventId: updated.id,
       );
-      if (scheduleResult?.isPermissionMissing == true) {
+      if (scheduleResult?.needsUserVisibleWarning == true) {
         _showNotificationScheduleWarning(scheduleResult?.message);
       }
 
@@ -26449,7 +26462,7 @@ class CalendarPageState extends State<CalendarPage>
       clientEventId: savedClientEventId,
       eventId: updated.id,
     );
-    if (scheduleResult?.isPermissionMissing == true) {
+    if (scheduleResult?.needsUserVisibleWarning == true) {
       _showNotificationScheduleWarning(scheduleResult?.message);
     }
 
@@ -28648,6 +28661,14 @@ class CalendarPageState extends State<CalendarPage>
     return '$flowKey|$startKey|$endKey|$titleKey';
   }
 
+  String? _visibleDayFlowLogicalKey(_Note note) {
+    final flowId = note.flowId;
+    if (flowId == null || flowId <= 0 || note.isReminder) return null;
+    final titleKey = note.title.trim().toLowerCase();
+    if (titleKey.isEmpty) return null;
+    return 'flow-logical|$flowId|$titleKey';
+  }
+
   String? _trackSkyVisibleDayNoteKey(_Note note, {Set<int>? trackSkyFlowIds}) {
     final flowId = note.flowId;
     final isTrackSkyNote =
@@ -28690,6 +28711,27 @@ class CalendarPageState extends State<CalendarPage>
     }
   }
 
+  void _mergeVisibleDayFlowLogicalDuplicate({
+    required List<_Note> deduped,
+    required Map<String, int> indexByKey,
+    required String key,
+    required _Note note,
+  }) {
+    final existingIndex = indexByKey[key];
+    if (existingIndex == null) {
+      indexByKey[key] = deduped.length;
+      deduped.add(note);
+      return;
+    }
+
+    final existing = deduped[existingIndex];
+    final existingScore = _visibleDayNotePriority(existing, preferTimed: true);
+    final incomingScore = _visibleDayNotePriority(note, preferTimed: true);
+    if (incomingScore >= existingScore || !_noteHasStableIdentity(note)) {
+      deduped[existingIndex] = note;
+    }
+  }
+
   List<_Note> _dedupeVisibleDayNotes(
     List<_Note> notes, {
     Set<int>? trackSkyFlowIds,
@@ -28728,7 +28770,24 @@ class CalendarPageState extends State<CalendarPage>
       );
     }
 
-    return trackSkyDeduped;
+    final flowLogicalDeduped = <_Note>[];
+    final flowLogicalIndexByKey = <String, int>{};
+    for (final note in trackSkyDeduped) {
+      final flowLogicalKey = _visibleDayFlowLogicalKey(note);
+      if (flowLogicalKey == null) {
+        flowLogicalDeduped.add(note);
+        continue;
+      }
+
+      _mergeVisibleDayFlowLogicalDuplicate(
+        deduped: flowLogicalDeduped,
+        indexByKey: flowLogicalIndexByKey,
+        key: flowLogicalKey,
+        note: note,
+      );
+    }
+
+    return flowLogicalDeduped;
   }
 
   String _calendarSheetEventIdentityKey(EventItem event) {

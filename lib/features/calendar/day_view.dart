@@ -1772,7 +1772,13 @@ DayViewSheetEventTarget? eventDetailTargetFromRestorationState({
 List<NoteData> _dedupeDayNotesForUi(List<NoteData> notes) {
   if (notes.isEmpty) return notes;
 
-  final seen = <String, NoteData>{};
+  final exactIndexByKey = <String, int>{};
+  final flowLogicalIndexByKey = <String, int>{};
+  final output = <NoteData>[];
+
+  bool hasIdentity(NoteData n) =>
+      (n.id != null && n.id!.trim().isNotEmpty) ||
+      (n.clientEventId != null && n.clientEventId!.trim().isNotEmpty);
 
   for (final note in notes) {
     final flowKey = note.flowId?.toString() ?? 'NO_FLOW';
@@ -1794,22 +1800,39 @@ List<NoteData> _dedupeDayNotesForUi(List<NoteData> notes) {
     final titleKey = note.title.trim().toLowerCase();
     final key = '$flowKey|$startKey|$endKey|$titleKey';
 
-    if (!seen.containsKey(key)) {
-      seen[key] = note;
+    final exactExistingIndex = exactIndexByKey[key];
+    if (exactExistingIndex != null) {
+      final exactExisting = output[exactExistingIndex];
+      if (!hasIdentity(exactExisting) && hasIdentity(note)) {
+        output[exactExistingIndex] = note;
+      }
       continue;
     }
 
-    final existing = seen[key]!;
-    bool hasIdentity(NoteData n) =>
-        (n.id != null && n.id!.trim().isNotEmpty) ||
-        (n.clientEventId != null && n.clientEventId!.trim().isNotEmpty);
+    final flowId = note.flowId;
+    final flowLogicalKey =
+        flowId != null && flowId > 0 && !note.isReminder && titleKey.isNotEmpty
+        ? 'flow-logical|$flowId|$titleKey'
+        : null;
 
-    if (!hasIdentity(existing) && hasIdentity(note)) {
-      seen[key] = note;
+    final flowLogicalExistingIndex = flowLogicalKey == null
+        ? null
+        : flowLogicalIndexByKey[flowLogicalKey];
+    if (flowLogicalExistingIndex != null) {
+      output[flowLogicalExistingIndex] = note;
+      exactIndexByKey[key] = flowLogicalExistingIndex;
+      continue;
     }
+
+    final index = output.length;
+    exactIndexByKey[key] = index;
+    if (flowLogicalKey != null) {
+      flowLogicalIndexByKey[flowLogicalKey] = index;
+    }
+    output.add(note);
   }
 
-  return seen.values.toList();
+  return output;
 }
 
 EventItem _eventItemFromNote(NoteData note, Map<int, FlowData> flowIndex) {
