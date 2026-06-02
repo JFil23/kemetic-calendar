@@ -8721,6 +8721,7 @@ class CalendarPageState extends State<CalendarPage>
       category: event.category,
       isReminder: event.isReminder,
       reminderId: event.reminderId,
+      behaviorPayload: event.behaviorPayload,
     );
   }
 
@@ -16331,6 +16332,7 @@ class CalendarPageState extends State<CalendarPage>
       category: note.category,
       isReminder: note.isReminder,
       reminderId: note.reminderId,
+      behaviorPayload: note.behaviorPayload,
     );
   }
 
@@ -21387,6 +21389,7 @@ class CalendarPageState extends State<CalendarPage>
               category: n.category,
               isReminder: n.isReminder,
               reminderId: n.reminderId,
+              behaviorPayload: n.behaviorPayload,
             ),
           )
           .toList();
@@ -27691,6 +27694,7 @@ class CalendarPageState extends State<CalendarPage>
                     category: n.category,
                     isReminder: n.isReminder,
                     reminderId: n.reminderId,
+                    behaviorPayload: n.behaviorPayload,
                   ),
                 )
                 .toList();
@@ -28821,6 +28825,7 @@ class CalendarPageState extends State<CalendarPage>
       category: note.category,
       isReminder: note.isReminder,
       reminderId: note.reminderId,
+      behaviorPayload: note.behaviorPayload,
     );
   }
 

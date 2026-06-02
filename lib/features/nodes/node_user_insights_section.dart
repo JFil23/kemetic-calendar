@@ -38,8 +38,13 @@ const nodeUserInsightsEmptyCardKey = ValueKey<String>(
 
 class NodeUserInsightsSection extends StatefulWidget {
   final KemeticNode node;
+  final bool openEditorOnLoad;
 
-  const NodeUserInsightsSection({super.key, required this.node});
+  const NodeUserInsightsSection({
+    super.key,
+    required this.node,
+    this.openEditorOnLoad = false,
+  });
 
   @override
   State<NodeUserInsightsSection> createState() =>
@@ -54,6 +59,8 @@ class _NodeUserInsightsSectionState extends State<NodeUserInsightsSection> {
   List<InsightEntry> _entries = const [];
   Set<String> _postingEntryIds = <String>{};
   bool _loading = true;
+  bool _openedEditorFromRoute = false;
+  int _loadGeneration = 0;
 
   @override
   void initState() {
@@ -61,7 +68,24 @@ class _NodeUserInsightsSectionState extends State<NodeUserInsightsSection> {
     _load();
   }
 
+  @override
+  void didUpdateWidget(covariant NodeUserInsightsSection oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.node.id != widget.node.id) {
+      setState(() {
+        _entries = const [];
+        _loading = true;
+      });
+      _load();
+      return;
+    }
+    if (!oldWidget.openEditorOnLoad && widget.openEditorOnLoad) {
+      _openRouteEditorIfReady();
+    }
+  }
+
   Future<void> _load() async {
+    final generation = ++_loadGeneration;
     final entries = await _entryRepo.fetchEntriesForNode(widget.node.id);
     final ordered = List<InsightEntry>.from(entries)
       ..sort((a, b) {
@@ -69,10 +93,20 @@ class _NodeUserInsightsSectionState extends State<NodeUserInsightsSection> {
         if (byDate != 0) return byDate;
         return a.createdAt.compareTo(b.createdAt);
       });
-    if (!mounted) return;
+    if (!mounted || generation != _loadGeneration) return;
     setState(() {
       _entries = ordered;
       _loading = false;
+    });
+    _openRouteEditorIfReady();
+  }
+
+  void _openRouteEditorIfReady() {
+    if (!widget.openEditorOnLoad || _loading || _openedEditorFromRoute) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || _openedEditorFromRoute || _loading) return;
+      _openedEditorFromRoute = true;
+      _openEditor();
     });
   }
 

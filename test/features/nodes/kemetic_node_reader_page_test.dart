@@ -4,7 +4,9 @@ import 'package:go_router/go_router.dart';
 import 'package:mobile/features/nodes/kemetic_node_library.dart';
 import 'package:mobile/features/nodes/kemetic_node_list_page.dart';
 import 'package:mobile/features/nodes/kemetic_node_reader_page.dart';
+import 'package:mobile/features/nodes/node_user_insights_section.dart';
 import 'package:mobile/features/nodes/widgets.dart';
+import 'package:mobile/main.dart' as app;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -106,6 +108,107 @@ void main() {
       find.byType(Scrollable).last,
     );
     expect(scrollableState.position.pixels, greaterThan(0));
+  });
+
+  testWidgets('node route action flag opens the insight editor on load', (
+    tester,
+  ) async {
+    Future<void> pumpRoute(String location) async {
+      final router = GoRouter(
+        initialLocation: location,
+        routes: [
+          GoRoute(
+            path: '/nodes/:nodeId',
+            builder: (context, state) {
+              final nodeId = Uri.decodeComponent(
+                state.pathParameters['nodeId']!,
+              );
+              return app.NodeReaderRoutePage(
+                nodeId: nodeId,
+                openInsightEditorOnLoad: app
+                    .shouldOpenInsightEditorOnLoadFromNodeRoute(state.uri),
+              );
+            },
+          ),
+        ],
+      );
+      addTearDown(router.dispose);
+      await tester.pumpWidget(MaterialApp.router(routerConfig: router));
+      await tester.pump();
+    }
+
+    await pumpRoute('/nodes/maat?action=add_insight');
+    expect(
+      find.byWidgetPredicate(
+        (widget) =>
+            widget is KemeticNodeReaderPage && widget.openInsightEditorOnLoad,
+      ),
+      findsOneWidget,
+    );
+
+    await pumpRoute('/nodes/maat');
+    expect(
+      find.byWidgetPredicate(
+        (widget) =>
+            widget is KemeticNodeReaderPage && !widget.openInsightEditorOnLoad,
+      ),
+      findsOneWidget,
+    );
+
+    expect(
+      app.shouldOpenInsightEditorOnLoadFromNodeRoute(
+        Uri.parse('/nodes/maat?insight=new'),
+      ),
+      isTrue,
+    );
+  });
+
+  testWidgets('insights section opens route editor once across rebuilds', (
+    tester,
+  ) async {
+    final node = KemeticNodeLibrary.resolve('maat')!;
+    final rebuild = ValueNotifier<int>(0);
+    addTearDown(rebuild.dispose);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: ValueListenableBuilder<int>(
+            valueListenable: rebuild,
+            builder: (context, ignoredValue, ignoredChild) {
+              return NodeUserInsightsSection(
+                node: node,
+                openEditorOnLoad: true,
+              );
+            },
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    final sheetTitle = 'New ${node.title} Insight';
+    expect(find.text(sheetTitle), findsOneWidget);
+
+    rebuild.value++;
+    await tester.pumpAndSettle();
+    expect(find.text(sheetTitle), findsOneWidget);
+  });
+
+  testWidgets('insights section does not open editor without route flag', (
+    tester,
+  ) async {
+    final node = KemeticNodeLibrary.resolve('maat')!;
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(body: NodeUserInsightsSection(node: node)),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('New ${node.title} Insight'), findsNothing);
+    expect(find.text('Your Insights'), findsOneWidget);
   });
 
   testWidgets('node list glyph tiles fit compound and low-profile signs', (

@@ -82,6 +82,7 @@ const String kLivingTextTitle = 'The Living Text';
 const String kLivingTextGlyph = '𓏛𓋹';
 const String kLivingTextTagline =
     'The Library was written by those who came before. What do you add?';
+const String kMaatLibraryCtaAddInsight = 'add_insight';
 
 const String kClearingFlowKey = 'the-clearing';
 const String kClearingTitle = 'The Clearing';
@@ -194,6 +195,9 @@ class MaatDecanFlowEvent {
   final bool requiresRealWorldAction;
   final bool sharePromptOnComplete;
   final Map<String, String> extraCompletionStatusLabels;
+  final String? libraryCta;
+  final String? libraryCtaNodeSlug;
+  final String? libraryCtaLabel;
 
   const MaatDecanFlowEvent({
     required this.eventNumber,
@@ -211,6 +215,9 @@ class MaatDecanFlowEvent {
     this.requiresRealWorldAction = false,
     this.sharePromptOnComplete = false,
     this.extraCompletionStatusLabels = const <String, String>{},
+    this.libraryCta,
+    this.libraryCtaNodeSlug,
+    this.libraryCtaLabel,
   });
 }
 
@@ -2665,12 +2672,13 @@ kMaatDecanFlowDefinitions = <MaatDecanFlowDefinition>[
         timing: MaatDecanFlowTiming.anyTime,
         durationMinutesMin: 8,
         durationMinutesMax: 8,
-        purpose: 'Turn confusion into a Library question.',
+        purpose: 'Record confusion in Your Insights.',
         spokenLine: 'No one is born wise.',
         steps: <String>[
           'Choose an important entry you do not fully understand.',
           'Name the exact passage or concept that is unclear.',
-          'Add it as a Library question.',
+          'Open the node and tap Your Insights. Write the question exactly as it sits — what you cannot yet answer is as useful to the record as what you can.',
+          'Save it to the node so the gap remains visible in your own record.',
         ],
         requiresRealWorldAction: true,
       ),
@@ -2686,13 +2694,16 @@ kMaatDecanFlowDefinitions = <MaatDecanFlowDefinition>[
             'A reflection is not a summary or a response. It is what the entry opened in you that the entry itself could not say — because the entry was written before you encountered it with your specific life.',
         spokenLine: 'Good advice may be found at the grindstones.',
         steps: <String>[
-          'Return to the Day 1 entry.',
-          'Add a reflection from your lived experience.',
-          'Mark it private or public. Reflections are private by default.',
+          'Return to the node you chose on Day 1 and tap Your Insights.',
+          'Add a reflection from your lived experience — what the entry opened in you that the entry itself could not say.',
+          'Save it to the node. If it belongs to others, use Post to share it on your profile.',
         ],
         sourceNote:
             'Scribal annotations in Kemetic manuscripts were often incorporated into subsequent copies — the reader\'s gloss became part of the text. What your experience adds to the entry belongs in the record alongside the original.',
         requiresRealWorldAction: true,
+        libraryCta: kMaatLibraryCtaAddInsight,
+        libraryCtaNodeSlug: null,
+        libraryCtaLabel: 'Add your insight',
       ),
       MaatDecanFlowEvent(
         eventNumber: 5,
@@ -2706,8 +2717,9 @@ kMaatDecanFlowDefinitions = <MaatDecanFlowDefinition>[
         spokenLine: 'A living text shows relation.',
         steps: <String>[
           'Find two Library entries that connect in a way the app does not already show.',
-          'Add a short connection explaining the relationship.',
-          'Use Library language: connection, not comment.',
+          'Open one of the two nodes. In Your Insights, write the connection in one or two sentences.',
+          'After saving, use Link Insight to highlight the phrase that points toward the second node, then select the target node.',
+          'This makes your connection tappable for anyone who reads your insight.',
         ],
         requiresRealWorldAction: true,
       ),
@@ -2724,8 +2736,8 @@ kMaatDecanFlowDefinitions = <MaatDecanFlowDefinition>[
             'The living text receives what the older text could not know.',
         steps: <String>[
           'Choose an entry that feels incomplete.',
-          'Name the missing question or modern situation it does not yet address.',
-          'Add that question to the Library.',
+          'Open the node and tap Your Insights. Name the missing question or modern situation the entry does not yet address.',
+          'Save it to the node. Shared, it becomes available to the next person who finds the same gap.',
         ],
         requiresRealWorldAction: true,
       ),
@@ -2740,11 +2752,14 @@ kMaatDecanFlowDefinitions = <MaatDecanFlowDefinition>[
         purpose: 'Re-read the first entry after the decan has turned.',
         spokenLine: 'The reader returns changed.',
         steps: <String>[
-          'Re-read the Day 1 entry.',
-          'Write what you saw then versus what you see now.',
-          'Add or revise your reflection.',
+          'Open the node you chose on Day 1. Return to Your Insights and add or revise your entry.',
+          'What you see now that you did not see three decans ago is the decan doing its work.',
+          'That change is worth leaving in the record.',
         ],
         requiresRealWorldAction: true,
+        libraryCta: kMaatLibraryCtaAddInsight,
+        libraryCtaNodeSlug: null,
+        libraryCtaLabel: 'Revise your insight',
       ),
       MaatDecanFlowEvent(
         eventNumber: 8,
@@ -3781,6 +3796,12 @@ Map<String, dynamic> maatDecanFlowBehaviorPayload({
       'special_requirement': definition.specialRequirementLabel,
     if (definition.safetyNote != null) 'safety_note': definition.safetyNote,
     'routing_summary': definition.routingSummary,
+    if (event.libraryCta != null)
+      'library_cta': <String, dynamic>{
+        'type': event.libraryCta,
+        'node_slug': event.libraryCtaNodeSlug,
+        'label': event.libraryCtaLabel ?? 'Add your insight',
+      },
     'schedule': <String, dynamic>{
       'type': schedule.scheduleType,
       'fallback': schedule.fallback,

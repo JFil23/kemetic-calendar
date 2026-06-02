@@ -1,13 +1,40 @@
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:go_router/go_router.dart';
 import 'package:mobile/features/calendar/calendar_page.dart' show KemeticMath;
 import 'package:mobile/features/calendar/day_view.dart';
+import 'package:mobile/features/calendar/living_text_day_one_node_store.dart';
+import 'package:mobile/features/calendar/maat_decan_flow.dart';
 import 'package:mobile/services/app_restoration_service.dart';
 import 'package:mobile/shared/glossy_text.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+
+Future<void> _ensureSupabaseInitialized() async {
+  try {
+    Supabase.instance.client;
+    return;
+  } catch (_) {}
+
+  await Supabase.initialize(
+    url: 'https://example.supabase.co',
+    anonKey: 'anon-key-0123456789012345678901234567890123456789',
+  );
+}
 
 void main() {
-  setUp(CalendarEventDetailSheetCoordinator.debugResetForTests);
+  TestWidgetsFlutterBinding.ensureInitialized();
+
+  setUpAll(() async {
+    SharedPreferences.setMockInitialValues(<String, Object>{});
+    await _ensureSupabaseInitialized();
+  });
+
+  setUp(() {
+    SharedPreferences.setMockInitialValues(<String, Object>{});
+    CalendarEventDetailSheetCoordinator.debugResetForTests();
+  });
   tearDown(CalendarEventDetailSheetCoordinator.debugResetForTests);
 
   group('DayViewGrid overlapping event gestures', () {
@@ -736,6 +763,133 @@ void main() {
       },
     );
 
+    testWidgets('Living Text CTA routes to fixed node slug from payload', (
+      tester,
+    ) async {
+      await _setPhoneViewport(tester);
+
+      await tester.pumpWidget(
+        _DayViewRouterHarness(
+          notes: [
+            _livingTextNote(
+              title: 'Living Text 4: Add Your First Reflection',
+              label: 'Add your insight',
+              nodeSlug: 'ptah',
+            ),
+          ],
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Living Text 4: Add Your First Reflection'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Add your insight'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Node target: ptah action:add_insight'), findsOneWidget);
+    });
+
+    testWidgets(
+      'Living Text CTA routes to stored Day 1 slug when payload is null',
+      (tester) async {
+        await _setPhoneViewport(tester);
+        await const LivingTextDayOneNodeStore().writeSlug(
+          userId: 'local',
+          flowInstanceId: '77',
+          nodeSlug: 'maat',
+        );
+
+        await tester.pumpWidget(
+          _DayViewRouterHarness(
+            notes: [
+              _livingTextNote(
+                title: 'Living Text 4: Add Your First Reflection',
+                label: 'Add your insight',
+              ),
+            ],
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        await tester.tap(find.text('Living Text 4: Add Your First Reflection'));
+        await tester.pumpAndSettle();
+        await tester.tap(find.text('Add your insight'));
+        await tester.pumpAndSettle();
+
+        expect(
+          find.text('Node target: maat action:add_insight'),
+          findsOneWidget,
+        );
+      },
+    );
+
+    testWidgets(
+      'Living Text CTA falls back to Library root without Day 1 slug',
+      (tester) async {
+        await _setPhoneViewport(tester);
+
+        await tester.pumpWidget(
+          _DayViewRouterHarness(
+            notes: [
+              _livingTextNote(
+                title: 'Living Text 7: Return to Day 1’s Entry',
+                label: 'Revise your insight',
+              ),
+            ],
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        await tester.tap(find.text('Living Text 7: Return to Day 1’s Entry'));
+        await tester.pumpAndSettle();
+        expect(
+          find.text(
+            'Choose the Day 1 entry you read, then open Your Insights.',
+          ),
+          findsOneWidget,
+        );
+        await tester.tap(find.text('Revise your insight'));
+        await tester.pumpAndSettle();
+
+        expect(find.text('Library root'), findsOneWidget);
+      },
+    );
+
+    testWidgets('event without library CTA does not render CTA panel', (
+      tester,
+    ) async {
+      await _setPhoneViewport(tester);
+
+      await tester.pumpWidget(
+        _DayViewRouterHarness(
+          notes: [
+            _timedNote(
+              clientEventId: 'the-living-text:77:event-3',
+              title: 'Living Text 3: Find What You Don’t Understand',
+              startHour: 10,
+              startMinute: 0,
+              endHour: 10,
+              endMinute: 30,
+              flowId: 77,
+              behaviorPayload: const <String, dynamic>{
+                'flow_key': kLivingTextFlowKey,
+                'event_number': 3,
+              },
+            ),
+          ],
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.tap(
+        find.text('Living Text 3: Find What You Don’t Understand'),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('Add your insight'), findsNothing);
+      expect(find.text('Library'), findsNothing);
+    });
+
     testWidgets(
       'detail sheet keeps a stable height when paging through same-sized reminders',
       (tester) async {
@@ -1275,6 +1429,7 @@ NoteData _timedNote({
   required int endHour,
   required int endMinute,
   int? flowId,
+  Map<String, dynamic>? behaviorPayload,
 }) {
   return NoteData(
     id: id,
@@ -1284,6 +1439,32 @@ NoteData _timedNote({
     start: TimeOfDay(hour: startHour, minute: startMinute),
     end: TimeOfDay(hour: endHour, minute: endMinute),
     flowId: flowId,
+    behaviorPayload: behaviorPayload,
+  );
+}
+
+NoteData _livingTextNote({
+  required String title,
+  required String label,
+  String? nodeSlug,
+}) {
+  return _timedNote(
+    clientEventId: 'the-living-text:77:${title.toLowerCase()}',
+    title: title,
+    startHour: 10,
+    startMinute: 0,
+    endHour: 10,
+    endMinute: 30,
+    flowId: 77,
+    behaviorPayload: <String, dynamic>{
+      'flow_key': kLivingTextFlowKey,
+      'event_number': title.contains(' 7:') ? 7 : 4,
+      'library_cta': <String, dynamic>{
+        'type': kMaatLibraryCtaAddInsight,
+        'node_slug': nodeSlug,
+        'label': label,
+      },
+    },
   );
 }
 
@@ -1353,6 +1534,56 @@ class _DayViewHarness extends StatelessWidget {
         ),
       ),
     );
+  }
+}
+
+class _DayViewRouterHarness extends StatelessWidget {
+  const _DayViewRouterHarness({required this.notes});
+
+  final List<NoteData> notes;
+
+  @override
+  Widget build(BuildContext context) {
+    final router = GoRouter(
+      routes: [
+        GoRoute(
+          path: '/',
+          builder: (context, state) => Scaffold(
+            body: DayViewGrid(
+              ky: 1,
+              km: 1,
+              kd: 1,
+              notes: notes,
+              showGregorian: false,
+              flowIndex: const {
+                77: FlowData(
+                  id: 77,
+                  name: kLivingTextTitle,
+                  color: Colors.amber,
+                  active: true,
+                ),
+              },
+              activeLedgerFlowIds: const <int>{77},
+              initialScrollOffset: 9 * 60,
+            ),
+          ),
+        ),
+        GoRoute(
+          path: '/nodes',
+          builder: (context, state) =>
+              const Scaffold(body: Text('Library root')),
+        ),
+        GoRoute(
+          path: '/nodes/:nodeId',
+          builder: (context, state) {
+            final nodeId = state.pathParameters['nodeId']!;
+            final action = state.uri.queryParameters['action'] ?? '';
+            return Scaffold(body: Text('Node target: $nodeId action:$action'));
+          },
+        ),
+      ],
+    );
+    return MaterialApp.router(routerConfig: router);
   }
 }
 
@@ -1589,5 +1820,6 @@ EventItem _eventFromNote(NoteData note) {
     category: note.category,
     isReminder: note.isReminder,
     reminderId: note.reminderId,
+    behaviorPayload: note.behaviorPayload,
   );
 }

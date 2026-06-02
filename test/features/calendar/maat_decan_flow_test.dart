@@ -78,6 +78,40 @@ void main() {
     }
   });
 
+  test('Living Text emits library CTA only on Events 4 and 7', () {
+    final definition = maatDecanFlowDefinitionForKey(kLivingTextFlowKey)!;
+    final flowStart = DateTime(2026, 5, 16);
+
+    Map<String, dynamic> payloadForEvent(int eventNumber) {
+      final event = maatDecanFlowEventByNumber(definition, eventNumber)!;
+      final schedule = maatDecanFlowScheduleForEvent(
+        event,
+        flowStart,
+        TrackSkyTimeZone.pacific,
+      );
+      return maatDecanFlowBehaviorPayload(
+        definition: definition,
+        event: event,
+        schedule: schedule,
+      );
+    }
+
+    expect(payloadForEvent(3).containsKey('library_cta'), isFalse);
+    expect(payloadForEvent(5).containsKey('library_cta'), isFalse);
+    expect(payloadForEvent(6).containsKey('library_cta'), isFalse);
+
+    expect(payloadForEvent(4)['library_cta'], <String, dynamic>{
+      'type': kMaatLibraryCtaAddInsight,
+      'node_slug': null,
+      'label': 'Add your insight',
+    });
+    expect(payloadForEvent(7)['library_cta'], <String, dynamic>{
+      'type': kMaatLibraryCtaAddInsight,
+      'node_slug': null,
+      'label': 'Revise your insight',
+    });
+  });
+
   test('Ma’at decan closing events expose their special completion labels', () {
     expect(
       maatDecanFlowEventByNumber(

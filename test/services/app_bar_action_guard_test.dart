@@ -837,7 +837,15 @@ void main() {
                 path.endsWith('lib/features/profile/profile_page.dart') &&
                 line.contains("context.push('/profile/") &&
                 source.contains('Future<void> _openFeedAuthorProfile');
-            if (!isExplicitPicker && !isFeedAuthorProfilePush) {
+            final start = index > 1 ? index - 2 : 0;
+            final end = index + 3 < lines.length ? index + 3 : lines.length;
+            final nearbyLines = lines.sublist(start, end).join('\n');
+            final isLivingTextLibraryCtaPush =
+                path.endsWith('lib/features/calendar/day_view.dart') &&
+                nearbyLines.contains('/nodes');
+            if (!isExplicitPicker &&
+                !isFeedAuthorProfilePush &&
+                !isLivingTextLibraryCtaPush) {
               offenders.add('$path:${index + 1}: ${line.trim()}');
             }
           }

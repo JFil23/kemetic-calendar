@@ -1964,6 +1964,117 @@ void main() {
   );
 
   test(
+    'headless Living Text join persists library CTA payloads for Events 4 and 7',
+    () async {
+      final timezone = TrackSkyTimeZone.pacific;
+      final selectedStart = DateTime(2026, 12, 1);
+      final openingOccurrence = DecanWatchOccurrence(
+        kYear: 3,
+        kMonth: 7,
+        decanIndex: 1,
+        decanStartDay: 1,
+        globalDecanId: 19,
+        decanName: 'Test Living Text Decan',
+        eventDateIso: '2026-12-01',
+        timezone: timezone,
+        scheduleHour: kDecanWatchDefaultHour,
+        scheduleMinute: kDecanWatchDefaultMinute,
+        startLocal: selectedStart,
+        endLocal: selectedStart.add(
+          const Duration(minutes: kDecanWatchDurationMinutes),
+        ),
+        startUtc: DateTime.utc(2026, 12, 1, 16),
+        endUtc: DateTime.utc(2026, 12, 1, 16, kDecanWatchDurationMinutes),
+      );
+      final window = DecanWatchEnrollmentWindow(
+        opensAtLocal: selectedStart,
+        closesAtLocal: DateTime(2026, 12, 2),
+        openingOccurrence: openingOccurrence,
+      );
+      final eventCalls = <Map<String, Object?>>[];
+
+      final service = FlowJoinService(
+        resolveDecanWatchWindow: ({required timezone, startDate}) => window,
+        upsertFlow:
+            ({
+              id,
+              required name,
+              required color,
+              required active,
+              calendarId,
+              startDate,
+              endDate,
+              notes,
+              required rules,
+              originType,
+            }) async {
+              return 441;
+            },
+        upsertEvent:
+            ({
+              required clientEventId,
+              required title,
+              required startsAtUtc,
+              detail,
+              allDay = false,
+              endsAtUtc,
+              flowLocalId,
+              category,
+              actionId,
+              behaviorPayload,
+              calendarId,
+              caller,
+            }) async {
+              eventCalls.add(<String, Object?>{
+                'title': title,
+                'behaviorPayload': behaviorPayload,
+              });
+            },
+        fileHeadlessEventDelivery:
+            ({
+              required eventFiling,
+              required debugLabel,
+              required clientEventId,
+              required startsAtLocal,
+              required alertOffsetMinutes,
+              required title,
+              body,
+            }) async {},
+        publishHeadlessCalendarInvalidation:
+            ({required reason, required flowId, required clientEventIds}) {},
+      );
+
+      final definition = maatDecanFlowDefinitionForKey(kLivingTextFlowKey)!;
+      final result = await service.joinMaatDecanFlowHeadless(
+        definition: definition,
+        templateOverview: kLivingTextOverview,
+        templateColor: Colors.amber,
+        personalCalendarId: 'personal-calendar',
+        timezone: timezone,
+        startDate: selectedStart,
+      );
+
+      expect(result.succeeded, isTrue);
+      expect(eventCalls, hasLength(definition.events.length));
+
+      final event4Payload =
+          eventCalls[3]['behaviorPayload']! as Map<String, dynamic>;
+      final event7Payload =
+          eventCalls[6]['behaviorPayload']! as Map<String, dynamic>;
+      expect(event4Payload['library_cta'], <String, dynamic>{
+        'type': kMaatLibraryCtaAddInsight,
+        'node_slug': null,
+        'label': 'Add your insight',
+      });
+      expect(event7Payload['library_cta'], <String, dynamic>{
+        'type': kMaatLibraryCtaAddInsight,
+        'node_slug': null,
+        'label': 'Revise your insight',
+      });
+    },
+  );
+
+  test(
     'headless Dawn House Rite join persists events, intentionally skips delivery without alert, invalidates once, and returns success',
     () async {
       final timezone = TrackSkyTimeZone.pacific;

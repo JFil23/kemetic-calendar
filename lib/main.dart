@@ -1393,7 +1393,12 @@ final _router = GoRouter(
         final nodeId = Uri.decodeComponent(state.pathParameters['nodeId']!);
         return SessionTrackedRoute(
           location: state.uri.toString(),
-          child: NodeReaderRoutePage(nodeId: nodeId),
+          child: NodeReaderRoutePage(
+            nodeId: nodeId,
+            openInsightEditorOnLoad: shouldOpenInsightEditorOnLoadFromNodeRoute(
+              state.uri,
+            ),
+          ),
         );
       },
     ),
@@ -3543,9 +3548,14 @@ class _JournalRoutePageState extends State<JournalRoutePage>
 }
 
 class NodeReaderRoutePage extends StatelessWidget {
-  const NodeReaderRoutePage({super.key, required this.nodeId});
+  const NodeReaderRoutePage({
+    super.key,
+    required this.nodeId,
+    this.openInsightEditorOnLoad = false,
+  });
 
   final String nodeId;
+  final bool openInsightEditorOnLoad;
 
   @override
   Widget build(BuildContext context) {
@@ -3556,8 +3566,18 @@ class NodeReaderRoutePage extends StatelessWidget {
         fallbackLocation: '/nodes',
       );
     }
-    return KemeticNodeReaderPage(node: node);
+    return KemeticNodeReaderPage(
+      node: node,
+      openInsightEditorOnLoad: openInsightEditorOnLoad,
+    );
   }
+}
+
+@visibleForTesting
+bool shouldOpenInsightEditorOnLoadFromNodeRoute(Uri uri) {
+  final action = uri.queryParameters['action'];
+  final legacyInsight = uri.queryParameters['insight'];
+  return action == 'add_insight' || legacyInsight == 'new';
 }
 
 class InsightPostRoutePage extends StatefulWidget {

@@ -11,6 +11,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/gestures.dart';
+import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:mobile/shared/glossy_text.dart';
 import 'package:mobile/core/global_bottom_menu_metrics.dart';
@@ -42,7 +43,9 @@ import 'the_open_hand_local_store.dart';
 import 'the_djed_flow.dart';
 import 'the_djed_local_store.dart';
 import 'maat_decan_flow.dart';
+import 'living_text_day_one_node_store.dart';
 import 'decan_id.dart';
+import '../nodes/kemetic_node_search_delegate.dart';
 import '../onboarding/day_view_date_coachmark.dart';
 import 'package:mobile/features/onboarding/guided_onboarding_overlay.dart';
 import '../../widgets/kemetic_day_info.dart';
@@ -228,6 +231,37 @@ class _MaatFlowCompletionContext {
       },
     };
   }
+}
+
+class _MaatLibraryCtaPayload {
+  const _MaatLibraryCtaPayload({
+    required this.type,
+    required this.label,
+    required this.flowKey,
+    this.nodeSlug,
+  });
+
+  final String type;
+  final String label;
+  final String? flowKey;
+  final String? nodeSlug;
+}
+
+_MaatLibraryCtaPayload? _maatLibraryCtaPayloadForEvent(EventItem event) {
+  final rawPayload = event.behaviorPayload;
+  final rawCta = rawPayload?['library_cta'];
+  if (rawCta is! Map) return null;
+  final cta = Map<String, dynamic>.from(rawCta);
+  final type = cta['type']?.toString().trim();
+  if (type == null || type.isEmpty) return null;
+  final rawNodeSlug = cta['node_slug']?.toString().trim();
+  final rawLabel = cta['label']?.toString().trim();
+  return _MaatLibraryCtaPayload(
+    type: type,
+    label: rawLabel == null || rawLabel.isEmpty ? 'Add your insight' : rawLabel,
+    flowKey: rawPayload?['flow_key']?.toString().trim(),
+    nodeSlug: rawNodeSlug == null || rawNodeSlug.isEmpty ? null : rawNodeSlug,
+  );
 }
 
 String _formatCompletionDate(DateTime date) {
@@ -1578,6 +1612,7 @@ class NoteData {
   final String? category;
   final bool isReminder;
   final String? reminderId;
+  final Map<String, dynamic>? behaviorPayload;
 
   const NoteData({
     this.id,
@@ -1595,6 +1630,7 @@ class NoteData {
     this.category,
     this.isReminder = false,
     this.reminderId,
+    this.behaviorPayload,
   });
 }
 
@@ -1631,6 +1667,7 @@ class EventItem {
   final String? category;
   final bool isReminder;
   final String? reminderId;
+  final Map<String, dynamic>? behaviorPayload;
 
   const EventItem({
     this.id,
@@ -1649,6 +1686,7 @@ class EventItem {
     this.category,
     this.isReminder = false,
     this.reminderId,
+    this.behaviorPayload,
   });
 
   @override
@@ -1872,6 +1910,7 @@ EventItem _eventItemFromNote(NoteData note, Map<int, FlowData> flowIndex) {
     category: note.category,
     isReminder: note.isReminder,
     reminderId: note.reminderId,
+    behaviorPayload: note.behaviorPayload,
   );
 }
 
@@ -3825,6 +3864,7 @@ class _DayViewGridState extends State<DayViewGrid> {
           category: dragPreview.category,
           isReminder: dragPreview.isReminder,
           reminderId: dragPreview.reminderId,
+          behaviorPayload: dragPreview.behaviorPayload,
         ),
       );
     }
@@ -5741,6 +5781,7 @@ class _DayViewGridState extends State<DayViewGrid> {
       currentEvent,
       flow,
     );
+    final libraryCta = _maatLibraryCtaPayloadForEvent(currentEvent);
 
     Widget? metaChip;
     if (flow != null) {
@@ -6054,6 +6095,10 @@ class _DayViewGridState extends State<DayViewGrid> {
                 ? widget.onboardingObservedKey
                 : null,
           ),
+        ],
+        if (libraryCta != null) ...[
+          const SizedBox(height: 16),
+          _MaatFlowLibraryCtaPanel(event: currentEvent, cta: libraryCta),
         ],
       ],
     );
@@ -7359,6 +7404,9 @@ class _MaatFlowCompletionPanel extends StatefulWidget {
 }
 
 class _MaatFlowCompletionPanelState extends State<_MaatFlowCompletionPanel> {
+  final LivingTextDayOneNodeStore _livingTextDayOneNodeStore =
+      const LivingTextDayOneNodeStore();
+
   String? _status;
   bool _loading = true;
   bool _saving = false;
@@ -7562,6 +7610,7 @@ class _MaatFlowCompletionPanelState extends State<_MaatFlowCompletionPanel> {
         _status = status;
         _saving = false;
       });
+      unawaited(_maybeCaptureLivingTextDayOneNode(status));
     } catch (_) {
       if (!mounted) return;
       setState(() => _saving = false);
@@ -7569,6 +7618,63 @@ class _MaatFlowCompletionPanelState extends State<_MaatFlowCompletionPanel> {
         const SnackBar(content: Text('Could not record this sitting.')),
       );
     }
+  }
+
+  Future<void> _maybeCaptureLivingTextDayOneNode(String status) async {
+    if (status != 'observed' ||
+        widget.completion.flowKey != kLivingTextFlowKey ||
+        widget.completion.eventNumber != 1) {
+      return;
+    }
+
+    final userId = Supabase.instance.client.auth.currentUser?.id ?? 'local';
+    final flowInstanceId = widget.event.flowId?.toString();
+    final existing = await _livingTextDayOneNodeStore.readSlug(
+      userId: userId,
+      flowInstanceId: flowInstanceId,
+    );
+    if (existing != null || !mounted) return;
+
+    final shouldChoose = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: const Color(0xFF090909),
+        title: const Text(
+          'Which Library entry did you choose for Day 1?',
+          style: TextStyle(color: Colors.white),
+        ),
+        content: Text(
+          'Choose the entry now so later Living Text events can open Your Insights there.',
+          style: TextStyle(color: Colors.white.withValues(alpha: 0.78)),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Not now'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: KemeticGold.text(
+              'Choose entry',
+              style: const TextStyle(fontWeight: FontWeight.w700),
+            ),
+          ),
+        ],
+      ),
+    );
+    if (shouldChoose != true || !mounted) return;
+
+    final selectedNodeSlug = await showKemeticNodeSearch(context);
+    if (selectedNodeSlug == null || !mounted) return;
+    await _livingTextDayOneNodeStore.writeSlug(
+      userId: userId,
+      flowInstanceId: flowInstanceId,
+      nodeSlug: selectedNodeSlug,
+    );
+    if (!mounted) return;
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(const SnackBar(content: Text('Day 1 Library entry saved.')));
   }
 
   Widget _statusButton(String status, String label) {
@@ -7673,6 +7779,165 @@ class _MaatFlowCompletionPanelState extends State<_MaatFlowCompletionPanel> {
               label: KemeticGold.text(
                 widget.completion.shareButtonLabel,
                 style: _goldHeaderStyle.copyWith(fontSize: 14),
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _MaatFlowLibraryCtaPanel extends StatefulWidget {
+  const _MaatFlowLibraryCtaPanel({required this.event, required this.cta});
+
+  final EventItem event;
+  final _MaatLibraryCtaPayload cta;
+
+  @override
+  State<_MaatFlowLibraryCtaPanel> createState() =>
+      _MaatFlowLibraryCtaPanelState();
+}
+
+class _MaatFlowLibraryCtaPanelState extends State<_MaatFlowLibraryCtaPanel> {
+  final LivingTextDayOneNodeStore _store = const LivingTextDayOneNodeStore();
+
+  String? _resolvedNodeSlug;
+  bool _loading = true;
+  int _loadGeneration = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    unawaited(_loadNodeSlug());
+  }
+
+  @override
+  void didUpdateWidget(covariant _MaatFlowLibraryCtaPanel oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.event.clientEventId != widget.event.clientEventId ||
+        oldWidget.event.flowId != widget.event.flowId ||
+        oldWidget.cta.nodeSlug != widget.cta.nodeSlug ||
+        oldWidget.cta.flowKey != widget.cta.flowKey) {
+      unawaited(_loadNodeSlug());
+    }
+  }
+
+  Future<void> _loadNodeSlug() async {
+    final generation = ++_loadGeneration;
+    final fixedSlug = widget.cta.nodeSlug;
+    if (fixedSlug != null && fixedSlug.isNotEmpty) {
+      if (!mounted || generation != _loadGeneration) return;
+      setState(() {
+        _resolvedNodeSlug = fixedSlug;
+        _loading = false;
+      });
+      return;
+    }
+
+    if (widget.cta.flowKey != kLivingTextFlowKey) {
+      if (!mounted || generation != _loadGeneration) return;
+      setState(() {
+        _resolvedNodeSlug = null;
+        _loading = false;
+      });
+      return;
+    }
+
+    if (mounted) {
+      setState(() => _loading = true);
+    }
+    final userId = Supabase.instance.client.auth.currentUser?.id ?? 'local';
+    final storedSlug = await _store.readSlug(
+      userId: userId,
+      flowInstanceId: widget.event.flowId?.toString(),
+    );
+    if (!mounted || generation != _loadGeneration) return;
+    setState(() {
+      _resolvedNodeSlug = storedSlug;
+      _loading = false;
+    });
+  }
+
+  void _openTarget() {
+    if (_loading) return;
+    final nodeSlug = _resolvedNodeSlug?.trim();
+    if (widget.cta.type == kMaatLibraryCtaAddInsight &&
+        nodeSlug != null &&
+        nodeSlug.isNotEmpty) {
+      context.push(
+        '/nodes/${Uri.encodeComponent(nodeSlug)}?action=add_insight',
+      );
+      return;
+    }
+    context.push('/nodes');
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final hasResolvedSlug = _resolvedNodeSlug?.trim().isNotEmpty == true;
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.black.withValues(alpha: 0.26),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: const Color(0xFFF5E8CB).withValues(alpha: 0.3),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Library',
+            style: TextStyle(
+              color: Color(0xFFFFD486),
+              fontSize: 12,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          const SizedBox(height: 8),
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton.icon(
+              onPressed: _loading ? null : _openTarget,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: KemeticGold.base,
+                foregroundColor: Colors.black,
+                disabledBackgroundColor: Colors.white.withValues(alpha: 0.12),
+                disabledForegroundColor: Colors.white60,
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 11,
+                ),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+              ),
+              icon: _loading
+                  ? const SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Icon(Icons.edit_note, size: 18),
+              label: Text(
+                widget.cta.label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(fontWeight: FontWeight.w700),
+              ),
+            ),
+          ),
+          if (!_loading && !hasResolvedSlug) ...[
+            const SizedBox(height: 8),
+            Text(
+              'Choose the Day 1 entry you read, then open Your Insights.',
+              style: TextStyle(
+                color: Colors.white.withValues(alpha: 0.68),
+                fontSize: 12,
+                height: 1.35,
               ),
             ),
           ],

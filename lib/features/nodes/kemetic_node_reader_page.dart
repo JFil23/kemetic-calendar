@@ -13,8 +13,13 @@ import 'node_user_insights_section.dart';
 
 class KemeticNodeReaderPage extends StatefulWidget {
   final KemeticNode node;
+  final bool openInsightEditorOnLoad;
 
-  const KemeticNodeReaderPage({super.key, required this.node});
+  const KemeticNodeReaderPage({
+    super.key,
+    required this.node,
+    this.openInsightEditorOnLoad = false,
+  });
 
   @override
   State<KemeticNodeReaderPage> createState() => _KemeticNodeReaderPageState();
@@ -232,7 +237,10 @@ class _KemeticNodeReaderPageState extends State<KemeticNodeReaderPage> {
                   _buildHeader(),
                   const SizedBox(height: 18),
                   ...paragraphs,
-                  NodeUserInsightsSection(node: _node),
+                  NodeUserInsightsSection(
+                    node: _node,
+                    openEditorOnLoad: widget.openInsightEditorOnLoad,
+                  ),
                 ],
               ),
             ),
