@@ -948,6 +948,7 @@ bool _isContinuityRouteLocation(String location) {
       path.startsWith('/inbox/conversation/') ||
       path.startsWith('/event-invite/') ||
       path.startsWith('/shared-flow/') ||
+      path.startsWith('/flows/') ||
       path.startsWith('/profile/') ||
       path.startsWith('/insight-post/') ||
       path.startsWith('/flow-post/') ||
@@ -1260,6 +1261,26 @@ final _router = GoRouter(
         return SessionTrackedRoute(
           location: state.uri.toString(),
           child: SharedFlowRoutePage(flowId: flowId),
+        );
+      },
+    ),
+    GoRoute(
+      path: '/flows/:flowId/edit',
+      builder: (context, state) {
+        final flowId = int.tryParse(state.pathParameters['flowId'] ?? '');
+        if (flowId == null || flowId <= 0) {
+          return const _RouteMissingScaffold(
+            message: 'This flow is no longer available.',
+            fallbackLocation: '/',
+          );
+        }
+        return SessionTrackedRoute(
+          location: state.uri.toString(),
+          child: CalendarPage.buildFlowEditorRoutePage(
+            flowId: flowId,
+            calendarId: state.uri.queryParameters['calendarId'],
+            fallbackLocation: state.uri.queryParameters['fallback'],
+          ),
         );
       },
     ),

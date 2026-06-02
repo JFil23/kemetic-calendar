@@ -4341,6 +4341,100 @@ class CalendarPage extends StatefulWidget {
     );
   }
 
+  static String flowEditorRouteLocation({
+    required int flowId,
+    String? calendarId,
+    String? fallbackLocation,
+  }) {
+    final query = <String, String>{};
+    final trimmedCalendarId = calendarId?.trim();
+    if (trimmedCalendarId != null && trimmedCalendarId.isNotEmpty) {
+      query['calendarId'] = trimmedCalendarId;
+    }
+    final fallback = _validFlowEditorFallbackLocation(fallbackLocation);
+    if (fallback != null) {
+      query['fallback'] = fallback;
+    }
+    return Uri(
+      path: '/flows/$flowId/edit',
+      queryParameters: query.isEmpty ? null : query,
+    ).toString();
+  }
+
+  static Future<void> openFlowEditorFromAnyContext(
+    BuildContext context, {
+    required int flowId,
+    String? calendarId,
+    String? fallbackLocation,
+    String source = 'unknown',
+  }) async {
+    if (flowId <= 0) return;
+    final route = flowEditorRouteLocation(
+      flowId: flowId,
+      calendarId: calendarId,
+      fallbackLocation: fallbackLocation,
+    );
+    if (kDebugMode) {
+      debugPrint('[EditFlow] tapped flowId=$flowId calendarId=$calendarId');
+      debugPrint('[EditFlow] route=$route');
+    }
+    if (kIsWeb) {
+      if (!context.mounted) return;
+      if (kDebugMode) {
+        debugPrint('[EditFlow] open studio source=$source');
+      }
+      context.go(route);
+      return;
+    }
+
+    final mountedHost = _shouldUseMountedCalendarHost(context)
+        ? _mountedCalendarHostForContext(context)
+        : null;
+    if (mountedHost != null) {
+      if (kDebugMode) {
+        debugPrint('[EditFlow] open studio source=$source');
+      }
+      mountedHost._openFlowEditorDirectly(flowId);
+      return;
+    }
+
+    if (kDebugMode) {
+      debugPrint('[EditFlow] open studio source=$source');
+    }
+    await _openDetachedFlowStudioSheet(
+      context,
+      restorationState: <String, dynamic>{
+        'mode': _kFlowStudioModeEditor,
+        'editFlowId': flowId,
+      },
+    );
+  }
+
+  static Widget buildFlowEditorRoutePage({
+    required int flowId,
+    String? calendarId,
+    String? fallbackLocation,
+  }) {
+    return _FlowEditorRoutePage(
+      flowId: flowId,
+      calendarId: calendarId,
+      fallbackLocation: fallbackLocation,
+    );
+  }
+
+  static String? _validFlowEditorFallbackLocation(String? fallbackLocation) {
+    final fallback = fallbackLocation?.trim();
+    if (fallback == null || fallback.isEmpty) return null;
+    final uri = Uri.tryParse(fallback);
+    if (uri == null ||
+        uri.hasScheme ||
+        uri.host.isNotEmpty ||
+        !uri.path.startsWith('/')) {
+      return null;
+    }
+    return uri.toString();
+  }
+
   static Future<void> openProfileFromAnyContext(BuildContext context) async {
     final state = _mountedState;
     if (state != null) {
@@ -5775,12 +5869,14 @@ class CalendarPage extends StatefulWidget {
   static Future<DayViewSheetEventTarget?> showDetailSheetCalendarPicker({
     required BuildContext context,
     required DayViewSheetEventTarget target,
+    ValueChanged<DayViewSheetEventTarget>? onOptimisticTargetChanged,
   }) async {
     final state = globalKey.currentState;
     if (state == null || !state.mounted) return null;
     return state._showDetailSheetCalendarPicker(
       context: context,
       target: target,
+      onOptimisticTargetChanged: onOptimisticTargetChanged,
     );
   }
 
@@ -6170,6 +6266,88 @@ class CalendarPage extends StatefulWidget {
 
   @override
   State<CalendarPage> createState() => CalendarPageState();
+}
+
+class _FlowEditorRoutePage extends StatefulWidget {
+  const _FlowEditorRoutePage({
+    required this.flowId,
+    this.calendarId,
+    this.fallbackLocation,
+  });
+
+  final int flowId;
+  final String? calendarId;
+  final String? fallbackLocation;
+
+  @override
+  State<_FlowEditorRoutePage> createState() => _FlowEditorRoutePageState();
+}
+
+class _FlowEditorRoutePageState extends State<_FlowEditorRoutePage> {
+  bool _persisting = false;
+
+  String get _fallbackLocation =>
+      CalendarPage._validFlowEditorFallbackLocation(widget.fallbackLocation) ??
+      '/shared-flow/by-flow/${widget.flowId}';
+
+  @override
+  void initState() {
+    super.initState();
+    if (kDebugMode) {
+      debugPrint(
+        '[EditFlow] open studio source=route flowId=${widget.flowId} calendarId=${widget.calendarId}',
+      );
+    }
+  }
+
+  Future<void> _handleResult(_FlowStudioResult result) async {
+    if (_persisting) return;
+    setState(() => _persisting = true);
+    try {
+      final mountedHost = CalendarPage._mountedState;
+      if (mountedHost != null) {
+        await mountedHost._persistFlowStudioResult(result);
+        await mountedHost._loadFromDisk(source: 'flow_editor_route');
+      } else {
+        await CalendarPage._persistFlowStudioResultHeadless(result);
+      }
+      if (!mounted) return;
+      GoRouter.of(context).go(_fallbackLocation);
+    } catch (error, stackTrace) {
+      if (kDebugMode) {
+        debugPrint('[EditFlow] failed error=$error');
+        debugPrint('$stackTrace');
+      }
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Unable to save flow: $error')));
+      setState(() => _persisting = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Stack(
+      children: [
+        _FlowStudioPage(
+          existingFlows: const <_Flow>[],
+          editFlowId: widget.flowId,
+          initialCalendarId: widget.calendarId,
+          onRouteResult: _handleResult,
+        ),
+        if (_persisting)
+          const Positioned.fill(
+            child: ColoredBox(
+              color: Color(0x99000000),
+              child: Center(
+                child: CircularProgressIndicator(color: Color(0xFFE0B95A)),
+              ),
+            ),
+          ),
+      ],
+    );
+  }
 }
 
 class CalendarPageState extends State<CalendarPage>
@@ -8847,6 +9025,7 @@ class CalendarPageState extends State<CalendarPage>
   Future<DayViewSheetEventTarget?> _showDetailSheetCalendarPicker({
     required BuildContext context,
     required DayViewSheetEventTarget target,
+    ValueChanged<DayViewSheetEventTarget>? onOptimisticTargetChanged,
   }) async {
     final calendars = _detailSheetCalendarOptions();
     if (calendars.isEmpty) return null;
@@ -8866,276 +9045,400 @@ class CalendarPageState extends State<CalendarPage>
         .toList(growable: false);
     if (options.isEmpty) return null;
 
-    final selectedId = await showModalBottomSheet<String>(
+    var selectedCalendarId = currentCalendarId;
+    String? savingCalendarId;
+    String? saveError;
+
+    final updatedTarget = await showModalBottomSheet<DayViewSheetEventTarget?>(
       context: context,
       backgroundColor: Colors.transparent,
       isScrollControlled: true,
       builder: (popupCtx) {
         final width = MediaQuery.sizeOf(popupCtx).width;
-        return SafeArea(
-          top: false,
-          child: Padding(
-            padding: EdgeInsets.fromLTRB(12, 12, 12, width < 380 ? 12 : 18),
-            child: Container(
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(30),
-                border: Border.all(color: const Color(0xFF8D6A16), width: 1.15),
-                gradient: const LinearGradient(
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
-                  colors: [Color(0xFF181716), Color(0xFF0C0B0A)],
-                ),
-                boxShadow: const [
-                  BoxShadow(
-                    color: Color(0x55000000),
-                    blurRadius: 28,
-                    offset: Offset(0, -8),
-                  ),
-                  BoxShadow(
-                    color: Color(0x33D0A02A),
-                    blurRadius: 22,
-                    spreadRadius: 1,
-                  ),
-                ],
-              ),
+        return StatefulBuilder(
+          builder: (popupCtx, setModalState) {
+            Future<void> selectCalendar(SharedCalendarSummary calendar) async {
+              final calendarId = calendar.id;
+              final previousCalendarId = selectedCalendarId;
+              if (savingCalendarId != null ||
+                  calendarId == previousCalendarId) {
+                return;
+              }
+              if (kDebugMode) {
+                debugPrint(
+                  '[CalendarPicker] tap id=$calendarId name=${calendar.name}',
+                );
+              }
+              final optimisticTarget = _detailSheetTargetWithCalendar(
+                target,
+                calendarId,
+              );
+              setModalState(() {
+                selectedCalendarId = calendarId;
+                savingCalendarId = calendarId;
+                saveError = null;
+              });
+              if (kDebugMode) {
+                debugPrint('[CalendarPicker] optimistic selected=$calendarId');
+                debugPrint(
+                  '[CalendarPicker] save start itemType=${target.event.isReminder ? 'reminder' : (target.event.flowId != null && target.event.flowId! > 0 ? 'flow' : 'event')} calendarId=$calendarId',
+                );
+              }
+              onOptimisticTargetChanged?.call(optimisticTarget);
+
+              final committedTarget = await _reassignDetailTargetCalendar(
+                target,
+                calendarId,
+              );
+              if (!popupCtx.mounted) return;
+              if (committedTarget == null) {
+                if (kDebugMode) {
+                  debugPrint(
+                    '[CalendarPicker] save failed itemType=${target.event.isReminder ? 'reminder' : (target.event.flowId != null && target.event.flowId! > 0 ? 'flow' : 'event')} calendarId=$calendarId error=returned_null',
+                  );
+                }
+                onOptimisticTargetChanged?.call(
+                  _detailSheetTargetWithCalendar(target, previousCalendarId),
+                );
+                setModalState(() {
+                  selectedCalendarId = previousCalendarId;
+                  savingCalendarId = null;
+                  saveError = 'Unable to change calendar.';
+                });
+                return;
+              }
+
+              if (kDebugMode) {
+                debugPrint(
+                  '[CalendarPicker] save complete itemType=${target.event.isReminder ? 'reminder' : (target.event.flowId != null && target.event.flowId! > 0 ? 'flow' : 'event')} calendarId=$calendarId',
+                );
+              }
+              Navigator.of(popupCtx).pop(committedTarget);
+            }
+
+            return SafeArea(
+              top: false,
               child: Padding(
-                padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    Center(
-                      child: Container(
-                        width: 46,
-                        height: 5,
-                        decoration: BoxDecoration(
-                          color: Colors.white24,
-                          borderRadius: BorderRadius.circular(999),
-                        ),
-                      ),
+                padding: EdgeInsets.fromLTRB(12, 12, 12, width < 380 ? 12 : 18),
+                child: Container(
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(30),
+                    border: Border.all(
+                      color: const Color(0xFF8D6A16),
+                      width: 1.15,
                     ),
-                    const SizedBox(height: 16),
-                    Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+                    gradient: const LinearGradient(
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                      colors: [Color(0xFF181716), Color(0xFF0C0B0A)],
+                    ),
+                    boxShadow: const [
+                      BoxShadow(
+                        color: Color(0x55000000),
+                        blurRadius: 28,
+                        offset: Offset(0, -8),
+                      ),
+                      BoxShadow(
+                        color: Color(0x33D0A02A),
+                        blurRadius: 22,
+                        spreadRadius: 1,
+                      ),
+                    ],
+                  ),
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
-                        Container(
-                          width: 42,
-                          height: 42,
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            border: Border.all(
-                              color: const Color(0xFF9E771D),
-                              width: 1,
+                        Center(
+                          child: Container(
+                            width: 46,
+                            height: 5,
+                            decoration: BoxDecoration(
+                              color: Colors.white24,
+                              borderRadius: BorderRadius.circular(999),
                             ),
-                            gradient: const LinearGradient(
-                              begin: Alignment.topLeft,
-                              end: Alignment.bottomRight,
-                              colors: [Color(0xFF2E2412), Color(0xFF15110B)],
-                            ),
-                          ),
-                          child: const Icon(
-                            Icons.calendar_month_rounded,
-                            color: Color(0xFFE2BF63),
-                            size: 22,
                           ),
                         ),
-                        const SizedBox(width: 12),
-                        const Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              GlossyText(
-                                text: 'Calendar',
-                                gradient: silverGloss,
-                                style: TextStyle(
-                                  fontSize: 22,
-                                  fontWeight: FontWeight.w600,
-                                  fontFamily: 'GentiumPlus',
-                                  fontFamilyFallback: [
-                                    'NotoSans',
-                                    'Roboto',
-                                    'Arial',
-                                    'sans-serif',
+                        const SizedBox(height: 16),
+                        Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Container(
+                              width: 42,
+                              height: 42,
+                              decoration: BoxDecoration(
+                                shape: BoxShape.circle,
+                                border: Border.all(
+                                  color: const Color(0xFF9E771D),
+                                  width: 1,
+                                ),
+                                gradient: const LinearGradient(
+                                  begin: Alignment.topLeft,
+                                  end: Alignment.bottomRight,
+                                  colors: [
+                                    Color(0xFF2E2412),
+                                    Color(0xFF15110B),
                                   ],
                                 ),
                               ),
-                              SizedBox(height: 4),
-                              Text(
-                                'Choose where this event lives.',
-                                style: TextStyle(
-                                  color: Color(0xFFB8B1A3),
-                                  fontSize: 13,
-                                  height: 1.25,
-                                ),
+                              child: const Icon(
+                                Icons.calendar_month_rounded,
+                                color: Color(0xFFE2BF63),
+                                size: 22,
                               ),
-                            ],
-                          ),
-                        ),
-                        IconButton(
-                          onPressed: () => Navigator.of(popupCtx).pop(),
-                          icon: const Icon(Icons.close_rounded),
-                          color: const Color(0xFFD4CDBD),
-                          splashRadius: 18,
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 18),
-                    for (final calendar in options) ...[
-                      Material(
-                        color: Colors.transparent,
-                        child: InkWell(
-                          borderRadius: BorderRadius.circular(22),
-                          onTap: () => Navigator.of(popupCtx).pop(calendar.id),
-                          child: Ink(
-                            decoration: BoxDecoration(
-                              borderRadius: BorderRadius.circular(22),
-                              border: Border.all(
-                                color: calendar.id == currentCalendarId
-                                    ? const Color(0xFFD1A53A)
-                                    : const Color(0xFF2E2820),
-                                width: calendar.id == currentCalendarId
-                                    ? 1.35
-                                    : 1,
-                              ),
-                              gradient: LinearGradient(
-                                begin: Alignment.topLeft,
-                                end: Alignment.bottomRight,
-                                colors: calendar.id == currentCalendarId
-                                    ? const [
-                                        Color(0xFF231B10),
-                                        Color(0xFF13100D),
-                                      ]
-                                    : const [
-                                        Color(0xFF141414),
-                                        Color(0xFF0D0D0D),
-                                      ],
-                              ),
-                              boxShadow: calendar.id == currentCalendarId
-                                  ? const [
-                                      BoxShadow(
-                                        color: Color(0x1FD4A53C),
-                                        blurRadius: 18,
-                                        spreadRadius: 1,
-                                      ),
-                                    ]
-                                  : null,
                             ),
-                            child: Padding(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 14,
-                                vertical: 14,
-                              ),
-                              child: Row(
+                            const SizedBox(width: 12),
+                            const Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  Container(
-                                    width: 42,
-                                    height: 42,
-                                    decoration: BoxDecoration(
-                                      shape: BoxShape.circle,
-                                      color: calendar.color.withValues(
-                                        alpha: 0.16,
-                                      ),
-                                      border: Border.all(
-                                        color: calendar.color.withValues(
-                                          alpha: 0.55,
-                                        ),
-                                      ),
-                                    ),
-                                    child: Icon(
-                                      calendar.isPersonal
-                                          ? Icons.lock_clock_rounded
-                                          : Icons.groups_2_rounded,
-                                      color: calendar.color,
-                                      size: 20,
-                                    ),
-                                  ),
-                                  const SizedBox(width: 12),
-                                  Expanded(
-                                    child: Column(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
-                                      children: [
-                                        Text(
-                                          _detailSheetCalendarActionLabel(
-                                            calendar,
-                                          ),
-                                          maxLines: 1,
-                                          overflow: TextOverflow.ellipsis,
-                                          style: const TextStyle(
-                                            color: Colors.white,
-                                            fontSize: 18,
-                                            fontWeight: FontWeight.w600,
-                                            fontFamily: 'GentiumPlus',
-                                            fontFamilyFallback: [
-                                              'NotoSans',
-                                              'Roboto',
-                                              'Arial',
-                                              'sans-serif',
-                                            ],
-                                          ),
-                                        ),
-                                        const SizedBox(height: 3),
-                                        Text(
-                                          calendar.isPersonal
-                                              ? 'Private to you'
-                                              : '${calendar.roleLabel} • ${calendar.memberCount} ${calendar.memberCount == 1 ? 'member' : 'members'}',
-                                          maxLines: 1,
-                                          overflow: TextOverflow.ellipsis,
-                                          style: const TextStyle(
-                                            color: Color(0xFFACA390),
-                                            fontSize: 12.5,
-                                            fontWeight: FontWeight.w500,
-                                          ),
-                                        ),
+                                  GlossyText(
+                                    text: 'Calendar',
+                                    gradient: silverGloss,
+                                    style: TextStyle(
+                                      fontSize: 22,
+                                      fontWeight: FontWeight.w600,
+                                      fontFamily: 'GentiumPlus',
+                                      fontFamilyFallback: [
+                                        'NotoSans',
+                                        'Roboto',
+                                        'Arial',
+                                        'sans-serif',
                                       ],
                                     ),
                                   ),
-                                  const SizedBox(width: 12),
-                                  AnimatedContainer(
-                                    duration: const Duration(milliseconds: 180),
-                                    width: 28,
-                                    height: 28,
-                                    decoration: BoxDecoration(
-                                      shape: BoxShape.circle,
-                                      color: calendar.id == currentCalendarId
-                                          ? const Color(0xFFE0B95A)
-                                          : Colors.transparent,
-                                      border: Border.all(
-                                        color: calendar.id == currentCalendarId
-                                            ? const Color(0xFFE0B95A)
-                                            : const Color(0xFF6D665D),
-                                        width: 1.15,
-                                      ),
-                                    ),
-                                    child: Icon(
-                                      Icons.check_rounded,
-                                      size: 16,
-                                      color: calendar.id == currentCalendarId
-                                          ? Colors.black
-                                          : Colors.transparent,
+                                  SizedBox(height: 4),
+                                  Text(
+                                    'Choose where this event lives.',
+                                    style: TextStyle(
+                                      color: Color(0xFFB8B1A3),
+                                      fontSize: 13,
+                                      height: 1.25,
                                     ),
                                   ),
                                 ],
                               ),
                             ),
-                          ),
+                            IconButton(
+                              onPressed: savingCalendarId == null
+                                  ? () => Navigator.of(popupCtx).pop()
+                                  : null,
+                              icon: const Icon(Icons.close_rounded),
+                              color: const Color(0xFFD4CDBD),
+                              splashRadius: 18,
+                            ),
+                          ],
                         ),
-                      ),
-                      if (calendar != options.last) const SizedBox(height: 10),
-                    ],
-                  ],
+                        if (saveError != null) ...[
+                          const SizedBox(height: 10),
+                          Text(
+                            saveError!,
+                            style: const TextStyle(
+                              color: Color(0xFFFFA99A),
+                              fontSize: 12.5,
+                            ),
+                          ),
+                        ],
+                        const SizedBox(height: 18),
+                        for (final calendar in options) ...[
+                          Builder(
+                            builder: (_) {
+                              final isSelected =
+                                  calendar.id == selectedCalendarId;
+                              final isSaving = calendar.id == savingCalendarId;
+                              return Material(
+                                color: Colors.transparent,
+                                child: InkWell(
+                                  borderRadius: BorderRadius.circular(22),
+                                  onTap: savingCalendarId == null
+                                      ? () =>
+                                            unawaited(selectCalendar(calendar))
+                                      : null,
+                                  child: Ink(
+                                    decoration: BoxDecoration(
+                                      borderRadius: BorderRadius.circular(22),
+                                      border: Border.all(
+                                        color: isSelected
+                                            ? const Color(0xFFD1A53A)
+                                            : const Color(0xFF2E2820),
+                                        width: isSelected ? 1.35 : 1,
+                                      ),
+                                      gradient: LinearGradient(
+                                        begin: Alignment.topLeft,
+                                        end: Alignment.bottomRight,
+                                        colors: isSelected
+                                            ? const [
+                                                Color(0xFF231B10),
+                                                Color(0xFF13100D),
+                                              ]
+                                            : const [
+                                                Color(0xFF141414),
+                                                Color(0xFF0D0D0D),
+                                              ],
+                                      ),
+                                      boxShadow: isSelected
+                                          ? const [
+                                              BoxShadow(
+                                                color: Color(0x1FD4A53C),
+                                                blurRadius: 18,
+                                                spreadRadius: 1,
+                                              ),
+                                            ]
+                                          : null,
+                                    ),
+                                    child: Padding(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 14,
+                                        vertical: 14,
+                                      ),
+                                      child: Row(
+                                        children: [
+                                          Container(
+                                            width: 42,
+                                            height: 42,
+                                            decoration: BoxDecoration(
+                                              shape: BoxShape.circle,
+                                              color: calendar.color.withValues(
+                                                alpha: 0.16,
+                                              ),
+                                              border: Border.all(
+                                                color: calendar.color
+                                                    .withValues(alpha: 0.55),
+                                              ),
+                                            ),
+                                            child: Icon(
+                                              calendar.isPersonal
+                                                  ? Icons.lock_clock_rounded
+                                                  : Icons.groups_2_rounded,
+                                              color: calendar.color,
+                                              size: 20,
+                                            ),
+                                          ),
+                                          const SizedBox(width: 12),
+                                          Expanded(
+                                            child: Column(
+                                              crossAxisAlignment:
+                                                  CrossAxisAlignment.start,
+                                              children: [
+                                                Text(
+                                                  _detailSheetCalendarActionLabel(
+                                                    calendar,
+                                                  ),
+                                                  maxLines: 1,
+                                                  overflow:
+                                                      TextOverflow.ellipsis,
+                                                  style: const TextStyle(
+                                                    color: Colors.white,
+                                                    fontSize: 18,
+                                                    fontWeight: FontWeight.w600,
+                                                    fontFamily: 'GentiumPlus',
+                                                    fontFamilyFallback: [
+                                                      'NotoSans',
+                                                      'Roboto',
+                                                      'Arial',
+                                                      'sans-serif',
+                                                    ],
+                                                  ),
+                                                ),
+                                                const SizedBox(height: 3),
+                                                Text(
+                                                  calendar.isPersonal
+                                                      ? 'Private to you'
+                                                      : '${calendar.roleLabel} • ${calendar.memberCount} ${calendar.memberCount == 1 ? 'member' : 'members'}',
+                                                  maxLines: 1,
+                                                  overflow:
+                                                      TextOverflow.ellipsis,
+                                                  style: const TextStyle(
+                                                    color: Color(0xFFACA390),
+                                                    fontSize: 12.5,
+                                                    fontWeight: FontWeight.w500,
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                          ),
+                                          const SizedBox(width: 12),
+                                          AnimatedSwitcher(
+                                            duration: const Duration(
+                                              milliseconds: 150,
+                                            ),
+                                            child: isSaving
+                                                ? const SizedBox(
+                                                    key: ValueKey('saving'),
+                                                    width: 28,
+                                                    height: 28,
+                                                    child:
+                                                        CircularProgressIndicator(
+                                                          strokeWidth: 2,
+                                                          color: Color(
+                                                            0xFFE0B95A,
+                                                          ),
+                                                        ),
+                                                  )
+                                                : AnimatedContainer(
+                                                    key: const ValueKey(
+                                                      'check',
+                                                    ),
+                                                    duration: const Duration(
+                                                      milliseconds: 180,
+                                                    ),
+                                                    width: 28,
+                                                    height: 28,
+                                                    decoration: BoxDecoration(
+                                                      shape: BoxShape.circle,
+                                                      color: isSelected
+                                                          ? const Color(
+                                                              0xFFE0B95A,
+                                                            )
+                                                          : Colors.transparent,
+                                                      border: Border.all(
+                                                        color: isSelected
+                                                            ? const Color(
+                                                                0xFFE0B95A,
+                                                              )
+                                                            : const Color(
+                                                                0xFF6D665D,
+                                                              ),
+                                                        width: 1.15,
+                                                      ),
+                                                    ),
+                                                    child: Icon(
+                                                      Icons.check_rounded,
+                                                      size: 16,
+                                                      color: isSelected
+                                                          ? Colors.black
+                                                          : Colors.transparent,
+                                                    ),
+                                                  ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              );
+                            },
+                          ),
+                          if (calendar != options.last)
+                            const SizedBox(height: 10),
+                        ],
+                      ],
+                    ),
+                  ),
                 ),
               ),
-            ),
-          ),
+            );
+          },
         );
       },
     );
 
-    if (!mounted || selectedId == null || selectedId == currentCalendarId) {
+    if (!mounted || updatedTarget == null) {
       return null;
     }
-    return _reassignDetailTargetCalendar(target, selectedId);
+    return updatedTarget;
   }
 
   void _showCalendarActionMessage(String message) {
@@ -18158,6 +18461,17 @@ class CalendarPageState extends State<CalendarPage>
   void Function(int? flowId) _getMyFlowsCallback() {
     return (int? flowId) {
       if (flowId != null) {
+        if (kIsWeb) {
+          unawaited(
+            CalendarPage.openFlowEditorFromAnyContext(
+              context,
+              flowId: flowId,
+              fallbackLocation: '/',
+              source: 'calendar_detail',
+            ),
+          );
+          return;
+        }
         // Open the existing Flow editor directly when a flowId is provided.
         _openFlowEditorDirectly(flowId);
         return;

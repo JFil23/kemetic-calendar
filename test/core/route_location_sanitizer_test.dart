@@ -23,6 +23,21 @@ void main() {
       );
     });
 
+    test('keeps legitimate edit flow routes', () {
+      expect(
+        stableRouteLocationForContinuity(
+          '/flows/42/edit?calendarId=shared-1&fallback=%2Fshared-flow%2Fby-flow%2F42',
+        ),
+        '/flows/42/edit?calendarId=shared-1&fallback=%2Fshared-flow%2Fby-flow%2F42',
+      );
+      expect(
+        routeLocationContainsOneShotIntent(
+          '/flows/42/edit?calendarId=shared-1',
+        ),
+        isFalse,
+      );
+    });
+
     test('strips planner launch-only query parameters', () {
       expect(
         stableRouteLocationForContinuity(

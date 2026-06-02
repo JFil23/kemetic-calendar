@@ -3137,6 +3137,11 @@ class _LandscapeMonthGridBodyState extends State<LandscapeMonthGridBody> {
                       await CalendarPage.showDetailSheetCalendarPicker(
                         context: sheetContext,
                         target: target,
+                        onOptimisticTargetChanged: (optimisticTarget) {
+                          if (sheetContext.mounted) {
+                            onTargetChanged(optimisticTarget);
+                          }
+                        },
                       );
                   if (!sheetContext.mounted || updatedTarget == null) return;
                   onTargetChanged(updatedTarget);

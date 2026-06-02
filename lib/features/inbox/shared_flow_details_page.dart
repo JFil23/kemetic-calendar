@@ -976,11 +976,12 @@ class _ImportedFlowFooter extends StatelessWidget {
       width: double.infinity,
       child: ElevatedButton(
         onPressed: () async {
-          final openedOnMountedHost = CalendarPage.hasMountedHost;
-          await CalendarPage.openMyFlowsFromAnyContext(context);
-          if (openedOnMountedHost && context.mounted) {
-            popOrGo(context, '/');
-          }
+          await CalendarPage.openFlowEditorFromAnyContext(
+            context,
+            flowId: flowId,
+            fallbackLocation: '/shared-flow/by-flow/$flowId',
+            source: 'shared_flow_details',
+          );
         },
         child: const Text('Edit Flow'),
       ),

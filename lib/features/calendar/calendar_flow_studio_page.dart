@@ -4,14 +4,18 @@ class _FlowStudioPage extends StatefulWidget {
   const _FlowStudioPage({
     required this.existingFlows,
     this.editFlowId,
+    this.initialCalendarId,
     this.importData,
     this.onContinuityChanged,
+    this.onRouteResult,
   });
 
   final List<_Flow> existingFlows;
   final int? editFlowId;
+  final String? initialCalendarId;
   final ImportFlowData? importData;
   final ValueChanged<Map<String, dynamic>>? onContinuityChanged;
+  final Future<void> Function(_FlowStudioResult result)? onRouteResult;
 
   @override
   State<_FlowStudioPage> createState() => _FlowStudioPageState();
@@ -115,6 +119,8 @@ class _FlowStudioPageState extends State<_FlowStudioPage>
   }
 
   String? _defaultCalendarId() {
+    final routeCalendarId = _routeInitialCalendarId();
+    if (routeCalendarId != null) return routeCalendarId;
     final pageState = _calendarPageState;
     final personalCalendarId = pageState?._personalCalendarId;
     if (personalCalendarId != null && personalCalendarId.isNotEmpty) {
@@ -125,6 +131,13 @@ class _FlowStudioPageState extends State<_FlowStudioPage>
       return calendars.first.id;
     }
     return null;
+  }
+
+  String? _routeInitialCalendarId() {
+    final trimmed = widget.initialCalendarId?.trim();
+    if (trimmed == null || trimmed.isEmpty) return null;
+    if (!_canEditCalendar(trimmed)) return null;
+    return trimmed;
   }
 
   String _calendarLabelFor(String? calendarId) {
@@ -1778,9 +1791,7 @@ class _FlowStudioPageState extends State<_FlowStudioPage>
 
     if (!mounted || edited == null) return;
 
-    _clearSessionDraft();
-    _suppressDraftSave = true;
-    Navigator.of(context, rootNavigator: true).pop(edited);
+    await _finishWithResult(edited);
   }
 
   Future<void> _save() async {
@@ -2003,9 +2014,7 @@ class _FlowStudioPageState extends State<_FlowStudioPage>
       _isAIGeneratedFlow = false;
     }
 
-    _clearSessionDraft();
-    _suppressDraftSave = true;
-    Navigator.of(context, rootNavigator: true).pop(
+    await _finishWithResult(
       _FlowStudioResult(
         savedFlow: flow,
         plannedNotes: planned,
@@ -2019,14 +2028,21 @@ class _FlowStudioPageState extends State<_FlowStudioPage>
     );
   }
 
-  void _delete() {
-    if (_editing == null) return;
+  Future<void> _finishWithResult(_FlowStudioResult result) async {
     _clearSessionDraft();
     _suppressDraftSave = true;
-    Navigator.of(
-      context,
-      rootNavigator: true,
-    ).pop(_FlowStudioResult(deleteFlowId: _editing!.id));
+    final routeResultHandler = widget.onRouteResult;
+    if (routeResultHandler != null) {
+      await routeResultHandler(result);
+      return;
+    }
+    if (!mounted) return;
+    Navigator.of(context, rootNavigator: true).pop(result);
+  }
+
+  void _delete() {
+    if (_editing == null) return;
+    unawaited(_finishWithResult(_FlowStudioResult(deleteFlowId: _editing!.id)));
   }
 
   // ---------- Flow picker / preview ----------

@@ -50,6 +50,13 @@ void main() {
     );
   });
 
+  test('stores legitimate edit flow routes unchanged', () async {
+    const route = '/flows/42/edit?calendarId=shared-1';
+    await SessionResumeService.saveRouteLocation(route);
+
+    expect(await SessionResumeService.readRouteLocation(), route);
+  });
+
   test('clears expired snapshots', () async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(

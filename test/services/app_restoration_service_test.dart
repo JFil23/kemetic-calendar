@@ -212,6 +212,7 @@ void main() {
         '/profile/user-1',
         '/nodes',
         '/nodes/ausar',
+        '/flows/42/edit?calendarId=shared-1',
         '/rhythm/today',
         '/reflections',
       ];

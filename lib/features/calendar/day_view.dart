@@ -6475,6 +6475,11 @@ class _DayViewGridState extends State<DayViewGrid> {
                       await CalendarPage.showDetailSheetCalendarPicker(
                         context: sheetContext,
                         target: target,
+                        onOptimisticTargetChanged: (optimisticTarget) {
+                          if (sheetContext.mounted) {
+                            onTargetChanged(optimisticTarget);
+                          }
+                        },
                       );
                   if (!sheetContext.mounted || updatedTarget == null) return;
                   onTargetChanged(updatedTarget);
