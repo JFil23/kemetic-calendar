@@ -1258,6 +1258,14 @@ class AppRestorationService {
       return latestUserCandidate;
     }
 
+    if (latestUserCandidate != null &&
+        _canLatestRouteOnlyReplaceCurrentWindowRoot(
+          latestUserCandidate,
+          currentWindowCandidate,
+        )) {
+      return latestUserCandidate;
+    }
+
     return currentWindowCandidate;
   }
 
@@ -1289,6 +1297,41 @@ class AppRestorationService {
 
   bool _isRemoteSource(String? source) =>
       source != null && source.startsWith('remote_');
+
+  bool _isRootRouteLocation(String? location) {
+    final normalized = location?.trim();
+    if (normalized == null || normalized.isEmpty) return true;
+    final uri = Uri.tryParse(normalized);
+    return uri == null || uri.path.isEmpty || uri.path == '/';
+  }
+
+  bool _isDurableInboxRouteLocation(String? location) {
+    final normalized = location?.trim();
+    if (normalized == null || normalized.isEmpty) return false;
+    final uri = Uri.tryParse(normalized);
+    if (uri == null || uri.hasScheme || uri.host.isNotEmpty) return false;
+    final path = uri.path;
+    return path == '/inbox' || path.startsWith('/inbox/conversation/');
+  }
+
+  bool _canLatestRouteOnlyReplaceCurrentWindowRoot(
+    _SnapshotCandidate latestUserCandidate,
+    _SnapshotCandidate currentWindowCandidate,
+  ) {
+    if (_isRemoteSource(latestUserCandidate.source)) return false;
+    if (latestUserCandidate.snapshot.overlayStack.isNotEmpty) return false;
+    if (currentWindowCandidate.snapshot.overlayStack.isNotEmpty) return false;
+    if (!_isRootRouteLocation(currentWindowCandidate.snapshot.routeLocation)) {
+      return false;
+    }
+    if (!_isDurableInboxRouteLocation(
+      latestUserCandidate.snapshot.routeLocation,
+    )) {
+      return false;
+    }
+    return latestUserCandidate.snapshot.updatedAtMs >
+        currentWindowCandidate.snapshot.updatedAtMs;
+  }
 
   Future<void> _persistRawSnapshotLocally(
     String userId,

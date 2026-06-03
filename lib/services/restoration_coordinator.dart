@@ -30,6 +30,11 @@ class RestorationCoordinator {
 
   RestorationRestoreReason get restoreReason => _restoreReason;
 
+  bool get shouldDeferRootRoutePersistenceForLaunch {
+    return _isLaunchRestoreReason(_restoreReason) &&
+        !_isRootLocation(_restoreTargetLocation);
+  }
+
   void beginLaunchRestore({
     required RestorationRestoreReason reason,
     String? targetLocation,

@@ -299,40 +299,37 @@ void main() {
         expect(source, isNot(contains('KemeticGold.icon(Icons.person)')));
       });
 
-      test(
-        'event invite rows are rendered only inside Invites sheet',
-        () async {
-          final source = await File(
-            'lib/features/inbox/inbox_page.dart',
-          ).readAsString();
-          final unifiedBuilder = _sourceBetween(
-            source,
-            'List<_UnifiedInboxItem> _buildUnifiedItems() {',
-            'void _reconcileOptimisticReadState() {',
-          );
-          final invitesSheet = _sourceBetween(
-            source,
-            'Future<void> _openCalendarInboxSheet() async {',
-            'Widget _calendarSheetSectionTitle',
-          );
+      test('event invite rows are rendered only inside Invites sheet', () async {
+        final source = await File(
+          'lib/features/inbox/inbox_page.dart',
+        ).readAsString();
+        final unifiedBuilder = _sourceBetween(
+          source,
+          'List<_UnifiedInboxItem> _buildUnifiedItems() {',
+          'void _reconcileOptimisticReadState() {',
+        );
+        final invitesSheet = _sourceBetween(
+          source,
+          'Future<void> _openCalendarInboxSheet({String? parentRouteOverride}) async {',
+          'Widget _calendarSheetSectionTitle',
+        );
 
-          expect(
-            source,
-            contains('enum _UnifiedKind { message, calendarNotification }'),
-          );
-          expect(
-            unifiedBuilder,
-            isNot(contains('_UnifiedInboxItem.eventInvite')),
-          );
-          expect(unifiedBuilder, isNot(contains('inviteItems')));
-          expect(invitesSheet, contains('..._latestEventInvites'));
-          expect(
-            invitesSheet,
-            contains("_calendarSheetSectionTitle('Invites & responses')"),
-          );
-          expect(invitesSheet, contains('_buildEventInviteRow('));
-        },
-      );
+        expect(
+          source,
+          contains('enum _UnifiedKind { message, calendarNotification }'),
+        );
+        expect(
+          unifiedBuilder,
+          isNot(contains('_UnifiedInboxItem.eventInvite')),
+        );
+        expect(unifiedBuilder, isNot(contains('inviteItems')));
+        expect(invitesSheet, contains('..._latestEventInvites'));
+        expect(
+          invitesSheet,
+          contains("_calendarSheetSectionTitle('Invites & responses')"),
+        );
+        expect(invitesSheet, contains('_buildEventInviteRow('));
+      });
 
       test(
         'Invites row and sheet preserve event RSVP routing and read rollup',
@@ -357,7 +354,7 @@ void main() {
           );
           final sheet = _sourceBetween(
             source,
-            'Future<void> _openCalendarInboxSheet() async {',
+            'Future<void> _openCalendarInboxSheet({String? parentRouteOverride}) async {',
             'Widget _calendarSheetSectionTitle',
           );
 
@@ -375,6 +372,85 @@ void main() {
             openEvent,
             contains('/event-invite/\${Uri.encodeComponent(invite.shareId)}'),
           );
+        },
+      );
+
+      test('Invites sheet restores only over matching Inbox route', () async {
+        final source = await File(
+          'lib/features/inbox/inbox_page.dart',
+        ).readAsString();
+        final restore = _sourceBetween(
+          source,
+          'Future<void> _restoreInvitesSheetIfNeeded() async {',
+          'void _markOpenedInitialCalendarNotificationsViewedIfNeeded',
+        );
+        final save = _sourceBetween(
+          source,
+          'Future<void> _saveInvitesSheetRestorationState',
+          'Future<void> _clearInvitesSheetRestorationState',
+        );
+        final sheet = _sourceBetween(
+          source,
+          'Future<void> _openCalendarInboxSheet({String? parentRouteOverride}) async {',
+          'Widget _calendarSheetSectionTitle',
+        );
+
+        expect(source, contains("_invitesOverlayKind = 'inbox.invites'"));
+        expect(save, contains('recordRouteLocationWithOverlayStack'));
+        expect(save, contains('SessionResumeService.saveRouteLocation'));
+        expect(
+          restore,
+          contains("_sameRouteLocation(_currentRouteLocation(), parentRoute)"),
+        );
+        expect(restore, contains('claimRestoreSurface'));
+        expect(
+          restore,
+          contains('_openCalendarInboxSheet(parentRouteOverride: parentRoute)'),
+        );
+        expect(sheet, contains('_saveInvitesSheetRestorationState'));
+        expect(sheet, contains('shouldPreserveOverlayForLifecycleClose'));
+        expect(sheet, contains('_clearInvitesSheetRestorationState'));
+      });
+
+      test(
+        'shared calendar inbox sheets use focused route continuity',
+        () async {
+          final source = await File(
+            'lib/features/inbox/inbox_page.dart',
+          ).readAsString();
+          final openNotification = _sourceBetween(
+            source,
+            'Future<void> _openCalendarNotification',
+            'Future<void> _openEventInvite',
+          );
+          final openThread = _sourceBetween(
+            source,
+            'Future<void> _openSharedCalendarThread',
+            'enum _UnifiedKind',
+          );
+          final initialFocus = _sourceBetween(
+            source,
+            'Future<void> _openInitialSharedCalendarIfNeeded() async {',
+            'static bool _sameRouteLocation',
+          );
+
+          expect(
+            openNotification,
+            contains(
+              'context.go(sharedCalendarInboxRouteLocation(calendarId))',
+            ),
+          );
+          expect(
+            openThread,
+            contains(
+              'context.go(sharedCalendarInboxRouteLocation(calendarId))',
+            ),
+          );
+          expect(
+            initialFocus,
+            contains('shouldPreserveOverlayForLifecycleClose'),
+          );
+          expect(initialFocus, contains("context.go('/inbox')"));
         },
       );
     },

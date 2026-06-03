@@ -23,6 +23,13 @@ void main() {
       );
     });
 
+    test('keeps focused inbox calendar routes durable', () {
+      expect(
+        stableRouteLocationForContinuity('/inbox?calendarId=calendar-1'),
+        '/inbox?calendarId=calendar-1',
+      );
+    });
+
     test('maps edit flow routes to durable fallback routes', () {
       expect(
         stableRouteLocationForContinuity(

@@ -44,6 +44,7 @@ class InboxPage extends StatefulWidget {
 
 class _InboxPageState extends State<InboxPage> {
   static const String _resumeKind = 'inbox_conversation';
+  static const String _invitesOverlayKind = 'inbox.invites';
   static const _bg = Color(0xFF000000);
   static const _gold = KemeticGold.base;
   static const Color _summaryGoldLight = Color(0xFFF7E09A);
@@ -93,6 +94,8 @@ class _InboxPageState extends State<InboxPage> {
   List<InboxActivityItem> _activity = const [];
   InboxUnreadState _unreadState = const InboxUnreadState();
   bool _resumeConversationChecked = false;
+  bool _invitesSheetRestoreChecked = false;
+  bool _invitesSheetOpenOrOpening = false;
   String? _openedInitialSharedCalendarId;
 
   @override
@@ -155,6 +158,7 @@ class _InboxPageState extends State<InboxPage> {
     _refreshUnified(showLoading: false);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       unawaited(_resumeConversationIfNeeded());
+      unawaited(_restoreInvitesSheetIfNeeded());
       unawaited(_openInitialSharedCalendarIfNeeded());
     });
   }
@@ -163,6 +167,10 @@ class _InboxPageState extends State<InboxPage> {
   void didUpdateWidget(covariant InboxPage oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.initialSharedCalendarId != widget.initialSharedCalendarId) {
+      final calendarId = widget.initialSharedCalendarId?.trim();
+      if (calendarId == null || calendarId.isEmpty) {
+        _openedInitialSharedCalendarId = null;
+      }
       WidgetsBinding.instance.addPostFrameCallback((_) {
         unawaited(_openInitialSharedCalendarIfNeeded());
       });
@@ -387,6 +395,109 @@ class _InboxPageState extends State<InboxPage> {
     _openedInitialSharedCalendarId = calendarId;
     _markOpenedInitialCalendarNotificationsViewedIfNeeded();
     await _openSharedCalendarById(calendarId);
+    if (!mounted) return;
+    if (!RestorationCoordinator
+            .instance
+            .shouldPreserveOverlayForLifecycleClose &&
+        widget.initialSharedCalendarId?.trim() == calendarId &&
+        _sameRouteLocation(
+          _currentRouteLocation(),
+          sharedCalendarInboxRouteLocation(calendarId),
+        )) {
+      _openedInitialSharedCalendarId = null;
+      context.go('/inbox');
+    }
+  }
+
+  static bool _sameRouteLocation(String a, String b) {
+    final aUri = Uri.tryParse(a.trim());
+    final bUri = Uri.tryParse(b.trim());
+    if (aUri == null || bUri == null) return a.trim() == b.trim();
+    return aUri.path == bUri.path && aUri.query == bUri.query;
+  }
+
+  String _currentRouteLocation() {
+    try {
+      final location = GoRouterState.of(context).uri.toString().trim();
+      if (location.isNotEmpty) return location;
+    } catch (_) {
+      // Tests can mount Inbox without a GoRouter state.
+    }
+    return '/inbox';
+  }
+
+  static Map<String, dynamic>? _restorableInvitesOverlayFromStack(
+    List<Map<String, dynamic>> stack,
+  ) {
+    for (final entry in stack.reversed) {
+      if ((entry['kind'] as String?)?.trim() == _invitesOverlayKind) {
+        final parentRoute = (entry['parentRoute'] as String?)?.trim();
+        if (parentRoute == null || parentRoute.isEmpty) continue;
+        final parentUri = Uri.tryParse(parentRoute);
+        if (parentUri == null || parentUri.path != '/inbox') continue;
+        return Map<String, dynamic>.from(entry);
+      }
+    }
+    return null;
+  }
+
+  static String _invitesOverlayRestoreSurfaceKey(Map<String, dynamic> overlay) {
+    final parentRoute = (overlay['parentRoute'] as String?)?.trim() ?? '/inbox';
+    return '${RestorationCoordinator.calendarOverlayStackSurface}|'
+        '$_invitesOverlayKind|$parentRoute|${overlay['updatedAtMs']}';
+  }
+
+  Future<void> _saveInvitesSheetRestorationState({
+    required String parentRoute,
+  }) async {
+    final normalizedParentRoute = parentRoute.trim().isEmpty
+        ? '/inbox'
+        : parentRoute.trim();
+    await RestorationCoordinator.instance.recordRouteLocationWithOverlayStack(
+      normalizedParentRoute,
+      <Map<String, dynamic>>[
+        <String, dynamic>{
+          'kind': _invitesOverlayKind,
+          'parentRoute': normalizedParentRoute,
+          'updatedAtMs': DateTime.now().millisecondsSinceEpoch,
+        },
+      ],
+    );
+    await SessionResumeService.saveRouteLocation(normalizedParentRoute);
+    unawaited(RestorationCoordinator.instance.flush());
+  }
+
+  Future<void> _clearInvitesSheetRestorationState() async {
+    final stack = await RestorationCoordinator.instance.readOverlayStack();
+    final next = stack
+        .where((entry) => entry['kind'] != _invitesOverlayKind)
+        .toList(growable: false);
+    await RestorationCoordinator.instance.saveOverlayStack(next);
+  }
+
+  Future<void> _restoreInvitesSheetIfNeeded() async {
+    if (!mounted || _invitesSheetRestoreChecked) return;
+    _invitesSheetRestoreChecked = true;
+    final snapshot = await RestorationCoordinator.instance.readBestSnapshot(
+      includeRemote: Supabase.instance.client.auth.currentSession != null,
+    );
+    final overlay = _restorableInvitesOverlayFromStack(
+      snapshot.snapshot?.overlayStack ?? const <Map<String, dynamic>>[],
+    );
+    if (!mounted || overlay == null) return;
+
+    final parentRoute = (overlay['parentRoute'] as String?)?.trim();
+    if (parentRoute == null ||
+        parentRoute.isEmpty ||
+        !_sameRouteLocation(_currentRouteLocation(), parentRoute)) {
+      return;
+    }
+
+    final restoreKey = _invitesOverlayRestoreSurfaceKey(overlay);
+    if (!RestorationCoordinator.instance.claimRestoreSurface(restoreKey)) {
+      return;
+    }
+    await _openCalendarInboxSheet(parentRouteOverride: parentRoute);
   }
 
   void _markOpenedInitialCalendarNotificationsViewedIfNeeded() {
@@ -1521,7 +1632,9 @@ class _InboxPageState extends State<InboxPage> {
     );
   }
 
-  Future<void> _openCalendarInboxSheet() async {
+  Future<void> _openCalendarInboxSheet({String? parentRouteOverride}) async {
+    if (_invitesSheetOpenOrOpening) return;
+    final parentRoute = parentRouteOverride ?? _currentRouteLocation();
     final unreadInviteItems = [
       ..._calendarSectionNotifications,
       ..._latestEventInvites,
@@ -1530,116 +1643,134 @@ class _InboxPageState extends State<InboxPage> {
       unawaited(_markItemsViewed(unreadInviteItems));
     }
 
-    await showModalBottomSheet(
-      context: context,
-      backgroundColor: _bg,
-      isScrollControlled: true,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(18)),
-      ),
-      builder: (sheetContext) {
-        final inviteNotifications = _calendarSectionNotifications.toList();
-        final eventInvites = _latestEventInvites.toList();
-        final inviteResponseItems = <InboxShareItem>[
-          ...eventInvites,
-          ...inviteNotifications,
-        ]..sort((a, b) => b.createdAt.compareTo(a.createdAt));
-        final sentInvites = _latestSentCalendarInvites.toList()
-          ..sort((a, b) => b.invitedAt.compareTo(a.invitedAt));
-        final incomingInvites =
-            _incomingCalendarInvitesWithoutNotification.toList()
-              ..sort((a, b) => b.invitedAt.compareTo(a.invitedAt));
+    _invitesSheetOpenOrOpening = true;
+    await _saveInvitesSheetRestorationState(parentRoute: parentRoute);
+    try {
+      if (!mounted) return;
+      await showModalBottomSheet(
+        context: context,
+        backgroundColor: _bg,
+        isScrollControlled: true,
+        shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(18)),
+        ),
+        builder: (sheetContext) {
+          final inviteNotifications = _calendarSectionNotifications.toList();
+          final eventInvites = _latestEventInvites.toList();
+          final inviteResponseItems = <InboxShareItem>[
+            ...eventInvites,
+            ...inviteNotifications,
+          ]..sort((a, b) => b.createdAt.compareTo(a.createdAt));
+          final sentInvites = _latestSentCalendarInvites.toList()
+            ..sort((a, b) => b.invitedAt.compareTo(a.invitedAt));
+          final incomingInvites =
+              _incomingCalendarInvitesWithoutNotification.toList()
+                ..sort((a, b) => b.invitedAt.compareTo(a.invitedAt));
 
-        return SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Center(
-                  child: Container(
-                    width: 44,
-                    height: 4,
-                    margin: const EdgeInsets.only(bottom: 12),
-                    decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: 0.2),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                  ),
-                ),
-                const Text(
-                  'Invites',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 18,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                if (sentInvites.isEmpty &&
-                    inviteResponseItems.isEmpty &&
-                    incomingInvites.isEmpty)
-                  Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 12),
-                    child: Text(
-                      'Calendar invites and responses will appear here.',
-                      style: TextStyle(
-                        color: Colors.white.withValues(alpha: 0.7),
+          return SafeArea(
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Center(
+                    child: Container(
+                      width: 44,
+                      height: 4,
+                      margin: const EdgeInsets.only(bottom: 12),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.2),
+                        borderRadius: BorderRadius.circular(12),
                       ),
                     ),
-                  )
-                else
-                  Flexible(
-                    child: ListView(
-                      shrinkWrap: true,
-                      children: [
-                        if (incomingInvites.isNotEmpty) ...[
-                          _calendarSheetSectionTitle('Invites for you'),
-                          const SizedBox(height: 8),
-                          for (final invite in incomingInvites)
-                            _buildIncomingCalendarInviteRow(
-                              invite,
-                              closeContext: sheetContext,
-                            ),
-                        ],
-                        if (sentInvites.isNotEmpty) ...[
-                          if (incomingInvites.isNotEmpty)
-                            const SizedBox(height: 12),
-                          _calendarSheetSectionTitle('Pending from you'),
-                          const SizedBox(height: 8),
-                          for (final invite in sentInvites)
-                            _buildSentCalendarInviteRow(
-                              invite,
-                              closeContext: sheetContext,
-                            ),
-                        ],
-                        if (inviteResponseItems.isNotEmpty) ...[
-                          if (sentInvites.isNotEmpty ||
-                              incomingInvites.isNotEmpty)
-                            const SizedBox(height: 12),
-                          _calendarSheetSectionTitle('Invites & responses'),
-                          const SizedBox(height: 8),
-                          for (final item in inviteResponseItems)
-                            item.isEvent
-                                ? _buildEventInviteRow(
-                                    item,
-                                    closeContext: sheetContext,
-                                  )
-                                : _buildCalendarInviteNotificationRow(
-                                    item,
-                                    closeContext: sheetContext,
-                                  ),
-                        ],
-                      ],
+                  ),
+                  const Text(
+                    'Invites',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 18,
+                      fontWeight: FontWeight.w700,
                     ),
                   ),
-              ],
+                  const SizedBox(height: 8),
+                  if (sentInvites.isEmpty &&
+                      inviteResponseItems.isEmpty &&
+                      incomingInvites.isEmpty)
+                    Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      child: Text(
+                        'Calendar invites and responses will appear here.',
+                        style: TextStyle(
+                          color: Colors.white.withValues(alpha: 0.7),
+                        ),
+                      ),
+                    )
+                  else
+                    Flexible(
+                      child: ListView(
+                        shrinkWrap: true,
+                        children: [
+                          if (incomingInvites.isNotEmpty) ...[
+                            _calendarSheetSectionTitle('Invites for you'),
+                            const SizedBox(height: 8),
+                            for (final invite in incomingInvites)
+                              _buildIncomingCalendarInviteRow(
+                                invite,
+                                closeContext: sheetContext,
+                              ),
+                          ],
+                          if (sentInvites.isNotEmpty) ...[
+                            if (incomingInvites.isNotEmpty)
+                              const SizedBox(height: 12),
+                            _calendarSheetSectionTitle('Pending from you'),
+                            const SizedBox(height: 8),
+                            for (final invite in sentInvites)
+                              _buildSentCalendarInviteRow(
+                                invite,
+                                closeContext: sheetContext,
+                              ),
+                          ],
+                          if (inviteResponseItems.isNotEmpty) ...[
+                            if (sentInvites.isNotEmpty ||
+                                incomingInvites.isNotEmpty)
+                              const SizedBox(height: 12),
+                            _calendarSheetSectionTitle('Invites & responses'),
+                            const SizedBox(height: 8),
+                            for (final item in inviteResponseItems)
+                              item.isEvent
+                                  ? _buildEventInviteRow(
+                                      item,
+                                      closeContext: sheetContext,
+                                    )
+                                  : _buildCalendarInviteNotificationRow(
+                                      item,
+                                      closeContext: sheetContext,
+                                    ),
+                          ],
+                        ],
+                      ),
+                    ),
+                ],
+              ),
             ),
-          ),
-        );
-      },
-    );
+          );
+        },
+      );
+    } finally {
+      try {
+        final preserveForLifecycle =
+            !mounted ||
+            RestorationCoordinator
+                .instance
+                .shouldPreserveOverlayForLifecycleClose;
+        if (!preserveForLifecycle) {
+          await _clearInvitesSheetRestorationState();
+        }
+      } finally {
+        _invitesSheetOpenOrOpening = false;
+      }
+    }
   }
 
   Widget _calendarSheetSectionTitle(String text) {
@@ -1919,7 +2050,7 @@ class _InboxPageState extends State<InboxPage> {
     if (notification.isCalendarEventNotification &&
         calendarId != null &&
         calendarId.isNotEmpty) {
-      await _openSharedCalendarById(calendarId);
+      context.go(sharedCalendarInboxRouteLocation(calendarId));
       return;
     }
 
@@ -1953,7 +2084,7 @@ class _InboxPageState extends State<InboxPage> {
       return;
     }
 
-    await _openSharedCalendarById(calendarId);
+    context.go(sharedCalendarInboxRouteLocation(calendarId));
   }
 }
 

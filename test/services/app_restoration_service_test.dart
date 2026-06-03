@@ -730,6 +730,74 @@ void main() {
   );
 
   test(
+    'newer local inbox route-only snapshot beats stale current root',
+    () async {
+      final currentRoot = {
+        'schemaVersion': AppRestorationService.schemaVersion,
+        'userId': 'user-1',
+        'windowId': 'window-1',
+        'updatedAtMs': 1000,
+        'routeLocation': '/',
+      };
+      final latestInbox = {
+        'schemaVersion': AppRestorationService.schemaVersion,
+        'userId': 'user-1',
+        'windowId': 'window-2',
+        'updatedAtMs': 2000,
+        'routeLocation': '/inbox',
+      };
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(_snapshotKey(), jsonEncode(currentRoot));
+      _debugCriticalSnapshots['window-1'] = jsonEncode(currentRoot);
+      await prefs.setString(
+        'app_restoration_latest_v2:user-1',
+        jsonEncode(latestInbox),
+      );
+
+      final result = await AppRestorationService.instance.readBestSnapshot(
+        includeRemote: true,
+      );
+
+      expect(result.status, AppRestorationReadStatus.restored);
+      expect(result.source, 'latest_prefs');
+      expect(result.snapshot?.routeLocation, '/inbox');
+    },
+  );
+
+  test(
+    'calendar default root does not beat newer local inbox conversation route',
+    () async {
+      final currentRoot = {
+        'schemaVersion': AppRestorationService.schemaVersion,
+        'userId': 'user-1',
+        'windowId': 'window-1',
+        'updatedAtMs': 1000,
+        'routeLocation': '/',
+      };
+      final latestConversation = {
+        'schemaVersion': AppRestorationService.schemaVersion,
+        'userId': 'user-1',
+        'windowId': 'window-2',
+        'updatedAtMs': 2000,
+        'routeLocation': '/inbox/conversation/friend-1',
+      };
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(_snapshotKey(), jsonEncode(currentRoot));
+      _debugCriticalSnapshots['window-1'] = jsonEncode(currentRoot);
+      await prefs.setString(
+        'app_restoration_latest_v2:user-1',
+        jsonEncode(latestConversation),
+      );
+
+      final result = await AppRestorationService.instance.readBestSnapshot(
+        includeRemote: true,
+      );
+
+      expect(result.snapshot?.routeLocation, '/inbox/conversation/friend-1');
+    },
+  );
+
+  test(
     'stores route and overlay stack atomically for sheet continuity',
     () async {
       final criticalWrites = <Map<String, dynamic>>[];
@@ -775,6 +843,30 @@ void main() {
       );
     },
   );
+
+  test('stores inbox invites sheet overlay with parent route', () async {
+    await AppRestorationService.instance.saveRouteLocationWithOverlayStack(
+      '/inbox',
+      <Map<String, dynamic>>[
+        <String, dynamic>{
+          'kind': 'inbox.invites',
+          'parentRoute': '/inbox',
+          'updatedAtMs': 2000,
+        },
+      ],
+    );
+
+    final result = await AppRestorationService.instance.readBestSnapshot();
+
+    expect(result.snapshot?.routeLocation, '/inbox');
+    expect(
+      result.snapshot?.overlayStack.single,
+      allOf(
+        containsPair('kind', 'inbox.invites'),
+        containsPair('parentRoute', '/inbox'),
+      ),
+    );
+  });
 
   test('does not persist transient Flow Studio editor overlays', () async {
     await AppRestorationService.instance.saveRouteLocationWithOverlayStack(

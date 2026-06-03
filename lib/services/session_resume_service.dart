@@ -310,6 +310,12 @@ class _SessionTrackedRouteState extends State<SessionTrackedRoute> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final stableLocation = stableRouteLocationForContinuity(widget.location);
       if (stableLocation == null) return;
+      if (stableLocation == '/' &&
+          RestorationCoordinator
+              .instance
+              .shouldDeferRootRoutePersistenceForLaunch) {
+        return;
+      }
       if (stableLocation != widget.location && kDebugMode) {
         debugPrint(
           '[SessionTrackedRoute] stripped one-shot route intent '

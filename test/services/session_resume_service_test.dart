@@ -1,6 +1,8 @@
 import 'dart:convert';
 
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:mobile/services/restoration_coordinator.dart';
 import 'package:mobile/services/session_resume_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -14,6 +16,10 @@ void main() {
 
   tearDown(() {
     SessionResumeService.debugUserIdResolver = null;
+    RestorationCoordinator.instance.beginLaunchRestore(
+      reason: RestorationRestoreReason.coldLaunch,
+      targetLocation: '/',
+    );
   });
 
   test('stores route, scoped state, and resumable entry', () async {
@@ -136,6 +142,25 @@ void main() {
           jsonDecode(prefs.getString('session_resume_state_v1')!)
               as Map<String, dynamic>;
       expect(raw['routeLocation'], '/nodes/human_emergence');
+    },
+  );
+
+  testWidgets(
+    'default root route does not overwrite pending non-root launch restore',
+    (tester) async {
+      RestorationCoordinator.instance.beginLaunchRestore(
+        reason: RestorationRestoreReason.coldLaunch,
+        targetLocation: '/inbox',
+      );
+
+      await tester.pumpWidget(
+        const MaterialApp(
+          home: SessionTrackedRoute(location: '/', child: Text('calendar')),
+        ),
+      );
+      await tester.pump();
+
+      expect(await SessionResumeService.readRouteLocation(), isNull);
     },
   );
 }

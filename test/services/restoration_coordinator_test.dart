@@ -49,6 +49,27 @@ void main() {
       );
     });
 
+    test('non-root launch target defers default root persistence', () {
+      final coordinator = RestorationCoordinator.instance
+        ..beginLaunchRestore(
+          reason: RestorationRestoreReason.coldLaunch,
+          targetLocation: '/inbox',
+        );
+
+      expect(coordinator.shouldDeferRootRoutePersistenceForLaunch, isTrue);
+
+      coordinator.beginLaunchRestore(
+        reason: RestorationRestoreReason.coldLaunch,
+        targetLocation: '/',
+      );
+
+      expect(coordinator.shouldDeferRootRoutePersistenceForLaunch, isFalse);
+
+      coordinator.suppressRestoreForUserNavigation(reason: 'manual_home');
+
+      expect(coordinator.shouldDeferRootRoutePersistenceForLaunch, isFalse);
+    });
+
     test('detached overlay surfaces restore only on their parent route', () {
       final coordinator = RestorationCoordinator.instance
         ..beginLaunchRestore(
