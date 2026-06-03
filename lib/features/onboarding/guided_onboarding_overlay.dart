@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'package:mobile/features/onboarding/onboarding_progress.dart';
 import 'package:mobile/shared/glossy_text.dart';
 
 enum CoachmarkVariant { onboarding, helperBubble }
@@ -34,6 +35,8 @@ class CoachmarkTarget {
     this.onDismiss,
     this.showSkipButton = false,
     this.onSkip,
+    this.helperId,
+    this.helperUserId,
   });
 
   final GlobalKey? key;
@@ -52,6 +55,8 @@ class CoachmarkTarget {
   final VoidCallback? onDismiss;
   final bool showSkipButton;
   final VoidCallback? onSkip;
+  final String? helperId;
+  final String? helperUserId;
 }
 
 class GuidedOnboardingController extends ChangeNotifier {
@@ -78,6 +83,16 @@ class GuidedOnboardingController extends ChangeNotifier {
     notifyListeners();
   }
 
+  void clearCompletedHelper(String userId, String helperId) {
+    final target = _target;
+    if (target == null ||
+        target.helperUserId != userId ||
+        target.helperId != helperId) {
+      return;
+    }
+    clear();
+  }
+
   void setExternalOverlaySuppressed(bool suppressed) {
     if (_suppressExternalOverlays == suppressed) return;
     _suppressExternalOverlays = suppressed;
@@ -93,14 +108,30 @@ class GuidedOnboardingOverlayHost extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return AnimatedBuilder(
-      animation: GuidedOnboardingController.instance,
+      animation: Listenable.merge([
+        GuidedOnboardingController.instance,
+        OnboardingHelperCompletionService.instance,
+      ]),
       builder: (context, _) {
-        final target = GuidedOnboardingController.instance.target;
+        final controller = GuidedOnboardingController.instance;
+        final service = OnboardingHelperCompletionService.instance;
+        final target = controller.target;
+        final helperId = target?.helperId;
+        final helperUserId = target?.helperUserId;
+        final isCompletedHelper =
+            helperId != null &&
+            helperUserId != null &&
+            service.isHelperCompletedSync(helperUserId, helperId);
+        if (isCompletedHelper) {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            controller.clearCompletedHelper(helperUserId, helperId);
+          });
+        }
         return Stack(
           fit: StackFit.expand,
           children: [
             child,
-            if (target != null)
+            if (target != null && !isCompletedHelper)
               Positioned.fill(child: GuidedOnboardingOverlay(target: target)),
           ],
         );

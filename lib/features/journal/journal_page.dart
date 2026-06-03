@@ -50,8 +50,8 @@ class _JournalPageState extends State<JournalPage> {
     if (_helperPrompted) return;
     final userId = Supabase.instance.client.auth.currentUser?.id;
     if (userId == null || userId.isEmpty) return;
-    final storage = OnboardingProgressStorage();
-    if (!await storage.shouldShowHelper(
+    final helperService = OnboardingHelperCompletionService.instance;
+    if (!await helperService.shouldShowHelper(
       userId,
       OnboardingHelperIds.journalBadges,
     )) {
@@ -60,10 +60,12 @@ class _JournalPageState extends State<JournalPage> {
     _helperPrompted = true;
     await Future<void>.delayed(const Duration(milliseconds: 500));
     if (!mounted) return;
-    if (!await storage.shouldShowHelper(
-      userId,
-      OnboardingHelperIds.journalBadges,
-    )) {
+    await helperService.hydrateUser(userId);
+    if (!mounted ||
+        !helperService.shouldShowHelperSync(
+          userId,
+          OnboardingHelperIds.journalBadges,
+        )) {
       return;
     }
     GuidedOnboardingController.instance.show(
@@ -76,22 +78,21 @@ class _JournalPageState extends State<JournalPage> {
         variant: CoachmarkVariant.helperBubble,
         showDismissButton: true,
         dismissLabel: 'Got it',
+        helperId: OnboardingHelperIds.journalBadges,
+        helperUserId: userId,
         onDismiss: () async {
-          GuidedOnboardingController.instance.clear();
-          await storage.markHelperCompleted(
+          final completion = helperService.markHelperCompleted(
             userId,
             OnboardingHelperIds.journalBadges,
           );
+          GuidedOnboardingController.instance.clear();
+          await completion;
           await Events.trackIfAuthed(
             'helper_seen_journal_badges',
             const <String, dynamic>{},
           );
         },
       ),
-    );
-    await storage.markHelperCompleted(
-      userId,
-      OnboardingHelperIds.journalBadges,
     );
   }
 

@@ -3,66 +3,88 @@ import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
-  test('Flow Builder helper is marked seen when displayed', () {
-    final source = _read('lib/features/calendar/calendar_flow_pages.dart');
-    final showIndex = source.indexOf(
-      'GuidedOnboardingController.instance.show(',
+  test('Flow Studio Add Flow helper uses a stable ID and dismiss gate', () {
+    final source = _between(
+      _read('lib/features/calendar/calendar_flow_pages.dart'),
+      'Future<void> _maybeShowFlowStudioAddFlowHelper',
+      '  Future<void> _markFlowStudioHelperCompleted',
     );
-    final markIndex = source.indexOf(
-      'await storage.markHelperCompleted(userId, OnboardingHelperIds.flowBuilder);',
-      showIndex,
+    final helperIdIndex = source.indexOf(
+      'helperId: OnboardingHelperIds.flowStudioAddFlow',
     );
-    final trackIndex = source.indexOf("'helper_seen_flow_builder'", markIndex);
+    final completeIndex = source.indexOf(
+      'helperService.markHelperCompleted(',
+      helperIdIndex,
+    );
+    final clearIndex = source.indexOf(
+      'GuidedOnboardingController.instance.clear();',
+      completeIndex,
+    );
 
-    expect(showIndex, isNonNegative);
-    expect(markIndex, greaterThan(showIndex));
-    expect(trackIndex, greaterThan(markIndex));
+    expect(helperIdIndex, isNonNegative);
+    expect(completeIndex, greaterThan(helperIdIndex));
+    expect(clearIndex, greaterThan(completeIndex));
+    expect(source, isNot(contains('OnboardingHelperIds.flowBuilder')));
     expect(_count(source, "'helper_seen_flow_builder'"), 1);
   });
 
-  test("Ma'at flows helper is marked seen when displayed", () {
-    final source = _read('lib/features/calendar/calendar_maat_flows.dart');
-    final showIndex = source.indexOf(
-      'GuidedOnboardingController.instance.show(',
+  test("Ma'at flow list helper uses the Flow Studio Add Flow ID", () {
+    final source = _between(
+      _read('lib/features/calendar/calendar_maat_flows.dart'),
+      'Future<void> _maybeShowFlowStudioAddFlowHelper',
+      '  Future<void> _markFlowStudioHelperCompleted',
     );
-    final markIndex = source.indexOf(
-      'await storage.markHelperCompleted(userId, OnboardingHelperIds.flowBuilder);',
-      showIndex,
+    final helperIdIndex = source.indexOf(
+      'helperId: OnboardingHelperIds.flowStudioAddFlow',
     );
-    final trackIndex = source.indexOf("'helper_seen_flow_builder'", markIndex);
+    final completeIndex = source.indexOf(
+      'helperService.markHelperCompleted(',
+      helperIdIndex,
+    );
+    final clearIndex = source.indexOf(
+      'GuidedOnboardingController.instance.clear();',
+      completeIndex,
+    );
 
-    expect(showIndex, isNonNegative);
-    expect(markIndex, greaterThan(showIndex));
-    expect(trackIndex, greaterThan(markIndex));
+    expect(helperIdIndex, isNonNegative);
+    expect(completeIndex, greaterThan(helperIdIndex));
+    expect(clearIndex, greaterThan(completeIndex));
+    expect(source, isNot(contains('OnboardingHelperIds.flowBuilder')));
     expect(_count(source, "'helper_seen_flow_builder'"), 1);
   });
 
   test(
-    'calendar helper is marked seen on display and dismiss advances chain',
+    'calendar helper waits for service hydration and dismiss advances chain',
     () {
       final source = _between(
         _read('lib/features/calendar/calendar_page.dart'),
         'Future<void> _maybeShowCalendarHelperAfterOnboarding',
         '  ({',
       );
-      final showIndex = source.indexOf(
-        'GuidedOnboardingController.instance.show(',
+      final hydrateIndex = source.indexOf('helperService.hydrateUser(userId)');
+      final syncGateIndex = source.indexOf(
+        'helperService.shouldShowHelperSync(userId, helper.id)',
+        hydrateIndex,
       );
-      final markIndex = source.indexOf(
-        'await _markOnboardingHelperCompleted(helper.id, clearActiveHelper: false);',
-        showIndex,
+      final helperIdIndex = source.indexOf('helperId: helper.id');
+      final completeIndex = source.indexOf(
+        'final completion = _markOnboardingHelperCompleted(helper.id);',
+        helperIdIndex,
       );
-      final trackIndex = source.indexOf('Events.trackIfAuthed(', markIndex);
+      final trackIndex = source.indexOf('Events.trackIfAuthed(', completeIndex);
 
-      expect(showIndex, isNonNegative);
-      expect(markIndex, greaterThan(showIndex));
-      expect(trackIndex, greaterThan(markIndex));
+      expect(hydrateIndex, isNonNegative);
+      expect(syncGateIndex, greaterThan(hydrateIndex));
+      expect(helperIdIndex, greaterThan(syncGateIndex));
+      expect(completeIndex, greaterThan(helperIdIndex));
+      expect(trackIndex, greaterThan(completeIndex));
+      expect(source, isNot(contains('clearActiveHelper: false')));
       expect(_count(source, 'Events.trackIfAuthed('), 1);
       expect(source, contains('_maybeShowCalendarHelperAfterOnboarding'));
     },
   );
 
-  test('profile community helper uses one guarded seen path', () {
+  test('profile community helper gates dismiss and reveal through service', () {
     final source = _read('lib/features/profile/profile_page.dart');
     final helperSource = _between(
       source,
@@ -82,11 +104,18 @@ void main() {
 
     expect(
       helperSource,
-      contains(
-        'await _markProfileCommunityHelperSeen(clearActiveHelper: false);',
-      ),
+      contains('helperId: OnboardingHelperIds.profileCommunityFeed'),
     );
-    expect(helperSource, isNot(contains('Events.trackIfAuthed(')));
+    expect(helperSource, contains('helperService.shouldShowHelperSync'));
+    final dismissCompleteIndex = helperSource.indexOf(
+      'helperService.markHelperCompleted(',
+    );
+    final dismissClearIndex = helperSource.indexOf(
+      'GuidedOnboardingController.instance.clear();',
+      dismissCompleteIndex,
+    );
+    expect(dismissCompleteIndex, isNonNegative);
+    expect(dismissClearIndex, greaterThan(dismissCompleteIndex));
     expect(
       revealSource,
       contains('unawaited(_markProfileCommunityHelperSeen());'),
@@ -101,7 +130,29 @@ void main() {
     expect(shouldShowIndex, isNonNegative);
     expect(completeIndex, greaterThan(shouldShowIndex));
     expect(trackIndex, greaterThan(completeIndex));
-    expect(_count(source, "'helper_seen_profile_community_feed'"), 1);
+    expect(_count(source, "'helper_seen_profile_community_feed'"), 2);
+  });
+
+  test('all visible helper bubbles provide stable helper IDs', () {
+    final sources = [
+      _read('lib/features/calendar/calendar_flow_pages.dart'),
+      _read('lib/features/calendar/calendar_maat_flows.dart'),
+      _read('lib/features/calendar/calendar_page.dart'),
+      _read('lib/features/journal/journal_page.dart'),
+      _read('lib/features/settings/settings_page.dart'),
+      _read('lib/features/profile/profile_page.dart'),
+    ].join('\n');
+    final helperBubbleCount = _count(
+      sources,
+      'variant: CoachmarkVariant.helperBubble',
+    );
+    final helperIdCount = _count(sources, 'helperId:');
+    final helperUserIdCount = _count(sources, 'helperUserId:');
+
+    expect(helperBubbleCount, greaterThan(0));
+    expect(helperIdCount, helperBubbleCount);
+    expect(helperUserIdCount, helperBubbleCount);
+    expect(sources, isNot(contains('OnboardingHelperIds.flowBuilder')));
   });
 }
 

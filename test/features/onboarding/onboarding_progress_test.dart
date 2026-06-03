@@ -1,3 +1,6 @@
+import 'dart:async';
+import 'dart:convert';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:mobile/features/onboarding/onboarding_progress.dart';
@@ -7,6 +10,9 @@ void main() {
 
   setUp(() {
     SharedPreferences.setMockInitialValues(<String, Object>{});
+    OnboardingHelperCompletionService.resetForTesting(
+      remoteStore: _FakeRemoteStore(),
+    );
   });
 
   test('complete step marks onboarding complete', () {
@@ -58,6 +64,34 @@ void main() {
       OnboardingHelperIds.all,
       isNot(contains(anyOf('dayView', 'dayViewHelper', 'dayViewReveal'))),
     );
+  });
+
+  test('each helper uses a stable registered helper ID', () {
+    expect(
+      OnboardingHelperIds.all,
+      containsAll([
+        OnboardingHelperIds.flowStudioAddFlow,
+        OnboardingHelperIds.flowStudioSavedFlows,
+        OnboardingHelperIds.flowStudioMaatFlows,
+        OnboardingHelperIds.calendarToggle,
+        OnboardingHelperIds.journalBadges,
+        OnboardingHelperIds.settingsControl,
+        OnboardingHelperIds.profileCommunityFeed,
+      ]),
+    );
+    expect(OnboardingHelperIds.all, isNot(contains('flowBuilder')));
+    for (final helperId in OnboardingHelperIds.all) {
+      expect(
+        helperId,
+        matches(RegExp(r'^[a-z0-9]+(_[a-z0-9]+)*$')),
+        reason: '$helperId must be a stable snake_case constant',
+      );
+      expect(OnboardingHelperIds.versions, contains(helperId));
+      expect(
+        OnboardingHelperIds.completionKeysFor(helperId),
+        contains(helperId),
+      );
+    }
   });
 
   test('storage persists progress per user', () async {
@@ -171,8 +205,14 @@ void main() {
 
       final helperCases = <({String label, String id})>[
         (label: 'calendar helper', id: OnboardingHelperIds.calendarToggle),
-        (label: 'Flow Builder helper', id: OnboardingHelperIds.flowBuilder),
-        (label: "Ma'at flows helper", id: OnboardingHelperIds.flowBuilder),
+        (
+          label: 'Flow Studio Add Flow helper',
+          id: OnboardingHelperIds.flowStudioAddFlow,
+        ),
+        (
+          label: "Flow Studio Ma'at flows helper",
+          id: OnboardingHelperIds.flowStudioMaatFlows,
+        ),
         (
           label: 'profile community helper',
           id: OnboardingHelperIds.profileCommunityFeed,
@@ -254,7 +294,7 @@ void main() {
 
     await storage.markHelperCompleted(
       'user-a',
-      OnboardingHelperIds.flowBuilder,
+      OnboardingHelperIds.flowStudioAddFlow,
     );
 
     final reloaded = await OnboardingProgressStorage().load('user-a');
@@ -262,8 +302,43 @@ void main() {
       reloaded.seenHelpers,
       containsAll([
         OnboardingHelperIds.calendarToggle,
-        OnboardingHelperIds.flowBuilder,
+        OnboardingHelperIds.flowStudioAddFlow,
       ]),
+    );
+  });
+
+  test('old local flowBuilder progress is respected', () async {
+    final rawProgress = const OnboardingProgress()
+        .copyWith(
+          currentStep: TrueOnboardingStep.complete,
+          completedOnboarding: true,
+        )
+        .toJson();
+    rawProgress['seenHelpers'] = ['flowBuilder'];
+    SharedPreferences.setMockInitialValues(<String, Object>{
+      'onboarding_v2_progress:user-a': jsonEncode(rawProgress),
+    });
+    OnboardingHelperCompletionService.resetForTesting(
+      remoteStore: _FakeRemoteStore(),
+    );
+
+    final storage = OnboardingProgressStorage();
+    final reloaded = await storage.load('user-a');
+
+    expect(
+      reloaded.seenHelpers,
+      containsAll([
+        OnboardingHelperIds.flowStudioAddFlow,
+        OnboardingHelperIds.flowStudioSavedFlows,
+        OnboardingHelperIds.flowStudioMaatFlows,
+      ]),
+    );
+    expect(
+      await storage.shouldShowHelper(
+        'user-a',
+        OnboardingHelperIds.flowStudioAddFlow,
+      ),
+      isFalse,
     );
   });
 
@@ -279,7 +354,10 @@ void main() {
 
     await Future.wait([
       storage.markHelperCompleted('user-a', OnboardingHelperIds.calendarToggle),
-      storage.markHelperCompleted('user-a', OnboardingHelperIds.flowBuilder),
+      storage.markHelperCompleted(
+        'user-a',
+        OnboardingHelperIds.flowStudioAddFlow,
+      ),
       storage.markHelperCompleted('user-a', OnboardingHelperIds.journalBadges),
     ]);
 
@@ -288,11 +366,280 @@ void main() {
       reloaded.seenHelpers,
       containsAll([
         OnboardingHelperIds.calendarToggle,
-        OnboardingHelperIds.flowBuilder,
+        OnboardingHelperIds.flowStudioAddFlow,
         OnboardingHelperIds.journalBadges,
       ]),
     );
   });
+
+  test(
+    'Flow Studio helper does not show before progress hydration completes',
+    () async {
+      final remoteCompleter = Completer<Set<String>>();
+      final fakeRemote = _FakeRemoteStore(loadCompleter: remoteCompleter);
+      OnboardingHelperCompletionService.resetForTesting(
+        remoteStore: fakeRemote,
+      );
+      final storage = OnboardingProgressStorage();
+      await storage.save(
+        'user-a',
+        const OnboardingProgress().copyWith(
+          currentStep: TrueOnboardingStep.complete,
+          completedOnboarding: true,
+        ),
+      );
+
+      final service = OnboardingHelperCompletionService.instance;
+      final hydration = service.hydrateUser('user-a');
+
+      expect(
+        service.hydrationStateFor('user-a'),
+        OnboardingHelperHydrationState.loading,
+      );
+      expect(
+        service.shouldShowHelperSync(
+          'user-a',
+          OnboardingHelperIds.flowStudioAddFlow,
+        ),
+        isFalse,
+      );
+
+      remoteCompleter.complete(const <String>{});
+      await hydration;
+
+      expect(
+        service.shouldShowHelperSync(
+          'user-a',
+          OnboardingHelperIds.flowStudioAddFlow,
+        ),
+        isTrue,
+      );
+    },
+  );
+
+  test('Flow Studio helper disappears after Got it', () async {
+    final storage = OnboardingProgressStorage();
+    await storage.save(
+      'user-a',
+      const OnboardingProgress().copyWith(
+        currentStep: TrueOnboardingStep.complete,
+        completedOnboarding: true,
+      ),
+    );
+    final service = OnboardingHelperCompletionService.instance;
+    await service.hydrateUser('user-a');
+
+    expect(
+      service.shouldShowHelperSync(
+        'user-a',
+        OnboardingHelperIds.flowStudioAddFlow,
+      ),
+      isTrue,
+    );
+
+    final completion = service.markHelperCompleted(
+      'user-a',
+      OnboardingHelperIds.flowStudioAddFlow,
+    );
+
+    expect(
+      service.isHelperCompletedSync(
+        'user-a',
+        OnboardingHelperIds.flowStudioAddFlow,
+      ),
+      isTrue,
+    );
+    expect(
+      service.shouldShowHelperSync(
+        'user-a',
+        OnboardingHelperIds.flowStudioAddFlow,
+      ),
+      isFalse,
+    );
+    await completion;
+  });
+
+  test(
+    'Flow Studio helper does not return after navigating away/back',
+    () async {
+      final storage = OnboardingProgressStorage();
+      await storage.save(
+        'user-a',
+        const OnboardingProgress().copyWith(
+          currentStep: TrueOnboardingStep.complete,
+          completedOnboarding: true,
+        ),
+      );
+      final service = OnboardingHelperCompletionService.instance;
+      await service.hydrateUser('user-a');
+      await service.markHelperCompleted(
+        'user-a',
+        OnboardingHelperIds.flowStudioAddFlow,
+      );
+
+      expect(
+        await service.shouldShowHelper(
+          'user-a',
+          OnboardingHelperIds.flowStudioAddFlow,
+        ),
+        isFalse,
+      );
+    },
+  );
+
+  test(
+    'Flow Studio helper does not return after app restart with persisted local progress',
+    () async {
+      final storage = OnboardingProgressStorage();
+      await storage.save(
+        'user-a',
+        const OnboardingProgress().copyWith(
+          currentStep: TrueOnboardingStep.complete,
+          completedOnboarding: true,
+        ),
+      );
+      await OnboardingHelperCompletionService.instance.markHelperCompleted(
+        'user-a',
+        OnboardingHelperIds.flowStudioAddFlow,
+      );
+
+      OnboardingHelperCompletionService.resetForTesting(
+        remoteStore: _FakeRemoteStore(),
+      );
+
+      expect(
+        await OnboardingHelperCompletionService.instance.shouldShowHelper(
+          'user-a',
+          OnboardingHelperIds.flowStudioAddFlow,
+        ),
+        isFalse,
+      );
+    },
+  );
+
+  test(
+    'Flow Studio helper stays completed across navigation and service recreation',
+    () async {
+      final storage = OnboardingProgressStorage();
+      await storage.save(
+        'user-a',
+        const OnboardingProgress().copyWith(
+          currentStep: TrueOnboardingStep.complete,
+          completedOnboarding: true,
+        ),
+      );
+
+      var service = OnboardingHelperCompletionService.instance;
+      await service.hydrateUser('user-a');
+      expect(
+        service.shouldShowHelperSync(
+          'user-a',
+          OnboardingHelperIds.flowStudioAddFlow,
+        ),
+        isTrue,
+      );
+
+      final gotItCompletion = service.markHelperCompleted(
+        'user-a',
+        OnboardingHelperIds.flowStudioAddFlow,
+      );
+      expect(
+        service.shouldShowHelperSync(
+          'user-a',
+          OnboardingHelperIds.flowStudioAddFlow,
+        ),
+        isFalse,
+      );
+      await gotItCompletion;
+
+      expect(
+        await service.shouldShowHelper(
+          'user-a',
+          OnboardingHelperIds.flowStudioAddFlow,
+        ),
+        isFalse,
+        reason: 'navigation away/back should not re-arm the helper',
+      );
+
+      OnboardingHelperCompletionService.resetForTesting(
+        remoteStore: _FakeRemoteStore(),
+      );
+      service = OnboardingHelperCompletionService.instance;
+
+      expect(
+        await service.shouldShowHelper(
+          'user-a',
+          OnboardingHelperIds.flowStudioAddFlow,
+        ),
+        isFalse,
+        reason: 'service restart must restore persisted local completion',
+      );
+    },
+  );
+
+  test(
+    'target engagement marks Flow Studio Add Flow helper complete',
+    () async {
+      final storage = OnboardingProgressStorage();
+      await storage.save(
+        'user-a',
+        const OnboardingProgress().copyWith(
+          currentStep: TrueOnboardingStep.complete,
+          completedOnboarding: true,
+        ),
+      );
+      final service = OnboardingHelperCompletionService.instance;
+      await service.hydrateUser('user-a');
+
+      final completion = service.markHelperCompleted(
+        'user-a',
+        OnboardingHelperIds.flowStudioAddFlow,
+      );
+
+      expect(
+        service.shouldShowHelperSync(
+          'user-a',
+          OnboardingHelperIds.flowStudioAddFlow,
+        ),
+        isFalse,
+      );
+      await completion;
+    },
+  );
+
+  test(
+    'cloud persistence restores completed helpers for same user on fresh local install',
+    () async {
+      final fakeRemote = _FakeRemoteStore(
+        completedByUser: {
+          'user-a': {OnboardingHelperIds.flowStudioAddFlow},
+        },
+      );
+      OnboardingHelperCompletionService.resetForTesting(
+        remoteStore: fakeRemote,
+      );
+      final storage = OnboardingProgressStorage();
+      await storage.save(
+        'user-a',
+        const OnboardingProgress().copyWith(
+          currentStep: TrueOnboardingStep.complete,
+          completedOnboarding: true,
+        ),
+      );
+
+      expect(
+        await OnboardingHelperCompletionService.instance.shouldShowHelper(
+          'user-a',
+          OnboardingHelperIds.flowStudioAddFlow,
+        ),
+        isFalse,
+      );
+      expect(
+        (await storage.load('user-a')).seenHelpers,
+        contains(OnboardingHelperIds.flowStudioAddFlow),
+      );
+    },
+  );
 
   test(
     'helper completed during onboarding stays hidden after completion',
@@ -320,4 +667,38 @@ void main() {
       );
     },
   );
+}
+
+class _FakeRemoteStore implements OnboardingHelperCompletionRemoteStore {
+  _FakeRemoteStore({
+    Map<String, Set<String>> completedByUser = const <String, Set<String>>{},
+    this.loadCompleter,
+  }) : completedByUser = {
+         for (final entry in completedByUser.entries)
+           entry.key: OnboardingHelperIds.normalizeCompletedHelperKeys(
+             entry.value,
+           ),
+       };
+
+  final Map<String, Set<String>> completedByUser;
+  final Completer<Set<String>>? loadCompleter;
+
+  @override
+  Future<Set<String>> loadCompletedHelperKeys(String userId) async {
+    if (loadCompleter != null) {
+      return loadCompleter!.future;
+    }
+    return completedByUser[userId] ?? const <String>{};
+  }
+
+  @override
+  Future<void> markCompleted(
+    String userId,
+    Iterable<String> completionKeys,
+  ) async {
+    final existing = completedByUser.putIfAbsent(userId, () => <String>{});
+    existing.addAll(
+      OnboardingHelperIds.normalizeCompletedHelperKeys(completionKeys),
+    );
+  }
 }

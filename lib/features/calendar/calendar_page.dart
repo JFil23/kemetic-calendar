@@ -11123,18 +11123,16 @@ class CalendarPageState extends State<CalendarPage>
     String helperId, {
     bool clearActiveHelper = true,
   }) async {
+    final userId = _currentUserId;
+    if (userId == null || userId.isEmpty) return null;
+    final completion = OnboardingHelperCompletionService.instance
+        .markHelperCompleted(userId, helperId);
     if (clearActiveHelper &&
         GuidedOnboardingController.instance.target?.variant ==
             CoachmarkVariant.helperBubble) {
       GuidedOnboardingController.instance.clear();
     }
-
-    final userId = _currentUserId;
-    if (userId == null || userId.isEmpty) return null;
-    final updated = await _onboardingProgressStorage.markHelperCompleted(
-      userId,
-      helperId,
-    );
+    final updated = await completion;
     if (mounted) {
       _onboardingProgress = updated;
     }
@@ -11772,17 +11770,17 @@ class CalendarPageState extends State<CalendarPage>
       return;
     }
 
-    final helper = _nextCalendarHelper(progress);
+    final helperService = OnboardingHelperCompletionService.instance;
+    final hydratedProgress = await helperService.hydrateUser(userId);
+    if (!mounted || !hydratedProgress.completedOnboarding) return;
+
+    final helper = _nextCalendarHelper(userId);
     if (helper == null) return;
     _calendarAfterOnboardingHelperPrompted = true;
 
     await Future<void>.delayed(const Duration(milliseconds: 700));
     if (!mounted) return;
-    final shouldShow = await _onboardingProgressStorage.shouldShowHelper(
-      userId,
-      helper.id,
-    );
-    if (!mounted || !shouldShow) {
+    if (!helperService.shouldShowHelperSync(userId, helper.id)) {
       _calendarAfterOnboardingHelperPrompted = false;
       return;
     }
@@ -11795,13 +11793,12 @@ class CalendarPageState extends State<CalendarPage>
         variant: CoachmarkVariant.helperBubble,
         showDismissButton: true,
         dismissLabel: 'Got it',
+        helperId: helper.id,
+        helperUserId: userId,
         onDismiss: () async {
-          GuidedOnboardingController.instance.clear();
+          final completion = _markOnboardingHelperCompleted(helper.id);
           _calendarAfterOnboardingHelperPrompted = false;
-          final updated = await _markOnboardingHelperCompleted(
-            helper.id,
-            clearActiveHelper: false,
-          );
+          final updated = await completion;
           unawaited(
             _maybeShowCalendarHelperAfterOnboarding(
               updated ?? _onboardingProgress,
@@ -11810,7 +11807,6 @@ class CalendarPageState extends State<CalendarPage>
         },
       ),
     );
-    await _markOnboardingHelperCompleted(helper.id, clearActiveHelper: false);
     unawaited(
       Events.trackIfAuthed(helper.analyticsEvent, const <String, dynamic>{}),
     );
@@ -11824,8 +11820,12 @@ class CalendarPageState extends State<CalendarPage>
     String analyticsEvent,
     CoachmarkPlacement placement,
   })?
-  _nextCalendarHelper(OnboardingProgress progress) {
-    if (!progress.seenHelpers.contains(OnboardingHelperIds.calendarToggle)) {
+  _nextCalendarHelper(String userId) {
+    final helperService = OnboardingHelperCompletionService.instance;
+    if (helperService.shouldShowHelperSync(
+      userId,
+      OnboardingHelperIds.calendarToggle,
+    )) {
       return (
         id: OnboardingHelperIds.calendarToggle,
         key: _calendarToggleKey,
@@ -11836,7 +11836,10 @@ class CalendarPageState extends State<CalendarPage>
         placement: CoachmarkPlacement.below,
       );
     }
-    if (!progress.seenHelpers.contains(OnboardingHelperIds.monthDetails)) {
+    if (helperService.shouldShowHelperSync(
+      userId,
+      OnboardingHelperIds.monthDetails,
+    )) {
       final decanIndex = decanForDay(_today.kDay) - 1;
       return (
         id: OnboardingHelperIds.monthDetails,
@@ -11851,7 +11854,10 @@ class CalendarPageState extends State<CalendarPage>
         placement: CoachmarkPlacement.below,
       );
     }
-    if (!progress.seenHelpers.contains(OnboardingHelperIds.dayCardLongPress)) {
+    if (helperService.shouldShowHelperSync(
+      userId,
+      OnboardingHelperIds.dayCardLongPress,
+    )) {
       return (
         id: OnboardingHelperIds.dayCardLongPress,
         key: _todayDayKey,

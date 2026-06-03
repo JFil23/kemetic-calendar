@@ -525,26 +525,29 @@ class _ProfilePageState extends State<ProfilePage>
     final userId = _currentUserId;
     if (userId == null) return;
     final storage = OnboardingProgressStorage();
-    final shouldShow = loadedProgress == null
-        ? await storage.shouldShowHelper(
-            userId,
-            OnboardingHelperIds.profileCommunityFeed,
-          )
-        : loadedProgress.completedOnboarding &&
-              !loadedProgress.seenHelpers.contains(
-                OnboardingHelperIds.profileCommunityFeed,
-              );
-    if (!mounted || !shouldShow) {
+    final progress = loadedProgress ?? await storage.load(userId);
+    if (!mounted || !progress.completedOnboarding) {
+      return;
+    }
+    final helperService = OnboardingHelperCompletionService.instance;
+    await helperService.hydrateUser(userId);
+    if (!mounted ||
+        !helperService.shouldShowHelperSync(
+          userId,
+          OnboardingHelperIds.profileCommunityFeed,
+        )) {
       return;
     }
     _profileCommunityHelperPrompted = true;
     WidgetsBinding.instance.addPostFrameCallback((_) {
       unawaited(() async {
         if (!mounted || _feedRevealed) return;
-        if (!await storage.shouldShowHelper(
-          userId,
-          OnboardingHelperIds.profileCommunityFeed,
-        )) {
+        await helperService.hydrateUser(userId);
+        if (!mounted ||
+            !helperService.shouldShowHelperSync(
+              userId,
+              OnboardingHelperIds.profileCommunityFeed,
+            )) {
           return;
         }
         GuidedOnboardingController.instance.show(
@@ -557,12 +560,24 @@ class _ProfilePageState extends State<ProfilePage>
             variant: CoachmarkVariant.helperBubble,
             showDismissButton: true,
             dismissLabel: 'Got it',
-            onDismiss: () {
+            helperId: OnboardingHelperIds.profileCommunityFeed,
+            helperUserId: userId,
+            onDismiss: () async {
+              final completion = helperService.markHelperCompleted(
+                userId,
+                OnboardingHelperIds.profileCommunityFeed,
+              );
               GuidedOnboardingController.instance.clear();
+              await completion;
+              unawaited(
+                Events.trackIfAuthed(
+                  'helper_seen_profile_community_feed',
+                  const <String, dynamic>{},
+                ),
+              );
             },
           ),
         );
-        await _markProfileCommunityHelperSeen(clearActiveHelper: false);
       }());
     });
   }
@@ -572,22 +587,23 @@ class _ProfilePageState extends State<ProfilePage>
   }) async {
     final userId = _currentUserId;
     if (userId == null) return;
-    if (clearActiveHelper &&
-        GuidedOnboardingController.instance.target?.variant ==
-            CoachmarkVariant.helperBubble) {
-      GuidedOnboardingController.instance.clear();
-    }
-    final storage = OnboardingProgressStorage();
-    if (!await storage.shouldShowHelper(
+    final helperService = OnboardingHelperCompletionService.instance;
+    if (!await helperService.shouldShowHelper(
       userId,
       OnboardingHelperIds.profileCommunityFeed,
     )) {
       return;
     }
-    await storage.markHelperCompleted(
+    final completion = helperService.markHelperCompleted(
       userId,
       OnboardingHelperIds.profileCommunityFeed,
     );
+    if (clearActiveHelper &&
+        GuidedOnboardingController.instance.target?.variant ==
+            CoachmarkVariant.helperBubble) {
+      GuidedOnboardingController.instance.clear();
+    }
+    await completion;
     unawaited(
       Events.trackIfAuthed(
         'helper_seen_profile_community_feed',

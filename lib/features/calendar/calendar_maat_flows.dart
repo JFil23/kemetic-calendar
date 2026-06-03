@@ -127,40 +127,42 @@ class _MaatFlowsListPage extends StatefulWidget {
 }
 
 class _MaatFlowsListPageState extends State<_MaatFlowsListPage> {
-  final GlobalKey _flowBuilderHelperKey = GlobalKey(
-    debugLabel: 'flow_builder_helper',
+  final GlobalKey _addFlowHelperKey = GlobalKey(
+    debugLabel: 'flow_studio_maat_add_flow_helper',
   );
   bool _helperPrompted = false;
 
   @override
   void initState() {
     super.initState();
-    unawaited(_maybeShowFlowBuilderHelper());
+    unawaited(_maybeShowFlowStudioAddFlowHelper());
   }
 
-  Future<void> _maybeShowFlowBuilderHelper() async {
+  Future<void> _maybeShowFlowStudioAddFlowHelper() async {
     if (_helperPrompted) return;
     final userId = Supabase.instance.client.auth.currentUser?.id;
     if (userId == null || userId.isEmpty) return;
-    final storage = OnboardingProgressStorage();
-    if (!await storage.shouldShowHelper(
+    final helperService = OnboardingHelperCompletionService.instance;
+    if (!await helperService.shouldShowHelper(
       userId,
-      OnboardingHelperIds.flowBuilder,
+      OnboardingHelperIds.flowStudioAddFlow,
     )) {
       return;
     }
     _helperPrompted = true;
     await Future<void>.delayed(const Duration(milliseconds: 450));
     if (!mounted) return;
-    if (!await storage.shouldShowHelper(
-      userId,
-      OnboardingHelperIds.flowBuilder,
-    )) {
+    await helperService.hydrateUser(userId);
+    if (!mounted ||
+        !helperService.shouldShowHelperSync(
+          userId,
+          OnboardingHelperIds.flowStudioAddFlow,
+        )) {
       return;
     }
     GuidedOnboardingController.instance.show(
       CoachmarkTarget(
-        key: _flowBuilderHelperKey,
+        key: _addFlowHelperKey,
         title: 'Build your own rhythm',
         body:
             'Create personal flows for study, health, family, writing, business, or spiritual practice.',
@@ -168,16 +170,18 @@ class _MaatFlowsListPageState extends State<_MaatFlowsListPage> {
         variant: CoachmarkVariant.helperBubble,
         showDismissButton: true,
         dismissLabel: 'Got it',
+        helperId: OnboardingHelperIds.flowStudioAddFlow,
+        helperUserId: userId,
         onDismiss: () async {
-          GuidedOnboardingController.instance.clear();
-          await storage.markHelperCompleted(
+          final completion = helperService.markHelperCompleted(
             userId,
-            OnboardingHelperIds.flowBuilder,
+            OnboardingHelperIds.flowStudioAddFlow,
           );
+          GuidedOnboardingController.instance.clear();
+          await completion;
         },
       ),
     );
-    await storage.markHelperCompleted(userId, OnboardingHelperIds.flowBuilder);
     unawaited(
       Events.trackIfAuthed(
         'helper_seen_flow_builder',
@@ -186,22 +190,30 @@ class _MaatFlowsListPageState extends State<_MaatFlowsListPage> {
     );
   }
 
-  Future<void> _markFlowBuilderHelperCompleted() async {
+  Future<void> _markFlowStudioHelperCompleted(String helperId) async {
     final userId = Supabase.instance.client.auth.currentUser?.id;
     if (userId == null || userId.isEmpty) return;
+    final completion = OnboardingHelperCompletionService.instance
+        .markHelperCompleted(userId, helperId);
     if (GuidedOnboardingController.instance.target?.variant ==
         CoachmarkVariant.helperBubble) {
       GuidedOnboardingController.instance.clear();
     }
-    await OnboardingProgressStorage().markHelperCompleted(
-      userId,
-      OnboardingHelperIds.flowBuilder,
-    );
+    await completion;
   }
 
   void _handleCreateNew() {
-    unawaited(_markFlowBuilderHelperCompleted());
+    unawaited(
+      _markFlowStudioHelperCompleted(OnboardingHelperIds.flowStudioAddFlow),
+    );
     widget.onCreateNew();
+  }
+
+  Future<void> _handlePickTemplate(_MaatFlowTemplate template) async {
+    unawaited(
+      _markFlowStudioHelperCompleted(OnboardingHelperIds.flowStudioMaatFlows),
+    );
+    await widget.onPickTemplate(template);
   }
 
   @override
@@ -218,7 +230,7 @@ class _MaatFlowsListPageState extends State<_MaatFlowsListPage> {
         ),
         actions: [
           IconButton(
-            key: _flowBuilderHelperKey,
+            key: _addFlowHelperKey,
             tooltip: 'New flow',
             icon: const Icon(Icons.add, color: _silver),
             onPressed: _handleCreateNew,
@@ -263,7 +275,7 @@ class _MaatFlowsListPageState extends State<_MaatFlowsListPage> {
                     maatDecanDefinition!.specialRequirementLabel!,
                 ];
                 return ListTile(
-                  onTap: () async => widget.onPickTemplate(t),
+                  onTap: () async => _handlePickTemplate(t),
                   leading: MaatFlowGlyph(glyph: t.glyph, size: 24),
                   title: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
