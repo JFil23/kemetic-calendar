@@ -23,8 +23,21 @@ if [[ ! -f "$ENV_FILE" ]]; then
   exit 1
 fi
 
-python - <<'PY' "$ENV_FILE"
+PYTHON_BIN="${PYTHON_BIN:-}"
+if [[ -z "$PYTHON_BIN" ]]; then
+  if command -v python3 >/dev/null 2>&1; then
+    PYTHON_BIN="python3"
+  elif command -v python >/dev/null 2>&1; then
+    PYTHON_BIN="python"
+  else
+    echo "❌ Python 3 is required to validate $ENV_FILE." >&2
+    exit 1
+  fi
+fi
+
+"$PYTHON_BIN" - <<'PY' "$ENV_FILE"
 import json, sys, re
+from pathlib import Path
 from urllib.parse import urlparse
 path = sys.argv[1]
 try:
@@ -35,7 +48,8 @@ except json.JSONDecodeError as e:
     sys.exit(1)
 url = data.get("SUPABASE_URL", "")
 anon = data.get("SUPABASE_ANON_KEY", "")
-app_env = str(data.get("APP_ENV", "dev")).strip().lower()
+default_app_env = "prod" if Path(path).name == "prod.json" else "dev"
+app_env = str(data.get("APP_ENV", default_app_env)).strip().lower()
 site_url = str(data.get("APP_SITE_URL", "https://maat.app")).strip()
 errors = []
 def looks_placeholder(value: str) -> bool:
@@ -59,6 +73,8 @@ if "service_role" in anon.lower() or "service-role" in anon.lower():
     errors.append("SUPABASE_ANON_KEY must not be a service role key")
 if app_env not in {"dev", "staging", "prod"}:
     errors.append("APP_ENV must be one of dev, staging, or prod")
+if Path(path).name == "prod.json" and app_env == "dev":
+    errors.append("env/prod.json must not set APP_ENV to dev")
 parsed_site = urlparse(site_url)
 if not site_url or parsed_site.scheme != "https" or not parsed_site.netloc or looks_placeholder(site_url):
     errors.append("APP_SITE_URL must be a real https URL")
