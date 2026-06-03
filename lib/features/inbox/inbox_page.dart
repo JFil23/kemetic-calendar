@@ -24,6 +24,7 @@ import '../../services/session_resume_service.dart';
 import '../../widgets/kemetic_app_bar_action.dart';
 import '../../widgets/kemetic_heart_icon.dart';
 import '../../widgets/profile_avatar.dart';
+import '../calendar/calendar_page.dart' show CalendarPage;
 import '../calendars/shared_calendars_sheet.dart';
 import 'inbox_threading.dart';
 
@@ -536,6 +537,11 @@ class _InboxPageState extends State<InboxPage> {
       context,
       repo: _sharedCalendarsRepo,
       initialExpandedCalendarIds: <String>[normalized],
+      onEventTapRequested: (_, filedEvent) =>
+          CalendarPage.openFiledCalendarEventFromAnyContext(
+            context,
+            filedEvent: filedEvent,
+          ),
     );
   }
 
@@ -1893,7 +1899,15 @@ class _InboxPageState extends State<InboxPage> {
         if (closeContext != null) {
           Navigator.of(closeContext).pop();
         }
-        await SharedCalendarsSheet.show(context, repo: _sharedCalendarsRepo);
+        await SharedCalendarsSheet.show(
+          context,
+          repo: _sharedCalendarsRepo,
+          onEventTapRequested: (_, filedEvent) =>
+              CalendarPage.openFiledCalendarEventFromAnyContext(
+                context,
+                filedEvent: filedEvent,
+              ),
+        );
       },
     );
   }
@@ -1948,7 +1962,15 @@ class _InboxPageState extends State<InboxPage> {
         if (closeContext != null) {
           Navigator.of(closeContext).pop();
         }
-        await SharedCalendarsSheet.show(context, repo: _sharedCalendarsRepo);
+        await SharedCalendarsSheet.show(
+          context,
+          repo: _sharedCalendarsRepo,
+          onEventTapRequested: (_, filedEvent) =>
+              CalendarPage.openFiledCalendarEventFromAnyContext(
+                context,
+                filedEvent: filedEvent,
+              ),
+        );
       },
     );
   }
@@ -2101,7 +2123,15 @@ class _InboxPageState extends State<InboxPage> {
 
     if (notification.isCalendarInviteNotification ||
         notification.isCalendarInviteResponseNotification) {
-      await SharedCalendarsSheet.show(context, repo: _sharedCalendarsRepo);
+      await SharedCalendarsSheet.show(
+        context,
+        repo: _sharedCalendarsRepo,
+        onEventTapRequested: (_, filedEvent) =>
+            CalendarPage.openFiledCalendarEventFromAnyContext(
+              context,
+              filedEvent: filedEvent,
+            ),
+      );
       return;
     }
 

@@ -14,17 +14,25 @@ import '../../widgets/keyboard_aware.dart';
 typedef SharedCalendarAddEventCallback =
     Future<bool> Function(SharedCalendarSummary calendar);
 
+typedef SharedCalendarEventTapCallback =
+    Future<void> Function(
+      SharedCalendarSummary calendar,
+      FiledEvent filedEvent,
+    );
+
 class SharedCalendarsSheet extends StatefulWidget {
   const SharedCalendarsSheet({
     super.key,
     required this.repo,
     this.onAddEventRequested,
+    this.onEventTapRequested,
     this.initialExpandedCalendarIds = const <String>[],
     this.onContinuityChanged,
   });
 
   final SharedCalendarsRepo repo;
   final SharedCalendarAddEventCallback? onAddEventRequested;
+  final SharedCalendarEventTapCallback? onEventTapRequested;
   final List<String> initialExpandedCalendarIds;
   final ValueChanged<Map<String, dynamic>>? onContinuityChanged;
 
@@ -32,6 +40,7 @@ class SharedCalendarsSheet extends StatefulWidget {
     BuildContext context, {
     required SharedCalendarsRepo repo,
     SharedCalendarAddEventCallback? onAddEventRequested,
+    SharedCalendarEventTapCallback? onEventTapRequested,
     List<String> initialExpandedCalendarIds = const <String>[],
     ValueChanged<Map<String, dynamic>>? onContinuityChanged,
   }) {
@@ -44,6 +53,7 @@ class SharedCalendarsSheet extends StatefulWidget {
       builder: (_) => SharedCalendarsSheet(
         repo: repo,
         onAddEventRequested: onAddEventRequested,
+        onEventTapRequested: onEventTapRequested,
         initialExpandedCalendarIds: initialExpandedCalendarIds,
         onContinuityChanged: onContinuityChanged,
       ),
@@ -215,6 +225,19 @@ class _SharedCalendarsSheetState extends State<SharedCalendarsSheet> {
         setState(() => _saving = false);
       }
     }
+  }
+
+  void _openCalendarEvent(
+    SharedCalendarSummary calendar,
+    FiledEvent filedEvent,
+  ) {
+    final handler = widget.onEventTapRequested;
+    if (handler == null) return;
+
+    Navigator.of(context, rootNavigator: true).pop(_changed);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      unawaited(handler(calendar, filedEvent));
+    });
   }
 
   Future<void> _leaveCalendar(SharedCalendarSummary calendar) async {
@@ -797,61 +820,69 @@ class _SharedCalendarsSheetState extends State<SharedCalendarsSheet> {
         ? event.location!.trim()
         : event.detail?.trim();
 
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 9),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(
-            width: 8,
-            height: 8,
-            margin: const EdgeInsets.only(top: 6),
-            decoration: BoxDecoration(
-              color: calendar.color,
-              shape: BoxShape.circle,
+    final canOpenEvent = widget.onEventTapRequested != null;
+
+    return InkWell(
+      borderRadius: BorderRadius.circular(8),
+      onTap: canOpenEvent
+          ? () => _openCalendarEvent(calendar, filedEvent)
+          : null,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 9),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Container(
+              width: 8,
+              height: 8,
+              margin: const EdgeInsets.only(top: 6),
+              decoration: BoxDecoration(
+                color: calendar.color,
+                shape: BoxShape.circle,
+              ),
             ),
-          ),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 14,
-                    fontWeight: FontWeight.w700,
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w700,
+                    ),
                   ),
-                ),
-                const SizedBox(height: 3),
-                Text(
-                  meta,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    color: Colors.white.withValues(alpha: 0.62),
-                    fontSize: 12,
-                  ),
-                ),
-                if (detail != null && detail.isNotEmpty) ...[
                   const SizedBox(height: 3),
                   Text(
-                    detail,
+                    meta,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(
-                      color: Colors.white.withValues(alpha: 0.48),
+                      color: Colors.white.withValues(alpha: 0.62),
                       fontSize: 12,
                     ),
                   ),
+                  if (detail != null && detail.isNotEmpty) ...[
+                    const SizedBox(height: 3),
+                    Text(
+                      detail,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        color: Colors.white.withValues(alpha: 0.48),
+                        fontSize: 12,
+                      ),
+                    ),
+                  ],
                 ],
-              ],
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
