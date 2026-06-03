@@ -113,6 +113,32 @@ void main() {
       }
     });
 
+    test('transient editor overlays do not win restoration selection', () {
+      expect(
+        CalendarPage.restorableOverlayParentRouteFromStack(
+          const <Map<String, dynamic>>[
+            <String, dynamic>{
+              'kind': 'calendar.eventDetail',
+              'parentRoute': '/rhythm/today',
+              'parentSurface': 'route.page',
+              'kYear': 6267,
+              'kMonth': 4,
+              'kDay': 12,
+              'identityType': 'clientEventId',
+              'identityValue': 'event-client-1',
+            },
+            <String, dynamic>{
+              'kind': 'calendar.flowStudio',
+              'parentRoute': '/',
+              'mode': 'editor',
+              'editFlowId': 42,
+            },
+          ],
+        ),
+        isNull,
+      );
+    });
+
     test('latest restorable calendar overlay wins', () {
       expect(
         CalendarPage.restorableOverlayParentRouteFromStack(

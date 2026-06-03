@@ -511,6 +511,40 @@ void main() {
       },
     );
 
+    test(
+      'route changes dismiss only calendar-owned transient overlays',
+      () async {
+        final main = await File('lib/main.dart').readAsString();
+        final calendar = await File(
+          'lib/features/calendar/calendar_page.dart',
+        ).readAsString();
+        final shell = _sourceBetween(
+          main,
+          'class _GlobalFloatingMenuShellState',
+          'class _GlobalMenuBarrier',
+        );
+        final cleanup = _sourceBetween(
+          calendar,
+          'static Future<void> dismissAppOwnedTransientOverlaysForRouteChange',
+          'static List<String> _stringListFromRestorationValue',
+        );
+
+        expect(
+          shell,
+          contains('dismissAppOwnedTransientOverlaysForRouteChange'),
+        );
+        expect(
+          cleanup,
+          contains('_hasCalendarOwnedTransientOverlayOpenOrOpening'),
+        );
+        expect(cleanup, contains('CalendarEventDetailSheetCoordinator'));
+        expect(cleanup, contains('_kCalendarOverlayKindFlowStudio'));
+        expect(cleanup, contains('_kFlowStudioDraftEditorKey'));
+        expect(cleanup, contains('Navigator.of(context, rootNavigator: true)'));
+        expect(cleanup, isNot(contains('showDialog')));
+      },
+    );
+
     test('inbox list avoids duplicate route bottom inset', () async {
       final source = await File(
         'lib/features/inbox/inbox_page.dart',

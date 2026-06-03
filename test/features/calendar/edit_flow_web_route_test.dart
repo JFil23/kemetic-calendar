@@ -5,6 +5,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:mobile/core/route_location_sanitizer.dart';
 import 'package:mobile/features/calendar/calendar_page.dart';
+import 'package:mobile/services/app_restoration_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -32,11 +33,17 @@ void main() {
     SharedPreferences.setMockInitialValues({});
   });
 
-  test('edit flow route is web-safe and preserves stable query state', () {
+  test('edit flow route is web-safe but not durable continuity state', () {
     const route = '/flows/42/edit?calendarId=shared-1&fallback=%2F';
 
-    expect(stableRouteLocationForContinuity(route), route);
-    expect(routeLocationContainsOneShotIntent(route), isFalse);
+    expect(stableRouteLocationForContinuity(route), '/');
+    expect(routeLocationContainsOneShotIntent(route), isTrue);
+    expect(
+      stableRouteLocationForContinuity(
+        '/flows/42/edit?calendarId=shared-1&fallback=%2Fshared-flow%2Fby-flow%2F42',
+      ),
+      '/shared-flow/by-flow/42',
+    );
   });
 
   test('router exposes a flow edit route backed by Flow Studio', () {
@@ -55,7 +62,7 @@ void main() {
     expect(route, contains('CalendarPage.buildFlowEditorRoutePage'));
     expect(route, contains("state.uri.queryParameters['calendarId']"));
     expect(route, contains("state.uri.queryParameters['fallback']"));
-    expect(continuity, contains("path.startsWith('/flows/')"));
+    expect(continuity, isNot(contains("path.startsWith('/flows/')")));
   });
 
   test('Edit Flow actions use edit-by-id route on web', () {
@@ -100,11 +107,23 @@ void main() {
     expect(studio, contains('Future<void> _finishWithResult'));
     expect(studio, contains('await routeResultHandler(result);'));
     expect(calendar, contains('initialCalendarId: widget.calendarId'));
+    expect(calendar, contains('Navigator.of(context, rootNavigator: true)'));
+    expect(calendar, contains('rootNavigator.canPop()'));
+    expect(calendar, contains('GoRouter.of(context).go(_fallbackLocation)'));
+    expect(calendar, contains('_clearFlowStudioTransientState'));
   });
 
   testWidgets('edit flow route close navigates to fallback route', (
     tester,
   ) async {
+    await AppRestorationService.instance.saveOverlayStack([
+      <String, dynamic>{'kind': 'calendar.flowStudio', 'mode': 'myFlows'},
+    ]);
+    await AppRestorationService.instance.saveEditorState(
+      'calendar.flowStudio.draft',
+      <String, dynamic>{'name': 'stale draft'},
+    );
+
     final router = GoRouter(
       initialLocation: '/flows/42/edit?fallback=%2Ffallback',
       routes: [
@@ -142,6 +161,13 @@ void main() {
     await tester.pump();
 
     expect(find.text('Fallback route'), findsOneWidget);
+    expect(await AppRestorationService.instance.readOverlayStack(), isEmpty);
+    expect(
+      await AppRestorationService.instance.readEditorState(
+        'calendar.flowStudio.draft',
+      ),
+      isNull,
+    );
   });
 }
 

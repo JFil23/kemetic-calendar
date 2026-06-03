@@ -3885,9 +3885,13 @@ class _FlowStudioPageState extends State<_FlowStudioPage>
     // Close/cancel never deletes a flow. Deletion is only allowed through the
     // explicit Flow Studio delete action returned as _FlowStudioResult.
     if (!mounted) return;
+    _suppressDraftSave = true;
+    _draftPersistDebounce?.cancel();
+    _sessionDraft = null;
+    await CalendarPage._clearFlowStudioTransientState();
+    if (!mounted) return;
     final routeCloseHandler = widget.onRouteClose;
     if (routeCloseHandler != null) {
-      _suppressDraftSave = true;
       await routeCloseHandler();
       return;
     }

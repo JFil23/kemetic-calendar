@@ -50,11 +50,20 @@ void main() {
     );
   });
 
-  test('stores legitimate edit flow routes unchanged', () async {
+  test('stores edit flow routes as stable fallback routes', () async {
     const route = '/flows/42/edit?calendarId=shared-1';
     await SessionResumeService.saveRouteLocation(route);
 
-    expect(await SessionResumeService.readRouteLocation(), route);
+    expect(
+      await SessionResumeService.readRouteLocation(),
+      '/shared-flow/by-flow/42',
+    );
+
+    await SessionResumeService.saveRouteLocation(
+      '/flows/42/edit?fallback=%2Fjournal',
+    );
+
+    expect(await SessionResumeService.readRouteLocation(), '/journal');
   });
 
   test('clears expired snapshots', () async {

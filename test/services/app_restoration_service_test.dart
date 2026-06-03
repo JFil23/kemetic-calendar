@@ -167,9 +167,7 @@ void main() {
     expect(daySheet!['title'], 'Morning offering');
 
     final overlays = await AppRestorationService.instance.readOverlayStack();
-    expect(overlays, hasLength(1));
-    expect(overlays.single['kind'], 'calendar.flowStudio');
-    expect(overlays.single['editFlowId'], 42);
+    expect(overlays, isEmpty);
 
     final editor = await AppRestorationService.instance.readEditorState(
       'calendar.flowStudio.draft',
@@ -208,18 +206,22 @@ void main() {
   test(
     'keeps restorable routes and calendar position in the same snapshot',
     () async {
-      const routes = <String>[
-        '/profile/user-1',
-        '/nodes',
-        '/nodes/ausar',
-        '/flows/42/edit?calendarId=shared-1',
-        '/rhythm/today',
-        '/reflections',
-      ];
+      const routes = <String, String>{
+        '/profile/user-1': '/profile/user-1',
+        '/nodes': '/nodes',
+        '/nodes/ausar': '/nodes/ausar',
+        '/flows/42/edit?calendarId=shared-1': '/shared-flow/by-flow/42',
+        '/flows/42/edit?fallback=%2Fjournal': '/journal',
+        '/rhythm/today': '/rhythm/today',
+        '/reflections': '/reflections',
+      };
 
-      for (final route in routes) {
-        await AppRestorationService.instance.saveRouteLocation(route);
-        expect(await AppRestorationService.instance.readRouteLocation(), route);
+      for (final entry in routes.entries) {
+        await AppRestorationService.instance.saveRouteLocation(entry.key);
+        expect(
+          await AppRestorationService.instance.readRouteLocation(),
+          entry.value,
+        );
       }
 
       await AppRestorationService.instance.saveCalendarState(
@@ -773,6 +775,25 @@ void main() {
       );
     },
   );
+
+  test('does not persist transient Flow Studio editor overlays', () async {
+    await AppRestorationService.instance.saveRouteLocationWithOverlayStack(
+      '/flows/42/edit?fallback=%2Fjournal',
+      <Map<String, dynamic>>[
+        <String, dynamic>{
+          'kind': 'calendar.flowStudio',
+          'parentRoute': '/',
+          'mode': 'editor',
+          'editFlowId': 42,
+        },
+      ],
+    );
+
+    final result = await AppRestorationService.instance.readBestSnapshot();
+
+    expect(result.snapshot?.routeLocation, '/journal');
+    expect(result.snapshot?.overlayStack, isEmpty);
+  });
 
   test(
     'best snapshot can recover a newer latest overlay when current window is stale',

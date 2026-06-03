@@ -730,6 +730,7 @@ const Curve _globalBottomMenuBarTransitionCurve = Curves.easeOutCubic;
 const bool _debugForceGlobalFloatingMenu = bool.fromEnvironment(
   'FORCE_GLOBAL_MENU_FOR_TESTING',
 );
+bool _debugForceGlobalFloatingMenuForTesting = false;
 
 class _FloatingMenuRouteObserver extends NavigatorObserver {
   bool _suppressesFloatingMenu(Route<dynamic> route) {
@@ -948,7 +949,6 @@ bool _isContinuityRouteLocation(String location) {
       path.startsWith('/inbox/conversation/') ||
       path.startsWith('/event-invite/') ||
       path.startsWith('/shared-flow/') ||
-      path.startsWith('/flows/') ||
       path.startsWith('/profile/') ||
       path.startsWith('/insight-post/') ||
       path.startsWith('/flow-post/') ||
@@ -1846,6 +1846,26 @@ class _AppChromeState extends State<_AppChrome> {
   }
 }
 
+@visibleForTesting
+Widget buildGlobalFloatingMenuShellForTesting({
+  required GoRouter router,
+  required Widget child,
+}) {
+  _debugForceGlobalFloatingMenuForTesting = true;
+  _launchOverlayDismissed.value = true;
+  return _GlobalFloatingMenuShell(
+    router: router,
+    child: KemeticKeyboardHost(child: child),
+  );
+}
+
+@visibleForTesting
+void resetGlobalFloatingMenuShellForTesting() {
+  _debugForceGlobalFloatingMenuForTesting = false;
+  _launchOverlayDismissed.value = false;
+  _floatingMenuModalDepth.value = 0;
+}
+
 class _GlobalFloatingMenuShell extends StatefulWidget {
   const _GlobalFloatingMenuShell({required this.router, required this.child});
 
@@ -1955,6 +1975,10 @@ class _GlobalFloatingMenuShellState extends State<_GlobalFloatingMenuShell>
     final nextUri = _readRouterUri();
     if (nextUri == _currentUri) return;
     _currentUri = nextUri;
+    final navContext = _rootNavigatorKey.currentContext ?? context;
+    unawaited(
+      CalendarPage.dismissAppOwnedTransientOverlaysForRouteChange(navContext),
+    );
     _resetFloatingMenuState();
     unawaited(_maatGuidanceController.refresh());
     _scheduleRebuild();
@@ -1988,7 +2012,9 @@ class _GlobalFloatingMenuShellState extends State<_GlobalFloatingMenuShell>
   bool get _shouldMountFloatingMenu {
     if (!_launchOverlayDismissed.value) return false;
     if (supabase.auth.currentSession == null &&
-        !(kDebugMode && _debugForceGlobalFloatingMenu)) {
+        !(kDebugMode &&
+            (_debugForceGlobalFloatingMenu ||
+                _debugForceGlobalFloatingMenuForTesting))) {
       return false;
     }
     return true;

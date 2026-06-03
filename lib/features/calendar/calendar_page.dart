@@ -3522,6 +3522,92 @@ class CalendarPage extends StatefulWidget {
     return state;
   }
 
+  static bool _isTransientFlowStudioEditorState(Map<String, dynamic> state) {
+    return state['mode'] == _kFlowStudioModeEditor;
+  }
+
+  static bool _isTransientFlowStudioEditorOverlay(Map<String, dynamic> entry) {
+    return entry['kind'] == _kCalendarOverlayKindFlowStudio &&
+        _isTransientFlowStudioEditorState(entry);
+  }
+
+  static Future<void> _removeCalendarOverlayKinds(Set<String> kinds) async {
+    if (kinds.isEmpty) return;
+    final stack = await AppRestorationService.instance.readOverlayStack();
+    final next = stack
+        .where((entry) => !kinds.contains(entry['kind']))
+        .toList(growable: false);
+    await AppRestorationService.instance.saveOverlayStack(next);
+    unawaited(RestorationCoordinator.instance.flush());
+  }
+
+  static Future<void> _clearFlowStudioTransientState({
+    bool clearDraft = true,
+  }) async {
+    await _removeCalendarOverlayKinds({_kCalendarOverlayKindFlowStudio});
+    if (clearDraft) {
+      await AppRestorationService.instance.saveEditorState(
+        _kFlowStudioDraftEditorKey,
+        null,
+      );
+    }
+    _lastDetachedCalendarOverlayRestoreKey = null;
+  }
+
+  @visibleForTesting
+  static Future<void> clearFlowStudioTransientStateForTesting() {
+    return _clearFlowStudioTransientState();
+  }
+
+  static bool get _hasCalendarOwnedTransientOverlayOpenOrOpening {
+    final mountedState = _mountedState;
+    return CalendarEventDetailSheetCoordinator.isOpenOrOpening ||
+        _detachedSharedCalendarsSheetOpenOrOpening ||
+        _detachedFlowStudioSheetOpenOrOpening ||
+        _detachedQuickAddSheetOpenOrOpening ||
+        (mountedState?._sharedCalendarsSheetOpenOrOpening ?? false) ||
+        (mountedState?._flowStudioSheetOpenOrOpening ?? false);
+  }
+
+  static Future<void> dismissAppOwnedTransientOverlaysForRouteChange(
+    BuildContext context,
+  ) async {
+    if (!_hasCalendarOwnedTransientOverlayOpenOrOpening) return;
+
+    final kindsToClear = <String>{};
+    final mountedState = _mountedState;
+    if (CalendarEventDetailSheetCoordinator.isOpenOrOpening) {
+      kindsToClear.add(_kCalendarOverlayKindEventDetail);
+    }
+    if (_detachedSharedCalendarsSheetOpenOrOpening ||
+        (mountedState?._sharedCalendarsSheetOpenOrOpening ?? false)) {
+      kindsToClear.add(_kCalendarOverlayKindSharedCalendars);
+    }
+    final flowStudioOpen =
+        _detachedFlowStudioSheetOpenOrOpening ||
+        (mountedState?._flowStudioSheetOpenOrOpening ?? false);
+    if (flowStudioOpen) {
+      kindsToClear.add(_kCalendarOverlayKindFlowStudio);
+    }
+    await _removeCalendarOverlayKinds(kindsToClear);
+    if (flowStudioOpen) {
+      await AppRestorationService.instance.saveEditorState(
+        _kFlowStudioDraftEditorKey,
+        null,
+      );
+    }
+
+    if (!context.mounted) return;
+    try {
+      final navigator = Navigator.of(context, rootNavigator: true);
+      if (navigator.canPop()) {
+        navigator.pop();
+      }
+    } catch (_) {
+      // Route-change cleanup can be scheduled during shell teardown.
+    }
+  }
+
   static List<String> _stringListFromRestorationValue(Object? raw) {
     if (raw is! Iterable) return const <String>[];
     return raw
@@ -3535,6 +3621,9 @@ class CalendarPage extends StatefulWidget {
   ) {
     for (final entry in stack.reversed) {
       final kind = (entry['kind'] as String?)?.trim();
+      if (_isTransientFlowStudioEditorOverlay(entry)) {
+        continue;
+      }
       if (kind == _kCalendarOverlayKindSharedCalendars ||
           kind == _kCalendarOverlayKindFlowStudio) {
         return Map<String, dynamic>.from(entry);
@@ -3673,6 +3762,10 @@ class CalendarPage extends StatefulWidget {
     required String kind,
     required Map<String, dynamic> state,
   }) async {
+    if (kind == _kCalendarOverlayKindFlowStudio &&
+        _isTransientFlowStudioEditorState(state)) {
+      return;
+    }
     final normalizedParentRoute = parentRoute.trim().isEmpty
         ? '/'
         : parentRoute.trim();
@@ -5708,18 +5801,19 @@ class CalendarPage extends StatefulWidget {
       if (restorationState['templateKey'] != null)
         'templateKey': restorationState['templateKey'],
     };
-    await _saveDetachedCalendarOverlayState(
-      parentRoute: parentRoute,
-      kind: _kCalendarOverlayKindFlowStudio,
-      state: continuityState,
-    );
-    if (!context.mounted) return;
     if (_detachedFlowStudioSheetOpenOrOpening) return;
     _detachedFlowStudioSheetOpenOrOpening = true;
 
     final flowsRepo = FlowsRepo(Supabase.instance.client);
     UiGuards.disableJournalSwipe();
     try {
+      await _saveDetachedCalendarOverlayState(
+        parentRoute: parentRoute,
+        kind: _kCalendarOverlayKindFlowStudio,
+        state: continuityState,
+      );
+      if (!context.mounted) return;
+
       final isTablet = _isTabletForContext(context);
       final result = await showModalBottomSheet<_FlowStudioResult?>(
         context: context,
@@ -5818,13 +5912,7 @@ class CalendarPage extends StatefulWidget {
                 .instance
                 .shouldPreserveOverlayForLifecycleClose;
         if (!preserveForLifecycle) {
-          await _clearDetachedCalendarOverlayState(
-            _kCalendarOverlayKindFlowStudio,
-          );
-          await RestorationCoordinator.instance.saveEditorState(
-            _kFlowStudioDraftEditorKey,
-            null,
-          );
+          await _clearFlowStudioTransientState();
         }
         UiGuards.enableJournalSwipe();
       } finally {
@@ -6390,8 +6478,15 @@ class _FlowEditorRoutePageState extends State<_FlowEditorRoutePage> {
     }
   }
 
-  void _handleClose() {
+  Future<void> _handleClose() async {
     if (!mounted) return;
+    await CalendarPage._clearFlowStudioTransientState();
+    if (!mounted) return;
+    final rootNavigator = Navigator.of(context, rootNavigator: true);
+    if (rootNavigator.canPop()) {
+      rootNavigator.pop();
+      return;
+    }
     GoRouter.of(context).go(_fallbackLocation);
   }
 
@@ -7181,6 +7276,10 @@ class CalendarPageState extends State<CalendarPage>
   ) async {
     final normalizedKind = kind.trim();
     if (normalizedKind.isEmpty) return;
+    if (normalizedKind == _kCalendarOverlayKindFlowStudio &&
+        CalendarPage._isTransientFlowStudioEditorState(state)) {
+      return;
+    }
     await AppRestorationService.instance.saveOverlayStack(
       <Map<String, dynamic>>[
         <String, dynamic>{
@@ -18252,15 +18351,17 @@ class CalendarPageState extends State<CalendarPage>
     List<Route<dynamic>> Function(NavigatorState navigator)?
     initialRoutesBuilder,
   }) async {
-    await _saveCalendarOverlayState(
-      _kCalendarOverlayKindFlowStudio,
-      continuityState,
-    );
     if (!mounted || _flowStudioSheetOpenOrOpening) return;
     _flowStudioSheetOpenOrOpening = true;
     UiGuards.disableJournalSwipe();
     final isTablet = _isTablet(context);
     try {
+      await _saveCalendarOverlayState(
+        _kCalendarOverlayKindFlowStudio,
+        continuityState,
+      );
+      if (!mounted) return;
+
       final result = await showModalBottomSheet<_FlowStudioResult?>(
         context: context,
         isScrollControlled: true,
@@ -18369,12 +18470,8 @@ class CalendarPageState extends State<CalendarPage>
             RestorationCoordinator
                 .instance
                 .shouldPreserveOverlayForLifecycleClose;
-        await _clearCalendarOverlayState(_kCalendarOverlayKindFlowStudio);
         if (!preserveForLifecycle) {
-          await AppRestorationService.instance.saveEditorState(
-            _kFlowStudioDraftEditorKey,
-            null,
-          );
+          await CalendarPage._clearFlowStudioTransientState();
         }
         UiGuards.enableJournalSwipe();
       } finally {
@@ -18385,21 +18482,21 @@ class CalendarPageState extends State<CalendarPage>
 
   // Directly open My Flows list (no Flow Hub chooser).
   void _openMyFlowsList({int? initialFlowId}) {
-    unawaited(
-      _saveCalendarOverlayState(
-        _kCalendarOverlayKindFlowStudio,
-        <String, dynamic>{
-          'mode': _kFlowStudioModeMyFlows,
-          if (initialFlowId != null) 'initialFlowId': initialFlowId,
-        },
-      ),
-    );
     if (!mounted || _flowStudioSheetOpenOrOpening) return;
     _flowStudioSheetOpenOrOpening = true;
     UiGuards.disableJournalSwipe();
     final isTab = _isTablet(context);
     unawaited(() async {
       try {
+        await _saveCalendarOverlayState(
+          _kCalendarOverlayKindFlowStudio,
+          <String, dynamic>{
+            'mode': _kFlowStudioModeMyFlows,
+            if (initialFlowId != null) 'initialFlowId': initialFlowId,
+          },
+        );
+        if (!mounted) return;
+
         final result = await showModalBottomSheet<_FlowStudioResult?>(
           context: context,
           isScrollControlled: true,
@@ -18505,7 +18602,14 @@ class CalendarPageState extends State<CalendarPage>
         }
       } finally {
         try {
-          await _clearCalendarOverlayState(_kCalendarOverlayKindFlowStudio);
+          final preserveForLifecycle =
+              !mounted ||
+              RestorationCoordinator
+                  .instance
+                  .shouldPreserveOverlayForLifecycleClose;
+          if (!preserveForLifecycle) {
+            await CalendarPage._clearFlowStudioTransientState();
+          }
           UiGuards.enableJournalSwipe();
         } finally {
           _flowStudioSheetOpenOrOpening = false;

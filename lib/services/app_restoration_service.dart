@@ -123,7 +123,12 @@ List<Map<String, dynamic>> _coerceOverlayStack(
   return overlayStack
       .where((entry) => entry.isNotEmpty)
       .map(_coerceOverlayEntry)
+      .where((entry) => !_isTransientFlowStudioEditorOverlay(entry))
       .toList(growable: false);
+}
+
+bool _isTransientFlowStudioEditorOverlay(Map<String, dynamic> entry) {
+  return entry['kind'] == 'calendar.flowStudio' && entry['mode'] == 'editor';
 }
 
 int? _asInt(Object? raw) => (raw as num?)?.toInt();

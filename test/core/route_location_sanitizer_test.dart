@@ -23,18 +23,28 @@ void main() {
       );
     });
 
-    test('keeps legitimate edit flow routes', () {
+    test('maps edit flow routes to durable fallback routes', () {
       expect(
         stableRouteLocationForContinuity(
           '/flows/42/edit?calendarId=shared-1&fallback=%2Fshared-flow%2Fby-flow%2F42',
         ),
-        '/flows/42/edit?calendarId=shared-1&fallback=%2Fshared-flow%2Fby-flow%2F42',
+        '/shared-flow/by-flow/42',
+      );
+      expect(
+        stableRouteLocationForContinuity(
+          '/flows/42/edit?calendarId=shared-1&fallback=%2Fjournal',
+        ),
+        '/journal',
+      );
+      expect(
+        stableRouteLocationForContinuity('/flows/42/edit?calendarId=shared-1'),
+        '/shared-flow/by-flow/42',
       );
       expect(
         routeLocationContainsOneShotIntent(
           '/flows/42/edit?calendarId=shared-1',
         ),
-        isFalse,
+        isTrue,
       );
     });
 

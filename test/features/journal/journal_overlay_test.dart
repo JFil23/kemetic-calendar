@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:go_router/go_router.dart';
 import 'package:mobile/data/journal_repo.dart';
 import 'package:mobile/features/journal/journal_controller.dart';
 import 'package:mobile/features/journal/journal_overlay.dart';
 import 'package:mobile/features/journal/journal_v2_toolbar.dart';
+import 'package:mobile/main.dart' as app;
+import 'package:mobile/services/session_resume_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -147,6 +150,97 @@ void main() {
 
     await controller.forceSave();
   });
+
+  testWidgets(
+    'journal text field accepts input under app chrome after menu activity',
+    (tester) async {
+      tester.view.devicePixelRatio = 1.0;
+      tester.view.physicalSize = const Size(390, 844);
+      addTearDown(() async {
+        tester.view.resetPhysicalSize();
+        tester.view.resetDevicePixelRatio();
+        app.resetGlobalFloatingMenuShellForTesting();
+      });
+
+      final controller = JournalController.withRepo(
+        _NoopJournalRepo(),
+        currentUserId: () => 'user-a',
+      );
+      addTearDown(controller.dispose);
+
+      var bottomInset = 0.0;
+      final router = GoRouter(
+        initialLocation: '/journal',
+        routes: [
+          GoRoute(
+            path: '/journal',
+            builder: (context, state) => SessionTrackedRoute(
+              location: state.uri.toString(),
+              child: JournalOverlay(
+                controller: controller,
+                isPortrait: true,
+                onClose: () {},
+                presentationMode: JournalPresentationMode.page,
+              ),
+            ),
+          ),
+        ],
+      );
+      addTearDown(router.dispose);
+
+      Widget buildChrome() {
+        return MaterialApp.router(
+          routerConfig: router,
+          builder: (context, child) {
+            final mediaQuery = MediaQuery.of(
+              context,
+            ).copyWith(viewInsets: EdgeInsets.only(bottom: bottomInset));
+            return MediaQuery(
+              data: mediaQuery,
+              child: app.buildGlobalFloatingMenuShellForTesting(
+                router: router,
+                child: child ?? const SizedBox.shrink(),
+              ),
+            );
+          },
+        );
+      }
+
+      await tester.pumpWidget(buildChrome());
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
+
+      await tester.tap(find.byKey(app.globalMenuButtonKey));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 250));
+
+      bottomInset = 320;
+      await tester.pumpWidget(buildChrome());
+      await tester.pump();
+
+      final fieldFinder = find.byType(TextField);
+      expect(fieldFinder, findsOneWidget);
+
+      await tester.tap(fieldFinder);
+      await tester.pump();
+
+      final field = tester.widget<TextField>(fieldFinder);
+      expect(field.readOnly, isFalse);
+      expect(field.enabled, isNot(false));
+      expect(field.focusNode?.hasFocus, isTrue);
+
+      await tester.enterText(fieldFinder, 'Chrome route input works.');
+      await tester.pump();
+
+      expect(controller.currentDraft, 'Chrome route input works.');
+      expect(field.focusNode?.hasFocus, isTrue);
+
+      await controller.forceSave();
+      await tester.pump(const Duration(milliseconds: 500));
+      await tester.pumpWidget(const SizedBox.shrink());
+      await tester.pump(const Duration(milliseconds: 500));
+    },
+  );
 }
 
 class _NoopJournalRepo extends JournalRepo {

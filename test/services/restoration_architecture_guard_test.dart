@@ -931,7 +931,7 @@ void main() {
         );
         expect(
           detachedFlow.indexOf('_saveDetachedCalendarOverlayState'),
-          lessThan(
+          greaterThan(
             detachedFlow.indexOf(
               'if (_detachedFlowStudioSheetOpenOrOpening) return;',
             ),
@@ -947,7 +947,7 @@ void main() {
         );
         expect(
           rootFlow.indexOf('_saveCalendarOverlayState'),
-          lessThan(
+          greaterThan(
             rootFlow.indexOf(
               'if (!mounted || _flowStudioSheetOpenOrOpening) return;',
             ),
@@ -955,7 +955,7 @@ void main() {
         );
         expect(
           myFlows.indexOf('_saveCalendarOverlayState'),
-          lessThan(
+          greaterThan(
             myFlows.indexOf(
               'if (!mounted || _flowStudioSheetOpenOrOpening) return;',
             ),

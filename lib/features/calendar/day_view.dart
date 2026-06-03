@@ -1714,6 +1714,8 @@ class CalendarEventDetailSheetCoordinator {
 
   static bool _openOrOpening = false;
 
+  static bool get isOpenOrOpening => _openOrOpening;
+
   static bool tryMarkOpenOrOpening() {
     if (_openOrOpening) return false;
     _openOrOpening = true;
