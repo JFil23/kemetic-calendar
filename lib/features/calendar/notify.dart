@@ -1,8 +1,11 @@
-// lib/features/calendar/notify.dart
 import 'dart:async';
-import 'package:flutter/foundation.dart' show debugPrint, kDebugMode;
+import 'dart:convert';
+
+import 'package:flutter/foundation.dart'
+    show debugPrint, kDebugMode, visibleForTesting;
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter/services.dart' show PlatformException;
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../core/push_intent_bus.dart';
 import '../settings/settings_prefs.dart';
@@ -40,6 +43,16 @@ enum NotificationScheduleOutcome {
   skippedAlreadyDue,
   duplicateInProgress,
   failed,
+}
+
+@visibleForTesting
+enum NotifyLocalReconcileAction {
+  leavePending,
+  leaveUnchanged,
+  scheduleMissing,
+  refreshChanged,
+  skipExactBlocked,
+  cancelExactBlocked,
 }
 
 class NotificationScheduleResult {
@@ -116,12 +129,19 @@ class Notify {
   static const _minimumScheduleLead = Duration(seconds: 3);
   static const _maxConcurrentLocalNotifications = 450;
   static const _localReconcileDebounce = Duration(milliseconds: 350);
+  static const _localNotificationFingerprintPrefix =
+      'notify:localScheduleFingerprint:v1:';
   static const localPermissionMissingMessage =
       'Notification permission is off for this device. Turn it on before event alerts can fire.';
   static const exactAlarmUnavailableMessage =
       'Exact alarm permission is off for this device. Turn on Alarms & reminders before event-time alerts can fire at the event time.';
 
   static bool _inited = false;
+  static Future<void>? _initFuture;
+  static Future<void>? _syncLocalDeliveryModeFuture;
+  static bool _syncLocalDeliveryModeQueued = false;
+  static Future<void>? _rescheduleAllFuture;
+  static bool _rescheduleAllQueued = false;
   static final Set<String> _schedulingInProgress = {};
   static Timer? _localReconcileTimer;
   static bool _localReconcileInProgress = false;
@@ -166,6 +186,183 @@ class Notify {
       case NotificationType.flowStep:
       case NotificationType.flowReminder:
         return false;
+    }
+  }
+
+  @visibleForTesting
+  static ({int armed, int deferred}) debugLocalScheduleWindowCounts(
+    int eligibleCount,
+  ) {
+    final safeEligible = eligibleCount < 0 ? 0 : eligibleCount;
+    final armed = safeEligible < _maxConcurrentLocalNotifications
+        ? safeEligible
+        : _maxConcurrentLocalNotifications;
+    return (armed: armed, deferred: safeEligible - armed);
+  }
+
+  static String _localNotificationFingerprintKey(
+    String userId,
+    int notificationId,
+  ) {
+    return '$_localNotificationFingerprintPrefix$userId:$notificationId';
+  }
+
+  static String _stableFingerprintHash(String input) {
+    var hash = 0x811c9dc5;
+    for (final byte in utf8.encode(input)) {
+      hash ^= byte;
+      hash = (hash * 0x01000193) & 0xffffffff;
+    }
+    return hash.toRadixString(16).padLeft(8, '0');
+  }
+
+  static String _buildLocalNotificationFingerprint({
+    required int notificationId,
+    required DateTime scheduledAt,
+    required String title,
+    required String body,
+    required String payload,
+    required NotificationType type,
+    required bool requireExact,
+    required AndroidScheduleMode androidScheduleMode,
+  }) {
+    final localScheduledAt = tz.TZDateTime.from(scheduledAt, tz.local);
+    final canonical = jsonEncode(<String, Object?>{
+      'version': 1,
+      'notificationId': notificationId,
+      'scheduledAtUtc': scheduledAt.toUtc().toIso8601String(),
+      'scheduledAtLocal': localScheduledAt.toString(),
+      'timezone': tz.local.name,
+      'title': title,
+      'body': body,
+      'payload': payload,
+      'notificationType': type.value,
+      'channelId': _androidChannelId,
+      'channelName': _androidChannelName,
+      'channelDescription': _androidChannelDesc,
+      'androidImportance': Importance.max.name,
+      'androidPriority': Priority.max.name,
+      'requireExact': requireExact,
+      'androidScheduleMode': androidScheduleMode.name,
+    });
+    return 'v1:${_stableFingerprintHash(canonical)}';
+  }
+
+  @visibleForTesting
+  static String debugBuildLocalNotificationFingerprint({
+    required int notificationId,
+    required DateTime scheduledAt,
+    required String title,
+    required String body,
+    required String payload,
+    required NotificationType type,
+    required bool requireExact,
+    required AndroidScheduleMode androidScheduleMode,
+  }) {
+    return _buildLocalNotificationFingerprint(
+      notificationId: notificationId,
+      scheduledAt: scheduledAt,
+      title: title,
+      body: body,
+      payload: payload,
+      type: type,
+      requireExact: requireExact,
+      androidScheduleMode: androidScheduleMode,
+    );
+  }
+
+  static NotifyLocalReconcileAction _planLocalReconcileAction({
+    required bool alreadyPending,
+    required bool refreshExisting,
+    required bool exactBlocked,
+    required String? storedFingerprint,
+    required String desiredFingerprint,
+  }) {
+    if (exactBlocked) {
+      return alreadyPending
+          ? NotifyLocalReconcileAction.cancelExactBlocked
+          : NotifyLocalReconcileAction.skipExactBlocked;
+    }
+    if (!alreadyPending) return NotifyLocalReconcileAction.scheduleMissing;
+    if (!refreshExisting) return NotifyLocalReconcileAction.leavePending;
+    if (storedFingerprint == desiredFingerprint) {
+      return NotifyLocalReconcileAction.leaveUnchanged;
+    }
+    return NotifyLocalReconcileAction.refreshChanged;
+  }
+
+  @visibleForTesting
+  static NotifyLocalReconcileAction debugPlanLocalReconcileAction({
+    required bool alreadyPending,
+    required bool refreshExisting,
+    required bool exactBlocked,
+    required String? storedFingerprint,
+    required String desiredFingerprint,
+  }) {
+    return _planLocalReconcileAction(
+      alreadyPending: alreadyPending,
+      refreshExisting: refreshExisting,
+      exactBlocked: exactBlocked,
+      storedFingerprint: storedFingerprint,
+      desiredFingerprint: desiredFingerprint,
+    );
+  }
+
+  static String? _readLocalNotificationFingerprint(
+    SharedPreferences prefs, {
+    required String userId,
+    required int notificationId,
+  }) {
+    return prefs.getString(
+      _localNotificationFingerprintKey(userId, notificationId),
+    );
+  }
+
+  static Future<void> _writeLocalNotificationFingerprint(
+    SharedPreferences prefs, {
+    required String userId,
+    required int notificationId,
+    required String fingerprint,
+  }) async {
+    await prefs.setString(
+      _localNotificationFingerprintKey(userId, notificationId),
+      fingerprint,
+    );
+  }
+
+  static Future<void> _clearLocalNotificationFingerprint(
+    SharedPreferences prefs, {
+    required String userId,
+    required int notificationId,
+  }) async {
+    await prefs.remove(
+      _localNotificationFingerprintKey(userId, notificationId),
+    );
+  }
+
+  static Future<void> _clearLocalNotificationFingerprintsForUser(
+    SharedPreferences prefs,
+    String userId,
+  ) async {
+    final prefix = '$_localNotificationFingerprintPrefix$userId:';
+    final keys = prefs
+        .getKeys()
+        .where((key) => key.startsWith(prefix))
+        .toList();
+    for (final key in keys) {
+      await prefs.remove(key);
+    }
+  }
+
+  static Future<void> _clearAllLocalNotificationFingerprints(
+    SharedPreferences prefs,
+  ) async {
+    final keys = prefs
+        .getKeys()
+        .where((key) => key.startsWith(_localNotificationFingerprintPrefix))
+        .toList();
+    for (final key in keys) {
+      await prefs.remove(key);
     }
   }
 
@@ -384,6 +581,13 @@ class Notify {
       for (final notification in pending) {
         await _plugin.cancel(notification.id);
       }
+      final prefs = await SharedPreferences.getInstance();
+      final userId = Supabase.instance.client.auth.currentUser?.id;
+      if (userId != null) {
+        await _clearLocalNotificationFingerprintsForUser(prefs, userId);
+      } else {
+        await _clearAllLocalNotificationFingerprints(prefs);
+      }
       _log(
         'Cancelled ${pending.length} pending local notifications on this device',
       );
@@ -450,6 +654,7 @@ class Notify {
         return;
       }
 
+      final prefs = await SharedPreferences.getInstance();
       final now = DateTime.now();
       final response = await client
           .from('scheduled_notifications')
@@ -495,6 +700,11 @@ class Notify {
         final scheduledAtRaw = row['scheduled_at'] as String?;
         if (scheduledAtRaw == null || scheduledAtRaw.isEmpty) {
           await _plugin.cancel(notificationId);
+          await _clearLocalNotificationFingerprint(
+            prefs,
+            userId: userId,
+            notificationId: notificationId,
+          );
           await _markNotificationInactive(clientEventId, type: type);
           retired++;
           continue;
@@ -508,6 +718,11 @@ class Notify {
             '⚠️ Invalid scheduled_at for $clientEventId (${type.value}): $e',
           );
           await _plugin.cancel(notificationId);
+          await _clearLocalNotificationFingerprint(
+            prefs,
+            userId: userId,
+            notificationId: notificationId,
+          );
           await _markNotificationInactive(clientEventId, type: type);
           retired++;
           continue;
@@ -515,6 +730,11 @@ class Notify {
 
         if (!scheduledAt.isAfter(now.add(_minimumScheduleLead))) {
           await _plugin.cancel(notificationId);
+          await _clearLocalNotificationFingerprint(
+            prefs,
+            userId: userId,
+            notificationId: notificationId,
+          );
           await _markNotificationInactive(clientEventId, type: type);
           retired++;
           continue;
@@ -523,6 +743,11 @@ class Notify {
         if (_notificationRequiresEventExistence(type) &&
             !existingEventIds.contains(clientEventId)) {
           await _plugin.cancel(notificationId);
+          await _clearLocalNotificationFingerprint(
+            prefs,
+            userId: userId,
+            notificationId: notificationId,
+          );
           await _markNotificationInactive(clientEventId, type: type);
           _log(
             'Skipping local schedule; event missing for $clientEventId (${type.value})',
@@ -550,12 +775,18 @@ class Notify {
       for (final notif in pending) {
         if (desiredIds.contains(notif.id)) continue;
         await _plugin.cancel(notif.id);
+        await _clearLocalNotificationFingerprint(
+          prefs,
+          userId: userId,
+          notificationId: notif.id,
+        );
         _log('Canceled stale pending local notification id=${notif.id}');
         canceled++;
       }
 
       int scheduled = 0;
       int refreshed = 0;
+      int unchanged = 0;
       int exactBlocked = 0;
       for (final row in desiredRows) {
         final notificationId = row['notification_id'] as int;
@@ -571,6 +802,11 @@ class Notify {
               'Canceled pending local notification id=$notificationId because exact alarms are unavailable',
             );
           }
+          await _clearLocalNotificationFingerprint(
+            prefs,
+            userId: userId,
+            notificationId: notificationId,
+          );
           exactBlocked++;
           _log(
             '$exactAlarmUnavailableMessage Skipping local schedule for '
@@ -582,7 +818,49 @@ class Notify {
         if (alreadyPending && !shouldRefreshExisting) continue;
 
         try {
-          if (alreadyPending) {
+          final clientEventId = row['client_event_id'] as String;
+          final scheduledAt = DateTime.parse(row['scheduled_at'] as String);
+          final resolvedTitle = await _resolveNotificationTitle(
+            clientEventId: clientEventId,
+            preferredTitle: row['title'] as String?,
+          );
+          final resolvedBody = _resolveNotificationBody(
+            preferredBody: row['body'] as String?,
+          );
+          final payload = row['payload'] as String? ?? '{}';
+          final scheduleMode = await _androidScheduleMode(
+            requireExact: requireExact,
+          );
+          final desiredFingerprint = _buildLocalNotificationFingerprint(
+            notificationId: notificationId,
+            scheduledAt: scheduledAt,
+            title: resolvedTitle,
+            body: resolvedBody,
+            payload: payload,
+            type: type,
+            requireExact: requireExact,
+            androidScheduleMode: scheduleMode,
+          );
+          final action = _planLocalReconcileAction(
+            alreadyPending: alreadyPending,
+            refreshExisting: shouldRefreshExisting,
+            exactBlocked: false,
+            storedFingerprint: _readLocalNotificationFingerprint(
+              prefs,
+              userId: userId,
+              notificationId: notificationId,
+            ),
+            desiredFingerprint: desiredFingerprint,
+          );
+          if (action == NotifyLocalReconcileAction.leaveUnchanged) {
+            unchanged++;
+            continue;
+          }
+          if (action == NotifyLocalReconcileAction.leavePending) {
+            continue;
+          }
+
+          if (action == NotifyLocalReconcileAction.refreshChanged) {
             await _plugin.cancel(notificationId);
             _log(
               'Canceled pending local notification id=$notificationId before refresh',
@@ -590,22 +868,21 @@ class Notify {
             refreshed++;
           }
 
-          final clientEventId = row['client_event_id'] as String;
-          final scheduledAt = DateTime.parse(row['scheduled_at'] as String);
-          final resolvedTitle = await _resolveNotificationTitle(
-            clientEventId: clientEventId,
-            preferredTitle: row['title'] as String?,
-          );
           await _scheduleLocalNotification(
             id: notificationId,
             scheduledAt: scheduledAt,
             title: resolvedTitle,
-            body: _resolveNotificationBody(
-              preferredBody: row['body'] as String?,
-            ),
-            payload: row['payload'] as String? ?? '{}',
+            body: resolvedBody,
+            payload: payload,
             type: type,
             requireExact: requireExact,
+            androidScheduleMode: scheduleMode,
+          );
+          await _writeLocalNotificationFingerprint(
+            prefs,
+            userId: userId,
+            notificationId: notificationId,
+            fingerprint: desiredFingerprint,
           );
           scheduled++;
         } catch (e) {
@@ -618,8 +895,8 @@ class Notify {
       _log(
         '✅ Local schedule window synced '
         '(eligible=${eligibleRows.length}, armed=${desiredRows.length}, '
-        'scheduled=$scheduled, refreshed=$refreshed, canceled=$canceled, '
-        'retired=$retired, exactBlocked=$exactBlocked, deferred=$deferredCount, '
+        'scheduled=$scheduled, refreshed=$refreshed, unchanged=$unchanged, '
+        'canceled=$canceled, retired=$retired, exactBlocked=$exactBlocked, deferred=$deferredCount, '
         'max=$_maxConcurrentLocalNotifications)',
       );
     } catch (e) {
@@ -644,6 +921,30 @@ class Notify {
       return;
     }
 
+    final inFlight = _syncLocalDeliveryModeFuture;
+    if (inFlight != null) {
+      _syncLocalDeliveryModeQueued = true;
+      await inFlight;
+      return;
+    }
+
+    final future = _syncLocalDeliveryModeSerialized();
+    _syncLocalDeliveryModeFuture = future;
+    try {
+      await future;
+    } finally {
+      _syncLocalDeliveryModeFuture = null;
+    }
+  }
+
+  static Future<void> _syncLocalDeliveryModeSerialized() async {
+    do {
+      _syncLocalDeliveryModeQueued = false;
+      await _syncLocalDeliveryModeOnce();
+    } while (_syncLocalDeliveryModeQueued);
+  }
+
+  static Future<void> _syncLocalDeliveryModeOnce() async {
     final shouldScheduleLocally = await _shouldScheduleLocallyOnThisDevice();
     if (!shouldScheduleLocally) {
       _log(
@@ -663,6 +964,23 @@ class Notify {
       return;
     }
 
+    final inFlight = _initFuture;
+    if (inFlight != null) {
+      _log('init() joined existing startup initialization');
+      await inFlight;
+      return;
+    }
+
+    final future = _initOnce();
+    _initFuture = future;
+    try {
+      await future;
+    } finally {
+      _initFuture = null;
+    }
+  }
+
+  static Future<void> _initOnce() async {
     // 1) Timezone DB; we'll schedule in LOCAL timezone
     tzdata.initializeTimeZones();
 
@@ -935,6 +1253,15 @@ class Notify {
             existing?['notification_id'] as int? ??
             _generateFallbackNotificationId(clientEventId, type: type);
         await _plugin.cancel(notificationId);
+        final userId = Supabase.instance.client.auth.currentUser?.id;
+        if (userId != null) {
+          final prefs = await SharedPreferences.getInstance();
+          await _clearLocalNotificationFingerprint(
+            prefs,
+            userId: userId,
+            notificationId: notificationId,
+          );
+        }
         await _markNotificationInactive(clientEventId, type: type);
         _log(
           'Skipping already-due notification for $notificationIdentity '
@@ -986,6 +1313,15 @@ class Notify {
       if (shouldScheduleLocally) {
         if (existing != null) {
           await _plugin.cancel(notificationId);
+          final userId = Supabase.instance.client.auth.currentUser?.id;
+          if (userId != null) {
+            final prefs = await SharedPreferences.getInstance();
+            await _clearLocalNotificationFingerprint(
+              prefs,
+              userId: userId,
+              notificationId: notificationId,
+            );
+          }
           _log(
             'Canceled existing local notification id=$notificationId before replacement',
           );
@@ -1051,6 +1387,15 @@ class Notify {
         }
       } else {
         await _plugin.cancel(notificationId);
+        final userId = Supabase.instance.client.auth.currentUser?.id;
+        if (userId != null) {
+          final prefs = await SharedPreferences.getInstance();
+          await _clearLocalNotificationFingerprint(
+            prefs,
+            userId: userId,
+            notificationId: notificationId,
+          );
+        }
         _log(
           'Push alerts enabled on this device; persisted without local schedule for $notificationIdentity',
         );
@@ -1113,6 +1458,12 @@ class Notify {
           if (_inited && notificationId != null) {
             try {
               await _plugin.cancel(notificationId);
+              final prefs = await SharedPreferences.getInstance();
+              await _clearLocalNotificationFingerprint(
+                prefs,
+                userId: userId,
+                notificationId: notificationId,
+              );
             } catch (e) {
               _log(
                 '⚠️ Error cancelling local notification $notificationId for $cid: $e',
@@ -1243,8 +1594,28 @@ class Notify {
       return;
     }
 
-    _localReconcileNeedsRefresh = true;
-    await _reconcileLocalScheduleWindow();
+    final inFlight = _rescheduleAllFuture;
+    if (inFlight != null) {
+      _rescheduleAllQueued = true;
+      await inFlight;
+      return;
+    }
+
+    final future = _rescheduleAllFromDatabaseSerialized();
+    _rescheduleAllFuture = future;
+    try {
+      await future;
+    } finally {
+      _rescheduleAllFuture = null;
+    }
+  }
+
+  static Future<void> _rescheduleAllFromDatabaseSerialized() async {
+    do {
+      _rescheduleAllQueued = false;
+      _localReconcileNeedsRefresh = true;
+      await _reconcileLocalScheduleWindow();
+    } while (_rescheduleAllQueued);
   }
 
   /// **PRIVATE**: Internal method to schedule local notification only
@@ -1257,6 +1628,7 @@ class Notify {
     String? payload,
     NotificationType type = NotificationType.eventStart,
     bool requireExact = false,
+    AndroidScheduleMode? androidScheduleMode,
   }) async {
     // Convert to timezone-aware datetime
     final tzScheduled = tz.TZDateTime.from(scheduledAt, tz.local);
@@ -1292,7 +1664,9 @@ class Notify {
       iOS: iosDetails,
     );
 
-    var scheduleMode = await _androidScheduleMode(requireExact: requireExact);
+    var scheduleMode =
+        androidScheduleMode ??
+        await _androidScheduleMode(requireExact: requireExact);
     _log('  Android schedule mode selected: $scheduleMode');
     try {
       await _plugin.zonedSchedule(
@@ -1654,8 +2028,20 @@ class Notify {
     if (!_inited) await init();
 
     final pending = await _plugin.pendingNotificationRequests();
+    final prefs = await SharedPreferences.getInstance();
+    final userId = Supabase.instance.client.auth.currentUser?.id;
     for (final notif in pending) {
       await _plugin.cancel(notif.id);
+      if (userId != null) {
+        await _clearLocalNotificationFingerprint(
+          prefs,
+          userId: userId,
+          notificationId: notif.id,
+        );
+      }
+    }
+    if (userId == null) {
+      await _clearAllLocalNotificationFingerprints(prefs);
     }
 
     _log('🗑️ Cancelled ${pending.length} pending notifications');
