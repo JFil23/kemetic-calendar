@@ -859,6 +859,48 @@ void main() {
   );
 
   test(
+    'newer local Library snapshot beats boot root without consulting remote',
+    () async {
+      final currentRoot = {
+        'schemaVersion': AppRestorationService.schemaVersion,
+        'userId': 'user-1',
+        'windowId': 'window-1',
+        'updatedAtMs': 1000,
+        ..._durableRouteFields('/'),
+      };
+      final latestLibrary = {
+        'schemaVersion': AppRestorationService.schemaVersion,
+        'userId': 'user-1',
+        'windowId': 'window-2',
+        'updatedAtMs': 2000,
+        ..._durableRouteFields('/nodes'),
+      };
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(_snapshotKey(), jsonEncode(currentRoot));
+      _debugCriticalSnapshots['window-1'] = jsonEncode(currentRoot);
+      await prefs.setString(
+        'app_restoration_latest_v2:user-1',
+        jsonEncode(latestLibrary),
+      );
+      AppRestorationService.debugRemoteWindowSnapshotReader =
+          (userId, deviceId, windowId) {
+            fail('remote window read should not block local Library restore');
+          };
+      AppRestorationService.debugRemoteLatestSnapshotReader = (userId) {
+        fail('remote latest read should not block local Library restore');
+      };
+
+      final result = await AppRestorationService.instance.readBestSnapshot(
+        includeRemote: true,
+      );
+
+      expect(result.status, AppRestorationReadStatus.restored);
+      expect(result.source, 'latest_prefs');
+      expect(result.snapshot?.routeLocation, '/nodes');
+    },
+  );
+
+  test(
     'calendar default root does not beat newer local inbox conversation route',
     () async {
       final currentRoot = {

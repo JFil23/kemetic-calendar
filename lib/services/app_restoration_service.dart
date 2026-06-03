@@ -1468,7 +1468,7 @@ class AppRestorationService {
           currentWindowCandidate,
         )) {
       selected = latestUserCandidate;
-      reason = 'latest_local_inbox_route_only_over_current_root';
+      reason = 'latest_local_durable_primary_over_current_root';
       _logStableSelection(
         userId: userId,
         windowId: windowId,
@@ -1552,13 +1552,16 @@ class AppRestorationService {
     return uri == null || uri.path.isEmpty || uri.path == '/';
   }
 
-  bool _isDurableInboxRouteLocation(String? location) {
+  bool _isDurablePrimaryRouteLocation(String? location) {
     final normalized = location?.trim();
     if (normalized == null || normalized.isEmpty) return false;
     final uri = Uri.tryParse(normalized);
     if (uri == null || uri.hasScheme || uri.host.isNotEmpty) return false;
-    final path = uri.path;
-    return path == '/inbox' || path.startsWith('/inbox/conversation/');
+    if (uri.path == '/' || uri.path.isEmpty) return false;
+    return const NavigationPersistencePolicy().sectionForDurableRoute(
+          normalized,
+        ) !=
+        null;
   }
 
   bool _canLatestRouteOnlyReplaceCurrentWindowRoot(
@@ -1571,7 +1574,7 @@ class AppRestorationService {
     if (!_isRootRouteLocation(currentWindowCandidate.snapshot.routeLocation)) {
       return false;
     }
-    if (!_isDurableInboxRouteLocation(
+    if (!_isDurablePrimaryRouteLocation(
       latestUserCandidate.snapshot.routeLocation,
     )) {
       return false;

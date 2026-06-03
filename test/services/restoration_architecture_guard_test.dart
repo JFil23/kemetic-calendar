@@ -480,6 +480,7 @@ void main() {
         }
 
         expect(policy, contains("case '/inbox':"));
+        expect(policy, contains("case '/nodes':"));
         expect(policy, contains("case '/journal':"));
         expect(policy, contains("case '/settings':"));
         expect(policy, contains("case '/profile/me':"));
@@ -555,6 +556,7 @@ void main() {
       for (final route in const <String>[
         "case '/':",
         "case '/inbox':",
+        "case '/nodes':",
         "case '/journal':",
         "case '/settings':",
         "case '/profile/me':",
@@ -872,6 +874,11 @@ void main() {
           'static void openMainCalendarAtToday',
           '// Static method for parsing rules from JSON',
         );
+        final libraryCommand = _sourceBetween(
+          calendar,
+          'Future<void> _openKemeticNodes',
+          'Future<void> _openSettingsFromMenu',
+        );
         final dayViewRestore = _sourceBetween(
           calendar,
           'Future<void> _restorePersistentDayViewIfNeeded',
@@ -902,6 +909,10 @@ void main() {
         expect(todayCommand, contains('AppSection.calendar'));
         expect(todayCommand, contains("router.go('/')"));
         expect(todayCommand, isNot(contains('return;\n    }\n    router.go')));
+
+        expect(libraryCommand, contains('recordPrimaryTabSelection'));
+        expect(libraryCommand, contains('AppSection.library'));
+        expect(libraryCommand, contains("context.go('/nodes')"));
 
         expect(dayViewRestore, contains('canRestoreSurface'));
         expect(dayViewRestore, contains('claimRestoreSurface'));

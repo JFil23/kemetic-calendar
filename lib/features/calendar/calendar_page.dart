@@ -18973,6 +18973,11 @@ class CalendarPageState extends State<CalendarPage>
   Future<void> _openKemeticNodes(BuildContext context) async {
     UiGuards.disableJournalSwipe();
     try {
+      unawaited(
+        AppNavigationRestorationController.instance.recordPrimaryTabSelection(
+          AppSection.library,
+        ),
+      );
       context.go('/nodes');
     } finally {
       UiGuards.enableJournalSwipe();

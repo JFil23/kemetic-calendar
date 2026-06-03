@@ -3,7 +3,7 @@ import 'route_location_sanitizer.dart';
 const int navigationPersistenceSchemaVersion = 1;
 const String navigationLaunchRouteMetadataKey = 'launchRouteMetadata';
 
-enum AppSection { calendar, inbox, journal, settings, profile }
+enum AppSection { calendar, inbox, library, journal, settings, profile }
 
 enum NavigationRouteClass {
   durablePrimary,
@@ -226,6 +226,8 @@ class NavigationPersistencePolicy {
         return '/';
       case AppSection.inbox:
         return '/inbox';
+      case AppSection.library:
+        return '/nodes';
       case AppSection.journal:
         return '/journal';
       case AppSection.settings:
@@ -244,6 +246,8 @@ class NavigationPersistencePolicy {
         return AppSection.calendar;
       case '/inbox':
         return AppSection.inbox;
+      case '/nodes':
+        return AppSection.library;
       case '/journal':
         return AppSection.journal;
       case '/settings':

@@ -158,20 +158,38 @@ class AppNavigationRestorationController {
       final oneShot = await consumeOneShotIntent(intent);
       final oneShotRoute = oneShot?.route;
       if (oneShotRoute != null && oneShotRoute.trim().isNotEmpty) {
-        return _decision(
+        final destination = _decision(
           route: oneShotRoute,
           source: 'oneShotIntent',
           reason: oneShot!.reason,
         );
+        _logLaunchResolution(
+          snapshotSource: 'oneShotIntent',
+          route: null,
+          metadata: null,
+          accepted: false,
+          reason: 'one_shot_intent_bypassed_durable_launch_route',
+          finalDestination: destination,
+        );
+        return destination;
       }
     }
 
     if (!isAuthenticated) {
-      return _decision(
+      final destination = _decision(
         route: '/',
         source: 'default',
         reason: 'not_authenticated',
       );
+      _logLaunchResolution(
+        snapshotSource: 'none',
+        route: null,
+        metadata: null,
+        accepted: false,
+        reason: destination.reason,
+        finalDestination: destination,
+      );
+      return destination;
     }
 
     final result = await AppRestorationService.instance.readBestSnapshot(
@@ -179,22 +197,41 @@ class AppNavigationRestorationController {
     );
     final route = result.snapshot?.routeLocation;
     final metadata = result.snapshot?.launchRouteMetadata;
-    if (_policy.isValidDurableLaunchRoute(route, metadata)) {
-      return _decision(
+    final validationReason = _durableLaunchValidationReason(route, metadata);
+    if (validationReason == 'valid_durable_metadata') {
+      final destination = _decision(
         route: route!,
         source: result.source ?? 'durablePrimary',
-        reason: 'valid_durable_metadata',
+        reason: validationReason,
       );
+      _logLaunchResolution(
+        snapshotSource: result.source ?? 'unknown',
+        route: route,
+        metadata: metadata,
+        accepted: true,
+        reason: validationReason,
+        finalDestination: destination,
+      );
+      return destination;
     }
 
     final hadLegacyRoute = route != null && route.trim().isNotEmpty;
-    return _decision(
+    final destination = _decision(
       route: '/',
       source: 'default',
       reason: hadLegacyRoute
           ? 'invalid_or_legacy_launch_route_metadata'
           : 'no_durable_launch_route',
     );
+    _logLaunchResolution(
+      snapshotSource: result.source ?? 'none',
+      route: route,
+      metadata: metadata,
+      accepted: false,
+      reason: hadLegacyRoute ? validationReason : destination.reason,
+      finalDestination: destination,
+    );
+    return destination;
   }
 
   void resetForTesting() {
@@ -214,6 +251,61 @@ class AppNavigationRestorationController {
       route: route,
       decisionSource: source,
       reason: reason,
+    );
+  }
+
+  String _durableLaunchValidationReason(
+    String? route,
+    NavigationLaunchRouteMetadata? metadata,
+  ) {
+    final normalized = route?.trim();
+    if (normalized == null || normalized.isEmpty) {
+      return 'no_durable_launch_route';
+    }
+    if (metadata == null) {
+      return 'missing_durable_metadata';
+    }
+    if (!metadata.isCurrentUserPrimaryDurable) {
+      if (metadata.schemaVersion != navigationPersistenceSchemaVersion) {
+        return 'unsupported_schema_version';
+      }
+      if (metadata.source != NavigationSource.userPrimaryTab) {
+        return 'non_user_primary_source';
+      }
+      return 'non_durable_route_class';
+    }
+    final classification = _policy.classifyRoute(
+      normalized,
+      NavigationSource.userPrimaryTab,
+    );
+    if (!classification.accepted) {
+      return classification.reason;
+    }
+    if (classification.canonicalRoute != normalized) {
+      return 'non_canonical_durable_route';
+    }
+    return 'valid_durable_metadata';
+  }
+
+  void _logLaunchResolution({
+    required String snapshotSource,
+    required String? route,
+    required NavigationLaunchRouteMetadata? metadata,
+    required bool accepted,
+    required String reason,
+    required LaunchDestination finalDestination,
+  }) {
+    traceRestoration(
+      'navigation launch durable metadata loaded '
+      'snapshotSource=$snapshotSource '
+      'route=${route == null || route.trim().isEmpty ? '<none>' : route.trim()} '
+      'schemaVersion=${metadata?.schemaVersion ?? '<none>'} '
+      'source=${metadata?.source.wireName ?? '<none>'} '
+      'classification=${metadata?.routeClass.wireName ?? '<none>'} '
+      'accepted=$accepted reason=$reason '
+      'finalDestination=${finalDestination.route} '
+      'decisionSource=${finalDestination.decisionSource} '
+      'decisionReason=${finalDestination.reason}',
     );
   }
 
