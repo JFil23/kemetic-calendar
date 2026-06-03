@@ -83,6 +83,13 @@ void main() {
     );
     expect(opener, contains('context.go(route);'));
     expect(opener, contains('kIsWeb'));
+    expect(opener, contains('await _clearFlowStudioTransientState();'));
+    expect(
+      opener,
+      contains(
+        'await _removeCalendarOverlayKinds({_kCalendarOverlayKindEventDetail});',
+      ),
+    );
     expect(opener, contains('_openFlowEditorDirectly(flowId)'));
     expect(opener, contains('_openDetachedFlowStudioSheet'));
 
@@ -93,6 +100,30 @@ void main() {
     );
     expect(callback, contains('CalendarPage.openFlowEditorFromAnyContext'));
     expect(callback, contains("source: 'calendar_detail'"));
+
+    final studioCallback = _sourceBetween(
+      calendar,
+      'void Function(int? flowId) _getFlowStudioCallback()',
+      'void _openFlowEditorDirectly(int flowId)',
+    );
+    expect(
+      studioCallback,
+      contains('CalendarPage.openFlowEditorFromAnyContext'),
+    );
+    expect(studioCallback, contains("source: 'flow_studio_callback'"));
+
+    final dayView = File(
+      'lib/features/calendar/day_view.dart',
+    ).readAsStringSync();
+    final landscape = File(
+      'lib/features/calendar/landscape_month_view.dart',
+    ).readAsStringSync();
+    final grid = File(
+      'lib/features/calendar/calendar_grid_widgets.dart',
+    ).readAsStringSync();
+    expect(dayView, contains('await Navigator.of(sheetContext).maybePop();'));
+    expect(landscape, contains('await Navigator.of(sheetContext).maybePop();'));
+    expect(grid, contains('await Navigator.of(sheetContext).maybePop();'));
 
     expect(
       sharedFlowDetails,

@@ -4539,6 +4539,9 @@ class CalendarPage extends StatefulWidget {
       if (kDebugMode) {
         debugPrint('[EditFlow] open studio source=$source');
       }
+      await _clearFlowStudioTransientState();
+      await _removeCalendarOverlayKinds({_kCalendarOverlayKindEventDetail});
+      if (!context.mounted) return;
       context.go(route);
       return;
     }
@@ -18689,6 +18692,17 @@ class CalendarPageState extends State<CalendarPage>
     return (int? flowId) {
       // If flowId provided, go directly to that flow
       if (flowId != null) {
+        if (kIsWeb) {
+          unawaited(
+            CalendarPage.openFlowEditorFromAnyContext(
+              context,
+              flowId: flowId,
+              fallbackLocation: '/',
+              source: 'flow_studio_callback',
+            ),
+          );
+          return;
+        }
         _openFlowEditorDirectly(flowId);
         return;
       }

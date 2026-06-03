@@ -2332,7 +2332,7 @@ class _MainCalendarEventDetailSheetState
         } else if (value == 'edit' &&
             actionableFlow &&
             widget.onManageFlows != null) {
-          Navigator.pop(sheetContext);
+          await Navigator.of(sheetContext).maybePop();
           widget.onManageFlows!(flow!.id);
         } else if (value == 'save' && actionableFlow && flow != null) {
           Navigator.pop(sheetContext);

@@ -6272,7 +6272,7 @@ class _DayViewGridState extends State<DayViewGrid> {
             await widget.onShareNote!(currentEvent);
           }
         } else if (value == 'edit' && flow != null && actionableFlow) {
-          Navigator.pop(sheetContext);
+          await Navigator.of(sheetContext).maybePop();
           widget.onManageFlows?.call(flow.id);
         } else if (value == 'save' && flow != null && actionableFlow) {
           Navigator.pop(sheetContext);
