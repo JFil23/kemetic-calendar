@@ -7,6 +7,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../calendar/kemetic_month_metadata.dart';
 import '../../models/ai_flow_generation_response.dart';
 import '../../services/ai_flow_generation_service.dart';
 import '../../widgets/kemetic_date_picker.dart';
@@ -30,22 +31,6 @@ const _flowPalette = [
   Color(0xFFFF7043),
   Color(0xFF9CCC65),
 ];
-
-LinearGradient _glossFromColor(Color c) {
-  final hsl = HSLColor.fromColor(c);
-  final lighter = hsl
-      .withLightness((hsl.lightness + 0.15).clamp(0.0, 1.0))
-      .toColor();
-  final darker = hsl
-      .withLightness((hsl.lightness - 0.15).clamp(0.0, 1.0))
-      .toColor();
-  return LinearGradient(
-    begin: Alignment.topCenter,
-    end: Alignment.bottomCenter,
-    colors: [lighter, c, darker],
-    stops: const [0.0, 0.5, 1.0],
-  );
-}
 
 String buildCanonicalAiFlowPromptText({
   String? description,
@@ -114,7 +99,7 @@ class _AIFlowGenerationModalState extends State<AIFlowGenerationModal> {
   late final DateTime _defaultStartDate;
   DateTime? _startDate;
   DateTime? _endDate;
-  int _selectedColorIndex = 0;
+  final int _selectedColorIndex = 0;
   CalendarMode _mode = CalendarMode.gregorian;
   bool _isGenerating = false;
   bool _manualDateRangeEdited = false;
@@ -798,27 +783,6 @@ class _AIFlowGenerationModalState extends State<AIFlowGenerationModal> {
 
                       const SizedBox(height: 24),
 
-                      // Color picker (matching Flow Studio exactly)
-                      const GlossyText(
-                        text: 'Color',
-                        style: TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w600,
-                        ),
-                        gradient: silverGloss,
-                      ),
-                      const SizedBox(height: 8),
-                      SizedBox(
-                        height: 36,
-                        child: ListView.builder(
-                          scrollDirection: Axis.horizontal,
-                          itemCount: _flowPalette.length,
-                          itemBuilder: (_, i) => _colorDot(i),
-                        ),
-                      ),
-
-                      const SizedBox(height: 24),
-
                       // Kemetic/Gregorian toggle (matching Flow Studio)
                       SizedBox(
                         width: double.infinity,
@@ -895,7 +859,7 @@ class _AIFlowGenerationModalState extends State<AIFlowGenerationModal> {
                               child: Text(
                                 _startDate == null
                                     ? '--'
-                                    : _formatShortDate(_startDate!),
+                                    : _formatDateForMode(_startDate!),
                                 style: const TextStyle(fontSize: 14),
                               ),
                             ),
@@ -926,7 +890,7 @@ class _AIFlowGenerationModalState extends State<AIFlowGenerationModal> {
                               child: Text(
                                 _endDate == null
                                     ? '--'
-                                    : _formatShortDate(_endDate!),
+                                    : _formatDateForMode(_endDate!),
                                 style: const TextStyle(fontSize: 14),
                               ),
                             ),
@@ -1168,28 +1132,6 @@ class _AIFlowGenerationModalState extends State<AIFlowGenerationModal> {
     );
   }
 
-  // Color dot widget (matching Flow Studio exactly)
-  Widget _colorDot(int i) {
-    final selected = i == _selectedColorIndex;
-    return InkWell(
-      onTap: () => setState(() => _selectedColorIndex = i),
-      borderRadius: BorderRadius.circular(16),
-      child: Container(
-        width: 28,
-        height: 28,
-        margin: const EdgeInsets.only(right: 10),
-        decoration: BoxDecoration(
-          shape: BoxShape.circle,
-          gradient: _glossFromColor(_flowPalette[i]),
-          border: Border.all(
-            color: selected ? gold : Colors.white24,
-            width: selected ? 2.0 : 1.0,
-          ),
-        ),
-      ),
-    );
-  }
-
   Widget _buildTip(String text) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 8),
@@ -1234,6 +1176,18 @@ class _AIFlowGenerationModalState extends State<AIFlowGenerationModal> {
       'Dec',
     ];
     return '${months[date.month - 1]} ${date.day}';
+  }
+
+  String _formatKemeticDate(DateTime date) {
+    final k = KemeticMath.fromGregorian(date);
+    final month = getMonthById(k.kMonth).displayShort;
+    return '$month ${k.kDay}';
+  }
+
+  String _formatDateForMode(DateTime date) {
+    return _mode == CalendarMode.kemetic
+        ? _formatKemeticDate(date)
+        : _formatShortDate(date);
   }
 }
 
