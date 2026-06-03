@@ -70,6 +70,58 @@ void main() {
       expect(_detachedMenuLabels(tester), _expectedDetachedGlobalMenuOrder);
     });
 
+    testWidgets('detached menu respects tablet landscape bottom inset', (
+      tester,
+    ) async {
+      tester.view.physicalSize = const Size(1194, 834);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      const bottomMenuKey = ValueKey<String>('test-tablet-bottom-menu');
+      const gridKey = ValueKey<String>('calendar-actions-grid');
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: Builder(
+              builder: (context) {
+                final bottomHeight = globalBottomMenuHeight(context);
+                return Stack(
+                  fit: StackFit.expand,
+                  children: [
+                    CalendarPage.buildDetachedActionsMenuPanel(
+                      context,
+                      includeNewNote: false,
+                      closeMenu: () async {},
+                    ),
+                    Positioned(
+                      left: 0,
+                      right: 0,
+                      bottom: 0,
+                      height: bottomHeight,
+                      child: const ColoredBox(
+                        key: bottomMenuKey,
+                        color: Colors.black,
+                      ),
+                    ),
+                  ],
+                );
+              },
+            ),
+          ),
+        ),
+      );
+      await tester.pump();
+
+      final gridRect = tester.getRect(find.byKey(gridKey));
+      final bottomMenuTop = tester.getTopLeft(find.byKey(bottomMenuKey)).dy;
+      final scaffoldWidth = tester.getSize(find.byType(Scaffold)).width;
+
+      expect(gridRect.bottom, lessThanOrEqualTo(bottomMenuTop));
+      expect(gridRect.center.dx, closeTo(scaffoldWidth / 2, 0.5));
+    });
+
     testWidgets('detached menu buttons close and dispatch in every path', (
       tester,
     ) async {

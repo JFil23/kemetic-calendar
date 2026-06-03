@@ -2,11 +2,21 @@ import 'package:flutter/widgets.dart';
 
 const double kGlobalBottomMenuBaseHeight = 50;
 const double kGlobalBottomMenuLandscapeBaseHeight = 25;
+const double kGlobalBottomMenuTabletShortestSide = 600;
+
+bool _usesTabletLandscapeBottomMenuMetrics(BuildContext context) {
+  final size = MediaQuery.sizeOf(context);
+  return MediaQuery.orientationOf(context) == Orientation.landscape &&
+      size.shortestSide >= kGlobalBottomMenuTabletShortestSide;
+}
 
 double globalBottomMenuBaseHeight(BuildContext context) {
-  return MediaQuery.orientationOf(context) == Orientation.landscape
-      ? kGlobalBottomMenuLandscapeBaseHeight
-      : kGlobalBottomMenuBaseHeight;
+  if (MediaQuery.orientationOf(context) != Orientation.landscape) {
+    return kGlobalBottomMenuBaseHeight;
+  }
+  return _usesTabletLandscapeBottomMenuMetrics(context)
+      ? kGlobalBottomMenuBaseHeight
+      : kGlobalBottomMenuLandscapeBaseHeight;
 }
 
 double globalBottomMenuHeight(BuildContext context) {

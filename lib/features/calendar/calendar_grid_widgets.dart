@@ -515,6 +515,67 @@ class _YearSection extends StatelessWidget {
 
 /* ───────────────────────── Month & Day Cards ───────────────────────── */
 
+bool _usesTabletLandscapeMonthGrid(BuildContext context) {
+  final media = MediaQuery.of(context);
+  return media.orientation == Orientation.landscape &&
+      media.size.shortestSide >= 600;
+}
+
+int _detailsMonthVisibleEventCap(BuildContext context) {
+  return _usesTabletLandscapeMonthGrid(context) ? 4 : 5;
+}
+
+double _detailsMonthMaxDecanHeight(BuildContext context) {
+  return _usesTabletLandscapeMonthGrid(context) ? 286.0 : 250.0;
+}
+
+@visibleForTesting
+Widget buildCalendarMonthCardLayoutForTesting({
+  required int kYear,
+  required int kMonth,
+  required List<NoteData> Function(int kDay) notesForDay,
+  MonthExpansionLevel expansionLevel = MonthExpansionLevel.details,
+}) {
+  _Note convert(NoteData note) {
+    return _Note(
+      id: note.id,
+      clientEventId: note.clientEventId,
+      calendarId: note.calendarId,
+      calendarName: note.calendarName,
+      title: note.title,
+      detail: note.detail,
+      location: note.location,
+      allDay: note.allDay,
+      start: note.start,
+      end: note.end,
+      flowId: note.flowId,
+      manualColor: note.manualColor,
+      category: note.category,
+      isReminder: note.isReminder,
+      reminderId: note.reminderId,
+      behaviorPayload: note.behaviorPayload,
+    );
+  }
+
+  return _MonthCard(
+    kYear: kYear,
+    kMonth: kMonth,
+    seasonShort: 'Akhet',
+    todayMonth: null,
+    todayDay: null,
+    notesGetter: (_, d) => notesForDay(d).map(convert).toList(),
+    flowColorsGetter: (_, _, d) => [
+      for (final note in notesForDay(d))
+        if (note.manualColor != null) note.manualColor!,
+    ],
+    onDayTap: (_, _, _) {},
+    showGregorian: false,
+    expansionLevel: expansionLevel,
+    noteColorResolver: (note) => note.manualColor ?? _defaultNoteColor(note),
+    flowNameGetter: (_) => null,
+  );
+}
+
 class _MonthCard extends StatelessWidget {
   final Key? anchorKey;
   final Key? monthHeaderKey;
@@ -665,20 +726,23 @@ class _MonthCard extends StatelessWidget {
       if (expansionLevel != MonthExpansionLevel.details) {
         return _chipHeightFor(expansionLevel);
       }
-      // Estimate visible pills for this decan (capped at 5) and derive a height.
+      // Estimate visible pills for this decan and derive a height.
       // Measurements: label area ~24px; first pill ~50px; subsequent pills ~56px (includes spacing).
       const double labelAreaHeight = 24.0;
       const double firstPillHeight = 50.0;
       const double subsequentPillHeight = 56.0;
       const double minHeight =
           80.0; // keep some presence for empty/one-pill decans
-      const double maxHeight = 250.0; // cap at original height
+      final double maxHeight = _detailsMonthMaxDecanHeight(context);
+      final maxVisibleEvents = _detailsMonthVisibleEventCap(context);
 
       final startDay = decanIndex * 10 + 1;
       int maxVisible = 0;
       for (int d = startDay; d < startDay + 10; d++) {
         final notes = notesGetter(kMonth, d);
-        final visible = notes.length > 5 ? 5 : notes.length;
+        final visible = notes.length > maxVisibleEvents
+            ? maxVisibleEvents
+            : notes.length;
         if (visible > maxVisible) maxVisible = visible;
       }
 
@@ -1136,6 +1200,9 @@ class _DayChip extends StatelessWidget {
       }
     }
     final isCompact = expansionLevel == MonthExpansionLevel.compact;
+    final useTabletLandscapeDetails =
+        expansionLevel == MonthExpansionLevel.details &&
+        _usesTabletLandscapeMonthGrid(context);
     final chipHeight = decanHeight ?? _chipHeightFor(expansionLevel);
     final nonCompactHeaderHeight = 24.0;
 
@@ -1221,7 +1288,9 @@ class _DayChip extends StatelessWidget {
         });
       final maxBlocks = expansionLevel == MonthExpansionLevel.stacked
           ? 2
-          : (expansionLevel == MonthExpansionLevel.details ? 5 : 1);
+          : (expansionLevel == MonthExpansionLevel.details
+                ? _detailsMonthVisibleEventCap(context)
+                : 1);
 
       int visibleCount = maxBlocks;
       if (expansionLevel == MonthExpansionLevel.details &&
@@ -1263,6 +1332,7 @@ class _DayChip extends StatelessWidget {
               color: noteColorResolver(visible[i]),
               isTrackSky: _isTrackSkyFlowName(flowNameGetter?.call(visible[i])),
               dense: expansionLevel == MonthExpansionLevel.stacked,
+              singleLineLabel: useTabletLandscapeDetails,
               label: expansionLevel == MonthExpansionLevel.details
                   ? _labelFor(visible[i])
                   : null,
@@ -2984,6 +3054,7 @@ class _TrackSkyMiniBadge extends StatelessWidget {
   final _Note note;
   final bool dense;
   final bool expand;
+  final bool singleLineLabel;
   final String? label;
   final VoidCallback? onTap;
 
@@ -2991,6 +3062,7 @@ class _TrackSkyMiniBadge extends StatelessWidget {
     required this.note,
     this.dense = true,
     this.expand = false,
+    this.singleLineLabel = false,
     this.label,
     this.onTap,
   });
@@ -3111,9 +3183,9 @@ class _TrackSkyMiniBadge extends StatelessWidget {
                                       alignment: Alignment.centerLeft,
                                       child: Text(
                                         label!,
-                                        maxLines: 2,
+                                        maxLines: singleLineLabel ? 1 : 2,
                                         overflow: TextOverflow.ellipsis,
-                                        softWrap: true,
+                                        softWrap: !singleLineLabel,
                                         textAlign: TextAlign.left,
                                         style: labelStyle,
                                       ),
@@ -3179,6 +3251,7 @@ class _MiniEventBlock extends StatelessWidget {
   final bool isTrackSky;
   final bool dense;
   final bool expand;
+  final bool singleLineLabel;
   final String? label;
   const _MiniEventBlock({
     required this.note,
@@ -3186,6 +3259,7 @@ class _MiniEventBlock extends StatelessWidget {
     this.isTrackSky = false,
     this.dense = true,
     this.expand = false,
+    this.singleLineLabel = false,
     this.label,
     this.onTap,
   });
@@ -3199,6 +3273,7 @@ class _MiniEventBlock extends StatelessWidget {
         note: note,
         dense: dense,
         expand: expand,
+        singleLineLabel: singleLineLabel,
         label: label,
         onTap: onTap,
       );
@@ -3244,9 +3319,9 @@ class _MiniEventBlock extends StatelessWidget {
           child: showLabel
               ? Text(
                   label!,
-                  maxLines: 2,
+                  maxLines: singleLineLabel ? 1 : 2,
                   overflow: TextOverflow.ellipsis,
-                  softWrap: true,
+                  softWrap: !singleLineLabel,
                   textAlign: TextAlign.left,
                   style: labelStyle,
                 )
@@ -3365,12 +3440,15 @@ class _EpagomenalCard extends StatelessWidget {
       const double firstPillHeight = 50.0;
       const double subsequentPillHeight = 56.0;
       const double minHeight = 80.0;
-      const double maxHeight = 250.0;
+      final double maxHeight = _detailsMonthMaxDecanHeight(context);
+      final maxVisibleEvents = _detailsMonthVisibleEventCap(context);
 
       int maxVisible = 0;
       for (int d = 1; d <= epiCount; d++) {
         final notes = notesGetter(13, d);
-        final visible = notes.length > 5 ? 5 : notes.length;
+        final visible = notes.length > maxVisibleEvents
+            ? maxVisibleEvents
+            : notes.length;
         if (visible > maxVisible) maxVisible = visible;
       }
 

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:mobile/features/calendar/calendar_page.dart';
 import 'package:mobile/features/calendar/day_view.dart';
 import 'package:mobile/features/calendar/landscape_month_view.dart';
 
@@ -109,6 +110,65 @@ void main() {
       expect(sharedEvent!.clientEventId, 'landscape-note');
     });
   });
+
+  group('Calendar month grid tablet layout', () {
+    testWidgets(
+      'tablet landscape event chips stay inside day cells and overflow cleanly',
+      (tester) async {
+        await _setTabletLandscapeViewport(tester);
+
+        await tester.pumpWidget(
+          MaterialApp(
+            home: Scaffold(
+              body: SingleChildScrollView(
+                child: buildCalendarMonthCardLayoutForTesting(
+                  kYear: 6267,
+                  kMonth: 1,
+                  notesForDay: (day) => day == 4
+                      ? List<NoteData>.generate(
+                          6,
+                          (index) => NoteData(
+                            title: 'Tablet event ${index + 1}',
+                            allDay: false,
+                            start: TimeOfDay(hour: 8 + index, minute: 0),
+                            end: TimeOfDay(hour: 9 + index, minute: 0),
+                            manualColor: Colors.purple,
+                          ),
+                        )
+                      : const <NoteData>[],
+                ),
+              ),
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        expect(tester.takeException(), isNull);
+        expect(find.text('Tablet event 1'), findsOneWidget);
+        expect(find.text('Tablet event 2'), findsOneWidget);
+        expect(find.text('Tablet event 3'), findsOneWidget);
+        expect(find.text('Tablet event 4'), findsOneWidget);
+        expect(find.text('Tablet event 5'), findsNothing);
+        expect(find.text('Tablet event 6'), findsNothing);
+        expect(find.text('+2'), findsOneWidget);
+
+        final dayCell = tester.getRect(
+          find.byKey(const ValueKey<String>('k:6267-1-4|K')),
+        );
+        for (final label in const [
+          'Tablet event 1',
+          'Tablet event 2',
+          'Tablet event 3',
+          'Tablet event 4',
+          '+2',
+        ]) {
+          final rect = tester.getRect(find.text(label));
+          expect(rect.top, greaterThanOrEqualTo(dayCell.top));
+          expect(rect.bottom, lessThanOrEqualTo(dayCell.bottom));
+        }
+      },
+    );
+  });
 }
 
 class _LandscapePagerHarness extends StatelessWidget {
@@ -144,6 +204,16 @@ class _LandscapePagerHarness extends StatelessWidget {
 Future<void> _setLandscapeViewport(WidgetTester tester) async {
   final binding = tester.binding;
   await binding.setSurfaceSize(const Size(1000, 420));
+  binding.platformDispatcher.views.first.devicePixelRatio = 1.0;
+  addTearDown(() async {
+    await binding.setSurfaceSize(null);
+    binding.platformDispatcher.views.first.resetDevicePixelRatio();
+  });
+}
+
+Future<void> _setTabletLandscapeViewport(WidgetTester tester) async {
+  final binding = tester.binding;
+  await binding.setSurfaceSize(const Size(1194, 834));
   binding.platformDispatcher.views.first.devicePixelRatio = 1.0;
   addTearDown(() async {
     await binding.setSurfaceSize(null);

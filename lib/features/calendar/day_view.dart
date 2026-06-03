@@ -1445,6 +1445,7 @@ class EventLayoutEngine {
     required double columnGap,
     required double textScale,
     required int day, // For debug logging
+    double singleEventWidthFactor = _kSingleEventWidthFactor,
   }) {
     if (kDebugMode) {
       debugPrint(
@@ -1460,6 +1461,7 @@ class EventLayoutEngine {
       columnGap: columnGap,
       textScale: textScale,
       day: day,
+      singleEventWidthFactor: singleEventWidthFactor,
     );
   }
 
@@ -1469,6 +1471,7 @@ class EventLayoutEngine {
     required double columnGap,
     required double textScale,
     required int day,
+    double singleEventWidthFactor = _kSingleEventWidthFactor,
   }) {
     if (events.isEmpty) return [];
 
@@ -1487,6 +1490,7 @@ class EventLayoutEngine {
         availableWidth: availableWidth,
         columnGap: columnGap,
         totalColumns: totalColumns,
+        singleEventWidthFactor: singleEventWidthFactor,
       );
 
       for (final event in group) {
@@ -1561,9 +1565,10 @@ class EventLayoutEngine {
     required double availableWidth,
     required double columnGap,
     required int totalColumns,
+    required double singleEventWidthFactor,
   }) {
     if (totalColumns <= 1) {
-      return availableWidth * _kSingleEventWidthFactor;
+      return availableWidth * singleEventWidthFactor.clamp(0.0, 1.0);
     }
     final totalGap = columnGap * (totalColumns - 1);
     return math.max((availableWidth - totalGap) / totalColumns, 0.0);
@@ -3149,6 +3154,9 @@ class _DayViewGridState extends State<DayViewGrid> {
   List<PositionedEventBlock>? _cachedBlocks;
   int? _cachedNotesHash;
   int? _cachedFlowHash;
+  double? _cachedAvailableWidth;
+  double? _cachedTextScale;
+  double? _cachedSingleEventWidthFactor;
   List<PositionedEventBlock> _displayBlocks = const [];
   final Map<TrackSkyTimeZone, TrackSkyFlowData> _trackSkyDataByTimeZone =
       <TrackSkyTimeZone, TrackSkyFlowData>{};
@@ -3836,8 +3844,10 @@ class _DayViewGridState extends State<DayViewGrid> {
   }
 
   List<PositionedEventBlock> _buildDisplayBlocks(
-    List<PositionedEventBlock> base,
-  ) {
+    List<PositionedEventBlock> base, {
+    required double availableWidth,
+    required double singleEventWidthFactor,
+  }) {
     final preview = _buildCreationPreviewEvent();
     final needsDragRelayout =
         _dragPreviewEvent != null && _dragPreviewStartMin != null;
@@ -3883,10 +3893,11 @@ class _DayViewGridState extends State<DayViewGrid> {
 
     return EventLayoutEngine.layoutEventItems(
       events: displayEvents,
-      availableWidth: _timelineAvailableWidth(context),
+      availableWidth: availableWidth,
       columnGap: _kEventColumnGap,
       textScale: _layoutTextScale(context),
       day: widget.kd,
+      singleEventWidthFactor: singleEventWidthFactor,
     );
   }
 
@@ -4172,13 +4183,18 @@ class _DayViewGridState extends State<DayViewGrid> {
     return firstPipe >= 0 ? detail.substring(0, firstPipe).trim() : detail;
   }
 
-  double _timelineAvailableWidth(BuildContext context) {
-    return math.max(
-      MediaQuery.of(context).size.width -
-          _kTimelineLabelWidth -
-          _kTimelineRightPadding,
-      0.0,
-    );
+  bool _usesTabletLandscapeLayout(BuildContext context) {
+    final media = MediaQuery.of(context);
+    return media.orientation == Orientation.landscape &&
+        media.size.shortestSide >= 600;
+  }
+
+  double _timelineAvailableWidthFor(double width) {
+    return math.max(width - _kTimelineLabelWidth - _kTimelineRightPadding, 0.0);
+  }
+
+  double _singleEventWidthFactor(BuildContext context) {
+    return _usesTabletLandscapeLayout(context) ? 1.0 : _kSingleEventWidthFactor;
   }
 
   double _layoutTextScale(BuildContext context) {
@@ -4204,161 +4220,186 @@ class _DayViewGridState extends State<DayViewGrid> {
 
   @override
   Widget build(BuildContext context) {
-    // ✅ NEW: Dedupe notes before rendering to handle legacy duplicates
-    final dedupedNotes = _dedupeNotesForUI(widget.notes);
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final layoutWidth = constraints.maxWidth.isFinite
+            ? constraints.maxWidth
+            : MediaQuery.sizeOf(context).width;
+        final availableWidth = _timelineAvailableWidthFor(layoutWidth);
+        final textScale = _layoutTextScale(context);
+        final singleEventWidthFactor = _singleEventWidthFactor(context);
 
-    // 🔧 OPTIMIZATION: Only recalculate layout if notes or flows changed
-    final notesHash = _computeNotesHash(dedupedNotes);
-    final flowHash = _computeFlowIndexHash(widget.flowIndex);
-    if (_cachedBlocks == null ||
-        _cachedNotesHash != notesHash ||
-        _cachedFlowHash != flowHash) {
-      if (kDebugMode) {
-        final originalCount = widget.notes.length;
-        final dedupedCount = dedupedNotes.length;
-        if (originalCount != dedupedCount) {
-          debugPrint(
-            '[DayView] Deduplicated events: $originalCount → $dedupedCount (removed ${originalCount - dedupedCount} duplicates)',
-          );
-        }
-      }
+        // ✅ NEW: Dedupe notes before rendering to handle legacy duplicates
+        final dedupedNotes = _dedupeNotesForUI(widget.notes);
 
-      _cachedBlocks = EventLayoutEngine.layoutEventsForDay(
-        notes: dedupedNotes, // ✅ Use deduped notes
-        flowIndex: widget.flowIndex,
-        availableWidth: _timelineAvailableWidth(context),
-        columnGap: _kEventColumnGap,
-        textScale: _layoutTextScale(context),
-        day: widget.kd,
-      );
-      _cachedNotesHash = notesHash;
-      _cachedFlowHash = flowHash;
-    }
-
-    _displayBlocks = _buildDisplayBlocks(_cachedBlocks ?? []);
-
-    return Column(
-      children: [
-        // Timeline grid
-        Expanded(
-          child: DragTarget<_DragPayload>(
-            key: _timelineKey,
-            builder: (context, candidateData, rejectedData) {
-              _timelineCtx = context;
-              return ListView.builder(
-                key: const PageStorageKey('day_timeline_list'),
-                clipBehavior: Clip.none,
-                controller: _scrollController,
-                padding: EdgeInsets.only(
-                  bottom: bottomPaddingAboveGlobalMenu(context, 24),
-                ),
-                cacheExtent: 600, // 🔧 OPTIMIZATION: Cache more items
-                itemCount: 24,
-                itemBuilder: (context, hour) {
-                  return _buildHourRow(hour);
-                },
+        // 🔧 OPTIMIZATION: Only recalculate layout if inputs or constraints changed
+        final notesHash = _computeNotesHash(dedupedNotes);
+        final flowHash = _computeFlowIndexHash(widget.flowIndex);
+        if (_cachedBlocks == null ||
+            _cachedNotesHash != notesHash ||
+            _cachedFlowHash != flowHash ||
+            _cachedAvailableWidth != availableWidth ||
+            _cachedTextScale != textScale ||
+            _cachedSingleEventWidthFactor != singleEventWidthFactor) {
+          if (kDebugMode) {
+            final originalCount = widget.notes.length;
+            final dedupedCount = dedupedNotes.length;
+            if (originalCount != dedupedCount) {
+              debugPrint(
+                '[DayView] Deduplicated events: $originalCount → $dedupedCount (removed ${originalCount - dedupedCount} duplicates)',
               );
-            },
-            onWillAcceptWithDetails: (_) => true,
-            onMove: (details) {
-              final snapped = _snappedMinuteFromGlobalOffset(details.offset);
-              if (snapped == null) return;
-              _dragPreviewEvent ??= details.data.event;
-              if (snapped == _dragPreviewStartMin) return;
-              _dragPreviewStartMin = snapped;
-              _lastDragSnappedMinute = snapped;
-              unawaited(AppHaptics.selection());
-              if (mounted) setState(() {});
-              if (kDebugMode) {
-                debugPrint(
-                  '[DayView] onMove offset=${details.offset} snapped=$snapped',
-                );
-              }
-            },
-            onAcceptWithDetails: (details) {
-              if (kDebugMode) {
-                debugPrint('[DayView] DragTarget onAcceptWithDetails');
-              }
-              // Reject drop while the timeline is still scrolling.
-              if (_scrollController.hasClients &&
-                  _scrollController.position.isScrollingNotifier.value) {
-                if (kDebugMode) {
-                  debugPrint(
-                    '[DayView] DragTarget: rejecting drop while scrolling',
-                  );
-                }
-                return;
-              }
-              final event = details.data.event;
-              int? committedMinute;
-              if (_dragPreviewStartMin != null &&
-                  _dragPreviewEvent != null &&
-                  _eventsMatch(event, _dragPreviewEvent!)) {
-                committedMinute = _dragPreviewStartMin;
-                if (kDebugMode) {
-                  debugPrint(
-                    '[DayView] drop: using preview minute $committedMinute for id=${event.id} cid=${event.clientEventId}',
-                  );
-                }
-              }
+            }
+          }
 
-              if (committedMinute == null && _lastDragSnappedMinute != null) {
-                committedMinute = _lastDragSnappedMinute;
-                if (kDebugMode) {
-                  debugPrint(
-                    '[DayView] drop: using last snapped minute $committedMinute for id=${event.id} cid=${event.clientEventId}',
-                  );
-                }
-              }
+          _cachedBlocks = EventLayoutEngine.layoutEventsForDay(
+            notes: dedupedNotes, // ✅ Use deduped notes
+            flowIndex: widget.flowIndex,
+            availableWidth: availableWidth,
+            columnGap: _kEventColumnGap,
+            textScale: textScale,
+            day: widget.kd,
+            singleEventWidthFactor: singleEventWidthFactor,
+          );
+          _cachedNotesHash = notesHash;
+          _cachedFlowHash = flowHash;
+          _cachedAvailableWidth = availableWidth;
+          _cachedTextScale = textScale;
+          _cachedSingleEventWidthFactor = singleEventWidthFactor;
+        }
 
-              if (committedMinute == null) {
-                committedMinute = _snappedMinuteFromGlobalOffset(
-                  details.offset,
-                );
-                if (committedMinute == null) {
+        _displayBlocks = _buildDisplayBlocks(
+          _cachedBlocks ?? [],
+          availableWidth: availableWidth,
+          singleEventWidthFactor: singleEventWidthFactor,
+        );
+
+        return Column(
+          children: [
+            // Timeline grid
+            Expanded(
+              child: DragTarget<_DragPayload>(
+                key: _timelineKey,
+                builder: (context, candidateData, rejectedData) {
+                  _timelineCtx = context;
+                  return ListView.builder(
+                    key: const PageStorageKey('day_timeline_list'),
+                    clipBehavior: Clip.none,
+                    controller: _scrollController,
+                    padding: EdgeInsets.only(
+                      bottom: bottomPaddingAboveGlobalMenu(context, 24),
+                    ),
+                    cacheExtent: 600, // 🔧 OPTIMIZATION: Cache more items
+                    itemCount: 24,
+                    itemBuilder: (context, hour) {
+                      return _buildHourRow(hour);
+                    },
+                  );
+                },
+                onWillAcceptWithDetails: (_) => true,
+                onMove: (details) {
+                  final snapped = _snappedMinuteFromGlobalOffset(
+                    details.offset,
+                  );
+                  if (snapped == null) return;
+                  _dragPreviewEvent ??= details.data.event;
+                  if (snapped == _dragPreviewStartMin) return;
+                  _dragPreviewStartMin = snapped;
+                  _lastDragSnappedMinute = snapped;
+                  unawaited(AppHaptics.selection());
+                  if (mounted) setState(() {});
                   if (kDebugMode) {
                     debugPrint(
-                      '[DayView] drop ignored: unable to compute snapped minute (all paths)',
+                      '[DayView] onMove offset=${details.offset} snapped=$snapped',
                     );
                   }
-                  return;
-                }
-                if (kDebugMode) {
-                  debugPrint(
-                    '[DayView] drop: fallback snap minute $committedMinute for id=${event.id} cid=${event.clientEventId}',
-                  );
-                }
-              }
-              // Temporary: avoid no-op when preview didn't update; prefer fixing drag path if logs show _handleDragUpdate not updating.
-              if (committedMinute == event.startMin &&
-                  _lastDragSnappedMinute != null &&
-                  _lastDragSnappedMinute != event.startMin) {
-                if (kDebugMode) {
-                  debugPrint(
-                    '[DayView] drop: no-op escape using last snapped minute $_lastDragSnappedMinute',
-                  );
-                }
-                committedMinute = _lastDragSnappedMinute;
-              }
-              if (kDebugMode) {
-                debugPrint(
-                  '[DayView] drop commit minute=$committedMinute id=${event.id} cid=${event.clientEventId} title="${event.title}" start=${event.startMin} end=${event.endMin}',
-                );
-              }
+                },
+                onAcceptWithDetails: (details) {
+                  if (kDebugMode) {
+                    debugPrint('[DayView] DragTarget onAcceptWithDetails');
+                  }
+                  // Reject drop while the timeline is still scrolling.
+                  if (_scrollController.hasClients &&
+                      _scrollController.position.isScrollingNotifier.value) {
+                    if (kDebugMode) {
+                      debugPrint(
+                        '[DayView] DragTarget: rejecting drop while scrolling',
+                      );
+                    }
+                    return;
+                  }
+                  final event = details.data.event;
+                  int? committedMinute;
+                  if (_dragPreviewStartMin != null &&
+                      _dragPreviewEvent != null &&
+                      _eventsMatch(event, _dragPreviewEvent!)) {
+                    committedMinute = _dragPreviewStartMin;
+                    if (kDebugMode) {
+                      debugPrint(
+                        '[DayView] drop: using preview minute $committedMinute for id=${event.id} cid=${event.clientEventId}',
+                      );
+                    }
+                  }
 
-              widget.onMoveEventTime?.call(
-                widget.ky,
-                widget.km,
-                widget.kd,
-                event,
-                committedMinute!,
-              );
-              _clearDragPreview();
-              _lastDragSnappedMinute = null;
-            },
-          ),
-        ),
-      ],
+                  if (committedMinute == null &&
+                      _lastDragSnappedMinute != null) {
+                    committedMinute = _lastDragSnappedMinute;
+                    if (kDebugMode) {
+                      debugPrint(
+                        '[DayView] drop: using last snapped minute $committedMinute for id=${event.id} cid=${event.clientEventId}',
+                      );
+                    }
+                  }
+
+                  if (committedMinute == null) {
+                    committedMinute = _snappedMinuteFromGlobalOffset(
+                      details.offset,
+                    );
+                    if (committedMinute == null) {
+                      if (kDebugMode) {
+                        debugPrint(
+                          '[DayView] drop ignored: unable to compute snapped minute (all paths)',
+                        );
+                      }
+                      return;
+                    }
+                    if (kDebugMode) {
+                      debugPrint(
+                        '[DayView] drop: fallback snap minute $committedMinute for id=${event.id} cid=${event.clientEventId}',
+                      );
+                    }
+                  }
+                  // Temporary: avoid no-op when preview didn't update; prefer fixing drag path if logs show _handleDragUpdate not updating.
+                  if (committedMinute == event.startMin &&
+                      _lastDragSnappedMinute != null &&
+                      _lastDragSnappedMinute != event.startMin) {
+                    if (kDebugMode) {
+                      debugPrint(
+                        '[DayView] drop: no-op escape using last snapped minute $_lastDragSnappedMinute',
+                      );
+                    }
+                    committedMinute = _lastDragSnappedMinute;
+                  }
+                  if (kDebugMode) {
+                    debugPrint(
+                      '[DayView] drop commit minute=$committedMinute id=${event.id} cid=${event.clientEventId} title="${event.title}" start=${event.startMin} end=${event.endMin}',
+                    );
+                  }
+
+                  widget.onMoveEventTime?.call(
+                    widget.ky,
+                    widget.km,
+                    widget.kd,
+                    event,
+                    committedMinute!,
+                  );
+                  _clearDragPreview();
+                  _lastDragSnappedMinute = null;
+                },
+              ),
+            ),
+          ],
+        );
+      },
     );
   }
 

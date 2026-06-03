@@ -116,6 +116,94 @@ void main() {
       expect(padding.bottom, 108);
     });
 
+    testWidgets(
+      'tablet landscape event layout uses constraint width and keeps bottom inset clear',
+      (tester) async {
+        await _setTabletLandscapeViewport(tester);
+
+        await tester.pumpWidget(
+          _DayViewHarness(
+            notes: [
+              _timedNote(
+                title: 'Arrive in NYC',
+                startHour: 10,
+                startMinute: 0,
+                endHour: 11,
+                endMinute: 0,
+              ),
+            ],
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        expect(tester.takeException(), isNull);
+
+        final listView = tester.widget<ListView>(
+          find.byKey(const PageStorageKey<String>('day_timeline_list')),
+        );
+        final padding = listView.padding as EdgeInsets;
+        expect(padding.bottom, 74);
+
+        final eventSizedBoxes = tester.widgetList<SizedBox>(
+          find.ancestor(
+            of: find.text('Arrive in NYC'),
+            matching: find.byType(SizedBox),
+          ),
+        );
+
+        expect(
+          eventSizedBoxes.any(
+            (box) => box.width != null && (box.width! - 1122).abs() < 0.001,
+          ),
+          isTrue,
+        );
+      },
+    );
+
+    test(
+      'single non-overlapping events keep the phone width factor by default',
+      () {
+        final blocks = EventLayoutEngine.layoutEventItems(
+          events: const [
+            EventItem(
+              title: 'Phone Width Event',
+              startMin: 10 * 60,
+              endMin: 11 * 60,
+              color: Colors.green,
+              allDay: false,
+            ),
+          ],
+          availableWidth: 314,
+          columnGap: 4,
+          textScale: 1.0,
+          day: 1,
+        );
+
+        expect(blocks.single.width, closeTo(314 * 0.8, 0.001));
+      },
+    );
+
+    test('tablet landscape single events can use the full timeline lane', () {
+      final blocks = EventLayoutEngine.layoutEventItems(
+        events: const [
+          EventItem(
+            title: 'Tablet Width Event',
+            startMin: 10 * 60,
+            endMin: 11 * 60,
+            color: Colors.green,
+            allDay: false,
+          ),
+        ],
+        availableWidth: 1118,
+        columnGap: 4,
+        textScale: 1.0,
+        day: 1,
+        singleEventWidthFactor: 1.0,
+      );
+
+      expect(blocks.single.width, closeTo(1118, 0.001));
+    });
+
     test('staggered overlapping events are assigned separate lanes', () {
       final blocks = EventLayoutEngine.layoutEventItems(
         events: const [
@@ -1414,6 +1502,15 @@ String _gregorianMonthName(int month) {
 Future<void> _setPhoneViewport(WidgetTester tester) async {
   tester.view.devicePixelRatio = 1.0;
   tester.view.physicalSize = const Size(390, 844);
+  addTearDown(() async {
+    tester.view.resetPhysicalSize();
+    tester.view.resetDevicePixelRatio();
+  });
+}
+
+Future<void> _setTabletLandscapeViewport(WidgetTester tester) async {
+  tester.view.devicePixelRatio = 1.0;
+  tester.view.physicalSize = const Size(1194, 834);
   addTearDown(() async {
     tester.view.resetPhysicalSize();
     tester.view.resetDevicePixelRatio();
