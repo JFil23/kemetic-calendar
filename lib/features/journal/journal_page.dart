@@ -50,45 +50,39 @@ class _JournalPageState extends State<JournalPage> {
     if (_helperPrompted) return;
     final userId = Supabase.instance.client.auth.currentUser?.id;
     if (userId == null || userId.isEmpty) return;
+    const helper = OnboardingHelperRegistry.journalBadges;
     final helperService = OnboardingHelperCompletionService.instance;
-    if (!await helperService.shouldShowHelper(
-      userId,
-      OnboardingHelperIds.journalBadges,
-    )) {
+    if (!await helperService.shouldShowHelper(userId, helper.id)) {
       return;
     }
     _helperPrompted = true;
     await Future<void>.delayed(const Duration(milliseconds: 500));
     if (!mounted) return;
     await helperService.hydrateUser(userId);
-    if (!mounted ||
-        !helperService.shouldShowHelperSync(
-          userId,
-          OnboardingHelperIds.journalBadges,
-        )) {
+    if (!mounted || !helperService.shouldShowHelperSync(userId, helper.id)) {
       return;
     }
     GuidedOnboardingController.instance.show(
       CoachmarkTarget(
         key: _journalHelperKey,
-        title: 'Your record gathers here',
-        body:
-            'Reflections, observed events, and journal badges will appear here over time.',
+        title: helper.title,
+        body: helper.body,
         placement: CoachmarkPlacement.auto,
         variant: CoachmarkVariant.helperBubble,
         showDismissButton: true,
         dismissLabel: 'Got it',
-        helperId: OnboardingHelperIds.journalBadges,
+        helperId: helper.id,
         helperUserId: userId,
+        sourceWidget: helper.sourceWidget,
         onDismiss: () async {
           final completion = helperService.markHelperCompleted(
             userId,
-            OnboardingHelperIds.journalBadges,
+            helper.id,
           );
           GuidedOnboardingController.instance.clear();
           await completion;
           await Events.trackIfAuthed(
-            'helper_seen_journal_badges',
+            helper.analyticsEvent,
             const <String, dynamic>{},
           );
         },

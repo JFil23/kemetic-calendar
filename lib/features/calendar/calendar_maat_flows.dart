@@ -142,40 +142,34 @@ class _MaatFlowsListPageState extends State<_MaatFlowsListPage> {
     if (_helperPrompted) return;
     final userId = Supabase.instance.client.auth.currentUser?.id;
     if (userId == null || userId.isEmpty) return;
+    const helper = OnboardingHelperRegistry.flowStudioAddFlow;
     final helperService = OnboardingHelperCompletionService.instance;
-    if (!await helperService.shouldShowHelper(
-      userId,
-      OnboardingHelperIds.flowStudioAddFlow,
-    )) {
+    if (!await helperService.shouldShowHelper(userId, helper.id)) {
       return;
     }
     _helperPrompted = true;
     await Future<void>.delayed(const Duration(milliseconds: 450));
     if (!mounted) return;
     await helperService.hydrateUser(userId);
-    if (!mounted ||
-        !helperService.shouldShowHelperSync(
-          userId,
-          OnboardingHelperIds.flowStudioAddFlow,
-        )) {
+    if (!mounted || !helperService.shouldShowHelperSync(userId, helper.id)) {
       return;
     }
     GuidedOnboardingController.instance.show(
       CoachmarkTarget(
         key: _addFlowHelperKey,
-        title: 'Build your own rhythm',
-        body:
-            'Create personal flows for study, health, family, writing, business, or spiritual practice.',
+        title: helper.title,
+        body: helper.body,
         placement: CoachmarkPlacement.below,
         variant: CoachmarkVariant.helperBubble,
         showDismissButton: true,
         dismissLabel: 'Got it',
-        helperId: OnboardingHelperIds.flowStudioAddFlow,
+        helperId: helper.id,
         helperUserId: userId,
+        sourceWidget: OnboardingHelperRegistry.maatFlowListAddFlowSourceWidget,
         onDismiss: () async {
           final completion = helperService.markHelperCompleted(
             userId,
-            OnboardingHelperIds.flowStudioAddFlow,
+            helper.id,
           );
           GuidedOnboardingController.instance.clear();
           await completion;
@@ -183,10 +177,7 @@ class _MaatFlowsListPageState extends State<_MaatFlowsListPage> {
       ),
     );
     unawaited(
-      Events.trackIfAuthed(
-        'helper_seen_flow_builder',
-        const <String, dynamic>{},
-      ),
+      Events.trackIfAuthed(helper.analyticsEvent, const <String, dynamic>{}),
     );
   }
 
@@ -204,14 +195,18 @@ class _MaatFlowsListPageState extends State<_MaatFlowsListPage> {
 
   void _handleCreateNew() {
     unawaited(
-      _markFlowStudioHelperCompleted(OnboardingHelperIds.flowStudioAddFlow),
+      _markFlowStudioHelperCompleted(
+        OnboardingHelperRegistry.flowStudioAddFlow.id,
+      ),
     );
     widget.onCreateNew();
   }
 
   Future<void> _handlePickTemplate(_MaatFlowTemplate template) async {
     unawaited(
-      _markFlowStudioHelperCompleted(OnboardingHelperIds.flowStudioMaatFlows),
+      _markFlowStudioHelperCompleted(
+        OnboardingHelperRegistry.flowStudioMaatFlows.id,
+      ),
     );
     await widget.onPickTemplate(template);
   }

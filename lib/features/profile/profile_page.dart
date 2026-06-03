@@ -529,13 +529,10 @@ class _ProfilePageState extends State<ProfilePage>
     if (!mounted || !progress.completedOnboarding) {
       return;
     }
+    const helper = OnboardingHelperRegistry.profileCommunityFeed;
     final helperService = OnboardingHelperCompletionService.instance;
     await helperService.hydrateUser(userId);
-    if (!mounted ||
-        !helperService.shouldShowHelperSync(
-          userId,
-          OnboardingHelperIds.profileCommunityFeed,
-        )) {
+    if (!mounted || !helperService.shouldShowHelperSync(userId, helper.id)) {
       return;
     }
     _profileCommunityHelperPrompted = true;
@@ -544,34 +541,31 @@ class _ProfilePageState extends State<ProfilePage>
         if (!mounted || _feedRevealed) return;
         await helperService.hydrateUser(userId);
         if (!mounted ||
-            !helperService.shouldShowHelperSync(
-              userId,
-              OnboardingHelperIds.profileCommunityFeed,
-            )) {
+            !helperService.shouldShowHelperSync(userId, helper.id)) {
           return;
         }
         GuidedOnboardingController.instance.show(
           CoachmarkTarget(
             key: _feedRevealHintKey,
-            title: 'Your community lives below',
-            body:
-                'Scroll down to reveal the community feed, where shared flows and confirmations begin to gather.',
+            title: helper.title,
+            body: helper.body,
             placement: CoachmarkPlacement.auto,
             variant: CoachmarkVariant.helperBubble,
             showDismissButton: true,
             dismissLabel: 'Got it',
-            helperId: OnboardingHelperIds.profileCommunityFeed,
+            helperId: helper.id,
             helperUserId: userId,
+            sourceWidget: helper.sourceWidget,
             onDismiss: () async {
               final completion = helperService.markHelperCompleted(
                 userId,
-                OnboardingHelperIds.profileCommunityFeed,
+                helper.id,
               );
               GuidedOnboardingController.instance.clear();
               await completion;
               unawaited(
                 Events.trackIfAuthed(
-                  'helper_seen_profile_community_feed',
+                  helper.analyticsEvent,
                   const <String, dynamic>{},
                 ),
               );
@@ -587,17 +581,12 @@ class _ProfilePageState extends State<ProfilePage>
   }) async {
     final userId = _currentUserId;
     if (userId == null) return;
+    const helper = OnboardingHelperRegistry.profileCommunityFeed;
     final helperService = OnboardingHelperCompletionService.instance;
-    if (!await helperService.shouldShowHelper(
-      userId,
-      OnboardingHelperIds.profileCommunityFeed,
-    )) {
+    if (!await helperService.shouldShowHelper(userId, helper.id)) {
       return;
     }
-    final completion = helperService.markHelperCompleted(
-      userId,
-      OnboardingHelperIds.profileCommunityFeed,
-    );
+    final completion = helperService.markHelperCompleted(userId, helper.id);
     if (clearActiveHelper &&
         GuidedOnboardingController.instance.target?.variant ==
             CoachmarkVariant.helperBubble) {
@@ -605,10 +594,7 @@ class _ProfilePageState extends State<ProfilePage>
     }
     await completion;
     unawaited(
-      Events.trackIfAuthed(
-        'helper_seen_profile_community_feed',
-        const <String, dynamic>{},
-      ),
+      Events.trackIfAuthed(helper.analyticsEvent, const <String, dynamic>{}),
     );
   }
 

@@ -92,6 +92,19 @@ void main() {
         contains(helperId),
       );
     }
+
+    expect(
+      OnboardingHelperRegistry.all.map((helper) => helper.id).toSet(),
+      OnboardingHelperIds.all,
+    );
+    expect(OnboardingHelperRegistry.byId.keys.toSet(), OnboardingHelperIds.all);
+    for (final helper in OnboardingHelperRegistry.all) {
+      expect(helper.title.trim(), isNotEmpty);
+      expect(helper.body.trim(), isNotEmpty);
+      expect(helper.analyticsEvent.trim(), startsWith('helper_seen_'));
+      expect(helper.sourceWidget.trim(), isNotEmpty);
+      expect(OnboardingHelperRegistry.isRegistered(helper.id), isTrue);
+    }
   });
 
   test('storage persists progress per user', () async {
@@ -205,6 +218,8 @@ void main() {
 
       final helperCases = <({String label, String id})>[
         (label: 'calendar helper', id: OnboardingHelperIds.calendarToggle),
+        (label: 'journal helper', id: OnboardingHelperIds.journalBadges),
+        (label: 'settings helper', id: OnboardingHelperIds.settingsControl),
         (
           label: 'Flow Studio Add Flow helper',
           id: OnboardingHelperIds.flowStudioAddFlow,
@@ -342,6 +357,69 @@ void main() {
     );
   });
 
+  test('old local Journal helper progress is respected', () async {
+    final rawProgress = const OnboardingProgress()
+        .copyWith(
+          currentStep: TrueOnboardingStep.complete,
+          completedOnboarding: true,
+        )
+        .toJson();
+    rawProgress['seenHelpers'] = ['journalBadges'];
+    SharedPreferences.setMockInitialValues(<String, Object>{
+      'onboarding_v2_progress:user-a': jsonEncode(rawProgress),
+    });
+    OnboardingHelperCompletionService.resetForTesting(
+      remoteStore: _FakeRemoteStore(),
+    );
+
+    final storage = OnboardingProgressStorage();
+    final reloaded = await storage.load('user-a');
+
+    expect(
+      reloaded.seenHelpers,
+      contains(OnboardingHelperRegistry.journalBadges.id),
+    );
+    expect(
+      await storage.shouldShowHelper(
+        'user-a',
+        OnboardingHelperRegistry.journalBadges.id,
+      ),
+      isFalse,
+    );
+  });
+
+  test('old local Journal analytics/debug aliases are respected', () async {
+    for (final oldId in [
+      'journal_badges_helper',
+      'helper_seen_journal_badges',
+      'journal_record_badges',
+    ]) {
+      final rawProgress = const OnboardingProgress()
+          .copyWith(
+            currentStep: TrueOnboardingStep.complete,
+            completedOnboarding: true,
+          )
+          .toJson();
+      rawProgress['seenHelpers'] = [oldId];
+      SharedPreferences.setMockInitialValues(<String, Object>{
+        'onboarding_v2_progress:user-$oldId': jsonEncode(rawProgress),
+      });
+      OnboardingHelperCompletionService.resetForTesting(
+        remoteStore: _FakeRemoteStore(),
+      );
+
+      final storage = OnboardingProgressStorage();
+      expect(
+        await storage.shouldShowHelper(
+          'user-$oldId',
+          OnboardingHelperRegistry.journalBadges.id,
+        ),
+        isFalse,
+        reason: '$oldId should migrate to journal_badges',
+      );
+    }
+  });
+
   test('concurrent helper completions merge without dropping ids', () async {
     final storage = OnboardingProgressStorage();
     await storage.save(
@@ -458,6 +536,120 @@ void main() {
     );
     await completion;
   });
+
+  test(
+    'Journal record/badges helper does not show before progress hydration completes',
+    () async {
+      const helper = OnboardingHelperRegistry.journalBadges;
+      final remoteCompleter = Completer<Set<String>>();
+      final fakeRemote = _FakeRemoteStore(loadCompleter: remoteCompleter);
+      OnboardingHelperCompletionService.resetForTesting(
+        remoteStore: fakeRemote,
+      );
+      final storage = OnboardingProgressStorage();
+      await storage.save(
+        'user-a',
+        const OnboardingProgress().copyWith(
+          currentStep: TrueOnboardingStep.complete,
+          completedOnboarding: true,
+        ),
+      );
+
+      final service = OnboardingHelperCompletionService.instance;
+      final hydration = service.hydrateUser('user-a');
+
+      expect(
+        service.hydrationStateFor('user-a'),
+        OnboardingHelperHydrationState.loading,
+      );
+      expect(service.shouldShowHelperSync('user-a', helper.id), isFalse);
+
+      remoteCompleter.complete(const <String>{});
+      await hydration;
+
+      expect(service.shouldShowHelperSync('user-a', helper.id), isTrue);
+    },
+  );
+
+  test('Journal record/badges helper disappears after Got it', () async {
+    const helper = OnboardingHelperRegistry.journalBadges;
+    final storage = OnboardingProgressStorage();
+    await storage.save(
+      'user-a',
+      const OnboardingProgress().copyWith(
+        currentStep: TrueOnboardingStep.complete,
+        completedOnboarding: true,
+      ),
+    );
+    final service = OnboardingHelperCompletionService.instance;
+    await service.hydrateUser('user-a');
+
+    expect(service.shouldShowHelperSync('user-a', helper.id), isTrue);
+
+    final displayedHelperId = helper.id;
+    final gotItCompletionHelperId = helper.id;
+    expect(gotItCompletionHelperId, displayedHelperId);
+
+    final completion = service.markHelperCompleted(
+      'user-a',
+      gotItCompletionHelperId,
+    );
+
+    expect(service.isHelperCompletedSync('user-a', displayedHelperId), isTrue);
+    expect(service.shouldShowHelperSync('user-a', displayedHelperId), isFalse);
+    await completion;
+  });
+
+  test(
+    'Journal record/badges helper does not return after navigating away/back',
+    () async {
+      const helper = OnboardingHelperRegistry.journalBadges;
+      final storage = OnboardingProgressStorage();
+      await storage.save(
+        'user-a',
+        const OnboardingProgress().copyWith(
+          currentStep: TrueOnboardingStep.complete,
+          completedOnboarding: true,
+        ),
+      );
+      final service = OnboardingHelperCompletionService.instance;
+      await service.hydrateUser('user-a');
+      await service.markHelperCompleted('user-a', helper.id);
+
+      expect(await service.shouldShowHelper('user-a', helper.id), isFalse);
+    },
+  );
+
+  test(
+    'Journal record/badges helper does not return after app restart with persisted local progress',
+    () async {
+      const helper = OnboardingHelperRegistry.journalBadges;
+      final storage = OnboardingProgressStorage();
+      await storage.save(
+        'user-a',
+        const OnboardingProgress().copyWith(
+          currentStep: TrueOnboardingStep.complete,
+          completedOnboarding: true,
+        ),
+      );
+      await OnboardingHelperCompletionService.instance.markHelperCompleted(
+        'user-a',
+        helper.id,
+      );
+
+      OnboardingHelperCompletionService.resetForTesting(
+        remoteStore: _FakeRemoteStore(),
+      );
+
+      expect(
+        await OnboardingHelperCompletionService.instance.shouldShowHelper(
+          'user-a',
+          helper.id,
+        ),
+        isFalse,
+      );
+    },
+  );
 
   test(
     'Flow Studio helper does not return after navigating away/back',
@@ -638,6 +830,39 @@ void main() {
         (await storage.load('user-a')).seenHelpers,
         contains(OnboardingHelperIds.flowStudioAddFlow),
       );
+    },
+  );
+
+  test(
+    'helper render debug snapshot reports local and cloud completion',
+    () async {
+      const helper = OnboardingHelperRegistry.journalBadges;
+      final fakeRemote = _FakeRemoteStore(
+        completedByUser: {
+          'user-a': {helper.id},
+        },
+      );
+      OnboardingHelperCompletionService.resetForTesting(
+        remoteStore: fakeRemote,
+      );
+      final storage = OnboardingProgressStorage();
+      await storage.save(
+        'user-a',
+        const OnboardingProgress().copyWith(
+          currentStep: TrueOnboardingStep.complete,
+          completedOnboarding: true,
+        ),
+      );
+
+      final service = OnboardingHelperCompletionService.instance;
+      await service.hydrateUser('user-a');
+      final snapshot = service.debugSnapshot('user-a', helper.id);
+
+      expect(snapshot.helperId, helper.id);
+      expect(snapshot.userId, 'user-a');
+      expect(snapshot.hydrationState, OnboardingHelperHydrationState.ready);
+      expect(snapshot.completedCloud, isTrue);
+      expect(snapshot.completedLocal, isTrue);
     },
   );
 

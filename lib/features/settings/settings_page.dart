@@ -145,45 +145,39 @@ class _SettingsPageState extends State<SettingsPage> {
     if (_settingsHelperPrompted) return;
     final userId = Supabase.instance.client.auth.currentUser?.id;
     if (userId == null || userId.isEmpty) return;
+    const helper = OnboardingHelperRegistry.settingsControl;
     final helperService = OnboardingHelperCompletionService.instance;
-    if (!await helperService.shouldShowHelper(
-      userId,
-      OnboardingHelperIds.settingsControl,
-    )) {
+    if (!await helperService.shouldShowHelper(userId, helper.id)) {
       return;
     }
     _settingsHelperPrompted = true;
     await Future<void>.delayed(const Duration(milliseconds: 500));
     if (!mounted) return;
     await helperService.hydrateUser(userId);
-    if (!mounted ||
-        !helperService.shouldShowHelperSync(
-          userId,
-          OnboardingHelperIds.settingsControl,
-        )) {
+    if (!mounted || !helperService.shouldShowHelperSync(userId, helper.id)) {
       return;
     }
     GuidedOnboardingController.instance.show(
       CoachmarkTarget(
         key: _settingsControlsHelperKey,
-        title: 'Control the experience',
-        body:
-            'Manage notifications, calendar preferences, profile settings, and privacy here.',
+        title: helper.title,
+        body: helper.body,
         placement: CoachmarkPlacement.auto,
         variant: CoachmarkVariant.helperBubble,
         showDismissButton: true,
         dismissLabel: 'Got it',
-        helperId: OnboardingHelperIds.settingsControl,
+        helperId: helper.id,
         helperUserId: userId,
+        sourceWidget: helper.sourceWidget,
         onDismiss: () async {
           final completion = helperService.markHelperCompleted(
             userId,
-            OnboardingHelperIds.settingsControl,
+            helper.id,
           );
           GuidedOnboardingController.instance.clear();
           await completion;
           await Events.trackIfAuthed(
-            'helper_seen_settings_control',
+            helper.analyticsEvent,
             const <String, dynamic>{},
           );
         },

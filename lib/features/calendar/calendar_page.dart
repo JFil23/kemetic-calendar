@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:mobile/core/page_navigation_swipe.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../../data/event_filing_engine.dart';
 import '../../data/user_events_repo.dart';
 import '../../data/flows_repo.dart';
 import '../../data/shared_calendar_models.dart';
@@ -4444,6 +4445,86 @@ class CalendarPage extends StatefulWidget {
     context.go('/');
   }
 
+  static EventDetailRestorationState?
+  _eventDetailRestorationStateForFiledCalendarEvent({
+    required int kYear,
+    required int kMonth,
+    required int kDay,
+    required FiledEvent filedEvent,
+  }) {
+    final event = filedEvent.event;
+    final clientEventId = event.clientEventId?.trim();
+    if (clientEventId != null && clientEventId.isNotEmpty) {
+      return EventDetailRestorationState(
+        kYear: kYear,
+        kMonth: kMonth,
+        kDay: kDay,
+        identityType: eventDetailIdentityClientEventId,
+        identityValue: clientEventId,
+      );
+    }
+
+    final eventId = event.id.trim();
+    if (eventId.isNotEmpty) {
+      return EventDetailRestorationState(
+        kYear: kYear,
+        kMonth: kMonth,
+        kDay: kDay,
+        identityType: eventDetailIdentityEventId,
+        identityValue: eventId,
+      );
+    }
+
+    return null;
+  }
+
+  static Future<void> openFiledCalendarEventFromAnyContext(
+    BuildContext context, {
+    required FiledEvent filedEvent,
+  }) async {
+    final localStart = filedEvent.event.startsAt.toLocal();
+    final kDate = KemeticMath.fromGregorian(localStart);
+    final detail = _eventDetailRestorationStateForFiledCalendarEvent(
+      kYear: kDate.kYear,
+      kMonth: kDate.kMonth,
+      kDay: kDate.kDay,
+      filedEvent: filedEvent,
+    );
+    if (detail == null) return;
+
+    final mountedHost = _shouldUseMountedCalendarHost(context)
+        ? _mountedCalendarHostForContext(context)
+        : null;
+    if (mountedHost != null) {
+      await mountedHost._loadCalendarState();
+      await mountedHost._loadFromDisk(source: 'shared_calendar_event_tap');
+      if (!mountedHost.mounted) return;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mountedHost.mounted) return;
+        mountedHost._openDayView(
+          mountedHost.context,
+          kDate.kYear,
+          kDate.kMonth,
+          kDate.kDay,
+          initialEventDetailRestorationState: detail,
+        );
+      });
+      return;
+    }
+
+    await _clearDetachedCalendarOverlayState(
+      _kCalendarOverlayKindSharedCalendars,
+    );
+    if (!context.mounted) return;
+    _routeHomeForSearchResult(
+      context,
+      ky: kDate.kYear,
+      km: kDate.kMonth,
+      kd: kDate.kDay,
+      eventDetail: detail,
+    );
+  }
+
   static Future<void> openMyFlowsFromAnyContext(BuildContext context) async {
     final mountedHost = _shouldUseMountedCalendarHost(context)
         ? _mountedCalendarHostForContext(context)
@@ -4771,6 +4852,11 @@ class CalendarPage extends StatefulWidget {
         context,
         repo: SharedCalendarsRepo(Supabase.instance.client),
         initialExpandedCalendarIds: initialExpandedCalendarIds,
+        onEventTapRequested: (_, filedEvent) =>
+            openFiledCalendarEventFromAnyContext(
+              context,
+              filedEvent: filedEvent,
+            ),
         onContinuityChanged: (state) {
           unawaited(
             _saveDetachedCalendarOverlayState(
@@ -7912,6 +7998,11 @@ class CalendarPageState extends State<CalendarPage>
         context,
         repo: _sharedCalendarsRepo,
         onAddEventRequested: _openCalendarScopedNoteDialog,
+        onEventTapRequested: (_, filedEvent) =>
+            CalendarPage.openFiledCalendarEventFromAnyContext(
+              context,
+              filedEvent: filedEvent,
+            ),
         initialExpandedCalendarIds: _stringListFromRestoration(
           restorationState?['expandedCalendarIds'],
         ),
@@ -11791,23 +11882,26 @@ class CalendarPageState extends State<CalendarPage>
 
     await Future<void>.delayed(const Duration(milliseconds: 700));
     if (!mounted) return;
-    if (!helperService.shouldShowHelperSync(userId, helper.id)) {
+    if (!helperService.shouldShowHelperSync(userId, helper.definition.id)) {
       _calendarAfterOnboardingHelperPrompted = false;
       return;
     }
     GuidedOnboardingController.instance.show(
       CoachmarkTarget(
         key: helper.key,
-        title: helper.title,
-        body: helper.body,
+        title: helper.definition.title,
+        body: helper.definition.body,
         placement: helper.placement,
         variant: CoachmarkVariant.helperBubble,
         showDismissButton: true,
         dismissLabel: 'Got it',
-        helperId: helper.id,
+        helperId: helper.definition.id,
         helperUserId: userId,
+        sourceWidget: helper.definition.sourceWidget,
         onDismiss: () async {
-          final completion = _markOnboardingHelperCompleted(helper.id);
+          final completion = _markOnboardingHelperCompleted(
+            helper.definition.id,
+          );
           _calendarAfterOnboardingHelperPrompted = false;
           final updated = await completion;
           unawaited(
@@ -11819,62 +11913,46 @@ class CalendarPageState extends State<CalendarPage>
       ),
     );
     unawaited(
-      Events.trackIfAuthed(helper.analyticsEvent, const <String, dynamic>{}),
+      Events.trackIfAuthed(
+        helper.definition.analyticsEvent,
+        const <String, dynamic>{},
+      ),
     );
   }
 
   ({
-    String id,
+    OnboardingHelperDefinition definition,
     GlobalKey key,
-    String title,
-    String body,
-    String analyticsEvent,
     CoachmarkPlacement placement,
   })?
   _nextCalendarHelper(String userId) {
     final helperService = OnboardingHelperCompletionService.instance;
-    if (helperService.shouldShowHelperSync(
-      userId,
-      OnboardingHelperIds.calendarToggle,
-    )) {
+    const calendarToggle = OnboardingHelperRegistry.calendarToggle;
+    if (helperService.shouldShowHelperSync(userId, calendarToggle.id)) {
       return (
-        id: OnboardingHelperIds.calendarToggle,
+        definition: calendarToggle,
         key: _calendarToggleKey,
-        title: 'Switch calendar views',
-        body:
-            'Tap ḥꜣw to toggle between the Kemetic calendar and the Gregorian calendar at any time.',
-        analyticsEvent: 'helper_seen_calendar_toggle',
         placement: CoachmarkPlacement.below,
       );
     }
-    if (helperService.shouldShowHelperSync(
-      userId,
-      OnboardingHelperIds.monthDetails,
-    )) {
+    const monthDetails = OnboardingHelperRegistry.monthDetails;
+    if (helperService.shouldShowHelperSync(userId, monthDetails.id)) {
       final decanIndex = decanForDay(_today.kDay) - 1;
       return (
-        id: OnboardingHelperIds.monthDetails,
+        definition: monthDetails,
         key: keyForCurrentDecanHeader(
           _today.kYear,
           _today.kMonth.clamp(1, 12).toInt(),
           decanIndex.clamp(0, 2).toInt(),
         ),
-        title: 'Month details',
-        body: 'Tap the month or decan name for lore, structure, and meaning.',
-        analyticsEvent: 'helper_seen_month_details',
         placement: CoachmarkPlacement.below,
       );
     }
-    if (helperService.shouldShowHelperSync(
-      userId,
-      OnboardingHelperIds.dayCardLongPress,
-    )) {
+    const dayCardLongPress = OnboardingHelperRegistry.dayCardLongPress;
+    if (helperService.shouldShowHelperSync(userId, dayCardLongPress.id)) {
       return (
-        id: OnboardingHelperIds.dayCardLongPress,
+        definition: dayCardLongPress,
         key: _todayDayKey,
-        title: 'Reveal the day card',
-        body: 'Long press a day to reveal its card.',
-        analyticsEvent: 'helper_seen_day_card_long_press',
         placement: CoachmarkPlacement.above,
       );
     }
@@ -12171,7 +12249,9 @@ class CalendarPageState extends State<CalendarPage>
 
     _restorationInteractedSinceBoot = true;
     unawaited(
-      _markOnboardingHelperCompleted(OnboardingHelperIds.calendarToggle),
+      _markOnboardingHelperCompleted(
+        OnboardingHelperRegistry.calendarToggle.id,
+      ),
     );
     setState(() {
       _showGregorian = !_showGregorian;
@@ -12243,7 +12323,9 @@ class CalendarPageState extends State<CalendarPage>
     int kMonth,
   ) {
     if (!mounted) return;
-    unawaited(_markOnboardingHelperCompleted(OnboardingHelperIds.monthDetails));
+    unawaited(
+      _markOnboardingHelperCompleted(OnboardingHelperRegistry.monthDetails.id),
+    );
 
     final shouldFinalizeOnboarding =
         _showCalendarMonthCoachmark &&
@@ -12276,7 +12358,9 @@ class CalendarPageState extends State<CalendarPage>
     int decanIndex,
   ) {
     if (!mounted) return;
-    unawaited(_markOnboardingHelperCompleted(OnboardingHelperIds.monthDetails));
+    unawaited(
+      _markOnboardingHelperCompleted(OnboardingHelperRegistry.monthDetails.id),
+    );
     _openMonthInfo(navigatorContext, kYear, kMonth, decanIndex: decanIndex);
   }
 
@@ -21915,7 +21999,9 @@ class CalendarPageState extends State<CalendarPage>
   }) {
     _restorationInteractedSinceBoot = true;
     unawaited(
-      _markOnboardingHelperCompleted(OnboardingHelperIds.dayCardLongPress),
+      _markOnboardingHelperCompleted(
+        OnboardingHelperRegistry.dayCardLongPress.id,
+      ),
     );
     final shouldShowDayCardRevealCoachmark =
         _shouldShowDayCardRevealCoachmarkFromOnboarding;

@@ -37,6 +37,7 @@ class CoachmarkTarget {
     this.onSkip,
     this.helperId,
     this.helperUserId,
+    this.sourceWidget,
   });
 
   final GlobalKey? key;
@@ -57,6 +58,7 @@ class CoachmarkTarget {
   final VoidCallback? onSkip;
   final String? helperId;
   final String? helperUserId;
+  final String? sourceWidget;
 }
 
 class GuidedOnboardingController extends ChangeNotifier {
@@ -73,6 +75,37 @@ class GuidedOnboardingController extends ChangeNotifier {
       _suppressExternalOverlays || _target != null;
 
   void show(CoachmarkTarget target) {
+    assert(() {
+      if (target.variant != CoachmarkVariant.helperBubble) return true;
+      final helperId = target.helperId;
+      final helperUserId = target.helperUserId;
+      if (helperId == null || helperId.trim().isEmpty) {
+        throw FlutterError(
+          'Helper bubble "${target.title}" is missing a stable helperId.',
+        );
+      }
+      if (helperUserId == null || helperUserId.trim().isEmpty) {
+        throw FlutterError(
+          'Helper bubble "$helperId" is missing helperUserId.',
+        );
+      }
+      if (!OnboardingHelperRegistry.isRegistered(helperId)) {
+        throw FlutterError(
+          'Helper bubble "$helperId" is not registered in '
+          'OnboardingHelperRegistry.',
+        );
+      }
+      final sourceWidget =
+          target.sourceWidget ??
+          OnboardingHelperRegistry.maybeById(helperId)?.sourceWidget ??
+          'unknown';
+      OnboardingHelperCompletionService.instance.debugLogHelperRender(
+        userId: helperUserId,
+        helperId: helperId,
+        sourceWidget: sourceWidget,
+      );
+      return true;
+    }());
     _target = target;
     notifyListeners();
   }

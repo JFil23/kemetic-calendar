@@ -115,6 +115,10 @@ class OnboardingHelperIds {
     'monthDetails': {monthDetails},
     'dayCardLongPress': {dayCardLongPress},
     'journalBadges': {journalBadges},
+    'journal_badges_helper': {journalBadges},
+    'journal_record_badges': {journalBadges},
+    'journalRecordBadges': {journalBadges},
+    'helper_seen_journal_badges': {journalBadges},
     'flowBuilder': {
       flowStudioAddFlow,
       flowStudioSavedFlows,
@@ -163,6 +167,149 @@ class OnboardingHelperIds {
       normalized.addAll(completionKeysFor(raw));
     }
     return normalized;
+  }
+}
+
+@immutable
+class OnboardingHelperDefinition {
+  const OnboardingHelperDefinition({
+    required this.id,
+    required this.title,
+    required this.body,
+    required this.analyticsEvent,
+    required this.sourceWidget,
+  });
+
+  final String id;
+  final String title;
+  final String body;
+  final String analyticsEvent;
+  final String sourceWidget;
+}
+
+class OnboardingHelperRegistry {
+  OnboardingHelperRegistry._();
+
+  static const String flowHubPageAddFlowSourceWidget =
+      'FlowHubPage.addFlowHelper';
+  static const String maatFlowListAddFlowSourceWidget =
+      'MaatFlowListPage.addFlowHelper';
+
+  static const flowStudioAddFlow = OnboardingHelperDefinition(
+    id: OnboardingHelperIds.flowStudioAddFlow,
+    title: 'Build your own rhythm',
+    body:
+        'Create personal flows for study, health, family, writing, business, or spiritual practice.',
+    analyticsEvent: 'helper_seen_flow_builder',
+    sourceWidget: 'FlowStudioAddFlowHelper',
+  );
+
+  static const flowStudioSavedFlows = OnboardingHelperDefinition(
+    id: OnboardingHelperIds.flowStudioSavedFlows,
+    title: 'Saved flows',
+    body: 'Your saved and active flows live here.',
+    analyticsEvent: 'helper_seen_flow_studio_saved_flows',
+    sourceWidget: 'FlowStudioSavedFlowsHelper',
+  );
+
+  static const flowStudioMaatFlows = OnboardingHelperDefinition(
+    id: OnboardingHelperIds.flowStudioMaatFlows,
+    title: 'Ma’at template flows',
+    body: 'Ma’at templates give you ready-made rhythms to adapt.',
+    analyticsEvent: 'helper_seen_flow_studio_maat_flows',
+    sourceWidget: 'FlowStudioMaatFlowsHelper',
+  );
+
+  static const calendarToggle = OnboardingHelperDefinition(
+    id: OnboardingHelperIds.calendarToggle,
+    title: 'Switch calendar views',
+    body:
+        'Tap ḥꜣw to toggle between the Kemetic calendar and the Gregorian calendar at any time.',
+    analyticsEvent: 'helper_seen_calendar_toggle',
+    sourceWidget: 'CalendarPage.calendarToggleHelper',
+  );
+
+  static const monthDetails = OnboardingHelperDefinition(
+    id: OnboardingHelperIds.monthDetails,
+    title: 'Month details',
+    body: 'Tap the month or decan name for lore, structure, and meaning.',
+    analyticsEvent: 'helper_seen_month_details',
+    sourceWidget: 'CalendarPage.monthDetailsHelper',
+  );
+
+  static const dayCardLongPress = OnboardingHelperDefinition(
+    id: OnboardingHelperIds.dayCardLongPress,
+    title: 'Reveal the day card',
+    body: 'Long press a day to reveal its card.',
+    analyticsEvent: 'helper_seen_day_card_long_press',
+    sourceWidget: 'CalendarPage.dayCardLongPressHelper',
+  );
+
+  static const journalBadges = OnboardingHelperDefinition(
+    id: OnboardingHelperIds.journalBadges,
+    title: 'Your record gathers here',
+    body:
+        'Reflections, observed events, and journal badges will appear here over time.',
+    analyticsEvent: 'helper_seen_journal_badges',
+    sourceWidget: 'JournalPage.journalBadgesHelper',
+  );
+
+  static const settingsControl = OnboardingHelperDefinition(
+    id: OnboardingHelperIds.settingsControl,
+    title: 'Control the experience',
+    body:
+        'Manage notifications, calendar preferences, profile settings, and privacy here.',
+    analyticsEvent: 'helper_seen_settings_control',
+    sourceWidget: 'SettingsPage.settingsControlHelper',
+  );
+
+  static const profileCommunityFeed = OnboardingHelperDefinition(
+    id: OnboardingHelperIds.profileCommunityFeed,
+    title: 'Your community lives below',
+    body:
+        'Scroll down to reveal the community feed, where shared flows and confirmations begin to gather.',
+    analyticsEvent: 'helper_seen_profile_community_feed',
+    sourceWidget: 'ProfilePage.profileCommunityFeedHelper',
+  );
+
+  static const List<OnboardingHelperDefinition> all = [
+    calendarToggle,
+    monthDetails,
+    dayCardLongPress,
+    journalBadges,
+    flowStudioAddFlow,
+    flowStudioSavedFlows,
+    flowStudioMaatFlows,
+    profileCommunityFeed,
+    settingsControl,
+  ];
+
+  static const Map<String, OnboardingHelperDefinition> byId = {
+    OnboardingHelperIds.calendarToggle: calendarToggle,
+    OnboardingHelperIds.monthDetails: monthDetails,
+    OnboardingHelperIds.dayCardLongPress: dayCardLongPress,
+    OnboardingHelperIds.journalBadges: journalBadges,
+    OnboardingHelperIds.flowStudioAddFlow: flowStudioAddFlow,
+    OnboardingHelperIds.flowStudioSavedFlows: flowStudioSavedFlows,
+    OnboardingHelperIds.flowStudioMaatFlows: flowStudioMaatFlows,
+    OnboardingHelperIds.profileCommunityFeed: profileCommunityFeed,
+    OnboardingHelperIds.settingsControl: settingsControl,
+  };
+
+  static bool isRegistered(String helperId) {
+    final keys = OnboardingHelperIds.completionKeysFor(helperId);
+    if (keys.isEmpty) return false;
+    return keys.every((key) {
+      final parsed = OnboardingHelperIds.parseCompletionKey(key);
+      return byId.containsKey(parsed.helperId);
+    });
+  }
+
+  static OnboardingHelperDefinition? maybeById(String helperId) {
+    final keys = OnboardingHelperIds.completionKeysFor(helperId);
+    if (keys.length != 1) return null;
+    final parsed = OnboardingHelperIds.parseCompletionKey(keys.single);
+    return byId[parsed.helperId];
   }
 }
 
@@ -536,6 +683,25 @@ class SupabaseOnboardingHelperCompletionRemoteStore
 
 enum OnboardingHelperHydrationState { unknown, loading, ready }
 
+@immutable
+class OnboardingHelperRenderDebugSnapshot {
+  const OnboardingHelperRenderDebugSnapshot({
+    required this.helperId,
+    required this.userId,
+    required this.hydrationState,
+    required this.completedLocal,
+    required this.completedCloud,
+    required this.completedMemory,
+  });
+
+  final String helperId;
+  final String userId;
+  final OnboardingHelperHydrationState hydrationState;
+  final bool completedLocal;
+  final bool completedCloud;
+  final bool completedMemory;
+}
+
 class _OnboardingHelperUserState {
   const _OnboardingHelperUserState({
     required this.hydrationState,
@@ -571,6 +737,8 @@ class OnboardingHelperCompletionService extends ChangeNotifier {
   final OnboardingHelperCompletionRemoteStore _remoteStore;
   final Map<String, _OnboardingHelperUserState> _states =
       <String, _OnboardingHelperUserState>{};
+  final Map<String, Set<String>> _localCompletionKeys = <String, Set<String>>{};
+  final Map<String, Set<String>> _cloudCompletionKeys = <String, Set<String>>{};
   final Map<String, Set<String>> _memoryCompletionKeys =
       <String, Set<String>>{};
   final Map<String, Future<OnboardingProgress>> _hydrationFutures =
@@ -609,6 +777,57 @@ class OnboardingHelperCompletionService extends ChangeNotifier {
     );
   }
 
+  bool isHelperCompletedLocallySync(String userId, String helperId) {
+    final completionKeys = OnboardingHelperIds.completionKeysFor(helperId);
+    if (completionKeys.isEmpty) return false;
+    final localKeys = _localCompletionKeys[userId] ?? const <String>{};
+    return completionKeys.any(localKeys.contains);
+  }
+
+  bool isHelperCompletedInCloudSync(String userId, String helperId) {
+    final completionKeys = OnboardingHelperIds.completionKeysFor(helperId);
+    if (completionKeys.isEmpty) return false;
+    final cloudKeys = _cloudCompletionKeys[userId] ?? const <String>{};
+    return completionKeys.any(cloudKeys.contains);
+  }
+
+  OnboardingHelperRenderDebugSnapshot debugSnapshot(
+    String userId,
+    String helperId,
+  ) {
+    final trimmedUserId = userId.trim();
+    final completionKeys = OnboardingHelperIds.completionKeysFor(helperId);
+    final memoryKeys = _memoryCompletionKeys[trimmedUserId] ?? const <String>{};
+    return OnboardingHelperRenderDebugSnapshot(
+      helperId: helperId,
+      userId: trimmedUserId,
+      hydrationState: hydrationStateFor(trimmedUserId),
+      completedLocal: isHelperCompletedLocallySync(trimmedUserId, helperId),
+      completedCloud: isHelperCompletedInCloudSync(trimmedUserId, helperId),
+      completedMemory: completionKeys.any(memoryKeys.contains),
+    );
+  }
+
+  void debugLogHelperRender({
+    required String userId,
+    required String helperId,
+    required String sourceWidget,
+  }) {
+    assert(() {
+      final snapshot = debugSnapshot(userId, helperId);
+      debugPrint(
+        '[OnboardingHelperRender] helperId=${snapshot.helperId} '
+        'userId=${snapshot.userId} '
+        'hydrationState=${snapshot.hydrationState.name} '
+        'completedLocal=${snapshot.completedLocal} '
+        'completedCloud=${snapshot.completedCloud} '
+        'completedMemory=${snapshot.completedMemory} '
+        'sourceWidget=$sourceWidget',
+      );
+      return true;
+    }());
+  }
+
   bool shouldShowHelperSync(String userId, String helperId) {
     final state = _states[userId];
     if (state == null ||
@@ -634,6 +853,7 @@ class OnboardingHelperCompletionService extends ChangeNotifier {
         ...memoryKeys,
       }),
     );
+    _localCompletionKeys[trimmedUserId] = merged.seenHelpers;
     if (state.progress == merged) return;
     _states[trimmedUserId] = state.copyWith(progress: merged);
     notifyListeners();
@@ -667,6 +887,10 @@ class OnboardingHelperCompletionService extends ChangeNotifier {
     hydration =
         (() async {
               var progress = await _localStorage.loadLocal(trimmedUserId);
+              final localKeys =
+                  OnboardingHelperIds.normalizeCompletedHelperKeys(
+                    progress.seenHelpers,
+                  );
               final remoteKeys = await _remoteStore.loadCompletedHelperKeys(
                 trimmedUserId,
               );
@@ -683,6 +907,9 @@ class OnboardingHelperCompletionService extends ChangeNotifier {
                   remoteKeys.isNotEmpty) {
                 await _localStorage.saveLocal(trimmedUserId, mergedProgress);
               }
+              _localCompletionKeys[trimmedUserId] =
+                  setEquals(localKeys, mergedKeys) ? localKeys : mergedKeys;
+              _cloudCompletionKeys[trimmedUserId] = remoteKeys;
               _states[trimmedUserId] = _OnboardingHelperUserState(
                 hydrationState: OnboardingHelperHydrationState.ready,
                 progress: mergedProgress,
@@ -702,6 +929,7 @@ class OnboardingHelperCompletionService extends ChangeNotifier {
                             _memoryCompletionKeys[trimmedUserId] ??
                             const <String>{},
                       );
+              _localCompletionKeys[trimmedUserId] = progress.seenHelpers;
               _states[trimmedUserId] = _OnboardingHelperUserState(
                 hydrationState: OnboardingHelperHydrationState.ready,
                 progress: progress,
@@ -753,7 +981,13 @@ class OnboardingHelperCompletionService extends ChangeNotifier {
           });
           final updated = progress.copyWith(seenHelpers: mergedKeys);
           await _localStorage.saveLocal(trimmedUserId, updated);
+          _localCompletionKeys[trimmedUserId] = mergedKeys;
           await _remoteStore.markCompleted(trimmedUserId, completionKeys);
+          _cloudCompletionKeys[trimmedUserId] =
+              OnboardingHelperIds.normalizeCompletedHelperKeys({
+                ...?_cloudCompletionKeys[trimmedUserId],
+                ...completionKeys,
+              });
           final existingState = _states[trimmedUserId];
           _states[trimmedUserId] = _OnboardingHelperUserState(
             hydrationState:
