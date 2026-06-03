@@ -25,6 +25,7 @@ import '../../widgets/kemetic_app_bar_action.dart';
 import '../../widgets/kemetic_heart_icon.dart';
 import '../../widgets/profile_avatar.dart';
 import '../calendars/shared_calendars_sheet.dart';
+import 'inbox_threading.dart';
 
 void _logInboxImport(String message) {
   if (kDebugMode) {
@@ -33,7 +34,9 @@ void _logInboxImport(String message) {
 }
 
 class InboxPage extends StatefulWidget {
-  const InboxPage({super.key});
+  const InboxPage({super.key, this.initialSharedCalendarId});
+
+  final String? initialSharedCalendarId;
 
   @override
   State<InboxPage> createState() => _InboxPageState();
@@ -90,6 +93,7 @@ class _InboxPageState extends State<InboxPage> {
   List<InboxActivityItem> _activity = const [];
   InboxUnreadState _unreadState = const InboxUnreadState();
   bool _resumeConversationChecked = false;
+  String? _openedInitialSharedCalendarId;
 
   @override
   void initState() {
@@ -151,7 +155,18 @@ class _InboxPageState extends State<InboxPage> {
     _refreshUnified(showLoading: false);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       unawaited(_resumeConversationIfNeeded());
+      unawaited(_openInitialSharedCalendarIfNeeded());
     });
+  }
+
+  @override
+  void didUpdateWidget(covariant InboxPage oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.initialSharedCalendarId != widget.initialSharedCalendarId) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        unawaited(_openInitialSharedCalendarIfNeeded());
+      });
+    }
   }
 
   Future<void> _handleRefresh() async {
@@ -215,7 +230,7 @@ class _InboxPageState extends State<InboxPage> {
     final currentUserId = _inboxRepo.currentUserId;
     _latestThreads = currentUserId == null
         ? const <String, List<InboxShareItem>>{}
-        : _conversationThreadsFromItems(items, currentUserId);
+        : directMessageConversationThreadsFromItems(items, currentUserId);
     _reconcileOptimisticReadState();
 
     _latestEventInvites = currentUserId == null
@@ -240,29 +255,7 @@ class _InboxPageState extends State<InboxPage> {
               )
               .toList()
             ..sort((a, b) => b.createdAt.compareTo(a.createdAt)));
-  }
-
-  Map<String, List<InboxShareItem>> _conversationThreadsFromItems(
-    List<InboxShareItem> items,
-    String currentUserId,
-  ) {
-    final grouped = <String, List<InboxShareItem>>{};
-    for (final item in items) {
-      if (item.isDeleted || item.isEvent || item.isCalendar) continue;
-      final otherId = _otherUserIdForItem(item, currentUserId);
-      if (otherId == null) continue;
-      grouped.putIfAbsent(otherId, () => <InboxShareItem>[]).add(item);
-    }
-    for (final list in grouped.values) {
-      list.sort((a, b) => a.createdAt.compareTo(b.createdAt));
-    }
-    return grouped;
-  }
-
-  String? _otherUserIdForItem(InboxShareItem item, String currentUserId) {
-    if (item.senderId == currentUserId) return item.recipientId;
-    if (item.recipientId == currentUserId) return item.senderId;
-    return null;
+    _markOpenedInitialCalendarNotificationsViewedIfNeeded();
   }
 
   void _applyActivity(List<InboxActivityItem> activity) {
@@ -394,6 +387,29 @@ class _InboxPageState extends State<InboxPage> {
     );
   }
 
+  Future<void> _openInitialSharedCalendarIfNeeded() async {
+    final calendarId = widget.initialSharedCalendarId?.trim();
+    if (!mounted || calendarId == null || calendarId.isEmpty) return;
+    if (_openedInitialSharedCalendarId == calendarId) return;
+
+    _openedInitialSharedCalendarId = calendarId;
+    _markOpenedInitialCalendarNotificationsViewedIfNeeded();
+    await _openSharedCalendarById(calendarId);
+  }
+
+  void _markOpenedInitialCalendarNotificationsViewedIfNeeded() {
+    final calendarId = _openedInitialSharedCalendarId;
+    if (calendarId == null || calendarId.isEmpty) return;
+    final matching = _latestCalendarNotifications
+        .where(
+          (item) =>
+              item.isCalendarEventNotification && item.calendarId == calendarId,
+        )
+        .toList(growable: false);
+    if (matching.isEmpty) return;
+    unawaited(_markItemsViewed(matching));
+  }
+
   void _openConversation({
     required String otherUserId,
     required ConversationUser otherProfile,
@@ -405,6 +421,16 @@ class _InboxPageState extends State<InboxPage> {
         'profile': otherProfile,
         if (initialDraftText != null) 'initialDraftText': initialDraftText,
       },
+    );
+  }
+
+  Future<void> _openSharedCalendarById(String calendarId) async {
+    final normalized = calendarId.trim();
+    if (normalized.isEmpty || !mounted) return;
+    await SharedCalendarsSheet.show(
+      context,
+      repo: _sharedCalendarsRepo,
+      initialExpandedCalendarIds: <String>[normalized],
     );
   }
 
@@ -444,8 +470,8 @@ class _InboxPageState extends State<InboxPage> {
                         );
                       } else if (item.kind ==
                           _UnifiedKind.calendarNotification) {
-                        return _buildCalendarNotificationRow(
-                          item.calendarNotification!,
+                        return _buildSharedCalendarThreadRow(
+                          item.calendarThread!,
                         );
                       }
                       return _buildEventInviteRow(item.invite!);
@@ -515,15 +541,18 @@ class _InboxPageState extends State<InboxPage> {
         )
         .toList(growable: false);
 
-    final calendarItems = _latestCalendarNotifications
-        .where((notification) => notification.isCalendarEventNotification)
-        .map(
-          (notification) => _UnifiedInboxItem.calendarNotification(
-            createdAt: notification.createdAt,
-            calendarNotification: notification,
-          ),
-        )
-        .toList(growable: false);
+    final calendarItems =
+        sharedCalendarInboxThreadsFromNotifications(
+              _latestCalendarNotifications,
+              optimisticReadShareIds: _optimisticReadShareIds,
+            )
+            .map(
+              (thread) => _UnifiedInboxItem.calendarNotification(
+                createdAt: thread.createdAt,
+                calendarThread: thread,
+              ),
+            )
+            .toList(growable: false);
 
     return [...calendarItems, ...inviteItems, ...messageItems]
       ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
@@ -534,15 +563,20 @@ class _InboxPageState extends State<InboxPage> {
     if (currentUserId == null || _optimisticReadShareIds.isEmpty) return;
 
     final stillPending = <String>{};
-    for (final thread in _latestThreads.values) {
-      for (final item in thread) {
-        final isIncomingUnread =
-            item.recipientId == currentUserId && item.isUnread;
-        if (isIncomingUnread) {
+    void collectUnread(Iterable<InboxShareItem> items) {
+      for (final item in items) {
+        final isIncoming = item.recipientId == currentUserId;
+        if (isIncoming && item.isUnread) {
           stillPending.add(item.shareId);
         }
       }
     }
+
+    for (final thread in _latestThreads.values) {
+      collectUnread(thread);
+    }
+    collectUnread(_latestEventInvites);
+    collectUnread(_latestCalendarNotifications);
     _optimisticReadShareIds.retainAll(stillPending);
   }
 
@@ -695,7 +729,16 @@ class _InboxPageState extends State<InboxPage> {
           children: [
             IconButton(
               tooltip: 'View profile',
-              icon: KemeticGold.icon(Icons.person),
+              icon: const Text(
+                '𓁷',
+                style: TextStyle(
+                  color: _gold,
+                  fontSize: 23,
+                  height: 1,
+                  fontFamily: 'Noto Sans Egyptian Hieroglyphs',
+                  fontFamilyFallback: _meduFontFallback,
+                ),
+              ),
               onPressed: () => _openProfile(otherUserId),
             ),
             if (hasUnread)
@@ -801,27 +844,12 @@ class _InboxPageState extends State<InboxPage> {
     );
   }
 
-  Widget _buildCalendarNotificationRow(InboxShareItem notification) {
-    final senderName = notification.senderName?.trim().isNotEmpty == true
-        ? notification.senderName!.trim()
-        : (notification.senderHandle?.trim().isNotEmpty == true
-              ? '@${notification.senderHandle!.trim()}'
-              : 'Someone');
-    final accent = notification.calendarColorValue != null
-        ? Color(notification.calendarColorValue!)
+  Widget _buildSharedCalendarThreadRow(SharedCalendarInboxThread thread) {
+    final accent = thread.calendarColorValue != null
+        ? Color(thread.calendarColorValue!)
         : _gold;
-    final title = notification.calendarName ?? notification.title;
-    final subtitle = notification.calendarBody?.trim().isNotEmpty == true
-        ? notification.calendarBody!.trim()
-        : (notification.isCalendarInviteNotification
-              ? '$senderName invited you to join this calendar.'
-              : 'Update from $senderName');
-    final statusLabel = notification.isCalendarInviteNotification
-        ? 'Invite'
-        : 'Calendar';
-    final icon = notification.isCalendarInviteNotification
-        ? Icons.person_add_alt_1_rounded
-        : Icons.calendar_month_rounded;
+    final subtitle =
+        '${thread.preview} • ${_formatInboxTimestamp(thread.createdAt)}';
 
     return ListTile(
       contentPadding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
@@ -833,15 +861,28 @@ class _InboxPageState extends State<InboxPage> {
           color: accent.withValues(alpha: 0.14),
           border: Border.all(color: accent.withValues(alpha: 0.32)),
         ),
-        child: Icon(icon, color: accent),
+        child: Center(
+          child: Text(
+            MeduNeterGlyphs.calendars,
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              color: accent,
+              fontSize: 22,
+              height: 1,
+              fontWeight: FontWeight.w700,
+              fontFamily: 'GentiumPlus',
+              fontFamilyFallback: _meduFontFallback,
+            ),
+          ),
+        ),
       ),
       title: Text(
-        title,
+        thread.title,
         maxLines: 1,
         overflow: TextOverflow.ellipsis,
         style: TextStyle(
           color: Colors.white,
-          fontWeight: notification.isUnread ? FontWeight.bold : FontWeight.w600,
+          fontWeight: thread.hasUnread ? FontWeight.bold : FontWeight.w600,
         ),
       ),
       subtitle: Text(
@@ -864,7 +905,7 @@ class _InboxPageState extends State<InboxPage> {
               borderRadius: BorderRadius.circular(999),
             ),
             child: Text(
-              statusLabel,
+              thread.unreadCount > 1 ? '${thread.unreadCount}' : 'Calendar',
               style: TextStyle(
                 color: accent,
                 fontSize: 11,
@@ -872,7 +913,7 @@ class _InboxPageState extends State<InboxPage> {
               ),
             ),
           ),
-          if (notification.isUnread) ...[
+          if (thread.hasUnread) ...[
             const SizedBox(height: 8),
             Container(
               width: 8,
@@ -885,7 +926,7 @@ class _InboxPageState extends State<InboxPage> {
           ],
         ],
       ),
-      onTap: () => _openCalendarNotification(notification),
+      onTap: () => _openSharedCalendarThread(thread),
     );
   }
 
@@ -928,6 +969,32 @@ class _InboxPageState extends State<InboxPage> {
       case EventInviteResponseStatus.noResponse:
         return invite.viewedAt != null ? 'Opened' : 'Pending';
     }
+  }
+
+  String _formatInboxTimestamp(DateTime value) {
+    final local = value.toLocal();
+    final now = DateTime.now();
+    final diff = now.difference(local);
+    if (!diff.isNegative && diff.inMinutes < 1) return 'Now';
+    if (!diff.isNegative && diff.inHours < 1) return '${diff.inMinutes}m';
+    if (!diff.isNegative && diff.inDays < 1) return '${diff.inHours}h';
+
+    final sameYear = local.year == now.year;
+    final sameWeek = !diff.isNegative && diff.inDays < 7;
+    if (sameWeek) {
+      const weekdays = <String>[
+        'Mon',
+        'Tue',
+        'Wed',
+        'Thu',
+        'Fri',
+        'Sat',
+        'Sun',
+      ];
+      return weekdays[local.weekday - 1];
+    }
+    if (sameYear) return '${local.month}/${local.day}';
+    return '${local.month}/${local.day}/${local.year}';
   }
 
   Color _eventInviteStatusColor(InboxShareItem invite) {
@@ -1822,6 +1889,14 @@ class _InboxPageState extends State<InboxPage> {
       return;
     }
 
+    final calendarId = notification.calendarId;
+    if (notification.isCalendarEventNotification &&
+        calendarId != null &&
+        calendarId.isNotEmpty) {
+      await _openSharedCalendarById(calendarId);
+      return;
+    }
+
     final clientEventId = notification.calendarClientEventId;
     if (clientEventId != null && clientEventId.isNotEmpty) {
       context.go('/');
@@ -1829,6 +1904,21 @@ class _InboxPageState extends State<InboxPage> {
         emitCalendarPushOpenClientEventId(clientEventId);
       });
     }
+  }
+
+  Future<void> _openSharedCalendarThread(
+    SharedCalendarInboxThread thread,
+  ) async {
+    await _markItemsViewed(thread.notifications);
+    if (!mounted) return;
+
+    final calendarId = thread.calendarId;
+    if (calendarId == null || calendarId.isEmpty) {
+      await _openCalendarNotification(thread.lastNotification);
+      return;
+    }
+
+    await _openSharedCalendarById(calendarId);
   }
 }
 
@@ -1843,6 +1933,7 @@ class _UnifiedInboxItem {
     required this.hasUnread,
   }) : kind = _UnifiedKind.message,
        calendarNotification = null,
+       calendarThread = null,
        invite = null;
 
   _UnifiedInboxItem.eventInvite({required this.createdAt, required this.invite})
@@ -1851,16 +1942,18 @@ class _UnifiedInboxItem {
       otherProfile = null,
       items = null,
       hasUnread = null,
-      calendarNotification = null;
+      calendarNotification = null,
+      calendarThread = null;
 
   _UnifiedInboxItem.calendarNotification({
     required this.createdAt,
-    required this.calendarNotification,
+    required this.calendarThread,
   }) : kind = _UnifiedKind.calendarNotification,
        otherUserId = null,
        otherProfile = null,
        items = null,
        hasUnread = null,
+       calendarNotification = null,
        invite = null;
 
   final _UnifiedKind kind;
@@ -1872,6 +1965,7 @@ class _UnifiedInboxItem {
   final List<InboxShareItem>? items;
   final bool? hasUnread;
   final InboxShareItem? calendarNotification;
+  final SharedCalendarInboxThread? calendarThread;
   final InboxShareItem? invite;
 }
 

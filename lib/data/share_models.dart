@@ -657,6 +657,14 @@ class InboxShareItem {
     return _nullableString(payloadJson?['calendar_name']);
   }
 
+  String? get calendarId {
+    if (!isCalendar) return null;
+    return _nullableString(
+          payloadJson?['calendar_id'] ?? payloadJson?['calendarId'],
+        ) ??
+        _nullableString(payloadId);
+  }
+
   String? get calendarBody {
     return _nullableString(payloadJson?['body']);
   }

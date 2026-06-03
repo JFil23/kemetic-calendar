@@ -112,6 +112,7 @@ class _SharedCalendarsSheetState extends State<SharedCalendarsSheet> {
       _snapshot = snapshot;
       _loading = false;
     });
+    unawaited(_hydrateExpandedCalendarEvents());
   }
 
   Future<void> _runAction(Future<void> Function() action) async {
@@ -308,9 +309,18 @@ class _SharedCalendarsSheetState extends State<SharedCalendarsSheet> {
   }
 
   Future<void> _hydrateExpandedCalendarEvents() async {
+    final snapshot = _snapshot;
+    if (snapshot == null) return;
+    final allowedCalendarIds = snapshot.calendars
+        .map((calendar) => calendar.id.trim())
+        .where((id) => id.isNotEmpty)
+        .toSet();
+    if (allowedCalendarIds.isEmpty) return;
+
     final ids = _expandedCalendarIds
         .where(
           (id) =>
+              allowedCalendarIds.contains(id) &&
               !_calendarEventsById.containsKey(id) &&
               !_loadingCalendarEventIds.contains(id),
         )

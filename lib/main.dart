@@ -22,6 +22,7 @@ import 'features/inbox/inbox_conversation_page.dart';
 import 'features/inbox/conversation_user.dart';
 import 'features/inbox/shared_flow_details_entry.dart';
 import 'features/inbox/shared_flow_details_page.dart';
+import 'features/inbox/inbox_threading.dart';
 import 'features/invites/event_invite_details_page.dart';
 import 'data/profile_model.dart';
 import 'data/profile_repo.dart';
@@ -1100,6 +1101,13 @@ String? _initialLocationFromPushData(
     return '/inbox';
   }
 
+  final sharedCalendarInboxRoute = sharedCalendarInboxRouteLocationFromPushData(
+    data,
+  );
+  if (sharedCalendarInboxRoute != null) {
+    return sharedCalendarInboxRoute;
+  }
+
   if (kind == 'flow_like' ||
       kind == 'flow_comment' ||
       kind == 'flow_comment_reply' ||
@@ -1215,9 +1223,12 @@ final _router = GoRouter(
             ),
           );
         }
+        final initialSharedCalendarId =
+            state.uri.queryParameters[sharedCalendarInboxCalendarQueryParam] ??
+            state.uri.queryParameters['calendar_id'];
         return SessionTrackedRoute(
           location: state.uri.toString(),
-          child: const InboxPage(),
+          child: InboxPage(initialSharedCalendarId: initialSharedCalendarId),
         );
       },
     ),
@@ -2690,6 +2701,13 @@ class _PushIntentBridgeState extends State<PushIntentBridge> {
 
     if (kind == 'calendar_invite' || kind == 'calendar_invite_response') {
       _router.go('/inbox');
+      return true;
+    }
+
+    final sharedCalendarInboxRoute =
+        sharedCalendarInboxRouteLocationFromPushData(data);
+    if (sharedCalendarInboxRoute != null) {
+      _router.go(sharedCalendarInboxRoute);
       return true;
     }
 

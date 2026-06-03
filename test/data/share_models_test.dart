@@ -268,10 +268,35 @@ void main() {
 
       expect(item.kind, InboxShareKind.calendar);
       expect(item.isCalendarInviteNotification, isTrue);
+      expect(item.calendarId, 'calendar-1');
       expect(item.calendarName, 'Phillips\'');
       expect(item.calendarBody, 'You were invited to join this calendar.');
       expect(item.calendarColorValue, 13807415);
     });
+
+    test(
+      'parses shared calendar id from payload before payload id fallback',
+      () {
+        final item = InboxShareItem.fromJson({
+          'share_id': 'share-9',
+          'kind': 'calendar',
+          'recipient_id': 'recipient-1',
+          'sender_id': 'sender-9',
+          'sender_handle': 'scribe',
+          'sender_name': 'Scribe',
+          'payload_id': 'legacy-calendar',
+          'title': 'Calendar update',
+          'created_at': '2026-04-16T00:00:00Z',
+          'payload_json': {
+            'notification_kind': 'calendar_event',
+            'calendar_id': 'calendar-from-payload',
+          },
+        });
+
+        expect(item.calendarId, 'calendar-from-payload');
+        expect(item.isCalendarEventNotification, isTrue);
+      },
+    );
 
     test('tryFromJson drops malformed rows instead of throwing', () {
       final item = InboxShareItem.tryFromJson({

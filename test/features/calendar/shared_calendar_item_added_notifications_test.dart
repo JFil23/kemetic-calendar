@@ -104,7 +104,7 @@ void main() {
   });
 
   test(
-    'shared calendar item-added pushes route through calendar tap handling',
+    'shared calendar item-added pushes route to focused inbox calendar context',
     () async {
       final mainSource = await File('lib/main.dart').readAsString();
       final sendPushSource = await File(
@@ -123,8 +123,9 @@ void main() {
       expect(mainSource, contains("'task_id': params['task_id']"));
       expect(
         mainSource,
-        contains('CalendarPushOpenIntent.fromNotificationData(data)'),
+        contains('sharedCalendarInboxRouteLocationFromPushData(data)'),
       );
+      expect(mainSource, contains('initialSharedCalendarId'));
     },
   );
 }
