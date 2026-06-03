@@ -5146,12 +5146,14 @@ class CalendarPage extends StatefulWidget {
     Future<void> Function()? onOpenFlowStudio,
     Future<void> Function()? onOpenNewNote,
   }) {
-    void navigate(String location) {
-      unawaited(
-        AppNavigationRestorationController.instance.recordPrimaryRouteSelection(
-          location,
-        ),
-      );
+    void navigate(String location, {AppSection? durableSection}) {
+      if (durableSection != null) {
+        unawaited(
+          AppNavigationRestorationController.instance.recordPrimaryTabSelection(
+            durableSection,
+          ),
+        );
+      }
       if (onNavigate != null) {
         onNavigate(location);
         return;
@@ -5182,14 +5184,16 @@ class CalendarPage extends StatefulWidget {
         gradient: goldGloss,
         label: 'Library',
         dispatchBeforeClose: true,
-        onSelected: () => navigate('/nodes'),
+        onSelected: () =>
+            navigate('/nodes', durableSection: AppSection.library),
       ),
       _CalendarAction(
         glyph: MeduNeterGlyphs.journal,
         gradient: goldGloss,
         label: 'Journal',
         dispatchBeforeClose: true,
-        onSelected: () => navigate('/journal'),
+        onSelected: () =>
+            navigate('/journal', durableSection: AppSection.journal),
       ),
       _CalendarAction(
         glyph: MeduNeterGlyphs.inbox,
@@ -5197,7 +5201,7 @@ class CalendarPage extends StatefulWidget {
         label: 'Inbox',
         showNotificationDot: hasUnreadInbox,
         dispatchBeforeClose: true,
-        onSelected: () => navigate('/inbox'),
+        onSelected: () => navigate('/inbox', durableSection: AppSection.inbox),
       ),
       _CalendarAction(
         glyph: MeduNeterGlyphs.calendars,
@@ -5222,14 +5226,15 @@ class CalendarPage extends StatefulWidget {
         gradient: goldGloss,
         label: 'Home',
         dispatchBeforeClose: true,
-        onSelected: () => navigate('/'),
+        onSelected: () => navigate('/', durableSection: AppSection.calendar),
       ),
       _CalendarAction(
         glyph: MeduNeterGlyphs.settings,
         gradient: goldGloss,
         label: 'Settings',
         dispatchBeforeClose: true,
-        onSelected: () => navigate('/settings'),
+        onSelected: () =>
+            navigate('/settings', durableSection: AppSection.settings),
       ),
       if (includeNewNote)
         _CalendarAction(

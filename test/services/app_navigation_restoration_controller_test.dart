@@ -12,13 +12,12 @@ String _snapshotKey({String userId = 'user-1', String windowId = 'window-1'}) {
 }
 
 Map<String, dynamic> _durableRouteFields(String route) {
+  final metadata = const NavigationPersistencePolicy()
+      .classifyRoute(route, NavigationSource.userPrimaryTab)
+      .metadata;
   return <String, dynamic>{
     'routeLocation': route,
-    navigationLaunchRouteMetadataKey: const NavigationLaunchRouteMetadata(
-      schemaVersion: navigationPersistenceSchemaVersion,
-      source: NavigationSource.userPrimaryTab,
-      routeClass: NavigationRouteClass.durablePrimary,
-    ).toJson(),
+    navigationLaunchRouteMetadataKey: metadata.toJson(),
   };
 }
 
@@ -43,6 +42,17 @@ Future<String?> _durableRoute() async {
   if (raw == null) return null;
   final decoded = jsonDecode(raw) as Map<String, dynamic>;
   return (decoded['routeLocation'] as String?)?.trim();
+}
+
+Future<Map<String, dynamic>?> _durableMetadataJson() async {
+  await AppRestorationService.instance.flushPendingWrites();
+  final prefs = await SharedPreferences.getInstance();
+  final raw = prefs.getString(_snapshotKey());
+  if (raw == null) return null;
+  final decoded = jsonDecode(raw) as Map<String, dynamic>;
+  final metadata = decoded[navigationLaunchRouteMetadataKey];
+  if (metadata is! Map) return null;
+  return Map<String, dynamic>.from(metadata);
 }
 
 void main() {
@@ -118,6 +128,11 @@ void main() {
         .restoreLaunchDestination(isAuthenticated: true);
 
     expect(await _durableRoute(), '/nodes');
+    expect(await _durableMetadataJson(), containsPair('section', 'library'));
+    expect(
+      await _durableMetadataJson(),
+      containsPair('canonicalRoute', '/nodes'),
+    );
     expect(destination.route, '/nodes');
     expect(destination.reason, 'valid_durable_metadata');
   });
@@ -345,19 +360,14 @@ void main() {
   });
 
   test(
-    'every navigation source must explicitly opt in to durable persistence',
+    'generic navigation attempts from every source never persist durable state',
     () async {
       for (final source in NavigationSource.values) {
         await AppRestorationService.instance.clearCurrentSnapshot();
         await AppNavigationRestorationController.instance
             .recordNavigationAttempt(route: '/inbox', source: source);
 
-        final persisted = await _durableRoute();
-        if (source == NavigationSource.userPrimaryTab) {
-          expect(persisted, '/inbox', reason: source.wireName);
-        } else {
-          expect(persisted, isNull, reason: source.wireName);
-        }
+        expect(await _durableRoute(), isNull, reason: source.wireName);
       }
     },
   );
@@ -380,16 +390,41 @@ void main() {
           schemaVersion: navigationPersistenceSchemaVersion - 1,
           source: NavigationSource.userPrimaryTab,
           routeClass: NavigationRouteClass.durablePrimary,
+          section: AppSection.inbox,
+          canonicalRoute: '/inbox',
         ),
         const NavigationLaunchRouteMetadata(
           schemaVersion: navigationPersistenceSchemaVersion,
           source: NavigationSource.programmatic,
           routeClass: NavigationRouteClass.durablePrimary,
+          section: AppSection.inbox,
+          canonicalRoute: '/inbox',
         ),
         const NavigationLaunchRouteMetadata(
           schemaVersion: navigationPersistenceSchemaVersion,
           source: NavigationSource.userPrimaryTab,
           routeClass: NavigationRouteClass.transient,
+          section: AppSection.inbox,
+          canonicalRoute: '/inbox',
+        ),
+        const NavigationLaunchRouteMetadata(
+          schemaVersion: navigationPersistenceSchemaVersion,
+          source: NavigationSource.userPrimaryTab,
+          routeClass: NavigationRouteClass.durablePrimary,
+          canonicalRoute: '/inbox',
+        ),
+        const NavigationLaunchRouteMetadata(
+          schemaVersion: navigationPersistenceSchemaVersion,
+          source: NavigationSource.userPrimaryTab,
+          routeClass: NavigationRouteClass.durablePrimary,
+          section: AppSection.inbox,
+        ),
+        const NavigationLaunchRouteMetadata(
+          schemaVersion: navigationPersistenceSchemaVersion,
+          source: NavigationSource.userPrimaryTab,
+          routeClass: NavigationRouteClass.durablePrimary,
+          section: AppSection.library,
+          canonicalRoute: '/nodes',
         ),
       ]) {
         await AppRestorationService.instance.clearCurrentSnapshot();

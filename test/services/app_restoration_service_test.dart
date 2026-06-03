@@ -13,24 +13,22 @@ String _snapshotKey({String userId = 'user-1', String windowId = 'window-1'}) {
 }
 
 Map<String, dynamic> _durableRouteFields(String route) {
+  final metadata = const NavigationPersistencePolicy()
+      .classifyRoute(route, NavigationSource.userPrimaryTab)
+      .metadata;
   return <String, dynamic>{
     'routeLocation': route,
-    navigationLaunchRouteMetadataKey: const NavigationLaunchRouteMetadata(
-      schemaVersion: navigationPersistenceSchemaVersion,
-      source: NavigationSource.userPrimaryTab,
-      routeClass: NavigationRouteClass.durablePrimary,
-    ).toJson(),
+    navigationLaunchRouteMetadataKey: metadata.toJson(),
   };
 }
 
 Future<void> _saveDurableRoute(String route) {
+  final metadata = const NavigationPersistencePolicy()
+      .classifyRoute(route, NavigationSource.userPrimaryTab)
+      .metadata;
   return AppRestorationService.instance.saveDurableLaunchRoute(
     route,
-    metadata: const NavigationLaunchRouteMetadata(
-      schemaVersion: navigationPersistenceSchemaVersion,
-      source: NavigationSource.userPrimaryTab,
-      routeClass: NavigationRouteClass.durablePrimary,
-    ),
+    metadata: metadata,
   );
 }
 

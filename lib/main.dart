@@ -473,6 +473,8 @@ Future<void> main() async {
     await _readBootInitialPushIntent();
     _bootRestoredLocation = await _readBootRestoredLocation();
     final initialLocation = _resolveInitialLocation();
+    _router = _createRouter(initialLocation: initialLocation);
+    traceRestoration('boot router created initialLocation=$initialLocation');
     traceRestoration(
       'boot route apply prepared explicit=${_bootExplicitIntentLocation ?? '<none>'} '
       'restored=${_bootRestoredLocation ?? '<none>'} '
@@ -1225,9 +1227,11 @@ String? _redirectRetiredRhythmRoute(Uri uri) {
   return null;
 }
 
-final _router = GoRouter(
+late final GoRouter _router;
+
+GoRouter _createRouter({required String initialLocation}) => GoRouter(
   navigatorKey: _rootNavigatorKey,
-  initialLocation: _resolveInitialLocation(),
+  initialLocation: initialLocation,
   // Route history is intentionally not restored by go_router. The app owns
   // durable state through AppRestorationService; restoring Navigator history
   // here reopens whatever secondary page was active before process restart.
@@ -2129,11 +2133,6 @@ class _GlobalFloatingMenuShellState extends State<_GlobalFloatingMenuShell>
   }
 
   void _navigateFromMenu(String location) {
-    unawaited(
-      AppNavigationRestorationController.instance.recordPrimaryRouteSelection(
-        location,
-      ),
-    );
     _router.go(location);
   }
 

@@ -864,7 +864,7 @@ void main() {
       final redirect = _sourceBetween(
         source,
         'String? _redirectRetiredRhythmRoute',
-        'final _router = GoRouter(',
+        'GoRouter _createRouter({required String initialLocation}) => GoRouter(',
       );
 
       expect(redirect, contains("path == '/rhythm/mycycle'"));

@@ -1909,14 +1909,20 @@ class AppRestorationService {
         'save launch route rejected input=$location '
         'source=${metadata.source.wireName} '
         'classification=${metadata.routeClass.wireName} '
-        'schemaVersion=${metadata.schemaVersion} reason=policy_rejected',
+        'schemaVersion=${metadata.schemaVersion} '
+        'section=${metadata.section?.wireName ?? '<none>'} '
+        'canonical=${metadata.canonicalRoute ?? '<none>'} '
+        'reason=policy_rejected',
       );
       return;
     }
     _log(
       'save launch route input=$location sanitized=$normalized '
       'source=${metadata.source.wireName} '
-      'classification=${metadata.routeClass.wireName} accepted=true',
+      'classification=${metadata.routeClass.wireName} '
+      'schemaVersion=${metadata.schemaVersion} '
+      'section=${metadata.section?.wireName ?? '<none>'} '
+      'canonical=${metadata.canonicalRoute ?? '<none>'} accepted=true',
     );
     await _mutate((current) {
       current['routeLocation'] = normalized;

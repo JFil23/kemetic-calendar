@@ -66,16 +66,24 @@ class AppNavigationRestorationController {
   }
 
   Future<void> recordPrimaryTabSelection(AppSection section) {
-    return recordPrimaryRouteSelection(_policy.routeForSection(section));
+    return _recordPrimaryRouteFromUserCommand(
+      section,
+      route: _policy.routeForSection(section),
+    );
   }
 
-  Future<void> recordPrimaryRouteSelection(String route) async {
+  Future<void> _recordPrimaryRouteFromUserCommand(
+    AppSection section, {
+    required String route,
+  }) async {
     final classification = _policy.classifyRoute(
       route,
       NavigationSource.userPrimaryTab,
     );
     _logPersistenceAttempt(classification);
-    if (!classification.accepted || classification.canonicalRoute == null) {
+    if (!classification.accepted ||
+        classification.canonicalRoute == null ||
+        classification.section != section) {
       return;
     }
     await AppRestorationService.instance.saveDurableLaunchRoute(
@@ -89,13 +97,12 @@ class AppNavigationRestorationController {
     required NavigationSource source,
   }) async {
     final classification = _policy.classifyRoute(route, source);
-    _logPersistenceAttempt(classification);
-    if (!classification.accepted || classification.canonicalRoute == null) {
-      return;
-    }
-    await AppRestorationService.instance.saveDurableLaunchRoute(
-      classification.canonicalRoute!,
-      metadata: classification.metadata,
+    _logPersistenceAttempt(
+      classification,
+      acceptedOverride: false,
+      reasonOverride: classification.accepted
+          ? 'generic_navigation_attempt_not_user_primary_command'
+          : null,
     );
   }
 
@@ -244,7 +251,7 @@ class AppNavigationRestorationController {
     required String reason,
   }) {
     traceRestoration(
-      'navigation launch destination route=$route '
+      '[navRestore] final destination=$route '
       'decisionSource=$source reason=$reason',
     );
     return LaunchDestination(
@@ -284,6 +291,12 @@ class AppNavigationRestorationController {
     if (classification.canonicalRoute != normalized) {
       return 'non_canonical_durable_route';
     }
+    if (metadata.canonicalRoute != classification.canonicalRoute) {
+      return 'metadata_canonical_route_mismatch';
+    }
+    if (metadata.section != classification.section) {
+      return 'metadata_section_mismatch';
+    }
     return 'valid_durable_metadata';
   }
 
@@ -296,12 +309,14 @@ class AppNavigationRestorationController {
     required LaunchDestination finalDestination,
   }) {
     traceRestoration(
-      'navigation launch durable metadata loaded '
+      '[navRestore] loaded durable metadata: '
       'snapshotSource=$snapshotSource '
       'route=${route == null || route.trim().isEmpty ? '<none>' : route.trim()} '
       'schemaVersion=${metadata?.schemaVersion ?? '<none>'} '
       'source=${metadata?.source.wireName ?? '<none>'} '
-      'classification=${metadata?.routeClass.wireName ?? '<none>'} '
+      'routeClass=${metadata?.routeClass.wireName ?? '<none>'} '
+      'section=${metadata?.section?.wireName ?? '<none>'} '
+      'canonicalRoute=${metadata?.canonicalRoute ?? '<none>'} '
       'accepted=$accepted reason=$reason '
       'finalDestination=${finalDestination.route} '
       'decisionSource=${finalDestination.decisionSource} '
@@ -309,13 +324,18 @@ class AppNavigationRestorationController {
     );
   }
 
-  void _logPersistenceAttempt(NavigationClassification classification) {
+  void _logPersistenceAttempt(
+    NavigationClassification classification, {
+    bool? acceptedOverride,
+    String? reasonOverride,
+  }) {
     traceRestoration(
-      'navigation persistence attempt requested=${classification.requestedRoute} '
+      '[navPersist] request route=${classification.requestedRoute} '
       'source=${classification.source.wireName} '
       'classification=${classification.routeClass.wireName} '
-      'accepted=${classification.accepted} '
-      'reason=${classification.reason} '
+      'accepted=${acceptedOverride ?? classification.accepted} '
+      'reason=${reasonOverride ?? classification.reason} '
+      'section=${classification.section?.wireName ?? '<none>'} '
       'canonical=${classification.canonicalRoute ?? '<none>'}',
     );
   }

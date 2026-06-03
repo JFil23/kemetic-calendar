@@ -76,19 +76,33 @@ void main() {
         ).readAsString();
 
         expect(controller, contains('recordPrimaryTabSelection'));
-        expect(controller, contains('recordPrimaryRouteSelection'));
+        expect(controller, isNot(contains('recordPrimaryRouteSelection')));
         expect(controller, contains('restoreLaunchDestination'));
         expect(controller, contains('consumeOneShotIntent'));
         expect(controller, contains('classifyRoute'));
         expect(controller, contains('recordPageState'));
+        expect(controller, contains('recordNavigationAttempt'));
         expect(controller, isNot(contains('saveLastRoute')));
         expect(controller, isNot(contains('persistCurrentLocation')));
 
+        expect(policy, contains('class AppRouteRegistry'));
         expect(policy, contains('NavigationRouteClass.durablePrimary'));
         expect(policy, contains('NavigationRouteClass.pageState'));
         expect(policy, contains('NavigationRouteClass.transient'));
         expect(policy, contains('NavigationRouteClass.oneShotIntent'));
         expect(policy, contains('source != NavigationSource.userPrimaryTab'));
+        expect(policy, contains("'section': section!.wireName"));
+        expect(policy, contains("'canonicalRoute': canonicalRoute"));
+
+        final genericAttemptMatches = await _filesContainingAny(<String>[
+          'recordNavigationAttempt(',
+        ]);
+        expect(
+          genericAttemptMatches,
+          unorderedEquals(<String>[
+            'lib/services/app_navigation_restoration_controller.dart',
+          ]),
+        );
       },
     );
 
@@ -296,9 +310,17 @@ void main() {
         'static Future<void> _openDetachedSharedCalendarsSheet',
       );
       expect(detachedActions, contains('_detachedCalendarActions'));
-      expect(detachedActions, contains('void navigate(String location)'));
+      expect(
+        detachedActions,
+        contains(
+          'void navigate(String location, {AppSection? durableSection})',
+        ),
+      );
       expect(detachedActions, contains('onNavigate(location)'));
       expect(detachedActions, contains('context.go(location)'));
+      expect(detachedActions, contains('recordPrimaryTabSelection'));
+      expect(detachedActions, contains('durableSection'));
+      expect(detachedActions, isNot(contains('recordPrimaryRouteSelection')));
       expect(detachedActions, contains('openSharedCalendarsFromAnyContext'));
       expect(detachedActions, isNot(contains('_routeHomeForDetachedLaunch')));
 
@@ -340,7 +362,7 @@ void main() {
       );
       final routes = _sourceBetween(
         main,
-        'final _router = GoRouter(',
+        'GoRouter _createRouter({required String initialLocation}) => GoRouter(',
         '/* ───────────────────────── App Widgets',
       );
       final nodeRoutes = _sourceBetween(
@@ -407,6 +429,25 @@ void main() {
         lessThan(main.indexOf('_bootRestoredLocation =')),
       );
       expect(
+        main.indexOf(
+          '_bootRestoredLocation = await _readBootRestoredLocation();',
+        ),
+        lessThan(
+          main.indexOf(
+            '_router = _createRouter(initialLocation: initialLocation);',
+          ),
+        ),
+      );
+      expect(
+        main.indexOf(
+          '_router = _createRouter(initialLocation: initialLocation);',
+        ),
+        lessThan(main.indexOf('runApp(const MyApp())')),
+      );
+      expect(main, contains('late final GoRouter _router;'));
+      expect(main, isNot(contains('final _router = GoRouter(')));
+      expect(routes, contains('initialLocation: initialLocation'));
+      expect(
         initialLocation.indexOf('_bootExplicitIntentLocation'),
         lessThan(initialLocation.indexOf('_bootRestoredLocation')),
       );
@@ -451,7 +492,7 @@ void main() {
         );
         final routes = _sourceBetween(
           main,
-          'final _router = GoRouter(',
+          'GoRouter _createRouter({required String initialLocation}) => GoRouter(',
           '/* ───────────────────────── App Widgets',
         );
         final appLinkRedirect = _sourceBetween(
@@ -479,14 +520,14 @@ void main() {
           expect(routes, contains(route));
         }
 
-        expect(policy, contains("case '/inbox':"));
-        expect(policy, contains("case '/nodes':"));
-        expect(policy, contains("case '/journal':"));
-        expect(policy, contains("case '/settings':"));
-        expect(policy, contains("case '/profile/me':"));
-        expect(policy, contains("path.startsWith('/nodes/')"));
-        expect(policy, contains("path.startsWith('/reflections/')"));
-        expect(policy, contains("path.startsWith('/rhythm/editor/')"));
+        expect(policy, contains("pattern: '/inbox'"));
+        expect(policy, contains("pattern: '/nodes'"));
+        expect(policy, contains("pattern: '/journal'"));
+        expect(policy, contains("pattern: '/settings'"));
+        expect(policy, contains("pattern: '/profile/me'"));
+        expect(policy, contains("pattern: '/nodes/'"));
+        expect(policy, contains("pattern: '/reflections/'"));
+        expect(policy, contains("pattern: '/rhythm/editor/'"));
         expect(bootRestore, contains('restoreLaunchDestination'));
         expect(bootRestore, contains('destination.route'));
         expect(main, isNot(contains('bool _isContinuityRouteLocation')));
@@ -533,7 +574,7 @@ void main() {
       );
       final routes = _sourceBetween(
         main,
-        'final _router = GoRouter(',
+        'GoRouter _createRouter({required String initialLocation}) => GoRouter(',
         '/* ───────────────────────── App Widgets',
       );
 
@@ -554,16 +595,16 @@ void main() {
       );
 
       for (final route in const <String>[
-        "case '/':",
-        "case '/inbox':",
-        "case '/nodes':",
-        "case '/journal':",
-        "case '/settings':",
-        "case '/profile/me':",
-        "path.startsWith('/nodes/')",
-        "path.startsWith('/reflections/')",
-        "path.startsWith('/shared-flow/')",
-        "path.startsWith('/event-invite/')",
+        "pattern: '/'",
+        "pattern: '/inbox'",
+        "pattern: '/nodes'",
+        "pattern: '/journal'",
+        "pattern: '/settings'",
+        "pattern: '/profile/me'",
+        "pattern: '/nodes/'",
+        "pattern: '/reflections/'",
+        "pattern: '/shared-flow/'",
+        "pattern: '/event-invite/'",
       ]) {
         expect(policy, contains(route), reason: route);
       }

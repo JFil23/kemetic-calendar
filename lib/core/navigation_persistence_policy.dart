@@ -1,9 +1,23 @@
 import 'route_location_sanitizer.dart';
 
-const int navigationPersistenceSchemaVersion = 1;
+const int navigationPersistenceSchemaVersion = 2;
 const String navigationLaunchRouteMetadataKey = 'launchRouteMetadata';
 
 enum AppSection { calendar, inbox, library, journal, settings, profile }
+
+enum AppRouteOwner {
+  calendar,
+  inbox,
+  library,
+  journal,
+  settings,
+  profile,
+  rhythm,
+  reflections,
+  sharing,
+  guidance,
+  unknown,
+}
 
 enum NavigationRouteClass {
   durablePrimary,
@@ -85,6 +99,43 @@ extension NavigationSourceWireName on NavigationSource {
   }
 }
 
+extension AppSectionWireName on AppSection {
+  String get wireName {
+    switch (this) {
+      case AppSection.calendar:
+        return 'calendar';
+      case AppSection.inbox:
+        return 'inbox';
+      case AppSection.library:
+        return 'library';
+      case AppSection.journal:
+        return 'journal';
+      case AppSection.settings:
+        return 'settings';
+      case AppSection.profile:
+        return 'profile';
+    }
+  }
+}
+
+AppSection? appSectionFromWireName(String? raw) {
+  switch (raw?.trim()) {
+    case 'calendar':
+      return AppSection.calendar;
+    case 'inbox':
+      return AppSection.inbox;
+    case 'library':
+      return AppSection.library;
+    case 'journal':
+      return AppSection.journal;
+    case 'settings':
+      return AppSection.settings;
+    case 'profile':
+      return AppSection.profile;
+  }
+  return null;
+}
+
 NavigationRouteClass navigationRouteClassFromWireName(String? raw) {
   switch (raw?.trim()) {
     case 'durablePrimary':
@@ -142,16 +193,26 @@ class NavigationLaunchRouteMetadata {
     required this.schemaVersion,
     required this.source,
     required this.routeClass,
+    this.section,
+    this.canonicalRoute,
+    this.recordedAtMs,
   });
 
   final int schemaVersion;
   final NavigationSource source;
   final NavigationRouteClass routeClass;
+  final AppSection? section;
+  final String? canonicalRoute;
+  final int? recordedAtMs;
 
   bool get isCurrentUserPrimaryDurable {
+    final canonical = canonicalRoute?.trim();
     return schemaVersion == navigationPersistenceSchemaVersion &&
         source == NavigationSource.userPrimaryTab &&
-        routeClass == NavigationRouteClass.durablePrimary;
+        routeClass == NavigationRouteClass.durablePrimary &&
+        section != null &&
+        canonical != null &&
+        canonical.isNotEmpty;
   }
 
   Map<String, dynamic> toJson() {
@@ -159,6 +220,9 @@ class NavigationLaunchRouteMetadata {
       'schemaVersion': schemaVersion,
       'source': source.wireName,
       'routeClass': routeClass.wireName,
+      if (section != null) 'section': section!.wireName,
+      if (canonicalRoute != null) 'canonicalRoute': canonicalRoute,
+      if (recordedAtMs != null) 'recordedAtMs': recordedAtMs,
     };
   }
 
@@ -172,7 +236,273 @@ class NavigationLaunchRouteMetadata {
       routeClass: navigationRouteClassFromWireName(
         raw['routeClass'] as String?,
       ),
+      section: appSectionFromWireName(raw['section'] as String?),
+      canonicalRoute: (raw['canonicalRoute'] as String?)?.trim(),
+      recordedAtMs: (raw['recordedAtMs'] as num?)?.toInt(),
     );
+  }
+}
+
+class AppRouteDefinition {
+  const AppRouteDefinition({
+    required this.pattern,
+    required this.routeClass,
+    required this.owner,
+    this.section,
+    this.canonicalDurableRoute,
+    this.allowedPersistenceSources = const <NavigationSource>{},
+    this.allowQueryParameters = false,
+    this.canBeOneShotTarget = false,
+    this.prefixMatch = false,
+  });
+
+  final String pattern;
+  final NavigationRouteClass routeClass;
+  final AppRouteOwner owner;
+  final AppSection? section;
+  final String? canonicalDurableRoute;
+  final Set<NavigationSource> allowedPersistenceSources;
+  final bool allowQueryParameters;
+  final bool canBeOneShotTarget;
+  final bool prefixMatch;
+
+  bool matchesPath(String path) {
+    if (prefixMatch) {
+      return path.startsWith(pattern);
+    }
+    return path == pattern;
+  }
+}
+
+class AppRouteRegistry {
+  const AppRouteRegistry();
+
+  static const List<AppRouteDefinition> routes = <AppRouteDefinition>[
+    AppRouteDefinition(
+      pattern: '/',
+      routeClass: NavigationRouteClass.durablePrimary,
+      owner: AppRouteOwner.calendar,
+      section: AppSection.calendar,
+      canonicalDurableRoute: '/',
+      allowedPersistenceSources: <NavigationSource>{
+        NavigationSource.userPrimaryTab,
+      },
+    ),
+    AppRouteDefinition(
+      pattern: '/inbox',
+      routeClass: NavigationRouteClass.durablePrimary,
+      owner: AppRouteOwner.inbox,
+      section: AppSection.inbox,
+      canonicalDurableRoute: '/inbox',
+      allowedPersistenceSources: <NavigationSource>{
+        NavigationSource.userPrimaryTab,
+      },
+    ),
+    AppRouteDefinition(
+      pattern: '/nodes',
+      routeClass: NavigationRouteClass.durablePrimary,
+      owner: AppRouteOwner.library,
+      section: AppSection.library,
+      canonicalDurableRoute: '/nodes',
+      allowedPersistenceSources: <NavigationSource>{
+        NavigationSource.userPrimaryTab,
+      },
+    ),
+    AppRouteDefinition(
+      pattern: '/journal',
+      routeClass: NavigationRouteClass.durablePrimary,
+      owner: AppRouteOwner.journal,
+      section: AppSection.journal,
+      canonicalDurableRoute: '/journal',
+      allowedPersistenceSources: <NavigationSource>{
+        NavigationSource.userPrimaryTab,
+      },
+    ),
+    AppRouteDefinition(
+      pattern: '/settings',
+      routeClass: NavigationRouteClass.durablePrimary,
+      owner: AppRouteOwner.settings,
+      section: AppSection.settings,
+      canonicalDurableRoute: '/settings',
+      allowedPersistenceSources: <NavigationSource>{
+        NavigationSource.userPrimaryTab,
+      },
+    ),
+    AppRouteDefinition(
+      pattern: '/profile/me',
+      routeClass: NavigationRouteClass.durablePrimary,
+      owner: AppRouteOwner.profile,
+      section: AppSection.profile,
+      canonicalDurableRoute: '/profile/me',
+      allowedPersistenceSources: <NavigationSource>{
+        NavigationSource.userPrimaryTab,
+      },
+    ),
+    AppRouteDefinition(
+      pattern: '/inbox/conversation/',
+      routeClass: NavigationRouteClass.transient,
+      owner: AppRouteOwner.inbox,
+      canBeOneShotTarget: true,
+      prefixMatch: true,
+    ),
+    AppRouteDefinition(
+      pattern: '/nodes/',
+      routeClass: NavigationRouteClass.transient,
+      owner: AppRouteOwner.library,
+      canBeOneShotTarget: true,
+      prefixMatch: true,
+    ),
+    AppRouteDefinition(
+      pattern: '/journal/entry/',
+      routeClass: NavigationRouteClass.transient,
+      owner: AppRouteOwner.journal,
+      prefixMatch: true,
+    ),
+    AppRouteDefinition(
+      pattern: '/flows/',
+      routeClass: NavigationRouteClass.transient,
+      owner: AppRouteOwner.calendar,
+      canBeOneShotTarget: true,
+      prefixMatch: true,
+    ),
+    AppRouteDefinition(
+      pattern: '/shared-flow/',
+      routeClass: NavigationRouteClass.transient,
+      owner: AppRouteOwner.sharing,
+      canBeOneShotTarget: true,
+      prefixMatch: true,
+    ),
+    AppRouteDefinition(
+      pattern: '/event-invite/',
+      routeClass: NavigationRouteClass.transient,
+      owner: AppRouteOwner.sharing,
+      canBeOneShotTarget: true,
+      prefixMatch: true,
+    ),
+    AppRouteDefinition(
+      pattern: '/insight-post/',
+      routeClass: NavigationRouteClass.transient,
+      owner: AppRouteOwner.profile,
+      canBeOneShotTarget: true,
+      prefixMatch: true,
+    ),
+    AppRouteDefinition(
+      pattern: '/flow-post/',
+      routeClass: NavigationRouteClass.transient,
+      owner: AppRouteOwner.profile,
+      canBeOneShotTarget: true,
+      prefixMatch: true,
+    ),
+    AppRouteDefinition(
+      pattern: '/profile/',
+      routeClass: NavigationRouteClass.transient,
+      owner: AppRouteOwner.profile,
+      prefixMatch: true,
+    ),
+    AppRouteDefinition(
+      pattern: '/profile-search',
+      routeClass: NavigationRouteClass.transient,
+      owner: AppRouteOwner.profile,
+    ),
+    AppRouteDefinition(
+      pattern: '/reflections',
+      routeClass: NavigationRouteClass.transient,
+      owner: AppRouteOwner.reflections,
+    ),
+    AppRouteDefinition(
+      pattern: '/reflections/',
+      routeClass: NavigationRouteClass.transient,
+      owner: AppRouteOwner.reflections,
+      canBeOneShotTarget: true,
+      prefixMatch: true,
+    ),
+    AppRouteDefinition(
+      pattern: '/maat-guidance/',
+      routeClass: NavigationRouteClass.transient,
+      owner: AppRouteOwner.guidance,
+      canBeOneShotTarget: true,
+      prefixMatch: true,
+    ),
+    AppRouteDefinition(
+      pattern: '/share/',
+      routeClass: NavigationRouteClass.transient,
+      owner: AppRouteOwner.sharing,
+      canBeOneShotTarget: true,
+      prefixMatch: true,
+    ),
+    AppRouteDefinition(
+      pattern: '/rhythm/today',
+      routeClass: NavigationRouteClass.transient,
+      owner: AppRouteOwner.rhythm,
+      canBeOneShotTarget: true,
+      allowQueryParameters: true,
+    ),
+    AppRouteDefinition(
+      pattern: '/rhythm/todo',
+      routeClass: NavigationRouteClass.transient,
+      owner: AppRouteOwner.rhythm,
+    ),
+    AppRouteDefinition(
+      pattern: '/rhythm/tracker',
+      routeClass: NavigationRouteClass.transient,
+      owner: AppRouteOwner.rhythm,
+    ),
+    AppRouteDefinition(
+      pattern: '/rhythm/decan/',
+      routeClass: NavigationRouteClass.transient,
+      owner: AppRouteOwner.rhythm,
+      prefixMatch: true,
+    ),
+    AppRouteDefinition(
+      pattern: '/rhythm/editor/',
+      routeClass: NavigationRouteClass.transient,
+      owner: AppRouteOwner.rhythm,
+      prefixMatch: true,
+    ),
+  ];
+
+  AppRouteDefinition routeForPath(String path) {
+    for (final definition in routes) {
+      if (!definition.prefixMatch && definition.matchesPath(path)) {
+        return definition;
+      }
+    }
+    for (final definition in routes) {
+      if (definition.prefixMatch && definition.matchesPath(path)) {
+        return definition;
+      }
+    }
+    return const AppRouteDefinition(
+      pattern: '<unknown>',
+      routeClass: NavigationRouteClass.unknown,
+      owner: AppRouteOwner.unknown,
+    );
+  }
+
+  AppRouteDefinition? durableRouteForSection(AppSection section) {
+    for (final definition in routes) {
+      if (definition.routeClass == NavigationRouteClass.durablePrimary &&
+          definition.section == section) {
+        return definition;
+      }
+    }
+    return null;
+  }
+
+  AppRouteDefinition? durableRouteForLocation(String route) {
+    final uri = Uri.tryParse(route.trim());
+    if (uri == null ||
+        uri.hasScheme ||
+        uri.host.isNotEmpty ||
+        uri.hasQuery ||
+        uri.fragment.isNotEmpty) {
+      return null;
+    }
+    final definition = routeForPath(uri.path);
+    if (definition.routeClass != NavigationRouteClass.durablePrimary) {
+      return null;
+    }
+    return definition;
   }
 }
 
@@ -199,11 +529,16 @@ class NavigationClassification {
     schemaVersion: navigationPersistenceSchemaVersion,
     source: source,
     routeClass: routeClass,
+    section: section,
+    canonicalRoute: canonicalRoute,
+    recordedAtMs: DateTime.now().millisecondsSinceEpoch,
   );
 }
 
 class NavigationPersistencePolicy {
   const NavigationPersistencePolicy();
+
+  static const AppRouteRegistry registry = AppRouteRegistry();
 
   static const Set<NavigationSource> oneShotSources = <NavigationSource>{
     NavigationSource.notificationTap,
@@ -221,41 +556,12 @@ class NavigationPersistencePolicy {
   };
 
   String routeForSection(AppSection section) {
-    switch (section) {
-      case AppSection.calendar:
-        return '/';
-      case AppSection.inbox:
-        return '/inbox';
-      case AppSection.library:
-        return '/nodes';
-      case AppSection.journal:
-        return '/journal';
-      case AppSection.settings:
-        return '/settings';
-      case AppSection.profile:
-        return '/profile/me';
-    }
+    final definition = registry.durableRouteForSection(section);
+    return definition?.canonicalDurableRoute ?? '/';
   }
 
   AppSection? sectionForDurableRoute(String route) {
-    final uri = Uri.tryParse(route.trim());
-    if (uri == null || uri.hasScheme || uri.host.isNotEmpty) return null;
-    if (uri.hasQuery || uri.fragment.isNotEmpty) return null;
-    switch (uri.path) {
-      case '/':
-        return AppSection.calendar;
-      case '/inbox':
-        return AppSection.inbox;
-      case '/nodes':
-        return AppSection.library;
-      case '/journal':
-        return AppSection.journal;
-      case '/settings':
-        return AppSection.settings;
-      case '/profile/me':
-        return AppSection.profile;
-    }
-    return null;
+    return registry.durableRouteForLocation(route)?.section;
   }
 
   NavigationClassification classifyRoute(
@@ -337,38 +643,40 @@ class NavigationPersistencePolicy {
       );
     }
 
-    if (_isEditDetailOrModalRoute(uri.path)) {
+    final definition = registry.routeForPath(uri.path);
+    if (_isEditDetailOrModalRoute(definition, uri.path)) {
       return NavigationClassification(
         requestedRoute: requested,
         canonicalRoute: sanitized,
         source: source,
-        routeClass: NavigationRouteClass.transient,
+        routeClass: definition.routeClass,
         accepted: false,
         reason: 'edit_detail_or_modal_route',
       );
     }
 
-    final section = sectionForDurableRoute(sanitized ?? requested);
-    if (section == null) {
+    if (definition.routeClass != NavigationRouteClass.durablePrimary ||
+        !definition.allowedPersistenceSources.contains(source) ||
+        definition.section == null ||
+        definition.canonicalDurableRoute == null) {
       return NavigationClassification(
         requestedRoute: requested,
         canonicalRoute: sanitized,
         source: source,
-        routeClass: NavigationRouteClass.unknown,
+        routeClass: definition.routeClass,
         accepted: false,
         reason: 'unknown_or_non_primary_route',
       );
     }
 
-    final canonical = routeForSection(section);
     return NavigationClassification(
       requestedRoute: requested,
-      canonicalRoute: canonical,
+      canonicalRoute: definition.canonicalDurableRoute,
       source: source,
       routeClass: NavigationRouteClass.durablePrimary,
       accepted: true,
       reason: 'accepted_user_primary_tab',
-      section: section,
+      section: definition.section,
     );
   }
 
@@ -386,23 +694,15 @@ class NavigationPersistencePolicy {
       NavigationSource.userPrimaryTab,
     );
     return classification.accepted &&
-        classification.canonicalRoute == normalized;
+        classification.canonicalRoute == normalized &&
+        metadata.canonicalRoute == classification.canonicalRoute &&
+        metadata.section == classification.section;
   }
 
-  bool _isEditDetailOrModalRoute(String path) {
+  bool _isEditDetailOrModalRoute(AppRouteDefinition definition, String path) {
+    if (definition.routeClass == NavigationRouteClass.transient) return true;
     if (path.contains('/edit')) return true;
     if (path.contains('/editor/')) return true;
-    if (path.contains('/conversation/')) return true;
-    if (path.startsWith('/shared-flow/')) return true;
-    if (path.startsWith('/event-invite/')) return true;
-    if (path.startsWith('/insight-post/')) return true;
-    if (path.startsWith('/flow-post/')) return true;
-    if (path.startsWith('/journal/entry/')) return true;
-    if (path.startsWith('/maat-guidance/')) return true;
-    if (path.startsWith('/nodes/')) return true;
-    if (path.startsWith('/reflections/')) return true;
-    if (path.startsWith('/share/')) return true;
-    if (path.startsWith('/rhythm/editor/')) return true;
     return false;
   }
 }
