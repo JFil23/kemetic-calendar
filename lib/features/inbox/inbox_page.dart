@@ -54,6 +54,8 @@ class _InboxPageState extends State<InboxPage> {
   static const Color _summaryGoldInk = Color(0xFF1C1204);
   static const double _summaryGlyphAvatarWidth = 42;
   static const double _summaryGlyphAvatarHeight = 40;
+  static const String _inviteResponseGlyph = '𓂝';
+  static const String _eventInviteGlyph = '𓆳';
   static const Gradient _summaryGoldGradient = LinearGradient(
     begin: Alignment.centerLeft,
     end: Alignment.centerRight,
@@ -868,6 +870,54 @@ class _InboxPageState extends State<InboxPage> {
     await _markItemsViewed(items);
   }
 
+  Widget _buildInvitesSheetGlyphIcon({
+    required String glyph,
+    required String semanticLabel,
+    required Color color,
+    required Color backgroundColor,
+    double size = 44,
+    double fontSize = 25,
+    Border? border,
+    BorderRadius? borderRadius,
+    Offset glyphOffset = Offset.zero,
+    bool circular = false,
+  }) {
+    return Semantics(
+      label: semanticLabel,
+      image: true,
+      child: ExcludeSemantics(
+        child: Container(
+          width: size,
+          height: size,
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            color: backgroundColor,
+            shape: circular ? BoxShape.circle : BoxShape.rectangle,
+            borderRadius: circular
+                ? null
+                : (borderRadius ?? BorderRadius.circular(14)),
+            border: border,
+          ),
+          child: Transform.translate(
+            offset: glyphOffset,
+            child: Text(
+              glyph,
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                color: color,
+                fontSize: fontSize,
+                height: 1,
+                fontWeight: FontWeight.w700,
+                fontFamily: 'Noto Sans Egyptian Hieroglyphs',
+                fontFamilyFallback: _meduFontFallback,
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
   Widget _buildEventInviteRow(
     InboxShareItem invite, {
     BuildContext? closeContext,
@@ -885,9 +935,14 @@ class _InboxPageState extends State<InboxPage> {
 
     return ListTile(
       contentPadding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
-      leading: CircleAvatar(
+      leading: _buildInvitesSheetGlyphIcon(
+        glyph: _eventInviteGlyph,
+        semanticLabel: 'Event RSVP',
+        color: statusColor,
         backgroundColor: statusColor.withValues(alpha: 0.14),
-        child: Icon(Icons.event_available_outlined, color: statusColor),
+        size: 40,
+        fontSize: 24,
+        circular: true,
       ),
       title: Text(
         payload?.title ?? invite.title,
@@ -1930,21 +1985,25 @@ class _InboxPageState extends State<InboxPage> {
 
     return ListTile(
       contentPadding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
-      leading: Container(
-        width: 44,
-        height: 44,
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(14),
-          color: accent.withValues(alpha: 0.14),
-          border: Border.all(color: accent.withValues(alpha: 0.32)),
-        ),
-        child: Icon(
-          notification.isCalendarInviteResponseNotification
-              ? Icons.mark_email_read_rounded
-              : Icons.person_add_alt_1_rounded,
-          color: accent,
-        ),
-      ),
+      leading: notification.isCalendarInviteResponseNotification
+          ? _buildInvitesSheetGlyphIcon(
+              glyph: _inviteResponseGlyph,
+              semanticLabel: 'Invite response',
+              color: accent,
+              backgroundColor: accent.withValues(alpha: 0.14),
+              border: Border.all(color: accent.withValues(alpha: 0.32)),
+              glyphOffset: const Offset(0, -2),
+            )
+          : Container(
+              width: 44,
+              height: 44,
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(14),
+                color: accent.withValues(alpha: 0.14),
+                border: Border.all(color: accent.withValues(alpha: 0.32)),
+              ),
+              child: Icon(Icons.person_add_alt_1_rounded, color: accent),
+            ),
       title: Text(
         calendarName,
         maxLines: 1,

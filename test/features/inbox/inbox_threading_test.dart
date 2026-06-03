@@ -299,6 +299,45 @@ void main() {
         expect(source, isNot(contains('KemeticGold.icon(Icons.person)')));
       });
 
+      test('Invites sheet rows use Medu Neter glyph icons', () async {
+        final source = await File(
+          'lib/features/inbox/inbox_page.dart',
+        ).readAsString();
+        final eventRow = _sourceBetween(
+          source,
+          'Widget _buildEventInviteRow(',
+          'Widget _buildSharedCalendarThreadRow',
+        );
+        final inviteResponseRow = _sourceBetween(
+          source,
+          'Widget _buildCalendarInviteNotificationRow(',
+          'Widget _buildEmptyState',
+        );
+
+        expect(
+          source,
+          contains("static const String _inviteResponseGlyph = '𓂝'"),
+        );
+        expect(
+          source,
+          contains("static const String _eventInviteGlyph = '𓆳'"),
+        );
+        expect(eventRow, contains('glyph: _eventInviteGlyph'));
+        expect(eventRow, contains("semanticLabel: 'Event RSVP'"));
+        expect(eventRow, isNot(contains('Icons.event_available_outlined')));
+        expect(eventRow, contains('_eventInviteStatusLabel(invite)'));
+        expect(eventRow, contains('statusLabel'));
+        expect(inviteResponseRow, contains('_inviteResponseGlyph'));
+        expect(inviteResponseRow, contains("semanticLabel: 'Invite response'"));
+        expect(
+          inviteResponseRow,
+          isNot(contains('Icons.mark_email_read_rounded')),
+        );
+        expect(inviteResponseRow, contains("'Accepted'"));
+        expect(inviteResponseRow, contains("'Pending'"));
+        expect(source, isNot(contains('Icons.mark_email_read_rounded')));
+      });
+
       test('event invite rows are rendered only inside Invites sheet', () async {
         final source = await File(
           'lib/features/inbox/inbox_page.dart',
