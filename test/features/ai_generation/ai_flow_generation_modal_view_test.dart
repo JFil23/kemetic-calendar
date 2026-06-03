@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mobile/features/ai_generation/ai_flow_generation_modal.dart';
@@ -40,6 +41,25 @@ void main() {
 
     expect(find.text('Generate with AI'), findsOneWidget);
     expect(find.text('Color'), findsNothing);
+  });
+
+  testWidgets('AI generator toggle uses Flow Studio segmented styling', (
+    tester,
+  ) async {
+    _useLargeSurface(tester);
+
+    await _openAiFlowModal(tester);
+
+    final toggle = tester.widget<CupertinoSegmentedControl<CalendarMode>>(
+      find.byWidgetPredicate(
+        (widget) => widget is CupertinoSegmentedControl<CalendarMode>,
+      ),
+    );
+
+    expect(toggle.padding, const EdgeInsets.all(2));
+    expect(toggle.selectedColor, isNull);
+    expect(toggle.borderColor, isNull);
+    expect(toggle.unselectedColor, isNull);
   });
 
   testWidgets('manual Flow Studio still shows color picker', (tester) async {

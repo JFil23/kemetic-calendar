@@ -784,31 +784,26 @@ class _AIFlowGenerationModalState extends State<AIFlowGenerationModal> {
                       const SizedBox(height: 24),
 
                       // Kemetic/Gregorian toggle (matching Flow Studio)
-                      SizedBox(
-                        width: double.infinity,
-                        child: CupertinoSegmentedControl<CalendarMode>(
-                          groupValue: _mode,
-                          onValueChanged: (v) => setState(() => _mode = v),
-                          borderColor: silver,
-                          selectedColor: const Color(0xFF7C4DFF),
-                          unselectedColor: Colors.white,
-                          children: const {
-                            CalendarMode.kemetic: Padding(
-                              padding: EdgeInsets.symmetric(vertical: 12),
-                              child: Text(
-                                'Kemetic',
-                                style: TextStyle(fontSize: 14),
-                              ),
+                      CupertinoSegmentedControl<CalendarMode>(
+                        groupValue: _mode,
+                        padding: const EdgeInsets.all(2),
+                        children: const {
+                          CalendarMode.kemetic: Padding(
+                            padding: EdgeInsets.symmetric(
+                              horizontal: 10,
+                              vertical: 6,
                             ),
-                            CalendarMode.gregorian: Padding(
-                              padding: EdgeInsets.symmetric(vertical: 12),
-                              child: Text(
-                                'Gregorian',
-                                style: TextStyle(fontSize: 14),
-                              ),
+                            child: Text('Kemetic'),
+                          ),
+                          CalendarMode.gregorian: Padding(
+                            padding: EdgeInsets.symmetric(
+                              horizontal: 10,
+                              vertical: 6,
                             ),
-                          },
-                        ),
+                            child: Text('Gregorian'),
+                          ),
+                        },
+                        onValueChanged: (v) => setState(() => _mode = v),
                       ),
 
                       const SizedBox(height: 24),
