@@ -24,8 +24,14 @@ void main() {
           tapHandler,
           contains('Navigator.of(context, rootNavigator: true).pop(_changed)'),
         );
+        expect(tapHandler, contains('_calendarEventsById[calendar.id]'));
         expect(tapHandler, contains('addPostFrameCallback'));
-        expect(tapHandler, contains('handler(calendar, filedEvent)'));
+        expect(
+          tapHandler,
+          contains(
+            'handler(calendar, filedEvent, calendarEvents: calendarEvents)',
+          ),
+        );
 
         final row = _sourceBetween(
           sheet,
@@ -92,11 +98,14 @@ void main() {
           'static Future<void> openMyFlowsFromAnyContext',
         );
         expect(opener, contains('required SharedCalendarSummary calendar'));
+        expect(opener, contains('List<FiledEvent> calendarEvents = const []'));
         expect(opener, contains('KemeticMath.fromGregorian(localStart)'));
         expect(
           opener,
           contains('_sharedCalendarEventDetailSnapshotForFiledEvent'),
         );
+        expect(opener, contains('_sameDayFiledEvents('));
+        expect(opener, contains('_seedSameDaySharedCalendarFiledEvents('));
         expect(opener, contains('_seedOneShotSharedCalendarEventSnapshot('));
         expect(opener, contains('unawaited(mountedHost._loadCalendarState())'));
         expect(
@@ -117,9 +126,23 @@ void main() {
         expect(mountedHydrationIndex, isNonNegative);
         expect(mountedOpenIndex, lessThan(mountedHydrationIndex));
         expect(opener, contains('_loadWarmStartSearchSnapshot()'));
+        expect(opener, contains('_loadWarmCalendarStateSnapshot()'));
         expect(opener, contains('_pendingSharedCalendarRealDayViewIntent ='));
         expect(opener, contains('warmStartNotes: warmStartSnapshot.notes'));
         expect(opener, contains('warmStartFlows: warmStartSnapshot.flows'));
+        expect(
+          opener,
+          contains(
+            'warmCalendarSummariesById: <String, SharedCalendarSummary>{',
+          ),
+        );
+        expect(
+          opener,
+          contains(
+            'warmHiddenCalendarIds: warmCalendarSnapshot.hiddenCalendarIds',
+          ),
+        );
+        expect(opener, contains('sameCalendarEvents: sameDayEvents'));
         expect(opener, contains('MaterialPageRoute<void>('));
         expect(opener, contains('builder: (_) => CalendarPage()'));
         expect(opener, contains('_clearDetachedCalendarOverlayState('));
@@ -176,9 +199,27 @@ void main() {
         expect(intent, contains('final List<_Flow> warmStartFlows'));
         expect(
           intent,
+          contains(
+            'final Map<String, SharedCalendarSummary> warmCalendarSummariesById',
+          ),
+        );
+        expect(intent, contains('final Set<String> warmHiddenCalendarIds'));
+        expect(intent, contains('final List<FiledEvent> sameCalendarEvents'));
+        expect(
+          intent,
           contains('final _SharedCalendarEventDetailSnapshot snapshot'),
         );
         expect(intent, contains('final EventDetailRestorationState detail'));
+
+        final warmStore = _sourceBetween(
+          calendar,
+          'class _CalendarWarmStateStore',
+          'class CalendarPage extends StatefulWidget',
+        );
+        expect(warmStore, contains('static void save({'));
+        expect(warmStore, contains('snapshotForUser'));
+        expect(warmStore, contains('_copyNotesByDay'));
+        expect(warmStore, contains('_copyFlow'));
 
         final consumer = _sourceBetween(
           calendar,
@@ -191,6 +232,11 @@ void main() {
         );
         expect(consumer, contains('..addAll(intent.warmStartFlows)'));
         expect(consumer, contains('intent.warmStartNotes.entries.map'));
+        expect(
+          consumer,
+          contains('..addAll(intent.warmCalendarSummariesById)'),
+        );
+        expect(consumer, contains('_seedSameDaySharedCalendarFiledEvents('));
         expect(consumer, contains('_seedOneShotSharedCalendarEventSnapshot('));
         expect(consumer, contains('_rebuildReminderRulesFromFlowsIfMissing()'));
         expect(consumer, contains('_openDayView('));
@@ -216,6 +262,15 @@ void main() {
         expect(openIndex, isNonNegative);
         expect(startupIndex, isNonNegative);
         expect(openIndex, lessThan(startupIndex));
+        final sameDaySeedIndex = consumer.indexOf(
+          '_seedSameDaySharedCalendarFiledEvents(',
+        );
+        final snapshotSeedIndex = consumer.indexOf(
+          '_seedOneShotSharedCalendarEventSnapshot(',
+        );
+        expect(sameDaySeedIndex, isNonNegative);
+        expect(snapshotSeedIndex, isNonNegative);
+        expect(sameDaySeedIndex, lessThan(snapshotSeedIndex));
         expect(consumer, isNot(contains('DayViewPage(')));
         expect(consumer, isNot(contains('_routeHomeForSearchResult')));
         expect(consumer, isNot(contains('_openDaySheet(')));
@@ -253,6 +308,17 @@ void main() {
         expect(seed, contains('_standaloneDedupeKey'));
         expect(seed, isNot(contains('_notifyDayViewDataChanged')));
         expect(seed, isNot(contains('_scheduleWarmStartCacheSave')));
+
+        final sameDaySeed = _sourceBetween(
+          calendar,
+          'void _seedSameDaySharedCalendarFiledEvents({',
+          'bool _noteMatchesEventDetailRestorationState',
+        );
+        expect(sameDaySeed, contains('required List<FiledEvent> filedEvents'));
+        expect(sameDaySeed, contains('_noteFromSharedCalendarFiledEvent('));
+        expect(sameDaySeed, contains('_noteMatchesFiledEventIdentity'));
+        expect(sameDaySeed, contains('_dedupeVisibleDayNotes('));
+        expect(sameDaySeed, contains('seeded same-day filed events'));
 
         final pendingLaunch = _sourceBetween(
           calendar,
@@ -330,6 +396,9 @@ void main() {
         expect(detachedSheet, contains('onEventTapRequested'));
         expect(detachedSheet, contains('openFiledCalendarEventFromAnyContext'));
         expect(detachedSheet, contains('calendar: calendar'));
+        expect(detachedSheet, contains('calendarEvents: calendarEvents'));
+
+        expect(rootSheet, contains('calendarEvents: calendarEvents'));
 
         expect(
           inbox,
@@ -339,8 +408,12 @@ void main() {
         );
         expect(
           RegExp(
-            r'onEventTapRequested: \(calendar, filedEvent\) =>\s+CalendarPage\.openFiledCalendarEventFromAnyContext',
+            r'onEventTapRequested:\s+\(calendar, filedEvent, \{calendarEvents = const \[\]\}\) =>\s+CalendarPage\.openFiledCalendarEventFromAnyContext',
           ).allMatches(inbox).length,
+          greaterThanOrEqualTo(4),
+        );
+        expect(
+          RegExp(r'calendarEvents: calendarEvents').allMatches(inbox).length,
           greaterThanOrEqualTo(4),
         );
         expect(

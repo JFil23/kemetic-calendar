@@ -536,12 +536,14 @@ class _InboxPageState extends State<InboxPage> {
       context,
       repo: _sharedCalendarsRepo,
       initialExpandedCalendarIds: <String>[normalized],
-      onEventTapRequested: (calendar, filedEvent) =>
-          CalendarPage.openFiledCalendarEventFromAnyContext(
-            context,
-            calendar: calendar,
-            filedEvent: filedEvent,
-          ),
+      onEventTapRequested:
+          (calendar, filedEvent, {calendarEvents = const []}) =>
+              CalendarPage.openFiledCalendarEventFromAnyContext(
+                context,
+                calendar: calendar,
+                filedEvent: filedEvent,
+                calendarEvents: calendarEvents,
+              ),
     );
   }
 
@@ -1902,12 +1904,14 @@ class _InboxPageState extends State<InboxPage> {
         await SharedCalendarsSheet.show(
           context,
           repo: _sharedCalendarsRepo,
-          onEventTapRequested: (calendar, filedEvent) =>
-              CalendarPage.openFiledCalendarEventFromAnyContext(
-                context,
-                calendar: calendar,
-                filedEvent: filedEvent,
-              ),
+          onEventTapRequested:
+              (calendar, filedEvent, {calendarEvents = const []}) =>
+                  CalendarPage.openFiledCalendarEventFromAnyContext(
+                    context,
+                    calendar: calendar,
+                    filedEvent: filedEvent,
+                    calendarEvents: calendarEvents,
+                  ),
         );
       },
     );
@@ -1966,12 +1970,14 @@ class _InboxPageState extends State<InboxPage> {
         await SharedCalendarsSheet.show(
           context,
           repo: _sharedCalendarsRepo,
-          onEventTapRequested: (calendar, filedEvent) =>
-              CalendarPage.openFiledCalendarEventFromAnyContext(
-                context,
-                calendar: calendar,
-                filedEvent: filedEvent,
-              ),
+          onEventTapRequested:
+              (calendar, filedEvent, {calendarEvents = const []}) =>
+                  CalendarPage.openFiledCalendarEventFromAnyContext(
+                    context,
+                    calendar: calendar,
+                    filedEvent: filedEvent,
+                    calendarEvents: calendarEvents,
+                  ),
         );
       },
     );
@@ -2128,12 +2134,14 @@ class _InboxPageState extends State<InboxPage> {
       await SharedCalendarsSheet.show(
         context,
         repo: _sharedCalendarsRepo,
-        onEventTapRequested: (calendar, filedEvent) =>
-            CalendarPage.openFiledCalendarEventFromAnyContext(
-              context,
-              calendar: calendar,
-              filedEvent: filedEvent,
-            ),
+        onEventTapRequested:
+            (calendar, filedEvent, {calendarEvents = const []}) =>
+                CalendarPage.openFiledCalendarEventFromAnyContext(
+                  context,
+                  calendar: calendar,
+                  filedEvent: filedEvent,
+                  calendarEvents: calendarEvents,
+                ),
       );
       return;
     }

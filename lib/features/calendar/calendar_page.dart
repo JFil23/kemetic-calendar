@@ -3515,6 +3515,10 @@ class _SharedCalendarRealDayViewIntent {
     required this.calendar,
     required this.warmStartNotes,
     required this.warmStartFlows,
+    required this.warmCalendarSummariesById,
+    required this.warmHiddenCalendarIds,
+    required this.warmPersonalCalendarId,
+    required this.sameCalendarEvents,
   });
 
   final int kYear;
@@ -3525,6 +3529,140 @@ class _SharedCalendarRealDayViewIntent {
   final SharedCalendarSummary calendar;
   final Map<String, List<_Note>> warmStartNotes;
   final List<_Flow> warmStartFlows;
+  final Map<String, SharedCalendarSummary> warmCalendarSummariesById;
+  final Set<String> warmHiddenCalendarIds;
+  final String? warmPersonalCalendarId;
+  final List<FiledEvent> sameCalendarEvents;
+}
+
+class _CalendarWarmStateSnapshot {
+  const _CalendarWarmStateSnapshot({
+    required this.notes,
+    required this.flows,
+    required this.calendarSummariesById,
+    required this.hiddenCalendarIds,
+    required this.personalCalendarId,
+  });
+
+  static const empty = _CalendarWarmStateSnapshot(
+    notes: <String, List<_Note>>{},
+    flows: <_Flow>[],
+    calendarSummariesById: <String, SharedCalendarSummary>{},
+    hiddenCalendarIds: <String>{},
+    personalCalendarId: null,
+  );
+
+  final Map<String, List<_Note>> notes;
+  final List<_Flow> flows;
+  final Map<String, SharedCalendarSummary> calendarSummariesById;
+  final Set<String> hiddenCalendarIds;
+  final String? personalCalendarId;
+
+  bool get hasCalendarData => notes.isNotEmpty || flows.isNotEmpty;
+  bool hasDay(int kYear, int kMonth, int kDay) =>
+      notes['$kYear-$kMonth-$kDay']?.isNotEmpty == true;
+}
+
+class _CalendarWarmStateStore {
+  static String? _userId;
+  static Map<String, List<_Note>> _notes = <String, List<_Note>>{};
+  static List<_Flow> _flows = <_Flow>[];
+  static Map<String, SharedCalendarSummary> _calendarSummariesById =
+      <String, SharedCalendarSummary>{};
+  static Set<String> _hiddenCalendarIds = <String>{};
+  static String? _personalCalendarId;
+
+  static void save({
+    required String? userId,
+    required Map<String, List<_Note>> notes,
+    required List<_Flow> flows,
+    required Map<String, SharedCalendarSummary> calendarSummariesById,
+    required Set<String> hiddenCalendarIds,
+    required String? personalCalendarId,
+  }) {
+    final trimmedUserId = userId?.trim();
+    if (trimmedUserId == null || trimmedUserId.isEmpty) return;
+    _userId = trimmedUserId;
+    _notes = _copyNotesByDay(notes);
+    _flows = flows.map(_copyFlow).toList(growable: false);
+    _calendarSummariesById = Map<String, SharedCalendarSummary>.from(
+      calendarSummariesById,
+    );
+    _hiddenCalendarIds = Set<String>.from(hiddenCalendarIds);
+    _personalCalendarId = personalCalendarId;
+  }
+
+  static _CalendarWarmStateSnapshot snapshotForUser(String? userId) {
+    final trimmedUserId = userId?.trim();
+    if (trimmedUserId == null ||
+        trimmedUserId.isEmpty ||
+        trimmedUserId != _userId) {
+      return _CalendarWarmStateSnapshot.empty;
+    }
+    return _CalendarWarmStateSnapshot(
+      notes: _copyNotesByDay(_notes),
+      flows: _flows.map(_copyFlow).toList(growable: false),
+      calendarSummariesById: Map<String, SharedCalendarSummary>.from(
+        _calendarSummariesById,
+      ),
+      hiddenCalendarIds: Set<String>.from(_hiddenCalendarIds),
+      personalCalendarId: _personalCalendarId,
+    );
+  }
+
+  static Map<String, List<_Note>> _copyNotesByDay(
+    Map<String, List<_Note>> source,
+  ) {
+    return <String, List<_Note>>{
+      for (final entry in source.entries)
+        entry.key: entry.value.map(_copyNote).toList(growable: true),
+    };
+  }
+
+  static _Note _copyNote(_Note note) {
+    return _Note(
+      id: note.id,
+      clientEventId: note.clientEventId,
+      calendarId: note.calendarId,
+      calendarName: note.calendarName,
+      title: note.title,
+      detail: note.detail,
+      location: note.location,
+      allDay: note.allDay,
+      start: note.start,
+      end: note.end,
+      flowId: note.flowId,
+      manualColor: note.manualColor,
+      category: note.category,
+      isReminder: note.isReminder,
+      reminderId: note.reminderId,
+      alertOffsetMinutes: note.alertOffsetMinutes,
+      actionId: note.actionId,
+      behaviorPayload: note.behaviorPayload == null
+          ? null
+          : Map<String, dynamic>.from(note.behaviorPayload!),
+    );
+  }
+
+  static _Flow _copyFlow(_Flow flow) {
+    return _Flow(
+      id: flow.id,
+      calendarId: flow.calendarId,
+      name: flow.name,
+      color: flow.color,
+      active: flow.active,
+      isSaved: flow.isSaved,
+      savedAt: flow.savedAt,
+      rules: List<FlowRule>.from(flow.rules),
+      start: flow.start,
+      end: flow.end,
+      notes: flow.notes,
+      shareId: flow.shareId,
+      isHidden: flow.isHidden,
+      isReminder: flow.isReminder,
+      reminderUuid: flow.reminderUuid,
+    );
+  }
 }
 
 class CalendarPage extends StatefulWidget {
@@ -4323,6 +4461,10 @@ class CalendarPage extends StatefulWidget {
     if (userId == null || userId.isEmpty) {
       return (notes: <String, List<_Note>>{}, flows: <_Flow>[]);
     }
+    final memorySnapshot = _CalendarWarmStateStore.snapshotForUser(userId);
+    if (memorySnapshot.hasCalendarData) {
+      return (notes: memorySnapshot.notes, flows: memorySnapshot.flows);
+    }
 
     try {
       final prefs = await SharedPreferences.getInstance();
@@ -4371,6 +4513,69 @@ class CalendarPage extends StatefulWidget {
       }
       return (notes: <String, List<_Note>>{}, flows: <_Flow>[]);
     }
+  }
+
+  static Future<_CalendarWarmStateSnapshot>
+  _loadWarmCalendarStateSnapshot() async {
+    final userId = Supabase.instance.client.auth.currentUser?.id.trim();
+    final memorySnapshot = _CalendarWarmStateStore.snapshotForUser(userId);
+    final warmStart = memorySnapshot.hasCalendarData
+        ? (notes: memorySnapshot.notes, flows: memorySnapshot.flows)
+        : await _loadWarmStartSearchSnapshot();
+
+    final calendarSummariesById = <String, SharedCalendarSummary>{
+      ...memorySnapshot.calendarSummariesById,
+    };
+    var hiddenCalendarIds = Set<String>.from(memorySnapshot.hiddenCalendarIds);
+    var personalCalendarId = memorySnapshot.personalCalendarId;
+
+    try {
+      final cachedSharedCalendars = await SharedCalendarsRepo(
+        Supabase.instance.client,
+      ).restoreCachedSnapshot();
+      if (cachedSharedCalendars != null) {
+        for (final calendar in cachedSharedCalendars.calendars) {
+          calendarSummariesById[calendar.id] = calendar;
+        }
+        hiddenCalendarIds = Set<String>.from(
+          cachedSharedCalendars.hiddenCalendarIds,
+        );
+        personalCalendarId ??= cachedSharedCalendars.personalCalendarId;
+      }
+    } catch (e) {
+      if (kDebugMode) {
+        _calendarDebugPrint(
+          '[SharedCalendarEventTap] cached calendar metadata unavailable: $e',
+        );
+      }
+    }
+
+    return _CalendarWarmStateSnapshot(
+      notes: warmStart.notes,
+      flows: warmStart.flows,
+      calendarSummariesById: calendarSummariesById,
+      hiddenCalendarIds: hiddenCalendarIds,
+      personalCalendarId: personalCalendarId,
+    );
+  }
+
+  static List<FiledEvent> _sameDayFiledEvents(
+    List<FiledEvent> events, {
+    required int kYear,
+    required int kMonth,
+    required int kDay,
+  }) {
+    if (events.isEmpty) return const <FiledEvent>[];
+    return events
+        .where((filedEvent) {
+          if (!filedEvent.visibleOnCalendar) return false;
+          final localStart = filedEvent.event.startsAt.toLocal();
+          final kDate = KemeticMath.fromGregorian(localStart);
+          return kDate.kYear == kYear &&
+              kDate.kMonth == kMonth &&
+              kDate.kDay == kDay;
+        })
+        .toList(growable: false);
   }
 
   static _Flow? _deserializeWarmStartSearchFlow(Object? raw) {
@@ -4630,6 +4835,7 @@ class CalendarPage extends StatefulWidget {
     BuildContext context, {
     required SharedCalendarSummary calendar,
     required FiledEvent filedEvent,
+    List<FiledEvent> calendarEvents = const [],
   }) async {
     final localStart = filedEvent.event.startsAt.toLocal();
     final kDate = KemeticMath.fromGregorian(localStart);
@@ -4651,12 +4857,25 @@ class CalendarPage extends StatefulWidget {
         'k=${kDate.kYear}-${kDate.kMonth}-${kDate.kDay}',
       );
     }
+    final sameDayEvents = _sameDayFiledEvents(
+      calendarEvents,
+      kYear: kDate.kYear,
+      kMonth: kDate.kMonth,
+      kDay: kDate.kDay,
+    );
 
     final mountedHost = _shouldUseMountedCalendarHost(context)
         ? _mountedCalendarHostForContext(context)
         : null;
     if (mountedHost != null) {
       mountedHost._rememberSharedCalendarSnapshot(calendar);
+      mountedHost._seedSameDaySharedCalendarFiledEvents(
+        calendar: calendar,
+        filedEvents: sameDayEvents,
+        kYear: kDate.kYear,
+        kMonth: kDate.kMonth,
+        kDay: kDate.kDay,
+      );
       mountedHost._seedOneShotSharedCalendarEventSnapshot(
         kYear: kDate.kYear,
         kMonth: kDate.kMonth,
@@ -4664,6 +4883,7 @@ class CalendarPage extends StatefulWidget {
         snapshot: snapshot,
         detail: detail,
       );
+      mountedHost._publishWarmStateSnapshot();
       if (!mountedHost.mounted) return;
       mountedHost._openDayView(
         mountedHost.context,
@@ -4683,6 +4903,7 @@ class CalendarPage extends StatefulWidget {
     }
 
     final warmStartSnapshot = await _loadWarmStartSearchSnapshot();
+    final warmCalendarSnapshot = await _loadWarmCalendarStateSnapshot();
     if (!context.mounted) return;
     _pendingSharedCalendarRealDayViewIntent = _SharedCalendarRealDayViewIntent(
       kYear: kDate.kYear,
@@ -4693,6 +4914,13 @@ class CalendarPage extends StatefulWidget {
       calendar: calendar,
       warmStartNotes: warmStartSnapshot.notes,
       warmStartFlows: warmStartSnapshot.flows,
+      warmCalendarSummariesById: <String, SharedCalendarSummary>{
+        ...warmCalendarSnapshot.calendarSummariesById,
+        calendar.id: calendar,
+      },
+      warmHiddenCalendarIds: warmCalendarSnapshot.hiddenCalendarIds,
+      warmPersonalCalendarId: warmCalendarSnapshot.personalCalendarId,
+      sameCalendarEvents: sameDayEvents,
     );
     Navigator.of(context, rootNavigator: true).push(
       MaterialPageRoute<void>(
@@ -5039,12 +5267,14 @@ class CalendarPage extends StatefulWidget {
         context,
         repo: SharedCalendarsRepo(Supabase.instance.client),
         initialExpandedCalendarIds: initialExpandedCalendarIds,
-        onEventTapRequested: (calendar, filedEvent) =>
-            openFiledCalendarEventFromAnyContext(
-              context,
-              calendar: calendar,
-              filedEvent: filedEvent,
-            ),
+        onEventTapRequested:
+            (calendar, filedEvent, {calendarEvents = const []}) =>
+                openFiledCalendarEventFromAnyContext(
+                  context,
+                  calendar: calendar,
+                  filedEvent: filedEvent,
+                  calendarEvents: calendarEvents,
+                ),
         onContinuityChanged: (state) {
           unawaited(
             _saveDetachedCalendarOverlayState(
@@ -6849,7 +7079,19 @@ class CalendarPageState extends State<CalendarPage>
   void _notifyDayViewDataChanged() {
     if (!mounted) return;
     _dayViewDataVersion.value++;
+    _publishWarmStateSnapshot();
     _scheduleWarmStartCacheSave();
+  }
+
+  void _publishWarmStateSnapshot() {
+    _CalendarWarmStateStore.save(
+      userId: _activeWarmStartUserId(),
+      notes: _notes,
+      flows: _flows,
+      calendarSummariesById: _calendarSummariesById,
+      hiddenCalendarIds: _hiddenCalendarIds,
+      personalCalendarId: _personalCalendarId,
+    );
   }
 
   // Build a reminder id that is unique per event occurrence and alert time.
@@ -7523,12 +7765,19 @@ class CalendarPageState extends State<CalendarPage>
       _personalCalendarId = snapshot.personalCalendarId;
       _calendarStateLoaded = true;
     });
+    _publishWarmStateSnapshot();
   }
 
-  void _rememberSharedCalendarSnapshot(SharedCalendarSummary calendar) {
+  void _rememberSharedCalendarSnapshot(
+    SharedCalendarSummary calendar, {
+    bool publishWarmState = true,
+  }) {
     final calendarId = _normalizeCalendarId(calendar.id);
     if (calendarId == null) return;
     _calendarSummariesById[calendarId] = calendar;
+    if (publishWarmState) {
+      _publishWarmStateSnapshot();
+    }
   }
 
   _Note _noteFromSharedCalendarEventSnapshot(
@@ -7558,6 +7807,82 @@ class CalendarPageState extends State<CalendarPage>
       actionId: snapshot.actionId,
       behaviorPayload: snapshot.behaviorPayload,
     );
+  }
+
+  _Note _noteFromSharedCalendarFiledEvent({
+    required SharedCalendarSummary calendar,
+    required FiledEvent filedEvent,
+  }) {
+    return _noteFromSharedCalendarEventSnapshot(
+      CalendarPage._sharedCalendarEventDetailSnapshotForFiledEvent(
+        calendar: calendar,
+        filedEvent: filedEvent,
+      ),
+    );
+  }
+
+  bool _noteMatchesFiledEventIdentity(_Note note, FiledEvent filedEvent) {
+    final clientEventId = filedEvent.event.clientEventId?.trim();
+    if (clientEventId != null &&
+        clientEventId.isNotEmpty &&
+        note.clientEventId?.trim() == clientEventId) {
+      return true;
+    }
+    final eventId = filedEvent.event.id.trim();
+    return eventId.isNotEmpty && note.id?.trim() == eventId;
+  }
+
+  void _seedSameDaySharedCalendarFiledEvents({
+    required SharedCalendarSummary calendar,
+    required List<FiledEvent> filedEvents,
+    required int kYear,
+    required int kMonth,
+    required int kDay,
+  }) {
+    if (filedEvents.isEmpty) return;
+    final key = _kKey(kYear, kMonth, kDay);
+    final bucket = _notes.putIfAbsent(key, () => <_Note>[]);
+    for (final filedEvent in filedEvents) {
+      final note = _noteFromSharedCalendarFiledEvent(
+        calendar: calendar,
+        filedEvent: filedEvent,
+      );
+      final incomingBaseKey = _visibleDayNoteBaseKey(note);
+      final incomingStandaloneKey = _standaloneDedupeKey(note);
+      bucket.removeWhere((existing) {
+        if (_noteMatchesFiledEventIdentity(existing, filedEvent)) {
+          return true;
+        }
+        if (_visibleDayNoteBaseKey(existing) == incomingBaseKey) {
+          return true;
+        }
+        if ((existing.flowId ?? -1) <= 0 &&
+            (note.flowId ?? -1) <= 0 &&
+            _standaloneDedupeKey(existing) == incomingStandaloneKey) {
+          return true;
+        }
+        return false;
+      });
+      bucket.add(note);
+    }
+    final trackSkyFlowIds = _flows
+        .where((flow) => _isTrackSkyFlowName(flow.name))
+        .map((flow) => flow.id)
+        .where((flowId) => flowId > 0)
+        .toSet();
+    final deduped = _dedupeVisibleDayNotes(
+      bucket,
+      trackSkyFlowIds: trackSkyFlowIds,
+    );
+    _notes[key] = List<_Note>.from(deduped);
+
+    if (kDebugMode) {
+      _calendarDebugPrint(
+        '[SharedCalendarEventTap] seeded same-day filed events '
+        'calendarId=${calendar.id} day=$key filed=${filedEvents.length} '
+        'notes=${_notes[key]?.length ?? 0}',
+      );
+    }
   }
 
   bool _noteMatchesEventDetailRestorationState(
@@ -7628,7 +7953,7 @@ class CalendarPageState extends State<CalendarPage>
     CalendarPage._pendingSharedCalendarRealDayViewIntent = null;
     _sharedCalendarRealDayViewOpening = true;
 
-    _rememberSharedCalendarSnapshot(intent.calendar);
+    _rememberSharedCalendarSnapshot(intent.calendar, publishWarmState: false);
     _flows
       ..clear()
       ..addAll(intent.warmStartFlows);
@@ -7639,12 +7964,25 @@ class CalendarPageState extends State<CalendarPage>
           (entry) => MapEntry(entry.key, List<_Note>.from(entry.value)),
         ),
       );
+    _calendarSummariesById
+      ..clear()
+      ..addAll(intent.warmCalendarSummariesById);
+    _hiddenCalendarIds = Set<String>.from(intent.warmHiddenCalendarIds);
+    _personalCalendarId = intent.warmPersonalCalendarId;
+    _calendarStateLoaded = intent.warmCalendarSummariesById.isNotEmpty;
     if (_flows.isNotEmpty) {
       final maxFlowId = _flows
           .map((flow) => flow.id)
           .reduce((a, b) => a > b ? a : b);
       _nextFlowId = math.max(_nextFlowId, maxFlowId + 1);
     }
+    _seedSameDaySharedCalendarFiledEvents(
+      calendar: intent.calendar,
+      filedEvents: intent.sameCalendarEvents,
+      kYear: intent.kYear,
+      kMonth: intent.kMonth,
+      kDay: intent.kDay,
+    );
     _seedOneShotSharedCalendarEventSnapshot(
       kYear: intent.kYear,
       kMonth: intent.kMonth,
@@ -8364,12 +8702,14 @@ class CalendarPageState extends State<CalendarPage>
         context,
         repo: _sharedCalendarsRepo,
         onAddEventRequested: _openCalendarScopedNoteDialog,
-        onEventTapRequested: (calendar, filedEvent) =>
-            CalendarPage.openFiledCalendarEventFromAnyContext(
-              context,
-              calendar: calendar,
-              filedEvent: filedEvent,
-            ),
+        onEventTapRequested:
+            (calendar, filedEvent, {calendarEvents = const []}) =>
+                CalendarPage.openFiledCalendarEventFromAnyContext(
+                  context,
+                  calendar: calendar,
+                  filedEvent: filedEvent,
+                  calendarEvents: calendarEvents,
+                ),
         initialExpandedCalendarIds: _stringListFromRestoration(
           restorationState?['expandedCalendarIds'],
         ),

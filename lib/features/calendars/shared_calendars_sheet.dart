@@ -18,8 +18,9 @@ typedef SharedCalendarAddEventCallback =
 typedef SharedCalendarEventTapCallback =
     Future<void> Function(
       SharedCalendarSummary calendar,
-      FiledEvent filedEvent,
-    );
+      FiledEvent filedEvent, {
+      List<FiledEvent> calendarEvents,
+    });
 
 class SharedCalendarsSheet extends StatefulWidget {
   const SharedCalendarsSheet({
@@ -246,8 +247,11 @@ class _SharedCalendarsSheetState extends State<SharedCalendarsSheet> {
     }
 
     Navigator.of(context, rootNavigator: true).pop(_changed);
+    final calendarEvents = List<FiledEvent>.unmodifiable(
+      _calendarEventsById[calendar.id] ?? const <FiledEvent>[],
+    );
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      unawaited(handler(calendar, filedEvent));
+      unawaited(handler(calendar, filedEvent, calendarEvents: calendarEvents));
     });
   }
 
