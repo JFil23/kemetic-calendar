@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
@@ -241,6 +243,170 @@ void main() {
       await tester.pump(const Duration(milliseconds: 500));
     },
   );
+
+  testWidgets('delayed empty load cannot replace focused journal editor text', (
+    tester,
+  ) async {
+    tester.view.devicePixelRatio = 1.0;
+    tester.view.physicalSize = const Size(390, 844);
+    addTearDown(() async {
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+    });
+
+    final repo = _DelayedJournalRepo();
+    final controller = JournalController.withRepo(
+      repo,
+      currentUserId: () => 'user-a',
+    );
+    addTearDown(controller.dispose);
+
+    final initFuture = controller.init();
+    await repo.requested.future;
+
+    var bottomInset = 0.0;
+    await tester.pumpWidget(
+      _JournalHarness(controller: controller, bottomInset: bottomInset),
+    );
+    await tester.pump();
+
+    var fieldFinder = find.byType(TextField);
+    expect(fieldFinder, findsOneWidget);
+
+    await tester.tap(fieldFinder);
+    await tester.pump();
+    await tester.enterText(fieldFinder, 'Focus text survives async load.');
+    await tester.pump();
+
+    bottomInset = 320;
+    await tester.pumpWidget(
+      _JournalHarness(controller: controller, bottomInset: bottomInset),
+    );
+    await tester.pump();
+
+    repo.completeWith(null);
+    await initFuture;
+    await tester.pumpWidget(
+      _JournalHarness(controller: controller, bottomInset: bottomInset),
+    );
+    await tester.pump();
+
+    fieldFinder = find.byType(TextField);
+    final field = tester.widget<TextField>(fieldFinder);
+    expect(controller.currentDraft, 'Focus text survives async load.');
+    expect(field.focusNode?.hasFocus, isTrue);
+    expect(
+      tester.widget<EditableText>(find.byType(EditableText)).controller.text,
+      'Focus text survives async load.',
+    );
+
+    await controller.forceSave();
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pump(const Duration(milliseconds: 500));
+  });
+
+  testWidgets(
+    'JournalRoutePage stays stable under app chrome after flow route activity',
+    (tester) async {
+      tester.view.devicePixelRatio = 1.0;
+      tester.view.physicalSize = const Size(390, 844);
+      addTearDown(() async {
+        tester.view.reset();
+        app.resetGlobalFloatingMenuShellForTesting();
+      });
+
+      final controller = JournalController.withRepo(
+        _NoopJournalRepo(),
+        currentUserId: () => 'user-a',
+      );
+
+      late GoRouter router;
+      router = GoRouter(
+        initialLocation: '/calendar',
+        routes: [
+          GoRoute(
+            path: '/calendar',
+            builder: (context, state) => SessionTrackedRoute(
+              location: state.uri.toString(),
+              child: Scaffold(
+                body: Center(
+                  child: ElevatedButton(
+                    onPressed: () => context.go('/flows/42/edit'),
+                    child: const Text('Edit Flow'),
+                  ),
+                ),
+              ),
+            ),
+          ),
+          GoRoute(
+            path: '/flows/:flowId/edit',
+            builder: (context, state) => SessionTrackedRoute(
+              location: state.uri.toString(),
+              child: Scaffold(
+                body: Center(
+                  child: ElevatedButton(
+                    onPressed: () => context.go('/journal'),
+                    child: const Text('Open Journal'),
+                  ),
+                ),
+              ),
+            ),
+          ),
+          GoRoute(
+            path: '/journal',
+            builder: (context, state) => SessionTrackedRoute(
+              location: state.uri.toString(),
+              child: app.JournalRoutePage(controllerForTesting: controller),
+            ),
+          ),
+        ],
+      );
+      addTearDown(router.dispose);
+
+      Widget buildChrome() {
+        return MaterialApp.router(
+          routerConfig: router,
+          builder: (context, child) {
+            return app.buildGlobalFloatingMenuShellForTesting(
+              router: router,
+              child: child ?? const SizedBox.shrink(),
+            );
+          },
+        );
+      }
+
+      await tester.pumpWidget(buildChrome());
+      await tester.pump();
+
+      await tester.tap(find.text('Edit Flow'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Open Journal'));
+      await tester.pumpAndSettle();
+
+      final fieldFinder = find.byType(TextField);
+      expect(fieldFinder, findsOneWidget);
+
+      await tester.tap(fieldFinder);
+      await tester.pump();
+      await tester.enterText(fieldFinder, 'Route chrome input works.');
+      await tester.pump();
+
+      tester.view.viewInsets = const FakeViewPadding(bottom: 320);
+      await tester.pump();
+      await tester.pump();
+
+      expect(fieldFinder, findsOneWidget);
+      final field = tester.widget<TextField>(fieldFinder);
+      expect(controller.currentDraft, 'Route chrome input works.');
+      expect(field.focusNode?.hasFocus, isTrue);
+      expect(controller.initRunCount, 1);
+      expect(controller.reloadTodayRunCount, 1);
+
+      await controller.forceSave();
+      await tester.pumpWidget(const SizedBox.shrink());
+      await tester.pump(const Duration(milliseconds: 500));
+    },
+  );
 }
 
 class _NoopJournalRepo extends JournalRepo {
@@ -253,6 +419,18 @@ class _NoopJournalRepo extends JournalRepo {
         ),
       );
 
+  int getByDateStrictCalls = 0;
+
+  @override
+  Future<JournalEntry?> getByDate(DateTime localDate) =>
+      getByDateStrict(localDate);
+
+  @override
+  Future<JournalEntry?> getByDateStrict(DateTime localDate) async {
+    getByDateStrictCalls += 1;
+    return null;
+  }
+
   @override
   Future<void> upsert({
     required DateTime localDate,
@@ -260,6 +438,26 @@ class _NoopJournalRepo extends JournalRepo {
     Map<String, dynamic>? meta,
     String? category,
   }) async {}
+}
+
+class _DelayedJournalRepo extends _NoopJournalRepo {
+  final Completer<void> requested = Completer<void>();
+  final Completer<JournalEntry?> _response = Completer<JournalEntry?>();
+
+  void completeWith(JournalEntry? entry) {
+    if (!_response.isCompleted) {
+      _response.complete(entry);
+    }
+  }
+
+  @override
+  Future<JournalEntry?> getByDateStrict(DateTime localDate) {
+    getByDateStrictCalls += 1;
+    if (!requested.isCompleted) {
+      requested.complete();
+    }
+    return _response.future;
+  }
 }
 
 class _JournalHarness extends StatelessWidget {

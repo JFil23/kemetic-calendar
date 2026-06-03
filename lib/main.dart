@@ -3571,7 +3571,10 @@ class _EditProfileRoutePageState extends State<EditProfileRoutePage> {
 }
 
 class JournalRoutePage extends StatefulWidget {
-  const JournalRoutePage({super.key});
+  const JournalRoutePage({super.key, this.controllerForTesting});
+
+  @visibleForTesting
+  final JournalController? controllerForTesting;
 
   @override
   State<JournalRoutePage> createState() => _JournalRoutePageState();
@@ -3579,7 +3582,8 @@ class JournalRoutePage extends StatefulWidget {
 
 class _JournalRoutePageState extends State<JournalRoutePage>
     with WidgetsBindingObserver {
-  late final JournalController _controller = JournalController(supabase);
+  late final JournalController _controller =
+      widget.controllerForTesting ?? JournalController(supabase);
   late final Future<void> _future;
 
   @override

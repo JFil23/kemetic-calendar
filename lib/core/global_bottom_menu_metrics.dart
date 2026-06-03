@@ -61,13 +61,11 @@ class AppPageScaffold extends StatelessWidget {
           )
         : 0.0;
 
-    final content = shouldApply
-        ? MediaQuery.removePadding(
-            context: context,
-            removeBottom: true,
-            child: child,
-          )
-        : child;
+    final content = MediaQuery.removePadding(
+      context: context,
+      removeBottom: shouldApply,
+      child: child,
+    );
 
     return Padding(
       padding: EdgeInsets.only(bottom: bottomPadding),

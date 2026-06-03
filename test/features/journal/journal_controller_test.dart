@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter_test/flutter_test.dart';
@@ -173,6 +174,121 @@ void main() {
   });
 
   test(
+    'init is idempotent while the first journal load is in flight',
+    () async {
+      final repo = _DelayedJournalRepo();
+      final controller = JournalController.withRepo(repo);
+
+      final firstInit = controller.init();
+      final secondInit = controller.init();
+
+      await repo.requested.future;
+      repo.completeWith(null);
+      await Future.wait([firstInit, secondInit]);
+
+      expect(controller.initRunCount, 1);
+      expect(controller.reloadTodayRunCount, 1);
+      expect(repo.getByDateStrictCalls, 1);
+      expect(controller.currentDraft, '\n');
+    },
+  );
+
+  test(
+    'delayed empty-entry load preserves local edits made after focus',
+    () async {
+      final today = _today();
+      final key = _dateKey(today);
+      final repo = _DelayedJournalRepo();
+      final controller = JournalController.withRepo(
+        repo,
+        currentUserId: () => 'user-a',
+      );
+
+      final initFuture = controller.init();
+      await repo.requested.future;
+
+      await controller.updateDraft('Typed before the empty response.');
+      repo.completeWith(null);
+      await initFuture;
+
+      expect(controller.currentDraft, 'Typed before the empty response.');
+      expect(controller.currentDocument?.toPlainText(), contains('Typed'));
+      expect(controller.hasUnsavedChanges, isTrue);
+      expect(controller.syncStatus, JournalSyncStatus.unsavedLocal);
+
+      final prefs = await SharedPreferences.getInstance();
+      expect(
+        prefs.getString(_documentKey(key, uid: 'user-a')),
+        contains('Typed before the empty response.'),
+      );
+      expect(prefs.getBool(_documentDirtyKey(key, uid: 'user-a')), isTrue);
+
+      await controller.forceSave();
+    },
+  );
+
+  test(
+    'delayed existing-entry load preserves local edits made after focus',
+    () async {
+      final today = _today();
+      final repo = _DelayedJournalRepo();
+      final controller = JournalController.withRepo(
+        repo,
+        currentUserId: () => 'user-a',
+      );
+
+      final initFuture = controller.init();
+      await repo.requested.future;
+
+      await controller.updateDraft('Local typed text wins.');
+      repo.completeWith(
+        _entry(
+          date: today,
+          body: _documentJson('server text should not replace focus'),
+          updatedAt: DateTime.now().toUtc(),
+        ),
+      );
+      await initFuture;
+
+      expect(controller.currentDraft, 'Local typed text wins.');
+      expect(controller.hasUnsavedChanges, isTrue);
+      expect(repo.upserts, isEmpty);
+
+      await controller.forceSave();
+    },
+  );
+
+  test(
+    'existing entry load populates once and editing does not reload',
+    () async {
+      final today = _today();
+      final repo = _FakeJournalRepo(
+        entry: _entry(
+          date: today,
+          body: _documentJson('server text'),
+          updatedAt: DateTime.now().toUtc(),
+        ),
+      );
+
+      final controller = JournalController.withRepo(
+        repo,
+        currentUserId: () => 'user-a',
+      );
+      await controller.init();
+
+      expect(controller.currentDraft, 'server text');
+      expect(repo.getByDateStrictCalls, 1);
+
+      await controller.updateDraft('server text plus local edit');
+
+      expect(controller.currentDraft, 'server text plus local edit');
+      expect(repo.getByDateStrictCalls, 1);
+
+      await controller.forceSave();
+    },
+  );
+
+  test(
     'reloadToday keeps unsaved local document when cloud save fails',
     () async {
       final today = _today();
@@ -327,6 +443,7 @@ class _FakeJournalRepo extends JournalRepo {
   JournalEntry? entry;
   Object? getByDateError;
   Object? upsertError;
+  int getByDateStrictCalls = 0;
   final upserts = <_UpsertCall>[];
 
   @override
@@ -335,6 +452,7 @@ class _FakeJournalRepo extends JournalRepo {
 
   @override
   Future<JournalEntry?> getByDateStrict(DateTime localDate) async {
+    getByDateStrictCalls += 1;
     final error = getByDateError;
     if (error != null) throw error;
     return entry;
@@ -357,5 +475,27 @@ class _FakeJournalRepo extends JournalRepo {
         category: category,
       ),
     );
+  }
+}
+
+class _DelayedJournalRepo extends _FakeJournalRepo {
+  _DelayedJournalRepo();
+
+  final Completer<void> requested = Completer<void>();
+  final Completer<JournalEntry?> _response = Completer<JournalEntry?>();
+
+  void completeWith(JournalEntry? entry) {
+    if (!_response.isCompleted) {
+      _response.complete(entry);
+    }
+  }
+
+  @override
+  Future<JournalEntry?> getByDateStrict(DateTime localDate) {
+    getByDateStrictCalls += 1;
+    if (!requested.isCompleted) {
+      requested.complete();
+    }
+    return _response.future;
   }
 }

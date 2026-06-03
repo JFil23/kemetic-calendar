@@ -26,6 +26,11 @@ class JournalController {
   // V2 ADDITIONS
   JournalDocument? _currentDocument;
   bool _isDocumentMode = false;
+  Future<void>? _initFuture;
+  Future<void>? _reloadTodayFuture;
+  int _localEditRevision = 0;
+  int _initRunCount = 0;
+  int _reloadTodayRunCount = 0;
 
   // Callbacks for UI updates
   void Function()? onDraftChanged;
@@ -124,11 +129,42 @@ class JournalController {
 
   bool get hasUnsavedChanges => _hasUnsavedChanges;
 
+  @visibleForTesting
+  int get initRunCount => _initRunCount;
+
+  @visibleForTesting
+  int get reloadTodayRunCount => _reloadTodayRunCount;
+
   void _setSyncStatus(JournalSyncStatus status, [Object? error]) {
     if (_syncStatus == status && _lastSyncError == error) return;
     _syncStatus = status;
     _lastSyncError = error;
     onSyncStatusChanged?.call();
+  }
+
+  void _markLocalEdit() {
+    _localEditRevision += 1;
+  }
+
+  bool _shouldAbortReloadApply({
+    required String dateKey,
+    required String cacheScope,
+    required int editRevision,
+    required String source,
+  }) {
+    if (_cacheScope != cacheScope) {
+      _log('$source: discarded stale load after cache scope changed');
+      return true;
+    }
+    if (_activeDateKey != dateKey) {
+      _log('$source: discarded stale load after active date changed');
+      return true;
+    }
+    if (_localEditRevision != editRevision) {
+      _log('$source: discarded stale load after local editor changes');
+      return true;
+    }
+    return false;
   }
 
   DateTime? _parsePrefsDate(String? value) {
@@ -241,6 +277,26 @@ class JournalController {
 
   /// Initialize controller - load today's draft
   Future<void> init() async {
+    final existing = _initFuture;
+    if (existing != null) {
+      _log('init: joining existing initialization');
+      return existing;
+    }
+
+    final future = _runInit();
+    _initFuture = future;
+    try {
+      await future;
+    } catch (_) {
+      if (identical(_initFuture, future)) {
+        _initFuture = null;
+      }
+      rethrow;
+    }
+  }
+
+  Future<void> _runInit() async {
+    _initRunCount += 1;
     _log('init: starting (V2 enabled: ${FeatureFlags.isJournalV2Active})');
 
     await reloadToday();
@@ -254,6 +310,25 @@ class JournalController {
   /// when they are newer than the server row or when no server row is
   /// reachable, so this is safe to call when returning from another route.
   Future<void> reloadToday() async {
+    final existing = _reloadTodayFuture;
+    if (existing != null) {
+      _log('reloadToday: joining existing reload');
+      return existing;
+    }
+
+    final future = _runReloadToday();
+    _reloadTodayFuture = future;
+    try {
+      await future;
+    } finally {
+      if (identical(_reloadTodayFuture, future)) {
+        _reloadTodayFuture = null;
+      }
+    }
+  }
+
+  Future<void> _runReloadToday() async {
+    _reloadTodayRunCount += 1;
     _log(
       'reloadToday: starting (V2 enabled: ${FeatureFlags.isJournalV2Active})',
     );
@@ -295,6 +370,8 @@ class JournalController {
     _currentDate = today;
     _isDocumentMode = false;
     final dateKey = _formatDate(today);
+    final cacheScope = _cacheScope;
+    final editRevision = _localEditRevision;
 
     final prefs = await SharedPreferences.getInstance();
     var localDraft = prefs.getString(_draftKey(dateKey));
@@ -305,12 +382,26 @@ class JournalController {
 
     JournalEntry? entry;
     var serverReadFailed = false;
+    Object? serverError;
     try {
       entry = await _repo.getByDateStrict(today);
     } catch (e) {
       serverReadFailed = true;
-      _setSyncStatus(JournalSyncStatus.saveFailed, e);
+      serverError = e;
       _log('_loadDraftForToday server error: $e');
+    }
+
+    if (_shouldAbortReloadApply(
+      dateKey: dateKey,
+      cacheScope: cacheScope,
+      editRevision: editRevision,
+      source: '_loadDraftForToday',
+    )) {
+      return;
+    }
+
+    if (serverReadFailed) {
+      _setSyncStatus(JournalSyncStatus.saveFailed, serverError);
     }
 
     if (entry == null &&
@@ -396,6 +487,8 @@ class JournalController {
     _currentDate = today;
     _isDocumentMode = true;
     final dateKey = _formatDate(today);
+    final cacheScope = _cacheScope;
+    final editRevision = _localEditRevision;
 
     final prefs = await SharedPreferences.getInstance();
     final localDocJson = prefs.getString(_documentKey(dateKey));
@@ -418,12 +511,26 @@ class JournalController {
 
     JournalEntry? entry;
     var serverReadFailed = false;
+    Object? serverError;
     try {
       entry = await _repo.getByDateStrict(today);
     } catch (e) {
       serverReadFailed = true;
-      _setSyncStatus(JournalSyncStatus.saveFailed, e);
+      serverError = e;
       _log('_loadDocumentForToday server error: $e');
+    }
+
+    if (_shouldAbortReloadApply(
+      dateKey: dateKey,
+      cacheScope: cacheScope,
+      editRevision: editRevision,
+      source: '_loadDocumentForToday',
+    )) {
+      return;
+    }
+
+    if (serverReadFailed) {
+      _setSyncStatus(JournalSyncStatus.saveFailed, serverError);
     }
 
     if (entry == null && !serverReadFailed && localDocument == null) {
@@ -587,12 +694,13 @@ class JournalController {
   Future<void> updateDraft(String text) async {
     if (_currentDraft == text) return;
 
+    _markLocalEdit();
     _currentDraft = text;
     _hasUnsavedChanges = true;
     _setSyncStatus(JournalSyncStatus.unsavedLocal);
 
-    if (_isDocumentMode && _currentDocument != null) {
-      // Update document
+    if (_isDocumentMode || FeatureFlags.isJournalV2Active) {
+      _isDocumentMode = true;
       _currentDocument = _plainTextToDocument(text);
       await _saveLocalDocument(markDirty: true);
     } else {
@@ -610,6 +718,7 @@ class JournalController {
     final normalized = JournalBadgeUtils.normalizeDocument(document);
     if (_currentDocument == normalized) return;
 
+    _markLocalEdit();
     _isDocumentMode = true;
     _currentDocument = normalized;
     _currentDraft = _documentToPlainText(normalized);
@@ -669,6 +778,7 @@ class JournalController {
     if (!_hasUnsavedChanges) return true;
 
     try {
+      final saveRevision = _localEditRevision;
       _setSyncStatus(JournalSyncStatus.saving);
       _log('_autosave: saving to server (${_currentDraft.length} chars)');
 
@@ -696,6 +806,13 @@ class JournalController {
         body: bodyToSave,
         meta: metaToSave,
       );
+
+      if (_localEditRevision != saveRevision) {
+        _setSyncStatus(JournalSyncStatus.unsavedLocal);
+        _scheduleAutosave();
+        _log('_autosave: saved earlier revision; local edits remain pending');
+        return true;
+      }
 
       _hasUnsavedChanges = false;
       await _markLocalClean(dateKey: dateKey, documentMode: documentMode);
@@ -737,6 +854,7 @@ class JournalController {
   /// Clear today's entry (draft/document) and persist immediately.
   Future<void> clearToday() async {
     try {
+      _markLocalEdit();
       if (_isDocumentMode) {
         _currentDocument = JournalDocument.fromPlainText('');
         _currentDraft = '';

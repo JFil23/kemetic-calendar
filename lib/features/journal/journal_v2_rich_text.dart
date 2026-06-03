@@ -587,7 +587,7 @@ class RichTextEditorState extends State<RichTextEditor> {
   @override
   void didUpdateWidget(RichTextEditor oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.initialBlock != widget.initialBlock) {
+    if (!_blocksEqual(_currentBlock, widget.initialBlock)) {
       setState(() {
         _currentBlock = widget.initialBlock;
         _controller.updateBlock(_currentBlock);
@@ -648,6 +648,10 @@ class RichTextEditorState extends State<RichTextEditor> {
       }
     }
     return true;
+  }
+
+  bool _blocksEqual(ParagraphBlock a, ParagraphBlock b) {
+    return _opsEqual(a.ops, b.ops);
   }
 
   /// Apply formatting to current selection
