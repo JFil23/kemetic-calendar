@@ -11803,18 +11803,16 @@ class CalendarPageState extends State<CalendarPage>
             clearActiveHelper: false,
           );
           unawaited(
-            Events.trackIfAuthed(
-              helper.analyticsEvent,
-              const <String, dynamic>{},
-            ),
-          );
-          unawaited(
             _maybeShowCalendarHelperAfterOnboarding(
               updated ?? _onboardingProgress,
             ),
           );
         },
       ),
+    );
+    await _markOnboardingHelperCompleted(helper.id, clearActiveHelper: false);
+    unawaited(
+      Events.trackIfAuthed(helper.analyticsEvent, const <String, dynamic>{}),
     );
   }
 

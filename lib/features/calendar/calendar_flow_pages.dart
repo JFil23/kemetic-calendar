@@ -2548,11 +2548,14 @@ class _FlowHubPageState extends State<_FlowHubPage> {
             userId,
             OnboardingHelperIds.flowBuilder,
           );
-          await Events.trackIfAuthed(
-            'helper_seen_flow_builder',
-            const <String, dynamic>{},
-          );
         },
+      ),
+    );
+    await storage.markHelperCompleted(userId, OnboardingHelperIds.flowBuilder);
+    unawaited(
+      Events.trackIfAuthed(
+        'helper_seen_flow_builder',
+        const <String, dynamic>{},
       ),
     );
   }

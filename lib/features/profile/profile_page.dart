@@ -559,22 +559,32 @@ class _ProfilePageState extends State<ProfilePage>
             dismissLabel: 'Got it',
             onDismiss: () {
               GuidedOnboardingController.instance.clear();
-              unawaited(_markProfileCommunityHelperSeen());
             },
           ),
         );
+        await _markProfileCommunityHelperSeen(clearActiveHelper: false);
       }());
     });
   }
 
-  Future<void> _markProfileCommunityHelperSeen() async {
+  Future<void> _markProfileCommunityHelperSeen({
+    bool clearActiveHelper = true,
+  }) async {
     final userId = _currentUserId;
     if (userId == null) return;
-    if (GuidedOnboardingController.instance.target?.variant ==
-        CoachmarkVariant.helperBubble) {
+    if (clearActiveHelper &&
+        GuidedOnboardingController.instance.target?.variant ==
+            CoachmarkVariant.helperBubble) {
       GuidedOnboardingController.instance.clear();
     }
-    await OnboardingProgressStorage().markHelperCompleted(
+    final storage = OnboardingProgressStorage();
+    if (!await storage.shouldShowHelper(
+      userId,
+      OnboardingHelperIds.profileCommunityFeed,
+    )) {
+      return;
+    }
+    await storage.markHelperCompleted(
       userId,
       OnboardingHelperIds.profileCommunityFeed,
     );

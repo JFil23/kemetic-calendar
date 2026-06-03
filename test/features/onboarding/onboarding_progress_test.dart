@@ -118,6 +118,86 @@ void main() {
     },
   );
 
+  test(
+    'helper completion is idempotent for repeated display and dismiss paths',
+    () async {
+      final storage = OnboardingProgressStorage();
+      await storage.save(
+        'user-a',
+        const OnboardingProgress().copyWith(
+          currentStep: TrueOnboardingStep.complete,
+          completedOnboarding: true,
+        ),
+      );
+
+      final first = await storage.markHelperCompleted(
+        'user-a',
+        OnboardingHelperIds.profileCommunityFeed,
+      );
+      final prefs = await SharedPreferences.getInstance();
+      final rawAfterFirst = prefs.getString('onboarding_v2_progress:user-a');
+
+      final second = await storage.markHelperCompleted(
+        'user-a',
+        OnboardingHelperIds.profileCommunityFeed,
+      );
+
+      expect(
+        first.seenHelpers,
+        contains(OnboardingHelperIds.profileCommunityFeed),
+      );
+      expect(
+        second.seenHelpers,
+        contains(OnboardingHelperIds.profileCommunityFeed),
+      );
+      expect(
+        second.seenHelpers.where(
+          (id) => id == OnboardingHelperIds.profileCommunityFeed,
+        ),
+        hasLength(1),
+      );
+      expect(prefs.getString('onboarding_v2_progress:user-a'), rawAfterFirst);
+    },
+  );
+
+  test(
+    'display-time helper completion keeps helpers hidden after remounts',
+    () async {
+      final storage = OnboardingProgressStorage();
+      final completed = const OnboardingProgress().copyWith(
+        currentStep: TrueOnboardingStep.complete,
+        completedOnboarding: true,
+      );
+
+      final helperCases = <({String label, String id})>[
+        (label: 'calendar helper', id: OnboardingHelperIds.calendarToggle),
+        (label: 'Flow Builder helper', id: OnboardingHelperIds.flowBuilder),
+        (label: "Ma'at flows helper", id: OnboardingHelperIds.flowBuilder),
+        (
+          label: 'profile community helper',
+          id: OnboardingHelperIds.profileCommunityFeed,
+        ),
+      ];
+
+      for (var i = 0; i < helperCases.length; i += 1) {
+        final helper = helperCases[i];
+        final userId = 'user-$i';
+        await storage.save(userId, completed);
+        expect(
+          await storage.shouldShowHelper(userId, helper.id),
+          isTrue,
+          reason: '${helper.label} should be visible before display',
+        );
+        await storage.markHelperCompleted(userId, helper.id);
+        expect(
+          await OnboardingProgressStorage().shouldShowHelper(userId, helper.id),
+          isFalse,
+          reason: '${helper.label} should not repeat after remount',
+        );
+      }
+    },
+  );
+
   test('helpers do not show before onboarding is complete', () async {
     final storage = OnboardingProgressStorage();
     await storage.save('user-a', const OnboardingProgress());

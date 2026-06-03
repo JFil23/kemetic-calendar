@@ -306,6 +306,10 @@ class OnboardingProgressStorage {
         .catchError((_) {})
         .then((_) async {
           final progress = await load(userId);
+          if (progress.seenHelpers.contains(helperId)) {
+            completer.complete(progress);
+            return;
+          }
           final updated = progress.markHelperSeen(helperId);
           await save(userId, updated);
           completer.complete(updated);
