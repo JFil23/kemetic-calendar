@@ -45,13 +45,98 @@ void main() {
       );
 
       final saveRouteMatches = await _filesContainingAny(<String>[
-        'AppRestorationService.instance.saveRouteLocation',
+        'AppRestorationService.instance.saveDurableLaunchRoute',
       ]);
       expect(
         saveRouteMatches,
-        unorderedEquals(<String>['lib/services/restoration_coordinator.dart']),
+        unorderedEquals(<String>[
+          'lib/services/app_navigation_restoration_controller.dart',
+        ]),
       );
+
+      final legacyRouteMatches = await _filesContainingAny(<String>[
+        'saveRouteLocation(',
+        'readRouteLocation(',
+        'saveRouteLocationWithOverlayStack(',
+        'recordRouteLocation',
+        'persistCurrentLocation',
+        'restoreSavedRouteOnce',
+      ]);
+      expect(legacyRouteMatches, isEmpty);
     });
+
+    test(
+      'launch route persistence is owned by the navigation controller',
+      () async {
+        final controller = await File(
+          'lib/services/app_navigation_restoration_controller.dart',
+        ).readAsString();
+        final policy = await File(
+          'lib/core/navigation_persistence_policy.dart',
+        ).readAsString();
+
+        expect(controller, contains('recordPrimaryTabSelection'));
+        expect(controller, contains('recordPrimaryRouteSelection'));
+        expect(controller, contains('restoreLaunchDestination'));
+        expect(controller, contains('consumeOneShotIntent'));
+        expect(controller, contains('classifyRoute'));
+        expect(controller, contains('recordPageState'));
+        expect(controller, isNot(contains('saveLastRoute')));
+        expect(controller, isNot(contains('persistCurrentLocation')));
+
+        expect(policy, contains('NavigationRouteClass.durablePrimary'));
+        expect(policy, contains('NavigationRouteClass.pageState'));
+        expect(policy, contains('NavigationRouteClass.transient'));
+        expect(policy, contains('NavigationRouteClass.oneShotIntent'));
+        expect(policy, contains('source != NavigationSource.userPrimaryTab'));
+      },
+    );
+
+    test(
+      'AuthGate never restores saved routes directly after launch',
+      () async {
+        final main = await File('lib/main.dart').readAsString();
+        final authGate = _sourceBetween(
+          main,
+          'class _AuthGateState extends State<AuthGate>',
+          '// -- Log app_open once per cold start after auth is present',
+        );
+
+        expect(authGate, isNot(contains('_maybeResumeSessionRoute')));
+        expect(authGate, isNot(contains('restoring saved route once')));
+        expect(authGate, isNot(contains('readRouteLocation(')));
+        expect(
+          authGate,
+          isNot(contains('SessionResumeService.readRouteLocation')),
+        );
+        expect(authGate, isNot(contains('_router.go(savedLocation)')));
+        expect(authGate, isNot(contains('restoreSavedRouteOnce')));
+      },
+    );
+
+    test(
+      'launch route storage keys stay inside restoration storage files',
+      () async {
+        final matches = await _filesContainingAny(<String>[
+          "'routeLocation'",
+          '"routeLocation"',
+          "'route_location'",
+          '"route_location"',
+          "'launchRouteMetadata'",
+          '"launchRouteMetadata"',
+          'navigationLaunchRouteMetadataKey',
+        ]);
+
+        expect(
+          matches,
+          unorderedEquals(<String>[
+            'lib/core/navigation_persistence_policy.dart',
+            'lib/data/app_restoration_repo.dart',
+            'lib/services/app_restoration_service.dart',
+          ]),
+        );
+      },
+    );
 
     test('calendar action entrypoints stay centralized', () async {
       final menuMatches = await _filesContainingAny(<String>[
@@ -147,12 +232,6 @@ void main() {
           'Future<void> _restoreDetachedCalendarOverlayAfterBoot() async',
           'Future<void> _dismissOverlay() async',
         );
-        final authResume = _sourceBetween(
-          main,
-          'Future<void> _maybeResumeSessionRoute() async',
-          '// -- Log app_open once per cold start after auth is present',
-        );
-
         expect(
           main,
           contains('unawaited(_restoreDetachedCalendarOverlayAfterBoot())'),
@@ -167,25 +246,10 @@ void main() {
         );
         expect(bootRetry, contains('currentLocation: currentLocation'));
 
-        expect(authResume, contains('restorableOverlayParentRouteFromStack'));
-        expect(authResume, contains('readOverlayStack()'));
-        expect(authResume, contains('readRouteLocation('));
-        expect(authResume, contains('includeRemote: true'));
-        expect(authResume, contains('_router.go(savedLocation)'));
-        expect(
-          authResume,
-          isNot(contains('restorableRouteLocationFromSnapshot')),
-        );
-        expect(
-          authResume,
-          isNot(contains("savedLocation.startsWith('/calendar/')")),
-        );
-        expect(authResume, contains('addPostFrameCallback'));
-        expect(
-          authResume,
-          contains('restoreDetachedCalendarOverlayFromAnyContext'),
-        );
-        expect(authResume, contains('currentLocation: savedLocation'));
+        expect(main, isNot(contains('_maybeResumeSessionRoute')));
+        expect(main, isNot(contains('restoring saved route once')));
+        expect(main, isNot(contains('_router.go(savedLocation)')));
+        expect(main, isNot(contains('readRouteLocation(')));
       },
     );
 
@@ -301,14 +365,21 @@ void main() {
         'Future<void> _readBootInitialPushIntent() async',
       );
 
+      expect(
+        bootRestore,
+        contains('AppNavigationRestorationController.instance'),
+      );
+      expect(bootRestore, contains('restoreLaunchDestination'));
+      expect(bootRestore, contains('includeRemote: hasSession'));
+      expect(bootRestore, contains('decisionSource'));
+      expect(bootRestore, contains('destination.route'));
       expect(bootRestore, contains('readBestSnapshot'));
-      expect(bootRestore, contains('AppRestorationReadStatus.restored'));
-      expect(bootRestore, contains('AppRestorationReadStatus.tentative'));
-      expect(bootRestore, contains('restorableOverlayParentRouteFromStack'));
-      expect(bootRestore, contains('result.snapshot?.routeLocation?.trim()'));
-      expect(bootRestore, contains('SessionResumeService.readRouteLocation'));
-      expect(bootRestore, contains('_restorableLaunchLocation'));
-      expect(bootRestore, contains('_isContinuityRouteLocation'));
+      expect(
+        bootRestore,
+        isNot(contains('SessionResumeService.readRouteLocation')),
+      );
+      expect(bootRestore, isNot(contains('_restorableLaunchLocation')));
+      expect(bootRestore, isNot(contains('_isContinuityRouteLocation')));
       expect(
         bootRestore,
         isNot(contains('restorableRouteLocationFromSnapshot')),
@@ -344,7 +415,7 @@ void main() {
         contains('_suppressPassiveLaunchSurfacesForExplicitIntentIfNeeded'),
       );
       expect(main, contains('suppressRestoreForExplicitIntent'));
-      expect(main, contains('_deferSessionResumeForPushNavigation = true;'));
+      expect(main, isNot(contains('_deferSessionResumeForPushNavigation')));
 
       expect(parentResolver, contains('_isRootRouteLocation(parentRoute)'));
       expect(parentResolver, contains('return null;'));
@@ -366,90 +437,97 @@ void main() {
       expect(calendar, isNot(contains('_buildRestoredFlowStudioRouteSheet')));
     });
 
-    test('secondary pages can become launch routes from persistence', () async {
-      final main = await File('lib/main.dart').readAsString();
-      final bootRestore = _sourceBetween(
-        main,
-        'Future<String?> _readBootRestoredLocation() async',
-        'String? _redirectExternalAppLink(Uri uri)',
-      );
-      final authResume = _sourceBetween(
-        main,
-        'Future<void> _maybeResumeSessionRoute() async',
-        '// -- Log app_open once per cold start after auth is present',
-      );
-      final routes = _sourceBetween(
-        main,
-        'final _router = GoRouter(',
-        '/* ───────────────────────── App Widgets',
-      );
-      final appLinkRedirect = _sourceBetween(
-        main,
-        'String? _redirectExternalAppLink(Uri uri)',
-        'String? _redirectRetiredRhythmRoute(Uri uri)',
-      );
-      final appLinkHandler = _sourceBetween(
-        main,
-        'Future<void> _handleIncomingAppLink(Uri uri) async',
-        'bool _shouldSkipDuplicateLink(String signature)',
-      );
-      final initialLocation = _sourceBetween(
-        main,
-        'String _resolveInitialLocation()',
-        'Future<String?> _readBootRestoredLocation() async',
-      );
+    test(
+      'non-primary pages stay routable without becoming durable launch routes',
+      () async {
+        final main = await File('lib/main.dart').readAsString();
+        final policy = await File(
+          'lib/core/navigation_persistence_policy.dart',
+        ).readAsString();
+        final bootRestore = _sourceBetween(
+          main,
+          'Future<String?> _readBootRestoredLocation() async',
+          'String? _redirectExternalAppLink(Uri uri)',
+        );
+        final routes = _sourceBetween(
+          main,
+          'final _router = GoRouter(',
+          '/* ───────────────────────── App Widgets',
+        );
+        final appLinkRedirect = _sourceBetween(
+          main,
+          'String? _redirectExternalAppLink(Uri uri)',
+          'String? _redirectRetiredRhythmRoute(Uri uri)',
+        );
+        final appLinkHandler = _sourceBetween(
+          main,
+          'Future<void> _handleIncomingAppLink(Uri uri) async',
+          'bool _shouldSkipDuplicateLink(String signature)',
+        );
+        final initialLocation = _sourceBetween(
+          main,
+          'String _resolveInitialLocation()',
+          'Future<String?> _readBootRestoredLocation() async',
+        );
 
-      for (final route in const <String>[
-        "path: '/rhythm/today'",
-        "path: '/nodes'",
-        "path: '/settings'",
-        "path: '/profile/:userId'",
-      ]) {
-        expect(routes, contains(route));
-      }
+        for (final route in const <String>[
+          "path: '/rhythm/today'",
+          "path: '/nodes'",
+          "path: '/settings'",
+          "path: '/profile/:userId'",
+        ]) {
+          expect(routes, contains(route));
+        }
 
-      expect(main, contains('bool _isContinuityRouteLocation'));
-      expect(bootRestore, contains('readBestSnapshot'));
-      expect(bootRestore, contains('routeLocation'));
-      expect(bootRestore, contains('SessionResumeService.readRouteLocation'));
-      expect(authResume, contains('readOverlayStack'));
-      expect(authResume, contains('readRouteLocation'));
-      expect(authResume, contains('SessionResumeService.readRouteLocation'));
-      expect(authResume, contains('_router.go(savedLocation)'));
-      expect(routes, isNot(contains('restorationScopeId:')));
+        expect(policy, contains("case '/inbox':"));
+        expect(policy, contains("case '/journal':"));
+        expect(policy, contains("case '/settings':"));
+        expect(policy, contains("case '/profile/me':"));
+        expect(policy, contains("path.startsWith('/nodes/')"));
+        expect(policy, contains("path.startsWith('/reflections/')"));
+        expect(policy, contains("path.startsWith('/rhythm/editor/')"));
+        expect(bootRestore, contains('restoreLaunchDestination'));
+        expect(bootRestore, contains('destination.route'));
+        expect(main, isNot(contains('bool _isContinuityRouteLocation')));
+        expect(main, isNot(contains('SessionResumeService.readRouteLocation')));
+        expect(main, isNot(contains('_router.go(savedLocation)')));
+        expect(routes, isNot(contains('restorationScopeId:')));
 
-      expect(initialLocation, contains('defaultRouteName'));
-      expect(
-        initialLocation.indexOf('defaultRoute'),
-        lessThan(initialLocation.indexOf('_bootRestoredLocation')),
-      );
-      expect(
-        initialLocation.indexOf('defaultRoute'),
-        lessThan(initialLocation.indexOf('_bootExplicitIntentLocation')),
-      );
-      expect(main, contains('bool _hasExplicitBootIntent()'));
-      expect(main, contains('defaultRoute != Navigator.defaultRouteName'));
-      expect(authResume, contains('_deferSessionResumeForPushNavigation'));
-      expect(main, contains('getInitialAppLink()'));
-      expect(main, contains('getInitialLink()'));
-      expect(main, contains('!_isBootInitialAppLinkUri(initialUri)'));
-      expect(appLinkRedirect, contains('AppLinkIntent.parse(uri)'));
-      expect(appLinkRedirect, contains('PlannerAppLinkIntent'));
-      expect(appLinkRedirect, contains('ShareAppLinkIntent'));
-      expect(appLinkHandler, contains('_routeToSharedFlow(intent)'));
-      expect(appLinkHandler, contains('_routeToPlanner(intent.plannerIntent)'));
-    });
+        expect(initialLocation, contains('defaultRouteName'));
+        expect(
+          initialLocation.indexOf('defaultRoute'),
+          lessThan(initialLocation.indexOf('_bootRestoredLocation')),
+        );
+        expect(
+          initialLocation.indexOf('defaultRoute'),
+          lessThan(initialLocation.indexOf('_bootExplicitIntentLocation')),
+        );
+        expect(main, contains('bool _hasExplicitBootIntent()'));
+        expect(main, contains('defaultRoute != Navigator.defaultRouteName'));
+        expect(main, isNot(contains('_deferSessionResumeForPushNavigation')));
+        expect(main, contains('getInitialAppLink()'));
+        expect(main, contains('getInitialLink()'));
+        expect(main, contains('!_isBootInitialAppLinkUri(initialUri)'));
+        expect(appLinkRedirect, contains('AppLinkIntent.parse(uri)'));
+        expect(appLinkRedirect, contains('PlannerAppLinkIntent'));
+        expect(appLinkRedirect, contains('ShareAppLinkIntent'));
+        expect(appLinkHandler, contains('consumeOneShotIntent'));
+        expect(appLinkHandler, contains('_routeToSharedFlow(intent)'));
+        expect(
+          appLinkHandler,
+          contains('_routeToPlanner(intent.plannerIntent)'),
+        );
+      },
+    );
 
     test('boot route restoration cannot be disabled silently', () async {
       final main = await File('lib/main.dart').readAsString();
+      final policy = await File(
+        'lib/core/navigation_persistence_policy.dart',
+      ).readAsString();
       final bootRestore = _sourceBetween(
         main,
         'Future<String?> _readBootRestoredLocation() async',
-        'String? _restorableLaunchLocation',
-      );
-      final continuityPolicy = _sourceBetween(
-        main,
-        'bool _isContinuityRouteLocation(String location)',
         'Map<String, dynamic>? _pushIntentDataFromQuery',
       );
       final routes = _sourceBetween(
@@ -458,11 +536,13 @@ void main() {
         '/* ───────────────────────── App Widgets',
       );
 
-      expect(bootRestore, contains('readBestSnapshot'));
-      expect(bootRestore, contains('restorableOverlayParentRouteFromStack'));
-      expect(bootRestore, contains('return restored;'));
-      expect(bootRestore, contains('SessionResumeService.readRouteLocation'));
-      expect(bootRestore, contains('_restorableLaunchLocation(sessionRoute)'));
+      expect(bootRestore, contains('restoreLaunchDestination'));
+      expect(bootRestore, contains('return destination.route;'));
+      expect(
+        bootRestore,
+        isNot(contains('SessionResumeService.readRouteLocation')),
+      );
+      expect(bootRestore, isNot(contains('_restorableLaunchLocation')));
       expect(
         _squashWhitespace(bootRestore),
         isNot(
@@ -473,15 +553,17 @@ void main() {
       );
 
       for (final route in const <String>[
-        "path == '/nodes'",
-        "path == '/reflections'",
-        "path == '/settings'",
-        "path.startsWith('/profile/')",
+        "case '/':",
+        "case '/inbox':",
+        "case '/journal':",
+        "case '/settings':",
+        "case '/profile/me':",
         "path.startsWith('/nodes/')",
         "path.startsWith('/reflections/')",
-        "path.startsWith('/rhythm/')",
+        "path.startsWith('/shared-flow/')",
+        "path.startsWith('/event-invite/')",
       ]) {
-        expect(continuityPolicy, contains(route), reason: route);
+        expect(policy, contains(route), reason: route);
       }
 
       for (final route in const <String>[
@@ -528,11 +610,6 @@ void main() {
           'void _startInitialTasks()',
           'void _consumePendingWebPushIntent()',
         );
-        final sessionResume = _sourceBetween(
-          main,
-          'Future<void> _maybeResumeSessionRoute() async',
-          '// -- Log app_open once per cold start after auth is present',
-        );
         final suppressExplicit = _sourceBetween(
           main,
           'void _suppressPassiveLaunchSurfacesForExplicitIntentIfNeeded()',
@@ -553,6 +630,8 @@ void main() {
         );
         expect(bootAppLink, contains('_bootInitialAppLinkSignature'));
         expect(bootAppLink, contains('_initialLocationFromAppLinkIntent'));
+        expect(bootAppLink, contains('_consumeBootOneShotLocation'));
+        expect(main, contains('consumeOneShotIntent'));
         expect(
           initDeepLinks,
           contains('!_isBootInitialAppLinkUri(initialUri)'),
@@ -569,15 +648,9 @@ void main() {
         );
         expect(push, contains('if (_initialMessageChecked) return null;'));
         expect(push, contains('_initialMessageChecked = true;'));
-        expect(
-          suppressExplicit,
-          contains('_deferSessionResumeForPushNavigation = true;'),
-        );
-        expect(sessionResume, contains('_deferSessionResumeForPushNavigation'));
-        expect(
-          sessionResume.indexOf('_deferSessionResumeForPushNavigation'),
-          lessThan(sessionResume.indexOf('readOverlayStack')),
-        );
+        expect(suppressExplicit, contains('suppressRestoreForExplicitIntent'));
+        expect(main, isNot(contains('_deferSessionResumeForPushNavigation')));
+        expect(main, isNot(contains('_maybeResumeSessionRoute')));
       },
     );
 
@@ -738,12 +811,13 @@ void main() {
           'Future<void> _restoreFlowStudioOverlay',
         );
 
-        expect(saveDetached, contains('recordRouteLocationWithOverlayStack'));
+        expect(saveDetached, contains('recordOverlayStackPageState'));
         expect(saveDetached, contains("'parentRoute': normalizedParentRoute"));
         expect(saveDetached, contains("'parentSurface'"));
+        expect(saveDetached, isNot(contains('recordRouteLocation')));
         expect(
           saveDetached,
-          contains('SessionResumeService.saveRouteLocation'),
+          isNot(contains('SessionResumeService.saveRouteLocation')),
         );
         expect(saveDetached, contains('RestorationCoordinator.instance.flush'));
 
@@ -817,14 +891,15 @@ void main() {
 
         expect(main, contains('beginLaunchRestore'));
         expect(main, contains('RestorationRestoreReason.coldLaunch'));
-        expect(main, contains('RestorationRestoreReason.authResume'));
+        expect(main, isNot(contains('RestorationRestoreReason.authResume')));
         expect(
           launchDismiss,
           contains('waitForInitialCalendarRestorationToSettle'),
         );
 
         expect(todayCommand, contains('suppressRestoreForUserNavigation'));
-        expect(todayCommand, contains('recordRouteLocation'));
+        expect(todayCommand, contains('recordPrimaryTabSelection'));
+        expect(todayCommand, contains('AppSection.calendar'));
         expect(todayCommand, contains("router.go('/')"));
         expect(todayCommand, isNot(contains('return;\n    }\n    router.go')));
 

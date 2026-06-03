@@ -189,8 +189,9 @@ void main() {
         );
         expect(
           launchSuppressionSource,
-          contains('_deferSessionResumeForPushNavigation = true;'),
+          isNot(contains('_deferSessionResumeForPushNavigation')),
         );
+        expect(bootPushSource, contains('_consumeBootOneShotLocation'));
         expect(
           launchSuppressionSource,
           contains('RestorationCoordinator.calendarDayViewSurface'),

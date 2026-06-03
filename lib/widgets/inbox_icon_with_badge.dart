@@ -3,7 +3,9 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../core/navigation_persistence_policy.dart';
 import '../data/share_repo.dart';
+import '../services/app_navigation_restoration_controller.dart';
 import '../shared/glossy_text.dart';
 
 Widget _inboxGlyphIcon(Color iconColor) {
@@ -109,6 +111,9 @@ class InboxIconWithBadge extends StatelessWidget {
         icon: _inboxGlyphIcon(iconColor),
         tooltip: 'Inbox',
         onPressed: () async {
+          await AppNavigationRestorationController.instance
+              .recordPrimaryTabSelection(AppSection.inbox);
+          if (!context.mounted) return;
           context.go('/inbox');
           if (onRefreshAsync != null) {
             await onRefreshAsync!(null);
@@ -134,6 +139,9 @@ class InboxIconWithBadge extends StatelessWidget {
               icon: iconWidget,
               tooltip: 'Inbox',
               onPressed: () async {
+                await AppNavigationRestorationController.instance
+                    .recordPrimaryTabSelection(AppSection.inbox);
+                if (!context.mounted) return;
                 context.go('/inbox');
                 if (onRefreshAsync != null) {
                   await onRefreshAsync!(null);

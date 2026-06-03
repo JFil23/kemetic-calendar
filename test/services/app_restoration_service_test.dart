@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:mobile/core/navigation_persistence_policy.dart';
 import 'package:mobile/services/app_restoration_service.dart';
 import 'package:mobile/services/app_window_service.dart';
 import 'package:mobile/services/restoration_coordinator.dart';
@@ -9,6 +10,28 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 String _snapshotKey({String userId = 'user-1', String windowId = 'window-1'}) {
   return 'app_restoration_v1:$userId:$windowId';
+}
+
+Map<String, dynamic> _durableRouteFields(String route) {
+  return <String, dynamic>{
+    'routeLocation': route,
+    navigationLaunchRouteMetadataKey: const NavigationLaunchRouteMetadata(
+      schemaVersion: navigationPersistenceSchemaVersion,
+      source: NavigationSource.userPrimaryTab,
+      routeClass: NavigationRouteClass.durablePrimary,
+    ).toJson(),
+  };
+}
+
+Future<void> _saveDurableRoute(String route) {
+  return AppRestorationService.instance.saveDurableLaunchRoute(
+    route,
+    metadata: const NavigationLaunchRouteMetadata(
+      schemaVersion: navigationPersistenceSchemaVersion,
+      source: NavigationSource.userPrimaryTab,
+      routeClass: NavigationRouteClass.durablePrimary,
+    ),
+  );
 }
 
 final Map<String, String> _debugCriticalSnapshots = <String, String>{};
@@ -95,7 +118,7 @@ void main() {
   });
 
   test('stores route, calendar, day view, and day sheet per window', () async {
-    await AppRestorationService.instance.saveRouteLocation('/inbox');
+    await _saveDurableRoute('/inbox');
     await AppRestorationService.instance.saveCalendarState(
       const CalendarRestorationState(
         kYear: 6267,
@@ -143,7 +166,10 @@ void main() {
       {'name': 'Morning discipline', 'selectionBase': 4},
     );
 
-    expect(await AppRestorationService.instance.readRouteLocation(), '/inbox');
+    expect(
+      (await AppRestorationService.instance.readSnapshot())?.routeLocation,
+      '/inbox',
+    );
 
     final calendar = await AppRestorationService.instance.readCalendarState();
     expect(calendar, isNotNull);
@@ -180,26 +206,26 @@ void main() {
   test(
     'falls back to the latest user snapshot for a new window, then prefers that window once it has state',
     () async {
-      await AppRestorationService.instance.saveRouteLocation('/rhythm/today');
+      await _saveDurableRoute('/journal');
 
       AppWindowService.debugWindowIdResolver = () async => 'window-2';
       AppWindowService.instance.resetForTesting();
       expect(
-        await AppRestorationService.instance.readRouteLocation(),
-        '/rhythm/today',
+        (await AppRestorationService.instance.readSnapshot())?.routeLocation,
+        '/journal',
       );
 
-      await AppRestorationService.instance.saveRouteLocation('/inbox');
+      await _saveDurableRoute('/inbox');
       expect(
-        await AppRestorationService.instance.readRouteLocation(),
+        (await AppRestorationService.instance.readSnapshot())?.routeLocation,
         '/inbox',
       );
 
       AppWindowService.debugWindowIdResolver = () async => 'window-1';
       AppWindowService.instance.resetForTesting();
       expect(
-        await AppRestorationService.instance.readRouteLocation(),
-        '/rhythm/today',
+        (await AppRestorationService.instance.readSnapshot())?.routeLocation,
+        '/journal',
       );
     },
   );
@@ -208,19 +234,17 @@ void main() {
     'keeps restorable routes and calendar position in the same snapshot',
     () async {
       const routes = <String, String>{
-        '/profile/user-1': '/profile/user-1',
-        '/nodes': '/nodes',
-        '/nodes/ausar': '/nodes/ausar',
-        '/flows/42/edit?calendarId=shared-1': '/shared-flow/by-flow/42',
-        '/flows/42/edit?fallback=%2Fjournal': '/journal',
-        '/rhythm/today': '/rhythm/today',
-        '/reflections': '/reflections',
+        '/': '/',
+        '/inbox': '/inbox',
+        '/journal': '/journal',
+        '/settings': '/settings',
+        '/profile/me': '/profile/me',
       };
 
       for (final entry in routes.entries) {
-        await AppRestorationService.instance.saveRouteLocation(entry.key);
+        await _saveDurableRoute(entry.key);
         expect(
-          await AppRestorationService.instance.readRouteLocation(),
+          (await AppRestorationService.instance.readSnapshot())?.routeLocation,
           entry.value,
         );
       }
@@ -251,29 +275,31 @@ void main() {
 
       final snapshot = await AppRestorationService.instance.readSnapshot();
       expect(snapshot, isNotNull);
-      expect(snapshot!.routeLocation, '/reflections');
+      expect(snapshot!.routeLocation, '/profile/me');
       expect(snapshot.calendar?.scrollOffset, 4200);
       expect(snapshot.calendar?.anchorTarget, 'monthBody');
       expect(snapshot.dayView?.isOpen, isFalse);
     },
   );
 
-  test('stores node action routes as stable node routes', () async {
-    await AppRestorationService.instance.saveRouteLocation(
+  test('rejects node action routes at the durable launch boundary', () async {
+    await AppRestorationService.instance.saveDurableLaunchRoute(
       '/nodes/human_emergence?action=add_insight',
+      metadata: const NavigationLaunchRouteMetadata(
+        schemaVersion: navigationPersistenceSchemaVersion,
+        source: NavigationSource.nodeActionUrl,
+        routeClass: NavigationRouteClass.oneShotIntent,
+      ),
     );
     await AppRestorationService.instance.flushPendingWrites();
 
     expect(
-      await AppRestorationService.instance.readRouteLocation(),
-      '/nodes/human_emergence',
+      (await AppRestorationService.instance.readSnapshot())?.routeLocation,
+      isNull,
     );
 
     final prefs = await SharedPreferences.getInstance();
-    final raw =
-        jsonDecode(prefs.getString(_snapshotKey())!) as Map<String, dynamic>;
-    expect(raw['routeLocation'], '/nodes/human_emergence');
-    expect(raw['routeLocation'], isNot(contains('add_insight')));
+    expect(prefs.getString(_snapshotKey()), isNull);
   });
 
   test('cleans stale one-shot route intents from existing snapshots', () async {
@@ -291,7 +317,7 @@ void main() {
 
     final snapshot = await AppRestorationService.instance.readSnapshot();
 
-    expect(snapshot?.routeLocation, '/nodes/human_emergence');
+    expect(snapshot?.routeLocation, isNull);
   });
 
   test('clears snapshots with unsupported schema versions', () async {
@@ -323,7 +349,7 @@ void main() {
           'userId': 'user-1',
           'windowId': 'window-1',
           'updatedAtMs': 1234,
-          'routeLocation': '/inbox',
+          ..._durableRouteFields('/inbox'),
           'calendar': {
             'kYear': 6267,
             'kMonth': 14,
@@ -414,7 +440,7 @@ void main() {
   test(
     'reads tentative snapshot from the last active user before auth',
     () async {
-      await AppRestorationService.instance.saveRouteLocation('/inbox');
+      await _saveDurableRoute('/inbox');
       await AppRestorationService.instance.saveCalendarState(
         const CalendarRestorationState(
           kYear: 6267,
@@ -459,7 +485,7 @@ void main() {
         'userId': 'user-1',
         'windowId': 'window-1',
         'updatedAtMs': 1000,
-        'routeLocation': '/older',
+        ..._durableRouteFields('/inbox'),
       }),
     );
     _debugCriticalSnapshots['window-1'] = jsonEncode({
@@ -467,18 +493,21 @@ void main() {
       'userId': 'user-1',
       'windowId': 'window-1',
       'updatedAtMs': 2000,
-      'routeLocation': '/newer',
+      ..._durableRouteFields('/journal'),
     });
 
     final result = await AppRestorationService.instance.readBestSnapshot();
     expect(result.status, AppRestorationReadStatus.restored);
     expect(result.source, 'critical');
-    expect(result.snapshot?.routeLocation, '/newer');
-    expect(await AppRestorationService.instance.readRouteLocation(), '/newer');
+    expect(result.snapshot?.routeLocation, '/journal');
+    expect(
+      (await AppRestorationService.instance.readSnapshot())?.routeLocation,
+      '/journal',
+    );
   });
 
   test('restores the latest snapshot when the window id changes', () async {
-    await AppRestorationService.instance.saveRouteLocation('/saved-across-ids');
+    await _saveDurableRoute('/settings');
     await AppRestorationService.instance.saveCalendarState(
       const CalendarRestorationState(
         kYear: 6267,
@@ -500,18 +529,18 @@ void main() {
     expect(result.source, anyOf('latest_prefs', 'latest_critical', 'prefs'));
     expect(result.snapshot, isNotNull);
     expect(result.snapshot!.windowId, 'window-1');
-    expect(result.snapshot!.routeLocation, '/saved-across-ids');
+    expect(result.snapshot!.routeLocation, '/settings');
     expect(result.snapshot!.calendar?.kMonth, 4);
     expect(
-      await AppRestorationService.instance.readRouteLocation(),
-      '/saved-across-ids',
+      (await AppRestorationService.instance.readSnapshot())?.routeLocation,
+      '/settings',
     );
   });
 
   test(
     'reads a tentative latest snapshot when auth is not ready and the window id changes',
     () async {
-      await AppRestorationService.instance.saveRouteLocation('/tentative');
+      await _saveDurableRoute('/inbox');
       await AppRestorationService.instance.saveCalendarState(
         const CalendarRestorationState(
           kYear: 6267,
@@ -537,7 +566,7 @@ void main() {
       );
       expect(result.snapshot?.userId, 'user-1');
       expect(result.snapshot?.windowId, 'window-1');
-      expect(result.snapshot?.routeLocation, '/tentative');
+      expect(result.snapshot?.routeLocation, '/inbox');
     },
   );
 
@@ -551,7 +580,7 @@ void main() {
         'userId': 'user-1',
         'windowId': 'window-1',
         'updatedAtMs': 2000,
-        'routeLocation': '/from-latest-critical',
+        ..._durableRouteFields('/settings'),
         'calendar': {
           'kYear': 6267,
           'kMonth': 8,
@@ -568,7 +597,7 @@ void main() {
       expect(result.status, AppRestorationReadStatus.tentative);
       expect(result.source, 'latest_critical');
       expect(result.snapshot?.windowId, 'window-1');
-      expect(result.snapshot?.routeLocation, '/from-latest-critical');
+      expect(result.snapshot?.routeLocation, '/settings');
     },
   );
 
@@ -588,7 +617,6 @@ void main() {
   });
 
   test('stores generic surface, overlay, editor, and cache hint state', () async {
-    await AppRestorationService.instance.saveRouteLocation('/profile/user-1');
     await AppRestorationService.instance.saveSurfaceState('profile:user-1', {
       'feedRevealed': true,
       'profileScrollOffset': 1200.5,
@@ -671,16 +699,16 @@ void main() {
         'userId': 'user-1',
         'windowId': 'remote-window',
         'updatedAtMs': 9000,
-        'routeLocation': '/profile/user-1',
+        ..._durableRouteFields('/profile/me'),
         'surfaces': {
           'profile:user-1': {'feedRevealed': true, 'feedScrollOffset': 42},
         },
       };
 
-      final location = await AppRestorationService.instance.readRouteLocation(
+      final result = await AppRestorationService.instance.readBestSnapshot(
         includeRemote: true,
       );
-      expect(location, '/profile/user-1');
+      expect(result.snapshot?.routeLocation, '/profile/me');
 
       final snapshot = await AppRestorationService.instance.readSnapshot();
       expect(snapshot, isNotNull);
@@ -702,7 +730,7 @@ void main() {
         'userId': 'user-1',
         'windowId': 'window-1',
         'updatedAtMs': 1000,
-        'routeLocation': '/',
+        ..._durableRouteFields('/'),
       };
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString(_snapshotKey(), jsonEncode(staleLocal));
@@ -738,7 +766,7 @@ void main() {
         'userId': 'user-1',
         'windowId': 'window-1',
         'updatedAtMs': 1000,
-        'routeLocation': '/',
+        ..._durableRouteFields('/'),
       };
       final latestInbox = {
         'schemaVersion': AppRestorationService.schemaVersion,
@@ -760,15 +788,15 @@ void main() {
       );
 
       expect(result.status, AppRestorationReadStatus.restored);
-      expect(result.source, 'latest_prefs');
-      expect(result.snapshot?.routeLocation, '/inbox');
+      expect(result.source, anyOf('critical', 'prefs'));
+      expect(result.snapshot?.routeLocation, '/');
     },
   );
 
   test(
     'local inbox restore does not wait for hanging remote restoration reads',
     () async {
-      await AppRestorationService.instance.saveRouteLocation('/inbox');
+      await _saveDurableRoute('/inbox');
       await AppRestorationService.instance.flushPendingWrites();
       final hangingRemoteWindow = Completer<Map<String, dynamic>?>();
       final hangingRemoteLatest = Completer<Map<String, dynamic>?>();
@@ -796,14 +824,14 @@ void main() {
         'userId': 'user-1',
         'windowId': 'window-1',
         'updatedAtMs': 1000,
-        'routeLocation': '/',
+        ..._durableRouteFields('/'),
       };
       final latestInbox = {
         'schemaVersion': AppRestorationService.schemaVersion,
         'userId': 'user-1',
         'windowId': 'window-2',
         'updatedAtMs': 2000,
-        'routeLocation': '/inbox',
+        ..._durableRouteFields('/inbox'),
       };
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString(_snapshotKey(), jsonEncode(currentRoot));
@@ -838,7 +866,7 @@ void main() {
         'userId': 'user-1',
         'windowId': 'window-1',
         'updatedAtMs': 1000,
-        'routeLocation': '/',
+        ..._durableRouteFields('/'),
       };
       final latestConversation = {
         'schemaVersion': AppRestorationService.schemaVersion,
@@ -859,7 +887,7 @@ void main() {
         includeRemote: true,
       );
 
-      expect(result.snapshot?.routeLocation, '/inbox/conversation/friend-1');
+      expect(result.snapshot?.routeLocation, '/');
     },
   );
 
@@ -877,8 +905,7 @@ void main() {
         criticalWrites.add(Map<String, dynamic>.from(jsonDecode(serialized)));
       };
 
-      await AppRestorationService.instance.saveRouteLocationWithOverlayStack(
-        '/rhythm/today',
+      await AppRestorationService.instance.saveOverlayStack(
         <Map<String, dynamic>>[
           <String, dynamic>{
             'kind': 'calendar.flowStudio',
@@ -890,7 +917,7 @@ void main() {
       await AppRestorationService.instance.flushPendingWrites();
 
       expect(criticalWrites, hasLength(1));
-      expect(criticalWrites.single['routeLocation'], '/rhythm/today');
+      expect(criticalWrites.single['routeLocation'], isNull);
       expect(
         criticalWrites.single['overlayStack'],
         contains(
@@ -902,7 +929,7 @@ void main() {
       );
 
       final result = await AppRestorationService.instance.readBestSnapshot();
-      expect(result.snapshot?.routeLocation, '/rhythm/today');
+      expect(result.snapshot?.routeLocation, isNull);
       expect(
         result.snapshot?.overlayStack.single['kind'],
         'calendar.flowStudio',
@@ -911,8 +938,7 @@ void main() {
   );
 
   test('stores inbox invites sheet overlay with parent route', () async {
-    await AppRestorationService.instance.saveRouteLocationWithOverlayStack(
-      '/inbox',
+    await AppRestorationService.instance.saveOverlayStack(
       <Map<String, dynamic>>[
         <String, dynamic>{
           'kind': 'inbox.invites',
@@ -924,7 +950,7 @@ void main() {
 
     final result = await AppRestorationService.instance.readBestSnapshot();
 
-    expect(result.snapshot?.routeLocation, '/inbox');
+    expect(result.snapshot?.routeLocation, isNull);
     expect(
       result.snapshot?.overlayStack.single,
       allOf(
@@ -935,8 +961,7 @@ void main() {
   });
 
   test('does not persist transient Flow Studio editor overlays', () async {
-    await AppRestorationService.instance.saveRouteLocationWithOverlayStack(
-      '/flows/42/edit?fallback=%2Fjournal',
+    await AppRestorationService.instance.saveOverlayStack(
       <Map<String, dynamic>>[
         <String, dynamic>{
           'kind': 'calendar.flowStudio',
@@ -949,7 +974,7 @@ void main() {
 
     final result = await AppRestorationService.instance.readBestSnapshot();
 
-    expect(result.snapshot?.routeLocation, '/journal');
+    expect(result.snapshot?.routeLocation, isNull);
     expect(result.snapshot?.overlayStack, isEmpty);
   });
 
@@ -964,7 +989,7 @@ void main() {
           'userId': 'user-1',
           'windowId': 'window-1',
           'updatedAtMs': 1000,
-          'routeLocation': '/rhythm/today',
+          ..._durableRouteFields('/'),
         }),
       );
       await prefs.setString(
@@ -974,7 +999,7 @@ void main() {
           'userId': 'user-1',
           'windowId': 'window-1',
           'updatedAtMs': 2000,
-          'routeLocation': '/rhythm/today',
+          ..._durableRouteFields('/'),
           'overlayStack': <Map<String, dynamic>>[
             <String, dynamic>{
               'kind': 'calendar.sharedCalendars',

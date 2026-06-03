@@ -2,7 +2,6 @@ import 'dart:async';
 
 import 'package:flutter/widgets.dart';
 
-import '../core/route_location_sanitizer.dart';
 import 'app_restoration_service.dart';
 import 'restoration_trace.dart';
 
@@ -179,41 +178,15 @@ class RestorationCoordinator {
     return _normalizeLocation(parts[2]);
   }
 
-  Future<void> recordRouteLocation(String location) {
-    final normalized = stableRouteLocationForContinuity(location);
-    if (normalized == null || normalized.isEmpty) {
-      traceRestoration(
-        'coordinator record route rejected input=$location '
-        'reason=sanitized_null',
-      );
-      return Future<void>.value();
-    }
+  Future<void> recordOverlayStackPageState(
+    List<Map<String, dynamic>> overlayStack, {
+    required String reason,
+  }) {
     traceRestoration(
-      'coordinator record route input=$location sanitized=$normalized',
+      'coordinator record overlay page_state reason=$reason '
+      'overlayCount=${overlayStack.length}',
     );
-    return AppRestorationService.instance.saveRouteLocation(normalized);
-  }
-
-  Future<void> recordRouteLocationWithOverlayStack(
-    String location,
-    List<Map<String, dynamic>> overlayStack,
-  ) {
-    final normalized = stableRouteLocationForContinuity(location);
-    if (normalized == null || normalized.isEmpty) {
-      traceRestoration(
-        'coordinator record route+overlay rejected input=$location '
-        'reason=sanitized_null overlayCount=${overlayStack.length}',
-      );
-      return Future<void>.value();
-    }
-    traceRestoration(
-      'coordinator record route+overlay input=$location '
-      'sanitized=$normalized overlayCount=${overlayStack.length}',
-    );
-    return AppRestorationService.instance.saveRouteLocationWithOverlayStack(
-      normalized,
-      overlayStack,
-    );
+    return AppRestorationService.instance.saveOverlayStack(overlayStack);
   }
 
   void noteLifecycleState(AppLifecycleState state) {
@@ -380,8 +353,4 @@ class RestorationCoordinator {
   Future<void> flush() {
     return AppRestorationService.instance.flushPendingWrites();
   }
-}
-
-void persistRouteContinuity(String location) {
-  unawaited(RestorationCoordinator.instance.recordRouteLocation(location));
 }

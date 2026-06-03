@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
+import 'package:mobile/core/navigation_persistence_policy.dart';
 import 'package:mobile/core/route_location_sanitizer.dart';
 import 'package:mobile/features/calendar/calendar_page.dart';
 import 'package:mobile/services/app_restoration_service.dart';
@@ -53,16 +54,17 @@ void main() {
       "path: '/flows/:flowId/edit'",
       "path: '/profile/:userId/followers'",
     );
-    final continuity = _sourceBetween(
-      main,
-      'bool _isContinuityRouteLocation(String location)',
-      'Map<String, dynamic>? _pushIntentDataFromQuery',
+    const policy = NavigationPersistencePolicy();
+    final editClassification = policy.classifyRoute(
+      '/flows/42/edit?calendarId=shared-1&fallback=%2F',
+      NavigationSource.userPrimaryTab,
     );
 
     expect(route, contains('CalendarPage.buildFlowEditorRoutePage'));
     expect(route, contains("state.uri.queryParameters['calendarId']"));
     expect(route, contains("state.uri.queryParameters['fallback']"));
-    expect(continuity, isNot(contains("path.startsWith('/flows/')")));
+    expect(editClassification.accepted, isFalse);
+    expect(editClassification.routeClass, NavigationRouteClass.transient);
   });
 
   test('Edit Flow actions use edit-by-id route on web', () {

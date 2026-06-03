@@ -41,9 +41,9 @@ import 'core/async_guard.dart';
 import 'core/app_link_intent.dart';
 import 'core/global_bottom_menu_metrics.dart';
 import 'core/global_menu_routes.dart';
+import 'core/navigation_persistence_policy.dart';
 import 'core/planner_launch_intent.dart';
 import 'core/push_intent_bus.dart';
-import 'core/route_location_sanitizer.dart';
 import 'core/shared_file_intent.dart';
 import 'core/theme/app_theme.dart';
 import 'features/auth/login_screen.dart';
@@ -80,6 +80,7 @@ import 'widgets/kemetic_keyboard.dart';
 import 'widgets/kemetic_day_info.dart';
 import 'services/app_restoration_service.dart';
 import 'services/app_window_service.dart';
+import 'services/app_navigation_restoration_controller.dart';
 import 'services/restoration_coordinator.dart';
 import 'services/restoration_trace.dart';
 import 'services/session_resume_service.dart';
@@ -385,7 +386,6 @@ final GlobalKey<NavigatorState> _rootNavigatorKey = GlobalKey<NavigatorState>();
 final ValueNotifier<bool> _webAuthExchangeInProgress = ValueNotifier<bool>(
   false,
 );
-bool _deferSessionResumeForPushNavigation = false;
 String? _bootRestoredLocation;
 String? _bootExplicitIntentLocation;
 PushInitialMessage? _bootInitialPushMessage;
@@ -874,7 +874,16 @@ Future<void> _readBootInitialAppLinkIntent() async {
   if (intent == null) return;
 
   _bootInitialAppLinkSignature = _appLinkIntentSignature(intent, initialUri);
-  _bootExplicitIntentLocation ??= _initialLocationFromAppLinkIntent(intent);
+  final location = _initialLocationFromAppLinkIntent(intent);
+  if (location != null) {
+    _bootExplicitIntentLocation ??= await _consumeBootOneShotLocation(
+      requestedRoute: location,
+      key: _bootInitialAppLinkSignature!,
+      source: intent is AuthAppLinkIntent
+          ? NavigationSource.authCallback
+          : NavigationSource.appLink,
+    );
+  }
   if (intent is AuthAppLinkIntent) {
     await _exchangeAuthCallbackUri(intent.uri);
   }
@@ -895,10 +904,17 @@ Future<Uri?> _readInitialAppLinkUri() async {
 
 Future<void> _readBootInitialPushIntent() async {
   if (kIsWeb) {
-    _bootExplicitIntentLocation ??= _initialLocationFromPushData(
+    final location = _initialLocationFromPushData(
       _pushIntentDataFromQuery(Uri.base.queryParameters),
       hasSession: Supabase.instance.client.auth.currentSession != null,
     );
+    if (location != null) {
+      _bootExplicitIntentLocation ??= await _consumeBootOneShotLocation(
+        requestedRoute: location,
+        key: 'web-push:${Uri.base.query}',
+        source: NavigationSource.notificationTap,
+      );
+    }
     return;
   }
 
@@ -906,10 +922,33 @@ Future<void> _readBootInitialPushIntent() async {
     Supabase.instance.client,
   ).takeInitialMessage();
   _bootInitialPushMessage = initial;
-  _bootExplicitIntentLocation ??= _initialLocationFromPushData(
+  final location = _initialLocationFromPushData(
     initial?.data,
     hasSession: Supabase.instance.client.auth.currentSession != null,
   );
+  if (location != null) {
+    _bootExplicitIntentLocation ??= await _consumeBootOneShotLocation(
+      requestedRoute: location,
+      key: 'push:${initial?.messageId ?? jsonEncode(initial?.data)}',
+      source: NavigationSource.notificationTap,
+    );
+  }
+}
+
+Future<String?> _consumeBootOneShotLocation({
+  required String requestedRoute,
+  required String key,
+  required NavigationSource source,
+}) async {
+  final resolved = await AppNavigationRestorationController.instance
+      .consumeOneShotIntent(
+        PendingNavigationIntent(
+          key: key,
+          requestedRoute: requestedRoute,
+          source: source,
+        ),
+      );
+  return resolved?.route;
 }
 
 bool _hasExplicitBootIntent() {
@@ -920,7 +959,6 @@ bool _hasExplicitBootIntent() {
 
 void _suppressPassiveLaunchSurfacesForExplicitIntentIfNeeded() {
   if (!_hasExplicitBootIntent()) return;
-  _deferSessionResumeForPushNavigation = true;
   RestorationCoordinator.instance.suppressRestoreForExplicitIntent(
     reason: 'explicit_launch_intent',
     surfaces: const <String>[
@@ -933,6 +971,11 @@ void _suppressPassiveLaunchSurfacesForExplicitIntentIfNeeded() {
 Future<String?> _readBootRestoredLocation() async {
   final hasSession = Supabase.instance.client.auth.currentSession != null;
   traceRestoration('boot restore read start hasSession=$hasSession');
+  final destination = await AppNavigationRestorationController.instance
+      .restoreLaunchDestination(
+        isAuthenticated: hasSession,
+        includeRemote: hasSession,
+      );
   final result = await AppRestorationService.instance.readBestSnapshot(
     includeRemote: hasSession,
   );
@@ -943,95 +986,11 @@ Future<String?> _readBootRestoredLocation() async {
     'updatedAtMs=${result.snapshot?.updatedAtMs ?? '<none>'} '
     'overlayCount=${result.snapshot?.overlayStack.length ?? 0}',
   );
-  if (result.status == AppRestorationReadStatus.restored ||
-      result.status == AppRestorationReadStatus.tentative) {
-    final overlayParentRoute =
-        CalendarPage.restorableOverlayParentRouteFromStack(
-          result.snapshot?.overlayStack ?? const <Map<String, dynamic>>[],
-        );
-    final location =
-        overlayParentRoute ?? result.snapshot?.routeLocation?.trim();
-    final restored = _restorableLaunchLocation(location);
-    traceRestoration(
-      'boot restore candidate overlayParent=${_traceRouteValue(overlayParentRoute)} '
-      'raw=${_traceRouteValue(location)} selected=${_traceRouteValue(restored)}',
-    );
-    if (restored != null) return restored;
-    if (overlayParentRoute != null || result.snapshot?.routeLocation != null) {
-      traceRestoration(
-        'boot restore snapshot rejected '
-        'overlayParent=${_traceRouteValue(overlayParentRoute)} '
-        'route=${_traceRouteValue(result.snapshot?.routeLocation)}',
-      );
-      return null;
-    }
-  }
-
-  final sessionRoute = await SessionResumeService.readRouteLocation();
-  final restored = _restorableLaunchLocation(sessionRoute);
   traceRestoration(
-    'boot restore session fallback raw=${_traceRouteValue(sessionRoute)} '
-    'selected=${_traceRouteValue(restored)}',
+    'boot restore selected=${destination.route} '
+    'decisionSource=${destination.decisionSource} reason=${destination.reason}',
   );
-  return restored;
-}
-
-String? _restorableLaunchLocation(String? location) {
-  final normalized = location?.trim();
-  if (normalized == null || normalized.isEmpty || normalized == '/') {
-    return null;
-  }
-  final stableLocation = stableRouteLocationForContinuity(normalized);
-  if (stableLocation == null || stableLocation == '/') {
-    traceRestoration(
-      'boot restore restorable rejected input=$normalized '
-      'sanitized=${_traceRouteValue(stableLocation)} '
-      'reason=sanitized_root_or_null',
-    );
-    return null;
-  }
-  if (stableLocation != normalized && kDebugMode) {
-    debugPrint(
-      '[Router Restore] stripped one-shot route intent '
-      '$normalized -> $stableLocation',
-    );
-  }
-  final durable = _isContinuityRouteLocation(stableLocation);
-  traceRestoration(
-    'boot restore restorable input=$normalized sanitized=$stableLocation '
-    'durable=$durable',
-  );
-  return durable ? stableLocation : null;
-}
-
-bool _isContinuityRouteLocation(String location) {
-  final uri = Uri.tryParse(location.trim());
-  if (uri == null ||
-      uri.hasScheme ||
-      uri.host.isNotEmpty ||
-      !uri.path.startsWith('/')) {
-    return false;
-  }
-  final path = uri.path;
-  return path == '/' ||
-      path == '/inbox' ||
-      path == '/settings' ||
-      path == '/profile-search' ||
-      path == '/journal' ||
-      path == '/nodes' ||
-      path == '/reflections' ||
-      path.startsWith('/inbox/conversation/') ||
-      path.startsWith('/event-invite/') ||
-      path.startsWith('/shared-flow/') ||
-      path.startsWith('/profile/') ||
-      path.startsWith('/insight-post/') ||
-      path.startsWith('/flow-post/') ||
-      path.startsWith('/journal/entry/') ||
-      path.startsWith('/maat-guidance/') ||
-      path.startsWith('/nodes/') ||
-      path.startsWith('/reflections/') ||
-      path.startsWith('/share/') ||
-      path.startsWith('/rhythm/');
+  return destination.route;
 }
 
 Map<String, dynamic>? _pushIntentDataFromQuery(Map<String, String> params) {
@@ -2170,6 +2129,11 @@ class _GlobalFloatingMenuShellState extends State<_GlobalFloatingMenuShell>
   }
 
   void _navigateFromMenu(String location) {
+    unawaited(
+      AppNavigationRestorationController.instance.recordPrimaryRouteSelection(
+        location,
+      ),
+    );
     _router.go(location);
   }
 
@@ -2593,8 +2557,6 @@ class _PushIntentBridgeState extends State<PushIntentBridge> {
     final data = Map<String, dynamic>.from(rawData);
     if (data.isEmpty) return;
 
-    _deferSessionResumeForPushNavigation = true;
-
     if (supabase.auth.currentSession == null) {
       _pendingPushData = data;
       return;
@@ -2680,6 +2642,19 @@ class _PushIntentBridgeState extends State<PushIntentBridge> {
     final navigationKey = _pushNavigationKey(data);
     if (_wasHandledRecently(navigationKey)) {
       return;
+    }
+    final oneShotRoute = _initialLocationFromPushData(
+      data,
+      hasSession: supabase.auth.currentSession != null,
+    );
+    if (oneShotRoute != null) {
+      await AppNavigationRestorationController.instance.consumeOneShotIntent(
+        PendingNavigationIntent(
+          key: navigationKey,
+          requestedRoute: oneShotRoute,
+          source: NavigationSource.notificationTap,
+        ),
+      );
     }
 
     final handled = await _handlePushNavigation(data);
@@ -4116,7 +4091,6 @@ class _AuthGateState extends State<AuthGate> with WidgetsBindingObserver {
   bool _appOpenLogged = false;
   bool _notifyInitInProgress = false;
   bool _notifyInitialized = false;
-  bool _sessionResumeChecked = false;
 
   @override
   void initState() {
@@ -4235,7 +4209,6 @@ class _AuthGateState extends State<AuthGate> with WidgetsBindingObserver {
       } else if (kDebugMode) {
         debugPrint('[push] registerForUser skipped (device push toggle off)');
       }
-      _scheduleSessionResumeCheck();
       if (!_scheduledDecans) {
         _scheduledDecans = true;
         _ensureDecanSchedules(scope: 'decan schedule', force: true);
@@ -4255,7 +4228,6 @@ class _AuthGateState extends State<AuthGate> with WidgetsBindingObserver {
 
     if (ev == AuthChangeEvent.signedOut) {
       _scheduledDecans = false;
-      _sessionResumeChecked = false;
       await AppRestorationService.instance.clearBootFallbackIdentity();
       _router.go('/');
       _calendarSync?.stop();
@@ -4265,80 +4237,6 @@ class _AuthGateState extends State<AuthGate> with WidgetsBindingObserver {
         onError: _logAuthGateError,
       );
     }
-  }
-
-  void _scheduleSessionResumeCheck() {
-    if (_sessionResumeChecked) return;
-    _sessionResumeChecked = true;
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      unawaited(_maybeResumeSessionRoute());
-    });
-  }
-
-  Future<void> _maybeResumeSessionRoute() async {
-    if (!mounted ||
-        supabase.auth.currentSession == null ||
-        _deferSessionResumeForPushNavigation) {
-      traceRestoration(
-        'auth resume skipped mounted=$mounted '
-        'hasSession=${supabase.auth.currentSession != null} '
-        'deferPush=$_deferSessionResumeForPushNavigation',
-      );
-      return;
-    }
-    traceRestoration('auth resume read start');
-    final overlayParentRoute =
-        CalendarPage.restorableOverlayParentRouteFromStack(
-          await AppRestorationService.instance.readOverlayStack(),
-        );
-    final appRoute = overlayParentRoute == null
-        ? await AppRestorationService.instance.readRouteLocation(
-            includeRemote: true,
-          )
-        : null;
-    final sessionRoute = overlayParentRoute == null && appRoute == null
-        ? await SessionResumeService.readRouteLocation()
-        : null;
-    final rawSavedLocation = overlayParentRoute ?? appRoute ?? sessionRoute;
-    final savedLocation = _restorableLaunchLocation(rawSavedLocation);
-    traceRestoration(
-      'auth resume candidates overlayParent=${_traceRouteValue(overlayParentRoute)} '
-      'appRoute=${_traceRouteValue(appRoute)} '
-      'sessionRoute=${_traceRouteValue(sessionRoute)} '
-      'selected=${_traceRouteValue(savedLocation)}',
-    );
-    if (!mounted ||
-        savedLocation == null ||
-        _deferSessionResumeForPushNavigation ||
-        savedLocation.isEmpty ||
-        savedLocation == '/') {
-      traceRestoration(
-        'auth resume not applied mounted=$mounted '
-        'selected=${_traceRouteValue(savedLocation)} '
-        'deferPush=$_deferSessionResumeForPushNavigation',
-      );
-      return;
-    }
-    if (kDebugMode) {
-      debugPrint('[AuthGate] restoring saved route once: $savedLocation');
-    }
-    traceRestoration('auth resume applying route=$savedLocation');
-    RestorationCoordinator.instance.beginLaunchRestore(
-      reason: RestorationRestoreReason.authResume,
-      targetLocation: savedLocation,
-    );
-    _router.go(savedLocation);
-    _traceRouterLocationAfterFrame('after_auth_resume_go');
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      final navContext = _rootNavigatorKey.currentContext;
-      if (navContext == null) return;
-      unawaited(
-        CalendarPage.restoreDetachedCalendarOverlayFromAnyContext(
-          navContext,
-          currentLocation: savedLocation,
-        ),
-      );
-    });
   }
 
   // -- Log app_open once per cold start after auth is present
@@ -4443,6 +4341,18 @@ class _AuthGateState extends State<AuthGate> with WidgetsBindingObserver {
     if (_shouldSkipDuplicateLink(signature)) {
       return;
     }
+    final oneShotRoute = _initialLocationFromAppLinkIntent(intent) ?? '/';
+    unawaited(
+      AppNavigationRestorationController.instance.consumeOneShotIntent(
+        PendingNavigationIntent(
+          key: signature,
+          requestedRoute: oneShotRoute,
+          source: intent is AuthAppLinkIntent
+              ? NavigationSource.authCallback
+              : NavigationSource.appLink,
+        ),
+      ),
+    );
 
     if (intent is AuthAppLinkIntent) {
       await _exchangeAuthCallback(intent.uri);
@@ -4487,8 +4397,6 @@ class _AuthGateState extends State<AuthGate> with WidgetsBindingObserver {
   }
 
   void _routeToPlanner(PlannerLaunchIntent intent) {
-    _deferSessionResumeForPushNavigation = true;
-
     if (supabase.auth.currentSession == null) {
       _pendingPlannerLaunchIntent = intent;
       WidgetsBinding.instance.addPostFrameCallback((_) {

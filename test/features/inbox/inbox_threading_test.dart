@@ -435,8 +435,9 @@ void main() {
         );
 
         expect(source, contains("_invitesOverlayKind = 'inbox.invites'"));
-        expect(save, contains('recordRouteLocationWithOverlayStack'));
-        expect(save, contains('SessionResumeService.saveRouteLocation'));
+        expect(save, contains('recordOverlayStackPageState'));
+        expect(save, isNot(contains('recordRouteLocationWithOverlayStack')));
+        expect(save, isNot(contains('SessionResumeService.saveRouteLocation')));
         expect(
           restore,
           contains("_sameRouteLocation(_currentRouteLocation(), parentRoute)"),

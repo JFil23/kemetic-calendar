@@ -54,6 +54,7 @@ import 'package:mobile/widgets/kemetic_app_bar_action.dart';
 import 'package:mobile/core/day_key.dart';
 import 'package:mobile/core/global_bottom_menu_metrics.dart';
 import 'package:mobile/core/global_menu_routes.dart';
+import 'package:mobile/core/navigation_persistence_policy.dart';
 import 'package:mobile/shared/glossy_text.dart';
 import 'package:flutter/gestures.dart';
 import '../reminders/reminder_service.dart';
@@ -72,6 +73,7 @@ import 'package:mobile/telemetry/telemetry.dart';
 import '../../services/calendar_sync_service.dart';
 import '../../services/push_notifications.dart';
 import '../../services/app_restoration_service.dart';
+import '../../services/app_navigation_restoration_controller.dart';
 import '../../services/restoration_coordinator.dart';
 import '../../services/session_resume_service.dart';
 import '../../core/push_intent_bus.dart';
@@ -3781,8 +3783,7 @@ class CalendarPage extends StatefulWidget {
     final normalizedParentRoute = parentRoute.trim().isEmpty
         ? '/'
         : parentRoute.trim();
-    await RestorationCoordinator.instance.recordRouteLocationWithOverlayStack(
-      normalizedParentRoute,
+    await RestorationCoordinator.instance.recordOverlayStackPageState(
       <Map<String, dynamic>>[
         <String, dynamic>{
           'kind': kind.trim(),
@@ -3792,8 +3793,8 @@ class CalendarPage extends StatefulWidget {
           ...state,
         },
       ],
+      reason: 'detached_calendar_overlay',
     );
-    await SessionResumeService.saveRouteLocation(normalizedParentRoute);
     unawaited(RestorationCoordinator.instance.flush());
   }
 
@@ -4737,6 +4738,11 @@ class CalendarPage extends StatefulWidget {
     Future<void> Function()? onOpenNewNote,
   }) {
     void navigate(String location) {
+      unawaited(
+        AppNavigationRestorationController.instance.recordPrimaryRouteSelection(
+          location,
+        ),
+      );
       if (onNavigate != null) {
         onNavigate(location);
         return;
@@ -6182,8 +6188,11 @@ class CalendarPage extends StatefulWidget {
     CalendarPage._pendingDetachedSearchResult = null;
     CalendarPage._pendingDetachedSearchDay = null;
     _mountedState?._suppressPendingRestoresForUserNavigation();
-    unawaited(RestorationCoordinator.instance.recordRouteLocation('/'));
-    unawaited(SessionResumeService.saveRouteLocation('/'));
+    unawaited(
+      AppNavigationRestorationController.instance.recordPrimaryTabSelection(
+        AppSection.calendar,
+      ),
+    );
     unawaited(_clearCalendarContinuityForTodayCommand());
 
     final router = GoRouter.of(context);
@@ -17994,7 +18003,13 @@ class CalendarPageState extends State<CalendarPage>
         glyph: MeduNeterGlyphs.home,
         gradient: goldGloss,
         label: 'Home',
-        onSelected: () => context.go('/'),
+        onSelected: () {
+          unawaited(
+            AppNavigationRestorationController.instance
+                .recordPrimaryTabSelection(AppSection.calendar),
+          );
+          context.go('/');
+        },
       ),
       _CalendarAction(
         glyph: MeduNeterGlyphs.settings,
@@ -18161,6 +18176,11 @@ class CalendarPageState extends State<CalendarPage>
     try {
       await RestorationCoordinator.instance.clearProfileFeedContinuity(userId);
       if (!mounted || !context.mounted) return;
+      unawaited(
+        AppNavigationRestorationController.instance.recordPrimaryTabSelection(
+          AppSection.profile,
+        ),
+      );
       context.go('/profile/${Uri.encodeComponent(userId)}');
     } finally {
       _profileNavigationInFlight = false;
@@ -18191,6 +18211,11 @@ class CalendarPageState extends State<CalendarPage>
 
     UiGuards.disableJournalSwipe();
     try {
+      unawaited(
+        AppNavigationRestorationController.instance.recordPrimaryTabSelection(
+          AppSection.journal,
+        ),
+      );
       context.go('/journal');
     } finally {
       UiGuards.enableJournalSwipe();
@@ -18213,6 +18238,11 @@ class CalendarPageState extends State<CalendarPage>
   }
 
   Future<void> _openInboxFromMenu() async {
+    unawaited(
+      AppNavigationRestorationController.instance.recordPrimaryTabSelection(
+        AppSection.inbox,
+      ),
+    );
     context.go('/inbox');
   }
 
@@ -18232,6 +18262,11 @@ class CalendarPageState extends State<CalendarPage>
   }
 
   Future<void> _openSettingsFromMenu() async {
+    unawaited(
+      AppNavigationRestorationController.instance.recordPrimaryTabSelection(
+        AppSection.settings,
+      ),
+    );
     context.go('/settings');
   }
 

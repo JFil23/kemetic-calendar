@@ -6,6 +6,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:uuid/uuid.dart';
 
 import '../data/app_restoration_repo.dart';
+import '../core/navigation_persistence_policy.dart';
 import '../core/route_location_sanitizer.dart';
 import 'app_window_service.dart';
 import 'app_window_platform_stub.dart'
@@ -507,6 +508,7 @@ class AppRestorationSnapshot {
     required this.windowId,
     required this.updatedAtMs,
     this.routeLocation,
+    this.launchRouteMetadata,
     this.calendar,
     this.dayView,
     this.daySheet,
@@ -520,6 +522,7 @@ class AppRestorationSnapshot {
   final String windowId;
   final int updatedAtMs;
   final String? routeLocation;
+  final NavigationLaunchRouteMetadata? launchRouteMetadata;
   final CalendarRestorationState? calendar;
   final DayViewRestorationState? dayView;
   final Map<String, dynamic>? daySheet;
@@ -540,14 +543,26 @@ class AppRestorationSnapshot {
       return null;
     }
 
+    final routeMetadata = NavigationLaunchRouteMetadata.fromJson(
+      raw[navigationLaunchRouteMetadataKey],
+    );
+    final sanitizedRouteLocation = stableRouteLocationForContinuity(
+      raw['routeLocation'] as String?,
+    );
+    final routeLocation =
+        const NavigationPersistencePolicy().isValidDurableLaunchRoute(
+          sanitizedRouteLocation,
+          routeMetadata,
+        )
+        ? sanitizedRouteLocation
+        : null;
     final daySheetRaw = raw['daySheet'];
     return AppRestorationSnapshot(
       userId: userId,
       windowId: windowId,
       updatedAtMs: updatedAtMs,
-      routeLocation: stableRouteLocationForContinuity(
-        raw['routeLocation'] as String?,
-      ),
+      routeLocation: routeLocation,
+      launchRouteMetadata: routeLocation == null ? null : routeMetadata,
       calendar: CalendarRestorationState.fromJson(raw['calendar']),
       dayView: DayViewRestorationState.fromJson(raw['dayView']),
       daySheet: _asJsonMap(daySheetRaw),
@@ -788,13 +803,25 @@ class AppRestorationService {
     switch (version) {
       case schemaVersion:
         final migrated = Map<String, dynamic>.from(raw);
-        final routeLocation = stableRouteLocationForContinuity(
+        final routeMetadata = NavigationLaunchRouteMetadata.fromJson(
+          migrated[navigationLaunchRouteMetadataKey],
+        );
+        final sanitizedRouteLocation = stableRouteLocationForContinuity(
           migrated['routeLocation'] as String?,
         );
-        if (routeLocation == null) {
+        final routeLocation =
+            const NavigationPersistencePolicy().isValidDurableLaunchRoute(
+              sanitizedRouteLocation,
+              routeMetadata,
+            )
+            ? sanitizedRouteLocation
+            : null;
+        if (routeLocation == null || routeMetadata == null) {
           migrated.remove('routeLocation');
+          migrated.remove(navigationLaunchRouteMetadataKey);
         } else {
           migrated['routeLocation'] = routeLocation;
+          migrated[navigationLaunchRouteMetadataKey] = routeMetadata.toJson();
         }
         final overlayStack = _coerceOverlayStack(
           _asJsonMapList(migrated['overlayStack']),
@@ -808,6 +835,13 @@ class AppRestorationService {
       default:
         return null;
     }
+  }
+
+  bool _rawSnapshotChanged(
+    Map<String, dynamic> original,
+    Map<String, dynamic> migrated,
+  ) {
+    return jsonEncode(original) != jsonEncode(migrated);
   }
 
   Future<Map<String, dynamic>?> _loadRawFor(
@@ -945,6 +979,10 @@ class AppRestorationService {
       }
       return null;
     }
+    if (clearIfInvalid && _rawSnapshotChanged(raw, migrated)) {
+      final prefs = await _prefs();
+      await prefs.setString(_prefsKey(userId, windowId), jsonEncode(migrated));
+    }
     final snapshot = AppRestorationSnapshot.fromJson(migrated);
     if (snapshot == null ||
         snapshot.userId != userId ||
@@ -985,6 +1023,9 @@ class AppRestorationService {
         _writeCriticalSnapshot(windowId, null);
       }
       return null;
+    }
+    if (clearIfInvalid && _rawSnapshotChanged(raw, migrated)) {
+      _writeCriticalSnapshot(windowId, jsonEncode(migrated));
     }
     final snapshot = AppRestorationSnapshot.fromJson(migrated);
     final userMismatch =
@@ -1028,6 +1069,10 @@ class AppRestorationService {
       }
       return null;
     }
+    if (clearIfInvalid && _rawSnapshotChanged(raw, migrated)) {
+      final prefs = await _prefs();
+      await prefs.setString(_latestPrefsKey(userId), jsonEncode(migrated));
+    }
     final snapshot = AppRestorationSnapshot.fromJson(migrated);
     if (snapshot == null || snapshot.userId != userId) {
       if (clearIfInvalid) {
@@ -1065,6 +1110,9 @@ class AppRestorationService {
         _writeLatestCriticalSnapshot(userId, null);
       }
       return null;
+    }
+    if (clearIfInvalid && _rawSnapshotChanged(raw, migrated)) {
+      _writeLatestCriticalSnapshot(userId, jsonEncode(migrated));
     }
     final snapshot = AppRestorationSnapshot.fromJson(migrated);
     if (snapshot == null || snapshot.userId != userId) {
@@ -1846,53 +1894,30 @@ class AppRestorationService {
     _writeCriticalSnapshot(windowId, null);
   }
 
-  Future<String?> readRouteLocation({bool includeRemote = false}) async {
-    final snapshot = await readSnapshot(includeRemote: includeRemote);
-    final location = snapshot?.routeLocation?.trim();
-    if (location == null || location.isEmpty) {
-      return null;
-    }
-    return location;
-  }
-
-  Future<void> saveRouteLocation(String location) async {
+  Future<void> saveDurableLaunchRoute(
+    String location, {
+    required NavigationLaunchRouteMetadata metadata,
+  }) async {
     final normalized = stableRouteLocationForContinuity(location);
-    if (normalized == null || normalized.isEmpty) {
-      _log('save route rejected input=$location reason=sanitized_null');
-      return;
-    }
-    _log('save route input=$location sanitized=$normalized overlay=unchanged');
-    await _mutate((current) {
-      current['routeLocation'] = normalized;
-    });
-  }
-
-  Future<void> saveRouteLocationWithOverlayStack(
-    String location,
-    List<Map<String, dynamic>> overlayStack,
-  ) async {
-    final normalized = stableRouteLocationForContinuity(location);
-    if (normalized == null || normalized.isEmpty) {
+    final accepted = const NavigationPersistencePolicy()
+        .isValidDurableLaunchRoute(normalized, metadata);
+    if (!accepted || normalized == null || normalized.isEmpty) {
       _log(
-        'save route+overlay rejected input=$location '
-        'reason=sanitized_null overlayCount=${overlayStack.length} '
-        'overlay=${_overlayStackTrace(overlayStack)}',
+        'save launch route rejected input=$location '
+        'source=${metadata.source.wireName} '
+        'classification=${metadata.routeClass.wireName} '
+        'schemaVersion=${metadata.schemaVersion} reason=policy_rejected',
       );
       return;
     }
-    final next = _coerceOverlayStack(overlayStack);
     _log(
-      'save route+overlay input=$location sanitized=$normalized '
-      'overlayAction=${next.isEmpty ? 'clear' : 'save'} '
-      'overlayCount=${next.length} overlay=${_overlayStackTrace(next)}',
+      'save launch route input=$location sanitized=$normalized '
+      'source=${metadata.source.wireName} '
+      'classification=${metadata.routeClass.wireName} accepted=true',
     );
     await _mutate((current) {
       current['routeLocation'] = normalized;
-      if (next.isEmpty) {
-        current.remove('overlayStack');
-      } else {
-        current['overlayStack'] = next;
-      }
+      current[navigationLaunchRouteMetadataKey] = metadata.toJson();
     });
   }
 

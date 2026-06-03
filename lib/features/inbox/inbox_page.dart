@@ -456,8 +456,7 @@ class _InboxPageState extends State<InboxPage> {
     final normalizedParentRoute = parentRoute.trim().isEmpty
         ? '/inbox'
         : parentRoute.trim();
-    await RestorationCoordinator.instance.recordRouteLocationWithOverlayStack(
-      normalizedParentRoute,
+    await RestorationCoordinator.instance.recordOverlayStackPageState(
       <Map<String, dynamic>>[
         <String, dynamic>{
           'kind': _invitesOverlayKind,
@@ -465,8 +464,8 @@ class _InboxPageState extends State<InboxPage> {
           'updatedAtMs': DateTime.now().millisecondsSinceEpoch,
         },
       ],
+      reason: 'inbox_invites_overlay',
     );
-    await SessionResumeService.saveRouteLocation(normalizedParentRoute);
     unawaited(RestorationCoordinator.instance.flush());
   }
 

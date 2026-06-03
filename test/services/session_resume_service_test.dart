@@ -34,8 +34,7 @@ void main() {
     );
   });
 
-  test('stores route, scoped state, and resumable entry', () async {
-    await SessionResumeService.saveRouteLocation('/inbox');
+  test('stores scoped state and resumable entry', () async {
     await SessionResumeService.saveScopedState('calendar_view', {
       'kYear': 12,
       'kMonth': 4,
@@ -47,7 +46,6 @@ void main() {
       payload: {'otherUserId': 'friend-1', 'draftText': 'still typing'},
     );
 
-    expect(await SessionResumeService.readRouteLocation(), '/inbox');
     expect(
       await SessionResumeService.readScopedState('calendar_view'),
       containsPair('kMonth', 4),
@@ -68,22 +66,6 @@ void main() {
     );
   });
 
-  test('stores edit flow routes as stable fallback routes', () async {
-    const route = '/flows/42/edit?calendarId=shared-1';
-    await SessionResumeService.saveRouteLocation(route);
-
-    expect(
-      await SessionResumeService.readRouteLocation(),
-      '/shared-flow/by-flow/42',
-    );
-
-    await SessionResumeService.saveRouteLocation(
-      '/flows/42/edit?fallback=%2Fjournal',
-    );
-
-    expect(await SessionResumeService.readRouteLocation(), '/journal');
-  });
-
   test('clears expired snapshots', () async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(
@@ -92,11 +74,13 @@ void main() {
         'updatedAtMs': DateTime.now()
             .subtract(SessionResumeService.ttl + const Duration(minutes: 1))
             .millisecondsSinceEpoch,
-        'routeLocation': '/rhythm/today',
+        'scopedStates': {
+          'calendar_view': {'kYear': 12},
+        },
       }),
     );
 
-    expect(await SessionResumeService.readRouteLocation(), isNull);
+    expect(await SessionResumeService.readScopedState('calendar_view'), isNull);
     expect(prefs.getString('session_resume_state_v1'), isNull);
   });
 
@@ -107,55 +91,15 @@ void main() {
       jsonEncode({
         'updatedAtMs': DateTime.now().millisecondsSinceEpoch,
         'userId': 'user-2',
-        'routeLocation': '/inbox',
+        'scopedStates': {
+          'calendar_view': {'kYear': 12},
+        },
       }),
     );
 
-    expect(await SessionResumeService.readRouteLocation(), isNull);
+    expect(await SessionResumeService.readScopedState('calendar_view'), isNull);
     expect(prefs.getString('session_resume_state_v1'), isNull);
   });
-
-  test('persists node action routes as stable one-shot-free routes', () async {
-    await SessionResumeService.saveRouteLocation(
-      '/nodes/human_emergence?action=add_insight',
-    );
-
-    expect(
-      await SessionResumeService.readRouteLocation(),
-      '/nodes/human_emergence',
-    );
-
-    final prefs = await SharedPreferences.getInstance();
-    final raw =
-        jsonDecode(prefs.getString('session_resume_state_v1')!)
-            as Map<String, dynamic>;
-    expect(raw['routeLocation'], '/nodes/human_emergence');
-    expect(raw['routeLocation'], isNot(contains('add_insight')));
-  });
-
-  test(
-    'cleans stale one-shot route intents when reading old snapshots',
-    () async {
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setString(
-        'session_resume_state_v1',
-        jsonEncode({
-          'updatedAtMs': DateTime.now().millisecondsSinceEpoch,
-          'userId': 'user-1',
-          'routeLocation': '/nodes/human_emergence?action=add_insight',
-        }),
-      );
-
-      expect(
-        await SessionResumeService.readRouteLocation(),
-        '/nodes/human_emergence',
-      );
-      final raw =
-          jsonDecode(prefs.getString('session_resume_state_v1')!)
-              as Map<String, dynamic>;
-      expect(raw['routeLocation'], '/nodes/human_emergence');
-    },
-  );
 
   testWidgets(
     'default root route does not overwrite pending non-root launch restore',
@@ -172,13 +116,16 @@ void main() {
       );
       await tester.pump();
 
-      expect(await SessionResumeService.readRouteLocation(), isNull);
-      expect(await AppRestorationService.instance.readRouteLocation(), isNull);
+      final prefs = await SharedPreferences.getInstance();
+      final raw = prefs.getString('session_resume_state_v1');
+      if (raw != null) {
+        expect(jsonDecode(raw), isNot(containsPair('routeLocation', anything)));
+      }
     },
   );
 
   test(
-    'session tracked route starts durable save before first frame',
+    'session tracked route does not persist durable launch routes',
     () async {
       final source = await File(
         'lib/services/session_resume_service.dart',
@@ -188,20 +135,9 @@ void main() {
       expect(start, isNot(-1));
       expect(end, isNot(-1));
       final persistRoute = source.substring(start, end);
-      final postFrame = persistRoute.indexOf(
-        'WidgetsBinding.instance.addPostFrameCallback',
-      );
-      expect(postFrame, isNot(-1));
-      expect(
-        persistRoute.indexOf(
-          'RestorationCoordinator.instance.recordRouteLocation',
-        ),
-        lessThan(postFrame),
-      );
-      expect(
-        persistRoute.indexOf('SessionResumeService.saveRouteLocation'),
-        lessThan(postFrame),
-      );
+      expect(persistRoute, contains('durable_launch_route_centralized'));
+      expect(persistRoute, isNot(contains('recordRouteLocation')));
+      expect(persistRoute, isNot(contains('saveRouteLocation')));
     },
   );
 }
