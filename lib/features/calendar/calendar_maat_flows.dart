@@ -261,53 +261,21 @@ class _MaatFlowsListPageState extends State<_MaatFlowsListPage> {
               itemBuilder: (ctx, i) {
                 final t = widget.templates[i];
                 final added = widget.hasActiveForKey(t.key);
-                final maatDecanDefinition =
-                    t.kind == _MaatFlowTemplateKind.maatDecan
-                    ? maatDecanFlowDefinitionForKey(t.key)
-                    : null;
-                final subtitleParts = <String>[
-                  _maatFlowTemplateDurationLabel(t),
-                  if (maatDecanDefinition != null)
-                    maatDecanDefinition.burdenLabel,
-                  if (maatDecanDefinition != null)
-                    maatDecanDefinition.rhythmLabel,
-                  if (maatDecanDefinition?.specialRequirementLabel != null)
-                    maatDecanDefinition!.specialRequirementLabel!,
-                ];
                 return ListTile(
                   onTap: () async => _handlePickTemplate(t),
                   leading: MaatFlowGlyph(glyph: t.glyph, size: 24),
-                  title: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      GlossyText(
-                        text: t.title,
-                        style: const TextStyle(
-                          fontSize: 17,
-                          fontWeight: FontWeight.w600,
-                        ),
-                        gradient: goldGloss,
-                      ),
-                      if (maatDecanDefinition != null)
-                        Padding(
-                          padding: const EdgeInsets.only(top: 2),
-                          child: Text(
-                            maatDecanDefinition.tagline,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
-                              color: Colors.white54,
-                              fontSize: 11.5,
-                              fontStyle: FontStyle.italic,
-                            ),
-                          ),
-                        ),
-                    ],
+                  title: GlossyText(
+                    text: t.title,
+                    style: const TextStyle(
+                      fontSize: 17,
+                      fontWeight: FontWeight.w600,
+                    ),
+                    gradient: goldGloss,
                   ),
                   subtitle: Padding(
                     padding: const EdgeInsets.only(top: 4),
                     child: Text(
-                      '${subtitleParts.join(' • ')} • ${t.overview.isEmpty ? '—' : 'Tap for details'}',
+                      t.subtitle,
                       style: const TextStyle(
                         color: Colors.white70,
                         fontSize: 12,

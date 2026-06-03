@@ -12,7 +12,7 @@ void main() {
     final templateList = _sourceBetween(
       source,
       'final List<_MaatFlowTemplate> _kMaatFlowTemplates = [',
-      'String _maatFlowTemplateDurationLabel',
+      'CALENDAR PAGE (flows + notes)',
     );
     const templateCount = 31;
 
@@ -24,7 +24,9 @@ void main() {
     expect(_countOccurrences(templateList, 'glyphMeaning:'), templateCount);
     expect(_countOccurrences(templateList, 'glyphSourceWord:'), templateCount);
     expect(_countOccurrences(templateList, 'glyphType:'), templateCount);
+    expect(_countOccurrences(templateList, 'subtitle:'), templateCount);
     expect(templateList, isNot(contains("glyph: ''")));
+    expect(templateList, isNot(contains("subtitle: ''")));
   });
 
   testWidgets(
@@ -59,6 +61,10 @@ void main() {
       );
 
       expect(listPage, contains('leading: MaatFlowGlyph(glyph: t.glyph'));
+      expect(listPage, contains('t.subtitle'));
+      expect(listPage, isNot(contains('_maatFlowTemplateDurationLabel(t)')));
+      expect(listPage, isNot(contains('Tap for details')));
+      expect(listPage, isNot(contains('maatDecanDefinition.tagline')));
       expect(
         recommendationCard,
         contains('MaatFlowGlyph(glyph: template.glyph'),

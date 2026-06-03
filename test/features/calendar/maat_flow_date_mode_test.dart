@@ -1227,7 +1227,7 @@ void main() {
     final templateList = _sourceBetween(
       source,
       'final List<_MaatFlowTemplate> _kMaatFlowTemplates = [',
-      'String _maatFlowTemplateDurationLabel',
+      'CALENDAR PAGE (flows + notes)',
     );
     final mountedJoin = _sourceBetween(
       source,
