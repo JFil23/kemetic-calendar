@@ -47,6 +47,34 @@ Map<String, List<InboxShareItem>> directMessageConversationThreadsFromItems(
   return grouped;
 }
 
+List<InboxShareItem> eventInviteItemsForInvitesSheet(
+  Iterable<InboxShareItem> items,
+  String currentUserId,
+) {
+  return items
+      .where(
+        (item) =>
+            item.isEvent &&
+            !item.isDeleted &&
+            item.recipientId == currentUserId,
+      )
+      .toList()
+    ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
+}
+
+String eventInviteStatusLabel(InboxShareItem invite) {
+  switch (invite.responseStatus) {
+    case EventInviteResponseStatus.accepted:
+      return 'Yes';
+    case EventInviteResponseStatus.declined:
+      return 'No';
+    case EventInviteResponseStatus.maybe:
+      return 'Maybe';
+    case EventInviteResponseStatus.noResponse:
+      return 'Pending';
+  }
+}
+
 String? otherUserIdForInboxItem(InboxShareItem item, String currentUserId) {
   if (item.senderId == currentUserId) return item.recipientId;
   if (item.recipientId == currentUserId) return item.senderId;

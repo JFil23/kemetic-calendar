@@ -235,15 +235,7 @@ class _InboxPageState extends State<InboxPage> {
 
     _latestEventInvites = currentUserId == null
         ? const <InboxShareItem>[]
-        : (items
-              .where(
-                (item) =>
-                    item.isEvent &&
-                    !item.isDeleted &&
-                    item.recipientId == currentUserId,
-              )
-              .toList()
-            ..sort((a, b) => b.createdAt.compareTo(a.createdAt)));
+        : eventInviteItemsForInvitesSheet(items, currentUserId);
     _latestCalendarNotifications = currentUserId == null
         ? const <InboxShareItem>[]
         : (items
@@ -474,7 +466,7 @@ class _InboxPageState extends State<InboxPage> {
                           item.calendarThread!,
                         );
                       }
-                      return _buildEventInviteRow(item.invite!);
+                      return const SizedBox.shrink();
                     },
                   )),
     );
@@ -532,15 +524,6 @@ class _InboxPageState extends State<InboxPage> {
       );
     });
 
-    final inviteItems = _latestEventInvites
-        .map(
-          (invite) => _UnifiedInboxItem.eventInvite(
-            createdAt: invite.createdAt,
-            invite: invite,
-          ),
-        )
-        .toList(growable: false);
-
     final calendarItems =
         sharedCalendarInboxThreadsFromNotifications(
               _latestCalendarNotifications,
@@ -554,7 +537,7 @@ class _InboxPageState extends State<InboxPage> {
             )
             .toList(growable: false);
 
-    return [...calendarItems, ...inviteItems, ...messageItems]
+    return [...calendarItems, ...messageItems]
       ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
   }
 
@@ -618,6 +601,10 @@ class _InboxPageState extends State<InboxPage> {
       _optimisticReadShareIds.removeAll(failedIds);
       _unified = _buildUnifiedItems();
     });
+  }
+
+  bool _isUnreadInboxItem(InboxShareItem item) {
+    return item.isUnread && !_optimisticReadShareIds.contains(item.shareId);
   }
 
   Widget _buildConversationBar({
@@ -770,7 +757,10 @@ class _InboxPageState extends State<InboxPage> {
     await _markItemsViewed(items);
   }
 
-  Widget _buildEventInviteRow(InboxShareItem invite) {
+  Widget _buildEventInviteRow(
+    InboxShareItem invite, {
+    BuildContext? closeContext,
+  }) {
     final payload = invite.eventPayload;
     final senderName = invite.senderName?.trim().isNotEmpty == true
         ? invite.senderName!.trim()
@@ -780,6 +770,7 @@ class _InboxPageState extends State<InboxPage> {
     final whenText = _eventInviteWhenText(invite);
     final statusLabel = _eventInviteStatusLabel(invite);
     final statusColor = _eventInviteStatusColor(invite);
+    final isUnread = _isUnreadInboxItem(invite);
 
     return ListTile(
       contentPadding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
@@ -793,7 +784,7 @@ class _InboxPageState extends State<InboxPage> {
         overflow: TextOverflow.ellipsis,
         style: TextStyle(
           color: Colors.white,
-          fontWeight: invite.isUnread ? FontWeight.bold : FontWeight.w600,
+          fontWeight: isUnread ? FontWeight.bold : FontWeight.w600,
         ),
       ),
       subtitle: Text(
@@ -824,7 +815,7 @@ class _InboxPageState extends State<InboxPage> {
               ),
             ),
           ),
-          if (invite.isUnread) ...[
+          if (isUnread) ...[
             const SizedBox(height: 8),
             Container(
               width: 8,
@@ -837,10 +828,12 @@ class _InboxPageState extends State<InboxPage> {
           ],
         ],
       ),
-      onTap: () => context.go(
-        '/event-invite/${Uri.encodeComponent(invite.shareId)}',
-        extra: invite,
-      ),
+      onTap: () async {
+        if (closeContext != null) {
+          Navigator.of(closeContext).pop();
+        }
+        await _openEventInvite(invite);
+      },
     );
   }
 
@@ -959,16 +952,7 @@ class _InboxPageState extends State<InboxPage> {
   }
 
   String _eventInviteStatusLabel(InboxShareItem invite) {
-    switch (invite.responseStatus) {
-      case EventInviteResponseStatus.accepted:
-        return 'Yes';
-      case EventInviteResponseStatus.declined:
-        return 'No';
-      case EventInviteResponseStatus.maybe:
-        return 'Maybe';
-      case EventInviteResponseStatus.noResponse:
-        return invite.viewedAt != null ? 'Opened' : 'Pending';
-    }
+    return eventInviteStatusLabel(invite);
   }
 
   String _formatInboxTimestamp(DateTime value) {
@@ -1160,7 +1144,8 @@ class _InboxPageState extends State<InboxPage> {
   }
 
   bool get _hasUnreadCalendar =>
-      _calendarSectionNotifications.any((item) => item.isUnread) ||
+      _calendarSectionNotifications.any(_isUnreadInboxItem) ||
+      _latestEventInvites.any(_isUnreadInboxItem) ||
       _incomingCalendarInvitesWithoutNotification.isNotEmpty;
 
   Widget _buildSummaryTile(int index) {
@@ -1318,6 +1303,12 @@ class _InboxPageState extends State<InboxPage> {
             (left, right) =>
                 right.createdAt.isAfter(left.createdAt) ? right : left,
           );
+    final latestEventInvite = _latestEventInvites.isEmpty
+        ? null
+        : _latestEventInvites.reduce(
+            (left, right) =>
+                right.createdAt.isAfter(left.createdAt) ? right : left,
+          );
     final latestSentInvite = _latestSentCalendarInvites.isEmpty
         ? null
         : _latestSentCalendarInvites.reduce(
@@ -1337,20 +1328,38 @@ class _InboxPageState extends State<InboxPage> {
         (latestNotification == null ||
             latestSentInvite.invitedAt.isAfter(latestNotification.createdAt)) &&
         (latestIncomingInvite == null ||
-            latestSentInvite.invitedAt.isAfter(latestIncomingInvite.invitedAt));
+            latestSentInvite.invitedAt.isAfter(
+              latestIncomingInvite.invitedAt,
+            )) &&
+        (latestEventInvite == null ||
+            latestSentInvite.invitedAt.isAfter(latestEventInvite.createdAt));
     final useIncomingInvite =
         latestIncomingInvite != null &&
         !useSentInvite &&
         (latestNotification == null ||
             latestIncomingInvite.invitedAt.isAfter(
               latestNotification.createdAt,
+            )) &&
+        (latestEventInvite == null ||
+            latestIncomingInvite.invitedAt.isAfter(
+              latestEventInvite.createdAt,
             ));
+    final useEventInvite =
+        latestEventInvite != null &&
+        !useSentInvite &&
+        !useIncomingInvite &&
+        (latestNotification == null ||
+            latestEventInvite.createdAt.isAfter(latestNotification.createdAt));
 
     final subtitle = useSentInvite
         ? '${latestSentInvite.calendarName} - waiting on ${latestSentInvite.inviteeLabel}'
         : (useIncomingInvite
               ? '${latestIncomingInvite.inviterLabel} invited you to ${latestIncomingInvite.calendarName}'
-              : _calendarSummarySubtitleForNotification(latestNotification));
+              : (useEventInvite
+                    ? _eventInviteSummarySubtitle(latestEventInvite)
+                    : _calendarSummarySubtitleForNotification(
+                        latestNotification,
+                      )));
 
     return ListTile(
       leading: _buildInvitesSummaryGlyphAvatar(),
@@ -1392,6 +1401,20 @@ class _InboxPageState extends State<InboxPage> {
       return 'You declined $calendarName';
     }
     return '$senderName invited you to $calendarName';
+  }
+
+  String _eventInviteSummarySubtitle(InboxShareItem invite) {
+    final title = invite.eventPayload?.title ?? invite.title;
+    final senderName = invite.senderName?.trim().isNotEmpty == true
+        ? invite.senderName!.trim()
+        : (invite.senderHandle?.trim().isNotEmpty == true
+              ? '@${invite.senderHandle!.trim()}'
+              : 'Someone');
+    final status = invite.responseStatus;
+    if (status == EventInviteResponseStatus.noResponse) {
+      return '$senderName invited you to $title';
+    }
+    return '$title - ${_eventInviteStatusLabel(invite)}';
   }
 
   void _openFollowersSheet() {
@@ -1499,17 +1522,12 @@ class _InboxPageState extends State<InboxPage> {
   }
 
   Future<void> _openCalendarInboxSheet() async {
-    final unreadNotifications = _calendarSectionNotifications
-        .where((item) => item.isUnread)
-        .toList(growable: false);
-    if (unreadNotifications.isNotEmpty) {
-      unawaited(
-        Future.wait(
-          unreadNotifications.map(
-            (item) => _shareRepo.markInboxItemViewed(item),
-          ),
-        ),
-      );
+    final unreadInviteItems = [
+      ..._calendarSectionNotifications,
+      ..._latestEventInvites,
+    ].where(_isUnreadInboxItem).toList(growable: false);
+    if (unreadInviteItems.isNotEmpty) {
+      unawaited(_markItemsViewed(unreadInviteItems));
     }
 
     await showModalBottomSheet(
@@ -1520,8 +1538,12 @@ class _InboxPageState extends State<InboxPage> {
         borderRadius: BorderRadius.vertical(top: Radius.circular(18)),
       ),
       builder: (sheetContext) {
-        final inviteNotifications = _calendarSectionNotifications.toList()
-          ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
+        final inviteNotifications = _calendarSectionNotifications.toList();
+        final eventInvites = _latestEventInvites.toList();
+        final inviteResponseItems = <InboxShareItem>[
+          ...eventInvites,
+          ...inviteNotifications,
+        ]..sort((a, b) => b.createdAt.compareTo(a.createdAt));
         final sentInvites = _latestSentCalendarInvites.toList()
           ..sort((a, b) => b.invitedAt.compareTo(a.invitedAt));
         final incomingInvites =
@@ -1556,7 +1578,7 @@ class _InboxPageState extends State<InboxPage> {
                 ),
                 const SizedBox(height: 8),
                 if (sentInvites.isEmpty &&
-                    inviteNotifications.isEmpty &&
+                    inviteResponseItems.isEmpty &&
                     incomingInvites.isEmpty)
                   Padding(
                     padding: const EdgeInsets.symmetric(vertical: 12),
@@ -1592,17 +1614,22 @@ class _InboxPageState extends State<InboxPage> {
                               closeContext: sheetContext,
                             ),
                         ],
-                        if (inviteNotifications.isNotEmpty) ...[
+                        if (inviteResponseItems.isNotEmpty) ...[
                           if (sentInvites.isNotEmpty ||
                               incomingInvites.isNotEmpty)
                             const SizedBox(height: 12),
                           _calendarSheetSectionTitle('Invites & responses'),
                           const SizedBox(height: 8),
-                          for (final notification in inviteNotifications)
-                            _buildCalendarInviteNotificationRow(
-                              notification,
-                              closeContext: sheetContext,
-                            ),
+                          for (final item in inviteResponseItems)
+                            item.isEvent
+                                ? _buildEventInviteRow(
+                                    item,
+                                    closeContext: sheetContext,
+                                  )
+                                : _buildCalendarInviteNotificationRow(
+                                    item,
+                                    closeContext: sheetContext,
+                                  ),
                         ],
                       ],
                     ),
@@ -1768,6 +1795,7 @@ class _InboxPageState extends State<InboxPage> {
               : (status == 'declined'
                     ? 'You declined this invitation.'
                     : '$senderName invited you to join $calendarName'));
+    final isUnread = _isUnreadInboxItem(notification);
 
     return ListTile(
       contentPadding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
@@ -1792,7 +1820,7 @@ class _InboxPageState extends State<InboxPage> {
         overflow: TextOverflow.ellipsis,
         style: TextStyle(
           color: Colors.white,
-          fontWeight: notification.isUnread ? FontWeight.bold : FontWeight.w600,
+          fontWeight: isUnread ? FontWeight.bold : FontWeight.w600,
         ),
       ),
       subtitle: Text(
@@ -1823,7 +1851,7 @@ class _InboxPageState extends State<InboxPage> {
               ),
             ),
           ),
-          if (notification.isUnread) ...[
+          if (isUnread) ...[
             const SizedBox(height: 8),
             Container(
               width: 8,
@@ -1878,9 +1906,7 @@ class _InboxPageState extends State<InboxPage> {
   }
 
   Future<void> _openCalendarNotification(InboxShareItem notification) async {
-    if (notification.isUnread) {
-      await _shareRepo.markInboxItemViewed(notification);
-    }
+    await _markItemsViewed([notification]);
     if (!mounted) return;
 
     if (notification.isCalendarInviteNotification ||
@@ -1906,6 +1932,15 @@ class _InboxPageState extends State<InboxPage> {
     }
   }
 
+  Future<void> _openEventInvite(InboxShareItem invite) async {
+    await _markItemsViewed([invite]);
+    if (!mounted) return;
+    context.go(
+      '/event-invite/${Uri.encodeComponent(invite.shareId)}',
+      extra: invite,
+    );
+  }
+
   Future<void> _openSharedCalendarThread(
     SharedCalendarInboxThread thread,
   ) async {
@@ -1922,7 +1957,7 @@ class _InboxPageState extends State<InboxPage> {
   }
 }
 
-enum _UnifiedKind { message, calendarNotification, eventInvite }
+enum _UnifiedKind { message, calendarNotification }
 
 class _UnifiedInboxItem {
   _UnifiedInboxItem.message({
@@ -1933,17 +1968,7 @@ class _UnifiedInboxItem {
     required this.hasUnread,
   }) : kind = _UnifiedKind.message,
        calendarNotification = null,
-       calendarThread = null,
-       invite = null;
-
-  _UnifiedInboxItem.eventInvite({required this.createdAt, required this.invite})
-    : kind = _UnifiedKind.eventInvite,
-      otherUserId = null,
-      otherProfile = null,
-      items = null,
-      hasUnread = null,
-      calendarNotification = null,
-      calendarThread = null;
+       calendarThread = null;
 
   _UnifiedInboxItem.calendarNotification({
     required this.createdAt,
@@ -1953,8 +1978,7 @@ class _UnifiedInboxItem {
        otherProfile = null,
        items = null,
        hasUnread = null,
-       calendarNotification = null,
-       invite = null;
+       calendarNotification = null;
 
   final _UnifiedKind kind;
   final DateTime createdAt;
@@ -1966,7 +1990,6 @@ class _UnifiedInboxItem {
   final bool? hasUnread;
   final InboxShareItem? calendarNotification;
   final SharedCalendarInboxThread? calendarThread;
-  final InboxShareItem? invite;
 }
 
 // Legacy code below - keeping for FlowPreviewCard compatibility
