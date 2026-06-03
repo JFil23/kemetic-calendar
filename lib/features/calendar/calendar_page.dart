@@ -3505,6 +3505,28 @@ class _SharedCalendarEventDetailSnapshot {
       'title="$title" start=${startsAtLocal.toIso8601String()}';
 }
 
+class _SharedCalendarRealDayViewIntent {
+  const _SharedCalendarRealDayViewIntent({
+    required this.kYear,
+    required this.kMonth,
+    required this.kDay,
+    required this.detail,
+    required this.snapshot,
+    required this.calendar,
+    required this.warmStartNotes,
+    required this.warmStartFlows,
+  });
+
+  final int kYear;
+  final int kMonth;
+  final int kDay;
+  final EventDetailRestorationState detail;
+  final _SharedCalendarEventDetailSnapshot snapshot;
+  final SharedCalendarSummary calendar;
+  final Map<String, List<_Note>> warmStartNotes;
+  final List<_Flow> warmStartFlows;
+}
+
 class CalendarPage extends StatefulWidget {
   final int? initialFlowIdToEdit;
   final bool openMyFlowsOnLaunch;
@@ -3522,6 +3544,8 @@ class CalendarPage extends StatefulWidget {
   static ({int ky, int km, int kd, EventDetailRestorationState? eventDetail})?
   _pendingDetachedSearchResult;
   static ({int ky, int km, int kd})? _pendingDetachedSearchDay;
+  static _SharedCalendarRealDayViewIntent?
+  _pendingSharedCalendarRealDayViewIntent;
   static bool _detachedCalendarOverlayRestoreInFlight = false;
   static bool _detachedSharedCalendarsSheetOpenOrOpening = false;
   static bool _detachedFlowStudioSheetOpenOrOpening = false;
@@ -4562,101 +4586,11 @@ class CalendarPage extends StatefulWidget {
     );
   }
 
-  static NoteData _noteDataFromSharedCalendarEventSnapshot(
-    _SharedCalendarEventDetailSnapshot snapshot,
-  ) {
-    return NoteData(
-      id: snapshot.eventId,
-      clientEventId: snapshot.clientEventId,
-      calendarId: snapshot.calendarId,
-      calendarName: snapshot.calendarName,
-      title: snapshot.title,
-      detail: snapshot.detail,
-      location: snapshot.location,
-      allDay: snapshot.allDay,
-      start: snapshot.allDay
-          ? null
-          : TimeOfDay.fromDateTime(snapshot.startsAtLocal),
-      end: snapshot.allDay || snapshot.endsAtLocal == null
-          ? null
-          : TimeOfDay.fromDateTime(snapshot.endsAtLocal!),
-      flowId: snapshot.flowId ?? -1,
-      manualColor: snapshot.calendarColor,
-      category: snapshot.category,
-      isReminder: snapshot.isReminder,
-      reminderId: snapshot.reminderId,
-      behaviorPayload: snapshot.behaviorPayload,
-    );
-  }
-
   static int? _firstVisibleMinuteFromSharedCalendarSnapshot(
     _SharedCalendarEventDetailSnapshot snapshot,
   ) {
     if (snapshot.allDay) return null;
     return snapshot.startsAtLocal.hour * 60 + snapshot.startsAtLocal.minute;
-  }
-
-  static void _pushOneShotSharedCalendarEventDayView(
-    BuildContext context, {
-    required int kYear,
-    required int kMonth,
-    required int kDay,
-    required _SharedCalendarEventDetailSnapshot snapshot,
-    required EventDetailRestorationState detail,
-  }) {
-    if (!context.mounted) return;
-    final navigator = Navigator.of(context, rootNavigator: true);
-    final snapshotNote = _noteDataFromSharedCalendarEventSnapshot(snapshot);
-    final initialFirstVisibleMinute =
-        _firstVisibleMinuteFromSharedCalendarSnapshot(snapshot);
-
-    List<NoteData> notesForDay(int y, int m, int d) {
-      if (y == kYear && m == kMonth && d == kDay) {
-        return <NoteData>[snapshotNote];
-      }
-      return const <NoteData>[];
-    }
-
-    if (kDebugMode) {
-      _calendarDebugPrint(
-        '[shared_calendar_event_tap] Day View route push requested '
-        'k=$kYear-$kMonth-$kDay detailIdentity='
-        '${detail.identityType}:${detail.identityValue}',
-      );
-    }
-    UiGuards.disableJournalSwipe();
-    navigator
-        .push(
-          MaterialPageRoute<void>(
-            builder: (routeContext) => DayViewPage(
-              initialKy: kYear,
-              initialKm: kMonth,
-              initialKd: kDay,
-              showGregorian: false,
-              notesForDay: notesForDay,
-              flowIndex: const <int, FlowData>{},
-              activeLedgerFlowIds: const <int>{},
-              getMonthName: (km) => getMonthById(km).displayFull,
-              initialFirstVisibleMinute: initialFirstVisibleMinute,
-              focusStartMin: initialFirstVisibleMinute,
-              initialEventDetailRestorationState: detail,
-              onClose: () => Navigator.of(routeContext).pop(),
-              shouldPreserveEventDetailRestorationOnClose: () =>
-                  RestorationCoordinator
-                      .instance
-                      .shouldPreserveOverlayForLifecycleClose,
-            ),
-          ),
-        )
-        .whenComplete(UiGuards.enableJournalSwipe);
-    if (kDebugMode) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        _calendarDebugPrint(
-          '[shared_calendar_event_tap] Day View visible '
-          'k=$kYear-$kMonth-$kDay',
-        );
-      });
-    }
   }
 
   static EventDetailRestorationState?
@@ -4748,14 +4682,25 @@ class CalendarPage extends StatefulWidget {
       return;
     }
 
+    final warmStartSnapshot = await _loadWarmStartSearchSnapshot();
     if (!context.mounted) return;
-    _pushOneShotSharedCalendarEventDayView(
-      context,
+    _pendingSharedCalendarRealDayViewIntent = _SharedCalendarRealDayViewIntent(
       kYear: kDate.kYear,
       kMonth: kDate.kMonth,
       kDay: kDate.kDay,
-      snapshot: snapshot,
       detail: detail,
+      snapshot: snapshot,
+      calendar: calendar,
+      warmStartNotes: warmStartSnapshot.notes,
+      warmStartFlows: warmStartSnapshot.flows,
+    );
+    Navigator.of(context, rootNavigator: true).push(
+      MaterialPageRoute<void>(
+        settings: const RouteSettings(
+          name: 'shared_calendar_event_tap_calendar_host',
+        ),
+        builder: (_) => CalendarPage(),
+      ),
     );
     unawaited(
       _clearDetachedCalendarOverlayState(_kCalendarOverlayKindSharedCalendars),
@@ -6424,6 +6369,7 @@ class CalendarPage extends StatefulWidget {
     CalendarPage._pendingDetachedLaunchAction = null;
     CalendarPage._pendingDetachedSearchResult = null;
     CalendarPage._pendingDetachedSearchDay = null;
+    CalendarPage._pendingSharedCalendarRealDayViewIntent = null;
     _mountedState?._suppressPendingRestoresForUserNavigation();
     unawaited(
       AppNavigationRestorationController.instance.recordPrimaryTabSelection(
@@ -6892,6 +6838,7 @@ class CalendarPageState extends State<CalendarPage>
   Timer? _warmStartCacheDebounceTimer;
   String? _warmStartCacheRestoredForUserId;
   bool _warmStartSnapshotVisible = false;
+  bool _sharedCalendarRealDayViewOpening = false;
   void _bumpDataVersion() {
     // why: force landscape PageView child to reconstruct once when data hydrates
     if (!mounted) return;
@@ -7638,6 +7585,17 @@ class CalendarPageState extends State<CalendarPage>
     final note = _noteFromSharedCalendarEventSnapshot(snapshot);
     final key = _kKey(kYear, kMonth, kDay);
     final bucket = _notes.putIfAbsent(key, () => <_Note>[]);
+    if (bucket.any(
+      (existing) => _noteMatchesEventDetailRestorationState(existing, detail),
+    )) {
+      if (kDebugMode) {
+        _calendarDebugPrint(
+          '[SharedCalendarEventTap] using cached real detail note '
+          '${snapshot.debugIdentity} day=$key notes=${bucket.length}',
+        );
+      }
+      return;
+    }
     final incomingBaseKey = _visibleDayNoteBaseKey(note);
     final incomingStandaloneKey = _standaloneDedupeKey(note);
     bucket.removeWhere((existing) {
@@ -7662,6 +7620,79 @@ class CalendarPageState extends State<CalendarPage>
         '${snapshot.debugIdentity} day=$key notes=${bucket.length}',
       );
     }
+  }
+
+  bool _consumePendingSharedCalendarRealDayViewIntentIfAny() {
+    final intent = CalendarPage._pendingSharedCalendarRealDayViewIntent;
+    if (intent == null) return false;
+    CalendarPage._pendingSharedCalendarRealDayViewIntent = null;
+    _sharedCalendarRealDayViewOpening = true;
+
+    _rememberSharedCalendarSnapshot(intent.calendar);
+    _flows
+      ..clear()
+      ..addAll(intent.warmStartFlows);
+    _notes
+      ..clear()
+      ..addEntries(
+        intent.warmStartNotes.entries.map(
+          (entry) => MapEntry(entry.key, List<_Note>.from(entry.value)),
+        ),
+      );
+    if (_flows.isNotEmpty) {
+      final maxFlowId = _flows
+          .map((flow) => flow.id)
+          .reduce((a, b) => a > b ? a : b);
+      _nextFlowId = math.max(_nextFlowId, maxFlowId + 1);
+    }
+    _seedOneShotSharedCalendarEventSnapshot(
+      kYear: intent.kYear,
+      kMonth: intent.kMonth,
+      kDay: intent.kDay,
+      snapshot: intent.snapshot,
+      detail: intent.detail,
+    );
+    _rebuildReminderRulesFromFlowsIfMissing();
+    _warmStartCacheRestoredForUserId = _activeWarmStartUserId();
+    _warmStartSnapshotVisible =
+        intent.warmStartFlows.isNotEmpty || intent.warmStartNotes.isNotEmpty;
+    _lastSuccessfulHydrationAt ??= DateTime.now();
+    _dataVersion++;
+    _notifyDayViewDataChanged();
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      _openDayView(
+        context,
+        intent.kYear,
+        intent.kMonth,
+        intent.kDay,
+        initialFirstVisibleMinute:
+            CalendarPage._firstVisibleMinuteFromSharedCalendarSnapshot(
+              intent.snapshot,
+            ),
+        initialEventDetailRestorationState: intent.detail,
+        debugOpenSource: 'shared_calendar_event_tap',
+      );
+      _sharedCalendarRealDayViewOpening = false;
+      unawaited(_loadCalendarState());
+      unawaited(
+        _requestInitialStartupRun(
+          reason: 'shared_calendar_event_tap_background',
+        ),
+      );
+    });
+
+    if (kDebugMode) {
+      final key = _kKey(intent.kYear, intent.kMonth, intent.kDay);
+      _calendarDebugPrint(
+        '[SharedCalendarEventTap] CalendarPage init consumed real day '
+        'intent ${intent.snapshot.debugIdentity} '
+        'warmFlows=${intent.warmStartFlows.length} '
+        'warmDayNotes=${intent.warmStartNotes[key]?.length ?? 0}',
+      );
+    }
+    return true;
   }
 
   Future<void> _requestInitialStartupRun({required String reason}) async {
@@ -7860,6 +7891,9 @@ class CalendarPageState extends State<CalendarPage>
   }
 
   void _schedulePersistentOverlayRestore({required String reason}) {
+    if (_sharedCalendarRealDayViewOpening) {
+      return;
+    }
     if (_calendarOverlayRestoreAttempted || _calendarOverlayRestoreInFlight) {
       return;
     }
@@ -10986,6 +11020,8 @@ class CalendarPageState extends State<CalendarPage>
   void initState() {
     super.initState();
     _calendarDebugPrint('[calendar] initState');
+    final hasSharedCalendarRealDayViewIntent =
+        CalendarPage._pendingSharedCalendarRealDayViewIntent != null;
     WidgetsBinding.instance.addObserver(this);
     // Load local reminders cache and check any due on startup.
     _reminderService.load().then((_) {
@@ -10996,7 +11032,9 @@ class CalendarPageState extends State<CalendarPage>
 
     // ✅ Load persisted state first, fallback to today
     _loadPersistedViewState();
-    unawaited(_restoreWarmStartCacheIfAvailable(reason: 'initState'));
+    if (!hasSharedCalendarRealDayViewIntent) {
+      unawaited(_restoreWarmStartCacheIfAvailable(reason: 'initState'));
+    }
     unawaited(_restoreMyFlowsFilingSnapshotCache(reason: 'initState'));
     calendarPushOpenIntent.addListener(_handleCalendarPushOpenIntent);
     _calendarInvalidationSub = CalendarInvalidationBus.instance.stream.listen(
@@ -11050,10 +11088,14 @@ class CalendarPageState extends State<CalendarPage>
         );
         if (widget.initialFlowIdToEdit == null &&
             !widget.openMyFlowsOnLaunch &&
+            !_sharedCalendarRealDayViewOpening &&
             CalendarPage._pendingDetachedLaunchAction == null &&
             CalendarPage._pendingDetachedSearchResult == null &&
             CalendarPage._pendingDetachedSearchDay == null) {
           _schedulePersistentOverlayRestore(reason: 'auth-early:${event.name}');
+        }
+        if (_sharedCalendarRealDayViewOpening) {
+          return;
         }
         unawaited(
           _requestInitialStartupRun(reason: 'auth:${event.name}').then((_) {
@@ -11091,6 +11133,11 @@ class CalendarPageState extends State<CalendarPage>
         _maybeLoadDecanReflectionPrompt();
       }
     });
+    final consumedSharedCalendarIntent =
+        _consumePendingSharedCalendarRealDayViewIntentIfAny();
+    if (consumedSharedCalendarIntent) {
+      return;
+    }
     unawaited(_loadCalendarState());
   }
 
@@ -11134,6 +11181,13 @@ class CalendarPageState extends State<CalendarPage>
     _calendarInvalidationReloadDebounce?.cancel();
     _calendarInvalidationReloadDebounce = null;
     if (!mounted || !_calendarInvalidationReloadPending) return;
+    if (_sharedCalendarRealDayViewOpening) {
+      _calendarInvalidationReloadDebounce = Timer(
+        const Duration(milliseconds: 80),
+        _flushCalendarInvalidationReload,
+      );
+      return;
+    }
     if (_calendarInvalidationReloadInFlight || _isLoadingFromDisk) {
       _calendarInvalidationReloadDebounce = Timer(
         const Duration(milliseconds: 80),
@@ -25640,10 +25694,14 @@ class CalendarPageState extends State<CalendarPage>
       if (user != null) {
         if (widget.initialFlowIdToEdit == null &&
             !widget.openMyFlowsOnLaunch &&
+            !_sharedCalendarRealDayViewOpening &&
             CalendarPage._pendingDetachedLaunchAction == null &&
             CalendarPage._pendingDetachedSearchResult == null &&
             CalendarPage._pendingDetachedSearchDay == null) {
           _schedulePersistentOverlayRestore(reason: 'init-early');
+        }
+        if (_sharedCalendarRealDayViewOpening) {
+          return;
         }
         _requestInitialStartupRun(reason: 'init').then((_) {
           final targetFlowId = widget.initialFlowIdToEdit;
@@ -25680,7 +25738,8 @@ class CalendarPageState extends State<CalendarPage>
       _schedulePendingDetachedLaunchActionIfAny();
     }
 
-    if (_pendingInitialHydration &&
+    if (!_sharedCalendarRealDayViewOpening &&
+        _pendingInitialHydration &&
         Supabase.instance.client.auth.currentUser != null) {
       _requestInitialStartupRun(reason: 'init-pending').then((_) {
         if (!mounted ||
