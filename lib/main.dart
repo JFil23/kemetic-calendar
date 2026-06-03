@@ -81,6 +81,7 @@ import 'widgets/kemetic_day_info.dart';
 import 'services/app_restoration_service.dart';
 import 'services/app_window_service.dart';
 import 'services/restoration_coordinator.dart';
+import 'services/restoration_trace.dart';
 import 'services/session_resume_service.dart';
 
 // Conditional import: on web we use URL cleanup + visibility hook; elsewhere no-ops.
@@ -472,6 +473,11 @@ Future<void> main() async {
     await _readBootInitialPushIntent();
     _bootRestoredLocation = await _readBootRestoredLocation();
     final initialLocation = _resolveInitialLocation();
+    traceRestoration(
+      'boot route apply prepared explicit=${_bootExplicitIntentLocation ?? '<none>'} '
+      'restored=${_bootRestoredLocation ?? '<none>'} '
+      'initial=$initialLocation',
+    );
     RestorationCoordinator.instance.beginLaunchRestore(
       reason: RestorationRestoreReason.coldLaunch,
       targetLocation: initialLocation,
@@ -486,6 +492,7 @@ Future<void> main() async {
     _startWebBootTasks();
 
     runApp(const MyApp());
+    _traceRouterLocationAfterFrame('after_run_app_first_frame');
   }, zoneSpecification: _releasePrintSilencer);
 }
 
@@ -818,10 +825,45 @@ class TelemetryRouteObserver extends RouteObserver<PageRoute<dynamic>> {
 
 String _resolveInitialLocation() {
   final defaultRoute = PlatformDispatcher.instance.defaultRouteName.trim();
-  if (defaultRoute.isEmpty || defaultRoute == Navigator.defaultRouteName) {
-    return _bootExplicitIntentLocation ?? _bootRestoredLocation ?? '/';
+  final location =
+      defaultRoute.isEmpty || defaultRoute == Navigator.defaultRouteName
+      ? _bootExplicitIntentLocation ?? _bootRestoredLocation ?? '/'
+      : defaultRoute.startsWith('/')
+      ? defaultRoute
+      : '/$defaultRoute';
+  traceRestoration(
+    'boot initial route resolved location=$location '
+    'defaultRoute=${defaultRoute.isEmpty ? '<empty>' : defaultRoute} '
+    'explicit=${_bootExplicitIntentLocation ?? '<none>'} '
+    'restored=${_bootRestoredLocation ?? '<none>'}',
+  );
+  return location;
+}
+
+String _routerLocationForTrace() {
+  try {
+    return _router.routerDelegate.currentConfiguration.uri.toString();
+  } catch (error) {
+    return '<unavailable:$error>';
   }
-  return defaultRoute.startsWith('/') ? defaultRoute : '/$defaultRoute';
+}
+
+void _traceRouterLocationAfterFrame(String reason) {
+  WidgetsBinding.instance.addPostFrameCallback((_) {
+    traceRestoration(
+      'router final route reason=$reason location=${_routerLocationForTrace()}',
+    );
+  });
+}
+
+String? _traceRouterRedirect(Uri uri, String? redirect) {
+  traceRestoration('router redirect input=$uri output=${redirect ?? '<none>'}');
+  return redirect;
+}
+
+String _traceRouteValue(String? value) {
+  final normalized = value?.trim();
+  return normalized == null || normalized.isEmpty ? '<none>' : normalized;
 }
 
 Future<void> _readBootInitialAppLinkIntent() async {
@@ -890,8 +932,16 @@ void _suppressPassiveLaunchSurfacesForExplicitIntentIfNeeded() {
 
 Future<String?> _readBootRestoredLocation() async {
   final hasSession = Supabase.instance.client.auth.currentSession != null;
+  traceRestoration('boot restore read start hasSession=$hasSession');
   final result = await AppRestorationService.instance.readBestSnapshot(
     includeRemote: hasSession,
+  );
+  traceRestoration(
+    'boot restore read result status=${result.status.name} '
+    'source=${result.source ?? '<none>'} reason=${result.reason ?? '<none>'} '
+    'route=${_traceRouteValue(result.snapshot?.routeLocation)} '
+    'updatedAtMs=${result.snapshot?.updatedAtMs ?? '<none>'} '
+    'overlayCount=${result.snapshot?.overlayStack.length ?? 0}',
   );
   if (result.status == AppRestorationReadStatus.restored ||
       result.status == AppRestorationReadStatus.tentative) {
@@ -902,15 +952,28 @@ Future<String?> _readBootRestoredLocation() async {
     final location =
         overlayParentRoute ?? result.snapshot?.routeLocation?.trim();
     final restored = _restorableLaunchLocation(location);
+    traceRestoration(
+      'boot restore candidate overlayParent=${_traceRouteValue(overlayParentRoute)} '
+      'raw=${_traceRouteValue(location)} selected=${_traceRouteValue(restored)}',
+    );
     if (restored != null) return restored;
     if (overlayParentRoute != null || result.snapshot?.routeLocation != null) {
+      traceRestoration(
+        'boot restore snapshot rejected '
+        'overlayParent=${_traceRouteValue(overlayParentRoute)} '
+        'route=${_traceRouteValue(result.snapshot?.routeLocation)}',
+      );
       return null;
     }
   }
 
-  return _restorableLaunchLocation(
-    await SessionResumeService.readRouteLocation(),
+  final sessionRoute = await SessionResumeService.readRouteLocation();
+  final restored = _restorableLaunchLocation(sessionRoute);
+  traceRestoration(
+    'boot restore session fallback raw=${_traceRouteValue(sessionRoute)} '
+    'selected=${_traceRouteValue(restored)}',
   );
+  return restored;
 }
 
 String? _restorableLaunchLocation(String? location) {
@@ -920,6 +983,11 @@ String? _restorableLaunchLocation(String? location) {
   }
   final stableLocation = stableRouteLocationForContinuity(normalized);
   if (stableLocation == null || stableLocation == '/') {
+    traceRestoration(
+      'boot restore restorable rejected input=$normalized '
+      'sanitized=${_traceRouteValue(stableLocation)} '
+      'reason=sanitized_root_or_null',
+    );
     return null;
   }
   if (stableLocation != normalized && kDebugMode) {
@@ -928,7 +996,12 @@ String? _restorableLaunchLocation(String? location) {
       '$normalized -> $stableLocation',
     );
   }
-  return _isContinuityRouteLocation(stableLocation) ? stableLocation : null;
+  final durable = _isContinuityRouteLocation(stableLocation);
+  traceRestoration(
+    'boot restore restorable input=$normalized sanitized=$stableLocation '
+    'durable=$durable',
+  );
+  return durable ? stableLocation : null;
 }
 
 bool _isContinuityRouteLocation(String location) {
@@ -1204,14 +1277,17 @@ final _router = GoRouter(
     _floatingMenuRouteObserver,
     TelemetryRouteObserver(),
   ],
-  redirect: (context, state) =>
-      _redirectRetiredRhythmRoute(state.uri) ??
-      _redirectExternalAppLink(state.uri),
+  redirect: (context, state) => _traceRouterRedirect(
+    state.uri,
+    _redirectRetiredRhythmRoute(state.uri) ??
+        _redirectExternalAppLink(state.uri),
+  ),
   routes: [
     GoRoute(path: '/', builder: (context, state) => const AuthGate()),
     GoRoute(
       path: '/inbox',
       builder: (context, state) {
+        traceRestoration('router build /inbox uri=${state.uri}');
         final shareId = state.uri.queryParameters['share'];
         if (shareId != null) {
           // Redirect to share preview if share parameter exists
@@ -4203,34 +4279,56 @@ class _AuthGateState extends State<AuthGate> with WidgetsBindingObserver {
     if (!mounted ||
         supabase.auth.currentSession == null ||
         _deferSessionResumeForPushNavigation) {
+      traceRestoration(
+        'auth resume skipped mounted=$mounted '
+        'hasSession=${supabase.auth.currentSession != null} '
+        'deferPush=$_deferSessionResumeForPushNavigation',
+      );
       return;
     }
+    traceRestoration('auth resume read start');
     final overlayParentRoute =
         CalendarPage.restorableOverlayParentRouteFromStack(
           await AppRestorationService.instance.readOverlayStack(),
         );
-    final rawSavedLocation =
-        overlayParentRoute ??
-        await AppRestorationService.instance.readRouteLocation(
-          includeRemote: true,
-        ) ??
-        await SessionResumeService.readRouteLocation();
+    final appRoute = overlayParentRoute == null
+        ? await AppRestorationService.instance.readRouteLocation(
+            includeRemote: true,
+          )
+        : null;
+    final sessionRoute = overlayParentRoute == null && appRoute == null
+        ? await SessionResumeService.readRouteLocation()
+        : null;
+    final rawSavedLocation = overlayParentRoute ?? appRoute ?? sessionRoute;
     final savedLocation = _restorableLaunchLocation(rawSavedLocation);
+    traceRestoration(
+      'auth resume candidates overlayParent=${_traceRouteValue(overlayParentRoute)} '
+      'appRoute=${_traceRouteValue(appRoute)} '
+      'sessionRoute=${_traceRouteValue(sessionRoute)} '
+      'selected=${_traceRouteValue(savedLocation)}',
+    );
     if (!mounted ||
         savedLocation == null ||
         _deferSessionResumeForPushNavigation ||
         savedLocation.isEmpty ||
         savedLocation == '/') {
+      traceRestoration(
+        'auth resume not applied mounted=$mounted '
+        'selected=${_traceRouteValue(savedLocation)} '
+        'deferPush=$_deferSessionResumeForPushNavigation',
+      );
       return;
     }
     if (kDebugMode) {
       debugPrint('[AuthGate] restoring saved route once: $savedLocation');
     }
+    traceRestoration('auth resume applying route=$savedLocation');
     RestorationCoordinator.instance.beginLaunchRestore(
       reason: RestorationRestoreReason.authResume,
       targetLocation: savedLocation,
     );
     _router.go(savedLocation);
+    _traceRouterLocationAfterFrame('after_auth_resume_go');
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final navContext = _rootNavigatorKey.currentContext;
       if (navContext == null) return;
@@ -4702,6 +4800,9 @@ class _AuthGateState extends State<AuthGate> with WidgetsBindingObserver {
   @override
   Widget build(BuildContext context) {
     final session = supabase.auth.currentSession;
+    traceRestoration(
+      'auth gate build session=${session == null ? 'signed_out' : 'signed_in'}',
+    );
 
     if (session == null) {
       return LoginScreen(onGoogleSignIn: _signInWithGoogle);

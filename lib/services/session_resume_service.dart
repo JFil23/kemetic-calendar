@@ -10,6 +10,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../core/route_location_sanitizer.dart';
+import 'restoration_trace.dart';
 
 typedef SessionJsonMap = Map<String, dynamic>;
 
@@ -153,7 +154,16 @@ class SessionResumeService {
 
   static Future<void> saveRouteLocation(String location) async {
     final normalized = stableRouteLocationForContinuity(location);
-    if (normalized == null || normalized.isEmpty) return;
+    if (normalized == null || normalized.isEmpty) {
+      traceRestoration(
+        'session resume save route rejected input=$location '
+        'reason=sanitized_null',
+      );
+      return;
+    }
+    traceRestoration(
+      'session resume save route input=$location sanitized=$normalized',
+    );
     await _mutate((current) {
       current['routeLocation'] = normalized;
       return current;
@@ -306,26 +316,50 @@ class _SessionTrackedRouteState extends State<SessionTrackedRoute> {
   }
 
   void _persistRoute() {
-    if (!widget.enabled) return;
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      final stableLocation = stableRouteLocationForContinuity(widget.location);
-      if (stableLocation == null) return;
-      if (stableLocation == '/' &&
-          RestorationCoordinator
-              .instance
-              .shouldDeferRootRoutePersistenceForLaunch) {
-        return;
-      }
-      if (stableLocation != widget.location && kDebugMode) {
-        debugPrint(
-          '[SessionTrackedRoute] stripped one-shot route intent '
-          '${widget.location} -> $stableLocation',
-        );
-      }
-      unawaited(
-        RestorationCoordinator.instance.recordRouteLocation(stableLocation),
+    if (!widget.enabled) {
+      traceRestoration(
+        'session route persist skipped input=${widget.location} '
+        'reason=disabled',
       );
-      unawaited(SessionResumeService.saveRouteLocation(stableLocation));
+      return;
+    }
+    final stableLocation = stableRouteLocationForContinuity(widget.location);
+    if (stableLocation == null) {
+      traceRestoration(
+        'session route persist rejected input=${widget.location} '
+        'reason=sanitized_null',
+      );
+      return;
+    }
+    if (stableLocation == '/' &&
+        RestorationCoordinator
+            .instance
+            .shouldDeferRootRoutePersistenceForLaunch) {
+      traceRestoration(
+        'session route persist suppressed input=${widget.location} '
+        'sanitized=$stableLocation reason=pending_non_root_launch_restore',
+      );
+      return;
+    }
+    if (stableLocation != widget.location && kDebugMode) {
+      debugPrint(
+        '[SessionTrackedRoute] stripped one-shot route intent '
+        '${widget.location} -> $stableLocation',
+      );
+    }
+    traceRestoration(
+      'session route persist start input=${widget.location} '
+      'sanitized=$stableLocation phase=immediate',
+    );
+    unawaited(
+      RestorationCoordinator.instance.recordRouteLocation(stableLocation),
+    );
+    unawaited(SessionResumeService.saveRouteLocation(stableLocation));
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      traceRestoration(
+        'session route first_frame input=${widget.location} '
+        'sanitized=$stableLocation',
+      );
     });
   }
 

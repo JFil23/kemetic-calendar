@@ -1,7 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
 
-import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:uuid/uuid.dart';
@@ -12,6 +11,7 @@ import 'app_window_service.dart';
 import 'app_window_platform_stub.dart'
     if (dart.library.html) 'app_window_platform_web.dart'
     as app_window_platform;
+import 'restoration_trace.dart';
 
 const Set<String> _validExpansionValues = <String>{
   'compact',
@@ -595,6 +595,36 @@ class _SnapshotCandidate {
   final String source;
 }
 
+String _snapshotTrace(AppRestorationSnapshot? snapshot) {
+  if (snapshot == null) return '<none>';
+  return 'route=${snapshot.routeLocation ?? '<none>'} '
+      'updatedAtMs=${snapshot.updatedAtMs} '
+      'overlayCount=${snapshot.overlayStack.length} '
+      'overlay=${_overlayStackTrace(snapshot.overlayStack)} '
+      'user=${snapshot.userId} window=${snapshot.windowId}';
+}
+
+String _candidateTrace(_SnapshotCandidate? candidate) {
+  if (candidate == null) return '<none>';
+  return 'source=${candidate.source} ${_snapshotTrace(candidate.snapshot)}';
+}
+
+String _overlayStackTrace(List<Map<String, dynamic>> overlayStack) {
+  if (overlayStack.isEmpty) return '<empty>';
+  return overlayStack
+      .map((entry) {
+        final kind = (entry['kind'] as String?)?.trim();
+        final parentRoute = (entry['parentRoute'] as String?)?.trim();
+        final mode = (entry['mode'] as String?)?.trim();
+        final updatedAtMs = entry['updatedAtMs'];
+        return '{kind=${kind == null || kind.isEmpty ? '<none>' : kind},'
+            'parent=${parentRoute == null || parentRoute.isEmpty ? '<none>' : parentRoute},'
+            'mode=${mode == null || mode.isEmpty ? '<none>' : mode},'
+            'updatedAtMs=${updatedAtMs ?? '<none>'}}';
+      })
+      .join(',');
+}
+
 class AppRestorationService {
   AppRestorationService._();
 
@@ -641,9 +671,7 @@ class AppRestorationService {
   }
 
   void _log(String message) {
-    if (kDebugMode) {
-      debugPrint('[restoration] $message');
-    }
+    traceRestoration(message);
   }
 
   Future<String?> _currentUserId() async {
@@ -924,13 +952,19 @@ class AppRestorationService {
       if (clearIfInvalid) {
         await _clearSnapshotFor(userId, windowId);
       }
+      _log(
+        'candidate rejected source=prefs user=$userId window=$windowId '
+        'reason=snapshot_mismatch',
+      );
       return null;
     }
-    return _SnapshotCandidate(
+    final candidate = _SnapshotCandidate(
       snapshot: snapshot,
       raw: migrated,
       source: 'prefs',
     );
+    _log('candidate loaded ${_candidateTrace(candidate)}');
+    return candidate;
   }
 
   Future<_SnapshotCandidate?> _loadCriticalCandidate(
@@ -961,13 +995,19 @@ class AppRestorationService {
       if (clearIfInvalid) {
         _writeCriticalSnapshot(windowId, null);
       }
+      _log(
+        'candidate rejected source=critical window=$windowId '
+        'expectedUser=${expectedUserId ?? '<any>'} reason=snapshot_mismatch',
+      );
       return null;
     }
-    return _SnapshotCandidate(
+    final candidate = _SnapshotCandidate(
       snapshot: snapshot,
       raw: migrated,
       source: 'critical',
     );
+    _log('candidate loaded ${_candidateTrace(candidate)}');
+    return candidate;
   }
 
   Future<_SnapshotCandidate?> _loadLatestPrefsCandidate(
@@ -993,13 +1033,19 @@ class AppRestorationService {
       if (clearIfInvalid) {
         await _clearLatestSnapshotForUser(userId);
       }
+      _log(
+        'candidate rejected source=latest_prefs user=$userId '
+        'reason=snapshot_mismatch',
+      );
       return null;
     }
-    return _SnapshotCandidate(
+    final candidate = _SnapshotCandidate(
       snapshot: snapshot,
       raw: migrated,
       source: 'latest_prefs',
     );
+    _log('candidate loaded ${_candidateTrace(candidate)}');
+    return candidate;
   }
 
   Future<_SnapshotCandidate?> _loadLatestCriticalCandidate(
@@ -1025,13 +1071,19 @@ class AppRestorationService {
       if (clearIfInvalid) {
         _writeLatestCriticalSnapshot(userId, null);
       }
+      _log(
+        'candidate rejected source=latest_critical user=$userId '
+        'reason=snapshot_mismatch',
+      );
       return null;
     }
-    return _SnapshotCandidate(
+    final candidate = _SnapshotCandidate(
       snapshot: snapshot,
       raw: migrated,
       source: 'latest_critical',
     );
+    _log('candidate loaded ${_candidateTrace(candidate)}');
+    return candidate;
   }
 
   Future<_SnapshotCandidate?> _candidateFromRemoteRaw(
@@ -1048,13 +1100,19 @@ class AppRestorationService {
     }
     final snapshot = AppRestorationSnapshot.fromJson(migrated);
     if (snapshot == null || snapshot.userId != expectedUserId) {
+      _log(
+        'candidate rejected source=$source expectedUser=$expectedUserId '
+        'reason=remote_snapshot_mismatch',
+      );
       return null;
     }
-    return _SnapshotCandidate(
+    final candidate = _SnapshotCandidate(
       snapshot: snapshot,
       raw: migrated,
       source: source,
     );
+    _log('candidate loaded ${_candidateTrace(candidate)}');
+    return candidate;
   }
 
   Future<_SnapshotCandidate?> _loadRemoteWindowCandidate(
@@ -1062,6 +1120,10 @@ class AppRestorationService {
     String windowId,
   ) async {
     final deviceId = await _currentDeviceId();
+    _log(
+      'remote window read start user=$userId window=$windowId '
+      'device=$deviceId',
+    );
     final debugReader = debugRemoteWindowSnapshotReader;
     if (debugReader != null) {
       return _candidateFromRemoteRaw(
@@ -1093,6 +1155,7 @@ class AppRestorationService {
   }
 
   Future<_SnapshotCandidate?> _loadRemoteLatestCandidate(String userId) async {
+    _log('remote latest read start user=$userId');
     final debugReader = debugRemoteLatestSnapshotReader;
     if (debugReader != null) {
       return _candidateFromRemoteRaw(
@@ -1185,10 +1248,9 @@ class AppRestorationService {
     ]);
   }
 
-  Future<_SnapshotCandidate?> _readLatestSnapshotCandidateForUser(
+  Future<_SnapshotCandidate?> _readLatestLocalSnapshotCandidateForUser(
     String userId, {
     required bool clearIfInvalid,
-    bool includeRemote = false,
   }) async {
     final latestPrefsCandidate = await _loadLatestPrefsCandidate(
       userId,
@@ -1202,14 +1264,10 @@ class AppRestorationService {
       userId,
       clearIfInvalid: clearIfInvalid,
     );
-    final remoteLatestCandidate = includeRemote
-        ? await _loadRemoteLatestCandidate(userId)
-        : null;
     return _pickNewestCandidate(<_SnapshotCandidate>[
       if (latestPrefsCandidate != null) latestPrefsCandidate,
       if (latestCriticalCandidate != null) latestCriticalCandidate,
       if (scannedPrefsCandidate != null) scannedPrefsCandidate,
-      if (remoteLatestCandidate != null) remoteLatestCandidate,
     ]);
   }
 
@@ -1224,28 +1282,114 @@ class AppRestorationService {
       windowId,
       clearIfInvalid: clearIfInvalid,
     );
-    final remoteWindowCandidate = includeRemote
-        ? await _loadRemoteWindowCandidate(userId, windowId)
-        : null;
-    final latestUserCandidate = await _readLatestSnapshotCandidateForUser(
+    final latestLocalCandidate = await _readLatestLocalSnapshotCandidateForUser(
       userId,
       clearIfInvalid: clearIfInvalid,
-      includeRemote: includeRemote,
     );
+    if (!includeRemote) {
+      return _selectStableCandidate(
+        userId: userId,
+        windowId: windowId,
+        includeRemote: includeRemote,
+        currentWindowCandidate: currentWindowCandidate,
+        latestUserCandidate: latestLocalCandidate,
+        remoteWindowCandidate: null,
+      );
+    }
+    final localWinner = _selectStableCandidate(
+      userId: userId,
+      windowId: windowId,
+      includeRemote: true,
+      currentWindowCandidate: currentWindowCandidate,
+      latestUserCandidate: latestLocalCandidate,
+      remoteWindowCandidate: null,
+    );
+    if (localWinner != null &&
+        !_isRootRouteLocation(localWinner.snapshot.routeLocation)) {
+      _log(
+        'winner selected local_first_non_root ${_candidateTrace(localWinner)}',
+      );
+      return localWinner;
+    }
+    final remoteWindowCandidate = await _loadRemoteWindowCandidate(
+      userId,
+      windowId,
+    );
+    final remoteLatestCandidate = await _loadRemoteLatestCandidate(userId);
+    final latestUserCandidate = _pickNewestCandidate(<_SnapshotCandidate>[
+      if (latestLocalCandidate != null) latestLocalCandidate,
+      if (remoteLatestCandidate != null) remoteLatestCandidate,
+    ]);
+    return _selectStableCandidate(
+      userId: userId,
+      windowId: windowId,
+      includeRemote: includeRemote,
+      currentWindowCandidate: currentWindowCandidate,
+      latestUserCandidate: latestUserCandidate,
+      remoteWindowCandidate: remoteWindowCandidate,
+    );
+  }
+
+  _SnapshotCandidate? _selectStableCandidate({
+    required String userId,
+    required String windowId,
+    required bool includeRemote,
+    required _SnapshotCandidate? currentWindowCandidate,
+    required _SnapshotCandidate? latestUserCandidate,
+    required _SnapshotCandidate? remoteWindowCandidate,
+  }) {
+    _SnapshotCandidate? selected;
+    var reason = 'none';
     if (currentWindowCandidate == null) {
-      return _pickNewestCandidate(<_SnapshotCandidate>[
+      selected = _pickNewestCandidate(<_SnapshotCandidate>[
         if (remoteWindowCandidate != null) remoteWindowCandidate,
         if (latestUserCandidate != null) latestUserCandidate,
       ]);
+      reason = selected == null ? 'no_candidates' : 'no_current_window_newest';
+      _logStableSelection(
+        userId: userId,
+        windowId: windowId,
+        includeRemote: includeRemote,
+        currentWindowCandidate: currentWindowCandidate,
+        latestUserCandidate: latestUserCandidate,
+        remoteWindowCandidate: remoteWindowCandidate,
+        selected: selected,
+        reason: reason,
+      );
+      return selected;
     }
     if (!includeRemote) {
-      return currentWindowCandidate;
+      selected = currentWindowCandidate;
+      reason = 'current_window_local';
+      _logStableSelection(
+        userId: userId,
+        windowId: windowId,
+        includeRemote: includeRemote,
+        currentWindowCandidate: currentWindowCandidate,
+        latestUserCandidate: latestUserCandidate,
+        remoteWindowCandidate: remoteWindowCandidate,
+        selected: selected,
+        reason: reason,
+      );
+      return selected;
     }
 
     if (remoteWindowCandidate != null &&
         remoteWindowCandidate.snapshot.updatedAtMs >
             currentWindowCandidate.snapshot.updatedAtMs) {
-      return remoteWindowCandidate;
+      selected = remoteWindowCandidate;
+      reason = 'remote_window_newer_than_current';
+      _logStableSelection(
+        userId: userId,
+        windowId: windowId,
+        includeRemote: includeRemote,
+        currentWindowCandidate: currentWindowCandidate,
+        latestUserCandidate: latestUserCandidate,
+        remoteWindowCandidate: remoteWindowCandidate,
+        selected: selected,
+        reason: reason,
+      );
+      return selected;
     }
 
     final latestHasOverlay =
@@ -1255,7 +1399,19 @@ class AppRestorationService {
         currentWindowCandidate.snapshot.overlayStack.isEmpty &&
         latestUserCandidate.snapshot.updatedAtMs >
             currentWindowCandidate.snapshot.updatedAtMs) {
-      return latestUserCandidate;
+      selected = latestUserCandidate;
+      reason = 'latest_overlay_over_current_without_overlay';
+      _logStableSelection(
+        userId: userId,
+        windowId: windowId,
+        includeRemote: includeRemote,
+        currentWindowCandidate: currentWindowCandidate,
+        latestUserCandidate: latestUserCandidate,
+        remoteWindowCandidate: remoteWindowCandidate,
+        selected: selected,
+        reason: reason,
+      );
+      return selected;
     }
 
     if (latestUserCandidate != null &&
@@ -1263,10 +1419,53 @@ class AppRestorationService {
           latestUserCandidate,
           currentWindowCandidate,
         )) {
-      return latestUserCandidate;
+      selected = latestUserCandidate;
+      reason = 'latest_local_inbox_route_only_over_current_root';
+      _logStableSelection(
+        userId: userId,
+        windowId: windowId,
+        includeRemote: includeRemote,
+        currentWindowCandidate: currentWindowCandidate,
+        latestUserCandidate: latestUserCandidate,
+        remoteWindowCandidate: remoteWindowCandidate,
+        selected: selected,
+        reason: reason,
+      );
+      return selected;
     }
 
-    return currentWindowCandidate;
+    selected = currentWindowCandidate;
+    reason = 'current_window';
+    _logStableSelection(
+      userId: userId,
+      windowId: windowId,
+      includeRemote: includeRemote,
+      currentWindowCandidate: currentWindowCandidate,
+      latestUserCandidate: latestUserCandidate,
+      remoteWindowCandidate: remoteWindowCandidate,
+      selected: selected,
+      reason: reason,
+    );
+    return selected;
+  }
+
+  void _logStableSelection({
+    required String userId,
+    required String windowId,
+    required bool includeRemote,
+    required _SnapshotCandidate? currentWindowCandidate,
+    required _SnapshotCandidate? latestUserCandidate,
+    required _SnapshotCandidate? remoteWindowCandidate,
+    required _SnapshotCandidate? selected,
+    required String reason,
+  }) {
+    _log(
+      'selection user=$userId window=$windowId includeRemote=$includeRemote '
+      'current=${_candidateTrace(currentWindowCandidate)} '
+      'latest=${_candidateTrace(latestUserCandidate)} '
+      'remoteWindow=${_candidateTrace(remoteWindowCandidate)} '
+      'selected=${_candidateTrace(selected)} reason=$reason',
+    );
   }
 
   void _writeCriticalSnapshot(String windowId, String? serialized) {
@@ -1338,6 +1537,14 @@ class AppRestorationService {
     String windowId,
     Map<String, dynamic> raw,
   ) async {
+    _log(
+      'write local start user=$userId window=$windowId '
+      'route=${raw['routeLocation'] ?? '<none>'} '
+      'overlayCount=${_asJsonMapList(raw['overlayStack']).length} '
+      'overlay=${_overlayStackTrace(_asJsonMapList(raw['overlayStack']))} '
+      'updatedAtMs=${raw['updatedAtMs'] ?? '<none>'} '
+      'targets=critical,latest_critical,prefs,latest_prefs,last_user',
+    );
     final encoded = jsonEncode(raw);
     _writeCriticalSnapshot(windowId, encoded);
     _writeLatestCriticalSnapshot(userId, encoded);
@@ -1348,6 +1555,11 @@ class AppRestorationService {
       prefs.setString(_latestPrefsKey(userId), encoded),
       prefs.setString(_lastActiveUserKey, userId),
     ]);
+    _log(
+      'write local done user=$userId window=$windowId '
+      'route=${raw['routeLocation'] ?? '<none>'} '
+      'updatedAtMs=${raw['updatedAtMs'] ?? '<none>'}',
+    );
   }
 
   Future<AppRestorationSnapshot?> _adoptRemoteSnapshot(
@@ -1423,7 +1635,8 @@ class AppRestorationService {
         }
         _log(
           'read status=restored source=${candidate.source} '
-          'user=$activeUserId window=$windowId',
+          'user=$activeUserId window=$windowId '
+          '${_snapshotTrace(snapshot)} reason=matched_current_user',
         );
         return AppRestorationReadResult(
           status: AppRestorationReadStatus.restored,
@@ -1455,6 +1668,7 @@ class AppRestorationService {
       _log(
         'read status=tentative source=${tentativeCandidate.source} '
         'snapshot_user=${tentativeCandidate.snapshot.userId} window=$windowId '
+        '${_snapshotTrace(tentativeCandidate.snapshot)} '
         'reason=auth_not_ready',
       );
       return AppRestorationReadResult(
@@ -1566,12 +1780,21 @@ class AppRestorationService {
         windowId == null ||
         windowId.isEmpty ||
         updatedAtMs == null) {
+      _log(
+        'remote write skipped reason=invalid_snapshot '
+        'user=${userId ?? '<none>'} window=${windowId ?? '<none>'}',
+      );
       return;
     }
 
     final deviceId = await _currentDeviceId();
     final debugWriter = debugRemoteSnapshotWriter;
     if (debugWriter != null) {
+      _log(
+        'remote write debug user=$userId window=$windowId '
+        'route=${raw['routeLocation'] ?? '<none>'} '
+        'updatedAtMs=$updatedAtMs',
+      );
       await debugWriter(
         userId,
         deviceId,
@@ -1583,9 +1806,17 @@ class AppRestorationService {
 
     final repo = _remoteRepo();
     if (repo == null) {
+      _log(
+        'remote write skipped reason=no_repo user=$userId window=$windowId '
+        'route=${raw['routeLocation'] ?? '<none>'}',
+      );
       return;
     }
     try {
+      _log(
+        'remote write start user=$userId window=$windowId '
+        'route=${raw['routeLocation'] ?? '<none>'} updatedAtMs=$updatedAtMs',
+      );
       await repo.upsertSnapshots(
         userId: userId,
         deviceId: deviceId,
@@ -1627,8 +1858,10 @@ class AppRestorationService {
   Future<void> saveRouteLocation(String location) async {
     final normalized = stableRouteLocationForContinuity(location);
     if (normalized == null || normalized.isEmpty) {
+      _log('save route rejected input=$location reason=sanitized_null');
       return;
     }
+    _log('save route input=$location sanitized=$normalized overlay=unchanged');
     await _mutate((current) {
       current['routeLocation'] = normalized;
     });
@@ -1640,11 +1873,21 @@ class AppRestorationService {
   ) async {
     final normalized = stableRouteLocationForContinuity(location);
     if (normalized == null || normalized.isEmpty) {
+      _log(
+        'save route+overlay rejected input=$location '
+        'reason=sanitized_null overlayCount=${overlayStack.length} '
+        'overlay=${_overlayStackTrace(overlayStack)}',
+      );
       return;
     }
+    final next = _coerceOverlayStack(overlayStack);
+    _log(
+      'save route+overlay input=$location sanitized=$normalized '
+      'overlayAction=${next.isEmpty ? 'clear' : 'save'} '
+      'overlayCount=${next.length} overlay=${_overlayStackTrace(next)}',
+    );
     await _mutate((current) {
       current['routeLocation'] = normalized;
-      final next = _coerceOverlayStack(overlayStack);
       if (next.isEmpty) {
         current.remove('overlayStack');
       } else {
@@ -1744,8 +1987,13 @@ class AppRestorationService {
   }
 
   Future<void> saveOverlayStack(List<Map<String, dynamic>> overlayStack) async {
+    final next = _coerceOverlayStack(overlayStack);
+    _log(
+      'save overlayStack action=${next.isEmpty ? 'clear' : 'save'} '
+      'inputCount=${overlayStack.length} overlayCount=${next.length} '
+      'overlay=${_overlayStackTrace(next)}',
+    );
     await _mutate((current) {
-      final next = _coerceOverlayStack(overlayStack);
       if (next.isEmpty) {
         current.remove('overlayStack');
       } else {

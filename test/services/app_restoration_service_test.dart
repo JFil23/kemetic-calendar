@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter_test/flutter_test.dart';
@@ -753,6 +754,71 @@ void main() {
         'app_restoration_latest_v2:user-1',
         jsonEncode(latestInbox),
       );
+
+      final result = await AppRestorationService.instance.readBestSnapshot(
+        includeRemote: true,
+      );
+
+      expect(result.status, AppRestorationReadStatus.restored);
+      expect(result.source, 'latest_prefs');
+      expect(result.snapshot?.routeLocation, '/inbox');
+    },
+  );
+
+  test(
+    'local inbox restore does not wait for hanging remote restoration reads',
+    () async {
+      await AppRestorationService.instance.saveRouteLocation('/inbox');
+      await AppRestorationService.instance.flushPendingWrites();
+      final hangingRemoteWindow = Completer<Map<String, dynamic>?>();
+      final hangingRemoteLatest = Completer<Map<String, dynamic>?>();
+      AppRestorationService.debugRemoteWindowSnapshotReader =
+          (userId, deviceId, windowId) => hangingRemoteWindow.future;
+      AppRestorationService.debugRemoteLatestSnapshotReader = (userId) =>
+          hangingRemoteLatest.future;
+
+      final result = await AppRestorationService.instance
+          .readBestSnapshot(includeRemote: true)
+          .timeout(const Duration(milliseconds: 200));
+
+      expect(result.status, AppRestorationReadStatus.restored);
+      expect(result.snapshot?.routeLocation, '/inbox');
+      expect(hangingRemoteWindow.isCompleted, isFalse);
+      expect(hangingRemoteLatest.isCompleted, isFalse);
+    },
+  );
+
+  test(
+    'newer local inbox snapshot beats boot root without consulting remote',
+    () async {
+      final currentRoot = {
+        'schemaVersion': AppRestorationService.schemaVersion,
+        'userId': 'user-1',
+        'windowId': 'window-1',
+        'updatedAtMs': 1000,
+        'routeLocation': '/',
+      };
+      final latestInbox = {
+        'schemaVersion': AppRestorationService.schemaVersion,
+        'userId': 'user-1',
+        'windowId': 'window-2',
+        'updatedAtMs': 2000,
+        'routeLocation': '/inbox',
+      };
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(_snapshotKey(), jsonEncode(currentRoot));
+      _debugCriticalSnapshots['window-1'] = jsonEncode(currentRoot);
+      await prefs.setString(
+        'app_restoration_latest_v2:user-1',
+        jsonEncode(latestInbox),
+      );
+      AppRestorationService.debugRemoteWindowSnapshotReader =
+          (userId, deviceId, windowId) {
+            fail('remote window read should not block local inbox restore');
+          };
+      AppRestorationService.debugRemoteLatestSnapshotReader = (userId) {
+        fail('remote latest read should not block local inbox restore');
+      };
 
       final result = await AppRestorationService.instance.readBestSnapshot(
         includeRemote: true,

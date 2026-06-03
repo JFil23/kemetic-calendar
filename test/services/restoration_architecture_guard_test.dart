@@ -462,7 +462,7 @@ void main() {
       expect(bootRestore, contains('restorableOverlayParentRouteFromStack'));
       expect(bootRestore, contains('return restored;'));
       expect(bootRestore, contains('SessionResumeService.readRouteLocation'));
-      expect(bootRestore, contains('return _restorableLaunchLocation('));
+      expect(bootRestore, contains('_restorableLaunchLocation(sessionRoute)'));
       expect(
         _squashWhitespace(bootRestore),
         isNot(

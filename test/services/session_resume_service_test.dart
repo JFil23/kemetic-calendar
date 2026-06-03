@@ -1,7 +1,10 @@
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:mobile/services/app_restoration_service.dart';
+import 'package:mobile/services/app_window_service.dart';
 import 'package:mobile/services/restoration_coordinator.dart';
 import 'package:mobile/services/session_resume_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -12,10 +15,19 @@ void main() {
   setUp(() {
     SharedPreferences.setMockInitialValues({});
     SessionResumeService.debugUserIdResolver = () => 'user-1';
+    AppRestorationService.debugUserIdResolver = () => 'user-1';
+    AppRestorationService.debugRemoteSnapshotWriter =
+        (userId, deviceId, windowId, snapshot) async {};
+    AppWindowService.debugWindowIdResolver = () async => 'window-1';
+    AppWindowService.instance.resetForTesting();
   });
 
   tearDown(() {
     SessionResumeService.debugUserIdResolver = null;
+    AppRestorationService.debugUserIdResolver = null;
+    AppRestorationService.debugRemoteSnapshotWriter = null;
+    AppWindowService.debugWindowIdResolver = null;
+    AppWindowService.instance.resetForTesting();
     RestorationCoordinator.instance.beginLaunchRestore(
       reason: RestorationRestoreReason.coldLaunch,
       targetLocation: '/',
@@ -161,6 +173,35 @@ void main() {
       await tester.pump();
 
       expect(await SessionResumeService.readRouteLocation(), isNull);
+      expect(await AppRestorationService.instance.readRouteLocation(), isNull);
+    },
+  );
+
+  test(
+    'session tracked route starts durable save before first frame',
+    () async {
+      final source = await File(
+        'lib/services/session_resume_service.dart',
+      ).readAsString();
+      final start = source.indexOf('  void _persistRoute()');
+      final end = source.indexOf('  @override\n  Widget build', start);
+      expect(start, isNot(-1));
+      expect(end, isNot(-1));
+      final persistRoute = source.substring(start, end);
+      final postFrame = persistRoute.indexOf(
+        'WidgetsBinding.instance.addPostFrameCallback',
+      );
+      expect(postFrame, isNot(-1));
+      expect(
+        persistRoute.indexOf(
+          'RestorationCoordinator.instance.recordRouteLocation',
+        ),
+        lessThan(postFrame),
+      );
+      expect(
+        persistRoute.indexOf('SessionResumeService.saveRouteLocation'),
+        lessThan(postFrame),
+      );
     },
   );
 }

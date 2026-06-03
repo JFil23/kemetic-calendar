@@ -4,6 +4,7 @@ import 'package:flutter/widgets.dart';
 
 import '../core/route_location_sanitizer.dart';
 import 'app_restoration_service.dart';
+import 'restoration_trace.dart';
 
 enum RestorationRestoreReason {
   coldLaunch,
@@ -31,8 +32,16 @@ class RestorationCoordinator {
   RestorationRestoreReason get restoreReason => _restoreReason;
 
   bool get shouldDeferRootRoutePersistenceForLaunch {
-    return _isLaunchRestoreReason(_restoreReason) &&
+    final defer =
+        _isLaunchRestoreReason(_restoreReason) &&
         !_isRootLocation(_restoreTargetLocation);
+    if (defer) {
+      traceRestoration(
+        'root persistence defer active reason=${_restoreReason.name} '
+        'target=${_restoreTargetLocation ?? '<none>'}',
+      );
+    }
+    return defer;
   }
 
   void beginLaunchRestore({
@@ -44,6 +53,10 @@ class RestorationCoordinator {
     _restoreTargetLocation = _normalizeLocation(targetLocation) ?? '/';
     _consumedRestoreSurfaces.clear();
     _suppressedRestoreSurfaces.clear();
+    traceRestoration(
+      'launch restore begin reason=${reason.name} '
+      'target=${_restoreTargetLocation ?? '<none>'}',
+    );
   }
 
   void suppressRestoreForUserNavigation({
@@ -169,8 +182,15 @@ class RestorationCoordinator {
   Future<void> recordRouteLocation(String location) {
     final normalized = stableRouteLocationForContinuity(location);
     if (normalized == null || normalized.isEmpty) {
+      traceRestoration(
+        'coordinator record route rejected input=$location '
+        'reason=sanitized_null',
+      );
       return Future<void>.value();
     }
+    traceRestoration(
+      'coordinator record route input=$location sanitized=$normalized',
+    );
     return AppRestorationService.instance.saveRouteLocation(normalized);
   }
 
@@ -180,8 +200,16 @@ class RestorationCoordinator {
   ) {
     final normalized = stableRouteLocationForContinuity(location);
     if (normalized == null || normalized.isEmpty) {
+      traceRestoration(
+        'coordinator record route+overlay rejected input=$location '
+        'reason=sanitized_null overlayCount=${overlayStack.length}',
+      );
       return Future<void>.value();
     }
+    traceRestoration(
+      'coordinator record route+overlay input=$location '
+      'sanitized=$normalized overlayCount=${overlayStack.length}',
+    );
     return AppRestorationService.instance.saveRouteLocationWithOverlayStack(
       normalized,
       overlayStack,

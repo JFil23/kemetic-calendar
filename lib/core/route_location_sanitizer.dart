@@ -1,6 +1,12 @@
+import '../services/restoration_trace.dart';
+
 String? stableRouteLocationForContinuity(String? location) {
   final normalized = location?.trim();
   if (normalized == null || normalized.isEmpty) {
+    traceRestoration(
+      'sanitize input=${_traceValue(location)} output=<null> '
+      'reason=empty durable=false transient=false',
+    );
     return null;
   }
 
@@ -10,6 +16,10 @@ String? stableRouteLocationForContinuity(String? location) {
       uri.host.isNotEmpty ||
       uri.path.isEmpty ||
       !uri.path.startsWith('/')) {
+    traceRestoration(
+      'sanitize input=${_traceValue(location)} output=<null> '
+      'reason=invalid_internal_route durable=false transient=true',
+    );
     return null;
   }
 
@@ -17,7 +27,12 @@ String? stableRouteLocationForContinuity(String? location) {
   final path = uri.path;
 
   if (_isFlowEditorRoute(uri)) {
-    return _flowEditorContinuityFallback(uri);
+    final fallback = _flowEditorContinuityFallback(uri);
+    traceRestoration(
+      'sanitize input=$normalized output=$fallback '
+      'reason=flow_editor_fallback durable=true transient=true',
+    );
+    return fallback;
   }
 
   if (path.startsWith('/nodes/')) {
@@ -35,10 +50,16 @@ String? stableRouteLocationForContinuity(String? location) {
 
   nextQuery.remove('_launch');
 
-  return Uri(
+  final output = Uri(
     path: path,
     queryParameters: nextQuery.isEmpty ? null : nextQuery,
   ).toString();
+  traceRestoration(
+    'sanitize input=$normalized output=$output '
+    'reason=${output == normalized ? 'unchanged' : 'stripped_one_shot'} '
+    'durable=true transient=${output == normalized ? 'false' : 'true'}',
+  );
+  return output;
 }
 
 bool routeLocationContainsOneShotIntent(String? location) {
@@ -105,4 +126,9 @@ bool _isInternalAppUri(Uri uri) {
 bool _isTruthy(String? raw) {
   final value = raw?.trim().toLowerCase();
   return value == '1' || value == 'true' || value == 'yes';
+}
+
+String _traceValue(String? raw) {
+  final value = raw?.trim();
+  return value == null || value.isEmpty ? '<empty>' : value;
 }
