@@ -3519,13 +3519,7 @@ class CalendarPage extends StatefulWidget {
   static final GlobalKey<CalendarPageState> globalKey =
       GlobalKey<CalendarPageState>();
   static _CalendarDetachedLaunchAction? _pendingDetachedLaunchAction;
-  static ({
-    int ky,
-    int km,
-    int kd,
-    EventDetailRestorationState? eventDetail,
-    _SharedCalendarEventDetailSnapshot? sharedCalendarEventSnapshot,
-  })?
+  static ({int ky, int km, int kd, EventDetailRestorationState? eventDetail})?
   _pendingDetachedSearchResult;
   static ({int ky, int km, int kd})? _pendingDetachedSearchDay;
   static bool _detachedCalendarOverlayRestoreInFlight = false;
@@ -4489,7 +4483,6 @@ class CalendarPage extends StatefulWidget {
     required int km,
     required int kd,
     required EventDetailRestorationState? eventDetail,
-    _SharedCalendarEventDetailSnapshot? sharedCalendarEventSnapshot,
   }) {
     if (!context.mounted) return;
     _pendingDetachedSearchResult = (
@@ -4497,7 +4490,6 @@ class CalendarPage extends StatefulWidget {
       km: km,
       kd: kd,
       eventDetail: eventDetail,
-      sharedCalendarEventSnapshot: sharedCalendarEventSnapshot,
     );
     context.go('/');
   }
@@ -4568,6 +4560,103 @@ class CalendarPage extends StatefulWidget {
           ? null
           : Map<String, dynamic>.from(event.behaviorPayload!),
     );
+  }
+
+  static NoteData _noteDataFromSharedCalendarEventSnapshot(
+    _SharedCalendarEventDetailSnapshot snapshot,
+  ) {
+    return NoteData(
+      id: snapshot.eventId,
+      clientEventId: snapshot.clientEventId,
+      calendarId: snapshot.calendarId,
+      calendarName: snapshot.calendarName,
+      title: snapshot.title,
+      detail: snapshot.detail,
+      location: snapshot.location,
+      allDay: snapshot.allDay,
+      start: snapshot.allDay
+          ? null
+          : TimeOfDay.fromDateTime(snapshot.startsAtLocal),
+      end: snapshot.allDay || snapshot.endsAtLocal == null
+          ? null
+          : TimeOfDay.fromDateTime(snapshot.endsAtLocal!),
+      flowId: snapshot.flowId ?? -1,
+      manualColor: snapshot.calendarColor,
+      category: snapshot.category,
+      isReminder: snapshot.isReminder,
+      reminderId: snapshot.reminderId,
+      behaviorPayload: snapshot.behaviorPayload,
+    );
+  }
+
+  static int? _firstVisibleMinuteFromSharedCalendarSnapshot(
+    _SharedCalendarEventDetailSnapshot snapshot,
+  ) {
+    if (snapshot.allDay) return null;
+    return snapshot.startsAtLocal.hour * 60 + snapshot.startsAtLocal.minute;
+  }
+
+  static void _pushOneShotSharedCalendarEventDayView(
+    BuildContext context, {
+    required int kYear,
+    required int kMonth,
+    required int kDay,
+    required _SharedCalendarEventDetailSnapshot snapshot,
+    required EventDetailRestorationState detail,
+  }) {
+    if (!context.mounted) return;
+    final navigator = Navigator.of(context, rootNavigator: true);
+    final snapshotNote = _noteDataFromSharedCalendarEventSnapshot(snapshot);
+    final initialFirstVisibleMinute =
+        _firstVisibleMinuteFromSharedCalendarSnapshot(snapshot);
+
+    List<NoteData> notesForDay(int y, int m, int d) {
+      if (y == kYear && m == kMonth && d == kDay) {
+        return <NoteData>[snapshotNote];
+      }
+      return const <NoteData>[];
+    }
+
+    if (kDebugMode) {
+      _calendarDebugPrint(
+        '[shared_calendar_event_tap] Day View route push requested '
+        'k=$kYear-$kMonth-$kDay detailIdentity='
+        '${detail.identityType}:${detail.identityValue}',
+      );
+    }
+    UiGuards.disableJournalSwipe();
+    navigator
+        .push(
+          MaterialPageRoute<void>(
+            builder: (routeContext) => DayViewPage(
+              initialKy: kYear,
+              initialKm: kMonth,
+              initialKd: kDay,
+              showGregorian: false,
+              notesForDay: notesForDay,
+              flowIndex: const <int, FlowData>{},
+              activeLedgerFlowIds: const <int>{},
+              getMonthName: (km) => getMonthById(km).displayFull,
+              initialFirstVisibleMinute: initialFirstVisibleMinute,
+              focusStartMin: initialFirstVisibleMinute,
+              initialEventDetailRestorationState: detail,
+              onClose: () => Navigator.of(routeContext).pop(),
+              shouldPreserveEventDetailRestorationOnClose: () =>
+                  RestorationCoordinator
+                      .instance
+                      .shouldPreserveOverlayForLifecycleClose,
+            ),
+          ),
+        )
+        .whenComplete(UiGuards.enableJournalSwipe);
+    if (kDebugMode) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _calendarDebugPrint(
+          '[shared_calendar_event_tap] Day View visible '
+          'k=$kYear-$kMonth-$kDay',
+        );
+      });
+    }
   }
 
   static EventDetailRestorationState?
@@ -4641,38 +4730,35 @@ class CalendarPage extends StatefulWidget {
         snapshot: snapshot,
         detail: detail,
       );
+      if (!mountedHost.mounted) return;
+      mountedHost._openDayView(
+        mountedHost.context,
+        kDate.kYear,
+        kDate.kMonth,
+        kDate.kDay,
+        initialEventDetailRestorationState: detail,
+        debugOpenSource: 'shared_calendar_event_tap',
+      );
       unawaited(mountedHost._loadCalendarState());
       unawaited(
         mountedHost._loadFromDisk(
           source: 'shared_calendar_event_tap_background',
         ),
       );
-      if (!mountedHost.mounted) return;
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (!mountedHost.mounted) return;
-        mountedHost._openDayView(
-          mountedHost.context,
-          kDate.kYear,
-          kDate.kMonth,
-          kDate.kDay,
-          initialEventDetailRestorationState: detail,
-          debugOpenSource: 'shared_calendar_event_tap',
-        );
-      });
       return;
     }
 
-    await _clearDetachedCalendarOverlayState(
-      _kCalendarOverlayKindSharedCalendars,
-    );
     if (!context.mounted) return;
-    _routeHomeForSearchResult(
+    _pushOneShotSharedCalendarEventDayView(
       context,
-      ky: kDate.kYear,
-      km: kDate.kMonth,
-      kd: kDate.kDay,
-      eventDetail: detail,
-      sharedCalendarEventSnapshot: snapshot,
+      kYear: kDate.kYear,
+      kMonth: kDate.kMonth,
+      kDay: kDate.kDay,
+      snapshot: snapshot,
+      detail: detail,
+    );
+    unawaited(
+      _clearDetachedCalendarOverlayState(_kCalendarOverlayKindSharedCalendars),
     );
   }
 
@@ -7794,27 +7880,6 @@ class CalendarPageState extends State<CalendarPage>
     final pendingSearchResult = CalendarPage._pendingDetachedSearchResult;
     if (pendingSearchResult != null) {
       CalendarPage._pendingDetachedSearchResult = null;
-      final snapshot = pendingSearchResult.sharedCalendarEventSnapshot;
-      if (snapshot != null && pendingSearchResult.eventDetail != null) {
-        _rememberSharedCalendarSnapshot(snapshot.calendar);
-        _seedOneShotSharedCalendarEventSnapshot(
-          kYear: pendingSearchResult.ky,
-          kMonth: pendingSearchResult.km,
-          kDay: pendingSearchResult.kd,
-          snapshot: snapshot,
-          detail: pendingSearchResult.eventDetail!,
-        );
-        unawaited(_loadCalendarState());
-        unawaited(
-          _loadFromDisk(source: 'shared_calendar_event_tap_background'),
-        );
-        if (kDebugMode) {
-          _calendarDebugPrint(
-            '[SharedCalendarEventTap] CalendarPage init consumed '
-            'one-shot pending snapshot ${snapshot.debugIdentity}',
-          );
-        }
-      }
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (!mounted) return;
         _openDayView(
@@ -7823,9 +7888,6 @@ class CalendarPageState extends State<CalendarPage>
           pendingSearchResult.km,
           pendingSearchResult.kd,
           initialEventDetailRestorationState: pendingSearchResult.eventDetail,
-          debugOpenSource: snapshot == null
-              ? null
-              : 'shared_calendar_event_tap',
         );
       });
       return true;

@@ -109,11 +109,30 @@ void main() {
           opener,
           contains("debugOpenSource: 'shared_calendar_event_tap'"),
         );
-        expect(opener, contains('_routeHomeForSearchResult('));
+        final mountedOpenIndex = opener.indexOf('_openDayView(');
+        final mountedHydrationIndex = opener.indexOf(
+          "source: 'shared_calendar_event_tap_background'",
+        );
+        expect(mountedOpenIndex, isNonNegative);
+        expect(mountedHydrationIndex, isNonNegative);
+        expect(mountedOpenIndex, lessThan(mountedHydrationIndex));
+        expect(opener, contains('_pushOneShotSharedCalendarEventDayView('));
         expect(opener, contains('_clearDetachedCalendarOverlayState('));
         expect(opener, contains('_kCalendarOverlayKindSharedCalendars'));
-        expect(opener, contains('eventDetail: detail'));
-        expect(opener, contains('sharedCalendarEventSnapshot: snapshot'));
+        final directPushIndex = opener.indexOf(
+          '_pushOneShotSharedCalendarEventDayView(',
+        );
+        final clearDetachedIndex = opener.indexOf(
+          '_clearDetachedCalendarOverlayState',
+        );
+        expect(directPushIndex, isNonNegative);
+        expect(clearDetachedIndex, isNonNegative);
+        expect(directPushIndex, lessThan(clearDetachedIndex));
+        expect(opener, contains('detail: detail'));
+        expect(opener, contains('snapshot: snapshot'));
+        expect(opener, isNot(contains('_routeHomeForSearchResult(')));
+        expect(opener, isNot(contains('context.go(')));
+        expect(opener, isNot(contains('sharedCalendarEventSnapshot')));
         expect(opener, isNot(contains('await mountedHost._loadFromDisk')));
         expect(opener, isNot(contains("source: 'shared_calendar_event_tap')")));
         expect(opener, isNot(contains('_openDaySheet(')));
@@ -123,11 +142,44 @@ void main() {
     );
 
     test(
-      'snapshot seed opens before hydration and is duplicate-safe',
+      'direct snapshot route opens before hydration and remains one-shot',
       () async {
         final calendar = await File(
           'lib/features/calendar/calendar_page.dart',
         ).readAsString();
+
+        final directRoute = _sourceBetween(
+          calendar,
+          'static void _pushOneShotSharedCalendarEventDayView(',
+          'static EventDetailRestorationState?\n'
+              '  _eventDetailRestorationStateForFiledCalendarEvent({',
+        );
+        expect(
+          directRoute,
+          contains('Navigator.of(context, rootNavigator: true)'),
+        );
+        expect(directRoute, contains('DayViewPage('));
+        expect(directRoute, contains('notesForDay: notesForDay'));
+        expect(directRoute, contains('return <NoteData>[snapshotNote]'));
+        expect(directRoute, contains('flowIndex: const <int, FlowData>{}'));
+        expect(
+          directRoute,
+          contains('initialEventDetailRestorationState: detail'),
+        );
+        expect(
+          directRoute,
+          contains('[shared_calendar_event_tap] Day View route push requested'),
+        );
+        expect(
+          directRoute,
+          contains('[shared_calendar_event_tap] Day View visible'),
+        );
+        expect(directRoute, isNot(contains('_loadFromDisk')));
+        expect(directRoute, isNot(contains('_loadCalendarState')));
+        expect(directRoute, isNot(contains('_routeHomeForSearchResult')));
+        expect(directRoute, isNot(contains('_openDaySheet(')));
+        expect(directRoute, isNot(contains('saveDurableLaunchRoute')));
+        expect(directRoute, isNot(contains('SessionResumeService')));
 
         final seed = _sourceBetween(
           calendar,
@@ -156,22 +208,20 @@ void main() {
         );
         expect(createSheetIndex, isNonNegative);
         final searchResultBranch = pendingLaunch.substring(0, createSheetIndex);
-        final seedIndex = searchResultBranch.indexOf(
-          '_seedOneShotSharedCalendarEventSnapshot',
-        );
         final openIndex = searchResultBranch.indexOf('_openDayView(');
-        expect(seedIndex, isNonNegative);
         expect(openIndex, isNonNegative);
-        expect(seedIndex, lessThan(openIndex));
         expect(
           searchResultBranch,
-          contains("source: 'shared_calendar_event_tap_background'"),
+          isNot(contains('_seedOneShotSharedCalendarEventSnapshot')),
         );
         expect(
           searchResultBranch,
-          contains('unawaited(\n          _loadFromDisk('),
+          isNot(contains("source: 'shared_calendar_event_tap_background'")),
         );
-        expect(searchResultBranch, contains('sharedCalendarEventSnapshot'));
+        expect(
+          searchResultBranch,
+          isNot(contains('sharedCalendarEventSnapshot')),
+        );
         expect(searchResultBranch, isNot(contains('await _loadFromDisk')));
         expect(searchResultBranch, isNot(contains('_openDaySheet(')));
 
