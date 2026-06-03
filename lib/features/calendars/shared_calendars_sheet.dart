@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
@@ -233,6 +234,16 @@ class _SharedCalendarsSheetState extends State<SharedCalendarsSheet> {
   ) {
     final handler = widget.onEventTapRequested;
     if (handler == null) return;
+
+    if (kDebugMode) {
+      final event = filedEvent.event;
+      debugPrint(
+        '[SharedCalendarEventTap] event tap '
+        'calendarId=${calendar.id} eventId=${event.id} '
+        'clientEventId=${event.clientEventId} '
+        'title="${event.title}" start=${event.startsAt.toIso8601String()}',
+      );
+    }
 
     Navigator.of(context, rootNavigator: true).pop(_changed);
     WidgetsBinding.instance.addPostFrameCallback((_) {

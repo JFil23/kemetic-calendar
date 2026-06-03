@@ -3468,6 +3468,12 @@ class _DayViewGridState extends State<DayViewGrid> {
 
     _initialEventDetailRestoreKey = key;
     _initialEventDetailRestoreInFlight = false;
+    if (kDebugMode) {
+      debugPrint(
+        '[DayView] detail sheet requested from initial restoration '
+        'key=$key title="${target.event.title}"',
+      );
+    }
     _showEventDetail(target.event, initialTarget: target);
   }
 
@@ -6762,6 +6768,11 @@ class _DayViewGridState extends State<DayViewGrid> {
           );
         },
       ).whenComplete(releaseSheet);
+      if (kDebugMode) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          debugPrint('[DayView] detail sheet opened title="${event.title}"');
+        });
+      }
     } catch (_) {
       releaseSheet();
       rethrow;

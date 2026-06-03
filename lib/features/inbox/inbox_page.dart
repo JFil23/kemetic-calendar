@@ -536,9 +536,10 @@ class _InboxPageState extends State<InboxPage> {
       context,
       repo: _sharedCalendarsRepo,
       initialExpandedCalendarIds: <String>[normalized],
-      onEventTapRequested: (_, filedEvent) =>
+      onEventTapRequested: (calendar, filedEvent) =>
           CalendarPage.openFiledCalendarEventFromAnyContext(
             context,
+            calendar: calendar,
             filedEvent: filedEvent,
           ),
     );
@@ -1901,9 +1902,10 @@ class _InboxPageState extends State<InboxPage> {
         await SharedCalendarsSheet.show(
           context,
           repo: _sharedCalendarsRepo,
-          onEventTapRequested: (_, filedEvent) =>
+          onEventTapRequested: (calendar, filedEvent) =>
               CalendarPage.openFiledCalendarEventFromAnyContext(
                 context,
+                calendar: calendar,
                 filedEvent: filedEvent,
               ),
         );
@@ -1964,9 +1966,10 @@ class _InboxPageState extends State<InboxPage> {
         await SharedCalendarsSheet.show(
           context,
           repo: _sharedCalendarsRepo,
-          onEventTapRequested: (_, filedEvent) =>
+          onEventTapRequested: (calendar, filedEvent) =>
               CalendarPage.openFiledCalendarEventFromAnyContext(
                 context,
+                calendar: calendar,
                 filedEvent: filedEvent,
               ),
         );
@@ -2125,9 +2128,10 @@ class _InboxPageState extends State<InboxPage> {
       await SharedCalendarsSheet.show(
         context,
         repo: _sharedCalendarsRepo,
-        onEventTapRequested: (_, filedEvent) =>
+        onEventTapRequested: (calendar, filedEvent) =>
             CalendarPage.openFiledCalendarEventFromAnyContext(
               context,
+              calendar: calendar,
               filedEvent: filedEvent,
             ),
       );
