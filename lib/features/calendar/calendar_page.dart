@@ -6390,6 +6390,11 @@ class _FlowEditorRoutePageState extends State<_FlowEditorRoutePage> {
     }
   }
 
+  void _handleClose() {
+    if (!mounted) return;
+    GoRouter.of(context).go(_fallbackLocation);
+  }
+
   @override
   Widget build(BuildContext context) {
     return Stack(
@@ -6399,6 +6404,7 @@ class _FlowEditorRoutePageState extends State<_FlowEditorRoutePage> {
           editFlowId: widget.flowId,
           initialCalendarId: widget.calendarId,
           onRouteResult: _handleResult,
+          onRouteClose: _handleClose,
         ),
         if (_persisting)
           const Positioned.fill(

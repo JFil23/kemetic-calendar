@@ -1961,7 +1961,8 @@ class _GlobalFloatingMenuShellState extends State<_GlobalFloatingMenuShell>
   }
 
   void _handleMenuVisibilityChanged() {
-    if ((!_shouldActivateFloatingMenu || _floatingMenuModalDepth.value > 0) &&
+    if ((!_shouldActivateFloatingMenu(context) ||
+            _floatingMenuModalDepth.value > 0) &&
         _menuMounted) {
       _resetFloatingMenuState();
     }
@@ -1993,8 +1994,17 @@ class _GlobalFloatingMenuShellState extends State<_GlobalFloatingMenuShell>
     return true;
   }
 
-  bool get _shouldActivateFloatingMenu =>
-      _shouldMountFloatingMenu && _floatingMenuModalDepth.value == 0;
+  bool _shouldActivateFloatingMenu(BuildContext context) =>
+      _shouldMountFloatingMenu &&
+      _floatingMenuModalDepth.value == 0 &&
+      MediaQuery.viewInsetsOf(context).bottom == 0;
+
+  void _resetFloatingMenuStateAfterFrame() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || !_menuMounted) return;
+      setState(_resetFloatingMenuState);
+    });
+  }
 
   bool _shouldSuppressMaatGuidance(BuildContext context) {
     if (!_launchOverlayDismissed.value) return true;
@@ -2031,7 +2041,7 @@ class _GlobalFloatingMenuShellState extends State<_GlobalFloatingMenuShell>
   }
 
   void _openFloatingMenu() {
-    if (!_shouldActivateFloatingMenu) return;
+    if (!_shouldActivateFloatingMenu(context)) return;
     setState(() {
       _menuMounted = true;
       _menuOpen = true;
@@ -2083,7 +2093,12 @@ class _GlobalFloatingMenuShellState extends State<_GlobalFloatingMenuShell>
   @override
   Widget build(BuildContext context) {
     final shouldMountFloatingMenu = _shouldMountFloatingMenu;
-    final shouldActivateFloatingMenu = _shouldActivateFloatingMenu;
+    final keyboardVisible = MediaQuery.viewInsetsOf(context).bottom > 0;
+    final shouldActivateFloatingMenu = _shouldActivateFloatingMenu(context);
+    if (keyboardVisible && _menuMounted) {
+      _resetFloatingMenuStateAfterFrame();
+    }
+    final menuOpenForInteraction = _menuOpen && shouldActivateFloatingMenu;
     final suppressGuidance = _shouldSuppressMaatGuidance(context);
     final isLandscape =
         MediaQuery.orientationOf(context) == Orientation.landscape;
@@ -2092,15 +2107,15 @@ class _GlobalFloatingMenuShellState extends State<_GlobalFloatingMenuShell>
 
     Widget buildAnimatedFloatingPanel() {
       return IgnorePointer(
-        ignoring: !_menuOpen,
+        ignoring: !menuOpenForInteraction,
         child: ExcludeSemantics(
-          excluding: !_menuOpen,
+          excluding: !menuOpenForInteraction,
           child: AnimatedSlide(
-            offset: _menuOpen ? Offset.zero : const Offset(0, 1),
+            offset: menuOpenForInteraction ? Offset.zero : const Offset(0, 1),
             duration: _globalBottomMenuBarTransitionDuration,
             curve: _globalBottomMenuBarTransitionCurve,
             child: AnimatedOpacity(
-              opacity: _menuOpen ? 1 : 0,
+              opacity: menuOpenForInteraction ? 1 : 0,
               duration: _globalBottomMenuBarTransitionDuration,
               curve: _globalBottomMenuBarTransitionCurve,
               child: _buildFloatingActionsPanel(context),
@@ -2119,14 +2134,14 @@ class _GlobalFloatingMenuShellState extends State<_GlobalFloatingMenuShell>
           if (shouldMountFloatingMenu && _menuMounted) ...[
             Positioned.fill(
               child: _GlobalMenuBarrier(
-                visible: _menuOpen,
+                visible: menuOpenForInteraction,
                 onDismiss: _closeFloatingMenu,
               ),
             ),
             if (isLandscape)
               Positioned.fill(
                 child: IgnorePointer(
-                  ignoring: !_menuOpen,
+                  ignoring: !menuOpenForInteraction,
                   child: GestureDetector(
                     behavior: HitTestBehavior.opaque,
                     onTap: () => unawaited(_closeFloatingMenu()),

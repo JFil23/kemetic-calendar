@@ -125,10 +125,6 @@ class _FormattedTextEditingController extends TextEditingController {
   @override
   set value(TextEditingValue newValue) {
     final protected = _protectEventBadgeTokens(super.value, newValue);
-    assert(() {
-      _debugLogValueChange('value.set', super.value, newValue, protected);
-      return true;
-    }());
     super.value = protected;
 
     // If external code (e.g., custom keyboards) updates the controller text,
@@ -392,20 +388,6 @@ class _FormattedTextEditingController extends TextEditingController {
       },
       compact: true,
       renderBadgesInline: false,
-    );
-  }
-
-  void _debugLogValueChange(
-    String where,
-    TextEditingValue oldValue,
-    TextEditingValue incoming,
-    TextEditingValue protected,
-  ) {
-    final hasOld = oldValue.text.contains('⟦EVENT_BADGE');
-    final hasIncoming = incoming.text.contains('⟦EVENT_BADGE');
-    final hasProtected = protected.text.contains('⟦EVENT_BADGE');
-    debugPrint(
-      '[badge-debug][$where] old=${oldValue.text.length} incoming=${incoming.text.length} protected=${protected.text.length} | tokens old=$hasOld incoming=$hasIncoming protected=$hasProtected',
     );
   }
 

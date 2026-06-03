@@ -1,9 +1,37 @@
 import 'dart:io';
 
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:go_router/go_router.dart';
 import 'package:mobile/core/route_location_sanitizer.dart';
+import 'package:mobile/features/calendar/calendar_page.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+
+Future<void> _ensureSupabaseInitialized() async {
+  try {
+    Supabase.instance.client;
+    return;
+  } catch (_) {}
+
+  await Supabase.initialize(
+    url: 'https://example.supabase.co',
+    anonKey: 'anon-key-0123456789012345678901234567890123456789',
+  );
+}
 
 void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
+
+  setUpAll(() async {
+    SharedPreferences.setMockInitialValues({});
+    await _ensureSupabaseInitialized();
+  });
+
+  setUp(() {
+    SharedPreferences.setMockInitialValues({});
+  });
+
   test('edit flow route is web-safe and preserves stable query state', () {
     const route = '/flows/42/edit?calendarId=shared-1&fallback=%2F';
 
@@ -72,6 +100,48 @@ void main() {
     expect(studio, contains('Future<void> _finishWithResult'));
     expect(studio, contains('await routeResultHandler(result);'));
     expect(calendar, contains('initialCalendarId: widget.calendarId'));
+  });
+
+  testWidgets('edit flow route close navigates to fallback route', (
+    tester,
+  ) async {
+    final router = GoRouter(
+      initialLocation: '/flows/42/edit?fallback=%2Ffallback',
+      routes: [
+        GoRoute(
+          path: '/flows/:flowId/edit',
+          builder: (context, state) {
+            final flowId = int.parse(state.pathParameters['flowId']!);
+            return CalendarPage.buildFlowEditorRoutePage(
+              flowId: flowId,
+              fallbackLocation: state.uri.queryParameters['fallback'],
+            );
+          },
+        ),
+        GoRoute(
+          path: '/fallback',
+          builder: (context, state) =>
+              const Scaffold(body: Text('Fallback route')),
+        ),
+      ],
+    );
+    addTearDown(router.dispose);
+
+    await tester.pumpWidget(MaterialApp.router(routerConfig: router));
+    await tester.pump();
+
+    expect(find.text('Flow Studio'), findsOneWidget);
+
+    await tester.tap(find.byTooltip('Close'));
+    await tester.pump();
+
+    expect(
+      router.routerDelegate.currentConfiguration.uri.toString(),
+      '/fallback',
+    );
+    await tester.pump();
+
+    expect(find.text('Fallback route'), findsOneWidget);
   });
 }
 

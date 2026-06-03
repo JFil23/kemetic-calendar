@@ -8,6 +8,7 @@ class _FlowStudioPage extends StatefulWidget {
     this.importData,
     this.onContinuityChanged,
     this.onRouteResult,
+    this.onRouteClose,
   });
 
   final List<_Flow> existingFlows;
@@ -16,6 +17,7 @@ class _FlowStudioPage extends StatefulWidget {
   final ImportFlowData? importData;
   final ValueChanged<Map<String, dynamic>>? onContinuityChanged;
   final Future<void> Function(_FlowStudioResult result)? onRouteResult;
+  final FutureOr<void> Function()? onRouteClose;
 
   @override
   State<_FlowStudioPage> createState() => _FlowStudioPageState();
@@ -3883,6 +3885,12 @@ class _FlowStudioPageState extends State<_FlowStudioPage>
     // Close/cancel never deletes a flow. Deletion is only allowed through the
     // explicit Flow Studio delete action returned as _FlowStudioResult.
     if (!mounted) return;
+    final routeCloseHandler = widget.onRouteClose;
+    if (routeCloseHandler != null) {
+      _suppressDraftSave = true;
+      await routeCloseHandler();
+      return;
+    }
     final navigator = Navigator.of(context);
     if (navigator.canPop()) {
       navigator.pop();

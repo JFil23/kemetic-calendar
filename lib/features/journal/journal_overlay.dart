@@ -4,7 +4,6 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'package:flutter/foundation.dart';
 import 'package:mobile/core/daily_reflection_question.dart';
 import 'package:go_router/go_router.dart';
 import 'package:mobile/core/touch_targets.dart';
@@ -604,11 +603,6 @@ class _JournalOverlayState extends State<JournalOverlay>
         final size = Size(constraints.maxWidth, constraints.maxHeight);
         final showJournalToolbar =
             _showToolbar && _activePane == _JournalPane.journal;
-        if (kDebugMode) {
-          debugPrint(
-            '[JournalOverlay] layout size=${size.width}x${size.height} portrait=${widget.isPortrait}',
-          );
-        }
         if (size.width == 0 || size.height == 0) {
           return const SizedBox.shrink();
         }
@@ -655,11 +649,6 @@ class _JournalOverlayState extends State<JournalOverlay>
                     builder: (context, child) {
                       final slideValue = _slideAnimation.value;
                       final currentOffset = _dragOffset * (1 - slideValue);
-                      if (kDebugMode) {
-                        debugPrint(
-                          '[JournalOverlay] slide=$slideValue drag=$_dragOffset',
-                        );
-                      }
 
                       if (isTablet) return child!;
                       return Transform.translate(

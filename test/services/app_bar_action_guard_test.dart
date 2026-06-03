@@ -492,6 +492,25 @@ void main() {
       expect(bottomBar, isNot(contains('onPointerUp')));
     });
 
+    test(
+      'global bottom menu does not absorb taps while keyboard is visible',
+      () async {
+        final source = await File('lib/main.dart').readAsString();
+        final shell = _sourceBetween(
+          source,
+          'class _GlobalFloatingMenuShellState',
+          'class _GlobalMenuBarrier',
+        );
+
+        expect(shell, contains('MediaQuery.viewInsetsOf(context).bottom == 0'));
+        expect(shell, contains('final keyboardVisible ='));
+        expect(shell, contains('final menuOpenForInteraction ='));
+        expect(shell, contains('visible: menuOpenForInteraction'));
+        expect(shell, contains('ignoring: !menuOpenForInteraction'));
+        expect(shell, contains('_resetFloatingMenuStateAfterFrame'));
+      },
+    );
+
     test('inbox list avoids duplicate route bottom inset', () async {
       final source = await File(
         'lib/features/inbox/inbox_page.dart',
