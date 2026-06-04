@@ -3,8 +3,10 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:go_router/go_router.dart';
 import 'package:mobile/core/global_bottom_menu_metrics.dart';
 import 'package:mobile/features/calendar/calendar_page.dart';
+import 'package:mobile/main.dart' as app;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -355,6 +357,72 @@ void main() {
       expect(launchedSheets, <String>['Calendars']);
     });
 
+    testWidgets(
+      'global floating menu dispatches Flow Studio and Calendars callbacks',
+      (tester) async {
+        tester.view.physicalSize = const Size(1170, 2532);
+        tester.view.devicePixelRatio = 3;
+        addTearDown(tester.view.resetPhysicalSize);
+        addTearDown(tester.view.resetDevicePixelRatio);
+        addTearDown(app.resetGlobalFloatingMenuShellForTesting);
+
+        final openedActions = <String>[];
+        CalendarPage.debugOpenFlowStudioFromAnyContext = (context) async {
+          expect(context.mounted, isTrue);
+          openedActions.add('Flow Studio');
+        };
+        CalendarPage.debugOpenSharedCalendarsFromAnyContext = (context) async {
+          expect(context.mounted, isTrue);
+          openedActions.add('Calendars');
+        };
+        addTearDown(() {
+          CalendarPage.debugOpenFlowStudioFromAnyContext = null;
+          CalendarPage.debugOpenSharedCalendarsFromAnyContext = null;
+        });
+
+        final router = GoRouter(
+          initialLocation: '/',
+          routes: [
+            GoRoute(
+              path: '/',
+              builder: (context, state) =>
+                  const Scaffold(body: Text('Calendar route')),
+            ),
+          ],
+        );
+        addTearDown(router.dispose);
+
+        await tester.pumpWidget(
+          MaterialApp.router(
+            routerConfig: router,
+            builder: (context, child) =>
+                app.buildGlobalFloatingMenuShellForTesting(
+                  router: router,
+                  child: child ?? const SizedBox.shrink(),
+                ),
+          ),
+        );
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 260));
+
+        await tester.tap(find.byKey(app.globalMenuButtonKey));
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 260));
+        await tester.tap(find.text('Flow Studio'));
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 260));
+
+        await tester.tap(find.byKey(app.globalMenuButtonKey));
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 260));
+        await tester.tap(find.text('Calendars'));
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 260));
+
+        expect(openedActions, <String>['Flow Studio', 'Calendars']);
+      },
+    );
+
     test('calendar-host menu buttons keep expected handlers', () async {
       final source = await File(
         'lib/features/calendar/calendar_page.dart',
@@ -492,6 +560,58 @@ void main() {
         'KemeticAppBarProfileIcon',
         '_openMyProfileAction',
       ]);
+    });
+
+    test('global floating actions panel passes sheet callbacks', () async {
+      final source = await File('lib/main.dart').readAsString();
+      final panel = _sourceBetween(
+        source,
+        'Widget _buildFloatingActionsPanel(BuildContext context)',
+        'void _handleMenuDragEnd(DragEndDetails details)',
+      );
+      final flowStudioCallback = _sourceBetween(
+        source,
+        'Future<void> _openFlowStudioFromMenu()',
+        'Future<void> _openCalendarsFromMenu()',
+      );
+      final calendarsCallback = _sourceBetween(
+        source,
+        'Future<void> _openCalendarsFromMenu()',
+        'void _openMaatGuidance(MaatGuidanceDelivery delivery)',
+      );
+
+      expect(panel, contains('onOpenFlowStudio: _openFlowStudioFromMenu'));
+      expect(panel, contains('onOpenCalendars: _openCalendarsFromMenu'));
+      expect(flowStudioCallback, contains('_floatingMenuActionContext'));
+      expect(flowStudioCallback, contains('await _closeFloatingMenu()'));
+      expect(
+        flowStudioCallback,
+        contains('CalendarPage.openFlowStudioFromAnyContext(actionContext)'),
+      );
+      expect(
+        flowStudioCallback.indexOf('await _closeFloatingMenu()'),
+        lessThan(
+          flowStudioCallback.indexOf(
+            'CalendarPage.openFlowStudioFromAnyContext(actionContext)',
+          ),
+        ),
+      );
+      expect(calendarsCallback, contains('_floatingMenuActionContext'));
+      expect(calendarsCallback, contains('await _closeFloatingMenu()'));
+      expect(
+        calendarsCallback,
+        contains(
+          'CalendarPage.openSharedCalendarsFromAnyContext(actionContext)',
+        ),
+      );
+      expect(
+        calendarsCallback.indexOf('await _closeFloatingMenu()'),
+        lessThan(
+          calendarsCallback.indexOf(
+            'CalendarPage.openSharedCalendarsFromAnyContext(actionContext)',
+          ),
+        ),
+      );
     });
 
     test(

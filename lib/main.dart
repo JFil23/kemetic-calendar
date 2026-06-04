@@ -2136,6 +2136,25 @@ class _GlobalFloatingMenuShellState extends State<_GlobalFloatingMenuShell>
     _router.go(location);
   }
 
+  BuildContext get _floatingMenuActionContext =>
+      _rootNavigatorKey.currentState?.overlay?.context ??
+      _rootNavigatorKey.currentContext ??
+      context;
+
+  Future<void> _openFlowStudioFromMenu() async {
+    final actionContext = _floatingMenuActionContext;
+    await _closeFloatingMenu();
+    if (!actionContext.mounted) return;
+    await CalendarPage.openFlowStudioFromAnyContext(actionContext);
+  }
+
+  Future<void> _openCalendarsFromMenu() async {
+    final actionContext = _floatingMenuActionContext;
+    await _closeFloatingMenu();
+    if (!actionContext.mounted) return;
+    await CalendarPage.openSharedCalendarsFromAnyContext(actionContext);
+  }
+
   void _openMaatGuidance(MaatGuidanceDelivery delivery) {
     _router.go('/maat-guidance/${Uri.encodeComponent(delivery.id)}');
   }
@@ -2155,6 +2174,8 @@ class _GlobalFloatingMenuShellState extends State<_GlobalFloatingMenuShell>
       menuContext,
       includeNewNote: false,
       onNavigate: _navigateFromMenu,
+      onOpenFlowStudio: _openFlowStudioFromMenu,
+      onOpenCalendars: _openCalendarsFromMenu,
       closeMenu: _closeFloatingMenu,
     );
   }

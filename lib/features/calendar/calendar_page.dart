@@ -3684,6 +3684,12 @@ class CalendarPage extends StatefulWidget {
   static ({int ky, int km, int kd})? _pendingDetachedSearchDay;
   static _SharedCalendarRealDayViewIntent?
   _pendingSharedCalendarRealDayViewIntent;
+  @visibleForTesting
+  static Future<void> Function(BuildContext context)?
+  debugOpenSharedCalendarsFromAnyContext;
+  @visibleForTesting
+  static Future<void> Function(BuildContext context)?
+  debugOpenFlowStudioFromAnyContext;
   static bool _detachedCalendarOverlayRestoreInFlight = false;
   static bool _detachedSharedCalendarsSheetOpenOrOpening = false;
   static bool _detachedFlowStudioSheetOpenOrOpening = false;
@@ -4955,6 +4961,11 @@ class CalendarPage extends StatefulWidget {
     BuildContext context, {
     Map<String, dynamic>? restorationState,
   }) async {
+    final debugOpen = debugOpenSharedCalendarsFromAnyContext;
+    if (debugOpen != null) {
+      await debugOpen(context);
+      return;
+    }
     final mountedHost = _shouldUseMountedCalendarHost(context)
         ? _mountedCalendarHostForContext(context)
         : null;
@@ -4974,6 +4985,11 @@ class CalendarPage extends StatefulWidget {
     BuildContext context, {
     Map<String, dynamic>? restorationState,
   }) async {
+    final debugOpen = debugOpenFlowStudioFromAnyContext;
+    if (debugOpen != null) {
+      await debugOpen(context);
+      return;
+    }
     final mountedHost = _shouldUseMountedCalendarHost(context)
         ? _mountedCalendarHostForContext(context)
         : null;
