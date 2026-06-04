@@ -1,5 +1,6 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
-import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:mobile/shared/glossy_text.dart';
 
@@ -188,7 +189,12 @@ class _FollowListPageState extends State<FollowListPage> {
                 : null,
             trailing: KemeticGold.icon(Icons.chevron_right),
             onTap: () {
-              context.go('/profile/${Uri.encodeComponent(user.userId)}');
+              unawaited(
+                openDetailRoute<void>(
+                  context,
+                  '/profile/${Uri.encodeComponent(user.userId)}',
+                ),
+              );
             },
           );
         },

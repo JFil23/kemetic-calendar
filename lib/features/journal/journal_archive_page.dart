@@ -1,17 +1,18 @@
 // lib/features/journal/journal_archive_page.dart
 // Journal Archive - Single page with list/detail views
 
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
-import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../data/insight_link_model.dart';
 import '../../data/insight_link_repo.dart';
 import '../../data/insight_link_utils.dart';
 import '../../data/journal_repo.dart';
+import '../../core/navigation_fallback.dart';
 import '../../widgets/insight_link_text.dart';
 import '../../widgets/keyboard_aware.dart';
 import '../calendar/calendar_page.dart' show KemeticMath;
@@ -166,7 +167,9 @@ class _JournalArchivePageState extends State<JournalArchivePage> {
     final node = KemeticNodeLibrary.resolve(link.targetId);
     if (node == null || !mounted) return;
 
-    context.go('/nodes/${Uri.encodeComponent(node.id)}');
+    unawaited(
+      openDetailRoute<void>(context, '/nodes/${Uri.encodeComponent(node.id)}'),
+    );
   }
 
   void _saveEntry() async {

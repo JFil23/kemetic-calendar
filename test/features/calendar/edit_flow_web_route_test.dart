@@ -83,7 +83,7 @@ void main() {
       'static Future<void> openFlowEditorFromAnyContext',
       'static Widget buildFlowEditorRoutePage',
     );
-    expect(opener, contains('context.go(route);'));
+    expect(opener, contains('openDetailRoute<void>(context, route)'));
     expect(opener, contains('kIsWeb'));
     expect(opener, contains('await _clearFlowStudioTransientState();'));
     expect(
@@ -142,7 +142,7 @@ void main() {
     expect(calendar, contains('initialCalendarId: widget.calendarId'));
     expect(calendar, contains('Navigator.of(context, rootNavigator: true)'));
     expect(calendar, contains('rootNavigator.canPop()'));
-    expect(calendar, contains('GoRouter.of(context).go(_fallbackLocation)'));
+    expect(calendar, contains('popOrGo(context, _fallbackLocation'));
     expect(calendar, contains('_clearFlowStudioTransientState'));
   });
 

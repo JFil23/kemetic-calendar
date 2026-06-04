@@ -1,5 +1,6 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
-import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../core/navigation_fallback.dart';
 import '../../data/journal_repo.dart';
@@ -105,7 +106,12 @@ class _JournalEntryDetailPageState extends State<JournalEntryDetailPage> {
                     onTap: (link) {
                       final node = KemeticNodeLibrary.resolve(link.targetId);
                       if (node == null) return;
-                      context.go('/nodes/${Uri.encodeComponent(node.id)}');
+                      unawaited(
+                        openDetailRoute<void>(
+                          context,
+                          '/nodes/${Uri.encodeComponent(node.id)}',
+                        ),
+                      );
                     },
                   ),
                 ),

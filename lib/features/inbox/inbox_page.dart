@@ -344,12 +344,15 @@ class _InboxPageState extends State<InboxPage> {
   }
 
   void _openUserSearch() {
-    context.go(
-      '/profile-search'
-      '?select=conversation'
-      '&title=${Uri.encodeComponent('New Message')}'
-      '&hint=${Uri.encodeComponent('Search people to message')}'
-      '&fallback=${Uri.encodeComponent('/inbox')}',
+    unawaited(
+      openDetailRoute<void>(
+        context,
+        '/profile-search'
+        '?select=conversation'
+        '&title=${Uri.encodeComponent('New Message')}'
+        '&hint=${Uri.encodeComponent('Search people to message')}'
+        '&fallback=${Uri.encodeComponent('/inbox')}',
+      ),
     );
   }
 
@@ -520,12 +523,15 @@ class _InboxPageState extends State<InboxPage> {
     required ConversationUser otherProfile,
     String? initialDraftText,
   }) {
-    context.go(
-      '/inbox/conversation/${Uri.encodeComponent(otherUserId)}',
-      extra: <String, Object?>{
-        'profile': otherProfile,
-        if (initialDraftText != null) 'initialDraftText': initialDraftText,
-      },
+    unawaited(
+      openDetailRoute<void>(
+        context,
+        '/inbox/conversation/${Uri.encodeComponent(otherUserId)}',
+        extra: <String, Object?>{
+          'profile': otherProfile,
+          if (initialDraftText != null) 'initialDraftText': initialDraftText,
+        },
+      ),
     );
   }
 
@@ -1169,7 +1175,9 @@ class _InboxPageState extends State<InboxPage> {
   }
 
   void _openProfile(String userId) {
-    context.go('/profile/${Uri.encodeComponent(userId)}');
+    unawaited(
+      openDetailRoute<void>(context, '/profile/${Uri.encodeComponent(userId)}'),
+    );
   }
 
   Future<void> _openActivity(InboxActivityItem activity) async {
@@ -1196,10 +1204,13 @@ class _InboxPageState extends State<InboxPage> {
       return;
     }
 
-    context.go(
-      '/flow-post/${Uri.encodeComponent(flowPostId)}'
-      '${activity.type == InboxActivityType.comment ? '?comments=1' : ''}',
-      extra: post,
+    unawaited(
+      openDetailRoute<void>(
+        context,
+        '/flow-post/${Uri.encodeComponent(flowPostId)}'
+        '${activity.type == InboxActivityType.comment ? '?comments=1' : ''}',
+        extra: post,
+      ),
     );
   }
 
@@ -2166,9 +2177,12 @@ class _InboxPageState extends State<InboxPage> {
   Future<void> _openEventInvite(InboxShareItem invite) async {
     await _markItemsViewed([invite]);
     if (!mounted) return;
-    context.go(
-      '/event-invite/${Uri.encodeComponent(invite.shareId)}',
-      extra: invite,
+    unawaited(
+      openDetailRoute<void>(
+        context,
+        '/event-invite/${Uri.encodeComponent(invite.shareId)}',
+        extra: invite,
+      ),
     );
   }
 
@@ -2573,9 +2587,12 @@ class _FlowPreviewCardState extends State<FlowPreviewCard> {
           child: ElevatedButton(
             onPressed: () async {
               final messenger = ScaffoldMessenger.maybeOf(context);
-              context.go(
-                '/shared-flow/${Uri.encodeComponent(widget.item.shareId)}',
-                extra: widget.item,
+              unawaited(
+                openDetailRoute<void>(
+                  context,
+                  '/shared-flow/${Uri.encodeComponent(widget.item.shareId)}',
+                  extra: widget.item,
+                ),
               );
               messenger?.hideCurrentSnackBar();
             },

@@ -1,6 +1,7 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/gestures.dart';
-import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../core/navigation_fallback.dart';
 import '../../shared/glossy_text.dart';
@@ -122,7 +123,9 @@ class _DecanReflectionDetailPageState extends State<DecanReflectionDetailPage> {
   void _handleLinkTap(InsightLink link) {
     final node = KemeticNodeLibrary.resolve(link.targetId);
     if (node == null) return;
-    context.go('/nodes/${Uri.encodeComponent(node.id)}');
+    unawaited(
+      openDetailRoute<void>(context, '/nodes/${Uri.encodeComponent(node.id)}'),
+    );
   }
 
   Future<void> _openSuggestedNode(
@@ -133,14 +136,24 @@ class _DecanReflectionDetailPageState extends State<DecanReflectionDetailPage> {
       nodeSlug: suggestion.node.id,
     );
     if (!mounted) return;
-    context.go('/nodes/${Uri.encodeComponent(suggestion.node.id)}');
+    unawaited(
+      openDetailRoute<void>(
+        context,
+        '/nodes/${Uri.encodeComponent(suggestion.node.id)}',
+      ),
+    );
   }
 
   Future<void> _handleReflectionCta(DecanReflectionCta cta) async {
     if (!cta.hasDestination) return;
     switch (cta.type) {
       case 'node':
-        context.go('/nodes/${Uri.encodeComponent(cta.ref)}');
+        unawaited(
+          openDetailRoute<void>(
+            context,
+            '/nodes/${Uri.encodeComponent(cta.ref)}',
+          ),
+        );
         return;
       case 'flow':
         await CalendarPage.openFlowStudioFromAnyContext(

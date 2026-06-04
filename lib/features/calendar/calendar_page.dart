@@ -3,6 +3,7 @@ import 'dart:math' as math;
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:mobile/core/navigation_fallback.dart';
 import 'package:mobile/core/page_navigation_swipe.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../data/event_filing_engine.dart';
@@ -5175,7 +5176,7 @@ class CalendarPage extends StatefulWidget {
       await _clearFlowStudioTransientState();
       await _removeCalendarOverlayKinds({_kCalendarOverlayKindEventDetail});
       if (!context.mounted) return;
-      context.go(route);
+      unawaited(openDetailRoute<void>(context, route));
       return;
     }
 
@@ -5303,44 +5304,28 @@ class CalendarPage extends StatefulWidget {
       );
     }
     if (!context.mounted) return;
-    final GoRouter router;
-    try {
-      router = GoRouter.of(context);
-    } catch (error, stackTrace) {
-      NavigationTrace.instance.recordError(
-        'profile router lookup error',
-        error,
-        stackTrace,
-        state: _profileNavigationTraceState(
-          context,
-          phase: 'routerLookup',
-          targetRoute: '/profile/me',
-        ),
-      );
-      rethrow;
-    }
     NavigationTrace.instance.record('/profile/me route command issued');
     NavigationTrace.instance.record(
-      'profile route go requested',
+      'profile route push requested',
       state: _profileNavigationTraceState(
         context,
-        phase: 'beforeGo',
+        phase: 'beforePush',
         targetRoute: '/profile/me',
       ),
     );
     try {
-      router.go('/profile/me');
+      unawaited(openDetailRoute<void>(context, '/profile/me'));
       NavigationTrace.instance.record(
-        'profile route go completed/current uri',
+        'profile route push completed/current uri',
         state: _profileNavigationTraceState(
           context,
-          phase: 'afterGo',
+          phase: 'afterPush',
           targetRoute: '/profile/me',
         ),
       );
     } catch (error, stackTrace) {
       NavigationTrace.instance.recordError(
-        'profile route go error',
+        'profile route push error',
         error,
         stackTrace,
         state: _profileNavigationTraceState(
@@ -7381,7 +7366,7 @@ class _FlowEditorRoutePageState extends State<_FlowEditorRoutePage> {
         await CalendarPage._persistFlowStudioResultHeadless(result);
       }
       if (!mounted) return;
-      GoRouter.of(context).go(_fallbackLocation);
+      popOrGo(context, _fallbackLocation, result: true);
     } catch (error, stackTrace) {
       if (kDebugMode) {
         debugPrint('[EditFlow] failed error=$error');
@@ -7399,12 +7384,7 @@ class _FlowEditorRoutePageState extends State<_FlowEditorRoutePage> {
     if (!mounted) return;
     await CalendarPage._clearFlowStudioTransientState();
     if (!mounted) return;
-    final rootNavigator = Navigator.of(context, rootNavigator: true);
-    if (rootNavigator.canPop()) {
-      rootNavigator.pop();
-      return;
-    }
-    GoRouter.of(context).go(_fallbackLocation);
+    popOrGo(context, _fallbackLocation);
   }
 
   @override
@@ -19700,50 +19680,26 @@ class CalendarPageState extends State<CalendarPage>
         );
         return;
       }
-      unawaited(
-        AppNavigationRestorationController.instance.recordPrimaryTabSelection(
-          AppSection.profile,
-        ),
-      );
-      final GoRouter router;
-      try {
-        router = GoRouter.of(context);
-      } catch (error, stackTrace) {
-        NavigationTrace.instance.recordError(
-          'profile router lookup error',
-          error,
-          stackTrace,
-          state: <String, Object?>{
-            ...CalendarPage._profileNavigationTraceState(
-              context,
-              phase: 'routerLookup',
-              targetRoute: '/profile/me',
-            ),
-            'openedFromCalendarSwipe': openedFromCalendarSwipe,
-          },
-        );
-        rethrow;
-      }
       NavigationTrace.instance.record('/profile/me route command issued');
       NavigationTrace.instance.record(
-        'profile route go requested',
+        'profile route push requested',
         state: <String, Object?>{
           ...CalendarPage._profileNavigationTraceState(
             context,
-            phase: 'beforeGo',
+            phase: 'beforePush',
             targetRoute: '/profile/me',
           ),
           'openedFromCalendarSwipe': openedFromCalendarSwipe,
         },
       );
       try {
-        router.go('/profile/me');
+        unawaited(openDetailRoute<void>(context, '/profile/me'));
         NavigationTrace.instance.record(
-          'profile route go completed/current uri',
+          'profile route push completed/current uri',
           state: <String, Object?>{
             ...CalendarPage._profileNavigationTraceState(
               context,
-              phase: 'afterGo',
+              phase: 'afterPush',
               targetRoute: '/profile/me',
             ),
             'openedFromCalendarSwipe': openedFromCalendarSwipe,
@@ -19751,7 +19707,7 @@ class CalendarPageState extends State<CalendarPage>
         );
       } catch (error, stackTrace) {
         NavigationTrace.instance.recordError(
-          'profile route go error',
+          'profile route push error',
           error,
           stackTrace,
           state: <String, Object?>{

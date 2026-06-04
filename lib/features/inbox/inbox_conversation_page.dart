@@ -5,8 +5,8 @@ import 'dart:async';
 
 import 'package:flutter/foundation.dart' show kDebugMode, debugPrint;
 import 'package:flutter/material.dart';
-import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../../core/navigation_fallback.dart';
 import 'package:mobile/services/app_haptics.dart';
 import 'package:mobile/shared/glossy_text.dart';
 import '../../data/share_models.dart';
@@ -177,7 +177,7 @@ class _InboxConversationPageState extends State<InboxConversationPage> {
     );
     await SessionResumeService.clearResumeEntry(kind: _resumeKind);
     if (!mounted) return;
-    context.go('/inbox');
+    popOrGo(context, '/inbox');
   }
 
   List<_PendingDmMessage> _visiblePendingMessages(List<InboxShareItem> items) {
@@ -459,8 +459,11 @@ class _InboxConversationPageState extends State<InboxConversationPage> {
               tooltip: 'View profile',
               icon: const KemeticAppBarProfileIcon(),
               onPressed: () {
-                context.go(
-                  '/profile/${Uri.encodeComponent(widget.otherUserId)}',
+                unawaited(
+                  openDetailRoute<void>(
+                    context,
+                    '/profile/${Uri.encodeComponent(widget.otherUserId)}',
+                  ),
                 );
               },
             ),
@@ -596,19 +599,25 @@ class _InboxConversationPageState extends State<InboxConversationPage> {
                                       );
                                     }
                                     if (share.isEvent) {
-                                      context.go(
-                                        '/event-invite/${Uri.encodeComponent(share.shareId)}',
-                                        extra: share,
+                                      unawaited(
+                                        openDetailRoute<void>(
+                                          context,
+                                          '/event-invite/${Uri.encodeComponent(share.shareId)}',
+                                          extra: share,
+                                        ),
                                       );
                                       return;
                                     }
-                                    context.go(
-                                      '/shared-flow/${Uri.encodeComponent(share.shareId)}',
-                                      extra: <String, Object?>{
-                                        'share': share,
-                                        'fallbackLocation':
-                                            _conversationLocation,
-                                      },
+                                    unawaited(
+                                      openDetailRoute<void>(
+                                        context,
+                                        '/shared-flow/${Uri.encodeComponent(share.shareId)}',
+                                        extra: <String, Object?>{
+                                          'share': share,
+                                          'fallbackLocation':
+                                              _conversationLocation,
+                                        },
+                                      ),
                                     );
                                   },
                             onDoubleTap: isText

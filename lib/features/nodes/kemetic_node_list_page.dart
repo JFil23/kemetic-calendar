@@ -2,7 +2,6 @@ import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
-import 'package:go_router/go_router.dart';
 import '../../core/navigation_fallback.dart';
 import '../../shared/glossy_text.dart';
 import '../../widgets/kemetic_app_bar_action.dart';
@@ -134,7 +133,12 @@ class _KemeticNodeListPageState extends State<KemeticNodeListPage> {
   Future<void> _openSearch() async {
     final selectedNodeId = await showKemeticNodeSearch(context);
     if (!mounted || selectedNodeId == null) return;
-    context.go('/nodes/${Uri.encodeComponent(selectedNodeId)}');
+    unawaited(
+      openDetailRoute<void>(
+        context,
+        '/nodes/${Uri.encodeComponent(selectedNodeId)}',
+      ),
+    );
   }
 
   @override
@@ -223,7 +227,12 @@ class _KemeticNodeListPageState extends State<KemeticNodeListPage> {
               node: node,
               subtitle: _snippet(node),
               onTap: () {
-                context.go('/nodes/${Uri.encodeComponent(node.id)}');
+                unawaited(
+                  openDetailRoute<void>(
+                    context,
+                    '/nodes/${Uri.encodeComponent(node.id)}',
+                  ),
+                );
               },
             );
           },

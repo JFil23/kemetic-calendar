@@ -101,6 +101,7 @@ void main() {
         expect(
           genericAttemptMatches,
           unorderedEquals(<String>[
+            'lib/core/navigation_fallback.dart',
             'lib/services/app_navigation_restoration_controller.dart',
           ]),
         );

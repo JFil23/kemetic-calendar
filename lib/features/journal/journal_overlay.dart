@@ -4,8 +4,8 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:mobile/core/navigation_fallback.dart';
 import 'package:mobile/core/daily_reflection_question.dart';
-import 'package:go_router/go_router.dart';
 import 'package:mobile/core/touch_targets.dart';
 import 'package:mobile/shared/glossy_text.dart';
 import 'journal_controller.dart';
@@ -317,7 +317,9 @@ class _JournalOverlayState extends State<JournalOverlay>
     if (node == null) return;
 
     FocusManager.instance.primaryFocus?.unfocus();
-    context.go('/nodes/${Uri.encodeComponent(node.id)}');
+    unawaited(
+      openDetailRoute<void>(context, '/nodes/${Uri.encodeComponent(node.id)}'),
+    );
   }
 
   void _handleTextChanged(String text) {

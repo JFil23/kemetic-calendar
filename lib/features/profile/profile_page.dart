@@ -1962,14 +1962,24 @@ class _ProfilePageState extends State<ProfilePage>
       await _closeFeed();
       return;
     }
-    context.push('/profile/${Uri.encodeComponent(trimmed)}');
+    unawaited(
+      openDetailRoute<void>(
+        context,
+        '/profile/${Uri.encodeComponent(trimmed)}',
+      ),
+    );
   }
 
   void _openFollowList(UserProfile profile, FollowListType type) {
     final segment = type == FollowListType.followers
         ? 'followers'
         : 'following';
-    context.go('/profile/${Uri.encodeComponent(profile.id)}/$segment');
+    unawaited(
+      openDetailRoute<void>(
+        context,
+        '/profile/${Uri.encodeComponent(profile.id)}/$segment',
+      ),
+    );
   }
 
   void _onActiveFlowsTap() {
@@ -2076,7 +2086,9 @@ class _ProfilePageState extends State<ProfilePage>
     return _buildActionButton(
       label: 'Edit Profile',
       icon: Icons.edit_outlined,
-      onPressed: () => context.go('/profile/me/edit'),
+      onPressed: () {
+        unawaited(openDetailRoute<void>(context, '/profile/me/edit'));
+      },
       filled: true,
       backgroundColor: _profileGoldBase,
       foregroundColor: const Color(0xFF1C1204),
@@ -2088,7 +2100,9 @@ class _ProfilePageState extends State<ProfilePage>
     return _buildActionButton(
       label: 'Find People',
       icon: Icons.people_outline_rounded,
-      onPressed: () => context.go('/profile-search'),
+      onPressed: () {
+        unawaited(openDetailRoute<void>(context, '/profile-search'));
+      },
       foregroundColor: _profileGoldText,
       borderColor: _profileGoldMid.withValues(alpha: 0.42),
     );
@@ -4461,7 +4475,13 @@ class _ProfilePageState extends State<ProfilePage>
   }
 
   void _openInsightPost(InsightPost post) {
-    context.go('/insight-post/${Uri.encodeComponent(post.id)}', extra: post);
+    unawaited(
+      openDetailRoute<void>(
+        context,
+        '/insight-post/${Uri.encodeComponent(post.id)}',
+        extra: post,
+      ),
+    );
   }
 
   bool get _useGregorianPostDates => _feedRevealed && _showGregorianFeedDates;
@@ -4512,22 +4532,25 @@ class _ProfilePageState extends State<ProfilePage>
 
   void _openPostDetails(int initialIndex) {
     final post = _posts[initialIndex];
-    context.go(
-      '/flow-post/${Uri.encodeComponent(post.id)}',
-      extra: <String, Object?>{
-        'post': post,
-        'posts': _posts,
-        'initialIndex': initialIndex,
-      },
+    unawaited(
+      openDetailRoute<void>(
+        context,
+        '/flow-post/${Uri.encodeComponent(post.id)}',
+        extra: <String, Object?>{
+          'post': post,
+          'posts': _posts,
+          'initialIndex': initialIndex,
+        },
+      ),
     );
   }
 
   void _openPostPicker() {
-    context.go('/profile/flow-post-picker');
+    unawaited(openDetailRoute<void>(context, '/profile/flow-post-picker'));
   }
 
   void _openInsightPostPicker() {
-    context.go('/profile/insight-post-picker');
+    unawaited(openDetailRoute<void>(context, '/profile/insight-post-picker'));
   }
 
   Future<void> _savePost(FlowPost post) async {

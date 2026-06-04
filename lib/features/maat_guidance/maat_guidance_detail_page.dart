@@ -1,7 +1,6 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../core/navigation_fallback.dart';
@@ -82,7 +81,12 @@ class _MaatGuidanceDetailPageState extends State<MaatGuidanceDetailPage> {
     switch (delivery.ctaType) {
       case MaatGuidanceCtaType.node:
         if (ref != null) {
-          context.go('/nodes/${Uri.encodeComponent(ref)}');
+          unawaited(
+            openDetailRoute<void>(
+              context,
+              '/nodes/${Uri.encodeComponent(ref)}',
+            ),
+          );
         }
         return;
       case MaatGuidanceCtaType.flow:

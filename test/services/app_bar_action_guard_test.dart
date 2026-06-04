@@ -608,8 +608,7 @@ void main() {
 
       await tester.tap(find.byTooltip('My Profile'));
       await tester.pump();
-      await _waitForRouterLocation(tester, router, '/profile/me');
-      await tester.pump();
+      await tester.pumpAndSettle();
       expect(find.text('Profile me'), findsOneWidget);
     });
 
@@ -727,9 +726,16 @@ void main() {
         expect(openProfile, contains('profile feed continuity clear skipped'));
         expect(
           openProfile.indexOf('clearProfileFeedContinuity'),
-          lessThan(openProfile.indexOf("router.go('/profile/me')")),
+          lessThan(
+            openProfile.indexOf(
+              "openDetailRoute<void>(context, '/profile/me')",
+            ),
+          ),
         );
-        expect(openProfile, isNot(contains("router.go('/profile/\${")));
+        expect(
+          openProfile,
+          isNot(contains("openDetailRoute<void>(context, '/profile/\${")),
+        );
       },
     );
 
@@ -816,8 +822,11 @@ void main() {
 
       expect(helper, contains('clearProfileFeedContinuity'));
       expect(helper, contains('profile feed continuity clear skipped'));
-      expect(helper, contains("router.go('/profile/me')"));
-      expect(helper, isNot(contains("router.go('/profile/\${")));
+      expect(helper, contains("openDetailRoute<void>(context, '/profile/me')"));
+      expect(
+        helper,
+        isNot(contains("openDetailRoute<void>(context, '/profile/\${")),
+      );
     });
 
     test(
@@ -1270,7 +1279,7 @@ void main() {
       expect(source, contains('unawaited(_leaveConversation())'));
       expect(leave, contains('suppressRestoreForUserNavigation'));
       expect(leave, contains('await SessionResumeService.clearResumeEntry'));
-      expect(leave, contains("context.go('/inbox')"));
+      expect(leave, contains("popOrGo(context, '/inbox')"));
       expect(resume, contains('RestorationRestoreReason.userNavigation'));
       expect(resume, contains('claimRestoreSurface(_resumeKind)'));
     });
@@ -1475,20 +1484,20 @@ void main() {
       );
 
       expect(conversationAppBar, contains('_leaveConversation'));
-      expect(conversation, contains("context.go('/inbox')"));
+      expect(conversation, contains("popOrGo(context, '/inbox')"));
       expect(
         conversation,
         contains('await SessionResumeService.clearResumeEntry'),
       );
       _expectTooltipAction(conversationAppBar, 'View profile', <String>[
-        'context.go(',
+        'openDetailRoute<void>(',
         "'/profile/",
         'Uri.encodeComponent(widget.otherUserId)',
       ]);
     });
 
     test(
-      'page navigation uses replacement routes, not page stack pushes',
+      'raw context.push usage stays centralized or explicitly local',
       () async {
         final offenders = <String>[];
 
@@ -1516,9 +1525,13 @@ void main() {
             final isLivingTextLibraryCtaPush =
                 path.endsWith('lib/features/calendar/day_view.dart') &&
                 nearbyLines.contains('/nodes');
+            final isSharedNavigationHelper = path.endsWith(
+              'lib/core/navigation_fallback.dart',
+            );
             if (!isExplicitPicker &&
                 !isFeedAuthorProfilePush &&
-                !isLivingTextLibraryCtaPush) {
+                !isLivingTextLibraryCtaPush &&
+                !isSharedNavigationHelper) {
               offenders.add('$path:${index + 1}: ${line.trim()}');
             }
           }
@@ -1528,18 +1541,22 @@ void main() {
       },
     );
 
-    test('popOrGo always routes to its explicit fallback', () async {
+    test('popOrGo pops existing history before fallback routing', () async {
       final source = await File(
         'lib/core/navigation_fallback.dart',
       ).readAsString();
 
+      expect(source, contains('router.canPop()'));
+      expect(source, contains('router.pop(result)'));
+      expect(source, contains('navigator.canPop()'));
+      expect(source, contains('navigator.pop(result)'));
       expect(source, contains('context.go(fallbackLocation)'));
-      expect(source, isNot(contains('.canPop()')));
-      expect(source, isNot(contains('.pop(result)')));
+      expect(source, contains('suppressRestoreForUserNavigation'));
+      expect(source, contains('navigation close_or_return fallback'));
     });
 
     test(
-      'top-level close and row actions do not use previous-route history',
+      'top-level close buttons keep fallbacks and rows use detail history',
       () async {
         final sharePreview = await File(
           'lib/features/sharing/share_preview_page.dart',
@@ -1561,7 +1578,8 @@ void main() {
           'trailing: KemeticGold.icon(Icons.chevron_right),',
           ');',
         );
-        expect(rowTap, contains("context.go('/profile/"));
+        expect(rowTap, contains('openDetailRoute<void>'));
+        expect(rowTap, contains("'/profile/"));
         expect(rowTap, isNot(contains('canPop')));
         expect(rowTap, isNot(contains('.pop(')));
       },
@@ -1576,7 +1594,7 @@ void main() {
           'lib/features/inbox/inbox_page.dart': ["popOrGo(context, '/')"],
           'lib/features/inbox/inbox_conversation_page.dart': [
             '_leaveConversation',
-            "context.go('/inbox')",
+            "popOrGo(context, '/inbox')",
           ],
           'lib/features/invites/event_invite_details_page.dart': [
             "popOrGo(context, '/inbox')",
