@@ -507,6 +507,23 @@ void main() {
     }
   });
 
+  test('Flow Studio and Calendars routes are durable primary destinations', () {
+    const policy = NavigationPersistencePolicy();
+    for (final route in const <String>['/flows', '/calendars']) {
+      final classification = policy.classifyRoute(
+        route,
+        NavigationSource.userPrimaryTab,
+      );
+      expect(classification.accepted, isTrue, reason: route);
+      expect(
+        classification.routeClass,
+        NavigationRouteClass.durablePrimary,
+        reason: route,
+      );
+      expect(classification.canonicalRoute, route, reason: route);
+    }
+  });
+
   test(
     'generic navigation attempts from every source never persist durable state',
     () async {

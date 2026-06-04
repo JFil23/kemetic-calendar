@@ -414,6 +414,21 @@ void main() {
 
         expect(rootSheet, contains('calendarEvents: calendarEvents'));
 
+        final calendarsRoute = _sourceBetween(
+          calendar,
+          'class _SharedCalendarsRoutePage extends StatelessWidget',
+          'class _FlowEditorRoutePage',
+        );
+        expect(calendarsRoute, contains('SharedCalendarsSheet('));
+        expect(calendarsRoute, contains('routeMode: true'));
+        expect(calendarsRoute, contains('dismissOnEventTap: false'));
+        expect(calendarsRoute, contains("GoRouter.of(context).go('/')"));
+        expect(
+          calendarsRoute,
+          contains('CalendarPage.openFiledCalendarEventFromAnyContext'),
+        );
+        expect(calendarsRoute, contains('calendarEvents: calendarEvents'));
+
         expect(
           inbox,
           contains(

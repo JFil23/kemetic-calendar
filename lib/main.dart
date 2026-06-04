@@ -1343,6 +1343,20 @@ GoRouter _createRouter({required String initialLocation}) => GoRouter(
       },
     ),
     GoRoute(
+      path: '/flows',
+      builder: (context, state) => SessionTrackedRoute(
+        location: state.uri.toString(),
+        child: CalendarPage.buildFlowStudioRoutePage(),
+      ),
+    ),
+    GoRoute(
+      path: '/calendars',
+      builder: (context, state) => SessionTrackedRoute(
+        location: state.uri.toString(),
+        child: CalendarPage.buildSharedCalendarsRoutePage(),
+      ),
+    ),
+    GoRoute(
       path: '/flows/:flowId/edit',
       builder: (context, state) {
         final flowId = int.tryParse(state.pathParameters['flowId'] ?? '');
@@ -2251,26 +2265,6 @@ class _GlobalFloatingMenuShellState extends State<_GlobalFloatingMenuShell>
     widget.router.go(location);
   }
 
-  bool get _isOnCalendarRootRoute =>
-      _currentUri.path.isEmpty || _currentUri.path == '/';
-
-  void _routeToCalendarForGlobalMenuSheetCommand(String sheet) {
-    if (_isOnCalendarRootRoute) {
-      _traceNavigation(
-        'global menu sheet command already on calendar',
-        mediaContext: context,
-        state: <String, Object?>{'sheet': sheet},
-      );
-      return;
-    }
-    _traceNavigation(
-      "global menu route go('/') requested",
-      mediaContext: context,
-      state: <String, Object?>{'sheet': sheet},
-    );
-    widget.router.go('/');
-  }
-
   Future<void> _openFlowStudioFromMenu() async {
     _traceNavigation(
       '_openFlowStudioFromMenu entered',
@@ -2280,12 +2274,11 @@ class _GlobalFloatingMenuShellState extends State<_GlobalFloatingMenuShell>
     await _closeFloatingMenu();
     if (!mounted) return;
     _traceNavigation(
-      'global menu sheet command enqueue requested',
+      "global menu route go('/flows') requested",
       mediaContext: context,
       state: const <String, Object?>{'sheet': 'flowStudio'},
     );
-    CalendarPage.enqueueOpenFlowStudioFromGlobalMenu();
-    _routeToCalendarForGlobalMenuSheetCommand('flowStudio');
+    widget.router.go('/flows');
   }
 
   Future<void> _openCalendarsFromMenu() async {
@@ -2297,12 +2290,11 @@ class _GlobalFloatingMenuShellState extends State<_GlobalFloatingMenuShell>
     await _closeFloatingMenu();
     if (!mounted) return;
     _traceNavigation(
-      'global menu sheet command enqueue requested',
+      "global menu route go('/calendars') requested",
       mediaContext: context,
       state: const <String, Object?>{'sheet': 'calendars'},
     );
-    CalendarPage.enqueueOpenCalendarsFromGlobalMenu();
-    _routeToCalendarForGlobalMenuSheetCommand('calendars');
+    widget.router.go('/calendars');
   }
 
   void _openMaatGuidance(MaatGuidanceDelivery delivery) {

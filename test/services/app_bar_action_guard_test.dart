@@ -370,7 +370,7 @@ void main() {
       expect(launchedSheets, <String>['Calendars']);
     });
 
-    testWidgets('global floating menu enqueues Flow Studio for CalendarPage', (
+    testWidgets('global floating menu routes Flow Studio to /flows', (
       tester,
     ) async {
       tester.view.physicalSize = const Size(1170, 2532);
@@ -401,6 +401,11 @@ void main() {
                 const Scaffold(body: Text('Calendar route')),
           ),
           GoRoute(
+            path: '/flows',
+            builder: (context, state) =>
+                const Scaffold(body: Text('Flow Studio route')),
+          ),
+          GoRoute(
             path: '/profile/:userId',
             builder: (context, state) =>
                 const Scaffold(body: Text('Profile route')),
@@ -429,16 +434,16 @@ void main() {
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 260));
 
-      expect(CalendarPage.debugPendingOpenFlowStudioFromGlobalMenu, isTrue);
+      expect(CalendarPage.debugPendingOpenFlowStudioFromGlobalMenu, isFalse);
       expect(CalendarPage.debugPendingOpenCalendarsFromGlobalMenu, isFalse);
       expect(
         router.routerDelegate.currentConfiguration.uri.path,
-        '/',
-        reason: 'Global menu sheets are opened by CalendarPage, not the shell.',
+        '/flows',
+        reason: 'Global menu Flow Studio is a route, not a CalendarPage sheet.',
       );
     });
 
-    testWidgets('global floating menu enqueues Calendars for CalendarPage', (
+    testWidgets('global floating menu routes Calendars to /calendars', (
       tester,
     ) async {
       tester.view.physicalSize = const Size(1170, 2532);
@@ -469,6 +474,11 @@ void main() {
                 const Scaffold(body: Text('Calendar route')),
           ),
           GoRoute(
+            path: '/calendars',
+            builder: (context, state) =>
+                const Scaffold(body: Text('Calendars route')),
+          ),
+          GoRoute(
             path: '/nodes',
             builder: (context, state) =>
                 const Scaffold(body: Text('Nodes route')),
@@ -497,12 +507,12 @@ void main() {
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 260));
 
-      expect(CalendarPage.debugPendingOpenCalendarsFromGlobalMenu, isTrue);
+      expect(CalendarPage.debugPendingOpenCalendarsFromGlobalMenu, isFalse);
       expect(CalendarPage.debugPendingOpenFlowStudioFromGlobalMenu, isFalse);
       expect(
         router.routerDelegate.currentConfiguration.uri.path,
-        '/',
-        reason: 'Global menu sheets are opened by CalendarPage, not the shell.',
+        '/calendars',
+        reason: 'Global menu Calendars is a route, not a CalendarPage sheet.',
       );
     });
 
@@ -847,6 +857,11 @@ void main() {
           saveDetachedOverlayState,
           contains('detached calendar overlay state save skipped'),
         );
+        expect(saveDetachedOverlayState, contains("parentPath == '/flows'"));
+        expect(
+          saveDetachedOverlayState,
+          contains("parentPath == '/calendars'"),
+        );
       },
     );
 
@@ -873,39 +888,27 @@ void main() {
       expect(flowStudioCallback, contains('await _closeFloatingMenu()'));
       expect(
         flowStudioCallback,
-        contains('CalendarPage.enqueueOpenFlowStudioFromGlobalMenu()'),
+        contains("global menu route go('/flows') requested"),
       );
-      expect(
-        flowStudioCallback,
-        contains("_routeToCalendarForGlobalMenuSheetCommand('flowStudio')"),
-      );
+      expect(flowStudioCallback, contains("widget.router.go('/flows')"));
       expect(
         flowStudioCallback.indexOf('await _closeFloatingMenu()'),
-        lessThan(
-          flowStudioCallback.indexOf(
-            'CalendarPage.enqueueOpenFlowStudioFromGlobalMenu()',
-          ),
-        ),
+        lessThan(flowStudioCallback.indexOf("widget.router.go('/flows')")),
       );
       expect(calendarsCallback, contains('await _closeFloatingMenu()'));
       expect(
         calendarsCallback,
-        contains('CalendarPage.enqueueOpenCalendarsFromGlobalMenu()'),
+        contains("global menu route go('/calendars') requested"),
       );
-      expect(
-        calendarsCallback,
-        contains("_routeToCalendarForGlobalMenuSheetCommand('calendars')"),
-      );
+      expect(calendarsCallback, contains("widget.router.go('/calendars')"));
       expect(
         calendarsCallback.indexOf('await _closeFloatingMenu()'),
-        lessThan(
-          calendarsCallback.indexOf(
-            'CalendarPage.enqueueOpenCalendarsFromGlobalMenu()',
-          ),
-        ),
+        lessThan(calendarsCallback.indexOf("widget.router.go('/calendars')")),
       );
-      expect(source, contains('_routeToCalendarForGlobalMenuSheetCommand'));
-      expect(source, contains("global menu route go('/') requested"));
+      expect(source, contains("path: '/flows'"));
+      expect(source, contains('CalendarPage.buildFlowStudioRoutePage()'));
+      expect(source, contains("path: '/calendars'"));
+      expect(source, contains('CalendarPage.buildSharedCalendarsRoutePage()'));
       expect(
         source,
         isNot(contains('CalendarPage.openDetachedFlowStudioFromGlobalMenu')),
@@ -916,10 +919,22 @@ void main() {
           contains('CalendarPage.openDetachedSharedCalendarsFromGlobalMenu'),
         ),
       );
+      expect(
+        flowStudioCallback,
+        isNot(contains('CalendarPage.enqueueOpenFlowStudioFromGlobalMenu')),
+      );
+      expect(
+        calendarsCallback,
+        isNot(contains('CalendarPage.enqueueOpenCalendarsFromGlobalMenu')),
+      );
+      expect(
+        source,
+        isNot(contains('_routeToCalendarForGlobalMenuSheetCommand')),
+      );
       expect(source, isNot(contains('global menu detached sheet open')));
     });
 
-    test('CalendarPage owns global menu sheet command consumption', () async {
+    test('CalendarPage retains legacy sheet command consumption', () async {
       final source = await File(
         'lib/features/calendar/calendar_page.dart',
       ).readAsString();
@@ -975,6 +990,38 @@ void main() {
         contains('CalendarPage consumed global menu sheet command'),
       );
     });
+
+    test(
+      'global Flow Studio route reuses Flow Studio body without sheet host',
+      () async {
+        final calendarSource = await File(
+          'lib/features/calendar/calendar_page.dart',
+        ).readAsString();
+        final flowPagesSource = await File(
+          'lib/features/calendar/calendar_flow_pages.dart',
+        ).readAsString();
+        final routeSource = _sourceBetween(
+          calendarSource,
+          'class _FlowStudioRoutePage extends StatefulWidget',
+          'class _SharedCalendarsRoutePage extends StatelessWidget',
+        );
+        final flowHubSource = _sourceBetween(
+          flowPagesSource,
+          'class _FlowHubPage extends StatefulWidget',
+          'class _FlowHubCell extends StatelessWidget',
+        );
+
+        expect(routeSource, contains('_buildDetachedFlowStudioRoot'));
+        expect(routeSource, contains("parentRoute: '/flows'"));
+        expect(routeSource, contains('onClose: _closeRoute'));
+        expect(routeSource, contains("GoRouter.of(context).go('/')"));
+        expect(routeSource, isNot(contains('showModalBottomSheet')));
+        expect(routeSource, isNot(contains('CalendarPage.globalKey')));
+        expect(flowHubSource, contains('this.onClose'));
+        expect(flowHubSource, contains('widget.onClose'));
+        expect(flowHubSource, contains('automaticallyImplyLeading'));
+      },
+    );
 
     test(
       'CalendarPage sheet helpers expose modal future diagnostics',

@@ -2490,11 +2490,13 @@ class _FlowHubPage extends StatefulWidget {
     required this.openMyFlows,
     required this.openMaatFlows,
     required this.onCreateNew,
+    this.onClose,
   });
 
   final VoidCallback openMyFlows;
   final VoidCallback openMaatFlows;
   final VoidCallback onCreateNew;
+  final VoidCallback? onClose;
 
   @override
   State<_FlowHubPage> createState() => _FlowHubPageState();
@@ -2601,6 +2603,14 @@ class _FlowHubPageState extends State<_FlowHubPage> {
       appBar: AppBar(
         backgroundColor: Colors.black,
         elevation: 0.5,
+        automaticallyImplyLeading: widget.onClose == null,
+        leading: widget.onClose == null
+            ? null
+            : IconButton(
+                tooltip: 'Close',
+                icon: KemeticGold.icon(Icons.close),
+                onPressed: widget.onClose,
+              ),
         title: const Text('Flow Studio', style: TextStyle(color: Colors.white)),
       ),
       body: SingleChildScrollView(

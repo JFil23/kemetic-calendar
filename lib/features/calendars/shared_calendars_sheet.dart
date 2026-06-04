@@ -30,6 +30,9 @@ class SharedCalendarsSheet extends StatefulWidget {
     this.onEventTapRequested,
     this.initialExpandedCalendarIds = const <String>[],
     this.onContinuityChanged,
+    this.routeMode = false,
+    this.dismissOnEventTap = true,
+    this.onClose,
   });
 
   final SharedCalendarsRepo repo;
@@ -37,6 +40,9 @@ class SharedCalendarsSheet extends StatefulWidget {
   final SharedCalendarEventTapCallback? onEventTapRequested;
   final List<String> initialExpandedCalendarIds;
   final ValueChanged<Map<String, dynamic>>? onContinuityChanged;
+  final bool routeMode;
+  final bool dismissOnEventTap;
+  final VoidCallback? onClose;
 
   static Future<bool?> show(
     BuildContext context, {
@@ -246,13 +252,21 @@ class _SharedCalendarsSheetState extends State<SharedCalendarsSheet> {
       );
     }
 
-    Navigator.of(context, rootNavigator: true).pop(_changed);
     final calendarEvents = List<FiledEvent>.unmodifiable(
       _calendarEventsById[calendar.id] ?? const <FiledEvent>[],
     );
-    WidgetsBinding.instance.addPostFrameCallback((_) {
+
+    void dispatch() {
       unawaited(handler(calendar, filedEvent, calendarEvents: calendarEvents));
-    });
+    }
+
+    if (widget.dismissOnEventTap) {
+      Navigator.of(context, rootNavigator: true).pop(_changed);
+      WidgetsBinding.instance.addPostFrameCallback((_) => dispatch());
+      return;
+    }
+
+    dispatch();
   }
 
   Future<void> _leaveCalendar(SharedCalendarSummary calendar) async {
@@ -420,94 +434,96 @@ class _SharedCalendarsSheetState extends State<SharedCalendarsSheet> {
   @override
   Widget build(BuildContext context) {
     final snapshot = _snapshot;
-    return Container(
-      decoration: const BoxDecoration(
-        color: Colors.black,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-      ),
-      child: SafeArea(
-        top: false,
-        child: SizedBox(
-          height: MediaQuery.of(context).size.height * 0.9,
-          child: Column(
+    final content = Column(
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 10, 12, 12),
+          child: Row(
             children: [
-              Padding(
-                padding: const EdgeInsets.fromLTRB(16, 10, 12, 12),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: const [
-                          GlossyText(
-                            text: 'Calendars',
-                            gradient: goldGloss,
-                            style: TextStyle(
-                              fontSize: 22,
-                              fontWeight: FontWeight.w700,
-                            ),
-                          ),
-                          SizedBox(height: 2),
-                          Text(
-                            'Manage shared calendars and in-app invites',
-                            style: TextStyle(
-                              color: Color(0xFFBFC3C7),
-                              fontSize: 13,
-                            ),
-                          ),
-                        ],
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: const [
+                    GlossyText(
+                      text: 'Calendars',
+                      gradient: goldGloss,
+                      style: TextStyle(
+                        fontSize: 22,
+                        fontWeight: FontWeight.w700,
                       ),
                     ),
-                    IconButton(
-                      tooltip: 'New calendar',
-                      onPressed: _saving ? null : _createCalendar,
-                      icon: KemeticGold.icon(Icons.add_circle_outline),
-                    ),
-                    IconButton(
-                      tooltip: 'Close',
-                      onPressed: () => Navigator.of(context).pop(_changed),
-                      icon: KemeticGold.icon(Icons.close),
+                    SizedBox(height: 2),
+                    Text(
+                      'Manage shared calendars and in-app invites',
+                      style: TextStyle(color: Color(0xFFBFC3C7), fontSize: 13),
                     ),
                   ],
                 ),
               ),
-              const Divider(color: Colors.white12, height: 1),
-              Expanded(
-                child: _loading
-                    ? const Center(
-                        child: CircularProgressIndicator(
-                          valueColor: AlwaysStoppedAnimation<Color>(
-                            KemeticGold.base,
-                          ),
-                        ),
-                      )
-                    : RefreshIndicator(
-                        onRefresh: _reload,
-                        child: ListView(
-                          padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
-                          children: [
-                            if (snapshot != null &&
-                                snapshot.pendingInvites.isNotEmpty) ...[
-                              _sectionTitle('Invites'),
-                              const SizedBox(height: 10),
-                              for (final invite in snapshot.pendingInvites)
-                                _inviteCard(invite),
-                              const SizedBox(height: 18),
-                            ],
-                            _sectionTitle('Your calendars'),
-                            const SizedBox(height: 10),
-                            if (snapshot == null || snapshot.calendars.isEmpty)
-                              _emptyState()
-                            else
-                              for (final calendar in snapshot.calendars)
-                                _calendarTile(calendar, snapshot),
-                          ],
-                        ),
-                      ),
+              IconButton(
+                tooltip: 'New calendar',
+                onPressed: _saving ? null : _createCalendar,
+                icon: KemeticGold.icon(Icons.add_circle_outline),
+              ),
+              IconButton(
+                tooltip: 'Close',
+                onPressed:
+                    widget.onClose ?? () => Navigator.of(context).pop(_changed),
+                icon: KemeticGold.icon(Icons.close),
               ),
             ],
           ),
         ),
+        const Divider(color: Colors.white12, height: 1),
+        Expanded(
+          child: _loading
+              ? const Center(
+                  child: CircularProgressIndicator(
+                    valueColor: AlwaysStoppedAnimation<Color>(KemeticGold.base),
+                  ),
+                )
+              : RefreshIndicator(
+                  onRefresh: _reload,
+                  child: ListView(
+                    padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
+                    children: [
+                      if (snapshot != null &&
+                          snapshot.pendingInvites.isNotEmpty) ...[
+                        _sectionTitle('Invites'),
+                        const SizedBox(height: 10),
+                        for (final invite in snapshot.pendingInvites)
+                          _inviteCard(invite),
+                        const SizedBox(height: 18),
+                      ],
+                      _sectionTitle('Your calendars'),
+                      const SizedBox(height: 10),
+                      if (snapshot == null || snapshot.calendars.isEmpty)
+                        _emptyState()
+                      else
+                        for (final calendar in snapshot.calendars)
+                          _calendarTile(calendar, snapshot),
+                    ],
+                  ),
+                ),
+        ),
+      ],
+    );
+
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.black,
+        borderRadius: widget.routeMode
+            ? BorderRadius.zero
+            : const BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      child: SafeArea(
+        top: widget.routeMode,
+        child: widget.routeMode
+            ? SizedBox.expand(child: content)
+            : SizedBox(
+                height: MediaQuery.of(context).size.height * 0.9,
+                child: content,
+              ),
       ),
     );
   }

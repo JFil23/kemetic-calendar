@@ -301,6 +301,26 @@ class AppRouteRegistry {
       },
     ),
     AppRouteDefinition(
+      pattern: '/flows',
+      routeClass: NavigationRouteClass.durablePrimary,
+      owner: AppRouteOwner.calendar,
+      section: AppSection.calendar,
+      canonicalDurableRoute: '/flows',
+      allowedPersistenceSources: <NavigationSource>{
+        NavigationSource.userPrimaryTab,
+      },
+    ),
+    AppRouteDefinition(
+      pattern: '/calendars',
+      routeClass: NavigationRouteClass.durablePrimary,
+      owner: AppRouteOwner.calendar,
+      section: AppSection.calendar,
+      canonicalDurableRoute: '/calendars',
+      allowedPersistenceSources: <NavigationSource>{
+        NavigationSource.userPrimaryTab,
+      },
+    ),
+    AppRouteDefinition(
       pattern: '/inbox',
       routeClass: NavigationRouteClass.durablePrimary,
       owner: AppRouteOwner.inbox,

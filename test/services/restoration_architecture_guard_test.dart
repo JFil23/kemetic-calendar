@@ -514,6 +514,8 @@ void main() {
 
         for (final route in const <String>[
           "path: '/rhythm/today'",
+          "path: '/flows'",
+          "path: '/calendars'",
           "path: '/nodes'",
           "path: '/settings'",
           "path: '/profile/:userId'",
@@ -522,6 +524,8 @@ void main() {
         }
 
         expect(policy, contains("pattern: '/inbox'"));
+        expect(policy, contains("pattern: '/flows'"));
+        expect(policy, contains("pattern: '/calendars'"));
         expect(policy, contains("pattern: '/nodes'"));
         expect(policy, contains("pattern: '/journal'"));
         expect(policy, contains("pattern: '/rhythm/today'"));
@@ -600,6 +604,8 @@ void main() {
 
       for (final route in const <String>[
         "pattern: '/'",
+        "pattern: '/flows'",
+        "pattern: '/calendars'",
         "pattern: '/inbox'",
         "pattern: '/nodes'",
         "pattern: '/journal'",

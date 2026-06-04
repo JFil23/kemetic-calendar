@@ -4085,13 +4085,19 @@ class CalendarPage extends StatefulWidget {
     required String kind,
     required Map<String, dynamic> state,
   }) async {
+    final normalizedParentRoute = parentRoute.trim().isEmpty
+        ? '/'
+        : parentRoute.trim();
+    final parentPath = Uri.tryParse(normalizedParentRoute)?.path;
+    if ((kind == _kCalendarOverlayKindFlowStudio && parentPath == '/flows') ||
+        (kind == _kCalendarOverlayKindSharedCalendars &&
+            parentPath == '/calendars')) {
+      return;
+    }
     if (kind == _kCalendarOverlayKindFlowStudio &&
         _isTransientFlowStudioEditorState(state)) {
       return;
     }
-    final normalizedParentRoute = parentRoute.trim().isEmpty
-        ? '/'
-        : parentRoute.trim();
     try {
       await RestorationCoordinator.instance.recordOverlayStackPageState(
         <Map<String, dynamic>>[
@@ -5206,6 +5212,14 @@ class CalendarPage extends StatefulWidget {
       calendarId: calendarId,
       fallbackLocation: fallbackLocation,
     );
+  }
+
+  static Widget buildFlowStudioRoutePage() {
+    return const _FlowStudioRoutePage();
+  }
+
+  static Widget buildSharedCalendarsRoutePage() {
+    return const _SharedCalendarsRoutePage();
   }
 
   static String? _validFlowEditorFallbackLocation(String? fallbackLocation) {
@@ -6366,6 +6380,7 @@ class CalendarPage extends StatefulWidget {
     required String parentRoute,
     required FlowsRepo flowsRepo,
     required Map<String, dynamic> restorationState,
+    VoidCallback? onClose,
   }) {
     final navigator = Navigator.of(innerCtx);
     final mode = (restorationState['mode'] as String?)?.trim();
@@ -6430,6 +6445,7 @@ class CalendarPage extends StatefulWidget {
     }
 
     return _FlowHubPage(
+      onClose: onClose,
       openMyFlows: () {
         unawaited(
           _pushDetachedFlowStudioRoute<void>(
@@ -7258,6 +7274,67 @@ class CalendarPage extends StatefulWidget {
 
   @override
   State<CalendarPage> createState() => CalendarPageState();
+}
+
+class _FlowStudioRoutePage extends StatefulWidget {
+  const _FlowStudioRoutePage();
+
+  @override
+  State<_FlowStudioRoutePage> createState() => _FlowStudioRoutePageState();
+}
+
+class _FlowStudioRoutePageState extends State<_FlowStudioRoutePage> {
+  late final FlowsRepo _flowsRepo = FlowsRepo(Supabase.instance.client);
+
+  void _closeRoute() {
+    GoRouter.of(context).go('/');
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Navigator(
+      onGenerateInitialRoutes: (navigator, initial) {
+        return <Route<dynamic>>[
+          MaterialPageRoute<dynamic>(
+            builder: (innerCtx) => CalendarPage._buildDetachedFlowStudioRoot(
+              innerCtx: innerCtx,
+              parentRoute: '/flows',
+              flowsRepo: _flowsRepo,
+              restorationState: const <String, dynamic>{
+                'mode': _kFlowStudioModeHub,
+              },
+              onClose: _closeRoute,
+            ),
+          ),
+        ];
+      },
+    );
+  }
+}
+
+class _SharedCalendarsRoutePage extends StatelessWidget {
+  const _SharedCalendarsRoutePage();
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.black,
+      body: SharedCalendarsSheet(
+        repo: SharedCalendarsRepo(Supabase.instance.client),
+        routeMode: true,
+        dismissOnEventTap: false,
+        onClose: () => GoRouter.of(context).go('/'),
+        onEventTapRequested:
+            (calendar, filedEvent, {calendarEvents = const []}) =>
+                CalendarPage.openFiledCalendarEventFromAnyContext(
+                  context,
+                  calendar: calendar,
+                  filedEvent: filedEvent,
+                  calendarEvents: calendarEvents,
+                ),
+      ),
+    );
+  }
 }
 
 class _FlowEditorRoutePage extends StatefulWidget {
