@@ -12,6 +12,7 @@ import 'package:mobile/shared/glossy_text.dart';
 import '../../core/navigation_fallback.dart';
 import '../../main.dart' show Events, appEnvironmentEnv;
 import '../../services/calendar_sync_service.dart';
+import '../../services/navigation_trace.dart';
 import '../../services/push_notifications.dart';
 import '../../services/speech/speech_service.dart';
 import '../../utils/external_link_utils.dart';
@@ -71,6 +72,8 @@ class _SettingsPageState extends State<SettingsPage> {
   bool _sendingPushTest = false;
   bool _checkingPushTestReceipt = false;
   bool _signingOut = false;
+  int _buildMarkerTapCount = 0;
+  Timer? _buildMarkerTapResetTimer;
   bool _loadingSpeechVoices = false;
   bool _savingSpeechVoice = false;
   bool _deletingAccount = false;
@@ -127,6 +130,7 @@ class _SettingsPageState extends State<SettingsPage> {
 
   @override
   void dispose() {
+    _buildMarkerTapResetTimer?.cancel();
     unawaited(
       SpeechService.instance.stop(utteranceId: _speechPreviewUtteranceId),
     );
@@ -308,6 +312,33 @@ class _SettingsPageState extends State<SettingsPage> {
     final raw = match.group(1)!;
     return '${raw.substring(0, 4)}-${raw.substring(4, 6)}-${raw.substring(6, 8)} '
         '${raw.substring(8, 10)}:${raw.substring(10, 12)}:${raw.substring(12, 14)} UTC';
+  }
+
+  void _handleBuildMarkerTap() {
+    _buildMarkerTapResetTimer?.cancel();
+    _buildMarkerTapCount += 1;
+    if (_buildMarkerTapCount < 7) {
+      _buildMarkerTapResetTimer = Timer(const Duration(seconds: 3), () {
+        _buildMarkerTapCount = 0;
+      });
+      return;
+    }
+
+    _buildMarkerTapCount = 0;
+    final enableTrace = !NavigationTrace.instance.enabled;
+    unawaited(() async {
+      await NavigationTrace.instance.setEnabled(enableTrace);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            enableTrace
+                ? 'Navigation Trace enabled'
+                : 'Navigation Trace disabled',
+          ),
+        ),
+      );
+    }());
   }
 
   Future<void> _setSpeechVoice(String? voiceId) async {
@@ -1480,32 +1511,36 @@ class _SettingsPageState extends State<SettingsPage> {
   }
 
   Widget _buildMarker() {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.035),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0xFF202020)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text(
-            'Build',
-            style: TextStyle(
-              color: Colors.white54,
-              fontSize: 12,
-              fontWeight: FontWeight.w700,
-              letterSpacing: 0,
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: _handleBuildMarkerTap,
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: Colors.white.withValues(alpha: 0.035),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: const Color(0xFF202020)),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Build',
+              style: TextStyle(
+                color: Colors.white54,
+                fontSize: 12,
+                fontWeight: FontWeight.w700,
+                letterSpacing: 0,
+              ),
             ),
-          ),
-          const SizedBox(height: 6),
-          _buildMarkerLine('App version', _buildInfo.appVersion),
-          _buildMarkerLine('Web build', _buildInfo.webBuildVersion),
-          _buildMarkerLine('Build time', _buildInfo.buildTimestamp),
-          _buildMarkerLine('APP_ENV', _buildInfo.appEnvironment),
-        ],
+            const SizedBox(height: 6),
+            _buildMarkerLine('App version', _buildInfo.appVersion),
+            _buildMarkerLine('Web build', _buildInfo.webBuildVersion),
+            _buildMarkerLine('Build time', _buildInfo.buildTimestamp),
+            _buildMarkerLine('APP_ENV', _buildInfo.appEnvironment),
+          ],
+        ),
       ),
     );
   }

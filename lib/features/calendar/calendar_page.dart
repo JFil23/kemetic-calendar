@@ -76,6 +76,7 @@ import '../../services/app_restoration_service.dart';
 import '../../services/app_navigation_restoration_controller.dart';
 import '../../services/restoration_coordinator.dart';
 import '../../services/session_resume_service.dart';
+import '../../services/navigation_trace.dart';
 import '../../core/push_intent_bus.dart';
 import '../../widgets/flow_start_date_picker.dart';
 import '../../utils/external_link_utils.dart';
@@ -5116,6 +5117,7 @@ class CalendarPage extends StatefulWidget {
   }
 
   static Future<void> openProfileFromAnyContext(BuildContext context) async {
+    NavigationTrace.instance.record('openProfileFromAnyContext entered');
     final state = _mountedState;
     if (state != null) {
       await state.openProfileFromOutside(context);
@@ -5134,6 +5136,7 @@ class CalendarPage extends StatefulWidget {
     if (!context.mounted) return;
     await RestorationCoordinator.instance.clearProfileFeedContinuity(userId);
     if (!context.mounted) return;
+    NavigationTrace.instance.record('/profile/me route command issued');
     context.go('/profile/me');
   }
 
@@ -5195,8 +5198,12 @@ class CalendarPage extends StatefulWidget {
         glyphSize: 20,
         gradient: goldGloss,
         label: 'Flow Studio',
-        onSelected:
-            onOpenFlowStudio ?? () => openFlowStudioFromAnyContext(context),
+        onSelected: () async {
+          NavigationTrace.instance.record('Flow Studio tile tapped');
+          await (onOpenFlowStudio ??
+                  () => openFlowStudioFromAnyContext(context))
+              .call();
+        },
       ),
       _CalendarAction(
         glyph: MeduNeterGlyphs.library,
@@ -5227,8 +5234,12 @@ class CalendarPage extends StatefulWidget {
         glyph: MeduNeterGlyphs.calendars,
         gradient: goldGloss,
         label: 'Calendars',
-        onSelected:
-            onOpenCalendars ?? () => openSharedCalendarsFromAnyContext(context),
+        onSelected: () async {
+          NavigationTrace.instance.record('Calendars tile tapped');
+          await (onOpenCalendars ??
+                  () => openSharedCalendarsFromAnyContext(context))
+              .call();
+        },
       ),
       _CalendarAction(
         glyph: MeduNeterGlyphs.reflections,
@@ -5288,6 +5299,13 @@ class CalendarPage extends StatefulWidget {
     _detachedSharedCalendarsSheetOpenOrOpening = true;
 
     try {
+      NavigationTrace.instance.record(
+        'sheet open success',
+        state: const <String, Object?>{
+          'sheet': 'calendars',
+          'host': 'detached',
+        },
+      );
       await SharedCalendarsSheet.show(
         context,
         repo: SharedCalendarsRepo(Supabase.instance.client),
@@ -5310,6 +5328,16 @@ class CalendarPage extends StatefulWidget {
           );
         },
       );
+    } catch (error) {
+      NavigationTrace.instance.record(
+        'sheet open error',
+        state: <String, Object?>{
+          'sheet': 'calendars',
+          'host': 'detached',
+          'error': error.runtimeType,
+        },
+      );
+      rethrow;
     } finally {
       try {
         final preserveForLifecycle =
@@ -6357,6 +6385,13 @@ class CalendarPage extends StatefulWidget {
       );
       if (!context.mounted) return;
 
+      NavigationTrace.instance.record(
+        'sheet open success',
+        state: const <String, Object?>{
+          'sheet': 'flowStudio',
+          'host': 'detached',
+        },
+      );
       final isTablet = _isTabletForContext(context);
       final result = await showModalBottomSheet<_FlowStudioResult?>(
         context: context,
@@ -6447,6 +6482,16 @@ class CalendarPage extends StatefulWidget {
       if (result != null) {
         await _persistFlowStudioResultHeadless(result);
       }
+    } catch (error) {
+      NavigationTrace.instance.record(
+        'sheet open error',
+        state: <String, Object?>{
+          'sheet': 'flowStudio',
+          'host': 'detached',
+          'error': error.runtimeType,
+        },
+      );
+      rethrow;
     } finally {
       try {
         final preserveForLifecycle =
@@ -6639,12 +6684,14 @@ class CalendarPage extends StatefulWidget {
       _calendarRestorationStateForToday(mountedState),
     );
     await RestorationCoordinator.instance.flush();
+    NavigationTrace.instance.record('Today restoration state saved');
   }
 
   static void openMainCalendarAtToday(
     BuildContext context, {
     bool animate = false,
   }) {
+    NavigationTrace.instance.record('openMainCalendarAtToday entered');
     RestorationCoordinator.instance.suppressRestoreForUserNavigation(
       reason: 'calendar_today_command',
       surfaces: const <String>[
@@ -6672,6 +6719,7 @@ class CalendarPage extends StatefulWidget {
     if (rootNavigator.canPop()) {
       rootNavigator.popUntil((route) => route.isFirst);
     }
+    NavigationTrace.instance.record("go('/') issued");
     router.go('/');
     if (mountedState != null) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -8767,6 +8815,13 @@ class CalendarPageState extends State<CalendarPage>
     if (_sharedCalendarsSheetOpenOrOpening) return;
     _sharedCalendarsSheetOpenOrOpening = true;
     try {
+      NavigationTrace.instance.record(
+        'sheet open success',
+        state: const <String, Object?>{
+          'sheet': 'calendars',
+          'host': 'calendar',
+        },
+      );
       final changed = await SharedCalendarsSheet.show(
         context,
         repo: _sharedCalendarsRepo,
@@ -8798,6 +8853,16 @@ class CalendarPageState extends State<CalendarPage>
       } else {
         _refreshNoteCacheUi();
       }
+    } catch (error) {
+      NavigationTrace.instance.record(
+        'sheet open error',
+        state: <String, Object?>{
+          'sheet': 'calendars',
+          'host': 'calendar',
+          'error': error.runtimeType,
+        },
+      );
+      rethrow;
     } finally {
       _sharedCalendarsSheetOpenOrOpening = false;
     }
@@ -13505,6 +13570,10 @@ class CalendarPageState extends State<CalendarPage>
 
   bool _consumePendingTodayNavigationCommand({required String trigger}) {
     if (!CalendarPage._pendingTodayNavigationCommand) return false;
+    NavigationTrace.instance.record(
+      'CalendarPage consumed pending Today command',
+      state: <String, Object?>{'trigger': trigger},
+    );
     CalendarPage._pendingTodayNavigationCommand = false;
     _applyTodayNavigationCommand(
       animate: false,
@@ -18955,13 +19024,18 @@ class CalendarPageState extends State<CalendarPage>
         KemeticAppBarAction(
           tooltip: 'Today',
           icon: const KemeticAppBarTodayIcon(),
-          onPressed: () =>
-              _handleCalendarAppBarToday(useLandscapeGrid: useLandscapeGrid),
+          onPressed: () {
+            NavigationTrace.instance.record('Today app-bar tap fired');
+            _handleCalendarAppBarToday(useLandscapeGrid: useLandscapeGrid);
+          },
         ),
         KemeticAppBarAction(
           tooltip: 'My Profile',
           icon: const KemeticAppBarProfileIcon(),
-          onPressed: () => _openProfile(context),
+          onPressed: () {
+            NavigationTrace.instance.record('Profile app-bar tap fired');
+            unawaited(_openProfile(context));
+          },
         ),
         const SizedBox(width: 20),
       ],
@@ -18991,6 +19065,7 @@ class CalendarPageState extends State<CalendarPage>
           AppSection.profile,
         ),
       );
+      NavigationTrace.instance.record('/profile/me route command issued');
       context.go('/profile/me');
     } finally {
       _profileNavigationInFlight = false;
@@ -19319,6 +19394,13 @@ class CalendarPageState extends State<CalendarPage>
       );
       if (!mounted) return;
 
+      NavigationTrace.instance.record(
+        'sheet open success',
+        state: const <String, Object?>{
+          'sheet': 'flowStudio',
+          'host': 'calendar',
+        },
+      );
       final result = await showModalBottomSheet<_FlowStudioResult?>(
         context: context,
         isScrollControlled: true,
@@ -19420,6 +19502,16 @@ class CalendarPageState extends State<CalendarPage>
       if (result != null) {
         await _applyFlowStudioResult(result);
       }
+    } catch (error) {
+      NavigationTrace.instance.record(
+        'sheet open error',
+        state: <String, Object?>{
+          'sheet': 'flowStudio',
+          'host': 'calendar',
+          'error': error.runtimeType,
+        },
+      );
+      rethrow;
     } finally {
       try {
         final preserveForLifecycle =

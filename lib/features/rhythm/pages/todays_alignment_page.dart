@@ -25,6 +25,7 @@ import 'package:mobile/features/rhythm/rhythm_user_messages.dart';
 import 'package:mobile/services/app_haptics.dart';
 import 'package:mobile/services/daily_reflection_widget_bridge.dart'
     if (dart.library.html) 'package:mobile/services/daily_reflection_widget_bridge_web.dart';
+import 'package:mobile/services/navigation_trace.dart';
 import 'package:mobile/shared/glossy_text.dart';
 import 'package:mobile/widgets/kemetic_app_bar_action.dart';
 import 'package:mobile/widgets/kemetic_day_info.dart';
@@ -1278,6 +1279,7 @@ class _TodaysAlignmentPageState extends State<TodaysAlignmentPage> {
   }
 
   void _openProfilePage() {
+    NavigationTrace.instance.record('Profile app-bar tap fired');
     unawaited(CalendarPage.openProfileFromAnyContext(context));
   }
 
@@ -3667,7 +3669,10 @@ class _TodaysAlignmentPageState extends State<TodaysAlignmentPage> {
         KemeticAppBarAction(
           tooltip: 'Today',
           icon: const KemeticAppBarTodayIcon(),
-          onPressed: () => CalendarPage.openMainCalendarAtToday(context),
+          onPressed: () {
+            NavigationTrace.instance.record('Today app-bar tap fired');
+            CalendarPage.openMainCalendarAtToday(context);
+          },
         ),
         KemeticAppBarAction(
           tooltip: 'My Profile',

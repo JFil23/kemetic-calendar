@@ -48,6 +48,7 @@ import 'core/shared_file_intent.dart';
 import 'core/theme/app_theme.dart';
 import 'features/auth/login_screen.dart';
 import 'services/calendar_sync_service.dart';
+import 'services/navigation_trace.dart';
 import 'services/push_notifications.dart';
 import 'services/decan_reflection_scheduler.dart';
 import 'features/journal/journal_controller.dart';
@@ -469,6 +470,7 @@ Future<void> main() async {
 
     await AppWindowService.instance.ensureInitialized();
     await AppRestorationService.instance.initialize();
+    await NavigationTrace.instance.load();
     await _readBootInitialAppLinkIntent();
     await _readBootInitialPushIntent();
     _bootRestoredLocation = await _readBootRestoredLocation();
@@ -1761,9 +1763,11 @@ class _MyAppState extends State<MyApp> {
       debugShowCheckedModeBanner: false,
       theme: AppTheme.dark,
       builder: (context, child) {
-        return _scaledMediaQuery(
-          context: context,
-          child: child ?? const SizedBox.shrink(),
+        return NavigationTraceOverlay(
+          child: _scaledMediaQuery(
+            context: context,
+            child: child ?? const SizedBox.shrink(),
+          ),
         );
       },
       home: Builder(
@@ -1778,9 +1782,11 @@ class _MyAppState extends State<MyApp> {
       debugShowCheckedModeBanner: false,
       theme: AppTheme.dark,
       builder: (context, child) {
-        return _scaledMediaQuery(
-          context: context,
-          child: child ?? const SizedBox.shrink(),
+        return NavigationTraceOverlay(
+          child: _scaledMediaQuery(
+            context: context,
+            child: child ?? const SizedBox.shrink(),
+          ),
         );
       },
       home: PasswordRecoveryScreen(
@@ -1806,13 +1812,15 @@ class _MyAppState extends State<MyApp> {
       theme: AppTheme.dark,
       routerConfig: _router,
       builder: (context, child) {
-        return _scaledMediaQuery(
-          context: context,
-          child: SessionLifecycleBridge(
-            child: PushIntentBridge(
-              child: _AppChrome(
-                router: _router,
-                child: child ?? const SizedBox.shrink(),
+        return NavigationTraceOverlay(
+          child: _scaledMediaQuery(
+            context: context,
+            child: SessionLifecycleBridge(
+              child: PushIntentBridge(
+                child: _AppChrome(
+                  router: _router,
+                  child: child ?? const SizedBox.shrink(),
+                ),
               ),
             ),
           ),
@@ -2099,6 +2107,45 @@ class _GlobalFloatingMenuShellState extends State<_GlobalFloatingMenuShell>
     return false;
   }
 
+  String _traceRouteLabel() {
+    final path = _currentUri.path.isEmpty ? '/' : _currentUri.path;
+    final queryKeys =
+        _currentUri.queryParameters.keys
+            .where((key) => key.trim().isNotEmpty)
+            .toList(growable: false)
+          ..sort();
+    if (queryKeys.isEmpty) return path;
+    return '$path?${queryKeys.map((key) => '$key=<redacted>').join('&')}';
+  }
+
+  Map<String, Object?> _traceOverlayState({BuildContext? mediaContext}) {
+    final mediaQuery = mediaContext == null
+        ? null
+        : MediaQuery.maybeOf(mediaContext);
+    return <String, Object?>{
+      '_menuMounted': _menuMounted,
+      '_menuOpen': _menuOpen,
+      '_floatingMenuModalDepth.value': _floatingMenuModalDepth.value,
+      '_launchOverlayDismissed.value': _launchOverlayDismissed.value,
+      'route': _traceRouteLabel(),
+      'MediaQuery.viewInsets.bottom': mediaQuery?.viewInsets.bottom,
+    };
+  }
+
+  void _traceNavigation(
+    String label, {
+    BuildContext? mediaContext,
+    Map<String, Object?> state = const <String, Object?>{},
+  }) {
+    NavigationTrace.instance.record(
+      label,
+      state: <String, Object?>{
+        ..._traceOverlayState(mediaContext: mediaContext),
+        ...state,
+      },
+    );
+  }
+
   void _syncMaatGuidanceSuppression(bool suppressed) {
     if (_lastGuidanceSuppressed == suppressed) return;
     _lastGuidanceSuppressed = suppressed;
@@ -2109,6 +2156,7 @@ class _GlobalFloatingMenuShellState extends State<_GlobalFloatingMenuShell>
   }
 
   void _handleFloatingMenuPressed() {
+    _traceNavigation('bottom menu button tapped', mediaContext: context);
     if (_menuOpen) {
       unawaited(_closeFloatingMenu());
       return;
@@ -2117,42 +2165,115 @@ class _GlobalFloatingMenuShellState extends State<_GlobalFloatingMenuShell>
   }
 
   void _openFloatingMenu() {
-    if (!_shouldActivateFloatingMenu(context)) return;
+    if (!_shouldActivateFloatingMenu(context)) {
+      _traceNavigation('global menu open blocked', mediaContext: context);
+      return;
+    }
     setState(() {
       _menuMounted = true;
       _menuOpen = true;
     });
+    _traceNavigation('global menu mounted/opened', mediaContext: context);
   }
 
   Future<void> _closeFloatingMenu() async {
     if (!_menuMounted) return;
+    _traceNavigation('menu close started', mediaContext: context);
     setState(() => _menuOpen = false);
     await Future<void>.delayed(_globalBottomMenuBarTransitionDuration);
     if (!mounted || _menuOpen) return;
     setState(() => _menuMounted = false);
+    _traceNavigation('menu close completed', mediaContext: context);
   }
 
   void _navigateFromMenu(String location) {
     _router.go(location);
   }
 
-  BuildContext get _floatingMenuActionContext =>
-      _rootNavigatorKey.currentState?.overlay?.context ??
-      _rootNavigatorKey.currentContext ??
-      context;
+  ({BuildContext context, String source}) _floatingMenuActionContextSnapshot() {
+    final overlayContext = _rootNavigatorKey.currentState?.overlay?.context;
+    if (overlayContext != null) {
+      return (context: overlayContext, source: 'rootOverlay');
+    }
+    final rootContext = _rootNavigatorKey.currentContext;
+    if (rootContext != null) {
+      return (context: rootContext, source: 'rootNavigator');
+    }
+    return (context: context, source: 'shell');
+  }
 
   Future<void> _openFlowStudioFromMenu() async {
-    final actionContext = _floatingMenuActionContext;
+    _traceNavigation(
+      '_openFlowStudioFromMenu entered',
+      mediaContext: context,
+      state: const <String, Object?>{'sheet': 'flowStudio'},
+    );
+    final actionSnapshot = _floatingMenuActionContextSnapshot();
+    final actionContext = actionSnapshot.context;
+    _traceNavigation(
+      'root/overlay context resolved',
+      mediaContext: actionContext,
+      state: <String, Object?>{
+        'source': actionSnapshot.source,
+        'sheet': 'flowStudio',
+      },
+    );
     await _closeFloatingMenu();
     if (!actionContext.mounted) return;
-    await CalendarPage.openFlowStudioFromAnyContext(actionContext);
+    _traceNavigation(
+      'sheet open requested',
+      mediaContext: actionContext,
+      state: const <String, Object?>{'sheet': 'flowStudio'},
+    );
+    try {
+      await CalendarPage.openFlowStudioFromAnyContext(actionContext);
+    } catch (error) {
+      _traceNavigation(
+        'sheet open error',
+        state: <String, Object?>{
+          'sheet': 'flowStudio',
+          'error': error.runtimeType,
+        },
+      );
+      rethrow;
+    }
   }
 
   Future<void> _openCalendarsFromMenu() async {
-    final actionContext = _floatingMenuActionContext;
+    _traceNavigation(
+      '_openCalendarsFromMenu entered',
+      mediaContext: context,
+      state: const <String, Object?>{'sheet': 'calendars'},
+    );
+    final actionSnapshot = _floatingMenuActionContextSnapshot();
+    final actionContext = actionSnapshot.context;
+    _traceNavigation(
+      'root/overlay context resolved',
+      mediaContext: actionContext,
+      state: <String, Object?>{
+        'source': actionSnapshot.source,
+        'sheet': 'calendars',
+      },
+    );
     await _closeFloatingMenu();
     if (!actionContext.mounted) return;
-    await CalendarPage.openSharedCalendarsFromAnyContext(actionContext);
+    _traceNavigation(
+      'sheet open requested',
+      mediaContext: actionContext,
+      state: const <String, Object?>{'sheet': 'calendars'},
+    );
+    try {
+      await CalendarPage.openSharedCalendarsFromAnyContext(actionContext);
+    } catch (error) {
+      _traceNavigation(
+        'sheet open error',
+        state: <String, Object?>{
+          'sheet': 'calendars',
+          'error': error.runtimeType,
+        },
+      );
+      rethrow;
+    }
   }
 
   void _openMaatGuidance(MaatGuidanceDelivery delivery) {

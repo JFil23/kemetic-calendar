@@ -18,6 +18,7 @@ import '../../data/profile_feed_item_model.dart';
 import '../../utils/detail_sanitizer.dart';
 import '../../utils/kemetic_date_format.dart';
 import '../../services/app_haptics.dart';
+import '../../services/navigation_trace.dart';
 import '../../services/restoration_coordinator.dart';
 import '_post_glossy_helper.dart';
 import 'follow_list_page.dart';
@@ -1376,6 +1377,7 @@ class _ProfilePageState extends State<ProfilePage>
   }
 
   Future<void> _openMyProfileAction() async {
+    NavigationTrace.instance.record('Profile app-bar tap fired');
     if (_isViewingOwnProfile) return;
 
     await CalendarPage.openProfileFromAnyContext(context);
@@ -1466,13 +1468,17 @@ class _ProfilePageState extends State<ProfilePage>
           KemeticAppBarAction(
             tooltip: 'Today',
             icon: const KemeticAppBarTodayIcon(gradient: _profileGoldGradient),
-            onPressed: () => CalendarPage.openMainCalendarAtToday(context),
+            onPressed: () {
+              NavigationTrace.instance.record('Today app-bar tap fired');
+              CalendarPage.openMainCalendarAtToday(context);
+            },
           ),
           if (_feedRevealed)
             KemeticAppBarAction(
               tooltip: 'Profile',
               icon: const KemeticAppBarProfileIcon(),
               onPressed: () {
+                NavigationTrace.instance.record('Profile app-bar tap fired');
                 unawaited(_closeFeed());
               },
             )
