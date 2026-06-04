@@ -1,14 +1,16 @@
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:mobile/shared/glossy_text.dart';
 
 import '../../core/navigation_fallback.dart';
-import '../../main.dart' show Events;
+import '../../main.dart' show Events, appEnvironmentEnv;
 import '../../services/calendar_sync_service.dart';
 import '../../services/push_notifications.dart';
 import '../../services/speech/speech_service.dart';
@@ -26,6 +28,27 @@ class SettingsPage extends StatefulWidget {
 
   @override
   State<SettingsPage> createState() => _SettingsPageState();
+}
+
+class _SettingsBuildInfo {
+  const _SettingsBuildInfo({
+    required this.appVersion,
+    required this.appEnvironment,
+    required this.webBuildVersion,
+    required this.buildTimestamp,
+  });
+
+  static const unavailable = _SettingsBuildInfo(
+    appVersion: '1.0.0+1',
+    appEnvironment: appEnvironmentEnv,
+    webBuildVersion: 'unavailable',
+    buildTimestamp: 'unavailable',
+  );
+
+  final String appVersion;
+  final String appEnvironment;
+  final String webBuildVersion;
+  final String buildTimestamp;
 }
 
 class _SettingsPageState extends State<SettingsPage> {
@@ -56,6 +79,7 @@ class _SettingsPageState extends State<SettingsPage> {
   String? _pushTestDeliveryKey;
   String? _speechVoiceStatus;
   String? _accountStatus;
+  _SettingsBuildInfo _buildInfo = _SettingsBuildInfo.unavailable;
   CalendarSyncStatus? _calendarSyncStatus;
   PushRegistrationDiagnostics? _pushDiagnostics;
   PushDeliveryReceiptStatus? _pushTestReceiptStatus;
@@ -98,6 +122,7 @@ class _SettingsPageState extends State<SettingsPage> {
     super.initState();
     _load();
     unawaited(_loadSpeechSettings());
+    unawaited(_loadBuildInfo());
   }
 
   @override
@@ -235,6 +260,54 @@ class _SettingsPageState extends State<SettingsPage> {
         });
       }
     }
+  }
+
+  Future<void> _loadBuildInfo() async {
+    final buildInfo = await _readBuildInfo();
+    if (!mounted) return;
+    setState(() {
+      _buildInfo = buildInfo;
+    });
+  }
+
+  Future<_SettingsBuildInfo> _readBuildInfo() async {
+    var webBuildVersion = 'native';
+    if (kIsWeb) {
+      webBuildVersion = 'unavailable';
+      try {
+        final response = await http.get(Uri.base.resolve('version.json'));
+        if (response.statusCode == 200) {
+          final decoded = jsonDecode(response.body);
+          if (decoded is Map<String, dynamic>) {
+            webBuildVersion = _safeBuildInfoValue(decoded['build_version']);
+          }
+        }
+      } catch (_) {
+        webBuildVersion = 'unavailable';
+      }
+    }
+
+    return _SettingsBuildInfo(
+      appVersion: _SettingsBuildInfo.unavailable.appVersion,
+      appEnvironment: _safeBuildInfoValue(appEnvironmentEnv),
+      webBuildVersion: webBuildVersion,
+      buildTimestamp: _buildTimestampLabel(webBuildVersion),
+    );
+  }
+
+  String _safeBuildInfoValue(Object? raw) {
+    final value = raw?.toString().trim() ?? '';
+    if (value.isEmpty) return 'unavailable';
+    final safe = RegExp(r'^[A-Za-z0-9._:+-]{1,96}$');
+    return safe.hasMatch(value) ? value : 'unavailable';
+  }
+
+  String _buildTimestampLabel(String buildVersion) {
+    final match = RegExp(r'(\d{14})$').firstMatch(buildVersion.trim());
+    if (match == null) return 'unavailable';
+    final raw = match.group(1)!;
+    return '${raw.substring(0, 4)}-${raw.substring(4, 6)}-${raw.substring(6, 8)} '
+        '${raw.substring(8, 10)}:${raw.substring(10, 12)}:${raw.substring(12, 14)} UTC';
   }
 
   Future<void> _setSpeechVoice(String? voiceId) async {
@@ -1406,6 +1479,47 @@ class _SettingsPageState extends State<SettingsPage> {
     );
   }
 
+  Widget _buildMarker() {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.035),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xFF202020)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Build',
+            style: TextStyle(
+              color: Colors.white54,
+              fontSize: 12,
+              fontWeight: FontWeight.w700,
+              letterSpacing: 0,
+            ),
+          ),
+          const SizedBox(height: 6),
+          _buildMarkerLine('App version', _buildInfo.appVersion),
+          _buildMarkerLine('Web build', _buildInfo.webBuildVersion),
+          _buildMarkerLine('Build time', _buildInfo.buildTimestamp),
+          _buildMarkerLine('APP_ENV', _buildInfo.appEnvironment),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildMarkerLine(String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.only(top: 3),
+      child: Text(
+        '$label: $value',
+        style: const TextStyle(color: Colors.white38, fontSize: 11),
+      ),
+    );
+  }
+
   Widget _statusLine(String text) {
     return Padding(
       padding: const EdgeInsets.only(top: 10),
@@ -1826,6 +1940,8 @@ class _SettingsPageState extends State<SettingsPage> {
               'Preferences stay local to this device. Push registration and calendar permission are also device-specific.',
               style: TextStyle(color: Colors.white60, height: 1.4),
             ),
+            const SizedBox(height: 12),
+            _buildMarker(),
           ],
         ),
       ),

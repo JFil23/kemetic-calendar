@@ -94,6 +94,61 @@ void main() {
         ),
       );
     });
+
+    test('build marker renders public version metadata only', () {
+      final readBuildInfo = _sourceBetween(
+        source,
+        'Future<_SettingsBuildInfo> _readBuildInfo() async {',
+        '\n  String _safeBuildInfoValue',
+      );
+      final buildMarker = _sourceBetween(
+        source,
+        'Widget _buildMarker() {',
+        '\n  Widget _buildMarkerLine',
+      );
+      final footer = _sourceBetween(
+        source,
+        "'Preferences stay local to this device.",
+        '],\n        ),\n      ),',
+      );
+
+      expect(source, contains("import 'dart:convert';"));
+      expect(source, contains("import 'package:http/http.dart' as http;"));
+      expect(source, contains("show Events, appEnvironmentEnv"));
+      expect(readBuildInfo, contains("Uri.base.resolve('version.json')"));
+      expect(readBuildInfo, contains("decoded['build_version']"));
+      expect(readBuildInfo, contains('appEnvironmentEnv'));
+      expect(buildMarker, contains("_buildMarkerLine('App version'"));
+      expect(buildMarker, contains("_buildMarkerLine('Web build'"));
+      expect(buildMarker, contains("_buildMarkerLine('Build time'"));
+      expect(buildMarker, contains("_buildMarkerLine('APP_ENV'"));
+      expect(footer, contains('_buildMarker()'));
+    });
+
+    test('build marker does not expose secret runtime config values', () {
+      final readBuildInfo = _sourceBetween(
+        source,
+        'Future<_SettingsBuildInfo> _readBuildInfo() async {',
+        '\n  String _safeBuildInfoValue',
+      );
+      final buildMarker = _sourceBetween(
+        source,
+        'Widget _buildMarker() {',
+        '\n  Widget _buildMarkerLine',
+      );
+      final markerSource = '$readBuildInfo\n$buildMarker';
+
+      for (final secretKey in <String>[
+        'SUPABASE_URL',
+        'SUPABASE_ANON_KEY',
+        'FIREBASE_WEB_API_KEY',
+        'FIREBASE_WEB_VAPID_KEY',
+        'WEB_PUSH_PUBLIC_KEY',
+        'env.json',
+      ]) {
+        expect(markerSource, isNot(contains(secretKey)));
+      }
+    });
   });
 }
 
