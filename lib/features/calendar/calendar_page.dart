@@ -3684,6 +3684,9 @@ class CalendarPage extends StatefulWidget {
   static ({int ky, int km, int kd})? _pendingDetachedSearchDay;
   static _SharedCalendarRealDayViewIntent?
   _pendingSharedCalendarRealDayViewIntent;
+  static bool _pendingTodayNavigationCommand = false;
+  @visibleForTesting
+  static bool debugDisableTodayNavigationRetry = false;
   @visibleForTesting
   static Future<void> Function(BuildContext context)?
   debugOpenSharedCalendarsFromAnyContext;
@@ -5131,7 +5134,7 @@ class CalendarPage extends StatefulWidget {
     if (!context.mounted) return;
     await RestorationCoordinator.instance.clearProfileFeedContinuity(userId);
     if (!context.mounted) return;
-    context.go('/profile/${Uri.encodeComponent(userId)}');
+    context.go('/profile/me');
   }
 
   static Future<void> _showDetachedActionsMenu(
@@ -6581,6 +6584,10 @@ class CalendarPage extends StatefulWidget {
         state.jumpToTodayFromOutside(animate: animate);
         return;
       }
+      if (debugDisableTodayNavigationRetry) {
+        _pendingTodayNavigationCommand = false;
+        return;
+      }
       if (attempt >= 20) return;
       unawaited(
         Future<void>.delayed(const Duration(milliseconds: 50)).then((_) {
@@ -6606,6 +6613,34 @@ class CalendarPage extends StatefulWidget {
     }
   }
 
+  static CalendarRestorationState _calendarRestorationStateForToday(
+    CalendarPageState? mountedState,
+  ) {
+    final today = KemeticMath.fromGregorian(DateTime.now());
+    return CalendarRestorationState(
+      kYear: today.kYear,
+      kMonth: today.kMonth,
+      kDay: today.kDay,
+      showGregorian: mountedState?._showGregorian ?? false,
+      expansion:
+          mountedState?._expansionToString(mountedState._monthExpansion) ??
+          'compact',
+      anchorTarget: CalendarPageState._kCalendarAnchorTargetDayChip,
+      anchorAlignment: 0.5,
+      layoutRevision: CalendarPageState._kCalendarRestorationLayoutRevision,
+    );
+  }
+
+  static Future<void> _recordCalendarTodayCommandState(
+    CalendarPageState? mountedState,
+  ) async {
+    await _clearCalendarContinuityForTodayCommand();
+    await AppRestorationService.instance.saveCalendarState(
+      _calendarRestorationStateForToday(mountedState),
+    );
+    await RestorationCoordinator.instance.flush();
+  }
+
   static void openMainCalendarAtToday(
     BuildContext context, {
     bool animate = false,
@@ -6622,13 +6657,15 @@ class CalendarPage extends StatefulWidget {
     CalendarPage._pendingDetachedSearchResult = null;
     CalendarPage._pendingDetachedSearchDay = null;
     CalendarPage._pendingSharedCalendarRealDayViewIntent = null;
-    _mountedState?._suppressPendingRestoresForUserNavigation();
+    CalendarPage._pendingTodayNavigationCommand = true;
+    final mountedState = _mountedState;
+    mountedState?._suppressPendingRestoresForUserNavigation();
     unawaited(
       AppNavigationRestorationController.instance.recordPrimaryTabSelection(
         AppSection.calendar,
       ),
     );
-    unawaited(_clearCalendarContinuityForTodayCommand());
+    unawaited(_recordCalendarTodayCommandState(mountedState));
 
     final router = GoRouter.of(context);
     final rootNavigator = Navigator.of(context, rootNavigator: true);
@@ -6636,6 +6673,16 @@ class CalendarPage extends StatefulWidget {
       rootNavigator.popUntil((route) => route.isFirst);
     }
     router.go('/');
+    if (mountedState != null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mountedState.mounted) return;
+        CalendarPage._pendingTodayNavigationCommand = false;
+        mountedState._applyTodayNavigationCommand(
+          animate: animate,
+          reason: 'today_command:mounted_calendar',
+        );
+      });
+    }
     _scheduleTodayJumpAfterNavigation(animate: animate);
   }
 
@@ -13447,6 +13494,26 @@ class CalendarPageState extends State<CalendarPage>
     });
   }
 
+  void _applyTodayNavigationCommand({
+    required bool animate,
+    required String reason,
+  }) {
+    _suppressPendingRestoresForUserNavigation();
+    _applyTodayFallbackAfterRestore(reason: reason);
+    _scrollToToday(animate: animate);
+  }
+
+  bool _consumePendingTodayNavigationCommand({required String trigger}) {
+    if (!CalendarPage._pendingTodayNavigationCommand) return false;
+    CalendarPage._pendingTodayNavigationCommand = false;
+    _applyTodayNavigationCommand(
+      animate: false,
+      reason: 'today_command:$trigger',
+    );
+    unawaited(CalendarPage._recordCalendarTodayCommandState(this));
+    return true;
+  }
+
   Future<void> _maybeResolvePersistedViewStateAfterAuth(
     AuthChangeEvent event,
   ) async {
@@ -13509,6 +13576,9 @@ class CalendarPageState extends State<CalendarPage>
 
   /// ✅ Load persisted view state from permanent per-window restoration first.
   Future<void> _loadPersistedViewState({String trigger = 'startup'}) async {
+    if (_consumePendingTodayNavigationCommand(trigger: trigger)) {
+      return;
+    }
     if (!_rememberLastView) {
       _applyTodayFallbackAfterRestore(reason: 'remember_last_view_disabled');
       return;
@@ -18921,7 +18991,7 @@ class CalendarPageState extends State<CalendarPage>
           AppSection.profile,
         ),
       );
-      context.go('/profile/${Uri.encodeComponent(userId)}');
+      context.go('/profile/me');
     } finally {
       _profileNavigationInFlight = false;
       UiGuards.enableJournalSwipe();

@@ -1376,15 +1376,9 @@ class _ProfilePageState extends State<ProfilePage>
   }
 
   Future<void> _openMyProfileAction() async {
-    final userId = Supabase.instance.client.auth.currentUser?.id;
-    if (userId == null) {
-      _showError('Please log in to view your profile.');
-      return;
-    }
-
     if (_isViewingOwnProfile) return;
 
-    await _replaceWithProfile(userId);
+    await CalendarPage.openProfileFromAnyContext(context);
   }
 
   @override
@@ -1914,15 +1908,6 @@ class _ProfilePageState extends State<ProfilePage>
         ),
       ),
     );
-  }
-
-  Future<void> _replaceWithProfile(String userId) async {
-    if (!mounted) return;
-    if (userId == widget.userId) {
-      await _closeFeed();
-      return;
-    }
-    context.go('/profile/${Uri.encodeComponent(userId)}');
   }
 
   Future<void> _openFeedAuthorProfile(String userId) async {

@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
@@ -7,6 +8,9 @@ import 'package:go_router/go_router.dart';
 import 'package:mobile/core/global_bottom_menu_metrics.dart';
 import 'package:mobile/features/calendar/calendar_page.dart';
 import 'package:mobile/main.dart' as app;
+import 'package:mobile/services/app_restoration_service.dart';
+import 'package:mobile/services/app_window_service.dart';
+import 'package:mobile/widgets/kemetic_app_bar_action.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -21,6 +25,14 @@ const _expectedDetachedGlobalMenuOrder = <String>[
   'Home',
   'Settings',
 ];
+
+final Map<String, String> _debugCriticalSnapshots = <String, String>{};
+final Map<String, String> _debugLatestCriticalSnapshots = <String, String>{};
+final Map<String, Map<String, dynamic>> _debugRemoteWindowSnapshots =
+    <String, Map<String, dynamic>>{};
+final Map<String, Map<String, dynamic>> _debugRemoteLatestSnapshots =
+    <String, Map<String, dynamic>>{};
+String? _debugPlatformLastActiveUserId;
 
 Future<void> _ensureSupabaseInitialized() async {
   try {
@@ -44,6 +56,7 @@ void main() {
 
   setUp(() {
     SharedPreferences.setMockInitialValues({});
+    _clearRestorationDebugHooks();
   });
 
   group('app bar action guard', () {
@@ -423,6 +436,136 @@ void main() {
       },
     );
 
+    testWidgets('detached Today app bar action routes home', (tester) async {
+      CalendarPage.debugDisableTodayNavigationRetry = true;
+      addTearDown(() {
+        CalendarPage.debugDisableTodayNavigationRetry = false;
+      });
+      tester.view.physicalSize = const Size(1170, 2532);
+      tester.view.devicePixelRatio = 3;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      final router = GoRouter(
+        initialLocation: '/profile/other-user',
+        routes: [
+          GoRoute(
+            path: '/',
+            builder: (context, state) =>
+                const Scaffold(body: Text('Calendar route')),
+          ),
+          GoRoute(
+            path: '/profile/:userId',
+            builder: (context, state) => Scaffold(
+              appBar: AppBar(
+                actions: [
+                  KemeticAppBarAction(
+                    tooltip: 'Today',
+                    icon: const KemeticAppBarTodayIcon(),
+                    onPressed: () =>
+                        CalendarPage.openMainCalendarAtToday(context),
+                  ),
+                ],
+              ),
+              body: const Text('Profile route'),
+            ),
+          ),
+        ],
+      );
+      addTearDown(router.dispose);
+
+      await tester.pumpWidget(MaterialApp.router(routerConfig: router));
+      expect(_currentRouterLocation(router), '/profile/other-user');
+
+      await tester.tap(find.byTooltip('Today'));
+      await tester.pump();
+      await _waitForRouterLocation(tester, router, '/');
+      await tester.pumpWidget(const SizedBox.shrink());
+      await tester.pump();
+    });
+
+    testWidgets('profile app bar action uses canonical /profile/me route', (
+      tester,
+    ) async {
+      _installRestorationDebugHooks();
+      addTearDown(_clearRestorationDebugHooks);
+      await _recoverTestSession();
+
+      final router = GoRouter(
+        initialLocation: '/rhythm/today',
+        routes: [
+          GoRoute(
+            path: '/rhythm/today',
+            builder: (context, state) => Scaffold(
+              appBar: AppBar(
+                actions: [
+                  KemeticAppBarAction(
+                    tooltip: 'My Profile',
+                    icon: const KemeticAppBarProfileIcon(),
+                    onPressed: () {
+                      unawaited(
+                        CalendarPage.openProfileFromAnyContext(context),
+                      );
+                    },
+                  ),
+                ],
+              ),
+              body: const Text('Planner route'),
+            ),
+          ),
+          GoRoute(
+            path: '/profile/:userId',
+            builder: (context, state) => Scaffold(
+              body: Text('Profile ${state.pathParameters['userId']}'),
+            ),
+          ),
+        ],
+      );
+      addTearDown(router.dispose);
+
+      await tester.pumpWidget(MaterialApp.router(routerConfig: router));
+      expect(_currentRouterLocation(router), '/rhythm/today');
+
+      await tester.tap(find.byTooltip('My Profile'));
+      await tester.pump();
+      await _waitForRouterLocation(tester, router, '/profile/me');
+      await tester.pump();
+      expect(find.text('Profile me'), findsOneWidget);
+    });
+
+    test('shared Today helper records today before routing home', () async {
+      final source = await File(
+        'lib/features/calendar/calendar_page.dart',
+      ).readAsString();
+      final openToday = _sourceBetween(
+        source,
+        'static void openMainCalendarAtToday(',
+        '  // Static method for parsing rules from JSON',
+      );
+      final recordToday = _sourceBetween(
+        source,
+        'static Future<void> _recordCalendarTodayCommandState(',
+        'static void openMainCalendarAtToday(',
+      );
+      final loadPersisted = _sourceBetween(
+        source,
+        'Future<void> _loadPersistedViewState({String trigger = \'startup\'})',
+        '  /// ✅ Helper: Calculate max days in a Kemetic month',
+      );
+
+      expect(openToday, contains('_pendingTodayNavigationCommand = true'));
+      expect(openToday, contains('_recordCalendarTodayCommandState'));
+      expect(openToday, contains("router.go('/')"));
+      expect(
+        openToday.indexOf('_recordCalendarTodayCommandState'),
+        lessThan(openToday.indexOf("router.go('/')")),
+      );
+      expect(recordToday, contains('saveCalendarState'));
+      expect(recordToday, contains('_calendarRestorationStateForToday'));
+      expect(loadPersisted, contains('_consumePendingTodayNavigationCommand'));
+      expect(loadPersisted, contains('return;'));
+    });
+
     test('calendar-host menu buttons keep expected handlers', () async {
       final source = await File(
         'lib/features/calendar/calendar_page.dart',
@@ -503,8 +646,9 @@ void main() {
         expect(openProfile, contains('clearProfileFeedContinuity(userId)'));
         expect(
           openProfile.indexOf('clearProfileFeedContinuity(userId)'),
-          lessThan(openProfile.indexOf("context.go('/profile/")),
+          lessThan(openProfile.indexOf("context.go('/profile/me')")),
         );
+        expect(openProfile, isNot(contains("context.go('/profile/\${")));
       },
     );
 
@@ -535,6 +679,23 @@ void main() {
       ]);
     });
 
+    test('planner profile action delegates to shared profile helper', () async {
+      final source = await File(
+        'lib/features/rhythm/pages/todays_alignment_page.dart',
+      ).readAsString();
+      final openProfilePage = _sourceBetween(
+        source,
+        'void _openProfilePage()',
+        'void _onTodoPageChanged(',
+      );
+
+      expect(
+        openProfilePage,
+        contains('CalendarPage.openProfileFromAnyContext(context)'),
+      );
+      expect(openProfilePage, isNot(contains("context.go('/profile/")));
+    });
+
     test('profile app bar actions keep expected handlers', () async {
       final source = await File(
         'lib/features/profile/profile_page.dart',
@@ -560,6 +721,21 @@ void main() {
         'KemeticAppBarProfileIcon',
         '_openMyProfileAction',
       ]);
+    });
+
+    test('shared profile helper uses canonical profile route', () async {
+      final source = await File(
+        'lib/features/calendar/calendar_page.dart',
+      ).readAsString();
+      final helper = _sourceBetween(
+        source,
+        'static Future<void> openProfileFromAnyContext(',
+        'static Future<void> _showDetachedActionsMenu(',
+      );
+
+      expect(helper, contains('clearProfileFeedContinuity(userId)'));
+      expect(helper, contains("context.go('/profile/me')"));
+      expect(helper, isNot(contains("context.go('/profile/\${")));
     });
 
     test('global floating actions panel passes sheet callbacks', () async {
@@ -1365,6 +1541,121 @@ List<String> _detachedMenuLabels(WidgetTester tester) {
       .whereType<String>()
       .where(_expectedDetachedGlobalMenuOrder.contains)
       .toList(growable: false);
+}
+
+Future<void> _recoverTestSession() async {
+  const userId = '4d2583da-8de4-49d3-9cd1-37a9a74f55bd';
+  final expiresAt =
+      DateTime.now().add(const Duration(days: 365)).millisecondsSinceEpoch ~/
+      1000;
+  await Supabase.instance.client.auth.recoverSession(
+    jsonEncode(<String, Object?>{
+      'access_token': 'test-access-token-$expiresAt',
+      'expires_in': 31536000,
+      'refresh_token': 'test-refresh-token',
+      'token_type': 'bearer',
+      'user': <String, Object?>{
+        'id': userId,
+        'app_metadata': <String, Object?>{
+          'provider': 'email',
+          'providers': <String>['email'],
+        },
+        'user_metadata': <String, Object?>{},
+        'aud': 'authenticated',
+        'email': 'profile-test@example.com',
+        'phone': '',
+        'created_at': '2026-01-01T00:00:00.000000Z',
+        'email_confirmed_at': '2026-01-01T00:00:00.000000Z',
+        'role': 'authenticated',
+        'updated_at': '2026-01-01T00:00:00.000000Z',
+      },
+      'expiresAt': expiresAt,
+    }),
+  );
+}
+
+void _installRestorationDebugHooks() {
+  _debugCriticalSnapshots.clear();
+  _debugLatestCriticalSnapshots.clear();
+  _debugRemoteWindowSnapshots.clear();
+  _debugRemoteLatestSnapshots.clear();
+  _debugPlatformLastActiveUserId = null;
+  AppWindowService.debugWindowIdResolver = () async => 'app-bar-window';
+  AppWindowService.instance.resetForTesting();
+  AppRestorationService.debugUserIdResolver = () => 'app-bar-user';
+  AppRestorationService.debugRemoteWindowSnapshotReader =
+      (userId, deviceId, windowId) async =>
+          _debugRemoteWindowSnapshots['$userId:$deviceId:$windowId'];
+  AppRestorationService.debugRemoteLatestSnapshotReader = (userId) async =>
+      _debugRemoteLatestSnapshots[userId];
+  AppRestorationService.debugRemoteSnapshotWriter =
+      (userId, deviceId, windowId, snapshot) async {
+        _debugRemoteWindowSnapshots['$userId:$deviceId:$windowId'] =
+            Map<String, dynamic>.from(snapshot);
+        _debugRemoteLatestSnapshots[userId] = Map<String, dynamic>.from(
+          snapshot,
+        );
+      };
+  AppRestorationService.debugCriticalSnapshotReader = (windowId) =>
+      _debugCriticalSnapshots[windowId];
+  AppRestorationService.debugCriticalSnapshotWriter = (windowId, serialized) {
+    if (serialized == null || serialized.trim().isEmpty) {
+      _debugCriticalSnapshots.remove(windowId);
+    } else {
+      _debugCriticalSnapshots[windowId] = serialized;
+    }
+  };
+  AppRestorationService.debugLatestCriticalSnapshotReader = (userId) =>
+      _debugLatestCriticalSnapshots[userId];
+  AppRestorationService.debugLatestCriticalSnapshotWriter =
+      (userId, serialized) {
+        if (serialized == null || serialized.trim().isEmpty) {
+          _debugLatestCriticalSnapshots.remove(userId);
+        } else {
+          _debugLatestCriticalSnapshots[userId] = serialized;
+        }
+      };
+  AppRestorationService.debugPlatformLastActiveUserIdReader = () =>
+      _debugPlatformLastActiveUserId;
+  AppRestorationService.debugPlatformLastActiveUserIdWriter = (userId) {
+    _debugPlatformLastActiveUserId = userId;
+  };
+}
+
+void _clearRestorationDebugHooks() {
+  _debugCriticalSnapshots.clear();
+  _debugLatestCriticalSnapshots.clear();
+  _debugRemoteWindowSnapshots.clear();
+  _debugRemoteLatestSnapshots.clear();
+  _debugPlatformLastActiveUserId = null;
+  AppWindowService.debugWindowIdResolver = null;
+  AppWindowService.instance.resetForTesting();
+  AppRestorationService.debugUserIdResolver = null;
+  AppRestorationService.debugRemoteWindowSnapshotReader = null;
+  AppRestorationService.debugRemoteLatestSnapshotReader = null;
+  AppRestorationService.debugRemoteSnapshotWriter = null;
+  AppRestorationService.debugCriticalSnapshotReader = null;
+  AppRestorationService.debugCriticalSnapshotWriter = null;
+  AppRestorationService.debugLatestCriticalSnapshotReader = null;
+  AppRestorationService.debugLatestCriticalSnapshotWriter = null;
+  AppRestorationService.debugPlatformLastActiveUserIdReader = null;
+  AppRestorationService.debugPlatformLastActiveUserIdWriter = null;
+}
+
+String _currentRouterLocation(GoRouter router) {
+  return router.routerDelegate.currentConfiguration.uri.toString();
+}
+
+Future<void> _waitForRouterLocation(
+  WidgetTester tester,
+  GoRouter router,
+  String expected,
+) async {
+  for (var i = 0; i < 20; i += 1) {
+    if (_currentRouterLocation(router) == expected) return;
+    await tester.pump(const Duration(milliseconds: 20));
+  }
+  expect(_currentRouterLocation(router), expected);
 }
 
 void _expectCalendarMenuOrder(String source, List<String> expectedLabels) {

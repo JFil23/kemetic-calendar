@@ -1278,14 +1278,7 @@ class _TodaysAlignmentPageState extends State<TodaysAlignmentPage> {
   }
 
   void _openProfilePage() {
-    final uid = _currentUserId;
-    if (uid == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Sign in to view your profile.')),
-      );
-      return;
-    }
-    context.go('/profile/${Uri.encodeComponent(uid)}');
+    unawaited(CalendarPage.openProfileFromAnyContext(context));
   }
 
   void _onTodoPageChanged(int index) {
