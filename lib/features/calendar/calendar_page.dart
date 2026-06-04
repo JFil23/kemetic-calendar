@@ -5032,14 +5032,19 @@ class CalendarPage extends StatefulWidget {
       warmPersonalCalendarId: warmCalendarSnapshot.personalCalendarId,
       sameCalendarEvents: sameDayEvents,
     );
-    Navigator.of(context, rootNavigator: true).push(
-      MaterialPageRoute<void>(
-        settings: const RouteSettings(
-          name: 'shared_calendar_event_tap_calendar_host',
-        ),
-        builder: (_) => CalendarPage(),
-      ),
-    );
+    try {
+      GoRouter.of(context).go('/');
+    } catch (error, stackTrace) {
+      NavigationTrace.instance.recordError(
+        'shared calendar event day view route go error',
+        error,
+        stackTrace,
+        state: <String, Object?>{
+          'targetRoute': '/',
+          'event': snapshot.debugIdentity,
+        },
+      );
+    }
     unawaited(
       _clearDetachedCalendarOverlayState(_kCalendarOverlayKindSharedCalendars),
     );
@@ -5085,23 +5090,6 @@ class CalendarPage extends StatefulWidget {
     );
   }
 
-  static Future<void> openDetachedSharedCalendarsFromGlobalMenu(
-    BuildContext context, {
-    required String parentRoute,
-    Map<String, dynamic>? restorationState,
-  }) async {
-    final debugOpen = debugOpenSharedCalendarsFromAnyContext;
-    if (debugOpen != null) {
-      await debugOpen(context);
-      return;
-    }
-    await _openDetachedSharedCalendarsSheet(
-      context,
-      parentRouteOverride: parentRoute,
-      restorationState: restorationState,
-    );
-  }
-
   static Future<void> openFlowStudioFromAnyContext(
     BuildContext context, {
     Map<String, dynamic>? restorationState,
@@ -5130,25 +5118,6 @@ class CalendarPage extends StatefulWidget {
     }
     await _openDetachedFlowStudioSheet(
       context,
-      restorationState:
-          restorationState ??
-          const <String, dynamic>{'mode': _kFlowStudioModeHub},
-    );
-  }
-
-  static Future<void> openDetachedFlowStudioFromGlobalMenu(
-    BuildContext context, {
-    required String parentRoute,
-    Map<String, dynamic>? restorationState,
-  }) async {
-    final debugOpen = debugOpenFlowStudioFromAnyContext;
-    if (debugOpen != null) {
-      await debugOpen(context);
-      return;
-    }
-    await _openDetachedFlowStudioSheet(
-      context,
-      parentRouteOverride: parentRoute,
       restorationState:
           restorationState ??
           const <String, dynamic>{'mode': _kFlowStudioModeHub},
@@ -5510,13 +5479,10 @@ class CalendarPage extends StatefulWidget {
 
   static Future<void> _openDetachedSharedCalendarsSheet(
     BuildContext context, {
-    String? parentRouteOverride,
     Map<String, dynamic>? restorationState,
   }) async {
     if (!context.mounted) return;
-    final parentRoute = parentRouteOverride?.trim().isNotEmpty == true
-        ? parentRouteOverride!.trim()
-        : _currentRouteLocationForContext(context);
+    final parentRoute = _currentRouteLocationForContext(context);
     final initialExpandedCalendarIds = _stringListFromRestorationValue(
       restorationState?['expandedCalendarIds'],
     );
@@ -6592,12 +6558,9 @@ class CalendarPage extends StatefulWidget {
   static Future<void> _openDetachedFlowStudioSheet(
     BuildContext context, {
     required Map<String, dynamic> restorationState,
-    String? parentRouteOverride,
   }) async {
     if (!context.mounted) return;
-    final parentRoute = parentRouteOverride?.trim().isNotEmpty == true
-        ? parentRouteOverride!.trim()
-        : _currentRouteLocationForContext(context);
+    final parentRoute = _currentRouteLocationForContext(context);
     final mode = (restorationState['mode'] as String?)?.trim();
     final continuityState = <String, dynamic>{
       'mode': mode == null || mode.isEmpty ? _kFlowStudioModeHub : mode,
@@ -8308,6 +8271,11 @@ class CalendarPageState extends State<CalendarPage>
     if (intent == null) return false;
     CalendarPage._pendingSharedCalendarRealDayViewIntent = null;
     _sharedCalendarRealDayViewOpening = true;
+    _pendingPersistentDayViewState = null;
+    _persistentDayViewRestoreAttempted = true;
+    _calendarOverlayRestoreAttempted = true;
+    _calendarOverlayRestoreInFlight = false;
+    _calendarOverlayRestorePresentationStarted = false;
 
     _rememberSharedCalendarSnapshot(intent.calendar, publishWarmState: false);
     _flows

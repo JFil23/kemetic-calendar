@@ -370,7 +370,7 @@ void main() {
       expect(launchedSheets, <String>['Calendars']);
     });
 
-    testWidgets('global floating menu opens Flow Studio without route detour', (
+    testWidgets('global floating menu enqueues Flow Studio for CalendarPage', (
       tester,
     ) async {
       tester.view.physicalSize = const Size(1170, 2532);
@@ -381,12 +381,11 @@ void main() {
       CalendarPage.debugResetGlobalMenuSheetCommands();
       addTearDown(CalendarPage.debugResetGlobalMenuSheetCommands);
 
-      final openedActions = <String>[];
       CalendarPage.debugOpenFlowStudioFromAnyContext = (context) async {
-        openedActions.add('Flow Studio');
+        fail('Global menu should not open Flow Studio from the shell context.');
       };
       CalendarPage.debugOpenSharedCalendarsFromAnyContext = (context) async {
-        openedActions.add('Calendars');
+        fail('Global menu should not open Calendars from the shell context.');
       };
       addTearDown(() {
         CalendarPage.debugOpenFlowStudioFromAnyContext = null;
@@ -430,17 +429,16 @@ void main() {
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 260));
 
-      expect(openedActions, <String>['Flow Studio']);
-      expect(CalendarPage.debugPendingOpenFlowStudioFromGlobalMenu, isFalse);
+      expect(CalendarPage.debugPendingOpenFlowStudioFromGlobalMenu, isTrue);
       expect(CalendarPage.debugPendingOpenCalendarsFromGlobalMenu, isFalse);
       expect(
         router.routerDelegate.currentConfiguration.uri.path,
-        '/profile/me',
-        reason: 'Global menu sheets should not detour through CalendarPage.',
+        '/',
+        reason: 'Global menu sheets are opened by CalendarPage, not the shell.',
       );
     });
 
-    testWidgets('global floating menu opens Calendars without route detour', (
+    testWidgets('global floating menu enqueues Calendars for CalendarPage', (
       tester,
     ) async {
       tester.view.physicalSize = const Size(1170, 2532);
@@ -451,12 +449,11 @@ void main() {
       CalendarPage.debugResetGlobalMenuSheetCommands();
       addTearDown(CalendarPage.debugResetGlobalMenuSheetCommands);
 
-      final openedActions = <String>[];
       CalendarPage.debugOpenFlowStudioFromAnyContext = (context) async {
-        openedActions.add('Flow Studio');
+        fail('Global menu should not open Flow Studio from the shell context.');
       };
       CalendarPage.debugOpenSharedCalendarsFromAnyContext = (context) async {
-        openedActions.add('Calendars');
+        fail('Global menu should not open Calendars from the shell context.');
       };
       addTearDown(() {
         CalendarPage.debugOpenFlowStudioFromAnyContext = null;
@@ -500,13 +497,12 @@ void main() {
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 260));
 
-      expect(openedActions, <String>['Calendars']);
+      expect(CalendarPage.debugPendingOpenCalendarsFromGlobalMenu, isTrue);
       expect(CalendarPage.debugPendingOpenFlowStudioFromGlobalMenu, isFalse);
-      expect(CalendarPage.debugPendingOpenCalendarsFromGlobalMenu, isFalse);
       expect(
         router.routerDelegate.currentConfiguration.uri.path,
-        '/nodes',
-        reason: 'Global menu sheets should not detour through CalendarPage.',
+        '/',
+        reason: 'Global menu sheets are opened by CalendarPage, not the shell.',
       );
     });
 
@@ -877,49 +873,50 @@ void main() {
       expect(flowStudioCallback, contains('await _closeFloatingMenu()'));
       expect(
         flowStudioCallback,
-        contains('WidgetsBinding.instance.endOfFrame'),
+        contains('CalendarPage.enqueueOpenFlowStudioFromGlobalMenu()'),
       );
       expect(
         flowStudioCallback,
-        contains('CalendarPage.openDetachedFlowStudioFromGlobalMenu'),
+        contains("_routeToCalendarForGlobalMenuSheetCommand('flowStudio')"),
       );
-      expect(flowStudioCallback, contains('parentRoute: parentRoute'));
       expect(
         flowStudioCallback.indexOf('await _closeFloatingMenu()'),
         lessThan(
           flowStudioCallback.indexOf(
-            'CalendarPage.openDetachedFlowStudioFromGlobalMenu',
+            'CalendarPage.enqueueOpenFlowStudioFromGlobalMenu()',
           ),
         ),
       );
       expect(calendarsCallback, contains('await _closeFloatingMenu()'));
-      expect(calendarsCallback, contains('WidgetsBinding.instance.endOfFrame'));
       expect(
         calendarsCallback,
-        contains('CalendarPage.openDetachedSharedCalendarsFromGlobalMenu'),
+        contains('CalendarPage.enqueueOpenCalendarsFromGlobalMenu()'),
       );
-      expect(calendarsCallback, contains('parentRoute: parentRoute'));
+      expect(
+        calendarsCallback,
+        contains("_routeToCalendarForGlobalMenuSheetCommand('calendars')"),
+      );
       expect(
         calendarsCallback.indexOf('await _closeFloatingMenu()'),
         lessThan(
           calendarsCallback.indexOf(
-            'CalendarPage.openDetachedSharedCalendarsFromGlobalMenu',
+            'CalendarPage.enqueueOpenCalendarsFromGlobalMenu()',
           ),
         ),
       );
+      expect(source, contains('_routeToCalendarForGlobalMenuSheetCommand'));
+      expect(source, contains("global menu route go('/') requested"));
       expect(
-        flowStudioCallback,
-        isNot(contains('CalendarPage.enqueueOpenFlowStudioFromGlobalMenu')),
-      );
-      expect(
-        calendarsCallback,
-        isNot(contains('CalendarPage.enqueueOpenCalendarsFromGlobalMenu')),
+        source,
+        isNot(contains('CalendarPage.openDetachedFlowStudioFromGlobalMenu')),
       );
       expect(
         source,
-        isNot(contains('_routeToCalendarForGlobalMenuSheetCommand')),
+        isNot(
+          contains('CalendarPage.openDetachedSharedCalendarsFromGlobalMenu'),
+        ),
       );
-      expect(source, isNot(contains("global menu route go('/') requested")));
+      expect(source, isNot(contains('global menu detached sheet open')));
     });
 
     test('CalendarPage owns global menu sheet command consumption', () async {

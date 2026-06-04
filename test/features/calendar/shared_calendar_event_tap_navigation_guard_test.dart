@@ -143,26 +143,27 @@ void main() {
           ),
         );
         expect(opener, contains('sameCalendarEvents: sameDayEvents'));
-        expect(opener, contains('MaterialPageRoute<void>('));
-        expect(opener, contains('builder: (_) => CalendarPage()'));
+        expect(opener, contains("GoRouter.of(context).go('/')"));
         expect(opener, contains('_clearDetachedCalendarOverlayState('));
         expect(opener, contains('_kCalendarOverlayKindSharedCalendars'));
         final intentIndex = opener.indexOf(
           '_pendingSharedCalendarRealDayViewIntent =',
         );
-        final hostPushIndex = opener.indexOf('MaterialPageRoute<void>(');
+        final routeHomeIndex = opener.indexOf("GoRouter.of(context).go('/')");
         final clearDetachedIndex = opener.indexOf(
           '_clearDetachedCalendarOverlayState',
         );
         expect(intentIndex, isNonNegative);
-        expect(hostPushIndex, isNonNegative);
+        expect(routeHomeIndex, isNonNegative);
         expect(clearDetachedIndex, isNonNegative);
-        expect(intentIndex, lessThan(hostPushIndex));
-        expect(hostPushIndex, lessThan(clearDetachedIndex));
+        expect(intentIndex, lessThan(routeHomeIndex));
+        expect(routeHomeIndex, lessThan(clearDetachedIndex));
         expect(opener, contains('detail: detail'));
         expect(opener, contains('snapshot: snapshot'));
         expect(opener, isNot(contains('_routeHomeForSearchResult(')));
         expect(opener, isNot(contains('context.go(')));
+        expect(opener, isNot(contains('MaterialPageRoute<void>(')));
+        expect(opener, isNot(contains('builder: (_) => CalendarPage()')));
         expect(opener, isNot(contains('sharedCalendarEventSnapshot')));
         expect(opener, isNot(contains('DayViewPage(')));
         expect(opener, isNot(contains('return <NoteData>[snapshotNote]')));
@@ -248,6 +249,14 @@ void main() {
           consumer,
           contains("debugOpenSource: 'shared_calendar_event_tap'"),
         );
+        expect(consumer, contains('_pendingPersistentDayViewState = null'));
+        expect(consumer, contains('_persistentDayViewRestoreAttempted = true'));
+        expect(consumer, contains('_calendarOverlayRestoreAttempted = true'));
+        expect(consumer, contains('_calendarOverlayRestoreInFlight = false'));
+        expect(
+          consumer,
+          contains('_calendarOverlayRestorePresentationStarted = false'),
+        );
         expect(
           calendar,
           contains('[\$debugOpenSource] Day View route push requested'),
@@ -258,9 +267,14 @@ void main() {
           contains("reason: 'shared_calendar_event_tap_background'"),
         );
         final openIndex = consumer.indexOf('_openDayView(');
+        final clearRestoreIndex = consumer.indexOf(
+          '_pendingPersistentDayViewState = null',
+        );
         final startupIndex = consumer.indexOf('_requestInitialStartupRun(');
         expect(openIndex, isNonNegative);
+        expect(clearRestoreIndex, isNonNegative);
         expect(startupIndex, isNonNegative);
+        expect(clearRestoreIndex, lessThan(openIndex));
         expect(openIndex, lessThan(startupIndex));
         final sameDaySeedIndex = consumer.indexOf(
           '_seedSameDaySharedCalendarFiledEvents(',
