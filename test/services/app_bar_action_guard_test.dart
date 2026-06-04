@@ -370,87 +370,145 @@ void main() {
       expect(launchedSheets, <String>['Calendars']);
     });
 
-    testWidgets(
-      'global floating menu enqueues CalendarPage-owned sheet commands',
-      (tester) async {
-        tester.view.physicalSize = const Size(1170, 2532);
-        tester.view.devicePixelRatio = 3;
-        addTearDown(tester.view.resetPhysicalSize);
-        addTearDown(tester.view.resetDevicePixelRatio);
-        addTearDown(app.resetGlobalFloatingMenuShellForTesting);
-        CalendarPage.debugResetGlobalMenuSheetCommands();
-        addTearDown(CalendarPage.debugResetGlobalMenuSheetCommands);
+    testWidgets('global floating menu opens Flow Studio without route detour', (
+      tester,
+    ) async {
+      tester.view.physicalSize = const Size(1170, 2532);
+      tester.view.devicePixelRatio = 3;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+      addTearDown(app.resetGlobalFloatingMenuShellForTesting);
+      CalendarPage.debugResetGlobalMenuSheetCommands();
+      addTearDown(CalendarPage.debugResetGlobalMenuSheetCommands);
 
-        final openedActions = <String>[];
-        CalendarPage.debugOpenFlowStudioFromAnyContext = (context) async {
-          openedActions.add('Flow Studio');
-        };
-        CalendarPage.debugOpenSharedCalendarsFromAnyContext = (context) async {
-          openedActions.add('Calendars');
-        };
-        addTearDown(() {
-          CalendarPage.debugOpenFlowStudioFromAnyContext = null;
-          CalendarPage.debugOpenSharedCalendarsFromAnyContext = null;
-        });
+      final openedActions = <String>[];
+      CalendarPage.debugOpenFlowStudioFromAnyContext = (context) async {
+        openedActions.add('Flow Studio');
+      };
+      CalendarPage.debugOpenSharedCalendarsFromAnyContext = (context) async {
+        openedActions.add('Calendars');
+      };
+      addTearDown(() {
+        CalendarPage.debugOpenFlowStudioFromAnyContext = null;
+        CalendarPage.debugOpenSharedCalendarsFromAnyContext = null;
+      });
 
-        final router = GoRouter(
-          initialLocation: '/profile/other-user',
-          routes: [
-            GoRoute(
-              path: '/',
-              builder: (context, state) =>
-                  const Scaffold(body: Text('Calendar route')),
-            ),
-            GoRoute(
-              path: '/profile/:userId',
-              builder: (context, state) =>
-                  const Scaffold(body: Text('Profile route')),
-            ),
-          ],
-        );
-        addTearDown(router.dispose);
-
-        await tester.pumpWidget(
-          MaterialApp.router(
-            routerConfig: router,
-            builder: (context, child) =>
-                app.buildGlobalFloatingMenuShellForTesting(
-                  router: router,
-                  child: child ?? const SizedBox.shrink(),
-                ),
+      final router = GoRouter(
+        initialLocation: '/profile/me',
+        routes: [
+          GoRoute(
+            path: '/',
+            builder: (context, state) =>
+                const Scaffold(body: Text('Calendar route')),
           ),
-        );
-        await tester.pump();
-        await tester.pump(const Duration(milliseconds: 260));
+          GoRoute(
+            path: '/profile/:userId',
+            builder: (context, state) =>
+                const Scaffold(body: Text('Profile route')),
+          ),
+        ],
+      );
+      addTearDown(router.dispose);
 
-        await tester.tap(find.byKey(app.globalMenuButtonKey));
-        await tester.pump();
-        await tester.pump(const Duration(milliseconds: 260));
-        await tester.tap(find.text('Flow Studio'));
-        await tester.pump();
-        await tester.pump(const Duration(milliseconds: 260));
+      await tester.pumpWidget(
+        MaterialApp.router(
+          routerConfig: router,
+          builder: (context, child) =>
+              app.buildGlobalFloatingMenuShellForTesting(
+                router: router,
+                child: child ?? const SizedBox.shrink(),
+              ),
+        ),
+      );
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 260));
 
-        expect(openedActions, isEmpty);
-        expect(CalendarPage.debugPendingOpenFlowStudioFromGlobalMenu, isTrue);
-        expect(CalendarPage.debugPendingOpenCalendarsFromGlobalMenu, isFalse);
-        expect(
-          router.routerDelegate.currentConfiguration.uri.path,
-          '/',
-          reason: 'Global menu sheet commands should route to CalendarPage.',
-        );
+      await tester.tap(find.byKey(app.globalMenuButtonKey));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 260));
+      await tester.tap(find.text('Flow Studio'));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 260));
 
-        await tester.tap(find.byKey(app.globalMenuButtonKey));
-        await tester.pump();
-        await tester.pump(const Duration(milliseconds: 260));
-        await tester.tap(find.text('Calendars'));
-        await tester.pump();
-        await tester.pump(const Duration(milliseconds: 260));
+      expect(openedActions, <String>['Flow Studio']);
+      expect(CalendarPage.debugPendingOpenFlowStudioFromGlobalMenu, isFalse);
+      expect(CalendarPage.debugPendingOpenCalendarsFromGlobalMenu, isFalse);
+      expect(
+        router.routerDelegate.currentConfiguration.uri.path,
+        '/profile/me',
+        reason: 'Global menu sheets should not detour through CalendarPage.',
+      );
+    });
 
-        expect(openedActions, isEmpty);
-        expect(CalendarPage.debugPendingOpenFlowStudioFromGlobalMenu, isFalse);
-        expect(CalendarPage.debugPendingOpenCalendarsFromGlobalMenu, isTrue);
-      },
-    );
+    testWidgets('global floating menu opens Calendars without route detour', (
+      tester,
+    ) async {
+      tester.view.physicalSize = const Size(1170, 2532);
+      tester.view.devicePixelRatio = 3;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+      addTearDown(app.resetGlobalFloatingMenuShellForTesting);
+      CalendarPage.debugResetGlobalMenuSheetCommands();
+      addTearDown(CalendarPage.debugResetGlobalMenuSheetCommands);
+
+      final openedActions = <String>[];
+      CalendarPage.debugOpenFlowStudioFromAnyContext = (context) async {
+        openedActions.add('Flow Studio');
+      };
+      CalendarPage.debugOpenSharedCalendarsFromAnyContext = (context) async {
+        openedActions.add('Calendars');
+      };
+      addTearDown(() {
+        CalendarPage.debugOpenFlowStudioFromAnyContext = null;
+        CalendarPage.debugOpenSharedCalendarsFromAnyContext = null;
+      });
+
+      final router = GoRouter(
+        initialLocation: '/nodes',
+        routes: [
+          GoRoute(
+            path: '/',
+            builder: (context, state) =>
+                const Scaffold(body: Text('Calendar route')),
+          ),
+          GoRoute(
+            path: '/nodes',
+            builder: (context, state) =>
+                const Scaffold(body: Text('Nodes route')),
+          ),
+        ],
+      );
+      addTearDown(router.dispose);
+
+      await tester.pumpWidget(
+        MaterialApp.router(
+          routerConfig: router,
+          builder: (context, child) =>
+              app.buildGlobalFloatingMenuShellForTesting(
+                router: router,
+                child: child ?? const SizedBox.shrink(),
+              ),
+        ),
+      );
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 260));
+
+      await tester.tap(find.byKey(app.globalMenuButtonKey));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 260));
+      await tester.tap(find.text('Calendars'));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 260));
+
+      expect(openedActions, <String>['Calendars']);
+      expect(CalendarPage.debugPendingOpenFlowStudioFromGlobalMenu, isFalse);
+      expect(CalendarPage.debugPendingOpenCalendarsFromGlobalMenu, isFalse);
+      expect(
+        router.routerDelegate.currentConfiguration.uri.path,
+        '/nodes',
+        reason: 'Global menu sheets should not detour through CalendarPage.',
+      );
+    });
 
     testWidgets('detached Today app bar action routes home', (tester) async {
       CalendarPage.debugDisableTodayNavigationRetry = true;
@@ -767,6 +825,11 @@ void main() {
           'Future<void> _saveCalendarOverlayState(',
           'Future<void> _clearCalendarOverlayState',
         );
+        final saveDetachedOverlayState = _sourceBetween(
+          source,
+          'static Future<void> _saveDetachedCalendarOverlayState(',
+          'static Future<void> _clearDetachedCalendarOverlayState',
+        );
 
         expect(
           saveOverlayState,
@@ -776,6 +839,17 @@ void main() {
         expect(
           saveOverlayState,
           contains('calendar overlay state save skipped'),
+        );
+        expect(
+          saveDetachedOverlayState,
+          contains(
+            'RestorationCoordinator.instance.recordOverlayStackPageState',
+          ),
+        );
+        expect(saveDetachedOverlayState, contains('catch (error)'));
+        expect(
+          saveDetachedOverlayState,
+          contains('detached calendar overlay state save skipped'),
         );
       },
     );
@@ -803,45 +877,49 @@ void main() {
       expect(flowStudioCallback, contains('await _closeFloatingMenu()'));
       expect(
         flowStudioCallback,
-        contains('CalendarPage.enqueueOpenFlowStudioFromGlobalMenu()'),
+        contains('WidgetsBinding.instance.endOfFrame'),
       );
       expect(
         flowStudioCallback,
-        contains("_routeToCalendarForGlobalMenuSheetCommand('flowStudio')"),
+        contains('CalendarPage.openDetachedFlowStudioFromGlobalMenu'),
       );
+      expect(flowStudioCallback, contains('parentRoute: parentRoute'));
       expect(
         flowStudioCallback.indexOf('await _closeFloatingMenu()'),
         lessThan(
           flowStudioCallback.indexOf(
-            'CalendarPage.enqueueOpenFlowStudioFromGlobalMenu()',
+            'CalendarPage.openDetachedFlowStudioFromGlobalMenu',
           ),
         ),
       );
       expect(calendarsCallback, contains('await _closeFloatingMenu()'));
+      expect(calendarsCallback, contains('WidgetsBinding.instance.endOfFrame'));
       expect(
         calendarsCallback,
-        contains('CalendarPage.enqueueOpenCalendarsFromGlobalMenu()'),
+        contains('CalendarPage.openDetachedSharedCalendarsFromGlobalMenu'),
       );
-      expect(
-        calendarsCallback,
-        contains("_routeToCalendarForGlobalMenuSheetCommand('calendars')"),
-      );
+      expect(calendarsCallback, contains('parentRoute: parentRoute'));
       expect(
         calendarsCallback.indexOf('await _closeFloatingMenu()'),
         lessThan(
           calendarsCallback.indexOf(
-            'CalendarPage.enqueueOpenCalendarsFromGlobalMenu()',
+            'CalendarPage.openDetachedSharedCalendarsFromGlobalMenu',
           ),
         ),
       );
       expect(
         flowStudioCallback,
-        isNot(contains('CalendarPage.openFlowStudioFromAnyContext')),
+        isNot(contains('CalendarPage.enqueueOpenFlowStudioFromGlobalMenu')),
       );
       expect(
         calendarsCallback,
-        isNot(contains('CalendarPage.openSharedCalendarsFromAnyContext')),
+        isNot(contains('CalendarPage.enqueueOpenCalendarsFromGlobalMenu')),
       );
+      expect(
+        source,
+        isNot(contains('_routeToCalendarForGlobalMenuSheetCommand')),
+      );
+      expect(source, isNot(contains("global menu route go('/') requested")));
     });
 
     test('CalendarPage owns global menu sheet command consumption', () async {

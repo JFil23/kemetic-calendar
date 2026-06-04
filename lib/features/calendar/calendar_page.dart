@@ -4092,19 +4092,30 @@ class CalendarPage extends StatefulWidget {
     final normalizedParentRoute = parentRoute.trim().isEmpty
         ? '/'
         : parentRoute.trim();
-    await RestorationCoordinator.instance.recordOverlayStackPageState(
-      <Map<String, dynamic>>[
-        <String, dynamic>{
+    try {
+      await RestorationCoordinator.instance.recordOverlayStackPageState(
+        <Map<String, dynamic>>[
+          <String, dynamic>{
+            'kind': kind.trim(),
+            'parentRoute': normalizedParentRoute,
+            'parentSurface': _parentSurfaceForRoute(normalizedParentRoute),
+            'updatedAtMs': DateTime.now().millisecondsSinceEpoch,
+            ...state,
+          },
+        ],
+        reason: 'detached_calendar_overlay',
+      );
+      unawaited(RestorationCoordinator.instance.flush());
+    } catch (error) {
+      NavigationTrace.instance.record(
+        'detached calendar overlay state save skipped',
+        state: <String, Object?>{
           'kind': kind.trim(),
           'parentRoute': normalizedParentRoute,
-          'parentSurface': _parentSurfaceForRoute(normalizedParentRoute),
-          'updatedAtMs': DateTime.now().millisecondsSinceEpoch,
-          ...state,
+          'error': error.runtimeType,
         },
-      ],
-      reason: 'detached_calendar_overlay',
-    );
-    unawaited(RestorationCoordinator.instance.flush());
+      );
+    }
   }
 
   static Future<void> _clearDetachedCalendarOverlayState(String kind) async {
@@ -5074,6 +5085,23 @@ class CalendarPage extends StatefulWidget {
     );
   }
 
+  static Future<void> openDetachedSharedCalendarsFromGlobalMenu(
+    BuildContext context, {
+    required String parentRoute,
+    Map<String, dynamic>? restorationState,
+  }) async {
+    final debugOpen = debugOpenSharedCalendarsFromAnyContext;
+    if (debugOpen != null) {
+      await debugOpen(context);
+      return;
+    }
+    await _openDetachedSharedCalendarsSheet(
+      context,
+      parentRouteOverride: parentRoute,
+      restorationState: restorationState,
+    );
+  }
+
   static Future<void> openFlowStudioFromAnyContext(
     BuildContext context, {
     Map<String, dynamic>? restorationState,
@@ -5102,6 +5130,25 @@ class CalendarPage extends StatefulWidget {
     }
     await _openDetachedFlowStudioSheet(
       context,
+      restorationState:
+          restorationState ??
+          const <String, dynamic>{'mode': _kFlowStudioModeHub},
+    );
+  }
+
+  static Future<void> openDetachedFlowStudioFromGlobalMenu(
+    BuildContext context, {
+    required String parentRoute,
+    Map<String, dynamic>? restorationState,
+  }) async {
+    final debugOpen = debugOpenFlowStudioFromAnyContext;
+    if (debugOpen != null) {
+      await debugOpen(context);
+      return;
+    }
+    await _openDetachedFlowStudioSheet(
+      context,
+      parentRouteOverride: parentRoute,
       restorationState:
           restorationState ??
           const <String, dynamic>{'mode': _kFlowStudioModeHub},
@@ -5463,10 +5510,13 @@ class CalendarPage extends StatefulWidget {
 
   static Future<void> _openDetachedSharedCalendarsSheet(
     BuildContext context, {
+    String? parentRouteOverride,
     Map<String, dynamic>? restorationState,
   }) async {
     if (!context.mounted) return;
-    final parentRoute = _currentRouteLocationForContext(context);
+    final parentRoute = parentRouteOverride?.trim().isNotEmpty == true
+        ? parentRouteOverride!.trim()
+        : _currentRouteLocationForContext(context);
     final initialExpandedCalendarIds = _stringListFromRestorationValue(
       restorationState?['expandedCalendarIds'],
     );
@@ -6542,9 +6592,12 @@ class CalendarPage extends StatefulWidget {
   static Future<void> _openDetachedFlowStudioSheet(
     BuildContext context, {
     required Map<String, dynamic> restorationState,
+    String? parentRouteOverride,
   }) async {
     if (!context.mounted) return;
-    final parentRoute = _currentRouteLocationForContext(context);
+    final parentRoute = parentRouteOverride?.trim().isNotEmpty == true
+        ? parentRouteOverride!.trim()
+        : _currentRouteLocationForContext(context);
     final mode = (restorationState['mode'] as String?)?.trim();
     final continuityState = <String, dynamic>{
       'mode': mode == null || mode.isEmpty ? _kFlowStudioModeHub : mode,
