@@ -5194,7 +5194,18 @@ class CalendarPage extends StatefulWidget {
       return;
     }
     if (!context.mounted) return;
-    await RestorationCoordinator.instance.clearProfileFeedContinuity(userId);
+    NavigationTrace.instance.record('profile feed continuity clear requested');
+    try {
+      await RestorationCoordinator.instance.clearProfileFeedContinuity(userId);
+      NavigationTrace.instance.record(
+        'profile feed continuity clear completed',
+      );
+    } catch (error) {
+      NavigationTrace.instance.record(
+        'profile feed continuity clear skipped',
+        state: <String, Object?>{'error': error.runtimeType},
+      );
+    }
     if (!context.mounted) return;
     final router = GoRouter.of(context);
     NavigationTrace.instance.record('/profile/me route command issued');
@@ -8281,18 +8292,28 @@ class CalendarPageState extends State<CalendarPage>
         CalendarPage._isTransientFlowStudioEditorState(state)) {
       return;
     }
-    await AppRestorationService.instance.saveOverlayStack(
-      <Map<String, dynamic>>[
-        <String, dynamic>{
+    try {
+      await AppRestorationService.instance.saveOverlayStack(
+        <Map<String, dynamic>>[
+          <String, dynamic>{
+            'kind': normalizedKind,
+            'parentRoute': '/',
+            ..._calendarOverlayParentMetadata(),
+            'updatedAtMs': DateTime.now().millisecondsSinceEpoch,
+            ...state,
+          },
+        ],
+      );
+      unawaited(RestorationCoordinator.instance.flush());
+    } catch (error) {
+      NavigationTrace.instance.record(
+        'calendar overlay state save skipped',
+        state: <String, Object?>{
           'kind': normalizedKind,
-          'parentRoute': '/',
-          ..._calendarOverlayParentMetadata(),
-          'updatedAtMs': DateTime.now().millisecondsSinceEpoch,
-          ...state,
+          'error': error.runtimeType,
         },
-      ],
-    );
-    unawaited(RestorationCoordinator.instance.flush());
+      );
+    }
   }
 
   Future<void> _clearCalendarOverlayState(String kind) async {
@@ -8480,16 +8501,21 @@ class CalendarPageState extends State<CalendarPage>
   }
 
   bool _globalMenuSheetCommandReady() {
+    return _globalMenuSheetCommandRouteReady() &&
+        _globalMenuSheetCommandRestorationSettled();
+  }
+
+  bool _globalMenuSheetCommandRouteReady() {
     final routeActive = CalendarPage._isRootRouteLocation(
       CalendarPage._currentRouteLocationForContext(context),
     );
+    return routeActive && globalFloatingMenuModalDepthValue == 0;
+  }
+
+  bool _globalMenuSheetCommandRestorationSettled() {
     final startupSettled =
         _startupFlight == null || _startupFlight!.isCompleted;
-    return routeActive &&
-        _restored &&
-        _initialViewportSettled &&
-        startupSettled &&
-        globalFloatingMenuModalDepthValue == 0;
+    return _restored && _initialViewportSettled && startupSettled;
   }
 
   Future<bool> _waitForGlobalMenuSheetCommandReadiness({
@@ -8500,6 +8526,24 @@ class CalendarPageState extends State<CalendarPage>
     for (var attempt = 0; attempt < 40; attempt += 1) {
       if (!mounted) return false;
       if (_globalMenuSheetCommandReady()) {
+        await WidgetsBinding.instance.endOfFrame;
+        return mounted;
+      }
+
+      if (attempt >= 12 && _globalMenuSheetCommandRouteReady()) {
+        NavigationTrace.instance.record(
+          'CalendarPage global menu command proceeding before full restoration settle',
+          state: <String, Object?>{
+            'sheet': sheet,
+            'trigger': trigger,
+            'route': _globalMenuCommandRouteLabel(),
+            'restored': _restored,
+            'viewportSettled': _initialViewportSettled,
+            'startupSettled':
+                _startupFlight == null || _startupFlight!.isCompleted,
+            'modalDepth': globalFloatingMenuModalDepthValue,
+          },
+        );
         await WidgetsBinding.instance.endOfFrame;
         return mounted;
       }
@@ -8596,6 +8640,8 @@ class CalendarPageState extends State<CalendarPage>
         state: <String, Object?>{
           'sheet': _globalMenuSheetCommandName(command),
           'trigger': trigger,
+          'routeReady': _globalMenuSheetCommandRouteReady(),
+          'restorationSettled': _globalMenuSheetCommandRestorationSettled(),
         },
       );
       return true;
@@ -8612,6 +8658,14 @@ class CalendarPageState extends State<CalendarPage>
           () {
             if (mounted) {
               _globalMenuSheetCommandInFlight = false;
+              if (_pendingGlobalMenuSheetCommand() != null) {
+                Future<void>.delayed(const Duration(milliseconds: 120), () {
+                  if (!mounted) return;
+                  _schedulePendingGlobalMenuSheetCommandIfAny(
+                    trigger: 'retry:$trigger',
+                  );
+                });
+              }
             }
           },
         ),
@@ -19343,10 +19397,19 @@ class CalendarPageState extends State<CalendarPage>
       NavigationTrace.instance.record(
         'profile feed continuity clear requested',
       );
-      await RestorationCoordinator.instance.clearProfileFeedContinuity(userId);
-      NavigationTrace.instance.record(
-        'profile feed continuity clear completed',
-      );
+      try {
+        await RestorationCoordinator.instance.clearProfileFeedContinuity(
+          userId,
+        );
+        NavigationTrace.instance.record(
+          'profile feed continuity clear completed',
+        );
+      } catch (error) {
+        NavigationTrace.instance.record(
+          'profile feed continuity clear skipped',
+          state: <String, Object?>{'error': error.runtimeType},
+        );
+      }
       if (!mounted || !context.mounted) {
         NavigationTrace.instance.record(
           'profile route stopped',
@@ -19369,20 +19432,22 @@ class CalendarPageState extends State<CalendarPage>
         'profile route go requested',
         state: const <String, Object?>{'route': '/profile/me'},
       );
-      router.go('/profile/me');
-      NavigationTrace.instance.record(
-        'profile route go completed/current uri',
-        state: <String, Object?>{
-          'currentUri': router.routerDelegate.currentConfiguration.uri
-              .toString(),
-        },
-      );
-    } catch (error) {
-      NavigationTrace.instance.record(
-        'profile route go error',
-        state: <String, Object?>{'error': error.runtimeType},
-      );
-      rethrow;
+      try {
+        router.go('/profile/me');
+        NavigationTrace.instance.record(
+          'profile route go completed/current uri',
+          state: <String, Object?>{
+            'currentUri': router.routerDelegate.currentConfiguration.uri
+                .toString(),
+          },
+        );
+      } catch (error) {
+        NavigationTrace.instance.record(
+          'profile route go error',
+          state: <String, Object?>{'error': error.runtimeType},
+        );
+        rethrow;
+      }
     } finally {
       _profileNavigationInFlight = false;
       UiGuards.enableJournalSwipe();

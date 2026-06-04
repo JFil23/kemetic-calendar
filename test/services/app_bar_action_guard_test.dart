@@ -659,9 +659,10 @@ void main() {
           'Future<void> openProfileFromOutside',
         );
 
-        expect(openProfile, contains('clearProfileFeedContinuity(userId)'));
+        expect(openProfile, contains('clearProfileFeedContinuity'));
+        expect(openProfile, contains('profile feed continuity clear skipped'));
         expect(
-          openProfile.indexOf('clearProfileFeedContinuity(userId)'),
+          openProfile.indexOf('clearProfileFeedContinuity'),
           lessThan(openProfile.indexOf("router.go('/profile/me')")),
         );
         expect(openProfile, isNot(contains("router.go('/profile/\${")));
@@ -749,10 +750,35 @@ void main() {
         'static Future<void> _showDetachedActionsMenu(',
       );
 
-      expect(helper, contains('clearProfileFeedContinuity(userId)'));
+      expect(helper, contains('clearProfileFeedContinuity'));
+      expect(helper, contains('profile feed continuity clear skipped'));
       expect(helper, contains("router.go('/profile/me')"));
       expect(helper, isNot(contains("router.go('/profile/\${")));
     });
+
+    test(
+      'calendar overlay persistence is best effort for action sheets',
+      () async {
+        final source = await File(
+          'lib/features/calendar/calendar_page.dart',
+        ).readAsString();
+        final saveOverlayState = _sourceBetween(
+          source,
+          'Future<void> _saveCalendarOverlayState(',
+          'Future<void> _clearCalendarOverlayState',
+        );
+
+        expect(
+          saveOverlayState,
+          contains('AppRestorationService.instance.saveOverlayStack'),
+        );
+        expect(saveOverlayState, contains('catch (error)'));
+        expect(
+          saveOverlayState,
+          contains('calendar overlay state save skipped'),
+        );
+      },
+    );
 
     test('global floating actions panel passes sheet callbacks', () async {
       final source = await File('lib/main.dart').readAsString();
@@ -846,6 +872,12 @@ void main() {
       expect(consumerSource, contains('WidgetsBinding.instance.endOfFrame'));
       expect(consumerSource, contains('_restored'));
       expect(consumerSource, contains('_initialViewportSettled'));
+      expect(
+        consumerSource,
+        contains(
+          'CalendarPage global menu command proceeding before full restoration settle',
+        ),
+      );
       expect(consumerSource, contains('_getFlowStudioCallback()(null)'));
       expect(
         consumerSource,
