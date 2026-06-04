@@ -3,7 +3,15 @@ import 'route_location_sanitizer.dart';
 const int navigationPersistenceSchemaVersion = 2;
 const String navigationLaunchRouteMetadataKey = 'launchRouteMetadata';
 
-enum AppSection { calendar, inbox, library, journal, settings, profile }
+enum AppSection {
+  calendar,
+  inbox,
+  library,
+  journal,
+  planner,
+  settings,
+  profile,
+}
 
 enum AppRouteOwner {
   calendar,
@@ -110,6 +118,8 @@ extension AppSectionWireName on AppSection {
         return 'library';
       case AppSection.journal:
         return 'journal';
+      case AppSection.planner:
+        return 'planner';
       case AppSection.settings:
         return 'settings';
       case AppSection.profile:
@@ -128,6 +138,8 @@ AppSection? appSectionFromWireName(String? raw) {
       return AppSection.library;
     case 'journal':
       return AppSection.journal;
+    case 'planner':
+      return AppSection.planner;
     case 'settings':
       return AppSection.settings;
     case 'profile':
@@ -319,6 +331,17 @@ class AppRouteRegistry {
       },
     ),
     AppRouteDefinition(
+      pattern: '/rhythm/today',
+      routeClass: NavigationRouteClass.durablePrimary,
+      owner: AppRouteOwner.rhythm,
+      section: AppSection.planner,
+      canonicalDurableRoute: '/rhythm/today',
+      allowedPersistenceSources: <NavigationSource>{
+        NavigationSource.userPrimaryTab,
+      },
+      canBeOneShotTarget: true,
+    ),
+    AppRouteDefinition(
       pattern: '/settings',
       routeClass: NavigationRouteClass.durablePrimary,
       owner: AppRouteOwner.settings,
@@ -429,13 +452,6 @@ class AppRouteRegistry {
       owner: AppRouteOwner.sharing,
       canBeOneShotTarget: true,
       prefixMatch: true,
-    ),
-    AppRouteDefinition(
-      pattern: '/rhythm/today',
-      routeClass: NavigationRouteClass.transient,
-      owner: AppRouteOwner.rhythm,
-      canBeOneShotTarget: true,
-      allowQueryParameters: true,
     ),
     AppRouteDefinition(
       pattern: '/rhythm/todo',

@@ -234,7 +234,9 @@ void main() {
       const routes = <String, String>{
         '/': '/',
         '/inbox': '/inbox',
+        '/nodes': '/nodes',
         '/journal': '/journal',
+        '/rhythm/today': '/rhythm/today',
         '/settings': '/settings',
         '/profile/me': '/profile/me',
       };

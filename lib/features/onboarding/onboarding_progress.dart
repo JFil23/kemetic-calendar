@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
+import 'package:flutter/scheduler.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -745,6 +746,8 @@ class OnboardingHelperCompletionService extends ChangeNotifier {
       <String, Future<OnboardingProgress>>{};
   final Map<String, Future<OnboardingProgress>> _completionQueues =
       <String, Future<OnboardingProgress>>{};
+  bool _notificationScheduled = false;
+  bool _isDisposed = false;
 
   @visibleForTesting
   static void resetForTesting({
@@ -756,6 +759,12 @@ class OnboardingHelperCompletionService extends ChangeNotifier {
       localStorage: localStorage,
       remoteStore: remoteStore,
     );
+  }
+
+  @override
+  void dispose() {
+    _isDisposed = true;
+    super.dispose();
   }
 
   OnboardingHelperHydrationState hydrationStateFor(String userId) {
@@ -856,7 +865,7 @@ class OnboardingHelperCompletionService extends ChangeNotifier {
     _localCompletionKeys[trimmedUserId] = merged.seenHelpers;
     if (state.progress == merged) return;
     _states[trimmedUserId] = state.copyWith(progress: merged);
-    notifyListeners();
+    _notifyListenersSafely();
   }
 
   Future<bool> shouldShowHelper(String userId, String helperId) async {
@@ -881,7 +890,7 @@ class OnboardingHelperCompletionService extends ChangeNotifier {
       hydrationState: OnboardingHelperHydrationState.loading,
       progress: current?.progress ?? const OnboardingProgress(),
     );
-    notifyListeners();
+    _notifyListenersSafely();
 
     late final Future<OnboardingProgress> hydration;
     hydration =
@@ -914,7 +923,7 @@ class OnboardingHelperCompletionService extends ChangeNotifier {
                 hydrationState: OnboardingHelperHydrationState.ready,
                 progress: mergedProgress,
               );
-              notifyListeners();
+              _notifyListenersSafely();
               return mergedProgress;
             })()
             .catchError((Object error) {
@@ -934,7 +943,7 @@ class OnboardingHelperCompletionService extends ChangeNotifier {
                 hydrationState: OnboardingHelperHydrationState.ready,
                 progress: progress,
               );
-              notifyListeners();
+              _notifyListenersSafely();
               return progress;
             })
             .whenComplete(() {
@@ -995,7 +1004,7 @@ class OnboardingHelperCompletionService extends ChangeNotifier {
                 OnboardingHelperHydrationState.unknown,
             progress: updated,
           );
-          notifyListeners();
+          _notifyListenersSafely();
           return updated;
         })
         .whenComplete(() {
@@ -1036,8 +1045,24 @@ class OnboardingHelperCompletionService extends ChangeNotifier {
     );
     if (memoryKeys.length != beforeMemoryCount ||
         !setEquals(currentProgress.seenHelpers, mergedKeys)) {
-      notifyListeners();
+      _notifyListenersSafely();
     }
+  }
+
+  void _notifyListenersSafely() {
+    if (_isDisposed) return;
+    final scheduler = SchedulerBinding.instance;
+    if (scheduler.schedulerPhase == SchedulerPhase.idle) {
+      notifyListeners();
+      return;
+    }
+    if (_notificationScheduled) return;
+    _notificationScheduled = true;
+    scheduler.addPostFrameCallback((_) {
+      _notificationScheduled = false;
+      if (_isDisposed) return;
+      notifyListeners();
+    });
   }
 }
 

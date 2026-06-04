@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:mobile/features/onboarding/onboarding_progress.dart';
@@ -892,6 +893,80 @@ void main() {
       );
     },
   );
+
+  testWidgets(
+    'Journal-style helper hydration does not notify listeners during build',
+    (tester) async {
+      final storage = OnboardingProgressStorage();
+      await storage.save(
+        'user-a',
+        const OnboardingProgress().copyWith(
+          currentStep: TrueOnboardingStep.complete,
+          completedOnboarding: true,
+        ),
+      );
+      OnboardingHelperCompletionService.resetForTesting(
+        remoteStore: _FakeRemoteStore(),
+      );
+
+      await tester.pumpWidget(
+        _HydrateDuringBuildHarness(
+          service: OnboardingHelperCompletionService.instance,
+        ),
+      );
+      expect(tester.takeException(), isNull);
+
+      await tester.pump();
+      expect(tester.takeException(), isNull);
+      expect(find.textContaining('notifications='), findsOneWidget);
+    },
+  );
+}
+
+class _HydrateDuringBuildHarness extends StatefulWidget {
+  const _HydrateDuringBuildHarness({required this.service});
+
+  final OnboardingHelperCompletionService service;
+
+  @override
+  State<_HydrateDuringBuildHarness> createState() =>
+      _HydrateDuringBuildHarnessState();
+}
+
+class _HydrateDuringBuildHarnessState
+    extends State<_HydrateDuringBuildHarness> {
+  var _notifications = 0;
+  var _started = false;
+
+  @override
+  void initState() {
+    super.initState();
+    widget.service.addListener(_handleServiceChanged);
+  }
+
+  @override
+  void dispose() {
+    widget.service.removeListener(_handleServiceChanged);
+    super.dispose();
+  }
+
+  void _handleServiceChanged() {
+    setState(() {
+      _notifications += 1;
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (!_started) {
+      _started = true;
+      unawaited(widget.service.hydrateUser('user-a'));
+    }
+    return Directionality(
+      textDirection: TextDirection.ltr,
+      child: Text('notifications=$_notifications'),
+    );
+  }
 }
 
 class _FakeRemoteStore implements OnboardingHelperCompletionRemoteStore {

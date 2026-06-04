@@ -150,6 +150,77 @@ void main() {
     expect(destination.reason, 'valid_durable_metadata');
   });
 
+  test('explicit user primary Planner metadata launches Planner', () async {
+    await AppNavigationRestorationController.instance.recordPrimaryTabSelection(
+      AppSection.planner,
+    );
+
+    final destination = await AppNavigationRestorationController.instance
+        .restoreLaunchDestination(isAuthenticated: true);
+
+    expect(await _durableRoute(), '/rhythm/today');
+    expect(await _durableMetadataJson(), containsPair('section', 'planner'));
+    expect(
+      await _durableMetadataJson(),
+      containsPair('canonicalRoute', '/rhythm/today'),
+    );
+    expect(destination.route, '/rhythm/today');
+    expect(destination.reason, 'valid_durable_metadata');
+  });
+
+  test(
+    'every AppSection durable primary command restores its canonical route',
+    () async {
+      const policy = NavigationPersistencePolicy();
+      const expectedRoutes = <AppSection, String>{
+        AppSection.calendar: '/',
+        AppSection.inbox: '/inbox',
+        AppSection.library: '/nodes',
+        AppSection.journal: '/journal',
+        AppSection.planner: '/rhythm/today',
+        AppSection.settings: '/settings',
+        AppSection.profile: '/profile/me',
+      };
+      expect(AppSection.values.toSet(), expectedRoutes.keys.toSet());
+
+      for (final entry in expectedRoutes.entries) {
+        await AppRestorationService.instance.clearCurrentSnapshot();
+
+        await AppNavigationRestorationController.instance
+            .recordPrimaryTabSelection(entry.key);
+        final destination = await AppNavigationRestorationController.instance
+            .restoreLaunchDestination(isAuthenticated: true);
+        final metadata = await _durableMetadataJson();
+
+        expect(policy.routeForSection(entry.key), entry.value);
+        expect(await _durableRoute(), entry.value, reason: entry.key.wireName);
+        expect(destination.route, entry.value, reason: entry.key.wireName);
+        expect(destination.reason, 'valid_durable_metadata');
+        expect(metadata, containsPair('section', entry.key.wireName));
+        expect(metadata, containsPair('canonicalRoute', entry.value));
+        expect(metadata, containsPair('source', 'userPrimaryTab'));
+        expect(metadata, containsPair('routeClass', 'durablePrimary'));
+      }
+    },
+  );
+
+  test(
+    'Journal then Planner restores Planner instead of stale Journal',
+    () async {
+      await AppNavigationRestorationController.instance
+          .recordPrimaryTabSelection(AppSection.journal);
+      await AppNavigationRestorationController.instance
+          .recordPrimaryTabSelection(AppSection.planner);
+
+      final destination = await AppNavigationRestorationController.instance
+          .restoreLaunchDestination(isAuthenticated: true);
+
+      expect(await _durableRoute(), '/rhythm/today');
+      expect(destination.route, '/rhythm/today');
+      expect(await _durableMetadataJson(), containsPair('section', 'planner'));
+    },
+  );
+
   test(
     'calendar page-state writes preserve the durable Library launch route',
     () async {
@@ -283,6 +354,78 @@ void main() {
     },
   );
 
+  test(
+    'one-shot taps from Planner do not replace the Planner durable route',
+    () async {
+      await AppNavigationRestorationController.instance
+          .recordPrimaryTabSelection(AppSection.planner);
+
+      final intents = <PendingNavigationIntent>[
+        const PendingNavigationIntent(
+          key: 'notification:event-from-planner',
+          requestedRoute: '/shared-flow/by-flow/42',
+          source: NavigationSource.notificationTap,
+        ),
+        const PendingNavigationIntent(
+          key: 'search:event-from-planner',
+          requestedRoute: '/nodes/human_emergence',
+          source: NavigationSource.searchResultTap,
+        ),
+        const PendingNavigationIntent(
+          key: 'shared-calendar:event-from-planner',
+          requestedRoute: '/event-invite/invite-1',
+          source: NavigationSource.sharedCalendarEventTap,
+        ),
+      ];
+
+      for (final intent in intents) {
+        final resolution = await AppNavigationRestorationController.instance
+            .consumeOneShotIntent(intent);
+        final destination = await AppNavigationRestorationController.instance
+            .restoreLaunchDestination(isAuthenticated: true);
+
+        expect(resolution?.route, isNotNull, reason: intent.key);
+        expect(await _durableRoute(), '/rhythm/today', reason: intent.key);
+        expect(destination.route, '/rhythm/today', reason: intent.key);
+        expect(
+          await _durableMetadataJson(),
+          containsPair('section', 'planner'),
+        );
+      }
+    },
+  );
+
+  test(
+    'Planner subpages and detail routes do not replace the Planner primary route',
+    () async {
+      await AppNavigationRestorationController.instance
+          .recordPrimaryTabSelection(AppSection.planner);
+
+      for (final route in const <String>[
+        '/rhythm/todo?date=2026-06-03&source=make_todo',
+        '/rhythm/tracker',
+        '/rhythm/decan/6267-01-01',
+        '/rhythm/editor/timed',
+      ]) {
+        await AppNavigationRestorationController.instance
+            .recordNavigationAttempt(
+              route: route,
+              source: NavigationSource.programmatic,
+            );
+        final classification = const NavigationPersistencePolicy()
+            .classifyRoute(route, NavigationSource.userPrimaryTab);
+
+        expect(classification.accepted, isFalse, reason: route);
+        expect(await _durableRoute(), '/rhythm/today', reason: route);
+      }
+
+      final destination = await AppNavigationRestorationController.instance
+          .restoreLaunchDestination(isAuthenticated: true);
+      expect(destination.route, '/rhythm/today');
+      expect(await _durableMetadataJson(), containsPair('section', 'planner'));
+    },
+  );
+
   test('node action URLs are one-shot and sanitize to stable routes', () async {
     final resolution = await AppNavigationRestorationController.instance
         .consumeOneShotIntent(
@@ -343,6 +486,11 @@ void main() {
       '/nodes?focus=human_emergence',
       '/inbox?filter=unread',
       '/settings#privacy',
+      '/rhythm/today?source=push',
+      '/rhythm/todo',
+      '/rhythm/tracker',
+      '/rhythm/decan/6267-01-01',
+      '/rhythm/editor/timed',
     ];
 
     for (final route in unsafeRoutes) {

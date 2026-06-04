@@ -5168,7 +5168,8 @@ class CalendarPage extends StatefulWidget {
         gradient: goldGloss,
         label: 'Planner',
         dispatchBeforeClose: true,
-        onSelected: () => navigate('/rhythm/today'),
+        onSelected: () =>
+            navigate('/rhythm/today', durableSection: AppSection.planner),
       ),
       _CalendarAction(
         glyph: MeduNeterGlyphs.flowStudio,
@@ -18954,6 +18955,11 @@ class CalendarPageState extends State<CalendarPage>
     _plannerNavigationInFlight = true;
     try {
       final navContext = navigationContext ?? context;
+      unawaited(
+        AppNavigationRestorationController.instance.recordPrimaryTabSelection(
+          AppSection.planner,
+        ),
+      );
       navContext.go('/rhythm/today');
     } finally {
       _plannerNavigationInFlight = false;

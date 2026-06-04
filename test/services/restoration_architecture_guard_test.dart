@@ -86,6 +86,7 @@ void main() {
         expect(controller, isNot(contains('persistCurrentLocation')));
 
         expect(policy, contains('class AppRouteRegistry'));
+        expect(policy, contains('case AppSection.planner'));
         expect(policy, contains('NavigationRouteClass.durablePrimary'));
         expect(policy, contains('NavigationRouteClass.pageState'));
         expect(policy, contains('NavigationRouteClass.transient'));
@@ -523,6 +524,9 @@ void main() {
         expect(policy, contains("pattern: '/inbox'"));
         expect(policy, contains("pattern: '/nodes'"));
         expect(policy, contains("pattern: '/journal'"));
+        expect(policy, contains("pattern: '/rhythm/today'"));
+        expect(policy, contains('section: AppSection.planner'));
+        expect(policy, contains("canonicalDurableRoute: '/rhythm/today'"));
         expect(policy, contains("pattern: '/settings'"));
         expect(policy, contains("pattern: '/profile/me'"));
         expect(policy, contains("pattern: '/nodes/'"));
@@ -599,6 +603,7 @@ void main() {
         "pattern: '/inbox'",
         "pattern: '/nodes'",
         "pattern: '/journal'",
+        "pattern: '/rhythm/today'",
         "pattern: '/settings'",
         "pattern: '/profile/me'",
         "pattern: '/nodes/'",
@@ -920,6 +925,11 @@ void main() {
           'Future<void> _openKemeticNodes',
           'Future<void> _openSettingsFromMenu',
         );
+        final plannerCommand = _sourceBetween(
+          calendar,
+          'Future<void> _openPlannerPage',
+          'Future<void> _openInboxFromMenu',
+        );
         final dayViewRestore = _sourceBetween(
           calendar,
           'Future<void> _restorePersistentDayViewIfNeeded',
@@ -955,9 +965,110 @@ void main() {
         expect(libraryCommand, contains('AppSection.library'));
         expect(libraryCommand, contains("context.go('/nodes')"));
 
+        expect(plannerCommand, contains('recordPrimaryTabSelection'));
+        expect(plannerCommand, contains('AppSection.planner'));
+        expect(plannerCommand, contains("navContext.go('/rhythm/today')"));
+
         expect(dayViewRestore, contains('canRestoreSurface'));
         expect(dayViewRestore, contains('claimRestoreSurface'));
         expect(dayViewRestore, contains('requireRootTarget: true'));
+      },
+    );
+
+    test(
+      'visible primary menu destinations have durable AppSection commands',
+      () async {
+        final calendar = await File(
+          'lib/features/calendar/calendar_page.dart',
+        ).readAsString();
+        final policy = await File(
+          'lib/core/navigation_persistence_policy.dart',
+        ).readAsString();
+        final mountedActions = _sourceBetween(
+          calendar,
+          'List<_CalendarAction> _calendarActions(',
+          'Future<void> _showActionsMenu(',
+        );
+        final detachedActions = _sourceBetween(
+          calendar,
+          'static List<_CalendarAction> _detachedCalendarActions(',
+          'static Future<void> _openDetachedSharedCalendarsSheet',
+        );
+
+        for (final marker in const <String>[
+          'AppSection.calendar',
+          'AppSection.inbox',
+          'AppSection.library',
+          'AppSection.journal',
+          'AppSection.planner',
+          'AppSection.settings',
+          'AppSection.profile',
+        ]) {
+          expect(policy, contains(marker), reason: marker);
+        }
+
+        expect(
+          _actionBlock(detachedActions, 'Planner', 'Flow Studio'),
+          contains('AppSection.planner'),
+        );
+        expect(
+          _actionBlock(detachedActions, 'Library', 'Journal'),
+          contains('AppSection.library'),
+        );
+        expect(
+          _actionBlock(detachedActions, 'Journal', 'Inbox'),
+          contains('AppSection.journal'),
+        );
+        expect(
+          _actionBlock(detachedActions, 'Inbox', 'Calendars'),
+          contains('AppSection.inbox'),
+        );
+        expect(
+          _actionBlock(detachedActions, 'Home', 'Settings'),
+          contains('AppSection.calendar'),
+        );
+        expect(
+          _actionBlock(detachedActions, 'Settings', 'New note'),
+          contains('AppSection.settings'),
+        );
+
+        expect(
+          _actionBlock(mountedActions, 'Planner', 'Flow Studio'),
+          contains('_openPlannerPage'),
+        );
+        expect(
+          _actionBlock(mountedActions, 'Library', 'Journal'),
+          contains('_openKemeticNodes'),
+        );
+        expect(
+          _actionBlock(mountedActions, 'Journal', 'Inbox'),
+          contains('_openJournalFromAppBar'),
+        );
+        expect(
+          _actionBlock(mountedActions, 'Inbox', 'Calendars'),
+          contains('_openInboxFromMenu'),
+        );
+        expect(
+          _actionBlock(mountedActions, 'Home', 'Settings'),
+          contains('AppSection.calendar'),
+        );
+        expect(
+          _actionBlock(mountedActions, 'Settings', 'New note'),
+          contains('_openSettingsFromMenu'),
+        );
+
+        for (final nonDurableLabel in const <String>[
+          'Flow Studio',
+          'Calendars',
+          'Reflections',
+          'New note',
+        ]) {
+          expect(
+            detachedActions,
+            contains("label: '$nonDurableLabel'"),
+            reason: nonDurableLabel,
+          );
+        }
       },
     );
 
@@ -1130,4 +1241,8 @@ String _sourceBetween(String source, String start, String end) {
   final endIndex = source.indexOf(end, startIndex + start.length);
   expect(endIndex, isNot(-1), reason: 'Missing source marker: $end');
   return source.substring(startIndex, endIndex);
+}
+
+String _actionBlock(String source, String label, String nextLabel) {
+  return _sourceBetween(source, "label: '$label'", "label: '$nextLabel'");
 }
