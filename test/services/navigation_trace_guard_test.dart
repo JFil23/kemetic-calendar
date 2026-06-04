@@ -42,23 +42,44 @@ void main() {
         'menu close started',
         'menu close completed',
         'global menu sheet command enqueue requested',
+        'CalendarPage global menu sheet command enqueue before',
         'CalendarPage global menu sheet command enqueued',
         "global menu route go('/') requested",
         'CalendarPage global menu command waiting',
         'CalendarPage global menu command proceeding before full restoration settle',
+        'CalendarPage global menu sheet command consume stopped',
         'CalendarPage consumed global menu sheet command',
+        'CalendarPage global menu sheet command clear requested',
+        'CalendarPage global menu sheet command cleared',
         'CalendarPage global menu sheet open requested',
         'calendar overlay state save skipped',
+        'calendars sheet helper entered',
+        'calendars sheet overlay state save returned',
+        'calendars sheet show requested',
+        'calendars sheet future created',
+        'calendars sheet future completed',
+        'flow studio sheet helper entered',
+        'flow studio sheet overlay state save returned',
+        'flow studio sheet show requested',
+        'flow studio sheet future created',
+        'flow studio sheet future completed',
         'sheet open success',
         'sheet open error',
         'Profile app-bar tap fired',
         'openProfileFromAnyContext entered',
         'current user id resolved',
         'profile feed continuity clear skipped',
+        'profile router lookup error',
         '/profile/me route command issued',
         'profile route go requested',
         'profile route go completed/current uri',
         'profile route go error',
+        'profile route builder started',
+        'profile route user resolved',
+        'profile route returning ProfilePage',
+        'ProfilePage initState',
+        'ProfilePage build first frame',
+        'ProfilePage first frame completed',
         'Today app-bar tap fired',
         'openMainCalendarAtToday entered',
         'Today restoration state saved',
@@ -126,6 +147,30 @@ void main() {
       await tester.tap(find.text('Tap target'));
       expect(tapCount, 1);
     });
+
+    test(
+      'recordError stores runtime type, message, and stack frames',
+      () async {
+        await NavigationTrace.instance.setEnabled(true);
+
+        try {
+          throw StateError('profile route failed');
+        } catch (error, stackTrace) {
+          NavigationTrace.instance.recordError(
+            'profile route go error',
+            error,
+            stackTrace,
+            state: const <String, Object?>{'route': '/profile/me'},
+          );
+        }
+
+        final joinedEntries = NavigationTrace.instance.entries.join('\n');
+        expect(joinedEntries, contains('profile route go error'));
+        expect(joinedEntries, contains('StateError'));
+        expect(joinedEntries, contains('profile route failed'));
+        expect(joinedEntries, contains('stack1'));
+      },
+    );
 
     test('trace source does not expose runtime secret config names', () async {
       final traceSource = await File(

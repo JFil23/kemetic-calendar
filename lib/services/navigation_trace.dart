@@ -59,6 +59,39 @@ class NavigationTrace extends ChangeNotifier {
     notifyListeners();
   }
 
+  void recordError(
+    String label,
+    Object error,
+    StackTrace stackTrace, {
+    Map<String, Object?> state = const {},
+    int stackLines = 8,
+  }) {
+    if (!_enabled) return;
+    record(
+      label,
+      state: <String, Object?>{
+        ...state,
+        'errorType': error.runtimeType,
+        'error': error.toString(),
+      },
+    );
+    final frames = stackTrace
+        .toString()
+        .split('\n')
+        .map((line) => line.trim())
+        .where((line) => line.isNotEmpty)
+        .take(stackLines);
+    var index = 1;
+    for (final frame in frames) {
+      _addEntry(
+        '${_safeText(label, maxLength: 80)} stack$index '
+        '${_safeText(frame, maxLength: 120)}',
+      );
+      index += 1;
+    }
+    notifyListeners();
+  }
+
   @visibleForTesting
   void resetForTesting() {
     _enabled = false;

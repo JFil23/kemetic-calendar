@@ -142,10 +142,17 @@ print(f"▶ SUPABASE_ANON_KEY: {masked} (len={len(anon)})")
 PY
 
 flutter clean
-flutter build web --release \
-  --dart-define-from-file="$BUILD_ENV_FILE" \
-  --no-wasm-dry-run \
+build_args=(
+  web
+  --release
+  --dart-define-from-file="$BUILD_ENV_FILE"
+  --no-wasm-dry-run
   --pwa-strategy=none
+)
+if [[ "${WEB_SOURCE_MAPS:-}" == "1" ]]; then
+  build_args+=(--source-maps)
+fi
+flutter build "${build_args[@]}"
 
 python3 - <<'PY' "$BUILD_VERSION"
 import json

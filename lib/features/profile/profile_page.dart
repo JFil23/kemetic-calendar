@@ -197,6 +197,7 @@ class _ProfilePageState extends State<ProfilePage>
   double _feedTopPullDistance = 0;
   Timer? _continuitySaveDebounce;
   bool _continuityRestored = false;
+  bool _buildTraceRecorded = false;
   double? _pendingProfileScrollOffset;
   double? _pendingFeedScrollOffset;
   String? _pendingExpandedFeedIdentity;
@@ -213,6 +214,27 @@ class _ProfilePageState extends State<ProfilePage>
 
   String? get _currentUserId => Supabase.instance.client.auth.currentUser?.id;
 
+  String _navigationTraceUserId(String? userId) {
+    final trimmed = userId?.trim();
+    if (trimmed == null || trimmed.isEmpty) return '<empty>';
+    final currentUserId = _currentUserId;
+    if (currentUserId != null && currentUserId == trimmed) {
+      return '<currentUser>';
+    }
+    return '<id:${trimmed.length}>';
+  }
+
+  Map<String, Object?> _navigationTraceProfileState() {
+    return <String, Object?>{
+      'userId': _navigationTraceUserId(widget.userId),
+      'isMyProfile': widget.isMyProfile,
+      'openedFromCalendar': widget.openedFromCalendar,
+      'openedFromCalendarSwipe': widget.openedFromCalendarSwipe,
+      'currentUserIdPresent': _currentUserId != null,
+      'mounted': mounted,
+    };
+  }
+
   bool _ownsPost(FlowPost post) {
     final currentUserId = _currentUserId;
     return currentUserId != null && currentUserId == post.userId;
@@ -226,6 +248,10 @@ class _ProfilePageState extends State<ProfilePage>
   @override
   void initState() {
     super.initState();
+    NavigationTrace.instance.record(
+      'ProfilePage initState',
+      state: _navigationTraceProfileState(),
+    );
     WidgetsBinding.instance.addObserver(this);
     _postPageController = PageController(viewportFraction: 0.96);
     _insightPostPageController = PageController(viewportFraction: 0.96);
@@ -1385,6 +1411,19 @@ class _ProfilePageState extends State<ProfilePage>
 
   @override
   Widget build(BuildContext context) {
+    if (!_buildTraceRecorded) {
+      _buildTraceRecorded = true;
+      NavigationTrace.instance.record(
+        'ProfilePage build first frame',
+        state: _navigationTraceProfileState(),
+      );
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        NavigationTrace.instance.record(
+          'ProfilePage first frame completed',
+          state: _navigationTraceProfileState(),
+        );
+      });
+    }
     final showBackdrop = !_loading && _profile != null;
     final title = _profile?.handle ?? 'Profile';
     final hydratingLocalCache = _cacheHydrating && _profile == null;

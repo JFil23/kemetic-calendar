@@ -863,6 +863,10 @@ void main() {
       expect(commandSource, contains('_pendingOpenCalendarsFromGlobalMenu'));
       expect(
         commandSource,
+        contains('CalendarPage global menu sheet command enqueue before'),
+      );
+      expect(
+        commandSource,
         contains('_schedulePendingGlobalMenuSheetCommandIfAny'),
       );
       expect(
@@ -878,6 +882,14 @@ void main() {
           'CalendarPage global menu command proceeding before full restoration settle',
         ),
       );
+      expect(
+        consumerSource,
+        contains('CalendarPage global menu sheet command clear requested'),
+      );
+      expect(
+        consumerSource,
+        contains('CalendarPage global menu sheet command consume stopped'),
+      );
       expect(consumerSource, contains('_getFlowStudioCallback()(null)'));
       expect(
         consumerSource,
@@ -888,6 +900,45 @@ void main() {
         contains('CalendarPage consumed global menu sheet command'),
       );
     });
+
+    test(
+      'CalendarPage sheet helpers expose modal future diagnostics',
+      () async {
+        final source = await File(
+          'lib/features/calendar/calendar_page.dart',
+        ).readAsString();
+        final calendarsSource = _sourceBetween(
+          source,
+          'Future<void> _openSharedCalendarsSheet(',
+          'Future<bool> _openCalendarScopedNoteDialog',
+        );
+        final flowStudioSource = _sourceBetween(
+          source,
+          'Future<void> _openFlowStudioSheet(',
+          '// Directly open My Flows list',
+        );
+
+        for (final fragment in <String>[
+          'calendars sheet helper entered',
+          'calendars sheet show requested',
+          'calendars sheet future created',
+          'calendars sheet future completed',
+        ]) {
+          expect(calendarsSource, contains(fragment));
+        }
+        expect(calendarsSource, contains('recordError'));
+
+        for (final fragment in <String>[
+          'flow studio sheet helper entered',
+          'flow studio sheet show requested',
+          'flow studio sheet future created',
+          'flow studio sheet future completed',
+        ]) {
+          expect(flowStudioSource, contains(fragment));
+        }
+        expect(flowStudioSource, contains('recordError'));
+      },
+    );
 
     test(
       'global bottom menu is available on profile and feed routes',

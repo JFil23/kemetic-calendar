@@ -1146,11 +1146,16 @@ void main() {
         expect(detachedFlow, contains('if (!preserveForLifecycle)'));
         expect(
           rootShared,
-          contains('if (_sharedCalendarsSheetOpenOrOpening) return;'),
+          contains('if (_sharedCalendarsSheetOpenOrOpening) {'),
+        );
+        expect(rootShared, contains("phase: 'alreadyOpening'"));
+        expect(
+          rootFlow,
+          contains('if (!mounted || _flowStudioSheetOpenOrOpening) {'),
         );
         expect(
           rootFlow,
-          contains('if (!mounted || _flowStudioSheetOpenOrOpening) return;'),
+          contains("phase: !mounted ? 'unmounted' : 'alreadyOpening'"),
         );
         expect(rootFlow, contains('shouldPreserveOverlayForLifecycleClose'));
         expect(rootFlow, contains('if (!preserveForLifecycle)'));
@@ -1178,16 +1183,14 @@ void main() {
         expect(
           rootShared.indexOf('_saveCalendarOverlayState'),
           lessThan(
-            rootShared.indexOf(
-              'if (_sharedCalendarsSheetOpenOrOpening) return;',
-            ),
+            rootShared.indexOf('if (_sharedCalendarsSheetOpenOrOpening) {'),
           ),
         );
         expect(
           rootFlow.indexOf('_saveCalendarOverlayState'),
           greaterThan(
             rootFlow.indexOf(
-              'if (!mounted || _flowStudioSheetOpenOrOpening) return;',
+              'if (!mounted || _flowStudioSheetOpenOrOpening) {',
             ),
           ),
         );

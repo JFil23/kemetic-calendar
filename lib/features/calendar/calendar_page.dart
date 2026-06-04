@@ -30,6 +30,9 @@ import '../../main.dart'
         Events,
         globalFloatingMenuModalDepthValue,
         globalMenuButtonKey,
+        rootNavigatorContextMountedForNavigationTrace,
+        rootNavigatorOverlayContextMountedForNavigationTrace,
+        rootRouterUriForNavigationTrace,
         routeObserver;
 import '../sharing/share_flow_sheet.dart';
 import '../../data/share_models.dart';
@@ -3721,6 +3724,12 @@ class CalendarPage extends StatefulWidget {
       _pendingOpenFlowStudioFromGlobalMenu ||
       _pendingOpenCalendarsFromGlobalMenu;
 
+  static String _pendingGlobalMenuSheetCommandTraceValue() {
+    if (_pendingOpenFlowStudioFromGlobalMenu) return 'flowStudio';
+    if (_pendingOpenCalendarsFromGlobalMenu) return 'calendars';
+    return '<none>';
+  }
+
   @visibleForTesting
   static bool get debugPendingOpenFlowStudioFromGlobalMenu =>
       _pendingOpenFlowStudioFromGlobalMenu;
@@ -3737,11 +3746,25 @@ class CalendarPage extends StatefulWidget {
   }
 
   static void enqueueOpenFlowStudioFromGlobalMenu() {
+    NavigationTrace.instance.record(
+      'CalendarPage global menu sheet command enqueue before',
+      state: <String, Object?>{
+        'sheet': 'flowStudio',
+        'pending': _pendingGlobalMenuSheetCommandTraceValue(),
+        'calendarMounted': _mountedState != null,
+        'inFlight': _mountedState?._globalMenuSheetCommandInFlight ?? false,
+      },
+    );
     _pendingOpenFlowStudioFromGlobalMenu = true;
     _pendingOpenCalendarsFromGlobalMenu = false;
     NavigationTrace.instance.record(
       'CalendarPage global menu sheet command enqueued',
-      state: const <String, Object?>{'sheet': 'flowStudio'},
+      state: <String, Object?>{
+        'sheet': 'flowStudio',
+        'pending': _pendingGlobalMenuSheetCommandTraceValue(),
+        'calendarMounted': _mountedState != null,
+        'inFlight': _mountedState?._globalMenuSheetCommandInFlight ?? false,
+      },
     );
     _mountedState?._schedulePendingGlobalMenuSheetCommandIfAny(
       trigger: 'enqueue:flowStudio',
@@ -3749,11 +3772,25 @@ class CalendarPage extends StatefulWidget {
   }
 
   static void enqueueOpenCalendarsFromGlobalMenu() {
+    NavigationTrace.instance.record(
+      'CalendarPage global menu sheet command enqueue before',
+      state: <String, Object?>{
+        'sheet': 'calendars',
+        'pending': _pendingGlobalMenuSheetCommandTraceValue(),
+        'calendarMounted': _mountedState != null,
+        'inFlight': _mountedState?._globalMenuSheetCommandInFlight ?? false,
+      },
+    );
     _pendingOpenCalendarsFromGlobalMenu = true;
     _pendingOpenFlowStudioFromGlobalMenu = false;
     NavigationTrace.instance.record(
       'CalendarPage global menu sheet command enqueued',
-      state: const <String, Object?>{'sheet': 'calendars'},
+      state: <String, Object?>{
+        'sheet': 'calendars',
+        'pending': _pendingGlobalMenuSheetCommandTraceValue(),
+        'calendarMounted': _mountedState != null,
+        'inFlight': _mountedState?._globalMenuSheetCommandInFlight ?? false,
+      },
     );
     _mountedState?._schedulePendingGlobalMenuSheetCommandIfAny(
       trigger: 'enqueue:calendars',
@@ -5168,6 +5205,35 @@ class CalendarPage extends StatefulWidget {
     return uri.toString();
   }
 
+  static String _routeLocationForNavigationTrace(BuildContext context) {
+    try {
+      return GoRouter.of(
+        context,
+      ).routerDelegate.currentConfiguration.uri.toString();
+    } catch (error) {
+      return '<unavailable:${error.runtimeType}>';
+    }
+  }
+
+  static Map<String, Object?> _profileNavigationTraceState(
+    BuildContext context, {
+    String? phase,
+    String? targetRoute,
+  }) {
+    return <String, Object?>{
+      if (phase != null) 'phase': phase,
+      if (targetRoute != null) 'targetRoute': targetRoute,
+      'currentRoute': _routeLocationForNavigationTrace(context),
+      'rootRoute': rootRouterUriForNavigationTrace,
+      'contextMounted': context.mounted,
+      'rootNavigatorContextMounted':
+          rootNavigatorContextMountedForNavigationTrace,
+      'rootNavigatorOverlayMounted':
+          rootNavigatorOverlayContextMountedForNavigationTrace,
+      'calendarStateMounted': globalKey.currentState?.mounted ?? false,
+    };
+  }
+
   static Future<void> openProfileFromAnyContext(BuildContext context) async {
     NavigationTrace.instance.record('openProfileFromAnyContext entered');
     final state = _mountedState;
@@ -5207,25 +5273,51 @@ class CalendarPage extends StatefulWidget {
       );
     }
     if (!context.mounted) return;
-    final router = GoRouter.of(context);
+    final GoRouter router;
+    try {
+      router = GoRouter.of(context);
+    } catch (error, stackTrace) {
+      NavigationTrace.instance.recordError(
+        'profile router lookup error',
+        error,
+        stackTrace,
+        state: _profileNavigationTraceState(
+          context,
+          phase: 'routerLookup',
+          targetRoute: '/profile/me',
+        ),
+      );
+      rethrow;
+    }
     NavigationTrace.instance.record('/profile/me route command issued');
     NavigationTrace.instance.record(
       'profile route go requested',
-      state: const <String, Object?>{'route': '/profile/me'},
+      state: _profileNavigationTraceState(
+        context,
+        phase: 'beforeGo',
+        targetRoute: '/profile/me',
+      ),
     );
     try {
       router.go('/profile/me');
       NavigationTrace.instance.record(
         'profile route go completed/current uri',
-        state: <String, Object?>{
-          'currentUri': router.routerDelegate.currentConfiguration.uri
-              .toString(),
-        },
+        state: _profileNavigationTraceState(
+          context,
+          phase: 'afterGo',
+          targetRoute: '/profile/me',
+        ),
       );
-    } catch (error) {
-      NavigationTrace.instance.record(
+    } catch (error, stackTrace) {
+      NavigationTrace.instance.recordError(
         'profile route go error',
-        state: <String, Object?>{'error': error.runtimeType},
+        error,
+        stackTrace,
+        state: _profileNavigationTraceState(
+          context,
+          phase: 'goCatch',
+          targetRoute: '/profile/me',
+        ),
       );
       rethrow;
     }
@@ -8583,6 +8675,13 @@ class CalendarPageState extends State<CalendarPage>
   void _clearPendingGlobalMenuSheetCommand(
     _CalendarGlobalMenuSheetCommand command,
   ) {
+    NavigationTrace.instance.record(
+      'CalendarPage global menu sheet command clear requested',
+      state: <String, Object?>{
+        'sheet': _globalMenuSheetCommandName(command),
+        'pending': CalendarPage._pendingGlobalMenuSheetCommandTraceValue(),
+      },
+    );
     switch (command) {
       case _CalendarGlobalMenuSheetCommand.flowStudio:
         CalendarPage._pendingOpenFlowStudioFromGlobalMenu = false;
@@ -8591,6 +8690,13 @@ class CalendarPageState extends State<CalendarPage>
         CalendarPage._pendingOpenCalendarsFromGlobalMenu = false;
         break;
     }
+    NavigationTrace.instance.record(
+      'CalendarPage global menu sheet command cleared',
+      state: <String, Object?>{
+        'sheet': _globalMenuSheetCommandName(command),
+        'pending': CalendarPage._pendingGlobalMenuSheetCommandTraceValue(),
+      },
+    );
   }
 
   Future<bool> _consumePendingGlobalMenuSheetCommand({
@@ -8603,8 +8709,33 @@ class CalendarPageState extends State<CalendarPage>
       command: command,
       trigger: trigger,
     );
-    if (!ready || !mounted) return false;
-    if (_pendingGlobalMenuSheetCommand() != command) return false;
+    if (!ready || !mounted) {
+      NavigationTrace.instance.record(
+        'CalendarPage global menu sheet command consume stopped',
+        state: <String, Object?>{
+          'sheet': sheet,
+          'trigger': trigger,
+          'reason': !mounted ? 'unmounted' : 'notReady',
+          'pending': CalendarPage._pendingGlobalMenuSheetCommandTraceValue(),
+        },
+      );
+      if (mounted && !ready) {
+        _clearPendingGlobalMenuSheetCommand(command);
+      }
+      return false;
+    }
+    if (_pendingGlobalMenuSheetCommand() != command) {
+      NavigationTrace.instance.record(
+        'CalendarPage global menu sheet command consume stopped',
+        state: <String, Object?>{
+          'sheet': sheet,
+          'trigger': trigger,
+          'reason': 'pendingChanged',
+          'pending': CalendarPage._pendingGlobalMenuSheetCommandTraceValue(),
+        },
+      );
+      return false;
+    }
 
     _clearPendingGlobalMenuSheetCommand(command);
     NavigationTrace.instance.record(
@@ -9109,9 +9240,28 @@ class CalendarPageState extends State<CalendarPage>
     );
   }
 
+  Map<String, Object?> _calendarSheetTraceState(String sheet, {String? phase}) {
+    final stateMounted = mounted;
+    return <String, Object?>{
+      'sheet': sheet,
+      'host': 'calendar',
+      if (phase != null) 'phase': phase,
+      'mounted': stateMounted,
+      'contextMounted': stateMounted ? context.mounted : false,
+      'route': stateMounted ? _globalMenuCommandRouteLabel() : '<unmounted>',
+      'modalDepth': globalFloatingMenuModalDepthValue,
+      'sharedOpening': _sharedCalendarsSheetOpenOrOpening,
+      'flowOpening': _flowStudioSheetOpenOrOpening,
+    };
+  }
+
   Future<void> _openSharedCalendarsSheet({
     Map<String, dynamic>? restorationState,
   }) async {
+    NavigationTrace.instance.record(
+      'calendars sheet helper entered',
+      state: _calendarSheetTraceState('calendars', phase: 'entered'),
+    );
     await _saveCalendarOverlayState(
       _kCalendarOverlayKindSharedCalendars,
       <String, dynamic>{
@@ -9120,18 +9270,35 @@ class CalendarPageState extends State<CalendarPage>
         ),
       },
     );
-    if (!mounted) return;
-    if (_sharedCalendarsSheetOpenOrOpening) return;
+    NavigationTrace.instance.record(
+      'calendars sheet overlay state save returned',
+      state: _calendarSheetTraceState('calendars', phase: 'overlaySaved'),
+    );
+    if (!mounted) {
+      NavigationTrace.instance.record(
+        'calendars sheet open stopped',
+        state: _calendarSheetTraceState('calendars', phase: 'unmounted'),
+      );
+      return;
+    }
+    if (_sharedCalendarsSheetOpenOrOpening) {
+      NavigationTrace.instance.record(
+        'calendars sheet open stopped',
+        state: _calendarSheetTraceState('calendars', phase: 'alreadyOpening'),
+      );
+      return;
+    }
     _sharedCalendarsSheetOpenOrOpening = true;
     try {
       NavigationTrace.instance.record(
         'sheet open success',
-        state: const <String, Object?>{
-          'sheet': 'calendars',
-          'host': 'calendar',
-        },
+        state: _calendarSheetTraceState('calendars', phase: 'beforeShow'),
       );
-      final changed = await SharedCalendarsSheet.show(
+      NavigationTrace.instance.record(
+        'calendars sheet show requested',
+        state: _calendarSheetTraceState('calendars', phase: 'showRequested'),
+      );
+      final sheetFuture = SharedCalendarsSheet.show(
         context,
         repo: _sharedCalendarsRepo,
         onAddEventRequested: _openCalendarScopedNoteDialog,
@@ -9155,6 +9322,18 @@ class CalendarPageState extends State<CalendarPage>
           );
         },
       );
+      NavigationTrace.instance.record(
+        'calendars sheet future created',
+        state: _calendarSheetTraceState('calendars', phase: 'futureCreated'),
+      );
+      final changed = await sheetFuture;
+      NavigationTrace.instance.record(
+        'calendars sheet future completed',
+        state: <String, Object?>{
+          ..._calendarSheetTraceState('calendars', phase: 'futureCompleted'),
+          'changed': changed == true,
+        },
+      );
       await _clearCalendarOverlayState(_kCalendarOverlayKindSharedCalendars);
       await _loadCalendarState();
       if (changed == true) {
@@ -9162,18 +9341,20 @@ class CalendarPageState extends State<CalendarPage>
       } else {
         _refreshNoteCacheUi();
       }
-    } catch (error) {
-      NavigationTrace.instance.record(
+    } catch (error, stackTrace) {
+      NavigationTrace.instance.recordError(
         'sheet open error',
-        state: <String, Object?>{
-          'sheet': 'calendars',
-          'host': 'calendar',
-          'error': error.runtimeType,
-        },
+        error,
+        stackTrace,
+        state: _calendarSheetTraceState('calendars', phase: 'catch'),
       );
       rethrow;
     } finally {
       _sharedCalendarsSheetOpenOrOpening = false;
+      NavigationTrace.instance.record(
+        'calendars sheet open finished',
+        state: _calendarSheetTraceState('calendars', phase: 'finally'),
+      );
     }
   }
 
@@ -19426,25 +19607,63 @@ class CalendarPageState extends State<CalendarPage>
           AppSection.profile,
         ),
       );
-      final router = GoRouter.of(context);
+      final GoRouter router;
+      try {
+        router = GoRouter.of(context);
+      } catch (error, stackTrace) {
+        NavigationTrace.instance.recordError(
+          'profile router lookup error',
+          error,
+          stackTrace,
+          state: <String, Object?>{
+            ...CalendarPage._profileNavigationTraceState(
+              context,
+              phase: 'routerLookup',
+              targetRoute: '/profile/me',
+            ),
+            'openedFromCalendarSwipe': openedFromCalendarSwipe,
+          },
+        );
+        rethrow;
+      }
       NavigationTrace.instance.record('/profile/me route command issued');
       NavigationTrace.instance.record(
         'profile route go requested',
-        state: const <String, Object?>{'route': '/profile/me'},
+        state: <String, Object?>{
+          ...CalendarPage._profileNavigationTraceState(
+            context,
+            phase: 'beforeGo',
+            targetRoute: '/profile/me',
+          ),
+          'openedFromCalendarSwipe': openedFromCalendarSwipe,
+        },
       );
       try {
         router.go('/profile/me');
         NavigationTrace.instance.record(
           'profile route go completed/current uri',
           state: <String, Object?>{
-            'currentUri': router.routerDelegate.currentConfiguration.uri
-                .toString(),
+            ...CalendarPage._profileNavigationTraceState(
+              context,
+              phase: 'afterGo',
+              targetRoute: '/profile/me',
+            ),
+            'openedFromCalendarSwipe': openedFromCalendarSwipe,
           },
         );
-      } catch (error) {
-        NavigationTrace.instance.record(
+      } catch (error, stackTrace) {
+        NavigationTrace.instance.recordError(
           'profile route go error',
-          state: <String, Object?>{'error': error.runtimeType},
+          error,
+          stackTrace,
+          state: <String, Object?>{
+            ...CalendarPage._profileNavigationTraceState(
+              context,
+              phase: 'goCatch',
+              targetRoute: '/profile/me',
+            ),
+            'openedFromCalendarSwipe': openedFromCalendarSwipe,
+          },
         );
         rethrow;
       }
@@ -19764,7 +19983,20 @@ class CalendarPageState extends State<CalendarPage>
     List<Route<dynamic>> Function(NavigatorState navigator)?
     initialRoutesBuilder,
   }) async {
-    if (!mounted || _flowStudioSheetOpenOrOpening) return;
+    NavigationTrace.instance.record(
+      'flow studio sheet helper entered',
+      state: _calendarSheetTraceState('flowStudio', phase: 'entered'),
+    );
+    if (!mounted || _flowStudioSheetOpenOrOpening) {
+      NavigationTrace.instance.record(
+        'flow studio sheet open stopped',
+        state: _calendarSheetTraceState(
+          'flowStudio',
+          phase: !mounted ? 'unmounted' : 'alreadyOpening',
+        ),
+      );
+      return;
+    }
     _flowStudioSheetOpenOrOpening = true;
     UiGuards.disableJournalSwipe();
     final isTablet = _isTablet(context);
@@ -19773,16 +20005,27 @@ class CalendarPageState extends State<CalendarPage>
         _kCalendarOverlayKindFlowStudio,
         continuityState,
       );
-      if (!mounted) return;
+      NavigationTrace.instance.record(
+        'flow studio sheet overlay state save returned',
+        state: _calendarSheetTraceState('flowStudio', phase: 'overlaySaved'),
+      );
+      if (!mounted) {
+        NavigationTrace.instance.record(
+          'flow studio sheet open stopped',
+          state: _calendarSheetTraceState('flowStudio', phase: 'unmounted'),
+        );
+        return;
+      }
 
       NavigationTrace.instance.record(
         'sheet open success',
-        state: const <String, Object?>{
-          'sheet': 'flowStudio',
-          'host': 'calendar',
-        },
+        state: _calendarSheetTraceState('flowStudio', phase: 'beforeShow'),
       );
-      final result = await showModalBottomSheet<_FlowStudioResult?>(
+      NavigationTrace.instance.record(
+        'flow studio sheet show requested',
+        state: _calendarSheetTraceState('flowStudio', phase: 'showRequested'),
+      );
+      final sheetFuture = showModalBottomSheet<_FlowStudioResult?>(
         context: context,
         isScrollControlled: true,
         backgroundColor: Colors.transparent,
@@ -19879,18 +20122,28 @@ class CalendarPageState extends State<CalendarPage>
           );
         },
       );
+      NavigationTrace.instance.record(
+        'flow studio sheet future created',
+        state: _calendarSheetTraceState('flowStudio', phase: 'futureCreated'),
+      );
+      final result = await sheetFuture;
+      NavigationTrace.instance.record(
+        'flow studio sheet future completed',
+        state: <String, Object?>{
+          ..._calendarSheetTraceState('flowStudio', phase: 'futureCompleted'),
+          'hasResult': result != null,
+        },
+      );
 
       if (result != null) {
         await _applyFlowStudioResult(result);
       }
-    } catch (error) {
-      NavigationTrace.instance.record(
+    } catch (error, stackTrace) {
+      NavigationTrace.instance.recordError(
         'sheet open error',
-        state: <String, Object?>{
-          'sheet': 'flowStudio',
-          'host': 'calendar',
-          'error': error.runtimeType,
-        },
+        error,
+        stackTrace,
+        state: _calendarSheetTraceState('flowStudio', phase: 'catch'),
       );
       rethrow;
     } finally {
@@ -19906,6 +20159,12 @@ class CalendarPageState extends State<CalendarPage>
         UiGuards.enableJournalSwipe();
       } finally {
         _flowStudioSheetOpenOrOpening = false;
+        if (mounted) {
+          NavigationTrace.instance.record(
+            'flow studio sheet open finished',
+            state: _calendarSheetTraceState('flowStudio', phase: 'finally'),
+          );
+        }
       }
     }
   }

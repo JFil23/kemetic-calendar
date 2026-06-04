@@ -746,6 +746,20 @@ bool _debugForceGlobalFloatingMenuForTesting = false;
 
 int get globalFloatingMenuModalDepthValue => _floatingMenuModalDepth.value;
 
+bool get rootNavigatorContextMountedForNavigationTrace =>
+    _rootNavigatorKey.currentContext?.mounted ?? false;
+
+bool get rootNavigatorOverlayContextMountedForNavigationTrace =>
+    _rootNavigatorKey.currentState?.overlay?.context.mounted ?? false;
+
+String get rootRouterUriForNavigationTrace {
+  try {
+    return _router.routerDelegate.currentConfiguration.uri.toString();
+  } catch (error) {
+    return '<unavailable:${error.runtimeType}>';
+  }
+}
+
 class _FloatingMenuRouteObserver extends NavigatorObserver {
   bool _suppressesFloatingMenu(Route<dynamic> route) {
     if (route.settings.name == calendarActionsMenuRouteName) return false;
@@ -1231,6 +1245,16 @@ String? _redirectRetiredRhythmRoute(Uri uri) {
   return null;
 }
 
+String _navigationTraceProfileUserId(String? userId, String? currentUserId) {
+  final trimmed = userId?.trim();
+  if (trimmed == null || trimmed.isEmpty) return '<empty>';
+  if (trimmed == 'me') return 'me';
+  if (currentUserId != null && currentUserId == trimmed) {
+    return '<currentUser>';
+  }
+  return '<id:${trimmed.length}>';
+}
+
 late final GoRouter _router;
 
 GoRouter _createRouter({required String initialLocation}) => GoRouter(
@@ -1413,10 +1437,45 @@ GoRouter _createRouter({required String initialLocation}) => GoRouter(
       builder: (context, state) {
         final rawUserId = Uri.decodeComponent(state.pathParameters['userId']!);
         final currentUserId = supabase.auth.currentUser?.id;
+        NavigationTrace.instance.record(
+          'profile route builder started',
+          state: <String, Object?>{
+            'uri': state.uri.toString(),
+            'rawUserId': _navigationTraceProfileUserId(
+              rawUserId,
+              currentUserId,
+            ),
+            'currentUserIdPresent': currentUserId != null,
+          },
+        );
         final userId = rawUserId == 'me' ? currentUserId : rawUserId;
+        NavigationTrace.instance.record(
+          'profile route user resolved',
+          state: <String, Object?>{
+            'rawUserId': _navigationTraceProfileUserId(
+              rawUserId,
+              currentUserId,
+            ),
+            'resolvedUserId': _navigationTraceProfileUserId(
+              userId,
+              currentUserId,
+            ),
+            'hasResolvedUserId': userId != null && userId.trim().isNotEmpty,
+          },
+        );
         if (userId == null || userId.trim().isEmpty) {
           return const AuthGate();
         }
+        NavigationTrace.instance.record(
+          'profile route returning ProfilePage',
+          state: <String, Object?>{
+            'resolvedUserId': _navigationTraceProfileUserId(
+              userId,
+              currentUserId,
+            ),
+            'isMyProfile': currentUserId != null && currentUserId == userId,
+          },
+        );
         return SessionTrackedRoute(
           location: state.uri.toString(),
           child: ProfilePage(
