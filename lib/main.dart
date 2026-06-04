@@ -744,6 +744,8 @@ const bool _debugForceGlobalFloatingMenu = bool.fromEnvironment(
 );
 bool _debugForceGlobalFloatingMenuForTesting = false;
 
+int get globalFloatingMenuModalDepthValue => _floatingMenuModalDepth.value;
+
 class _FloatingMenuRouteObserver extends NavigatorObserver {
   bool _suppressesFloatingMenu(Route<dynamic> route) {
     if (route.settings.name == calendarActionsMenuRouteName) return false;
@@ -2187,19 +2189,27 @@ class _GlobalFloatingMenuShellState extends State<_GlobalFloatingMenuShell>
   }
 
   void _navigateFromMenu(String location) {
-    _router.go(location);
+    widget.router.go(location);
   }
 
-  ({BuildContext context, String source}) _floatingMenuActionContextSnapshot() {
-    final overlayContext = _rootNavigatorKey.currentState?.overlay?.context;
-    if (overlayContext != null) {
-      return (context: overlayContext, source: 'rootOverlay');
+  bool get _isOnCalendarRootRoute =>
+      _currentUri.path.isEmpty || _currentUri.path == '/';
+
+  void _routeToCalendarForGlobalMenuSheetCommand(String sheet) {
+    if (_isOnCalendarRootRoute) {
+      _traceNavigation(
+        'global menu sheet command already on calendar',
+        mediaContext: context,
+        state: <String, Object?>{'sheet': sheet},
+      );
+      return;
     }
-    final rootContext = _rootNavigatorKey.currentContext;
-    if (rootContext != null) {
-      return (context: rootContext, source: 'rootNavigator');
-    }
-    return (context: context, source: 'shell');
+    _traceNavigation(
+      "global menu route go('/') requested",
+      mediaContext: context,
+      state: <String, Object?>{'sheet': sheet},
+    );
+    widget.router.go('/');
   }
 
   Future<void> _openFlowStudioFromMenu() async {
@@ -2208,35 +2218,15 @@ class _GlobalFloatingMenuShellState extends State<_GlobalFloatingMenuShell>
       mediaContext: context,
       state: const <String, Object?>{'sheet': 'flowStudio'},
     );
-    final actionSnapshot = _floatingMenuActionContextSnapshot();
-    final actionContext = actionSnapshot.context;
-    _traceNavigation(
-      'root/overlay context resolved',
-      mediaContext: actionContext,
-      state: <String, Object?>{
-        'source': actionSnapshot.source,
-        'sheet': 'flowStudio',
-      },
-    );
     await _closeFloatingMenu();
-    if (!actionContext.mounted) return;
+    if (!mounted) return;
     _traceNavigation(
-      'sheet open requested',
-      mediaContext: actionContext,
+      'global menu sheet command enqueue requested',
+      mediaContext: context,
       state: const <String, Object?>{'sheet': 'flowStudio'},
     );
-    try {
-      await CalendarPage.openFlowStudioFromAnyContext(actionContext);
-    } catch (error) {
-      _traceNavigation(
-        'sheet open error',
-        state: <String, Object?>{
-          'sheet': 'flowStudio',
-          'error': error.runtimeType,
-        },
-      );
-      rethrow;
-    }
+    CalendarPage.enqueueOpenFlowStudioFromGlobalMenu();
+    _routeToCalendarForGlobalMenuSheetCommand('flowStudio');
   }
 
   Future<void> _openCalendarsFromMenu() async {
@@ -2245,35 +2235,15 @@ class _GlobalFloatingMenuShellState extends State<_GlobalFloatingMenuShell>
       mediaContext: context,
       state: const <String, Object?>{'sheet': 'calendars'},
     );
-    final actionSnapshot = _floatingMenuActionContextSnapshot();
-    final actionContext = actionSnapshot.context;
-    _traceNavigation(
-      'root/overlay context resolved',
-      mediaContext: actionContext,
-      state: <String, Object?>{
-        'source': actionSnapshot.source,
-        'sheet': 'calendars',
-      },
-    );
     await _closeFloatingMenu();
-    if (!actionContext.mounted) return;
+    if (!mounted) return;
     _traceNavigation(
-      'sheet open requested',
-      mediaContext: actionContext,
+      'global menu sheet command enqueue requested',
+      mediaContext: context,
       state: const <String, Object?>{'sheet': 'calendars'},
     );
-    try {
-      await CalendarPage.openSharedCalendarsFromAnyContext(actionContext);
-    } catch (error) {
-      _traceNavigation(
-        'sheet open error',
-        state: <String, Object?>{
-          'sheet': 'calendars',
-          'error': error.runtimeType,
-        },
-      );
-      rethrow;
-    }
+    CalendarPage.enqueueOpenCalendarsFromGlobalMenu();
+    _routeToCalendarForGlobalMenuSheetCommand('calendars');
   }
 
   void _openMaatGuidance(MaatGuidanceDelivery delivery) {

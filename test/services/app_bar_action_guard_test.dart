@@ -371,21 +371,21 @@ void main() {
     });
 
     testWidgets(
-      'global floating menu dispatches Flow Studio and Calendars callbacks',
+      'global floating menu enqueues CalendarPage-owned sheet commands',
       (tester) async {
         tester.view.physicalSize = const Size(1170, 2532);
         tester.view.devicePixelRatio = 3;
         addTearDown(tester.view.resetPhysicalSize);
         addTearDown(tester.view.resetDevicePixelRatio);
         addTearDown(app.resetGlobalFloatingMenuShellForTesting);
+        CalendarPage.debugResetGlobalMenuSheetCommands();
+        addTearDown(CalendarPage.debugResetGlobalMenuSheetCommands);
 
         final openedActions = <String>[];
         CalendarPage.debugOpenFlowStudioFromAnyContext = (context) async {
-          expect(context.mounted, isTrue);
           openedActions.add('Flow Studio');
         };
         CalendarPage.debugOpenSharedCalendarsFromAnyContext = (context) async {
-          expect(context.mounted, isTrue);
           openedActions.add('Calendars');
         };
         addTearDown(() {
@@ -394,12 +394,17 @@ void main() {
         });
 
         final router = GoRouter(
-          initialLocation: '/',
+          initialLocation: '/profile/other-user',
           routes: [
             GoRoute(
               path: '/',
               builder: (context, state) =>
                   const Scaffold(body: Text('Calendar route')),
+            ),
+            GoRoute(
+              path: '/profile/:userId',
+              builder: (context, state) =>
+                  const Scaffold(body: Text('Profile route')),
             ),
           ],
         );
@@ -425,6 +430,15 @@ void main() {
         await tester.pump();
         await tester.pump(const Duration(milliseconds: 260));
 
+        expect(openedActions, isEmpty);
+        expect(CalendarPage.debugPendingOpenFlowStudioFromGlobalMenu, isTrue);
+        expect(CalendarPage.debugPendingOpenCalendarsFromGlobalMenu, isFalse);
+        expect(
+          router.routerDelegate.currentConfiguration.uri.path,
+          '/',
+          reason: 'Global menu sheet commands should route to CalendarPage.',
+        );
+
         await tester.tap(find.byKey(app.globalMenuButtonKey));
         await tester.pump();
         await tester.pump(const Duration(milliseconds: 260));
@@ -432,7 +446,9 @@ void main() {
         await tester.pump();
         await tester.pump(const Duration(milliseconds: 260));
 
-        expect(openedActions, <String>['Flow Studio', 'Calendars']);
+        expect(openedActions, isEmpty);
+        expect(CalendarPage.debugPendingOpenFlowStudioFromGlobalMenu, isFalse);
+        expect(CalendarPage.debugPendingOpenCalendarsFromGlobalMenu, isTrue);
       },
     );
 
@@ -627,7 +643,7 @@ void main() {
       ]);
       _expectTooltipAction(appBar, 'My Profile', <String>[
         'KemeticAppBarProfileIcon',
-        '_openProfile(context)',
+        'CalendarPage.openProfileFromAnyContext(context)',
       ]);
     });
 
@@ -646,9 +662,9 @@ void main() {
         expect(openProfile, contains('clearProfileFeedContinuity(userId)'));
         expect(
           openProfile.indexOf('clearProfileFeedContinuity(userId)'),
-          lessThan(openProfile.indexOf("context.go('/profile/me')")),
+          lessThan(openProfile.indexOf("router.go('/profile/me')")),
         );
-        expect(openProfile, isNot(contains("context.go('/profile/\${")));
+        expect(openProfile, isNot(contains("router.go('/profile/\${")));
       },
     );
 
@@ -734,8 +750,8 @@ void main() {
       );
 
       expect(helper, contains('clearProfileFeedContinuity(userId)'));
-      expect(helper, contains("context.go('/profile/me')"));
-      expect(helper, isNot(contains("context.go('/profile/\${")));
+      expect(helper, contains("router.go('/profile/me')"));
+      expect(helper, isNot(contains("router.go('/profile/\${")));
     });
 
     test('global floating actions panel passes sheet callbacks', () async {
@@ -758,35 +774,86 @@ void main() {
 
       expect(panel, contains('onOpenFlowStudio: _openFlowStudioFromMenu'));
       expect(panel, contains('onOpenCalendars: _openCalendarsFromMenu'));
-      expect(flowStudioCallback, contains('_floatingMenuActionContext'));
       expect(flowStudioCallback, contains('await _closeFloatingMenu()'));
       expect(
         flowStudioCallback,
-        contains('CalendarPage.openFlowStudioFromAnyContext(actionContext)'),
+        contains('CalendarPage.enqueueOpenFlowStudioFromGlobalMenu()'),
+      );
+      expect(
+        flowStudioCallback,
+        contains("_routeToCalendarForGlobalMenuSheetCommand('flowStudio')"),
       );
       expect(
         flowStudioCallback.indexOf('await _closeFloatingMenu()'),
         lessThan(
           flowStudioCallback.indexOf(
-            'CalendarPage.openFlowStudioFromAnyContext(actionContext)',
+            'CalendarPage.enqueueOpenFlowStudioFromGlobalMenu()',
           ),
         ),
       );
-      expect(calendarsCallback, contains('_floatingMenuActionContext'));
       expect(calendarsCallback, contains('await _closeFloatingMenu()'));
       expect(
         calendarsCallback,
-        contains(
-          'CalendarPage.openSharedCalendarsFromAnyContext(actionContext)',
-        ),
+        contains('CalendarPage.enqueueOpenCalendarsFromGlobalMenu()'),
+      );
+      expect(
+        calendarsCallback,
+        contains("_routeToCalendarForGlobalMenuSheetCommand('calendars')"),
       );
       expect(
         calendarsCallback.indexOf('await _closeFloatingMenu()'),
         lessThan(
           calendarsCallback.indexOf(
-            'CalendarPage.openSharedCalendarsFromAnyContext(actionContext)',
+            'CalendarPage.enqueueOpenCalendarsFromGlobalMenu()',
           ),
         ),
+      );
+      expect(
+        flowStudioCallback,
+        isNot(contains('CalendarPage.openFlowStudioFromAnyContext')),
+      );
+      expect(
+        calendarsCallback,
+        isNot(contains('CalendarPage.openSharedCalendarsFromAnyContext')),
+      );
+    });
+
+    test('CalendarPage owns global menu sheet command consumption', () async {
+      final source = await File(
+        'lib/features/calendar/calendar_page.dart',
+      ).readAsString();
+      final commandSource = _sourceBetween(
+        source,
+        'static void enqueueOpenFlowStudioFromGlobalMenu()',
+        'static Future<void> dismissMountedReflectionPromptIfAny()',
+      );
+      final consumerSource = _sourceBetween(
+        source,
+        '_CalendarGlobalMenuSheetCommand? _pendingGlobalMenuSheetCommand()',
+        'bool _schedulePendingDetachedLaunchActionIfAny',
+      );
+
+      expect(commandSource, contains('_pendingOpenFlowStudioFromGlobalMenu'));
+      expect(commandSource, contains('_pendingOpenCalendarsFromGlobalMenu'));
+      expect(
+        commandSource,
+        contains('_schedulePendingGlobalMenuSheetCommandIfAny'),
+      );
+      expect(
+        consumerSource,
+        contains('globalFloatingMenuModalDepthValue == 0'),
+      );
+      expect(consumerSource, contains('WidgetsBinding.instance.endOfFrame'));
+      expect(consumerSource, contains('_restored'));
+      expect(consumerSource, contains('_initialViewportSettled'));
+      expect(consumerSource, contains('_getFlowStudioCallback()(null)'));
+      expect(
+        consumerSource,
+        contains('unawaited(_openSharedCalendarsSheet())'),
+      );
+      expect(
+        consumerSource,
+        contains('CalendarPage consumed global menu sheet command'),
       );
     });
 
