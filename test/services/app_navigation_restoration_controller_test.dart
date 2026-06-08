@@ -179,6 +179,7 @@ void main() {
         AppSection.journal: '/journal',
         AppSection.planner: '/rhythm/today',
         AppSection.settings: '/settings',
+        AppSection.reflections: '/reflections',
       };
       expect(AppSection.values.toSet(), {
         ...expectedRoutes.keys,
@@ -204,6 +205,9 @@ void main() {
         expect(metadata, containsPair('routeClass', 'durablePrimary'));
       }
 
+      await AppRestorationService.instance.clearCurrentSnapshot();
+      await AppNavigationRestorationController.instance
+          .recordPrimaryTabSelection(AppSection.settings);
       await AppNavigationRestorationController.instance
           .recordPrimaryTabSelection(AppSection.profile);
       final profileDestination = await AppNavigationRestorationController
@@ -497,6 +501,9 @@ void main() {
       '/nodes?focus=human_emergence',
       '/inbox?filter=unread',
       '/settings#privacy',
+      '/reflections/today',
+      '/reflections?filter=recent',
+      '/reflections#latest',
       '/rhythm/today?source=push',
       '/rhythm/todo',
       '/rhythm/tracker',
@@ -545,6 +552,18 @@ void main() {
     expect(classification.accepted, isFalse);
     expect(classification.routeClass, NavigationRouteClass.transient);
     expect(classification.canonicalRoute, '/profile/me');
+  });
+
+  test('Reflections detail routes are not durable launch state', () {
+    const policy = NavigationPersistencePolicy();
+    final classification = policy.classifyRoute(
+      '/reflections/reflection-1',
+      NavigationSource.userPrimaryTab,
+    );
+
+    expect(classification.accepted, isFalse);
+    expect(classification.routeClass, NavigationRouteClass.transient);
+    expect(classification.canonicalRoute, '/reflections/reflection-1');
   });
 
   test(

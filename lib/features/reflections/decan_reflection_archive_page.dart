@@ -1,5 +1,6 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
-import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../core/navigation_fallback.dart';
 import '../../shared/glossy_text.dart';
@@ -154,7 +155,8 @@ class _DecanReflectionArchivePageState
               itemBuilder: (context, index) {
                 final item = _items[index];
                 return ListTile(
-                  onTap: () => context.go(item.route),
+                  onTap: () =>
+                      unawaited(openDetailRoute<void>(context, item.route)),
                   title: Text(
                     item.title,
                     style: const TextStyle(

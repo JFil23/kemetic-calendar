@@ -237,6 +237,7 @@ void main() {
         '/nodes': '/nodes',
         '/journal': '/journal',
         '/rhythm/today': '/rhythm/today',
+        '/reflections': '/reflections',
         '/settings': '/settings',
       };
 
@@ -283,6 +284,13 @@ void main() {
 
   test('rejects profile at the durable launch boundary', () async {
     await _saveDurableRoute('/profile/me');
+
+    final snapshot = await AppRestorationService.instance.readSnapshot();
+    expect(snapshot?.routeLocation, isNull);
+  });
+
+  test('rejects reflection detail at the durable launch boundary', () async {
+    await _saveDurableRoute('/reflections/reflection-1');
 
     final snapshot = await AppRestorationService.instance.readSnapshot();
     expect(snapshot?.routeLocation, isNull);

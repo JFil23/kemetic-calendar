@@ -534,6 +534,7 @@ void main() {
         expect(policy, contains('section: AppSection.planner'));
         expect(policy, contains("canonicalDurableRoute: '/rhythm/today'"));
         expect(policy, contains("pattern: '/settings'"));
+        expect(policy, contains("pattern: '/reflections'"));
         expect(policy, contains("pattern: '/profile/me'"));
         expect(policy, contains("pattern: '/nodes/'"));
         expect(policy, contains("pattern: '/reflections/'"));
@@ -552,6 +553,26 @@ void main() {
         );
         expect(
           _routeDefinitionBlock(policy, "pattern: '/profile/me'"),
+          isNot(contains('canonicalDurableRoute')),
+        );
+        expect(
+          _routeDefinitionBlock(policy, "pattern: '/reflections'"),
+          contains('routeClass: NavigationRouteClass.durablePrimary'),
+        );
+        expect(
+          _routeDefinitionBlock(policy, "pattern: '/reflections'"),
+          contains('section: AppSection.reflections'),
+        );
+        expect(
+          _routeDefinitionBlock(policy, "pattern: '/reflections'"),
+          contains("canonicalDurableRoute: '/reflections'"),
+        );
+        expect(
+          _routeDefinitionBlock(policy, "pattern: '/reflections/'"),
+          contains('routeClass: NavigationRouteClass.transient'),
+        );
+        expect(
+          _routeDefinitionBlock(policy, "pattern: '/reflections/'"),
           isNot(contains('canonicalDurableRoute')),
         );
         expect(bootRestore, contains('restoreLaunchDestination'));
@@ -629,6 +650,7 @@ void main() {
         "pattern: '/journal'",
         "pattern: '/rhythm/today'",
         "pattern: '/settings'",
+        "pattern: '/reflections'",
         "pattern: '/profile/me'",
         "pattern: '/nodes/'",
         "pattern: '/reflections/'",
@@ -1026,6 +1048,7 @@ void main() {
           'AppSection.journal',
           'AppSection.planner',
           'AppSection.settings',
+          'AppSection.reflections',
           'AppSection.profile',
         ]) {
           expect(policy, contains(marker), reason: marker);
@@ -1046,6 +1069,10 @@ void main() {
         expect(
           _actionBlock(detachedActions, 'Inbox', 'Calendars'),
           contains('AppSection.inbox'),
+        );
+        expect(
+          _actionBlock(detachedActions, 'Reflections', 'Home'),
+          contains('AppSection.reflections'),
         );
         expect(
           _actionBlock(detachedActions, 'Home', 'Settings'),
@@ -1073,6 +1100,18 @@ void main() {
           contains('_openInboxFromMenu'),
         );
         expect(
+          _actionBlock(mountedActions, 'Reflections', 'Home'),
+          contains('_openReflectionsFromMenu'),
+        );
+        expect(
+          _sourceBetween(
+            calendar,
+            'Future<void> _openReflectionsFromMenu() async',
+            'Future<void> _openKemeticNodes(BuildContext context) async',
+          ),
+          contains('openPrimarySection(context, AppSection.reflections)'),
+        );
+        expect(
           _actionBlock(mountedActions, 'Home', 'Settings'),
           contains('AppSection.calendar'),
         );
@@ -1084,7 +1123,6 @@ void main() {
         for (final nonDurableLabel in const <String>[
           'Flow Studio',
           'Calendars',
-          'Reflections',
           'New note',
         ]) {
           expect(

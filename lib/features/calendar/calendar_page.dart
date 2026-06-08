@@ -5447,7 +5447,7 @@ class CalendarPage extends StatefulWidget {
         dispatchBeforeClose: true,
         onSelected: () async {
           await dismissMountedReflectionPromptIfAny();
-          navigate('/reflections');
+          navigate('/reflections', durableSection: AppSection.reflections);
         },
       ),
       _CalendarAction(
@@ -19793,7 +19793,7 @@ class CalendarPageState extends State<CalendarPage>
   Future<void> _openReflectionsFromMenu() async {
     await _dismissReflectionPrompt();
     if (!mounted) return;
-    context.go('/reflections');
+    openPrimarySection(context, AppSection.reflections);
   }
 
   Future<void> _openKemeticNodes(BuildContext context) async {

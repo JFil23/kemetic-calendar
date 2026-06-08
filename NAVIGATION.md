@@ -13,7 +13,7 @@ otherwise.
 Primary sections are app-level destinations selected from the main app chrome.
 They use `openPrimarySection(context, section)`.
 
-Approved durable primary sections in Phase 1:
+Approved durable primary sections:
 
 - `/` Calendar
 - `/rhythm/today` Planner
@@ -21,13 +21,14 @@ Approved durable primary sections in Phase 1:
 - `/journal` Journal
 - `/inbox` Inbox
 - `/settings` Settings
+- `/reflections` Reflections
 
 Primary section changes may record durable launch state only when
 `navigation_persistence_policy.dart` accepts the route as `durablePrimary` for
 `NavigationSource.userPrimaryTab`.
 
-`/reflections` behaves like a global destination, but it is intentionally not a
-durable launch route in Phase 1.
+`/reflections` is durable primary state. `/reflections/:reflectionId` is a
+pushed detail route and must not become durable launch state.
 
 ### Utility Routes
 
@@ -60,7 +61,7 @@ Examples:
 - `/shared-flow/:id`
 - `/event-invite/:id`
 - `/maat-guidance/:id`
-- `/reflections/:id`
+- `/reflections/:reflectionId`
 - `/flows/:flowId/edit`
 
 Detail routes should push from an existing app surface and use `closeOrReturn`

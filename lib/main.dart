@@ -2265,6 +2265,20 @@ class _GlobalFloatingMenuShellState extends State<_GlobalFloatingMenuShell>
   }
 
   void _navigateFromMenu(String location) {
+    final section = switch (location) {
+      '/' => AppSection.calendar,
+      '/rhythm/today' => AppSection.planner,
+      '/nodes' => AppSection.library,
+      '/journal' => AppSection.journal,
+      '/inbox' => AppSection.inbox,
+      '/settings' => AppSection.settings,
+      '/reflections' => AppSection.reflections,
+      _ => null,
+    };
+    if (section != null) {
+      openPrimarySection(context, section, router: widget.router);
+      return;
+    }
     widget.router.go(location);
   }
 

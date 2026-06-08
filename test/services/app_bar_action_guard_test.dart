@@ -934,9 +934,21 @@ void main() {
         'Future<void> _openCalendarsFromMenu()',
         'void _openMaatGuidance(MaatGuidanceDelivery delivery)',
       );
+      final navigateFromMenu = _sourceBetween(
+        source,
+        'void _navigateFromMenu(String location)',
+        'Future<void> _openFlowStudioFromMenu()',
+      );
 
       expect(panel, contains('onOpenFlowStudio: _openFlowStudioFromMenu'));
       expect(panel, contains('onOpenCalendars: _openCalendarsFromMenu'));
+      expect(navigateFromMenu, contains("'/reflections'"));
+      expect(navigateFromMenu, contains('AppSection.reflections'));
+      expect(navigateFromMenu, contains('openPrimarySection('));
+      expect(
+        navigateFromMenu,
+        contains('openPrimarySection(context, section, router: widget.router)'),
+      );
       expect(flowStudioCallback, contains('await _closeFloatingMenu()'));
       expect(
         flowStudioCallback,

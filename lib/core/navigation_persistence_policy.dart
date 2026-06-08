@@ -10,6 +10,7 @@ enum AppSection {
   journal,
   planner,
   settings,
+  reflections,
   profile,
 }
 
@@ -125,6 +126,8 @@ extension AppSectionWireName on AppSection {
         return 'planner';
       case AppSection.settings:
         return 'settings';
+      case AppSection.reflections:
+        return 'reflections';
       case AppSection.profile:
         return 'profile';
     }
@@ -145,6 +148,8 @@ AppSection? appSectionFromWireName(String? raw) {
       return AppSection.planner;
     case 'settings':
       return AppSection.settings;
+    case 'reflections':
+      return AppSection.reflections;
     case 'profile':
       return AppSection.profile;
   }
@@ -439,8 +444,13 @@ class AppRouteRegistry {
     ),
     AppRouteDefinition(
       pattern: '/reflections',
-      routeClass: NavigationRouteClass.transient,
+      routeClass: NavigationRouteClass.durablePrimary,
       owner: AppRouteOwner.reflections,
+      section: AppSection.reflections,
+      canonicalDurableRoute: '/reflections',
+      allowedPersistenceSources: <NavigationSource>{
+        NavigationSource.userPrimaryTab,
+      },
     ),
     AppRouteDefinition(
       pattern: '/reflections/',
