@@ -4111,11 +4111,6 @@ class CalendarPage extends StatefulWidget {
         onOpenNewNote: onOpenNewNote,
       ),
       onSelected: (action) async {
-        if (action.dispatchBeforeClose) {
-          await action.onSelected();
-          await closeMenu();
-          return;
-        }
         await closeMenu();
         await action.onSelected();
       },

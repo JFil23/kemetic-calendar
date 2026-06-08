@@ -3259,19 +3259,67 @@ class _TodaysAlignmentPageState extends State<TodaysAlignmentPage> {
     );
   }
 
+  Widget _plannerLoadingBar({double widthFactor = 1, double height = 10}) {
+    return Align(
+      alignment: Alignment.centerLeft,
+      child: FractionallySizedBox(
+        widthFactor: widthFactor,
+        child: Container(
+          height: height,
+          decoration: BoxDecoration(
+            color: Colors.white.withValues(alpha: 0.10),
+            borderRadius: BorderRadius.circular(999),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildPlannerLoadingSlot({
+    required String label,
+    String? detail,
+    double minHeight = 86,
+  }) {
+    return Container(
+      constraints: BoxConstraints(minHeight: minHeight),
+      padding: const EdgeInsets.all(14),
+      decoration: RhythmTheme.frostSurface(),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Text(
+            label,
+            style: RhythmTheme.subheading.copyWith(
+              color: Colors.white.withValues(alpha: 0.82),
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          if (detail != null) ...[
+            const SizedBox(height: 6),
+            Text(
+              detail,
+              style: RhythmTheme.label.copyWith(color: Colors.white54),
+            ),
+          ],
+          const SizedBox(height: 12),
+          _plannerLoadingBar(widthFactor: 0.82),
+          const SizedBox(height: 8),
+          _plannerLoadingBar(widthFactor: 0.56),
+        ],
+      ),
+    );
+  }
+
   Widget _plannerContent({bool embedded = false}) {
     final dateLabel = _formatDateLabel(_todayLocal);
     final content = FutureBuilder<void>(
       future: _future,
       builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Padding(
-            padding: EdgeInsets.all(16.0),
-            child: RhythmLoadingShell(),
-          );
-        }
+        final plannerLoading =
+            snapshot.connectionState == ConnectionState.waiting;
 
-        if (snapshot.hasError) {
+        if (!plannerLoading && snapshot.hasError) {
           return Padding(
             padding: const EdgeInsets.all(16.0),
             child: RhythmErrorStateCard(
@@ -3286,7 +3334,7 @@ class _TodaysAlignmentPageState extends State<TodaysAlignmentPage> {
           );
         }
 
-        if (_missingTables) {
+        if (!plannerLoading && _missingTables) {
           return Padding(
             padding: const EdgeInsets.all(16.0),
             child: RhythmErrorStateCard(
@@ -3302,7 +3350,7 @@ class _TodaysAlignmentPageState extends State<TodaysAlignmentPage> {
           );
         }
 
-        if (_friendlyError != null) {
+        if (!plannerLoading && _friendlyError != null) {
           return Padding(
             padding: const EdgeInsets.all(16.0),
             child: RhythmErrorStateCard(
@@ -3536,19 +3584,26 @@ class _TodaysAlignmentPageState extends State<TodaysAlignmentPage> {
                 onSubmitted: (_) => unawaited(_commitNewTodo()),
               ),
               const SizedBox(height: 12),
-              SizedBox(
-                height: _todoPageHeightEstimate(),
-                child: PageView.builder(
-                  controller: _todoPageController,
-                  physics: const BouncingScrollPhysics(),
-                  onPageChanged: _onTodoPageChanged,
-                  itemCount: _todoDays.length,
-                  itemBuilder: (context, index) {
-                    final day = _todoDays[index];
-                    return _buildTodoDayPage(day);
-                  },
+              if (plannerLoading)
+                _buildPlannerLoadingSlot(
+                  label: 'Restoring commitments',
+                  detail: 'Your to-dos will fill in here.',
+                  minHeight: _todoPageHeightEstimate(),
+                )
+              else
+                SizedBox(
+                  height: _todoPageHeightEstimate(),
+                  child: PageView.builder(
+                    controller: _todoPageController,
+                    physics: const BouncingScrollPhysics(),
+                    onPageChanged: _onTodoPageChanged,
+                    itemCount: _todoDays.length,
+                    itemBuilder: (context, index) {
+                      final day = _todoDays[index];
+                      return _buildTodoDayPage(day);
+                    },
+                  ),
                 ),
-              ),
               const SizedBox(height: 10),
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
@@ -3581,39 +3636,46 @@ class _TodaysAlignmentPageState extends State<TodaysAlignmentPage> {
         final completedSection = RhythmSectionCard(
           title: 'Completed',
           subtitle: 'Moments you already honored.',
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: _completed().isEmpty
-                ? [
-                    Text(
-                      'Nothing checked off yet. Start small; one step brings momentum.',
-                      style: RhythmTheme.subheading,
-                    ),
-                  ]
-                : _completed()
-                      .map(
-                        (item) => Padding(
-                          padding: const EdgeInsets.symmetric(vertical: 6.0),
-                          child: Row(
-                            children: [
-                              const Icon(
-                                Icons.check_circle,
-                                color: Colors.greenAccent,
-                                size: 18,
-                              ),
-                              const SizedBox(width: 8),
-                              Expanded(
-                                child: Text(
-                                  item.title,
-                                  style: RhythmTheme.subheading,
+          child: plannerLoading
+              ? _buildPlannerLoadingSlot(
+                  label: 'Restoring completed moments',
+                  detail: 'Finished items will appear in this same slot.',
+                )
+              : Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: _completed().isEmpty
+                      ? [
+                          Text(
+                            'Nothing checked off yet. Start small; one step brings momentum.',
+                            style: RhythmTheme.subheading,
+                          ),
+                        ]
+                      : _completed()
+                            .map(
+                              (item) => Padding(
+                                padding: const EdgeInsets.symmetric(
+                                  vertical: 6.0,
+                                ),
+                                child: Row(
+                                  children: [
+                                    const Icon(
+                                      Icons.check_circle,
+                                      color: Colors.greenAccent,
+                                      size: 18,
+                                    ),
+                                    const SizedBox(width: 8),
+                                    Expanded(
+                                      child: Text(
+                                        item.title,
+                                        style: RhythmTheme.subheading,
+                                      ),
+                                    ),
+                                  ],
                                 ),
                               ),
-                            ],
-                          ),
-                        ),
-                      )
-                      .toList(),
-          ),
+                            )
+                            .toList(),
+                ),
         );
 
         final plannerChildren = <Widget>[

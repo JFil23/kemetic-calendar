@@ -294,7 +294,7 @@ void main() {
       expect(await pumpWithSize(const Size(2532, 1170)), 25);
     });
 
-    testWidgets('detached Home dispatches before close animation completes', (
+    testWidgets('detached primary routes close before navigation dispatch', (
       tester,
     ) async {
       tester.view.physicalSize = const Size(1170, 2532);
@@ -327,11 +327,12 @@ void main() {
       await tester.tap(find.text('Home'));
       await tester.pump();
 
-      expect(navigations, <String>['/']);
       expect(closeStarted, isTrue);
+      expect(navigations, isEmpty);
 
       closeCompleter.complete();
       await tester.pump();
+      expect(navigations, <String>['/']);
     });
 
     testWidgets('detached sheet actions close before dispatching sheets', (

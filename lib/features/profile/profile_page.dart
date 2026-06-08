@@ -1502,35 +1502,26 @@ class _ProfilePageState extends State<ProfilePage>
         );
       });
     }
-    final showBackdrop = !_loading && _profile != null;
+    final loadingProfileShell =
+        _profile == null && (_cacheHydrating || _loading);
+    final showBackdrop = _profile != null || loadingProfileShell;
     final title = _profile?.handle ?? 'Profile';
-    final hydratingLocalCache = _cacheHydrating && _profile == null;
-    final showBlockingLoader =
-        _loading && _profile == null && !hydratingLocalCache;
     final body = AnimatedSwitcher(
       duration: const Duration(milliseconds: 260),
       switchInCurve: Curves.easeOutCubic,
       switchOutCurve: Curves.easeInCubic,
       child: KeyedSubtree(
         key: ValueKey<Object>(
-          hydratingLocalCache
-              ? 'profile_cache_hydrating'
-              : showBlockingLoader
-              ? 'profile_loading'
+          loadingProfileShell
+              ? 'profile_loading_shell'
               : _profile == null
               ? 'profile_missing'
               : _feedRevealed
               ? 'profile_feed_mode'
               : 'profile_mode',
         ),
-        child: hydratingLocalCache
-            ? const SizedBox.expand()
-            : showBlockingLoader
-            ? const Center(
-                child: CircularProgressIndicator(
-                  valueColor: AlwaysStoppedAnimation<Color>(_profileGoldMid),
-                ),
-              )
+        child: loadingProfileShell
+            ? _buildProfileLoadingShell()
             : _profile == null
             ? _buildNoProfile()
             : _feedRevealed
@@ -1653,6 +1644,175 @@ class _ProfilePageState extends State<ProfilePage>
             ),
           ],
           body,
+        ],
+      ),
+    );
+  }
+
+  Widget _profileSkeletonBar({
+    required double widthFactor,
+    double height = 14,
+    double radius = 999,
+  }) {
+    return Align(
+      alignment: Alignment.center,
+      child: FractionallySizedBox(
+        widthFactor: widthFactor,
+        child: Container(
+          height: height,
+          decoration: BoxDecoration(
+            color: Colors.white.withValues(alpha: 0.13),
+            borderRadius: BorderRadius.circular(radius),
+            border: Border.all(color: Colors.white.withValues(alpha: 0.04)),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _profileSkeletonTile({double minHeight = 92}) {
+    return Container(
+      constraints: BoxConstraints(minHeight: minHeight),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.black.withValues(alpha: 0.30),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: _profileGoldMid.withValues(alpha: 0.16)),
+      ),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          _profileSkeletonBar(widthFactor: 0.42, height: 22),
+          const SizedBox(height: 10),
+          _profileSkeletonBar(widthFactor: 0.66, height: 12),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildProfileLoadingShell() {
+    final topInset = MediaQuery.paddingOf(context).top + kToolbarHeight;
+    final height = MediaQuery.sizeOf(context).height;
+    final heroHeight = (height * 0.54).clamp(420.0, 560.0);
+    const bottomPadding = 32.0;
+
+    return SingleChildScrollView(
+      controller: _profileScrollController,
+      physics: const BouncingScrollPhysics(),
+      padding: const EdgeInsets.only(bottom: bottomPadding),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          SizedBox(
+            height: heroHeight,
+            child: Padding(
+              padding: EdgeInsets.fromLTRB(20, topInset + 20, 20, 24),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  _profileSkeletonBar(widthFactor: 0.46, height: 34),
+                  const SizedBox(height: 10),
+                  _profileSkeletonBar(widthFactor: 0.32, height: 16),
+                  const SizedBox(height: 18),
+                  Container(
+                    height: 74,
+                    decoration: BoxDecoration(
+                      color: Colors.black.withValues(alpha: 0.32),
+                      borderRadius: BorderRadius.circular(28),
+                      border: Border.all(
+                        color: _profileGoldMid.withValues(alpha: 0.18),
+                      ),
+                    ),
+                    child: Center(
+                      child: _profileSkeletonBar(widthFactor: 0.44, height: 14),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 8, 20, 0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                LayoutBuilder(
+                  builder: (context, constraints) {
+                    final compact = constraints.maxWidth < 460;
+                    final spacing = 10.0;
+                    final columns = compact ? 2 : 4;
+                    final itemWidth =
+                        (constraints.maxWidth - spacing * (columns - 1)) /
+                        columns;
+                    return Wrap(
+                      spacing: spacing,
+                      runSpacing: spacing,
+                      children: [
+                        for (var i = 0; i < 4; i++)
+                          SizedBox(
+                            width: itemWidth,
+                            child: _profileSkeletonTile(
+                              minHeight: compact ? 82 : 92,
+                            ),
+                          ),
+                      ],
+                    );
+                  },
+                ),
+                const SizedBox(height: 18),
+                Wrap(
+                  alignment: WrapAlignment.center,
+                  spacing: 10,
+                  runSpacing: 10,
+                  children: [
+                    for (var i = 0; i < (_isViewingOwnProfile ? 2 : 1); i++)
+                      Container(
+                        width: _isViewingOwnProfile ? 146 : 132,
+                        height: useExpandedTouchTargets(context)
+                            ? kMinInteractiveDimension
+                            : 40,
+                        decoration: BoxDecoration(
+                          color: Colors.black.withValues(alpha: 0.30),
+                          borderRadius: BorderRadius.circular(999),
+                          border: Border.all(
+                            color: _profileGoldMid.withValues(alpha: 0.18),
+                          ),
+                        ),
+                        child: Center(
+                          child: _profileSkeletonBar(
+                            widthFactor: 0.56,
+                            height: 12,
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+                const SizedBox(height: 28),
+                Container(
+                  padding: const EdgeInsets.only(top: 18),
+                  decoration: BoxDecoration(
+                    border: Border(
+                      top: BorderSide(
+                        color: _profileGoldMid.withValues(alpha: 0.18),
+                      ),
+                    ),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      _profileSkeletonBar(widthFactor: 0.34, height: 16),
+                      const SizedBox(height: 12),
+                      _profileSkeletonTile(minHeight: 130),
+                      const SizedBox(height: 22),
+                      _profileSkeletonBar(widthFactor: 0.38, height: 16),
+                      const SizedBox(height: 12),
+                      _profileSkeletonTile(minHeight: 130),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
         ],
       ),
     );
@@ -4813,6 +4973,7 @@ class _ProfileBackdropState extends State<_ProfileBackdrop>
           child: Stack(
             fit: StackFit.expand,
             children: [
+              const CustomPaint(painter: _ProfileBackdropPainter()),
               _buildBackdropImage(blend.current.assetPath),
               if (nextOpacity > 0.001)
                 Opacity(
