@@ -65,6 +65,90 @@ void main() {
     },
   );
 
+  testWidgets('body-zone right swipe pops internal node history', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(1170, 2532);
+    tester.view.devicePixelRatio = 3.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: KemeticNodeReaderPage(
+          node: KemeticNodeLibrary.resolve('serpent')!,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.ensureVisible(find.text('Ra').first);
+    await tester.tap(find.text('Ra').first);
+    await tester.pumpAndSettle();
+
+    expect(find.text('Serpent'), findsNothing);
+    expect(find.text('Ra'), findsWidgets);
+
+    await tester.dragFrom(const Offset(96, 420), const Offset(92, 0));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Serpent'), findsOneWidget);
+  });
+
+  testWidgets('edge-zone right swipe does not pop internal node history', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(1170, 2532);
+    tester.view.devicePixelRatio = 3.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: KemeticNodeReaderPage(
+          node: KemeticNodeLibrary.resolve('serpent')!,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.ensureVisible(find.text('Ra').first);
+    await tester.tap(find.text('Ra').first);
+    await tester.pumpAndSettle();
+
+    expect(find.text('Serpent'), findsNothing);
+    expect(find.text('Ra'), findsWidgets);
+
+    await tester.dragFrom(const Offset(8, 420), const Offset(120, 0));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Serpent'), findsNothing);
+    expect(find.text('Ra'), findsWidgets);
+  });
+
+  testWidgets('system back pops route when internal node history is empty', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(1170, 2532);
+    tester.view.devicePixelRatio = 3.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    await tester.pumpWidget(const MaterialApp(home: _ReaderLaunchPage()));
+
+    await tester.tap(find.text('Open reader'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Serpent'), findsOneWidget);
+    expect(find.text('Open reader'), findsNothing);
+
+    await tester.binding.handlePopRoute();
+    await tester.pumpAndSettle();
+
+    expect(find.text('Open reader'), findsOneWidget);
+    expect(find.text('Serpent'), findsNothing);
+  });
+
   testWidgets('reader back returns to the library list near the exited node', (
     tester,
   ) async {

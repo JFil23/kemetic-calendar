@@ -168,6 +168,27 @@ full-body swipes are allowed only for isolated local content, such as Node
 reader internal history, and must not conflict with system edge back. New swipe
 systems need tests for gesture zones, thresholds, and outcomes.
 
+Documented gesture systems:
+
+- `PageNavigationEdgeSwipe` is the shared app/page edge-swipe primitive.
+- Calendar's `_buildPlannerSwipeGate` and `_buildProfileSwipeGate` are the only
+  primary-section edge-swipe exceptions.
+- Node reader may use a body-zone right swipe for internal node history, but it
+  must exclude the navigation edge zone so system/app back can win there.
+- Journal archive and Inbox may use row-local `Dismissible` controls for
+  destructive row actions.
+- Calendar month/day/event detail, Planner cards, Profile carousels,
+  onboarding slides, and similar `PageView` instances are local content paging,
+  not route navigation.
+- `flow_post_detail_page.dart` currently uses a detail-route `PageView` to page
+  related flow posts. Keep it documented and monitored because it spans a route
+  detail surface.
+- `PinchGestureSurface` is a two-finger scale surface and is not swipe
+  navigation.
+
+There is no active Journal page-level swipe navigation. Do not reintroduce one
+without a documented exception and tests.
+
 ## Examples
 
 Add a primary section:

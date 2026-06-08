@@ -235,6 +235,94 @@ void main() {
       expect(calendar, isNot(contains('CalendarContinuityOverlayHost')));
     });
 
+    test('custom gesture systems stay documented and allowlisted', () async {
+      final matches = (await _filesContainingAny(<String>[
+        'onHorizontalDrag',
+        'HorizontalDragGestureRecognizer',
+        'Dismissible(',
+        'PageView.builder',
+        'PinchGestureSurface',
+        'GestureDetector(',
+      ])).where(_isFeatureOrCorePath).toList(growable: false);
+
+      expect(
+        matches,
+        unorderedEquals(<String>[
+          'lib/core/page_navigation_swipe.dart',
+          'lib/core/pinch_gesture_surface.dart',
+          'lib/features/calendar/calendar_flow_pages.dart',
+          'lib/features/calendar/calendar_grid_widgets.dart',
+          'lib/features/calendar/calendar_maat_flows.dart',
+          'lib/features/calendar/calendar_month_detail.dart',
+          'lib/features/calendar/calendar_page.dart',
+          'lib/features/calendar/day_view.dart',
+          'lib/features/calendar/day_view_chrome.dart',
+          'lib/features/calendar/landscape_month_view.dart',
+          'lib/features/calendars/shared_calendars_sheet.dart',
+          'lib/features/inbox/inbox_conversation_page.dart',
+          'lib/features/inbox/inbox_page.dart',
+          'lib/features/journal/journal_archive_page.dart',
+          'lib/features/journal/journal_event_badge.dart',
+          'lib/features/journal/journal_overlay.dart',
+          'lib/features/journal/journal_v2_toolbar.dart',
+          'lib/features/maat_guidance/maat_guidance_floating_card.dart',
+          'lib/features/nodes/kemetic_node_reader_page.dart',
+          'lib/features/onboarding/calendar_month_coachmark.dart',
+          'lib/features/onboarding/calendar_toggle_coachmark.dart',
+          'lib/features/onboarding/guided_onboarding_overlay.dart',
+          'lib/features/onboarding/onboarding_overlay.dart',
+          'lib/features/profile/flow_post_detail_page.dart',
+          'lib/features/profile/flow_post_engagement_row.dart',
+          'lib/features/profile/profile_page.dart',
+          'lib/features/rhythm/pages/commitment_tracker_page.dart',
+          'lib/features/rhythm/pages/todays_alignment_page.dart',
+          'lib/features/rhythm/widgets/rhythm_state_button.dart',
+          'lib/features/settings/settings_page.dart',
+        ]),
+      );
+
+      final navigationSwipe = await File(
+        'lib/core/page_navigation_swipe.dart',
+      ).readAsString();
+      final calendar = await File(
+        'lib/features/calendar/calendar_page.dart',
+      ).readAsString();
+      final nodeReader = await File(
+        'lib/features/nodes/kemetic_node_reader_page.dart',
+      ).readAsString();
+      final docs = await File('NAVIGATION.md').readAsString();
+
+      expect(navigationSwipe, contains('class PageNavigationEdgeSwipe'));
+      expect(calendar, contains('_buildPlannerSwipeGate'));
+      expect(calendar, contains('_buildProfileSwipeGate'));
+      expect(_countOccurrences(calendar, 'PageNavigationEdgeSwipe('), 2);
+      expect(
+        calendar,
+        contains('direction: PageNavigationSwipeDirection.leftToRight'),
+      );
+      expect(
+        calendar,
+        contains('direction: PageNavigationSwipeDirection.rightToLeft'),
+      );
+      expect(nodeReader, contains('_isInNavigationEdgeExclusion'));
+      expect(nodeReader, contains('pageNavigationEdgeSwipeWidth(context)'));
+      expect(docs, contains('flow_post_detail_page.dart'));
+      expect(docs, contains('There is no active Journal page-level swipe'));
+    });
+
+    test('dead Journal swipe guard stays removed', () async {
+      final matches = await _filesContainingAny(<String>[
+        'UiGuards',
+        'canOpenJournalSwipe',
+        'disableJournalSwipe',
+        'enableJournalSwipe',
+        'kJournalSwipe',
+        'kJournalCloseTravelFraction',
+      ]);
+
+      expect(matches, isEmpty);
+    });
+
     test(
       'overlay lifecycle preserve window survives resumed callbacks',
       () async {
@@ -1304,6 +1392,9 @@ Future<List<String>> _filesContainingAny(List<String> needles) async {
 }
 
 String _normalizePath(String path) => path.replaceAll('\\', '/');
+
+bool _isFeatureOrCorePath(String path) =>
+    path.startsWith('lib/core/') || path.startsWith('lib/features/');
 
 int _countOccurrences(String source, String needle) {
   var count = 0;

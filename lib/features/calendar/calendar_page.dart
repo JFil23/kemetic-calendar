@@ -25,7 +25,6 @@ import 'day_view.dart';
 import '../../data/profile_model.dart';
 import '../../data/profile_repo.dart';
 import '../journal/journal_controller.dart';
-import '../../core/ui_guards.dart';
 import '../../main.dart'
     show
         Events,
@@ -4806,21 +4805,16 @@ class CalendarPage extends StatefulWidget {
     required List<_Flow> flows,
     required void Function(int ky, int km, int kd, _Note note) openResult,
   }) async {
-    UiGuards.disableJournalSwipe();
-    try {
-      await showSearch<void>(
-        context: context,
-        delegate: _EventSearchDelegate(
-          notes: notes,
-          flows: flows,
-          monthName: (km) => getMonthById(km).displayFull,
-          gregYearLabelFor: _gregYearLabelForSearch,
-          openResult: openResult,
-        ),
-      );
-    } finally {
-      UiGuards.enableJournalSwipe();
-    }
+    await showSearch<void>(
+      context: context,
+      delegate: _EventSearchDelegate(
+        notes: notes,
+        flows: flows,
+        monthName: (km) => getMonthById(km).displayFull,
+        gregYearLabelFor: _gregYearLabelForSearch,
+        openResult: openResult,
+      ),
+    );
   }
 
   static void _routeHomeForSearchResult(
@@ -6576,7 +6570,6 @@ class CalendarPage extends StatefulWidget {
     _detachedFlowStudioSheetOpenOrOpening = true;
 
     final flowsRepo = FlowsRepo(Supabase.instance.client);
-    UiGuards.disableJournalSwipe();
     try {
       await _saveDetachedCalendarOverlayState(
         parentRoute: parentRoute,
@@ -6702,7 +6695,6 @@ class CalendarPage extends StatefulWidget {
         if (!preserveForLifecycle) {
           await _clearFlowStudioTransientState();
         }
-        UiGuards.enableJournalSwipe();
       } finally {
         _detachedFlowStudioSheetOpenOrOpening = false;
       }
@@ -13414,16 +13406,10 @@ class CalendarPageState extends State<CalendarPage>
     final shouldReplayPrompts = _replayOnboardingOnEveryLaunch;
     if (isProfileComplete && !shouldReplayPrompts) return true;
     final requireCompletion = !isProfileComplete;
-
-    UiGuards.disableJournalSwipe();
-    try {
-      context.go(
-        '/profile/me/edit?requireCompletion=${requireCompletion ? 1 : 0}',
-      );
-      return shouldReplayPrompts && !requireCompletion;
-    } finally {
-      UiGuards.enableJournalSwipe();
-    }
+    context.go(
+      '/profile/me/edit?requireCompletion=${requireCompletion ? 1 : 0}',
+    );
+    return shouldReplayPrompts && !requireCompletion;
   }
 
   // ignore: unused_element
@@ -19649,8 +19635,6 @@ class CalendarPageState extends State<CalendarPage>
       );
       return;
     }
-
-    UiGuards.disableJournalSwipe();
     _profileNavigationInFlight = true;
     try {
       NavigationTrace.instance.record(
@@ -19723,7 +19707,6 @@ class CalendarPageState extends State<CalendarPage>
       }
     } finally {
       _profileNavigationInFlight = false;
-      UiGuards.enableJournalSwipe();
     }
   }
 
@@ -19747,18 +19730,12 @@ class CalendarPageState extends State<CalendarPage>
     }
 
     if (!mounted) return;
-
-    UiGuards.disableJournalSwipe();
-    try {
-      unawaited(
-        AppNavigationRestorationController.instance.recordPrimaryTabSelection(
-          AppSection.journal,
-        ),
-      );
-      context.go('/journal');
-    } finally {
-      UiGuards.enableJournalSwipe();
-    }
+    unawaited(
+      AppNavigationRestorationController.instance.recordPrimaryTabSelection(
+        AppSection.journal,
+      ),
+    );
+    context.go('/journal');
   }
 
   Future<void> _openPlannerPage({
@@ -19797,17 +19774,12 @@ class CalendarPageState extends State<CalendarPage>
   }
 
   Future<void> _openKemeticNodes(BuildContext context) async {
-    UiGuards.disableJournalSwipe();
-    try {
-      unawaited(
-        AppNavigationRestorationController.instance.recordPrimaryTabSelection(
-          AppSection.library,
-        ),
-      );
-      context.go('/nodes');
-    } finally {
-      UiGuards.enableJournalSwipe();
-    }
+    unawaited(
+      AppNavigationRestorationController.instance.recordPrimaryTabSelection(
+        AppSection.library,
+      ),
+    );
+    context.go('/nodes');
   }
 
   Future<void> _openSettingsFromMenu() async {
@@ -20052,7 +20024,6 @@ class CalendarPageState extends State<CalendarPage>
       return;
     }
     _flowStudioSheetOpenOrOpening = true;
-    UiGuards.disableJournalSwipe();
     final isTablet = _isTablet(context);
     try {
       await _saveCalendarOverlayState(
@@ -20210,7 +20181,6 @@ class CalendarPageState extends State<CalendarPage>
         if (!preserveForLifecycle) {
           await CalendarPage._clearFlowStudioTransientState();
         }
-        UiGuards.enableJournalSwipe();
       } finally {
         _flowStudioSheetOpenOrOpening = false;
         if (mounted) {
@@ -20227,7 +20197,6 @@ class CalendarPageState extends State<CalendarPage>
   void _openMyFlowsList({int? initialFlowId}) {
     if (!mounted || _flowStudioSheetOpenOrOpening) return;
     _flowStudioSheetOpenOrOpening = true;
-    UiGuards.disableJournalSwipe();
     final isTab = _isTablet(context);
     unawaited(() async {
       try {
@@ -20353,7 +20322,6 @@ class CalendarPageState extends State<CalendarPage>
           if (!preserveForLifecycle) {
             await CalendarPage._clearFlowStudioTransientState();
           }
-          UiGuards.enableJournalSwipe();
         } finally {
           _flowStudioSheetOpenOrOpening = false;
         }
@@ -23791,7 +23759,6 @@ class CalendarPageState extends State<CalendarPage>
     String getMonthName(int km) => getMonthById(km).displayFull;
 
     // Navigate to Day View
-    UiGuards.disableJournalSwipe();
     if (kDebugMode && debugOpenSource != null) {
       _calendarDebugPrint(
         '[$debugOpenSource] Day View route push requested '
@@ -23976,7 +23943,6 @@ class CalendarPageState extends State<CalendarPage>
           );
         }
       }
-      UiGuards.enableJournalSwipe();
     });
     if (kDebugMode && debugOpenSource != null) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -24699,7 +24665,6 @@ class CalendarPageState extends State<CalendarPage>
 
     try {
       _calendarDebugPrint('🚀 Attempting to show modal bottom sheet...');
-      UiGuards.disableJournalSwipe();
       showModalBottomSheet(
         context: context,
         isScrollControlled: true,
@@ -26779,7 +26744,6 @@ class CalendarPageState extends State<CalendarPage>
             kind: _kSessionResumeKindDaySheet,
           ),
         );
-        UiGuards.enableJournalSwipe();
       });
 
       _calendarDebugPrint('✅ Modal bottom sheet opened successfully');
@@ -26799,7 +26763,6 @@ class CalendarPageState extends State<CalendarPage>
           kind: _kSessionResumeKindDaySheet,
         ),
       );
-      UiGuards.enableJournalSwipe(); // Re-enable even on error
     }
   }
 

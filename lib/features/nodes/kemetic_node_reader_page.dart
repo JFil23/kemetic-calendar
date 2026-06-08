@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import '../../core/navigation_fallback.dart';
+import '../../core/page_navigation_swipe.dart';
 import '../../shared/glossy_text.dart';
 import '../../widgets/kemetic_app_bar_action.dart';
 import '../../widgets/insight_link_text.dart';
@@ -60,6 +61,7 @@ class _KemeticNodeReaderPageState extends State<KemeticNodeReaderPage> {
   final ScrollController _scrollController = ScrollController();
   double _horizontalDrag = 0;
   bool _dragConsumed = false;
+  bool _dragStartedInNavigationEdge = false;
 
   @override
   void initState() {
@@ -113,6 +115,10 @@ class _KemeticNodeReaderPageState extends State<KemeticNodeReaderPage> {
       queryParameters: {'focus': _node.id},
     ).toString();
     popOrGo(context, location);
+  }
+
+  bool _isInNavigationEdgeExclusion(DragStartDetails details) {
+    return details.localPosition.dx <= pageNavigationEdgeSwipeWidth(context);
   }
 
   Future<void> _openSearch() async {
@@ -212,12 +218,15 @@ class _KemeticNodeReaderPageState extends State<KemeticNodeReaderPage> {
         body: SafeArea(
           child: GestureDetector(
             behavior: HitTestBehavior.translucent,
-            onHorizontalDragStart: (_) {
+            onHorizontalDragStart: (details) {
               _horizontalDrag = 0;
               _dragConsumed = false;
+              _dragStartedInNavigationEdge = _isInNavigationEdgeExclusion(
+                details,
+              );
             },
             onHorizontalDragUpdate: (details) {
-              if (_dragConsumed) return;
+              if (_dragStartedInNavigationEdge || _dragConsumed) return;
               final delta = details.primaryDelta ?? 0;
               if (delta > 0) {
                 _horizontalDrag += delta;
@@ -229,6 +238,12 @@ class _KemeticNodeReaderPageState extends State<KemeticNodeReaderPage> {
             onHorizontalDragEnd: (_) {
               _horizontalDrag = 0;
               _dragConsumed = false;
+              _dragStartedInNavigationEdge = false;
+            },
+            onHorizontalDragCancel: () {
+              _horizontalDrag = 0;
+              _dragConsumed = false;
+              _dragStartedInNavigationEdge = false;
             },
             child: SingleChildScrollView(
               controller: _scrollController,
