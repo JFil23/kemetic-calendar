@@ -82,17 +82,19 @@ void main() {
         expect(controller, contains('classifyRoute'));
         expect(controller, contains('recordPageState'));
         expect(controller, contains('recordNavigationAttempt'));
+        expect(controller, contains('recordVisibleSurface'));
         expect(controller, isNot(contains('saveLastRoute')));
         expect(controller, isNot(contains('persistCurrentLocation')));
 
         expect(policy, contains('class AppRouteRegistry'));
         expect(policy, contains('case AppSection.planner'));
+        expect(policy, contains('canRecordPrimarySelection'));
+        expect(policy, contains('canRestoreAsSurface'));
         expect(policy, contains('NavigationRouteClass.durablePrimary'));
         expect(policy, contains('NavigationRouteClass.utility'));
         expect(policy, contains('NavigationRouteClass.pageState'));
         expect(policy, contains('NavigationRouteClass.transient'));
         expect(policy, contains('NavigationRouteClass.oneShotIntent'));
-        expect(policy, contains('source != NavigationSource.userPrimaryTab'));
         expect(policy, contains("'section': section!.wireName"));
         expect(policy, contains("'canonicalRoute': canonicalRoute"));
 
@@ -108,6 +110,22 @@ void main() {
         );
       },
     );
+
+    test('close helpers record the newly visible route after pop', () async {
+      final fallback = await File(
+        'lib/core/navigation_fallback.dart',
+      ).readAsString();
+
+      expect(fallback, contains('_recordRouteAfterClose(router'));
+      expect(fallback, contains('addPostFrameCallback'));
+      expect(
+        fallback,
+        contains('router.routerDelegate.currentConfiguration.uri.toString()'),
+      );
+      expect(fallback, contains('recordVisibleSurface'));
+      expect(fallback, contains('source: NavigationSource.programmatic'));
+      expect(fallback, contains('suppressRestoreForUserNavigation'));
+    });
 
     test(
       'AuthGate never restores saved routes directly after launch',
@@ -142,6 +160,7 @@ void main() {
           "'launchRouteMetadata'",
           '"launchRouteMetadata"',
           'navigationLaunchRouteMetadataKey',
+          'navigationPrimarySelectionMetadataKey',
         ]);
 
         expect(

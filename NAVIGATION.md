@@ -23,12 +23,14 @@ Approved durable primary sections:
 - `/settings` Settings
 - `/reflections` Reflections
 
-Primary section changes may record durable launch state only when
-`navigation_persistence_policy.dart` accepts the route as `durablePrimary` for
-`NavigationSource.userPrimaryTab`.
+Primary section changes may record primary selection state only when
+`navigation_persistence_policy.dart` returns `canRecordPrimarySelection`.
+Primary sections are also durable surfaces when the policy returns
+`canRestoreAsSurface`.
 
-`/reflections` is durable primary state. `/reflections/:reflectionId` is a
-pushed detail route and must not become durable launch state.
+`/reflections` is primary selection state and a durable surface.
+`/reflections/:reflectionId` is a pushed detail route: it can restore as the
+last visible surface, but it must not record primary selection.
 
 ### Utility Routes
 
@@ -41,9 +43,12 @@ Locked utility routes:
 - `/flows`
 - `/calendars`
 
-Utility routes are not durable launch state. From inside the app they should be
-pushed so back/close returns to the previous real surface. Direct loads fall
-back cleanly to `/`.
+Utility routes are not primary selection state. They are durable surfaces while
+they are real routes. From inside the app they should be pushed so back/close
+returns to the previous real surface. Direct loads fall back cleanly to `/`.
+
+If Flow Studio or Calendars become true sheets again later, their durability
+must move from route restoration into sheet/overlay restoration.
 
 ### Detail Routes
 
@@ -66,7 +71,8 @@ Examples:
 
 Detail routes should push from an existing app surface and use `closeOrReturn`
 for close/back. Direct deep links should have a safe fallback. Detail routes are
-not durable launch state unless explicitly approved.
+not primary selection state. They can restore as durable surfaces when they are
+real direct-loadable pages.
 
 ### Contextual Sheets
 
@@ -105,12 +111,12 @@ handling must beat normal restoration.
 
 ## Helper Usage
 
-- `openPrimarySection(context, section)`: primary app section switch, durable
-  only if policy allows.
+- `openPrimarySection(context, section)`: primary app section switch, records
+  primary selection only if policy allows.
 - `openUtilityRoute(context, location)`: temporary app-level utility surface,
-  pushed when possible, never durable.
-- `openDetailRoute(context, location)`: pushed detail or record surface, never
-  durable by default.
+  pushed when possible, durable as a visible surface.
+- `openDetailRoute(context, location)`: pushed detail or record surface,
+  durable as a visible surface when it direct-loads safely.
 - `closeOrReturn(context, fallback)`: pop real history first, then go to the
   fallback.
 - Calendar intent helpers: queue command data, route to Calendar only when
@@ -123,17 +129,32 @@ helper is not appropriate.
 
 ## Persistence Rules
 
-Durable restoration is not browser history and not back history. It is only the
-approved primary launch destination after app restart.
+Durable restoration is not browser history and not back history. It has two
+separate layers:
 
-- Primary route changes may persist through `recordPrimaryTabSelection`.
-- Utility routes, detail routes, modal routes, and query/fragment routes must
-  not persist as launch destinations.
+- Primary selection: the app chrome/menu's selected primary section.
+- Durable surface: the actual real route restored after app restart.
+
+- Primary route changes may persist primary selection through
+  `recordPrimaryTabSelection`.
+- `SessionTrackedRoute` records real visible routes as durable surfaces after
+  routing has built the page.
+- Utility routes and detail routes must not overwrite primary selection.
+- Query/action parameters are stripped or rejected before durability unless a
+  parameter is explicitly approved as stable route state.
 - Generic navigation attempts are logged for diagnosis but do not write durable
-  state.
+  state before a page becomes visible.
 - User back/close and explicit user navigation should suppress restoration so a
   stored snapshot does not override the user's current action.
-- One-shot intents never write durable launch state.
+- Back/close from a pushed utility/detail route should update durable surface to
+  the newly visible route or fallback.
+- One-shot intents never write durable state until they resolve into a real
+  visible route.
+
+Smoke caveat: the deployed schema currently does not expose
+`user_onboarding_helper_completions`, so onboarding helper overlays can appear
+for the disposable PWA smoke account. Dismiss them manually per device during
+smoke; do not suppress them in code for navigation persistence work.
 
 ## Swipe Policy
 
@@ -162,13 +183,15 @@ Add a utility route:
 2. Classify it as `NavigationRouteClass.utility`.
 3. Open with `openUtilityRoute`.
 4. Close with `closeOrReturn`.
+5. Allow `canRestoreAsSurface`; do not allow `canRecordPrimarySelection`.
 
 Add a detail route:
 
 1. Add a route that can direct-load safely.
 2. Open from app surfaces with `openDetailRoute`.
 3. Close with `closeOrReturn`.
-4. Keep it out of durable launch policy.
+4. Allow `canRestoreAsSurface` when the page is real.
+5. Keep it out of `canRecordPrimarySelection`.
 
 Add a sheet:
 

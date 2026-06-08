@@ -282,18 +282,49 @@ void main() {
     },
   );
 
-  test('rejects profile at the durable launch boundary', () async {
+  test('restores profile at the durable surface boundary', () async {
     await _saveDurableRoute('/profile/me');
 
     final snapshot = await AppRestorationService.instance.readSnapshot();
-    expect(snapshot?.routeLocation, isNull);
+    expect(snapshot?.routeLocation, '/profile/me');
+    expect(snapshot?.launchRouteMetadata?.canRecordPrimarySelection, isFalse);
+    expect(snapshot?.launchRouteMetadata?.canRestoreAsSurface, isTrue);
   });
 
-  test('rejects reflection detail at the durable launch boundary', () async {
+  test('restores reflection detail at the durable surface boundary', () async {
     await _saveDurableRoute('/reflections/reflection-1');
 
     final snapshot = await AppRestorationService.instance.readSnapshot();
-    expect(snapshot?.routeLocation, isNull);
+    expect(snapshot?.routeLocation, '/reflections/reflection-1');
+    expect(snapshot?.launchRouteMetadata?.section, AppSection.reflections);
+    expect(snapshot?.launchRouteMetadata?.canRecordPrimarySelection, isFalse);
+  });
+
+  test('restores utility and detail routes as durable surfaces', () async {
+    for (final route in const <String>[
+      '/flows',
+      '/calendars',
+      '/nodes/abydos',
+      '/journal/entry/entry-1',
+      '/inbox/conversation/friend-1',
+      '/flows/42/edit',
+    ]) {
+      await AppRestorationService.instance.clearCurrentSnapshot();
+      await _saveDurableRoute(route);
+
+      final snapshot = await AppRestorationService.instance.readSnapshot();
+      expect(snapshot?.routeLocation, route, reason: route);
+      expect(
+        snapshot?.launchRouteMetadata?.canRestoreAsSurface,
+        isTrue,
+        reason: route,
+      );
+      expect(
+        snapshot?.launchRouteMetadata?.canRecordPrimarySelection,
+        isFalse,
+        reason: route,
+      );
+    }
   });
 
   test('rejects node action routes at the durable launch boundary', () async {
@@ -929,7 +960,7 @@ void main() {
         'userId': 'user-1',
         'windowId': 'window-2',
         'updatedAtMs': 2000,
-        'routeLocation': '/inbox/conversation/friend-1',
+        ..._durableRouteFields('/inbox/conversation/friend-1'),
       };
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString(_snapshotKey(), jsonEncode(currentRoot));
@@ -943,7 +974,7 @@ void main() {
         includeRemote: true,
       );
 
-      expect(result.snapshot?.routeLocation, '/');
+      expect(result.snapshot?.routeLocation, '/inbox/conversation/friend-1');
     },
   );
 

@@ -3,7 +3,9 @@ import 'dart:convert';
 
 import 'package:flutter/widgets.dart';
 import 'package:mobile/core/global_bottom_menu_metrics.dart';
+import 'package:mobile/core/navigation_persistence_policy.dart';
 import 'package:mobile/features/calendar/notify.dart';
+import 'package:mobile/services/app_navigation_restoration_controller.dart';
 import 'package:mobile/services/restoration_coordinator.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -280,6 +282,19 @@ class _SessionTrackedRouteState extends State<SessionTrackedRoute> {
       'session route observed input=${widget.location} '
       'enabled=${widget.enabled} reason=durable_launch_route_centralized',
     );
+    if (!widget.enabled) return;
+    if (_isRootLocation(widget.location) &&
+        RestorationCoordinator
+            .instance
+            .shouldDeferRootRoutePersistenceForLaunch) {
+      return;
+    }
+    unawaited(
+      AppNavigationRestorationController.instance.recordVisibleSurface(
+        route: widget.location,
+        source: NavigationSource.programmatic,
+      ),
+    );
   }
 
   @override
@@ -289,6 +304,11 @@ class _SessionTrackedRouteState extends State<SessionTrackedRoute> {
       child: widget.child,
     );
   }
+}
+
+bool _isRootLocation(String location) {
+  final uri = Uri.tryParse(location.trim());
+  return uri == null || uri.path.isEmpty || uri.path == '/';
 }
 
 class SessionLifecycleBridge extends StatefulWidget {

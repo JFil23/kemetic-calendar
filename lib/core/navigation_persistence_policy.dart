@@ -2,6 +2,7 @@ import 'route_location_sanitizer.dart';
 
 const int navigationPersistenceSchemaVersion = 2;
 const String navigationLaunchRouteMetadataKey = 'launchRouteMetadata';
+const String navigationPrimarySelectionMetadataKey = 'primarySelectionMetadata';
 
 enum AppSection {
   calendar,
@@ -218,6 +219,8 @@ class NavigationLaunchRouteMetadata {
     this.section,
     this.canonicalRoute,
     this.recordedAtMs,
+    this.canRecordPrimarySelection,
+    this.canRestoreAsSurface,
   });
 
   final int schemaVersion;
@@ -226,8 +229,18 @@ class NavigationLaunchRouteMetadata {
   final AppSection? section;
   final String? canonicalRoute;
   final int? recordedAtMs;
+  final bool? canRecordPrimarySelection;
+  final bool? canRestoreAsSurface;
 
   bool get isCurrentUserPrimaryDurable {
+    if (canRecordPrimarySelection != null) {
+      final canonical = canonicalRoute?.trim();
+      return schemaVersion == navigationPersistenceSchemaVersion &&
+          canRecordPrimarySelection! &&
+          section != null &&
+          canonical != null &&
+          canonical.isNotEmpty;
+    }
     final canonical = canonicalRoute?.trim();
     return schemaVersion == navigationPersistenceSchemaVersion &&
         source == NavigationSource.userPrimaryTab &&
@@ -235,6 +248,17 @@ class NavigationLaunchRouteMetadata {
         section != null &&
         canonical != null &&
         canonical.isNotEmpty;
+  }
+
+  bool get isRestorableSurface {
+    if (canRestoreAsSurface != null) {
+      final canonical = canonicalRoute?.trim();
+      return schemaVersion == navigationPersistenceSchemaVersion &&
+          canRestoreAsSurface! &&
+          canonical != null &&
+          canonical.isNotEmpty;
+    }
+    return isCurrentUserPrimaryDurable;
   }
 
   Map<String, dynamic> toJson() {
@@ -245,6 +269,10 @@ class NavigationLaunchRouteMetadata {
       if (section != null) 'section': section!.wireName,
       if (canonicalRoute != null) 'canonicalRoute': canonicalRoute,
       if (recordedAtMs != null) 'recordedAtMs': recordedAtMs,
+      if (canRecordPrimarySelection != null)
+        'canRecordPrimarySelection': canRecordPrimarySelection,
+      if (canRestoreAsSurface != null)
+        'canRestoreAsSurface': canRestoreAsSurface,
     };
   }
 
@@ -261,6 +289,12 @@ class NavigationLaunchRouteMetadata {
       section: appSectionFromWireName(raw['section'] as String?),
       canonicalRoute: (raw['canonicalRoute'] as String?)?.trim(),
       recordedAtMs: (raw['recordedAtMs'] as num?)?.toInt(),
+      canRecordPrimarySelection: raw['canRecordPrimarySelection'] is bool
+          ? raw['canRecordPrimarySelection'] as bool
+          : null,
+      canRestoreAsSurface: raw['canRestoreAsSurface'] is bool
+          ? raw['canRestoreAsSurface'] as bool
+          : null,
     );
   }
 }
@@ -275,6 +309,8 @@ class AppRouteDefinition {
     this.allowedPersistenceSources = const <NavigationSource>{},
     this.allowQueryParameters = false,
     this.canBeOneShotTarget = false,
+    this.canRecordPrimarySelection = false,
+    this.canRestoreAsSurface = false,
     this.prefixMatch = false,
   });
 
@@ -286,6 +322,8 @@ class AppRouteDefinition {
   final Set<NavigationSource> allowedPersistenceSources;
   final bool allowQueryParameters;
   final bool canBeOneShotTarget;
+  final bool canRecordPrimarySelection;
+  final bool canRestoreAsSurface;
   final bool prefixMatch;
 
   bool matchesPath(String path) {
@@ -309,16 +347,20 @@ class AppRouteRegistry {
       allowedPersistenceSources: <NavigationSource>{
         NavigationSource.userPrimaryTab,
       },
+      canRecordPrimarySelection: true,
+      canRestoreAsSurface: true,
     ),
     AppRouteDefinition(
       pattern: '/flows',
       routeClass: NavigationRouteClass.utility,
       owner: AppRouteOwner.calendar,
+      canRestoreAsSurface: true,
     ),
     AppRouteDefinition(
       pattern: '/calendars',
       routeClass: NavigationRouteClass.utility,
       owner: AppRouteOwner.calendar,
+      canRestoreAsSurface: true,
     ),
     AppRouteDefinition(
       pattern: '/inbox',
@@ -329,6 +371,8 @@ class AppRouteRegistry {
       allowedPersistenceSources: <NavigationSource>{
         NavigationSource.userPrimaryTab,
       },
+      canRecordPrimarySelection: true,
+      canRestoreAsSurface: true,
     ),
     AppRouteDefinition(
       pattern: '/nodes',
@@ -339,6 +383,8 @@ class AppRouteRegistry {
       allowedPersistenceSources: <NavigationSource>{
         NavigationSource.userPrimaryTab,
       },
+      canRecordPrimarySelection: true,
+      canRestoreAsSurface: true,
     ),
     AppRouteDefinition(
       pattern: '/journal',
@@ -349,6 +395,8 @@ class AppRouteRegistry {
       allowedPersistenceSources: <NavigationSource>{
         NavigationSource.userPrimaryTab,
       },
+      canRecordPrimarySelection: true,
+      canRestoreAsSurface: true,
     ),
     AppRouteDefinition(
       pattern: '/rhythm/today',
@@ -360,6 +408,8 @@ class AppRouteRegistry {
         NavigationSource.userPrimaryTab,
       },
       canBeOneShotTarget: true,
+      canRecordPrimarySelection: true,
+      canRestoreAsSurface: true,
     ),
     AppRouteDefinition(
       pattern: '/settings',
@@ -370,30 +420,40 @@ class AppRouteRegistry {
       allowedPersistenceSources: <NavigationSource>{
         NavigationSource.userPrimaryTab,
       },
+      canRecordPrimarySelection: true,
+      canRestoreAsSurface: true,
     ),
     AppRouteDefinition(
       pattern: '/profile/me',
       routeClass: NavigationRouteClass.transient,
       owner: AppRouteOwner.profile,
+      section: AppSection.profile,
+      canRestoreAsSurface: true,
     ),
     AppRouteDefinition(
       pattern: '/inbox/conversation/',
       routeClass: NavigationRouteClass.transient,
       owner: AppRouteOwner.inbox,
+      section: AppSection.inbox,
       canBeOneShotTarget: true,
+      canRestoreAsSurface: true,
       prefixMatch: true,
     ),
     AppRouteDefinition(
       pattern: '/nodes/',
       routeClass: NavigationRouteClass.transient,
       owner: AppRouteOwner.library,
+      section: AppSection.library,
       canBeOneShotTarget: true,
+      canRestoreAsSurface: true,
       prefixMatch: true,
     ),
     AppRouteDefinition(
       pattern: '/journal/entry/',
       routeClass: NavigationRouteClass.transient,
       owner: AppRouteOwner.journal,
+      section: AppSection.journal,
+      canRestoreAsSurface: true,
       prefixMatch: true,
     ),
     AppRouteDefinition(
@@ -401,6 +461,7 @@ class AppRouteRegistry {
       routeClass: NavigationRouteClass.transient,
       owner: AppRouteOwner.calendar,
       canBeOneShotTarget: true,
+      canRestoreAsSurface: true,
       prefixMatch: true,
     ),
     AppRouteDefinition(
@@ -408,6 +469,7 @@ class AppRouteRegistry {
       routeClass: NavigationRouteClass.transient,
       owner: AppRouteOwner.sharing,
       canBeOneShotTarget: true,
+      canRestoreAsSurface: true,
       prefixMatch: true,
     ),
     AppRouteDefinition(
@@ -415,26 +477,33 @@ class AppRouteRegistry {
       routeClass: NavigationRouteClass.transient,
       owner: AppRouteOwner.sharing,
       canBeOneShotTarget: true,
+      canRestoreAsSurface: true,
       prefixMatch: true,
     ),
     AppRouteDefinition(
       pattern: '/insight-post/',
       routeClass: NavigationRouteClass.transient,
       owner: AppRouteOwner.profile,
+      section: AppSection.profile,
       canBeOneShotTarget: true,
+      canRestoreAsSurface: true,
       prefixMatch: true,
     ),
     AppRouteDefinition(
       pattern: '/flow-post/',
       routeClass: NavigationRouteClass.transient,
       owner: AppRouteOwner.profile,
+      section: AppSection.profile,
       canBeOneShotTarget: true,
+      canRestoreAsSurface: true,
       prefixMatch: true,
     ),
     AppRouteDefinition(
       pattern: '/profile/',
       routeClass: NavigationRouteClass.transient,
       owner: AppRouteOwner.profile,
+      section: AppSection.profile,
+      canRestoreAsSurface: true,
       prefixMatch: true,
     ),
     AppRouteDefinition(
@@ -451,12 +520,16 @@ class AppRouteRegistry {
       allowedPersistenceSources: <NavigationSource>{
         NavigationSource.userPrimaryTab,
       },
+      canRecordPrimarySelection: true,
+      canRestoreAsSurface: true,
     ),
     AppRouteDefinition(
       pattern: '/reflections/',
       routeClass: NavigationRouteClass.transient,
       owner: AppRouteOwner.reflections,
+      section: AppSection.reflections,
       canBeOneShotTarget: true,
+      canRestoreAsSurface: true,
       prefixMatch: true,
     ),
     AppRouteDefinition(
@@ -464,6 +537,7 @@ class AppRouteRegistry {
       routeClass: NavigationRouteClass.transient,
       owner: AppRouteOwner.guidance,
       canBeOneShotTarget: true,
+      canRestoreAsSurface: true,
       prefixMatch: true,
     ),
     AppRouteDefinition(
@@ -535,7 +609,7 @@ class AppRouteRegistry {
       return null;
     }
     final definition = routeForPath(uri.path);
-    if (definition.routeClass != NavigationRouteClass.durablePrimary) {
+    if (!definition.canRestoreAsSurface) {
       return null;
     }
     return definition;
@@ -549,6 +623,8 @@ class NavigationClassification {
     required this.routeClass,
     required this.accepted,
     required this.reason,
+    required this.canRecordPrimarySelection,
+    required this.canRestoreAsSurface,
     this.canonicalRoute,
     this.section,
   });
@@ -559,6 +635,8 @@ class NavigationClassification {
   final NavigationRouteClass routeClass;
   final bool accepted;
   final String reason;
+  final bool canRecordPrimarySelection;
+  final bool canRestoreAsSurface;
   final AppSection? section;
 
   NavigationLaunchRouteMetadata get metadata => NavigationLaunchRouteMetadata(
@@ -568,6 +646,8 @@ class NavigationClassification {
     section: section,
     canonicalRoute: canonicalRoute,
     recordedAtMs: DateTime.now().millisecondsSinceEpoch,
+    canRecordPrimarySelection: canRecordPrimarySelection,
+    canRestoreAsSurface: canRestoreAsSurface,
   );
 }
 
@@ -612,6 +692,8 @@ class NavigationPersistencePolicy {
         routeClass: NavigationRouteClass.unknown,
         accepted: false,
         reason: 'empty_route',
+        canRecordPrimarySelection: false,
+        canRestoreAsSurface: false,
       );
     }
 
@@ -627,6 +709,8 @@ class NavigationPersistencePolicy {
         routeClass: NavigationRouteClass.unknown,
         accepted: false,
         reason: 'invalid_internal_route',
+        canRecordPrimarySelection: false,
+        canRestoreAsSurface: false,
       );
     }
 
@@ -643,6 +727,8 @@ class NavigationPersistencePolicy {
         reason: canonicalRoute == requested
             ? 'one_shot_intent'
             : 'one_shot_intent_sanitized',
+        canRecordPrimarySelection: false,
+        canRestoreAsSurface: false,
       );
     }
 
@@ -654,65 +740,68 @@ class NavigationPersistencePolicy {
         routeClass: NavigationRouteClass.pageState,
         accepted: false,
         reason: 'page_state_source',
+        canRecordPrimarySelection: false,
+        canRestoreAsSurface: false,
       );
     }
 
-    if (source != NavigationSource.userPrimaryTab) {
+    final sanitizedUri = sanitized == null ? null : Uri.tryParse(sanitized);
+    if (sanitized == null ||
+        sanitizedUri == null ||
+        sanitizedUri.hasScheme ||
+        sanitizedUri.host.isNotEmpty ||
+        !sanitizedUri.path.startsWith('/')) {
       return NavigationClassification(
         requestedRoute: requested,
-        canonicalRoute: sanitized,
         source: source,
-        routeClass: NavigationRouteClass.transient,
+        routeClass: NavigationRouteClass.unknown,
         accepted: false,
-        reason: 'programmatic_navigation_rejected',
+        reason: 'invalid_sanitized_route',
+        canRecordPrimarySelection: false,
+        canRestoreAsSurface: false,
       );
     }
 
-    if (uri.hasQuery || uri.fragment.isNotEmpty) {
-      return NavigationClassification(
-        requestedRoute: requested,
-        canonicalRoute: sanitized,
-        source: source,
-        routeClass: NavigationRouteClass.transient,
-        accepted: false,
-        reason: 'query_or_fragment_route',
-      );
-    }
-
-    final definition = registry.routeForPath(uri.path);
-    if (_isEditDetailOrModalRoute(definition, uri.path)) {
-      return NavigationClassification(
-        requestedRoute: requested,
-        canonicalRoute: sanitized,
-        source: source,
-        routeClass: definition.routeClass,
-        accepted: false,
-        reason: 'edit_detail_or_modal_route',
-      );
-    }
-
-    if (definition.routeClass != NavigationRouteClass.durablePrimary ||
-        !definition.allowedPersistenceSources.contains(source) ||
-        definition.section == null ||
-        definition.canonicalDurableRoute == null) {
+    final definition = registry.routeForPath(sanitizedUri.path);
+    final canonicalRoute = _canonicalRouteForDefinition(
+      definition,
+      sanitizedUri,
+    );
+    if (!definition.canRestoreAsSurface || canonicalRoute == null) {
       return NavigationClassification(
         requestedRoute: requested,
         canonicalRoute: sanitized,
         source: source,
         routeClass: definition.routeClass,
         accepted: false,
-        reason: 'unknown_or_non_primary_route',
+        reason: 'unknown_or_non_restorable_route',
+        canRecordPrimarySelection: false,
+        canRestoreAsSurface: false,
       );
     }
+
+    final canRecordPrimarySelection =
+        source == NavigationSource.userPrimaryTab &&
+        definition.canRecordPrimarySelection &&
+        definition.allowedPersistenceSources.contains(source) &&
+        definition.section != null &&
+        definition.canonicalDurableRoute != null &&
+        canonicalRoute == definition.canonicalDurableRoute;
 
     return NavigationClassification(
       requestedRoute: requested,
-      canonicalRoute: definition.canonicalDurableRoute,
+      canonicalRoute: canonicalRoute,
       source: source,
-      routeClass: NavigationRouteClass.durablePrimary,
+      routeClass: definition.routeClass,
       accepted: true,
-      reason: 'accepted_user_primary_tab',
+      reason: canRecordPrimarySelection
+          ? 'accepted_user_primary_tab'
+          : canonicalRoute == requested
+          ? 'accepted_durable_surface'
+          : 'accepted_durable_surface_sanitized',
       section: definition.section,
+      canRecordPrimarySelection: canRecordPrimarySelection,
+      canRestoreAsSurface: true,
     );
   }
 
@@ -720,25 +809,57 @@ class NavigationPersistencePolicy {
     String? route,
     NavigationLaunchRouteMetadata? metadata,
   ) {
+    return isValidDurableSurfaceRoute(route, metadata);
+  }
+
+  bool isValidDurableSurfaceRoute(
+    String? route,
+    NavigationLaunchRouteMetadata? metadata,
+  ) {
     final normalized = route?.trim();
     if (normalized == null || normalized.isEmpty || metadata == null) {
       return false;
     }
-    if (!metadata.isCurrentUserPrimaryDurable) return false;
-    final classification = classifyRoute(
-      normalized,
-      NavigationSource.userPrimaryTab,
-    );
+    if (!metadata.isRestorableSurface) return false;
+    final classification = classifyRoute(normalized, metadata.source);
     return classification.accepted &&
         classification.canonicalRoute == normalized &&
+        metadata.canonicalRoute == classification.canonicalRoute &&
+        metadata.section == classification.section &&
+        (metadata.canRestoreAsSurface ?? metadata.isRestorableSurface) ==
+            classification.canRestoreAsSurface;
+  }
+
+  bool isValidPrimarySelection(NavigationLaunchRouteMetadata? metadata) {
+    if (metadata == null || !metadata.isCurrentUserPrimaryDurable) {
+      return false;
+    }
+    final canonical = metadata.canonicalRoute?.trim();
+    if (canonical == null || canonical.isEmpty) return false;
+    final classification = classifyRoute(
+      canonical,
+      NavigationSource.userPrimaryTab,
+    );
+    return classification.canRecordPrimarySelection &&
+        classification.canonicalRoute == canonical &&
         metadata.canonicalRoute == classification.canonicalRoute &&
         metadata.section == classification.section;
   }
 
-  bool _isEditDetailOrModalRoute(AppRouteDefinition definition, String path) {
-    if (definition.routeClass == NavigationRouteClass.transient) return true;
-    if (path.contains('/edit')) return true;
-    if (path.contains('/editor/')) return true;
-    return false;
+  String? _canonicalRouteForDefinition(
+    AppRouteDefinition definition,
+    Uri sanitizedUri,
+  ) {
+    if (!definition.canRestoreAsSurface) return null;
+    if (definition.canRecordPrimarySelection &&
+        definition.canonicalDurableRoute != null &&
+        !sanitizedUri.hasQuery &&
+        sanitizedUri.fragment.isEmpty) {
+      return definition.canonicalDurableRoute;
+    }
+    if (definition.allowQueryParameters && sanitizedUri.hasQuery) {
+      return sanitizedUri.toString();
+    }
+    return Uri(path: sanitizedUri.path).toString();
   }
 }

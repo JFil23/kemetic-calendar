@@ -82,6 +82,7 @@ class AppNavigationRestorationController {
     );
     _logPersistenceAttempt(classification);
     if (!classification.accepted ||
+        !classification.canRecordPrimarySelection ||
         classification.canonicalRoute == null ||
         classification.section != section) {
       return;
@@ -103,6 +104,23 @@ class AppNavigationRestorationController {
       reasonOverride: classification.accepted
           ? 'generic_navigation_attempt_not_user_primary_command'
           : null,
+    );
+  }
+
+  Future<void> recordVisibleSurface({
+    required String route,
+    NavigationSource source = NavigationSource.programmatic,
+  }) async {
+    final classification = _policy.classifyRoute(route, source);
+    _logPersistenceAttempt(classification);
+    if (!classification.accepted ||
+        !classification.canRestoreAsSurface ||
+        classification.canonicalRoute == null) {
+      return;
+    }
+    await AppRestorationService.instance.saveDurableLaunchRoute(
+      classification.canonicalRoute!,
+      metadata: classification.metadata,
     );
   }
 
@@ -276,15 +294,11 @@ class AppNavigationRestorationController {
       if (metadata.schemaVersion != navigationPersistenceSchemaVersion) {
         return 'unsupported_schema_version';
       }
-      if (metadata.source != NavigationSource.userPrimaryTab) {
-        return 'non_user_primary_source';
+      if (!metadata.isRestorableSurface) {
+        return 'non_restorable_surface';
       }
-      return 'non_durable_route_class';
     }
-    final classification = _policy.classifyRoute(
-      normalized,
-      NavigationSource.userPrimaryTab,
-    );
+    final classification = _policy.classifyRoute(normalized, metadata.source);
     if (!classification.accepted) {
       return classification.reason;
     }
@@ -296,6 +310,9 @@ class AppNavigationRestorationController {
     }
     if (metadata.section != classification.section) {
       return 'metadata_section_mismatch';
+    }
+    if (!classification.canRestoreAsSurface) {
+      return 'non_restorable_surface';
     }
     return 'valid_durable_metadata';
   }

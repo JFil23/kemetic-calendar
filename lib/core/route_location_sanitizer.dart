@@ -27,12 +27,12 @@ String? stableRouteLocationForContinuity(String? location) {
   final path = uri.path;
 
   if (_isFlowEditorRoute(uri)) {
-    final fallback = _flowEditorContinuityFallback(uri);
+    final output = Uri(path: path).toString();
     traceRestoration(
-      'sanitize input=$normalized output=$fallback '
-      'reason=flow_editor_fallback durable=true transient=true',
+      'sanitize input=$normalized output=$output '
+      'reason=flow_editor_stable_route durable=true transient=false',
     );
-    return fallback;
+    return output;
   }
 
   if (path.startsWith('/nodes/')) {
@@ -86,7 +86,7 @@ bool routeLocationContainsOneShotIntent(String? location) {
     }
   }
   if (_isFlowEditorRoute(uri)) {
-    return true;
+    return uri.hasQuery;
   }
   return false;
 }
@@ -97,30 +97,6 @@ bool _isFlowEditorRoute(Uri uri) {
       segments[0] == 'flows' &&
       int.tryParse(segments[1]) != null &&
       segments[2] == 'edit';
-}
-
-String _flowEditorContinuityFallback(Uri uri) {
-  final flowId = int.tryParse(uri.pathSegments[1]);
-  final rawFallback = uri.queryParameters['fallback']?.trim();
-  if (rawFallback != null && rawFallback.isNotEmpty) {
-    final fallbackUri = Uri.tryParse(rawFallback);
-    if (fallbackUri != null &&
-        _isInternalAppUri(fallbackUri) &&
-        !_isFlowEditorRoute(fallbackUri)) {
-      return stableRouteLocationForContinuity(rawFallback) ?? '/';
-    }
-  }
-  if (flowId != null && flowId > 0) {
-    return '/shared-flow/by-flow/$flowId';
-  }
-  return '/';
-}
-
-bool _isInternalAppUri(Uri uri) {
-  return !uri.hasScheme &&
-      uri.host.isEmpty &&
-      uri.path.isNotEmpty &&
-      uri.path.startsWith('/');
 }
 
 bool _isTruthy(String? raw) {

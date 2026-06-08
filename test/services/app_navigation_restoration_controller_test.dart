@@ -55,6 +55,17 @@ Future<Map<String, dynamic>?> _durableMetadataJson() async {
   return Map<String, dynamic>.from(metadata);
 }
 
+Future<Map<String, dynamic>?> _primarySelectionMetadataJson() async {
+  await AppRestorationService.instance.flushPendingWrites();
+  final prefs = await SharedPreferences.getInstance();
+  final raw = prefs.getString(_snapshotKey());
+  if (raw == null) return null;
+  final decoded = jsonDecode(raw) as Map<String, dynamic>;
+  final metadata = decoded[navigationPrimarySelectionMetadataKey];
+  if (metadata is! Map) return null;
+  return Map<String, dynamic>.from(metadata);
+}
+
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
@@ -203,6 +214,12 @@ void main() {
         expect(metadata, containsPair('canonicalRoute', entry.value));
         expect(metadata, containsPair('source', 'userPrimaryTab'));
         expect(metadata, containsPair('routeClass', 'durablePrimary'));
+        expect(metadata, containsPair('canRecordPrimarySelection', true));
+        expect(metadata, containsPair('canRestoreAsSurface', true));
+        expect(
+          await _primarySelectionMetadataJson(),
+          containsPair('section', entry.key.wireName),
+        );
       }
 
       await AppRestorationService.instance.clearCurrentSnapshot();
@@ -441,6 +458,54 @@ void main() {
     },
   );
 
+  test('visible utility surface persists without primary selection', () async {
+    await AppNavigationRestorationController.instance.recordVisibleSurface(
+      route: '/flows',
+    );
+
+    final destination = await AppNavigationRestorationController.instance
+        .restoreLaunchDestination(isAuthenticated: true);
+
+    expect(await _durableRoute(), '/flows');
+    expect(destination.route, '/flows');
+    expect(await _durableMetadataJson(), containsPair('routeClass', 'utility'));
+    expect(
+      await _durableMetadataJson(),
+      containsPair('canRecordPrimarySelection', false),
+    );
+    expect(await _primarySelectionMetadataJson(), isNull);
+  });
+
+  test(
+    'visible detail surface persists while primary selection remains owner',
+    () async {
+      await AppNavigationRestorationController.instance
+          .recordPrimaryTabSelection(AppSection.library);
+      await AppNavigationRestorationController.instance.recordVisibleSurface(
+        route: '/nodes/abydos',
+      );
+
+      final destination = await AppNavigationRestorationController.instance
+          .restoreLaunchDestination(isAuthenticated: true);
+
+      expect(await _durableRoute(), '/nodes/abydos');
+      expect(destination.route, '/nodes/abydos');
+      expect(await _durableMetadataJson(), containsPair('section', 'library'));
+      expect(
+        await _durableMetadataJson(),
+        containsPair('canRecordPrimarySelection', false),
+      );
+      expect(
+        await _primarySelectionMetadataJson(),
+        containsPair('section', 'library'),
+      );
+      expect(
+        await _primarySelectionMetadataJson(),
+        containsPair('canonicalRoute', '/nodes'),
+      );
+    },
+  );
+
   test('node action URLs are one-shot and sanitize to stable routes', () async {
     final resolution = await AppNavigationRestorationController.instance
         .consumeOneShotIntent(
@@ -489,50 +554,57 @@ void main() {
     expect(await _durableRoute(), isNull);
   });
 
-  test('unknown, edit, detail, modal, and query routes are rejected', () async {
+  test('one-shot launch intent beats stored durable surface', () async {
+    await AppNavigationRestorationController.instance.recordVisibleSurface(
+      route: '/profile/me',
+    );
+
+    final destination = await AppNavigationRestorationController.instance
+        .restoreLaunchDestination(
+          isAuthenticated: true,
+          intent: const PendingNavigationIntent(
+            key: 'search:abydos',
+            requestedRoute: '/nodes/abydos',
+            source: NavigationSource.searchResultTap,
+          ),
+        );
+
+    expect(destination.route, '/nodes/abydos');
+    expect(destination.decisionSource, 'oneShotIntent');
+    expect(await _durableRoute(), '/profile/me');
+  });
+
+  test('unknown modal and unsafe subroutes are not restorable surfaces', () {
     const policy = NavigationPersistencePolicy();
     const unsafeRoutes = <String>[
       '/unknown',
-      '/flows/42/edit',
-      '/inbox/conversation/friend-1',
-      '/shared-flow/by-flow/42',
-      '/event-invite/invite-1',
-      '/nodes/human_emergence',
-      '/nodes?focus=human_emergence',
-      '/inbox?filter=unread',
-      '/settings#privacy',
-      '/reflections/today',
-      '/reflections?filter=recent',
-      '/reflections#latest',
-      '/rhythm/today?source=push',
       '/rhythm/todo',
       '/rhythm/tracker',
       '/rhythm/decan/6267-01-01',
       '/rhythm/editor/timed',
+      '/profile-search',
     ];
 
     for (final route in unsafeRoutes) {
       final classification = policy.classifyRoute(
         route,
-        NavigationSource.userPrimaryTab,
+        NavigationSource.programmatic,
       );
       expect(classification.accepted, isFalse, reason: route);
-      expect(
-        classification.routeClass,
-        isNot(NavigationRouteClass.durablePrimary),
-        reason: route,
-      );
+      expect(classification.canRestoreAsSurface, isFalse, reason: route);
     }
   });
 
-  test('Flow Studio and Calendars routes are non-durable utilities', () {
+  test('utility routes restore as surfaces without primary selection', () {
     const policy = NavigationPersistencePolicy();
     for (final route in const <String>['/flows', '/calendars']) {
       final classification = policy.classifyRoute(
         route,
-        NavigationSource.userPrimaryTab,
+        NavigationSource.programmatic,
       );
-      expect(classification.accepted, isFalse, reason: route);
+      expect(classification.accepted, isTrue, reason: route);
+      expect(classification.canRestoreAsSurface, isTrue, reason: route);
+      expect(classification.canRecordPrimarySelection, isFalse, reason: route);
       expect(
         classification.routeClass,
         NavigationRouteClass.utility,
@@ -542,28 +614,50 @@ void main() {
     }
   });
 
-  test('Profile route is not durable launch state', () {
+  test('Profile route restores as surface without primary selection', () {
     const policy = NavigationPersistencePolicy();
     final classification = policy.classifyRoute(
       '/profile/me',
-      NavigationSource.userPrimaryTab,
+      NavigationSource.programmatic,
     );
 
-    expect(classification.accepted, isFalse);
+    expect(classification.accepted, isTrue);
+    expect(classification.canRestoreAsSurface, isTrue);
+    expect(classification.canRecordPrimarySelection, isFalse);
     expect(classification.routeClass, NavigationRouteClass.transient);
     expect(classification.canonicalRoute, '/profile/me');
   });
 
-  test('Reflections detail routes are not durable launch state', () {
+  test('detail routes restore as surfaces with owning sections', () {
     const policy = NavigationPersistencePolicy();
-    final classification = policy.classifyRoute(
-      '/reflections/reflection-1',
-      NavigationSource.userPrimaryTab,
-    );
+    const expected = <String, AppSection?>{
+      '/nodes/abydos': AppSection.library,
+      '/journal/entry/entry-1': AppSection.journal,
+      '/inbox/conversation/friend-1': AppSection.inbox,
+      '/reflections/reflection-1': AppSection.reflections,
+      '/flows/42/edit': null,
+      '/flow-post/post-1': AppSection.profile,
+      '/insight-post/post-1': AppSection.profile,
+      '/shared-flow/share-1': null,
+      '/event-invite/invite-1': null,
+      '/maat-guidance/delivery-1': null,
+    };
 
-    expect(classification.accepted, isFalse);
-    expect(classification.routeClass, NavigationRouteClass.transient);
-    expect(classification.canonicalRoute, '/reflections/reflection-1');
+    for (final entry in expected.entries) {
+      final classification = policy.classifyRoute(
+        entry.key,
+        NavigationSource.programmatic,
+      );
+      expect(classification.accepted, isTrue, reason: entry.key);
+      expect(classification.canRestoreAsSurface, isTrue, reason: entry.key);
+      expect(
+        classification.canRecordPrimarySelection,
+        isFalse,
+        reason: entry.key,
+      );
+      expect(classification.canonicalRoute, entry.key, reason: entry.key);
+      expect(classification.section, entry.value, reason: entry.key);
+    }
   });
 
   test(
@@ -589,63 +683,70 @@ void main() {
     expect(await _durableRoute(), isNull);
   });
 
-  test(
-    'saved Inbox requires current userPrimaryTab durable metadata',
-    () async {
-      for (final metadata in <NavigationLaunchRouteMetadata>[
-        const NavigationLaunchRouteMetadata(
-          schemaVersion: navigationPersistenceSchemaVersion - 1,
-          source: NavigationSource.userPrimaryTab,
-          routeClass: NavigationRouteClass.durablePrimary,
-          section: AppSection.inbox,
-          canonicalRoute: '/inbox',
-        ),
-        const NavigationLaunchRouteMetadata(
-          schemaVersion: navigationPersistenceSchemaVersion,
-          source: NavigationSource.programmatic,
-          routeClass: NavigationRouteClass.durablePrimary,
-          section: AppSection.inbox,
-          canonicalRoute: '/inbox',
-        ),
-        const NavigationLaunchRouteMetadata(
-          schemaVersion: navigationPersistenceSchemaVersion,
-          source: NavigationSource.userPrimaryTab,
-          routeClass: NavigationRouteClass.transient,
-          section: AppSection.inbox,
-          canonicalRoute: '/inbox',
-        ),
-        const NavigationLaunchRouteMetadata(
-          schemaVersion: navigationPersistenceSchemaVersion,
-          source: NavigationSource.userPrimaryTab,
-          routeClass: NavigationRouteClass.durablePrimary,
-          canonicalRoute: '/inbox',
-        ),
-        const NavigationLaunchRouteMetadata(
-          schemaVersion: navigationPersistenceSchemaVersion,
-          source: NavigationSource.userPrimaryTab,
-          routeClass: NavigationRouteClass.durablePrimary,
-          section: AppSection.inbox,
-        ),
-        const NavigationLaunchRouteMetadata(
-          schemaVersion: navigationPersistenceSchemaVersion,
-          source: NavigationSource.userPrimaryTab,
-          routeClass: NavigationRouteClass.durablePrimary,
-          section: AppSection.library,
-          canonicalRoute: '/nodes',
-        ),
-      ]) {
-        await AppRestorationService.instance.clearCurrentSnapshot();
-        await _writeRawSnapshot(<String, dynamic>{
-          'routeLocation': '/inbox',
-          navigationLaunchRouteMetadataKey: metadata.toJson(),
-        });
+  test('saved Inbox validates durable surface metadata', () async {
+    for (final metadata in <NavigationLaunchRouteMetadata>[
+      const NavigationLaunchRouteMetadata(
+        schemaVersion: navigationPersistenceSchemaVersion - 1,
+        source: NavigationSource.userPrimaryTab,
+        routeClass: NavigationRouteClass.durablePrimary,
+        section: AppSection.inbox,
+        canonicalRoute: '/inbox',
+      ),
+      const NavigationLaunchRouteMetadata(
+        schemaVersion: navigationPersistenceSchemaVersion,
+        source: NavigationSource.userPrimaryTab,
+        routeClass: NavigationRouteClass.transient,
+        section: AppSection.inbox,
+        canonicalRoute: '/inbox',
+      ),
+      const NavigationLaunchRouteMetadata(
+        schemaVersion: navigationPersistenceSchemaVersion,
+        source: NavigationSource.userPrimaryTab,
+        routeClass: NavigationRouteClass.durablePrimary,
+        canonicalRoute: '/inbox',
+      ),
+      const NavigationLaunchRouteMetadata(
+        schemaVersion: navigationPersistenceSchemaVersion,
+        source: NavigationSource.userPrimaryTab,
+        routeClass: NavigationRouteClass.durablePrimary,
+        section: AppSection.inbox,
+      ),
+      const NavigationLaunchRouteMetadata(
+        schemaVersion: navigationPersistenceSchemaVersion,
+        source: NavigationSource.userPrimaryTab,
+        routeClass: NavigationRouteClass.durablePrimary,
+        section: AppSection.library,
+        canonicalRoute: '/nodes',
+      ),
+    ]) {
+      await AppRestorationService.instance.clearCurrentSnapshot();
+      await _writeRawSnapshot(<String, dynamic>{
+        'routeLocation': '/inbox',
+        navigationLaunchRouteMetadataKey: metadata.toJson(),
+      });
 
-        final destination = await AppNavigationRestorationController.instance
-            .restoreLaunchDestination(isAuthenticated: true);
-        expect(destination.route, '/', reason: metadata.toJson().toString());
-      }
-    },
-  );
+      final destination = await AppNavigationRestorationController.instance
+          .restoreLaunchDestination(isAuthenticated: true);
+      expect(destination.route, '/', reason: metadata.toJson().toString());
+    }
+
+    await AppRestorationService.instance.clearCurrentSnapshot();
+    await _writeRawSnapshot(<String, dynamic>{
+      'routeLocation': '/inbox',
+      navigationLaunchRouteMetadataKey: const NavigationLaunchRouteMetadata(
+        schemaVersion: navigationPersistenceSchemaVersion,
+        source: NavigationSource.programmatic,
+        routeClass: NavigationRouteClass.durablePrimary,
+        section: AppSection.inbox,
+        canonicalRoute: '/inbox',
+        canRecordPrimarySelection: false,
+        canRestoreAsSurface: true,
+      ).toJson(),
+    });
+    final destination = await AppNavigationRestorationController.instance
+        .restoreLaunchDestination(isAuthenticated: true);
+    expect(destination.route, '/inbox');
+  });
 
   test('valid durable metadata survives raw snapshot restoration', () async {
     await _writeRawSnapshot(_durableRouteFields('/inbox'));

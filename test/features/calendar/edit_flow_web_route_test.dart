@@ -34,16 +34,16 @@ void main() {
     SharedPreferences.setMockInitialValues({});
   });
 
-  test('edit flow route is web-safe but not durable continuity state', () {
+  test('edit flow route is web-safe durable detail state', () {
     const route = '/flows/42/edit?calendarId=shared-1&fallback=%2F';
 
-    expect(stableRouteLocationForContinuity(route), '/');
+    expect(stableRouteLocationForContinuity(route), '/flows/42/edit');
     expect(routeLocationContainsOneShotIntent(route), isTrue);
     expect(
       stableRouteLocationForContinuity(
         '/flows/42/edit?calendarId=shared-1&fallback=%2Fshared-flow%2Fby-flow%2F42',
       ),
-      '/shared-flow/by-flow/42',
+      '/flows/42/edit',
     );
   });
 
@@ -57,13 +57,16 @@ void main() {
     const policy = NavigationPersistencePolicy();
     final editClassification = policy.classifyRoute(
       '/flows/42/edit?calendarId=shared-1&fallback=%2F',
-      NavigationSource.userPrimaryTab,
+      NavigationSource.programmatic,
     );
 
     expect(route, contains('CalendarPage.buildFlowEditorRoutePage'));
     expect(route, contains("state.uri.queryParameters['calendarId']"));
     expect(route, contains("state.uri.queryParameters['fallback']"));
-    expect(editClassification.accepted, isFalse);
+    expect(editClassification.accepted, isTrue);
+    expect(editClassification.canRestoreAsSurface, isTrue);
+    expect(editClassification.canRecordPrimarySelection, isFalse);
+    expect(editClassification.canonicalRoute, '/flows/42/edit');
     expect(editClassification.routeClass, NavigationRouteClass.transient);
   });
 

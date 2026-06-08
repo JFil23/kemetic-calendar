@@ -30,22 +30,22 @@ void main() {
       );
     });
 
-    test('maps edit flow routes to durable fallback routes', () {
+    test('keeps edit flow routes as stable durable surfaces', () {
       expect(
         stableRouteLocationForContinuity(
           '/flows/42/edit?calendarId=shared-1&fallback=%2Fshared-flow%2Fby-flow%2F42',
         ),
-        '/shared-flow/by-flow/42',
+        '/flows/42/edit',
       );
       expect(
         stableRouteLocationForContinuity(
           '/flows/42/edit?calendarId=shared-1&fallback=%2Fjournal',
         ),
-        '/journal',
+        '/flows/42/edit',
       );
       expect(
         stableRouteLocationForContinuity('/flows/42/edit?calendarId=shared-1'),
-        '/shared-flow/by-flow/42',
+        '/flows/42/edit',
       );
       expect(
         routeLocationContainsOneShotIntent(
@@ -53,6 +53,7 @@ void main() {
         ),
         isTrue,
       );
+      expect(routeLocationContainsOneShotIntent('/flows/42/edit'), isFalse);
     });
 
     test('strips planner launch-only query parameters', () {

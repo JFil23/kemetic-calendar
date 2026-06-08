@@ -121,11 +121,15 @@ void main() {
       if (raw != null) {
         expect(jsonDecode(raw), isNot(containsPair('routeLocation', anything)));
       }
+      expect(
+        (await AppRestorationService.instance.readSnapshot())?.routeLocation,
+        isNull,
+      );
     },
   );
 
   test(
-    'session tracked route does not persist durable launch routes',
+    'session tracked route records visible surfaces through the controller',
     () async {
       final source = await File(
         'lib/services/session_resume_service.dart',
@@ -136,6 +140,11 @@ void main() {
       expect(end, isNot(-1));
       final persistRoute = source.substring(start, end);
       expect(persistRoute, contains('durable_launch_route_centralized'));
+      expect(
+        persistRoute,
+        contains('shouldDeferRootRoutePersistenceForLaunch'),
+      );
+      expect(persistRoute, contains('recordVisibleSurface'));
       expect(persistRoute, isNot(contains('recordRouteLocation')));
       expect(persistRoute, isNot(contains('saveRouteLocation')));
     },

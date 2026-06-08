@@ -509,6 +509,7 @@ class AppRestorationSnapshot {
     required this.updatedAtMs,
     this.routeLocation,
     this.launchRouteMetadata,
+    this.primarySelectionMetadata,
     this.calendar,
     this.dayView,
     this.daySheet,
@@ -523,6 +524,7 @@ class AppRestorationSnapshot {
   final int updatedAtMs;
   final String? routeLocation;
   final NavigationLaunchRouteMetadata? launchRouteMetadata;
+  final NavigationLaunchRouteMetadata? primarySelectionMetadata;
   final CalendarRestorationState? calendar;
   final DayViewRestorationState? dayView;
   final Map<String, dynamic>? daySheet;
@@ -546,16 +548,25 @@ class AppRestorationSnapshot {
     final routeMetadata = NavigationLaunchRouteMetadata.fromJson(
       raw[navigationLaunchRouteMetadataKey],
     );
+    final policy = const NavigationPersistencePolicy();
     final sanitizedRouteLocation = stableRouteLocationForContinuity(
       raw['routeLocation'] as String?,
     );
     final routeLocation =
-        const NavigationPersistencePolicy().isValidDurableLaunchRoute(
-          sanitizedRouteLocation,
-          routeMetadata,
-        )
+        policy.isValidDurableSurfaceRoute(sanitizedRouteLocation, routeMetadata)
         ? sanitizedRouteLocation
         : null;
+    final rawPrimaryMetadata = NavigationLaunchRouteMetadata.fromJson(
+      raw[navigationPrimarySelectionMetadataKey],
+    );
+    final legacyPrimaryMetadata =
+        routeMetadata != null && policy.isValidPrimarySelection(routeMetadata)
+        ? routeMetadata
+        : null;
+    final primarySelectionMetadata =
+        policy.isValidPrimarySelection(rawPrimaryMetadata)
+        ? rawPrimaryMetadata
+        : legacyPrimaryMetadata;
     final daySheetRaw = raw['daySheet'];
     return AppRestorationSnapshot(
       userId: userId,
@@ -563,6 +574,7 @@ class AppRestorationSnapshot {
       updatedAtMs: updatedAtMs,
       routeLocation: routeLocation,
       launchRouteMetadata: routeLocation == null ? null : routeMetadata,
+      primarySelectionMetadata: primarySelectionMetadata,
       calendar: CalendarRestorationState.fromJson(raw['calendar']),
       dayView: DayViewRestorationState.fromJson(raw['dayView']),
       daySheet: _asJsonMap(daySheetRaw),
@@ -806,11 +818,12 @@ class AppRestorationService {
         final routeMetadata = NavigationLaunchRouteMetadata.fromJson(
           migrated[navigationLaunchRouteMetadataKey],
         );
+        final policy = const NavigationPersistencePolicy();
         final sanitizedRouteLocation = stableRouteLocationForContinuity(
           migrated['routeLocation'] as String?,
         );
         final routeLocation =
-            const NavigationPersistencePolicy().isValidDurableLaunchRoute(
+            policy.isValidDurableSurfaceRoute(
               sanitizedRouteLocation,
               routeMetadata,
             )
@@ -822,6 +835,24 @@ class AppRestorationService {
         } else {
           migrated['routeLocation'] = routeLocation;
           migrated[navigationLaunchRouteMetadataKey] = routeMetadata.toJson();
+        }
+        final primaryMetadata = NavigationLaunchRouteMetadata.fromJson(
+          migrated[navigationPrimarySelectionMetadataKey],
+        );
+        final legacyPrimaryMetadata =
+            routeMetadata != null &&
+                policy.isValidPrimarySelection(routeMetadata)
+            ? routeMetadata
+            : null;
+        final validPrimaryMetadata =
+            policy.isValidPrimarySelection(primaryMetadata)
+            ? primaryMetadata
+            : legacyPrimaryMetadata;
+        if (validPrimaryMetadata == null) {
+          migrated.remove(navigationPrimarySelectionMetadataKey);
+        } else {
+          migrated[navigationPrimarySelectionMetadataKey] = validPrimaryMetadata
+              .toJson();
         }
         final overlayStack = _coerceOverlayStack(
           _asJsonMapList(migrated['overlayStack']),
@@ -1927,6 +1958,9 @@ class AppRestorationService {
     await _mutate((current) {
       current['routeLocation'] = normalized;
       current[navigationLaunchRouteMetadataKey] = metadata.toJson();
+      if (metadata.isCurrentUserPrimaryDurable) {
+        current[navigationPrimarySelectionMetadataKey] = metadata.toJson();
+      }
     });
   }
 

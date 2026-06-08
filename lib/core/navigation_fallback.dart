@@ -27,6 +27,7 @@ void closeOrReturn(
       'navigation close_or_return pop fallback=$fallbackLocation',
     );
     router.pop(result);
+    _recordRouteAfterClose(router, reason: 'go_router_pop');
     return;
   }
 
@@ -36,6 +37,7 @@ void closeOrReturn(
       'navigation close_or_return navigator_pop fallback=$fallbackLocation',
     );
     navigator.pop(result);
+    _recordRouteAfterClose(router, reason: 'navigator_pop');
     return;
   }
 
@@ -43,6 +45,27 @@ void closeOrReturn(
     'navigation close_or_return fallback route=$fallbackLocation',
   );
   context.go(fallbackLocation);
+  unawaited(
+    AppNavigationRestorationController.instance.recordVisibleSurface(
+      route: fallbackLocation,
+      source: NavigationSource.programmatic,
+    ),
+  );
+}
+
+void _recordRouteAfterClose(GoRouter router, {required String reason}) {
+  WidgetsBinding.instance.addPostFrameCallback((_) {
+    final route = router.routerDelegate.currentConfiguration.uri.toString();
+    traceRestoration(
+      'navigation close_or_return visible route=$route reason=$reason',
+    );
+    unawaited(
+      AppNavigationRestorationController.instance.recordVisibleSurface(
+        route: route,
+        source: NavigationSource.programmatic,
+      ),
+    );
+  });
 }
 
 Future<T?> openDetailRoute<T>(
