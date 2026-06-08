@@ -137,11 +137,12 @@ class NavigationTrace extends ChangeNotifier {
   }
 
   String _clock(DateTime value) {
-    return [
+    final time = [
       value.hour.toString().padLeft(2, '0'),
       value.minute.toString().padLeft(2, '0'),
       value.second.toString().padLeft(2, '0'),
     ].join(':');
+    return '$time.${value.millisecond.toString().padLeft(3, '0')}';
   }
 }
 

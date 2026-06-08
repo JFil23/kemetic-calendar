@@ -5167,6 +5167,7 @@ class CalendarPage extends StatefulWidget {
     return <String, Object?>{
       if (phase != null) 'phase': phase,
       if (targetRoute != null) 'targetRoute': targetRoute,
+      'timestampMs': DateTime.now().millisecondsSinceEpoch,
       'currentRoute': _routeLocationForNavigationTrace(context),
       'rootRoute': rootRouterUriForNavigationTrace,
       'contextMounted': context.mounted,
@@ -5176,6 +5177,38 @@ class CalendarPage extends StatefulWidget {
           rootNavigatorOverlayContextMountedForNavigationTrace,
       'calendarStateMounted': globalKey.currentState?.mounted ?? false,
     };
+  }
+
+  static void _clearProfileFeedContinuityWithoutBlocking(String userId) {
+    NavigationTrace.instance.record(
+      'profile feed continuity clear requested',
+      state: <String, Object?>{
+        'timestampMs': DateTime.now().millisecondsSinceEpoch,
+      },
+    );
+    // Feed continuity cleanup is diagnostic/restoration hygiene; it must not
+    // delay the user-visible profile navigation.
+    unawaited(() async {
+      try {
+        await RestorationCoordinator.instance.clearProfileFeedContinuity(
+          userId,
+        );
+        NavigationTrace.instance.record(
+          'profile feed continuity clear completed',
+          state: <String, Object?>{
+            'timestampMs': DateTime.now().millisecondsSinceEpoch,
+          },
+        );
+      } catch (error) {
+        NavigationTrace.instance.record(
+          'profile feed continuity clear skipped',
+          state: <String, Object?>{
+            'timestampMs': DateTime.now().millisecondsSinceEpoch,
+            'error': error.runtimeType,
+          },
+        );
+      }
+    }());
   }
 
   static Future<void> openProfileFromAnyContext(BuildContext context) async {
@@ -5204,18 +5237,7 @@ class CalendarPage extends StatefulWidget {
       return;
     }
     if (!context.mounted) return;
-    NavigationTrace.instance.record('profile feed continuity clear requested');
-    try {
-      await RestorationCoordinator.instance.clearProfileFeedContinuity(userId);
-      NavigationTrace.instance.record(
-        'profile feed continuity clear completed',
-      );
-    } catch (error) {
-      NavigationTrace.instance.record(
-        'profile feed continuity clear skipped',
-        state: <String, Object?>{'error': error.runtimeType},
-      );
-    }
+    _clearProfileFeedContinuityWithoutBlocking(userId);
     if (!context.mounted) return;
     NavigationTrace.instance.record('/profile/me route command issued');
     NavigationTrace.instance.record(
@@ -19320,21 +19342,9 @@ class CalendarPageState extends State<CalendarPage>
     _profileNavigationInFlight = true;
     try {
       NavigationTrace.instance.record(
-        'profile feed continuity clear requested',
+        'profile feed continuity clear scheduled',
       );
-      try {
-        await RestorationCoordinator.instance.clearProfileFeedContinuity(
-          userId,
-        );
-        NavigationTrace.instance.record(
-          'profile feed continuity clear completed',
-        );
-      } catch (error) {
-        NavigationTrace.instance.record(
-          'profile feed continuity clear skipped',
-          state: <String, Object?>{'error': error.runtimeType},
-        );
-      }
+      CalendarPage._clearProfileFeedContinuityWithoutBlocking(userId);
       if (!mounted || !context.mounted) {
         NavigationTrace.instance.record(
           'profile route stopped',
@@ -19434,7 +19444,31 @@ class CalendarPageState extends State<CalendarPage>
           AppSection.planner,
         ),
       );
+      NavigationTrace.instance.record(
+        'planner route go requested',
+        state: <String, Object?>{
+          'timestampMs': DateTime.now().millisecondsSinceEpoch,
+          'currentRoute': CalendarPage._routeLocationForNavigationTrace(
+            navContext,
+          ),
+          'rootRoute': rootRouterUriForNavigationTrace,
+          'edgeSwipeTransition': edgeSwipeTransition,
+          'contextMounted': navContext.mounted,
+        },
+      );
       navContext.go('/rhythm/today');
+      NavigationTrace.instance.record(
+        'planner route go returned/current uri',
+        state: <String, Object?>{
+          'timestampMs': DateTime.now().millisecondsSinceEpoch,
+          'currentRoute': CalendarPage._routeLocationForNavigationTrace(
+            navContext,
+          ),
+          'rootRoute': rootRouterUriForNavigationTrace,
+          'edgeSwipeTransition': edgeSwipeTransition,
+          'contextMounted': navContext.mounted,
+        },
+      );
     } finally {
       _plannerNavigationInFlight = false;
     }

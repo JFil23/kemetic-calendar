@@ -173,6 +173,9 @@ Documented gesture systems:
 - `PageNavigationEdgeSwipe` is the shared app/page edge-swipe primitive.
 - Calendar's `_buildPlannerSwipeGate` and `_buildProfileSwipeGate` are the only
   primary-section edge-swipe exceptions.
+- On Android with gestural navigation enabled, system edge-back can compete with
+  Calendar edge swipes. Three-button nav avoids this conflict. This is a
+  platform gesture conflict; no app-level behavior change is made for it.
 - Node reader may use a body-zone right swipe for internal node history, but it
   must exclude the navigation edge zone so system/app back can win there.
 - Journal archive and Inbox may use row-local `Dismissible` controls for

@@ -746,7 +746,7 @@ void main() {
     });
 
     test(
-      'calendar profile navigation resets feed continuity before routing',
+      'calendar profile navigation schedules feed continuity without blocking routing',
       () async {
         final source = await File(
           'lib/features/calendar/calendar_page.dart',
@@ -757,10 +757,20 @@ void main() {
           'Future<void> openProfileFromOutside',
         );
 
-        expect(openProfile, contains('clearProfileFeedContinuity'));
-        expect(openProfile, contains('profile feed continuity clear skipped'));
         expect(
-          openProfile.indexOf('clearProfileFeedContinuity'),
+          openProfile,
+          contains('_clearProfileFeedContinuityWithoutBlocking(userId)'),
+        );
+        expect(
+          openProfile,
+          isNot(
+            contains(
+              'await RestorationCoordinator.instance.clearProfileFeedContinuity',
+            ),
+          ),
+        );
+        expect(
+          openProfile.indexOf('_clearProfileFeedContinuityWithoutBlocking'),
           lessThan(
             openProfile.indexOf(
               "openDetailRoute<void>(context, '/profile/me')",
@@ -856,7 +866,9 @@ void main() {
       );
 
       expect(helper, contains('clearProfileFeedContinuity'));
-      expect(helper, contains('profile feed continuity clear skipped'));
+      expect(helper, contains('_clearProfileFeedContinuityWithoutBlocking'));
+      expect(helper, contains('unawaited('));
+      expect(source, contains('profile feed continuity clear skipped'));
       expect(helper, contains("openDetailRoute<void>(context, '/profile/me')"));
       expect(
         helper,

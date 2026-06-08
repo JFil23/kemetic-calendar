@@ -29,8 +29,12 @@ void main() {
       final plannerSource = await File(
         'lib/features/rhythm/pages/todays_alignment_page.dart',
       ).readAsString();
+      final swipeSource = await File(
+        'lib/core/page_navigation_swipe.dart',
+      ).readAsString();
       final combined =
-          '$mainSource\n$calendarSource\n$profileSource\n$plannerSource';
+          '$mainSource\n$calendarSource\n$profileSource\n$plannerSource\n'
+          '$swipeSource';
 
       for (final label in <String>[
         'bottom menu button tapped',
@@ -71,6 +75,14 @@ void main() {
         'ProfilePage initState',
         'ProfilePage build first frame',
         'ProfilePage first frame completed',
+        'edge swipe drag start',
+        'edge swipe threshold crossed',
+        'edge swipe drag end',
+        'edge swipe commit fired',
+        'planner route go requested',
+        'planner route go returned/current uri',
+        'PlannerPage build first frame',
+        'PlannerPage first frame completed',
         'Today app-bar tap fired',
         'openMainCalendarAtToday entered',
         'Today restoration state saved',

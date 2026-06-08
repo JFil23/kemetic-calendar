@@ -133,11 +133,20 @@ class _TodaysAlignmentPageState extends State<TodaysAlignmentPage> {
   bool _nutritionFormOpen = false;
   Timer? _sessionPersistDebounce;
   String? _lastPublishedWidgetReflectionKey;
+  bool _buildTraceRecorded = false;
 
   bool get _tracksSessionState =>
       !widget.embedded &&
       !widget.openedFromCalendar &&
       !widget.openedFromCalendarSwipe;
+
+  String _routeForNavigationTrace(BuildContext context) {
+    try {
+      return GoRouterState.of(context).uri.toString();
+    } catch (_) {
+      return '<unknown>';
+    }
+  }
 
   PageController _buildTodoPageController(int initialPage) {
     return PageController(viewportFraction: 0.96, initialPage: initialPage);
@@ -3686,6 +3695,31 @@ class _TodaysAlignmentPageState extends State<TodaysAlignmentPage> {
 
   @override
   Widget build(BuildContext context) {
+    if (!_buildTraceRecorded && !widget.embedded) {
+      _buildTraceRecorded = true;
+      NavigationTrace.instance.record(
+        'PlannerPage build first frame',
+        state: <String, Object?>{
+          'timestampMs': DateTime.now().millisecondsSinceEpoch,
+          'openedFromCalendar': widget.openedFromCalendar,
+          'openedFromCalendarSwipe': widget.openedFromCalendarSwipe,
+          'route': _routeForNavigationTrace(context),
+          'mounted': mounted,
+        },
+      );
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        NavigationTrace.instance.record(
+          'PlannerPage first frame completed',
+          state: <String, Object?>{
+            'timestampMs': DateTime.now().millisecondsSinceEpoch,
+            'openedFromCalendar': widget.openedFromCalendar,
+            'openedFromCalendarSwipe': widget.openedFromCalendarSwipe,
+            'route': _routeForNavigationTrace(context),
+            'mounted': mounted,
+          },
+        );
+      });
+    }
     final content = _plannerContent(embedded: widget.embedded);
 
     if (widget.embedded) {
