@@ -33,6 +33,7 @@ import 'package:mobile/widgets/kemetic_keyboard.dart';
 import 'package:mobile/widgets/keyboard_aware.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:mobile/services/session_resume_service.dart';
+import 'package:mobile/services/swipe_landing_coordinator.dart';
 
 import 'package:mobile/core/day_key.dart';
 import '../data/planner_badge_repo.dart';
@@ -171,7 +172,7 @@ class _TodaysAlignmentPageState extends State<TodaysAlignmentPage> {
     );
     _bindSessionListeners();
     final restoreFuture = _restoreSessionState();
-    _future = restoreFuture.then((_) => _load()).then((_) {
+    _future = restoreFuture.then((_) => _loadWithTrace('initial')).then((_) {
       _publishDailyReflectionWidgetData();
     });
     unawaited(restoreFuture.then((_) => _loadNotes()));
@@ -197,7 +198,7 @@ class _TodaysAlignmentPageState extends State<TodaysAlignmentPage> {
       _todoDays = buildTodoDayWindow(anchorDay: _todayLocal);
       _todosByDay = {for (final day in _todoDays) day: <RhythmTodo>[]};
       _activeNutritionDayIndex = (_currentDecanDay() - 1).clamp(0, 9);
-      _future = _load().then((_) {
+      _future = _loadWithTrace('widgetUpdate').then((_) {
         _publishDailyReflectionWidgetData();
       });
       unawaited(_loadNutrition());
@@ -329,6 +330,50 @@ class _TodaysAlignmentPageState extends State<TodaysAlignmentPage> {
         );
       });
       _persistSessionStateSoon();
+    }
+  }
+
+  Future<void> _loadWithTrace(String reason) async {
+    final route = _routeForNavigationTrace(context);
+    NavigationTrace.instance.record(
+      'Planner load start',
+      state: <String, Object?>{
+        ...SwipeLandingCoordinator.instance.traceState(
+          destination: SwipeLandingDestination.planner,
+        ),
+        'reason': reason,
+        'route': route,
+        'mounted': mounted,
+      },
+    );
+    try {
+      await _load();
+      NavigationTrace.instance.record(
+        'Planner load done',
+        state: <String, Object?>{
+          ...SwipeLandingCoordinator.instance.traceState(
+            destination: SwipeLandingDestination.planner,
+          ),
+          'reason': reason,
+          'route': route,
+          'mounted': mounted,
+        },
+      );
+    } catch (error, stackTrace) {
+      NavigationTrace.instance.recordError(
+        'Planner load error',
+        error,
+        stackTrace,
+        state: <String, Object?>{
+          ...SwipeLandingCoordinator.instance.traceState(
+            destination: SwipeLandingDestination.planner,
+          ),
+          'reason': reason,
+          'route': route,
+          'mounted': mounted,
+        },
+      );
+      rethrow;
     }
   }
 
@@ -3700,6 +3745,9 @@ class _TodaysAlignmentPageState extends State<TodaysAlignmentPage> {
       NavigationTrace.instance.record(
         'PlannerPage build first frame',
         state: <String, Object?>{
+          ...SwipeLandingCoordinator.instance.traceState(
+            destination: SwipeLandingDestination.planner,
+          ),
           'timestampMs': DateTime.now().millisecondsSinceEpoch,
           'openedFromCalendar': widget.openedFromCalendar,
           'openedFromCalendarSwipe': widget.openedFromCalendarSwipe,
@@ -3708,9 +3756,15 @@ class _TodaysAlignmentPageState extends State<TodaysAlignmentPage> {
         },
       );
       WidgetsBinding.instance.addPostFrameCallback((_) {
+        SwipeLandingCoordinator.instance.markDestinationFirstFrame(
+          destination: SwipeLandingDestination.planner,
+        );
         NavigationTrace.instance.record(
           'PlannerPage first frame completed',
           state: <String, Object?>{
+            ...SwipeLandingCoordinator.instance.traceState(
+              destination: SwipeLandingDestination.planner,
+            ),
             'timestampMs': DateTime.now().millisecondsSinceEpoch,
             'openedFromCalendar': widget.openedFromCalendar,
             'openedFromCalendarSwipe': widget.openedFromCalendarSwipe,

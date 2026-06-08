@@ -20,6 +20,7 @@ import '../../utils/kemetic_date_format.dart';
 import '../../services/app_haptics.dart';
 import '../../services/navigation_trace.dart';
 import '../../services/restoration_coordinator.dart';
+import '../../services/swipe_landing_coordinator.dart';
 import '_post_glossy_helper.dart';
 import 'follow_list_page.dart';
 import '../calendar/calendar_page.dart';
@@ -418,8 +419,19 @@ class _ProfilePageState extends State<ProfilePage>
     final loadSerial = ++_profileLoadSerial;
     unawaited(_restoreCachedPostedContent(loadSerial));
 
+    NavigationTrace.instance.record(
+      'Profile cache hydration start',
+      state: <String, Object?>{
+        ..._navigationTraceProfileState(),
+        ...SwipeLandingCoordinator.instance.traceState(
+          destination: SwipeLandingDestination.profile,
+        ),
+      },
+    );
     final cachedProfile = _repo.getCachedProfileSync(widget.userId);
+    var cacheSource = 'none';
     if (cachedProfile != null) {
+      cacheSource = 'memory';
       setState(() {
         _profile = cachedProfile;
         _loading = false;
@@ -429,6 +441,7 @@ class _ProfilePageState extends State<ProfilePage>
       final restored = await _repo.restoreCachedProfile(widget.userId);
       if (!mounted || loadSerial != _profileLoadSerial) return;
       if (restored != null) {
+        cacheSource = 'disk';
         setState(() {
           _profile = restored;
           _loading = false;
@@ -443,7 +456,27 @@ class _ProfilePageState extends State<ProfilePage>
     } else if (_cacheHydrating) {
       setState(() => _cacheHydrating = false);
     }
+    NavigationTrace.instance.record(
+      'Profile cache hydration done',
+      state: <String, Object?>{
+        ..._navigationTraceProfileState(),
+        ...SwipeLandingCoordinator.instance.traceState(
+          destination: SwipeLandingDestination.profile,
+        ),
+        'cacheSource': cacheSource,
+        'hasProfile': _profile != null,
+      },
+    );
 
+    NavigationTrace.instance.record(
+      'Profile live load start',
+      state: <String, Object?>{
+        ..._navigationTraceProfileState(),
+        ...SwipeLandingCoordinator.instance.traceState(
+          destination: SwipeLandingDestination.profile,
+        ),
+      },
+    );
     final profileFuture = _repo.getProfile(widget.userId);
     final followFuture = _isViewingOwnProfile
         ? Future<bool>.value(false)
@@ -462,6 +495,16 @@ class _ProfilePageState extends State<ProfilePage>
         _loading = false;
         _cacheHydrating = false;
       });
+      NavigationTrace.instance.record(
+        'Profile live load done',
+        state: <String, Object?>{
+          ..._navigationTraceProfileState(),
+          ...SwipeLandingCoordinator.instance.traceState(
+            destination: SwipeLandingDestination.profile,
+          ),
+          'hasProfile': false,
+        },
+      );
       return;
     }
 
@@ -471,6 +514,16 @@ class _ProfilePageState extends State<ProfilePage>
       _loading = false;
       _cacheHydrating = false;
     });
+    NavigationTrace.instance.record(
+      'Profile live load done',
+      state: <String, Object?>{
+        ..._navigationTraceProfileState(),
+        ...SwipeLandingCoordinator.instance.traceState(
+          destination: SwipeLandingDestination.profile,
+        ),
+        'hasProfile': true,
+      },
+    );
     _maybeShowProfileOnboarding(profile);
 
     unawaited(() async {
@@ -571,6 +624,18 @@ class _ProfilePageState extends State<ProfilePage>
             !helperService.shouldShowHelperSync(userId, helper.id)) {
           return;
         }
+        await SwipeLandingCoordinator.instance.deferHelperIfNeeded(
+          destination: SwipeLandingDestination.profile,
+          helperKey: helper.id,
+        );
+        if (!mounted ||
+            !helperService.shouldShowHelperSync(userId, helper.id)) {
+          return;
+        }
+        SwipeLandingCoordinator.instance.recordHelperShown(
+          destination: SwipeLandingDestination.profile,
+          helperKey: helper.id,
+        );
         GuidedOnboardingController.instance.show(
           CoachmarkTarget(
             key: _feedRevealHintKey,
@@ -1415,12 +1480,25 @@ class _ProfilePageState extends State<ProfilePage>
       _buildTraceRecorded = true;
       NavigationTrace.instance.record(
         'ProfilePage build first frame',
-        state: _navigationTraceProfileState(),
+        state: <String, Object?>{
+          ..._navigationTraceProfileState(),
+          ...SwipeLandingCoordinator.instance.traceState(
+            destination: SwipeLandingDestination.profile,
+          ),
+        },
       );
       WidgetsBinding.instance.addPostFrameCallback((_) {
+        SwipeLandingCoordinator.instance.markDestinationFirstFrame(
+          destination: SwipeLandingDestination.profile,
+        );
         NavigationTrace.instance.record(
           'ProfilePage first frame completed',
-          state: _navigationTraceProfileState(),
+          state: <String, Object?>{
+            ..._navigationTraceProfileState(),
+            ...SwipeLandingCoordinator.instance.traceState(
+              destination: SwipeLandingDestination.profile,
+            ),
+          },
         );
       });
     }

@@ -163,6 +163,12 @@ Calendar may keep primary-section swipes as a documented exception:
 - Calendar left edge opens Planner.
 - Calendar right edge opens Profile.
 
+Calendar edge swipes also carry an in-memory swipe landing id for diagnostics and
+landing polish. The marker is not route state and is not persisted. Destination
+pages may use it to delay helper bubbles briefly until the first frame has
+settled, but helpers must remain eligible and must only be completed by their
+normal dismiss/completion path.
+
 Other pages should use edge swipe for back or no custom edge swipe. Internal
 full-body swipes are allowed only for isolated local content, such as Node
 reader internal history, and must not conflict with system edge back. New swipe

@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 
 import '../services/app_haptics.dart';
 import '../services/navigation_trace.dart';
+import '../services/swipe_landing_coordinator.dart';
 import 'touch_targets.dart';
 
 enum PageNavigationSwipeDirection { leftToRight, rightToLeft }
@@ -23,17 +24,22 @@ class PageNavigationEdgeSwipe extends StatelessWidget {
   const PageNavigationEdgeSwipe({
     super.key,
     required this.direction,
-    required this.onCommit,
+    this.onCommit,
+    this.onCommitWithSwipeId,
     this.enabled = true,
     this.top = 0,
     this.bottom = 0,
     this.width,
     this.minDistance = 52,
     this.minVelocity = 820,
-  });
+  }) : assert(
+         onCommit != null || onCommitWithSwipeId != null,
+         'Provide onCommit or onCommitWithSwipeId.',
+       );
 
   final PageNavigationSwipeDirection direction;
-  final VoidCallback onCommit;
+  final VoidCallback? onCommit;
+  final ValueChanged<String>? onCommitWithSwipeId;
   final bool enabled;
   final double top;
   final double bottom;
@@ -58,6 +64,7 @@ class PageNavigationEdgeSwipe extends StatelessWidget {
         minDistance: minDistance,
         minVelocity: minVelocity,
         onCommit: onCommit,
+        onCommitWithSwipeId: onCommitWithSwipeId,
       ),
     );
   }
@@ -71,6 +78,7 @@ class _PageNavigationEdgeSwipePad extends StatefulWidget {
     required this.minDistance,
     required this.minVelocity,
     required this.onCommit,
+    required this.onCommitWithSwipeId,
   });
 
   final PageNavigationSwipeDirection direction;
@@ -78,7 +86,8 @@ class _PageNavigationEdgeSwipePad extends StatefulWidget {
   final double edgeWidth;
   final double minDistance;
   final double minVelocity;
-  final VoidCallback onCommit;
+  final VoidCallback? onCommit;
+  final ValueChanged<String>? onCommitWithSwipeId;
 
   @override
   State<_PageNavigationEdgeSwipePad> createState() =>
@@ -91,12 +100,14 @@ class _PageNavigationEdgeSwipePadState
   bool _committed = false;
   bool _thresholdFeedbackSent = false;
   int? _dragStartedAtMs;
+  String? _swipeId;
 
   void _reset() {
     _travel = 0.0;
     _committed = false;
     _thresholdFeedbackSent = false;
     _dragStartedAtMs = null;
+    _swipeId = null;
   }
 
   int _nowMs() => DateTime.now().millisecondsSinceEpoch;
@@ -117,6 +128,7 @@ class _PageNavigationEdgeSwipePadState
     final startedAtMs = _dragStartedAtMs;
     return <String, Object?>{
       'direction': _directionLabel,
+      if (_swipeId != null) 'swipeId': _swipeId,
       'timestampMs': timestampMs,
       if (startedAtMs != null) 'elapsedMs': timestampMs - startedAtMs,
       'travel': _travel.round(),
@@ -137,8 +149,12 @@ class _PageNavigationEdgeSwipePadState
   }
 
   void _handleDragStart(DragStartDetails details) {
+    if (!widget.enabled) return;
     _reset();
     _dragStartedAtMs = _nowMs();
+    _swipeId = SwipeLandingCoordinator.instance.startCalendarSwipe(
+      direction: _directionLabel,
+    );
     NavigationTrace.instance.record(
       'edge swipe drag start',
       state: _traceState(nowMs: _dragStartedAtMs),
@@ -159,6 +175,7 @@ class _PageNavigationEdgeSwipePadState
     }
     if (!_thresholdFeedbackSent && _travel >= widget.minDistance) {
       _thresholdFeedbackSent = true;
+      SwipeLandingCoordinator.instance.markThresholdCrossed(_swipeId);
       NavigationTrace.instance.record(
         'edge swipe threshold crossed',
         state: _traceState(),
@@ -169,6 +186,12 @@ class _PageNavigationEdgeSwipePadState
 
   void _handleDragEnd(DragEndDetails details) {
     if (!widget.enabled || _committed) {
+      if (!_committed) {
+        SwipeLandingCoordinator.instance.markDragEnded(
+          _swipeId,
+          committed: false,
+        );
+      }
       _reset();
       return;
     }
@@ -182,18 +205,32 @@ class _PageNavigationEdgeSwipePadState
 
     final shouldCommit =
         _travel >= widget.minDistance || velocity >= widget.minVelocity;
+    SwipeLandingCoordinator.instance.markDragEnded(
+      _swipeId,
+      committed: shouldCommit,
+    );
     NavigationTrace.instance.record(
       'edge swipe drag end',
       state: _traceState(velocity: velocity, shouldCommit: shouldCommit),
     );
     if (shouldCommit) {
       _committed = true;
+      final swipeId = _swipeId;
+      SwipeLandingCoordinator.instance.markCommitted(swipeId);
       NavigationTrace.instance.record(
         'edge swipe commit fired',
         state: _traceState(velocity: velocity, shouldCommit: true),
       );
-      widget.onCommit();
+      if (swipeId != null) {
+        widget.onCommitWithSwipeId?.call(swipeId);
+      }
+      widget.onCommit?.call();
     }
+    _reset();
+  }
+
+  void _handleDragCancel() {
+    SwipeLandingCoordinator.instance.markDragEnded(_swipeId, committed: false);
     _reset();
   }
 
@@ -204,7 +241,7 @@ class _PageNavigationEdgeSwipePadState
       dragStartBehavior: DragStartBehavior.down,
       onHorizontalDragStart: _handleDragStart,
       onHorizontalDragUpdate: _handleDragUpdate,
-      onHorizontalDragCancel: _reset,
+      onHorizontalDragCancel: _handleDragCancel,
       onHorizontalDragEnd: _handleDragEnd,
       child: const SizedBox.expand(),
     );

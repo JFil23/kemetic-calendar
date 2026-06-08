@@ -41,6 +41,7 @@ import '../ai_generation/ai_flow_generation_modal.dart';
 import '../ai_generation/ai_flow_import_payload.dart';
 import '../../models/ai_flow_generation_response.dart';
 import '../../services/ai_reflection_service.dart';
+import '../../services/swipe_landing_coordinator.dart';
 import '../../data/decan_reflection_repo.dart';
 import '../../data/decan_reflection_model.dart';
 import '../../data/decan_reflection_prompt_state.dart';
@@ -13015,6 +13016,16 @@ class CalendarPageState extends State<CalendarPage>
       _calendarAfterOnboardingHelperPrompted = false;
       return;
     }
+    if (SwipeLandingCoordinator.instance.deferOriginCalendarHelper(
+      helperKey: helper.definition.id,
+    )) {
+      _calendarAfterOnboardingHelperPrompted = false;
+      return;
+    }
+    SwipeLandingCoordinator.instance.recordHelperShown(
+      destination: SwipeLandingDestination.calendar,
+      helperKey: helper.definition.id,
+    );
     GuidedOnboardingController.instance.show(
       CoachmarkTarget(
         key: helper.key,
@@ -19307,11 +19318,13 @@ class CalendarPageState extends State<CalendarPage>
   Future<void> _openProfile(
     BuildContext context, {
     bool openedFromCalendarSwipe = false,
+    String? swipeId,
   }) async {
     NavigationTrace.instance.record(
       'calendar profile open entered',
       state: <String, Object?>{
         'openedFromCalendarSwipe': openedFromCalendarSwipe,
+        if (swipeId != null) 'swipeId': swipeId,
       },
     );
     final userId = Supabase.instance.client.auth.currentUser?.id;
@@ -19366,10 +19379,21 @@ class CalendarPageState extends State<CalendarPage>
             targetRoute: '/profile/me',
           ),
           'openedFromCalendarSwipe': openedFromCalendarSwipe,
+          if (swipeId != null) 'swipeId': swipeId,
         },
       );
       try {
+        SwipeLandingCoordinator.instance.markRouteRequested(
+          swipeId,
+          destination: SwipeLandingDestination.profile,
+          route: '/profile/me',
+        );
         unawaited(openDetailRoute<void>(context, '/profile/me'));
+        SwipeLandingCoordinator.instance.markRouteReturned(
+          swipeId,
+          destination: SwipeLandingDestination.profile,
+          route: '/profile/me',
+        );
         NavigationTrace.instance.record(
           'profile route push completed/current uri',
           state: <String, Object?>{
@@ -19379,6 +19403,7 @@ class CalendarPageState extends State<CalendarPage>
               targetRoute: '/profile/me',
             ),
             'openedFromCalendarSwipe': openedFromCalendarSwipe,
+            if (swipeId != null) 'swipeId': swipeId,
           },
         );
       } catch (error, stackTrace) {
@@ -19393,6 +19418,7 @@ class CalendarPageState extends State<CalendarPage>
               targetRoute: '/profile/me',
             ),
             'openedFromCalendarSwipe': openedFromCalendarSwipe,
+            if (swipeId != null) 'swipeId': swipeId,
           },
         );
         rethrow;
@@ -19433,6 +19459,7 @@ class CalendarPageState extends State<CalendarPage>
   Future<void> _openPlannerPage({
     BuildContext? navigationContext,
     bool edgeSwipeTransition = false,
+    String? swipeId,
   }) async {
     if (_plannerNavigationInFlight || !mounted) return;
 
@@ -19447,6 +19474,7 @@ class CalendarPageState extends State<CalendarPage>
       NavigationTrace.instance.record(
         'planner route go requested',
         state: <String, Object?>{
+          if (swipeId != null) 'swipeId': swipeId,
           'timestampMs': DateTime.now().millisecondsSinceEpoch,
           'currentRoute': CalendarPage._routeLocationForNavigationTrace(
             navContext,
@@ -19456,10 +19484,21 @@ class CalendarPageState extends State<CalendarPage>
           'contextMounted': navContext.mounted,
         },
       );
+      SwipeLandingCoordinator.instance.markRouteRequested(
+        swipeId,
+        destination: SwipeLandingDestination.planner,
+        route: '/rhythm/today',
+      );
       navContext.go('/rhythm/today');
+      SwipeLandingCoordinator.instance.markRouteReturned(
+        swipeId,
+        destination: SwipeLandingDestination.planner,
+        route: '/rhythm/today',
+      );
       NavigationTrace.instance.record(
         'planner route go returned/current uri',
         state: <String, Object?>{
+          if (swipeId != null) 'swipeId': swipeId,
           'timestampMs': DateTime.now().millisecondsSinceEpoch,
           'currentRoute': CalendarPage._routeLocationForNavigationTrace(
             navContext,
@@ -29954,8 +29993,10 @@ class CalendarPageState extends State<CalendarPage>
     return PageNavigationEdgeSwipe(
       direction: PageNavigationSwipeDirection.leftToRight,
       enabled: !_plannerNavigationInFlight,
-      onCommit: () {
-        unawaited(_openPlannerPage(edgeSwipeTransition: true));
+      onCommitWithSwipeId: (swipeId) {
+        unawaited(
+          _openPlannerPage(edgeSwipeTransition: true, swipeId: swipeId),
+        );
       },
     );
   }
@@ -29964,8 +30005,14 @@ class CalendarPageState extends State<CalendarPage>
     return PageNavigationEdgeSwipe(
       direction: PageNavigationSwipeDirection.rightToLeft,
       enabled: !_profileNavigationInFlight,
-      onCommit: () {
-        unawaited(_openProfile(context, openedFromCalendarSwipe: true));
+      onCommitWithSwipeId: (swipeId) {
+        unawaited(
+          _openProfile(
+            context,
+            openedFromCalendarSwipe: true,
+            swipeId: swipeId,
+          ),
+        );
       },
     );
   }

@@ -32,9 +32,12 @@ void main() {
       final swipeSource = await File(
         'lib/core/page_navigation_swipe.dart',
       ).readAsString();
+      final swipeLandingSource = await File(
+        'lib/services/swipe_landing_coordinator.dart',
+      ).readAsString();
       final combined =
           '$mainSource\n$calendarSource\n$profileSource\n$plannerSource\n'
-          '$swipeSource';
+          '$swipeSource\n$swipeLandingSource';
 
       for (final label in <String>[
         'bottom menu button tapped',
@@ -79,10 +82,23 @@ void main() {
         'edge swipe threshold crossed',
         'edge swipe drag end',
         'edge swipe commit fired',
+        'swipe landing started',
+        'swipe landing route requested',
+        'swipe landing route returned',
+        'swipe landing destination first frame',
+        'helper overlay deferred',
+        'helper overlay defer completed',
+        'helper overlay shown',
         'planner route go requested',
         'planner route go returned/current uri',
+        'Planner load start',
+        'Planner load done',
         'PlannerPage build first frame',
         'PlannerPage first frame completed',
+        'Profile cache hydration start',
+        'Profile cache hydration done',
+        'Profile live load start',
+        'Profile live load done',
         'Today app-bar tap fired',
         'openMainCalendarAtToday entered',
         'Today restoration state saved',
