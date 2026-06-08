@@ -33,7 +33,6 @@ import 'package:mobile/widgets/kemetic_keyboard.dart';
 import 'package:mobile/widgets/keyboard_aware.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:mobile/services/session_resume_service.dart';
-import 'package:mobile/services/swipe_landing_coordinator.dart';
 
 import 'package:mobile/core/day_key.dart';
 import '../data/planner_badge_repo.dart';
@@ -50,14 +49,12 @@ class TodaysAlignmentPage extends StatefulWidget {
     super.key,
     this.embedded = false,
     this.openedFromCalendar = false,
-    this.openedFromCalendarSwipe = false,
     this.openDayCardOnLoad = false,
     this.launchIntent,
   });
 
   final bool embedded;
   final bool openedFromCalendar;
-  final bool openedFromCalendarSwipe;
   final bool openDayCardOnLoad;
   final PlannerLaunchIntent? launchIntent;
 
@@ -137,9 +134,7 @@ class _TodaysAlignmentPageState extends State<TodaysAlignmentPage> {
   bool _buildTraceRecorded = false;
 
   bool get _tracksSessionState =>
-      !widget.embedded &&
-      !widget.openedFromCalendar &&
-      !widget.openedFromCalendarSwipe;
+      !widget.embedded && !widget.openedFromCalendar;
 
   String _routeForNavigationTrace(BuildContext context) {
     try {
@@ -338,9 +333,6 @@ class _TodaysAlignmentPageState extends State<TodaysAlignmentPage> {
     NavigationTrace.instance.record(
       'Planner load start',
       state: <String, Object?>{
-        ...SwipeLandingCoordinator.instance.traceState(
-          destination: SwipeLandingDestination.planner,
-        ),
         'reason': reason,
         'route': route,
         'mounted': mounted,
@@ -351,9 +343,6 @@ class _TodaysAlignmentPageState extends State<TodaysAlignmentPage> {
       NavigationTrace.instance.record(
         'Planner load done',
         state: <String, Object?>{
-          ...SwipeLandingCoordinator.instance.traceState(
-            destination: SwipeLandingDestination.planner,
-          ),
           'reason': reason,
           'route': route,
           'mounted': mounted,
@@ -365,9 +354,6 @@ class _TodaysAlignmentPageState extends State<TodaysAlignmentPage> {
         error,
         stackTrace,
         state: <String, Object?>{
-          ...SwipeLandingCoordinator.instance.traceState(
-            destination: SwipeLandingDestination.planner,
-          ),
           'reason': reason,
           'route': route,
           'mounted': mounted,
@@ -3742,7 +3728,7 @@ class _TodaysAlignmentPageState extends State<TodaysAlignmentPage> {
 
   PreferredSizeWidget _buildAppBar() {
     return AppBar(
-      automaticallyImplyLeading: !widget.openedFromCalendarSwipe,
+      automaticallyImplyLeading: true,
       backgroundColor: Colors.black,
       elevation: 0.5,
       centerTitle: false,
@@ -3807,29 +3793,18 @@ class _TodaysAlignmentPageState extends State<TodaysAlignmentPage> {
       NavigationTrace.instance.record(
         'PlannerPage build first frame',
         state: <String, Object?>{
-          ...SwipeLandingCoordinator.instance.traceState(
-            destination: SwipeLandingDestination.planner,
-          ),
           'timestampMs': DateTime.now().millisecondsSinceEpoch,
           'openedFromCalendar': widget.openedFromCalendar,
-          'openedFromCalendarSwipe': widget.openedFromCalendarSwipe,
           'route': _routeForNavigationTrace(context),
           'mounted': mounted,
         },
       );
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        SwipeLandingCoordinator.instance.markDestinationFirstFrame(
-          destination: SwipeLandingDestination.planner,
-        );
         NavigationTrace.instance.record(
           'PlannerPage first frame completed',
           state: <String, Object?>{
-            ...SwipeLandingCoordinator.instance.traceState(
-              destination: SwipeLandingDestination.planner,
-            ),
             'timestampMs': DateTime.now().millisecondsSinceEpoch,
             'openedFromCalendar': widget.openedFromCalendar,
-            'openedFromCalendarSwipe': widget.openedFromCalendarSwipe,
             'route': _routeForNavigationTrace(context),
             'mounted': mounted,
           },

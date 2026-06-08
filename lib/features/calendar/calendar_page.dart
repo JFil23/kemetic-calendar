@@ -4,7 +4,6 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:mobile/core/navigation_fallback.dart';
-import 'package:mobile/core/page_navigation_swipe.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../data/event_filing_engine.dart';
 import '../../data/user_events_repo.dart';
@@ -41,7 +40,6 @@ import '../ai_generation/ai_flow_generation_modal.dart';
 import '../ai_generation/ai_flow_import_payload.dart';
 import '../../models/ai_flow_generation_response.dart';
 import '../../services/ai_reflection_service.dart';
-import '../../services/swipe_landing_coordinator.dart';
 import '../../data/decan_reflection_repo.dart';
 import '../../data/decan_reflection_model.dart';
 import '../../data/decan_reflection_prompt_state.dart';
@@ -13011,15 +13009,12 @@ class CalendarPageState extends State<CalendarPage>
       _calendarAfterOnboardingHelperPrompted = false;
       return;
     }
-    if (SwipeLandingCoordinator.instance.deferOriginCalendarHelper(
-      helperKey: helper.definition.id,
-    )) {
-      _calendarAfterOnboardingHelperPrompted = false;
-      return;
-    }
-    SwipeLandingCoordinator.instance.recordHelperShown(
-      destination: SwipeLandingDestination.calendar,
-      helperKey: helper.definition.id,
+    NavigationTrace.instance.record(
+      'helper overlay shown',
+      state: <String, Object?>{
+        'destination': 'calendar',
+        'helperId': helper.definition.id,
+      },
     );
     GuidedOnboardingController.instance.show(
       CoachmarkTarget(
@@ -19310,18 +19305,8 @@ class CalendarPageState extends State<CalendarPage>
     );
   }
 
-  Future<void> _openProfile(
-    BuildContext context, {
-    bool openedFromCalendarSwipe = false,
-    String? swipeId,
-  }) async {
-    NavigationTrace.instance.record(
-      'calendar profile open entered',
-      state: <String, Object?>{
-        'openedFromCalendarSwipe': openedFromCalendarSwipe,
-        if (swipeId != null) 'swipeId': swipeId,
-      },
-    );
+  Future<void> _openProfile(BuildContext context) async {
+    NavigationTrace.instance.record('calendar profile open entered');
     final userId = Supabase.instance.client.auth.currentUser?.id;
     NavigationTrace.instance.record(
       'current user id resolved',
@@ -19373,22 +19358,10 @@ class CalendarPageState extends State<CalendarPage>
             phase: 'beforePush',
             targetRoute: '/profile/me',
           ),
-          'openedFromCalendarSwipe': openedFromCalendarSwipe,
-          if (swipeId != null) 'swipeId': swipeId,
         },
       );
       try {
-        SwipeLandingCoordinator.instance.markRouteRequested(
-          swipeId,
-          destination: SwipeLandingDestination.profile,
-          route: '/profile/me',
-        );
         unawaited(openDetailRoute<void>(context, '/profile/me'));
-        SwipeLandingCoordinator.instance.markRouteReturned(
-          swipeId,
-          destination: SwipeLandingDestination.profile,
-          route: '/profile/me',
-        );
         NavigationTrace.instance.record(
           'profile route push completed/current uri',
           state: <String, Object?>{
@@ -19397,8 +19370,6 @@ class CalendarPageState extends State<CalendarPage>
               phase: 'afterPush',
               targetRoute: '/profile/me',
             ),
-            'openedFromCalendarSwipe': openedFromCalendarSwipe,
-            if (swipeId != null) 'swipeId': swipeId,
           },
         );
       } catch (error, stackTrace) {
@@ -19412,8 +19383,6 @@ class CalendarPageState extends State<CalendarPage>
               phase: 'goCatch',
               targetRoute: '/profile/me',
             ),
-            'openedFromCalendarSwipe': openedFromCalendarSwipe,
-            if (swipeId != null) 'swipeId': swipeId,
           },
         );
         rethrow;
@@ -19451,11 +19420,7 @@ class CalendarPageState extends State<CalendarPage>
     context.go('/journal');
   }
 
-  Future<void> _openPlannerPage({
-    BuildContext? navigationContext,
-    bool edgeSwipeTransition = false,
-    String? swipeId,
-  }) async {
+  Future<void> _openPlannerPage({BuildContext? navigationContext}) async {
     if (_plannerNavigationInFlight || !mounted) return;
 
     _plannerNavigationInFlight = true;
@@ -19469,37 +19434,23 @@ class CalendarPageState extends State<CalendarPage>
       NavigationTrace.instance.record(
         'planner route go requested',
         state: <String, Object?>{
-          if (swipeId != null) 'swipeId': swipeId,
           'timestampMs': DateTime.now().millisecondsSinceEpoch,
           'currentRoute': CalendarPage._routeLocationForNavigationTrace(
             navContext,
           ),
           'rootRoute': rootRouterUriForNavigationTrace,
-          'edgeSwipeTransition': edgeSwipeTransition,
           'contextMounted': navContext.mounted,
         },
       );
-      SwipeLandingCoordinator.instance.markRouteRequested(
-        swipeId,
-        destination: SwipeLandingDestination.planner,
-        route: '/rhythm/today',
-      );
       navContext.go('/rhythm/today');
-      SwipeLandingCoordinator.instance.markRouteReturned(
-        swipeId,
-        destination: SwipeLandingDestination.planner,
-        route: '/rhythm/today',
-      );
       NavigationTrace.instance.record(
         'planner route go returned/current uri',
         state: <String, Object?>{
-          if (swipeId != null) 'swipeId': swipeId,
           'timestampMs': DateTime.now().millisecondsSinceEpoch,
           'currentRoute': CalendarPage._routeLocationForNavigationTrace(
             navContext,
           ),
           'rootRoute': rootRouterUriForNavigationTrace,
-          'edgeSwipeTransition': edgeSwipeTransition,
           'contextMounted': navContext.mounted,
         },
       );
@@ -29976,39 +29927,9 @@ class CalendarPageState extends State<CalendarPage>
     return Stack(
       children: [
         content,
-        _buildPlannerSwipeGate(),
-        _buildProfileSwipeGate(),
         const PendingEventInviteOverlay(),
         if (_reflectionPrompt != null) _buildReflectionBadge(),
       ],
-    );
-  }
-
-  Widget _buildPlannerSwipeGate() {
-    return PageNavigationEdgeSwipe(
-      direction: PageNavigationSwipeDirection.leftToRight,
-      enabled: !_plannerNavigationInFlight,
-      onCommitWithSwipeId: (swipeId) {
-        unawaited(
-          _openPlannerPage(edgeSwipeTransition: true, swipeId: swipeId),
-        );
-      },
-    );
-  }
-
-  Widget _buildProfileSwipeGate() {
-    return PageNavigationEdgeSwipe(
-      direction: PageNavigationSwipeDirection.rightToLeft,
-      enabled: !_profileNavigationInFlight,
-      onCommitWithSwipeId: (swipeId) {
-        unawaited(
-          _openProfile(
-            context,
-            openedFromCalendarSwipe: true,
-            swipeId: swipeId,
-          ),
-        );
-      },
     );
   }
 

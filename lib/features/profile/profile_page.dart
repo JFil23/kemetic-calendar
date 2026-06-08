@@ -20,7 +20,6 @@ import '../../utils/kemetic_date_format.dart';
 import '../../services/app_haptics.dart';
 import '../../services/navigation_trace.dart';
 import '../../services/restoration_coordinator.dart';
-import '../../services/swipe_landing_coordinator.dart';
 import '_post_glossy_helper.dart';
 import 'follow_list_page.dart';
 import '../calendar/calendar_page.dart';
@@ -145,14 +144,12 @@ class ProfilePage extends StatefulWidget {
   final String userId;
   final bool isMyProfile;
   final bool openedFromCalendar;
-  final bool openedFromCalendarSwipe;
 
   const ProfilePage({
     super.key,
     required this.userId,
     this.isMyProfile = false,
     this.openedFromCalendar = false,
-    this.openedFromCalendarSwipe = false,
   });
 
   @override
@@ -230,7 +227,6 @@ class _ProfilePageState extends State<ProfilePage>
       'userId': _navigationTraceUserId(widget.userId),
       'isMyProfile': widget.isMyProfile,
       'openedFromCalendar': widget.openedFromCalendar,
-      'openedFromCalendarSwipe': widget.openedFromCalendarSwipe,
       'currentUserIdPresent': _currentUserId != null,
       'mounted': mounted,
     };
@@ -421,12 +417,7 @@ class _ProfilePageState extends State<ProfilePage>
 
     NavigationTrace.instance.record(
       'Profile cache hydration start',
-      state: <String, Object?>{
-        ..._navigationTraceProfileState(),
-        ...SwipeLandingCoordinator.instance.traceState(
-          destination: SwipeLandingDestination.profile,
-        ),
-      },
+      state: _navigationTraceProfileState(),
     );
     final cachedProfile = _repo.getCachedProfileSync(widget.userId);
     var cacheSource = 'none';
@@ -460,9 +451,6 @@ class _ProfilePageState extends State<ProfilePage>
       'Profile cache hydration done',
       state: <String, Object?>{
         ..._navigationTraceProfileState(),
-        ...SwipeLandingCoordinator.instance.traceState(
-          destination: SwipeLandingDestination.profile,
-        ),
         'cacheSource': cacheSource,
         'hasProfile': _profile != null,
       },
@@ -470,12 +458,7 @@ class _ProfilePageState extends State<ProfilePage>
 
     NavigationTrace.instance.record(
       'Profile live load start',
-      state: <String, Object?>{
-        ..._navigationTraceProfileState(),
-        ...SwipeLandingCoordinator.instance.traceState(
-          destination: SwipeLandingDestination.profile,
-        ),
-      },
+      state: _navigationTraceProfileState(),
     );
     final profileFuture = _repo.getProfile(widget.userId);
     final followFuture = _isViewingOwnProfile
@@ -499,9 +482,6 @@ class _ProfilePageState extends State<ProfilePage>
         'Profile live load done',
         state: <String, Object?>{
           ..._navigationTraceProfileState(),
-          ...SwipeLandingCoordinator.instance.traceState(
-            destination: SwipeLandingDestination.profile,
-          ),
           'hasProfile': false,
         },
       );
@@ -518,9 +498,6 @@ class _ProfilePageState extends State<ProfilePage>
       'Profile live load done',
       state: <String, Object?>{
         ..._navigationTraceProfileState(),
-        ...SwipeLandingCoordinator.instance.traceState(
-          destination: SwipeLandingDestination.profile,
-        ),
         'hasProfile': true,
       },
     );
@@ -624,17 +601,12 @@ class _ProfilePageState extends State<ProfilePage>
             !helperService.shouldShowHelperSync(userId, helper.id)) {
           return;
         }
-        await SwipeLandingCoordinator.instance.deferHelperIfNeeded(
-          destination: SwipeLandingDestination.profile,
-          helperKey: helper.id,
-        );
-        if (!mounted ||
-            !helperService.shouldShowHelperSync(userId, helper.id)) {
-          return;
-        }
-        SwipeLandingCoordinator.instance.recordHelperShown(
-          destination: SwipeLandingDestination.profile,
-          helperKey: helper.id,
+        NavigationTrace.instance.record(
+          'helper overlay shown',
+          state: <String, Object?>{
+            'destination': 'profile',
+            'helperId': helper.id,
+          },
         );
         GuidedOnboardingController.instance.show(
           CoachmarkTarget(
@@ -1480,25 +1452,12 @@ class _ProfilePageState extends State<ProfilePage>
       _buildTraceRecorded = true;
       NavigationTrace.instance.record(
         'ProfilePage build first frame',
-        state: <String, Object?>{
-          ..._navigationTraceProfileState(),
-          ...SwipeLandingCoordinator.instance.traceState(
-            destination: SwipeLandingDestination.profile,
-          ),
-        },
+        state: _navigationTraceProfileState(),
       );
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        SwipeLandingCoordinator.instance.markDestinationFirstFrame(
-          destination: SwipeLandingDestination.profile,
-        );
         NavigationTrace.instance.record(
           'ProfilePage first frame completed',
-          state: <String, Object?>{
-            ..._navigationTraceProfileState(),
-            ...SwipeLandingCoordinator.instance.traceState(
-              destination: SwipeLandingDestination.profile,
-            ),
-          },
+          state: _navigationTraceProfileState(),
         );
       });
     }
@@ -1542,12 +1501,10 @@ class _ProfilePageState extends State<ProfilePage>
         surfaceTintColor: Colors.transparent,
         centerTitle: false,
         automaticallyImplyLeading: false,
-        leading: widget.openedFromCalendarSwipe
-            ? null
-            : IconButton(
-                icon: _profileGoldIcon(Icons.close),
-                onPressed: () => popOrGo(context, '/'),
-              ),
+        leading: IconButton(
+          icon: _profileGoldIcon(Icons.close),
+          onPressed: () => popOrGo(context, '/'),
+        ),
         title: _feedRevealed
             ? _buildFeedDateModeToggle()
             : Text(

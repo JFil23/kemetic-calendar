@@ -248,7 +248,6 @@ void main() {
       expect(
         matches,
         unorderedEquals(<String>[
-          'lib/core/page_navigation_swipe.dart',
           'lib/core/pinch_gesture_surface.dart',
           'lib/features/calendar/calendar_flow_pages.dart',
           'lib/features/calendar/calendar_grid_widgets.dart',
@@ -281,9 +280,6 @@ void main() {
         ]),
       );
 
-      final navigationSwipe = await File(
-        'lib/core/page_navigation_swipe.dart',
-      ).readAsString();
       final calendar = await File(
         'lib/features/calendar/calendar_page.dart',
       ).readAsString();
@@ -292,22 +288,31 @@ void main() {
       ).readAsString();
       final docs = await File('NAVIGATION.md').readAsString();
 
-      expect(navigationSwipe, contains('class PageNavigationEdgeSwipe'));
-      expect(calendar, contains('_buildPlannerSwipeGate'));
-      expect(calendar, contains('_buildProfileSwipeGate'));
-      expect(_countOccurrences(calendar, 'PageNavigationEdgeSwipe('), 2);
-      expect(
-        calendar,
-        contains('direction: PageNavigationSwipeDirection.leftToRight'),
-      );
-      expect(
-        calendar,
-        contains('direction: PageNavigationSwipeDirection.rightToLeft'),
-      );
+      expect(calendar, isNot(contains('_buildPlannerSwipeGate')));
+      expect(calendar, isNot(contains('_buildProfileSwipeGate')));
+      expect(calendar, isNot(contains('PageNavigationEdgeSwipe(')));
       expect(nodeReader, contains('_isInNavigationEdgeExclusion'));
-      expect(nodeReader, contains('pageNavigationEdgeSwipeWidth(context)'));
+      expect(nodeReader, contains('navigationEdgeExclusionWidth(context)'));
+      expect(docs, contains('Do not add custom page-to-page swipe navigation'));
       expect(docs, contains('flow_post_detail_page.dart'));
       expect(docs, contains('There is no active Journal page-level swipe'));
+      expect(
+        docs,
+        contains('There is no active Calendar page-to-page swipe navigation'),
+      );
+    });
+
+    test('app routes use calm GoRouter page wrappers', () async {
+      final main = await File('lib/main.dart').readAsString();
+
+      expect(main, contains('NoTransitionPage'));
+      expect(main, contains('GoRoute _calmRoute'));
+      expect(_countOccurrences(main, '_calmRoute('), greaterThan(20));
+      expect(
+        main,
+        isNot(contains('routes: [\n    GoRoute(')),
+        reason: 'App routes should use calm page wrappers, not defaults.',
+      );
     });
 
     test('dead Journal swipe guard stays removed', () async {

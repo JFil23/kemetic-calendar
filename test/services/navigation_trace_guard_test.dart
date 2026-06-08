@@ -29,15 +29,8 @@ void main() {
       final plannerSource = await File(
         'lib/features/rhythm/pages/todays_alignment_page.dart',
       ).readAsString();
-      final swipeSource = await File(
-        'lib/core/page_navigation_swipe.dart',
-      ).readAsString();
-      final swipeLandingSource = await File(
-        'lib/services/swipe_landing_coordinator.dart',
-      ).readAsString();
       final combined =
-          '$mainSource\n$calendarSource\n$profileSource\n$plannerSource\n'
-          '$swipeSource\n$swipeLandingSource';
+          '$mainSource\n$calendarSource\n$profileSource\n$plannerSource';
 
       for (final label in <String>[
         'bottom menu button tapped',
@@ -78,16 +71,6 @@ void main() {
         'ProfilePage initState',
         'ProfilePage build first frame',
         'ProfilePage first frame completed',
-        'edge swipe drag start',
-        'edge swipe threshold crossed',
-        'edge swipe drag end',
-        'edge swipe commit fired',
-        'swipe landing started',
-        'swipe landing route requested',
-        'swipe landing route returned',
-        'swipe landing destination first frame',
-        'helper overlay deferred',
-        'helper overlay defer completed',
         'helper overlay shown',
         'planner route go requested',
         'planner route go returned/current uri',

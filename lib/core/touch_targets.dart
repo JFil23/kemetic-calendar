@@ -65,6 +65,16 @@ double edgeSwipeGestureWidth(
       .toDouble();
 }
 
+double navigationEdgeExclusionWidth(BuildContext context) {
+  return edgeSwipeGestureWidth(
+    context,
+    touchWidth: 30,
+    minWidth: 30,
+    maxWidth: 64,
+    viewportFraction: 0.075,
+  );
+}
+
 ButtonStyle withExpandedTouchTargets(
   BuildContext context,
   ButtonStyle style, {

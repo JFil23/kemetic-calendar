@@ -1260,6 +1260,19 @@ String _navigationTraceProfileUserId(String? userId, String? currentUserId) {
 
 late final GoRouter _router;
 
+GoRoute _calmRoute({
+  required String path,
+  required Widget Function(BuildContext context, GoRouterState state) builder,
+}) {
+  return GoRoute(
+    path: path,
+    pageBuilder: (context, state) => NoTransitionPage<dynamic>(
+      key: state.pageKey,
+      child: builder(context, state),
+    ),
+  );
+}
+
 GoRouter _createRouter({required String initialLocation}) => GoRouter(
   navigatorKey: _rootNavigatorKey,
   initialLocation: initialLocation,
@@ -1277,8 +1290,8 @@ GoRouter _createRouter({required String initialLocation}) => GoRouter(
         _redirectExternalAppLink(state.uri),
   ),
   routes: [
-    GoRoute(path: '/', builder: (context, state) => const AuthGate()),
-    GoRoute(
+    _calmRoute(path: '/', builder: (context, state) => const AuthGate()),
+    _calmRoute(
       path: '/inbox',
       builder: (context, state) {
         traceRestoration('router build /inbox uri=${state.uri}');
@@ -1302,7 +1315,7 @@ GoRouter _createRouter({required String initialLocation}) => GoRouter(
         );
       },
     ),
-    GoRoute(
+    _calmRoute(
       path: '/inbox/conversation/:userId',
       builder: (context, state) {
         final userId = Uri.decodeComponent(state.pathParameters['userId']!);
@@ -1315,7 +1328,7 @@ GoRouter _createRouter({required String initialLocation}) => GoRouter(
         );
       },
     ),
-    GoRoute(
+    _calmRoute(
       path: '/event-invite/:shareId',
       builder: (context, state) {
         final shareId = Uri.decodeComponent(state.pathParameters['shareId']!);
@@ -1325,7 +1338,7 @@ GoRouter _createRouter({required String initialLocation}) => GoRouter(
         );
       },
     ),
-    GoRoute(
+    _calmRoute(
       path: '/shared-flow/:shareId',
       builder: (context, state) {
         final shareId = Uri.decodeComponent(state.pathParameters['shareId']!);
@@ -1335,7 +1348,7 @@ GoRouter _createRouter({required String initialLocation}) => GoRouter(
         );
       },
     ),
-    GoRoute(
+    _calmRoute(
       path: '/shared-flow/by-flow/:flowId',
       builder: (context, state) {
         final flowId = int.tryParse(state.pathParameters['flowId'] ?? '');
@@ -1345,21 +1358,21 @@ GoRouter _createRouter({required String initialLocation}) => GoRouter(
         );
       },
     ),
-    GoRoute(
+    _calmRoute(
       path: '/flows',
       builder: (context, state) => SessionTrackedRoute(
         location: state.uri.toString(),
         child: CalendarPage.buildFlowStudioRoutePage(),
       ),
     ),
-    GoRoute(
+    _calmRoute(
       path: '/calendars',
       builder: (context, state) => SessionTrackedRoute(
         location: state.uri.toString(),
         child: CalendarPage.buildSharedCalendarsRoutePage(),
       ),
     ),
-    GoRoute(
+    _calmRoute(
       path: '/flows/:flowId/edit',
       builder: (context, state) {
         final flowId = int.tryParse(state.pathParameters['flowId'] ?? '');
@@ -1379,7 +1392,7 @@ GoRouter _createRouter({required String initialLocation}) => GoRouter(
         );
       },
     ),
-    GoRoute(
+    _calmRoute(
       path: '/profile/:userId/followers',
       builder: (context, state) {
         final userId = Uri.decodeComponent(state.pathParameters['userId']!);
@@ -1389,7 +1402,7 @@ GoRouter _createRouter({required String initialLocation}) => GoRouter(
         );
       },
     ),
-    GoRoute(
+    _calmRoute(
       path: '/profile/:userId/following',
       builder: (context, state) {
         final userId = Uri.decodeComponent(state.pathParameters['userId']!);
@@ -1399,7 +1412,7 @@ GoRouter _createRouter({required String initialLocation}) => GoRouter(
         );
       },
     ),
-    GoRoute(
+    _calmRoute(
       path: '/profile/me/edit',
       builder: (context, state) => SessionTrackedRoute(
         location: state.uri.toString(),
@@ -1410,7 +1423,7 @@ GoRouter _createRouter({required String initialLocation}) => GoRouter(
         ),
       ),
     ),
-    GoRoute(
+    _calmRoute(
       path: '/profile-search',
       builder: (context, state) {
         final title = state.uri.queryParameters['title'];
@@ -1435,21 +1448,21 @@ GoRouter _createRouter({required String initialLocation}) => GoRouter(
         );
       },
     ),
-    GoRoute(
+    _calmRoute(
       path: '/profile/flow-post-picker',
       builder: (context, state) => SessionTrackedRoute(
         location: state.uri.toString(),
         child: const FlowPostPickerPage(),
       ),
     ),
-    GoRoute(
+    _calmRoute(
       path: '/profile/insight-post-picker',
       builder: (context, state) => SessionTrackedRoute(
         location: state.uri.toString(),
         child: const InsightPostPickerPage(),
       ),
     ),
-    GoRoute(
+    _calmRoute(
       path: '/profile/:userId',
       builder: (context, state) {
         final rawUserId = Uri.decodeComponent(state.pathParameters['userId']!);
@@ -1503,7 +1516,7 @@ GoRouter _createRouter({required String initialLocation}) => GoRouter(
         );
       },
     ),
-    GoRoute(
+    _calmRoute(
       path: '/insight-post/:postId',
       builder: (context, state) {
         final postId = Uri.decodeComponent(state.pathParameters['postId']!);
@@ -1513,7 +1526,7 @@ GoRouter _createRouter({required String initialLocation}) => GoRouter(
         );
       },
     ),
-    GoRoute(
+    _calmRoute(
       path: '/flow-post/:postId',
       builder: (context, state) {
         final postId = Uri.decodeComponent(state.pathParameters['postId']!);
@@ -1530,14 +1543,14 @@ GoRouter _createRouter({required String initialLocation}) => GoRouter(
         );
       },
     ),
-    GoRoute(
+    _calmRoute(
       path: '/journal',
       builder: (context, state) => SessionTrackedRoute(
         location: state.uri.toString(),
         child: const JournalRoutePage(),
       ),
     ),
-    GoRoute(
+    _calmRoute(
       path: '/journal/entry/:entryId',
       builder: (context, state) {
         final entryId = Uri.decodeComponent(state.pathParameters['entryId']!);
@@ -1547,7 +1560,7 @@ GoRouter _createRouter({required String initialLocation}) => GoRouter(
         );
       },
     ),
-    GoRoute(
+    _calmRoute(
       path: '/nodes',
       builder: (context, state) => SessionTrackedRoute(
         location: state.uri.toString(),
@@ -1556,7 +1569,7 @@ GoRouter _createRouter({required String initialLocation}) => GoRouter(
         ),
       ),
     ),
-    GoRoute(
+    _calmRoute(
       path: '/nodes/:nodeId',
       builder: (context, state) {
         final nodeId = Uri.decodeComponent(state.pathParameters['nodeId']!);
@@ -1571,14 +1584,14 @@ GoRouter _createRouter({required String initialLocation}) => GoRouter(
         );
       },
     ),
-    GoRoute(
+    _calmRoute(
       path: '/reflections',
       builder: (context, state) => SessionTrackedRoute(
         location: state.uri.toString(),
         child: const DecanReflectionArchivePage(),
       ),
     ),
-    GoRoute(
+    _calmRoute(
       path: '/reflections/:reflectionId',
       builder: (context, state) {
         final reflectionId = Uri.decodeComponent(
@@ -1590,7 +1603,7 @@ GoRouter _createRouter({required String initialLocation}) => GoRouter(
         );
       },
     ),
-    GoRoute(
+    _calmRoute(
       path: '/maat-guidance/:deliveryId',
       builder: (context, state) {
         final deliveryId = Uri.decodeComponent(
@@ -1602,14 +1615,14 @@ GoRouter _createRouter({required String initialLocation}) => GoRouter(
         );
       },
     ),
-    GoRoute(
+    _calmRoute(
       path: '/settings',
       builder: (context, state) => SessionTrackedRoute(
         location: state.uri.toString(),
         child: const SettingsPage(),
       ),
     ),
-    GoRoute(
+    _calmRoute(
       path: '/share/:shareId',
       builder: (context, state) {
         return SessionTrackedRoute(
@@ -1621,7 +1634,7 @@ GoRouter _createRouter({required String initialLocation}) => GoRouter(
         );
       },
     ),
-    GoRoute(
+    _calmRoute(
       path: '/rhythm/today',
       builder: (context, state) {
         final launchIntent =
@@ -1633,7 +1646,7 @@ GoRouter _createRouter({required String initialLocation}) => GoRouter(
         );
       },
     ),
-    GoRoute(
+    _calmRoute(
       path: '/rhythm/todo',
       builder: (context, state) {
         final launchIntent =
@@ -1645,14 +1658,14 @@ GoRouter _createRouter({required String initialLocation}) => GoRouter(
         );
       },
     ),
-    GoRoute(
+    _calmRoute(
       path: '/rhythm/tracker',
       builder: (context, state) => SessionTrackedRoute(
         location: state.uri.toString(),
         child: const CommitmentTrackerPage(),
       ),
     ),
-    GoRoute(
+    _calmRoute(
       path: '/rhythm/decan/:dayKey',
       builder: (context, state) {
         final dayKey = Uri.decodeComponent(state.pathParameters['dayKey']!);
@@ -1668,7 +1681,7 @@ GoRouter _createRouter({required String initialLocation}) => GoRouter(
         );
       },
     ),
-    GoRoute(
+    _calmRoute(
       path: '/rhythm/editor/timed',
       builder: (context, state) {
         final resume = state.extra is RhythmEditorResumePayload
@@ -1686,7 +1699,7 @@ GoRouter _createRouter({required String initialLocation}) => GoRouter(
         );
       },
     ),
-    GoRoute(
+    _calmRoute(
       path: '/rhythm/editor/untimed',
       builder: (context, state) {
         final resume = state.extra is RhythmEditorResumePayload
@@ -1704,7 +1717,7 @@ GoRouter _createRouter({required String initialLocation}) => GoRouter(
         );
       },
     ),
-    GoRoute(
+    _calmRoute(
       path: '/rhythm/editor/custom',
       builder: (context, state) => SessionTrackedRoute(
         location: state.uri.toString(),

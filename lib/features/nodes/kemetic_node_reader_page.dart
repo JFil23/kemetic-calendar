@@ -2,7 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import '../../core/navigation_fallback.dart';
-import '../../core/page_navigation_swipe.dart';
+import '../../core/touch_targets.dart';
 import '../../shared/glossy_text.dart';
 import '../../widgets/kemetic_app_bar_action.dart';
 import '../../widgets/insight_link_text.dart';
@@ -118,7 +118,7 @@ class _KemeticNodeReaderPageState extends State<KemeticNodeReaderPage> {
   }
 
   bool _isInNavigationEdgeExclusion(DragStartDetails details) {
-    return details.localPosition.dx <= pageNavigationEdgeSwipeWidth(context);
+    return details.localPosition.dx <= navigationEdgeExclusionWidth(context);
   }
 
   Future<void> _openSearch() async {

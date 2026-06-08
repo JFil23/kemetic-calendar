@@ -127,6 +127,11 @@ rare. Allowed raw call sites are router setup, central navigation helpers, local
 modal/sheet close code, or a call site with a short comment explaining why the
 helper is not appropriate.
 
+App-level GoRouter pages use calm route pages with no side-to-side slide
+transition. Do not reintroduce right-to-left route slides for normal primary,
+utility, or detail navigation without a product decision. Modal and sheet
+animations are separate and are not governed by this route-page rule.
+
 ## Persistence Rules
 
 Durable restoration is not browser history and not back history. It has two
@@ -158,30 +163,16 @@ smoke; do not suppress them in code for navigation persistence work.
 
 ## Swipe Policy
 
-Calendar may keep primary-section swipes as a documented exception:
+Do not add custom page-to-page swipe navigation. Visible app controls, global
+navigation, close buttons, and system/browser/native back are the supported ways
+to move between routes.
 
-- Calendar left edge opens Planner.
-- Calendar right edge opens Profile.
-
-Calendar edge swipes also carry an in-memory swipe landing id for diagnostics and
-landing polish. The marker is not route state and is not persisted. Destination
-pages may use it to delay helper bubbles briefly until the first frame has
-settled, but helpers must remain eligible and must only be completed by their
-normal dismiss/completion path.
-
-Other pages should use edge swipe for back or no custom edge swipe. Internal
-full-body swipes are allowed only for isolated local content, such as Node
-reader internal history, and must not conflict with system edge back. New swipe
-systems need tests for gesture zones, thresholds, and outcomes.
+Internal full-body swipes are allowed only for isolated local content, such as
+Node reader internal history, and must not conflict with system edge back. New
+swipe systems need tests for gesture zones, thresholds, and outcomes.
 
 Documented gesture systems:
 
-- `PageNavigationEdgeSwipe` is the shared app/page edge-swipe primitive.
-- Calendar's `_buildPlannerSwipeGate` and `_buildProfileSwipeGate` are the only
-  primary-section edge-swipe exceptions.
-- On Android with gestural navigation enabled, system edge-back can compete with
-  Calendar edge swipes. Three-button nav avoids this conflict. This is a
-  platform gesture conflict; no app-level behavior change is made for it.
 - Node reader may use a body-zone right swipe for internal node history, but it
   must exclude the navigation edge zone so system/app back can win there.
 - Journal archive and Inbox may use row-local `Dismissible` controls for
@@ -197,6 +188,10 @@ Documented gesture systems:
 
 There is no active Journal page-level swipe navigation. Do not reintroduce one
 without a documented exception and tests.
+
+There is no active Calendar page-to-page swipe navigation. Do not reintroduce
+Calendar edge swipes or other route-changing page swipes without a documented
+product decision and tests.
 
 ## Examples
 
