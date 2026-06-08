@@ -379,8 +379,6 @@ void main() {
       addTearDown(tester.view.resetPhysicalSize);
       addTearDown(tester.view.resetDevicePixelRatio);
       addTearDown(app.resetGlobalFloatingMenuShellForTesting);
-      CalendarPage.debugResetGlobalMenuSheetCommands();
-      addTearDown(CalendarPage.debugResetGlobalMenuSheetCommands);
 
       CalendarPage.debugOpenFlowStudioFromAnyContext = (context) async {
         fail('Global menu should not open Flow Studio from the shell context.');
@@ -448,8 +446,6 @@ void main() {
       await tester.pump();
       await tester.pumpAndSettle();
 
-      expect(CalendarPage.debugPendingOpenFlowStudioFromGlobalMenu, isFalse);
-      expect(CalendarPage.debugPendingOpenCalendarsFromGlobalMenu, isFalse);
       expect(find.text('Flow Studio route'), findsOneWidget);
       expect(find.text('Calendar route'), findsNothing);
 
@@ -473,8 +469,6 @@ void main() {
       addTearDown(tester.view.resetPhysicalSize);
       addTearDown(tester.view.resetDevicePixelRatio);
       addTearDown(app.resetGlobalFloatingMenuShellForTesting);
-      CalendarPage.debugResetGlobalMenuSheetCommands();
-      addTearDown(CalendarPage.debugResetGlobalMenuSheetCommands);
 
       CalendarPage.debugOpenFlowStudioFromAnyContext = (context) async {
         fail('Global menu should not open Flow Studio from the shell context.');
@@ -542,8 +536,6 @@ void main() {
       await tester.pump();
       await tester.pumpAndSettle();
 
-      expect(CalendarPage.debugPendingOpenCalendarsFromGlobalMenu, isFalse);
-      expect(CalendarPage.debugPendingOpenFlowStudioFromGlobalMenu, isFalse);
       expect(find.text('Calendars route'), findsOneWidget);
       expect(find.text('Calendar route'), findsNothing);
 
@@ -1019,61 +1011,22 @@ void main() {
       expect(source, isNot(contains('global menu detached sheet open')));
     });
 
-    test('CalendarPage retains legacy sheet command consumption', () async {
+    test('CalendarPage legacy global sheet commands stay removed', () async {
       final source = await File(
         'lib/features/calendar/calendar_page.dart',
       ).readAsString();
-      final commandSource = _sourceBetween(
-        source,
-        'static void enqueueOpenFlowStudioFromGlobalMenu()',
-        'static Future<void> dismissMountedReflectionPromptIfAny()',
-      );
-      final consumerSource = _sourceBetween(
-        source,
-        '_CalendarGlobalMenuSheetCommand? _pendingGlobalMenuSheetCommand()',
-        'bool _schedulePendingDetachedLaunchActionIfAny',
-      );
 
-      expect(commandSource, contains('_pendingOpenFlowStudioFromGlobalMenu'));
-      expect(commandSource, contains('_pendingOpenCalendarsFromGlobalMenu'));
-      expect(
-        commandSource,
-        contains('CalendarPage global menu sheet command enqueue before'),
+      final staleCommandPattern = RegExp(
+        r'enqueueOpenFlowStudioFromGlobalMenu|'
+        r'enqueueOpenCalendarsFromGlobalMenu|'
+        r'_pendingOpenFlowStudioFromGlobalMenu|'
+        r'_pendingOpenCalendarsFromGlobalMenu|'
+        r'_CalendarGlobalMenuSheetCommand|'
+        r'_schedulePendingGlobalMenuSheetCommandIfAny|'
+        r'_consumePendingGlobalMenuSheetCommand|'
+        r'CalendarPage global menu sheet command',
       );
-      expect(
-        commandSource,
-        contains('_schedulePendingGlobalMenuSheetCommandIfAny'),
-      );
-      expect(
-        consumerSource,
-        contains('globalFloatingMenuModalDepthValue == 0'),
-      );
-      expect(consumerSource, contains('WidgetsBinding.instance.endOfFrame'));
-      expect(consumerSource, contains('_restored'));
-      expect(consumerSource, contains('_initialViewportSettled'));
-      expect(
-        consumerSource,
-        contains(
-          'CalendarPage global menu command proceeding before full restoration settle',
-        ),
-      );
-      expect(
-        consumerSource,
-        contains('CalendarPage global menu sheet command clear requested'),
-      );
-      expect(
-        consumerSource,
-        contains('CalendarPage global menu sheet command consume stopped'),
-      );
-      expect(consumerSource, contains('_getFlowStudioCallback()(null)'));
-      expect(
-        consumerSource,
-        contains('unawaited(_openSharedCalendarsSheet())'),
-      );
-      expect(
-        consumerSource,
-        contains('CalendarPage consumed global menu sheet command'),
-      );
+      expect(staleCommandPattern.hasMatch(source), isFalse);
     });
 
     test(

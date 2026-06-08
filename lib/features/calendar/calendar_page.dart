@@ -3466,8 +3466,6 @@ enum _CalendarDetachedLaunchAction {
   search,
 }
 
-enum _CalendarGlobalMenuSheetCommand { flowStudio, calendars }
-
 class _SharedCalendarEventDetailSnapshot {
   const _SharedCalendarEventDetailSnapshot({
     required this.eventId,
@@ -3690,8 +3688,6 @@ class CalendarPage extends StatefulWidget {
   static final GlobalKey<CalendarPageState> globalKey =
       GlobalKey<CalendarPageState>();
   static _CalendarDetachedLaunchAction? _pendingDetachedLaunchAction;
-  static bool _pendingOpenFlowStudioFromGlobalMenu = false;
-  static bool _pendingOpenCalendarsFromGlobalMenu = false;
   static ({int ky, int km, int kd, EventDetailRestorationState? eventDetail})?
   _pendingDetachedSearchResult;
   static ({int ky, int km, int kd})? _pendingDetachedSearchDay;
@@ -3719,83 +3715,6 @@ class CalendarPage extends StatefulWidget {
   }
 
   static bool get hasMountedHost => _mountedState != null;
-
-  static bool get _hasPendingGlobalMenuSheetCommand =>
-      _pendingOpenFlowStudioFromGlobalMenu ||
-      _pendingOpenCalendarsFromGlobalMenu;
-
-  static String _pendingGlobalMenuSheetCommandTraceValue() {
-    if (_pendingOpenFlowStudioFromGlobalMenu) return 'flowStudio';
-    if (_pendingOpenCalendarsFromGlobalMenu) return 'calendars';
-    return '<none>';
-  }
-
-  @visibleForTesting
-  static bool get debugPendingOpenFlowStudioFromGlobalMenu =>
-      _pendingOpenFlowStudioFromGlobalMenu;
-
-  @visibleForTesting
-  static bool get debugPendingOpenCalendarsFromGlobalMenu =>
-      _pendingOpenCalendarsFromGlobalMenu;
-
-  @visibleForTesting
-  static void debugResetGlobalMenuSheetCommands() {
-    _pendingOpenFlowStudioFromGlobalMenu = false;
-    _pendingOpenCalendarsFromGlobalMenu = false;
-    _mountedState?._globalMenuSheetCommandInFlight = false;
-  }
-
-  static void enqueueOpenFlowStudioFromGlobalMenu() {
-    NavigationTrace.instance.record(
-      'CalendarPage global menu sheet command enqueue before',
-      state: <String, Object?>{
-        'sheet': 'flowStudio',
-        'pending': _pendingGlobalMenuSheetCommandTraceValue(),
-        'calendarMounted': _mountedState != null,
-        'inFlight': _mountedState?._globalMenuSheetCommandInFlight ?? false,
-      },
-    );
-    _pendingOpenFlowStudioFromGlobalMenu = true;
-    _pendingOpenCalendarsFromGlobalMenu = false;
-    NavigationTrace.instance.record(
-      'CalendarPage global menu sheet command enqueued',
-      state: <String, Object?>{
-        'sheet': 'flowStudio',
-        'pending': _pendingGlobalMenuSheetCommandTraceValue(),
-        'calendarMounted': _mountedState != null,
-        'inFlight': _mountedState?._globalMenuSheetCommandInFlight ?? false,
-      },
-    );
-    _mountedState?._schedulePendingGlobalMenuSheetCommandIfAny(
-      trigger: 'enqueue:flowStudio',
-    );
-  }
-
-  static void enqueueOpenCalendarsFromGlobalMenu() {
-    NavigationTrace.instance.record(
-      'CalendarPage global menu sheet command enqueue before',
-      state: <String, Object?>{
-        'sheet': 'calendars',
-        'pending': _pendingGlobalMenuSheetCommandTraceValue(),
-        'calendarMounted': _mountedState != null,
-        'inFlight': _mountedState?._globalMenuSheetCommandInFlight ?? false,
-      },
-    );
-    _pendingOpenCalendarsFromGlobalMenu = true;
-    _pendingOpenFlowStudioFromGlobalMenu = false;
-    NavigationTrace.instance.record(
-      'CalendarPage global menu sheet command enqueued',
-      state: <String, Object?>{
-        'sheet': 'calendars',
-        'pending': _pendingGlobalMenuSheetCommandTraceValue(),
-        'calendarMounted': _mountedState != null,
-        'inFlight': _mountedState?._globalMenuSheetCommandInFlight ?? false,
-      },
-    );
-    _mountedState?._schedulePendingGlobalMenuSheetCommandIfAny(
-      trigger: 'enqueue:calendars',
-    );
-  }
 
   static Future<void> dismissMountedReflectionPromptIfAny() async {
     final state = _mountedState;
@@ -6893,8 +6812,6 @@ class CalendarPage extends StatefulWidget {
       ],
     );
     CalendarPage._pendingDetachedLaunchAction = null;
-    CalendarPage._pendingOpenFlowStudioFromGlobalMenu = false;
-    CalendarPage._pendingOpenCalendarsFromGlobalMenu = false;
     CalendarPage._pendingDetachedSearchResult = null;
     CalendarPage._pendingDetachedSearchDay = null;
     CalendarPage._pendingSharedCalendarRealDayViewIntent = null;
@@ -7560,7 +7477,6 @@ class CalendarPageState extends State<CalendarPage>
   bool _calendarOverlayRestoreAttempted = false;
   bool _calendarOverlayRestoreInFlight = false;
   bool _calendarOverlayRestorePresentationStarted = false;
-  bool _globalMenuSheetCommandInFlight = false;
   bool _sharedCalendarsSheetOpenOrOpening = false;
   bool _flowStudioSheetOpenOrOpening = false;
 
@@ -8631,24 +8547,7 @@ class CalendarPageState extends State<CalendarPage>
     });
   }
 
-  _CalendarGlobalMenuSheetCommand? _pendingGlobalMenuSheetCommand() {
-    if (CalendarPage._pendingOpenFlowStudioFromGlobalMenu) {
-      return _CalendarGlobalMenuSheetCommand.flowStudio;
-    }
-    if (CalendarPage._pendingOpenCalendarsFromGlobalMenu) {
-      return _CalendarGlobalMenuSheetCommand.calendars;
-    }
-    return null;
-  }
-
-  String _globalMenuSheetCommandName(_CalendarGlobalMenuSheetCommand command) {
-    return switch (command) {
-      _CalendarGlobalMenuSheetCommand.flowStudio => 'flowStudio',
-      _CalendarGlobalMenuSheetCommand.calendars => 'calendars',
-    };
-  }
-
-  String _globalMenuCommandRouteLabel() {
+  String _currentRouteTraceLabel() {
     final location = CalendarPage._currentRouteLocationForContext(context);
     final uri = Uri.tryParse(location);
     if (uri == null) return location.trim().isEmpty ? '/' : location.trim();
@@ -8660,219 +8559,6 @@ class CalendarPageState extends State<CalendarPage>
           ..sort();
     if (queryKeys.isEmpty) return path;
     return '$path?${queryKeys.map((key) => '$key=<redacted>').join('&')}';
-  }
-
-  bool _globalMenuSheetCommandReady() {
-    return _globalMenuSheetCommandRouteReady() &&
-        _globalMenuSheetCommandRestorationSettled();
-  }
-
-  bool _globalMenuSheetCommandRouteReady() {
-    final routeActive = CalendarPage._isRootRouteLocation(
-      CalendarPage._currentRouteLocationForContext(context),
-    );
-    return routeActive && globalFloatingMenuModalDepthValue == 0;
-  }
-
-  bool _globalMenuSheetCommandRestorationSettled() {
-    final startupSettled =
-        _startupFlight == null || _startupFlight!.isCompleted;
-    return _restored && _initialViewportSettled && startupSettled;
-  }
-
-  Future<bool> _waitForGlobalMenuSheetCommandReadiness({
-    required _CalendarGlobalMenuSheetCommand command,
-    required String trigger,
-  }) async {
-    final sheet = _globalMenuSheetCommandName(command);
-    for (var attempt = 0; attempt < 40; attempt += 1) {
-      if (!mounted) return false;
-      if (_globalMenuSheetCommandReady()) {
-        await WidgetsBinding.instance.endOfFrame;
-        return mounted;
-      }
-
-      if (attempt >= 12 && _globalMenuSheetCommandRouteReady()) {
-        NavigationTrace.instance.record(
-          'CalendarPage global menu command proceeding before full restoration settle',
-          state: <String, Object?>{
-            'sheet': sheet,
-            'trigger': trigger,
-            'route': _globalMenuCommandRouteLabel(),
-            'restored': _restored,
-            'viewportSettled': _initialViewportSettled,
-            'startupSettled':
-                _startupFlight == null || _startupFlight!.isCompleted,
-            'modalDepth': globalFloatingMenuModalDepthValue,
-          },
-        );
-        await WidgetsBinding.instance.endOfFrame;
-        return mounted;
-      }
-
-      if (attempt == 0 || attempt % 8 == 0) {
-        NavigationTrace.instance.record(
-          'CalendarPage global menu command waiting',
-          state: <String, Object?>{
-            'sheet': sheet,
-            'trigger': trigger,
-            'route': _globalMenuCommandRouteLabel(),
-            'restored': _restored,
-            'viewportSettled': _initialViewportSettled,
-            'startupSettled':
-                _startupFlight == null || _startupFlight!.isCompleted,
-            'modalDepth': globalFloatingMenuModalDepthValue,
-          },
-        );
-      }
-      await Future<void>.delayed(const Duration(milliseconds: 80));
-    }
-
-    NavigationTrace.instance.record(
-      'CalendarPage global menu command wait timed out',
-      state: <String, Object?>{
-        'sheet': sheet,
-        'trigger': trigger,
-        'route': _globalMenuCommandRouteLabel(),
-        'restored': _restored,
-        'viewportSettled': _initialViewportSettled,
-        'modalDepth': globalFloatingMenuModalDepthValue,
-      },
-    );
-    return false;
-  }
-
-  void _clearPendingGlobalMenuSheetCommand(
-    _CalendarGlobalMenuSheetCommand command,
-  ) {
-    NavigationTrace.instance.record(
-      'CalendarPage global menu sheet command clear requested',
-      state: <String, Object?>{
-        'sheet': _globalMenuSheetCommandName(command),
-        'pending': CalendarPage._pendingGlobalMenuSheetCommandTraceValue(),
-      },
-    );
-    switch (command) {
-      case _CalendarGlobalMenuSheetCommand.flowStudio:
-        CalendarPage._pendingOpenFlowStudioFromGlobalMenu = false;
-        break;
-      case _CalendarGlobalMenuSheetCommand.calendars:
-        CalendarPage._pendingOpenCalendarsFromGlobalMenu = false;
-        break;
-    }
-    NavigationTrace.instance.record(
-      'CalendarPage global menu sheet command cleared',
-      state: <String, Object?>{
-        'sheet': _globalMenuSheetCommandName(command),
-        'pending': CalendarPage._pendingGlobalMenuSheetCommandTraceValue(),
-      },
-    );
-  }
-
-  Future<bool> _consumePendingGlobalMenuSheetCommand({
-    required String trigger,
-  }) async {
-    final command = _pendingGlobalMenuSheetCommand();
-    if (command == null) return false;
-    final sheet = _globalMenuSheetCommandName(command);
-    final ready = await _waitForGlobalMenuSheetCommandReadiness(
-      command: command,
-      trigger: trigger,
-    );
-    if (!ready || !mounted) {
-      NavigationTrace.instance.record(
-        'CalendarPage global menu sheet command consume stopped',
-        state: <String, Object?>{
-          'sheet': sheet,
-          'trigger': trigger,
-          'reason': !mounted ? 'unmounted' : 'notReady',
-          'pending': CalendarPage._pendingGlobalMenuSheetCommandTraceValue(),
-        },
-      );
-      if (mounted && !ready) {
-        _clearPendingGlobalMenuSheetCommand(command);
-      }
-      return false;
-    }
-    if (_pendingGlobalMenuSheetCommand() != command) {
-      NavigationTrace.instance.record(
-        'CalendarPage global menu sheet command consume stopped',
-        state: <String, Object?>{
-          'sheet': sheet,
-          'trigger': trigger,
-          'reason': 'pendingChanged',
-          'pending': CalendarPage._pendingGlobalMenuSheetCommandTraceValue(),
-        },
-      );
-      return false;
-    }
-
-    _clearPendingGlobalMenuSheetCommand(command);
-    NavigationTrace.instance.record(
-      'CalendarPage consumed global menu sheet command',
-      state: <String, Object?>{
-        'sheet': sheet,
-        'trigger': trigger,
-        'route': _globalMenuCommandRouteLabel(),
-      },
-    );
-    NavigationTrace.instance.record(
-      'CalendarPage global menu sheet open requested',
-      state: <String, Object?>{'sheet': sheet, 'host': 'calendar'},
-    );
-
-    switch (command) {
-      case _CalendarGlobalMenuSheetCommand.flowStudio:
-        _getFlowStudioCallback()(null);
-        break;
-      case _CalendarGlobalMenuSheetCommand.calendars:
-        unawaited(_openSharedCalendarsSheet());
-        break;
-    }
-    return true;
-  }
-
-  bool _schedulePendingGlobalMenuSheetCommandIfAny({required String trigger}) {
-    final command = _pendingGlobalMenuSheetCommand();
-    if (command == null) return false;
-    if (_globalMenuSheetCommandInFlight) {
-      NavigationTrace.instance.record(
-        'CalendarPage global menu sheet command already scheduled',
-        state: <String, Object?>{
-          'sheet': _globalMenuSheetCommandName(command),
-          'trigger': trigger,
-          'routeReady': _globalMenuSheetCommandRouteReady(),
-          'restorationSettled': _globalMenuSheetCommandRestorationSettled(),
-        },
-      );
-      return true;
-    }
-
-    _globalMenuSheetCommandInFlight = true;
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted) {
-        _globalMenuSheetCommandInFlight = false;
-        return;
-      }
-      unawaited(
-        _consumePendingGlobalMenuSheetCommand(trigger: trigger).whenComplete(
-          () {
-            if (mounted) {
-              _globalMenuSheetCommandInFlight = false;
-              if (_pendingGlobalMenuSheetCommand() != null) {
-                Future<void>.delayed(const Duration(milliseconds: 120), () {
-                  if (!mounted) return;
-                  _schedulePendingGlobalMenuSheetCommandIfAny(
-                    trigger: 'retry:$trigger',
-                  );
-                });
-              }
-            }
-          },
-        ),
-      );
-    });
-    return true;
   }
 
   bool _schedulePendingDetachedLaunchActionIfAny() {
@@ -9318,7 +9004,7 @@ class CalendarPageState extends State<CalendarPage>
       if (phase != null) 'phase': phase,
       'mounted': stateMounted,
       'contextMounted': stateMounted ? context.mounted : false,
-      'route': stateMounted ? _globalMenuCommandRouteLabel() : '<unmounted>',
+      'route': stateMounted ? _currentRouteTraceLabel() : '<unmounted>',
       'modalDepth': globalFloatingMenuModalDepthValue,
       'sharedOpening': _sharedCalendarsSheetOpenOrOpening,
       'flowOpening': _flowStudioSheetOpenOrOpening,
@@ -12123,7 +11809,6 @@ class CalendarPageState extends State<CalendarPage>
         if (widget.initialFlowIdToEdit == null &&
             !widget.openMyFlowsOnLaunch &&
             !_sharedCalendarRealDayViewOpening &&
-            !CalendarPage._hasPendingGlobalMenuSheetCommand &&
             CalendarPage._pendingDetachedLaunchAction == null &&
             CalendarPage._pendingDetachedSearchResult == null &&
             CalendarPage._pendingDetachedSearchDay == null) {
@@ -12139,10 +11824,7 @@ class CalendarPageState extends State<CalendarPage>
                 widget.openMyFlowsOnLaunch) {
               return;
             }
-            if (!_schedulePendingGlobalMenuSheetCommandIfAny(
-                  trigger: 'auth:${event.name}',
-                ) &&
-                !_schedulePendingDetachedLaunchActionIfAny()) {
+            if (!_schedulePendingDetachedLaunchActionIfAny()) {
               _schedulePersistentOverlayRestore(reason: 'auth:${event.name}');
             }
           }),
@@ -26886,7 +26568,6 @@ class CalendarPageState extends State<CalendarPage>
         if (widget.initialFlowIdToEdit == null &&
             !widget.openMyFlowsOnLaunch &&
             !_sharedCalendarRealDayViewOpening &&
-            !CalendarPage._hasPendingGlobalMenuSheetCommand &&
             CalendarPage._pendingDetachedLaunchAction == null &&
             CalendarPage._pendingDetachedSearchResult == null &&
             CalendarPage._pendingDetachedSearchDay == null) {
@@ -26902,10 +26583,7 @@ class CalendarPageState extends State<CalendarPage>
             _openFlowEditorDirectly(targetFlowId);
           } else if (widget.openMyFlowsOnLaunch) {
             _openMyFlowsList();
-          } else if (!_schedulePendingGlobalMenuSheetCommandIfAny(
-                trigger: 'init',
-              ) &&
-              !_schedulePendingDetachedLaunchActionIfAny()) {
+          } else if (!_schedulePendingDetachedLaunchActionIfAny()) {
             _schedulePersistentOverlayRestore(reason: 'init');
           }
         });
@@ -26930,11 +26608,7 @@ class CalendarPageState extends State<CalendarPage>
         if (mounted) _openMyFlowsList();
       });
     } else {
-      if (!_schedulePendingGlobalMenuSheetCommandIfAny(
-        trigger: 'dependencies',
-      )) {
-        _schedulePendingDetachedLaunchActionIfAny();
-      }
+      _schedulePendingDetachedLaunchActionIfAny();
     }
 
     if (!_sharedCalendarRealDayViewOpening &&
@@ -26946,10 +26620,7 @@ class CalendarPageState extends State<CalendarPage>
             widget.openMyFlowsOnLaunch) {
           return;
         }
-        if (!_schedulePendingGlobalMenuSheetCommandIfAny(
-              trigger: 'init-pending',
-            ) &&
-            !_schedulePendingDetachedLaunchActionIfAny()) {
+        if (!_schedulePendingDetachedLaunchActionIfAny()) {
           _schedulePersistentOverlayRestore(reason: 'init-pending');
         }
       });
