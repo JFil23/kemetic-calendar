@@ -76,5 +76,20 @@ void main() {
       expect(buildScriptSource, contains('"APP_ENV"'));
       expect(buildScriptSource, contains('"APP_SITE_URL"'));
     });
+
+    test('web release build stamps deploy marker output', () {
+      expect(buildScriptSource, contains('build/web/version.json'));
+      expect(buildScriptSource, contains('version_payload["build_version"]'));
+      expect(buildScriptSource, contains('version_payload["build_timestamp"]'));
+      expect(buildScriptSource, contains('version_payload["app_env"]'));
+      expect(
+        buildScriptSource,
+        contains('build/web/version.json is missing build_version.'),
+      );
+      expect(
+        buildScriptSource,
+        contains('build/web/env.json APP_ENV must be staging or prod.'),
+      );
+    });
   });
 }

@@ -276,6 +276,7 @@ class _SettingsPageState extends State<SettingsPage> {
 
   Future<_SettingsBuildInfo> _readBuildInfo() async {
     var webBuildVersion = 'native';
+    String? webAppEnvironment;
     if (kIsWeb) {
       webBuildVersion = 'unavailable';
       try {
@@ -289,14 +290,29 @@ class _SettingsPageState extends State<SettingsPage> {
       } catch (_) {
         webBuildVersion = 'unavailable';
       }
+      webAppEnvironment = await _readWebRuntimeAppEnvironment();
     }
 
     return _SettingsBuildInfo(
       appVersion: _SettingsBuildInfo.unavailable.appVersion,
-      appEnvironment: _safeBuildInfoValue(appEnvironmentEnv),
+      appEnvironment:
+          webAppEnvironment ?? _safeBuildInfoValue(appEnvironmentEnv),
       webBuildVersion: webBuildVersion,
       buildTimestamp: _buildTimestampLabel(webBuildVersion),
     );
+  }
+
+  Future<String?> _readWebRuntimeAppEnvironment() async {
+    try {
+      final response = await http.get(Uri.base.resolve('env.json'));
+      if (response.statusCode != 200) return null;
+      final decoded = jsonDecode(response.body);
+      if (decoded is! Map<String, dynamic>) return null;
+      final safeValue = _safeBuildInfoValue(decoded['APP_ENV']);
+      return safeValue == 'unavailable' ? null : safeValue;
+    } catch (_) {
+      return null;
+    }
   }
 
   String _safeBuildInfoValue(Object? raw) {

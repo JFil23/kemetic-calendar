@@ -154,13 +154,16 @@ if [[ "${WEB_SOURCE_MAPS:-}" == "1" ]]; then
 fi
 flutter build "${build_args[@]}"
 
-python3 - <<'PY' "$BUILD_VERSION"
+python3 - <<'PY' "$BUILD_VERSION" "$BUILD_ENV_FILE"
 import json
 import re
 import sys
+from datetime import datetime, timezone
 from pathlib import Path
 
 version = sys.argv[1].strip()
+env_path = Path(sys.argv[2])
+env_payload = json.loads(env_path.read_text(encoding="utf-8"))
 literal = json.dumps(version)
 pattern = re.compile(r"const buildVersion = (?:null|\"[^\"]*\"|\d+);")
 
@@ -180,6 +183,8 @@ if version_path.exists():
     except Exception:
         version_payload = {}
 version_payload["build_version"] = version
+version_payload["build_timestamp"] = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+version_payload["app_env"] = str(env_payload.get("APP_ENV", "")).strip()
 version_path.write_text(json.dumps(version_payload, indent=2) + "\n", encoding="utf-8")
 print(f"▶ Web build version: {version}")
 PY
@@ -192,5 +197,33 @@ if [[ -d "web/.well-known" ]]; then
   mkdir -p "build/web/.well-known"
   cp -R "web/.well-known/." "build/web/.well-known/"
 fi
+
+python3 - <<'PY'
+import json
+import sys
+from pathlib import Path
+
+version_path = Path("build/web/version.json")
+env_path = Path("build/web/env.json")
+
+version = json.loads(version_path.read_text(encoding="utf-8"))
+env = json.loads(env_path.read_text(encoding="utf-8"))
+
+errors = []
+if not str(version.get("build_version", "")).strip():
+    errors.append("build/web/version.json is missing build_version.")
+if not str(version.get("build_timestamp", "")).strip():
+    errors.append("build/web/version.json is missing build_timestamp.")
+if str(version.get("app_env", "")).strip().lower() not in {"staging", "prod"}:
+    errors.append("build/web/version.json app_env must be staging or prod.")
+if str(env.get("APP_ENV", "")).strip().lower() not in {"staging", "prod"}:
+    errors.append("build/web/env.json APP_ENV must be staging or prod.")
+
+if errors:
+    print("❌ Web build marker output is incomplete.", file=sys.stderr)
+    for error in errors:
+        print(f"- {error}", file=sys.stderr)
+    sys.exit(1)
+PY
 
 echo "✅ Web build complete at build/web"

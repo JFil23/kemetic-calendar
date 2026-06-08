@@ -117,7 +117,10 @@ void main() {
       expect(source, contains("show Events, appEnvironmentEnv"));
       expect(readBuildInfo, contains("Uri.base.resolve('version.json')"));
       expect(readBuildInfo, contains("decoded['build_version']"));
+      expect(readBuildInfo, contains('_readWebRuntimeAppEnvironment()'));
       expect(readBuildInfo, contains('appEnvironmentEnv'));
+      expect(source, contains("Uri.base.resolve('env.json')"));
+      expect(source, contains("decoded['APP_ENV']"));
       expect(buildMarker, contains("_buildMarkerLine('App version'"));
       expect(buildMarker, contains("_buildMarkerLine('Web build'"));
       expect(buildMarker, contains("_buildMarkerLine('Build time'"));
@@ -144,7 +147,6 @@ void main() {
         'FIREBASE_WEB_API_KEY',
         'FIREBASE_WEB_VAPID_KEY',
         'WEB_PUSH_PUBLIC_KEY',
-        'env.json',
       ]) {
         expect(markerSource, isNot(contains(secretKey)));
       }
