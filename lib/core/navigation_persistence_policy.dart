@@ -29,6 +29,7 @@ enum AppRouteOwner {
 
 enum NavigationRouteClass {
   durablePrimary,
+  utility,
   pageState,
   transient,
   oneShotIntent,
@@ -58,6 +59,8 @@ extension NavigationRouteClassWireName on NavigationRouteClass {
     switch (this) {
       case NavigationRouteClass.durablePrimary:
         return 'durablePrimary';
+      case NavigationRouteClass.utility:
+        return 'utility';
       case NavigationRouteClass.pageState:
         return 'pageState';
       case NavigationRouteClass.transient:
@@ -152,6 +155,8 @@ NavigationRouteClass navigationRouteClassFromWireName(String? raw) {
   switch (raw?.trim()) {
     case 'durablePrimary':
       return NavigationRouteClass.durablePrimary;
+    case 'utility':
+      return NavigationRouteClass.utility;
     case 'pageState':
       return NavigationRouteClass.pageState;
     case 'transient':
@@ -302,23 +307,13 @@ class AppRouteRegistry {
     ),
     AppRouteDefinition(
       pattern: '/flows',
-      routeClass: NavigationRouteClass.durablePrimary,
+      routeClass: NavigationRouteClass.utility,
       owner: AppRouteOwner.calendar,
-      section: AppSection.calendar,
-      canonicalDurableRoute: '/flows',
-      allowedPersistenceSources: <NavigationSource>{
-        NavigationSource.userPrimaryTab,
-      },
     ),
     AppRouteDefinition(
       pattern: '/calendars',
-      routeClass: NavigationRouteClass.durablePrimary,
+      routeClass: NavigationRouteClass.utility,
       owner: AppRouteOwner.calendar,
-      section: AppSection.calendar,
-      canonicalDurableRoute: '/calendars',
-      allowedPersistenceSources: <NavigationSource>{
-        NavigationSource.userPrimaryTab,
-      },
     ),
     AppRouteDefinition(
       pattern: '/inbox',
@@ -373,13 +368,8 @@ class AppRouteRegistry {
     ),
     AppRouteDefinition(
       pattern: '/profile/me',
-      routeClass: NavigationRouteClass.durablePrimary,
+      routeClass: NavigationRouteClass.transient,
       owner: AppRouteOwner.profile,
-      section: AppSection.profile,
-      canonicalDurableRoute: '/profile/me',
-      allowedPersistenceSources: <NavigationSource>{
-        NavigationSource.userPrimaryTab,
-      },
     ),
     AppRouteDefinition(
       pattern: '/inbox/conversation/',

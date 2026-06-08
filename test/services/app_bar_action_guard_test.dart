@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:mobile/core/global_bottom_menu_metrics.dart';
+import 'package:mobile/core/navigation_fallback.dart';
 import 'package:mobile/features/calendar/calendar_page.dart';
 import 'package:mobile/main.dart' as app;
 import 'package:mobile/services/app_restoration_service.dart';
@@ -393,6 +394,7 @@ void main() {
       });
 
       final router = GoRouter(
+        navigatorKey: app.rootNavigatorKeyForTesting,
         initialLocation: '/profile/me',
         routes: [
           GoRoute(
@@ -402,8 +404,20 @@ void main() {
           ),
           GoRoute(
             path: '/flows',
-            builder: (context, state) =>
-                const Scaffold(body: Text('Flow Studio route')),
+            builder: (context, state) => Scaffold(
+              body: Center(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Text('Flow Studio route'),
+                    TextButton(
+                      onPressed: () => closeOrReturn(context, '/'),
+                      child: const Text('close'),
+                    ),
+                  ],
+                ),
+              ),
+            ),
           ),
           GoRoute(
             path: '/profile/:userId',
@@ -432,15 +446,23 @@ void main() {
       await tester.pump(const Duration(milliseconds: 260));
       await tester.tap(find.text('Flow Studio'));
       await tester.pump();
-      await tester.pump(const Duration(milliseconds: 260));
+      await tester.pumpAndSettle();
 
       expect(CalendarPage.debugPendingOpenFlowStudioFromGlobalMenu, isFalse);
       expect(CalendarPage.debugPendingOpenCalendarsFromGlobalMenu, isFalse);
+      expect(find.text('Flow Studio route'), findsOneWidget);
+      expect(find.text('Calendar route'), findsNothing);
+
+      await tester.tap(find.text('close'));
+      await tester.pumpAndSettle();
+
       expect(
         router.routerDelegate.currentConfiguration.uri.path,
-        '/flows',
-        reason: 'Global menu Flow Studio is a route, not a CalendarPage sheet.',
+        '/profile/me',
+        reason: 'Utility route close should return to the previous route.',
       );
+      expect(find.text('Flow Studio route'), findsNothing);
+      expect(find.text('Profile route'), findsOneWidget);
     });
 
     testWidgets('global floating menu routes Calendars to /calendars', (
@@ -466,6 +488,7 @@ void main() {
       });
 
       final router = GoRouter(
+        navigatorKey: app.rootNavigatorKeyForTesting,
         initialLocation: '/nodes',
         routes: [
           GoRoute(
@@ -475,8 +498,20 @@ void main() {
           ),
           GoRoute(
             path: '/calendars',
-            builder: (context, state) =>
-                const Scaffold(body: Text('Calendars route')),
+            builder: (context, state) => Scaffold(
+              body: Center(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Text('Calendars route'),
+                    TextButton(
+                      onPressed: () => closeOrReturn(context, '/'),
+                      child: const Text('close'),
+                    ),
+                  ],
+                ),
+              ),
+            ),
           ),
           GoRoute(
             path: '/nodes',
@@ -505,15 +540,23 @@ void main() {
       await tester.pump(const Duration(milliseconds: 260));
       await tester.tap(find.text('Calendars'));
       await tester.pump();
-      await tester.pump(const Duration(milliseconds: 260));
+      await tester.pumpAndSettle();
 
       expect(CalendarPage.debugPendingOpenCalendarsFromGlobalMenu, isFalse);
       expect(CalendarPage.debugPendingOpenFlowStudioFromGlobalMenu, isFalse);
+      expect(find.text('Calendars route'), findsOneWidget);
+      expect(find.text('Calendar route'), findsNothing);
+
+      await tester.tap(find.text('close'));
+      await tester.pumpAndSettle();
+
       expect(
         router.routerDelegate.currentConfiguration.uri.path,
-        '/calendars',
-        reason: 'Global menu Calendars is a route, not a CalendarPage sheet.',
+        '/nodes',
+        reason: 'Utility route close should return to the previous route.',
       );
+      expect(find.text('Calendars route'), findsNothing);
+      expect(find.text('Nodes route'), findsOneWidget);
     });
 
     testWidgets('detached Today app bar action routes home', (tester) async {
@@ -897,22 +940,41 @@ void main() {
       expect(flowStudioCallback, contains('await _closeFloatingMenu()'));
       expect(
         flowStudioCallback,
-        contains("global menu route go('/flows') requested"),
+        contains("global menu utility route push('/flows') requested"),
       );
-      expect(flowStudioCallback, contains("widget.router.go('/flows')"));
+      expect(flowStudioCallback, contains('openUtilityRoute<void>('));
+      expect(flowStudioCallback, contains("'/flows'"));
+      expect(
+        flowStudioCallback,
+        contains('navigationContext: _rootNavigatorKey.currentContext'),
+      );
+      expect(flowStudioCallback, contains('router: widget.router'));
+      expect(flowStudioCallback, isNot(contains("widget.router.go('/flows')")));
+      expect(flowStudioCallback, isNot(contains(".go('/flows')")));
       expect(
         flowStudioCallback.indexOf('await _closeFloatingMenu()'),
-        lessThan(flowStudioCallback.indexOf("widget.router.go('/flows')")),
+        lessThan(flowStudioCallback.indexOf('openUtilityRoute<void>(')),
       );
       expect(calendarsCallback, contains('await _closeFloatingMenu()'));
       expect(
         calendarsCallback,
-        contains("global menu route go('/calendars') requested"),
+        contains("global menu utility route push('/calendars') requested"),
       );
-      expect(calendarsCallback, contains("widget.router.go('/calendars')"));
+      expect(calendarsCallback, contains('openUtilityRoute<void>('));
+      expect(calendarsCallback, contains("'/calendars'"));
+      expect(
+        calendarsCallback,
+        contains('navigationContext: _rootNavigatorKey.currentContext'),
+      );
+      expect(calendarsCallback, contains('router: widget.router'));
+      expect(
+        calendarsCallback,
+        isNot(contains("widget.router.go('/calendars')")),
+      );
+      expect(calendarsCallback, isNot(contains(".go('/calendars')")));
       expect(
         calendarsCallback.indexOf('await _closeFloatingMenu()'),
-        lessThan(calendarsCallback.indexOf("widget.router.go('/calendars')")),
+        lessThan(calendarsCallback.indexOf('openUtilityRoute<void>(')),
       );
       expect(source, contains("path: '/flows'"));
       expect(source, contains('CalendarPage.buildFlowStudioRoutePage()'));
@@ -928,6 +990,8 @@ void main() {
           contains('CalendarPage.openDetachedSharedCalendarsFromGlobalMenu'),
         ),
       );
+      expect(source, isNot(contains("context.go('/flows')")));
+      expect(source, isNot(contains("context.go('/calendars')")));
       expect(
         flowStudioCallback,
         isNot(contains('CalendarPage.enqueueOpenFlowStudioFromGlobalMenu')),
@@ -1023,7 +1087,8 @@ void main() {
         expect(routeSource, contains('_buildDetachedFlowStudioRoot'));
         expect(routeSource, contains("parentRoute: '/flows'"));
         expect(routeSource, contains('onClose: _closeRoute'));
-        expect(routeSource, contains("GoRouter.of(context).go('/')"));
+        expect(routeSource, contains("closeOrReturn(context, '/')"));
+        expect(routeSource, isNot(contains("GoRouter.of(context).go('/')")));
         expect(routeSource, isNot(contains('showModalBottomSheet')));
         expect(routeSource, isNot(contains('CalendarPage.globalKey')));
         expect(flowHubSource, contains('this.onClose'));

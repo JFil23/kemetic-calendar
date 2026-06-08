@@ -7272,7 +7272,7 @@ class _FlowStudioRoutePageState extends State<_FlowStudioRoutePage> {
   late final FlowsRepo _flowsRepo = FlowsRepo(Supabase.instance.client);
 
   void _closeRoute() {
-    GoRouter.of(context).go('/');
+    closeOrReturn(context, '/');
   }
 
   @override
@@ -7308,7 +7308,7 @@ class _SharedCalendarsRoutePage extends StatelessWidget {
         repo: SharedCalendarsRepo(Supabase.instance.client),
         routeMode: true,
         dismissOnEventTap: false,
-        onClose: () => GoRouter.of(context).go('/'),
+        onClose: () => closeOrReturn(context, '/'),
         onEventTapRequested:
             (calendar, filedEvent, {calendarEvents = const []}) =>
                 CalendarPage.openFiledCalendarEventFromAnyContext(

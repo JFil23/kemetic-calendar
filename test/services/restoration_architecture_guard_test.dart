@@ -88,6 +88,7 @@ void main() {
         expect(policy, contains('class AppRouteRegistry'));
         expect(policy, contains('case AppSection.planner'));
         expect(policy, contains('NavigationRouteClass.durablePrimary'));
+        expect(policy, contains('NavigationRouteClass.utility'));
         expect(policy, contains('NavigationRouteClass.pageState'));
         expect(policy, contains('NavigationRouteClass.transient'));
         expect(policy, contains('NavigationRouteClass.oneShotIntent'));
@@ -537,6 +538,22 @@ void main() {
         expect(policy, contains("pattern: '/nodes/'"));
         expect(policy, contains("pattern: '/reflections/'"));
         expect(policy, contains("pattern: '/rhythm/editor/'"));
+        expect(
+          _routeDefinitionBlock(policy, "pattern: '/flows'"),
+          contains('routeClass: NavigationRouteClass.utility'),
+        );
+        expect(
+          _routeDefinitionBlock(policy, "pattern: '/calendars'"),
+          contains('routeClass: NavigationRouteClass.utility'),
+        );
+        expect(
+          _routeDefinitionBlock(policy, "pattern: '/profile/me'"),
+          contains('routeClass: NavigationRouteClass.transient'),
+        );
+        expect(
+          _routeDefinitionBlock(policy, "pattern: '/profile/me'"),
+          isNot(contains('canonicalDurableRoute')),
+        );
         expect(bootRestore, contains('restoreLaunchDestination'));
         expect(bootRestore, contains('destination.route'));
         expect(main, isNot(contains('bool _isContinuityRouteLocation')));
@@ -1255,4 +1272,12 @@ String _sourceBetween(String source, String start, String end) {
 
 String _actionBlock(String source, String label, String nextLabel) {
   return _sourceBetween(source, "label: '$label'", "label: '$nextLabel'");
+}
+
+String _routeDefinitionBlock(String source, String pattern) {
+  final startIndex = source.indexOf(pattern);
+  expect(startIndex, isNot(-1), reason: 'Missing route definition: $pattern');
+  final endIndex = source.indexOf('),', startIndex);
+  expect(endIndex, isNot(-1), reason: 'Missing route definition end: $pattern');
+  return source.substring(startIndex, endIndex);
 }

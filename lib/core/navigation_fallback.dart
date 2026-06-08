@@ -63,6 +63,41 @@ Future<T?> openDetailRoute<T>(
   return context.push<T>(location, extra: extra);
 }
 
+Future<T?> openUtilityRoute<T>(
+  BuildContext context,
+  String location, {
+  Object? extra,
+  BuildContext? navigationContext,
+  GoRouter? router,
+  NavigationSource source = NavigationSource.programmatic,
+}) {
+  RestorationCoordinator.instance.suppressRestoreForUserNavigation(
+    reason: 'open_utility_route',
+  );
+  unawaited(
+    AppNavigationRestorationController.instance.recordNavigationAttempt(
+      route: location,
+      source: source,
+    ),
+  );
+
+  final pushContext = navigationContext != null && navigationContext.mounted
+      ? navigationContext
+      : context;
+  final routeController = router ?? GoRouter.of(pushContext);
+  final currentUri = routeController.routerDelegate.currentConfiguration.uri;
+  final targetUri = Uri.tryParse(location.trim());
+  if (targetUri != null &&
+      currentUri.path == targetUri.path &&
+      currentUri.query == targetUri.query) {
+    traceRestoration('navigation utility_route noop route=$location');
+    return Future<T?>.value();
+  }
+
+  traceRestoration('navigation utility_route push route=$location');
+  return pushContext.push<T>(location, extra: extra);
+}
+
 void openPrimarySection(BuildContext context, AppSection section) {
   RestorationCoordinator.instance.suppressRestoreForUserNavigation(
     reason: 'open_primary_section',

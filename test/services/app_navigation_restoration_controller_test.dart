@@ -169,7 +169,7 @@ void main() {
   });
 
   test(
-    'every AppSection durable primary command restores its canonical route',
+    'approved AppSection durable primary commands restore canonical routes',
     () async {
       const policy = NavigationPersistencePolicy();
       const expectedRoutes = <AppSection, String>{
@@ -179,9 +179,11 @@ void main() {
         AppSection.journal: '/journal',
         AppSection.planner: '/rhythm/today',
         AppSection.settings: '/settings',
-        AppSection.profile: '/profile/me',
       };
-      expect(AppSection.values.toSet(), expectedRoutes.keys.toSet());
+      expect(AppSection.values.toSet(), {
+        ...expectedRoutes.keys,
+        AppSection.profile,
+      });
 
       for (final entry in expectedRoutes.entries) {
         await AppRestorationService.instance.clearCurrentSnapshot();
@@ -201,6 +203,15 @@ void main() {
         expect(metadata, containsPair('source', 'userPrimaryTab'));
         expect(metadata, containsPair('routeClass', 'durablePrimary'));
       }
+
+      await AppNavigationRestorationController.instance
+          .recordPrimaryTabSelection(AppSection.profile);
+      final profileDestination = await AppNavigationRestorationController
+          .instance
+          .restoreLaunchDestination(isAuthenticated: true);
+      expect(policy.routeForSection(AppSection.profile), '/');
+      expect(await _durableRoute(), '/settings');
+      expect(profileDestination.route, '/settings');
     },
   );
 
@@ -507,21 +518,33 @@ void main() {
     }
   });
 
-  test('Flow Studio and Calendars routes are durable primary destinations', () {
+  test('Flow Studio and Calendars routes are non-durable utilities', () {
     const policy = NavigationPersistencePolicy();
     for (final route in const <String>['/flows', '/calendars']) {
       final classification = policy.classifyRoute(
         route,
         NavigationSource.userPrimaryTab,
       );
-      expect(classification.accepted, isTrue, reason: route);
+      expect(classification.accepted, isFalse, reason: route);
       expect(
         classification.routeClass,
-        NavigationRouteClass.durablePrimary,
+        NavigationRouteClass.utility,
         reason: route,
       );
       expect(classification.canonicalRoute, route, reason: route);
     }
+  });
+
+  test('Profile route is not durable launch state', () {
+    const policy = NavigationPersistencePolicy();
+    final classification = policy.classifyRoute(
+      '/profile/me',
+      NavigationSource.userPrimaryTab,
+    );
+
+    expect(classification.accepted, isFalse);
+    expect(classification.routeClass, NavigationRouteClass.transient);
+    expect(classification.canonicalRoute, '/profile/me');
   });
 
   test(

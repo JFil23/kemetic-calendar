@@ -422,7 +422,7 @@ void main() {
         expect(calendarsRoute, contains('SharedCalendarsSheet('));
         expect(calendarsRoute, contains('routeMode: true'));
         expect(calendarsRoute, contains('dismissOnEventTap: false'));
-        expect(calendarsRoute, contains("GoRouter.of(context).go('/')"));
+        expect(calendarsRoute, contains("closeOrReturn(context, '/')"));
         expect(
           calendarsRoute,
           contains('CalendarPage.openFiledCalendarEventFromAnyContext'),

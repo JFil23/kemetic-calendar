@@ -41,6 +41,7 @@ import 'core/async_guard.dart';
 import 'core/app_link_intent.dart';
 import 'core/global_bottom_menu_metrics.dart';
 import 'core/global_menu_routes.dart';
+import 'core/navigation_fallback.dart';
 import 'core/navigation_persistence_policy.dart';
 import 'core/planner_launch_intent.dart';
 import 'core/push_intent_bus.dart';
@@ -384,6 +385,8 @@ Widget _runtimeConfigErrorApp(List<String> errors) {
 }
 
 final GlobalKey<NavigatorState> _rootNavigatorKey = GlobalKey<NavigatorState>();
+@visibleForTesting
+GlobalKey<NavigatorState> get rootNavigatorKeyForTesting => _rootNavigatorKey;
 final ValueNotifier<bool> _webAuthExchangeInProgress = ValueNotifier<bool>(
   false,
 );
@@ -2274,11 +2277,18 @@ class _GlobalFloatingMenuShellState extends State<_GlobalFloatingMenuShell>
     await _closeFloatingMenu();
     if (!mounted) return;
     _traceNavigation(
-      "global menu route go('/flows') requested",
+      "global menu utility route push('/flows') requested",
       mediaContext: context,
       state: const <String, Object?>{'sheet': 'flowStudio'},
     );
-    widget.router.go('/flows');
+    unawaited(
+      openUtilityRoute<void>(
+        context,
+        '/flows',
+        navigationContext: _rootNavigatorKey.currentContext,
+        router: widget.router,
+      ),
+    );
   }
 
   Future<void> _openCalendarsFromMenu() async {
@@ -2290,11 +2300,18 @@ class _GlobalFloatingMenuShellState extends State<_GlobalFloatingMenuShell>
     await _closeFloatingMenu();
     if (!mounted) return;
     _traceNavigation(
-      "global menu route go('/calendars') requested",
+      "global menu utility route push('/calendars') requested",
       mediaContext: context,
       state: const <String, Object?>{'sheet': 'calendars'},
     );
-    widget.router.go('/calendars');
+    unawaited(
+      openUtilityRoute<void>(
+        context,
+        '/calendars',
+        navigationContext: _rootNavigatorKey.currentContext,
+        router: widget.router,
+      ),
+    );
   }
 
   void _openMaatGuidance(MaatGuidanceDelivery delivery) {

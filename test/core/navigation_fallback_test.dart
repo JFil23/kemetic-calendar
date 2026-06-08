@@ -195,6 +195,7 @@ void main() {
               label: 'nodes',
               buttonLabel: 'open flows',
               location: '/flows',
+              useUtilityRoute: true,
             ),
           ),
           GoRoute(
@@ -226,6 +227,123 @@ void main() {
 
     expect(directRouter.routerDelegate.currentConfiguration.uri.path, '/');
     expect(find.text('home'), findsOneWidget);
+  });
+
+  testWidgets('Calendars route pops when pushed and falls back when direct', (
+    tester,
+  ) async {
+    GoRouter buildRouter(String initialLocation) {
+      return GoRouter(
+        initialLocation: initialLocation,
+        routes: [
+          GoRoute(
+            path: '/',
+            builder: (context, state) => const _NamedPage(label: 'home'),
+          ),
+          GoRoute(
+            path: '/profile/:userId',
+            builder: (context, state) => _OpenDetailPage(
+              label: 'profile',
+              buttonLabel: 'open calendars',
+              location: '/calendars',
+              useUtilityRoute: true,
+            ),
+          ),
+          GoRoute(
+            path: '/calendars',
+            builder: (context, state) =>
+                const _FallbackClosePage(fallbackLocation: '/'),
+          ),
+        ],
+      );
+    }
+
+    final pushedRouter = buildRouter('/profile/me');
+    await tester.pumpWidget(MaterialApp.router(routerConfig: pushedRouter));
+    await tester.tap(find.text('open calendars'));
+    await tester.pumpAndSettle();
+    expect(find.text('restored page'), findsOneWidget);
+
+    await tester.tap(find.text('close'));
+    await tester.pumpAndSettle();
+
+    expect(
+      pushedRouter.routerDelegate.currentConfiguration.uri.path,
+      '/profile/me',
+    );
+    expect(find.text('profile'), findsOneWidget);
+
+    final directRouter = buildRouter('/calendars');
+    await tester.pumpWidget(MaterialApp.router(routerConfig: directRouter));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('close'));
+    await tester.pumpAndSettle();
+
+    expect(directRouter.routerDelegate.currentConfiguration.uri.path, '/');
+    expect(find.text('home'), findsOneWidget);
+  });
+
+  testWidgets('utility route can push from an injected shell router', (
+    tester,
+  ) async {
+    final navigatorKey = GlobalKey<NavigatorState>();
+    var tapped = false;
+    final router = GoRouter(
+      navigatorKey: navigatorKey,
+      initialLocation: '/profile/me',
+      routes: [
+        GoRoute(
+          path: '/',
+          builder: (context, state) => const _NamedPage(label: 'home'),
+        ),
+        GoRoute(
+          path: '/profile/:userId',
+          builder: (context, state) => const _NamedPage(label: 'profile'),
+        ),
+        GoRoute(
+          path: '/flows',
+          builder: (context, state) =>
+              const _FallbackClosePage(fallbackLocation: '/'),
+        ),
+      ],
+    );
+
+    await tester.pumpWidget(
+      MaterialApp.router(
+        routerConfig: router,
+        builder: (context, child) => Column(
+          children: [
+            TextButton(
+              onPressed: () {
+                tapped = true;
+                unawaited(
+                  openUtilityRoute<void>(
+                    context,
+                    '/flows',
+                    navigationContext: navigatorKey.currentContext,
+                    router: router,
+                  ),
+                );
+              },
+              child: const Text('open utility'),
+            ),
+            Expanded(child: child ?? const SizedBox.shrink()),
+          ],
+        ),
+      ),
+    );
+
+    await tester.tap(find.text('open utility'));
+    await tester.pumpAndSettle();
+
+    expect(tapped, isTrue);
+    expect(find.text('restored page'), findsOneWidget);
+
+    await tester.tap(find.text('close'));
+    await tester.pumpAndSettle();
+
+    expect(router.routerDelegate.currentConfiguration.uri.path, '/profile/me');
+    expect(find.text('profile'), findsOneWidget);
   });
 }
 
@@ -269,11 +387,13 @@ class _OpenDetailPage extends StatelessWidget {
     required this.label,
     required this.buttonLabel,
     required this.location,
+    this.useUtilityRoute = false,
   });
 
   final String label;
   final String buttonLabel;
   final String location;
+  final bool useUtilityRoute;
 
   @override
   Widget build(BuildContext context) {
@@ -284,8 +404,13 @@ class _OpenDetailPage extends StatelessWidget {
           children: [
             Text(label),
             TextButton(
-              onPressed: () =>
-                  unawaited(openDetailRoute<void>(context, location)),
+              onPressed: () {
+                if (useUtilityRoute) {
+                  unawaited(openUtilityRoute<void>(context, location));
+                } else {
+                  unawaited(openDetailRoute<void>(context, location));
+                }
+              },
               child: Text(buttonLabel),
             ),
           ],

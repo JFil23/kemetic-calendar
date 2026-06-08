@@ -238,7 +238,6 @@ void main() {
         '/journal': '/journal',
         '/rhythm/today': '/rhythm/today',
         '/settings': '/settings',
-        '/profile/me': '/profile/me',
       };
 
       for (final entry in routes.entries) {
@@ -275,12 +274,19 @@ void main() {
 
       final snapshot = await AppRestorationService.instance.readSnapshot();
       expect(snapshot, isNotNull);
-      expect(snapshot!.routeLocation, '/profile/me');
+      expect(snapshot!.routeLocation, '/settings');
       expect(snapshot.calendar?.scrollOffset, 4200);
       expect(snapshot.calendar?.anchorTarget, 'monthBody');
       expect(snapshot.dayView?.isOpen, isFalse);
     },
   );
+
+  test('rejects profile at the durable launch boundary', () async {
+    await _saveDurableRoute('/profile/me');
+
+    final snapshot = await AppRestorationService.instance.readSnapshot();
+    expect(snapshot?.routeLocation, isNull);
+  });
 
   test('rejects node action routes at the durable launch boundary', () async {
     await AppRestorationService.instance.saveDurableLaunchRoute(
@@ -699,7 +705,7 @@ void main() {
         'userId': 'user-1',
         'windowId': 'remote-window',
         'updatedAtMs': 9000,
-        ..._durableRouteFields('/profile/me'),
+        ..._durableRouteFields('/nodes'),
         'surfaces': {
           'profile:user-1': {'feedRevealed': true, 'feedScrollOffset': 42},
         },
@@ -708,7 +714,7 @@ void main() {
       final result = await AppRestorationService.instance.readBestSnapshot(
         includeRemote: true,
       );
-      expect(result.snapshot?.routeLocation, '/profile/me');
+      expect(result.snapshot?.routeLocation, '/nodes');
 
       final snapshot = await AppRestorationService.instance.readSnapshot();
       expect(snapshot, isNotNull);
