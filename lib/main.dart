@@ -1273,6 +1273,42 @@ GoRoute _calmRoute({
   );
 }
 
+GoRoute _utilitySheetRoute({
+  required String path,
+  required Widget Function(BuildContext context, GoRouterState state) builder,
+}) {
+  return GoRoute(
+    path: path,
+    pageBuilder: (context, state) {
+      return CustomTransitionPage<dynamic>(
+        key: state.pageKey,
+        opaque: false,
+        barrierColor: Colors.black.withValues(alpha: 0.58),
+        transitionDuration: const Duration(milliseconds: 180),
+        reverseTransitionDuration: const Duration(milliseconds: 140),
+        child: builder(context, state),
+        transitionsBuilder: (context, animation, secondaryAnimation, child) {
+          final curved = CurvedAnimation(
+            parent: animation,
+            curve: Curves.easeOutCubic,
+            reverseCurve: Curves.easeInCubic,
+          );
+          return FadeTransition(
+            opacity: curved,
+            child: SlideTransition(
+              position: Tween<Offset>(
+                begin: const Offset(0, 0.08),
+                end: Offset.zero,
+              ).animate(curved),
+              child: child,
+            ),
+          );
+        },
+      );
+    },
+  );
+}
+
 GoRouter _createRouter({required String initialLocation}) => GoRouter(
   navigatorKey: _rootNavigatorKey,
   initialLocation: initialLocation,
@@ -1358,14 +1394,14 @@ GoRouter _createRouter({required String initialLocation}) => GoRouter(
         );
       },
     ),
-    _calmRoute(
+    _utilitySheetRoute(
       path: '/flows',
       builder: (context, state) => SessionTrackedRoute(
         location: state.uri.toString(),
         child: CalendarPage.buildFlowStudioRoutePage(),
       ),
     ),
-    _calmRoute(
+    _utilitySheetRoute(
       path: '/calendars',
       builder: (context, state) => SessionTrackedRoute(
         location: state.uri.toString(),

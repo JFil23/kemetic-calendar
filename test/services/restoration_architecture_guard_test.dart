@@ -294,6 +294,7 @@ void main() {
       expect(nodeReader, contains('_isInNavigationEdgeExclusion'));
       expect(nodeReader, contains('navigationEdgeExclusionWidth(context)'));
       expect(docs, contains('Do not add custom page-to-page swipe navigation'));
+      expect(docs, contains('route-backed sheet presentation'));
       expect(docs, contains('flow_post_detail_page.dart'));
       expect(docs, contains('There is no active Journal page-level swipe'));
       expect(
@@ -307,12 +308,23 @@ void main() {
 
       expect(main, contains('NoTransitionPage'));
       expect(main, contains('GoRoute _calmRoute'));
+      expect(main, contains('GoRoute _utilitySheetRoute'));
+      expect(main, contains('CustomTransitionPage<dynamic>'));
       expect(_countOccurrences(main, '_calmRoute('), greaterThan(20));
+      expect(_countOccurrences(main, '_utilitySheetRoute('), 3);
       expect(
         main,
         isNot(contains('routes: [\n    GoRoute(')),
         reason: 'App routes should use calm page wrappers, not defaults.',
       );
+      final utilityRouteHelper = _sourceBetween(
+        main,
+        'GoRoute _utilitySheetRoute({',
+        'GoRouter _createRouter',
+      );
+      expect(utilityRouteHelper, contains('opaque: false'));
+      expect(utilityRouteHelper, contains('FadeTransition'));
+      expect(utilityRouteHelper, contains('SlideTransition'));
     });
 
     test('dead Journal swipe guard stays removed', () async {

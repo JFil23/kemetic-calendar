@@ -33,6 +33,8 @@ class SharedCalendarsSheet extends StatefulWidget {
     this.routeMode = false,
     this.dismissOnEventTap = true,
     this.onClose,
+    this.showCloseButton = true,
+    this.routeModeSafeAreaTop = true,
   });
 
   final SharedCalendarsRepo repo;
@@ -43,6 +45,8 @@ class SharedCalendarsSheet extends StatefulWidget {
   final bool routeMode;
   final bool dismissOnEventTap;
   final VoidCallback? onClose;
+  final bool showCloseButton;
+  final bool routeModeSafeAreaTop;
 
   static Future<bool?> show(
     BuildContext context, {
@@ -465,12 +469,14 @@ class _SharedCalendarsSheetState extends State<SharedCalendarsSheet> {
                 onPressed: _saving ? null : _createCalendar,
                 icon: KemeticGold.icon(Icons.add_circle_outline),
               ),
-              IconButton(
-                tooltip: 'Close',
-                onPressed:
-                    widget.onClose ?? () => Navigator.of(context).pop(_changed),
-                icon: KemeticGold.icon(Icons.close),
-              ),
+              if (widget.showCloseButton)
+                IconButton(
+                  tooltip: 'Close',
+                  onPressed:
+                      widget.onClose ??
+                      () => Navigator.of(context).pop(_changed),
+                  icon: KemeticGold.icon(Icons.close),
+                ),
             ],
           ),
         ),
@@ -517,7 +523,7 @@ class _SharedCalendarsSheetState extends State<SharedCalendarsSheet> {
             : const BorderRadius.vertical(top: Radius.circular(24)),
       ),
       child: SafeArea(
-        top: widget.routeMode,
+        top: widget.routeMode && widget.routeModeSafeAreaTop,
         child: widget.routeMode
             ? SizedBox.expand(child: content)
             : SizedBox(

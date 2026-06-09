@@ -47,8 +47,11 @@ Utility routes are not primary selection state. They are durable surfaces while
 they are real routes. From inside the app they should be pushed so back/close
 returns to the previous real surface. Direct loads fall back cleanly to `/`.
 
-If Flow Studio or Calendars become true sheets again later, their durability
-must move from route restoration into sheet/overlay restoration.
+Flow Studio and Calendars currently use route-backed sheet presentation: `/flows`
+and `/calendars` remain real durable utility routes, but the route page renders
+as a temporary sheet-shaped surface. This is different from contextual
+`showModalBottomSheet` ownership. If these become true contextual sheets later,
+durability must move from route restoration into sheet/overlay restoration.
 
 ### Detail Routes
 
@@ -91,7 +94,8 @@ Sheets close with local modal pop behavior. Sheet persistence is best effort:
 storage or restoration errors must not block sheet opening.
 
 Do not open Calendar-owned sheets from temporary global menu or app-shell
-contexts. Global menu Flow Studio and Calendars use `/flows` and `/calendars`.
+contexts. Global menu Flow Studio and Calendars use `/flows` and `/calendars`
+with route-backed sheet presentation.
 
 ### One-Shot Intents
 
@@ -129,8 +133,9 @@ helper is not appropriate.
 
 App-level GoRouter pages use calm route pages with no side-to-side slide
 transition. Do not reintroduce right-to-left route slides for normal primary,
-utility, or detail navigation without a product decision. Modal and sheet
-animations are separate and are not governed by this route-page rule.
+utility, or detail navigation without a product decision. Route-backed utility
+sheets may use a short bottom-up/fade transition; contextual modal and sheet
+animations are separate and are not governed by the route-page rule.
 
 ## Persistence Rules
 
@@ -208,6 +213,8 @@ Add a utility route:
 2. Classify it as `NavigationRouteClass.utility`.
 3. Open with `openUtilityRoute`.
 4. Close with `closeOrReturn`.
+5. If it should feel temporary, use route-backed sheet presentation instead of
+   `showModalBottomSheet` from global/app-shell contexts.
 5. Allow `canRestoreAsSurface`; do not allow `canRecordPrimarySelection`.
 
 Add a detail route:

@@ -1043,7 +1043,7 @@ void main() {
     });
 
     test(
-      'global Flow Studio route reuses Flow Studio body without sheet host',
+      'global Flow Studio route uses route-backed sheet body without modal host',
       () async {
         final calendarSource = await File(
           'lib/features/calendar/calendar_page.dart',
@@ -1062,9 +1062,11 @@ void main() {
           'class _FlowHubCell extends StatelessWidget',
         );
 
+        expect(routeSource, contains('_UtilitySheetRouteScaffold'));
+        expect(routeSource, contains("semanticLabel: 'Flow Studio'"));
+        expect(routeSource, contains('onClose: _closeRoute'));
         expect(routeSource, contains('_buildDetachedFlowStudioRoot'));
         expect(routeSource, contains("parentRoute: '/flows'"));
-        expect(routeSource, contains('onClose: _closeRoute'));
         expect(routeSource, contains("closeOrReturn(context, '/')"));
         expect(routeSource, isNot(contains("GoRouter.of(context).go('/')")));
         expect(routeSource, isNot(contains('showModalBottomSheet')));
@@ -1072,6 +1074,56 @@ void main() {
         expect(flowHubSource, contains('this.onClose'));
         expect(flowHubSource, contains('widget.onClose'));
         expect(flowHubSource, contains('automaticallyImplyLeading'));
+      },
+    );
+
+    test(
+      'utility Flow Studio and Calendars routes are sheet-backed pages',
+      () async {
+        final mainSource = await File('lib/main.dart').readAsString();
+        final calendarSource = await File(
+          'lib/features/calendar/calendar_page.dart',
+        ).readAsString();
+
+        final utilitySheetRoute = _sourceBetween(
+          mainSource,
+          'GoRoute _utilitySheetRoute({',
+          'GoRouter _createRouter',
+        );
+        expect(utilitySheetRoute, contains('CustomTransitionPage<dynamic>'));
+        expect(utilitySheetRoute, contains('opaque: false'));
+        expect(utilitySheetRoute, contains('barrierColor: Colors.black'));
+        expect(utilitySheetRoute, contains('FadeTransition'));
+        expect(utilitySheetRoute, contains('SlideTransition'));
+        expect(utilitySheetRoute, isNot(contains('NoTransitionPage')));
+
+        expect(
+          mainSource,
+          contains("_utilitySheetRoute(\n      path: '/flows'"),
+        );
+        expect(
+          mainSource,
+          contains("_utilitySheetRoute(\n      path: '/calendars'"),
+        );
+        expect(
+          mainSource,
+          isNot(contains("_calmRoute(\n      path: '/flows'")),
+        );
+        expect(
+          mainSource,
+          isNot(contains("_calmRoute(\n      path: '/calendars'")),
+        );
+
+        final routeScaffold = _sourceBetween(
+          calendarSource,
+          'class _UtilitySheetRouteScaffold extends StatelessWidget',
+          'class _FlowStudioRoutePageState',
+        );
+        expect(routeScaffold, contains('BorderRadius.vertical'));
+        expect(routeScaffold, contains('top: Radius.circular(24)'));
+        expect(routeScaffold, contains(r'Close $semanticLabel'));
+        expect(routeScaffold, contains('GestureDetector'));
+        expect(routeScaffold, contains('FractionallySizedBox'));
       },
     );
 
