@@ -419,7 +419,7 @@ void main() {
           'class _SharedCalendarsRoutePage extends StatelessWidget',
           'class _FlowEditorRoutePage',
         );
-        expect(calendarsRoute, contains('_UtilitySheetRouteScaffold'));
+        expect(calendarsRoute, contains('UtilitySheetRouteScaffold'));
         expect(calendarsRoute, contains("semanticLabel: 'Calendars'"));
         expect(calendarsRoute, contains('SharedCalendarsSheet('));
         expect(calendarsRoute, contains('routeMode: true'));

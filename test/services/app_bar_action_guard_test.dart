@@ -1062,7 +1062,7 @@ void main() {
           'class _FlowHubCell extends StatelessWidget',
         );
 
-        expect(routeSource, contains('_UtilitySheetRouteScaffold'));
+        expect(routeSource, contains('UtilitySheetRouteScaffold'));
         expect(routeSource, contains("semanticLabel: 'Flow Studio'"));
         expect(routeSource, contains('onClose: _closeRoute'));
         expect(routeSource, contains('_buildDetachedFlowStudioRoot'));
@@ -1081,9 +1081,6 @@ void main() {
       'utility Flow Studio and Calendars routes are sheet-backed pages',
       () async {
         final mainSource = await File('lib/main.dart').readAsString();
-        final calendarSource = await File(
-          'lib/features/calendar/calendar_page.dart',
-        ).readAsString();
 
         final utilitySheetRoute = _sourceBetween(
           mainSource,
@@ -1092,7 +1089,7 @@ void main() {
         );
         expect(utilitySheetRoute, contains('CustomTransitionPage<dynamic>'));
         expect(utilitySheetRoute, contains('opaque: false'));
-        expect(utilitySheetRoute, contains('barrierColor: Colors.black'));
+        expect(utilitySheetRoute, contains('barrierColor: Colors.transparent'));
         expect(utilitySheetRoute, contains('FadeTransition'));
         expect(utilitySheetRoute, contains('SlideTransition'));
         expect(utilitySheetRoute, isNot(contains('NoTransitionPage')));
@@ -1114,14 +1111,24 @@ void main() {
           isNot(contains("_calmRoute(\n      path: '/calendars'")),
         );
 
-        final routeScaffold = _sourceBetween(
-          calendarSource,
-          'class _UtilitySheetRouteScaffold extends StatelessWidget',
-          'class _FlowStudioRoutePageState',
-        );
+        final routeScaffold = await File(
+          'lib/widgets/utility_sheet_route_scaffold.dart',
+        ).readAsString();
+        expect(routeScaffold, contains('class UtilitySheetRouteScaffold'));
+        expect(routeScaffold, contains('State<UtilitySheetRouteScaffold>'));
+        expect(routeScaffold, contains('dismissDistance = 120'));
+        expect(routeScaffold, contains('dismissVelocity = 700'));
+        expect(routeScaffold, contains('onVerticalDragStart'));
+        expect(routeScaffold, contains('onVerticalDragUpdate'));
+        expect(routeScaffold, contains('onVerticalDragEnd'));
+        expect(routeScaffold, contains('onVerticalDragCancel'));
+        expect(routeScaffold, contains('_dragOffset'));
+        expect(routeScaffold, contains('_snapBack'));
+        expect(routeScaffold, contains('_requestClose'));
+        expect(routeScaffold, contains('utilitySheetRouteDragHandleKey'));
         expect(routeScaffold, contains('BorderRadius.vertical'));
         expect(routeScaffold, contains('top: Radius.circular(24)'));
-        expect(routeScaffold, contains(r'Close $semanticLabel'));
+        expect(routeScaffold, contains('Close \${widget.semanticLabel}'));
         expect(routeScaffold, contains('GestureDetector'));
         expect(routeScaffold, contains('FractionallySizedBox'));
       },

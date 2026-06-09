@@ -1283,7 +1283,7 @@ GoRoute _utilitySheetRoute({
       return CustomTransitionPage<dynamic>(
         key: state.pageKey,
         opaque: false,
-        barrierColor: Colors.black.withValues(alpha: 0.58),
+        barrierColor: Colors.transparent,
         transitionDuration: const Duration(milliseconds: 180),
         reverseTransitionDuration: const Duration(milliseconds: 140),
         child: builder(context, state),

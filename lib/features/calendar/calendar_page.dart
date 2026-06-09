@@ -49,6 +49,7 @@ import '../../widgets/insight_link_text.dart';
 import '../../widgets/keyboard_aware.dart';
 import '../../widgets/kemetic_keyboard.dart';
 import '../../widgets/pronounce_icon_button.dart';
+import '../../widgets/utility_sheet_route_scaffold.dart';
 import '../../services/speech/speech_service.dart';
 import 'speech_resolver.dart';
 import 'decan_id.dart';
@@ -7193,107 +7194,6 @@ class _FlowStudioRoutePage extends StatefulWidget {
   State<_FlowStudioRoutePage> createState() => _FlowStudioRoutePageState();
 }
 
-class _UtilitySheetRouteScaffold extends StatelessWidget {
-  const _UtilitySheetRouteScaffold({
-    required this.child,
-    required this.onClose,
-    required this.semanticLabel,
-  });
-
-  final Widget child;
-  final VoidCallback onClose;
-  final String semanticLabel;
-
-  @override
-  Widget build(BuildContext context) {
-    final size = MediaQuery.sizeOf(context);
-    final isWide = size.shortestSide >= 600;
-    final sideInset = isWide ? 24.0 : 0.0;
-    final bottomInset = isWide ? 24.0 : 0.0;
-    final heightFactor = isWide ? 0.9 : 0.92;
-
-    return Scaffold(
-      backgroundColor: Colors.transparent,
-      body: Stack(
-        children: [
-          Positioned.fill(
-            child: GestureDetector(
-              behavior: HitTestBehavior.opaque,
-              onTap: onClose,
-              child: const SizedBox.expand(),
-            ),
-          ),
-          Align(
-            alignment: Alignment.bottomCenter,
-            child: SafeArea(
-              top: false,
-              child: Padding(
-                padding: EdgeInsets.fromLTRB(
-                  sideInset,
-                  0,
-                  sideInset,
-                  bottomInset,
-                ),
-                child: FractionallySizedBox(
-                  heightFactor: heightFactor,
-                  widthFactor: 1,
-                  child: ConstrainedBox(
-                    constraints: const BoxConstraints(maxWidth: 720),
-                    child: ClipRRect(
-                      borderRadius: const BorderRadius.vertical(
-                        top: Radius.circular(24),
-                      ),
-                      child: Material(
-                        color: Colors.black,
-                        child: Column(
-                          children: [
-                            SizedBox(
-                              height: 44,
-                              child: Stack(
-                                children: [
-                                  Align(
-                                    alignment: Alignment.topCenter,
-                                    child: Padding(
-                                      padding: const EdgeInsets.only(top: 10),
-                                      child: Container(
-                                        width: 42,
-                                        height: 4,
-                                        decoration: BoxDecoration(
-                                          color: Colors.white24,
-                                          borderRadius: BorderRadius.circular(
-                                            2,
-                                          ),
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-                                  Align(
-                                    alignment: Alignment.centerRight,
-                                    child: IconButton(
-                                      tooltip: 'Close $semanticLabel',
-                                      onPressed: onClose,
-                                      icon: KemeticGold.icon(Icons.close),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                            Expanded(child: child),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
 class _FlowStudioRoutePageState extends State<_FlowStudioRoutePage> {
   late final FlowsRepo _flowsRepo = FlowsRepo(Supabase.instance.client);
 
@@ -7303,7 +7203,7 @@ class _FlowStudioRoutePageState extends State<_FlowStudioRoutePage> {
 
   @override
   Widget build(BuildContext context) {
-    return _UtilitySheetRouteScaffold(
+    return UtilitySheetRouteScaffold(
       semanticLabel: 'Flow Studio',
       onClose: _closeRoute,
       child: Navigator(
@@ -7331,7 +7231,7 @@ class _SharedCalendarsRoutePage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return _UtilitySheetRouteScaffold(
+    return UtilitySheetRouteScaffold(
       semanticLabel: 'Calendars',
       onClose: () => closeOrReturn(context, '/'),
       child: SharedCalendarsSheet(

@@ -50,8 +50,11 @@ returns to the previous real surface. Direct loads fall back cleanly to `/`.
 Flow Studio and Calendars currently use route-backed sheet presentation: `/flows`
 and `/calendars` remain real durable utility routes, but the route page renders
 as a temporary sheet-shaped surface. This is different from contextual
-`showModalBottomSheet` ownership. If these become true contextual sheets later,
-durability must move from route restoration into sheet/overlay restoration.
+`showModalBottomSheet` ownership. The route-backed sheet chrome owns its
+outside-tap, close-button, and handle pull-down dismissal; the sheet body must
+not dismiss on scroll unless scroll-position coordination is added explicitly.
+If these become true contextual sheets later, durability must move from route
+restoration into sheet/overlay restoration.
 
 ### Detail Routes
 
