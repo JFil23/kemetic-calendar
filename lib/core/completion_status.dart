@@ -40,8 +40,7 @@ extension CompletionStatusX on CompletionStatus {
     }
   }
 
-  bool get createsJournalContinuity =>
-      this == CompletionStatus.observed || this == CompletionStatus.partial;
+  bool get createsJournalContinuity => this != CompletionStatus.none;
 
   static CompletionStatus fromWireName(String? raw) {
     final value = raw?.trim().toLowerCase();

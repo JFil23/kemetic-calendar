@@ -1010,6 +1010,14 @@ class _JournalOverlayState extends State<JournalOverlay>
     return JournalBadgeUtils.tokensFromDocument(doc);
   }
 
+  Future<void> _removeBadge(EventBadgeToken token) async {
+    await widget.controller.removeBadge(token.id);
+    if (!mounted) return;
+    setState(() {
+      _badgeExpansion.remove(token.id);
+    });
+  }
+
   Widget _buildBadgeArea({required double height, bool compact = false}) {
     final badges = _extractBadges();
     final badgeCountLabel = badges.isEmpty
@@ -1142,6 +1150,7 @@ class _JournalOverlayState extends State<JournalOverlay>
               child: EventBadgeWidget(
                 token: token,
                 initialExpanded: expanded,
+                onDelete: () => unawaited(_removeBadge(token)),
                 onToggle: (next) {
                   setState(() {
                     _badgeExpansion[token.id] = next;

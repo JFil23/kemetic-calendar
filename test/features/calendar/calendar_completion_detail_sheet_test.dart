@@ -8,6 +8,7 @@ import 'package:mobile/features/calendar/calendar_completion.dart';
 import 'package:mobile/features/calendar/calendar_reflection_context.dart';
 import 'package:mobile/features/journal/journal_badge_utils.dart';
 import 'package:mobile/features/journal/journal_event_badge.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 void main() {
   test('calendar detail sheets no longer expose Add to journal actions', () {
@@ -216,10 +217,10 @@ void main() {
     }
   });
 
-  test('observed and partial create continuity while skipped stays muted', () {
+  test('observed, partial, and skipped create completion continuity', () {
     expect(CompletionStatus.observed.createsJournalContinuity, isTrue);
     expect(CompletionStatus.partial.createsJournalContinuity, isTrue);
-    expect(CompletionStatus.skipped.createsJournalContinuity, isFalse);
+    expect(CompletionStatus.skipped.createsJournalContinuity, isTrue);
   });
 
   test('badge colors preserve source color except skipped muted state', () {
@@ -292,6 +293,57 @@ void main() {
     expect(partialToken.completionStatus, CompletionStatus.partial);
     expect(partialToken.color, sourceColor);
   });
+
+  testWidgets(
+    'completion panel toggles selected status off and records replacements',
+    (tester) async {
+      SharedPreferences.setMockInitialValues(<String, Object>{});
+      final recorded = <CompletionStatus>[];
+      final continuity = <CompletionStatus>[];
+      var clearCount = 0;
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: CalendarEventCompletionPanel(
+              identity: 'cid:event-1',
+              sourceType: CompletionSourceType.userFlow,
+              loadStatus: () async => CompletionStatus.none,
+              onRecordStatus: (status) async => recorded.add(status),
+              onClearStatus: () async => clearCount += 1,
+              onCreateContinuity: (status) async => continuity.add(status),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Observed'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Observed'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Observed'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Partly'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Skipped'));
+      await tester.pumpAndSettle();
+
+      expect(recorded, <CompletionStatus>[
+        CompletionStatus.observed,
+        CompletionStatus.observed,
+        CompletionStatus.partial,
+        CompletionStatus.skipped,
+      ]);
+      expect(clearCount, 1);
+      expect(continuity, <CompletionStatus>[
+        CompletionStatus.observed,
+        CompletionStatus.observed,
+        CompletionStatus.partial,
+        CompletionStatus.skipped,
+      ]);
+    },
+  );
 
   test(
     'detail opening remains a real transient sheet for notification search and shared taps',

@@ -68,6 +68,13 @@ Color calendarCompletionBadgeColor(CompletionStatus status, Color eventColor) {
   return completionStatusBadgeColor(status, fallback: eventColor);
 }
 
+String calendarCompletionBadgeId({
+  required String identity,
+  required CompletionSourceType sourceType,
+}) {
+  return 'calendar:${sourceType.wireName}:$identity';
+}
+
 String buildCalendarCompletionBadgeToken({
   required String identity,
   required CompletionSourceType sourceType,
@@ -94,7 +101,7 @@ String buildCalendarCompletionBadgeToken({
   ].join(' ');
 
   return EventBadgeToken.buildToken(
-    id: 'calendar:${sourceType.wireName}:$identity',
+    id: calendarCompletionBadgeId(identity: identity, sourceType: sourceType),
     eventId: eventId,
     title: cleanTitle,
     start: start,
@@ -234,9 +241,11 @@ class CalendarEventCompletionPanel extends StatefulWidget {
     this.localStore = const CalendarCompletionLocalStore(),
     this.loadStatus,
     this.onRecordStatus,
+    this.onClearStatus,
     this.onCreateContinuity,
     this.onReflect,
     this.observedButtonKey,
+    this.reloadSignal,
   });
 
   final String identity;
@@ -244,9 +253,11 @@ class CalendarEventCompletionPanel extends StatefulWidget {
   final CalendarCompletionLocalStore localStore;
   final Future<CompletionStatus> Function()? loadStatus;
   final Future<void> Function(CompletionStatus status)? onRecordStatus;
+  final Future<void> Function()? onClearStatus;
   final Future<void> Function(CompletionStatus status)? onCreateContinuity;
   final VoidCallback? onReflect;
   final Key? observedButtonKey;
+  final Object? reloadSignal;
 
   @override
   State<CalendarEventCompletionPanel> createState() =>
@@ -268,7 +279,8 @@ class _CalendarEventCompletionPanelState
   @override
   void didUpdateWidget(covariant CalendarEventCompletionPanel oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.identity != widget.identity) {
+    if (oldWidget.identity != widget.identity ||
+        oldWidget.reloadSignal != widget.reloadSignal) {
       _load();
     }
   }
@@ -301,7 +313,15 @@ class _CalendarEventCompletionPanelState
     if (_saving) return;
     setState(() => _saving = true);
     try {
-      await widget.onRecordStatus?.call(status);
+      if (status == CompletionStatus.none) {
+        if (widget.onClearStatus != null) {
+          await widget.onClearStatus!();
+        } else {
+          await widget.onRecordStatus?.call(status);
+        }
+      } else {
+        await widget.onRecordStatus?.call(status);
+      }
       await widget.localStore.save(identity: widget.identity, status: status);
       if (status.createsJournalContinuity) {
         await widget.onCreateContinuity?.call(status);
@@ -328,7 +348,12 @@ class _CalendarEventCompletionPanelState
       loading: _loading,
       observedButtonKey: widget.observedButtonKey,
       onReflect: widget.onReflect,
-      onChanged: (status) => unawaited(_record(status)),
+      onChanged: (status) {
+        final next = status == _status && widget.onClearStatus != null
+            ? CompletionStatus.none
+            : status;
+        unawaited(_record(next));
+      },
     );
   }
 }

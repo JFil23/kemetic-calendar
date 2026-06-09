@@ -183,5 +183,95 @@ class JournalBadgeUtils {
     return tokens;
   }
 
+  static List<EventBadgeToken> tokensFromPlainText(String text) {
+    final tokens = <EventBadgeToken>[];
+    final seen = <String>{};
+    for (final raw in extractRawTokens(text)) {
+      final parsed = parseRawToken(raw);
+      if (parsed != null && seen.add(parsed.id)) {
+        tokens.add(parsed);
+      }
+    }
+    return tokens;
+  }
+
+  static List<EventBadgeToken> completionTokensFromDocument(
+    JournalDocument doc,
+  ) {
+    return tokensFromDocument(
+      doc,
+    ).where((token) => token.isCompletionBadge).toList(growable: false);
+  }
+
+  static List<EventBadgeToken> completionTokensFromPlainText(String text) {
+    return tokensFromPlainText(
+      text,
+    ).where((token) => token.isCompletionBadge).toList(growable: false);
+  }
+
+  static JournalDocument removeBadgesById(
+    JournalDocument doc,
+    Iterable<String> badgeIds,
+  ) {
+    final ids = badgeIds
+        .map((id) => id.trim())
+        .where((id) => id.isNotEmpty)
+        .toSet();
+    if (ids.isEmpty) return doc;
+
+    var changed = false;
+    final normalized = normalizeDocument(doc);
+    final meta = Map<String, dynamic>.from(normalized.meta);
+    final existingRaw = _coerceStringList(meta['badges']);
+    final keptRaw = <String>[];
+    for (final raw in existingRaw) {
+      final token = parseRawToken(raw);
+      if (token != null && ids.contains(token.id)) {
+        changed = true;
+        continue;
+      }
+      keptRaw.add(raw);
+    }
+
+    if (keptRaw.isEmpty) {
+      if (meta.containsKey('badges')) {
+        meta.remove('badges');
+        changed = true;
+      }
+    } else if (!_listEquals(existingRaw, keptRaw)) {
+      meta['badges'] = keptRaw;
+      changed = true;
+    }
+
+    final blocks = <JournalBlock>[];
+    for (final block in normalized.blocks) {
+      if (block is! ParagraphBlock) {
+        blocks.add(block);
+        continue;
+      }
+
+      final ops = <TextOp>[];
+      for (final op in block.ops) {
+        var insert = op.insert;
+        for (final raw in extractRawTokens(op.insert)) {
+          final token = parseRawToken(raw);
+          if (token != null && ids.contains(token.id)) {
+            insert = insert.replaceAll(raw, '');
+            changed = true;
+          }
+        }
+        ops.add(op.copyWith(insert: insert.isEmpty ? '\n' : insert));
+      }
+      blocks.add(block.copyWith(ops: ops));
+    }
+
+    if (!changed) return doc;
+    return JournalDocument(
+      version: normalized.version,
+      blocks: blocks,
+      meta: meta,
+    );
+  }
+
   static String stripBadgesFromPlainText(String text) => stripBadges(text);
 }

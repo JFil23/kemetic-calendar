@@ -2,10 +2,13 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
+import 'package:mobile/core/completion_status.dart';
 import 'package:mobile/features/calendar/calendar_page.dart' show KemeticMath;
 import 'package:mobile/features/calendar/day_view.dart';
 import 'package:mobile/features/calendar/living_text_day_one_node_store.dart';
 import 'package:mobile/features/calendar/maat_decan_flow.dart';
+import 'package:mobile/features/journal/journal_badge_utils.dart';
+import 'package:mobile/features/journal/journal_event_badge.dart';
 import 'package:mobile/services/app_restoration_service.dart';
 import 'package:mobile/shared/glossy_text.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -383,6 +386,96 @@ void main() {
   });
 
   group('DayViewGrid detail sheet refresh', () {
+    testWidgets(
+      'completion buttons toggle off and replace journal badges by source id',
+      (tester) async {
+        await _setPhoneViewport(tester);
+
+        final appendedBadges = <String>[];
+        final recordedStatuses = <CompletionStatus>[];
+        final unrecordedClientEventIds = <String>[];
+        final removedBadgeIds = <String>[];
+
+        await tester.pumpWidget(
+          _DayViewHarness(
+            notes: [
+              _timedNote(
+                clientEventId: 'cid-focus-completion',
+                title: 'Focus Completion',
+                startHour: 10,
+                startMinute: 0,
+                endHour: 11,
+                endMinute: 0,
+                flowId: 1,
+              ),
+            ],
+            onAppendToJournal: (text) async {
+              appendedBadges.add(text);
+            },
+            onRecordCompletion:
+                ({
+                  required String clientEventId,
+                  required int flowId,
+                  required DateTime completedOnDate,
+                  Map<String, dynamic>? metadata,
+                }) async {
+                  recordedStatuses.add(
+                    CompletionStatusX.fromWireName(
+                      metadata?['completion_status']?.toString() ??
+                          metadata?['status']?.toString(),
+                    ),
+                  );
+                },
+            onUnrecordCompletion: (clientEventId) async {
+              unrecordedClientEventIds.add(clientEventId);
+            },
+            onRemoveCompletionBadge: (badgeId) async {
+              removedBadgeIds.add(badgeId);
+            },
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        await tester.tap(find.text('Focus Completion'));
+        await tester.pumpAndSettle();
+
+        await tester.tap(find.text('Observed').last);
+        await tester.pumpAndSettle();
+
+        expect(recordedStatuses, <CompletionStatus>[CompletionStatus.observed]);
+        expect(appendedBadges, hasLength(1));
+        var tokens = appendedBadges
+            .map(JournalBadgeUtils.parseRawToken)
+            .whereType<EventBadgeToken>()
+            .toList();
+        expect(tokens.single.completionStatus, CompletionStatus.observed);
+
+        await tester.tap(find.text('Observed').last);
+        await tester.pumpAndSettle();
+
+        expect(unrecordedClientEventIds, <String>['cid-focus-completion']);
+        expect(removedBadgeIds, <String>[tokens.single.id]);
+
+        await tester.tap(find.text('Partly').last);
+        await tester.pumpAndSettle();
+        await tester.tap(find.text('Skipped').last);
+        await tester.pumpAndSettle();
+
+        expect(recordedStatuses, <CompletionStatus>[
+          CompletionStatus.observed,
+          CompletionStatus.partial,
+          CompletionStatus.skipped,
+        ]);
+        expect(appendedBadges, hasLength(3));
+        tokens = appendedBadges
+            .map(JournalBadgeUtils.parseRawToken)
+            .whereType<EventBadgeToken>()
+            .toList();
+        expect(tokens.map((token) => token.id).toSet(), hasLength(1));
+        expect(tokens.last.completionStatus, CompletionStatus.skipped);
+      },
+    );
+
     testWidgets(
       'flow event notification restoration opens the matching detail sheet',
       (tester) async {
@@ -1626,6 +1719,10 @@ class _DayViewHarness extends StatelessWidget {
     this.flowIndex = _defaultFlowIndex,
     this.activeLedgerFlowIds,
     this.onEndFlow,
+    this.onAppendToJournal,
+    this.onRecordCompletion,
+    this.onUnrecordCompletion,
+    this.onRemoveCompletionBadge,
   });
 
   final List<NoteData> notes;
@@ -1633,6 +1730,16 @@ class _DayViewHarness extends StatelessWidget {
   final Map<int, FlowData> flowIndex;
   final Set<int>? activeLedgerFlowIds;
   final void Function(int flowId)? onEndFlow;
+  final Future<void> Function(String text)? onAppendToJournal;
+  final Future<void> Function({
+    required String clientEventId,
+    required int flowId,
+    required DateTime completedOnDate,
+    Map<String, dynamic>? metadata,
+  })?
+  onRecordCompletion;
+  final Future<void> Function(String clientEventId)? onUnrecordCompletion;
+  final Future<void> Function(String badgeId)? onRemoveCompletionBadge;
 
   @override
   Widget build(BuildContext context) {
@@ -1648,6 +1755,10 @@ class _DayViewHarness extends StatelessWidget {
           activeLedgerFlowIds: activeLedgerFlowIds ?? flowIndex.keys.toSet(),
           initialScrollOffset: initialScrollOffset,
           onEndFlow: onEndFlow,
+          onAppendToJournal: onAppendToJournal,
+          onRecordCompletion: onRecordCompletion,
+          onUnrecordCompletion: onUnrecordCompletion,
+          onRemoveCompletionBadge: onRemoveCompletionBadge,
         ),
       ),
     );

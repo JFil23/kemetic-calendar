@@ -103,6 +103,59 @@ void main() {
     expect(tokens.single.completionStatus, CompletionStatus.partial);
   });
 
+  test('removeBadgesById removes only the matching completion badge', () {
+    final completion = EventBadgeToken.buildToken(
+      id: 'calendar:user_flow:cid:event-1',
+      eventId: 'event-1',
+      title: 'Practice',
+      color: Colors.amber,
+      description: 'Completion: observed.',
+      completionStatus: CompletionStatus.observed,
+      sourceType: CompletionSourceType.userFlow,
+    );
+    final ordinary = EventBadgeToken.buildToken(
+      id: 'badge-note',
+      title: 'Ordinary badge',
+      color: Colors.blue,
+    );
+    final doc = JournalDocument(
+      version: kJournalDocVersion,
+      blocks: const [
+        ParagraphBlock(
+          id: 'p1',
+          ops: [TextOp(insert: 'Body')],
+        ),
+      ],
+      meta: {
+        'badges': [ordinary, completion],
+      },
+    );
+
+    final updated = JournalBadgeUtils.removeBadgesById(doc, {
+      'calendar:user_flow:cid:event-1',
+    });
+    final tokens = JournalBadgeUtils.tokensFromDocument(updated);
+
+    expect(tokens.map((token) => token.id), <String>['badge-note']);
+  });
+
+  test('completion badge identity falls back for legacy event tokens', () {
+    final legacy = EventBadgeToken.buildToken(
+      id: 'legacy-completion',
+      eventId: 'legacy-client-event',
+      title: 'Legacy completion',
+      color: Colors.amber,
+      description: 'Completion: skipped.',
+      completionStatus: CompletionStatus.skipped,
+    );
+
+    final token = JournalBadgeUtils.parseRawToken(legacy)!;
+
+    expect(token.isCompletionBadge, isTrue);
+    expect(token.completionSourceIdentity, 'cid:legacy-client-event');
+    expect(token.completionClientEventId, 'legacy-client-event');
+  });
+
   testWidgets(
     'partial event badge renders source color with partial signifier',
     (tester) async {

@@ -8,6 +8,7 @@ import '../../core/feature_flags.dart';
 import 'journal_v2_document_model.dart';
 import 'journal_constants.dart';
 import 'journal_badge_utils.dart';
+import 'journal_event_badge.dart';
 import '../../main.dart';
 
 enum JournalSyncStatus { synced, unsavedLocal, saving, saveFailed }
@@ -35,6 +36,8 @@ class JournalController {
   // Callbacks for UI updates
   void Function()? onDraftChanged;
   void Function()? onSyncStatusChanged;
+  Future<void> Function(List<EventBadgeToken> badges)?
+  onCompletionBadgesRemoved;
 
   JournalController(SupabaseClient client)
     : _repo = JournalRepo(client),
@@ -694,6 +697,7 @@ class JournalController {
   Future<void> updateDraft(String text) async {
     if (_currentDraft == text) return;
 
+    final beforeCompletionBadges = _completionBadgesFromCurrentEntry();
     _markLocalEdit();
     _currentDraft = text;
     _hasUnsavedChanges = true;
@@ -711,12 +715,63 @@ class JournalController {
     _scheduleAutosave();
 
     onDraftChanged?.call();
+    if (!_isDocumentMode) {
+      final afterIds = JournalBadgeUtils.completionTokensFromPlainText(
+        _currentDraft,
+      ).map((token) => token.id).toSet();
+      await _notifyCompletionBadgesRemoved(
+        beforeCompletionBadges
+            .where((token) => !afterIds.contains(token.id))
+            .toList(growable: false),
+      );
+    }
+  }
+
+  List<EventBadgeToken> _completionBadgesFromCurrentEntry() {
+    final doc = _currentDocument;
+    if (doc != null) {
+      return JournalBadgeUtils.completionTokensFromDocument(doc);
+    }
+    return JournalBadgeUtils.completionTokensFromPlainText(_currentDraft);
+  }
+
+  List<EventBadgeToken> _removedCompletionBadges(
+    List<EventBadgeToken> before,
+    JournalDocument after,
+  ) {
+    if (before.isEmpty) return const <EventBadgeToken>[];
+    final afterIds = JournalBadgeUtils.completionTokensFromDocument(
+      after,
+    ).map((token) => token.id).toSet();
+    final removed = <EventBadgeToken>[];
+    final seen = <String>{};
+    for (final token in before) {
+      if (afterIds.contains(token.id) || !seen.add(token.id)) continue;
+      removed.add(token);
+    }
+    return removed;
+  }
+
+  Future<void> _notifyCompletionBadgesRemoved(
+    List<EventBadgeToken> badges,
+  ) async {
+    if (badges.isEmpty) return;
+    try {
+      await onCompletionBadgesRemoved?.call(badges);
+    } catch (e) {
+      _log('completion badge removal sync error: $e');
+    }
   }
 
   /// Update document directly (V2)
   Future<void> updateDocument(JournalDocument document) async {
+    final beforeCompletionBadges = _completionBadgesFromCurrentEntry();
     final normalized = JournalBadgeUtils.normalizeDocument(document);
     if (_currentDocument == normalized) return;
+    final removedCompletionBadges = _removedCompletionBadges(
+      beforeCompletionBadges,
+      normalized,
+    );
 
     _markLocalEdit();
     _isDocumentMode = true;
@@ -730,6 +785,17 @@ class JournalController {
     _scheduleAutosave();
 
     onDraftChanged?.call();
+    await _notifyCompletionBadgesRemoved(removedCompletionBadges);
+  }
+
+  Future<void> removeBadge(String badgeId) async {
+    final id = badgeId.trim();
+    if (id.isEmpty) return;
+
+    final doc =
+        _currentDocument ?? JournalDocument.fromPlainText(_currentDraft);
+    final nextDoc = JournalBadgeUtils.removeBadgesById(doc, <String>{id});
+    await updateDocument(nextDoc);
   }
 
   /// Save draft to local storage (V1)
@@ -854,6 +920,7 @@ class JournalController {
   /// Clear today's entry (draft/document) and persist immediately.
   Future<void> clearToday() async {
     try {
+      final removedCompletionBadges = _completionBadgesFromCurrentEntry();
       _markLocalEdit();
       if (_isDocumentMode) {
         _currentDocument = JournalDocument.fromPlainText('');
@@ -870,6 +937,7 @@ class JournalController {
       }
       onDraftChanged?.call();
       await _autosave();
+      await _notifyCompletionBadgesRemoved(removedCompletionBadges);
     } catch (e) {
       _log('clearToday error: $e');
     }

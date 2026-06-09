@@ -43,6 +43,48 @@ class EventBadgeToken {
     this.sourceType,
   });
 
+  bool get isCompletionBadge {
+    if (reflectionStatus != ReflectionStatus.none) return false;
+    if (id.startsWith('calendar:')) return true;
+    if (sourceType != null && completionStatus != CompletionStatus.none) {
+      return true;
+    }
+    final desc = description?.trim().toLowerCase();
+    return desc != null &&
+        desc.contains('completion:') &&
+        ((eventId?.trim().isNotEmpty ?? false) || sourceType != null);
+  }
+
+  String? get completionSourceIdentity {
+    for (final value in CompletionSourceType.values) {
+      final prefix = 'calendar:${value.wireName}:';
+      if (id.startsWith(prefix)) {
+        final identity = id.substring(prefix.length).trim();
+        return identity.isEmpty ? null : identity;
+      }
+    }
+
+    final legacyMatch = RegExp(r'^calendar:[^:]+:(.+)$').firstMatch(id);
+    final legacyIdentity = legacyMatch?.group(1)?.trim();
+    if (legacyIdentity != null && legacyIdentity.isNotEmpty) {
+      return legacyIdentity;
+    }
+
+    final event = eventId?.trim();
+    if (event != null && event.isNotEmpty) return 'cid:$event';
+    return null;
+  }
+
+  String? get completionClientEventId {
+    final identity = completionSourceIdentity;
+    if (identity != null && identity.startsWith('cid:')) {
+      final value = identity.substring(4).trim();
+      if (value.isNotEmpty) return value;
+    }
+    final event = eventId?.trim();
+    return event == null || event.isEmpty ? null : event;
+  }
+
   static EventBadgeToken? parse(String raw) {
     final kv = <String, String>{};
     final regex = RegExp(r'(\w+)=(("[^"]*")|[^\s]+)', dotAll: true);
@@ -204,6 +246,7 @@ class EventBadgeWidget extends StatefulWidget {
   final bool initialExpanded;
   final bool expandable;
   final ValueChanged<bool>? onToggle;
+  final VoidCallback? onDelete;
 
   const EventBadgeWidget({
     super.key,
@@ -211,6 +254,7 @@ class EventBadgeWidget extends StatefulWidget {
     this.initialExpanded = false,
     this.expandable = true,
     this.onToggle,
+    this.onDelete,
   });
 
   @override
@@ -250,7 +294,11 @@ class _EventBadgeWidgetState extends State<EventBadgeWidget>
         maxWidth: maxWidth.clamp(120.0, double.infinity),
       ),
       child: _expanded && widget.expandable
-          ? _ExpandedEventBadge(token: widget.token, onTap: _toggle)
+          ? _ExpandedEventBadge(
+              token: widget.token,
+              onTap: _toggle,
+              onDelete: widget.onDelete,
+            )
           : _CollapsedEventBadge(token: widget.token, onTap: _toggle),
     );
   }
@@ -329,8 +377,13 @@ class _CollapsedEventBadge extends StatelessWidget {
 class _ExpandedEventBadge extends StatelessWidget {
   final EventBadgeToken token;
   final VoidCallback onTap;
+  final VoidCallback? onDelete;
 
-  const _ExpandedEventBadge({required this.token, required this.onTap});
+  const _ExpandedEventBadge({
+    required this.token,
+    required this.onTap,
+    this.onDelete,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -398,6 +451,24 @@ class _ExpandedEventBadge extends StatelessWidget {
                                     ),
                               ),
                             ),
+                            if (onDelete != null) ...[
+                              const SizedBox(width: 6),
+                              IconButton(
+                                icon: Icon(
+                                  Icons.delete_outline,
+                                  size: 18,
+                                  color: color.withValues(alpha: 0.95),
+                                ),
+                                tooltip: 'Remove badge',
+                                visualDensity: VisualDensity.compact,
+                                padding: EdgeInsets.zero,
+                                constraints: minimumTouchTargetConstraints(
+                                  context,
+                                  minSize: 32,
+                                ),
+                                onPressed: onDelete,
+                              ),
+                            ],
                           ],
                         ),
                         const SizedBox(height: 4),

@@ -11885,6 +11885,8 @@ class CalendarPageState extends State<CalendarPage>
 
     // Initialize journal controller
     _journalController = JournalController(Supabase.instance.client);
+    _journalController.onCompletionBadgesRemoved =
+        _handleJournalCompletionBadgesRemoved;
     _journalController.init().then((_) {
       if (mounted) {
         setState(() => _journalInitialized = true);
@@ -14525,6 +14527,7 @@ class CalendarPageState extends State<CalendarPage>
     _calendarInvalidationReloadDebounce?.cancel();
     _reminderService.dispose();
     unawaited(_journalController.forceSave());
+    _journalController.onCompletionBadgesRemoved = null;
     _journalController.dispose();
     _calendarRestorationDebounce?.cancel();
     _warmStartCacheDebounceTimer?.cancel();
@@ -24305,6 +24308,11 @@ class CalendarPageState extends State<CalendarPage>
                 metadata: metadata,
               ),
           onUnrecordCompletion: _unrecordEventCompletion,
+          onRemoveCompletionBadge: (badgeId) async {
+            if (_journalInitialized) {
+              await _journalController.removeBadge(badgeId);
+            }
+          },
           onboardingEventClientEventId: shouldPassFirstFlowOnboardingTargets
               ? _firstMaatFlowEventClientEventId
               : null,
@@ -24785,6 +24793,36 @@ class CalendarPageState extends State<CalendarPage>
       if (kDebugMode) {
         _calendarDebugPrint('[DayView] unrecordEventCompletion failed: $e');
       }
+    }
+  }
+
+  Future<void> _handleJournalCompletionBadgesRemoved(
+    List<EventBadgeToken> badges,
+  ) async {
+    final clearedClientEventIds = <String>{};
+    var changed = false;
+    for (final badge in badges) {
+      final identity = badge.completionSourceIdentity;
+      if (identity != null && identity.isNotEmpty) {
+        await const CalendarCompletionLocalStore().save(
+          identity: identity,
+          status: CompletionStatus.none,
+        );
+        changed = true;
+      }
+
+      final clientEventId = badge.completionClientEventId;
+      if (clientEventId == null ||
+          clientEventId.isEmpty ||
+          !clearedClientEventIds.add(clientEventId)) {
+        continue;
+      }
+      await _unrecordEventCompletion(clientEventId);
+      changed = true;
+    }
+
+    if (changed) {
+      _notifyDayViewDataChanged();
     }
   }
 

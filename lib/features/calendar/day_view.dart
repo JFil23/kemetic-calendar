@@ -2160,6 +2160,7 @@ class DayViewPage extends StatefulWidget {
   })?
   onRecordCompletion;
   final Future<void> Function(String clientEventId)? onUnrecordCompletion;
+  final Future<void> Function(String badgeId)? onRemoveCompletionBadge;
   final String? onboardingEventClientEventId;
   final GlobalKey? onboardingEventTargetKey;
   final GlobalKey? onboardingObservedKey;
@@ -2212,6 +2213,7 @@ class DayViewPage extends StatefulWidget {
     this.loadCompletedClientEventIds,
     this.onRecordCompletion,
     this.onUnrecordCompletion,
+    this.onRemoveCompletionBadge,
     this.onboardingEventClientEventId,
     this.onboardingEventTargetKey,
     this.onboardingObservedKey,
@@ -2958,6 +2960,8 @@ class _DayViewPageState extends State<DayViewPage> {
                                 widget.loadCompletedClientEventIds,
                             onRecordCompletion: widget.onRecordCompletion,
                             onUnrecordCompletion: widget.onUnrecordCompletion,
+                            onRemoveCompletionBadge:
+                                widget.onRemoveCompletionBadge,
                             onboardingEventClientEventId:
                                 widget.onboardingEventClientEventId,
                             onboardingEventTargetKey:
@@ -3076,6 +3080,7 @@ class DayViewGrid extends StatefulWidget {
   })?
   onRecordCompletion;
   final Future<void> Function(String clientEventId)? onUnrecordCompletion;
+  final Future<void> Function(String badgeId)? onRemoveCompletionBadge;
   final String? onboardingEventClientEventId;
   final GlobalKey? onboardingEventTargetKey;
   final GlobalKey? onboardingObservedKey;
@@ -3131,6 +3136,7 @@ class DayViewGrid extends StatefulWidget {
     this.loadCompletedClientEventIds,
     this.onRecordCompletion,
     this.onUnrecordCompletion,
+    this.onRemoveCompletionBadge,
     this.onboardingEventClientEventId,
     this.onboardingEventTargetKey,
     this.onboardingObservedKey,
@@ -5588,6 +5594,16 @@ class _DayViewGridState extends State<DayViewGrid> {
     );
   }
 
+  String _completionBadgeIdForEvent(
+    EventItem event, {
+    required CompletionSourceType sourceType,
+  }) {
+    return calendarCompletionBadgeId(
+      identity: _completionIdentityForEvent(event),
+      sourceType: sourceType,
+    );
+  }
+
   String _buildBadgeToken(
     EventItem event, {
     required int ky,
@@ -5658,6 +5674,15 @@ class _DayViewGridState extends State<DayViewGrid> {
       completionStatus: status,
       sourceType: sourceType,
     );
+  }
+
+  Future<void> _removeCompletionContinuity(
+    DayViewSheetEventTarget target, {
+    required CompletionSourceType sourceType,
+  }) async {
+    final cb = widget.onRemoveCompletionBadge;
+    if (cb == null) return;
+    await cb(_completionBadgeIdForEvent(target.event, sourceType: sourceType));
   }
 
   CalendarReflectionContext _reflectionContextForTarget(
@@ -5747,6 +5772,10 @@ class _DayViewGridState extends State<DayViewGrid> {
     required CompletionSourceType sourceType,
     required FlowData? flow,
   }) async {
+    if (status == CompletionStatus.none) {
+      await _clearCalendarCompletion(target, sourceType: sourceType);
+      return;
+    }
     final clientEventId = target.event.clientEventId?.trim();
     final flowId = target.event.flowId;
     if (clientEventId == null || clientEventId.isEmpty || flowId == null) {
@@ -5778,6 +5807,24 @@ class _DayViewGridState extends State<DayViewGrid> {
         metadata: metadata,
       );
     }
+  }
+
+  Future<void> _clearCalendarCompletion(
+    DayViewSheetEventTarget target, {
+    required CompletionSourceType sourceType,
+  }) async {
+    final clientEventId = target.event.clientEventId?.trim();
+    if (clientEventId != null && clientEventId.isNotEmpty) {
+      final callback = widget.onUnrecordCompletion;
+      if (callback != null) {
+        await callback(clientEventId);
+      } else {
+        await UserEventsRepo(
+          Supabase.instance.client,
+        ).unrecordEventCompletion(clientEventId);
+      }
+    }
+    await _removeCompletionContinuity(target, sourceType: sourceType);
   }
 
   String _detailSheetTargetKey(DayViewSheetEventTarget target) =>
@@ -5812,6 +5859,7 @@ class _DayViewGridState extends State<DayViewGrid> {
     required DayViewSheetEventTarget target,
     bool scrollable = true,
     bool includeOnboardingKeys = true,
+    Object? completionReloadSignal,
   }) {
     final currentEvent = target.event;
     final flow = _chromeFlowForId(currentEvent.flowId);
@@ -6185,12 +6233,15 @@ class _DayViewGridState extends State<DayViewGrid> {
             km: target.km,
             kd: target.kd,
             onRecordCompletion: widget.onRecordCompletion,
+            onUnrecordCompletion: widget.onUnrecordCompletion,
+            onRemoveCompletionBadge: widget.onRemoveCompletionBadge,
             onCompletionContinuity: (status) => _appendCompletionContinuity(
               target,
               status,
               sourceType: CompletionSourceType.maatFlow,
             ),
             onAddReflection: null,
+            reloadSignal: completionReloadSignal,
             observedButtonKey:
                 includeOnboardingKeys && _isOnboardingTargetEvent(currentEvent)
                 ? widget.onboardingObservedKey
@@ -6218,6 +6269,14 @@ class _DayViewGridState extends State<DayViewGrid> {
               ),
               flow: flow,
             ),
+            onClearStatus: () => _clearCalendarCompletion(
+              target,
+              sourceType: _completionSourceTypeForEvent(
+                currentEvent,
+                flow,
+                completionContext,
+              ),
+            ),
             onCreateContinuity: (status) => _appendCompletionContinuity(
               target,
               status,
@@ -6228,6 +6287,7 @@ class _DayViewGridState extends State<DayViewGrid> {
               ),
             ),
             onReflect: null,
+            reloadSignal: completionReloadSignal,
           ),
         ],
         if (libraryCta != null) ...[
@@ -6694,7 +6754,7 @@ class _DayViewGridState extends State<DayViewGrid> {
         builder: (sheetContext) {
           return ValueListenableBuilder<int>(
             valueListenable: sheetDataListenable,
-            builder: (context, _, child) {
+            builder: (context, dataRevision, child) {
               return ValueListenableBuilder<DayViewSheetEventTarget>(
                 valueListenable: currentTarget,
                 builder: (context, rawTarget, _) {
@@ -6777,6 +6837,7 @@ class _DayViewGridState extends State<DayViewGrid> {
                                           target: pageTarget,
                                           scrollable: false,
                                           includeOnboardingKeys: false,
+                                          completionReloadSignal: dataRevision,
                                         ),
                                       ),
                                     ),
@@ -6827,6 +6888,8 @@ class _DayViewGridState extends State<DayViewGrid> {
                                         itemBuilder: (context, index) {
                                           return _buildEventDetailSheetPage(
                                             target: pages.pages[index],
+                                            completionReloadSignal:
+                                                dataRevision,
                                           );
                                         },
                                       ),
@@ -7487,9 +7550,12 @@ class _MaatFlowCompletionPanel extends StatefulWidget {
     required this.km,
     required this.kd,
     required this.onRecordCompletion,
+    this.onUnrecordCompletion,
+    this.onRemoveCompletionBadge,
     this.onCompletionContinuity,
     this.onAddReflection,
     this.observedButtonKey,
+    this.reloadSignal,
   });
 
   final EventItem event;
@@ -7505,9 +7571,12 @@ class _MaatFlowCompletionPanel extends StatefulWidget {
     Map<String, dynamic>? metadata,
   })?
   onRecordCompletion;
+  final Future<void> Function(String clientEventId)? onUnrecordCompletion;
+  final Future<void> Function(String badgeId)? onRemoveCompletionBadge;
   final Future<void> Function(CompletionStatus status)? onCompletionContinuity;
   final VoidCallback? onAddReflection;
   final Key? observedButtonKey;
+  final Object? reloadSignal;
 
   @override
   State<_MaatFlowCompletionPanel> createState() =>
@@ -7531,7 +7600,8 @@ class _MaatFlowCompletionPanelState extends State<_MaatFlowCompletionPanel> {
   @override
   void didUpdateWidget(covariant _MaatFlowCompletionPanel oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.event.clientEventId != widget.event.clientEventId) {
+    if (oldWidget.event.clientEventId != widget.event.clientEventId ||
+        oldWidget.reloadSignal != widget.reloadSignal) {
       unawaited(_load());
     }
   }
@@ -7653,6 +7723,10 @@ class _MaatFlowCompletionPanelState extends State<_MaatFlowCompletionPanel> {
   }
 
   Future<void> _record(String status) async {
+    if (status == 'none') {
+      await _clear();
+      return;
+    }
     if (_saving) return;
     final clientEventId = widget.event.clientEventId?.trim();
     final flowId = widget.event.flowId;
@@ -7739,6 +7813,47 @@ class _MaatFlowCompletionPanelState extends State<_MaatFlowCompletionPanel> {
     }
   }
 
+  Future<void> _clear() async {
+    if (_saving) return;
+    final clientEventId = widget.event.clientEventId?.trim();
+    if (clientEventId == null || clientEventId.isEmpty) return;
+    setState(() => _saving = true);
+    try {
+      final callback = widget.onUnrecordCompletion;
+      if (callback != null) {
+        await callback(clientEventId);
+      } else {
+        await UserEventsRepo(
+          Supabase.instance.client,
+        ).unrecordEventCompletion(clientEventId);
+      }
+      await const CalendarCompletionLocalStore().save(
+        identity: widget.identity,
+        status: CompletionStatus.none,
+      );
+      final removeBadge = widget.onRemoveCompletionBadge;
+      if (removeBadge != null) {
+        await removeBadge(
+          calendarCompletionBadgeId(
+            identity: widget.identity,
+            sourceType: CompletionSourceType.maatFlow,
+          ),
+        );
+      }
+      if (!mounted) return;
+      setState(() {
+        _status = null;
+        _saving = false;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _saving = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Could not clear this sitting.')),
+      );
+    }
+  }
+
   Future<void> _maybeCaptureLivingTextDayOneNode(String status) async {
     if (status != 'observed' ||
         widget.completion.flowKey != kLivingTextFlowKey ||
@@ -7811,7 +7926,15 @@ class _MaatFlowCompletionPanelState extends State<_MaatFlowCompletionPanel> {
           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
         ),
-        onPressed: _saving ? null : () => _record(status),
+        onPressed: _saving
+            ? null
+            : () {
+                if (selected) {
+                  unawaited(_clear());
+                } else {
+                  unawaited(_record(status));
+                }
+              },
         child: Text(
           label,
           maxLines: 1,
@@ -7842,7 +7965,11 @@ class _MaatFlowCompletionPanelState extends State<_MaatFlowCompletionPanel> {
           observedButtonKey: widget.observedButtonKey,
           onReflect: widget.onAddReflection,
           onChanged: (status) {
-            unawaited(_record(status.maatStatusName));
+            if (status == standardStatus) {
+              unawaited(_clear());
+            } else {
+              unawaited(_record(status.maatStatusName));
+            }
           },
         ),
         if (!_loading && widget.completion.extraStatusLabels.isNotEmpty) ...[

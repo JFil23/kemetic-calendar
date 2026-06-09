@@ -1,9 +1,13 @@
 import 'dart:async';
 import 'dart:convert';
 
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:mobile/core/completion_status.dart';
 import 'package:mobile/data/journal_repo.dart';
+import 'package:mobile/features/journal/journal_badge_utils.dart';
 import 'package:mobile/features/journal/journal_controller.dart';
+import 'package:mobile/features/journal/journal_event_badge.dart';
 import 'package:mobile/features/journal/journal_v2_document_model.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -363,6 +367,86 @@ void main() {
       expect(prefs.getBool(_documentDirtyKey(key, uid: 'user-a')), isFalse);
     },
   );
+
+  test(
+    'removing a completion badge reports the related completion source',
+    () async {
+      final today = _today();
+      final completion = _completionBadge(
+        id: 'calendar:user_flow:cid:event-1',
+        clientEventId: 'event-1',
+        status: CompletionStatus.observed,
+      );
+      final ordinary = _ordinaryBadge('badge-note');
+      final controller = JournalController.withRepo(
+        _FakeJournalRepo(
+          entry: _entry(
+            date: today,
+            body: _documentJsonWithBadges('body', [ordinary, completion]),
+            updatedAt: DateTime.now().toUtc(),
+          ),
+        ),
+      );
+      final removed = <EventBadgeToken>[];
+      controller.onCompletionBadgesRemoved = (badges) async {
+        removed.addAll(badges);
+      };
+
+      await controller.init();
+      await controller.removeBadge('calendar:user_flow:cid:event-1');
+
+      expect(removed.map((badge) => badge.id), <String>[
+        'calendar:user_flow:cid:event-1',
+      ]);
+      expect(removed.single.completionClientEventId, 'event-1');
+      expect(
+        JournalBadgeUtils.tokensFromDocument(
+          controller.currentDocument!,
+        ).map((badge) => badge.id),
+        <String>['badge-note'],
+      );
+    },
+  );
+
+  test(
+    'clearToday reports all completion badges but not ordinary badges',
+    () async {
+      final today = _today();
+      final controller = JournalController.withRepo(
+        _FakeJournalRepo(
+          entry: _entry(
+            date: today,
+            body: _documentJsonWithBadges('body', [
+              _ordinaryBadge('badge-note'),
+              _completionBadge(
+                id: 'calendar:user_flow:cid:event-1',
+                clientEventId: 'event-1',
+                status: CompletionStatus.observed,
+              ),
+              _completionBadge(
+                id: 'calendar:maat_flow:cid:event-2',
+                clientEventId: 'event-2',
+                status: CompletionStatus.skipped,
+              ),
+            ]),
+            updatedAt: DateTime.now().toUtc(),
+          ),
+        ),
+      );
+      final removed = <EventBadgeToken>[];
+      controller.onCompletionBadgesRemoved = (badges) async {
+        removed.addAll(badges);
+      };
+
+      await controller.init();
+      await controller.clearToday();
+
+      expect(removed.map((badge) => badge.completionClientEventId), <String>[
+        'event-1',
+        'event-2',
+      ]);
+    },
+  );
 }
 
 DateTime _today() {
@@ -398,6 +482,43 @@ String _documentJson(String text) => jsonEncode(
     ],
   ).toJson(),
 );
+
+String _documentJsonWithBadges(String text, List<String> badges) => jsonEncode(
+  JournalDocument(
+    version: kJournalDocVersion,
+    blocks: [
+      ParagraphBlock(
+        id: 'p1',
+        ops: [TextOp(insert: text)],
+      ),
+    ],
+    meta: {'badges': badges},
+  ).toJson(),
+);
+
+String _completionBadge({
+  required String id,
+  required String clientEventId,
+  required CompletionStatus status,
+}) {
+  return EventBadgeToken.buildToken(
+    id: id,
+    eventId: clientEventId,
+    title: 'Completion',
+    color: Colors.amber,
+    description: 'Completion: ${status.wireName}.',
+    completionStatus: status,
+    sourceType: CompletionSourceType.userFlow,
+  );
+}
+
+String _ordinaryBadge(String id) {
+  return EventBadgeToken.buildToken(
+    id: id,
+    title: 'Ordinary badge',
+    color: Colors.blue,
+  );
+}
 
 JournalEntry _entry({
   required DateTime date,

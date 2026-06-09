@@ -2131,6 +2131,12 @@ class _MainCalendarEventDetailSheetState
     if (clientEventId == null || clientEventId.isEmpty || flowId == null) {
       return;
     }
+    if (status == CompletionStatus.none) {
+      await UserEventsRepo(
+        Supabase.instance.client,
+      ).unrecordEventCompletion(clientEventId);
+      return;
+    }
     final completedOnDate = DateUtils.dateOnly(
       KemeticMath.toGregorian(target.ky, target.km, target.kd),
     );
