@@ -177,12 +177,12 @@ void main() {
         final dayViewDelete = _sourceBetween(
           dayView,
           "value == 'end_note'",
-          "value == 'journal'",
+          "value == 'share'",
         );
         final gridDelete = _sourceBetween(
           gridWidgets,
           "value == 'end_note'",
-          "value == 'journal'",
+          "value == 'share'",
         );
         final searchOpen = _sourceBetween(
           calendarPage,

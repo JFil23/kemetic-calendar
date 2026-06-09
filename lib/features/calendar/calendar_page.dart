@@ -65,6 +65,7 @@ import 'package:mobile/core/global_menu_routes.dart';
 import 'package:mobile/core/navigation_persistence_policy.dart';
 import 'package:mobile/shared/glossy_text.dart';
 import 'package:flutter/gestures.dart';
+import 'package:mobile/core/completion_status.dart';
 import '../reminders/reminder_service.dart';
 import '../reminders/reminder_model.dart';
 import '../reminders/reminder_rule.dart';
@@ -89,6 +90,7 @@ import '../../core/push_intent_bus.dart';
 import '../../widgets/flow_start_date_picker.dart';
 import '../../utils/external_link_utils.dart';
 import 'calendar_invalidation.dart';
+import 'calendar_completion.dart';
 import 'event_filing_service.dart';
 import 'maat_flow_identity.dart';
 import 'track_sky_flow.dart';
@@ -8517,6 +8519,18 @@ class CalendarPageState extends State<CalendarPage>
           onAppendToJournal: _journalInitialized
               ? (text) => _journalController.appendToToday(text)
               : null,
+          onRecordCompletion:
+              ({
+                required String clientEventId,
+                required int flowId,
+                required DateTime completedOnDate,
+                Map<String, dynamic>? metadata,
+              }) => _recordEventCompletion(
+                clientEventId: clientEventId,
+                flowId: flowId,
+                completedOnDate: completedOnDate,
+                metadata: metadata,
+              ),
         ),
       );
     } finally {

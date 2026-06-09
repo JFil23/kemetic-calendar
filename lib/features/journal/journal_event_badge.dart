@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:mobile/core/completion_status.dart';
 import 'package:mobile/core/touch_targets.dart';
 import 'package:mobile/shared/glossy_text.dart';
 
@@ -24,6 +25,8 @@ class EventBadgeToken {
   final DateTime? end;
   final Color color;
   final String? description;
+  final CompletionStatus completionStatus;
+  final CompletionSourceType? sourceType;
 
   const EventBadgeToken({
     required this.id,
@@ -33,6 +36,8 @@ class EventBadgeToken {
     this.end,
     required this.color,
     this.description,
+    this.completionStatus = CompletionStatus.observed,
+    this.sourceType,
   });
 
   static EventBadgeToken? parse(String raw) {
@@ -54,6 +59,17 @@ class EventBadgeToken {
     final endStr = kv['end'];
     final colorStr = kv['color'];
     final descStr = kv['description'] ?? kv['desc'];
+    final completionStatus = CompletionStatusX.fromWireName(
+      kv['completionStatus'] ?? kv['completion_status'] ?? kv['status'],
+    );
+    CompletionSourceType? sourceType;
+    final rawSourceType = kv['sourceType'] ?? kv['source_type'];
+    for (final value in CompletionSourceType.values) {
+      if (value.wireName == rawSourceType) {
+        sourceType = value;
+        break;
+      }
+    }
 
     if (id == null || title == null || colorStr == null) return null;
 
@@ -85,6 +101,10 @@ class EventBadgeToken {
       end: parseDt(endStr),
       color: parseColor(colorStr),
       description: descStr != null ? unescape(descStr) : null,
+      completionStatus: completionStatus == CompletionStatus.none
+          ? CompletionStatus.observed
+          : completionStatus,
+      sourceType: sourceType,
     );
   }
 
@@ -96,6 +116,8 @@ class EventBadgeToken {
     DateTime? end,
     required Color color,
     String? description,
+    CompletionStatus completionStatus = CompletionStatus.observed,
+    CompletionSourceType? sourceType,
   }) {
     String fmt(DateTime? dt) => dt?.toUtc().toIso8601String() ?? '';
     String hex(Color c) => '#${c.toARGB32().toRadixString(16).padLeft(8, '0')}';
@@ -112,9 +134,27 @@ class EventBadgeToken {
     if (description != null && description.trim().isNotEmpty) {
       buffer.write('description="${esc(description)}" ');
     }
+    if (completionStatus != CompletionStatus.observed) {
+      buffer.write('completionStatus=${completionStatus.wireName} ');
+    }
+    if (sourceType != null) {
+      buffer.write('sourceType=${sourceType.wireName} ');
+    }
     buffer.write('color="${hex(color)}"');
     buffer.write('⟧');
     return buffer.toString();
+  }
+}
+
+IconData _badgeIconFor(CompletionStatus status) {
+  switch (status) {
+    case CompletionStatus.partial:
+      return Icons.adjust_rounded;
+    case CompletionStatus.skipped:
+      return Icons.remove_circle_outline_rounded;
+    case CompletionStatus.none:
+    case CompletionStatus.observed:
+      return Icons.check_circle;
   }
 }
 
@@ -201,7 +241,7 @@ class _CollapsedEventBadge extends StatelessWidget {
             mainAxisSize: MainAxisSize.min,
             children: [
               Icon(
-                Icons.check_circle,
+                _badgeIconFor(token.completionStatus),
                 size: 14,
                 color: color.withValues(alpha: 0.95),
               ),
@@ -291,7 +331,7 @@ class _ExpandedEventBadge extends StatelessWidget {
                         Row(
                           children: [
                             Icon(
-                              Icons.check_circle,
+                              _badgeIconFor(token.completionStatus),
                               size: 14,
                               color: color.withValues(alpha: 0.95),
                             ),

@@ -3,6 +3,7 @@ import 'package:timezone/timezone.dart' as tz;
 
 import 'dawn_house_rite_flow.dart';
 import 'evening_threshold_rite_flow.dart';
+import 'maat_flow_reflection_metadata.dart';
 import 'maat_flow_identity.dart';
 import 'track_sky_flow.dart';
 
@@ -3796,6 +3797,15 @@ Map<String, dynamic> maatDecanFlowBehaviorPayload({
       'special_requirement': definition.specialRequirementLabel,
     if (definition.safetyNote != null) 'safety_note': definition.safetyNote,
     'routing_summary': definition.routingSummary,
+    'reflection_guidance': resolveMaatFlowReflectionMetadata(
+      flowId: definition.key,
+      eventId: 'event-${event.eventNumber}',
+      flowTitle: definition.title,
+      eventTitle: event.title,
+      theme: definition.routingSummary,
+      ritualAction: event.purpose,
+      reflectionIntent: event.spokenLine,
+    ).toJson(),
     if (event.libraryCta != null)
       'library_cta': <String, dynamic>{
         'type': event.libraryCta,

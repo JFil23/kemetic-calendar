@@ -73,6 +73,14 @@ void main() {
       expect(payload['completion_options'], contains('observed'));
       expect(payload['completion_options'], contains('observed_partly'));
       expect(payload['completion_options'], contains('skipped'));
+      expect(payload['reflection_guidance'], isA<Map<String, dynamic>>());
+      final reflectionGuidance =
+          payload['reflection_guidance'] as Map<String, dynamic>;
+      expect(reflectionGuidance['flowId'], definition.key);
+      expect(reflectionGuidance['eventId'], 'event-${first.eventNumber}');
+      expect(reflectionGuidance['theme'], definition.routingSummary);
+      expect(reflectionGuidance['ritualAction'], first.purpose);
+      expect(reflectionGuidance['reflectionIntent'], first.spokenLine);
       expect(payload['routing_summary'], definition.routingSummary);
       expect(payload['schedule'], containsPair('timezone', 'pacific'));
     }

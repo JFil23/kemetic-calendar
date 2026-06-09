@@ -10,13 +10,16 @@ import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/gestures.dart'; // For DragStartBehavior
 import 'package:flutter/rendering.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:mobile/core/completion_status.dart';
 import 'package:mobile/core/touch_targets.dart';
+import '../../data/user_events_repo.dart';
 import '../../services/app_haptics.dart';
 import '../../services/app_restoration_service.dart';
 import 'day_view.dart'; // For NoteData, FlowData
 import 'calendar_page.dart' show CalendarPage, KemeticMath;
-import '../journal/journal_event_badge.dart';
+import 'calendar_completion.dart';
 import 'package:mobile/features/calendar/kemetic_time_constants.dart';
 import 'dart:math' as math;
 import 'package:mobile/shared/glossy_text.dart';
@@ -1942,10 +1945,6 @@ class _LandscapeMonthGridBodyState extends State<LandscapeMonthGridBody> {
     return _DetailSheetEndAction.none;
   }
 
-  bool _shouldPromoteJournalToPill(EventItem event, FlowData? flow) =>
-      widget.onAppendToJournal != null &&
-      _endActionFor(event, flow: flow) != _DetailSheetEndAction.none;
-
   bool _isActionableFlowId(int? flowId) {
     if (flowId == null) return false;
     if (widget.activeLedgerFlowIds.contains(flowId)) return true;
@@ -1978,6 +1977,133 @@ class _LandscapeMonthGridBodyState extends State<LandscapeMonthGridBody> {
       event.allDay,
       event.isReminder,
     ].join('|');
+  }
+
+  CompletionSourceType _completionSourceTypeForEvent(
+    EventItem event,
+    FlowData? flow,
+  ) {
+    if (event.isReminder) return CompletionSourceType.reminder;
+    final category = event.category?.trim().toLowerCase() ?? '';
+    if (category.contains('itinerary') || category.contains('travel')) {
+      return CompletionSourceType.itinerary;
+    }
+    if (flow != null && !_isRepeatingNoteFlowId(event.flowId)) {
+      return CompletionSourceType.userFlow;
+    }
+    if (event.flowId != null || event.clientEventId != null) {
+      return CompletionSourceType.calendarEvent;
+    }
+    return CompletionSourceType.note;
+  }
+
+  String _completionIdentityForEvent(EventItem event) {
+    return calendarCompletionIdentity(
+      eventId: event.id,
+      clientEventId: event.clientEventId,
+      reminderId: event.reminderId,
+      fallback: _sheetEventIdentityKey(event),
+    );
+  }
+
+  Future<void> _appendCompletionContinuity(
+    DayViewSheetEventTarget target,
+    CompletionStatus status, {
+    required CompletionSourceType sourceType,
+  }) async {
+    final cb = widget.onAppendToJournal;
+    if (cb == null) return;
+    final event = target.event;
+    final g = KemeticMath.toGregorian(target.ky, target.km, target.kd);
+    final dayStart = DateTime(g.year, g.month, g.day);
+    final detail = _cleanEventDetail(event.detail);
+    final token = buildCalendarCompletionBadgeToken(
+      identity: _completionIdentityForEvent(event),
+      sourceType: sourceType,
+      completionStatus: status,
+      eventId: event.clientEventId ?? event.id ?? event.reminderId,
+      title: event.title,
+      start: dayStart.add(Duration(minutes: event.startMin)),
+      end: dayStart.add(Duration(minutes: event.endMin)),
+      color: event.color,
+      description: detail,
+    );
+    await cb('$token ');
+  }
+
+  Future<void> _appendReflectionPrompt(DayViewSheetEventTarget target) async {
+    final cb = widget.onAppendToJournal;
+    if (cb == null) return;
+    final title = target.event.title.trim().isEmpty
+        ? 'this calendar item'
+        : target.event.title.trim();
+    await cb('Reflection on $title\n\n');
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Reflection space added to journal'),
+        backgroundColor: Color(0xFFFFC145),
+        duration: Duration(seconds: 2),
+      ),
+    );
+  }
+
+  Future<CompletionStatus> _loadCalendarCompletionStatus(
+    DayViewSheetEventTarget target,
+  ) async {
+    final clientEventId = target.event.clientEventId?.trim();
+    final flowId = target.event.flowId;
+    final user = Supabase.instance.client.auth.currentUser;
+    if (clientEventId == null ||
+        clientEventId.isEmpty ||
+        flowId == null ||
+        user == null) {
+      return CompletionStatus.none;
+    }
+    final row = await Supabase.instance.client
+        .from('user_event_completions')
+        .select('metadata')
+        .eq('user_id', user.id)
+        .eq('client_event_id', clientEventId)
+        .maybeSingle();
+    if (row == null) return CompletionStatus.none;
+    final metadata = row['metadata'];
+    if (metadata is Map) {
+      final normalized = CompletionStatusX.fromWireName(
+        metadata['completion_status']?.toString() ??
+            metadata['status']?.toString(),
+      );
+      if (normalized != CompletionStatus.none) return normalized;
+    }
+    return CompletionStatus.observed;
+  }
+
+  Future<void> _recordCalendarCompletion(
+    DayViewSheetEventTarget target,
+    CompletionStatus status, {
+    required CompletionSourceType sourceType,
+    required FlowData? flow,
+  }) async {
+    final clientEventId = target.event.clientEventId?.trim();
+    final flowId = target.event.flowId;
+    if (clientEventId == null || clientEventId.isEmpty || flowId == null) {
+      return;
+    }
+    final completedOnDate = DateUtils.dateOnly(
+      KemeticMath.toGregorian(target.ky, target.km, target.kd),
+    );
+    await UserEventsRepo(Supabase.instance.client).recordEventCompletion(
+      clientEventId: clientEventId,
+      flowId: flowId,
+      completedOnDate: completedOnDate,
+      metadata: calendarCompletionMetadata(
+        completionStatus: status,
+        sourceType: sourceType,
+        completedOnDate: completedOnDate,
+        flowTitle: flow?.name,
+        eventTitle: target.event.title,
+      ),
+    );
   }
 
   bool _eventsShareStableIdentity(EventItem a, EventItem b) {
@@ -2515,23 +2641,6 @@ class _LandscapeMonthGridBodyState extends State<LandscapeMonthGridBody> {
     );
   }
 
-  ButtonStyle _journalPillStyle(BuildContext context) {
-    const touchMinHeight = kMinInteractiveDimension * 0.8;
-    return withExpandedTouchTargets(
-      context,
-      OutlinedButton.styleFrom(
-        side: const BorderSide(color: _gold),
-        foregroundColor: _gold,
-        padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 5),
-        minimumSize: const Size(0, 28),
-        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-        visualDensity: const VisualDensity(horizontal: -1, vertical: -2),
-        iconSize: 18,
-      ),
-      minimumSize: const Size(kMinInteractiveDimension, touchMinHeight),
-    );
-  }
-
   Widget _buildEndFlowButton(
     DayViewSheetEventTarget target, {
     required BuildContext actionContext,
@@ -2553,22 +2662,6 @@ class _LandscapeMonthGridBodyState extends State<LandscapeMonthGridBody> {
           : null,
       icon: const Icon(Icons.stop_circle),
       label: const Text('End Flow'),
-    );
-  }
-
-  Widget _buildAddToJournalButton(
-    EventItem event,
-    int day, {
-    required BuildContext actionContext,
-  }) {
-    final enabled = widget.onAppendToJournal != null;
-    return OutlinedButton.icon(
-      style: _journalPillStyle(actionContext),
-      onPressed: enabled
-          ? () => _handleAddToJournal(event, day, sheetContext: actionContext)
-          : null,
-      icon: const Icon(Icons.library_add_check),
-      label: const Text('Add to journal'),
     );
   }
 
@@ -2648,6 +2741,7 @@ class _LandscapeMonthGridBodyState extends State<LandscapeMonthGridBody> {
     final trackSkySpec = isTrackSky
         ? _landscapeTrackSkySpecForEvent(currentEvent)
         : null;
+    final sourceType = _completionSourceTypeForEvent(currentEvent, flow);
 
     Widget? metaChip;
     if (flow != null) {
@@ -2792,6 +2886,28 @@ class _LandscapeMonthGridBodyState extends State<LandscapeMonthGridBody> {
             ),
           ),
         ],
+        const SizedBox(height: 16),
+        CalendarEventCompletionPanel(
+          identity: _completionIdentityForEvent(currentEvent),
+          sourceType: sourceType,
+          loadStatus: currentEvent.flowId == null
+              ? null
+              : () => _loadCalendarCompletionStatus(target),
+          onRecordStatus: (status) => _recordCalendarCompletion(
+            target,
+            status,
+            sourceType: sourceType,
+            flow: flow,
+          ),
+          onCreateContinuity: (status) => _appendCompletionContinuity(
+            target,
+            status,
+            sourceType: sourceType,
+          ),
+          onReflect: widget.onAppendToJournal == null
+              ? null
+              : () => unawaited(_appendReflectionPrompt(target)),
+        ),
       ],
     );
 
@@ -2834,13 +2950,7 @@ class _LandscapeMonthGridBodyState extends State<LandscapeMonthGridBody> {
     return Row(
       children: [
         const Spacer(),
-        if (_shouldPromoteJournalToPill(currentEvent, flow))
-          _buildAddToJournalButton(
-            currentEvent,
-            target.kd,
-            actionContext: sheetContext,
-          )
-        else if (endAction == _DetailSheetEndAction.flow)
+        if (endAction == _DetailSheetEndAction.flow)
           _buildEndFlowButton(target, actionContext: sheetContext)
         else if (endAction == _DetailSheetEndAction.reminder)
           _buildEndReminderButton(currentEvent, actionContext: sheetContext)
@@ -2892,11 +3002,6 @@ class _LandscapeMonthGridBodyState extends State<LandscapeMonthGridBody> {
     final flow = _chromeFlowForId(currentEvent.flowId);
     final actionableFlow = _isActionableFlowId(currentEvent.flowId);
     final isReminder = currentEvent.isReminder;
-    final endAction = _endActionFor(currentEvent, flow: flow);
-    final promoteJournalAction = _shouldPromoteJournalToPill(
-      currentEvent,
-      flow,
-    );
 
     return PopupMenuButton<String>(
       icon: KemeticGold.icon(Icons.more_vert),
@@ -2931,12 +3036,6 @@ class _LandscapeMonthGridBodyState extends State<LandscapeMonthGridBody> {
               currentEvent,
             );
           }
-        } else if (value == 'journal') {
-          await _handleAddToJournal(
-            currentEvent,
-            target.kd,
-            sheetContext: sheetContext,
-          );
         } else if (value == 'share') {
           Navigator.pop(sheetContext);
           if (flow != null && !isReminder) {
@@ -2975,20 +3074,6 @@ class _LandscapeMonthGridBodyState extends State<LandscapeMonthGridBody> {
         }
       },
       itemBuilder: (context) => [
-        if (widget.onAppendToJournal != null && !promoteJournalAction)
-          PopupMenuItem(
-            value: 'journal',
-            child: Row(
-              children: [
-                KemeticGold.icon(Icons.library_add_check),
-                const SizedBox(width: 12),
-                const Text(
-                  'Add to journal',
-                  style: TextStyle(color: Colors.white),
-                ),
-              ],
-            ),
-          ),
         if (flow != null ||
             (isReminder && widget.onShareReminder != null) ||
             (flow == null && !isReminder && widget.onShareNote != null))
@@ -3063,49 +3148,6 @@ class _LandscapeMonthGridBodyState extends State<LandscapeMonthGridBody> {
                 KemeticGold.icon(Icons.edit),
                 const SizedBox(width: 12),
                 const Text('Edit Note', style: TextStyle(color: Colors.white)),
-              ],
-            ),
-          ),
-        if (promoteJournalAction &&
-            endAction == _DetailSheetEndAction.flow &&
-            widget.onEndFlow != null)
-          PopupMenuItem(
-            value: 'end_flow',
-            child: Row(
-              children: [
-                KemeticGold.icon(Icons.stop_circle),
-                const SizedBox(width: 12),
-                const Text('End Flow', style: TextStyle(color: Colors.white)),
-              ],
-            ),
-          )
-        else if (promoteJournalAction &&
-            endAction == _DetailSheetEndAction.reminder &&
-            widget.onEndReminder != null &&
-            currentEvent.reminderId != null)
-          PopupMenuItem(
-            value: 'end_reminder',
-            child: Row(
-              children: [
-                KemeticGold.icon(Icons.stop_circle),
-                const SizedBox(width: 12),
-                const Text(
-                  'End Reminder',
-                  style: TextStyle(color: Colors.white),
-                ),
-              ],
-            ),
-          )
-        else if (promoteJournalAction &&
-            endAction == _DetailSheetEndAction.note &&
-            widget.onDeleteNote != null)
-          PopupMenuItem(
-            value: 'end_note',
-            child: Row(
-              children: [
-                KemeticGold.icon(Icons.delete_outline),
-                const SizedBox(width: 12),
-                const Text('End Note', style: TextStyle(color: Colors.white)),
               ],
             ),
           ),
@@ -3423,58 +3465,6 @@ class _LandscapeMonthGridBodyState extends State<LandscapeMonthGridBody> {
       r'^ky=\d+-km=\d+-kd=\d+\|s=\d+\|t=[^|]+\|f=[^|]+$',
     );
     return cidPattern.hasMatch(withPrefix);
-  }
-
-  String _buildBadgeToken(EventItem event, int day) {
-    final g = KemeticMath.toGregorian(widget.kYear, widget.kMonth, day);
-    final dayStart = DateTime(g.year, g.month, g.day);
-    final start = dayStart.add(Duration(minutes: event.startMin));
-    final end = dayStart.add(Duration(minutes: event.endMin));
-    final id = 'badge-${DateTime.now().microsecondsSinceEpoch}';
-    final rawDesc = event.detail?.trim() ?? '';
-    final cleanedDesc = rawDesc.isEmpty ? null : _stripCidLines(rawDesc);
-    final descForToken = (cleanedDesc == null || cleanedDesc.isEmpty)
-        ? null
-        : cleanedDesc;
-    return EventBadgeToken.buildToken(
-      id: id,
-      title: event.title.isEmpty ? 'Scheduled block' : event.title,
-      start: start,
-      end: end,
-      color: event.color,
-      description: descForToken,
-    );
-  }
-
-  Future<void> _quickAddToJournal(EventItem event, int day) async {
-    final cb = widget.onAppendToJournal;
-    if (cb == null) return;
-    final token = _buildBadgeToken(event, day);
-    try {
-      await cb('$token ');
-    } catch (_) {
-      // silent catch – journaling should not block UI
-    }
-  }
-
-  Future<void> _handleAddToJournal(
-    EventItem event,
-    int day, {
-    BuildContext? sheetContext,
-  }) async {
-    if (sheetContext != null) {
-      Navigator.pop(sheetContext);
-    }
-    await _quickAddToJournal(event, day);
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Added to journal'),
-          backgroundColor: Color(0xFFFFC145),
-          duration: Duration(seconds: 2),
-        ),
-      );
-    }
   }
 
   /// Detect whether a string looks like a URL, email, or phone number.

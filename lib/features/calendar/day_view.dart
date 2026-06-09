@@ -15,8 +15,10 @@ import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:mobile/shared/glossy_text.dart';
 import 'package:mobile/core/global_bottom_menu_metrics.dart';
+import 'package:mobile/core/completion_status.dart';
 import 'package:mobile/core/touch_targets.dart';
 import 'calendar_page.dart';
+import 'calendar_completion.dart';
 import 'day_view_chrome.dart';
 import 'landscape_month_view.dart';
 import 'maat_flow_identity.dart';
@@ -52,7 +54,6 @@ import '../../widgets/kemetic_day_info.dart';
 import 'package:mobile/core/day_key.dart';
 import 'package:mobile/telemetry/telemetry.dart';
 import '../../data/user_events_repo.dart';
-import '../journal/journal_event_badge.dart';
 import '../../services/app_haptics.dart';
 import '../../services/app_restoration_service.dart';
 import '../../utils/external_link_utils.dart';
@@ -3198,23 +3199,6 @@ class _DayViewGridState extends State<DayViewGrid> {
     );
   }
 
-  ButtonStyle _journalPillStyle(BuildContext context) {
-    const touchMinHeight = kMinInteractiveDimension * 0.8;
-    return withExpandedTouchTargets(
-      context,
-      OutlinedButton.styleFrom(
-        side: const BorderSide(color: _dayGold),
-        foregroundColor: _dayGold,
-        padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 5),
-        minimumSize: const Size(0, 28),
-        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-        visualDensity: const VisualDensity(horizontal: -1, vertical: -2),
-        iconSize: 18,
-      ),
-      minimumSize: const Size(kMinInteractiveDimension, touchMinHeight),
-    );
-  }
-
   FlowData? _chromeFlowForId(int? flowId) => widget.flowIndex[flowId];
 
   bool _isRepeatingNoteFlowId(int? flowId) {
@@ -3246,10 +3230,6 @@ class _DayViewGridState extends State<DayViewGrid> {
     return _DetailSheetEndAction.none;
   }
 
-  bool _shouldPromoteJournalToPill(EventItem event, FlowData? flow) =>
-      widget.onAppendToJournal != null &&
-      _endActionFor(event, flow: flow) != _DetailSheetEndAction.none;
-
   bool _isActionableFlowId(int? flowId) {
     if (flowId == null) return false;
     if (widget.activeLedgerFlowIds.contains(flowId)) return true;
@@ -3279,32 +3259,6 @@ class _DayViewGridState extends State<DayViewGrid> {
           : null,
       icon: const Icon(Icons.stop_circle),
       label: const Text('End Flow'),
-    );
-  }
-
-  Widget _buildAddToJournalButton(
-    EventItem event, {
-    required int ky,
-    required int km,
-    required int kd,
-    required BuildContext actionContext,
-    Key? buttonKey,
-  }) {
-    final enabled = widget.onAppendToJournal != null;
-    return OutlinedButton.icon(
-      key: buttonKey,
-      style: _journalPillStyle(actionContext),
-      onPressed: enabled
-          ? () => _handleAddToJournal(
-              event,
-              ky: ky,
-              km: km,
-              kd: kd,
-              sheetContext: actionContext,
-            )
-          : null,
-      icon: const Icon(Icons.library_add_check),
-      label: const Text('Add to journal'),
     );
   }
 
@@ -5675,24 +5629,57 @@ class _DayViewGridState extends State<DayViewGrid> {
     return '${hour - 12} PM';
   }
 
+  CompletionSourceType _completionSourceTypeForEvent(
+    EventItem event,
+    FlowData? flow,
+    _MaatFlowCompletionContext? completionContext,
+  ) {
+    if (completionContext != null) return CompletionSourceType.maatFlow;
+    if (event.isReminder) return CompletionSourceType.reminder;
+    final category = event.category?.trim().toLowerCase() ?? '';
+    if (category.contains('itinerary') || category.contains('travel')) {
+      return CompletionSourceType.itinerary;
+    }
+    if (flow != null && !_isRepeatingNoteFlowId(event.flowId)) {
+      return CompletionSourceType.userFlow;
+    }
+    if (event.flowId != null || event.clientEventId != null) {
+      return CompletionSourceType.calendarEvent;
+    }
+    return CompletionSourceType.note;
+  }
+
+  String _completionIdentityForEvent(EventItem event) {
+    return calendarCompletionIdentity(
+      eventId: event.id,
+      clientEventId: event.clientEventId,
+      reminderId: event.reminderId,
+      fallback: _eventIdentityKey(event),
+    );
+  }
+
   String _buildBadgeToken(
     EventItem event, {
     required int ky,
     required int km,
     required int kd,
+    CompletionStatus completionStatus = CompletionStatus.observed,
+    CompletionSourceType sourceType = CompletionSourceType.calendarEvent,
   }) {
     final g = KemeticMath.toGregorian(ky, km, kd);
     final dayStart = DateTime(g.year, g.month, g.day);
     final start = dayStart.add(Duration(minutes: event.startMin));
     final end = dayStart.add(Duration(minutes: event.endMin));
-    final id = 'badge-${DateTime.now().microsecondsSinceEpoch}';
     final rawDesc = event.detail?.trim() ?? '';
     final cleanedDesc = rawDesc.isEmpty ? null : _stripCidLines(rawDesc);
     final descForToken = (cleanedDesc == null || cleanedDesc.isEmpty)
         ? null
         : cleanedDesc;
-    return EventBadgeToken.buildToken(
-      id: id,
+    return buildCalendarCompletionBadgeToken(
+      identity: _completionIdentityForEvent(event),
+      sourceType: sourceType,
+      completionStatus: completionStatus,
+      eventId: event.clientEventId ?? event.id ?? event.reminderId,
       title: event.title.isEmpty ? 'Scheduled block' : event.title,
       start: start,
       end: end,
@@ -5706,11 +5693,20 @@ class _DayViewGridState extends State<DayViewGrid> {
     required int ky,
     required int km,
     required int kd,
+    CompletionStatus completionStatus = CompletionStatus.observed,
+    CompletionSourceType sourceType = CompletionSourceType.calendarEvent,
   }) async {
     final cb = widget.onAppendToJournal;
     if (cb == null) return;
 
-    final token = _buildBadgeToken(event, ky: ky, km: km, kd: kd);
+    final token = _buildBadgeToken(
+      event,
+      ky: ky,
+      km: km,
+      kd: kd,
+      completionStatus: completionStatus,
+      sourceType: sourceType,
+    );
     try {
       await cb('$token ');
       unawaited(AppHaptics.productiveAction());
@@ -5719,24 +5715,105 @@ class _DayViewGridState extends State<DayViewGrid> {
     }
   }
 
-  Future<void> _handleAddToJournal(
-    EventItem event, {
-    required int ky,
-    required int km,
-    required int kd,
-    BuildContext? sheetContext,
+  Future<void> _appendCompletionContinuity(
+    DayViewSheetEventTarget target,
+    CompletionStatus status, {
+    required CompletionSourceType sourceType,
   }) async {
-    if (sheetContext != null) {
-      Navigator.pop(sheetContext);
-    }
-    await _quickAddToJournal(event, ky: ky, km: km, kd: kd);
+    await _quickAddToJournal(
+      target.event,
+      ky: target.ky,
+      km: target.km,
+      kd: target.kd,
+      completionStatus: status,
+      sourceType: sourceType,
+    );
+  }
+
+  Future<void> _appendReflectionPrompt(DayViewSheetEventTarget target) async {
+    final cb = widget.onAppendToJournal;
+    if (cb == null) return;
+    final title = target.event.title.trim().isEmpty
+        ? 'this calendar item'
+        : target.event.title.trim();
+    await cb('Reflection on $title\n\n');
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Added to journal'),
+          content: Text('Reflection space added to journal'),
           backgroundColor: _dayGold,
           duration: Duration(seconds: 2),
         ),
+      );
+    }
+  }
+
+  Future<CompletionStatus> _loadCalendarCompletionStatus(
+    DayViewSheetEventTarget target,
+  ) async {
+    final clientEventId = target.event.clientEventId?.trim();
+    final flowId = target.event.flowId;
+    final user = Supabase.instance.client.auth.currentUser;
+    if (clientEventId == null ||
+        clientEventId.isEmpty ||
+        flowId == null ||
+        user == null) {
+      return CompletionStatus.none;
+    }
+
+    final row = await Supabase.instance.client
+        .from('user_event_completions')
+        .select('metadata')
+        .eq('user_id', user.id)
+        .eq('client_event_id', clientEventId)
+        .maybeSingle();
+    if (row == null) return CompletionStatus.none;
+    final metadata = row['metadata'];
+    if (metadata is Map) {
+      final normalized = CompletionStatusX.fromWireName(
+        metadata['completion_status']?.toString() ??
+            metadata['status']?.toString(),
+      );
+      if (normalized != CompletionStatus.none) return normalized;
+    }
+    return CompletionStatus.observed;
+  }
+
+  Future<void> _recordCalendarCompletion(
+    DayViewSheetEventTarget target,
+    CompletionStatus status, {
+    required CompletionSourceType sourceType,
+    required FlowData? flow,
+  }) async {
+    final clientEventId = target.event.clientEventId?.trim();
+    final flowId = target.event.flowId;
+    if (clientEventId == null || clientEventId.isEmpty || flowId == null) {
+      return;
+    }
+    final completedOnDate = DateUtils.dateOnly(
+      KemeticMath.toGregorian(target.ky, target.km, target.kd),
+    );
+    final metadata = calendarCompletionMetadata(
+      completionStatus: status,
+      sourceType: sourceType,
+      completedOnDate: completedOnDate,
+      flowTitle: flow?.name,
+      eventTitle: target.event.title,
+    );
+    final callback = widget.onRecordCompletion;
+    if (callback != null) {
+      await callback(
+        clientEventId: clientEventId,
+        flowId: flowId,
+        completedOnDate: completedOnDate,
+        metadata: metadata,
+      );
+    } else {
+      await UserEventsRepo(Supabase.instance.client).recordEventCompletion(
+        clientEventId: clientEventId,
+        flowId: flowId,
+        completedOnDate: completedOnDate,
+        metadata: metadata,
       );
     }
   }
@@ -6145,10 +6222,51 @@ class _DayViewGridState extends State<DayViewGrid> {
             km: target.km,
             kd: target.kd,
             onRecordCompletion: widget.onRecordCompletion,
+            onCompletionContinuity: (status) => _appendCompletionContinuity(
+              target,
+              status,
+              sourceType: CompletionSourceType.maatFlow,
+            ),
+            onAddReflection: () => unawaited(_appendReflectionPrompt(target)),
             observedButtonKey:
                 includeOnboardingKeys && _isOnboardingTargetEvent(currentEvent)
                 ? widget.onboardingObservedKey
                 : null,
+          ),
+        ] else ...[
+          const SizedBox(height: 16),
+          CalendarEventCompletionPanel(
+            identity: _completionIdentityForEvent(currentEvent),
+            sourceType: _completionSourceTypeForEvent(
+              currentEvent,
+              flow,
+              completionContext,
+            ),
+            loadStatus: currentEvent.flowId == null
+                ? null
+                : () => _loadCalendarCompletionStatus(target),
+            onRecordStatus: (status) => _recordCalendarCompletion(
+              target,
+              status,
+              sourceType: _completionSourceTypeForEvent(
+                currentEvent,
+                flow,
+                completionContext,
+              ),
+              flow: flow,
+            ),
+            onCreateContinuity: (status) => _appendCompletionContinuity(
+              target,
+              status,
+              sourceType: _completionSourceTypeForEvent(
+                currentEvent,
+                flow,
+                completionContext,
+              ),
+            ),
+            onReflect: widget.onAppendToJournal == null
+                ? null
+                : () => unawaited(_appendReflectionPrompt(target)),
           ),
         ],
         if (libraryCta != null) ...[
@@ -6198,18 +6316,7 @@ class _DayViewGridState extends State<DayViewGrid> {
     return Row(
       children: [
         const Spacer(),
-        if (_shouldPromoteJournalToPill(currentEvent, flow))
-          _buildAddToJournalButton(
-            currentEvent,
-            ky: target.ky,
-            km: target.km,
-            kd: target.kd,
-            actionContext: sheetContext,
-            buttonKey: _isOnboardingTargetEvent(currentEvent)
-                ? widget.onboardingJournalKey
-                : null,
-          )
-        else if (endAction == _DetailSheetEndAction.flow)
+        if (endAction == _DetailSheetEndAction.flow)
           _buildEndFlowButton(target, actionContext: sheetContext)
         else if (endAction == _DetailSheetEndAction.reminder)
           _buildEndReminderButton(
@@ -6268,11 +6375,6 @@ class _DayViewGridState extends State<DayViewGrid> {
     final flow = _chromeFlowForId(currentEvent.flowId);
     final actionableFlow = _isActionableFlowId(currentEvent.flowId);
     final isReminder = currentEvent.isReminder;
-    final endAction = _endActionFor(currentEvent, flow: flow);
-    final promoteJournalAction = _shouldPromoteJournalToPill(
-      currentEvent,
-      flow,
-    );
 
     return PopupMenuButton<String>(
       icon: KemeticGold.icon(Icons.more_vert),
@@ -6307,14 +6409,6 @@ class _DayViewGridState extends State<DayViewGrid> {
               currentEvent,
             );
           }
-        } else if (value == 'journal') {
-          await _handleAddToJournal(
-            currentEvent,
-            ky: target.ky,
-            km: target.km,
-            kd: target.kd,
-            sheetContext: sheetContext,
-          );
         } else if (value == 'share') {
           Navigator.pop(sheetContext);
           if (flow != null && !isReminder) {
@@ -6372,20 +6466,6 @@ class _DayViewGridState extends State<DayViewGrid> {
         }
       },
       itemBuilder: (context) => [
-        if (widget.onAppendToJournal != null && !promoteJournalAction)
-          PopupMenuItem(
-            value: 'journal',
-            child: Row(
-              children: [
-                KemeticGold.icon(Icons.library_add_check),
-                const SizedBox(width: 12),
-                const Text(
-                  'Add to journal',
-                  style: TextStyle(color: Colors.white),
-                ),
-              ],
-            ),
-          ),
         if (flow != null ||
             (isReminder && widget.onShareReminder != null) ||
             (flow == null && !isReminder && widget.onShareNote != null))
@@ -6454,49 +6534,6 @@ class _DayViewGridState extends State<DayViewGrid> {
                 KemeticGold.icon(Icons.edit),
                 const SizedBox(width: 12),
                 const Text('Edit Note', style: TextStyle(color: Colors.white)),
-              ],
-            ),
-          ),
-        if (promoteJournalAction &&
-            endAction == _DetailSheetEndAction.flow &&
-            widget.onEndFlow != null)
-          PopupMenuItem(
-            value: 'end_flow',
-            child: Row(
-              children: [
-                KemeticGold.icon(Icons.stop_circle),
-                const SizedBox(width: 12),
-                const Text('End Flow', style: TextStyle(color: Colors.white)),
-              ],
-            ),
-          )
-        else if (promoteJournalAction &&
-            endAction == _DetailSheetEndAction.reminder &&
-            widget.onEndReminder != null &&
-            currentEvent.reminderId != null)
-          PopupMenuItem(
-            value: 'end_reminder',
-            child: Row(
-              children: [
-                KemeticGold.icon(Icons.stop_circle),
-                const SizedBox(width: 12),
-                const Text(
-                  'End Reminder',
-                  style: TextStyle(color: Colors.white),
-                ),
-              ],
-            ),
-          )
-        else if (promoteJournalAction &&
-            endAction == _DetailSheetEndAction.note &&
-            widget.onDeleteNote != null)
-          PopupMenuItem(
-            value: 'end_note',
-            child: Row(
-              children: [
-                KemeticGold.icon(Icons.delete_outline),
-                const SizedBox(width: 12),
-                const Text('End Note', style: TextStyle(color: Colors.white)),
               ],
             ),
           ),
@@ -7448,6 +7485,8 @@ class _MaatFlowCompletionPanel extends StatefulWidget {
     required this.km,
     required this.kd,
     required this.onRecordCompletion,
+    this.onCompletionContinuity,
+    this.onAddReflection,
     this.observedButtonKey,
   });
 
@@ -7463,6 +7502,8 @@ class _MaatFlowCompletionPanel extends StatefulWidget {
     Map<String, dynamic>? metadata,
   })?
   onRecordCompletion;
+  final Future<void> Function(CompletionStatus status)? onCompletionContinuity;
+  final VoidCallback? onAddReflection;
   final Key? observedButtonKey;
 
   @override
@@ -7677,6 +7718,10 @@ class _MaatFlowCompletionPanelState extends State<_MaatFlowCompletionPanel> {
         _status = status;
         _saving = false;
       });
+      final completionStatus = CompletionStatusX.fromWireName(status);
+      if (completionStatus.createsJournalContinuity) {
+        await widget.onCompletionContinuity?.call(completionStatus);
+      }
       unawaited(_maybeCaptureLivingTextDayOneNode(status));
     } catch (_) {
       if (!mounted) return;
@@ -7772,85 +7817,57 @@ class _MaatFlowCompletionPanelState extends State<_MaatFlowCompletionPanel> {
 
   @override
   Widget build(BuildContext context) {
+    final standardStatus = CompletionStatusX.fromWireName(_status);
     final canShare =
         widget.completion.sharePromptOnComplete &&
         (_status == 'observed' ||
             _status == 'observed_partly' ||
             _status == 'raised');
 
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: Colors.black.withValues(alpha: 0.26),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: const Color(0xFFF5E8CB).withValues(alpha: 0.3),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        CalendarCompletionPicker(
+          current: standardStatus,
+          saving: _saving,
+          loading: _loading,
+          showPartial: widget.completion.showPartly,
+          observedButtonKey: widget.observedButtonKey,
+          onReflect: widget.onAddReflection,
+          onChanged: (status) {
+            unawaited(_record(status.maatStatusName));
+          },
         ),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text(
-            'Completion',
-            style: TextStyle(
-              color: Color(0xFFFFD486),
-              fontSize: 12,
-              fontWeight: FontWeight.w700,
+        if (!_loading && widget.completion.extraStatusLabels.isNotEmpty) ...[
+          const SizedBox(height: 8),
+          Row(
+            children:
+                widget.completion.extraStatusLabels.entries
+                    .expand<Widget>(
+                      (entry) => <Widget>[
+                        _statusButton(entry.key, entry.value),
+                        const SizedBox(width: 8),
+                      ],
+                    )
+                    .toList()
+                  ..removeLast(),
+          ),
+        ],
+        if (canShare) ...[
+          const SizedBox(height: 10),
+          TextButton.icon(
+            onPressed: _saving
+                ? null
+                : () =>
+                      unawaited(CalendarPage.shareFlowFromEvent(widget.event)),
+            icon: KemeticGold.icon(Icons.share_outlined, size: 18),
+            label: KemeticGold.text(
+              widget.completion.shareButtonLabel,
+              style: _goldHeaderStyle.copyWith(fontSize: 14),
             ),
           ),
-          const SizedBox(height: 8),
-          if (_loading)
-            const SizedBox(
-              width: 18,
-              height: 18,
-              child: CircularProgressIndicator(strokeWidth: 2),
-            )
-          else ...[
-            Row(
-              children: [
-                _statusButton('observed', 'Observed'),
-                if (widget.completion.showPartly) ...[
-                  const SizedBox(width: 8),
-                  _statusButton('observed_partly', 'Partly'),
-                ],
-                const SizedBox(width: 8),
-                _statusButton('skipped', 'Skipped'),
-              ],
-            ),
-            if (widget.completion.extraStatusLabels.isNotEmpty) ...[
-              const SizedBox(height: 8),
-              Row(
-                children:
-                    widget.completion.extraStatusLabels.entries
-                        .expand<Widget>(
-                          (entry) => <Widget>[
-                            _statusButton(entry.key, entry.value),
-                            const SizedBox(width: 8),
-                          ],
-                        )
-                        .toList()
-                      ..removeLast(),
-              ),
-            ],
-          ],
-          if (canShare) ...[
-            const SizedBox(height: 10),
-            TextButton.icon(
-              onPressed: _saving
-                  ? null
-                  : () => unawaited(
-                      CalendarPage.shareFlowFromEvent(widget.event),
-                    ),
-              icon: KemeticGold.icon(Icons.share_outlined, size: 18),
-              label: KemeticGold.text(
-                widget.completion.shareButtonLabel,
-                style: _goldHeaderStyle.copyWith(fontSize: 14),
-              ),
-            ),
-          ],
         ],
-      ),
+      ],
     );
   }
 }

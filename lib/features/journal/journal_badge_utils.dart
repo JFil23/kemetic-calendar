@@ -58,19 +58,17 @@ class JournalBadgeUtils {
   }
 
   static List<String> dedupeRawTokens(Iterable<String> tokens) {
-    final seen = <String>{};
-    final deduped = <String>[];
+    final latestByKey = <String, String>{};
 
     for (final raw in tokens) {
       final token = parseRawToken(raw);
       final key = token?.id ?? raw.trim();
       if (key.isEmpty) continue;
-      if (seen.add(key)) {
-        deduped.add(raw.trim());
-      }
+      latestByKey.remove(key);
+      latestByKey[key] = raw.trim();
     }
 
-    return deduped;
+    return latestByKey.values.toList();
   }
 
   static JournalDocument mergeBadges(

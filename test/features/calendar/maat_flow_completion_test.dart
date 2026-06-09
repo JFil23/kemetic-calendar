@@ -7,12 +7,18 @@ void main() {
     final source = File(
       'lib/features/calendar/day_view.dart',
     ).readAsStringSync();
+    final completionPicker = File(
+      'lib/features/calendar/calendar_completion.dart',
+    ).readAsStringSync();
 
     expect(source, contains('class _MaatFlowCompletionPanel'));
     expect(source, contains('completionContext != null'));
-    expect(source, contains("_statusButton('observed', 'Observed')"));
-    expect(source, contains("_statusButton('observed_partly', 'Partly')"));
-    expect(source, contains("_statusButton('skipped', 'Skipped')"));
+    expect(source, contains('CalendarCompletionPicker'));
+    expect(source, contains('showPartial: widget.completion.showPartly'));
+    expect(source, contains('status.maatStatusName'));
+    expect(completionPicker, contains('CompletionStatus.observed'));
+    expect(completionPicker, contains('CompletionStatus.partial'));
+    expect(completionPicker, contains('CompletionStatus.skipped'));
 
     expect(source, contains("flowKey: kDawnHouseRiteFlowKey"));
     expect(source, contains("flowKey: kEveningThresholdRiteFlowKey"));
