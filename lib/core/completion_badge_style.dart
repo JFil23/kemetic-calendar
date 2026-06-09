@@ -2,19 +2,18 @@ import 'package:flutter/material.dart';
 
 import 'completion_status.dart';
 
-const Color kCompletionObservedBadgeColor = Color(0xFF4CAF50);
-const Color kCompletionPartialBadgeColor = Color(0xFF64B5F6);
 const Color kCompletionSkippedBadgeColor = Colors.white38;
 
 Color completionStatusBadgeColor(
   CompletionStatus status, {
   required Color fallback,
 }) {
+  // Completion badges inherit the source event color; status lives in the
+  // signifier. Skipped stays muted because it is not successful continuity.
   switch (status) {
     case CompletionStatus.observed:
-      return kCompletionObservedBadgeColor;
     case CompletionStatus.partial:
-      return kCompletionPartialBadgeColor;
+      return fallback;
     case CompletionStatus.skipped:
       return kCompletionSkippedBadgeColor;
     case CompletionStatus.none:

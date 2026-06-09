@@ -103,33 +103,42 @@ void main() {
     expect(tokens.single.completionStatus, CompletionStatus.partial);
   });
 
-  testWidgets('partial event badge renders a partial signifier', (
+  testWidgets(
+    'partial event badge renders source color with partial signifier',
+    (tester) async {
+      const sourceColor = Color(0xFF1AA7E8);
+      const token = EventBadgeToken(
+        id: 'partial-widget',
+        title: 'Partial practice',
+        color: sourceColor,
+        completionStatus: CompletionStatus.partial,
+      );
+
+      await tester.pumpWidget(
+        const MaterialApp(
+          home: Scaffold(
+            body: EventBadgeWidget(token: token, expandable: false),
+          ),
+        ),
+      );
+
+      final icon = tester.widget<Icon>(
+        find.byIcon(Icons.incomplete_circle_rounded),
+      );
+      expect(icon.color, sourceColor.withValues(alpha: 0.95));
+      expect(icon.color, isNot(const Color(0xFFFFC145)));
+      expect(find.byIcon(Icons.task_alt_rounded), findsNothing);
+    },
+  );
+
+  testWidgets('observed event badge renders source color with full signifier', (
     tester,
   ) async {
-    const token = EventBadgeToken(
-      id: 'partial-widget',
-      title: 'Partial practice',
-      color: Color(0xFF64B5F6),
-      completionStatus: CompletionStatus.partial,
-    );
-
-    await tester.pumpWidget(
-      const MaterialApp(
-        home: Scaffold(body: EventBadgeWidget(token: token, expandable: false)),
-      ),
-    );
-
-    expect(find.byIcon(Icons.incomplete_circle_rounded), findsOneWidget);
-    expect(find.byIcon(Icons.task_alt_rounded), findsNothing);
-  });
-
-  testWidgets('observed event badge renders the completed color semantics', (
-    tester,
-  ) async {
+    const sourceColor = Color(0xFF1AA7E8);
     const token = EventBadgeToken(
       id: 'observed-widget',
       title: 'Observed practice',
-      color: Color(0xFFFFC145),
+      color: sourceColor,
       completionStatus: CompletionStatus.observed,
     );
 
@@ -140,9 +149,9 @@ void main() {
     );
 
     final icon = tester.widget<Icon>(find.byIcon(Icons.task_alt_rounded));
-    expect(icon.color, kCompletionObservedBadgeColor.withValues(alpha: 0.95));
-    expect(icon.color, isNot(const Color(0xFFFFC145)));
-    expect(icon.color, isNot(kCompletionPartialBadgeColor));
+    expect(icon.color, sourceColor.withValues(alpha: 0.95));
+    expect(icon.color, isNot(const Color(0xFF4CAF50)));
+    expect(find.byIcon(Icons.incomplete_circle_rounded), findsNothing);
   });
 
   testWidgets('skipped event badge renders muted status semantics', (
@@ -165,7 +174,7 @@ void main() {
       find.byIcon(Icons.remove_circle_outline_rounded),
     );
     expect(icon.color, kCompletionSkippedBadgeColor.withValues(alpha: 0.95));
-    expect(icon.color, isNot(kCompletionObservedBadgeColor));
+    expect(icon.color, isNot(const Color(0xFFFFC145).withValues(alpha: 0.95)));
   });
 
   testWidgets('reflection event badge renders a journal signifier', (

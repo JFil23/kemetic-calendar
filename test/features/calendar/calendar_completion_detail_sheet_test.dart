@@ -185,37 +185,65 @@ void main() {
     expect(CompletionStatus.skipped.createsJournalContinuity, isFalse);
   });
 
-  test('badge colors use completed partial and muted skipped semantics', () {
-    const eventColor = Color(0xFFFFC145);
+  test('badge colors preserve source color except skipped muted state', () {
+    const eventColor = Color(0xFF1AA7E8);
 
     expect(
       calendarCompletionBadgeColor(CompletionStatus.observed, eventColor),
-      kCompletionObservedBadgeColor,
+      eventColor,
     );
     expect(
       calendarCompletionBadgeColor(CompletionStatus.partial, eventColor),
-      kCompletionPartialBadgeColor,
+      eventColor,
     );
     expect(
       calendarCompletionBadgeColor(CompletionStatus.skipped, eventColor),
-      Colors.white38,
+      kCompletionSkippedBadgeColor,
+    );
+    expect(
+      calendarCompletionBadgeColor(CompletionStatus.observed, eventColor),
+      isNot(const Color(0xFF4CAF50)),
+    );
+    expect(
+      calendarCompletionBadgeColor(CompletionStatus.partial, eventColor),
+      isNot(const Color(0xFFFFC145)),
+    );
+  });
+
+  test('badge fallback color is only used as the provided source fallback', () {
+    const fallbackColor = Color(0xFF8FD7E8);
+
+    expect(
+      completionStatusBadgeColor(
+        CompletionStatus.observed,
+        fallback: fallbackColor,
+      ),
+      fallbackColor,
+    );
+    expect(
+      completionStatusBadgeColor(
+        CompletionStatus.partial,
+        fallback: fallbackColor,
+      ),
+      fallbackColor,
     );
   });
 
   test('observed and partial badge tokens share identity and keep status', () {
+    const sourceColor = Color(0xFF1AA7E8);
     final observed = buildCalendarCompletionBadgeToken(
       identity: 'cid:event-1',
       sourceType: CompletionSourceType.userFlow,
       completionStatus: CompletionStatus.observed,
       title: 'Practice',
-      color: const Color(0xFFFFC145),
+      color: sourceColor,
     );
     final partial = buildCalendarCompletionBadgeToken(
       identity: 'cid:event-1',
       sourceType: CompletionSourceType.userFlow,
       completionStatus: CompletionStatus.partial,
       title: 'Practice',
-      color: const Color(0xFFFFC145),
+      color: sourceColor,
     );
 
     final observedToken = EventBadgeToken.parse(observed);
@@ -223,9 +251,9 @@ void main() {
 
     expect(observedToken!.id, partialToken!.id);
     expect(observedToken.completionStatus, CompletionStatus.observed);
-    expect(observedToken.color, kCompletionObservedBadgeColor);
+    expect(observedToken.color, sourceColor);
     expect(partialToken.completionStatus, CompletionStatus.partial);
-    expect(partialToken.color, kCompletionPartialBadgeColor);
+    expect(partialToken.color, sourceColor);
   });
 
   test(
