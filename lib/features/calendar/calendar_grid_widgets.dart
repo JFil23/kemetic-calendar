@@ -2060,6 +2060,12 @@ class _MainCalendarEventDetailSheetState
       end: dayStart.add(Duration(minutes: event.endMin)),
       color: event.color,
       completionStatus: completionStatus,
+      reflectionPrompt: resolveCalendarReflectionPrompt(
+        sourceType: sourceType,
+        title: event.title,
+        detail: event.detail,
+        behaviorPayload: event.behaviorPayload,
+      ),
     );
   }
 

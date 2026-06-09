@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 import 'package:mobile/core/completion_status.dart';
 import 'package:mobile/data/journal_repo.dart';
 import 'package:mobile/features/calendar/calendar_reflection_context.dart';
+import 'package:mobile/features/journal/journal_badge_utils.dart';
 import 'package:mobile/features/journal/journal_controller.dart';
 import 'package:mobile/features/journal/journal_overlay.dart';
 import 'package:mobile/features/journal/journal_v2_toolbar.dart';
@@ -327,6 +328,7 @@ void main() {
         eventId: 'event-1',
         flowId: 7,
         completionStatus: CompletionStatus.observed,
+        reflectionPrompt: 'What did this help me see?',
       );
 
       await tester.pumpWidget(
@@ -342,16 +344,80 @@ void main() {
       expect(controller.appendToTodayCalls, 0);
       expect(repo.upsertCalls, 0);
       expect(controller.loadedDate, DateTime(2026, 6, 9));
+      expect(controller.currentDraft, isEmpty);
       expect(find.text('No badges yet'), findsOneWidget);
 
       final field = tester.widget<TextField>(find.byType(TextField));
-      expect(field.decoration?.hintText, contains('Reflection on Practice'));
-      expect(field.decoration?.hintText, contains('Source: user_flow'));
-      expect(field.decoration?.hintText, contains('Completion: observed'));
+      expect(field.controller?.text, isEmpty);
+      expect(field.decoration?.hintText, 'What did this help me see?');
+      expect(field.decoration?.hintText, isNot(contains('Reflection on')));
+      expect(field.decoration?.hintText, isNot(contains('Date:')));
+      expect(field.decoration?.hintText, isNot(contains('Source:')));
+      expect(field.decoration?.hintText, isNot(contains('Source id:')));
+      expect(field.decoration?.hintText, isNot(contains('Occurrence id:')));
+      expect(field.decoration?.hintText, isNot(contains('Event id:')));
+      expect(field.decoration?.hintText, isNot(contains('source_type')));
+      expect(field.decoration?.hintText, isNot(contains('user_flow')));
+      expect(reflectionContext.sourceId, 'cid:event-1');
+      expect(reflectionContext.occurrenceId, 'occ-1');
+      expect(reflectionContext.eventId, 'event-1');
 
       await tester.pumpWidget(const SizedBox.shrink());
       await tester.pump(const Duration(milliseconds: 500));
       expect(repo.upsertCalls, 0);
+    },
+  );
+
+  testWidgets(
+    'JournalRoutePage saves user reflection text without placeholder metadata',
+    (tester) async {
+      tester.view.devicePixelRatio = 1.0;
+      tester.view.physicalSize = const Size(390, 844);
+      addTearDown(() async {
+        tester.view.reset();
+      });
+
+      final repo = _NoopJournalRepo();
+      final controller = _TrackingJournalController(repo);
+      final reflectionContext = CalendarReflectionContext(
+        sourceType: CompletionSourceType.userFlow,
+        sourceId: 'cid:event-1',
+        title: 'Practice',
+        calendarDate: DateTime(2026, 6, 9),
+        occurrenceId: 'occ-1',
+        eventId: 'event-1',
+        flowId: 7,
+        completionStatus: CompletionStatus.observed,
+        reflectionPrompt: 'What did this help me see?',
+      );
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: app.JournalRoutePage(
+            controllerForTesting: controller,
+            reflectionContext: reflectionContext,
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      final fieldFinder = find.byType(TextField);
+      await tester.enterText(fieldFinder, 'I noticed support.');
+      await tester.pump();
+      await controller.forceSave();
+
+      expect(repo.upsertCalls, 1);
+      expect(repo.lastSavedBody, contains('I noticed support.'));
+      expect(repo.lastSavedBody, isNot(contains('What did this help me see?')));
+      expect(repo.lastSavedBody, isNot(contains('Source id:')));
+      expect(repo.lastSavedBody, isNot(contains('cid:event-1')));
+      expect(repo.lastSavedBody, isNot(contains('Occurrence id:')));
+      expect(repo.lastSavedBody, isNot(contains('Event id:')));
+      expect(repo.lastSavedBody, isNot(contains('event-1')));
+      expect(JournalBadgeUtils.hasBadges(repo.lastSavedBody ?? ''), isFalse);
+
+      await tester.pumpWidget(const SizedBox.shrink());
+      await tester.pump(const Duration(milliseconds: 500));
     },
   );
 
@@ -471,6 +537,8 @@ class _NoopJournalRepo extends JournalRepo {
 
   int getByDateStrictCalls = 0;
   int upsertCalls = 0;
+  String? lastSavedBody;
+  Map<String, dynamic>? lastSavedMeta;
 
   @override
   Future<JournalEntry?> getByDate(DateTime localDate) =>
@@ -490,6 +558,8 @@ class _NoopJournalRepo extends JournalRepo {
     String? category,
   }) async {
     upsertCalls += 1;
+    lastSavedBody = body;
+    lastSavedMeta = meta;
   }
 }
 

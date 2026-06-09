@@ -105,6 +105,7 @@ void main() {
         end: DateTime(2026, 6, 9, 13),
         color: const Color(0xFF64B5F6),
         completionStatus: CompletionStatus.partial,
+        reflectionPrompt: 'What did this help me see?',
       );
 
       expect(context.journalRouteLocation, '/journal');
@@ -118,15 +119,51 @@ void main() {
       expect(decoded.eventId, 'event-1');
       expect(decoded.flowId, 7);
       expect(decoded.completionStatus, CompletionStatus.partial);
+      expect(decoded.reflectionPrompt, 'What did this help me see?');
 
       final placeholder = context.buildJournalPlaceholderText();
-      expect(placeholder, contains('Reflection on Practice'));
-      expect(placeholder, contains('Source: user_flow'));
-      expect(placeholder, contains('Source id: cid:event-1'));
-      expect(placeholder, contains('Completion: partial'));
+      expect(placeholder, 'What did this help me see?');
+      expect(placeholder, isNot(contains('Reflection on Practice')));
+      expect(placeholder, isNot(contains('Date:')));
+      expect(placeholder, isNot(contains('Source:')));
+      expect(placeholder, isNot(contains('Source id:')));
+      expect(placeholder, isNot(contains('Occurrence id:')));
+      expect(placeholder, isNot(contains('Event id:')));
+      expect(placeholder, isNot(contains('Completion:')));
       expect(JournalBadgeUtils.hasBadges(placeholder), isFalse);
     },
   );
+
+  test('reflection prompt resolver keeps ghost text user-facing only', () {
+    final prompt = resolveCalendarReflectionPrompt(
+      sourceType: CompletionSourceType.userFlow,
+      title: 'A Proof That Took 358 Years',
+      detail:
+          'Watch the linked video. Focus: Understand that some math problems are easy to state but hard to prove. Reflection: Why can a simple question take centuries to answer? After watching, say or write one sentence: "What did this video help me see?"',
+    );
+
+    expect(prompt, 'What did this video help me see?');
+
+    final payloadPrompt = resolveCalendarReflectionPrompt(
+      sourceType: CompletionSourceType.maatFlow,
+      title: 'Day 29: Shared Order',
+      behaviorPayload: {
+        'reflection_guidance': {
+          'reflectionIntent': 'What support did you notice today?',
+        },
+      },
+    );
+    expect(payloadPrompt, 'What support did you notice today?');
+
+    final rejectedDebugPrompt = CalendarReflectionContext(
+      sourceType: CompletionSourceType.userFlow,
+      sourceId: 'cid:event-1',
+      title: 'Practice',
+      calendarDate: DateTime(2026, 6, 9),
+      reflectionPrompt: 'Source id: cid:event-1',
+    ).buildJournalPlaceholderText();
+    expect(rejectedDebugPrompt, kCalendarReflectionSourcePrompt);
+  });
 
   test('Add reflection uses one-shot route extra, not durable query state', () {
     final dayView = File(
