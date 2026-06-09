@@ -2,9 +2,11 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:mobile/core/completion_badge_style.dart';
 import 'package:mobile/core/completion_status.dart';
 import 'package:mobile/features/calendar/calendar_completion.dart';
 import 'package:mobile/features/calendar/calendar_reflection_context.dart';
+import 'package:mobile/features/journal/journal_badge_utils.dart';
 import 'package:mobile/features/journal/journal_event_badge.dart';
 
 void main() {
@@ -88,7 +90,8 @@ void main() {
       expect(main, contains('extra is CalendarReflectionContext'));
       expect(main, contains('child: JournalRoutePage(reflectionContext'));
       expect(main, contains('await _controller.loadDate'));
-      expect(main, contains('buildJournalPrefillText'));
+      expect(main, contains('reflectionContext: widget.reflectionContext'));
+      expect(main, isNot(contains('buildJournalPrefillText')));
 
       final context = CalendarReflectionContext(
         sourceType: CompletionSourceType.userFlow,
@@ -116,11 +119,12 @@ void main() {
       expect(decoded.flowId, 7);
       expect(decoded.completionStatus, CompletionStatus.partial);
 
-      final prefill = context.buildJournalPrefillText();
-      expect(prefill, contains('Reflection on Practice'));
-      expect(prefill, contains('sourceType=user_flow'));
-      expect(prefill, contains('reflectionStatus=user_written'));
-      expect(prefill, contains('completionStatus=partial'));
+      final placeholder = context.buildJournalPlaceholderText();
+      expect(placeholder, contains('Reflection on Practice'));
+      expect(placeholder, contains('Source: user_flow'));
+      expect(placeholder, contains('Source id: cid:event-1'));
+      expect(placeholder, contains('Completion: partial'));
+      expect(JournalBadgeUtils.hasBadges(placeholder), isFalse);
     },
   );
 
@@ -142,6 +146,39 @@ void main() {
     }
   });
 
+  test('Add reflection opens without recording completion or continuity', () {
+    final sources = {
+      'day_view.dart': File(
+        'lib/features/calendar/day_view.dart',
+      ).readAsStringSync(),
+      'calendar_grid_widgets.dart': File(
+        'lib/features/calendar/calendar_grid_widgets.dart',
+      ).readAsStringSync(),
+      'landscape_month_view.dart': File(
+        'lib/features/calendar/landscape_month_view.dart',
+      ).readAsStringSync(),
+    };
+
+    for (final entry in sources.entries) {
+      final start = entry.value.indexOf(
+        'Future<void> _openReflectionForTarget',
+      );
+      final end = entry.value.indexOf(
+        'Future<CompletionStatus> _loadCalendarCompletionStatus',
+        start,
+      );
+      expect(start, isNonNegative, reason: entry.key);
+      expect(end, isNonNegative, reason: entry.key);
+      final body = entry.value.substring(start, end);
+      expect(body, contains('.load(identity)'), reason: entry.key);
+      expect(body, contains('extra: reflectionContext'), reason: entry.key);
+      expect(body, isNot(contains('.save(')), reason: entry.key);
+      expect(body, isNot(contains('onCreateContinuity')), reason: entry.key);
+      expect(body, isNot(contains('appendToJournal')), reason: entry.key);
+      expect(body, isNot(contains('appendToToday')), reason: entry.key);
+    }
+  });
+
   test('observed and partial create continuity while skipped stays muted', () {
     expect(CompletionStatus.observed.createsJournalContinuity, isTrue);
     expect(CompletionStatus.partial.createsJournalContinuity, isTrue);
@@ -153,11 +190,11 @@ void main() {
 
     expect(
       calendarCompletionBadgeColor(CompletionStatus.observed, eventColor),
-      const Color(0xFF4CAF50),
+      kCompletionObservedBadgeColor,
     );
     expect(
       calendarCompletionBadgeColor(CompletionStatus.partial, eventColor),
-      const Color(0xFF64B5F6),
+      kCompletionPartialBadgeColor,
     );
     expect(
       calendarCompletionBadgeColor(CompletionStatus.skipped, eventColor),
@@ -186,7 +223,9 @@ void main() {
 
     expect(observedToken!.id, partialToken!.id);
     expect(observedToken.completionStatus, CompletionStatus.observed);
+    expect(observedToken.color, kCompletionObservedBadgeColor);
     expect(partialToken.completionStatus, CompletionStatus.partial);
+    expect(partialToken.color, kCompletionPartialBadgeColor);
   });
 
   test(

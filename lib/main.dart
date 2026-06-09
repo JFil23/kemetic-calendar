@@ -3923,9 +3923,6 @@ class _JournalRoutePageState extends State<JournalRoutePage>
     final reflectionContext = widget.reflectionContext;
     if (reflectionContext == null) return;
     await _controller.loadDate(reflectionContext.calendarDate);
-    await _controller.appendToToday(
-      reflectionContext.buildJournalPrefillText(),
-    );
   }
 
   @override
@@ -3959,6 +3956,7 @@ class _JournalRoutePageState extends State<JournalRoutePage>
           return JournalPage(
             controller: _controller,
             entryPoint: 'restored_route',
+            reflectionContext: widget.reflectionContext,
           );
         }
         return const _RouteLoadingScaffold();

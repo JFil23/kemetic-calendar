@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'package:mobile/core/completion_badge_style.dart';
 import 'package:mobile/core/completion_status.dart';
 import 'package:mobile/features/journal/journal_event_badge.dart';
 
@@ -64,16 +65,7 @@ String calendarCompletionIdentity({
 }
 
 Color calendarCompletionBadgeColor(CompletionStatus status, Color eventColor) {
-  switch (status) {
-    case CompletionStatus.observed:
-      return const Color(0xFF4CAF50);
-    case CompletionStatus.partial:
-      return const Color(0xFF64B5F6);
-    case CompletionStatus.skipped:
-      return Colors.white38;
-    case CompletionStatus.none:
-      return eventColor;
-  }
+  return completionStatusBadgeColor(status, fallback: eventColor);
 }
 
 String buildCalendarCompletionBadgeToken({

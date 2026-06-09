@@ -3,7 +3,9 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
+import 'package:mobile/core/completion_status.dart';
 import 'package:mobile/data/journal_repo.dart';
+import 'package:mobile/features/calendar/calendar_reflection_context.dart';
 import 'package:mobile/features/journal/journal_controller.dart';
 import 'package:mobile/features/journal/journal_overlay.dart';
 import 'package:mobile/features/journal/journal_v2_toolbar.dart';
@@ -306,6 +308,54 @@ void main() {
   });
 
   testWidgets(
+    'JournalRoutePage carries reflection context without creating badges',
+    (tester) async {
+      tester.view.devicePixelRatio = 1.0;
+      tester.view.physicalSize = const Size(390, 844);
+      addTearDown(() async {
+        tester.view.reset();
+      });
+
+      final repo = _NoopJournalRepo();
+      final controller = _TrackingJournalController(repo);
+      final reflectionContext = CalendarReflectionContext(
+        sourceType: CompletionSourceType.userFlow,
+        sourceId: 'cid:event-1',
+        title: 'Practice',
+        calendarDate: DateTime(2026, 6, 9),
+        occurrenceId: 'occ-1',
+        eventId: 'event-1',
+        flowId: 7,
+        completionStatus: CompletionStatus.observed,
+      );
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: app.JournalRoutePage(
+            controllerForTesting: controller,
+            reflectionContext: reflectionContext,
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(controller.appendToTodayCalls, 0);
+      expect(repo.upsertCalls, 0);
+      expect(controller.loadedDate, DateTime(2026, 6, 9));
+      expect(find.text('No badges yet'), findsOneWidget);
+
+      final field = tester.widget<TextField>(find.byType(TextField));
+      expect(field.decoration?.hintText, contains('Reflection on Practice'));
+      expect(field.decoration?.hintText, contains('Source: user_flow'));
+      expect(field.decoration?.hintText, contains('Completion: observed'));
+
+      await tester.pumpWidget(const SizedBox.shrink());
+      await tester.pump(const Duration(milliseconds: 500));
+      expect(repo.upsertCalls, 0);
+    },
+  );
+
+  testWidgets(
     'JournalRoutePage stays stable under app chrome after flow route activity',
     (tester) async {
       tester.view.devicePixelRatio = 1.0;
@@ -420,6 +470,7 @@ class _NoopJournalRepo extends JournalRepo {
       );
 
   int getByDateStrictCalls = 0;
+  int upsertCalls = 0;
 
   @override
   Future<JournalEntry?> getByDate(DateTime localDate) =>
@@ -437,7 +488,29 @@ class _NoopJournalRepo extends JournalRepo {
     required String body,
     Map<String, dynamic>? meta,
     String? category,
-  }) async {}
+  }) async {
+    upsertCalls += 1;
+  }
+}
+
+class _TrackingJournalController extends JournalController {
+  _TrackingJournalController(super.repo)
+    : super.withRepo(currentUserId: () => 'user-a');
+
+  int appendToTodayCalls = 0;
+  DateTime? loadedDate;
+
+  @override
+  Future<int> appendToToday(String content) async {
+    appendToTodayCalls += 1;
+    return super.appendToToday(content);
+  }
+
+  @override
+  Future<void> loadDate(DateTime date) async {
+    loadedDate = DateTime(date.year, date.month, date.day);
+    await super.loadDate(date);
+  }
 }
 
 class _DelayedJournalRepo extends _NoopJournalRepo {

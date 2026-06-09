@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:mobile/core/completion_badge_style.dart';
 import 'package:mobile/core/completion_status.dart';
 import 'package:mobile/features/journal/journal_badge_utils.dart';
 import 'package:mobile/features/journal/journal_event_badge.dart';
@@ -120,6 +121,51 @@ void main() {
 
     expect(find.byIcon(Icons.incomplete_circle_rounded), findsOneWidget);
     expect(find.byIcon(Icons.task_alt_rounded), findsNothing);
+  });
+
+  testWidgets('observed event badge renders the completed color semantics', (
+    tester,
+  ) async {
+    const token = EventBadgeToken(
+      id: 'observed-widget',
+      title: 'Observed practice',
+      color: Color(0xFFFFC145),
+      completionStatus: CompletionStatus.observed,
+    );
+
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: Scaffold(body: EventBadgeWidget(token: token, expandable: false)),
+      ),
+    );
+
+    final icon = tester.widget<Icon>(find.byIcon(Icons.task_alt_rounded));
+    expect(icon.color, kCompletionObservedBadgeColor.withValues(alpha: 0.95));
+    expect(icon.color, isNot(const Color(0xFFFFC145)));
+    expect(icon.color, isNot(kCompletionPartialBadgeColor));
+  });
+
+  testWidgets('skipped event badge renders muted status semantics', (
+    tester,
+  ) async {
+    const token = EventBadgeToken(
+      id: 'skipped-widget',
+      title: 'Skipped practice',
+      color: Color(0xFFFFC145),
+      completionStatus: CompletionStatus.skipped,
+    );
+
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: Scaffold(body: EventBadgeWidget(token: token, expandable: false)),
+      ),
+    );
+
+    final icon = tester.widget<Icon>(
+      find.byIcon(Icons.remove_circle_outline_rounded),
+    );
+    expect(icon.color, kCompletionSkippedBadgeColor.withValues(alpha: 0.95));
+    expect(icon.color, isNot(kCompletionObservedBadgeColor));
   });
 
   testWidgets('reflection event badge renders a journal signifier', (

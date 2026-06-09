@@ -3,6 +3,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../core/navigation_fallback.dart';
 import '../../main.dart' show Events;
+import 'package:mobile/features/calendar/calendar_reflection_context.dart';
 import 'package:mobile/features/onboarding/guided_onboarding_overlay.dart';
 import '../onboarding/onboarding_progress.dart';
 import 'journal_controller.dart';
@@ -13,10 +14,12 @@ class JournalPage extends StatefulWidget {
     super.key,
     required this.controller,
     this.entryPoint = 'page_button',
+    this.reflectionContext,
   });
 
   final JournalController controller;
   final String entryPoint;
+  final CalendarReflectionContext? reflectionContext;
 
   @override
   State<JournalPage> createState() => _JournalPageState();
@@ -100,6 +103,7 @@ class _JournalPageState extends State<JournalPage> {
       isPortrait: isPortrait,
       presentationMode: JournalPresentationMode.page,
       badgeAreaKey: _journalHelperKey,
+      reflectionContext: widget.reflectionContext,
       onClose: () => popOrGo(context, '/'),
     );
   }

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:mobile/core/completion_badge_style.dart';
 import 'package:mobile/core/completion_status.dart';
 import 'package:mobile/core/touch_targets.dart';
 import 'package:mobile/shared/glossy_text.dart';
@@ -188,6 +189,16 @@ IconData _badgeIconFor(EventBadgeToken token) {
   }
 }
 
+Color _badgeColorFor(EventBadgeToken token) {
+  if (token.reflectionStatus != ReflectionStatus.none) {
+    return token.color;
+  }
+  return completionStatusBadgeColor(
+    token.completionStatus,
+    fallback: token.color,
+  );
+}
+
 class EventBadgeWidget extends StatefulWidget {
   final EventBadgeToken token;
   final bool initialExpanded;
@@ -253,7 +264,7 @@ class _CollapsedEventBadge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final color = token.color;
+    final color = _badgeColorFor(token);
     return GestureDetector(
       behavior: HitTestBehavior.opaque,
       onTap: onTap,
@@ -323,7 +334,7 @@ class _ExpandedEventBadge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final color = token.color;
+    final color = _badgeColorFor(token);
     return GestureDetector(
       behavior: HitTestBehavior.opaque,
       onTap: onTap,

@@ -7,6 +7,7 @@ import 'package:flutter/material.dart';
 import 'package:mobile/core/navigation_fallback.dart';
 import 'package:mobile/core/daily_reflection_question.dart';
 import 'package:mobile/core/touch_targets.dart';
+import 'package:mobile/features/calendar/calendar_reflection_context.dart';
 import 'package:mobile/shared/glossy_text.dart';
 import 'journal_controller.dart';
 import 'journal_constants.dart';
@@ -37,6 +38,7 @@ class JournalOverlay extends StatefulWidget {
   final VoidCallback onClose;
   final JournalPresentationMode presentationMode;
   final GlobalKey? badgeAreaKey;
+  final CalendarReflectionContext? reflectionContext;
 
   const JournalOverlay({
     super.key,
@@ -45,6 +47,7 @@ class JournalOverlay extends StatefulWidget {
     required this.onClose,
     this.presentationMode = JournalPresentationMode.overlay,
     this.badgeAreaKey,
+    this.reflectionContext,
   });
 
   @override
@@ -162,6 +165,7 @@ class _JournalOverlayState extends State<JournalOverlay>
   }
 
   String get _journalPlaceholderText =>
+      widget.reflectionContext?.buildJournalPlaceholderText() ??
       dailyReflectionQuestionForDate(DateTime.now())?.question ??
       'Write your day…';
 

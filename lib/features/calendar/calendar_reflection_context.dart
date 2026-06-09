@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:mobile/core/completion_status.dart';
-import 'package:mobile/features/journal/journal_event_badge.dart';
 
 const Color kCalendarReflectionBadgeColor = Color(0xFF8FD7E8);
 
@@ -101,33 +100,20 @@ class CalendarReflectionContext {
     );
   }
 
-  String buildJournalPrefillText() {
+  String buildJournalPlaceholderText() {
     final displayTitle = title.trim().isEmpty ? 'this calendar item' : title;
-    final description = <String>[
-      'Reflection linked from ${sourceType.wireName}.',
-      'Source id: $sourceId.',
+    final metadata = <String>[
+      'Date: $calendarDateKey',
+      'Source: ${sourceType.wireName}',
+      'Source id: $sourceId',
       if ((occurrenceId?.trim().isNotEmpty ?? false))
-        'Occurrence id: ${occurrenceId!.trim()}.',
-      if ((eventId?.trim().isNotEmpty ?? false))
-        'Event id: ${eventId!.trim()}.',
-      if (flowId != null) 'Flow id: $flowId.',
-      'Calendar date: $calendarDateKey.',
+        'Occurrence id: ${occurrenceId!.trim()}',
+      if ((eventId?.trim().isNotEmpty ?? false)) 'Event id: ${eventId!.trim()}',
+      if (flowId != null) 'Flow id: $flowId',
       if (completionStatus != CompletionStatus.none)
-        'Completion: ${completionStatus.wireName}.',
-    ].join(' ');
-    final token = EventBadgeToken.buildToken(
-      id: 'calendar_reflection:${sourceType.wireName}:$sourceId',
-      eventId: eventId ?? occurrenceId ?? sourceId,
-      title: displayTitle,
-      start: start,
-      end: end,
-      color: color,
-      description: description,
-      completionStatus: completionStatus,
-      reflectionStatus: ReflectionStatus.userWritten,
-      sourceType: sourceType,
-    );
-    return '$token\nReflection on $displayTitle\n\n';
+        'Completion: ${completionStatus.wireName}',
+    ];
+    return 'Reflection on $displayTitle\n${metadata.join('\n')}\n\nStart writing here...';
   }
 
   static CompletionSourceType? _sourceTypeFromWireName(String? raw) {
