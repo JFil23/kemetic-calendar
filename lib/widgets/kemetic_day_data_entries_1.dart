@@ -1528,3576 +1528,2561 @@ What is trustworthy should now be treated as trustworthy.
 }
 
 Map<String, KemeticDayInfo> _buildHathorIIEntries() {
-  const season = '🌿 Peret – Season of Emergence';
-  const month = 'Hathor (Ḥwt-Ḥr) — Joy That Sustains the World';
-  const decanName = 'ḥry-ib sꜣḥ';
-
   return Map.fromEntries([
     _dayInfoEntry(
       key: 'hathor_11_2',
       kemeticDate: 'Hathor II, Day 11',
-      season: season,
-      month: month,
-      decanName: decanName,
+      season: '🌊 Akhet – Season of Inundation',
+      month:
+          'Hathor (Tepy-a Kenmet) — House of Horus, patron of joy that restores order',
+      decanName:
+          'ṯms n ḫntt ("the red one of ḫntt") | Deck: The Companion of the Foremost',
       starCluster:
           '✨ ḥry-ib sꜣḥ — the central region of the Sah/Orion star figure, marked by the three aligned belt stars with bright stars above and below forming a clear upright pattern',
-      maatPrinciple: 'Shared Rhythm',
+      maatPrinciple: 'Stability Becomes Shared',
       cosmicContext: '''
-Hathor’s first decan restored trust in the ground.
+The first ten days of Hathor were yours alone.
+Your body returned. Your path held. Your home stood again.
+That work is done.
 
-The second asks what happens after stability becomes shareable.
+Now the companion star rises behind the leader.
+Not behind to follow — beside, just offset.
+The second half of the watch.
 
-A field that holds does not feed one body only. A road that reopens does not serve one traveler only. A house that settles after strain becomes a place where more than one person can breathe again.
-
-That is the movement of ḥry-ib sꜣḥ.
-
-The heart of Sah is not isolated strength. It is stability entering relation. The pattern that endured must now become rhythm: between people, duties, rooms, schedules, voices, and expectations.
-
-This day asks who now moves with the restored ground.
-
-Not everyone belongs in the same place. Not every bond has the same duty. But where relation exists, rhythm must be named. Otherwise one person rushes, another resists, one carries, another drifts, and harmony becomes confusion dressed as closeness.
-
-Hathor does not make joy solitary.
-
-She makes it livable among others.
-
-Today begins the work of shared rhythm: seeing who is part of the pattern, what each part carries, and how movement can continue without stepping on itself.
+A canal wall repaired by one pair of hands breaks again before planting.
+The field that only one person reads goes hungry.
+Today: who is actually beside you in this work?
+Name them. Not the idea of them — the real ones.
 ''',
       decanFlow: _hathorIIFlowRows,
       meduNeter: MeduNeterKey(
-        glyph: 'Two figures walking beneath one measured star line',
-        colorFrequency: 'Twin gold lines over river blue and soft green',
-        mantra: '“What moves with me must move in measure.”',
+        glyph: '𓇋𓇋 (paired reeds) beneath the Hathor sistrum',
+        colorFrequency: 'Twin gold lines on river-brown earth',
+        mantra: '"This bond holds the canal."',
       ),
     ),
     _dayInfoEntry(
       key: 'hathor_12_2',
       kemeticDate: 'Hathor II, Day 12',
-      season: season,
-      month: month,
-      decanName: decanName,
+      season: '🌊 Akhet – Season of Inundation',
+      month: 'Hathor (Tepy-a Kenmet)',
+      decanName:
+          'ṯms n ḫntt ("the red one of ḫntt") | Deck: The Companion of the Foremost',
       starCluster:
           '✨ ḥry-ib sꜣḥ — the inner Orion pattern, centered on the straight belt line and the bright stars surrounding it in a balanced, recognizable form',
-      maatPrinciple: 'Relation Named Clearly',
+      maatPrinciple: 'Shared Rhythm Is Not Optional',
       cosmicContext: '''
-Harmony begins with clear relation.
+Yesterday you named who is beside you.
+Today you set the clock together.
 
-In Kemet, a thing had to be named to be placed. A field boundary, a title, an offering, a duty, a person’s ren — all required clarity before right relation could hold.
+Canal crews coordinated before dawn — not from warmth, from necessity.
+One laborer arriving late let silt dry in the wrong place.
+One household out of rhythm with its neighbor's water share started a conflict before the seeds were in the ground.
 
-Day 12 brings that rule into the relational field.
+The two companion stars do not guess at each other's position.
+They maintain a fixed relation through the whole arc.
 
-Some bonds remain unstable because they are never named honestly. A person is treated like family but never protected like family. A helper is used like a partner but never honored as one. A shared task is carried by one body while everyone else calls it “ours.”
-
-That is not harmony.
-
-It is vagueness becoming Isfet.
-
-Hathor’s sweetness does not erase definition. A house remains warm because each chamber has a place. A song becomes beautiful because each voice knows when to enter. A relationship becomes trustworthy when the people inside it know what it is, what it asks, and what it protects.
-
-Today asks for one relation to be named cleanly.
-
-Not to control it.
-
-To make it real enough for Ma’at to enter it.
+When do we move? When do we rest? When do we check in?
+Set it explicitly. The season will not wait for you to figure it out.
 ''',
       decanFlow: _hathorIIFlowRows,
       meduNeter: MeduNeterKey(
-        glyph: 'Mouth sign beside two seated figures under one roof',
-        colorFrequency: 'Warm clay, clear gold, and calm blue',
-        mantra: '“I name the relation so it can stand in truth.”',
+        glyph: 'Measuring cord between two stakes — timing marked in the earth',
+        colorFrequency: 'River blue over surveyed ground',
+        mantra: '"We set the rhythm before the field does it for us."',
       ),
     ),
     _dayInfoEntry(
       key: 'hathor_13_2',
       kemeticDate: 'Hathor II, Day 13',
-      season: season,
-      month: month,
-      decanName: decanName,
+      season: '🌊 Akhet – Season of Inundation',
+      month: 'Hathor (Tepy-a Kenmet)',
+      decanName:
+          'ṯms n ḫntt ("the red one of ḫntt") | Deck: The Companion of the Foremost',
       starCluster:
           '✨ ḥry-ib sꜣḥ — the central belt of Sah/Orion seen as three close stars in a straight row, held within a wider arrangement of bright surrounding stars',
-      maatPrinciple: 'Load in Balance',
+      maatPrinciple: 'No Field Is Carried by One Pair of Hands',
       cosmicContext: '''
-A rhythm cannot become harmonious while the weight is false.
+After flood recession, field work was assigned by capacity.
+Stronger crews took the heavy embankments.
+Fresher hands took the tender channels.
+Letting one person carry the whole weight was not devotion — it was disorder.
+A broken body costs the field ten days.
 
-This is one of the tests of Hathor’s second decan.
+You named the partnership. You set the rhythm.
+Now look at the actual distribution.
 
-After pressure passes, people often keep moving by habit. The one who carried too much continues carrying too much. The one who avoided responsibility keeps calling avoidance peace. The household, project, or relationship may look stable from outside, but the load inside it is uneven.
-
-Ma’at does not only ask whether the work is getting done.
-
-It asks how the work is being carried.
-
-A song loses beauty when one voice is forced to hold the whole pattern. A field fails when one channel receives all the water and another is left dry. A house weakens when one beam carries pressure meant for several supports.
-
-Day 13 asks for the load to be seen truthfully.
-
-Who is carrying the visible task?
-
-Who is carrying the hidden one?
-
-Who is holding the emotional weight, the planning, the memory, the repair, the worry, the money, the silence?
-
-Hathor’s harmony is not softness that ignores burden.
-
-It is care that redistributes burden before affection becomes exhaustion.
+Who is quietly carrying eighty percent?
+The companion is not a witness to your labor.
+The companion works the same system.
+Redistribute before the back breaks.
 ''',
       decanFlow: _hathorIIFlowRows,
       meduNeter: MeduNeterKey(
-        glyph: 'Balanced carrying pole across two shoulders',
-        colorFrequency: 'Earth brown, river green, and two equal lines of gold',
-        mantra: '“Harmony requires the load to be true.”',
+        glyph: 'Load-bearing pole balanced across two shoulders',
+        colorFrequency: 'Paired earth-brown under shared gold',
+        mantra: '"We carry this in a way that does not break us."',
       ),
     ),
     _dayInfoEntry(
       key: 'hathor_14_2',
       kemeticDate: 'Hathor II, Day 14',
-      season: season,
-      month: month,
-      decanName: decanName,
+      season: '🌊 Akhet – Season of Inundation',
+      month: 'Hathor (Tepy-a Kenmet)',
+      decanName:
+          'ṯms n ḫntt ("the red one of ḫntt") | Deck: The Companion of the Foremost',
       starCluster:
           '✨ ḥry-ib sꜣḥ — the middle of the Orion figure, where the belt stars form a precise line between brighter stars above and below',
-      maatPrinciple: 'Clean Speech in Friction',
+      maatPrinciple: 'Speak Before Pressure Becomes Damage',
       cosmicContext: '''
-Friction is not failure.
+A canal mouth silting was addressed immediately or not at all.
+The problem was never the silt.
+It was the worker who noticed the slowing and said nothing for three days.
 
-Unspoken friction becomes danger.
+The companion who does not name the friction
+is not keeping the peace.
+The companion who does not name the friction
+is letting the wall weaken quietly.
 
-Day 14 belongs to the moment when a small strain can still be repaired before it hardens into resentment. In a field, a crack in a bank is easier to mend before the water widens it. In a house, a loosened joint is easier to fix before the wall leans. In a relationship, a truth spoken early can save the bond from carrying poison quietly.
-
-Hathor is often remembered through beauty, music, joy, and sweetness.
-
-But sweetness without truth becomes decoration over rot.
-
-This day asks for clean speech: not accusation, not performance, not emotional conquest. Clean speech names what is happening while the relation can still be protected.
-
-The mouth must serve Ma’at.
-
-That means it must not burn the room to prove pain is real. It must also not hide what is wrong to preserve false peace.
-
-Today asks for one honest sentence spoken before tension becomes structure.
-
-Where truth enters early, harmony remains possible. Where truth is delayed too long, even love begins to carry Isfet in silence.
+Name the tension today.
+Not with weapons — with the same directness
+you would use to say: the bank is giving way here.
+Because it is.
 ''',
       decanFlow: _hathorIIFlowRows,
       meduNeter: MeduNeterKey(
-        glyph: 'Mouth sign placed between two figures in balance',
-        colorFrequency: 'Gold line between soft blue and warm earth',
-        mantra: '“I speak early so harmony can live.”',
+        glyph: 'Hand placing clay against a leaking wall',
+        colorFrequency: 'Mud-brown repair on river blue',
+        mantra: '"I speak the breach before it breaks."',
       ),
     ),
     _dayInfoEntry(
       key: 'hathor_15_2',
       kemeticDate: 'Hathor II, Day 15',
-      season: season,
-      month: month,
-      decanName: decanName,
+      season: '🌊 Akhet – Season of Inundation',
+      month: 'Hathor (Tepy-a Kenmet)',
+      decanName:
+          'ṯms n ḫntt ("the red one of ḫntt") | Deck: The Companion of the Foremost',
       starCluster:
           '✨ ḥry-ib sꜣḥ — the central section of the Sah/Orion star pattern, visually anchored by the three-star belt and nearby bright shoulder and foot stars',
-      maatPrinciple: 'Common Space Repaired',
+      maatPrinciple: 'Common Infrastructure Requires Common Repair',
       cosmicContext: '''
-Harmony needs somewhere to live.
+The canal gate. The water schedule. The household account.
+The shared calendar that neither of you looks at.
+The food system that only one person manages.
 
-It cannot survive in a neglected common space.
+These are not romantic matters.
+They are the irrigation works of a shared life.
+One person maintaining them unilaterally
+slowly becomes the canal authority
+over someone who has no say in their own water.
 
-Day 15 turns attention to shared structure: the room, table, calendar, account, agreement, routine, kitchen, bed, workspace, altar, or path where life keeps crossing between people.
+The companion does not follow to observe.
+The companion works the same system.
 
-In Kemet, order was never only inward. A household had to be swept. A shrine had to be tended. A canal had to be cleared. A storehouse had to be counted. Shared life required shared maintenance.
-
-The same is true now.
-
-A relationship can suffer because the room is always chaotic. A family can strain because no one knows the schedule. A creative partnership can weaken because the tools, files, money, or expectations have no order. Love cannot carry what structure refuses to hold.
-
-Hathor’s house must be inhabitable.
-
-Not perfect.
-
-Inhabitable.
-
-Today asks for one shared structure to be repaired so the people inside it can breathe with less friction.
-
-Sometimes harmony returns through a conversation.
-
-Sometimes it returns through a cleared table, a paid bill, a washed floor, or a calendar finally made honest.
+What shared structure has been quietly degrading
+while only one person tends it?
+Fix it together today.
 ''',
       decanFlow: _hathorIIFlowRows,
       meduNeter: MeduNeterKey(
-        glyph: 'House sign repaired by a steady hand',
-        colorFrequency: 'Fresh linen white, clay brown, and gentle gold',
-        mantra: '“The shared house must be made livable.”',
+        glyph: 'Canal gate with two hands on the lever',
+        colorFrequency: 'Nile blue over worked clay',
+        mantra: '"We maintain what sustains us both."',
       ),
     ),
     _dayInfoEntry(
       key: 'hathor_16_2',
       kemeticDate: 'Hathor II, Day 16',
-      season: season,
-      month: month,
-      decanName: decanName,
+      season: '🌊 Akhet – Season of Inundation',
+      month: 'Hathor (Tepy-a Kenmet)',
+      decanName:
+          'ṯms n ḫntt ("the red one of ḫntt") | Deck: The Companion of the Foremost',
       starCluster:
           '✨ ḥry-ib sꜣḥ — Orion’s central belt region, a physically clear line of three stars within a larger southern figure visible across the night sky',
-      maatPrinciple: 'Dignity Protected',
+      maatPrinciple: 'Guard the Name of the One Who Walks Beside You',
       cosmicContext: '''
-A bond is tested when the person is not in the room.
+In the nomes, reputation was infrastructure.
+A laborer whose dignity was publicly damaged
+lost standing in the water-share rotation.
 
-Day 16 belongs to protection of dignity.
+Hathor is the Eye of Ra — and the Eye protects.
+When she appears as companion, the reading is:
+walk beside this person in a way that leaves their name clean.
 
-In a Ma’at-ordered relationship, a name is not handled carelessly. The ren matters. Reputation matters. Speech matters. A person’s dignity is part of the structure that allows them to stand in the world.
+The question is not about the bond when it is easy.
+It is about the rooms you enter without them.
+What do you say there?
 
-Hathor’s warmth does not gossip.
-
-It shelters.
-
-This does not mean hiding wrongdoing. Ma’at does not protect falsehood. But there is a difference between truthful accountability and careless exposure, between correction and humiliation, between naming harm and feeding on someone’s weakness.
-
-Today asks whether the people connected to you are safer because of your mouth.
-
-Are their efforts acknowledged?
-
-Is their privacy protected?
-
-Is their humanity defended when they are not present?
-
-Is their name held cleanly even when frustration exists?
-
-A house becomes unsafe when the people inside it learn their names are not protected there.
-
-Hathor’s harmony requires mutual dignity. Without it, beauty becomes performance and closeness becomes risk.
-
-Today asks for one act of protection: speak of someone as though Ma’at is listening, because Ma’at is.
+The companion who guards the name in absence
+is the one the field trusts when the flood returns.
 ''',
       decanFlow: _hathorIIFlowRows,
       meduNeter: MeduNeterKey(
-        glyph: 'Protective arm curved around a name standard',
-        colorFrequency: 'Deep indigo, protective gold, and soft rose',
-        mantra: '“I keep the name clean where it cannot defend itself.”',
+        glyph: 'Two figures sharing a single standard above them',
+        colorFrequency: 'Deep indigo and protective gold',
+        mantra: '"Your name is clean when I am in the room."',
       ),
     ),
     _dayInfoEntry(
       key: 'hathor_17_2',
       kemeticDate: 'Hathor II, Day 17',
-      season: season,
-      month: month,
-      decanName: decanName,
+      season: '🌊 Akhet – Season of Inundation',
+      month: 'Hathor (Tepy-a Kenmet)',
+      decanName:
+          'ṯms n ḫntt ("the red one of ḫntt") | Deck: The Companion of the Foremost',
       starCluster:
           '✨ ḥry-ib sꜣḥ — the central Orion form, with the belt stars appearing as a measured row and brighter surrounding stars giving the group its balanced shape',
-      maatPrinciple: 'Beauty as Coordination',
+      maatPrinciple: 'Name What Was Built Together',
       cosmicContext: '''
-Beauty can coordinate what force cannot.
+Hathor is the patron of rhythm and music —
+the beat that kept rowers from exhausting themselves unevenly,
+the song that held the whole crew without a foreman shouting.
+When the work was finished, the credit was spoken together.
+"We cleared that embankment. We crossed that flood."
 
-This is one of Hathor’s quiet powers.
+You have set the rhythm, repaired the system, protected the name.
+Now speak the shared work aloud.
 
-A hard command may move bodies for a moment. A beautiful rhythm can bring them into shared motion. Music coordinates breath. A meal gathers people without argument. Fragrance changes the room. A clean table invites order. A kind word lowers the guard enough for repair to begin.
-
-Day 17 asks for beauty to be used as service.
-
-Not display.
-
-Not seduction.
-
-Not escape.
-
-Service.
-
-When people have been strained, lectured, corrected, or over-managed, the next repair may not come through more force. It may come through warmth placed correctly: a prepared meal, a softened space, a song, a lamp, a gesture that says the bond is still worth inhabiting.
-
-In Kemet, beauty was not separate from function. Temple color, music, incense, procession, and ornament helped the sacred relation become livable to the senses.
-
-Today asks what beauty can do where pressure has failed.
-
-Where beauty serves Ma’at, it does not distract from the work.
-
-It helps the work become bearable enough to continue.
+Not what you did alone.
+What you did together.
+The field remembers who showed up on both sides.
 ''',
       decanFlow: _hathorIIFlowRows,
       meduNeter: MeduNeterKey(
-        glyph: 'Sistrum beside an offering table',
-        colorFrequency: 'Honey gold, lotus blue, and warm lamplight',
-        mantra: '“Beauty can help the pattern move together.”',
+        glyph: 'Hathor sistrum raised beside a second hand',
+        colorFrequency: 'Paired golds — two lights marking the work complete',
+        mantra: '"We name what we carried side by side."',
       ),
     ),
     _dayInfoEntry(
       key: 'hathor_18_2',
       kemeticDate: 'Hathor II, Day 18',
-      season: season,
-      month: month,
-      decanName: decanName,
+      season: '🌊 Akhet – Season of Inundation',
+      month: 'Hathor (Tepy-a Kenmet)',
+      decanName:
+          'ṯms n ḫntt ("the red one of ḫntt") | Deck: The Companion of the Foremost',
       starCluster:
           '✨ ḥry-ib sꜣḥ — the belt-centered region of Sah/Orion, a stable and easily tracked star pattern used as a recognizable night marker',
-      maatPrinciple: 'Pattern Adjusted',
+      maatPrinciple: 'Adjust the Shared Pattern While It Can Still Be Adjusted',
       cosmicContext: '''
-A pattern can be good and still need adjustment.
+The canal system was never set and forgotten.
+It was walked and corrected through the whole season.
+A gate that opened too wide in the first month
+wasted water the household needed in the third.
 
-Day 18 belongs to refinement after relation has been named, burden has been seen, tension has been addressed, and the common space has been repaired.
+The companion star does not track to follow blindly.
+It corrects when the path drifts.
 
-Now the question becomes practical:
+Today the question is not: how do I make this easier for me.
+It is: how do we make this hold for both of us.
 
-Can this continue?
-
-Not for one dramatic day.
-
-Not while everyone is inspired.
-
-Continuously.
-
-Ma’at is not maintained by a beautiful plan that exhausts the people inside it. A schedule that works only by sacrificing sleep is not stable. A relationship that depends on one person always absorbing discomfort is not harmonious. A household system that only functions when someone panics is not order.
-
-Hathor’s rhythm must be livable.
-
-This day asks for the pattern to be adjusted before strain returns. Shorten what is too heavy. Clarify what is vague. Move the task to the right hands. Change the time. Remove the unnecessary step. Add rest where the system has been pretending rest is optional.
-
-A small correction made now can prevent a larger collapse later.
-
-Where the rhythm is adjusted with honesty, harmony becomes sustainable. Where the pattern is preserved only because change feels difficult, the old imbalance begins rebuilding itself.
+What part of the pattern between you and your companion
+is working for one person at the quiet cost of the other?
+Adjust it before the harvest demands what neither of you saved.
 ''',
       decanFlow: _hathorIIFlowRows,
       meduNeter: MeduNeterKey(
-        glyph: 'Measuring cord retied to a truer line',
-        colorFrequency: 'Clear gold across calm blue and fertile green',
-        mantra: '“I adjust the pattern so it can live.”',
+        glyph: 'Plumb line held between two hands',
+        colorFrequency: 'Calm river blue with a steady gold correction line',
+        mantra: '"We tune this so it does not break us later."',
       ),
     ),
     _dayInfoEntry(
       key: 'hathor_19_2',
       kemeticDate: 'Hathor II, Day 19',
-      season: season,
-      month: month,
-      decanName: decanName,
+      season: '🌊 Akhet – Season of Inundation',
+      month: 'Hathor (Tepy-a Kenmet)',
+      decanName:
+          'ṯms n ḫntt ("the red one of ḫntt") | Deck: The Companion of the Foremost',
       starCluster:
           '✨ ḥry-ib sꜣḥ — the central Orion star field, physically recognizable by the belt line and the bright stars that frame it into an ordered figure',
-      maatPrinciple: 'Shared Rest',
+      maatPrinciple: 'Shared Rest Proves the Bond',
       cosmicContext: '''
-Harmony is not proven only in work.
+After the canal crews finished the day's section, they stopped.
+Bread was shared. Water was passed.
+The silence was not awkward — it was proof the work had made them coherent.
 
-It is also proven in rest.
+A partnership that can only move together, not be still together,
+is not yet a partnership. It is a schedule.
 
-Day 19 asks whether peace can be shared without turning into performance. No fixing. No managing. No proving usefulness. No filling silence to avoid discomfort. Just the simple test of whether stillness can exist between people without threat.
-
-In Kemet, rest was not the enemy of order. Rest allowed the body to return to measure. Work, festival, offering, sleep, music, and quiet all belonged to the rhythm of a life that could continue.
-
-A bond that cannot rest is still under strain.
-
-A household where every silence becomes suspicion is not yet settled.
-
-A project that never pauses cannot hear where it is beginning to bend.
-
-Hathor’s peace enters when the body believes it does not have to earn belonging every moment.
-
-Today asks for one shared stillness: a meal without agenda, a room without argument, a walk without performance, a pause where the bond does not have to justify itself.
-
-Where rest can be shared, harmony has begun to trust itself.
+Hathor governs this moment.
+Can the two of you be in the same space
+without fixing, correcting, planning, managing?
+That stillness is the gift.
+It is also proof that what was built between you can survive.
 ''',
       decanFlow: _hathorIIFlowRows,
       meduNeter: MeduNeterKey(
-        glyph: 'Two seated figures beneath one shelter',
-        colorFrequency: 'Evening blue, warm clay, and soft gold',
-        mantra: '“Peace can be shared without being performed.”',
+        glyph: 'Two seated figures at ease beneath the Hathor cow-standard',
+        colorFrequency: 'Lotus blue and warm clay',
+        mantra: '"We can be still. That means we are real."',
       ),
     ),
     _dayInfoEntry(
       key: 'hathor_20_2',
       kemeticDate: 'Hathor II, Day 20',
-      season: season,
-      month: month,
-      decanName: decanName,
+      season: '🌊 Akhet – Season of Inundation',
+      month: 'Hathor (Tepy-a Kenmet)',
+      decanName:
+          'ṯms n ḫntt ("the red one of ḫntt") | Deck: The Companion of the Foremost',
       starCluster:
           '✨ ḥry-ib sꜣḥ — the heart region of the Sah/Orion figure, centered on the three belt stars and their surrounding bright points in the southern sky',
-      maatPrinciple: 'Harmony Confirmed',
+      maatPrinciple: 'This Bond Is Part of How the World Holds',
       cosmicContext: '''
-Day 20 closes the heart of Sah.
+Ten days. You named the partnership, set the rhythm,
+redistributed the load, repaired the system, protected the name,
+honored the shared work, adjusted the pattern, rested together.
 
-The first decan recognized stability. This decan brought stability into relation. It asked whether rhythm could be shared, whether the bond could be named, whether the load could be balanced, whether friction could be spoken before it hardened, and whether beauty could help the pattern move again.
+A household out of shared rhythm missed the planting window.
+A household in shared rhythm entered harvest with more capacity than either person alone.
 
-Now the question is simple:
+The companion is not ornament.
+The companion is the second half of the irrigation system.
 
-What moves more smoothly because relation was restored?
-
-Not perfectly.
-
-Smoothly.
-
-Something should have less drag now. A room breathes better. A conversation is cleaner. A duty is better placed. A shared rhythm has less confusion. A person feels less alone inside the structure.
-
-That is harmony in Ma’at.
-
-Not the absence of difference.
-
-Not permanent sweetness.
-
-Right relation among distinct parts.
-
-Hathor’s joy becomes durable when the system beneath it can hold people without swallowing them. A song needs more than one note, but the notes must know their relation. A house shelters more than one body, but the walls must carry the weight in measure.
-
-Today marks what has been brought back into accord.
-
-Where harmony has been confirmed, the next movement can begin from trust rather than repair.
+Today you seal that aloud — not in gratitude only, in recognition.
+This bond is part of how order holds.
+Name it as Ma'at.
 ''',
       decanFlow: _hathorIIFlowRows,
       meduNeter: MeduNeterKey(
-        glyph: 'Linked figures beneath a balanced star line',
-        colorFrequency: 'Twin gold, lotus blue, and stable green',
-        mantra: '“Distinct parts can move as one order.”',
+        glyph:
+            'Shared standard above two linked figures — one purpose, two carriers',
+        colorFrequency: 'Twin golds merging into one steady line',
+        mantra: '"This bond is infrastructure. It holds the world."',
       ),
     ),
   ]);
 }
 
 Map<String, KemeticDayInfo> _buildHathorIIIEntries() {
-  const season = '🌿 Peret – Season of Emergence';
-  const month = 'Hathor (Ḥwt-Ḥr) — Joy That Sustains the World';
-  const decanName = 'sbꜣ sꜣḥ';
-
   return Map.fromEntries([
     _dayInfoEntry(
       key: 'hathor_21_3',
       kemeticDate: 'Hathor III, Day 21',
-      season: season,
-      month: month,
-      decanName: decanName,
+      season: '🌊 Akhet – Season of Inundation',
+      month:
+          'Hathor (Tepy-a Kenmet) — House of Horus, patron of beauty that restores order',
+      decanName: 'ḳdty (translation uncertain) | Deck: The Builders',
       starCluster:
           '✨ sbꜣ sꜣḥ — the star of the Sah/Orion pattern, seen within the broad southern figure marked by a bright belt line and surrounding stars that make the form easy to recognize',
-      maatPrinciple: 'Order Made Visible',
+      maatPrinciple: 'Restored Order Wants to Become Visible',
       cosmicContext: '''
-Hathor’s third decan begins when stability is ready to be seen.
+For twenty days Hathor has been at work.
+The body returned. The path held. The partnership found its rhythm.
+Now the black silt is firming and the builders move.
 
-The first decan asked whether the ground held. The second asked whether the heart could bring relation into harmony. Now the question changes again: what has become stable enough to appear without fear?
+Not wildly — with measurement.
+The Kemite builder surveyed before laying anything:
+named the site, read the foundation, decided what would stand there and why.
 
-In Kemet, beauty was not empty display. It was order made visible to the senses. A cleaned house, a polished mirror, a finished wall, a steady voice, a well-carried body, a song entering the room at the right time — these were not distractions from Ma’at. They were signs that Ma’at had reached the surface.
+Hathor's domain here is beauty as declared purpose.
+A repaired threshold is beautiful because it shelters.
+A cleared boundary is beautiful because it marks the field.
+A swept path is beautiful because life can move on it.
 
-Day 21 asks for visibility without apology.
-
-Not performance.
-
-Not boasting.
-
-Not forcing attention toward what is still unformed.
-
-Only the quiet courage to let what is real become visible.
-
-There may be a part of the work, body, home, relationship, craft, or character that has stopped collapsing. It does not need to hide as though it is still fragile. It does not need to overexplain itself. It can stand in the light because it has already stood through pressure.
-
-Today asks: let one true stability be seen.
+The planting window is coming.
+What does the firm ground of this season offer you to build on?
+Name it specifically — something that can be seen when you are gone.
 ''',
       decanFlow: _hathorIIIFlowRows,
       meduNeter: MeduNeterKey(
-        glyph: 'Polished pillar catching first light',
-        colorFrequency: 'Soft gold, river blue, and fertile green',
-        mantra: '“What is stable may now be seen.”',
+        glyph: 'Mason\'s cord laid on firm black silt',
+        colorFrequency: 'Black Nile silt and first-course stone',
+        mantra: '"I name what I will raise on this ground."',
       ),
     ),
     _dayInfoEntry(
       key: 'hathor_22_3',
       kemeticDate: 'Hathor III, Day 22',
-      season: season,
-      month: month,
-      decanName: decanName,
+      season: '🌊 Akhet – Season of Inundation',
+      month: 'Hathor (Tepy-a Kenmet)',
+      decanName: 'ḳdty (translation uncertain) | Deck: The Builders',
       starCluster:
           '✨ sbꜣ sꜣḥ — a visible point within the Orion star figure, held in relation to the three belt stars and the brighter stars above and below them',
-      maatPrinciple: 'Refinement of Form',
+      maatPrinciple: 'Nothing Holds on Soft Ground',
       cosmicContext: '''
-Once order becomes visible, the surface must honor it.
+After the Nile retreated, the first work was not building — it was clearing.
+Flood debris, misplaced soil, the rotted edges of last year's structures.
+Only after the ground was swept and leveled did the measuring cord come out.
 
-Day 22 belongs to refinement.
+To build on soft silt was to raise a wall that would slump before next inundation.
+That wasted stone. That wasted season.
 
-This is not vanity. A form that carries Ma’at should not be left careless if it is ready to be presented. A temple wall is shaped before it is painted. A mirror is polished before it reflects. A garment is straightened before procession. A name is written clearly so it can be read after the hand that carved it is gone.
+Yesterday you named what you would raise.
+Today you clear the site.
 
-The visible layer matters because it teaches others how to approach what it covers.
-
-A disordered surface can obscure a stable center. Sloppy speech can weaken a true message. A neglected room can make a restored life feel uninhabitable. A good work can fail to reach people because its outer form does not guide them in.
-
-Hathor’s beauty refines without falsifying.
-
-Today asks for one outer form to be brought into better relation with its inner truth. Clean the visible layer. Edit the words. arrange the space. choose the garment. finish the corner that has been left rough too long.
-
-The purpose is not to impress.
-
-The purpose is to let the surface serve the order underneath.
+What old arrangement, stale obligation, or flood-left debris
+is still sitting where the new structure needs to stand?
+Clear it before you lay anything.
 ''',
       decanFlow: _hathorIIIFlowRows,
       meduNeter: MeduNeterKey(
-        glyph: 'Cosmetic palette beside a straight measuring cord',
-        colorFrequency: 'Ivory, honey gold, and clear blue',
-        mantra: '“The outer form should honor the inner order.”',
+        glyph:
+            'Swept ground before the measuring cord — cleared, not yet built',
+        colorFrequency: 'Fresh-turned earth under a line of gold',
+        mantra: '"I prepare the ground before I raise anything."',
       ),
     ),
     _dayInfoEntry(
       key: 'hathor_23_3',
       kemeticDate: 'Hathor III, Day 23',
-      season: season,
-      month: month,
-      decanName: decanName,
+      season: '🌊 Akhet – Season of Inundation',
+      month: 'Hathor (Tepy-a Kenmet)',
+      decanName: 'ḳdty (translation uncertain) | Deck: The Builders',
       starCluster:
           '✨ sbꜣ sꜣḥ — part of the Sah/Orion star field, physically recognized through the bright linear belt and surrounding stars that frame the figure',
-      maatPrinciple: 'Light Returned to Source',
+      maatPrinciple: 'Structure True; Polish Later',
       cosmicContext: '''
-A mirror does not create the sun.
+Kemite masons roughed the block before they polished it.
+First cuts: broad, approximate, correct in proportion but rough in surface.
+The eye was on structure, not shine.
 
-It returns light.
+To wait for perfection before beginning
+is to let the silt dry and the planting window close.
 
-This is the work of Day 23.
-
-When stability becomes visible, praise may arrive. Attention may arrive. Relief may arrive. The danger is forgetting the sources that made visibility possible: the land that held, the people who helped, the ancestors who carried, the habits that sustained, the body that endured, the divine order that kept the cycle from dissolving.
-
-Hathor’s mirror belongs here.
-
-It reflects light without pretending to be the light itself.
-
-Today asks for reflected gratitude. If something good is being seen, name what made it possible. If a project is praised, honor the hands and conditions behind it. If the body feels beautiful again, thank the rest, food, water, discipline, and mercy that restored it. If joy has returned, remember the order that gave it somewhere to stand.
-
-Visibility becomes dangerous when it becomes self-enclosed.
-
-It becomes Ma’at when it returns light to its source.
-
-Today asks: do not hoard radiance. Reflect it.
+The ground is cleared. Today you make the first form.
+Draft it, sketch it, frame it, cut the first piece.
+Do not judge it for being unfinished.
+Judge it for whether the structure is true —
+true structure can always be refined.
+An unbegun structure cannot.
 ''',
       decanFlow: _hathorIIIFlowRows,
       meduNeter: MeduNeterKey(
-        glyph: 'Polished mirror lifted toward the sun',
-        colorFrequency: 'Bright gold, mirror silver, and lotus blue',
-        mantra: '“I reflect the light that restored me.”',
+        glyph:
+            'Sculptor\'s hand against rough stone — first pass, not the last',
+        colorFrequency: 'Raw clay red, unpolished, alive',
+        mantra: '"I form it rough and true."',
       ),
     ),
     _dayInfoEntry(
       key: 'hathor_24_3',
       kemeticDate: 'Hathor III, Day 24',
-      season: season,
-      month: month,
-      decanName: decanName,
+      season: '🌊 Akhet – Season of Inundation',
+      month: 'Hathor (Tepy-a Kenmet)',
+      decanName: 'ḳdty (translation uncertain) | Deck: The Builders',
       starCluster:
           '✨ sbꜣ sꜣḥ — a star marker within the large Orion figure, whose belt and bright framing stars create a strong, easily tracked nighttime shape',
-      maatPrinciple: 'False Shine Removed',
+      maatPrinciple: 'Let It Stand in the Real World',
       cosmicContext: '''
-Not every brightness is Hathor.
+A structure in a plan is not a structure.
+A boundary thought about is not a boundary.
+A repaired channel that has not been opened carries no water.
 
-Some shine is only concealment.
+The Kemite had no category for things that existed only in concept.
+The wall had to cast a shadow. The path had to receive footsteps.
 
-Day 24 asks for the removal of false radiance: the performance that hides exhaustion, the polished sentence that avoids truth, the public image that no longer matches the private structure, the decoration placed over neglect, the smile that prevents repair.
+Not the whole wall — the first post.
+Set and leveled and left to be built upon.
 
-Kemet understood beauty as power.
-
-Because of that, beauty also had to remain under Ma’at.
-
-A painted wall with a cracked foundation is not stable. A golden vessel holding spoiled water is not pure. A beautiful word used to disguise harm becomes Isfet with fragrance on it.
-
-Today asks for one false shine to be stripped away.
-
-This does not mean rejecting beauty. It means protecting beauty from becoming deception.
-
-There is relief in this. When the false layer is removed, the true form no longer has to fight through it. What is real may be simpler, quieter, less impressive, but it will hold better.
-
-Hathor does not require the surface to lie.
-
-She asks the surface to reveal what is rightly alive beneath it.
+Today something that has been idea becomes object.
+Not finished. Present.
+Real enough to be measured.
+That is enough for today.
 ''',
       decanFlow: _hathorIIIFlowRows,
       meduNeter: MeduNeterKey(
-        glyph: 'Hand wiping dust from a true surface',
-        colorFrequency: 'Clear gold, clean white, and shadow-blue',
-        mantra: '“I remove what shines falsely.”',
+        glyph: 'Upright post set in leveled ground',
+        colorFrequency: 'Unfinished stone grey touched with gold at the crown',
+        mantra: '"It stands now. That is enough for today."',
       ),
     ),
     _dayInfoEntry(
       key: 'hathor_25_3',
       kemeticDate: 'Hathor III, Day 25',
-      season: season,
-      month: month,
-      decanName: decanName,
+      season: '🌊 Akhet – Season of Inundation',
+      month: 'Hathor (Tepy-a Kenmet)',
+      decanName: 'ḳdty (translation uncertain) | Deck: The Builders',
       starCluster:
           '✨ sbꜣ sꜣḥ — the Orion-associated star pattern appearing as a broad, ordered figure rather than a tight cluster, with a central belt and bright outer stars',
-      maatPrinciple: 'Beauty Serving Function',
+      maatPrinciple: 'A Structure Without Purpose Is Already Decay',
       cosmicContext: '''
-Beauty must help life move.
+In Kemetic building, structures carried their purpose visibly —
+the name of the donor, the deity honored, the function declared.
 
-That is the lesson of Day 25.
+A structure that did not know what it was for
+became available for anything.
+And a thing available for anything eventually serves Isfet.
 
-In Hathor’s world, beauty is not added after function as a luxury. It helps function become livable. A beautiful room invites care. A clear design invites use. A well-set table invites gratitude. A pleasing rhythm makes the work easier to continue. A kind tone helps truth be received without unnecessary injury.
+The post is standing. The form is roughed in.
+Now carve the meaning before the plaster dries.
 
-Beauty can open a path.
+Who is this for? What does it protect?
+What would be lost without it?
 
-It can also confuse the path if it serves only display.
-
-Today asks for beauty to become useful.
-
-Make one thing easier to enter, easier to understand, easier to repeat, easier to respect, or easier to love. Let order become attractive enough that the body wants to return to it. Let a routine gain softness. Let a space gain welcome. Let a message gain clarity. Let a tool become easier to hold.
-
-This is not decoration for its own sake.
-
-It is invitation.
-
-When beauty serves Ma’at, people do not only admire the form. They can live better inside it.
-
-Today asks: make the useful thing beautiful, and make the beautiful thing serve.
+Name it. Set it into the work itself, not just in your mind.
+This is how a structure stays true when you are not watching it.
 ''',
       decanFlow: _hathorIIIFlowRows,
       meduNeter: MeduNeterKey(
-        glyph: 'Lotus placed beside a working tool',
-        colorFrequency: 'Lotus blue, honey gold, and warm clay',
-        mantra: '“Beauty helps the work live.”',
+        glyph: 'Inscribed lintel above a cleared threshold',
+        colorFrequency: 'Deep stone with gold filling the lines',
+        mantra: '"This has a purpose and I have declared it."',
       ),
     ),
     _dayInfoEntry(
       key: 'hathor_26_3',
       kemeticDate: 'Hathor III, Day 26',
-      season: season,
-      month: month,
-      decanName: decanName,
+      season: '🌊 Akhet – Season of Inundation',
+      month: 'Hathor (Tepy-a Kenmet)',
+      decanName: 'ḳdty (translation uncertain) | Deck: The Builders',
       starCluster:
           '✨ sbꜣ sꜣḥ — a bright star within the larger Sah/Orion field, observed in relation to Orion’s belt and surrounding stars rather than as an isolated point',
-      maatPrinciple: 'Joy Without Waste',
+      maatPrinciple: 'The Flood Will Return. Find the Weak Joint Now.',
       cosmicContext: '''
-Joy must circulate without destroying what supports it.
+After the first course was set, the builders checked the corners for plumb,
+sealed the joints, waterproofed what would face the river's return.
 
-Day 26 belongs to measured celebration.
+The Nile flood would come again.
+The structure that survived it
+was the one whose weak points had been found and sealed before the water arrived — not after.
 
-In Kemet, festival, music, beer, fragrance, dance, and adornment had sacred place. But sacred place does not mean limitless consumption. Food can nourish or be wasted. Music can restore or distract. Celebration can bind a community or drain what should have sustained it.
+The excitement of raising is not the same as the discipline of making it hold.
+Both are required.
 
-Hathor is joy held in right relation.
-
-Today asks for joy that feeds the pattern.
-
-Share something warm. Make the meal. Play the song. Wear the color. Speak the kindness. Let laughter return. But keep measure. Do not spend the storehouse to prove happiness exists. Do not mistake intensity for restoration. Do not let pleasure become avoidance of the duty still waiting for care.
-
-A good celebration leaves the body more alive, the room more whole, and the bonds more strengthened.
-
-A distorted celebration leaves depletion behind it.
-
-Today asks for joy that nourishes without consuming its own foundation.
-
-Let delight move, but let Ma’at guide the cup.
+The structure is standing and named.
+Walk it now.
+Where is the joint that looks fine
+but has not been properly sealed?
+Find it today.
 ''',
       decanFlow: _hathorIIIFlowRows,
       meduNeter: MeduNeterKey(
-        glyph: 'Beer jar and lotus held in balanced hands',
-        colorFrequency: 'Honey gold, rose, and cool blue',
-        mantra: '“My joy nourishes without wasting.”',
+        glyph:
+            'Sealed corner joint — the quiet work that determines what survives',
+        colorFrequency: 'Clay red reinforced with protective black',
+        mantra: '"I seal the weak point before the water returns."',
       ),
     ),
     _dayInfoEntry(
       key: 'hathor_27_3',
       kemeticDate: 'Hathor III, Day 27',
-      season: season,
-      month: month,
-      decanName: decanName,
+      season: '🌊 Akhet – Season of Inundation',
+      month: 'Hathor (Tepy-a Kenmet)',
+      decanName: 'ḳdty (translation uncertain) | Deck: The Builders',
       starCluster:
           '✨ sbꜣ sꜣḥ — a visible marker in the Orion figure, set within the upright arrangement of belt, shoulder, and lower stars that make Sah easy to identify',
-      maatPrinciple: 'Dignity After Survival',
+      maatPrinciple: 'Beauty Makes the Structure Worth Entering',
       cosmicContext: '''
-There is a way survival can teach a person to remain small.
+The structure is sealed and purposeful.
+Now comes what Hathor governs most directly: the welcome.
 
-Even after the ground holds, the body may still move as if it has no right to take up space. The voice may lower itself before it is challenged. The eyes may avoid being seen. The clothing, posture, room, work, and words may still carry the memory of collapse.
+A household tended at the entrance
+was the one neighbors entered without hesitation.
+A workspace dressed with care and order
+was the one where good work happened.
+This was not vanity — it was the difference between a place that shelters
+and one that merely exists.
 
-Day 27 asks for dignity to return.
-
-Not arrogance.
-
-Not display.
-
-Dignity.
-
-Hathor’s radiance is not the denial of pain. It is proof that pain did not remove the right to shine. Sah stands as restored form; Hathor gives that form warmth, beauty, and presence.
-
-Today asks for the body to move according to what has endured, not according to what once threatened it.
-
-Stand upright. Dress with care. Speak without shrinking. Let the face be visible. Let the work be named. Let the room show that someone worthy lives there.
-
-This is not vanity.
-
-It is the restoration of proper place.
-
-Where dignity returns, Ma’at has reached the posture.
+The structure is built. The joint is sealed.
+Today you bring the warmth — the order, the scent, the small care at the threshold
+that says: life is tended here.
+Make it worth entering.
 ''',
       decanFlow: _hathorIIIFlowRows,
       meduNeter: MeduNeterKey(
-        glyph: 'Upright figure holding a lotus before the chest',
-        colorFrequency: 'Polished gold, fertile black, and soft rose',
-        mantra: '“I carry myself according to what endured.”',
+        glyph: 'Perfume jar and lotus at the finished threshold',
+        colorFrequency: 'Honey gold and lotus blue in warm light',
+        mantra: '"Beauty is how the structure says: enter."',
       ),
     ),
     _dayInfoEntry(
       key: 'hathor_28_3',
       kemeticDate: 'Hathor III, Day 28',
-      season: season,
-      month: month,
-      decanName: decanName,
+      season: '🌊 Akhet – Season of Inundation',
+      month: 'Hathor (Tepy-a Kenmet)',
+      decanName: 'ḳdty (translation uncertain) | Deck: The Builders',
       starCluster:
           '✨ sbꜣ sꜣḥ — part of the broad Sah/Orion star figure, physically defined by bright stars around a central three-star belt that appears ordered and easy to track',
-      maatPrinciple: 'Radiance Cooled',
+      maatPrinciple: 'The Work Must Be Offered Back',
       cosmicContext: '''
-Visibility carries heat.
+In this tradition, finishing a structure was marked not with pride but with offering.
+Beer poured. Incense burned. A naming of what was built, who built it, and in whose effort it stood.
 
-So does praise.
+The builders had used materials the land gave,
+strength the community maintained,
+methods the tradition passed down.
+To claim the whole as private was a kind of theft from the land and the source.
 
-So does desire.
-
-So does beauty when it begins to know its own power.
-
-Day 28 belongs to cooling the Eye.
-
-Hathor is one condition of the Eye of Ra: golden, joyful, near, nourishing. Sekhmet is another: hot, fierce, devouring when force goes past measure. The same solar power can delight or burn depending on its relation to Ma’at.
-
-That is why radiance must be cooled.
-
-Today asks for attention to the place where brightness could become excess. Is praise making the heart hungry? Is beauty turning into comparison? Is visibility creating pressure to perform? Is desire beginning to scorch what it first warmed?
-
-Cooling does not mean hiding.
-
-It means returning power to proportion.
-
-Drink water. Lower the voice. Step back from unnecessary display. Receive praise without feeding on it. Let the body settle. Let beauty remain clean.
-
-Hathor’s joy lasts because it knows when to soften the heat.
-
-Where radiance is cooled, it can continue blessing instead of burning.
+The structure is built, sealed, welcomed.
+Today you name the hands that carried it.
+Acknowledge the source.
+Mark the transition: from thing being built to thing that serves.
 ''',
       decanFlow: _hathorIIIFlowRows,
       meduNeter: MeduNeterKey(
-        glyph: 'Solar eye cooled by flowing water',
-        colorFrequency: 'Gold softened by blue-white water and pale green',
-        mantra: '“My radiance remains under Ma’at.”',
+        glyph: 'Offering arms before the finished structure',
+        colorFrequency: 'Gold and white — consecration of completed form',
+        mantra: '"I offer the work back to what it serves."',
       ),
     ),
     _dayInfoEntry(
       key: 'hathor_29_3',
       kemeticDate: 'Hathor III, Day 29',
-      season: season,
-      month: month,
-      decanName: decanName,
+      season: '🌊 Akhet – Season of Inundation',
+      month: 'Hathor (Tepy-a Kenmet)',
+      decanName: 'ḳdty (translation uncertain) | Deck: The Builders',
       starCluster:
           '✨ sbꜣ sꜣḥ — a star of the Orion-associated Sah figure, seen within a stable arrangement that makes the whole pattern memorable across repeated nights',
-      maatPrinciple: 'Evidence of Restored Order',
+      maatPrinciple: 'The Build Is Not Finished Until It Serves',
       cosmicContext: '''
-What is restored should leave a sign.
+The tool goes where the hand reaches.
+The seed jar is labeled and within arm's length.
+The swept threshold is open.
+The repaired channel receives its first trickle.
 
-Not always a monument.
+A structure raised but unused fails its purpose as surely as one never built.
+The boundary not walked is not yet a boundary.
+The practice not lived is not yet a practice.
 
-Sometimes a small sign is enough: a cleaned corner, a written note, a repaired object, a meal shared, a finished page, a plant watered, a boundary kept, a song returned to the room.
-
-Day 29 asks for visible evidence that Ma’at has reached the surface.
-
-Kemet preserved order through signs that could outlast the moment: inscriptions, offerings, painted walls, measured fields, sealed jars, names carved where the living could read them again. A sign tells the future that something was restored here.
-
-This matters in ordinary life too.
-
-Progress becomes easier to trust when it leaves evidence. A person can look back and say: the room changed; the work moved; the body softened; the relationship repaired; the joy returned; the standard held.
-
-Today asks for one sign of order to be made visible.
-
-Let it be concrete.
-
-Let it remain after the mood passes.
-
-A sign is not proof for outsiders. It is a witness for the next self who may forget that restoration truly happened.
+Yesterday you offered the work back.
+Today you live inside it.
+Use what was built.
+Let it prove through function that it was worth building.
 ''',
       decanFlow: _hathorIIIFlowRows,
       meduNeter: MeduNeterKey(
-        glyph: 'Small carved marker beside a lotus and offering bowl',
-        colorFrequency: 'Stone gray, lotus blue, and sealed gold',
-        mantra: '“Let the restored order leave a sign.”',
+        glyph: 'Repaired channel receiving its first trickle of water',
+        colorFrequency: 'Clay and Nile blue — the structure in active use',
+        mantra: '"The work is not done until I live inside it."',
       ),
     ),
     _dayInfoEntry(
       key: 'hathor_30_3',
       kemeticDate: 'Hathor III, Day 30',
-      season: season,
-      month: month,
-      decanName: decanName,
+      season: '🌊 Akhet – Season of Inundation',
+      month: 'Hathor (Tepy-a Kenmet)',
+      decanName: 'ḳdty (translation uncertain) | Deck: The Builders',
       starCluster:
           '✨ sbꜣ sꜣḥ — the Orion/Sah star figure remembered through its broad upright form, central belt stars, and surrounding bright points that remain visually stable across the night',
-      maatPrinciple: 'Radiance Sealed',
+      maatPrinciple: 'What Was Built Must Be Witnessed',
       cosmicContext: '''
-Day 30 closes Hathor’s month.
+The final act of any significant construction was the record.
+Who built it. When. What it was for. Whose effort it stood on.
+Not vanity — accountability across time.
+If the boundary was disputed, the record said what it measured.
+If the builder was gone, the record said what they had given.
 
-The month began with ground that could be trusted again. It moved through relation, rhythm, harmony, beauty, and shared joy. It now ends with radiance sealed under Ma’at.
+Hathor closes today.
+The ground held. The partnership found its rhythm.
+The structure was raised, sealed, welcomed, offered, and used.
 
-This matters because joy that is not sealed can scatter.
-
-A restored room can become clutter again. A softened body can return to bracing. A beautiful habit can dissolve if it is not given a place. A relationship can lose harmony if the rhythm is not remembered. A visible strength can become performance if it is not returned to purpose.
-
-So the last day of Hathor asks for naming.
-
-What beauty now protects life?
-
-What joy now strengthens the body?
-
-What softness now helps the work continue?
-
-What visible form now tells the truth of what has been restored?
-
-Hathor does not end as an escape from duty. She ends as the proof that duty can become livable, that order can become beautiful, and that the heart can rejoice without leaving Ma’at.
-
-Today seals the radiance.
-
-What has become beautiful in truth may now be carried forward as strength.
+Document it while the details are still in the hands of the people who made it.
+Name who helped. State what it serves.
+This is how Ma'at holds the work past the memory of its makers.
 ''',
       decanFlow: _hathorIIIFlowRows,
       meduNeter: MeduNeterKey(
-        glyph: 'Sealed mirror beside a standing djed and lotus',
-        colorFrequency:
-            'Honey gold, fertile green, lotus blue, and deep black earth',
-        mantra: '“Joy sealed in Ma’at becomes strength.”',
+        glyph: 'Scribe\'s palette beside the finished structure',
+        colorFrequency: 'Ink black on living gold',
+        mantra: '"The record is the final stone."',
       ),
     ),
   ]);
 }
 
 Map<String, KemeticDayInfo> _buildKaHerKaIEntries() {
-  const season = '🌿 Peret – Season of Emergence';
-  const month = 'Ka-ḥer-Ka (Kȝ-ḥr-Kȝ) — Life Upon Life';
-  const decanName = 'msḥtjw';
-
   return Map.fromEntries([
     _dayInfoEntry(
       key: 'kaherka_1_1',
-      kemeticDate: 'Ka-ḥer-Ka I, Day 1',
-      season: season,
-      month: month,
-      decanName: decanName,
+      kemeticDate: 'Ka-ḥer-ka I, Day 1',
+      season: '🌊 Akhet Closing – Inundation Withdraws',
+      month:
+          'Ka-ḥer-ka ("Ka upon Ka" — doubled life-force, the seed entering the black earth)',
+      decanName: 'ḫnwy (translation uncertain) | Deck: The Embraced Ones',
       starCluster:
           '✨ msḥtjw — a northern star group associated with the Foreleg, commonly linked with the Big Dipper shape: seven bright stars forming a bowl and bent handle around the northern sky',
-      maatPrinciple: 'Strength Recognized',
+      maatPrinciple: 'Vitality Enters the Ground',
       cosmicContext: '''
-Ka-ḥer-Ka begins when life is placed into the ground.
+Hathor is closed. The partnership was named, the structure was raised.
+Now the black silt lies open and the builders put down their cords.
 
-The flood has withdrawn. The soil is dark. The field is ready to receive seed. Nothing has risen yet, but the year has changed. What looked empty is now holding life beneath the surface.
+Ka-ḥer-ka is not a month of display.
+It is the month the seed goes into the earth.
+You do not plant by force — you plant by preparation.
+The first preparation is stillness.
 
-This is the first feeling of msḥtjw.
+Silt that receives seed must be still enough to hold it.
+A field in motion loses what is placed in it.
 
-The Foreleg is not full movement. It is the part of the body that braces before movement begins. It touches ground, receives weight, and proves that the body can stand again.
-
-Day 1 asks for recognition of returning strength.
-
-Not full recovery.
-
-Not full productivity.
-
-Not harvest.
-
-Only the first honest sign that life is coming back.
-
-This may appear as breath returning to the body, appetite returning, interest returning, a small willingness to work, a steadier morning, a thought that no longer collapses under its own weight. It may be quiet enough to miss if the mind is only looking for dramatic proof.
-
-Ka upon Ka does not begin as display.
-
-It begins as vitality placed where vitality can continue.
-
-Today asks for one returning strength to be seen without forcing it to become more than it is. A seed does not need to become grain on the day it is planted. It needs to be recognized as alive.
-
-Where returning strength is recognized, Ma’at can begin protecting it.
+Today: pause unnecessary motion.
+What needs silence before it can be placed?
 ''',
       decanFlow: _kaHerKaIFlowRows,
       meduNeter: MeduNeterKey(
-        glyph: 'Foreleg planted firmly on dark soil',
-        colorFrequency: 'Fertile black, deep green, and quiet gold',
-        mantra: '“Life is returning, and I recognize it.”',
+        glyph: 'Seed pressed into open palm over black silt',
+        colorFrequency: 'Black Nile earth, no light yet',
+        mantra: '"I am still so something can be placed in me."',
       ),
     ),
     _dayInfoEntry(
       key: 'kaherka_2_1',
-      kemeticDate: 'Ka-ḥer-Ka I, Day 2',
-      season: season,
-      month: month,
-      decanName: decanName,
+      kemeticDate: 'Ka-ḥer-ka I, Day 2',
+      season: '🌊 Akhet Closing – Inundation Withdraws',
+      month: 'Ka-ḥer-ka ("Ka upon Ka")',
+      decanName: 'ḫnwy (translation uncertain) | Deck: The Embraced Ones',
       starCluster:
           '✨ msḥtjw — the Foreleg asterism in the northern sky, seen as a distinct bent arrangement of bright stars with a bowl-like front and extended handle',
-      maatPrinciple: 'Capacity Tested Gently',
+      maatPrinciple: 'Clear What the Flood Left',
       cosmicContext: '''
-Returning strength must be tested gently.
+Before seed goes into the silt, the field is cleared.
+Flood debris, rotted reed, the crusted remains of last year's arrangements.
+A clogged field wastes the seed placed in it.
 
-A field is not plowed as though it has already harvested. A sprout is not pulled to prove it is growing. A healing body is not forced into full burden because one sign of energy has returned.
+Yesterday you became still.
+Today you clear.
 
-Day 2 belongs to the small test.
+Old obligations carried past their season.
+Stale arrangements that no longer represent anything true.
+The residue of what the flood moved through your life.
 
-The Foreleg touches the ground before the whole body commits its weight. It does not leap first. It checks the surface. It learns whether the ground can answer.
-
-This is how progress should be approached now.
-
-One message answered.
-
-One walk taken.
-
-One tool picked up.
-
-One meal prepared.
-
-One account opened.
-
-One honest conversation begun.
-
-The goal is not to prove strength through exhaustion. The goal is to discover what capacity has truly returned.
-
-Ma’at lives in proportion. Too little movement keeps vitality unused. Too much movement crushes the tender return. The correct action is measured enough to awaken the body without demanding more than the current stage can hold.
-
-Today asks for one small act that tests the ground.
-
-If it holds, trust the evidence.
-
-If it does not, return to care without shame.
-
-The point is not performance. The point is true measure.
+Remove it before you plant anything.
+The seed needs clean ground.
 ''',
       decanFlow: _kaHerKaIFlowRows,
       meduNeter: MeduNeterKey(
-        glyph: 'Foot testing the edge of a prepared field',
-        colorFrequency: 'Wet earth brown, soft green, and muted gold',
-        mantra: '“I test my strength without breaking it.”',
+        glyph: 'Water jar pouring over swept earth',
+        colorFrequency: 'Cool water blue over cleared black-brown ground',
+        mantra: '"I clear the place where renewal will land."',
       ),
     ),
     _dayInfoEntry(
       key: 'kaherka_3_1',
-      kemeticDate: 'Ka-ḥer-Ka I, Day 3',
-      season: season,
-      month: month,
-      decanName: decanName,
+      kemeticDate: 'Ka-ḥer-ka I, Day 3',
+      season: '🌊 Akhet Closing – Inundation Withdraws',
+      month: 'Ka-ḥer-ka ("Ka upon Ka")',
+      decanName: 'ḫnwy (translation uncertain) | Deck: The Embraced Ones',
       starCluster:
           '✨ msḥtjw — a bright northern seven-star pattern with a clear angular shape, visually remembered as a foreleg or haunch in Kemetic star imagery',
-      maatPrinciple: 'The Body Reassembled',
+      maatPrinciple: 'Name What Ended',
       cosmicContext: '''
-Strength returns through the body.
+The scribe does not write "the grain is plentiful" when the jar is empty.
+To pretend nothing ended is to lie about the condition of the field —
+and a lie about the field costs the harvest.
 
-Not only through intention.
+Something ended in the flood season.
+A plan, a relationship, a version of yourself, a way of working.
+Naming it is not weakness. It is accurate measurement.
 
-Day 3 asks for gathering.
-
-After strain, grief, overwork, or confusion, the body can feel scattered. Sleep separates from appetite. Breath separates from posture. Work separates from rhythm. The mind wants progress, but the vessel has not yet been brought back into one piece.
-
-Ka-ḥer-Ka is life upon life, but the ka must have a body to sustain.
-
-That means the body must be treated as part of the sacred order, not as an obstacle to spiritual or practical progress.
-
-Ausar is not restored as an idea only. The body is gathered. The limbs are joined. What was separated is placed back into relation. That same pattern applies here in ordinary form.
-
-Eat something real.
-
-Drink water.
-
-Stand upright.
-
-Stretch the back.
-
-Lower the shoulders.
-
-Clean the space where the body rests.
-
-Notice what has been neglected while attention was fixed on surviving.
-
-This is not self-care as escape.
-
-It is reassembly.
-
-A scattered body cannot carry life well. A gathered body can begin to hold the returning ka.
-
-Today asks for one act that brings the body back into relation with itself.
+Say what closed. Say it plainly.
+Not to dwell — to clear.
+A field that does not know what it lost
+plants in the wrong place.
 ''',
       decanFlow: _kaHerKaIFlowRows,
       meduNeter: MeduNeterKey(
-        glyph: 'Joined limbs beneath a steady ka sign',
-        colorFrequency: 'Living green, linen white, and fertile black',
-        mantra: '“My body is gathered back into life.”',
+        glyph: 'Open mouth above cleared earth — the naming',
+        colorFrequency: 'Deep indigo with a single line of honest white',
+        mantra: '"I speak what ended so the ground knows what to grow."',
       ),
     ),
     _dayInfoEntry(
       key: 'kaherka_4_1',
-      kemeticDate: 'Ka-ḥer-Ka I, Day 4',
-      season: season,
-      month: month,
-      decanName: decanName,
+      kemeticDate: 'Ka-ḥer-ka I, Day 4',
+      season: '🌊 Akhet Closing – Inundation Withdraws',
+      month: 'Ka-ḥer-ka ("Ka upon Ka")',
+      decanName: 'ḫnwy (translation uncertain) | Deck: The Embraced Ones',
       starCluster:
           '✨ msḥtjw — a northern foreleg-shaped star group, physically broad and angular, with bright stars forming a recognizable limb-like outline',
-      maatPrinciple: 'The Root Protected',
+      maatPrinciple: 'Select What Carries Forward',
       cosmicContext: '''
-What is newly alive must be protected.
+The farmer does not carry all last year's grain into the new planting.
+Weak grain goes back to the earth.
+Strong grain — the seed-stock — is set aside.
+That selection is not sentimentality. It is survival intelligence.
 
-Day 4 belongs to the root.
+What was genuinely good in what ended?
+One thing. Not everything — the strongest stalk.
 
-A seed can be strong and still vulnerable. A returning habit can be real and still fragile. A restored desire can be sacred and still easy to crush through criticism, overuse, exposure, or impatience.
-
-This is where many people damage progress.
-
-They see one sign of life and demand harvest.
-
-They feel one good day and overload the week.
-
-They receive one returned spark and expose it to every opinion, every obligation, every old pressure that weakened it before.
-
-That is not Ma’at.
-
-The root must be guarded until it can hold.
-
-In the field, protection may mean right water, covered soil, kept boundaries, and watchfulness. In life, it may mean privacy, slower pacing, cleaner company, a stronger boundary, fewer explanations, or refusing to let a tender beginning be handled by careless hands.
-
-Not everything returning needs immediate public proof.
-
-Some life must grow hidden before it can survive visibility.
-
-Today asks for one vulnerable root to be protected.
-
-What is sacred in its beginning should not be thrown into the road before it can stand.
+That is what crosses the threshold into the new planting.
+The rest returns to the earth.
+Select it clearly today.
+Hold it apart from the rest. It is not planted yet, but it has been chosen.
 ''',
       decanFlow: _kaHerKaIFlowRows,
       meduNeter: MeduNeterKey(
-        glyph: 'Seed covered by two protective hands',
-        colorFrequency: 'Black soil, guarded green, and shadowed gold',
-        mantra: '“I protect what is too young to withstand rough handling.”',
+        glyph: 'Single seed held up for inspection — selected, not hoarded',
+        colorFrequency: 'Warm amber over dark ground',
+        mantra: '"I keep the strongest seed. The rest returns to the earth."',
       ),
     ),
     _dayInfoEntry(
       key: 'kaherka_5_1',
-      kemeticDate: 'Ka-ḥer-Ka I, Day 5',
-      season: season,
-      month: month,
-      decanName: decanName,
+      kemeticDate: 'Ka-ḥer-ka I, Day 5',
+      season: '🌊 Akhet Closing – Inundation Withdraws',
+      month: 'Ka-ḥer-ka ("Ka upon Ka")',
+      decanName: 'ḫnwy (translation uncertain) | Deck: The Embraced Ones',
       starCluster:
           '✨ msḥtjw — the Foreleg star pattern in the northern sky, a distinct group of bright stars arranged like a bent limb or ladle-shaped form',
-      maatPrinciple: 'The Ka Fed',
+      maatPrinciple: 'The Ka Lives in the Body',
       cosmicContext: '''
-Life that is not fed weakens.
+The ka is not a soul floating above the flesh.
+It is the vital force that moves through a living body — breath, appetite, warmth, posture.
+When the ka is depleted, it shows in the body first.
 
-This is the plain teaching of Day 5.
+The farmer who plants in exhaustion
+presses the seed in at the wrong depth, at wrong spacing.
+The hands know what the mind insists it knows.
 
-The ka receives. The field receives. The body receives. A household, a practice, a project, a relationship, a name, and a future all require nourishment if they are to continue.
-
-Ka-ḥer-Ka names life upon life, but that doubling cannot happen through wish alone.
-
-The first life must be fed so the next life can rise from it.
-
-This is why offerings matter. Bread and beer do not only symbolize devotion. They sustain relation. Food directed correctly keeps the ka in the circuit of living memory. Water placed correctly keeps the field capable of growth.
-
-Today asks what returning life needs in real terms.
-
-Not vague hope.
-
-Real nourishment.
-
-Does the body need food? Does the project need time? Does the relationship need attention? Does the household need money placed correctly? Does the altar need water? Does the mind need quiet? Does the work need a tool?
-
-If something is expected to live, it must receive.
-
-Ma’at is not maintained by starving what is sacred and then blaming it for failing to grow.
-
-Today asks for one returning life to be fed in a concrete way.
+Ground your body today.
+Bare feet, slow breath, a real meal, water.
+Not because you deserve it — because the ka requires a body in order to act.
+You cannot place vitality into the earth from a depleted vessel.
 ''',
       decanFlow: _kaHerKaIFlowRows,
       meduNeter: MeduNeterKey(
-        glyph: 'Offering table with bread, beer, and ka arms',
-        colorFrequency: 'Barley gold, Nile blue, and deep green',
-        mantra: '“What must live must be fed.”',
+        glyph: 'Foot on earth, ka-arms raised — the embodied life-force',
+        colorFrequency: 'Damp black-brown soil and living skin warmth',
+        mantra: '"My ka lives here. I tend the vessel it moves through."',
       ),
     ),
     _dayInfoEntry(
       key: 'kaherka_6_1',
-      kemeticDate: 'Ka-ḥer-Ka I, Day 6',
-      season: season,
-      month: month,
-      decanName: decanName,
+      kemeticDate: 'Ka-ḥer-ka I, Day 6',
+      season: '🌊 Akhet Closing – Inundation Withdraws',
+      month: 'Ka-ḥer-ka ("Ka upon Ka")',
+      decanName: 'ḫnwy (translation uncertain) | Deck: The Embraced Ones',
       starCluster:
           '✨ msḥtjw — a prominent northern star form, often identified with the Big Dipper asterism, whose seven stars make a clear bent shape in the sky',
-      maatPrinciple: 'Strength Without Display',
+      maatPrinciple: 'Order Returns in Pattern, Not in Announcement',
       cosmicContext: '''
-Not all strength needs witness.
+The stars do not announce their return.
+They appear in the same position they held the year before.
+The astronomer-priests tracked those returns not as spectacle
+but as confirmation: the pattern holds.
 
-Day 6 asks for quiet power.
+The flood receded. The silt settled. The field is quiet.
+Look at what persisted through the disruption —
+the relationships that held, the habits that returned,
+the small disciplines that survived the chaos.
 
-The Foreleg is strong because it can hold weight. It does not need to announce itself. It does not need to prove the whole animal exists. It braces, carries, and prepares motion.
-
-Returning strength is often endangered by the desire to show it too quickly.
-
-A person begins to heal and immediately wants everyone to see. A project begins to work and is exposed before it is protected. A boundary begins to hold and is tested publicly before it has roots.
-
-This day asks for the opposite.
-
-Use strength without display.
-
-Do the task.
-
-Keep the boundary.
-
-Lift the load that is actually yours.
-
-Prepare the meal.
-
-Make the payment.
-
-Take the walk.
-
-Clean the room.
-
-Do one strong thing without making the strength perform.
-
-In Kemet, much of Ma’at was maintained through repeated actions that were not dramatic: offerings placed, records kept, tools cleaned, channels cleared, bodies fed, names spoken.
-
-Quiet strength is still strength.
-
-Today asks for power to become trustworthy before it becomes visible.
+Those are your pattern.
+They are more reliable than your plans.
+Note them today. They are what you build the next planting from.
 ''',
       decanFlow: _kaHerKaIFlowRows,
       meduNeter: MeduNeterKey(
-        glyph: 'Strong foreleg held still beneath a star',
-        colorFrequency: 'Matte black, steady green, and low gold',
-        mantra: '“My strength does not need display to be real.”',
+        glyph:
+            'Star-rise over the black horizon — the return without announcement',
+        colorFrequency: 'Pre-dawn blue, single white point at the edge',
+        mantra: '"The pattern returns. I am part of it."',
       ),
     ),
     _dayInfoEntry(
       key: 'kaherka_7_1',
-      kemeticDate: 'Ka-ḥer-Ka I, Day 7',
-      season: season,
-      month: month,
-      decanName: decanName,
+      kemeticDate: 'Ka-ḥer-ka I, Day 7',
+      season: '🌊 Akhet Closing – Inundation Withdraws',
+      month: 'Ka-ḥer-ka ("Ka upon Ka")',
+      decanName: 'ḫnwy (translation uncertain) | Deck: The Embraced Ones',
       starCluster:
           '✨ msḥtjw — a northern seven-star group with a bowl and handle shape, circling the northern sky as a stable, easily noticed pattern',
-      maatPrinciple: 'Support Before Motion',
+      maatPrinciple: 'Voice Is a Seed',
       cosmicContext: '''
-Before movement, there must be support.
+The silt does not argue with what is placed in it.
+It accepts or rejects based on what was brought.
 
-Day 7 belongs to bracing.
+Your voice works the same way in this season.
+Words spoken carelessly scatter seed.
+Words spoken with weight and intention press it in at the right depth.
 
-The foreleg does not move the whole body forward until it has found the ground. It receives weight, locks the stance, and prepares the next step. Without that bracing, motion becomes collapse.
-
-This matters wherever progress is beginning again.
-
-A plan without support fails under its own hope. A new routine without time assigned becomes wish. A restored relationship without boundaries repeats the old wound. A returning body without rest becomes exhausted again. A project without tools keeps asking willpower to do the work of structure.
-
-Today asks for the support to be built before the larger motion begins.
-
-Set the schedule.
-
-Prepare the tool.
-
-Ask for help.
-
-Clear the path.
-
-Strengthen the boundary.
-
-Name the next step and what must hold it.
-
-This is not delay.
-
-It is Ma’at before movement.
-
-Many obstacles come not because the path is wrong, but because the support was never placed under the path.
-
-Today asks: what must be braced so progress does not break itself?
+Tomorrow the seed goes in.
+Today you guard what leaves your mouth.
+Speak only what you intend to feed.
+Leave unspoken what you intend to leave behind.
+The field is listening.
 ''',
       decanFlow: _kaHerKaIFlowRows,
       meduNeter: MeduNeterKey(
-        glyph: 'Foreleg braced against a stone foundation',
-        colorFrequency: 'Stone gray, fertile black, and controlled gold',
-        mantra: '“I support the step before I take it.”',
+        glyph: 'Mouth-sign over black silt — speech as planting',
+        colorFrequency: 'Muted gold at the lips, dark earth below',
+        mantra: '"I speak only what I intend to grow."',
       ),
     ),
     _dayInfoEntry(
       key: 'kaherka_8_1',
-      kemeticDate: 'Ka-ḥer-Ka I, Day 8',
-      season: season,
-      month: month,
-      decanName: decanName,
+      kemeticDate: 'Ka-ḥer-ka I, Day 8',
+      season: '🌊 Akhet Closing – Inundation Withdraws',
+      month: 'Ka-ḥer-ka ("Ka upon Ka")',
+      decanName: 'ḫnwy (translation uncertain) | Deck: The Embraced Ones',
       starCluster:
           '✨ msḥtjw — the Foreleg star group, a bright angular northern pattern whose shape suggests a limb ready for movement',
-      maatPrinciple: 'First Controlled Movement',
+      maatPrinciple: 'The Seed Goes In Today',
       cosmicContext: '''
-After bracing comes movement.
+The field is cleared. The body is grounded.
+What was lost has been named. What carries forward has been selected.
+The voice has been guarded. The ground is ready.
 
-Not full speed.
+Today the seed goes in.
 
-Not full burden.
+Not a plan, not a rehearsal — placement.
+The intention, practice, project, or commitment
+you have been preparing for seven days
+goes into the earth today.
 
-One limb.
-
-Day 8 asks for a controlled step.
-
-The month of Ka-ḥer-Ka is not about endless waiting. Life has been placed into the ground so it can become active. The seed must eventually push. The body must eventually move. The restored strength must eventually serve something beyond private recognition.
-
-But the first movement should remain measured.
-
-This is where progress becomes real in a small, visible way.
-
-Send the message.
-
-Open the draft.
-
-Return to the practice.
-
-Take the walk.
-
-Make the call.
-
-Place the seed.
-
-Begin the repair.
-
-Do not turn the first step into the whole journey. Do not punish the step for being small. A single true movement is more valuable than a dramatic intention that never enters the world.
-
-The Foreleg teaches this plainly.
-
-It does not carry the whole distance in one motion.
-
-It initiates the next lawful movement.
-
-Today asks for one step that proves life is not only returning inwardly, but beginning to act outwardly again.
-
-Let the movement be small enough to hold and real enough to matter.
+Press it in at the right depth.
+Cover it.
+Walk away from it.
+It is planted.
 ''',
       decanFlow: _kaHerKaIFlowRows,
       meduNeter: MeduNeterKey(
-        glyph: 'One foreleg stepping from black soil into green growth',
-        colorFrequency: 'Fresh green, wet black, and dawn gold',
-        mantra: '“One true movement begins the return.”',
+        glyph: 'Hand pressing seed into open black silt — the act of placement',
+        colorFrequency: 'Black earth receiving a point of living gold',
+        mantra: '"It is planted. I placed it with intention."',
       ),
     ),
     _dayInfoEntry(
       key: 'kaherka_9_1',
-      kemeticDate: 'Ka-ḥer-Ka I, Day 9',
-      season: season,
-      month: month,
-      decanName: decanName,
+      kemeticDate: 'Ka-ḥer-ka I, Day 9',
+      season: '🌊 Akhet Closing – Inundation Withdraws',
+      month: 'Ka-ḥer-ka ("Ka upon Ka")',
+      decanName: 'ḫnwy (translation uncertain) | Deck: The Embraced Ones',
       starCluster:
           '✨ msḥtjw — a clear northern asterism of seven bright stars, physically remembered through its bent handle and bowl-like form',
-      maatPrinciple: 'Capacity Confirmed',
+      maatPrinciple: 'Growth Begins in Darkness',
       cosmicContext: '''
-Day 9 asks for honest accounting of capacity.
+The seed was pressed into the black silt yesterday.
+It is not visible. Nothing appears at the surface.
+The farmer who digs it up to check
+destroys the very process they are impatient for.
 
-Not fantasy.
+The grain splits and sends its first root downward
+and no one witnesses that either.
+The work that cannot be seen is still work.
 
-Not fear.
-
-Measure.
-
-The first signs of strength have returned. The body has been gathered. The root has been protected. The ka has been fed. A first controlled movement has been made.
-
-Now the question is: what can actually be carried?
-
-Some people underestimate returning strength because collapse taught them distrust. Others overestimate it because relief makes them impatient. Both distort Ma’at.
-
-Capacity must be read truthfully.
-
-What can now be carried that could not be carried before?
-
-What still needs help?
-
-What must remain light?
-
-What can be resumed?
-
-What should wait?
-
-This is not self-doubt. It is stewardship.
-
-A field is measured before the next labor is assigned. A storehouse is counted before grain is distributed. A body is listened to before burden is increased. A restored pattern is tested before it is trusted with more weight.
-
-Today asks for the load to match the actual strength.
-
-Where capacity is confirmed truthfully, progress becomes sustainable. Where capacity is imagined falsely, the next step becomes either too small for life or too heavy for the root.
-
-Measure is mercy when life is returning.
+You placed the seed.
+Do not dig it up.
+Trust the darkness to do what darkness does.
 ''',
       decanFlow: _kaHerKaIFlowRows,
       meduNeter: MeduNeterKey(
-        glyph: 'Scale beside a planted seed and foreleg',
-        colorFrequency: 'Balanced gold, earth brown, and living green',
-        mantra: '“I carry only what my strength can truly hold.”',
+        glyph: 'Seed beneath the soil surface — the unseen root',
+        colorFrequency: 'Black earth with a single pale root line',
+        mantra: '"The work continues even when I cannot see it."',
       ),
     ),
     _dayInfoEntry(
       key: 'kaherka_10_1',
-      kemeticDate: 'Ka-ḥer-Ka I, Day 10',
-      season: season,
-      month: month,
-      decanName: decanName,
+      kemeticDate: 'Ka-ḥer-ka I, Day 10',
+      season: '🌊 Akhet Closing – Inundation Withdraws',
+      month: 'Ka-ḥer-ka ("Ka upon Ka")',
+      decanName: 'ḫnwy (translation uncertain) | Deck: The Embraced Ones',
       starCluster:
           '✨ msḥtjw — the northern Foreleg star group, visually stable as a seven-star angular form around the northern sky and distinct from the southern Sah/Orion pattern',
-      maatPrinciple: 'Renewed Strength Sealed',
+      maatPrinciple: 'Seal the Field',
       cosmicContext: '''
-Day 10 seals the first movement of Ka-ḥer-Ka.
+Ten days: stillness, clearing, naming, selecting,
+grounding the body, reading the pattern, guarding speech, placing the seed, trusting the dark.
 
-Strength has been recognized, tested, gathered, protected, fed, hidden, braced, moved, and measured. It is still early. The field has not become harvest. The seed has not become grain. But life is no longer only potential.
+The first decan of Ka-ḥer-ka closes today.
 
-It has shown capacity.
+The seed is in the ground and the work is now underground.
+Stop attending to it. Stop reviewing it, reconsidering it, second-guessing it.
+An unsealed field loses what it is trying to hold.
 
-That deserves a seal.
-
-In Kemet, what mattered was not simply that life returned, but that it returned into order. A force that comes back without measure can damage what it means to restore. A strength that is not protected can be spent too soon. A beginning that is not named may be forgotten before it becomes stable.
-
-Today asks for the renewed strength to be named and placed under law.
-
-What has come back?
-
-What must protect it?
-
-What must feed it?
-
-What must not be allowed to overuse it?
-
-What pace will preserve it?
-
-This is how vitality becomes continuity.
-
-Ka upon Ka means life added to life, not life burned for display.
-
-The decan closes with a simple truth: returning strength is sacred, but sacred strength must be governed.
-
-What has come back should now be carried in Ma’at.
+Seal it.
+The next decan brings the ka back into governed motion.
+But first the seed must rest in the dark undisturbed.
+Let it.
 ''',
       decanFlow: _kaHerKaIFlowRows,
       meduNeter: MeduNeterKey(
-        glyph: 'Foreleg sealed beside the ka arms and planted grain',
-        colorFrequency: 'Deep green, black soil, and sealed gold',
-        mantra: '“What has returned will be protected in Ma’at.”',
+        glyph: 'Sealed field — the earth closed over the placed seed',
+        colorFrequency: 'Dark earth with a thin gold seam at the surface',
+        mantra: '"The field is sealed. The work inside is protected."',
       ),
     ),
   ]);
 }
 
 Map<String, KemeticDayInfo> _buildKaHerKaIIEntries() {
-  const season = '🌿 Peret – Season of Emergence';
-  const month = 'Ka-ḥer-Ka (Kȝ-ḥr-Kȝ) — Life Upon Life';
-  const decanName = 'ḥry-ib msḥtjw';
-
   return Map.fromEntries([
     _dayInfoEntry(
       key: 'kaherka_11_2',
-      kemeticDate: 'Ka-ḥer-Ka II, Day 11',
-      season: season,
-      month: month,
-      decanName: decanName,
+      kemeticDate: 'Ka-ḥer-ka II, Day 11',
+      season: '🌊 Akhet Closing – Inundation Withdraws',
+      month: 'Ka-ḥer-ka ("Ka upon Ka" — doubled life-force)',
+      decanName:
+          'ḥry-ib wꜣ (translation uncertain) | Deck: Heart of the Barque',
       starCluster:
           '✨ ḥry-ib msḥtjw — the heart-region of the northern Foreleg star group, centered within the seven-star Big Dipper form where the bowl and handle meet in a clear angular pattern',
-      maatPrinciple: 'Strength Governed by the Heart',
+      maatPrinciple: 'The Ka Begins to Move',
       cosmicContext: '''
-The first decan recognized returned strength.
+The field is sealed. Ten days passed.
+Now the second decan opens and the ka begins to move again.
 
-The second asks what will govern it.
+Not in explosion — in deliberate re-entry.
+The Nile barque does not surge from the bank.
+It is pushed off slowly, oar set to the current,
+and the pilot commits to one direction before adding speed.
 
-This is the work of ḥry-ib msḥtjw: the heart of the Foreleg. The limb has strength, but strength alone is not Ma’at. A leg can brace, push, strike, carry, or trample. Its righteousness depends on relation.
+The first decan prepared the ground and placed the seed.
+This decan governs how strength re-enters the world.
+Not all at once. Not to prove anything.
+One responsibility. One direction. One re-commitment.
 
-Day 11 asks for strength to be brought inward before it is used outwardly.
-
-The heart must receive it.
-
-A returning force often wants to move too quickly. After weakness, the body may want to prove itself. After silence, the mouth may want to speak too much. After being delayed, the hand may want to fix everything at once.
-
-But Ka-ḥer-Ka does not teach reckless return.
-
-It teaches life placed into continuity.
-
-Today asks for one pause before action. Let the heart ask where the strength belongs, what it should serve, and what it should not touch yet.
-
-Returned power becomes sacred only when it accepts measure.
+Resume one thing today. Let it be real and visible.
+You are back in motion.
 ''',
       decanFlow: _kaHerKaIIFlowRows,
       meduNeter: MeduNeterKey(
-        glyph: 'Heart held above a strong foreleg',
-        colorFrequency: 'Deep green, black soil, and measured gold',
-        mantra: '“My strength answers to the heart.”',
+        glyph: 'Barque pushed from bank — the first deliberate movement',
+        colorFrequency: 'River black with the first line of gold at the bow',
+        mantra: '"I move with intention, not with urgency."',
       ),
     ),
     _dayInfoEntry(
       key: 'kaherka_12_2',
-      kemeticDate: 'Ka-ḥer-Ka II, Day 12',
-      season: season,
-      month: month,
-      decanName: decanName,
+      kemeticDate: 'Ka-ḥer-ka II, Day 12',
+      season: '🌊 Akhet Closing – Inundation Withdraws',
+      month: 'Ka-ḥer-ka ("Ka upon Ka")',
+      decanName:
+          'ḥry-ib wꜣ (translation uncertain) | Deck: Heart of the Barque',
       starCluster:
           '✨ ḥry-ib msḥtjw — the central section of the northern Foreleg asterism, a bent seven-star form with a compact bowl and extended handle visible around the northern sky',
-      maatPrinciple: 'Impulse Named Before Action',
+      maatPrinciple: 'Direction Before Force',
       cosmicContext: '''
-Before strength becomes action, impulse appears.
+Yesterday you re-entered motion.
+Today you govern the impulse that motion stirs.
 
-Day 12 asks that impulse be named.
+The ka is a vital force — not a judgment.
+Pointed at appetite, it feeds appetite.
+Pointed at the field, it feeds the field.
 
-The first urge is not always wrong. It may carry life. It may carry protection. It may carry the desire to repair what has been neglected. But impulse is not yet Ma’at. It has not been weighed. It has not been placed. It has not yet been asked whom it serves.
+Before you act on what you are feeling today,
+name it: is this intention or reaction?
+Is this placing vitality into something that serves Ma'at,
+or is this force moving because force wants to move?
 
-The Foreleg can move quickly.
-
-The heart must decide whether it should.
-
-This matters wherever progress has begun again. A person may rush to prove recovery, overcommit from relief, overcorrect from fear, or try to control everything because strength has finally returned. The action may look productive while carrying disorder inside it.
-
-Today asks for one impulse to be caught before it becomes movement.
-
-Name it plainly.
-
-The need to prove.
-
-The need to fix.
-
-The need to take over.
-
-The need to be seen.
-
-The need to force certainty before the root is ready.
-
-Once named, impulse can be governed.
-
-What is governed can serve life. What remains unnamed often rules from the dark.
+The barque's pilot sets the direction before the oars go in.
+Set yours.
 ''',
       decanFlow: _kaHerKaIIFlowRows,
       meduNeter: MeduNeterKey(
-        glyph: 'Mouth sign before a moving leg',
-        colorFrequency: 'Shadow blue, fertile green, and clear gold',
-        mantra: '“I name the impulse before it moves me.”',
+        glyph:
+            'Oar held above the water — direction chosen before force applied',
+        colorFrequency: 'Dark river with a steady gold oar-line',
+        mantra: '"I name the direction before I apply the force."',
       ),
     ),
     _dayInfoEntry(
       key: 'kaherka_13_2',
-      kemeticDate: 'Ka-ḥer-Ka II, Day 13',
-      season: season,
-      month: month,
-      decanName: decanName,
+      kemeticDate: 'Ka-ḥer-ka II, Day 13',
+      season: '🌊 Akhet Closing – Inundation Withdraws',
+      month: 'Ka-ḥer-ka ("Ka upon Ka")',
+      decanName:
+          'ḥry-ib wꜣ (translation uncertain) | Deck: Heart of the Barque',
       starCluster:
           '✨ ḥry-ib msḥtjw — the inner portion of the Foreleg star pattern, physically tied to the bright angular stars of the Big Dipper shape near the northern sky',
-      maatPrinciple: 'The Right Load Chosen',
+      maatPrinciple: 'Nourish What Is Trying to Return',
       cosmicContext: '''
-Strength must be given the right load.
+Something in you or around you is trying to come back.
+A practice that went quiet in the flood season.
+A relationship that contracted under pressure.
+A project that went dark when resources ran out.
 
-Not every burden belongs to this moment.
+The seed is in the ground. The barque is moving.
+Now you direct specific energy toward the thing that is trying to rise.
 
-Day 13 asks for selection.
-
-When life returns, the temptation is to carry everything again: old duties, neglected obligations, other people’s disorder, unfinished work, emotional weight, future plans, past repairs, and the pressure to appear fully restored.
-
-But the field does not receive every seed at once.
-
-The body does not bear every load because one limb has strengthened.
-
-The ka is fed in measure.
-
-This day asks for one lawful responsibility to be chosen and the rest left unlifted.
-
-A true load strengthens the returning form. A false load bends it. A premature load breaks what has only just begun to stand. Choosing one duty is not laziness; it is respect for sequence.
-
-Ask what belongs to the current stage.
-
-What can be carried without stealing life from the root?
-
-What supports continuity rather than performance?
-
-The right load teaches strength how to become reliable.
-
-The wrong load teaches strength to fear returning.
+Not everything — the one that matters most right now.
+Water it. Give it time. Remove what competes for its light.
+Feed the revival now, before the season asks more of it.
 ''',
       decanFlow: _kaHerKaIIFlowRows,
       meduNeter: MeduNeterKey(
-        glyph: 'Balanced bundle placed beside a braced foreleg',
-        colorFrequency: 'Earth brown, living green, and steady gold',
-        mantra: '“I lift only what belongs to this stage.”',
+        glyph: 'Water jar tilted over a sealed furrow',
+        colorFrequency: 'River blue over black earth, life still hidden',
+        mantra: '"I feed what is trying to return."',
       ),
     ),
     _dayInfoEntry(
       key: 'kaherka_14_2',
-      kemeticDate: 'Ka-ḥer-Ka II, Day 14',
-      season: season,
-      month: month,
-      decanName: decanName,
+      kemeticDate: 'Ka-ḥer-ka II, Day 14',
+      season: '🌊 Akhet Closing – Inundation Withdraws',
+      month: 'Ka-ḥer-ka ("Ka upon Ka")',
+      decanName:
+          'ḥry-ib wꜣ (translation uncertain) | Deck: Heart of the Barque',
       starCluster:
           '✨ ḥry-ib msḥtjw — a northern star field within the Foreleg form, marked by the bowl-like front of the seven-star pattern and the handle extending outward',
-      maatPrinciple: 'Effort in Proportion',
+      maatPrinciple: 'Accept the Obligation You Have Been Deferring',
       cosmicContext: '''
-Too much force can injure renewal.
+The barque does not float without a pilot.
+Someone must hold the oar through the whole crossing —
+not until it gets inconvenient, but through.
 
-Day 14 belongs to moderation.
+In Ka-ḥer-ka, the ka moves back into obligation.
+Not as burden — as assignment.
+The farmer does not resent the field for needing water.
+The field is what gives the farmer a reason to carry water.
 
-The returning body may want to prove that it is no longer weak. The restored project may invite too much pressure. The new discipline may be loaded with old severity. The relationship may be forced into certainty before trust has grown roots.
-
-This is how progress becomes an obstacle to itself.
-
-The Foreleg is strong because it can bear weight, not because it strikes everything in front of it. Strength under Ma’at knows how much pressure the moment can receive.
-
-A field can be watered into ruin.
-
-A body can be trained into injury.
-
-A conversation can be corrected into harm.
-
-A project can be improved until it loses breath.
-
-Today asks for effort to be reduced to the right amount.
-
-Not stopped.
-
-Measured.
-
-Enough to continue.
-
-Enough to strengthen.
-
-Not enough to exhaust the root.
-
-Power becomes trustworthy when it can soften without disappearing. Effort becomes holy when it serves life rather than proving worth.
+What is now yours to guard?
+A household, a project, a person, a practice, yourself.
+Name it directly.
+The crop needs a farmer, not a witness.
 ''',
       decanFlow: _kaHerKaIIFlowRows,
       meduNeter: MeduNeterKey(
-        glyph: 'Strong hand lowering pressure from a young shoot',
-        colorFrequency: 'Soft green, muted gold, and dark soil',
-        mantra: '“I use only the force the moment requires.”',
+        glyph: 'Hand on an oar — the committed grip',
+        colorFrequency: 'Steady dark water and firm wood-brown',
+        mantra: '"This is mine to guard. I do not step back."',
       ),
     ),
     _dayInfoEntry(
       key: 'kaherka_15_2',
-      kemeticDate: 'Ka-ḥer-Ka II, Day 15',
-      season: season,
-      month: month,
-      decanName: decanName,
+      kemeticDate: 'Ka-ḥer-ka II, Day 15',
+      season: '🌊 Akhet Closing – Inundation Withdraws',
+      month: 'Ka-ḥer-ka ("Ka upon Ka")',
+      decanName:
+          'ḥry-ib wꜣ (translation uncertain) | Deck: Heart of the Barque',
       starCluster:
           '✨ ḥry-ib msḥtjw — the central area of the Foreleg asterism, a distinct northern seven-star configuration with a bent, limb-like outline',
-      maatPrinciple: 'Growth Protected From Excess',
+      maatPrinciple: 'Strength Is a Tool, Not a Performance',
       cosmicContext: '''
-The middle of the decan returns to the root.
+The ka placed into the field is measured by what grows —
+not by how hard the placing looked.
+A farmer who exhausts himself on the wrong part of the field
+leaves the planted row untended.
 
-Day 15 asks what excess might damage what is growing.
+Today: is your effort going where the field needs it,
+or where it will be noticed?
 
-Not all danger comes from neglect. Some danger comes from too much attention. Too much checking. Too much discussion. Too much exposure. Too much pressure to become useful too quickly.
-
-A seed is not strengthened by being dug up each morning.
-
-A returning life is not strengthened by being tested every hour.
-
-A person rebuilding trust is not strengthened by constant suspicion.
-
-A project finding form is not strengthened by every outside voice being invited in.
-
-Ka-ḥer-Ka teaches that buried life must be trusted inside its season.
-
-Today asks for one form of excess to be removed from the root.
-
-Limit the audience.
-
-Lower the pressure.
-
-Stop repeating the old test.
-
-Give the body rest before it has to ask twice.
-
-Let the new rhythm be protected from the habits that once drained it.
-
-The heart of the Foreleg knows when strength must guard rather than push.
-
-Where the root is protected from excess, growth can continue without fear.
+Strength used for display drains the season.
+Strength used for the task feeds it.
+Direct yours at what is actually in need —
+not what is visible, not what is impressive,
+but what, if you do not tend it today, will fail by next week.
 ''',
       decanFlow: _kaHerKaIIFlowRows,
       meduNeter: MeduNeterKey(
-        glyph: 'Root protected beneath a shaded hand',
-        colorFrequency: 'Deep black soil, shaded green, and low gold',
-        mantra: '“I do not overhandle what is still rooting.”',
+        glyph: 'Hoe turned toward the neglected row, not the visible one',
+        colorFrequency: 'Work-worn copper over black earth',
+        mantra: '"My strength goes where the field needs it."',
       ),
     ),
     _dayInfoEntry(
       key: 'kaherka_16_2',
-      kemeticDate: 'Ka-ḥer-Ka II, Day 16',
-      season: season,
-      month: month,
-      decanName: decanName,
+      kemeticDate: 'Ka-ḥer-ka II, Day 16',
+      season: '🌊 Akhet Closing – Inundation Withdraws',
+      month: 'Ka-ḥer-ka ("Ka upon Ka")',
+      decanName:
+          'ḥry-ib wꜣ (translation uncertain) | Deck: Heart of the Barque',
       starCluster:
           '✨ ḥry-ib msḥtjw — the heart of the northern Foreleg pattern, where the angular seven-star form is most easily recognized as a bent limb or ladle shape',
-      maatPrinciple: 'The Hand Corrected',
+      maatPrinciple: 'Order Is Not Glamorous and Must Be Maintained Anyway',
       cosmicContext: '''
-The hand can move before the heart has finished weighing.
+The flood season disrupts basic rhythms.
+Sleep shifts. Food becomes careless. Accounts go unlooked at.
+The body forgets what it felt like to be in order.
 
-Day 16 asks for correction.
+Ka-ḥer-ka is not a month of dramatic renewal.
+It is the month of plain re-establishment.
+Sleep at a real hour. Eat a real meal.
+Look at the account and write down what is there.
+Sweep the floor of the workroom.
 
-This is not punishment. Correction is one of the ways Ma’at protects life from continuing in distortion.
-
-A schedule may need to be adjusted. A boundary may need to be tightened. A promise may need to be made smaller. A habit may need to be softened. A plan may need to be slowed before it becomes another form of exhaustion.
-
-The returning strength has been active long enough now to reveal its first imbalance.
-
-That is not failure.
-
-It is information.
-
-The question is whether the heart is allowed to correct the hand.
-
-In Kemetic thought, the ib is the chamber of discernment and memory. It knows what the mouth can deny. It knows when the body is pushing too hard, when pride is carrying the load, when fear is pretending to be discipline.
-
-Today asks for one correction made before damage deepens.
-
-Ma’at is not only the right path.
-
-It is the willingness to return to the path when the foot begins to turn.
+These acts are not beneath the work — they are the ground the work stands on.
+A farmer who does not sleep eats himself.
+Re-establish the basics. Not perfectly. Consistently.
 ''',
       decanFlow: _kaHerKaIIFlowRows,
       meduNeter: MeduNeterKey(
-        glyph: 'Heart guiding a working hand back into line',
-        colorFrequency: 'Clear gold, warm clay, and living green',
-        mantra: '“Correction is how strength stays clean.”',
+        glyph: 'Lamp lit at a regular hour — the rhythm restored',
+        colorFrequency: 'Warm hearth amber in plain dark room',
+        mantra:
+            '"I rebuild the ordinary. It is the foundation of everything else."',
       ),
     ),
     _dayInfoEntry(
       key: 'kaherka_17_2',
-      kemeticDate: 'Ka-ḥer-Ka II, Day 17',
-      season: season,
-      month: month,
-      decanName: decanName,
+      kemeticDate: 'Ka-ḥer-ka II, Day 17',
+      season: '🌊 Akhet Closing – Inundation Withdraws',
+      month: 'Ka-ḥer-ka ("Ka upon Ka")',
+      decanName:
+          'ḥry-ib wꜣ (translation uncertain) | Deck: Heart of the Barque',
       starCluster:
           '✨ ḥry-ib msḥtjw — a northern seven-star pattern associated with the Foreleg, visible as a compact bowl joined to an extended handle-like line',
-      maatPrinciple: 'Speech Under Measure',
+      maatPrinciple: 'The Ka Is Not Meant to Travel Alone',
       cosmicContext: '''
-Strength reaches the mouth.
+The flood season contracts the social world.
+You stop calling. You stop showing up.
+You tell yourself it is protection.
+Often it is just depletion wearing the costume of independence.
 
-Day 17 asks whether speech can carry power without becoming force.
+No one tends the whole field alone.
+The worker who tries to carry every section
+exhausts himself before the season that matters most.
 
-When energy returns, the voice may return sharply. It may want to explain everything, defend everything, promise everything, correct everything, or announce strength before it has finished stabilizing.
-
-But the mouth must also serve the heart.
-
-A strong voice is not a loud voice.
-
-A strong voice is one that can tell the truth without tearing the field.
-
-Today asks for speech under measure.
-
-No frantic promises.
-
-No excessive explaining.
-
-No sharp reaction used to prove power.
-
-No silent resentment pretending to be restraint.
-
-Say what protects balance. Say what can be kept. Say what is true enough to stand after the feeling passes.
-
-The Pyramid Texts and funerary traditions repeatedly show that speech acts. Words open, feed, protect, restore, and judge. They also harm when used without measure.
-
-Today asks that the returning voice become a vessel for Ma’at.
-
-Strength in speech is proven by steadiness.
+Call in support today.
+Not because you are failing — because the field requires more than one pair of hands
+and you have been working with one.
+Name who. Ask plainly. Let them help.
 ''',
       decanFlow: _kaHerKaIIFlowRows,
       meduNeter: MeduNeterKey(
-        glyph: 'Mouth sign beneath a balanced heart',
-        colorFrequency: 'Deep blue, linen white, and steady gold',
-        mantra: '“My voice carries strength in measure.”',
+        glyph: 'Two hands on the oar — shared piloting',
+        colorFrequency: 'River black with twin gold oar-lines',
+        mantra: '"I let the ka travel with company."',
       ),
     ),
     _dayInfoEntry(
       key: 'kaherka_18_2',
-      kemeticDate: 'Ka-ḥer-Ka II, Day 18',
-      season: season,
-      month: month,
-      decanName: decanName,
+      kemeticDate: 'Ka-ḥer-ka II, Day 18',
+      season: '🌊 Akhet Closing – Inundation Withdraws',
+      month: 'Ka-ḥer-ka ("Ka upon Ka")',
+      decanName:
+          'ḥry-ib wꜣ (translation uncertain) | Deck: Heart of the Barque',
       starCluster:
           '✨ ḥry-ib msḥtjw — the central Foreleg region of the northern sky, associated with the angular Big Dipper star form around the poleward heavens',
-      maatPrinciple: 'Overreach Repaired',
+      maatPrinciple: 'Return to the Circle',
       cosmicContext: '''
-Returned strength will sometimes overreach.
+The barque crosses the Duat and arrives at the living world.
+The arrival is witnessed.
 
-Day 18 does not deny this.
+The flood season pulls people inward.
+By now you may have drifted from a circle —
+a family, a crew, a community, a network whose work connects to yours.
 
-It repairs it.
-
-Maybe the body was pushed too hard. Maybe the mouth became sharp. Maybe a promise was made too large. Maybe a boundary was enforced without care. Maybe the new growth was exposed too soon. Maybe help was refused because strength wanted to prove it did not need anyone.
-
-The question is not whether imbalance appeared.
-
-The question is whether it will be corrected.
-
-Ma’at is not fragile perfection. It is right relation restored when relation bends.
-
-Today asks for one act of repair.
-
-Apologize.
-
-Rest.
-
-Redistribute.
-
-Take back the excessive promise.
-
-Lower the pace.
-
-Clarify the boundary.
-
-Feed what was strained.
-
-Name the overreach without turning it into shame.
-
-The heart of the Foreleg is not weakened by admitting that the limb moved too hard. It becomes stronger because it learns how to return to measure.
-
-Repair keeps progress from becoming another wound.
+Reconnect today. One person, one message, one appearance.
+Not because the relationship requires explanation —
+because the ka is restored by being recognized
+in the eyes of the people it belongs with.
+Isolation is not the same as readiness.
 ''',
       decanFlow: _kaHerKaIIFlowRows,
       meduNeter: MeduNeterKey(
-        glyph: 'Bent limb wrapped and set back into alignment',
-        colorFrequency: 'Healing green, clay red, and restored gold',
-        mantra: '“I repair where strength moved past measure.”',
+        glyph: 'Barque arriving at the eastern shore — witnessed emergence',
+        colorFrequency: 'Night black opening into first light at the bank',
+        mantra: '"I return to the people who know my name."',
       ),
     ),
     _dayInfoEntry(
       key: 'kaherka_19_2',
-      kemeticDate: 'Ka-ḥer-Ka II, Day 19',
-      season: season,
-      month: month,
-      decanName: decanName,
+      kemeticDate: 'Ka-ḥer-ka II, Day 19',
+      season: '🌊 Akhet Closing – Inundation Withdraws',
+      month: 'Ka-ḥer-ka ("Ka upon Ka")',
+      decanName:
+          'ḥry-ib wꜣ (translation uncertain) | Deck: Heart of the Barque',
       starCluster:
           '✨ ḥry-ib msḥtjw — a central marker within the northern Foreleg star group, physically recognized through the seven-star bent formation of the Big Dipper asterism',
-      maatPrinciple: 'Power Given Law',
+      maatPrinciple: 'Let Commitment Be Seen',
       cosmicContext: '''
-Power needs law.
+The seed is still underground. Growth belongs to the next month.
+But commitment is different from growth — it can be witnessed now.
 
-Day 19 asks for the rule of use.
+A kept appointment. A restored rhythm. A repaired tool.
+A message sent to someone who was waiting.
+A task done at the time you said you would do it.
 
-Returned strength cannot be governed only by feeling. Feeling changes. Relief becomes excitement. Excitement becomes overuse. Fear becomes control. Control becomes exhaustion. Without law, strength is pulled wherever the moment is loudest.
+These are not proof of growth. They are proof of return.
+The farmer back at the field before sunrise
+is not harvesting yet. But the field knows he came back.
 
-A field needs boundary.
-
-A canal needs bank.
-
-A body needs rhythm.
-
-A household needs standard.
-
-A returning power needs a law that tells it when to act, when to wait, when to rest, when to refuse, and whom it serves.
-
-Today asks for that law to be stated.
-
-What is this strength for?
-
-What will it not be used for?
-
-What pace protects it?
-
-What kind of burden is lawful?
-
-What old pattern must never be allowed to command it again?
-
-This is not restriction.
-
-It is protection.
-
-In Ka-ḥer-Ka, life is not merely returned. It is placed so that life can continue.
-
-Law gives strength a future.
+Let one commitment be visible today.
+Not for approval — because visible commitment
+makes the commitment more real.
+Say what commitment can be witnessed.
 ''',
       decanFlow: _kaHerKaIIFlowRows,
       meduNeter: MeduNeterKey(
-        glyph: 'Boundary marker beside a strong foreleg',
-        colorFrequency: 'Stone gray, deep green, and royal gold',
-        mantra: '“My power has a law and a purpose.”',
+        glyph:
+            'Farmer at the field edge at first light — returned, not yet harvesting',
+        colorFrequency: 'Pre-dawn blue with a figure at the boundary',
+        mantra: '"I show up. The field knows I came back."',
       ),
     ),
     _dayInfoEntry(
       key: 'kaherka_20_2',
-      kemeticDate: 'Ka-ḥer-Ka II, Day 20',
-      season: season,
-      month: month,
-      decanName: decanName,
+      kemeticDate: 'Ka-ḥer-ka II, Day 20',
+      season: '🌊 Akhet Closing – Inundation Withdraws',
+      month: 'Ka-ḥer-ka ("Ka upon Ka")',
+      decanName:
+          'ḥry-ib wꜣ (translation uncertain) | Deck: Heart of the Barque',
       starCluster:
           '✨ ḥry-ib msḥtjw — the heart-region of the northern Foreleg asterism, centered in the seven-star bent pattern that circles the northern sky',
-      maatPrinciple: 'Disciplined Strength Sealed',
+      maatPrinciple: 'Endurance Is Itself an Offering',
       cosmicContext: '''
-Day 20 seals the heart of the Foreleg.
+Ten days: re-entry, direction, nourishment, obligation,
+strength placed rightly, rhythm restored, help called in, circle rejoined, commitment visible.
 
-This decan has not asked whether strength exists. It has asked whether strength can be governed.
+You did not do this perfectly.
+Perfection is not the offering.
+Persistence is.
 
-The returning force has been brought to the heart. Its impulse has been named. Its load has been chosen. Its effort has been moderated. Its root has been protected. Its hand has been corrected. Its speech has been steadied. Its overreach has been repaired. Its law has been stated.
+The ka that crossed the Duat and arrived at the eastern shore
+did not arrive because it was impressive — it arrived because it did not stop.
 
-Now strength must be sealed as disciplined strength.
-
-This is the difference between force and power.
-
-Force moves because it can.
-
-Power moves because it should.
-
-Force proves itself by impact.
-
-Power proves itself by service.
-
-Force burns quickly when unmeasured.
-
-Power continues because it knows its relation.
-
-Ka-ḥer-Ka teaches that life upon life requires governed vitality. A seed does not become grain because it has energy alone. It becomes grain because energy is held in right process.
-
-Today asks for one clear distinction to be named: where strength serves Ma’at, and where it becomes appetite.
-
-What serves may continue.
-
-What consumes must be restrained.
+Today you give thanks not for what was achieved
+but for what held.
+The part of you that stayed when the flood wanted to take everything.
+Name it. Honor it.
+That endurance is the foundation of everything that grows from here.
 ''',
       decanFlow: _kaHerKaIIFlowRows,
       meduNeter: MeduNeterKey(
-        glyph: 'Heart, foreleg, and sealed cord in one sign of governed power',
-        colorFrequency: 'Deep green, black soil, and sealed gold',
-        mantra: '“My strength serves. It does not consume.”',
+        glyph: 'Barque at the eastern shore, ka-arms raised — arrived',
+        colorFrequency: 'Dawn gold over river black',
+        mantra: '"I arrived. That is the offering."',
       ),
     ),
   ]);
 }
 
 Map<String, KemeticDayInfo> _buildKaHerKaIIIEntries() {
-  const season = '🌿 Peret – Season of Emergence';
-  const month = 'Ka-ḥer-Ka (Kȝ-ḥr-Kȝ) — Life Upon Life';
-  return _buildGeneratedDecanEntries(
-    keyPrefix: 'kaherka',
-    decan: 3,
-    decanLabel: 'Ka-ḥer-Ka III',
-    monthLabelForDate: 'Ka-ḥer-Ka',
-    month: month,
-    season: season,
-    decanName: 'sbꜣ msḥtjw',
-    kemeticDateBuilder: (totalDay, _) => 'Ka-ḥer-Ka III, Day $totalDay',
-    flowRows: _kaHerKaIIIFlowRows,
-    entries: [
-      (
-        totalDay: 21,
-        starCluster:
-            '✨ sbꜣ msḥtjw — the star of the northern Foreleg group, observed within the seven-star Big Dipper form whose bowl and handle create a clear bent shape in the northern sky',
-        maatPrinciple: 'Strength Placed Into Service',
-        cosmicContext: '''
-The first decan recognized strength returning.
+  return Map.fromEntries([
+    _dayInfoEntry(
+      key: 'kaherka_21_3',
+      kemeticDate: 'Ka-ḥer-ka III, Day 21',
+      season: '🌊 Akhet Closing – Inundation Withdraws',
+      month: 'Ka-ḥer-ka ("Ka upon Ka" — doubled life-force)',
+      decanName:
+          'rmṯ n pt / remetch en pet ("People of Heaven") | Deck: The Crew of Heaven',
+      starCluster:
+          '✨ sbꜣ msḥtjw — the star of the northern Foreleg group, observed within the seven-star Big Dipper form whose bowl and handle create a clear bent shape in the northern sky',
+      maatPrinciple: 'Labor Is Placed, Not Performed',
+      cosmicContext: '''
+The Crew of Heaven does not row for applause.
+They row because the barque requires it —
+because the sun would not cross the sky without them.
 
-The second brought that strength under the heart.
+Two decans of Ka-ḥer-ka have passed.
+The seed was placed. The ka was re-engaged.
+Now the third decan asks the simplest question:
+are you working or are you proving?
 
-The third asks where it will serve.
+Work placed in service of the field feeds the field.
+Work performed for an audience feeds the performer.
+The crop does not care which it is —
+but the yield knows the difference.
 
-This is the work of sbꜣ msḥtjw: the star of the Foreleg. Strength has now become visible enough to guide action. But guidance is not display. A star does not serve by boasting of brightness. It serves by holding position.
-
-Day 21 asks where renewed strength belongs.
-
-Not where it can impress.
-
-Not where it can overcorrect the past.
-
-Not where it can prove that weakness is gone.
-
-Where it is needed.
-
-Ka-ḥer-Ka is life upon life. That means strength must feed continuation. It must help the field, the body, the household, the work, the name, the ka, the future. Power that serves only self-display burns quickly. Power placed into service becomes structure.
-
-Today asks for one concrete place where strength can be useful.
-
-A task.
-
-A repair.
-
-A promise kept.
-
-A boundary held.
-
-A meal made.
-
-A system strengthened.
-
-A small act that keeps life moving.
-
-Returned strength becomes Ma’at when it enters service.
+Today: labor as offering.
+Put it in front of Ma'at and let her measure it.
 ''',
-        glyph: 'Foreleg beneath a guiding star',
-        colorFrequency: 'Northern blue, living green, and steady gold',
-        mantra: '“My strength serves what must continue.”',
+      decanFlow: _kaHerKaIIIFlowRows,
+      meduNeter: MeduNeterKey(
+        glyph: 'Oar in water — the crew rowing without witness',
+        colorFrequency: 'Deep river black and working copper',
+        mantra: '"I work for the field. The field is enough witness."',
       ),
-      (
-        totalDay: 22,
-        starCluster:
-            '✨ sbꜣ msḥtjw — a marker within the northern Foreleg asterism, tied to the bright seven-star pattern commonly recognized as the Big Dipper',
-        maatPrinciple: 'Necessary Work First',
-        cosmicContext: '''
-Applied strength begins with the necessary task.
+    ),
+    _dayInfoEntry(
+      key: 'kaherka_22_3',
+      kemeticDate: 'Ka-ḥer-ka III, Day 22',
+      season: '🌊 Akhet Closing – Inundation Withdraws',
+      month: 'Ka-ḥer-ka ("Ka upon Ka")',
+      decanName:
+          'rmṯ n pt / remetch en pet ("People of Heaven") | Deck: The Crew of Heaven',
+      starCluster:
+          '✨ sbꜣ msḥtjw — a marker within the northern Foreleg asterism, tied to the bright seven-star pattern commonly recognized as the Big Dipper',
+      maatPrinciple: 'A Blocked Channel Cannot Feed the Field',
+      cosmicContext: '''
+The Crew of Heaven clears the path for Ra's barque.
+They remove the obstacles — not because clearing is glorious
+but because the barque cannot move through obstruction.
 
-Not the impressive one.
+Your field has a channel that silted shut during the flood.
+A financial flow not looked at.
+A conversation that needs to happen and hasn't.
+A creative practice waiting for permission.
+A physical space that is blocked.
 
-The necessary one.
-
-Day 22 asks for the work that keeps continuity alive. In the field, this is not always the most visible labor. It may be clearing the channel, checking the tool, protecting the young growth, bringing water, repairing a boundary, or placing the seed where it can actually live.
-
-The same is true in personal life.
-
-Progress often fails because the visible task is chosen before the sustaining task. The announcement comes before the system. The ambition comes before the schedule. The performance comes before the food, sleep, money, tools, or support required to carry it.
-
-Ka-ḥer-Ka does not reward display detached from roots.
-
-It asks what must be done so life can continue.
-
-Today belongs to the plain task.
-
-The task that is easy to avoid because it does not feel grand.
-
-The task that holds the next stage together.
-
-The task that future strength will depend on.
-
-Doing the necessary work first is not small. It is Ma’at at ground level.
+Find it. Clear it today.
+The work from here on requires the current to move.
 ''',
-        glyph: 'Working hand clearing a small channel beside planted grain',
-        colorFrequency: 'Wet soil, Nile blue, and low gold',
-        mantra: '“I begin with what keeps life moving.”',
+      decanFlow: _kaHerKaIIIFlowRows,
+      meduNeter: MeduNeterKey(
+        glyph: 'Cleared channel with water beginning to flow',
+        colorFrequency: 'Nile blue returning to worked clay-brown',
+        mantra: '"I clear the channel so life can move again."',
       ),
-      (
-        totalDay: 23,
-        starCluster:
-            '✨ sbꜣ msḥtjw — the Foreleg star marker within the northern seven-star angular form, seen as a distinct bowl-and-handle pattern circling the northern sky',
-        maatPrinciple: 'Precise Application',
-        cosmicContext: '''
-Strength becomes useful when it is placed precisely.
+    ),
+    _dayInfoEntry(
+      key: 'kaherka_23_3',
+      kemeticDate: 'Ka-ḥer-ka III, Day 23',
+      season: '🌊 Akhet Closing – Inundation Withdraws',
+      month: 'Ka-ḥer-ka ("Ka upon Ka")',
+      decanName:
+          'rmṯ n pt / remetch en pet ("People of Heaven") | Deck: The Crew of Heaven',
+      starCluster:
+          '✨ sbꜣ msḥtjw — the Foreleg star marker within the northern seven-star angular form, seen as a distinct bowl-and-handle pattern circling the northern sky',
+      maatPrinciple: 'The Djed Must Stand',
+      cosmicContext: '''
+The Djed — the spine of Asar, the pillar of stability — was knocked flat by the flood.
+The crew raises it. Not because it is easy. Because the world needs it upright.
 
-Day 23 asks for exact effort.
+Something in your life was knocked flat in the flood months.
+A boundary you stopped enforcing.
+A practice lying on its side.
+A standard you lowered and have not raised back.
 
-A tool is not made better by striking everywhere. A field is not helped by water scattered without measure. A body is not strengthened by effort thrown at every weakness at once. A project is not saved by frantic movement across all its parts.
-
-Precision is mercy.
-
-It sends power where power belongs.
-
-The Foreleg teaches this through the body. The limb does not press every direction at the same time. It places weight through a point. It braces where the ground can answer.
-
-Today asks for one precise action.
-
-Not ten scattered actions.
-
-Not anxious multitasking.
-
-Not motion used to avoid the real point of pressure.
-
-Find the place where effort will matter most. The unpaid task. The loose joint. The real conversation. The missing document. The needed rest. The first repair that makes the next repair easier.
-
-Progress is often blocked not by lack of strength, but by strength spread too thin.
-
-Today asks for strength to become a blade, not a flood.
+It does not raise itself.
+Stand it back up today — not all the way, not perfectly.
+Just upright enough that it can be built from.
+The world needs it standing.
 ''',
-        glyph: 'Focused hand placing force on one marked point',
-        colorFrequency: 'Sharp gold, dark green, and black earth',
-        mantra: '“I place power where it belongs.”',
-      ),
-      (
-        totalDay: 24,
-        starCluster:
-            '✨ sbꜣ msḥtjw — a guiding point in the northern Foreleg group, physically set within the recognizable seven-star bent form of the Big Dipper',
-        maatPrinciple: 'Growth Supported',
-        cosmicContext: '''
-The new life does not need pressure alone.
-
-It needs support.
-
-Day 24 asks for strength to serve the conditions around growth.
-
-A seed does not grow because someone demands it. It grows because soil, water, time, protection, and measure surround it correctly. A returning practice, body, relationship, or work follows the same law.
-
-Sometimes the obstacle is not the main thing itself.
-
-It is the condition around it.
-
-The room is not ready.
-
-The money is leaking.
-
-The schedule is false.
-
-The body is hungry.
-
-The helper is exhausted.
-
-The boundary is unclear.
-
-The tool is broken.
-
-Today asks for attention to the surrounding condition.
-
-What would help the growth continue?
-
-Not what would make it look better for one day.
-
-What would actually support it?
-
-Ka upon Ka requires more than planting. It requires care that understands the environment. Strength used rightly does not only push the living thing forward. It strengthens the place where life is trying to take root.
-
-Support is action before crisis.
-
-Today asks for one condition of growth to be made safer, clearer, or more nourishing.
-''',
-        glyph: 'Young shoot surrounded by water, soil, and protective hands',
-        colorFrequency: 'Fresh green, Nile blue, and fertile black',
-        mantra: '“I strengthen the conditions that let life grow.”',
-      ),
-      (
-        totalDay: 25,
-        starCluster:
-            '✨ sbꜣ msḥtjw — part of the northern Foreleg constellation-form, appearing as a stable angular group of bright stars rather than a compact cluster',
-        maatPrinciple: 'Wasteful Force Refused',
-        cosmicContext: '''
-Having strength does not mean every use of it is righteous.
-
-Day 25 asks for refusal of wasteful force.
-
-This is a difficult lesson after a period of weakness. When power returns, it may feel wrong not to use it everywhere. But Ma’at is not constant exertion. It is right force in right place at right time.
-
-Some actions only spend energy.
-
-Some arguments only prove heat.
-
-Some tasks only create the feeling of productivity.
-
-Some responsibilities are carried because the body is used to strain.
-
-Some displays of strength are only fear in ceremonial clothing.
-
-The Foreleg does not remain holy by kicking without purpose. It serves because it can bear, brace, and move in right relation.
-
-Today asks for one wasteful use of strength to stop.
-
-The unnecessary fight.
-
-The extra explanation.
-
-The over-polishing.
-
-The compulsive checking.
-
-The burden lifted only to prove capacity.
-
-The task that drains the root without feeding the field.
-
-Stopping waste is not weakness.
-
-It is protection of life-force.
-
-Strength preserved under Ma’at becomes available for what truly needs it.
-''',
-        glyph: 'Closed hand lowering unnecessary force',
-        colorFrequency: 'Muted gold, shadow blue, and deep green',
-        mantra: '“I do not spend strength where Ma’at has not called it.”',
-      ),
-      (
-        totalDay: 26,
-        starCluster:
-            '✨ sbꜣ msḥtjw — the Foreleg star marker in the northern sky, associated with the Big Dipper’s seven bright stars forming a bowl and extended handle',
-        maatPrinciple: 'The Right Weight Carried',
-        cosmicContext: '''
-The right weight strengthens.
-
-The wrong weight distorts.
-
-Day 26 asks for discernment between the two.
-
-A body becomes stronger by carrying a lawful burden in measure. It becomes injured by carrying what is too heavy, too soon, or not meant for it. The same is true for a household, a role, a relationship, a project, or a future.
-
-Some weight belongs.
-
-A promise that is yours.
-
-A child who depends on you.
-
-A craft that needs your hand.
-
-A boundary that must be held.
-
-A responsibility that matches your station.
-
-Other weight does not belong to this stage.
-
-Someone else’s avoidance.
-
-A crisis created by repeated refusal.
-
-A burden taken to earn approval.
-
-A role that bends the body out of Ma’at.
-
-Today asks for one rightful weight to be accepted and one false weight to be released.
-
-This is not abandonment.
-
-It is correct placement.
-
-A Foreleg becomes trustworthy because it carries what the body requires, not every load placed before it.
-
-Strength becomes mature when it knows the difference between duty and distortion.
-''',
-        glyph: 'Carrying pole with one balanced load and one rejected burden',
-        colorFrequency: 'Earth brown, measured gold, and clear green',
-        mantra: '“I carry what is mine in right measure.”',
-      ),
-      (
-        totalDay: 27,
-        starCluster:
-            '✨ sbꜣ msḥtjw — a stable northern seven-star pattern linked with the Foreleg, visually consistent across the night as it circles near the northern sky',
-        maatPrinciple: 'Reliability Established',
-        cosmicContext: '''
-A useful act becomes stronger when it can be repeated.
-
-Day 27 asks for reliability.
-
-One good action matters. A repeatable good action becomes structure. A single cleaned room helps. A cleaning rhythm protects the room. A single honest conversation helps. A standard of early truth protects the relationship. One good meal feeds the body. A food rhythm sustains the body.
-
-Ka-ḥer-Ka is about continuity.
-
-Life upon life requires that good actions become dependable enough to carry the future.
-
-This does not mean turning everything into rigidity. It means giving useful strength a place to return. A time. A method. A boundary. A repeated form. A way that another day can find again.
-
-The star teaches this by returning to relation. It can guide because it is not random.
-
-Today asks for one applied strength to become repeatable.
-
-Write the rhythm.
-
-Set the reminder.
-
-Create the place.
-
-Name the standard.
-
-Prepare the tool so the next effort does not have to begin from nothing.
-
-Progress becomes less fragile when it stops depending on mood.
-
-Reliability is strength turned into a path.
-''',
-        glyph: 'Repeated footprints beside a northern star',
-        colorFrequency: 'Steady blue, green, and patterned gold',
-        mantra: '“I make the useful action reliable.”',
-      ),
-      (
-        totalDay: 28,
-        starCluster:
-            '✨ sbꜣ msḥtjw — a guiding star within the northern Foreleg asterism, part of the bright angular Big Dipper form visible around the northern sky',
-        maatPrinciple: 'Service Made Visible',
-        cosmicContext: '''
-Some service should be seen.
-
-Not for praise.
-
-For witness.
-
-Day 28 asks for the result of disciplined strength to become visible without becoming performance. A hidden root matters, but there is also a moment when growth must show above the soil. A restored body eventually moves. A repaired room can be entered. A completed task can be handed over. A kept promise can be acknowledged.
-
-Visibility helps the pattern continue.
-
-It tells the household what has been done. It lets others trust the work. It allows gratitude to reach the right hands. It shows that strength did not merely return inwardly; it served the world outside itself.
-
-But the danger is turning service into spectacle.
-
-Today asks for clean visibility.
-
-Let the work be seen.
-
-Do not inflate it.
-
-Do not hide it.
-
-Do not demand worship for it.
-
-Let it stand as evidence of Ma’at.
-
-A field does not apologize when shoots appear. It also does not shout. It simply shows that hidden work has become visible life.
-
-Today asks for one result to be witnessed in that spirit.
-''',
-        glyph: 'Green shoot rising beside a visible star',
-        colorFrequency: 'Living green, dawn gold, and dark soil',
-        mantra: '“Let the work be seen without making it a spectacle.”',
-      ),
-      (
-        totalDay: 29,
-        starCluster:
-            '✨ sbꜣ msḥtjw — the Foreleg star in the northern sky, physically understood through the stable seven-star angular pattern of the Big Dipper asterism',
-        maatPrinciple: 'Result Returned as Offering',
-        cosmicContext: '''
-What strength produces should return to relation.
-
-Day 29 asks for offering.
-
-The result does not belong only to the one who made it. In a Ma’at-ordered life, what is produced must circulate correctly: to household, altar, ancestors, helpers, community, future need, or the body that carried the work.
-
-The field does not keep grain for itself.
-
-The offering table receives because the field, worker, storehouse, baker, brewer, speaker, and name all entered relation.
-
-Returned strength must do the same.
-
-Today asks for some fruit of the work to be placed where it belongs.
-
-Share the meal.
-
-Pay the hand.
-
-Thank the helper.
-
-Pour the water.
-
-Set aside the seed.
-
-Give the time.
-
-Record the lesson.
-
-Return praise to source.
-
-Offering prevents strength from becoming possession. It reminds the hand that what it carried was part of a larger order.
-
-This does not require grand display.
-
-A small offering placed correctly can complete the circuit.
-
-Where the result returns to relation, strength becomes continuity instead of self-enclosure.
-''',
-        glyph: 'Offering bowl filled with first green shoots and bread',
-        colorFrequency: 'Barley gold, green, and Nile blue',
-        mantra: '“What my strength produces returns to relation.”',
-      ),
-      (
-        totalDay: 30,
-        starCluster:
-            '✨ sbꜣ msḥtjw — the star of the northern Foreleg group, set within the seven-star Big Dipper pattern whose repeated visibility makes it a stable guide in the northern sky',
-        maatPrinciple: 'Applied Strength Sealed',
-        cosmicContext: '''
-Day 30 closes Ka-ḥer-Ka.
-
-The month began with life placed into the ground. Strength returned quietly. It was tested, gathered, protected, fed, governed, corrected, disciplined, applied, made reliable, made visible, and returned as offering.
-
-This is the full movement of life upon life.
-
-Strength did not return merely to say that it had returned.
-
-It returned to serve continuity.
-
-That is the seal of sbꜣ msḥtjw.
-
-A star guides because its light holds relation. A Foreleg serves because its strength carries the body. A seed fulfills its hidden labor by becoming food, offering, and future seed. A person fulfills renewed strength by placing it where Ma’at can continue through it.
-
-Today asks for the law of continued use.
-
-How will this strength serve after the month ends?
-
-What rhythm will protect it?
-
-What offering will keep it clean?
-
-What boundary will keep it from being wasted?
-
-What work will it now carry?
-
-Ka-ḥer-Ka ends by refusing two errors: hiding returned strength out of fear, and spending returned strength without measure.
-
-What has returned must now continue in right use.
-
-Applied strength becomes sacred when it feeds what comes next.
-''',
+      decanFlow: _kaHerKaIIIFlowRows,
+      meduNeter: MeduNeterKey(
         glyph:
-            'Foreleg, seed, and offering table sealed beneath a northern star',
-        colorFrequency:
-            'Deep green, fertile black, river blue, and sealed gold',
-        mantra: '“My strength feeds what comes next.”',
+            'Djed pillar being raised by hands — the spine of stability restored',
+        colorFrequency: 'Rooted sandstone gold with steady dark bands',
+        mantra: '"I raise what was knocked flat. The world needs it standing."',
       ),
-    ],
-  );
+    ),
+    _dayInfoEntry(
+      key: 'kaherka_24_3',
+      kemeticDate: 'Ka-ḥer-ka III, Day 24',
+      season: '🌊 Akhet Closing – Inundation Withdraws',
+      month: 'Ka-ḥer-ka ("Ka upon Ka")',
+      decanName:
+          'rmṯ n pt / remetch en pet ("People of Heaven") | Deck: The Crew of Heaven',
+      starCluster:
+          '✨ sbꜣ msḥtjw — a guiding point in the northern Foreleg group, physically set within the recognizable seven-star bent form of the Big Dipper',
+      maatPrinciple: 'The Ka Requires a Maintained Environment',
+      cosmicContext: '''
+The crew that rows Ra's barque maintains the barque.
+They bail water, check the timbers, keep the hull from taking on the Duat.
+A deteriorating vessel loses the thing it carries.
+
+Your household is the hull.
+Floor, workspace, bedroom, kitchen.
+A deteriorating environment leaks the vitality you are trying to build.
+
+This is not decorating.
+This is keeping the vessel seaworthy.
+Tend the physical space today.
+Give the ka a hull worth working inside.
+''',
+      decanFlow: _kaHerKaIIIFlowRows,
+      meduNeter: MeduNeterKey(
+        glyph: 'Hands checking the hull — the vessel maintained from inside',
+        colorFrequency: 'Ship-wood brown and steady ochre',
+        mantra: '"I keep the vessel worthy of what it carries."',
+      ),
+    ),
+    _dayInfoEntry(
+      key: 'kaherka_25_3',
+      kemeticDate: 'Ka-ḥer-ka III, Day 25',
+      season: '🌊 Akhet Closing – Inundation Withdraws',
+      month: 'Ka-ḥer-ka ("Ka upon Ka")',
+      decanName:
+          'rmṯ n pt / remetch en pet ("People of Heaven") | Deck: The Crew of Heaven',
+      starCluster:
+          '✨ sbꜣ msḥtjw — part of the northern Foreleg constellation-form, appearing as a stable angular group of bright stars rather than a compact cluster',
+      maatPrinciple: 'Relight What Went Cold',
+      cosmicContext: '''
+The crew carries a flame through the Duat.
+Without it, the barque navigates blind.
+
+Things go cold in the flood season — not because they died,
+but because they ran out of fuel and no one refilled them.
+
+A creative practice. A physical discipline. A friendship.
+A daily prayer. A standard quietly dropped.
+These are not gone. They are unlit.
+
+Relight one today.
+Not the whole fire — the first small flame.
+Kindle it, cup it, and do not walk away from it until it is stable.
+''',
+      decanFlow: _kaHerKaIIIFlowRows,
+      meduNeter: MeduNeterKey(
+        glyph: 'Small flame cupped in two hands — the relight, not the blaze',
+        colorFrequency: 'Ember gold in dark copper',
+        mantra: '"I relight this. I do not walk away until it holds."',
+      ),
+    ),
+    _dayInfoEntry(
+      key: 'kaherka_26_3',
+      kemeticDate: 'Ka-ḥer-ka III, Day 26',
+      season: '🌊 Akhet Closing – Inundation Withdraws',
+      month: 'Ka-ḥer-ka ("Ka upon Ka")',
+      decanName:
+          'rmṯ n pt / remetch en pet ("People of Heaven") | Deck: The Crew of Heaven',
+      starCluster:
+          '✨ sbꜣ msḥtjw — the Foreleg star marker in the northern sky, associated with the Big Dipper’s seven bright stars forming a bowl and extended handle',
+      maatPrinciple: 'The Crew Rows Together',
+      cosmicContext: '''
+The divine crew does not take shifts.
+They row in synchrony or the barque does not advance.
+One oar pulling when the others are still does not move the vessel — it turns it in place.
+
+The Crew of Heaven rising now asks:
+who shares this field with you,
+and when did you last coordinate with them?
+
+Not manage them. Coordinate.
+Shared direction, shared meal, shared account of where things stand.
+
+The flood season isolates.
+The growing season requires the crew to row together.
+Make contact today with whoever shares your load.
+Set the stroke.
+''',
+      decanFlow: _kaHerKaIIIFlowRows,
+      meduNeter: MeduNeterKey(
+        glyph: 'Multiple oars in the water at the same angle — synchronized',
+        colorFrequency: 'River black with parallel gold oar-lines',
+        mantra: '"We row together. That is how the barque moves."',
+      ),
+    ),
+    _dayInfoEntry(
+      key: 'kaherka_27_3',
+      kemeticDate: 'Ka-ḥer-ka III, Day 27',
+      season: '🌊 Akhet Closing – Inundation Withdraws',
+      month: 'Ka-ḥer-ka ("Ka upon Ka")',
+      decanName:
+          'rmṯ n pt / remetch en pet ("People of Heaven") | Deck: The Crew of Heaven',
+      starCluster:
+          '✨ sbꜣ msḥtjw — a stable northern seven-star pattern linked with the Foreleg, visually consistent across the night as it circles near the northern sky',
+      maatPrinciple: 'Quiet Strength Is Also Strength',
+      cosmicContext: '''
+The crew does not sing about rowing. They row.
+Their virtue is in the doing, not the announcement.
+The barque crosses the Duat because they showed up in the dark,
+put their hands on the oar, and did not stop.
+
+You have been doing this.
+In the small ways that no one praises —
+getting up, keeping the rhythm, tending the basics,
+not collapsing when the flood was high.
+
+That is strength. It counts.
+Today you name it — not to others, to yourself.
+Ask directly: what strength survived?
+The answer is the foundation every future harvest stands on.
+''',
+      decanFlow: _kaHerKaIIIFlowRows,
+      meduNeter: MeduNeterKey(
+        glyph: 'Crew rowing in darkness — the unwitnessed labor',
+        colorFrequency:
+            'Deep river black with a thin trail of gold in the wake',
+        mantra: '"The quiet work counts. I name it."',
+      ),
+    ),
+    _dayInfoEntry(
+      key: 'kaherka_28_3',
+      kemeticDate: 'Ka-ḥer-ka III, Day 28',
+      season: '🌊 Akhet Closing – Inundation Withdraws',
+      month: 'Ka-ḥer-ka ("Ka upon Ka")',
+      decanName:
+          'rmṯ n pt / remetch en pet ("People of Heaven") | Deck: The Crew of Heaven',
+      starCluster:
+          '✨ sbꜣ msḥtjw — a guiding star within the northern Foreleg asterism, part of the bright angular Big Dipper form visible around the northern sky',
+      maatPrinciple: 'Labor and Gratitude Are the Same Act',
+      cosmicContext: '''
+The crew rows and the hymns to Ra are sung simultaneously.
+Not before, not after — during.
+Labor and gratitude are not separate categories.
+The offering is in the motion itself.
+
+You have been working your way through Ka-ḥer-ka.
+Today you do not stop to give thanks — you work and you are grateful at the same time.
+
+While you do the task in front of you,
+acknowledge the source of the capacity to do it:
+the body, the training, the people, the land, the season.
+The two are not separate.
+Labor offered with gratitude is the whole point of the month.
+''',
+      decanFlow: _kaHerKaIIIFlowRows,
+      meduNeter: MeduNeterKey(
+        glyph: 'Oar moving through water — the hymn in the motion',
+        colorFrequency:
+            'River gold in dark water — action and gratitude unified',
+        mantra: '"I work and I am grateful. They are the same."',
+      ),
+    ),
+    _dayInfoEntry(
+      key: 'kaherka_29_3',
+      kemeticDate: 'Ka-ḥer-ka III, Day 29',
+      season: '🌊 Akhet Closing – Inundation Withdraws',
+      month: 'Ka-ḥer-ka ("Ka upon Ka")',
+      decanName:
+          'rmṯ n pt / remetch en pet ("People of Heaven") | Deck: The Crew of Heaven',
+      starCluster:
+          '✨ sbꜣ msḥtjw — the Foreleg star in the northern sky, physically understood through the stable seven-star angular pattern of the Big Dipper asterism',
+      maatPrinciple: 'The Season Sets the Pace',
+      cosmicContext: '''
+The barque does not row at the same speed through every gate of the Duat.
+Some passages require long strokes.
+Some require the oars raised and the barque to drift.
+The crew reads the passage — they do not impose a fixed speed on a variable current.
+
+You are in the last days of Ka-ḥer-ka.
+Shef-Bedet opens tomorrow and it will want a farmer with capacity.
+
+What pace does this specific moment actually require?
+Not the pace you wish you had energy for —
+the pace that is honest and sustainable.
+Align with it today.
+Tomorrow the field asks for your full presence.
+Preserve it.
+''',
+      decanFlow: _kaHerKaIIIFlowRows,
+      meduNeter: MeduNeterKey(
+        glyph: 'Oar raised for a drift passage — reading the current',
+        colorFrequency: 'River silver and quiet earth',
+        mantra: '"I row at the pace the season requires."',
+      ),
+    ),
+    _dayInfoEntry(
+      key: 'kaherka_30_3',
+      kemeticDate: 'Ka-ḥer-ka III, Day 30',
+      season: '🌊 Akhet Closing – Inundation Withdraws',
+      month:
+          'Ka-ḥer-ka ("Ka upon Ka" — the seed placed, the ka re-engaged, the crew rowing)',
+      decanName:
+          'rmṯ n pt / remetch en pet ("People of Heaven") | Deck: The Crew of Heaven',
+      starCluster:
+          '✨ sbꜣ msḥtjw — the star of the northern Foreleg group, set within the seven-star Big Dipper pattern whose repeated visibility makes it a stable guide in the northern sky',
+      maatPrinciple: 'Seal the Month. Hand It Forward Clean.',
+      cosmicContext: '''
+Ka-ḥer-ka closes today.
+
+The flood withdrew. The black silt received the seed.
+The field was cleared and the vigil was kept.
+The ka re-entered motion, the obligation was accepted,
+the basics were restored, the help was called in.
+The Djed was raised, the channel was cleared,
+the flame was relit, the crew coordinated, the labor offered.
+
+The barque crossed the Duat.
+
+Take an honest accounting of what was placed and what returned.
+Not an ideal version — the real one.
+Then hand it to the next month clean.
+
+Shef-Bedet begins tomorrow.
+First growth will appear.
+It needs a farmer who is rested, clear, and ready.
+Seal Ka-ḥer-ka with that intention.
+''',
+      decanFlow: _kaHerKaIIIFlowRows,
+      meduNeter: MeduNeterKey(
+        glyph: 'Barque at the eastern gate — the crossing complete',
+        colorFrequency: 'First light gold over river black',
+        mantra: '"The month is complete. I hand it forward clean."',
+      ),
+    ),
+  ]);
 }
 
 Map<String, KemeticDayInfo> _buildShefBedetIEntries() {
-  const season = '🌿 Peret – Season of Emergence';
-  const month = 'Šef-Bedet (Šf-bdt) — Nourishment Given in Right Measure';
-  return _buildGeneratedDecanEntries(
-    keyPrefix: 'sefbedet',
-    decan: 1,
-    decanLabel: 'Šef-Bedet I',
-    monthLabelForDate: 'Šef-Bedet',
-    month: month,
-    season: season,
-    decanName: 'ḫnty-ḥr',
-    kemeticDateBuilder: (totalDay, _) => 'Šef-Bedet I, Day $totalDay',
-    flowRows: _shefBedetIFlowRows,
-    entries: [
-      (
-        totalDay: 1,
-        starCluster:
-            '✨ ḫnty-ḥr — a decanal star group watched near the eastern horizon during this ten-day interval; exact modern identification is uncertain, but it belongs to the class of rising star markers used to divide the night',
-        maatPrinciple: 'Fragile Growth Recognized',
-        cosmicContext: '''
-Šef-Bedet begins after life has entered the ground.
+  return Map.fromEntries([
+    _dayInfoEntry(
+      key: 'sefbedet_1_1',
+      kemeticDate: 'Šef-Bedet I, Day 1',
+      season: '🌱 Peret I – Emergence Season',
+      month: 'Šef-Bedet (Šf-bdt) — the emergence month, Peret begins',
+      decanName: 'ḫnty-ḥr (translation uncertain) | Deck: The Foremost of Face',
+      starCluster:
+          '✨ ḫnty-ḥr — a decanal star group watched near the eastern horizon during this ten-day interval; exact modern identification is uncertain, but it belongs to the class of rising star markers used to divide the night',
+      maatPrinciple: 'What Was Hidden Is Now Visible',
+      cosmicContext: '''
+Ka-ḥer-ka is sealed. The seed is above ground.
 
-The seed has been placed. The first strength has been governed. The field now carries promise, but promise is not security. A thing can be alive and still be easy to lose.
+This is the most dangerous moment in the agricultural year.
+The shoot is visible but not strong.
+Wind, animals, a careless foot — any of these end it.
 
-That is the work of ḫnty-ḥr.
+Peret does not ask you to celebrate emergence.
+It asks you to witness it without grabbing it.
 
-The name carries the sense of what stands foremost. In this decan, what comes first is attention. Not harvest. Not reward. Not celebration. Attention.
-
-Day 1 asks for the fragile growth to be seen.
-
-In the field, this may be the first green sign above dark soil. In life, it may be a new rhythm, a healing body, a small trust, an unfinished project, a calmer household, a returning appetite, a relationship beginning to soften.
-
-The danger is thinking that because something has begun, it can now be ignored.
-
-Renenutet stands near this month because nourishment must guard destiny before destiny can stand. A child, a field, a name, a project, and a future all begin in dependence.
-
-Today asks for one living thing to be recognized in its early state.
-
-Not judged for being small.
-
-Not forced to become mature.
-
-Seen.
-
-What is fragile cannot be protected until it is noticed.
+Look at what has broken the surface today.
+Do not manage it yet. Do not monetize it. Do not announce it.
+Stand over it the way a farmer stands over first growth: present, quiet, watchful.
 ''',
-        glyph: 'Small green shoot watched by a protective cobra',
-        colorFrequency: 'Fresh green, black soil, and guarded gold',
-        mantra: '“I notice what is alive before it becomes secure.”',
+      decanFlow: _shefBedetIFlowRows,
+      meduNeter: MeduNeterKey(
+        glyph: 'First green shoot above black silt — the emergence witnessed',
+        colorFrequency: 'Black earth with one thin line of living green',
+        mantra: '"I witness without grabbing."',
       ),
-      (
-        totalDay: 2,
-        starCluster:
-            '✨ ḫnty-ḥr — a small decanal rising group near the horizon, observed as part of the night-star sequence rather than as a securely identified modern constellation',
-        maatPrinciple: 'Nourishment Measured',
-        cosmicContext: '''
-Growth depends on flow.
+    ),
+    _dayInfoEntry(
+      key: 'sefbedet_2_1',
+      kemeticDate: 'Šef-Bedet I, Day 2',
+      season: '🌱 Peret I – Emergence Season',
+      month: 'Šef-Bedet (Šf-bdt)',
+      decanName: 'ḫnty-ḥr (translation uncertain) | Deck: The Foremost of Face',
+      starCluster:
+          '✨ ḫnty-ḥr — a small decanal rising group near the horizon, observed as part of the night-star sequence rather than as a securely identified modern constellation',
+      maatPrinciple: 'The Shoot Is Not the Harvest',
+      cosmicContext: '''
+In the flood-plain fields, early growth was protected, not pulled.
+A farmer who harvested at emergence got one meal.
+A farmer who waited got a season.
 
-Day 2 asks for the water to be checked.
+Whatever rose from the ground in Ka-ḥer-ka —
+a practice, a project, a relationship returning, a capacity returning —
+is not ready to be pressed for yield.
 
-This is literal in the field. Too little water weakens the seedling. Too much water drowns the root. Uneven water makes one part flourish while another fails quietly.
-
-The same law governs the body and the life around it.
-
-Where is nourishment flowing?
-
-Where is it blocked?
-
-Where is it excessive?
-
-Where is it absent?
-
-Food, sleep, attention, money, affection, communication, instruction, silence, and time all behave like water. They can sustain, flood, bypass, or disappear.
-
-Šef-Bedet does not teach care as emotion alone. It teaches care as measured provision. What lives must receive what it needs in the amount it can use.
-
-This is where Ma’at becomes practical.
-
-A person can say they care and still feed the wrong place. A household can have food and still starve one member of attention. A project can receive effort and still lack the one resource that would let it grow.
-
-Today asks for the flow to be inspected honestly.
-
-Nourishment must reach the root, or the promise of growth remains only appearance.
+It is two days old.
+Give it the patience you would give grain on its second day above the surface.
+The harvest comes. Not today.
 ''',
-        glyph: 'Water channel flowing toward a young plant',
-        colorFrequency: 'Nile blue, living green, and dark earth',
-        mantra: '“I measure the flow before the root suffers.”',
+      decanFlow: _shefBedetIFlowRows,
+      meduNeter: MeduNeterKey(
+        glyph: 'Hand held back from the young shoot — patience before harvest',
+        colorFrequency: 'Restrained earth-brown, green just visible',
+        mantra: '"The shoot is not the harvest. I wait."',
       ),
-      (
-        totalDay: 3,
-        starCluster:
-            '✨ ḫnty-ḥr — an early-rising decanal star group near the eastern horizon, likely faint compared with major anchors like Sopdet or Sah; exact modern identification uncertain',
-        maatPrinciple: 'Imbalance Found Early',
-        cosmicContext: '''
-The best correction happens before damage becomes obvious.
+    ),
+    _dayInfoEntry(
+      key: 'sefbedet_3_1',
+      kemeticDate: 'Šef-Bedet I, Day 3',
+      season: '🌱 Peret I – Emergence Season',
+      month: 'Šef-Bedet (Šf-bdt)',
+      decanName: 'ḫnty-ḥr (translation uncertain) | Deck: The Foremost of Face',
+      starCluster:
+          '✨ ḫnty-ḥr — an early-rising decanal star group near the eastern horizon, likely faint compared with major anchors like Sopdet or Sah; exact modern identification uncertain',
+      maatPrinciple: 'New Growth Requires Direct Nourishment',
+      cosmicContext: '''
+The shoot is above ground. It needs water — not hope, water.
+Not general goodwill toward the field. A specific act on this specific plant.
 
-Day 3 asks for the uneven place.
+What emerged in Ka-ḥer-ka needs one direct resource today:
+time blocked for it, money allocated, rest taken so you can sustain it,
+a conversation that removes an obstacle.
 
-A field often reveals imbalance quietly at first. One patch dries faster. One channel runs too full. One row grows weaker. One corner draws pests. The careless eye sees nothing wrong until loss has already spread.
-
-Attention under Ma’at sees earlier.
-
-This applies to ordinary life as well.
-
-A small resentment.
-
-A small debt.
-
-A small exhaustion.
-
-A small disorder in the schedule.
-
-A small silence that does not feel peaceful.
-
-A small place where care is not reaching.
-
-These are not yet collapse. That is why they can still be corrected with gentleness.
-
-Šef-Bedet is the month of nourishment, but nourishment is not only adding more. Sometimes it is seeing where proportion has already begun to bend.
-
-Today asks for one small imbalance to be named before it grows larger.
-
-There is mercy in early attention.
-
-A problem seen early can be tended. A problem ignored until it becomes loud may require force that the root should never have had to endure.
+Intention fed no field.
+Water fed the field.
+Apply something real.
 ''',
-        glyph: 'Eye over an uneven water channel',
-        colorFrequency: 'Clear blue, alert gold, and tender green',
-        mantra: '“I correct the small imbalance before it becomes loss.”',
+      decanFlow: _shefBedetIFlowRows,
+      meduNeter: MeduNeterKey(
+        glyph: 'Water jar pouring directly at the base of the young shoot',
+        colorFrequency: 'River blue at the root, green rising',
+        mantra: '"I give it what it actually needs."',
       ),
-      (
-        totalDay: 4,
-        starCluster:
-            '✨ ḫnty-ḥr — a decanal marker in the rising sequence of stars, observed near the horizon as a timing sign; no secure modern star-cluster identification should be assumed',
-        maatPrinciple: 'Care Without Control',
-        cosmicContext: '''
-Care can become another form of pressure.
+    ),
+    _dayInfoEntry(
+      key: 'sefbedet_4_1',
+      kemeticDate: 'Šef-Bedet I, Day 4',
+      season: '🌱 Peret I – Emergence Season',
+      month: 'Šef-Bedet (Šf-bdt)',
+      decanName: 'ḫnty-ḥr (translation uncertain) | Deck: The Foremost of Face',
+      starCluster:
+          '✨ ḫnty-ḥr — a decanal marker in the rising sequence of stars, observed near the horizon as a timing sign; no secure modern star-cluster identification should be assumed',
+      maatPrinciple: 'Remove What Competes for the Same Root',
+      cosmicContext: '''
+Two plants in the same row compete for the same water.
+The weaker one does not always lose — sometimes it wins by volume,
+and the intended crop starves.
 
-Day 4 asks for tending without smothering.
+What in your life right now draws from the same soil as the emerging thing?
+An obligation, a distraction, a habit that survived the flood but has no place in Peret.
 
-This is delicate work. A young plant needs attention, but too much handling can damage it. A child needs guidance, but too much control can weaken judgment. A new project needs structure, but too much interference can kill its living movement. A recovering person needs support, but not surveillance disguised as love.
-
-Renenutet nourishes and guards.
-
-She does not devour what she protects.
-
-That distinction matters.
-
-Nourishment under Ma’at must serve the life of the thing being nourished, not the anxiety of the one providing care. Sometimes the right act is giving water. Sometimes it is stepping back. Sometimes it is building shade. Sometimes it is letting the root do its hidden work without being constantly disturbed.
-
-Today asks where help might be turning into control.
-
-The test is simple:
-
-Does this care make life more capable?
-
-Or does it make life dependent on being constantly managed?
-
-What is growing must be supported in a way that allows it to become strong.
-
-Measured care feeds the future. Excessive care keeps the future from standing.
+One removal. Not a purge — the most damaging competitor.
+Pull it cleanly and give the water to the shoot.
 ''',
-        glyph: 'Open hand hovering above a young shoot without gripping it',
-        colorFrequency: 'Soft green, pale gold, and shaded blue',
-        mantra: '“I tend without taking over.”',
+      decanFlow: _shefBedetIFlowRows,
+      meduNeter: MeduNeterKey(
+        glyph: 'Hand pulling a competing root from beside the young shoot',
+        colorFrequency: 'Brown root removed, green shoot freed',
+        mantra: '"I clear what competes for the same root."',
       ),
-      (
-        totalDay: 5,
-        starCluster:
-            '✨ ḫnty-ḥr — a horizon-rising decanal star group used as a ten-day timing marker; physical identification remains uncertain, so it is best treated as a small watched star group in sequence',
-        maatPrinciple: 'The Tender Root Protected',
-        cosmicContext: '''
-The middle of this decan belongs to protection.
+    ),
+    _dayInfoEntry(
+      key: 'sefbedet_5_1',
+      kemeticDate: 'Šef-Bedet I, Day 5',
+      season: '🌱 Peret I – Emergence Season',
+      month: 'Šef-Bedet (Šf-bdt)',
+      decanName: 'ḫnty-ḥr (translation uncertain) | Deck: The Foremost of Face',
+      starCluster:
+          '✨ ḫnty-ḥr — a horizon-rising decanal star group used as a ten-day timing marker; physical identification remains uncertain, so it is best treated as a small watched star group in sequence',
+      maatPrinciple: 'Name What Has Actually Changed',
+      cosmicContext: '''
+Something is different from last month.
+The seed was underground. Now it is not.
+That is a real change and it deserves a real accounting.
 
-Day 5 asks for the tender root to be guarded.
+Not: "I'm finally doing better."
+Not: "Everything is turning around."
+Just: what is specifically different today from thirty days ago?
 
-Not everything vulnerable needs advice. Some things need shelter. A new habit may need privacy. A healing body may need rest. A young idea may need fewer opinions. A repaired bond may need gentleness before it can bear difficult conversation. A household trying to stabilize may need boundaries around its time, food, and quiet.
-
-The serpent of Renenutet belongs here.
-
-The cobra watches the grain because gathered life remains vulnerable. Protection is not suspicion. It is the awareness that anything valuable can be damaged before it matures.
-
-Today asks what needs shelter more than pressure.
-
-What should not be exposed yet?
-
-What should not be explained to everyone?
-
-What should not be tested by harsh hands?
-
-What should not be consumed just because it has appeared?
-
-A root is hidden for a reason. It gathers life beneath the surface before it can support what rises.
-
-Protecting the tender place is not fear.
-
-It is wisdom before strength has fully formed.
+Name it plainly and without decoration.
+Accurate witness is how you build from here.
+Overstating it costs you the honest measure.
 ''',
-        glyph: 'Cobra guarding a root beneath black soil',
-        colorFrequency: 'Black earth, protective gold, and deep green',
-        mantra: '“I shelter what is still becoming strong.”',
+      decanFlow: _shefBedetIFlowRows,
+      meduNeter: MeduNeterKey(
+        glyph:
+            'Scribe\'s palette noting the condition of the field — honest record',
+        colorFrequency: 'Ink black on clean papyrus, one green mark',
+        mantra: '"I name what changed. No more, no less."',
       ),
-      (
-        totalDay: 6,
-        starCluster:
-            '✨ ḫnty-ḥr — a small star group in the decanal sequence, physically described as a rising horizon marker rather than a well-confirmed modern constellation',
-        maatPrinciple: 'Care Reaches the Root',
-        cosmicContext: '''
-Not all giving reaches the need.
+    ),
+    _dayInfoEntry(
+      key: 'sefbedet_6_1',
+      kemeticDate: 'Šef-Bedet I, Day 6',
+      season: '🌱 Peret I – Emergence Season',
+      month: 'Šef-Bedet (Šf-bdt)',
+      decanName: 'ḫnty-ḥr (translation uncertain) | Deck: The Foremost of Face',
+      starCluster:
+          '✨ ḫnty-ḥr — a small star group in the decanal sequence, physically described as a rising horizon marker rather than a well-confirmed modern constellation',
+      maatPrinciple: 'Guard Without Caging',
+      cosmicContext: '''
+The first-growth farmer built low windbreaks around tender shoots —
+not to stop all air, but to break the force of the damaging wind.
+Total enclosure kills the shoot differently than the wind does.
 
-Day 6 asks for nourishment to be placed where it can actually feed.
+What is emerging in your life needs protection from early pressure:
+premature critique, comparison, extraction, performance demands.
+But it also needs air — some exposure, some testing, some reality.
 
-This is one of the most practical teachings of Šef-Bedet. A field may receive water, but if the channel is wrong, the root remains dry. A household may receive money, but if it leaks through disorder, security does not grow. A person may receive attention, but if the real need is rest, the care does not restore. A project may receive enthusiasm, but if the missing piece is structure, the work still weakens.
-
-Care must be accurate.
-
-Generosity without discernment can become waste. Effort without direction can become frustration. Love without listening can miss the place that hurts.
-
-Today asks: where is the true root?
-
-Not the loudest symptom.
-
-The root.
-
-What actually needs feeding?
-
-What would make growth possible from underneath?
-
-A single correct nourishment can do more than many scattered offerings. Bread placed before the right ka sustains relation. Water reaching the right root sustains the field.
-
-Today asks for care to become exact enough to feed life where life is truly asking.
+Protect it from what would kill it.
+Do not protect it from everything.
+It must learn to stand.
 ''',
-        glyph: 'Water reaching the root beneath the soil',
-        colorFrequency: 'Deep blue, black earth, and root green',
-        mantra: '“My care reaches the true need.”',
+      decanFlow: _shefBedetIFlowRows,
+      meduNeter: MeduNeterKey(
+        glyph: 'Low reed windbreak beside the young shoot — partial shelter',
+        colorFrequency: 'Warm straw-brown shelter, green within',
+        mantra: '"I protect without caging."',
       ),
-      (
-        totalDay: 7,
-        starCluster:
-            '✨ ḫnty-ḥr — a decanal star group watched in relation to the eastern horizon and the night-hour sequence; its exact modern match is not secure',
-        maatPrinciple: 'Drain Removed',
-        cosmicContext: '''
-Growth can be fed and still fail if something keeps draining it.
+    ),
+    _dayInfoEntry(
+      key: 'sefbedet_7_1',
+      kemeticDate: 'Šef-Bedet I, Day 7',
+      season: '🌱 Peret I – Emergence Season',
+      month: 'Šef-Bedet (Šf-bdt)',
+      decanName: 'ḫnty-ḥr (translation uncertain) | Deck: The Foremost of Face',
+      starCluster:
+          '✨ ḫnty-ḥr — a decanal star group watched in relation to the eastern horizon and the night-hour sequence; its exact modern match is not secure',
+      maatPrinciple: 'The Right Witness Strengthens',
+      cosmicContext: '''
+Not everyone should see the shoot at this stage.
+The person who immediately asks what you will do with it,
+how much it will yield, why you chose that crop —
+that is not the witness the shoot needs right now.
 
-Day 7 asks for the leak to be found.
+Find the person who can look at early growth and simply say: it is alive.
+Show them. Let them see it.
 
-This may be a small leak. That is why it matters.
-
-A few missing hours of sleep. A repeated expense. A conversation that always steals peace. A habit that weakens the body. A device that scatters attention. A promise that keeps reopening a wound. A person who receives but never returns. A room that quietly makes order harder every day.
-
-Nourishment is not only what is added.
-
-It is also what is protected from being stolen.
-
-In the field, pests, broken banks, poor storage, and careless distribution can undo the gift of the flood. In life, unexamined drains can consume the energy meant for growth.
-
-Today asks for one drain to be stopped.
-
-Not all of them.
-
-One.
-
-Close the leak in the channel. Seal the jar. End the unnecessary exchange. Remove the thing that keeps taking from the root.
-
-Renenutet guards nourishment because abundance is fragile even after it arrives.
-
-What is fed must also be defended from waste.
+Being witnessed by the right person at this stage
+is not vanity. It is nourishment.
+Choose the witness carefully.
 ''',
-        glyph: 'Sealed jar beside a guarded grain store',
-        colorFrequency: 'Clay brown, grain gold, and protective black',
-        mantra: '“I stop what steals from the root.”',
+      decanFlow: _shefBedetIFlowRows,
+      meduNeter: MeduNeterKey(
+        glyph:
+            'Two figures standing over a young row — one pointing, one simply present',
+        colorFrequency: 'Quiet earth tones, no gold yet',
+        mantra: '"I show this to someone who can witness it well."',
       ),
-      (
-        totalDay: 8,
-        starCluster:
-            '✨ ḫnty-ḥr — a horizon-rising decanal marker, likely faint or modest compared with major star figures; exact identification remains uncertain',
-        maatPrinciple: 'Signs Recorded',
-        cosmicContext: '''
-The field is always giving evidence.
+    ),
+    _dayInfoEntry(
+      key: 'sefbedet_8_1',
+      kemeticDate: 'Šef-Bedet I, Day 8',
+      season: '🌱 Peret I – Emergence Season',
+      month: 'Šef-Bedet (Šf-bdt)',
+      decanName: 'ḫnty-ḥr (translation uncertain) | Deck: The Foremost of Face',
+      starCluster:
+          '✨ ḫnty-ḥr — a horizon-rising decanal marker, likely faint or modest compared with major star figures; exact identification remains uncertain',
+      maatPrinciple: 'Growth Is Sustained by Ordinary Maintenance',
+      cosmicContext: '''
+The farmer who tended first growth did not do inspired work.
+They walked the row. They checked the soil. They pulled the competing weed.
+They did it again tomorrow. And the day after.
 
-Day 8 asks for the signs to be recorded.
+Emergence is not maintained by the energy of beginnings.
+It is maintained by the ordinary return.
 
-This is Djehuty’s work entering the field of nourishment. Care becomes stronger when it remembers what happened. Which place dried first? Which habit helped? Which conversation weakened the rhythm? Which food restored the body? Which schedule protected the work? Which support actually reached the root?
-
-Without record, the same mistake returns.
-
-Without record, a good pattern can be forgotten.
-
-Without record, care becomes guesswork.
-
-In Kemet, grain, flood, offering, labor, and time all depended on truthful accounting. Nourishment could not be managed by feeling alone. Storehouses had to be counted. Fields had to be watched. Names had to be preserved.
-
-Today asks for simple evidence.
-
-What is growing?
-
-What is weakening?
-
-What needs more?
-
-What needs less?
-
-What must be continued?
-
-A record does not need to be grand to serve Ma’at. One honest note can protect tomorrow’s care from becoming another reaction.
-
-What is written clearly can guide the next hand.
+What small repeated act does the emerging thing need from you?
+Not a grand gesture — the quiet daily tending
+that most people abandon when the initial excitement fades.
+Show up for it today.
 ''',
-        glyph: 'Reed pen beside a young plant and water mark',
-        colorFrequency: 'Ink black, green, and Nile blue',
-        mantra: '“I record what the field is telling me.”',
+      decanFlow: _shefBedetIFlowRows,
+      meduNeter: MeduNeterKey(
+        glyph: 'Farmer walking the row at dawn — steady, unremarkable care',
+        colorFrequency: 'Plain earth and growing green, no drama',
+        mantra: '"I tend the ordinary. That is how it grows."',
       ),
-      (
-        totalDay: 9,
-        starCluster:
-            '✨ ḫnty-ḥr — a small decanal star group near the horizon in the observed night sequence, best described physically as a rising timing marker with uncertain modern identification',
-        maatPrinciple: 'Care Made Repeatable',
-        cosmicContext: '''
-One act of care may save a day.
+    ),
+    _dayInfoEntry(
+      key: 'sefbedet_9_1',
+      kemeticDate: 'Šef-Bedet I, Day 9',
+      season: '🌱 Peret I – Emergence Season',
+      month: 'Šef-Bedet (Šf-bdt)',
+      decanName: 'ḫnty-ḥr (translation uncertain) | Deck: The Foremost of Face',
+      starCluster:
+          '✨ ḫnty-ḥr — a small decanal star group near the horizon in the observed night sequence, best described physically as a rising timing marker with uncertain modern identification',
+      maatPrinciple: 'Read the Field as It Is',
+      cosmicContext: '''
+The farmer does not read the field hoping for good news.
+The farmer reads the field to know what is actually happening —
+because an honest reading now is cheaper than a wrong response later.
 
-A rhythm of care can save a season.
+What is the honest condition of what emerged?
+Growing well? Struggling? Needs a different resource than you thought?
 
-Day 9 asks for nourishment to become repeatable.
-
-This is where many beginnings weaken. The first attention was real. The first water was given. The first correction was made. The first record was written. But if care depends only on urgency, growth remains unsafe. It receives when someone remembers. It starves when pressure shifts elsewhere.
-
-Ma’at is repetition in right measure.
-
-A field is not watered once and abandoned. A body is not fed once and forgotten. A relationship is not repaired once and then left to old habits. A project is not supported by a single burst of effort and then expected to carry itself.
-
-Today asks for one care rhythm to be established.
-
-A daily check.
-
-A weekly count.
-
-A set meal.
-
-A rest time.
-
-A money transfer.
-
-A water schedule.
-
-A recurring conversation.
-
-A protected hour.
-
-This is not control. It is continuity.
-
-Renenutet’s nourishment becomes powerful because it guards the future, not only the present moment.
-
-What needs to live must be fed again.
+Look without flinching.
+A field read accurately can be corrected.
+A field read hopefully wastes the correction window.
 ''',
-        glyph: 'Repeated water marks beside three young shoots',
-        colorFrequency: 'Rhythmic blue, living green, and soft gold',
-        mantra: '“Care becomes strong when it returns in rhythm.”',
+      decanFlow: _shefBedetIFlowRows,
+      meduNeter: MeduNeterKey(
+        glyph: 'Farmer kneeling to inspect the root — close honest reading',
+        colorFrequency: 'Dark earth close up, green assessed not admired',
+        mantra: '"I read this as it is, not as I hoped."',
       ),
-      (
-        totalDay: 10,
-        starCluster:
-            '✨ ḫnty-ḥr — the first decanal star group of this month’s sequence, observed as a modest rising horizon marker rather than a securely mapped modern cluster',
-        maatPrinciple: 'Early Nourishment Sealed',
-        cosmicContext: '''
-Day 10 closes the first movement of Šef-Bedet.
+    ),
+    _dayInfoEntry(
+      key: 'sefbedet_10_1',
+      kemeticDate: 'Šef-Bedet I, Day 10',
+      season: '🌱 Peret I – Emergence Season',
+      month: 'Šef-Bedet (Šf-bdt)',
+      decanName: 'ḫnty-ḥr (translation uncertain) | Deck: The Foremost of Face',
+      starCluster:
+          '✨ ḫnty-ḥr — the first decanal star group of this month’s sequence, observed as a modest rising horizon marker rather than a securely mapped modern cluster',
+      maatPrinciple: 'Ten Days of Emergence — Note What Took Root',
+      cosmicContext: '''
+The first decan of Šef-Bedet closes.
 
-The fragile growth has been noticed. The water has been checked. The imbalance has been seen early. Care has been measured. The tender root has been protected. Nourishment has been placed where it can reach. The drain has been stopped. The signs have been recorded. A rhythm of care has been established.
+Ten days ago the shoot broke the surface.
+You witnessed it, fed it, cleared competitors, named the change,
+protected it, showed it to the right person, tended the ordinary, read the honest condition.
 
-This is how small life survives.
+Now: what actually took root?
+Not what you hoped would emerge — what did.
 
-Not by excitement.
-
-By attention.
-
-The first decan does not end with harvest. It ends with responsibility accepted. Something living has been entrusted to care, and the care must continue beyond the mood that first noticed it.
-
-This is the Ma’at of nourishment.
-
-What lives must be seen.
-
-What is seen must be fed.
-
-What is fed must be protected.
-
-What is protected must be watched through time.
-
-Today asks for the living thing to be named clearly.
-
-What has been placed in your care?
-
-What must be watched?
-
-What must be fed?
-
-What must not be allowed to drain it?
-
-Renenutet guards the future at the level of grain, child, household, ka, and destiny. The same law applies here.
-
-Early nourishment becomes sacred when it is sealed as duty.
+Write it down. Name it.
+The second decan begins to strengthen what the first revealed.
+Know clearly what you are strengthening.
 ''',
-        glyph: 'Cobra encircling a young plant and offering bowl',
-        colorFrequency: 'Grain gold, fresh green, and protective black',
-        mantra: '“What is alive in my care will not be neglected.”',
+      decanFlow: _shefBedetIFlowRows,
+      meduNeter: MeduNeterKey(
+        glyph: 'Young row of shoots — ten days old, rooted but not yet strong',
+        colorFrequency:
+            'Black earth, multiple green points, the beginning of a field',
+        mantra: '"Ten days. I know what took root."',
       ),
-    ],
-  );
+    ),
+  ]);
 }
 
 Map<String, KemeticDayInfo> _buildShefBedetIIEntries() {
-  const season = '🌿 Peret – Season of Emergence';
-  const month = 'Šef-Bedet (Šf-bdt) — Nourishment Given in Right Measure';
-  return _buildGeneratedDecanEntries(
-    keyPrefix: 'sefbedet',
-    decan: 2,
-    decanLabel: 'Šef-Bedet II',
-    monthLabelForDate: 'Šef-Bedet',
-    month: month,
-    season: season,
-    decanName: 'ḥry-ib ḫnty-ḥr',
-    kemeticDateBuilder: (totalDay, _) => 'Šef-Bedet II, Day $totalDay',
-    flowRows: _shefBedetIIFlowRows,
-    entries: [
-      (
-        totalDay: 11,
-        starCluster:
-            '✨ ḥry-ib ḫnty-ḥr — the heart phase of this decanal sequence; a small horizon-rising star group observed as part of the night-hour order, with no secure modern constellation identification',
-        maatPrinciple: 'Care Governed by Discernment',
-        cosmicContext: '''
-The first decan noticed fragile growth.
+  return Map.fromEntries([
+    _dayInfoEntry(
+      key: 'sefbedet_11_2',
+      kemeticDate: 'Šef-Bedet II, Day 11',
+      season: '🌱 Peret I – Emergence Season',
+      month: 'Šef-Bedet (Šf-bdt)',
+      decanName:
+          'ḥry-ib ḫnty-ḥr (translation uncertain) | Deck: Heart of the Foremost',
+      starCluster:
+          '✨ ḥry-ib ḫnty-ḥr — the heart phase of this decanal sequence; a small horizon-rising star group observed as part of the night-hour order, with no secure modern constellation identification',
+      maatPrinciple: 'Strength Goes to the Root',
+      cosmicContext: '''
+The first decan established what took root.
+The second decan strengthens it.
 
-The second asks how that growth should be nourished.
+But the mistake at this stage is feeding the visible part —
+the impressive output, the surface people see —
+while the root goes unattended.
 
-This is the work of ḥry-ib ḫnty-ḥr: the heart of the foremost. Attention has found what needs care. Now the heart must decide what kind of care is right.
-
-This matters because care is powerful.
-
-Care can feed.
-
-Care can flood.
-
-Care can rescue.
-
-Care can control.
-
-Care can preserve life, and care can quietly weaken it when it is given without measure.
-
-Šef-Bedet does not teach nourishment as impulse. It teaches nourishment under Ma’at. The heart must ask what the living thing truly needs, not what fear wants to pour into it.
-
-A seedling does not need endless water because the farmer is anxious. A child does not need constant correction because the parent is afraid. A project does not need more effort if what it lacks is structure. A tired body does not need another demand disguised as encouragement.
-
-Today asks for a pause before giving more.
-
-Let the heart examine the need.
-
-What is alive?
-
-What is fragile?
-
-What has already received enough?
-
-What is still hungry?
-
-Care becomes sacred when it is guided by discernment.
+A tall green plant with a shallow root falls in the first wind.
+Direct your resources at the foundation.
+What holds the shoot in the ground when conditions get difficult?
+Feed that today.
 ''',
-        glyph: 'Heart above a water jar and young plant',
-        colorFrequency: 'Nile blue, tender green, and measured gold',
-        mantra: '“My care answers to the heart.”',
+      decanFlow: _shefBedetIIFlowRows,
+      meduNeter: MeduNeterKey(
+        glyph: 'Water soaking into deep soil — the root, not the leaf',
+        colorFrequency: 'Dark root depth, green at surface',
+        mantra: '"I feed what holds it in the ground."',
       ),
-      (
-        totalDay: 12,
-        starCluster:
-            '✨ ḥry-ib ḫnty-ḥr — a modest decanal star group in the rising sequence, physically treated as a horizon timing marker rather than a firmly identified modern cluster',
-        maatPrinciple: 'The True Need Read',
-        cosmicContext: '''
-Not every visible problem is the root problem.
+    ),
+    _dayInfoEntry(
+      key: 'sefbedet_12_2',
+      kemeticDate: 'Šef-Bedet II, Day 12',
+      season: '🌱 Peret I – Emergence Season',
+      month: 'Šef-Bedet (Šf-bdt)',
+      decanName:
+          'ḥry-ib ḫnty-ḥr (translation uncertain) | Deck: Heart of the Foremost',
+      starCluster:
+          '✨ ḥry-ib ḫnty-ḥr — a modest decanal star group in the rising sequence, physically treated as a horizon timing marker rather than a firmly identified modern cluster',
+      maatPrinciple: 'Extend, Do Not Leap',
+      cosmicContext: '''
+A field is extended by measure, not by leap.
+Boundaries are not doubled in a season — they are walked forward steadily,
+and the irrigation extended to match.
 
-Day 12 asks for the true need.
+What is growing in your life right now can be extended.
+Not doubled. Not redesigned.
+Extended: one more row, one more session, one more hour of care per week.
 
-A yellowing leaf may not mean the plant needs more water. It may need less. It may need better soil, protection from heat, or relief from pests. The visible sign is only the beginning of the reading.
-
-Life works the same way.
-
-Anger may hide hunger.
-
-Silence may hide exhaustion.
-
-Disorder may hide lack of structure.
-
-Avoidance may hide fear.
-
-Overgiving may hide the need to be needed.
-
-A stalled project may not need more motivation. It may need a simpler path, a cleaner tool, or a protected hour.
-
-The heart must read beneath the surface.
-
-This is the difference between reaction and care.
-
-Reaction gives to the symptom because the symptom is loud. Care under Ma’at asks what the root is actually saying.
-
-Renenutet guards nourishment because nourishment must reach the place where life is being formed. Feeding the surface while the root starves is still disorder.
-
-Today asks for one true need to be identified.
-
-Look carefully.
-
-The field is speaking.
-
-The body is speaking.
-
-The relationship is speaking.
-
-The work is speaking.
-
-The question is whether the heart can hear beneath the first noise.
+The next step, not the next leap.
+Leaps at this stage pull the root before it is deep enough to survive them.
 ''',
-        glyph: 'Eye looking below the soil toward the root',
-        colorFrequency: 'Deep green, black earth, and clear gold',
-        mantra: '“I listen beneath the surface.”',
+      decanFlow: _shefBedetIIFlowRows,
+      meduNeter: MeduNeterKey(
+        glyph: 'Field boundary pushed forward by one measured row',
+        colorFrequency: 'Green rows extending steadily into prepared earth',
+        mantra: '"I extend this by one step, not one leap."',
       ),
-      (
-        totalDay: 13,
-        starCluster:
-            '✨ ḥry-ib ḫnty-ḥr — a small star marker in the decanal night sequence, observed near the horizon with uncertain modern identification',
-        maatPrinciple: 'Measure Adjusted',
-        cosmicContext: '''
-Once the true need is read, the measure must change.
+    ),
+    _dayInfoEntry(
+      key: 'sefbedet_13_2',
+      kemeticDate: 'Šef-Bedet II, Day 13',
+      season: '🌱 Peret I – Emergence Season',
+      month: 'Šef-Bedet (Šf-bdt)',
+      decanName:
+          'ḥry-ib ḫnty-ḥr (translation uncertain) | Deck: Heart of the Foremost',
+      starCluster:
+          '✨ ḥry-ib ḫnty-ḥr — a small star marker in the decanal night sequence, observed near the horizon with uncertain modern identification',
+      maatPrinciple: 'Build for Adversity Before It Arrives',
+      cosmicContext: '''
+A wise farmer does not wait for the damaging wind before setting protection.
+The windbreak was built in Peret, before Shemu arrived.
 
-Day 13 asks for adjustment.
+What condition, if it appeared today, would damage what is growing?
+A budget cut. A loss of energy. A conflict. An unexpected demand.
 
-This is where care becomes intelligent.
-
-More is not always better.
-
-Less is not always neglect.
-
-Sometimes nourishment must increase. Sometimes it must be reduced. Sometimes it must be redirected. Sometimes the most righteous act is to stop adding anything until the field can receive again.
-
-A channel may need widening.
-
-A jar may need sealing.
-
-A schedule may need fewer demands.
-
-A body may need more food and less pressure.
-
-A relationship may need clearer speech, not more emotional labor.
-
-A project may need fewer ideas and one firm system.
-
-This day is not about dramatic correction. It is about proportion.
-
-Ma’at lives in the right measure.
-
-Care that does not adjust becomes habit. Habit can continue long after the condition has changed. What once saved may later smother. What once protected may later confine. What once nourished may later become excess.
-
-Today asks for one measure to be changed because the evidence has changed.
-
-The field should not be watered from memory alone.
-
-It must be watered according to what it is now.
+You cannot build against everything.
+Build against the most likely one.
+One layer of protection built now is worth ten built after the damage.
 ''',
-        glyph: 'Measuring jar pouring a corrected stream',
-        colorFrequency: 'Balanced blue, fresh green, and pale gold',
-        mantra: '“I adjust the measure to match the need.”',
+      decanFlow: _shefBedetIIFlowRows,
+      meduNeter: MeduNeterKey(
+        glyph:
+            'Windbreak completed before the dry season — protection built early',
+        colorFrequency: 'Straw-brown barrier, green field behind it',
+        mantra: '"I build protection before the storm, not after."',
       ),
-      (
-        totalDay: 14,
-        starCluster:
-            '✨ ḥry-ib ḫnty-ḥr — a horizon-rising decanal group in the ten-day star sequence; its physical identity is best described cautiously as a small watched star marker',
-        maatPrinciple: 'Care Without Depletion',
-        cosmicContext: '''
-Care that destroys the giver cannot continue.
+    ),
+    _dayInfoEntry(
+      key: 'sefbedet_14_2',
+      kemeticDate: 'Šef-Bedet II, Day 14',
+      season: '🌱 Peret I – Emergence Season',
+      month: 'Šef-Bedet (Šf-bdt)',
+      decanName:
+          'ḥry-ib ḫnty-ḥr (translation uncertain) | Deck: Heart of the Foremost',
+      starCluster:
+          '✨ ḥry-ib ḫnty-ḥr — a horizon-rising decanal group in the ten-day star sequence; its physical identity is best described cautiously as a small watched star marker',
+      maatPrinciple: 'Rhythm Is Structure, Not Inspiration',
+      cosmicContext: '''
+The field was watered on a schedule, not when the farmer felt inspired.
+Irrigation waited for no one's motivation.
+The water came because the system said it came.
 
-Day 14 asks for nourishment without depletion.
+Whatever is growing in your life right now
+needs a cadence — a specific time, a specific frequency —
+that does not depend on how you feel.
 
-This is a hard truth. Many forms of care are praised only because someone is quietly being emptied. The household is fed while one body starves. The project continues while one mind carries all the strain. The relationship looks peaceful because one person absorbs every rupture. The community praises generosity while never asking what it costs.
-
-That is not Ma’at.
-
-A channel cannot feed the field if the source is ruined.
-
-Renenutet’s nourishment is not reckless pouring. It is guarded provision. The grain must feed the present and preserve the future. The storehouse must open, but not be emptied without measure.
-
-Today asks whether the care being given can continue.
-
-Is the pace sustainable?
-
-Is the giver protected?
-
-Is the source being replenished?
-
-Is the labor shared?
-
-Is love becoming exhaustion?
-
-Is duty becoming self-erasure?
-
-To feed life rightly, the source of nourishment must also remain alive.
-
-This does not excuse withholding. It corrects distortion.
-
-Care under Ma’at asks both questions:
-
-What needs to receive?
-
-And what must be preserved so giving can remain possible?
-
-Today asks for care that does not devour the one who gives it.
+Inspiration brought you to the field in Ka-ḥer-ka.
+Structure keeps you there in Peret.
+Set the rhythm today. It is the trellis the plant grows against.
 ''',
-        glyph: 'Full jar pouring while another jar is being refilled',
-        colorFrequency: 'Grain gold, Nile blue, and warm clay',
-        mantra: '“I give in a way that can continue.”',
+      decanFlow: _shefBedetIIFlowRows,
+      meduNeter: MeduNeterKey(
+        glyph:
+            'Trellis stake set beside the young plant — structure for the growth',
+        colorFrequency: 'Wood-brown support, green climbing',
+        mantra: '"I give this a rhythm it can grow against."',
       ),
-      (
-        totalDay: 15,
-        starCluster:
-            '✨ ḥry-ib ḫnty-ḥr — the midpoint star phase of this decanal sequence, seen as a modest rising group used for night timing rather than a securely mapped constellation',
-        maatPrinciple: 'The Giver Protected',
-        cosmicContext: '''
-The middle of this decan turns toward the one who gives.
+    ),
+    _dayInfoEntry(
+      key: 'sefbedet_15_2',
+      kemeticDate: 'Šef-Bedet II, Day 15',
+      season: '🌱 Peret I – Emergence Season',
+      month: 'Šef-Bedet (Šf-bdt)',
+      decanName:
+          'ḥry-ib ḫnty-ḥr (translation uncertain) | Deck: Heart of the Foremost',
+      starCluster:
+          '✨ ḥry-ib ḫnty-ḥr — the midpoint star phase of this decanal sequence, seen as a modest rising group used for night timing rather than a securely mapped constellation',
+      maatPrinciple: 'Bring the Right Hands Into the Field',
+      cosmicContext: '''
+A field tended by one person is a smaller field.
+Not because the person is insufficient —
+because the field requires more than one pair of eyes and one set of skills.
 
-Day 15 asks for the giver to be protected.
+In Ka-ḥer-ka you called in help during weakness.
+In Peret you bring in hands during growth — which is different.
+This is not crisis support. This is field expansion.
 
-Every system has carriers of nourishment. The person who cooks. The one who remembers. The one who checks the account. The one who keeps the children steady. The one who maintains the tool. The one who speaks peace before rupture spreads. The one who pours water before anyone asks.
-
-If that person collapses, the system learns too late what was being held.
-
-Kemet understood that provision required maintenance. Storehouses had to be guarded. Canals had to be cleared. Priests had to be purified. Workers had to be fed. A source that gives without protection becomes a future failure.
-
-Today asks: what protects the giver?
-
-Rest.
-
-Food.
-
-Help.
-
-Privacy.
-
-Fairness.
-
-Clear duty.
-
-A boundary.
-
-A return offering.
-
-Acknowledgment.
-
-Care must not flow only one way forever. That is not sacred devotion. That is imbalance slowly becoming crisis.
-
-Renenutet nourishes, but she also guards the store.
-
-The one who feeds life must not be left undefended.
-
-Today asks for one concrete act that protects the source of care.
+Who belongs in this work with you?
+Someone whose presence strengthens the field, not just witnesses it.
+Bring them in today.
 ''',
-        glyph: 'Cobra guarding a full grain jar',
-        colorFrequency: 'Protective black, grain gold, and deep green',
-        mantra: '“The source of care must also be guarded.”',
+      decanFlow: _shefBedetIIFlowRows,
+      meduNeter: MeduNeterKey(
+        glyph: 'Two farmers in the row together — expansion, not rescue',
+        colorFrequency: 'Living green with two figures working',
+        mantra: '"I bring the right hands into this field."',
       ),
-      (
-        totalDay: 16,
-        starCluster:
-            '✨ ḥry-ib ḫnty-ḥr — a small decanal rising group in the night-hour order; exact modern star-cluster identification remains uncertain',
-        maatPrinciple: 'Distorted Care Corrected',
-        cosmicContext: '''
-Care can lose its right relation.
+    ),
+    _dayInfoEntry(
+      key: 'sefbedet_16_2',
+      kemeticDate: 'Šef-Bedet II, Day 16',
+      season: '🌱 Peret I – Emergence Season',
+      month: 'Šef-Bedet (Šf-bdt)',
+      decanName:
+          'ḥry-ib ḫnty-ḥr (translation uncertain) | Deck: Heart of the Foremost',
+      starCluster:
+          '✨ ḥry-ib ḫnty-ḥr — a small decanal rising group in the night-hour order; exact modern star-cluster identification remains uncertain',
+      maatPrinciple: 'Correct the Lean Before It Becomes the Shape',
+      cosmicContext: '''
+A plant growing toward one light source will lean until it cannot stand straight.
+Not damaged — just shaped by what was available.
+But a leaning plant eventually becomes a plant that cannot bear weight upright.
 
-Day 16 asks for distorted care to be corrected.
+Where is what you are growing leaning?
+Too much time and too little resource? Output without rest?
+Visible progress with a neglected foundation?
 
-Neglect is one distortion. Control is another. Waste is another. Guilt is another. Fear disguised as protection is another. Giving in order to be needed is another. Refusing care because receiving feels weak is another.
-
-Nourishment must remain clean.
-
-A person may say, “I am only helping,” while taking away another person’s strength. A person may say, “I am giving space,” while avoiding responsibility. A person may say, “I am sacrificing,” while silently building resentment. A person may say, “I do not need anything,” while starving the root that others depend on.
-
-These distortions matter because they affect the future.
-
-What is fed wrongly grows crooked.
-
-What is withheld wrongly weakens.
-
-What is controlled wrongly loses its own strength.
-
-Today asks for one distortion in care to be named and repaired.
-
-Where has care become control?
-
-Where has restraint become neglect?
-
-Where has generosity become self-erasure?
-
-Where has protection become fear?
-
-This is not blame. It is correction.
-
-Ma’at is restored when nourishment returns to right relation.
+Find the lean. Correct it now, while the plant is young enough to straighten.
+Later the lean becomes the structure.
 ''',
-        glyph: 'Twisted water channel being straightened by hand',
-        colorFrequency: 'Corrective gold, river blue, and dark earth',
-        mantra: '“I return care to right relation.”',
+      decanFlow: _shefBedetIIFlowRows,
+      meduNeter: MeduNeterKey(
+        glyph:
+            'Stake correcting a leaning plant — early correction, not emergency repair',
+        colorFrequency: 'Green redirected toward balance',
+        mantra: '"I correct the lean before it becomes the shape."',
       ),
-      (
-        totalDay: 17,
-        starCluster:
-            '✨ ḥry-ib ḫnty-ḥr — a horizon-based decanal marker in the observed star sequence, likely modest in brightness and not securely identified with a modern constellation',
-        maatPrinciple: 'Nourishment Distributed Fairly',
-        cosmicContext: '''
-The loudest need is not always the only need.
+    ),
+    _dayInfoEntry(
+      key: 'sefbedet_17_2',
+      kemeticDate: 'Šef-Bedet II, Day 17',
+      season: '🌱 Peret I – Emergence Season',
+      month: 'Šef-Bedet (Šf-bdt)',
+      decanName:
+          'ḥry-ib ḫnty-ḥr (translation uncertain) | Deck: Heart of the Foremost',
+      starCluster:
+          '✨ ḥry-ib ḫnty-ḥr — a horizon-based decanal marker in the observed star sequence, likely modest in brightness and not securely identified with a modern constellation',
+      maatPrinciple: 'The Field Grows While the Farmer Rests',
+      cosmicContext: '''
+Growth does not stop when the farmer sleeps.
+It does not wait for the farmer to be watching.
+The Kemite understood: rest is part of the production cycle, not outside it.
 
-Day 17 asks for fair distribution.
+A farmer who does not rest
+runs himself into the ground before the harvest arrives.
+Then there is no one to bring in the crop.
 
-In a field, one channel may demand attention because it is visibly broken, while another dries quietly at the edge. In a household, one crisis may absorb every resource while another person fades into silence. In the body, one pain may dominate awareness while a deeper exhaustion goes unfed.
-
-Care under Ma’at must look across the whole field.
-
-Renenutet’s nourishment belongs to continuity, not panic. She guards the granary because provision must reach household, temple, ka, laborer, child, elder, and seed for the next season. If one place consumes everything, the future is starved.
-
-Today asks what has been overlooked.
-
-The quiet child.
-
-The tired body.
-
-The unpaid helper.
-
-The neglected tool.
-
-The part of the work that never cries out but keeps everything standing.
-
-The future need that must receive seed now.
-
-Fair distribution does not mean everything receives the same thing. It means each receives according to right relation.
-
-Today asks for care to widen its sight.
-
-The field is larger than the loudest row.
+Rest today. Not as reward — as infrastructure.
+The field you are growing needs you whole in the months ahead.
+Give it a farmer who will survive into the harvest.
 ''',
-        glyph: 'Granary measure divided into several bowls',
-        colorFrequency: 'Barley gold, clay brown, and living green',
-        mantra: '“I feed the whole field, not only the loudest need.”',
+      decanFlow: _shefBedetIIFlowRows,
+      meduNeter: MeduNeterKey(
+        glyph: 'Farmer resting beside a growing field — rest as production',
+        colorFrequency:
+            'Warm earth, green continuing without the farmer watching',
+        mantra: '"The field grows while I rest. Both are required."',
       ),
-      (
-        totalDay: 18,
-        starCluster:
-            '✨ ḥry-ib ḫnty-ḥr — a decanal star group watched in sequence near the horizon, functioning as a timing marker rather than a securely identified modern cluster',
-        maatPrinciple: 'Response Observed',
-        cosmicContext: '''
-After nourishment is given, the response must be observed.
+    ),
+    _dayInfoEntry(
+      key: 'sefbedet_18_2',
+      kemeticDate: 'Šef-Bedet II, Day 18',
+      season: '🌱 Peret I – Emergence Season',
+      month: 'Šef-Bedet (Šf-bdt)',
+      decanName:
+          'ḥry-ib ḫnty-ḥr (translation uncertain) | Deck: Heart of the Foremost',
+      starCluster:
+          '✨ ḥry-ib ḫnty-ḥr — a decanal star group watched in sequence near the horizon, functioning as a timing marker rather than a securely identified modern cluster',
+      maatPrinciple: 'Measure What Has Actually Grown',
+      cosmicContext: '''
+The scribe recorded the field's condition at intervals —
+not to celebrate, to know.
+Numbers gave the household, the field crew, the honest record a way to plan for what was coming.
+Feeling was not a substitute for measurement.
 
-Day 18 asks for listening after care.
+From Day 1 of Šef-Bedet to today: what has concretely changed?
+Not "things feel different." What is different in a way you can point to?
 
-This is where many people fail. They give once, then assume the matter is settled. They apologize once, then assume trust has returned. They rest one night, then assume the body is restored. They water once, then assume the field will hold.
-
-But care is not complete when it leaves the hand.
-
-It must be followed by attention to what happens next.
-
-Did the plant strengthen?
-
-Did the body soften?
-
-Did the relationship breathe?
-
-Did the project move?
-
-Did the household calm?
-
-Did the child settle?
-
-Did the root receive?
-
-Or did the same weakness remain?
-
-The response is not insult. It is information.
-
-In Kemet, a field was watched after water moved through it. A storehouse was checked after provision entered it. A ritual was not treated as empty performance; its order had to maintain relation.
-
-Today asks for observation after giving.
-
-What changed?
-
-What did not?
-
-What needs another measure?
-
-What needs a different kind of care?
-
-To nourish intelligently, the heart must listen to the answer of what was fed.
+Measure it. Write it down.
+The accurate record is what you make the next decision from.
 ''',
-        glyph: 'Eye watching a watered shoot rise or bend',
-        colorFrequency: 'Clear blue, alert gold, and green',
-        mantra: '“I listen to what care produces.”',
+      decanFlow: _shefBedetIIFlowRows,
+      meduNeter: MeduNeterKey(
+        glyph:
+            'Scribe recording field measurements — the honest interval count',
+        colorFrequency: 'Ink black, clean papyrus, numbered rows',
+        mantra: '"I measure what changed. Feeling is not measurement."',
       ),
-      (
-        totalDay: 19,
-        starCluster:
-            '✨ ḥry-ib ḫnty-ḥr — a small rising decanal marker in the night-star sequence, with exact modern identification uncertain and best treated as an observed timing group',
-        maatPrinciple: 'Provision Made Sustainable',
-        cosmicContext: '''
-Urgency can awaken care.
+    ),
+    _dayInfoEntry(
+      key: 'sefbedet_19_2',
+      kemeticDate: 'Šef-Bedet II, Day 19',
+      season: '🌱 Peret I – Emergence Season',
+      month: 'Šef-Bedet (Šf-bdt)',
+      decanName:
+          'ḥry-ib ḫnty-ḥr (translation uncertain) | Deck: Heart of the Foremost',
+      starCluster:
+          '✨ ḥry-ib ḫnty-ḥr — a small rising decanal marker in the night-star sequence, with exact modern identification uncertain and best treated as an observed timing group',
+      maatPrinciple: 'Thin What the Field Cannot Support',
+      cosmicContext: '''
+Not every shoot that appeared in Šef-Bedet I should survive into Decan III.
+Early growth produces more than the field can fully support.
+The farmer thins the row — not from failure, but from clarity.
+One weak shoot removed gives the stronger ones the full water.
 
-It cannot be the only thing that sustains it.
-
-Day 19 asks for provision to become sustainable.
-
-If care appears only during crisis, life learns insecurity. The body is fed only after collapse. The account is checked only after fear. The relationship is tended only after rupture. The project is supported only when it is already failing.
-
-That is not nourishment.
-
-That is emergency response.
-
-Šef-Bedet teaches a quieter discipline. The living thing should not have to break down to receive what keeps it alive.
-
-Today asks for a pattern that can continue after the emotional moment passes.
-
-A standing meal plan.
-
-A rest rhythm.
-
-A repeated money practice.
-
-A protected hour.
-
-A regular check-in.
-
-A simple record.
-
-A shared duty.
-
-A small offering placed at the same time each day.
-
-Sustainability does not need to be grand. It needs to return.
-
-Renenutet’s field is protected by repeated provision, not one dramatic rescue.
-
-Today asks for care to be made dependable enough that life does not have to scream for it.
+What extra demand, stalled commitment, or competing growth
+is drawing from the same root as what matters most?
+Thin it. Not a loss — a decision about what this field is actually growing.
 ''',
-        glyph: 'Repeated offering bowls arranged in a line',
-        colorFrequency: 'Grain gold, river blue, and steady green',
-        mantra: '“Care must return before crisis calls it.”',
+      decanFlow: _shefBedetIIFlowRows,
+      meduNeter: MeduNeterKey(
+        glyph:
+            'Farmer thinning the row — removing the weak shoot so the strong one gets the water',
+        colorFrequency:
+            'Black earth, thinned row, the remaining green with full access to root water',
+        mantra: '"I thin the row. The stronger growth gets the full water."',
       ),
-      (
-        totalDay: 20,
-        starCluster:
-            '✨ ḥry-ib ḫnty-ḥr — the heart phase of this horizon-rising decanal sequence; a modest observed star group used for timing, with no secure modern constellation assignment',
-        maatPrinciple: 'Intelligent Nourishment Sealed',
-        cosmicContext: '''
-Day 20 seals the heart of Šef-Bedet.
+    ),
+    _dayInfoEntry(
+      key: 'sefbedet_20_2',
+      kemeticDate: 'Šef-Bedet II, Day 20',
+      season: '🌱 Peret I – Emergence Season',
+      month: 'Šef-Bedet (Šf-bdt)',
+      decanName:
+          'ḥry-ib ḫnty-ḥr (translation uncertain) | Deck: Heart of the Foremost',
+      starCluster:
+          '✨ ḥry-ib ḫnty-ḥr — the heart phase of this horizon-rising decanal sequence; a modest observed star group used for timing, with no secure modern constellation assignment',
+      maatPrinciple: 'Survey the Whole Field',
+      cosmicContext: '''
+Twenty days into Šef-Bedet.
+The farmer who has been in the rows all month needs to step back
+and look at the full condition of the field — not the section they know best,
+but the whole.
 
-This decan has asked whether care can become intelligent. It has brought nourishment to the heart, read the true need, adjusted the measure, protected the giver, corrected distortion, widened distribution, listened for response, and made provision sustainable.
+What is strong? What is lagging? What needs attention in the third decan?
+Where is the growth you did not plant?
 
-Now the difference must be named.
-
-There is care that sustains.
-
-There is care that distorts.
-
-Sustaining care feeds the root. Distorted care feeds anxiety. Sustaining care strengthens capacity. Distorted care creates dependence. Sustaining care protects the giver. Distorted care consumes the source. Sustaining care watches the whole field. Distorted care obeys only the loudest demand.
-
-This distinction matters for every form of progress.
-
-A life cannot grow under neglect.
-
-It also cannot grow under care without measure.
-
-Today asks for the law of nourishment to be sealed.
-
-What does healthy care look like now?
-
-What must never again be called care?
-
-What rhythm will sustain the root?
-
-What boundary will protect the source?
-
-Renenutet’s nourishment is not blind generosity. It is guarded provision for the future.
-
-Where care remains intelligent, destiny is fed without being distorted.
+Stand back. Let the whole picture arrive.
+The third decan roots what the first two began.
+Know what you are rooting before it starts.
 ''',
-        glyph: 'Heart, grain measure, and protective cobra sealed together',
-        colorFrequency: 'Deep green, grain gold, black earth, and Nile blue',
-        mantra: '“My care sustains without distorting.”',
+      decanFlow: _shefBedetIIFlowRows,
+      meduNeter: MeduNeterKey(
+        glyph:
+            'Farmer standing at the field edge, looking at the whole — the survey',
+        colorFrequency: 'Wide green field, one figure reading all of it',
+        mantra: '"I see the whole field. Not just the row I know."',
       ),
-    ],
-  );
+    ),
+  ]);
 }
 
 Map<String, KemeticDayInfo> _buildShefBedetIIIEntries() {
-  const season = '🌿 Peret – Season of Emergence';
-  const month = 'Šef-Bedet (Šf-bdt) — Nourishment Given in Right Measure';
-  return _buildGeneratedDecanEntries(
-    keyPrefix: 'sefbedet',
-    decan: 3,
-    decanLabel: 'Šef-Bedet III',
-    monthLabelForDate: 'Šef-Bedet',
-    month: month,
-    season: season,
-    decanName: 'sbꜣ ḫnty-ḥr',
-    kemeticDateBuilder: (totalDay, _) => 'Šef-Bedet III, Day $totalDay',
-    flowRows: _shefBedetIIIFlowRows,
-    entries: [
-      (
-        totalDay: 21,
-        starCluster:
-            '✨ sbꜣ ḫnty-ḥr — the star phase of this decanal group, best described as a modest rising horizon marker in the ten-day night sequence; exact modern identification is uncertain',
-        maatPrinciple: 'Care Trusted',
-        cosmicContext: '''
-The first decan noticed fragile growth.
+  return Map.fromEntries([
+    _dayInfoEntry(
+      key: 'sefbedet_21_3',
+      kemeticDate: 'Šef-Bedet III, Day 21',
+      season: '🌱 Peret I – Emergence Season',
+      month: 'Šef-Bedet (Šf-bdt)',
+      decanName:
+          'sbȝ ḫnty-ḥr (translation uncertain) | Deck: Star of the Foremost',
+      starCluster:
+          '✨ sbꜣ ḫnty-ḥr — the star phase of this decanal group, best described as a modest rising horizon marker in the ten-day night sequence; exact modern identification is uncertain',
+      maatPrinciple: 'Let It Root',
+      cosmicContext: '''
+Twenty days of emergence. The shoot has been fed, protected, measured, and tended.
+Now it must root.
 
-The second measured the care.
+Rooting requires stability.
+A plant moved every few days cannot root — it spends all its energy re-establishing,
+and none of it going deep.
 
-The third asks whether the care can now be trusted.
-
-This is not abandonment. It is the next form of nourishment.
-
-A field that has received water, protection, and attention does not need the farmer’s hand constantly disturbing the soil. A child who has been guided must eventually be allowed to try. A project that has received structure must begin to move inside that structure. A healing body must be trusted enough to live, not watched as though it is always about to fail.
-
-Day 21 asks for trust in the care already given.
-
-This is difficult because care often becomes identity. The one who has tended the fragile thing may fear that stepping back means losing importance. But Renenutet’s nourishment is not possession. It guards life so life can continue.
-
-Today asks where enough has already been done for the next movement to begin.
-
-Not everything needs more handling.
-
-Some things need room.
-
-Where care has been placed correctly, trust becomes part of the nourishment.
+Stop moving this. Stop reconsidering the soil.
+Consistent conditions, steady care, no more repositioning.
+The final act of establishment is stillness.
+Let it root.
 ''',
-        glyph: 'Open hand withdrawing slightly from a growing shoot',
-        colorFrequency: 'Soft green, grain gold, and calm blue',
-        mantra: '“I trust the care that has already been placed.”',
+      decanFlow: _shefBedetIIIFlowRows,
+      meduNeter: MeduNeterKey(
+        glyph:
+            'Root system spreading in stable soil — the plant finally held in place',
+        colorFrequency: 'Dark earth, deep root lines, green above steady',
+        mantra: '"I stop moving it. I let it root."',
       ),
-      (
-        totalDay: 22,
-        starCluster:
-            '✨ sbꜣ ḫnty-ḥr — a small decanal star group observed near the horizon as part of the night-hour sequence, not securely matched to a modern constellation',
-        maatPrinciple: 'Watchful Distance',
-        cosmicContext: '''
-Trust requires distance.
+    ),
+    _dayInfoEntry(
+      key: 'sefbedet_22_3',
+      kemeticDate: 'Šef-Bedet III, Day 22',
+      season: '🌱 Peret I – Emergence Season',
+      month: 'Šef-Bedet (Šf-bdt)',
+      decanName:
+          'sbȝ ḫnty-ḥr (translation uncertain) | Deck: Star of the Foremost',
+      starCluster:
+          '✨ sbꜣ ḫnty-ḥr — a small decanal star group observed near the horizon as part of the night-hour sequence, not securely matched to a modern constellation',
+      maatPrinciple: 'Name It for What It Is',
+      cosmicContext: '''
+The field at Day 22 is not what it was on Day 1.
+It is no longer emergence. It is a growing field.
 
-Not absence.
+Name it accurately.
+Not what you hoped it would become.
+Not what it looked like on Day 1.
+What it actually is right now — its size, its condition, its realistic yield.
 
-Distance.
-
-Day 22 asks for the difference between stepping back and abandoning.
-
-A farmer does not sleep through the season after watering the field. The field is still watched. The channels are still checked. Pests are still noticed. But the root is not pulled up. The shoot is not handled every hour. The growth is allowed to perform its own work.
-
-This is one of the harder forms of care.
-
-Many people know how to intervene. Fewer know how to remain present without taking over. A relationship may need space without coldness. A child may need room without neglect. A body may need gentle trust instead of constant suspicion. A project may need time to settle before more changes are made.
-
-Renenutet watches the granary without consuming it.
-
-That is the image for this day.
-
-Guard the boundary.
-
-Keep the attention.
-
-But remove the anxious hand.
-
-Today asks for one place where care must become watchful distance. The thing being nourished needs proof that it can continue without being constantly controlled.
+Accurate naming is not lowering expectations.
+It is how you make good decisions from here.
+A field named wrongly gets the wrong care.
 ''',
-        glyph: 'Cobra watching from beside the field, not upon the root',
-        colorFrequency: 'Protective black, field green, and quiet gold',
-        mantra: '“I remain present without taking over.”',
+      decanFlow: _shefBedetIIIFlowRows,
+      meduNeter: MeduNeterKey(
+        glyph:
+            'Scribe naming the field in the record — the thing given its actual name',
+        colorFrequency:
+            'Ink on papyrus, green field behind it — named and real',
+        mantra: '"I name this for what it actually is."',
       ),
-      (
-        totalDay: 23,
-        starCluster:
-            '✨ sbꜣ ḫnty-ḥr — a horizon-rising decanal timing group, likely modest in appearance compared with major anchors like Sopdet or Sah; modern identification remains uncertain',
-        maatPrinciple: 'Growth Allowed to Show',
-        cosmicContext: '''
-Growth must eventually reach light.
+    ),
+    _dayInfoEntry(
+      key: 'sefbedet_23_3',
+      kemeticDate: 'Šef-Bedet III, Day 23',
+      season: '🌱 Peret I – Emergence Season',
+      month: 'Šef-Bedet (Šf-bdt)',
+      decanName:
+          'sbȝ ḫnty-ḥr (translation uncertain) | Deck: Star of the Foremost',
+      starCluster:
+          '✨ sbꜣ ḫnty-ḥr — a horizon-rising decanal timing group, likely modest in appearance compared with major anchors like Sopdet or Sah; modern identification remains uncertain',
+      maatPrinciple: 'Protection Is Built While Conditions Are Good',
+      cosmicContext: '''
+The farmer does not wait for stress to test the root.
+Peret still gives room to tend and build — pressure will come later and there will be less time then.
 
-Day 23 asks for visible progress to be allowed without being mistaken for completion.
+What would damage what is growing if it arrived today?
+A cut in time, a loss of energy, an external demand?
 
-This is a delicate stage. The shoot appears above the soil, but it is not grain. The habit has returned, but it is not yet permanent. The conversation has softened, but trust is still maturing. The work has begun to take form, but it is not ready to carry every demand.
-
-A visible sign can create excitement.
-
-Excitement can create pressure.
-
-Pressure can damage what it celebrates.
-
-So the day asks for clear recognition without premature harvesting.
-
-Let the progress be seen.
-
-Do not force it to become proof of everything.
-
-Do not expose it to every opinion.
-
-Do not demand that the first green sign feed the whole house.
-
-This applies to any real change. Early progress needs witness, not exploitation. It needs encouragement, not extraction. It needs the dignity of being called real without being called finished.
-
-Today asks for one sign of growth to be acknowledged in right measure.
-
-What has risen may be honored.
-
-What has risen must still be protected.
+While conditions allow it, build one layer of protection around the growing thing.
+Not a wall — a windbreak. Partial shelter built early
+is worth more than emergency repair after the damage.
 ''',
-        glyph: 'Young green shoot breaking the soil under a small star',
-        colorFrequency: 'Fresh green, black earth, and dawn gold',
-        mantra: '“What is visible is real, even before it is complete.”',
+      decanFlow: _shefBedetIIIFlowRows,
+      meduNeter: MeduNeterKey(
+        glyph:
+            'Windbreak built while conditions still allow — protection before pressure arrives',
+        colorFrequency: 'Straw-brown protection, green field tended behind it',
+        mantra: '"I build protection while conditions still allow it."',
       ),
-      (
-        totalDay: 24,
-        starCluster:
-            '✨ sbꜣ ḫnty-ḥr — a decanal star marker in the rising sequence, physically treated as a small watched horizon group with no secure modern cluster assignment',
-        maatPrinciple: 'Boundary Guarded',
-        cosmicContext: '''
-Growth needs boundary.
+    ),
+    _dayInfoEntry(
+      key: 'sefbedet_24_3',
+      kemeticDate: 'Šef-Bedet III, Day 24',
+      season: '🌱 Peret I – Emergence Season',
+      month: 'Šef-Bedet (Šf-bdt)',
+      decanName:
+          'sbȝ ḫnty-ḥr (translation uncertain) | Deck: Star of the Foremost',
+      starCluster:
+          '✨ sbꜣ ḫnty-ḥr — a decanal star marker in the rising sequence, physically treated as a small watched horizon group with no secure modern cluster assignment',
+      maatPrinciple: 'Acknowledge What Made Growth Possible',
+      cosmicContext: '''
+The crop does not grow from the farmer's intention alone.
+It grows from the flood that came before,
+the silt the river left,
+the hands that maintained the canal through the dry years,
+the seed saved from last harvest.
 
-Day 24 asks for protection around what has begun to show.
-
-Once something becomes visible, it becomes reachable. That is both blessing and danger. A new rhythm may attract demands. A recovering body may be asked to perform too soon. A repaired relationship may be tested carelessly. A young project may be criticized before it has structure enough to answer.
-
-The boundary is part of the nourishment.
-
-A field without boundary can be trampled. A storehouse without a seal can be emptied. A name without protection can be damaged. A tender growth without limits can be consumed by the same world that once waited for it to appear.
-
-Renenutet’s cobra form matters here.
-
-She does not only feed.
-
-She guards.
-
-Today asks for one boundary to be placed or strengthened around growth.
-
-Who should not have access yet?
-
-What demand must wait?
-
-What criticism should not enter?
-
-What old pattern should not be allowed back near the root?
-
-A boundary under Ma’at is not hardness for its own sake. It is the form care takes when life must be protected from premature use.
+What made this emergence possible?
+Name the ground that held the seed.
+Name the people, the conditions, the prior work —
+yours and others'.
+Gratitude here is not sentiment. It is accurate accounting.
 ''',
-        glyph: 'Cobra raised before a young grain stalk',
-        colorFrequency: 'Protective gold, deep green, and black earth',
-        mantra: '“I guard what has begun to rise.”',
+      decanFlow: _shefBedetIIIFlowRows,
+      meduNeter: MeduNeterKey(
+        glyph:
+            'Offering arms toward the field — the farmer acknowledging the source',
+        colorFrequency: 'Gold gratitude over green field, earth beneath both',
+        mantra: '"I name what held the ground so this could grow."',
       ),
-      (
-        totalDay: 25,
-        starCluster:
-            '✨ sbꜣ ḫnty-ḥr — a modest decanal horizon marker in the star-time sequence, best described physically as a small rising group rather than a confirmed modern constellation',
-        maatPrinciple: 'Steady Provision',
-        cosmicContext: '''
-Trust does not mean care stops.
+    ),
+    _dayInfoEntry(
+      key: 'sefbedet_25_3',
+      kemeticDate: 'Šef-Bedet III, Day 25',
+      season: '🌱 Peret I – Emergence Season',
+      month: 'Šef-Bedet (Šf-bdt)',
+      decanName:
+          'sbȝ ḫnty-ḥr (translation uncertain) | Deck: Star of the Foremost',
+      starCluster:
+          '✨ sbꜣ ḫnty-ḥr — a modest decanal horizon marker in the star-time sequence, best described physically as a small rising group rather than a confirmed modern constellation',
+      maatPrinciple: 'Commit to What Has Proven Itself',
+      cosmicContext: '''
+A practice still treated as "I'm trying this" after 25 days
+gets the effort of a trial, not of a life.
 
-Day 25 asks for the next measured portion.
+Something from this month has proven itself.
+It took root, it survived the lean-correction, it held through ordinary maintenance.
+That thing is no longer an experiment.
 
-This is not dramatic nourishment. Not rescue. Not flooding. Not a grand gesture to prove love, discipline, or concern.
-
-Just the next proper amount.
-
-A field that is growing still needs water. A body that is healing still needs food. A household that is stabilizing still needs order. A project that is forming still needs time. A relationship that is softening still needs honest attention.
-
-The danger at this stage is swinging between extremes.
-
-Constant interference on one side.
-
-Neglect disguised as trust on the other.
-
-Ma’at holds the middle.
-
-Today asks for simple provision in right measure. The kind of care that does not announce itself loudly because it is not trying to replace the life it supports.
-
-Give the food.
-
-Keep the hour.
-
-Send the message.
-
-Check the account.
-
-Refill the water.
-
-Do the small thing that lets continuity remain unbroken.
-
-Steady care teaches the growing thing that life will not disappear just because crisis has passed.
+Make it official. Record it. Commit to it.
+A field you have been farming for a month
+is no longer a field you are thinking about farming.
+Stop treating it as temporary.
 ''',
-        glyph: 'Small measured stream flowing to grain',
-        colorFrequency: 'Nile blue, grain gold, and living green',
-        mantra: '“I give the next right portion.”',
+      decanFlow: _shefBedetIIIFlowRows,
+      meduNeter: MeduNeterKey(
+        glyph: 'Boundary marker set in the field — the commitment recorded',
+        colorFrequency: 'Stone marker, green field recognized and claimed',
+        mantra: '"This proved itself. I commit to it."',
       ),
-      (
-        totalDay: 26,
-        starCluster:
-            '✨ sbꜣ ḫnty-ḥr — a rising decanal star group observed in sequence near the horizon; its exact modern star identity is uncertain',
-        maatPrinciple: 'Future Provision Preserved',
-        cosmicContext: '''
-Nourishment must think beyond the present mouth.
+    ),
+    _dayInfoEntry(
+      key: 'sefbedet_26_3',
+      kemeticDate: 'Šef-Bedet III, Day 26',
+      season: '🌱 Peret I – Emergence Season',
+      month: 'Šef-Bedet (Šf-bdt)',
+      decanName:
+          'sbȝ ḫnty-ḥr (translation uncertain) | Deck: Star of the Foremost',
+      starCluster:
+          '✨ sbꜣ ḫnty-ḥr — a rising decanal star group observed in sequence near the horizon; its exact modern star identity is uncertain',
+      maatPrinciple: 'The Edges of the Field Also Need Care',
+      cosmicContext: '''
+The center of the field gets the attention.
+It is where the main crop is, where the effort concentrated, where the yield will come from.
 
-Day 26 asks for the future share.
+But the edges hold the boundary.
+They determine how far the field extends.
+And an untended edge is where pests enter, where erosion starts,
+where the next season's expansion is either possible or blocked.
 
-The field is not righteous if all grain is eaten and no seed remains. A storehouse is not wise if it feeds one feast and starves the next season. A caregiver is not protected if every resource is spent today with no strength left for tomorrow.
-
-Renenutet stands near destiny because what is nourished now becomes the portion later carried.
-
-This day asks what must be preserved.
-
-Seed.
-
-Savings.
-
-Knowledge.
-
-Energy.
-
-Time.
-
-A tool.
-
-A lesson.
-
-A boundary.
-
-A record.
-
-A portion of strength not spent simply because it is available.
-
-This is not hoarding. Hoarding keeps from fear. Preservation keeps for continuity.
-
-The difference is Ma’at.
-
-One closes the hand against relation. The other sets aside what the next life will need.
-
-Today asks for one future need to be fed before it becomes urgent. The next cycle should not have to begin in hunger because the present moment consumed everything.
-
-What is preserved in right measure becomes mercy for the future.
+What is peripheral in your life right now?
+Not abandoned — peripheral.
+Still alive, still yours, just not the center today.
+Tend it.
 ''',
-        glyph: 'Seed jar sealed beside a full grain basket',
-        colorFrequency: 'Clay brown, seed gold, and deep green',
-        mantra: '“I preserve what the next cycle will need.”',
+      decanFlow: _shefBedetIIIFlowRows,
+      meduNeter: MeduNeterKey(
+        glyph:
+            'Farmer walking the field edge — the perimeter tended, not just the center',
+        colorFrequency: 'Wide green with attention at the margin',
+        mantra: '"I tend the edges. They hold the boundary."',
       ),
-      (
-        totalDay: 27,
-        starCluster:
-            '✨ sbꜣ ḫnty-ḥr — a small horizon-based decanal star marker within the night sequence, not securely identifiable with a specific modern cluster',
-        maatPrinciple: 'Maturing Growth Recognized',
-        cosmicContext: '''
-There is a point when the fragile thing is not as fragile as before.
+    ),
+    _dayInfoEntry(
+      key: 'sefbedet_27_3',
+      kemeticDate: 'Šef-Bedet III, Day 27',
+      season: '🌱 Peret I – Emergence Season',
+      month: 'Šef-Bedet (Šf-bdt)',
+      decanName:
+          'sbȝ ḫnty-ḥr (translation uncertain) | Deck: Star of the Foremost',
+      starCluster:
+          '✨ sbꜣ ḫnty-ḥr — a small horizon-based decanal star marker within the night sequence, not securely identifiable with a specific modern cluster',
+      maatPrinciple: 'Trust the Established Root',
+      cosmicContext: '''
+For twenty-six days you have been treating this as fragile.
+That was right. It was fragile.
 
-Day 27 asks for that change to be recognized.
+It is less fragile now.
+The root is in. The rhythm is set. The competitors were cleared.
+The structure holds.
 
-This matters because care must adapt to maturity. If something stronger is still treated as helpless, care becomes restriction. If something still young is treated as fully grown, care becomes neglect. The heart must read the stage correctly.
-
-What has become stronger?
-
-The body that no longer collapses under one task.
-
-The habit that no longer requires constant force.
-
-The relationship that can now speak truth without breaking.
-
-The project that can survive a small test.
-
-The household rhythm that no longer depends on panic.
-
-The young growth that has enough root to stand through a little wind.
-
-Naming maturity does not mean withdrawing care.
-
-It means updating relation.
-
-Renenutet nourishes life so it can become capable. Shai gives the portion, but nourishment helps that portion become livable. A destiny constantly treated as weak cannot stand. A destiny forced too early may break. The measure must change as life changes.
-
-Today asks for one growing thing to be recognized at its true stage.
-
-What is no longer as fragile as it once was should not be spoken to as though it has not grown.
+Continuing to treat it as a shoot when it is becoming a plant
+wastes protection energy and creates false fragility.
+Act from the assumption that it will hold.
+The field has earned that trust.
 ''',
-        glyph: 'Stronger stalk rising above earlier shoots',
-        colorFrequency: 'Deeper green, warm gold, and black earth',
-        mantra: '“I recognize the strength that care has produced.”',
+      decanFlow: _shefBedetIIIFlowRows,
+      meduNeter: MeduNeterKey(
+        glyph:
+            'Established plant with the windbreak opened — protection reduced, not removed',
+        colorFrequency:
+            'Full green, windbreak opened but present — less shelter, not none',
+        mantra: '"The root is in. I can loosen the shelter."',
       ),
-      (
-        totalDay: 28,
-        starCluster:
-            '✨ sbꜣ ḫnty-ḥr — a modest rising decanal group used as a ten-day star-time marker; physical identification remains cautious and uncertain',
-        maatPrinciple: 'Confidence Shared Without Control',
-        cosmicContext: '''
-Steadiness can shelter without taking the center.
+    ),
+    _dayInfoEntry(
+      key: 'sefbedet_28_3',
+      kemeticDate: 'Šef-Bedet III, Day 28',
+      season: '🌱 Peret I – Emergence Season',
+      month: 'Šef-Bedet (Šf-bdt)',
+      decanName:
+          'sbȝ ḫnty-ḥr (translation uncertain) | Deck: Star of the Foremost',
+      starCluster:
+          '✨ sbꜣ ḫnty-ḥr — a modest rising decanal group used as a ten-day star-time marker; physical identification remains cautious and uncertain',
+      maatPrinciple: 'Offer the Month to Ma\'at',
+      cosmicContext: '''
+The offering is not the crop. The crop is not ready.
+The offering is the care that was given —
+the watering, the clearing, the tending, the honest reading,
+the patience when it was not visible, the protection when it was vulnerable.
 
-Day 28 asks for shared confidence.
+Place that in front of Ma'at.
+Not the result — the effort.
+Not the yield — the farmer.
 
-When something has been nourished well, the one who tended it may now support from the side. This is a quieter power. It reassures without directing every motion. It helps without making itself the source of all progress. It protects without turning the growing thing into proof of the protector’s importance.
-
-This applies in many places.
-
-A parent lets the child try.
-
-A friend offers steadiness without taking over.
-
-A leader gives room for others to carry.
-
-A healed part of the self encourages the still-healing part without contempt.
-
-A project is allowed to stand on its structure instead of being constantly rewritten from anxiety.
-
-Hathor teaches warmth. Renenutet teaches guarded nourishment. Together they show that support does not need to dominate what it loves.
-
-Today asks for confidence to be shared cleanly.
-
-Let steadiness become shelter, not possession.
-
-Let encouragement strengthen the root, not replace it.
-
-Let the growing thing feel accompanied, not controlled.
-
-Care reaches maturity when it can say: this life is strong enough to continue, and I will remain near without standing on top of it.
+Did you tend this in a way that honors what was placed in the ground?
+That is the question Ma'at asks.
 ''',
-        glyph: 'Sheltering canopy beside an upright plant',
-        colorFrequency: 'Soft gold, field green, and evening blue',
-        mantra: '“I support without becoming the center.”',
+      decanFlow: _shefBedetIIIFlowRows,
+      meduNeter: MeduNeterKey(
+        glyph:
+            'Farmer with empty hands before Ma\'at — the care offered, not the yield',
+        colorFrequency:
+            'Gold Ma\'at scale, green field behind, empty honest hands',
+        mantra:
+            '"I offer the care, not the crop. The care is what Ma\'at weighs."',
       ),
-      (
-        totalDay: 29,
-        starCluster:
-            '✨ sbꜣ ḫnty-ḥr — the star phase of the decan, observed as a small horizon marker in the night-time sequence rather than a securely named modern star cluster',
-        maatPrinciple: 'Continuation Blessed',
-        cosmicContext: '''
-What continues should be blessed.
+    ),
+    _dayInfoEntry(
+      key: 'sefbedet_29_3',
+      kemeticDate: 'Šef-Bedet III, Day 29',
+      season: '🌱 Peret I – Emergence Season',
+      month: 'Šef-Bedet (Šf-bdt)',
+      decanName:
+          'sbȝ ḫnty-ḥr (translation uncertain) | Deck: Star of the Foremost',
+      starCluster:
+          '✨ sbꜣ ḫnty-ḥr — the star phase of the decan, observed as a small horizon marker in the night-time sequence rather than a securely named modern star cluster',
+      maatPrinciple: 'Read What the Next Month Requires',
+      cosmicContext: '''
+Šef-Bedet closes tomorrow.
+The next month opens a new chapter in Peret and the work changes shape.
 
-Day 29 asks for gratitude toward the care that worked.
+The farmer who walks into the next season without reading it
+brings the wrong tools and misses the first window.
 
-This is not the gratitude of final harvest. The grain is not yet gathered. The destiny has not completed itself. But something has survived because it was nourished in right measure.
-
-That matters.
-
-The root held.
-
-The body responded.
-
-The relationship softened.
-
-The rhythm returned.
-
-The project began to stand.
-
-The household breathed more easily.
-
-A living thing trusted enough to keep growing.
-
-Blessing marks that truth.
-
-In Kemet, offerings did not only appear at the end. They sustained relation through the process. Gratitude given now protects the heart from thinking care was wasted simply because the work is unfinished.
-
-Today asks for thanks before completion.
-
-Thank the water.
-
-Thank the hand.
-
-Thank the body.
-
-Thank the helper.
-
-Thank the quiet repetition.
-
-Thank the patience that did not dig up the root.
-
-What is blessed is not owned. It is recognized as part of a larger order.
-
-Continuation is already a gift.
+What does the month ahead require of you?
+Different pace, different focus, different kind of strength?
+Begin the transition today — in the body, in the schedule, in the mind.
+Tomorrow will come faster than expected.
 ''',
-        glyph: 'Offering bowl placed beside growing grain',
-        colorFrequency: 'Barley gold, fresh green, and Nile blue',
-        mantra: '“I bless what continues.”',
+      decanFlow: _shefBedetIIIFlowRows,
+      meduNeter: MeduNeterKey(
+        glyph: 'Farmer looking toward the next field — reading ahead',
+        colorFrequency: 'Present green behind, new earth ahead',
+        mantra: '"I read what comes next before it arrives."',
       ),
-      (
-        totalDay: 30,
-        starCluster:
-            '✨ sbꜣ ḫnty-ḥr — the final star marker of this month’s decanal sequence, best described as a modest rising group in the horizon-based night order with uncertain modern identification',
-        maatPrinciple: 'Nourished Trust Sealed',
-        cosmicContext: '''
-Day 30 closes Šef-Bedet.
+    ),
+    _dayInfoEntry(
+      key: 'sefbedet_30_3',
+      kemeticDate: 'Šef-Bedet III, Day 30',
+      season: '🌱 Peret I – Emergence Season',
+      month: 'Šef-Bedet (Šf-bdt)',
+      decanName:
+          'sbȝ ḫnty-ḥr (translation uncertain) | Deck: Star of the Foremost',
+      starCluster:
+          '✨ sbꜣ ḫnty-ḥr — the final star marker of this month’s decanal sequence, best described as a modest rising group in the horizon-based night order with uncertain modern identification',
+      maatPrinciple: 'Hand It Forward as a Field in Production',
+      cosmicContext: '''
+Šef-Bedet closes today.
 
-The month began with fragile growth and ends with nourished trust.
+The seed placed in Ka-ḥer-ka has become a growing field.
+Not harvest — production. The plants are in the ground and alive.
 
-This is not harvest yet. It is something quieter and just as necessary: confidence that what has been fed correctly can keep growing.
+Account for what grew this month.
+Name the roots that held. Name the growth that surprised you.
+Name what did not survive and what that means.
 
-The fragile thing was noticed. The water was checked. The imbalance was corrected. The root was protected. The true need was read. The measure was adjusted. The giver was guarded. Care was made sustainable. Then trust was allowed to enter.
-
-This is the full discipline of nourishment.
-
-Care does not exist to keep life helpless.
-
-Care exists so life can continue.
-
-Renenutet’s work is not only to feed the present. It is to guard the future. The child must become strong. The field must move toward grain. The ka must continue receiving. The storehouse must preserve more than today’s hunger. Destiny must be nourished until it can stand in its portion.
-
-Today asks what can now be trusted.
-
-What living thing no longer needs panic to protect it?
-
-What growth can continue through rhythm rather than crisis?
-
-What care has become steady enough to become inheritance?
-
-Seal that knowledge.
-
-The month ends with the law of right nourishment: what is fed in measure, protected without control, and trusted in season can continue within Ma’at.
+Then hand this field forward into the next month
+not as something fragile and emerging —
+as something established, rooted, and ready to be worked.
+That is what Šef-Bedet built.
 ''',
-        glyph: 'Cobra, grain stalk, and sealed seed jar beneath a star',
-        colorFrequency: 'Deep green, grain gold, black earth, and calm blue',
-        mantra: '“What is nourished in Ma’at can continue.”',
+      decanFlow: _shefBedetIIIFlowRows,
+      meduNeter: MeduNeterKey(
+        glyph:
+            'Established field at month\'s end — rooted, green, in production',
+        colorFrequency: 'Full living green, earth dark and fed beneath',
+        mantra: '"The field is in production. I hand it forward."',
       ),
-    ],
-  );
+    ),
+  ]);
 }
 
 Map<String, KemeticDayInfo> _buildMesutRaIEntries() {

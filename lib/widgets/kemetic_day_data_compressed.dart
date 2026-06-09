@@ -507,835 +507,799 @@ final List<DecanDayInfo> _compressedHathorFlowRows1 = [
 final List<DecanDayInfo> _compressedHathorFlowRows2 = [
   DecanDayInfo(
     day: 11,
-    theme: 'Name the Bond',
+    theme: 'Name the Partnership',
     action:
-        'Declare aloud who you stand with — in labor, household, or purpose. The naming makes the bond answerable.',
-    reflection:
-        '"What bonds am I drawing from without formally acknowledging them?"',
+        'Say clearly who you\'re building with. Declare "we," not just "me."',
+    reflection: '"Who walks beside me?"',
   ),
   DecanDayInfo(
     day: 12,
-    theme: 'Align the Tempo',
+    theme: 'Sync the Rhythm',
     action:
-        'Identify where your rhythm and another\'s are in collision. Negotiate the shared cadence: work time, rest time, decision pace.',
-    reflection:
-        '"Where does our timing create damage that neither of us has addressed?"',
+        'Align pace, schedules, expectations. When do we move, rest, check in?',
+    reflection: '"Are we in rhythm?"',
   ),
   DecanDayInfo(
     day: 13,
-    theme: 'Redistribute the Load',
+    theme: 'Share the Load Fairly',
     action:
-        'Audit who carries what in the bonds you belong to. Where the weight is unequal, make the correction material — not conversational.',
-    reflection:
-        '"Who is carrying more than their portion in a bond I am part of, and what have I actually done about it?"',
+        'Divide tasks so one body is not secretly carrying the whole field.',
+    reflection: '"Who carries too much?"',
   ),
   DecanDayInfo(
     day: 14,
-    theme: 'Speak the Difficult Truth',
-    action:
-        'Name one thing that is not working in the bond — directly, without accusation, without softening it past meaning.',
-    reflection:
-        '"What am I allowing to remain unspoken because speaking it requires something of me?"',
+    theme: 'Keep Honesty in Friction',
+    action: 'When tension shows, name it early — before it silts the channel.',
+    reflection: '"What needs honest speech?"',
   ),
   DecanDayInfo(
     day: 15,
-    theme: 'Maintain What You Share',
+    theme: 'Repair the Commons',
     action:
-        'Identify one shared system that has been neglected — money, schedule, household structure, agreed terms — and repair it.',
-    reflection:
-        '"What shared structure have I been benefiting from without contributing to?"',
+        'Fix shared infrastructure together: house, money flow, calendar, food system.',
+    reflection: '"What shared structure needs repair?"',
   ),
   DecanDayInfo(
     day: 16,
-    theme: 'Guard the Name in Absence',
+    theme: 'Pledge Mutual Protection',
     action:
-        'In every conversation today where those you are bonded with are not present, defend their name and dignity as standing practice.',
-    reflection:
-        '"Would the people I am bonded with recognize themselves in how I describe them when they are not in the room?"',
+        'Make it explicit: I guard your name in rooms you are not in. You guard mine.',
+    reflection: '"Whose dignity must I guard?"',
   ),
   DecanDayInfo(
     day: 17,
-    theme: 'Correct the Attribution',
+    theme: 'Honor the Work Done Together',
     action:
-        'Wherever shared work might be credited only to you, name the others. Correct the record in the moment, not after.',
-    reflection:
-        '"Where have I received credit for what was carried with others and not corrected that?"',
+        'Name what was built side-by-side. Not solo victories — shared ones.',
+    reflection: '"What did we build together?"',
   ),
   DecanDayInfo(
     day: 18,
-    theme: 'Check the Alignment',
-    action:
-        'Examine one aspect of the bond for gradual drift from agreed terms. Correct it now, while the correction is still small.',
-    reflection:
-        '"What has quietly shifted from what was agreed, and how long has it been shifting without address?"',
+    theme: 'Refine the System Together',
+    action: 'Adjust the shared pattern so it holds for both, not just for one.',
+    reflection: '"What needs adjustment?"',
   ),
   DecanDayInfo(
     day: 19,
-    theme: 'Rest in Shared Space',
+    theme: 'Rest in Harmony',
     action:
-        'Be still in the presence of someone you are bonded with — no agenda, no management, no usefulness required as justification for being there.',
-    reflection:
-        '"Can this bond hold me in stillness, or does it only hold me when I am producing something?"',
+        'Rest together without agenda. Shared stillness proves the bond is real.',
+    reflection: '"Can we rest together?"',
   ),
   DecanDayInfo(
     day: 20,
-    theme: 'Declare What the Bond Produces',
+    theme: 'Seal the Bond as Ma\'at',
     action:
-        'State plainly what this partnership is for — what Maʿat it sustains in the world beyond the two of you.',
-    reflection:
-        '"If this bond were described only by what it builds in the world, what would that description be?"',
+        'Name the partnership as part of how order holds. Not sentiment — declaration.',
+    reflection: '"What bond serves Ma\'at?"',
   ),
 ];
 
 final List<DecanDayInfo> _compressedHathorFlowRows3 = [
   DecanDayInfo(
     day: 21,
-    theme: 'State What Must Be Built',
+    theme: 'Name What Will Be Built',
     action:
-        'Name one thing the order requires you to bring into material existence. Not what you want to create — what is actually needed from you in this season.',
-    reflection:
-        '"Am I building what I want, or what Maʿat requires of me right now?"',
+        'Declare one visible thing you will shape or restore before the planting season begins.',
+    reflection: '"What will I raise?"',
   ),
   DecanDayInfo(
     day: 22,
-    theme: 'Orient Before Building',
+    theme: 'Clear the Ground',
     action:
-        'Before beginning, establish the alignment that precedes personal preference: purpose, direction, and the larger order this build must answer to.',
-    reflection:
-        '"Have I checked this against what it must serve, or only against what I intend?"',
+        'Remove what the flood left — debris, stale habit, old arrangement. Nothing new on soft silt.',
+    reflection: '"Can this ground hold?"',
   ),
   DecanDayInfo(
     day: 23,
-    theme: 'Begin the Dialogue With Matter',
+    theme: 'Shape the First Form',
     action:
-        'Start forming — draft, sketch, frame, shape. Do not wait for the final form before beginning the conversation with the material.',
-    reflection:
-        '"Where is my demand for the perfect form preventing me from beginning at all?"',
+        'Draft it rough. Structure true, surface later. Begin without judging the beginning.',
+    reflection: '"Can I form this without judging it yet?"',
   ),
   DecanDayInfo(
     day: 24,
-    theme: 'Make It Exist',
+    theme: 'Let It Stand Visibly',
     action:
-        'Place the first visible, material piece of this into the world today — not planned, not noted, but existing outside your mind.',
-    reflection:
-        '"What stands in material form today that did not exist yesterday because of what I did?"',
+        'Put up the first real piece. Not a plan — something that casts a shadow in the world.',
+    reflection: '"Does it stand yet?"',
   ),
   DecanDayInfo(
     day: 25,
-    theme: 'Inscribe the Purpose',
+    theme: 'Give It Purpose',
     action:
-        'Write, speak, or otherwise declare what this structure is for, for whom, and what it must sustain. Not a plan — a consecration.',
-    reflection:
-        '"Could someone other than me know what this is for without being told?"',
+        'Name what this structure is for. An unnamed thing becomes available for anything.',
+    reflection: '"What does this serve?"',
   ),
   DecanDayInfo(
     day: 26,
-    theme: 'Seal the Weakness',
+    theme: 'Find the Weak Joint',
     action:
-        'Inspect what you have raised for the place where entropy or opportunism will enter first. Seal it before it becomes a failure.',
-    reflection:
-        '"Where have I left the build undefended because I preferred to believe it was secure?"',
+        'Inspect and seal what will fail when the next flood tests it. Find it now, not after.',
+    reflection: '"Where is the weak joint?"',
   ),
   DecanDayInfo(
     day: 27,
-    theme: 'Complete the Surface',
+    theme: 'Make It Welcoming',
     action:
-        'Attend to the finish: presentation, coherence, the care visible in the final layer. Complete it as if the divine were judging whether it is fit for purpose.',
-    reflection:
-        '"Is the surface of this work worthy of the purpose I declared for it?"',
+        'Refine the surface — order, warmth, care at the threshold. Not vanity. Invitation.',
+    reflection: '"Is it worth entering?"',
   ),
   DecanDayInfo(
     day: 28,
-    theme: 'Release Ownership, Accept Stewardship',
+    theme: 'Offer Thanks for the Hands',
     action:
-        'Formally hand the build over to its stated purpose. You are now its keeper. You are not its possessor.',
-    reflection:
-        '"What am I still gripping in this build that belongs to its purpose and not to me?"',
+        'Name who helped build this. Acknowledge the source. Mark the transition from building to use.',
+    reflection: '"Who made this with me?"',
   ),
   DecanDayInfo(
     day: 29,
-    theme: 'Use It',
+    theme: 'Place It Into Daily Rhythm',
     action:
-        'Engage what you built — the system, the practice, the structure. Not to evaluate it. To sustain the dedication through actual, repeated use.',
-    reflection:
-        '"What have I built that sits unused, and what does that say about whether the dedication was sincere?"',
+        'The tool goes where the hand reaches. The channel receives its first trickle. Use it today.',
+    reflection: '"Can I live this?"',
   ),
   DecanDayInfo(
     day: 30,
-    theme: 'Write the Record',
+    theme: 'Witness What Now Holds',
     action:
-        'Document what was built this month, who contributed, what it is for, and what it now sustains. This is the account Maʿat holds.',
-    reflection:
-        '"If this record were read after I am gone, would it honestly reflect what happened this month?"',
+        'Document what was created and who helped. Claim it as real before Hathor closes.',
+    reflection: '"What does this witness?"',
   ),
 ];
 
 final List<DecanDayInfo> _compressedKaherkaFlowRows1 = [
   DecanDayInfo(
     day: 1,
-    theme: 'Recognize Returning Strength',
+    theme: 'Become Still Enough to Receive',
     action:
-        'Notice one place where energy, stability, or willingness has begun to return.',
-    reflection:
-        '"Where is vitality accumulating that I have not yet acknowledged?"',
+        'Pause unnecessary motion. Let the noise from the last three months drain away.',
+    reflection: '"What needs silence before it can be placed?"',
   ),
   DecanDayInfo(
     day: 2,
-    theme: 'Test the Ground Gently',
+    theme: 'Clear the Field',
     action:
-        'Try one small action that confirms capacity without forcing full performance.',
-    reflection:
-        '"What does this small action tell me about what I am actually ready to do?"',
+        'Remove what the flood left — debris, stale arrangements, old obligations past their season.',
+    reflection: '"What remnants block what is coming?"',
   ),
   DecanDayInfo(
     day: 3,
-    theme: 'Gather the Body',
-    action:
-        'Bring attention back to breath, food, sleep, posture, movement, and physical rhythm.',
-    reflection:
-        '"Which physical function has gone unfed longest — and what is the cost to everything that depends on it?"',
+    theme: 'Name What Ended',
+    action: 'Say what closed plainly. No softening, no denial.',
+    reflection: '"Can I name it without bitterness?"',
   ),
   DecanDayInfo(
     day: 4,
-    theme: 'Protect the Root',
+    theme: 'Select What Carries Forward',
     action:
-        'Guard what is newly returning from criticism, overuse, or premature exposure.',
-    reflection:
-        '"What am I exposing to demand before it has developed the capacity to meet that demand?"',
+        'From what ended, take one thing worth keeping. Not everything — the strongest seed.',
+    reflection: '"What good in this still feeds me?"',
   ),
   DecanDayInfo(
     day: 5,
-    theme: 'Feed the Ka',
-    action: 'Give real nourishment to what is trying to continue.',
-    reflection:
-        '"What would grow if I fed it correctly? What is diminishing because I have not?"',
+    theme: 'Ground the Body',
+    action:
+        'Bare feet, slow breath, real food, water. The ka requires a body in order to act.',
+    reflection: '"Is my body ready to carry what I am placing?"',
   ),
   DecanDayInfo(
     day: 6,
-    theme: 'Strength Without Display',
-    action: 'Use power quietly today.',
-    reflection:
-        '"Where am I spending returned strength on display rather than on use?"',
+    theme: 'Read the Returning Pattern',
+    action:
+        'Note what has persisted through the disruption — the habits, relationships, disciplines that held.',
+    reflection: '"What pattern returns without being forced?"',
   ),
   DecanDayInfo(
     day: 7,
-    theme: 'Brace Before Motion',
-    action: 'Prepare the support before taking the larger step.',
-    reflection:
-        '"What preparation is being skipped in the desire to move quickly?"',
+    theme: 'Guard Speech as Seed',
+    action:
+        'Say only what you intend to feed. Leave unspoken what you intend to leave behind.',
+    reflection: '"What am I planting with my mouth?"',
   ),
   DecanDayInfo(
     day: 8,
-    theme: 'Move One Limb',
+    theme: 'Place the Seed',
     action:
-        'Take one controlled step toward the life-pattern returning to form.',
-    reflection:
-        '"Which single movement, completed today, would prove that this restoration is real?"',
+        'Set the intention, practice, or project into the ground. Not preparation — placement. It goes in today.',
+    reflection: '"What seed is ready?"',
   ),
   DecanDayInfo(
     day: 9,
-    theme: 'Confirm Capacity',
-    action: 'Review what the body, mind, and situation can now carry honestly.',
-    reflection:
-        '"If I counted what I can genuinely carry right now — not what I wish I could, not what I could before — what is the honest number?"',
+    theme: 'Trust Hidden Work',
+    action:
+        'Do not dig up what you just planted to check on it. Leave it in the dark.',
+    reflection: '"Can I trust hidden life?"',
   ),
   DecanDayInfo(
     day: 10,
-    theme: 'Seal Renewed Strength',
-    action: 'Name the strength that has returned and how it must be protected.',
-    reflection:
-        '"What does the body know now that it could not have known ten days ago?"',
+    theme: 'Seal the Field',
+    action:
+        'Close the vigil. Stop attending to what you placed. Seal the field and let it rest.',
+    reflection: '"Can the old form rest?"',
   ),
 ];
 
 final List<DecanDayInfo> _compressedKaherkaFlowRows2 = [
   DecanDayInfo(
     day: 11,
-    theme: 'Bring Strength to the Heart',
-    action: 'Pause before using returned energy.',
-    reflection:
-        '"What does the ib say about how this strength should move today?"',
+    theme: 'Re-Enter Motion',
+    action:
+        'Resume one responsibility. Not everything — one. Deliberate, not urgent.',
+    reflection: '"Where do I re-enter honestly?"',
   ),
   DecanDayInfo(
     day: 12,
-    theme: 'Name the Impulse',
+    theme: 'Govern the Impulse',
     action:
-        'Notice the urge to rush, prove, fix, control, or overgive before acting.',
-    reflection:
-        '"What is this impulse actually trying to accomplish — and is that what I intend?"',
+        'Name the impulse before acting on it. Is this intention or reaction?',
+    reflection: '"What drives this — intention or reaction?"',
   ),
   DecanDayInfo(
     day: 13,
-    theme: 'Choose the Right Load',
-    action: 'Select one responsibility that truly belongs to this stage.',
-    reflection:
-        '"Which load, if taken on today, would deplete what is still accumulating rather than serve what is already established?"',
+    theme: 'Feed What Is Returning',
+    action:
+        'Direct energy toward the one thing trying to come back. Water it. Remove what competes.',
+    reflection: '"Am I nurturing revival or starving it?"',
   ),
   DecanDayInfo(
     day: 14,
-    theme: 'Moderate the Effort',
-    action: 'Reduce excess force.',
-    reflection:
-        '"What is the sign that I have exceeded the measure this situation can absorb?"',
+    theme: 'Accept the Obligation',
+    action:
+        'Name what is now yours to guard. Say it explicitly. The crop needs a farmer, not a witness.',
+    reflection: '"What is now mine to protect?"',
   ),
   DecanDayInfo(
     day: 15,
-    theme: 'Protect the Root From Excess',
+    theme: 'Place Strength Where It Is Needed',
     action:
-        'Guard the new growth from overuse, exposure, pressure, or old patterns.',
-    reflection:
-        '"What would continue to grow without my intervention, if I stopped treating growth as something that requires me?"',
+        'Direct force at what the field actually needs — not what will be noticed.',
+    reflection: '"Who does this effort serve?"',
   ),
   DecanDayInfo(
     day: 16,
-    theme: 'Let the Heart Correct the Hand',
+    theme: 'Restore the Basics',
     action:
-        'Correct one action, habit, or plan that has begun moving out of proportion.',
-    reflection:
-        '"What has my hand done today that, referred to the ib, would be corrected — and in what direction?"',
+        'Sleep at a real hour. Eat a real meal. Look at the account. Sweep the floor. Consistently, not perfectly.',
+    reflection: '"Does my rhythm honor life or exhaust it?"',
   ),
   DecanDayInfo(
     day: 17,
-    theme: 'Speak From Steadiness',
-    action: 'Use speech to protect balance.',
-    reflection:
-        '"Is what I am about to say grounded in what I have confirmed, or in the energy of what I hope is now possible?"',
+    theme: 'Ask for Help',
+    action: 'Call in support. No one tends the whole field alone.',
+    reflection: '"Where am I pretending I can carry this alone?"',
   ),
   DecanDayInfo(
     day: 18,
-    theme: 'Repair Overreach',
-    action: 'Undo one place where returned strength became too much.',
-    reflection:
-        '"What did I extend into this period that has revealed itself to be more than what is actually available right now?"',
+    theme: 'Return to the Circle',
+    action:
+        'Reconnect with one person or group you withdrew from in the flood season.',
+    reflection: '"Where do I belong that I have been avoiding?"',
   ),
   DecanDayInfo(
     day: 19,
-    theme: 'Set the Law of Use',
+    theme: 'Let Commitment Be Seen',
     action:
-        'Define how this renewed strength will be used, protected, paced, and refused.',
-    reflection:
-        '"If I name the law of use today, what does it require — and what does it explicitly prohibit?"',
+        'Show one sign you have returned to the work: a kept appointment, a restored rhythm, a message sent.',
+    reflection: '"What commitment can be witnessed?"',
   ),
   DecanDayInfo(
     day: 20,
-    theme: 'Seal Disciplined Strength',
+    theme: 'Give Thanks for Endurance',
     action:
-        'Name the difference between strength that serves and strength that consumes.',
-    reflection:
-        '"What does it mean that this strength has now passed through the ib? What is different about it?"',
+        'Offer gratitude not for perfection — for persistence. Name what held when the flood was high.',
+    reflection: '"Do I honor the part of me that stayed?"',
   ),
 ];
 
 final List<DecanDayInfo> _compressedKaherkaFlowRows3 = [
   DecanDayInfo(
     day: 21,
-    theme: 'Place Strength Into Service',
-    action: 'Choose one concrete place where renewed strength can serve life.',
-    reflection:
-        '"Of everything that needs what I now have, which need is most genuinely unmet?"',
+    theme: 'Work as Offering',
+    action:
+        'Approach today\'s labor as something placed in front of Ma\'at, not performed for an audience.',
+    reflection: '"Am I working or am I proving?"',
   ),
   DecanDayInfo(
     day: 22,
-    theme: 'Begin With the Necessary Task',
-    action: 'Do the task that supports continuity first.',
-    reflection:
-        '"Which task, if left undone, creates a gap that everything else has to compensate for?"',
+    theme: 'Reopen the Flow',
+    action:
+        'Clear one blockage — financial, relational, creative, physical. Let the current move.',
+    reflection: '"Where has the channel silted shut?"',
   ),
   DecanDayInfo(
     day: 23,
-    theme: 'Use Power With Precision',
-    action: 'Apply effort exactly where it is needed.',
-    reflection:
-        '"Where is my effort covering ground rather than serving the specific point of actual need?"',
+    theme: 'Raise the Djed',
+    action:
+        'Stand back up one thing that was knocked flat: a boundary, a practice, a standard you dropped.',
+    reflection: '"What will I stand upright again?"',
   ),
   DecanDayInfo(
     day: 24,
-    theme: 'Support What Is Growing',
-    action: 'Strengthen the condition around new life.',
-    reflection:
-        '"What is already growing that I could strengthen today, rather than beginning something new?"',
+    theme: 'Maintain the Vessel',
+    action:
+        'Tend the physical space. Your dwelling is the ka\'s working environment.',
+    reflection: '"Does this space support life?"',
   ),
   DecanDayInfo(
     day: 25,
-    theme: 'Refuse Wasteful Force',
-    action: 'Stop one action that spends energy without serving the root.',
-    reflection:
-        '"What am I doing with returned strength today that I would not do if I were still in scarcity?"',
+    theme: 'Relight the Flame',
+    action:
+        'Kindle one thing that went cold in the flood months. Cup it until it holds.',
+    reflection: '"What flame must I tend to keep this alive?"',
   ),
   DecanDayInfo(
     day: 26,
-    theme: 'Carry the Right Weight',
-    action: 'Accept one rightful responsibility and release one false burden.',
-    reflection:
-        '"If I carried only what was mine and set down what belongs to someone else, what would change?"',
+    theme: 'Set the Stroke with the Crew',
+    action:
+        'Coordinate with those who share your field. Shared direction, shared meal, shared account.',
+    reflection: '"Who rows beside me in this season?"',
   ),
   DecanDayInfo(
     day: 27,
-    theme: 'Make the Work Reliable',
+    theme: 'Honor What Survived',
     action:
-        'Turn one useful action into a repeatable rhythm, system, or standard.',
-    reflection:
-        '"What is the gap between doing this well and doing this reliably — and am I willing to close it?"',
+        'Name what held through the flood. Not what you wish had happened — what actually endured.',
+    reflection: '"What strength survived?"',
   ),
   DecanDayInfo(
     day: 28,
-    theme: 'Let Service Be Seen',
-    action: 'Allow disciplined strength to become visible without performance.',
-    reflection:
-        '"What have I done in this month\'s labor that I have kept quiet — and does it deserve to be kept quiet?"',
+    theme: 'Give Thanks in Motion',
+    action:
+        'Work and give thanks simultaneously. The offering is in the labor itself.',
+    reflection: '"Am I remembering the source while I act?"',
   ),
   DecanDayInfo(
     day: 29,
-    theme: 'Offer the Result',
+    theme: 'Align With the Season',
     action:
-        'Return some fruit of the work to household, community, altar, ancestor, or future need.',
-    reflection:
-        '"From what this month\'s strength has produced, what goes back to what made it possible?"',
+        'Match your pace to what this moment actually requires. Not what you wish — what is real.',
+    reflection: '"Is my rhythm fighting life?"',
   ),
   DecanDayInfo(
     day: 30,
-    theme: 'Seal Applied Strength',
-    action: 'Name how renewed strength will continue to serve Ma\'at.',
-    reflection:
-        '"What can I carry into Šef-Bedet that Ka-ḥer-Ka has confirmed — not hoped for, not aspired to, but verified?"',
+    theme: 'Seal the Month',
+    action:
+        'Close Ka-ḥer-ka with an honest accounting. What was placed, what returned, what now holds. Hand it forward clean.',
+    reflection: '"What am I carrying into the next month?"',
   ),
 ];
 
 final List<DecanDayInfo> _compressedShefbedetFlowRows1 = [
   DecanDayInfo(
     day: 1,
-    theme: 'Notice the Fragile Growth',
+    theme: 'Witness the First Growth',
     action:
-        'Scan one living system — body, relationship, or project — for early signs of weakness before they become visible damage.',
-    reflection: '“What does notice the fragile growth require now?”',
+        'Look at what has emerged without grabbing it. Presence before management.',
+    reflection: '"What has broken the surface?"',
   ),
   DecanDayInfo(
     day: 2,
-    theme: 'Check the Water',
+    theme: 'Do Not Harvest Early',
     action:
-        'Examine the quality and quantity of what nourishes something you are tending — time, attention, money, or care — and adjust what is off.',
-    reflection: '“What does check the water require now?”',
+        'Resist pulling return before it is ready. A shoot pulled too soon does not replant.',
+    reflection: '"Am I moving too fast for what is growing?"',
   ),
   DecanDayInfo(
     day: 3,
-    theme: 'Find the Uneven Place',
+    theme: 'Give It Water',
     action:
-        'Identify one area receiving too much or too little and name the imbalance precisely before attempting to correct it.',
-    reflection: '“What does find the uneven place require now?”',
+        'Apply one direct resource to the thing that emerged: time, attention, money, rest.',
+    reflection: '"What does this growth actually need?"',
   ),
   DecanDayInfo(
     day: 4,
-    theme: 'Tend Without Smothering',
+    theme: 'Clear What Competes',
     action:
-        'Offer one act of care that strengthens without controlling, then withdraw your hand.',
-    reflection: '“What does tend without smothering require now?”',
+        'Remove one thing drawing from the same soil. Not everything — the most damaging one.',
+    reflection: '"What is competing for this root?"',
   ),
   DecanDayInfo(
     day: 5,
-    theme: 'Protect the Tender Root',
+    theme: 'Name What Has Changed',
     action:
-        'Name one new or fragile thing that needs shielding from exposure, overuse, or premature judgment.',
-    reflection: '“What does protect the tender root require now?”',
+        'Something is different from last month. Name it plainly without overstating it.',
+    reflection: '"What is actually different now?"',
   ),
   DecanDayInfo(
     day: 6,
-    theme: 'Feed the Right Place',
+    theme: 'Protect Without Smothering',
     action:
-        'Direct one unit of energy — attention, money, or time — specifically where genuine need is, not where habit points.',
-    reflection: '“What does feed the right place require now?”',
+        'Guard the emerging thing from early pressure — but do not cage it.',
+    reflection: '"Am I protecting or controlling?"',
   ),
   DecanDayInfo(
     day: 7,
-    theme: 'Remove the Drain',
+    theme: 'Let It Be Seen',
     action:
-        'Identify and stop one thing that takes without returning — a habit, obligation, or pattern drawing more than it gives.',
-    reflection: '“What does remove the drain require now?”',
+        'Show the emergence to one person who can witness it well — not critique it, witness it.',
+    reflection: '"Who can see this without damaging it?"',
   ),
   DecanDayInfo(
     day: 8,
-    theme: 'Record the Signs',
+    theme: 'Work the Row',
     action:
-        'Write one observation about how something is growing or struggling so it can be compared against the next observation.',
-    reflection: '“What does record the signs require now?”',
+        'Return to basic tending. Not inspired work — steady, repeated care.',
+    reflection: '"Am I showing up for the ordinary maintenance?"',
   ),
   DecanDayInfo(
     day: 9,
-    theme: 'Strengthen the Care Rhythm',
+    theme: 'Read the Condition',
     action:
-        'Turn one act of nourishment into a repeatable pattern rather than an occasional effort.',
-    reflection: '“What does strengthen the care rhythm require now?”',
+        'Check what the growth is actually doing. Not what you hoped — what is real.',
+    reflection: '"What is the honest condition of this?"',
   ),
   DecanDayInfo(
     day: 10,
-    theme: 'Seal Early Nourishment',
+    theme: 'Seal the First Interval',
     action:
-        'Name what you have seen, what you have tended, and what the field now needs to continue.',
-    reflection: '“What does seal early nourishment require now?”',
+        'Note what emerged in ten days. Close the first watch. The roots are beginning.',
+    reflection: '"What truly emerged?"',
   ),
 ];
 
 final List<DecanDayInfo> _compressedShefbedetFlowRows2 = [
   DecanDayInfo(
     day: 11,
-    theme: 'Bring Care to the Heart',
+    theme: 'Feed the Root, Not the Leaf',
     action:
-        'Before acting on someone\'s need, pause and ask what they actually require — not what you assume or what is convenient to give.',
-    reflection: '“What does bring care to the heart require now?”',
+        'Direct resources at the foundation of what is growing, not its visible surface.',
+    reflection: '"Am I feeding the root or performing care?"',
   ),
   DecanDayInfo(
     day: 12,
-    theme: 'Read the True Need',
+    theme: 'Extend the Row',
     action:
-        'Look carefully at what is actually lacking, separate from what is being asked for or what you have been offering by default.',
-    reflection: '“What does read the true need require now?”',
+        'Grow the practice or project by one unit. Longer, wider, more consistent.',
+    reflection: '"What is the next step, not the next leap?"',
   ),
   DecanDayInfo(
     day: 13,
-    theme: 'Adjust the Measure',
+    theme: 'Weatherproof It',
     action:
-        'Reduce or increase one form of provision — less intervention, or more consistent attention — based on what you now observe, not what you assumed.',
-    reflection: '“What does adjust the measure require now?”',
+        'Identify the condition that would damage this if it hit today. Build one layer of protection.',
+    reflection: '"What would damage this if it came now?"',
   ),
   DecanDayInfo(
     day: 14,
-    theme: 'Feed Without Draining',
+    theme: 'Build the Rhythm',
     action:
-        'Give what is needed without emptying yourself — choose a method of care that you can sustain through the rest of the season.',
-    reflection: '“What does feed without draining require now?”',
+        'Set a repeating cadence for the tending: daily, weekly, a specific time. Make it structural.',
+    reflection: '"Does this have a rhythm or just intention?"',
   ),
   DecanDayInfo(
     day: 15,
-    theme: 'Protect the Giver',
+    theme: 'Bring Others Into It',
     action:
-        'Identify one way that generous giving has been quietly depleting the one who gives, and address it before depletion becomes damage.',
-    reflection: '“What does protect the giver require now?”',
+        'Share what is growing with someone who will actively support it — not observe it, support it.',
+    reflection: '"Who belongs in this field with me?"',
   ),
   DecanDayInfo(
     day: 16,
-    theme: 'Correct Distorted Care',
+    theme: 'Address the Lean',
     action:
-        'Name one way care has become control, fear, or performance — and redirect it toward genuine provision.',
-    reflection: '“What does correct distorted care require now?”',
+        'Find where it is growing unevenly. Correct toward balance before it becomes a structural problem.',
+    reflection: '"Where is this leaning that will become a problem?"',
   ),
   DecanDayInfo(
     day: 17,
-    theme: 'Distribute Nourishment Fairly',
+    theme: 'Rest the Farmer',
     action:
-        'Check whether attention, resources, and care are being shared proportionally across everyone who depends on them.',
-    reflection: '“What does distribute nourishment fairly require now?”',
+        'The field grows while the farmer sleeps. Rest is maintenance, not absence.',
+    reflection: '"Am I resting enough to sustain this?"',
   ),
   DecanDayInfo(
     day: 18,
-    theme: 'Listen for Response',
+    theme: 'Measure the Growth',
     action:
-        'Stop providing and observe: is what you are giving actually producing growth, or strain?',
-    reflection: '“What does listen for response require now?”',
+        'Quantify one change from Day 1 of Šef-Bedet to today. Make it concrete.',
+    reflection: '"How much has actually changed?"',
   ),
   DecanDayInfo(
     day: 19,
-    theme: 'Make Provision Sustainable',
+    theme: 'Thin the Row',
     action:
-        'Build one change that makes long-term care possible without exhausting the source of it.',
-    reflection: '“What does make provision sustainable require now?”',
+        'Remove one extra demand, weak shoot, or competing growth the field cannot support right now.',
+    reflection: '"What must be thinned?"',
   ),
   DecanDayInfo(
     day: 20,
-    theme: 'Seal Intelligent Nourishment',
+    theme: 'Survey the Field',
     action:
-        'Name what you now know about how this system or person is best nourished, and commit to applying it consistently.',
-    reflection: '“What does seal intelligent nourishment require now?”',
+        'Stand back. Look at the whole, not just the part you have been tending. Note the full condition.',
+    reflection: '"What does the whole field look like?"',
   ),
 ];
 
 final List<DecanDayInfo> _compressedShefbedetFlowRows3 = [
   DecanDayInfo(
     day: 21,
-    theme: 'Trust the Care Already Given',
+    theme: 'Let It Root',
     action:
-        'Choose one thing you have tended carefully and allow it to continue without interference today.',
-    reflection: '“What does trust the care already given require now?”',
+        'Stop moving the plant. Consistent conditions now. Stability is the final act of establishment.',
+    reflection: '"Have I let this stay long enough to root?"',
   ),
   DecanDayInfo(
     day: 22,
-    theme: 'Step Back Without Abandoning',
+    theme: 'Name What This Has Become',
     action:
-        'Reduce your active intervention by one degree while maintaining your attention and availability.',
-    reflection: '“What does step back without abandoning require now?”',
+        'Give the growing thing its actual name — what it is now, not what you hoped it would be.',
+    reflection: '"What is this, honestly?"',
   ),
   DecanDayInfo(
     day: 23,
-    theme: 'Let Growth Reach Light',
+    theme: 'Build for Harder Conditions',
     action:
-        'Remove one obstacle — even a well-intentioned one — that is blocking something from developing under its own strength.',
-    reflection: '“What does let growth reach light require now?”',
+        'Add one layer of protection while the growth is still easy to support.',
+    reflection: '"What will this need under pressure?"',
   ),
   DecanDayInfo(
     day: 24,
-    theme: 'Guard the Boundary',
+    theme: 'Give Thanks for the Ground',
     action:
-        'Protect the conditions of growth from one external pressure or demand that would damage what is developing.',
-    reflection: '“What does guard the boundary require now?”',
+        'Acknowledge what made this growth possible — the flood, the silt, Ka-ḥer-ka\'s preparation, other people\'s work.',
+    reflection: '"What held the ground so this could grow?"',
   ),
   DecanDayInfo(
     day: 25,
-    theme: 'Feed Steadily',
+    theme: 'Commit to What Has Proven Itself',
     action:
-        'Continue one nourishing act without varying the pace — consistency now matters more than intensity.',
-    reflection: '“What does feed steadily require now?”',
+        'Record, formalize, or commit to one thing that should no longer be treated as a trial.',
+    reflection: '"What needs to stop being temporary?"',
   ),
   DecanDayInfo(
     day: 26,
-    theme: 'Prepare the Future Share',
+    theme: 'Tend the Edges',
     action:
-        'Set aside one portion of what is growing — resources, time, or care — for those who will need it after this season.',
-    reflection: '“What does prepare the future share require now?”',
+        'The center of the field has your attention. Tend the edges today — what is peripheral but still alive.',
+    reflection: '"What at the edge needs care?"',
   ),
   DecanDayInfo(
     day: 27,
-    theme: 'Recognize Maturing Growth',
+    theme: 'Trust What Is Established',
     action:
-        'Name one thing that has moved from fragile to established — and treat it accordingly, with less anxiety and more trust.',
-    reflection: '“What does recognize maturing growth require now?”',
+        'The roots are in. Stop treating this as fragile. Act from the assumption that it will hold.',
+    reflection: '"Am I still treating this as more fragile than it is?"',
   ),
   DecanDayInfo(
     day: 28,
-    theme: 'Share Confidence',
+    theme: 'Offer the Month',
     action:
-        'Tell someone under your care explicitly that they are doing well and can trust their own developing strength.',
-    reflection: '“What does share confidence require now?”',
+        'Place what this month produced in front of Ma\'at. Not the crop — the farmer, the field, the care given.',
+    reflection: '"What did I tend that Ma\'at can weigh?"',
   ),
   DecanDayInfo(
     day: 29,
-    theme: 'Bless What Continues',
+    theme: 'Align With What Comes Next',
     action:
-        'Place one explicit acknowledgment — spoken, written, or enacted — on what has survived and proven itself this season.',
-    reflection: '“What does bless what continues require now?”',
+        'Šef-Bedet ends tomorrow. Read what the next month requires. Begin the transition in the body and mind.',
+    reflection: '"Am I ready for what the next season asks?"',
   ),
   DecanDayInfo(
     day: 30,
-    theme: 'Seal Nourished Trust',
+    theme: 'Seal the Month',
     action:
-        'Name what is now capable of continuing without constant tending, and release it into its own rhythm.',
-    reflection: '“What does seal nourished trust require now?”',
+        'Close Šef-Bedet. Account for what grew. Hand it forward into the next month as a field in production, not a field in emergence.',
+    reflection: '"What am I handing forward?"',
   ),
 ];
 
 final List<DecanDayInfo> _compressedRekhwerFlowRows1 = [
   DecanDayInfo(
     day: 1,
-    theme: 'Recognize the Raw Material',
+    theme: 'Know What You Are Tending',
     action:
-        'Identify one area of work, skill, or practice that holds potential but has not yet been shaped into useful form.',
-    reflection: '“What does recognize the raw material require now?”',
+        'Name what is growing clearly. What kind of thing is it? What does it actually need at this stage?',
+    reflection: '"Do I know what I am tending?"',
   ),
   DecanDayInfo(
     day: 2,
-    theme: 'Prepare the Wheel',
+    theme: 'Read the Condition Before Acting',
     action:
-        'Set up the conditions for focused formation: clear the space, gather the tools, protect the time.',
-    reflection: '“What does prepare the wheel require now?”',
+        'Before any work on the growing thing today, observe first. What is the current state?',
+    reflection: '"What does the field say before I say anything?"',
   ),
   DecanDayInfo(
     day: 3,
-    theme: 'Soften the Clay',
+    theme: 'Use the Right Tool',
     action:
-        'Make one rigid or resistant thing more workable — through rest, research, or deliberate loosening before shaping begins.',
-    reflection: '“What does soften the clay require now?”',
+        'Match the instrument to the task. The wrong tool applied with effort still damages the crop.',
+    reflection: '"Is this the right tool for what this requires?"',
   ),
   DecanDayInfo(
     day: 4,
-    theme: 'Center the Form',
+    theme: 'Learn What You Do Not Yet Know',
     action:
-        'Before applying pressure, ensure the material is balanced — re-read, re-examine, or re-plan from the center outward.',
-    reflection: '“What does center the form require now?”',
+        'Name one gap in your understanding of what you are growing. Find the answer today.',
+    reflection: '"What do I not know that is costing the field?"',
   ),
   DecanDayInfo(
     day: 5,
-    theme: 'Apply Measured Pressure',
+    theme: 'Correct the Technique',
     action:
-        'Move one part of the work forward with deliberate, controlled effort — not more than the form can currently receive.',
-    reflection: '“What does apply measured pressure require now?”',
+        'Find where your method is imprecise. Refine it before the season demands full capacity.',
+    reflection: '"Where is my technique costing more than it should?"',
   ),
   DecanDayInfo(
     day: 6,
-    theme: 'Check the Proportion',
+    theme: 'Apply Knowledge, Not Just Effort',
     action:
-        'Step back from what you are building and examine whether the parts relate to each other correctly.',
-    reflection: '“What does check the proportion require now?”',
+        'Work smarter through understanding today, not just harder through repetition.',
+    reflection: '"Am I applying knowledge or just force?"',
   ),
   DecanDayInfo(
     day: 7,
-    theme: 'Correct the Collapse',
+    theme: 'Teach What You Know',
     action:
-        'Find one place where the form has lost its shape and address it before it hardens incorrectly.',
-    reflection: '“What does correct the collapse require now?”',
+        'Pass one piece of working knowledge to someone in your field. Shared craft strengthens the whole network.',
+    reflection: '"What do I know that someone nearby needs?"',
   ),
   DecanDayInfo(
     day: 8,
-    theme: 'Strengthen the Vessel',
+    theme: 'Receive Correction',
     action:
-        'Reinforce one weak point in your work, knowledge, or practice before moving to the next stage.',
-    reflection: '“What does strengthen the vessel require now?”',
+        'Ask someone with more field experience to review what you are doing. Receive their correction without defense.',
+    reflection: '"Can I receive correction?"',
   ),
   DecanDayInfo(
     day: 9,
-    theme: 'Name the Function',
+    theme: 'Document the Method',
     action:
-        'State clearly what the thing you are building is actually for — who it serves, what it does, why it exists.',
-    reflection: '“What does name the function require now?”',
+        'Write down what is working. A method that exists only in memory gets lost at the worst moment.',
+    reflection: '"Is the knowledge recorded or only in my head?"',
   ),
   DecanDayInfo(
     day: 10,
-    theme: 'Seal the Form',
+    theme: 'Close the First Knowing',
     action:
-        'Complete one unit of work to the point where it can hold its shape without your constant attention.',
-    reflection: '“What does seal the form require now?”',
+        'Note what you now understand about this field that you did not at the month\'s start. The knowing is the foundation.',
+    reflection: '"What do I know now that I did not know ten days ago?"',
   ),
 ];
 
 final List<DecanDayInfo> _compressedRekhwerFlowRows2 = [
   DecanDayInfo(
     day: 11,
-    theme: 'Bring Skill to the Heart',
+    theme: 'Act From What You Know',
     action:
-        'Before working, ask what the work actually needs from you today — not what you want to demonstrate.',
-    reflection: '“What does bring skill to the heart require now?”',
+        'Apply the knowledge built in Decan I without re-litigating it. Less questioning, more competent action.',
+    reflection: '"Am I acting from knowledge or still gathering it?"',
   ),
   DecanDayInfo(
     day: 12,
-    theme: 'Listen to the Form',
+    theme: 'Maintain the Standard',
     action:
-        'Let what you are building tell you where it is straining — look for resistance or misalignment before applying more force.',
-    reflection: '“What does listen to the form require now?”',
+        'Hold the quality you established. Do not let the standard drift under pressure or fatigue.',
+    reflection: '"Is the standard holding or drifting?"',
   ),
   DecanDayInfo(
     day: 13,
-    theme: 'Separate Error From Material',
+    theme: 'Work the Difficult Section',
     action:
-        'Distinguish between a flaw in your method and a limitation in the material — correct only what can be corrected.',
-    reflection: '“What does separate error from material require now?”',
+        'The part of the field you have been avoiding. Go there today with full attention.',
+    reflection: '"What part of this have I been avoiding?"',
   ),
   DecanDayInfo(
     day: 14,
-    theme: 'Refine the Hand',
+    theme: 'Calibrate the Pace',
     action:
-        'Practice one part of your craft more slowly than usual, with attention to precision rather than speed.',
-    reflection: '“What does refine the hand require now?”',
+        'Match effort to what the field actually requires today — not yesterday\'s urgency, not tomorrow\'s anxiety.',
+    reflection: '"Am I moving at the pace the field needs?"',
   ),
   DecanDayInfo(
     day: 15,
-    theme: 'Receive Correction',
+    theme: 'Strengthen What Is Weak',
     action:
-        'Accept one piece of feedback, observation, or evidence that your current approach needs adjustment.',
-    reflection: '“What does receive correction require now?”',
+        'Find the weakest section of what you are growing. Direct skilled attention there today.',
+    reflection: '"Where is the weakest point in what I am building?"',
   ),
   DecanDayInfo(
     day: 16,
-    theme: 'Remove Excess',
+    theme: 'Protect the Knowledge',
     action:
-        'Strip one unnecessary element from your work — complexity or habitual addition that the form does not require.',
-    reflection: '“What does remove excess require now?”',
+        'What you have learned this month could be disrupted. Guard the method against conditions that would erode it.',
+    reflection: '"What would cause me to lose what I have learned?"',
   ),
   DecanDayInfo(
     day: 17,
-    theme: 'Strengthen the Center',
+    theme: 'Work With Another\'s Knowledge',
     action:
-        'Return to the core purpose of what you are building and shore up one place where it has drifted from that center.',
-    reflection: '“What does strengthen the center require now?”',
+        'Apply something learned from someone else — a method, a correction, a piece of advice not yet fully used.',
+    reflection: '"Whose knowledge am I not yet using?"',
   ),
   DecanDayInfo(
     day: 18,
-    theme: 'Test Under Use',
+    theme: 'Read the Growth Accurately',
     action:
-        'Apply what you have built in a real situation — not a controlled one — and observe what holds and what gives.',
-    reflection: '“What does test under use require now?”',
+        'Measure or assess honestly what the field produced in this second interval. Not how it felt — what actually grew.',
+    reflection: '"What does the honest measure say?"',
   ),
   DecanDayInfo(
     day: 19,
-    theme: 'Record the Method',
+    theme: 'Adjust the Method',
     action:
-        'Write down the steps, proportions, or decisions that produced the best result today while they are clear.',
-    reflection: '“What does record the method require now?”',
+        'Based on Day 18\'s honest reading, change one thing about how you are working. The method must serve the field, not the other way.',
+    reflection: '"What does the reading require me to change?"',
   ),
   DecanDayInfo(
     day: 20,
-    theme: 'Seal Discerned Skill',
+    theme: 'Account for the Decan',
     action:
-        'Name one thing you now know how to do that you could not do reliably at the beginning of this month.',
-    reflection: '“What does seal discerned skill require now?”',
+        'Two decans of Rekh-Wer complete. What knowledge was built and applied? What does the field now require for the final ten days?',
+    reflection: '"What does the field need from the last decan?"',
   ),
 ];
 
 final List<DecanDayInfo> _compressedRekhwerFlowRows3 = [
   DecanDayInfo(
     day: 21,
-    theme: 'Let Skill Become Reliable',
+    theme: 'Consolidate What You Know',
     action:
-        'Repeat one technique or method without instructions and note where it holds and where it still falters.',
-    reflection: '“What does let skill become reliable require now?”',
+        'Review the knowledge built this month. What is solid? What still needs reinforcement before the month closes?',
+    reflection: '"What do I know well enough to teach?"',
   ),
   DecanDayInfo(
     day: 22,
-    theme: 'Repeat the Method',
+    theme: 'Close the Knowledge Gap',
     action:
-        'Do the same task twice: once to produce, once to confirm the method — remove variation until the result is predictable.',
-    reflection: '“What does repeat the method require now?”',
+        'The gap identified in Day 4 — has it been closed? If not, close it now before the month ends.',
+    reflection: '"Is the gap closed or still costing the field?"',
   ),
   DecanDayInfo(
     day: 23,
-    theme: 'Remove Performance From Practice',
+    theme: 'Strengthen the Method for Carrying',
     action:
-        'Work without an audience today — let the quality of the work itself be sufficient.',
-    reflection: '“What does remove performance from practice require now?”',
+        'What you built this month must survive into next month. Strengthen it against the conditions ahead.',
+    reflection: '"Will this method hold into the next month?"',
   ),
   DecanDayInfo(
     day: 24,
-    theme: 'Strengthen the Weak Point',
+    theme: 'Work the Field at Full Skill',
     action:
-        'Address the one step in your practice that consistently produces less reliable results.',
-    reflection: '“What does strengthen the weak point require now?”',
+        'Bring everything learned this month to bear today. Not effort — the full precision of what was practiced.',
+    reflection: '"Am I working at the level I have built?"',
   ),
   DecanDayInfo(
     day: 25,
-    theme: 'Let the Vessel Hold More',
+    theme: 'Pass the Knowledge On',
     action:
-        'Apply your competence to something slightly more demanding than your recent work — test the capacity of what you have built.',
-    reflection: '“What does let the vessel hold more require now?”',
+        'Whatever you learned this month that worked — write it, share it, formalize it so it survives beyond this season.',
+    reflection: '"Who or what carries this knowledge after me?"',
   ),
   DecanDayInfo(
     day: 26,
-    theme: 'Teach the Method',
+    theme: 'Tend the Overlooked',
     action:
-        'Explain one technique or decision to someone who needs to understand it — clarity in teaching confirms real understanding.',
-    reflection: '“What does teach the method require now?”',
+        'The section that got the least skilled attention this month. Give it focused care before the month closes.',
+    reflection: '"What did I under-tend this month?"',
   ),
   DecanDayInfo(
     day: 27,
-    theme: 'Guard Against Cleverness',
+    theme: 'Read the Full Field',
     action:
-        'Refuse one shortcut or impressive-but-unstable technique in favor of the slower, reliable method.',
-    reflection: '“What does guard against cleverness require now?”',
+        'Stand back from all of Rekh-Wer. What does the whole field look like? What will it need in Rekh-Nedjes?',
+    reflection: '"What does the full field tell me?"',
   ),
   DecanDayInfo(
     day: 28,
-    theme: 'Serve Through Competence',
+    theme: 'Offer the Craft',
     action:
-        'Use a developed skill in direct service of someone else\'s need — not as demonstration, but as contribution.',
-    reflection: '“What does serve through competence require now?”',
+        'The knowledge applied this month is an offering. Place the quality of your craft in front of Ma\'at.',
+    reflection: '"Did I work with the quality Ma\'at would recognize?"',
   ),
   DecanDayInfo(
     day: 29,
-    theme: 'Preserve the Standard',
+    theme: 'Prepare the Transition',
     action:
-        'Write or commit to one quality threshold you will not lower, regardless of pressure or convenience.',
-    reflection: '“What does preserve the standard require now?”',
+        'Rekh-Nedjes opens next month. Read what it will require. Begin adjusting the approach before the month turns.',
+    reflection: '"What does the next month require that this one did not?"',
   ),
   DecanDayInfo(
     day: 30,
-    theme: 'Seal Great Knowing',
+    theme: 'Seal Rekh-Wer',
     action:
-        'Name what you now do reliably, who else needs this knowledge, and how it will be carried forward.',
-    reflection: '“What does seal great knowing require now?”',
+        'Account for what was learned, applied, and built. Name the knowledge that now belongs to you. Hand the field forward.',
+    reflection: '"What knowledge do I carry out of this month?"',
   ),
 ];
 
@@ -4377,2706 +4341,3302 @@ Name what sustained you across these ten days. Offer what is owed. Close sꜣḥ
   'hathor_11_2': KemeticDayInfo(
     kemeticDate: 'Hathor II, Day 11',
     season: '🌊 Akhet – Season of Inundation',
-    month: 'Hathor (Ḥwt-Ḥr) — Joy Held in Right Measure',
-    decanName: 'ṯms n ḫntt',
+    month:
+        'Hathor (Tepy-a Kenmet) — House of Horus, patron of joy that restores order',
+    decanName:
+        'ṯms n ḫntt ("the red one of ḫntt") | Deck: The Companion of the Foremost',
     starCluster:
         '✨ ḥry-ib sꜣḥ — a marker in the Sah/Orion star field, physically recognized through the broad Orion figure with its three aligned belt stars and surrounding bright points',
-    maatPrinciple: 'The Named Bond Is Answerable',
+    maatPrinciple: 'Stability Becomes Shared',
     cosmicContext: '''
-ḥry-ib sꜣḥ opens the decan of harmonization: relation held through timing, not proximity alone.
-In Kemet, a work crew named its members before beginning. The naming made the bond accountable.
-What is left unnamed can be dissolved without consequence.
-Name who you stand with today, and in what.''',
+The first ten days of Hathor were yours alone.
+Your body returned. Your path held. Your home stood again.
+That work is done.
+
+Now the companion star rises behind the leader.
+Not behind to follow — beside, just offset.
+The second half of the watch.
+
+A canal wall repaired by one pair of hands breaks again before planting.
+The field that only one person reads goes hungry.
+Today: who is actually beside you in this work?
+Name them. Not the idea of them — the real ones.
+''',
     decanFlow: _compressedHathorFlowRows2,
     meduNeter: MeduNeterKey(
-      glyph:
-          'Two figures walking beneath one standard — companionship made formal, not implied',
-      colorFrequency:
-          'Twin gold lines over rich earth brown — partnership with weight behind it',
-      mantra: '"I name who I stand with. The naming makes it answerable."',
+      glyph: '𓇋𓇋 (paired reeds) beneath the Hathor sistrum',
+      colorFrequency: 'Twin gold lines on river-brown earth',
+      mantra: '"This bond holds the canal."',
     ),
   ),
   'hathor_12_2': KemeticDayInfo(
     kemeticDate: 'Hathor II, Day 12',
     season: '🌊 Akhet – Season of Inundation',
-    month: 'Hathor (Ḥwt-Ḥr) — Joy Held in Right Measure',
-    decanName: 'ṯms n ḫntt',
+    month: 'Hathor (Tepy-a Kenmet)',
+    decanName:
+        'ṯms n ḫntt ("the red one of ḫntt") | Deck: The Companion of the Foremost',
     starCluster:
         '✨ ḥry-ib sꜣḥ — a marker in the Sah/Orion star field, physically recognized through the broad Orion figure with its three aligned belt stars and surrounding bright points',
-    maatPrinciple: 'Right Rhythm Is Obligation',
+    maatPrinciple: 'Shared Rhythm Is Not Optional',
     cosmicContext: '''
-Hathor's music at Dendera was ritual requirement. Wrong timing between instruments broke the offering — regardless of how skilled each player was alone.
-Two people in a household or partnership operate on the same law.
-When your rhythms collide without address, you are breaking the offering together.
-Align the tempo. It must be made deliberately; it does not arise on its own.''',
+Yesterday you named who is beside you.
+Today you set the clock together.
+
+Canal crews coordinated before dawn — not from warmth, from necessity.
+One laborer arriving late let silt dry in the wrong place.
+One household out of rhythm with its neighbor's water share started a conflict before the seeds were in the ground.
+
+The two companion stars do not guess at each other's position.
+They maintain a fixed relation through the whole arc.
+
+When do we move? When do we rest? When do we check in?
+Set it explicitly. The season will not wait for you to figure it out.
+''',
     decanFlow: _compressedHathorFlowRows2,
     meduNeter: MeduNeterKey(
-      glyph:
-          'Paired feet in stride beside a measuring cord — shared tempo as structural requirement',
-      colorFrequency:
-          'Gold pulse over deep river blue — rhythm as the mechanism of relation',
-      mantra: '"We set the shared tempo deliberately. It is not incidental."',
+      glyph: 'Measuring cord between two stakes — timing marked in the earth',
+      colorFrequency: 'River blue over surveyed ground',
+      mantra: '"We set the rhythm before the field does it for us."',
     ),
   ),
   'hathor_13_2': KemeticDayInfo(
     kemeticDate: 'Hathor II, Day 13',
     season: '🌊 Akhet – Season of Inundation',
-    month: 'Hathor (Ḥwt-Ḥr) — Joy Held in Right Measure',
-    decanName: 'ṯms n ḫntt',
+    month: 'Hathor (Tepy-a Kenmet)',
+    decanName:
+        'ṯms n ḫntt ("the red one of ḫntt") | Deck: The Companion of the Foremost',
     starCluster:
         '✨ ḥry-ib sꜣḥ — a marker in the Sah/Orion star field, physically recognized through the broad Orion figure with its three aligned belt stars and surrounding bright points',
-    maatPrinciple: 'Equal Load Is Equal Justice',
+    maatPrinciple: 'No Field Is Carried by One Pair of Hands',
     cosmicContext: '''
-"I did not take more than my share" — this is among the 42 Declarations.
-The reverse is also a Maʿat question.
-When one person in a bond consistently carries more than their portion, the one carrying less has been taking something — not through malice, perhaps, but the account is still open.
-Look at the distribution of weight. Correct it. That is justice, not accommodation.''',
+After flood recession, field work was assigned by capacity.
+Stronger crews took the heavy embankments.
+Fresher hands took the tender channels.
+Letting one person carry the whole weight was not devotion — it was disorder.
+A broken body costs the field ten days.
+
+You named the partnership. You set the rhythm.
+Now look at the actual distribution.
+
+Who is quietly carrying eighty percent?
+The companion is not a witness to your labor.
+The companion works the same system.
+Redistribute before the back breaks.
+''',
     decanFlow: _compressedHathorFlowRows2,
     meduNeter: MeduNeterKey(
-      glyph:
-          'Load-bearing pole balanced across two shoulders — the weight divided as justice requires',
-      colorFrequency: 'Paired earth-brown beneath a shared band of gold',
-      mantra: '"The weight between us is a question of justice."',
+      glyph: 'Load-bearing pole balanced across two shoulders',
+      colorFrequency: 'Paired earth-brown under shared gold',
+      mantra: '"We carry this in a way that does not break us."',
     ),
   ),
   'hathor_14_2': KemeticDayInfo(
     kemeticDate: 'Hathor II, Day 14',
     season: '🌊 Akhet – Season of Inundation',
-    month: 'Hathor (Ḥwt-Ḥr) — Joy Held in Right Measure',
-    decanName: 'ṯms n ḫntt',
+    month: 'Hathor (Tepy-a Kenmet)',
+    decanName:
+        'ṯms n ḫntt ("the red one of ḫntt") | Deck: The Companion of the Foremost',
     starCluster:
         '✨ ḥry-ib sꜣḥ — a marker in the Sah/Orion star field, physically recognized through the broad Orion figure with its three aligned belt stars and surrounding bright points',
-    maatPrinciple: 'False Speech Inside the Bond',
+    maatPrinciple: 'Speak Before Pressure Becomes Damage',
     cosmicContext: '''
-"I did not speak falsely to anyone" — this declaration belongs inside the bond as much as at the door of the Hall of Two Truths.
-Silence that allows resentment to accumulate, agreement offered to manage rather than resolve, words shaped to soothe rather than to tell — these are forms of false speech.
-Harmony in Kemet was not the absence of friction. It was friction resolved in proportion.
-The difficult truth, stated directly and without cruelty, is what the bond requires.''',
+A canal mouth silting was addressed immediately or not at all.
+The problem was never the silt.
+It was the worker who noticed the slowing and said nothing for three days.
+
+The companion who does not name the friction
+is not keeping the peace.
+The companion who does not name the friction
+is letting the wall weaken quietly.
+
+Name the tension today.
+Not with weapons — with the same directness
+you would use to say: the bank is giving way here.
+Because it is.
+''',
     decanFlow: _compressedHathorFlowRows2,
     meduNeter: MeduNeterKey(
-      glyph:
-          'Mouth (𓂋) placed between two figures — truth as what is placed between, not hurled',
-      colorFrequency:
-          'Gold line linking two forms — not dividing them, not fusing them',
-      mantra: '"I speak truth inside the bond."',
+      glyph: 'Hand placing clay against a leaking wall',
+      colorFrequency: 'Mud-brown repair on river blue',
+      mantra: '"I speak the breach before it breaks."',
     ),
   ),
   'hathor_15_2': KemeticDayInfo(
     kemeticDate: 'Hathor II, Day 15',
     season: '🌊 Akhet – Season of Inundation',
-    month: 'Hathor (Ḥwt-Ḥr) — Joy Held in Right Measure',
-    decanName: 'ṯms n ḫntt',
+    month: 'Hathor (Tepy-a Kenmet)',
+    decanName:
+        'ṯms n ḫntt ("the red one of ḫntt") | Deck: The Companion of the Foremost',
     starCluster:
         '✨ ḥry-ib sꜣḥ — a marker in the Sah/Orion star field, physically recognized through the broad Orion figure with its three aligned belt stars and surrounding bright points',
-    maatPrinciple: 'Shared Benefit, Shared Obligation',
+    maatPrinciple: 'Common Infrastructure Requires Common Repair',
     cosmicContext: '''
-The canal wall between two fields was maintained by those it protected.
-Failure to tend what you use was not neutral — it was a withdrawal from the obligation that shared use creates.
-The shared systems in any bond — household, money, schedule, agreed terms — are that canal wall.
-What both of you draw from, both of you are required to maintain.''',
+The canal gate. The water schedule. The household account.
+The shared calendar that neither of you looks at.
+The food system that only one person manages.
+
+These are not romantic matters.
+They are the irrigation works of a shared life.
+One person maintaining them unilaterally
+slowly becomes the canal authority
+over someone who has no say in their own water.
+
+The companion does not follow to observe.
+The companion works the same system.
+
+What shared structure has been quietly degrading
+while only one person tends it?
+Fix it together today.
+''',
     decanFlow: _compressedHathorFlowRows2,
     meduNeter: MeduNeterKey(
-      glyph:
-          'Canal wall (𓈗) with repair hand (𓂧) — shared infrastructure, shared obligation',
-      colorFrequency:
-          'Mud brown reinforced with steady gold — maintenance as the practice of love',
-      mantra: '"What I draw from, I am obligated to maintain."',
+      glyph: 'Canal gate with two hands on the lever',
+      colorFrequency: 'Nile blue over worked clay',
+      mantra: '"We maintain what sustains us both."',
     ),
   ),
   'hathor_16_2': KemeticDayInfo(
     kemeticDate: 'Hathor II, Day 16',
     season: '🌊 Akhet – Season of Inundation',
-    month: 'Hathor (Ḥwt-Ḥr) — Joy Held in Right Measure',
-    decanName: 'ṯms n ḫntt',
+    month: 'Hathor (Tepy-a Kenmet)',
+    decanName:
+        'ṯms n ḫntt ("the red one of ḫntt") | Deck: The Companion of the Foremost',
     starCluster:
         '✨ ḥry-ib sꜣḥ — a marker in the Sah/Orion star field, physically recognized through the broad Orion figure with its three aligned belt stars and surrounding bright points',
-    maatPrinciple: 'Guard the Name in Absence',
+    maatPrinciple: 'Guard the Name of the One Who Walks Beside You',
     cosmicContext: '''
-The autobiographical inscriptions were specific: "I spoke for the widow." "I defended the orphan." Not when convenient — as standing practice.
-In Kemet, reputation was infrastructure. A name that could not be trusted destroyed the person who carried it.
-Defending the name and dignity of those you are bonded with, in rooms they are not part of, is not a favor.
-It is what you owe the bond.''',
+In the nomes, reputation was infrastructure.
+A laborer whose dignity was publicly damaged
+lost standing in the water-share rotation.
+
+Hathor is the Eye of Ra — and the Eye protects.
+When she appears as companion, the reading is:
+walk beside this person in a way that leaves their name clean.
+
+The question is not about the bond when it is easy.
+It is about the rooms you enter without them.
+What do you say there?
+
+The companion who guards the name in absence
+is the one the field trusts when the flood returns.
+''',
     decanFlow: _compressedHathorFlowRows2,
     meduNeter: MeduNeterKey(
-      glyph:
-          'Protective arm curved around a figure — standing obligation, not situational charity',
-      colorFrequency: 'Deep indigo of the night watch and protective gold',
-      mantra: '"I hold the name of those I am bonded with."',
+      glyph: 'Two figures sharing a single standard above them',
+      colorFrequency: 'Deep indigo and protective gold',
+      mantra: '"Your name is clean when I am in the room."',
     ),
   ),
   'hathor_17_2': KemeticDayInfo(
     kemeticDate: 'Hathor II, Day 17',
     season: '🌊 Akhet – Season of Inundation',
-    month: 'Hathor (Ḥwt-Ḥr) — Joy Held in Right Measure',
-    decanName: 'ṯms n ḫntt',
+    month: 'Hathor (Tepy-a Kenmet)',
+    decanName:
+        'ṯms n ḫntt ("the red one of ḫntt") | Deck: The Companion of the Foremost',
     starCluster:
         '✨ ḥry-ib sꜣḥ — a marker in the Sah/Orion star field, physically recognized through the broad Orion figure with its three aligned belt stars and surrounding bright points',
-    maatPrinciple: 'Correct the Attribution',
+    maatPrinciple: 'Name What Was Built Together',
     cosmicContext: '''
-The Kemite autobiographies named specific people helped, specific co-workers credited, specific acts done.
-A record that attributes shared labor only to its most visible member is false in Maʿat's account.
-The false record does not require malice. It only requires silence.
-Correct the attribution today, in the moment, not after.''',
+Hathor is the patron of rhythm and music —
+the beat that kept rowers from exhausting themselves unevenly,
+the song that held the whole crew without a foreman shouting.
+When the work was finished, the credit was spoken together.
+"We cleared that embankment. We crossed that flood."
+
+You have set the rhythm, repaired the system, protected the name.
+Now speak the shared work aloud.
+
+Not what you did alone.
+What you did together.
+The field remembers who showed up on both sides.
+''',
     decanFlow: _compressedHathorFlowRows2,
     meduNeter: MeduNeterKey(
-      glyph:
-          'Clasped wrists — the record of shared work, acknowledged in the moment it is made',
-      colorFrequency: 'Paired gold — two names, not one',
-      mantra: '"I name those who carried this with me."',
+      glyph: 'Hathor sistrum raised beside a second hand',
+      colorFrequency: 'Paired golds — two lights marking the work complete',
+      mantra: '"We name what we carried side by side."',
     ),
   ),
   'hathor_18_2': KemeticDayInfo(
     kemeticDate: 'Hathor II, Day 18',
     season: '🌊 Akhet – Season of Inundation',
-    month: 'Hathor (Ḥwt-Ḥr) — Joy Held in Right Measure',
-    decanName: 'ṯms n ḫntt',
+    month: 'Hathor (Tepy-a Kenmet)',
+    decanName:
+        'ṯms n ḫntt ("the red one of ḫntt") | Deck: The Companion of the Foremost',
     starCluster:
         '✨ ḥry-ib sꜣḥ — a marker in the Sah/Orion star field, physically recognized through the broad Orion figure with its three aligned belt stars and surrounding bright points',
-    maatPrinciple: 'Drift Uncorrected Becomes Isfet',
+    maatPrinciple: 'Adjust the Shared Pattern While It Can Still Be Adjusted',
     cosmicContext: '''
-A half-degree misalignment at the foundation becomes a wall visibly out of true before the year ends.
-Partnership drifts the same way: each accommodation quietly accepted, each resentment stored in silence, each arrangement that serves one at the cost of the other — these compound.
-Entropy moves through every un-corrected gap.
-Check the axis now. Correct it while it is still small.''',
+The canal system was never set and forgotten.
+It was walked and corrected through the whole season.
+A gate that opened too wide in the first month
+wasted water the household needed in the third.
+
+The companion star does not track to follow blindly.
+It corrects when the path drifts.
+
+Today the question is not: how do I make this easier for me.
+It is: how do we make this hold for both of us.
+
+What part of the pattern between you and your companion
+is working for one person at the quiet cost of the other?
+Adjust it before the harvest demands what neither of you saved.
+''',
     decanFlow: _compressedHathorFlowRows2,
     meduNeter: MeduNeterKey(
-      glyph:
-          'Plumb line checking a wall — early correction as the discipline of Maʿat',
-      colorFrequency:
-          'Calm river blue with a line of gold — alignment, maintained',
-      mantra: '"I correct the drift now, while it is still small."',
+      glyph: 'Plumb line held between two hands',
+      colorFrequency: 'Calm river blue with a steady gold correction line',
+      mantra: '"We tune this so it does not break us later."',
     ),
   ),
   'hathor_19_2': KemeticDayInfo(
     kemeticDate: 'Hathor II, Day 19',
     season: '🌊 Akhet – Season of Inundation',
-    month: 'Hathor (Ḥwt-Ḥr) — Joy Held in Right Measure',
-    decanName: 'ṯms n ḫntt',
+    month: 'Hathor (Tepy-a Kenmet)',
+    decanName:
+        'ṯms n ḫntt ("the red one of ḫntt") | Deck: The Companion of the Foremost',
     starCluster:
         '✨ ḥry-ib sꜣḥ — a marker in the Sah/Orion star field, physically recognized through the broad Orion figure with its three aligned belt stars and surrounding bright points',
-    maatPrinciple: 'Integrity Holds in Stillness',
+    maatPrinciple: 'Shared Rest Proves the Bond',
     cosmicContext: '''
-The bond that only holds under shared function has not yet become Maʿat.
-In Kemet, the right to rest in shared space without obligation was a marker of genuine kin — those whose relation survived the removal of utility.
-If you cannot be still in the same room without managing the relation, the harmony is conditional.
-Rest together. Let the alignment prove itself without assistance.''',
+After the canal crews finished the day's section, they stopped.
+Bread was shared. Water was passed.
+The silence was not awkward — it was proof the work had made them coherent.
+
+A partnership that can only move together, not be still together,
+is not yet a partnership. It is a schedule.
+
+Hathor governs this moment.
+Can the two of you be in the same space
+without fixing, correcting, planning, managing?
+That stillness is the gift.
+It is also proof that what was built between you can survive.
+''',
     decanFlow: _compressedHathorFlowRows2,
     meduNeter: MeduNeterKey(
-      glyph:
-          'Two figures at ease under one enclosure — bond held in stillness, without justification',
-      colorFrequency:
-          'Lotus blue and warm clay brown — quiet, grounded presence',
-      mantra: '"This bond holds in stillness too."',
+      glyph: 'Two seated figures at ease beneath the Hathor cow-standard',
+      colorFrequency: 'Lotus blue and warm clay',
+      mantra: '"We can be still. That means we are real."',
     ),
   ),
   'hathor_20_2': KemeticDayInfo(
     kemeticDate: 'Hathor II, Day 20',
     season: '🌊 Akhet – Season of Inundation',
-    month: 'Hathor (Ḥwt-Ḥr) — Joy Held in Right Measure',
-    decanName: 'ṯms n ḫntt',
+    month: 'Hathor (Tepy-a Kenmet)',
+    decanName:
+        'ṯms n ḫntt ("the red one of ḫntt") | Deck: The Companion of the Foremost',
     starCluster:
         '✨ ḥry-ib sꜣḥ — a marker in the Sah/Orion star field, physically recognized through the broad Orion figure with its three aligned belt stars and surrounding bright points',
-    maatPrinciple: 'Right Relation Multiplies Maʿat',
+    maatPrinciple: 'This Bond Is Part of How the World Holds',
     cosmicContext: '''
-The partnership is not valuable because it feels good.
-Two people in right relation carry more Maʿat into the world than either can carry alone — this is the structural teaching.
-The feeling is evidence, not the point.
-Seal the decan by naming what this bond produces beyond the two of you.''',
+Ten days. You named the partnership, set the rhythm,
+redistributed the load, repaired the system, protected the name,
+honored the shared work, adjusted the pattern, rested together.
+
+A household out of shared rhythm missed the planting window.
+A household in shared rhythm entered harvest with more capacity than either person alone.
+
+The companion is not ornament.
+The companion is the second half of the irrigation system.
+
+Today you seal that aloud — not in gratitude only, in recognition.
+This bond is part of how order holds.
+Name it as Ma'at.
+''',
     decanFlow: _compressedHathorFlowRows2,
     meduNeter: MeduNeterKey(
       glyph:
-          'Shared standard (𓌡) above two linked figures — the bond as an instrument, not an arrangement',
-      colorFrequency:
-          'Twin golds converging — the pairing as a single act of Maʿat',
-      mantra: '"This bond produces Maʿat beyond the two of us."',
+          'Shared standard above two linked figures — one purpose, two carriers',
+      colorFrequency: 'Twin golds merging into one steady line',
+      mantra: '"This bond is infrastructure. It holds the world."',
     ),
   ),
   'hathor_21_3': KemeticDayInfo(
     kemeticDate: 'Hathor III, Day 21',
     season: '🌊 Akhet – Season of Inundation',
-    month: 'Hathor (Ḥwt-Ḥr) — Joy Held in Right Measure',
-    decanName: 'ḳdty',
+    month:
+        'Hathor (Tepy-a Kenmet) — House of Horus, patron of beauty that restores order',
+    decanName: 'ḳdty (translation uncertain) | Deck: The Builders',
     starCluster:
         '✨ sbꜣ sꜣḥ — a marker in the Sah/Orion star field, physically recognized through the broad Orion figure with its three aligned belt stars and surrounding bright points',
-    maatPrinciple: 'Build What Is Required',
+    maatPrinciple: 'Restored Order Wants to Become Visible',
     cosmicContext: '''
-sbꜣ sꜣḥ rises patient and late. The Kemite builder's first question was not "what do I want to make?"
-It was: what does this place require? What does the order need here?
-You are not expressing yourself. You are answering a need.
-Name what Maʿat requires you to bring into material existence now.''',
+For twenty days Hathor has been at work.
+The body returned. The path held. The partnership found its rhythm.
+Now the black silt is firming and the builders move.
+
+Not wildly — with measurement.
+The Kemite builder surveyed before laying anything:
+named the site, read the foundation, decided what would stand there and why.
+
+Hathor's domain here is beauty as declared purpose.
+A repaired threshold is beautiful because it shelters.
+A cleared boundary is beautiful because it marks the field.
+A swept path is beautiful because life can move on it.
+
+The planting window is coming.
+What does the firm ground of this season offer you to build on?
+Name it specifically — something that can be seen when you are gone.
+''',
     decanFlow: _compressedHathorFlowRows3,
     meduNeter: MeduNeterKey(
-      glyph:
-          'Mason\'s hand with chisel at a block — precision in service of what is required',
-      colorFrequency:
-          'Clay red and steady gold — earth being lifted toward its proper form',
-      mantra: '"I build what is required."',
+      glyph: 'Mason\'s cord laid on firm black silt',
+      colorFrequency: 'Black Nile silt and first-course stone',
+      mantra: '"I name what I will raise on this ground."',
     ),
   ),
   'hathor_22_3': KemeticDayInfo(
     kemeticDate: 'Hathor III, Day 22',
     season: '🌊 Akhet – Season of Inundation',
-    month: 'Hathor (Ḥwt-Ḥr) — Joy Held in Right Measure',
-    decanName: 'ḳdty',
+    month: 'Hathor (Tepy-a Kenmet)',
+    decanName: 'ḳdty (translation uncertain) | Deck: The Builders',
     starCluster:
         '✨ sbꜣ sꜣḥ — a marker in the Sah/Orion star field, physically recognized through the broad Orion figure with its three aligned belt stars and surrounding bright points',
-    maatPrinciple: 'Orient Before Building',
+    maatPrinciple: 'Nothing Holds on Soft Ground',
     cosmicContext: '''
-Before the first stone was placed, the Kemetic builder aligned the structure to the cardinal directions and the sky.
-The build had to answer to larger alignments before it answered to the builder's vision.
-Foundation work done wrong cannot be corrected later except by tearing everything down.
-Orient to what this build must answer to. Then begin.''',
+After the Nile retreated, the first work was not building — it was clearing.
+Flood debris, misplaced soil, the rotted edges of last year's structures.
+Only after the ground was swept and leveled did the measuring cord come out.
+
+To build on soft silt was to raise a wall that would slump before next inundation.
+That wasted stone. That wasted season.
+
+Yesterday you named what you would raise.
+Today you clear the site.
+
+What old arrangement, stale obligation, or flood-left debris
+is still sitting where the new structure needs to stand?
+Clear it before you lay anything.
+''',
     decanFlow: _compressedHathorFlowRows3,
     meduNeter: MeduNeterKey(
-      glyph:
-          'Measuring cord stretched taut across prepared ground — orientation before construction',
-      colorFrequency:
-          'Wet earth brown under a thin line of first-light gold — readiness',
-      mantra: '"I orient before I build."',
+      glyph: 'Swept ground before the measuring cord — cleared, not yet built',
+      colorFrequency: 'Fresh-turned earth under a line of gold',
+      mantra: '"I prepare the ground before I raise anything."',
     ),
   ),
   'hathor_23_3': KemeticDayInfo(
     kemeticDate: 'Hathor III, Day 23',
     season: '🌊 Akhet – Season of Inundation',
-    month: 'Hathor (Ḥwt-Ḥr) — Joy Held in Right Measure',
-    decanName: 'ḳdty',
+    month: 'Hathor (Tepy-a Kenmet)',
+    decanName: 'ḳdty (translation uncertain) | Deck: The Builders',
     starCluster:
         '✨ sbꜣ sꜣḥ — a marker in the Sah/Orion star field, physically recognized through the broad Orion figure with its three aligned belt stars and surrounding bright points',
-    maatPrinciple: 'First Form Is Dialogue',
+    maatPrinciple: 'Structure True; Polish Later',
     cosmicContext: '''
-Khnum's wheel turns. Clay responds to pressure — too little gives no form, too much collapses the vessel.
-The craftsman is not imposing on the material. The first rough form is a conversation between intention and matter.
-Perfectionism ends the conversation before it has begun, and the thing never exists.
-Shape now. Refine after.''',
+Kemite masons roughed the block before they polished it.
+First cuts: broad, approximate, correct in proportion but rough in surface.
+The eye was on structure, not shine.
+
+To wait for perfection before beginning
+is to let the silt dry and the planting window close.
+
+The ground is cleared. Today you make the first form.
+Draft it, sketch it, frame it, cut the first piece.
+Do not judge it for being unfinished.
+Judge it for whether the structure is true —
+true structure can always be refined.
+An unbegun structure cannot.
+''',
     decanFlow: _compressedHathorFlowRows3,
     meduNeter: MeduNeterKey(
-      glyph:
-          'Khnum at the potter\'s wheel — first form as dialogue, not declaration',
-      colorFrequency: 'Raw clay red — unpolished, responsive, in process',
-      mantra: '"I begin the dialogue with matter."',
+      glyph: 'Sculptor\'s hand against rough stone — first pass, not the last',
+      colorFrequency: 'Raw clay red, unpolished, alive',
+      mantra: '"I form it rough and true."',
     ),
   ),
   'hathor_24_3': KemeticDayInfo(
     kemeticDate: 'Hathor III, Day 24',
     season: '🌊 Akhet – Season of Inundation',
-    month: 'Hathor (Ḥwt-Ḥr) — Joy Held in Right Measure',
-    decanName: 'ḳdty',
+    month: 'Hathor (Tepy-a Kenmet)',
+    decanName: 'ḳdty (translation uncertain) | Deck: The Builders',
     starCluster:
         '✨ sbꜣ sꜣḥ — a marker in the Sah/Orion star field, physically recognized through the broad Orion figure with its three aligned belt stars and surrounding bright points',
-    maatPrinciple: 'Intention Must Become Matter',
+    maatPrinciple: 'Let It Stand in the Real World',
     cosmicContext: '''
-In Kemet, what was promised to the gods had to become physical to count in the record.
-A plan that remains a plan, a structure that remains a sketch, a vow that remains a feeling — these are open accounts.
-They carry the weight of what was declared without delivering what was owed.
-Make it exist today. Not planned. Existing.''',
+A structure in a plan is not a structure.
+A boundary thought about is not a boundary.
+A repaired channel that has not been opened carries no water.
+
+The Kemite had no category for things that existed only in concept.
+The wall had to cast a shadow. The path had to receive footsteps.
+
+Not the whole wall — the first post.
+Set and leveled and left to be built upon.
+
+Today something that has been idea becomes object.
+Not finished. Present.
+Real enough to be measured.
+That is enough for today.
+''',
     decanFlow: _compressedHathorFlowRows3,
     meduNeter: MeduNeterKey(
-      glyph:
-          'Upright pillar raised by two hands — stability entering the world from the mind',
-      colorFrequency:
-          'Stone grey kissed with gold at the capstone — unfinished but undeniably present',
-      mantra: '"It exists now."',
+      glyph: 'Upright post set in leveled ground',
+      colorFrequency: 'Unfinished stone grey touched with gold at the crown',
+      mantra: '"It stands now. That is enough for today."',
     ),
   ),
   'hathor_25_3': KemeticDayInfo(
     kemeticDate: 'Hathor III, Day 25',
     season: '🌊 Akhet – Season of Inundation',
-    month: 'Hathor (Ḥwt-Ḥr) — Joy Held in Right Measure',
-    decanName: 'ḳdty',
+    month: 'Hathor (Tepy-a Kenmet)',
+    decanName: 'ḳdty (translation uncertain) | Deck: The Builders',
     starCluster:
         '✨ sbꜣ sꜣḥ — a marker in the Sah/Orion star field, physically recognized through the broad Orion figure with its three aligned belt stars and surrounding bright points',
-    maatPrinciple: 'Inscribe the Purpose',
+    maatPrinciple: 'A Structure Without Purpose Is Already Decay',
     cosmicContext: '''
-Without declared purpose, what you build will drift toward whatever use happens to claim it.
-The declaration is not ceremony. It is what transforms stone into offering, system into Maʿat, structure into something the divine order can recognize and sustain.
-A practice without commitment, a plan without stated aim, a relationship without named terms — all drift toward whoever wants them.
-Inscribe the purpose while the stone is still soft enough to take the chisel.''',
+In Kemetic building, structures carried their purpose visibly —
+the name of the donor, the deity honored, the function declared.
+
+A structure that did not know what it was for
+became available for anything.
+And a thing available for anything eventually serves Isfet.
+
+The post is standing. The form is roughed in.
+Now carve the meaning before the plaster dries.
+
+Who is this for? What does it protect?
+What would be lost without it?
+
+Name it. Set it into the work itself, not just in your mind.
+This is how a structure stays true when you are not watching it.
+''',
     decanFlow: _compressedHathorFlowRows3,
     meduNeter: MeduNeterKey(
-      glyph:
-          'Chisel inscribing stone — purpose as the act that makes the structure real',
-      colorFrequency: 'Deep carved stone with gold meaning-inlay',
-      mantra: '"I declare what this is for."',
+      glyph: 'Inscribed lintel above a cleared threshold',
+      colorFrequency: 'Deep stone with gold filling the lines',
+      mantra: '"This has a purpose and I have declared it."',
     ),
   ),
   'hathor_26_3': KemeticDayInfo(
     kemeticDate: 'Hathor III, Day 26',
     season: '🌊 Akhet – Season of Inundation',
-    month: 'Hathor (Ḥwt-Ḥr) — Joy Held in Right Measure',
-    decanName: 'ḳdty',
+    month: 'Hathor (Tepy-a Kenmet)',
+    decanName: 'ḳdty (translation uncertain) | Deck: The Builders',
     starCluster:
         '✨ sbꜣ sꜣḥ — a marker in the Sah/Orion star field, physically recognized through the broad Orion figure with its three aligned belt stars and surrounding bright points',
-    maatPrinciple: 'Neglect Is Withdrawal',
+    maatPrinciple: 'The Flood Will Return. Find the Weak Joint Now.',
     cosmicContext: '''
-Neglect is not passive. It is the active withdrawal of the maintenance Maʿat requires.
-Entropy and opportunism move through every gap that is left un-sealed.
-The joint that has not been checked, the boundary that has begun to loosen, the gap in the grain-store wall — these do not wait.
-Find the weakness in what you have raised. Seal it now.''',
+After the first course was set, the builders checked the corners for plumb,
+sealed the joints, waterproofed what would face the river's return.
+
+The Nile flood would come again.
+The structure that survived it
+was the one whose weak points had been found and sealed before the water arrived — not after.
+
+The excitement of raising is not the same as the discipline of making it hold.
+Both are required.
+
+The structure is standing and named.
+Walk it now.
+Where is the joint that looks fine
+but has not been properly sealed?
+Find it today.
+''',
     decanFlow: _compressedHathorFlowRows3,
     meduNeter: MeduNeterKey(
       glyph:
-          'Bound knot around a sealed vessel — protection against the active force of entropy',
-      colorFrequency:
-          'Deep clay red and guarding black — sealed against what moves through gaps',
-      mantra: '"I seal the weakness before it becomes a failure."',
+          'Sealed corner joint — the quiet work that determines what survives',
+      colorFrequency: 'Clay red reinforced with protective black',
+      mantra: '"I seal the weak point before the water returns."',
     ),
   ),
   'hathor_27_3': KemeticDayInfo(
     kemeticDate: 'Hathor III, Day 27',
     season: '🌊 Akhet – Season of Inundation',
-    month: 'Hathor (Ḥwt-Ḥr) — Joy Held in Right Measure',
-    decanName: 'ḳdty',
+    month: 'Hathor (Tepy-a Kenmet)',
+    decanName: 'ḳdty (translation uncertain) | Deck: The Builders',
     starCluster:
         '✨ sbꜣ sꜣḥ — a marker in the Sah/Orion star field, physically recognized through the broad Orion figure with its three aligned belt stars and surrounding bright points',
-    maatPrinciple: 'Finish Is Obligation',
+    maatPrinciple: 'Beauty Makes the Structure Worth Entering',
     cosmicContext: '''
-The temple at Dendera needed to be hospitable to the divine. The surface was how the structure announced its fitness for that purpose.
-The correctness of the underlying form does not excuse carelessness in what it shows the world.
-An offering presented poorly is a lesser offering, regardless of the quality of the intention behind it.
-Complete the surface. The offering is not done until it is finished.''',
+The structure is sealed and purposeful.
+Now comes what Hathor governs most directly: the welcome.
+
+A household tended at the entrance
+was the one neighbors entered without hesitation.
+A workspace dressed with care and order
+was the one where good work happened.
+This was not vanity — it was the difference between a place that shelters
+and one that merely exists.
+
+The structure is built. The joint is sealed.
+Today you bring the warmth — the order, the scent, the small care at the threshold
+that says: life is tended here.
+Make it worth entering.
+''',
     decanFlow: _compressedHathorFlowRows3,
     meduNeter: MeduNeterKey(
-      glyph:
-          'Perfume jar and palette in Hathor\'s rite — the final layer as an act of devotion, not decoration',
-      colorFrequency:
-          'Honey gold and lotus blue — finish made with the same attention as foundation',
-      mantra: '"The offering is not complete until the finish is."',
+      glyph: 'Perfume jar and lotus at the finished threshold',
+      colorFrequency: 'Honey gold and lotus blue in warm light',
+      mantra: '"Beauty is how the structure says: enter."',
     ),
   ),
   'hathor_28_3': KemeticDayInfo(
     kemeticDate: 'Hathor III, Day 28',
     season: '🌊 Akhet – Season of Inundation',
-    month: 'Hathor (Ḥwt-Ḥr) — Joy Held in Right Measure',
-    decanName: 'ḳdty',
+    month: 'Hathor (Tepy-a Kenmet)',
+    decanName: 'ḳdty (translation uncertain) | Deck: The Builders',
     starCluster:
         '✨ sbꜣ sꜣḥ — a marker in the Sah/Orion star field, physically recognized through the broad Orion figure with its three aligned belt stars and surrounding bright points',
-    maatPrinciple: 'Stewardship, Not Ownership',
+    maatPrinciple: 'The Work Must Be Offered Back',
     cosmicContext: '''
-The builder does not own the building. After dedication, the structure answers to its purpose.
-What you hold too tightly, you prevent from being what it was built to be.
-The work that is kept under your control rather than released to its function remains unfinished regardless of how complete it appears.
-State what it is for. Release your grip on it. You are now its keeper.''',
+In this tradition, finishing a structure was marked not with pride but with offering.
+Beer poured. Incense burned. A naming of what was built, who built it, and in whose effort it stood.
+
+The builders had used materials the land gave,
+strength the community maintained,
+methods the tradition passed down.
+To claim the whole as private was a kind of theft from the land and the source.
+
+The structure is built, sealed, welcomed.
+Today you name the hands that carried it.
+Acknowledge the source.
+Mark the transition: from thing being built to thing that serves.
+''',
     decanFlow: _compressedHathorFlowRows3,
     meduNeter: MeduNeterKey(
-      glyph:
-          'Offering arms (𓊤) raised over a completed pillar — the builder handing over to what was declared',
-      colorFrequency: 'Gold and incense-smoke white — the moment of transfer',
-      mantra: '"I am its steward, not its owner."',
+      glyph: 'Offering arms before the finished structure',
+      colorFrequency: 'Gold and white — consecration of completed form',
+      mantra: '"I offer the work back to what it serves."',
     ),
   ),
   'hathor_29_3': KemeticDayInfo(
     kemeticDate: 'Hathor III, Day 29',
     season: '🌊 Akhet – Season of Inundation',
-    month: 'Hathor (Ḥwt-Ḥr) — Joy Held in Right Measure',
-    decanName: 'ḳdty',
+    month: 'Hathor (Tepy-a Kenmet)',
+    decanName: 'ḳdty (translation uncertain) | Deck: The Builders',
     starCluster:
         '✨ sbꜣ sꜣḥ — a marker in the Sah/Orion star field, physically recognized through the broad Orion figure with its three aligned belt stars and surrounding bright points',
-    maatPrinciple: 'Use Sustains the Dedication',
+    maatPrinciple: 'The Build Is Not Finished Until It Serves',
     cosmicContext: '''
-An altar that receives no offering is furniture. A canal gate that is never opened is rubble.
-The dedication is either sustained by use or abandoned by the absence of it.
-Right use is not applying something already secured. It is the ongoing act by which the vow remains true.
-Use what you built. Not to evaluate it. To keep the dedication alive.''',
+The tool goes where the hand reaches.
+The seed jar is labeled and within arm's length.
+The swept threshold is open.
+The repaired channel receives its first trickle.
+
+A structure raised but unused fails its purpose as surely as one never built.
+The boundary not walked is not yet a boundary.
+The practice not lived is not yet a practice.
+
+Yesterday you offered the work back.
+Today you live inside it.
+Use what was built.
+Let it prove through function that it was worth building.
+''',
     decanFlow: _compressedHathorFlowRows3,
     meduNeter: MeduNeterKey(
-      glyph:
-          'House (𓉐) in active use — the structure sustained by what passes through it daily',
-      colorFrequency:
-          'Warm clay and stored-grain gold — purpose made real through use',
-      mantra: '"I use what I built. Use is the ongoing vow."',
+      glyph: 'Repaired channel receiving its first trickle of water',
+      colorFrequency: 'Clay and Nile blue — the structure in active use',
+      mantra: '"The work is not done until I live inside it."',
     ),
   ),
   'hathor_30_3': KemeticDayInfo(
     kemeticDate: 'Hathor III, Day 30',
     season: '🌊 Akhet – Season of Inundation',
-    month: 'Hathor (Ḥwt-Ḥr) — Joy Held in Right Measure',
-    decanName: 'ḳdty',
+    month: 'Hathor (Tepy-a Kenmet)',
+    decanName: 'ḳdty (translation uncertain) | Deck: The Builders',
     starCluster:
         '✨ sbꜣ sꜣḥ — a marker in the Sah/Orion star field, physically recognized through the broad Orion figure with its three aligned belt stars and surrounding bright points',
-    maatPrinciple: 'Write the Record',
+    maatPrinciple: 'What Was Built Must Be Witnessed',
     cosmicContext: '''
-What is unrecorded can be denied, disputed, or forgotten.
-The scribe's record of the month's building was as sacred as the building because it made the acts of the month permanent — available to those who come after, accountable to what was declared.
-This is not documentation. It is how Maʿat holds what you did this month.
-Write what was built, who contributed, and what it now sustains.''',
+The final act of any significant construction was the record.
+Who built it. When. What it was for. Whose effort it stood on.
+Not vanity — accountability across time.
+If the boundary was disputed, the record said what it measured.
+If the builder was gone, the record said what they had given.
+
+Hathor closes today.
+The ground held. The partnership found its rhythm.
+The structure was raised, sealed, welcomed, offered, and used.
+
+Document it while the details are still in the hands of the people who made it.
+Name who helped. State what it serves.
+This is how Ma'at holds the work past the memory of its makers.
+''',
     decanFlow: _compressedHathorFlowRows3,
     meduNeter: MeduNeterKey(
-      glyph:
-          'Scribe\'s palette and papyrus roll beside a finished pillar — the record as the final act of building',
-      colorFrequency:
-          'Ink black on gold — permanence earned by the act of writing',
-      mantra:
-          '"I write what was built, who carried it, and what it now serves."',
+      glyph: 'Scribe\'s palette beside the finished structure',
+      colorFrequency: 'Ink black on living gold',
+      mantra: '"The record is the final stone."',
     ),
   ),
   'kaherka_1_1': KemeticDayInfo(
-    kemeticDate: 'Ka-ḥer-Ka I, Day 1',
-    season: '🌿 Peret – Season of Emergence',
+    kemeticDate: 'Ka-ḥer-ka I, Day 1',
+    season: '🌊 Akhet Closing – Inundation Withdraws',
     month:
-        'Ka-ḥer-Ka (Kȝ-ḥr-Kȝ) — Life Upon Life — Vitality Placed Into the Earth',
-    decanName: 'msḥtjw',
+        'Ka-ḥer-ka ("Ka upon Ka" — doubled life-force, the seed entering the black earth)',
+    decanName: 'ḫnwy (translation uncertain) | Deck: The Embraced Ones',
     starCluster:
         '✨ msḥtjw — the northern Foreleg star group, commonly associated with the Big Dipper form: seven bright stars making a bowl and bent handle around the northern sky',
-    maatPrinciple: 'Recognize Returning Strength',
+    maatPrinciple: 'Vitality Enters the Ground',
     cosmicContext: '''
-Peret opens the ground. The black earth seeded in silence now holds within it what was placed there — not yet visible, but present and accumulating. Ka-ḥer-Ka names this condition precisely: ka upon ka, vitality layered over vitality, the doubled life-force that occurs not when new strength arrives from outside but when what was always there begins to restore over itself.
+Hathor is closed. The partnership was named, the structure was raised.
+Now the black silt lies open and the builders put down their cords.
 
-msḥtjw — the Foreleg — circles the northern pole without setting. The circumpolar stars were called the imperishable ones because they never disappeared below the horizon. Strength that truly belongs to you does the same: it does not die in the hard seasons, it recedes, and in Peret it becomes visible again. Today is not the day to use what has returned. It is the day to recognize that something has.
+Ka-ḥer-ka is not a month of display.
+It is the month the seed goes into the earth.
+You do not plant by force — you plant by preparation.
+The first preparation is stillness.
+
+Silt that receives seed must be still enough to hold it.
+A field in motion loses what is placed in it.
+
+Today: pause unnecessary motion.
+What needs silence before it can be placed?
 ''',
     decanFlow: _compressedKaherkaFlowRows1,
     meduNeter: MeduNeterKey(
-      glyph:
-          'msḥtjw (the Foreleg) circling the pole — the imperishable limb, always present, now visible again',
-      colorFrequency:
-          'Deep northern night and the first recognizable gold — the circumpolar star found again',
-      mantra: '"Life layers back over itself. I receive what returns."',
+      glyph: 'Seed pressed into open palm over black silt',
+      colorFrequency: 'Black Nile earth, no light yet',
+      mantra: '"I am still so something can be placed in me."',
     ),
   ),
   'kaherka_2_1': KemeticDayInfo(
-    kemeticDate: 'Ka-ḥer-Ka I, Day 2',
-    season: '🌿 Peret – Season of Emergence',
-    month:
-        'Ka-ḥer-Ka (Kȝ-ḥr-Kȝ) — Life Upon Life — Vitality Placed Into the Earth',
-    decanName: 'msḥtjw',
+    kemeticDate: 'Ka-ḥer-ka I, Day 2',
+    season: '🌊 Akhet Closing – Inundation Withdraws',
+    month: 'Ka-ḥer-ka ("Ka upon Ka")',
+    decanName: 'ḫnwy (translation uncertain) | Deck: The Embraced Ones',
     starCluster:
         '✨ msḥtjw — the northern Foreleg star group, commonly associated with the Big Dipper form: seven bright stars making a bowl and bent handle around the northern sky',
-    maatPrinciple: 'Test the Ground Gently',
+    maatPrinciple: 'Clear What the Flood Left',
     cosmicContext: '''
-After the flood recedes, the first act is not planting. It is walking. The farmer who strides onto the newly revealed field falls through what appears solid. The correct step is careful, attentive, testing what holds before committing the seed to ground that may not yet support it.
+Before seed goes into the silt, the field is cleared.
+Flood debris, rotted reed, the crusted remains of last year's arrangements.
+A clogged field wastes the seed placed in it.
 
-The Foreleg in the northern sky does not lunge. It pivots slowly around the pole. Its permanence is not urgency — it is the steadiness of something that has learned where it stands. The returning strength does not yet know its own current limits. This is not weakness. It is the accurate condition of something newly restored. Test carefully so you do not discover the edge at the wrong moment.
+Yesterday you became still.
+Today you clear.
+
+Old obligations carried past their season.
+Stale arrangements that no longer represent anything true.
+The residue of what the flood moved through your life.
+
+Remove it before you plant anything.
+The seed needs clean ground.
 ''',
     decanFlow: _compressedKaherkaFlowRows1,
     meduNeter: MeduNeterKey(
-      glyph:
-          'Careful foot testing flooded ground — what holds beneath the surface before the weight is committed',
-      colorFrequency:
-          'Wet black earth and pale proving-light — the ground tested before the step is trusted',
-      mantra: '"I press lightly. What holds will hold."',
+      glyph: 'Water jar pouring over swept earth',
+      colorFrequency: 'Cool water blue over cleared black-brown ground',
+      mantra: '"I clear the place where renewal will land."',
     ),
   ),
   'kaherka_3_1': KemeticDayInfo(
-    kemeticDate: 'Ka-ḥer-Ka I, Day 3',
-    season: '🌿 Peret – Season of Emergence',
-    month:
-        'Ka-ḥer-Ka (Kȝ-ḥr-Kȝ) — Life Upon Life — Vitality Placed Into the Earth',
-    decanName: 'msḥtjw',
+    kemeticDate: 'Ka-ḥer-ka I, Day 3',
+    season: '🌊 Akhet Closing – Inundation Withdraws',
+    month: 'Ka-ḥer-ka ("Ka upon Ka")',
+    decanName: 'ḫnwy (translation uncertain) | Deck: The Embraced Ones',
     starCluster:
         '✨ msḥtjw — the northern Foreleg star group, commonly associated with the Big Dipper form: seven bright stars making a bowl and bent handle around the northern sky',
-    maatPrinciple: 'Gather the Body',
+    maatPrinciple: 'Name What Ended',
     cosmicContext: '''
-The Ka lives in the body. This is not metaphor — it is the structural claim of Kemetic thought about how vital force inhabits a person. When the body is scattered — breath shallow, sleep uneven, food irregular, posture abandoned — the Ka cannot fully occupy the vessel it is supposed to inhabit. Restoration of the Ka begins with restoration of the body that holds it.
+The scribe does not write "the grain is plentiful" when the jar is empty.
+To pretend nothing ended is to lie about the condition of the field —
+and a lie about the field costs the harvest.
 
-The Opening of the Mouth ritual used an adze shaped like the Foreleg to restore physical function to what had ceased: mouth, eyes, ears, each faculty returned in sequence. The rite was methodical. One organ at a time. Not a general revival but a specific restoration of each capacity. Today belongs to this same work — bringing the physical back to coherence, not because it is pleasant but because everything else depends on a gathered instrument.
+Something ended in the flood season.
+A plan, a relationship, a version of yourself, a way of working.
+Naming it is not weakness. It is accurate measurement.
+
+Say what closed. Say it plainly.
+Not to dwell — to clear.
+A field that does not know what it lost
+plants in the wrong place.
 ''',
     decanFlow: _compressedKaherkaFlowRows1,
     meduNeter: MeduNeterKey(
-      glyph:
-          'The adze of the Opening of the Mouth — the tool that restores function to the vessel, one faculty at a time',
-      colorFrequency:
-          'Warm clay and the first earth green — the body that receives tending',
-      mantra: '"The Ka needs a gathered body. I tend the vessel now."',
+      glyph: 'Open mouth above cleared earth — the naming',
+      colorFrequency: 'Deep indigo with a single line of honest white',
+      mantra: '"I speak what ended so the ground knows what to grow."',
     ),
   ),
   'kaherka_4_1': KemeticDayInfo(
-    kemeticDate: 'Ka-ḥer-Ka I, Day 4',
-    season: '🌿 Peret – Season of Emergence',
-    month:
-        'Ka-ḥer-Ka (Kȝ-ḥr-Kȝ) — Life Upon Life — Vitality Placed Into the Earth',
-    decanName: 'msḥtjw',
+    kemeticDate: 'Ka-ḥer-ka I, Day 4',
+    season: '🌊 Akhet Closing – Inundation Withdraws',
+    month: 'Ka-ḥer-ka ("Ka upon Ka")',
+    decanName: 'ḫnwy (translation uncertain) | Deck: The Embraced Ones',
     starCluster:
         '✨ msḥtjw — the northern Foreleg star group, commonly associated with the Big Dipper form: seven bright stars making a bowl and bent handle around the northern sky',
-    maatPrinciple: 'Protect the Root',
+    maatPrinciple: 'Select What Carries Forward',
     cosmicContext: '''
-The seed underground has committed to growth. It has cracked open its shell and begun the reaching that cannot be reversed. This is the most vulnerable moment: the seed cannot protect itself, cannot retreat back into dormancy, cannot resist what the soil does to it. Everything depends on the conditions around it — soil density, moisture, temperature, the absence of what would consume it.
+The farmer does not carry all last year's grain into the new planting.
+Weak grain goes back to the earth.
+Strong grain — the seed-stock — is set aside.
+That selection is not sentimentality. It is survival intelligence.
 
-Ka-upon-Ka returns slowly. The vitality that has begun accumulating is real but not yet consolidated. Treating it as though the restoration is complete — loading it immediately with full demand — is how the new growth is lost before it breaches the surface. The name of this day is not caution. It is accurate protection of something that cannot yet protect itself.
+What was genuinely good in what ended?
+One thing. Not everything — the strongest stalk.
+
+That is what crosses the threshold into the new planting.
+The rest returns to the earth.
+Select it clearly today.
+Hold it apart from the rest. It is not planted yet, but it has been chosen.
 ''',
     decanFlow: _compressedKaherkaFlowRows1,
     meduNeter: MeduNeterKey(
-      glyph:
-          'Seed cracked open in sealed earth — the committed growth that requires protection, not proof',
-      colorFrequency:
-          'Deep black soil and sheltered gold — the root held in the dark before it surfaces',
-      mantra:
-          '"The root cannot be handled roughly yet. I guard what is still forming."',
+      glyph: 'Single seed held up for inspection — selected, not hoarded',
+      colorFrequency: 'Warm amber over dark ground',
+      mantra: '"I keep the strongest seed. The rest returns to the earth."',
     ),
   ),
   'kaherka_5_1': KemeticDayInfo(
-    kemeticDate: 'Ka-ḥer-Ka I, Day 5',
-    season: '🌿 Peret – Season of Emergence',
-    month:
-        'Ka-ḥer-Ka (Kȝ-ḥr-Kȝ) — Life Upon Life — Vitality Placed Into the Earth',
-    decanName: 'msḥtjw',
+    kemeticDate: 'Ka-ḥer-ka I, Day 5',
+    season: '🌊 Akhet Closing – Inundation Withdraws',
+    month: 'Ka-ḥer-ka ("Ka upon Ka")',
+    decanName: 'ḫnwy (translation uncertain) | Deck: The Embraced Ones',
     starCluster:
         '✨ msḥtjw — the northern Foreleg star group, commonly associated with the Big Dipper form: seven bright stars making a bowl and bent handle around the northern sky',
-    maatPrinciple: 'Feed the Ka',
+    maatPrinciple: 'The Ka Lives in the Body',
     cosmicContext: '''
-The offering formula — ḥtp dj nswt — was not ceremony. It was the acknowledgment that vital force requires continuous feeding to maintain and grow. The Ka of a person, a household, an ancestor was sustained by offerings placed with regularity and intention. The ka that received offerings grew and doubled. The ka without offerings contracted and diminished. There was no neutral state.
+The ka is not a soul floating above the flesh.
+It is the vital force that moves through a living body — breath, appetite, warmth, posture.
+When the ka is depleted, it shows in the body first.
 
-Ka-ḥer-Ka names a doubling. But the doubling does not happen automatically. It requires the correct offering directed at what is actually trying to continue — not what has already consolidated, not what performs stability well without needing it. The offering goes to the genuine need, the live root, the real fragility. Feed what is fragile first. Feed what is stable after.
+The farmer who plants in exhaustion
+presses the seed in at the wrong depth, at wrong spacing.
+The hands know what the mind insists it knows.
+
+Ground your body today.
+Bare feet, slow breath, a real meal, water.
+Not because you deserve it — because the ka requires a body in order to act.
+You cannot place vitality into the earth from a depleted vessel.
 ''',
     decanFlow: _compressedKaherkaFlowRows1,
     meduNeter: MeduNeterKey(
-      glyph:
-          'The offering stand before the Ka emblem — provision directed toward the living force that requires it',
-      colorFrequency:
-          'Altar gold over black earth — the offering that feeds what is below the surface',
-      mantra: '"The Ka grows through offering. I feed what needs to live."',
+      glyph: 'Foot on earth, ka-arms raised — the embodied life-force',
+      colorFrequency: 'Damp black-brown soil and living skin warmth',
+      mantra: '"My ka lives here. I tend the vessel it moves through."',
     ),
   ),
   'kaherka_6_1': KemeticDayInfo(
-    kemeticDate: 'Ka-ḥer-Ka I, Day 6',
-    season: '🌿 Peret – Season of Emergence',
-    month:
-        'Ka-ḥer-Ka (Kȝ-ḥr-Kȝ) — Life Upon Life — Vitality Placed Into the Earth',
-    decanName: 'msḥtjw',
+    kemeticDate: 'Ka-ḥer-ka I, Day 6',
+    season: '🌊 Akhet Closing – Inundation Withdraws',
+    month: 'Ka-ḥer-ka ("Ka upon Ka")',
+    decanName: 'ḫnwy (translation uncertain) | Deck: The Embraced Ones',
     starCluster:
         '✨ msḥtjw — the northern Foreleg star group, commonly associated with the Big Dipper form: seven bright stars making a bowl and bent handle around the northern sky',
-    maatPrinciple: 'Strength Without Display',
+    maatPrinciple: 'Order Returns in Pattern, Not in Announcement',
     cosmicContext: '''
-The Foreleg circles the northern pole in darkness. The ancient watchers who knew it was there had to track it carefully — its presence required attention, not spectacle. It did not announce itself with rising and setting like the other stars. Its permanence was visible only to those who had learned to look.
+The stars do not announce their return.
+They appear in the same position they held the year before.
+The astronomer-priests tracked those returns not as spectacle
+but as confirmation: the pattern holds.
 
-Ka-upon-Ka holds a specific temptation at this stage: the energy of returned vitality can reach for demonstration before it has consolidated. Strength that performs its return before the return is complete uses what should be accumulating to produce evidence of accumulation. This is the circular motion that depletes rather than doubles. The strength that circles in the dark, certain of itself without requiring acknowledgment, is the strength that will be available when it is needed.
+The flood receded. The silt settled. The field is quiet.
+Look at what persisted through the disruption —
+the relationships that held, the habits that returned,
+the small disciplines that survived the chaos.
+
+Those are your pattern.
+They are more reliable than your plans.
+Note them today. They are what you build the next planting from.
 ''',
     decanFlow: _compressedKaherkaFlowRows1,
     meduNeter: MeduNeterKey(
       glyph:
-          'msḥtjw circling in northern darkness — the imperishable limb that does not announce itself, only persists',
-      colorFrequency:
-          'Deep night blue and contained inner gold — the circumpolar star, present without spectacle',
-      mantra: '"What circles in silence is always there. Presence is enough."',
+          'Star-rise over the black horizon — the return without announcement',
+      colorFrequency: 'Pre-dawn blue, single white point at the edge',
+      mantra: '"The pattern returns. I am part of it."',
     ),
   ),
   'kaherka_7_1': KemeticDayInfo(
-    kemeticDate: 'Ka-ḥer-Ka I, Day 7',
-    season: '🌿 Peret – Season of Emergence',
-    month:
-        'Ka-ḥer-Ka (Kȝ-ḥr-Kȝ) — Life Upon Life — Vitality Placed Into the Earth',
-    decanName: 'msḥtjw',
+    kemeticDate: 'Ka-ḥer-ka I, Day 7',
+    season: '🌊 Akhet Closing – Inundation Withdraws',
+    month: 'Ka-ḥer-ka ("Ka upon Ka")',
+    decanName: 'ḫnwy (translation uncertain) | Deck: The Embraced Ones',
     starCluster:
         '✨ msḥtjw — the northern Foreleg star group, commonly associated with the Big Dipper form: seven bright stars making a bowl and bent handle around the northern sky',
-    maatPrinciple: 'Brace Before Motion',
+    maatPrinciple: 'Voice Is a Seed',
     cosmicContext: '''
-The foreleg of the ox was prized specifically because it stabilized before it carried. The animal's weight transfers through the forelegs first — they brace against the ground, receive the load, and only then does the full motion begin. The brace is not hesitation. It is the prerequisite of the carry.
+The silt does not argue with what is placed in it.
+It accepts or rejects based on what was brought.
 
-In Peret the entire agricultural year begins to move again — from preparation to action, from seed to growth, from held to released. But the sequence mattered. What was loaded before the brace could receive it collapsed under the weight and brought down more than the immediate effort. There is a preparatory step before the full motion. It is smaller, quieter, and the motion depends on it.
+Your voice works the same way in this season.
+Words spoken carelessly scatter seed.
+Words spoken with weight and intention press it in at the right depth.
+
+Tomorrow the seed goes in.
+Today you guard what leaves your mouth.
+Speak only what you intend to feed.
+Leave unspoken what you intend to leave behind.
+The field is listening.
 ''',
     decanFlow: _compressedKaherkaFlowRows1,
     meduNeter: MeduNeterKey(
-      glyph:
-          'The foreleg braced against ground before the load transfers — the stabilization that makes carrying possible',
-      colorFrequency:
-          'Earth brown and bracing gold — the ground made firm before the weight is committed',
-      mantra: '"Brace before motion. The foreleg holds the load."',
+      glyph: 'Mouth-sign over black silt — speech as planting',
+      colorFrequency: 'Muted gold at the lips, dark earth below',
+      mantra: '"I speak only what I intend to grow."',
     ),
   ),
   'kaherka_8_1': KemeticDayInfo(
-    kemeticDate: 'Ka-ḥer-Ka I, Day 8',
-    season: '🌿 Peret – Season of Emergence',
-    month:
-        'Ka-ḥer-Ka (Kȝ-ḥr-Kȝ) — Life Upon Life — Vitality Placed Into the Earth',
-    decanName: 'msḥtjw',
+    kemeticDate: 'Ka-ḥer-ka I, Day 8',
+    season: '🌊 Akhet Closing – Inundation Withdraws',
+    month: 'Ka-ḥer-ka ("Ka upon Ka")',
+    decanName: 'ḫnwy (translation uncertain) | Deck: The Embraced Ones',
     starCluster:
         '✨ msḥtjw — the northern Foreleg star group, commonly associated with the Big Dipper form: seven bright stars making a bowl and bent handle around the northern sky',
-    maatPrinciple: 'Move One Limb',
+    maatPrinciple: 'The Seed Goes In Today',
     cosmicContext: '''
-The Opening of the Mouth ritual moved through each organ in sequence. Mouth. Eyes. Ears. The restoration of function to what had been inert was specific and ordered — not a general revival but a careful, sequential return of each separate capacity. The adze did not touch everything at once. It touched each place correctly, in the correct order, with the correct intention.
+The field is cleared. The body is grounded.
+What was lost has been named. What carries forward has been selected.
+The voice has been guarded. The ground is ready.
 
-Ka-upon-Ka accumulates through sequence. One movement, completed honestly, establishes the ground for the next. The error of this stage is attempting to resume the full pattern before confirming that each component is genuinely present. The seed does not attempt to produce fruit before it has produced a stem. One controlled step is not a concession to weakness. It is the correct application of what is available.
+Today the seed goes in.
+
+Not a plan, not a rehearsal — placement.
+The intention, practice, project, or commitment
+you have been preparing for seven days
+goes into the earth today.
+
+Press it in at the right depth.
+Cover it.
+Walk away from it.
+It is planted.
 ''',
     decanFlow: _compressedKaherkaFlowRows1,
     meduNeter: MeduNeterKey(
-      glyph:
-          'The adze touching each faculty in sequence — restoration that is specific, not general',
-      colorFrequency:
-          'Stone and careful gold — movement made deliberately, one faculty returned at a time',
-      mantra:
-          '"One controlled step is not a small thing. It is the correct thing."',
+      glyph: 'Hand pressing seed into open black silt — the act of placement',
+      colorFrequency: 'Black earth receiving a point of living gold',
+      mantra: '"It is planted. I placed it with intention."',
     ),
   ),
   'kaherka_9_1': KemeticDayInfo(
-    kemeticDate: 'Ka-ḥer-Ka I, Day 9',
-    season: '🌿 Peret – Season of Emergence',
-    month:
-        'Ka-ḥer-Ka (Kȝ-ḥr-Kȝ) — Life Upon Life — Vitality Placed Into the Earth',
-    decanName: 'msḥtjw',
+    kemeticDate: 'Ka-ḥer-ka I, Day 9',
+    season: '🌊 Akhet Closing – Inundation Withdraws',
+    month: 'Ka-ḥer-ka ("Ka upon Ka")',
+    decanName: 'ḫnwy (translation uncertain) | Deck: The Embraced Ones',
     starCluster:
         '✨ msḥtjw — the northern Foreleg star group, commonly associated with the Big Dipper form: seven bright stars making a bowl and bent handle around the northern sky',
-    maatPrinciple: 'Confirm Capacity',
+    maatPrinciple: 'Growth Begins in Darkness',
     cosmicContext: '''
-The scribe's account at this stage of the year was not a record of what had been produced. It was an assessment of what was now possible. What had the flood taken? What had the field recovered? What tools remained intact? The honest assessment of present capacity was what made the planting plan accurate and the season productive.
+The seed was pressed into the black silt yesterday.
+It is not visible. Nothing appears at the surface.
+The farmer who digs it up to check
+destroys the very process they are impatient for.
 
-The body that overestimates its restoration takes on more than it can hold and fails before it completes what it took on. The body that underestimates its restoration leaves genuine capacity idle, which is also a form of waste. Neither assessment serves Maʿat. The accurate account of what can now actually be carried — not what was possible before, not what one hopes is possible, but what is confirmed to be possible now — is the foundation of the next decan's work.
+The grain splits and sends its first root downward
+and no one witnesses that either.
+The work that cannot be seen is still work.
+
+You placed the seed.
+Do not dig it up.
+Trust the darkness to do what darkness does.
 ''',
     decanFlow: _compressedKaherkaFlowRows1,
     meduNeter: MeduNeterKey(
-      glyph:
-          'The scribe\'s account of present capacity — not record of past, not plan for future, but the honest measure of now',
-      colorFrequency:
-          'Counting gold and honest black — the reckoning that precedes the next movement',
-      mantra: '"I count what I can carry now. This number is the truth."',
+      glyph: 'Seed beneath the soil surface — the unseen root',
+      colorFrequency: 'Black earth with a single pale root line',
+      mantra: '"The work continues even when I cannot see it."',
     ),
   ),
   'kaherka_10_1': KemeticDayInfo(
-    kemeticDate: 'Ka-ḥer-Ka I, Day 10',
-    season: '🌿 Peret – Season of Emergence',
-    month:
-        'Ka-ḥer-Ka (Kȝ-ḥr-Kȝ) — Life Upon Life — Vitality Placed Into the Earth',
-    decanName: 'msḥtjw',
+    kemeticDate: 'Ka-ḥer-ka I, Day 10',
+    season: '🌊 Akhet Closing – Inundation Withdraws',
+    month: 'Ka-ḥer-ka ("Ka upon Ka")',
+    decanName: 'ḫnwy (translation uncertain) | Deck: The Embraced Ones',
     starCluster:
         '✨ msḥtjw — the northern Foreleg star group, commonly associated with the Big Dipper form: seven bright stars making a bowl and bent handle around the northern sky',
-    maatPrinciple: 'Seal Renewed Strength',
+    maatPrinciple: 'Seal the Field',
     cosmicContext: '''
-Decan closings in the Kemetic calendar were not merely endings. They were formal sealings — the accounting of what the ten-day watch had confirmed, placed in the record, and bound forward into the next interval. What was unclear at the opening of the decan had been either established or revealed as illusory by the closing. The closing was what the next decan's ground was built on.
+Ten days: stillness, clearing, naming, selecting,
+grounding the body, reading the pattern, guarding speech, placing the seed, trusting the dark.
 
-The Foreleg has completed its first circuit. What was recognized as returning at the opening of this month has been tested, gathered, protected, fed, and moved. The evidence is now available. Name what held. Name what is confirmed to be real in the returned strength. This is what passes forward — not hope, not aspiration, but the verified fact.
+The first decan of Ka-ḥer-ka closes today.
+
+The seed is in the ground and the work is now underground.
+Stop attending to it. Stop reviewing it, reconsidering it, second-guessing it.
+An unsealed field loses what it is trying to hold.
+
+Seal it.
+The next decan brings the ka back into governed motion.
+But first the seed must rest in the dark undisturbed.
+Let it.
 ''',
     decanFlow: _compressedKaherkaFlowRows1,
     meduNeter: MeduNeterKey(
-      glyph:
-          'The sealed decan record — the first watch of Ka-ḥer-Ka closed, the confirmed strength bound forward',
-      colorFrequency:
-          'Deep gold sealed on black — the first decan complete, the account closed and ready to carry',
-      mantra:
-          '"What was confirmed here is real. I seal it and carry it forward."',
+      glyph: 'Sealed field — the earth closed over the placed seed',
+      colorFrequency: 'Dark earth with a thin gold seam at the surface',
+      mantra: '"The field is sealed. The work inside is protected."',
     ),
   ),
   'kaherka_11_2': KemeticDayInfo(
-    kemeticDate: 'Ka-ḥer-Ka II, Day 1',
-    season: '🌿 Peret – Season of Emergence',
-    month:
-        'Ka-ḥer-Ka (Kȝ-ḥr-Kȝ) — Life Upon Life — Vitality Placed Into the Earth',
-    decanName: 'ḥry-ib msḥtjw',
+    kemeticDate: 'Ka-ḥer-ka II, Day 11',
+    season: '🌊 Akhet Closing – Inundation Withdraws',
+    month: 'Ka-ḥer-ka ("Ka upon Ka" — doubled life-force)',
+    decanName: 'ḥry-ib wꜣ (translation uncertain) | Deck: Heart of the Barque',
     starCluster:
         '✨ ḥry-ib msḥtjw — the northern Foreleg star group, commonly associated with the Big Dipper form: seven bright stars making a bowl and bent handle around the northern sky',
-    maatPrinciple: 'Bring Strength to the Heart',
+    maatPrinciple: 'The Ka Begins to Move',
     cosmicContext: '''
-In Kemetic theology, the ib — the heart — was the organ of moral intelligence. Not the brain, not the will: the heart. The organ weighed at the Hall of Two Truths. The organ that knew what had actually been done across a lifetime. To govern strength through the ib was to place the most potent force available under the oversight of the most honest part of the self.
+The field is sealed. Ten days passed.
+Now the second decan opens and the ka begins to move again.
 
-Ka-upon-Ka doubles in this decan. Doubled force moves faster than ungoverned force, and it reaches further — for better or for worse. The heart of the Foreleg marks the moment when the returned strength that was carefully tended in the first decan becomes available for use, and that availability creates the risk of premature deployment. The correction is not to weaken the strength. It is to pass it through the heart before the hand moves.
+Not in explosion — in deliberate re-entry.
+The Nile barque does not surge from the bank.
+It is pushed off slowly, oar set to the current,
+and the pilot commits to one direction before adding speed.
+
+The first decan prepared the ground and placed the seed.
+This decan governs how strength re-enters the world.
+Not all at once. Not to prove anything.
+One responsibility. One direction. One re-commitment.
+
+Resume one thing today. Let it be real and visible.
+You are back in motion.
 ''',
     decanFlow: _compressedKaherkaFlowRows2,
     meduNeter: MeduNeterKey(
-      glyph:
-          'The ib beside the Foreleg — the heart\'s authority over the limb before it acts',
-      colorFrequency:
-          'Deep heart-red and governed gold — the strength held at the chest before the hand extends',
-      mantra: '"The hand does not move before the heart speaks."',
+      glyph: 'Barque pushed from bank — the first deliberate movement',
+      colorFrequency: 'River black with the first line of gold at the bow',
+      mantra: '"I move with intention, not with urgency."',
     ),
   ),
   'kaherka_12_2': KemeticDayInfo(
-    kemeticDate: 'Ka-ḥer-Ka II, Day 2',
-    season: '🌿 Peret – Season of Emergence',
-    month:
-        'Ka-ḥer-Ka (Kȝ-ḥr-Kȝ) — Life Upon Life — Vitality Placed Into the Earth',
-    decanName: 'ḥry-ib msḥtjw',
+    kemeticDate: 'Ka-ḥer-ka II, Day 12',
+    season: '🌊 Akhet Closing – Inundation Withdraws',
+    month: 'Ka-ḥer-ka ("Ka upon Ka")',
+    decanName: 'ḥry-ib wꜣ (translation uncertain) | Deck: Heart of the Barque',
     starCluster:
         '✨ ḥry-ib msḥtjw — the northern Foreleg star group, commonly associated with the Big Dipper form: seven bright stars making a bowl and bent handle around the northern sky',
-    maatPrinciple: 'Name the Impulse',
+    maatPrinciple: 'Direction Before Force',
     cosmicContext: '''
-Ptahhotep observed: the impulsive man destroys what the steady one built. The impulse is not the same as the intention. The impulse is returned vitality reaching for the first available target without the intelligence of purpose. It is neither bad nor good — it is unexamined force, which is the same as ungoverned force.
+Yesterday you re-entered motion.
+Today you govern the impulse that motion stirs.
 
-The circumpolar stars do not rush toward the parts of the sky they prefer. They complete their circuit with absolute regularity, the same distance from the pole on every pass. Their steadiness is not the absence of energy. It is energy organized by a fixed relationship to a fixed point. The heart of the Foreleg asks: what is your fixed point? Before acting on the impulse, name it. Naming is how the ib regains authority over the hand.
+The ka is a vital force — not a judgment.
+Pointed at appetite, it feeds appetite.
+Pointed at the field, it feeds the field.
+
+Before you act on what you are feeling today,
+name it: is this intention or reaction?
+Is this placing vitality into something that serves Ma'at,
+or is this force moving because force wants to move?
+
+The barque's pilot sets the direction before the oars go in.
+Set yours.
 ''',
     decanFlow: _compressedKaherkaFlowRows2,
     meduNeter: MeduNeterKey(
-      glyph:
-          'The mouth before the action — the naming that holds the force still long enough for the heart to speak',
-      colorFrequency:
-          'Urgent gold arrested by deep blue — the impulse held at the threshold of the ib',
-      mantra:
-          '"I name the impulse before I let it move. Naming is the first governance."',
+      glyph: 'Oar held above the water — direction chosen before force applied',
+      colorFrequency: 'Dark river with a steady gold oar-line',
+      mantra: '"I name the direction before I apply the force."',
     ),
   ),
   'kaherka_13_2': KemeticDayInfo(
-    kemeticDate: 'Ka-ḥer-Ka II, Day 3',
-    season: '🌿 Peret – Season of Emergence',
-    month:
-        'Ka-ḥer-Ka (Kȝ-ḥr-Kȝ) — Life Upon Life — Vitality Placed Into the Earth',
-    decanName: 'ḥry-ib msḥtjw',
+    kemeticDate: 'Ka-ḥer-ka II, Day 13',
+    season: '🌊 Akhet Closing – Inundation Withdraws',
+    month: 'Ka-ḥer-ka ("Ka upon Ka")',
+    decanName: 'ḥry-ib wꜣ (translation uncertain) | Deck: Heart of the Barque',
     starCluster:
         '✨ ḥry-ib msḥtjw — the northern Foreleg star group, commonly associated with the Big Dipper form: seven bright stars making a bowl and bent handle around the northern sky',
-    maatPrinciple: 'Choose the Right Load',
+    maatPrinciple: 'Nourish What Is Trying to Return',
     cosmicContext: '''
-In Peret, not every available task belongs to this season of the work. The seed underground cannot be harvested — that time has not come. The levee already intact does not require repair. The household already stable does not need reorganization. The person who seizes every available task in the energy of returned vitality drains what should be accumulating.
+Something in you or around you is trying to come back.
+A practice that went quiet in the flood season.
+A relationship that contracted under pressure.
+A project that went dark when resources ran out.
 
-Ka-upon-Ka names a specific doubling: vitality added to vitality that serves. Not vitality scattered across every available demand until it spreads so thin it is no longer accumulating. The heart of the Foreleg governs which loads the returning strength should accept. The question is not whether to work. It is which work is genuinely yours to carry at this stage of the year.
+The seed is in the ground. The barque is moving.
+Now you direct specific energy toward the thing that is trying to rise.
+
+Not everything — the one that matters most right now.
+Water it. Give it time. Remove what competes for its light.
+Feed the revival now, before the season asks more of it.
 ''',
     decanFlow: _compressedKaherkaFlowRows2,
     meduNeter: MeduNeterKey(
-      glyph:
-          'The balanced carrying pole — loads chosen for the carrier, not simply whatever presented itself',
-      colorFrequency:
-          'Warm earth gold and measured green — the correct load accepted, the mismatched load declined',
-      mantra: '"The right load strengthens. The wrong load drains. I choose."',
+      glyph: 'Water jar tilted over a sealed furrow',
+      colorFrequency: 'River blue over black earth, life still hidden',
+      mantra: '"I feed what is trying to return."',
     ),
   ),
   'kaherka_14_2': KemeticDayInfo(
-    kemeticDate: 'Ka-ḥer-Ka II, Day 4',
-    season: '🌿 Peret – Season of Emergence',
-    month:
-        'Ka-ḥer-Ka (Kȝ-ḥr-Kȝ) — Life Upon Life — Vitality Placed Into the Earth',
-    decanName: 'ḥry-ib msḥtjw',
+    kemeticDate: 'Ka-ḥer-ka II, Day 14',
+    season: '🌊 Akhet Closing – Inundation Withdraws',
+    month: 'Ka-ḥer-ka ("Ka upon Ka")',
+    decanName: 'ḥry-ib wꜣ (translation uncertain) | Deck: Heart of the Barque',
     starCluster:
         '✨ ḥry-ib msḥtjw — the northern Foreleg star group, commonly associated with the Big Dipper form: seven bright stars making a bowl and bent handle around the northern sky',
-    maatPrinciple: 'Moderate the Effort',
+    maatPrinciple: 'Accept the Obligation You Have Been Deferring',
     cosmicContext: '''
-The irrigation channels of the Nile delta were not opened at full capacity. Water was released through sluices in measured flow — enough to saturate the specific field, not enough to wash the seedlings out. Too little water left the roots dry. Too much water drowned what it was meant to nourish. The sluice-keeper's skill was calibration: matching the release to what the current state of the field could absorb.
+The barque does not float without a pilot.
+Someone must hold the oar through the whole crossing —
+not until it gets inconvenient, but through.
 
-The heart of the Foreleg is the sluice. The returning strength is the water. The measure required is not the measure of what the field could receive at full health — it is the measure of what it can receive now, in its current state of recovery. The plant that receives more water than it can absorb does not grow faster. It rots.
+In Ka-ḥer-ka, the ka moves back into obligation.
+Not as burden — as assignment.
+The farmer does not resent the field for needing water.
+The field is what gives the farmer a reason to carry water.
+
+What is now yours to guard?
+A household, a project, a person, a practice, yourself.
+Name it directly.
+The crop needs a farmer, not a witness.
 ''',
     decanFlow: _compressedKaherkaFlowRows2,
     meduNeter: MeduNeterKey(
-      glyph:
-          'The canal sluice — the measured release that determines whether the field flourishes or drowns',
-      colorFrequency:
-          'Nile blue and moderated gold — the flow calibrated to what the ground can receive',
-      mantra:
-          '"Right measure is not restraint. It is what the field can actually hold."',
+      glyph: 'Hand on an oar — the committed grip',
+      colorFrequency: 'Steady dark water and firm wood-brown',
+      mantra: '"This is mine to guard. I do not step back."',
     ),
   ),
   'kaherka_15_2': KemeticDayInfo(
-    kemeticDate: 'Ka-ḥer-Ka II, Day 5',
-    season: '🌿 Peret – Season of Emergence',
-    month:
-        'Ka-ḥer-Ka (Kȝ-ḥr-Kȝ) — Life Upon Life — Vitality Placed Into the Earth',
-    decanName: 'ḥry-ib msḥtjw',
+    kemeticDate: 'Ka-ḥer-ka II, Day 15',
+    season: '🌊 Akhet Closing – Inundation Withdraws',
+    month: 'Ka-ḥer-ka ("Ka upon Ka")',
+    decanName: 'ḥry-ib wꜣ (translation uncertain) | Deck: Heart of the Barque',
     starCluster:
         '✨ ḥry-ib msḥtjw — the northern Foreleg star group, commonly associated with the Big Dipper form: seven bright stars making a bowl and bent handle around the northern sky',
-    maatPrinciple: 'Protect the Root From Excess',
+    maatPrinciple: 'Strength Is a Tool, Not a Performance',
     cosmicContext: '''
-There is a form of damage that looks like care. The farmer who overfeeds the seedling, who waters from anxiety rather than observation, who lifts the soil around the tender root to check on it repeatedly — this farmer does the harm that pests cannot. The root is harmed by excess attention as surely as by neglect. The harm from excess leaves no clear culprit. It looks like love.
+The ka placed into the field is measured by what grows —
+not by how hard the placing looked.
+A farmer who exhausts himself on the wrong part of the field
+leaves the planted row untended.
 
-Ka-upon-Ka at this stage of the heart decan reveals this risk: the vitality returning to body, practice, and work needs space to consolidate, not constant testing of whether it has consolidated yet. What was new in the first decan is still new. Let it be what it is without the interference that masquerades as protection. The most loving act available today may be to keep your hands away from what is quietly taking root.
+Today: is your effort going where the field needs it,
+or where it will be noticed?
+
+Strength used for display drains the season.
+Strength used for the task feeds it.
+Direct yours at what is actually in need —
+not what is visible, not what is impressive,
+but what, if you do not tend it today, will fail by next week.
 ''',
     decanFlow: _compressedKaherkaFlowRows2,
     meduNeter: MeduNeterKey(
-      glyph:
-          'Still hands at the edge of the seedling bed — protection enacted through restraint, not through action',
-      colorFrequency:
-          'Earth green emerging in guarded space — growth that needs the ground to itself',
-      mantra:
-          '"I protect by keeping my hands still. The root does not need me in it."',
+      glyph: 'Hoe turned toward the neglected row, not the visible one',
+      colorFrequency: 'Work-worn copper over black earth',
+      mantra: '"My strength goes where the field needs it."',
     ),
   ),
   'kaherka_16_2': KemeticDayInfo(
-    kemeticDate: 'Ka-ḥer-Ka II, Day 6',
-    season: '🌿 Peret – Season of Emergence',
-    month:
-        'Ka-ḥer-Ka (Kȝ-ḥr-Kȝ) — Life Upon Life — Vitality Placed Into the Earth',
-    decanName: 'ḥry-ib msḥtjw',
+    kemeticDate: 'Ka-ḥer-ka II, Day 16',
+    season: '🌊 Akhet Closing – Inundation Withdraws',
+    month: 'Ka-ḥer-ka ("Ka upon Ka")',
+    decanName: 'ḥry-ib wꜣ (translation uncertain) | Deck: Heart of the Barque',
     starCluster:
         '✨ ḥry-ib msḥtjw — the northern Foreleg star group, commonly associated with the Big Dipper form: seven bright stars making a bowl and bent handle around the northern sky',
-    maatPrinciple: 'Let the Heart Correct the Hand',
+    maatPrinciple: 'Order Is Not Glamorous and Must Be Maintained Anyway',
     cosmicContext: '''
-The adze of the Opening of the Mouth ritual was not wielded. It was presented — held in a specific way, directed at the specific point the rite required. The gesture that restored the faculty was precise in form and direction. The adze applied without the rite's correct form and intent did not restore anything. The rite required that the gesture answer to what the rite was for.
+The flood season disrupts basic rhythms.
+Sleep shifts. Food becomes careless. Accounts go unlooked at.
+The body forgets what it felt like to be in order.
 
-When the hand acts before the heart has given its authority, the action may succeed in its immediate object and fail in what it was supposed to serve. The heart of the Foreleg does not restrict action — it ensures that action moves in the direction the heart has sanctioned. Where has the hand moved ahead of the ib today? The correction is almost always available if addressed now, before the action hardens into a pattern.
+Ka-ḥer-ka is not a month of dramatic renewal.
+It is the month of plain re-establishment.
+Sleep at a real hour. Eat a real meal.
+Look at the account and write down what is there.
+Sweep the floor of the workroom.
+
+These acts are not beneath the work — they are the ground the work stands on.
+A farmer who does not sleep eats himself.
+Re-establish the basics. Not perfectly. Consistently.
 ''',
     decanFlow: _compressedKaherkaFlowRows2,
     meduNeter: MeduNeterKey(
-      glyph:
-          'The adze presented at the correct angle — the precise gesture that only works when directed by the right intent',
-      colorFrequency:
-          'Governed gold on correction blue — the hand brought back under the authority that sanctioned it',
+      glyph: 'Lamp lit at a regular hour — the rhythm restored',
+      colorFrequency: 'Warm hearth amber in plain dark room',
       mantra:
-          '"Heart corrects hand. This is not weakness. It is the higher function."',
+          '"I rebuild the ordinary. It is the foundation of everything else."',
     ),
   ),
   'kaherka_17_2': KemeticDayInfo(
-    kemeticDate: 'Ka-ḥer-Ka II, Day 7',
-    season: '🌿 Peret – Season of Emergence',
-    month:
-        'Ka-ḥer-Ka (Kȝ-ḥr-Kȝ) — Life Upon Life — Vitality Placed Into the Earth',
-    decanName: 'ḥry-ib msḥtjw',
+    kemeticDate: 'Ka-ḥer-ka II, Day 17',
+    season: '🌊 Akhet Closing – Inundation Withdraws',
+    month: 'Ka-ḥer-ka ("Ka upon Ka")',
+    decanName: 'ḥry-ib wꜣ (translation uncertain) | Deck: Heart of the Barque',
     starCluster:
         '✨ ḥry-ib msḥtjw — the northern Foreleg star group, commonly associated with the Big Dipper form: seven bright stars making a bowl and bent handle around the northern sky',
-    maatPrinciple: 'Speak From Steadiness',
+    maatPrinciple: 'The Ka Is Not Meant to Travel Alone',
     cosmicContext: '''
-The Kemetic ideal of right speech was not only about content. Ptahhotep was specific: the quality of what is said is rooted in the quality of the speaker's inner condition. The man who speaks from agitation, from the energy of returned vitality that has not yet settled, speaks things that may be true in general but are not accurate for the specific moment. The ground from which the speech rises determines what the speech can actually do.
+The flood season contracts the social world.
+You stop calling. You stop showing up.
+You tell yourself it is protection.
+Often it is just depletion wearing the costume of independence.
 
-Ka-upon-Ka at this stage of the heart decan holds a specific risk in speech: the returning strength can produce confidence that outruns what is confirmed. The strength that feels fully restored is not always the strength that has fully restored. Speak from what is stable. Not from what is hoped for, not from the energy of accumulation that feels like completion.
+No one tends the whole field alone.
+The worker who tries to carry every section
+exhausts himself before the season that matters most.
+
+Call in support today.
+Not because you are failing — because the field requires more than one pair of hands
+and you have been working with one.
+Name who. Ask plainly. Let them help.
 ''',
     decanFlow: _compressedKaherkaFlowRows2,
     meduNeter: MeduNeterKey(
-      glyph:
-          '𓂋 (mouth) grounded in still water — speech that rises from a settled source, not an agitated one',
-      colorFrequency:
-          'Still deep blue and measured gold — the surface calm enough for the words to emerge clearly',
-      mantra: '"I speak from the ground I can stand on. No further."',
+      glyph: 'Two hands on the oar — shared piloting',
+      colorFrequency: 'River black with twin gold oar-lines',
+      mantra: '"I let the ka travel with company."',
     ),
   ),
   'kaherka_18_2': KemeticDayInfo(
-    kemeticDate: 'Ka-ḥer-Ka II, Day 8',
-    season: '🌿 Peret – Season of Emergence',
-    month:
-        'Ka-ḥer-Ka (Kȝ-ḥr-Kȝ) — Life Upon Life — Vitality Placed Into the Earth',
-    decanName: 'ḥry-ib msḥtjw',
+    kemeticDate: 'Ka-ḥer-ka II, Day 18',
+    season: '🌊 Akhet Closing – Inundation Withdraws',
+    month: 'Ka-ḥer-ka ("Ka upon Ka")',
+    decanName: 'ḥry-ib wꜣ (translation uncertain) | Deck: Heart of the Barque',
     starCluster:
         '✨ ḥry-ib msḥtjw — the northern Foreleg star group, commonly associated with the Big Dipper form: seven bright stars making a bowl and bent handle around the northern sky',
-    maatPrinciple: 'Repair Overreach',
+    maatPrinciple: 'Return to the Circle',
     cosmicContext: '''
-Overreach in Peret is specific. The field planted with too much seed produces nothing — the plants compete with themselves, none reaching full height, the same land that would produce abundance at correct density producing only crowded failure. The error is not intention. It is the mismatch between what was planted and what the ground can support.
+The barque crosses the Duat and arrives at the living world.
+The arrival is witnessed.
 
-Ka-upon-Ka reveals overreach at this stage of the heart decan. The returning strength was real, and the desire to use it was natural, and some of what was taken on was more than the current state of consolidation can sustain. The repair is still available. It is the correction the ib exists to make. This is not failure — it is the heart of the Foreleg working correctly, naming what needs to be brought back to the correct measure before the next stage of work begins.
+The flood season pulls people inward.
+By now you may have drifted from a circle —
+a family, a crew, a community, a network whose work connects to yours.
+
+Reconnect today. One person, one message, one appearance.
+Not because the relationship requires explanation —
+because the ka is restored by being recognized
+in the eyes of the people it belongs with.
+Isolation is not the same as readiness.
 ''',
     decanFlow: _compressedKaherkaFlowRows2,
     meduNeter: MeduNeterKey(
-      glyph:
-          'Seed redistributed at correct density — the planting corrected before overcrowding prevents all growth',
-      colorFrequency:
-          'Warm earth and correction gold — the field restored to the measure that allows it to produce',
-      mantra:
-          '"Overreach corrected is not defeat. It is the heart reasserting its authority."',
+      glyph: 'Barque arriving at the eastern shore — witnessed emergence',
+      colorFrequency: 'Night black opening into first light at the bank',
+      mantra: '"I return to the people who know my name."',
     ),
   ),
   'kaherka_19_2': KemeticDayInfo(
-    kemeticDate: 'Ka-ḥer-Ka II, Day 9',
-    season: '🌿 Peret – Season of Emergence',
-    month:
-        'Ka-ḥer-Ka (Kȝ-ḥr-Kȝ) — Life Upon Life — Vitality Placed Into the Earth',
-    decanName: 'ḥry-ib msḥtjw',
+    kemeticDate: 'Ka-ḥer-ka II, Day 19',
+    season: '🌊 Akhet Closing – Inundation Withdraws',
+    month: 'Ka-ḥer-ka ("Ka upon Ka")',
+    decanName: 'ḥry-ib wꜣ (translation uncertain) | Deck: Heart of the Barque',
     starCluster:
         '✨ ḥry-ib msḥtjw — the northern Foreleg star group, commonly associated with the Big Dipper form: seven bright stars making a bowl and bent handle around the northern sky',
-    maatPrinciple: 'Set the Law of Use',
+    maatPrinciple: 'Let Commitment Be Seen',
     cosmicContext: '''
-In the Kemetic administrative system, the resources of the nome were governed by explicit laws of use — not by the preferences of whoever administered them in any given season, but by standing instructions that determined what could be drawn, when, and in what quantities. These laws of use protected the resource across changing conditions. The resource without a law of use was depleted by whoever had access to it.
+The seed is still underground. Growth belongs to the next month.
+But commitment is different from growth — it can be witnessed now.
 
-The vitality returning through Ka-ḥer-Ka is a resource. Without a named law of use — without the explicit governance of how this strength will be deployed, how it will be paced, what it will refuse — it will be consumed by whatever presents itself. The heart of the Foreleg names this today as its central work: before the third decan places this strength in service, set the law under which it will operate.
+A kept appointment. A restored rhythm. A repaired tool.
+A message sent to someone who was waiting.
+A task done at the time you said you would do it.
+
+These are not proof of growth. They are proof of return.
+The farmer back at the field before sunrise
+is not harvesting yet. But the field knows he came back.
+
+Let one commitment be visible today.
+Not for approval — because visible commitment
+makes the commitment more real.
+Say what commitment can be witnessed.
 ''',
     decanFlow: _compressedKaherkaFlowRows2,
     meduNeter: MeduNeterKey(
       glyph:
-          'The nome administrative seal — the law of use that precedes the deployment of any resource',
-      colorFrequency:
-          'Gold sealed in clay — the law placed before the demand arrives, not after',
-      mantra:
-          '"I name the law before the demand arrives. The law governs, not the demand."',
+          'Farmer at the field edge at first light — returned, not yet harvesting',
+      colorFrequency: 'Pre-dawn blue with a figure at the boundary',
+      mantra: '"I show up. The field knows I came back."',
     ),
   ),
   'kaherka_20_2': KemeticDayInfo(
-    kemeticDate: 'Ka-ḥer-Ka II, Day 10',
-    season: '🌿 Peret – Season of Emergence',
-    month:
-        'Ka-ḥer-Ka (Kȝ-ḥr-Kȝ) — Life Upon Life — Vitality Placed Into the Earth',
-    decanName: 'ḥry-ib msḥtjw',
+    kemeticDate: 'Ka-ḥer-ka II, Day 20',
+    season: '🌊 Akhet Closing – Inundation Withdraws',
+    month: 'Ka-ḥer-ka ("Ka upon Ka")',
+    decanName: 'ḥry-ib wꜣ (translation uncertain) | Deck: Heart of the Barque',
     starCluster:
         '✨ ḥry-ib msḥtjw — the northern Foreleg star group, commonly associated with the Big Dipper form: seven bright stars making a bowl and bent handle around the northern sky',
-    maatPrinciple: 'Seal Disciplined Strength',
+    maatPrinciple: 'Endurance Is Itself an Offering',
     cosmicContext: '''
-The heart of the Foreleg completes its watch. The strength that entered this decan as confirmed but raw has passed through the ib: it has been governed, moderated, corrected, protected from excess, given its law of use, and brought back to the correct measure when it overreached. What passes from this decan into the third is not the same vitality.
+Ten days: re-entry, direction, nourishment, obligation,
+strength placed rightly, rhythm restored, help called in, circle rejoined, commitment visible.
 
-In Kemetic architecture, the structure that had passed through quality inspection — measured, verified, sealed by the overseer — was different from the unverified structure, though they might appear identical to the eye. The sealed one had been through the governance that made it reliable. Name the difference between the strength you entered this decan with and the strength you now carry into the work that awaits it.
+You did not do this perfectly.
+Perfection is not the offering.
+Persistence is.
+
+The ka that crossed the Duat and arrived at the eastern shore
+did not arrive because it was impressive — it arrived because it did not stop.
+
+Today you give thanks not for what was achieved
+but for what held.
+The part of you that stayed when the flood wanted to take everything.
+Name it. Honor it.
+That endurance is the foundation of everything that grows from here.
 ''',
     decanFlow: _compressedKaherkaFlowRows2,
     meduNeter: MeduNeterKey(
-      glyph:
-          'The overseer\'s seal on verified stone — strength that has passed through the heart\'s accounting, now reliable',
-      colorFrequency:
-          'Deep governed gold on confirmed earth — the second watch sealed, the discipline established',
-      mantra:
-          '"What has been governed by the ib is not the same strength that entered. It has become reliable."',
+      glyph: 'Barque at the eastern shore, ka-arms raised — arrived',
+      colorFrequency: 'Dawn gold over river black',
+      mantra: '"I arrived. That is the offering."',
     ),
   ),
   'kaherka_21_3': KemeticDayInfo(
-    kemeticDate: 'Ka-ḥer-Ka III, Day 1',
-    season: '🌿 Peret – Season of Emergence',
-    month:
-        'Ka-ḥer-Ka (Kȝ-ḥr-Kȝ) — Life Upon Life — Vitality Placed Into the Earth',
-    decanName: 'sbꜣ msḥtjw',
+    kemeticDate: 'Ka-ḥer-ka III, Day 21',
+    season: '🌊 Akhet Closing – Inundation Withdraws',
+    month: 'Ka-ḥer-ka ("Ka upon Ka" — doubled life-force)',
+    decanName:
+        'rmṯ n pt / remetch en pet ("People of Heaven") | Deck: The Crew of Heaven',
     starCluster:
         '✨ sbꜣ msḥtjw — the northern Foreleg star group, commonly associated with the Big Dipper form: seven bright stars making a bowl and bent handle around the northern sky',
-    maatPrinciple: 'Place Strength Into Service',
+    maatPrinciple: 'Labor Is Placed, Not Performed',
     cosmicContext: '''
-Ka-upon-Ka doubles. But doubling that accumulates without directing outward eventually becomes its opposite. The vitality that has been confirmed in the first decan and governed in the second reaches its correct completion when it is placed in service of what the field actually needs. Accumulation as an end in itself is not the goal of this month — it is the preparation for this decan's work.
+The Crew of Heaven does not row for applause.
+They row because the barque requires it —
+because the sun would not cross the sky without them.
 
-The star of the Foreleg rises on the outer reach of the circumpolar arc. It moves further from the center, toward the portion of sky that receives less attention. This is the motion of service: strength that has been verified and governed, now directed outward toward the genuine need. The question is no longer whether strength has returned. That was the first decan's work. The question now is where the world requires it.
+Two decans of Ka-ḥer-ka have passed.
+The seed was placed. The ka was re-engaged.
+Now the third decan asks the simplest question:
+are you working or are you proving?
+
+Work placed in service of the field feeds the field.
+Work performed for an audience feeds the performer.
+The crop does not care which it is —
+but the yield knows the difference.
+
+Today: labor as offering.
+Put it in front of Ma'at and let her measure it.
 ''',
     decanFlow: _compressedKaherkaFlowRows3,
     meduNeter: MeduNeterKey(
-      glyph:
-          'The foreleg extended outward — the confirmed and governed limb now in deliberate service',
-      colorFrequency:
-          'Living earth green and outward gold — the strength that has turned from gathering toward giving',
-      mantra:
-          '"Strength that serves is strength completed. I bring it where it belongs."',
+      glyph: 'Oar in water — the crew rowing without witness',
+      colorFrequency: 'Deep river black and working copper',
+      mantra: '"I work for the field. The field is enough witness."',
     ),
   ),
   'kaherka_22_3': KemeticDayInfo(
-    kemeticDate: 'Ka-ḥer-Ka III, Day 2',
-    season: '🌿 Peret – Season of Emergence',
-    month:
-        'Ka-ḥer-Ka (Kȝ-ḥr-Kȝ) — Life Upon Life — Vitality Placed Into the Earth',
-    decanName: 'sbꜣ msḥtjw',
+    kemeticDate: 'Ka-ḥer-ka III, Day 22',
+    season: '🌊 Akhet Closing – Inundation Withdraws',
+    month: 'Ka-ḥer-ka ("Ka upon Ka")',
+    decanName:
+        'rmṯ n pt / remetch en pet ("People of Heaven") | Deck: The Crew of Heaven',
     starCluster:
         '✨ sbꜣ msḥtjw — the northern Foreleg star group, commonly associated with the Big Dipper form: seven bright stars making a bowl and bent handle around the northern sky',
-    maatPrinciple: 'Begin With the Necessary Task',
+    maatPrinciple: 'A Blocked Channel Cannot Feed the Field',
     cosmicContext: '''
-The Kemetic principle of ꜣḫ — effectiveness, practical virtue — taught that work performed with correct priority produced more than greater effort applied to the wrong object. The necessary task was the one whose completion kept the system moving: without it, everything else compensated for its absence. The optional task could wait. The necessary task's absence was felt by everything that depended on it.
+The Crew of Heaven clears the path for Ra's barque.
+They remove the obstacles — not because clearing is glorious
+but because the barque cannot move through obstruction.
 
-Ka-upon-Ka at this stage asks a simple question: of all the work available, which is the single task whose completion keeps life moving in the correct direction? Not the most visible task, not the most impressive one, not the one with the most immediate payoff. The one that keeps the structure of the year alive and functional. Begin there, not because it is satisfying, but because it is the ground everything else rests on.
+Your field has a channel that silted shut during the flood.
+A financial flow not looked at.
+A conversation that needs to happen and hasn't.
+A creative practice waiting for permission.
+A physical space that is blocked.
+
+Find it. Clear it today.
+The work from here on requires the current to move.
 ''',
     decanFlow: _compressedKaherkaFlowRows3,
     meduNeter: MeduNeterKey(
-      glyph:
-          'The carrying pole directed to the primary destination — work that begins where continuity requires, not where preference points',
-      colorFrequency:
-          'Purposeful earth and foundational gold — the necessary task first, before anything else',
-      mantra: '"I begin where life continues. Not where I prefer."',
+      glyph: 'Cleared channel with water beginning to flow',
+      colorFrequency: 'Nile blue returning to worked clay-brown',
+      mantra: '"I clear the channel so life can move again."',
     ),
   ),
   'kaherka_23_3': KemeticDayInfo(
-    kemeticDate: 'Ka-ḥer-Ka III, Day 3',
-    season: '🌿 Peret – Season of Emergence',
-    month:
-        'Ka-ḥer-Ka (Kȝ-ḥr-Kȝ) — Life Upon Life — Vitality Placed Into the Earth',
-    decanName: 'sbꜣ msḥtjw',
+    kemeticDate: 'Ka-ḥer-ka III, Day 23',
+    season: '🌊 Akhet Closing – Inundation Withdraws',
+    month: 'Ka-ḥer-ka ("Ka upon Ka")',
+    decanName:
+        'rmṯ n pt / remetch en pet ("People of Heaven") | Deck: The Crew of Heaven',
     starCluster:
         '✨ sbꜣ msḥtjw — the northern Foreleg star group, commonly associated with the Big Dipper form: seven bright stars making a bowl and bent handle around the northern sky',
-    maatPrinciple: 'Use Power With Precision',
+    maatPrinciple: 'The Djed Must Stand',
     cosmicContext: '''
-The adze of the Opening of the Mouth was not swung. It was held and presented — the precise gesture at the precise point the rite required. A larger motion would have missed the specific faculty to be restored. The power of the rite came from accuracy, not force. One hundred units of effort placed incorrectly accomplishes what ten units placed correctly could not.
+The Djed — the spine of Asar, the pillar of stability — was knocked flat by the flood.
+The crew raises it. Not because it is easy. Because the world needs it upright.
 
-Ka-upon-Ka has accumulated genuine force by the third decan. The risk of accumulated force is its misapplication — using it broadly where it should be used precisely. The field prepared carefully for specific planting does not benefit from general irrigation across the whole acreage. It benefits from water delivered to the specific root. Precision does what force cannot. The point of application determines everything.
+Something in your life was knocked flat in the flood months.
+A boundary you stopped enforcing.
+A practice lying on its side.
+A standard you lowered and have not raised back.
+
+It does not raise itself.
+Stand it back up today — not all the way, not perfectly.
+Just upright enough that it can be built from.
+The world needs it standing.
 ''',
     decanFlow: _compressedKaherkaFlowRows3,
     meduNeter: MeduNeterKey(
       glyph:
-          'The adze touching the exact point — precision that restores what force alone cannot reach',
-      colorFrequency:
-          'Concentrated gold on specific earth — the effort that finds its mark and does not spread past it',
-      mantra: '"Precision does what force cannot. I place the effort exactly."',
+          'Djed pillar being raised by hands — the spine of stability restored',
+      colorFrequency: 'Rooted sandstone gold with steady dark bands',
+      mantra: '"I raise what was knocked flat. The world needs it standing."',
     ),
   ),
   'kaherka_24_3': KemeticDayInfo(
-    kemeticDate: 'Ka-ḥer-Ka III, Day 4',
-    season: '🌿 Peret – Season of Emergence',
-    month:
-        'Ka-ḥer-Ka (Kȝ-ḥr-Kȝ) — Life Upon Life — Vitality Placed Into the Earth',
-    decanName: 'sbꜣ msḥtjw',
+    kemeticDate: 'Ka-ḥer-ka III, Day 24',
+    season: '🌊 Akhet Closing – Inundation Withdraws',
+    month: 'Ka-ḥer-ka ("Ka upon Ka")',
+    decanName:
+        'rmṯ n pt / remetch en pet ("People of Heaven") | Deck: The Crew of Heaven',
     starCluster:
         '✨ sbꜣ msḥtjw — the northern Foreleg star group, commonly associated with the Big Dipper form: seven bright stars making a bowl and bent handle around the northern sky',
-    maatPrinciple: 'Support What Is Growing',
+    maatPrinciple: 'The Ka Requires a Maintained Environment',
     cosmicContext: '''
-In Peret, the farmer's role shifts. Planting is done. The seed has committed — it has cracked open, sent roots down, begun its reach upward. The farmer's vigilance moves from the ground to what is above the ground: weeds that compete for light and water, pests that take what is not theirs, gaps in the support structure that would let the tender stem bend and break. The preparation season is over. The support season has begun.
+The crew that rows Ra's barque maintains the barque.
+They bail water, check the timbers, keep the hull from taking on the Duat.
+A deteriorating vessel loses the thing it carries.
 
-Ka-upon-Ka holds this same movement. What was seeded in Hathor and established in the first two decans of this month is now visible and above ground. What it needs is not more seeding. It needs support: removal of what competes, provision of what nourishes, protection from what damages. Place the confirmed strength in service of what is already growing. The new planting can wait.
+Your household is the hull.
+Floor, workspace, bedroom, kitchen.
+A deteriorating environment leaks the vitality you are trying to build.
+
+This is not decorating.
+This is keeping the vessel seaworthy.
+Tend the physical space today.
+Give the ka a hull worth working inside.
 ''',
     decanFlow: _compressedKaherkaFlowRows3,
     meduNeter: MeduNeterKey(
-      glyph:
-          'The farmer tending what has emerged — attention moved from the seed to the growing thing above the surface',
-      colorFrequency:
-          'Living green above black earth — the growth that is already there, now receiving its support',
-      mantra:
-          '"What has already broken ground has my attention now. I tend what is alive."',
+      glyph: 'Hands checking the hull — the vessel maintained from inside',
+      colorFrequency: 'Ship-wood brown and steady ochre',
+      mantra: '"I keep the vessel worthy of what it carries."',
     ),
   ),
   'kaherka_25_3': KemeticDayInfo(
-    kemeticDate: 'Ka-ḥer-Ka III, Day 5',
-    season: '🌿 Peret – Season of Emergence',
-    month:
-        'Ka-ḥer-Ka (Kȝ-ḥr-Kȝ) — Life Upon Life — Vitality Placed Into the Earth',
-    decanName: 'sbꜣ msḥtjw',
+    kemeticDate: 'Ka-ḥer-ka III, Day 25',
+    season: '🌊 Akhet Closing – Inundation Withdraws',
+    month: 'Ka-ḥer-ka ("Ka upon Ka")',
+    decanName:
+        'rmṯ n pt / remetch en pet ("People of Heaven") | Deck: The Crew of Heaven',
     starCluster:
         '✨ sbꜣ msḥtjw — the northern Foreleg star group, commonly associated with the Big Dipper form: seven bright stars making a bowl and bent handle around the northern sky',
-    maatPrinciple: 'Refuse Wasteful Force',
+    maatPrinciple: 'Relight What Went Cold',
     cosmicContext: '''
-The Kemetic scribe who copied sacred texts was trained in economy. The material was expensive, the space finite, the craft measured by how completely the necessary was rendered and how completely the unnecessary was omitted. No stroke that did not serve the inscription. No word placed that did not belong. The quality of the work was visible in what was not there as much as in what was.
+The crew carries a flame through the Duat.
+Without it, the barque navigates blind.
 
-Ka-upon-Ka carries vitality that was not available at the beginning of the year. The temptation is to use it in proportion to how much it was missed — to demonstrate its return through expenditure, to do now what could not be done before, simply because the capacity is present. This is the mistake the star of the Foreleg names: strength used to prove itself is strength spent before it serves. The test of returned vitality is not its performance but its conservation in service of what actually matters.
+Things go cold in the flood season — not because they died,
+but because they ran out of fuel and no one refilled them.
+
+A creative practice. A physical discipline. A friendship.
+A daily prayer. A standard quietly dropped.
+These are not gone. They are unlit.
+
+Relight one today.
+Not the whole fire — the first small flame.
+Kindle it, cup it, and do not walk away from it until it is stable.
 ''',
     decanFlow: _compressedKaherkaFlowRows3,
     meduNeter: MeduNeterKey(
-      glyph:
-          'The scribe\'s restrained brush — the economy of the trained hand that places nothing it does not mean to place',
-      colorFrequency:
-          'Refined gold on conserved black — strength kept for use that serves, not use that demonstrates',
-      mantra:
-          '"Force that serves a real need is never wasted. Force that performs is always wasted."',
+      glyph: 'Small flame cupped in two hands — the relight, not the blaze',
+      colorFrequency: 'Ember gold in dark copper',
+      mantra: '"I relight this. I do not walk away until it holds."',
     ),
   ),
   'kaherka_26_3': KemeticDayInfo(
-    kemeticDate: 'Ka-ḥer-Ka III, Day 6',
-    season: '🌿 Peret – Season of Emergence',
-    month:
-        'Ka-ḥer-Ka (Kȝ-ḥr-Kȝ) — Life Upon Life — Vitality Placed Into the Earth',
-    decanName: 'sbꜣ msḥtjw',
+    kemeticDate: 'Ka-ḥer-ka III, Day 26',
+    season: '🌊 Akhet Closing – Inundation Withdraws',
+    month: 'Ka-ḥer-ka ("Ka upon Ka")',
+    decanName:
+        'rmṯ n pt / remetch en pet ("People of Heaven") | Deck: The Crew of Heaven',
     starCluster:
         '✨ sbꜣ msḥtjw — the northern Foreleg star group, commonly associated with the Big Dipper form: seven bright stars making a bowl and bent handle around the northern sky',
-    maatPrinciple: 'Carry the Right Weight',
+    maatPrinciple: 'The Crew Rows Together',
     cosmicContext: '''
-The ox's foreleg was prized not only for its strength but for the correct application of that strength. An animal hitched to a load mismatched to its capacity — too heavy or misaligned — did not work more effectively. It damaged itself and the load. The correct yoke, the correctly distributed weight, the load matched to the specific capacity of the specific animal on this specific day: this was the condition under which maximum useful work was possible.
+The divine crew does not take shifts.
+They row in synchrony or the barque does not advance.
+One oar pulling when the others are still does not move the vessel — it turns it in place.
 
-Ka-upon-Ka at this stage requires the same assessment. Not all available weight should be accepted. Not all available weight should be declined. The correct load exercises what has returned without exceeding what is consolidated. There is a responsibility that is genuinely yours — it builds the strength you have. And there is one you are carrying that belongs to someone else — it depletes the strength you have. Know the difference.
+The Crew of Heaven rising now asks:
+who shares this field with you,
+and when did you last coordinate with them?
+
+Not manage them. Coordinate.
+Shared direction, shared meal, shared account of where things stand.
+
+The flood season isolates.
+The growing season requires the crew to row together.
+Make contact today with whoever shares your load.
+Set the stroke.
 ''',
     decanFlow: _compressedKaherkaFlowRows3,
     meduNeter: MeduNeterKey(
-      glyph:
-          'The yoke fitted to the animal — the load matched to the actual capacity, not the wished-for capacity',
-      colorFrequency:
-          'Working earth and balanced gold — the load that builds rather than depletes the carrier',
-      mantra:
-          '"The right weight builds strength. The wrong weight drains it. I know the difference."',
+      glyph: 'Multiple oars in the water at the same angle — synchronized',
+      colorFrequency: 'River black with parallel gold oar-lines',
+      mantra: '"We row together. That is how the barque moves."',
     ),
   ),
   'kaherka_27_3': KemeticDayInfo(
-    kemeticDate: 'Ka-ḥer-Ka III, Day 7',
-    season: '🌿 Peret – Season of Emergence',
-    month:
-        'Ka-ḥer-Ka (Kȝ-ḥr-Kȝ) — Life Upon Life — Vitality Placed Into the Earth',
-    decanName: 'sbꜣ msḥtjw',
+    kemeticDate: 'Ka-ḥer-ka III, Day 27',
+    season: '🌊 Akhet Closing – Inundation Withdraws',
+    month: 'Ka-ḥer-ka ("Ka upon Ka")',
+    decanName:
+        'rmṯ n pt / remetch en pet ("People of Heaven") | Deck: The Crew of Heaven',
     starCluster:
         '✨ sbꜣ msḥtjw — the northern Foreleg star group, commonly associated with the Big Dipper form: seven bright stars making a bowl and bent handle around the northern sky',
-    maatPrinciple: 'Make the Work Reliable',
+    maatPrinciple: 'Quiet Strength Is Also Strength',
     cosmicContext: '''
-The circumpolar stars are the Kemetic symbol of reliability above all others. They never fail to appear. They complete their circuit without variation. The priests who set their calendars by the stars depended on this reliability as the foundation of the entire temporal system. A star that was mostly circumpolar — present on most nights but occasionally absent — could not serve the same function. The imperishable ones were imperishable in the specific sense of never failing.
+The crew does not sing about rowing. They row.
+Their virtue is in the doing, not the announcement.
+The barque crosses the Duat because they showed up in the dark,
+put their hands on the oar, and did not stop.
 
-Ka-upon-Ka names the doubling of vital force. The completed form of doubled vitality is reliability: not only present but consistently present, not only capable but dependably capable. What one person did well once has not yet become reliable. What they do well, consistently, in varied conditions, across time — this is the reliability that others can build on and systems can depend on. The star of the Foreleg asks: what would it take to make one part of this work into something that never fails to appear?
+You have been doing this.
+In the small ways that no one praises —
+getting up, keeping the rhythm, tending the basics,
+not collapsing when the flood was high.
+
+That is strength. It counts.
+Today you name it — not to others, to yourself.
+Ask directly: what strength survived?
+The answer is the foundation every future harvest stands on.
 ''',
     decanFlow: _compressedKaherkaFlowRows3,
     meduNeter: MeduNeterKey(
-      glyph:
-          'msḥtjw completing its circuit — the consistency that is measured across many nights, not one',
-      colorFrequency:
-          'Steady circumpolar gold — the reliability that makes the calendar possible',
-      mantra:
-          '"Reliability is strength that has committed to returning. Like the circumpolar stars."',
+      glyph: 'Crew rowing in darkness — the unwitnessed labor',
+      colorFrequency: 'Deep river black with a thin trail of gold in the wake',
+      mantra: '"The quiet work counts. I name it."',
     ),
   ),
   'kaherka_28_3': KemeticDayInfo(
-    kemeticDate: 'Ka-ḥer-Ka III, Day 8',
-    season: '🌿 Peret – Season of Emergence',
-    month:
-        'Ka-ḥer-Ka (Kȝ-ḥr-Kȝ) — Life Upon Life — Vitality Placed Into the Earth',
-    decanName: 'sbꜣ msḥtjw',
+    kemeticDate: 'Ka-ḥer-ka III, Day 28',
+    season: '🌊 Akhet Closing – Inundation Withdraws',
+    month: 'Ka-ḥer-ka ("Ka upon Ka")',
+    decanName:
+        'rmṯ n pt / remetch en pet ("People of Heaven") | Deck: The Crew of Heaven',
     starCluster:
         '✨ sbꜣ msḥtjw — the northern Foreleg star group, commonly associated with the Big Dipper form: seven bright stars making a bowl and bent handle around the northern sky',
-    maatPrinciple: 'Let Service Be Seen',
+    maatPrinciple: 'Labor and Gratitude Are the Same Act',
     cosmicContext: '''
-The Kemetic autobiographical inscription was a form of public accounting. "I gave bread to the hungry. I clothed the naked. I did not let the weak be harmed by the powerful." These declarations were not boasting — they were the record of what a life had actually done, placed in permanent inscription for the community and the divine to witness. The record existed because correct conduct required acknowledgment to complete its social function.
+The crew rows and the hymns to Ra are sung simultaneously.
+Not before, not after — during.
+Labor and gratitude are not separate categories.
+The offering is in the motion itself.
 
-Ka-upon-Ka in service does not require concealment. Strength confirmed, governed, and placed in genuine service of what needs it does not need to hide itself. The hiding of service is its own distortion — a form of false modesty that withholds the standing that correct conduct earns, and simultaneously deprives the community of the accurate record it depends on. Let what has been done stand. Not with pride that exceeds the doing. With the honest presentation of what is actually there.
+You have been working your way through Ka-ḥer-ka.
+Today you do not stop to give thanks — you work and you are grateful at the same time.
+
+While you do the task in front of you,
+acknowledge the source of the capacity to do it:
+the body, the training, the people, the land, the season.
+The two are not separate.
+Labor offered with gratitude is the whole point of the month.
 ''',
     decanFlow: _compressedKaherkaFlowRows3,
     meduNeter: MeduNeterKey(
-      glyph:
-          'The autobiographical inscription — the record of what was done, placed in the permanent account',
-      colorFrequency:
-          'Standing gold on witnessed earth — the service made visible as the record it belongs to',
-      mantra:
-          '"The record of right action is not vanity. It is the accounting that Maʿat requires."',
+      glyph: 'Oar moving through water — the hymn in the motion',
+      colorFrequency: 'River gold in dark water — action and gratitude unified',
+      mantra: '"I work and I am grateful. They are the same."',
     ),
   ),
   'kaherka_29_3': KemeticDayInfo(
-    kemeticDate: 'Ka-ḥer-Ka III, Day 9',
-    season: '🌿 Peret – Season of Emergence',
-    month:
-        'Ka-ḥer-Ka (Kȝ-ḥr-Kȝ) — Life Upon Life — Vitality Placed Into the Earth',
-    decanName: 'sbꜣ msḥtjw',
+    kemeticDate: 'Ka-ḥer-ka III, Day 29',
+    season: '🌊 Akhet Closing – Inundation Withdraws',
+    month: 'Ka-ḥer-ka ("Ka upon Ka")',
+    decanName:
+        'rmṯ n pt / remetch en pet ("People of Heaven") | Deck: The Crew of Heaven',
     starCluster:
         '✨ sbꜣ msḥtjw — the northern Foreleg star group, commonly associated with the Big Dipper form: seven bright stars making a bowl and bent handle around the northern sky',
-    maatPrinciple: 'Offer the Result',
+    maatPrinciple: 'The Season Sets the Pace',
     cosmicContext: '''
-In the Kemetic offering system, the result of labor was not kept by the one who labored. It was first offered — directed toward netjeru, ancestor, household, community — and then received back in the form of the standing the offering produced. The farmer who kept the entire harvest did not gain more than the farmer who offered correctly. The farmer who offered correctly kept the system that produced the harvest alive to produce again.
+The barque does not row at the same speed through every gate of the Duat.
+Some passages require long strokes.
+Some require the oars raised and the barque to drift.
+The crew reads the passage — they do not impose a fixed speed on a variable current.
 
-Ka-upon-Ka has produced something across this month. Some fruit of the returned and deployed strength is available. Before that fruit is claimed or consumed, the offering question arises: what portion returns to what made this possible? To the ancestor whose practice you carry, to the household whose stability freed you to do this work, to the practice itself that sustained the capacity, to the future that will need the seed of what you learned.
+You are in the last days of Ka-ḥer-ka.
+Shef-Bedet opens tomorrow and it will want a farmer with capacity.
+
+What pace does this specific moment actually require?
+Not the pace you wish you had energy for —
+the pace that is honest and sustainable.
+Align with it today.
+Tomorrow the field asks for your full presence.
+Preserve it.
 ''',
     decanFlow: _compressedKaherkaFlowRows3,
     meduNeter: MeduNeterKey(
-      glyph:
-          'Offering arms before the first fruit — the result that returns before it is claimed',
-      colorFrequency:
-          'Offering gold rising from harvest earth — the first portion directed before the remainder is received',
-      mantra:
-          '"I offer before I receive. The offering keeps the system alive."',
+      glyph: 'Oar raised for a drift passage — reading the current',
+      colorFrequency: 'River silver and quiet earth',
+      mantra: '"I row at the pace the season requires."',
     ),
   ),
   'kaherka_30_3': KemeticDayInfo(
-    kemeticDate: 'Ka-ḥer-Ka III, Day 10',
-    season: '🌿 Peret – Season of Emergence',
+    kemeticDate: 'Ka-ḥer-ka III, Day 30',
+    season: '🌊 Akhet Closing – Inundation Withdraws',
     month:
-        'Ka-ḥer-Ka (Kȝ-ḥr-Kȝ) — Life Upon Life — Vitality Placed Into the Earth',
-    decanName: 'sbꜣ msḥtjw',
+        'Ka-ḥer-ka ("Ka upon Ka" — the seed placed, the ka re-engaged, the crew rowing)',
+    decanName:
+        'rmṯ n pt / remetch en pet ("People of Heaven") | Deck: The Crew of Heaven',
     starCluster:
         '✨ sbꜣ msḥtjw — the northern Foreleg star group, commonly associated with the Big Dipper form: seven bright stars making a bowl and bent handle around the northern sky',
-    maatPrinciple: 'Seal Applied Strength',
+    maatPrinciple: 'Seal the Month. Hand It Forward Clean.',
     cosmicContext: '''
-Ka-ḥer-Ka closes. The month that opened with strength barely recognizable as returning ends with strength confirmed, governed, placed in service, bearing fruit, and sealed in the record. The Foreleg that braced at the month's opening has carried its full arc — from the careful test of Day 2 to the offering of Day 29. What passes forward is not the same vitality that entered this month. It has been shaped by use.
+Ka-ḥer-ka closes today.
 
-The circumpolar stars do not change. But the observer who watches them across thirty days has changed. What was recognized as possibility at the opening of Ka-ḥer-Ka is established as fact at its close. Seal that fact. Name it with the specificity it has earned. It is the ground Šef-Bedet stands on — not hoped-for strength, not aspired capacity, but what has been tested, governed, deployed, and confirmed to be real.
+The flood withdrew. The black silt received the seed.
+The field was cleared and the vigil was kept.
+The ka re-entered motion, the obligation was accepted,
+the basics were restored, the help was called in.
+The Djed was raised, the channel was cleared,
+the flame was relit, the crew coordinated, the labor offered.
+
+The barque crossed the Duat.
+
+Take an honest accounting of what was placed and what returned.
+Not an ideal version — the real one.
+Then hand it to the next month clean.
+
+Shef-Bedet begins tomorrow.
+First growth will appear.
+It needs a farmer who is rested, clear, and ready.
+Seal Ka-ḥer-ka with that intention.
 ''',
     decanFlow: _compressedKaherkaFlowRows3,
     meduNeter: MeduNeterKey(
-      glyph:
-          'The sealed scroll beside the standing Foreleg — the month\'s accounting complete, the confirmed vitality bound forward',
-      colorFrequency:
-          'Sealed gold and verified earth green — the month closed with what was proved, not what was wished',
-      mantra:
-          '"What passes forward from Ka-ḥer-Ka is confirmed strength. I seal it and carry it."',
+      glyph: 'Barque at the eastern gate — the crossing complete',
+      colorFrequency: 'First light gold over river black',
+      mantra: '"The month is complete. I hand it forward clean."',
     ),
   ),
   'sefbedet_1_1': KemeticDayInfo(
     kemeticDate: 'Šef-Bedet I, Day 1',
-    season: '🌿 Peret – Season of Emergence',
-    month: 'Šef-Bedet (Šf-bdt) — Nourishment Given in Right Measure',
-    decanName: 'ḫnty-ḥr',
+    season: '🌱 Peret I – Emergence Season',
+    month: 'Šef-Bedet (Šf-bdt) — the emergence month, Peret begins',
+    decanName: 'ḫnty-ḥr (translation uncertain) | Deck: The Foremost of Face',
     starCluster:
         '✨ ḫnty-ḥr — a modest decanal star group watched near the eastern horizon during this ten-day interval; exact modern identification is uncertain',
-    maatPrinciple: 'Notice the Fragile Growth',
+    maatPrinciple: 'What Was Hidden Is Now Visible',
     cosmicContext: '''
-What has begun is still fragile. Šef-Bedet is nourishment as measured care: water, bread, offering, attention, protection, and provision. Renenutet stands near the field and granary because destiny becomes livable only when life is fed without waste, neglect, or control.
+Ka-ḥer-ka is sealed. The seed is above ground.
 
-This day belongs to ḫnty-ḥr, the foremost sign, where fragile growth must be seen before it can be tended. The star-time movement does not function as decoration. It gives the day a position in the cycle: what appears in the sky, what is happening in the year, and what the heart must practice are held together.
+This is the most dangerous moment in the agricultural year.
+The shoot is visible but not strong.
+Wind, animals, a careless foot — any of these end it.
 
-Day 1 turns that movement toward notice the fragile growth.
+Peret does not ask you to celebrate emergence.
+It asks you to witness it without grabbing it.
 
-In practical life, this is where the old pattern meets the present body. Progress may ask for action, but not every action is Ma’at. Obstacles may ask for endurance, but not every burden should be carried. A return may ask for receiving, but not every gain should be consumed.
-
-The question is simple: What does notice the fragile growth require now?
+Look at what has broken the surface today.
+Do not manage it yet. Do not monetize it. Do not announce it.
+Stand over it the way a farmer stands over first growth: present, quiet, watchful.
 ''',
     decanFlow: _compressedShefbedetFlowRows1,
     meduNeter: MeduNeterKey(
-      glyph: 'Cobra, water jar, and young grain',
-      colorFrequency: 'Deep blue, living gold, and earth green',
-      mantra: '“I practice notice the fragile growth in Ma’at.”',
+      glyph: 'First green shoot above black silt — the emergence witnessed',
+      colorFrequency: 'Black earth with one thin line of living green',
+      mantra: '"I witness without grabbing."',
     ),
   ),
   'sefbedet_2_1': KemeticDayInfo(
     kemeticDate: 'Šef-Bedet I, Day 2',
-    season: '🌿 Peret – Season of Emergence',
-    month: 'Šef-Bedet (Šf-bdt) — Nourishment Given in Right Measure',
-    decanName: 'ḫnty-ḥr',
+    season: '🌱 Peret I – Emergence Season',
+    month: 'Šef-Bedet (Šf-bdt)',
+    decanName: 'ḫnty-ḥr (translation uncertain) | Deck: The Foremost of Face',
     starCluster:
         '✨ ḫnty-ḥr — a modest decanal star group watched near the eastern horizon during this ten-day interval; exact modern identification is uncertain',
-    maatPrinciple: 'Check the Water',
+    maatPrinciple: 'The Shoot Is Not the Harvest',
     cosmicContext: '''
-What has begun is still fragile. Šef-Bedet is nourishment as measured care: water, bread, offering, attention, protection, and provision. Renenutet stands near the field and granary because destiny becomes livable only when life is fed without waste, neglect, or control.
+In the flood-plain fields, early growth was protected, not pulled.
+A farmer who harvested at emergence got one meal.
+A farmer who waited got a season.
 
-This day belongs to ḫnty-ḥr, the foremost sign, where fragile growth must be seen before it can be tended. The star-time movement does not function as decoration. It gives the day a position in the cycle: what appears in the sky, what is happening in the year, and what the heart must practice are held together.
+Whatever rose from the ground in Ka-ḥer-ka —
+a practice, a project, a relationship returning, a capacity returning —
+is not ready to be pressed for yield.
 
-Day 2 turns that movement toward check the water.
-
-In practical life, this is where the old pattern meets the present body. Progress may ask for action, but not every action is Ma’at. Obstacles may ask for endurance, but not every burden should be carried. A return may ask for receiving, but not every gain should be consumed.
-
-The question is simple: What does check the water require now?
+It is two days old.
+Give it the patience you would give grain on its second day above the surface.
+The harvest comes. Not today.
 ''',
     decanFlow: _compressedShefbedetFlowRows1,
     meduNeter: MeduNeterKey(
-      glyph: 'Cobra, water jar, and young grain',
-      colorFrequency: 'Deep blue, living gold, and earth green',
-      mantra: '“I practice check the water in Ma’at.”',
+      glyph: 'Hand held back from the young shoot — patience before harvest',
+      colorFrequency: 'Restrained earth-brown, green just visible',
+      mantra: '"The shoot is not the harvest. I wait."',
     ),
   ),
   'sefbedet_3_1': KemeticDayInfo(
     kemeticDate: 'Šef-Bedet I, Day 3',
-    season: '🌿 Peret – Season of Emergence',
-    month: 'Šef-Bedet (Šf-bdt) — Nourishment Given in Right Measure',
-    decanName: 'ḫnty-ḥr',
+    season: '🌱 Peret I – Emergence Season',
+    month: 'Šef-Bedet (Šf-bdt)',
+    decanName: 'ḫnty-ḥr (translation uncertain) | Deck: The Foremost of Face',
     starCluster:
         '✨ ḫnty-ḥr — a modest decanal star group watched near the eastern horizon during this ten-day interval; exact modern identification is uncertain',
-    maatPrinciple: 'Find the Uneven Place',
+    maatPrinciple: 'New Growth Requires Direct Nourishment',
     cosmicContext: '''
-What has begun is still fragile. Šef-Bedet is nourishment as measured care: water, bread, offering, attention, protection, and provision. Renenutet stands near the field and granary because destiny becomes livable only when life is fed without waste, neglect, or control.
+The shoot is above ground. It needs water — not hope, water.
+Not general goodwill toward the field. A specific act on this specific plant.
 
-This day belongs to ḫnty-ḥr, the foremost sign, where fragile growth must be seen before it can be tended. The star-time movement does not function as decoration. It gives the day a position in the cycle: what appears in the sky, what is happening in the year, and what the heart must practice are held together.
+What emerged in Ka-ḥer-ka needs one direct resource today:
+time blocked for it, money allocated, rest taken so you can sustain it,
+a conversation that removes an obstacle.
 
-Day 3 turns that movement toward find the uneven place.
-
-In practical life, this is where the old pattern meets the present body. Progress may ask for action, but not every action is Ma’at. Obstacles may ask for endurance, but not every burden should be carried. A return may ask for receiving, but not every gain should be consumed.
-
-The question is simple: What does find the uneven place require now?
+Intention fed no field.
+Water fed the field.
+Apply something real.
 ''',
     decanFlow: _compressedShefbedetFlowRows1,
     meduNeter: MeduNeterKey(
-      glyph: 'Cobra, water jar, and young grain',
-      colorFrequency: 'Deep blue, living gold, and earth green',
-      mantra: '“I practice find the uneven place in Ma’at.”',
+      glyph: 'Water jar pouring directly at the base of the young shoot',
+      colorFrequency: 'River blue at the root, green rising',
+      mantra: '"I give it what it actually needs."',
     ),
   ),
   'sefbedet_4_1': KemeticDayInfo(
     kemeticDate: 'Šef-Bedet I, Day 4',
-    season: '🌿 Peret – Season of Emergence',
-    month: 'Šef-Bedet (Šf-bdt) — Nourishment Given in Right Measure',
-    decanName: 'ḫnty-ḥr',
+    season: '🌱 Peret I – Emergence Season',
+    month: 'Šef-Bedet (Šf-bdt)',
+    decanName: 'ḫnty-ḥr (translation uncertain) | Deck: The Foremost of Face',
     starCluster:
         '✨ ḫnty-ḥr — a modest decanal star group watched near the eastern horizon during this ten-day interval; exact modern identification is uncertain',
-    maatPrinciple: 'Tend Without Smothering',
+    maatPrinciple: 'Remove What Competes for the Same Root',
     cosmicContext: '''
-What has begun is still fragile. Šef-Bedet is nourishment as measured care: water, bread, offering, attention, protection, and provision. Renenutet stands near the field and granary because destiny becomes livable only when life is fed without waste, neglect, or control.
+Two plants in the same row compete for the same water.
+The weaker one does not always lose — sometimes it wins by volume,
+and the intended crop starves.
 
-This day belongs to ḫnty-ḥr, the foremost sign, where fragile growth must be seen before it can be tended. The star-time movement does not function as decoration. It gives the day a position in the cycle: what appears in the sky, what is happening in the year, and what the heart must practice are held together.
+What in your life right now draws from the same soil as the emerging thing?
+An obligation, a distraction, a habit that survived the flood but has no place in Peret.
 
-Day 4 turns that movement toward tend without smothering.
-
-In practical life, this is where the old pattern meets the present body. Progress may ask for action, but not every action is Ma’at. Obstacles may ask for endurance, but not every burden should be carried. A return may ask for receiving, but not every gain should be consumed.
-
-The question is simple: What does tend without smothering require now?
+One removal. Not a purge — the most damaging competitor.
+Pull it cleanly and give the water to the shoot.
 ''',
     decanFlow: _compressedShefbedetFlowRows1,
     meduNeter: MeduNeterKey(
-      glyph: 'Cobra, water jar, and young grain',
-      colorFrequency: 'Deep blue, living gold, and earth green',
-      mantra: '“I practice tend without smothering in Ma’at.”',
+      glyph: 'Hand pulling a competing root from beside the young shoot',
+      colorFrequency: 'Brown root removed, green shoot freed',
+      mantra: '"I clear what competes for the same root."',
     ),
   ),
   'sefbedet_5_1': KemeticDayInfo(
     kemeticDate: 'Šef-Bedet I, Day 5',
-    season: '🌿 Peret – Season of Emergence',
-    month: 'Šef-Bedet (Šf-bdt) — Nourishment Given in Right Measure',
-    decanName: 'ḫnty-ḥr',
+    season: '🌱 Peret I – Emergence Season',
+    month: 'Šef-Bedet (Šf-bdt)',
+    decanName: 'ḫnty-ḥr (translation uncertain) | Deck: The Foremost of Face',
     starCluster:
         '✨ ḫnty-ḥr — a modest decanal star group watched near the eastern horizon during this ten-day interval; exact modern identification is uncertain',
-    maatPrinciple: 'Protect the Tender Root',
+    maatPrinciple: 'Name What Has Actually Changed',
     cosmicContext: '''
-What has begun is still fragile. Šef-Bedet is nourishment as measured care: water, bread, offering, attention, protection, and provision. Renenutet stands near the field and granary because destiny becomes livable only when life is fed without waste, neglect, or control.
+Something is different from last month.
+The seed was underground. Now it is not.
+That is a real change and it deserves a real accounting.
 
-This day belongs to ḫnty-ḥr, the foremost sign, where fragile growth must be seen before it can be tended. The star-time movement does not function as decoration. It gives the day a position in the cycle: what appears in the sky, what is happening in the year, and what the heart must practice are held together.
+Not: "I'm finally doing better."
+Not: "Everything is turning around."
+Just: what is specifically different today from thirty days ago?
 
-Day 5 turns that movement toward protect the tender root.
-
-In practical life, this is where the old pattern meets the present body. Progress may ask for action, but not every action is Ma’at. Obstacles may ask for endurance, but not every burden should be carried. A return may ask for receiving, but not every gain should be consumed.
-
-The question is simple: What does protect the tender root require now?
+Name it plainly and without decoration.
+Accurate witness is how you build from here.
+Overstating it costs you the honest measure.
 ''',
     decanFlow: _compressedShefbedetFlowRows1,
     meduNeter: MeduNeterKey(
-      glyph: 'Cobra, water jar, and young grain',
-      colorFrequency: 'Deep blue, living gold, and earth green',
-      mantra: '“I practice protect the tender root in Ma’at.”',
+      glyph:
+          'Scribe\'s palette noting the condition of the field — honest record',
+      colorFrequency: 'Ink black on clean papyrus, one green mark',
+      mantra: '"I name what changed. No more, no less."',
     ),
   ),
   'sefbedet_6_1': KemeticDayInfo(
     kemeticDate: 'Šef-Bedet I, Day 6',
-    season: '🌿 Peret – Season of Emergence',
-    month: 'Šef-Bedet (Šf-bdt) — Nourishment Given in Right Measure',
-    decanName: 'ḫnty-ḥr',
+    season: '🌱 Peret I – Emergence Season',
+    month: 'Šef-Bedet (Šf-bdt)',
+    decanName: 'ḫnty-ḥr (translation uncertain) | Deck: The Foremost of Face',
     starCluster:
         '✨ ḫnty-ḥr — a modest decanal star group watched near the eastern horizon during this ten-day interval; exact modern identification is uncertain',
-    maatPrinciple: 'Feed the Right Place',
+    maatPrinciple: 'Guard Without Caging',
     cosmicContext: '''
-What has begun is still fragile. Šef-Bedet is nourishment as measured care: water, bread, offering, attention, protection, and provision. Renenutet stands near the field and granary because destiny becomes livable only when life is fed without waste, neglect, or control.
+The first-growth farmer built low windbreaks around tender shoots —
+not to stop all air, but to break the force of the damaging wind.
+Total enclosure kills the shoot differently than the wind does.
 
-This day belongs to ḫnty-ḥr, the foremost sign, where fragile growth must be seen before it can be tended. The star-time movement does not function as decoration. It gives the day a position in the cycle: what appears in the sky, what is happening in the year, and what the heart must practice are held together.
+What is emerging in your life needs protection from early pressure:
+premature critique, comparison, extraction, performance demands.
+But it also needs air — some exposure, some testing, some reality.
 
-Day 6 turns that movement toward feed the right place.
-
-In practical life, this is where the old pattern meets the present body. Progress may ask for action, but not every action is Ma’at. Obstacles may ask for endurance, but not every burden should be carried. A return may ask for receiving, but not every gain should be consumed.
-
-The question is simple: What does feed the right place require now?
+Protect it from what would kill it.
+Do not protect it from everything.
+It must learn to stand.
 ''',
     decanFlow: _compressedShefbedetFlowRows1,
     meduNeter: MeduNeterKey(
-      glyph: 'Cobra, water jar, and young grain',
-      colorFrequency: 'Deep blue, living gold, and earth green',
-      mantra: '“I practice feed the right place in Ma’at.”',
+      glyph: 'Low reed windbreak beside the young shoot — partial shelter',
+      colorFrequency: 'Warm straw-brown shelter, green within',
+      mantra: '"I protect without caging."',
     ),
   ),
   'sefbedet_7_1': KemeticDayInfo(
     kemeticDate: 'Šef-Bedet I, Day 7',
-    season: '🌿 Peret – Season of Emergence',
-    month: 'Šef-Bedet (Šf-bdt) — Nourishment Given in Right Measure',
-    decanName: 'ḫnty-ḥr',
+    season: '🌱 Peret I – Emergence Season',
+    month: 'Šef-Bedet (Šf-bdt)',
+    decanName: 'ḫnty-ḥr (translation uncertain) | Deck: The Foremost of Face',
     starCluster:
         '✨ ḫnty-ḥr — a modest decanal star group watched near the eastern horizon during this ten-day interval; exact modern identification is uncertain',
-    maatPrinciple: 'Remove the Drain',
+    maatPrinciple: 'The Right Witness Strengthens',
     cosmicContext: '''
-What has begun is still fragile. Šef-Bedet is nourishment as measured care: water, bread, offering, attention, protection, and provision. Renenutet stands near the field and granary because destiny becomes livable only when life is fed without waste, neglect, or control.
+Not everyone should see the shoot at this stage.
+The person who immediately asks what you will do with it,
+how much it will yield, why you chose that crop —
+that is not the witness the shoot needs right now.
 
-This day belongs to ḫnty-ḥr, the foremost sign, where fragile growth must be seen before it can be tended. The star-time movement does not function as decoration. It gives the day a position in the cycle: what appears in the sky, what is happening in the year, and what the heart must practice are held together.
+Find the person who can look at early growth and simply say: it is alive.
+Show them. Let them see it.
 
-Day 7 turns that movement toward remove the drain.
-
-In practical life, this is where the old pattern meets the present body. Progress may ask for action, but not every action is Ma’at. Obstacles may ask for endurance, but not every burden should be carried. A return may ask for receiving, but not every gain should be consumed.
-
-The question is simple: What does remove the drain require now?
+Being witnessed by the right person at this stage
+is not vanity. It is nourishment.
+Choose the witness carefully.
 ''',
     decanFlow: _compressedShefbedetFlowRows1,
     meduNeter: MeduNeterKey(
-      glyph: 'Cobra, water jar, and young grain',
-      colorFrequency: 'Deep blue, living gold, and earth green',
-      mantra: '“I practice remove the drain in Ma’at.”',
+      glyph:
+          'Two figures standing over a young row — one pointing, one simply present',
+      colorFrequency: 'Quiet earth tones, no gold yet',
+      mantra: '"I show this to someone who can witness it well."',
     ),
   ),
   'sefbedet_8_1': KemeticDayInfo(
     kemeticDate: 'Šef-Bedet I, Day 8',
-    season: '🌿 Peret – Season of Emergence',
-    month: 'Šef-Bedet (Šf-bdt) — Nourishment Given in Right Measure',
-    decanName: 'ḫnty-ḥr',
+    season: '🌱 Peret I – Emergence Season',
+    month: 'Šef-Bedet (Šf-bdt)',
+    decanName: 'ḫnty-ḥr (translation uncertain) | Deck: The Foremost of Face',
     starCluster:
         '✨ ḫnty-ḥr — a modest decanal star group watched near the eastern horizon during this ten-day interval; exact modern identification is uncertain',
-    maatPrinciple: 'Record the Signs',
+    maatPrinciple: 'Growth Is Sustained by Ordinary Maintenance',
     cosmicContext: '''
-What has begun is still fragile. Šef-Bedet is nourishment as measured care: water, bread, offering, attention, protection, and provision. Renenutet stands near the field and granary because destiny becomes livable only when life is fed without waste, neglect, or control.
+The farmer who tended first growth did not do inspired work.
+They walked the row. They checked the soil. They pulled the competing weed.
+They did it again tomorrow. And the day after.
 
-This day belongs to ḫnty-ḥr, the foremost sign, where fragile growth must be seen before it can be tended. The star-time movement does not function as decoration. It gives the day a position in the cycle: what appears in the sky, what is happening in the year, and what the heart must practice are held together.
+Emergence is not maintained by the energy of beginnings.
+It is maintained by the ordinary return.
 
-Day 8 turns that movement toward record the signs.
-
-In practical life, this is where the old pattern meets the present body. Progress may ask for action, but not every action is Ma’at. Obstacles may ask for endurance, but not every burden should be carried. A return may ask for receiving, but not every gain should be consumed.
-
-The question is simple: What does record the signs require now?
+What small repeated act does the emerging thing need from you?
+Not a grand gesture — the quiet daily tending
+that most people abandon when the initial excitement fades.
+Show up for it today.
 ''',
     decanFlow: _compressedShefbedetFlowRows1,
     meduNeter: MeduNeterKey(
-      glyph: 'Cobra, water jar, and young grain',
-      colorFrequency: 'Deep blue, living gold, and earth green',
-      mantra: '“I practice record the signs in Ma’at.”',
+      glyph: 'Farmer walking the row at dawn — steady, unremarkable care',
+      colorFrequency: 'Plain earth and growing green, no drama',
+      mantra: '"I tend the ordinary. That is how it grows."',
     ),
   ),
   'sefbedet_9_1': KemeticDayInfo(
     kemeticDate: 'Šef-Bedet I, Day 9',
-    season: '🌿 Peret – Season of Emergence',
-    month: 'Šef-Bedet (Šf-bdt) — Nourishment Given in Right Measure',
-    decanName: 'ḫnty-ḥr',
+    season: '🌱 Peret I – Emergence Season',
+    month: 'Šef-Bedet (Šf-bdt)',
+    decanName: 'ḫnty-ḥr (translation uncertain) | Deck: The Foremost of Face',
     starCluster:
         '✨ ḫnty-ḥr — a modest decanal star group watched near the eastern horizon during this ten-day interval; exact modern identification is uncertain',
-    maatPrinciple: 'Strengthen the Care Rhythm',
+    maatPrinciple: 'Read the Field as It Is',
     cosmicContext: '''
-What has begun is still fragile. Šef-Bedet is nourishment as measured care: water, bread, offering, attention, protection, and provision. Renenutet stands near the field and granary because destiny becomes livable only when life is fed without waste, neglect, or control.
+The farmer does not read the field hoping for good news.
+The farmer reads the field to know what is actually happening —
+because an honest reading now is cheaper than a wrong response later.
 
-This day belongs to ḫnty-ḥr, the foremost sign, where fragile growth must be seen before it can be tended. The star-time movement does not function as decoration. It gives the day a position in the cycle: what appears in the sky, what is happening in the year, and what the heart must practice are held together.
+What is the honest condition of what emerged?
+Growing well? Struggling? Needs a different resource than you thought?
 
-Day 9 turns that movement toward strengthen the care rhythm.
-
-In practical life, this is where the old pattern meets the present body. Progress may ask for action, but not every action is Ma’at. Obstacles may ask for endurance, but not every burden should be carried. A return may ask for receiving, but not every gain should be consumed.
-
-The question is simple: What does strengthen the care rhythm require now?
+Look without flinching.
+A field read accurately can be corrected.
+A field read hopefully wastes the correction window.
 ''',
     decanFlow: _compressedShefbedetFlowRows1,
     meduNeter: MeduNeterKey(
-      glyph: 'Cobra, water jar, and young grain',
-      colorFrequency: 'Deep blue, living gold, and earth green',
-      mantra: '“I practice strengthen the care rhythm in Ma’at.”',
+      glyph: 'Farmer kneeling to inspect the root — close honest reading',
+      colorFrequency: 'Dark earth close up, green assessed not admired',
+      mantra: '"I read this as it is, not as I hoped."',
     ),
   ),
   'sefbedet_10_1': KemeticDayInfo(
     kemeticDate: 'Šef-Bedet I, Day 10',
-    season: '🌿 Peret – Season of Emergence',
-    month: 'Šef-Bedet (Šf-bdt) — Nourishment Given in Right Measure',
-    decanName: 'ḫnty-ḥr',
+    season: '🌱 Peret I – Emergence Season',
+    month: 'Šef-Bedet (Šf-bdt)',
+    decanName: 'ḫnty-ḥr (translation uncertain) | Deck: The Foremost of Face',
     starCluster:
         '✨ ḫnty-ḥr — a modest decanal star group watched near the eastern horizon during this ten-day interval; exact modern identification is uncertain',
-    maatPrinciple: 'Seal Early Nourishment',
+    maatPrinciple: 'Ten Days of Emergence — Note What Took Root',
     cosmicContext: '''
-What has begun is still fragile. Šef-Bedet is nourishment as measured care: water, bread, offering, attention, protection, and provision. Renenutet stands near the field and granary because destiny becomes livable only when life is fed without waste, neglect, or control.
+The first decan of Šef-Bedet closes.
 
-This day belongs to ḫnty-ḥr, the foremost sign, where fragile growth must be seen before it can be tended. The star-time movement does not function as decoration. It gives the day a position in the cycle: what appears in the sky, what is happening in the year, and what the heart must practice are held together.
+Ten days ago the shoot broke the surface.
+You witnessed it, fed it, cleared competitors, named the change,
+protected it, showed it to the right person, tended the ordinary, read the honest condition.
 
-Day 10 turns that movement toward seal early nourishment.
+Now: what actually took root?
+Not what you hoped would emerge — what did.
 
-In practical life, this is where the old pattern meets the present body. Progress may ask for action, but not every action is Ma’at. Obstacles may ask for endurance, but not every burden should be carried. A return may ask for receiving, but not every gain should be consumed.
-
-The question is simple: What does seal early nourishment require now?
+Write it down. Name it.
+The second decan begins to strengthen what the first revealed.
+Know clearly what you are strengthening.
 ''',
     decanFlow: _compressedShefbedetFlowRows1,
     meduNeter: MeduNeterKey(
-      glyph: 'Cobra, water jar, and young grain',
-      colorFrequency: 'Deep blue, living gold, and earth green',
-      mantra: '“I practice seal early nourishment in Ma’at.”',
+      glyph: 'Young row of shoots — ten days old, rooted but not yet strong',
+      colorFrequency:
+          'Black earth, multiple green points, the beginning of a field',
+      mantra: '"Ten days. I know what took root."',
     ),
   ),
   'sefbedet_11_2': KemeticDayInfo(
-    kemeticDate: 'Šef-Bedet II, Day 1',
-    season: '🌿 Peret – Season of Emergence',
-    month: 'Šef-Bedet (Šf-bdt) — Nourishment Given in Right Measure',
-    decanName: 'ḥry-ib ḫnty-ḥr',
+    kemeticDate: 'Šef-Bedet II, Day 11',
+    season: '🌱 Peret I – Emergence Season',
+    month: 'Šef-Bedet (Šf-bdt)',
+    decanName:
+        'ḥry-ib ḫnty-ḥr (translation uncertain) | Deck: Heart of the Foremost',
     starCluster:
         '✨ ḥry-ib ḫnty-ḥr — a modest decanal star group watched near the eastern horizon during this ten-day interval; exact modern identification is uncertain',
-    maatPrinciple: 'Bring Care to the Heart',
+    maatPrinciple: 'Strength Goes to the Root',
     cosmicContext: '''
-What has begun is still fragile. Šef-Bedet is nourishment as measured care: water, bread, offering, attention, protection, and provision. Renenutet stands near the field and granary because destiny becomes livable only when life is fed without waste, neglect, or control.
+The first decan established what took root.
+The second decan strengthens it.
 
-This day belongs to ḥry-ib ḫnty-ḥr, the heart of care, where nourishment is directed by discernment. The star-time movement does not function as decoration. It gives the day a position in the cycle: what appears in the sky, what is happening in the year, and what the heart must practice are held together.
+But the mistake at this stage is feeding the visible part —
+the impressive output, the surface people see —
+while the root goes unattended.
 
-Day 1 turns that movement toward bring care to the heart.
-
-In practical life, this is where the old pattern meets the present body. Progress may ask for action, but not every action is Ma’at. Obstacles may ask for endurance, but not every burden should be carried. A return may ask for receiving, but not every gain should be consumed.
-
-The question is simple: What does bring care to the heart require now?
+A tall green plant with a shallow root falls in the first wind.
+Direct your resources at the foundation.
+What holds the shoot in the ground when conditions get difficult?
+Feed that today.
 ''',
     decanFlow: _compressedShefbedetFlowRows2,
     meduNeter: MeduNeterKey(
-      glyph: 'Cobra, water jar, and young grain',
-      colorFrequency: 'Deep blue, living gold, and earth green',
-      mantra: '“I practice bring care to the heart in Ma’at.”',
+      glyph: 'Water soaking into deep soil — the root, not the leaf',
+      colorFrequency: 'Dark root depth, green at surface',
+      mantra: '"I feed what holds it in the ground."',
     ),
   ),
   'sefbedet_12_2': KemeticDayInfo(
-    kemeticDate: 'Šef-Bedet II, Day 2',
-    season: '🌿 Peret – Season of Emergence',
-    month: 'Šef-Bedet (Šf-bdt) — Nourishment Given in Right Measure',
-    decanName: 'ḥry-ib ḫnty-ḥr',
+    kemeticDate: 'Šef-Bedet II, Day 12',
+    season: '🌱 Peret I – Emergence Season',
+    month: 'Šef-Bedet (Šf-bdt)',
+    decanName:
+        'ḥry-ib ḫnty-ḥr (translation uncertain) | Deck: Heart of the Foremost',
     starCluster:
         '✨ ḥry-ib ḫnty-ḥr — a modest decanal star group watched near the eastern horizon during this ten-day interval; exact modern identification is uncertain',
-    maatPrinciple: 'Read the True Need',
+    maatPrinciple: 'Extend, Do Not Leap',
     cosmicContext: '''
-What has begun is still fragile. Šef-Bedet is nourishment as measured care: water, bread, offering, attention, protection, and provision. Renenutet stands near the field and granary because destiny becomes livable only when life is fed without waste, neglect, or control.
+A field is extended by measure, not by leap.
+Boundaries are not doubled in a season — they are walked forward steadily,
+and the irrigation extended to match.
 
-This day belongs to ḥry-ib ḫnty-ḥr, the heart of care, where nourishment is directed by discernment. The star-time movement does not function as decoration. It gives the day a position in the cycle: what appears in the sky, what is happening in the year, and what the heart must practice are held together.
+What is growing in your life right now can be extended.
+Not doubled. Not redesigned.
+Extended: one more row, one more session, one more hour of care per week.
 
-Day 2 turns that movement toward read the true need.
-
-In practical life, this is where the old pattern meets the present body. Progress may ask for action, but not every action is Ma’at. Obstacles may ask for endurance, but not every burden should be carried. A return may ask for receiving, but not every gain should be consumed.
-
-The question is simple: What does read the true need require now?
+The next step, not the next leap.
+Leaps at this stage pull the root before it is deep enough to survive them.
 ''',
     decanFlow: _compressedShefbedetFlowRows2,
     meduNeter: MeduNeterKey(
-      glyph: 'Cobra, water jar, and young grain',
-      colorFrequency: 'Deep blue, living gold, and earth green',
-      mantra: '“I practice read the true need in Ma’at.”',
+      glyph: 'Field boundary pushed forward by one measured row',
+      colorFrequency: 'Green rows extending steadily into prepared earth',
+      mantra: '"I extend this by one step, not one leap."',
     ),
   ),
   'sefbedet_13_2': KemeticDayInfo(
-    kemeticDate: 'Šef-Bedet II, Day 3',
-    season: '🌿 Peret – Season of Emergence',
-    month: 'Šef-Bedet (Šf-bdt) — Nourishment Given in Right Measure',
-    decanName: 'ḥry-ib ḫnty-ḥr',
+    kemeticDate: 'Šef-Bedet II, Day 13',
+    season: '🌱 Peret I – Emergence Season',
+    month: 'Šef-Bedet (Šf-bdt)',
+    decanName:
+        'ḥry-ib ḫnty-ḥr (translation uncertain) | Deck: Heart of the Foremost',
     starCluster:
         '✨ ḥry-ib ḫnty-ḥr — a modest decanal star group watched near the eastern horizon during this ten-day interval; exact modern identification is uncertain',
-    maatPrinciple: 'Adjust the Measure',
+    maatPrinciple: 'Build for Adversity Before It Arrives',
     cosmicContext: '''
-What has begun is still fragile. Šef-Bedet is nourishment as measured care: water, bread, offering, attention, protection, and provision. Renenutet stands near the field and granary because destiny becomes livable only when life is fed without waste, neglect, or control.
+A wise farmer does not wait for the damaging wind before setting protection.
+The windbreak was built in Peret, before Shemu arrived.
 
-This day belongs to ḥry-ib ḫnty-ḥr, the heart of care, where nourishment is directed by discernment. The star-time movement does not function as decoration. It gives the day a position in the cycle: what appears in the sky, what is happening in the year, and what the heart must practice are held together.
+What condition, if it appeared today, would damage what is growing?
+A budget cut. A loss of energy. A conflict. An unexpected demand.
 
-Day 3 turns that movement toward adjust the measure.
-
-In practical life, this is where the old pattern meets the present body. Progress may ask for action, but not every action is Ma’at. Obstacles may ask for endurance, but not every burden should be carried. A return may ask for receiving, but not every gain should be consumed.
-
-The question is simple: What does adjust the measure require now?
+You cannot build against everything.
+Build against the most likely one.
+One layer of protection built now is worth ten built after the damage.
 ''',
     decanFlow: _compressedShefbedetFlowRows2,
     meduNeter: MeduNeterKey(
-      glyph: 'Cobra, water jar, and young grain',
-      colorFrequency: 'Deep blue, living gold, and earth green',
-      mantra: '“I practice adjust the measure in Ma’at.”',
+      glyph:
+          'Windbreak completed before the dry season — protection built early',
+      colorFrequency: 'Straw-brown barrier, green field behind it',
+      mantra: '"I build protection before the storm, not after."',
     ),
   ),
   'sefbedet_14_2': KemeticDayInfo(
-    kemeticDate: 'Šef-Bedet II, Day 4',
-    season: '🌿 Peret – Season of Emergence',
-    month: 'Šef-Bedet (Šf-bdt) — Nourishment Given in Right Measure',
-    decanName: 'ḥry-ib ḫnty-ḥr',
+    kemeticDate: 'Šef-Bedet II, Day 14',
+    season: '🌱 Peret I – Emergence Season',
+    month: 'Šef-Bedet (Šf-bdt)',
+    decanName:
+        'ḥry-ib ḫnty-ḥr (translation uncertain) | Deck: Heart of the Foremost',
     starCluster:
         '✨ ḥry-ib ḫnty-ḥr — a modest decanal star group watched near the eastern horizon during this ten-day interval; exact modern identification is uncertain',
-    maatPrinciple: 'Feed Without Draining',
+    maatPrinciple: 'Rhythm Is Structure, Not Inspiration',
     cosmicContext: '''
-What has begun is still fragile. Šef-Bedet is nourishment as measured care: water, bread, offering, attention, protection, and provision. Renenutet stands near the field and granary because destiny becomes livable only when life is fed without waste, neglect, or control.
+The field was watered on a schedule, not when the farmer felt inspired.
+Irrigation waited for no one's motivation.
+The water came because the system said it came.
 
-This day belongs to ḥry-ib ḫnty-ḥr, the heart of care, where nourishment is directed by discernment. The star-time movement does not function as decoration. It gives the day a position in the cycle: what appears in the sky, what is happening in the year, and what the heart must practice are held together.
+Whatever is growing in your life right now
+needs a cadence — a specific time, a specific frequency —
+that does not depend on how you feel.
 
-Day 4 turns that movement toward feed without draining.
-
-In practical life, this is where the old pattern meets the present body. Progress may ask for action, but not every action is Ma’at. Obstacles may ask for endurance, but not every burden should be carried. A return may ask for receiving, but not every gain should be consumed.
-
-The question is simple: What does feed without draining require now?
+Inspiration brought you to the field in Ka-ḥer-ka.
+Structure keeps you there in Peret.
+Set the rhythm today. It is the trellis the plant grows against.
 ''',
     decanFlow: _compressedShefbedetFlowRows2,
     meduNeter: MeduNeterKey(
-      glyph: 'Cobra, water jar, and young grain',
-      colorFrequency: 'Deep blue, living gold, and earth green',
-      mantra: '“I practice feed without draining in Ma’at.”',
+      glyph:
+          'Trellis stake set beside the young plant — structure for the growth',
+      colorFrequency: 'Wood-brown support, green climbing',
+      mantra: '"I give this a rhythm it can grow against."',
     ),
   ),
   'sefbedet_15_2': KemeticDayInfo(
-    kemeticDate: 'Šef-Bedet II, Day 5',
-    season: '🌿 Peret – Season of Emergence',
-    month: 'Šef-Bedet (Šf-bdt) — Nourishment Given in Right Measure',
-    decanName: 'ḥry-ib ḫnty-ḥr',
+    kemeticDate: 'Šef-Bedet II, Day 15',
+    season: '🌱 Peret I – Emergence Season',
+    month: 'Šef-Bedet (Šf-bdt)',
+    decanName:
+        'ḥry-ib ḫnty-ḥr (translation uncertain) | Deck: Heart of the Foremost',
     starCluster:
         '✨ ḥry-ib ḫnty-ḥr — a modest decanal star group watched near the eastern horizon during this ten-day interval; exact modern identification is uncertain',
-    maatPrinciple: 'Protect the Giver',
+    maatPrinciple: 'Bring the Right Hands Into the Field',
     cosmicContext: '''
-What has begun is still fragile. Šef-Bedet is nourishment as measured care: water, bread, offering, attention, protection, and provision. Renenutet stands near the field and granary because destiny becomes livable only when life is fed without waste, neglect, or control.
+A field tended by one person is a smaller field.
+Not because the person is insufficient —
+because the field requires more than one pair of eyes and one set of skills.
 
-This day belongs to ḥry-ib ḫnty-ḥr, the heart of care, where nourishment is directed by discernment. The star-time movement does not function as decoration. It gives the day a position in the cycle: what appears in the sky, what is happening in the year, and what the heart must practice are held together.
+In Ka-ḥer-ka you called in help during weakness.
+In Peret you bring in hands during growth — which is different.
+This is not crisis support. This is field expansion.
 
-Day 5 turns that movement toward protect the giver.
-
-In practical life, this is where the old pattern meets the present body. Progress may ask for action, but not every action is Ma’at. Obstacles may ask for endurance, but not every burden should be carried. A return may ask for receiving, but not every gain should be consumed.
-
-The question is simple: What does protect the giver require now?
+Who belongs in this work with you?
+Someone whose presence strengthens the field, not just witnesses it.
+Bring them in today.
 ''',
     decanFlow: _compressedShefbedetFlowRows2,
     meduNeter: MeduNeterKey(
-      glyph: 'Cobra, water jar, and young grain',
-      colorFrequency: 'Deep blue, living gold, and earth green',
-      mantra: '“I practice protect the giver in Ma’at.”',
+      glyph: 'Two farmers in the row together — expansion, not rescue',
+      colorFrequency: 'Living green with two figures working',
+      mantra: '"I bring the right hands into this field."',
     ),
   ),
   'sefbedet_16_2': KemeticDayInfo(
-    kemeticDate: 'Šef-Bedet II, Day 6',
-    season: '🌿 Peret – Season of Emergence',
-    month: 'Šef-Bedet (Šf-bdt) — Nourishment Given in Right Measure',
-    decanName: 'ḥry-ib ḫnty-ḥr',
+    kemeticDate: 'Šef-Bedet II, Day 16',
+    season: '🌱 Peret I – Emergence Season',
+    month: 'Šef-Bedet (Šf-bdt)',
+    decanName:
+        'ḥry-ib ḫnty-ḥr (translation uncertain) | Deck: Heart of the Foremost',
     starCluster:
         '✨ ḥry-ib ḫnty-ḥr — a modest decanal star group watched near the eastern horizon during this ten-day interval; exact modern identification is uncertain',
-    maatPrinciple: 'Correct Distorted Care',
+    maatPrinciple: 'Correct the Lean Before It Becomes the Shape',
     cosmicContext: '''
-What has begun is still fragile. Šef-Bedet is nourishment as measured care: water, bread, offering, attention, protection, and provision. Renenutet stands near the field and granary because destiny becomes livable only when life is fed without waste, neglect, or control.
+A plant growing toward one light source will lean until it cannot stand straight.
+Not damaged — just shaped by what was available.
+But a leaning plant eventually becomes a plant that cannot bear weight upright.
 
-This day belongs to ḥry-ib ḫnty-ḥr, the heart of care, where nourishment is directed by discernment. The star-time movement does not function as decoration. It gives the day a position in the cycle: what appears in the sky, what is happening in the year, and what the heart must practice are held together.
+Where is what you are growing leaning?
+Too much time and too little resource? Output without rest?
+Visible progress with a neglected foundation?
 
-Day 6 turns that movement toward correct distorted care.
-
-In practical life, this is where the old pattern meets the present body. Progress may ask for action, but not every action is Ma’at. Obstacles may ask for endurance, but not every burden should be carried. A return may ask for receiving, but not every gain should be consumed.
-
-The question is simple: What does correct distorted care require now?
+Find the lean. Correct it now, while the plant is young enough to straighten.
+Later the lean becomes the structure.
 ''',
     decanFlow: _compressedShefbedetFlowRows2,
     meduNeter: MeduNeterKey(
-      glyph: 'Cobra, water jar, and young grain',
-      colorFrequency: 'Deep blue, living gold, and earth green',
-      mantra: '“I practice correct distorted care in Ma’at.”',
+      glyph:
+          'Stake correcting a leaning plant — early correction, not emergency repair',
+      colorFrequency: 'Green redirected toward balance',
+      mantra: '"I correct the lean before it becomes the shape."',
     ),
   ),
   'sefbedet_17_2': KemeticDayInfo(
-    kemeticDate: 'Šef-Bedet II, Day 7',
-    season: '🌿 Peret – Season of Emergence',
-    month: 'Šef-Bedet (Šf-bdt) — Nourishment Given in Right Measure',
-    decanName: 'ḥry-ib ḫnty-ḥr',
+    kemeticDate: 'Šef-Bedet II, Day 17',
+    season: '🌱 Peret I – Emergence Season',
+    month: 'Šef-Bedet (Šf-bdt)',
+    decanName:
+        'ḥry-ib ḫnty-ḥr (translation uncertain) | Deck: Heart of the Foremost',
     starCluster:
         '✨ ḥry-ib ḫnty-ḥr — a modest decanal star group watched near the eastern horizon during this ten-day interval; exact modern identification is uncertain',
-    maatPrinciple: 'Distribute Nourishment Fairly',
+    maatPrinciple: 'The Field Grows While the Farmer Rests',
     cosmicContext: '''
-What has begun is still fragile. Šef-Bedet is nourishment as measured care: water, bread, offering, attention, protection, and provision. Renenutet stands near the field and granary because destiny becomes livable only when life is fed without waste, neglect, or control.
+Growth does not stop when the farmer sleeps.
+It does not wait for the farmer to be watching.
+The Kemite understood: rest is part of the production cycle, not outside it.
 
-This day belongs to ḥry-ib ḫnty-ḥr, the heart of care, where nourishment is directed by discernment. The star-time movement does not function as decoration. It gives the day a position in the cycle: what appears in the sky, what is happening in the year, and what the heart must practice are held together.
+A farmer who does not rest
+runs himself into the ground before the harvest arrives.
+Then there is no one to bring in the crop.
 
-Day 7 turns that movement toward distribute nourishment fairly.
-
-In practical life, this is where the old pattern meets the present body. Progress may ask for action, but not every action is Ma’at. Obstacles may ask for endurance, but not every burden should be carried. A return may ask for receiving, but not every gain should be consumed.
-
-The question is simple: What does distribute nourishment fairly require now?
+Rest today. Not as reward — as infrastructure.
+The field you are growing needs you whole in the months ahead.
+Give it a farmer who will survive into the harvest.
 ''',
     decanFlow: _compressedShefbedetFlowRows2,
     meduNeter: MeduNeterKey(
-      glyph: 'Cobra, water jar, and young grain',
-      colorFrequency: 'Deep blue, living gold, and earth green',
-      mantra: '“I practice distribute nourishment fairly in Ma’at.”',
+      glyph: 'Farmer resting beside a growing field — rest as production',
+      colorFrequency:
+          'Warm earth, green continuing without the farmer watching',
+      mantra: '"The field grows while I rest. Both are required."',
     ),
   ),
   'sefbedet_18_2': KemeticDayInfo(
-    kemeticDate: 'Šef-Bedet II, Day 8',
-    season: '🌿 Peret – Season of Emergence',
-    month: 'Šef-Bedet (Šf-bdt) — Nourishment Given in Right Measure',
-    decanName: 'ḥry-ib ḫnty-ḥr',
+    kemeticDate: 'Šef-Bedet II, Day 18',
+    season: '🌱 Peret I – Emergence Season',
+    month: 'Šef-Bedet (Šf-bdt)',
+    decanName:
+        'ḥry-ib ḫnty-ḥr (translation uncertain) | Deck: Heart of the Foremost',
     starCluster:
         '✨ ḥry-ib ḫnty-ḥr — a modest decanal star group watched near the eastern horizon during this ten-day interval; exact modern identification is uncertain',
-    maatPrinciple: 'Listen for Response',
+    maatPrinciple: 'Measure What Has Actually Grown',
     cosmicContext: '''
-What has begun is still fragile. Šef-Bedet is nourishment as measured care: water, bread, offering, attention, protection, and provision. Renenutet stands near the field and granary because destiny becomes livable only when life is fed without waste, neglect, or control.
+The scribe recorded the field's condition at intervals —
+not to celebrate, to know.
+Numbers gave the household, the field crew, the honest record a way to plan for what was coming.
+Feeling was not a substitute for measurement.
 
-This day belongs to ḥry-ib ḫnty-ḥr, the heart of care, where nourishment is directed by discernment. The star-time movement does not function as decoration. It gives the day a position in the cycle: what appears in the sky, what is happening in the year, and what the heart must practice are held together.
+From Day 1 of Šef-Bedet to today: what has concretely changed?
+Not "things feel different." What is different in a way you can point to?
 
-Day 8 turns that movement toward listen for response.
-
-In practical life, this is where the old pattern meets the present body. Progress may ask for action, but not every action is Ma’at. Obstacles may ask for endurance, but not every burden should be carried. A return may ask for receiving, but not every gain should be consumed.
-
-The question is simple: What does listen for response require now?
+Measure it. Write it down.
+The accurate record is what you make the next decision from.
 ''',
     decanFlow: _compressedShefbedetFlowRows2,
     meduNeter: MeduNeterKey(
-      glyph: 'Cobra, water jar, and young grain',
-      colorFrequency: 'Deep blue, living gold, and earth green',
-      mantra: '“I practice listen for response in Ma’at.”',
+      glyph: 'Scribe recording field measurements — the honest interval count',
+      colorFrequency: 'Ink black, clean papyrus, numbered rows',
+      mantra: '"I measure what changed. Feeling is not measurement."',
     ),
   ),
   'sefbedet_19_2': KemeticDayInfo(
-    kemeticDate: 'Šef-Bedet II, Day 9',
-    season: '🌿 Peret – Season of Emergence',
-    month: 'Šef-Bedet (Šf-bdt) — Nourishment Given in Right Measure',
-    decanName: 'ḥry-ib ḫnty-ḥr',
+    kemeticDate: 'Šef-Bedet II, Day 19',
+    season: '🌱 Peret I – Emergence Season',
+    month: 'Šef-Bedet (Šf-bdt)',
+    decanName:
+        'ḥry-ib ḫnty-ḥr (translation uncertain) | Deck: Heart of the Foremost',
     starCluster:
         '✨ ḥry-ib ḫnty-ḥr — a modest decanal star group watched near the eastern horizon during this ten-day interval; exact modern identification is uncertain',
-    maatPrinciple: 'Make Provision Sustainable',
+    maatPrinciple: 'Thin What the Field Cannot Support',
     cosmicContext: '''
-What has begun is still fragile. Šef-Bedet is nourishment as measured care: water, bread, offering, attention, protection, and provision. Renenutet stands near the field and granary because destiny becomes livable only when life is fed without waste, neglect, or control.
+Not every shoot that appeared in Šef-Bedet I should survive into Decan III.
+Early growth produces more than the field can fully support.
+The farmer thins the row — not from failure, but from clarity.
+One weak shoot removed gives the stronger ones the full water.
 
-This day belongs to ḥry-ib ḫnty-ḥr, the heart of care, where nourishment is directed by discernment. The star-time movement does not function as decoration. It gives the day a position in the cycle: what appears in the sky, what is happening in the year, and what the heart must practice are held together.
-
-Day 9 turns that movement toward make provision sustainable.
-
-In practical life, this is where the old pattern meets the present body. Progress may ask for action, but not every action is Ma’at. Obstacles may ask for endurance, but not every burden should be carried. A return may ask for receiving, but not every gain should be consumed.
-
-The question is simple: What does make provision sustainable require now?
+What extra demand, stalled commitment, or competing growth
+is drawing from the same root as what matters most?
+Thin it. Not a loss — a decision about what this field is actually growing.
 ''',
     decanFlow: _compressedShefbedetFlowRows2,
     meduNeter: MeduNeterKey(
-      glyph: 'Cobra, water jar, and young grain',
-      colorFrequency: 'Deep blue, living gold, and earth green',
-      mantra: '“I practice make provision sustainable in Ma’at.”',
+      glyph:
+          'Farmer thinning the row — removing the weak shoot so the strong one gets the water',
+      colorFrequency:
+          'Black earth, thinned row, the remaining green with full access to root water',
+      mantra: '"I thin the row. The stronger growth gets the full water."',
     ),
   ),
   'sefbedet_20_2': KemeticDayInfo(
-    kemeticDate: 'Šef-Bedet II, Day 10',
-    season: '🌿 Peret – Season of Emergence',
-    month: 'Šef-Bedet (Šf-bdt) — Nourishment Given in Right Measure',
-    decanName: 'ḥry-ib ḫnty-ḥr',
+    kemeticDate: 'Šef-Bedet II, Day 20',
+    season: '🌱 Peret I – Emergence Season',
+    month: 'Šef-Bedet (Šf-bdt)',
+    decanName:
+        'ḥry-ib ḫnty-ḥr (translation uncertain) | Deck: Heart of the Foremost',
     starCluster:
         '✨ ḥry-ib ḫnty-ḥr — a modest decanal star group watched near the eastern horizon during this ten-day interval; exact modern identification is uncertain',
-    maatPrinciple: 'Seal Intelligent Nourishment',
+    maatPrinciple: 'Survey the Whole Field',
     cosmicContext: '''
-What has begun is still fragile. Šef-Bedet is nourishment as measured care: water, bread, offering, attention, protection, and provision. Renenutet stands near the field and granary because destiny becomes livable only when life is fed without waste, neglect, or control.
+Twenty days into Šef-Bedet.
+The farmer who has been in the rows all month needs to step back
+and look at the full condition of the field — not the section they know best,
+but the whole.
 
-This day belongs to ḥry-ib ḫnty-ḥr, the heart of care, where nourishment is directed by discernment. The star-time movement does not function as decoration. It gives the day a position in the cycle: what appears in the sky, what is happening in the year, and what the heart must practice are held together.
+What is strong? What is lagging? What needs attention in the third decan?
+Where is the growth you did not plant?
 
-Day 10 turns that movement toward seal intelligent nourishment.
-
-In practical life, this is where the old pattern meets the present body. Progress may ask for action, but not every action is Ma’at. Obstacles may ask for endurance, but not every burden should be carried. A return may ask for receiving, but not every gain should be consumed.
-
-The question is simple: What does seal intelligent nourishment require now?
+Stand back. Let the whole picture arrive.
+The third decan roots what the first two began.
+Know what you are rooting before it starts.
 ''',
     decanFlow: _compressedShefbedetFlowRows2,
     meduNeter: MeduNeterKey(
-      glyph: 'Cobra, water jar, and young grain',
-      colorFrequency: 'Deep blue, living gold, and earth green',
-      mantra: '“I practice seal intelligent nourishment in Ma’at.”',
+      glyph:
+          'Farmer standing at the field edge, looking at the whole — the survey',
+      colorFrequency: 'Wide green field, one figure reading all of it',
+      mantra: '"I see the whole field. Not just the row I know."',
     ),
   ),
   'sefbedet_21_3': KemeticDayInfo(
-    kemeticDate: 'Šef-Bedet III, Day 1',
-    season: '🌿 Peret – Season of Emergence',
-    month: 'Šef-Bedet (Šf-bdt) — Nourishment Given in Right Measure',
-    decanName: 'sbꜣ ḫnty-ḥr',
+    kemeticDate: 'Šef-Bedet III, Day 21',
+    season: '🌱 Peret I – Emergence Season',
+    month: 'Šef-Bedet (Šf-bdt)',
+    decanName:
+        'sbȝ ḫnty-ḥr (translation uncertain) | Deck: Star of the Foremost',
     starCluster:
         '✨ sbꜣ ḫnty-ḥr — a modest decanal star group watched near the eastern horizon during this ten-day interval; exact modern identification is uncertain',
-    maatPrinciple: 'Trust the Care Already Given',
+    maatPrinciple: 'Let It Root',
     cosmicContext: '''
-What has begun is still fragile. Šef-Bedet is nourishment as measured care: water, bread, offering, attention, protection, and provision. Renenutet stands near the field and granary because destiny becomes livable only when life is fed without waste, neglect, or control.
+Twenty days of emergence. The shoot has been fed, protected, measured, and tended.
+Now it must root.
 
-This day belongs to sbꜣ ḫnty-ḥr, the star of care, where growth can continue because provision has been measured. The star-time movement does not function as decoration. It gives the day a position in the cycle: what appears in the sky, what is happening in the year, and what the heart must practice are held together.
+Rooting requires stability.
+A plant moved every few days cannot root — it spends all its energy re-establishing,
+and none of it going deep.
 
-Day 1 turns that movement toward trust the care already given.
-
-In practical life, this is where the old pattern meets the present body. Progress may ask for action, but not every action is Ma’at. Obstacles may ask for endurance, but not every burden should be carried. A return may ask for receiving, but not every gain should be consumed.
-
-The question is simple: What does trust the care already given require now?
+Stop moving this. Stop reconsidering the soil.
+Consistent conditions, steady care, no more repositioning.
+The final act of establishment is stillness.
+Let it root.
 ''',
     decanFlow: _compressedShefbedetFlowRows3,
     meduNeter: MeduNeterKey(
-      glyph: 'Cobra, water jar, and young grain',
-      colorFrequency: 'Deep blue, living gold, and earth green',
-      mantra: '“I practice trust the care already given in Ma’at.”',
+      glyph:
+          'Root system spreading in stable soil — the plant finally held in place',
+      colorFrequency: 'Dark earth, deep root lines, green above steady',
+      mantra: '"I stop moving it. I let it root."',
     ),
   ),
   'sefbedet_22_3': KemeticDayInfo(
-    kemeticDate: 'Šef-Bedet III, Day 2',
-    season: '🌿 Peret – Season of Emergence',
-    month: 'Šef-Bedet (Šf-bdt) — Nourishment Given in Right Measure',
-    decanName: 'sbꜣ ḫnty-ḥr',
+    kemeticDate: 'Šef-Bedet III, Day 22',
+    season: '🌱 Peret I – Emergence Season',
+    month: 'Šef-Bedet (Šf-bdt)',
+    decanName:
+        'sbȝ ḫnty-ḥr (translation uncertain) | Deck: Star of the Foremost',
     starCluster:
         '✨ sbꜣ ḫnty-ḥr — a modest decanal star group watched near the eastern horizon during this ten-day interval; exact modern identification is uncertain',
-    maatPrinciple: 'Step Back Without Abandoning',
+    maatPrinciple: 'Name It for What It Is',
     cosmicContext: '''
-What has begun is still fragile. Šef-Bedet is nourishment as measured care: water, bread, offering, attention, protection, and provision. Renenutet stands near the field and granary because destiny becomes livable only when life is fed without waste, neglect, or control.
+The field at Day 22 is not what it was on Day 1.
+It is no longer emergence. It is a growing field.
 
-This day belongs to sbꜣ ḫnty-ḥr, the star of care, where growth can continue because provision has been measured. The star-time movement does not function as decoration. It gives the day a position in the cycle: what appears in the sky, what is happening in the year, and what the heart must practice are held together.
+Name it accurately.
+Not what you hoped it would become.
+Not what it looked like on Day 1.
+What it actually is right now — its size, its condition, its realistic yield.
 
-Day 2 turns that movement toward step back without abandoning.
-
-In practical life, this is where the old pattern meets the present body. Progress may ask for action, but not every action is Ma’at. Obstacles may ask for endurance, but not every burden should be carried. A return may ask for receiving, but not every gain should be consumed.
-
-The question is simple: What does step back without abandoning require now?
+Accurate naming is not lowering expectations.
+It is how you make good decisions from here.
+A field named wrongly gets the wrong care.
 ''',
     decanFlow: _compressedShefbedetFlowRows3,
     meduNeter: MeduNeterKey(
-      glyph: 'Cobra, water jar, and young grain',
-      colorFrequency: 'Deep blue, living gold, and earth green',
-      mantra: '“I practice step back without abandoning in Ma’at.”',
+      glyph:
+          'Scribe naming the field in the record — the thing given its actual name',
+      colorFrequency: 'Ink on papyrus, green field behind it — named and real',
+      mantra: '"I name this for what it actually is."',
     ),
   ),
   'sefbedet_23_3': KemeticDayInfo(
-    kemeticDate: 'Šef-Bedet III, Day 3',
-    season: '🌿 Peret – Season of Emergence',
-    month: 'Šef-Bedet (Šf-bdt) — Nourishment Given in Right Measure',
-    decanName: 'sbꜣ ḫnty-ḥr',
+    kemeticDate: 'Šef-Bedet III, Day 23',
+    season: '🌱 Peret I – Emergence Season',
+    month: 'Šef-Bedet (Šf-bdt)',
+    decanName:
+        'sbȝ ḫnty-ḥr (translation uncertain) | Deck: Star of the Foremost',
     starCluster:
         '✨ sbꜣ ḫnty-ḥr — a modest decanal star group watched near the eastern horizon during this ten-day interval; exact modern identification is uncertain',
-    maatPrinciple: 'Let Growth Reach Light',
+    maatPrinciple: 'Protection Is Built While Conditions Are Good',
     cosmicContext: '''
-What has begun is still fragile. Šef-Bedet is nourishment as measured care: water, bread, offering, attention, protection, and provision. Renenutet stands near the field and granary because destiny becomes livable only when life is fed without waste, neglect, or control.
+The farmer does not wait for stress to test the root.
+Peret still gives room to tend and build — pressure will come later and there will be less time then.
 
-This day belongs to sbꜣ ḫnty-ḥr, the star of care, where growth can continue because provision has been measured. The star-time movement does not function as decoration. It gives the day a position in the cycle: what appears in the sky, what is happening in the year, and what the heart must practice are held together.
+What would damage what is growing if it arrived today?
+A cut in time, a loss of energy, an external demand?
 
-Day 3 turns that movement toward let growth reach light.
-
-In practical life, this is where the old pattern meets the present body. Progress may ask for action, but not every action is Ma’at. Obstacles may ask for endurance, but not every burden should be carried. A return may ask for receiving, but not every gain should be consumed.
-
-The question is simple: What does let growth reach light require now?
+While conditions allow it, build one layer of protection around the growing thing.
+Not a wall — a windbreak. Partial shelter built early
+is worth more than emergency repair after the damage.
 ''',
     decanFlow: _compressedShefbedetFlowRows3,
     meduNeter: MeduNeterKey(
-      glyph: 'Cobra, water jar, and young grain',
-      colorFrequency: 'Deep blue, living gold, and earth green',
-      mantra: '“I practice let growth reach light in Ma’at.”',
+      glyph:
+          'Windbreak built while conditions still allow — protection before pressure arrives',
+      colorFrequency: 'Straw-brown protection, green field tended behind it',
+      mantra: '"I build protection while conditions still allow it."',
     ),
   ),
   'sefbedet_24_3': KemeticDayInfo(
-    kemeticDate: 'Šef-Bedet III, Day 4',
-    season: '🌿 Peret – Season of Emergence',
-    month: 'Šef-Bedet (Šf-bdt) — Nourishment Given in Right Measure',
-    decanName: 'sbꜣ ḫnty-ḥr',
+    kemeticDate: 'Šef-Bedet III, Day 24',
+    season: '🌱 Peret I – Emergence Season',
+    month: 'Šef-Bedet (Šf-bdt)',
+    decanName:
+        'sbȝ ḫnty-ḥr (translation uncertain) | Deck: Star of the Foremost',
     starCluster:
         '✨ sbꜣ ḫnty-ḥr — a modest decanal star group watched near the eastern horizon during this ten-day interval; exact modern identification is uncertain',
-    maatPrinciple: 'Guard the Boundary',
+    maatPrinciple: 'Acknowledge What Made Growth Possible',
     cosmicContext: '''
-What has begun is still fragile. Šef-Bedet is nourishment as measured care: water, bread, offering, attention, protection, and provision. Renenutet stands near the field and granary because destiny becomes livable only when life is fed without waste, neglect, or control.
+The crop does not grow from the farmer's intention alone.
+It grows from the flood that came before,
+the silt the river left,
+the hands that maintained the canal through the dry years,
+the seed saved from last harvest.
 
-This day belongs to sbꜣ ḫnty-ḥr, the star of care, where growth can continue because provision has been measured. The star-time movement does not function as decoration. It gives the day a position in the cycle: what appears in the sky, what is happening in the year, and what the heart must practice are held together.
-
-Day 4 turns that movement toward guard the boundary.
-
-In practical life, this is where the old pattern meets the present body. Progress may ask for action, but not every action is Ma’at. Obstacles may ask for endurance, but not every burden should be carried. A return may ask for receiving, but not every gain should be consumed.
-
-The question is simple: What does guard the boundary require now?
+What made this emergence possible?
+Name the ground that held the seed.
+Name the people, the conditions, the prior work —
+yours and others'.
+Gratitude here is not sentiment. It is accurate accounting.
 ''',
     decanFlow: _compressedShefbedetFlowRows3,
     meduNeter: MeduNeterKey(
-      glyph: 'Cobra, water jar, and young grain',
-      colorFrequency: 'Deep blue, living gold, and earth green',
-      mantra: '“I practice guard the boundary in Ma’at.”',
+      glyph:
+          'Offering arms toward the field — the farmer acknowledging the source',
+      colorFrequency: 'Gold gratitude over green field, earth beneath both',
+      mantra: '"I name what held the ground so this could grow."',
     ),
   ),
   'sefbedet_25_3': KemeticDayInfo(
-    kemeticDate: 'Šef-Bedet III, Day 5',
-    season: '🌿 Peret – Season of Emergence',
-    month: 'Šef-Bedet (Šf-bdt) — Nourishment Given in Right Measure',
-    decanName: 'sbꜣ ḫnty-ḥr',
+    kemeticDate: 'Šef-Bedet III, Day 25',
+    season: '🌱 Peret I – Emergence Season',
+    month: 'Šef-Bedet (Šf-bdt)',
+    decanName:
+        'sbȝ ḫnty-ḥr (translation uncertain) | Deck: Star of the Foremost',
     starCluster:
         '✨ sbꜣ ḫnty-ḥr — a modest decanal star group watched near the eastern horizon during this ten-day interval; exact modern identification is uncertain',
-    maatPrinciple: 'Feed Steadily',
+    maatPrinciple: 'Commit to What Has Proven Itself',
     cosmicContext: '''
-What has begun is still fragile. Šef-Bedet is nourishment as measured care: water, bread, offering, attention, protection, and provision. Renenutet stands near the field and granary because destiny becomes livable only when life is fed without waste, neglect, or control.
+A practice still treated as "I'm trying this" after 25 days
+gets the effort of a trial, not of a life.
 
-This day belongs to sbꜣ ḫnty-ḥr, the star of care, where growth can continue because provision has been measured. The star-time movement does not function as decoration. It gives the day a position in the cycle: what appears in the sky, what is happening in the year, and what the heart must practice are held together.
+Something from this month has proven itself.
+It took root, it survived the lean-correction, it held through ordinary maintenance.
+That thing is no longer an experiment.
 
-Day 5 turns that movement toward feed steadily.
-
-In practical life, this is where the old pattern meets the present body. Progress may ask for action, but not every action is Ma’at. Obstacles may ask for endurance, but not every burden should be carried. A return may ask for receiving, but not every gain should be consumed.
-
-The question is simple: What does feed steadily require now?
+Make it official. Record it. Commit to it.
+A field you have been farming for a month
+is no longer a field you are thinking about farming.
+Stop treating it as temporary.
 ''',
     decanFlow: _compressedShefbedetFlowRows3,
     meduNeter: MeduNeterKey(
-      glyph: 'Cobra, water jar, and young grain',
-      colorFrequency: 'Deep blue, living gold, and earth green',
-      mantra: '“I practice feed steadily in Ma’at.”',
+      glyph: 'Boundary marker set in the field — the commitment recorded',
+      colorFrequency: 'Stone marker, green field recognized and claimed',
+      mantra: '"This proved itself. I commit to it."',
     ),
   ),
   'sefbedet_26_3': KemeticDayInfo(
-    kemeticDate: 'Šef-Bedet III, Day 6',
-    season: '🌿 Peret – Season of Emergence',
-    month: 'Šef-Bedet (Šf-bdt) — Nourishment Given in Right Measure',
-    decanName: 'sbꜣ ḫnty-ḥr',
+    kemeticDate: 'Šef-Bedet III, Day 26',
+    season: '🌱 Peret I – Emergence Season',
+    month: 'Šef-Bedet (Šf-bdt)',
+    decanName:
+        'sbȝ ḫnty-ḥr (translation uncertain) | Deck: Star of the Foremost',
     starCluster:
         '✨ sbꜣ ḫnty-ḥr — a modest decanal star group watched near the eastern horizon during this ten-day interval; exact modern identification is uncertain',
-    maatPrinciple: 'Prepare the Future Share',
+    maatPrinciple: 'The Edges of the Field Also Need Care',
     cosmicContext: '''
-What has begun is still fragile. Šef-Bedet is nourishment as measured care: water, bread, offering, attention, protection, and provision. Renenutet stands near the field and granary because destiny becomes livable only when life is fed without waste, neglect, or control.
+The center of the field gets the attention.
+It is where the main crop is, where the effort concentrated, where the yield will come from.
 
-This day belongs to sbꜣ ḫnty-ḥr, the star of care, where growth can continue because provision has been measured. The star-time movement does not function as decoration. It gives the day a position in the cycle: what appears in the sky, what is happening in the year, and what the heart must practice are held together.
+But the edges hold the boundary.
+They determine how far the field extends.
+And an untended edge is where pests enter, where erosion starts,
+where the next season's expansion is either possible or blocked.
 
-Day 6 turns that movement toward prepare the future share.
-
-In practical life, this is where the old pattern meets the present body. Progress may ask for action, but not every action is Ma’at. Obstacles may ask for endurance, but not every burden should be carried. A return may ask for receiving, but not every gain should be consumed.
-
-The question is simple: What does prepare the future share require now?
+What is peripheral in your life right now?
+Not abandoned — peripheral.
+Still alive, still yours, just not the center today.
+Tend it.
 ''',
     decanFlow: _compressedShefbedetFlowRows3,
     meduNeter: MeduNeterKey(
-      glyph: 'Cobra, water jar, and young grain',
-      colorFrequency: 'Deep blue, living gold, and earth green',
-      mantra: '“I practice prepare the future share in Ma’at.”',
+      glyph:
+          'Farmer walking the field edge — the perimeter tended, not just the center',
+      colorFrequency: 'Wide green with attention at the margin',
+      mantra: '"I tend the edges. They hold the boundary."',
     ),
   ),
   'sefbedet_27_3': KemeticDayInfo(
-    kemeticDate: 'Šef-Bedet III, Day 7',
-    season: '🌿 Peret – Season of Emergence',
-    month: 'Šef-Bedet (Šf-bdt) — Nourishment Given in Right Measure',
-    decanName: 'sbꜣ ḫnty-ḥr',
+    kemeticDate: 'Šef-Bedet III, Day 27',
+    season: '🌱 Peret I – Emergence Season',
+    month: 'Šef-Bedet (Šf-bdt)',
+    decanName:
+        'sbȝ ḫnty-ḥr (translation uncertain) | Deck: Star of the Foremost',
     starCluster:
         '✨ sbꜣ ḫnty-ḥr — a modest decanal star group watched near the eastern horizon during this ten-day interval; exact modern identification is uncertain',
-    maatPrinciple: 'Recognize Maturing Growth',
+    maatPrinciple: 'Trust the Established Root',
     cosmicContext: '''
-What has begun is still fragile. Šef-Bedet is nourishment as measured care: water, bread, offering, attention, protection, and provision. Renenutet stands near the field and granary because destiny becomes livable only when life is fed without waste, neglect, or control.
+For twenty-six days you have been treating this as fragile.
+That was right. It was fragile.
 
-This day belongs to sbꜣ ḫnty-ḥr, the star of care, where growth can continue because provision has been measured. The star-time movement does not function as decoration. It gives the day a position in the cycle: what appears in the sky, what is happening in the year, and what the heart must practice are held together.
+It is less fragile now.
+The root is in. The rhythm is set. The competitors were cleared.
+The structure holds.
 
-Day 7 turns that movement toward recognize maturing growth.
-
-In practical life, this is where the old pattern meets the present body. Progress may ask for action, but not every action is Ma’at. Obstacles may ask for endurance, but not every burden should be carried. A return may ask for receiving, but not every gain should be consumed.
-
-The question is simple: What does recognize maturing growth require now?
+Continuing to treat it as a shoot when it is becoming a plant
+wastes protection energy and creates false fragility.
+Act from the assumption that it will hold.
+The field has earned that trust.
 ''',
     decanFlow: _compressedShefbedetFlowRows3,
     meduNeter: MeduNeterKey(
-      glyph: 'Cobra, water jar, and young grain',
-      colorFrequency: 'Deep blue, living gold, and earth green',
-      mantra: '“I practice recognize maturing growth in Ma’at.”',
+      glyph:
+          'Established plant with the windbreak opened — protection reduced, not removed',
+      colorFrequency:
+          'Full green, windbreak opened but present — less shelter, not none',
+      mantra: '"The root is in. I can loosen the shelter."',
     ),
   ),
   'sefbedet_28_3': KemeticDayInfo(
-    kemeticDate: 'Šef-Bedet III, Day 8',
-    season: '🌿 Peret – Season of Emergence',
-    month: 'Šef-Bedet (Šf-bdt) — Nourishment Given in Right Measure',
-    decanName: 'sbꜣ ḫnty-ḥr',
+    kemeticDate: 'Šef-Bedet III, Day 28',
+    season: '🌱 Peret I – Emergence Season',
+    month: 'Šef-Bedet (Šf-bdt)',
+    decanName:
+        'sbȝ ḫnty-ḥr (translation uncertain) | Deck: Star of the Foremost',
     starCluster:
         '✨ sbꜣ ḫnty-ḥr — a modest decanal star group watched near the eastern horizon during this ten-day interval; exact modern identification is uncertain',
-    maatPrinciple: 'Share Confidence',
+    maatPrinciple: 'Offer the Month to Ma\'at',
     cosmicContext: '''
-What has begun is still fragile. Šef-Bedet is nourishment as measured care: water, bread, offering, attention, protection, and provision. Renenutet stands near the field and granary because destiny becomes livable only when life is fed without waste, neglect, or control.
+The offering is not the crop. The crop is not ready.
+The offering is the care that was given —
+the watering, the clearing, the tending, the honest reading,
+the patience when it was not visible, the protection when it was vulnerable.
 
-This day belongs to sbꜣ ḫnty-ḥr, the star of care, where growth can continue because provision has been measured. The star-time movement does not function as decoration. It gives the day a position in the cycle: what appears in the sky, what is happening in the year, and what the heart must practice are held together.
+Place that in front of Ma'at.
+Not the result — the effort.
+Not the yield — the farmer.
 
-Day 8 turns that movement toward share confidence.
-
-In practical life, this is where the old pattern meets the present body. Progress may ask for action, but not every action is Ma’at. Obstacles may ask for endurance, but not every burden should be carried. A return may ask for receiving, but not every gain should be consumed.
-
-The question is simple: What does share confidence require now?
+Did you tend this in a way that honors what was placed in the ground?
+That is the question Ma'at asks.
 ''',
     decanFlow: _compressedShefbedetFlowRows3,
     meduNeter: MeduNeterKey(
-      glyph: 'Cobra, water jar, and young grain',
-      colorFrequency: 'Deep blue, living gold, and earth green',
-      mantra: '“I practice share confidence in Ma’at.”',
+      glyph:
+          'Farmer with empty hands before Ma\'at — the care offered, not the yield',
+      colorFrequency:
+          'Gold Ma\'at scale, green field behind, empty honest hands',
+      mantra:
+          '"I offer the care, not the crop. The care is what Ma\'at weighs."',
     ),
   ),
   'sefbedet_29_3': KemeticDayInfo(
-    kemeticDate: 'Šef-Bedet III, Day 9',
-    season: '🌿 Peret – Season of Emergence',
-    month: 'Šef-Bedet (Šf-bdt) — Nourishment Given in Right Measure',
-    decanName: 'sbꜣ ḫnty-ḥr',
+    kemeticDate: 'Šef-Bedet III, Day 29',
+    season: '🌱 Peret I – Emergence Season',
+    month: 'Šef-Bedet (Šf-bdt)',
+    decanName:
+        'sbȝ ḫnty-ḥr (translation uncertain) | Deck: Star of the Foremost',
     starCluster:
         '✨ sbꜣ ḫnty-ḥr — a modest decanal star group watched near the eastern horizon during this ten-day interval; exact modern identification is uncertain',
-    maatPrinciple: 'Bless What Continues',
+    maatPrinciple: 'Read What the Next Month Requires',
     cosmicContext: '''
-What has begun is still fragile. Šef-Bedet is nourishment as measured care: water, bread, offering, attention, protection, and provision. Renenutet stands near the field and granary because destiny becomes livable only when life is fed without waste, neglect, or control.
+Šef-Bedet closes tomorrow.
+The next month opens a new chapter in Peret and the work changes shape.
 
-This day belongs to sbꜣ ḫnty-ḥr, the star of care, where growth can continue because provision has been measured. The star-time movement does not function as decoration. It gives the day a position in the cycle: what appears in the sky, what is happening in the year, and what the heart must practice are held together.
+The farmer who walks into the next season without reading it
+brings the wrong tools and misses the first window.
 
-Day 9 turns that movement toward bless what continues.
-
-In practical life, this is where the old pattern meets the present body. Progress may ask for action, but not every action is Ma’at. Obstacles may ask for endurance, but not every burden should be carried. A return may ask for receiving, but not every gain should be consumed.
-
-The question is simple: What does bless what continues require now?
+What does the month ahead require of you?
+Different pace, different focus, different kind of strength?
+Begin the transition today — in the body, in the schedule, in the mind.
+Tomorrow will come faster than expected.
 ''',
     decanFlow: _compressedShefbedetFlowRows3,
     meduNeter: MeduNeterKey(
-      glyph: 'Cobra, water jar, and young grain',
-      colorFrequency: 'Deep blue, living gold, and earth green',
-      mantra: '“I practice bless what continues in Ma’at.”',
+      glyph: 'Farmer looking toward the next field — reading ahead',
+      colorFrequency: 'Present green behind, new earth ahead',
+      mantra: '"I read what comes next before it arrives."',
     ),
   ),
   'sefbedet_30_3': KemeticDayInfo(
-    kemeticDate: 'Šef-Bedet III, Day 10',
-    season: '🌿 Peret – Season of Emergence',
-    month: 'Šef-Bedet (Šf-bdt) — Nourishment Given in Right Measure',
-    decanName: 'sbꜣ ḫnty-ḥr',
+    kemeticDate: 'Šef-Bedet III, Day 30',
+    season: '🌱 Peret I – Emergence Season',
+    month: 'Šef-Bedet (Šf-bdt)',
+    decanName:
+        'sbȝ ḫnty-ḥr (translation uncertain) | Deck: Star of the Foremost',
     starCluster:
         '✨ sbꜣ ḫnty-ḥr — a modest decanal star group watched near the eastern horizon during this ten-day interval; exact modern identification is uncertain',
-    maatPrinciple: 'Seal Nourished Trust',
+    maatPrinciple: 'Hand It Forward as a Field in Production',
     cosmicContext: '''
-What has begun is still fragile. Šef-Bedet is nourishment as measured care: water, bread, offering, attention, protection, and provision. Renenutet stands near the field and granary because destiny becomes livable only when life is fed without waste, neglect, or control.
+Šef-Bedet closes today.
 
-This day belongs to sbꜣ ḫnty-ḥr, the star of care, where growth can continue because provision has been measured. The star-time movement does not function as decoration. It gives the day a position in the cycle: what appears in the sky, what is happening in the year, and what the heart must practice are held together.
+The seed placed in Ka-ḥer-ka has become a growing field.
+Not harvest — production. The plants are in the ground and alive.
 
-Day 10 turns that movement toward seal nourished trust.
+Account for what grew this month.
+Name the roots that held. Name the growth that surprised you.
+Name what did not survive and what that means.
 
-In practical life, this is where the old pattern meets the present body. Progress may ask for action, but not every action is Ma’at. Obstacles may ask for endurance, but not every burden should be carried. A return may ask for receiving, but not every gain should be consumed.
-
-The question is simple: What does seal nourished trust require now?
+Then hand this field forward into the next month
+not as something fragile and emerging —
+as something established, rooted, and ready to be worked.
+That is what Šef-Bedet built.
 ''',
     decanFlow: _compressedShefbedetFlowRows3,
     meduNeter: MeduNeterKey(
-      glyph: 'Cobra, water jar, and young grain',
-      colorFrequency: 'Deep blue, living gold, and earth green',
-      mantra: '“I practice seal nourished trust in Ma’at.”',
+      glyph: 'Established field at month\'s end — rooted, green, in production',
+      colorFrequency: 'Full living green, earth dark and fed beneath',
+      mantra: '"The field is in production. I hand it forward."',
     ),
   ),
+
   'rekhwer_1_1': KemeticDayInfo(
     kemeticDate: 'Rekh-Wer I, Day 1',
-    season: '🌿 Peret – Season of Emergence',
-    month: 'Rekh-Wer (Rḫ-wr) — Great Knowing Held Under Measure',
-    decanName: 'knmw',
+    season: '🌱 Peret II – Active Growth',
+    month:
+        'Rekh-Wer (Rḫ-wr) — the Great Knowledge; the month craft is applied to the living field',
+    decanName: 'knmw (translation uncertain) | Deck: The Great Knowing',
     starCluster:
         '✨ knmw — a modest decanal star group watched near the eastern horizon during this ten-day interval; exact modern identification is uncertain',
-    maatPrinciple: 'Recognize the Raw Material',
+    maatPrinciple: 'You Cannot Tend What You Do Not Know',
     cosmicContext: '''
-Growth has become established enough to be shaped. Rekh-Wer is great knowing under measure: knowledge that forms, records, corrects, teaches, and serves order without becoming proud of itself.
+Šef-Bedet is closed. The root is in. The field is growing.
 
-This day belongs to knmw, Khnum’s shaping power, where raw material becomes form through measure. The star-time movement does not function as decoration. It gives the day a position in the cycle: what appears in the sky, what is happening in the year, and what the heart must practice are held together.
+Now it requires something different from witness and patience.
+It requires knowledge — accurate, specific understanding of what is alive and what it needs.
 
-Day 1 turns that movement toward recognize the raw material.
+A farmer who loved the field but did not understand it
+watered at the wrong time, pulled the wrong plant, worked against the season.
+Love without knowledge is not enough in Rekh-Wer.
 
-In practical life, this is where the old pattern meets the present body. Progress may ask for action, but not every action is Ma’at. Obstacles may ask for endurance, but not every burden should be carried. A return may ask for receiving, but not every gain should be consumed.
-
-The question is simple: What does recognize the raw material require now?
+Today: name exactly what you are tending and what it actually requires at this stage of its life.
 ''',
     decanFlow: _compressedRekhwerFlowRows1,
     meduNeter: MeduNeterKey(
-      glyph: 'Potter’s wheel, reed pen, and vessel',
-      colorFrequency: 'Deep blue, living gold, and earth green',
-      mantra: '“I practice recognize the raw material in Ma’at.”',
+      glyph:
+          'Scribe\'s palette and planting tool side by side — knowledge and practice unified',
+      colorFrequency: 'Ink black and earth brown, the two together',
+      mantra: '"I know what I am tending."',
     ),
   ),
   'rekhwer_2_1': KemeticDayInfo(
     kemeticDate: 'Rekh-Wer I, Day 2',
-    season: '🌿 Peret – Season of Emergence',
-    month: 'Rekh-Wer (Rḫ-wr) — Great Knowing Held Under Measure',
-    decanName: 'knmw',
+    season: '🌱 Peret II – Active Growth',
+    month: 'Rekh-Wer (Rḫ-wr)',
+    decanName: 'knmw (translation uncertain) | Deck: The Great Knowing',
     starCluster:
         '✨ knmw — a modest decanal star group watched near the eastern horizon during this ten-day interval; exact modern identification is uncertain',
-    maatPrinciple: 'Prepare the Wheel',
+    maatPrinciple: 'Read Before You Act',
     cosmicContext: '''
-Growth has become established enough to be shaped. Rekh-Wer is great knowing under measure: knowledge that forms, records, corrects, teaches, and serves order without becoming proud of itself.
+The experienced farmer reads the field before touching it.
+Color of leaf, moisture of soil, direction of lean, condition of the row edge.
+That reading takes minutes and prevents hours of wrong work.
 
-This day belongs to knmw, Khnum’s shaping power, where raw material becomes form through measure. The star-time movement does not function as decoration. It gives the day a position in the cycle: what appears in the sky, what is happening in the year, and what the heart must practice are held together.
+The inexperienced farmer arrives at the field already knowing what they will do.
+They act on yesterday's plan against today's condition.
+The field corrects them eventually — at cost.
 
-Day 2 turns that movement toward prepare the wheel.
-
-In practical life, this is where the old pattern meets the present body. Progress may ask for action, but not every action is Ma’at. Obstacles may ask for endurance, but not every burden should be carried. A return may ask for receiving, but not every gain should be consumed.
-
-The question is simple: What does prepare the wheel require now?
+Before any work today: observe first.
+What is the actual current condition of what you are growing?
+Let the field speak before you do.
 ''',
     decanFlow: _compressedRekhwerFlowRows1,
     meduNeter: MeduNeterKey(
-      glyph: 'Potter’s wheel, reed pen, and vessel',
-      colorFrequency: 'Deep blue, living gold, and earth green',
-      mantra: '“I practice prepare the wheel in Ma’at.”',
+      glyph:
+          'Farmer kneeling at the row edge before sunrise — reading before working',
+      colorFrequency: 'Pre-dawn blue, the field read in quiet before action',
+      mantra: '"The field speaks first. I listen before I act."',
     ),
   ),
   'rekhwer_3_1': KemeticDayInfo(
     kemeticDate: 'Rekh-Wer I, Day 3',
-    season: '🌿 Peret – Season of Emergence',
-    month: 'Rekh-Wer (Rḫ-wr) — Great Knowing Held Under Measure',
-    decanName: 'knmw',
+    season: '🌱 Peret II – Active Growth',
+    month: 'Rekh-Wer (Rḫ-wr)',
+    decanName: 'knmw (translation uncertain) | Deck: The Great Knowing',
     starCluster:
         '✨ knmw — a modest decanal star group watched near the eastern horizon during this ten-day interval; exact modern identification is uncertain',
-    maatPrinciple: 'Soften the Clay',
+    maatPrinciple: 'The Right Tool Does Less Work for Better Results',
     cosmicContext: '''
-Growth has become established enough to be shaped. Rekh-Wer is great knowing under measure: knowledge that forms, records, corrects, teaches, and serves order without becoming proud of itself.
+The Kemite craftsman maintained specific tools for specific tasks.
+A broad hoe for breaking soil. A narrow dibble for placing seed.
+Using the wrong one in the wrong place was not diligence — it was waste.
 
-This day belongs to knmw, Khnum’s shaping power, where raw material becomes form through measure. The star-time movement does not function as decoration. It gives the day a position in the cycle: what appears in the sky, what is happening in the year, and what the heart must practice are held together.
+What task is in front of you today?
+What is the precise instrument — method, person, time, approach — that fits it?
 
-Day 3 turns that movement toward soften the clay.
-
-In practical life, this is where the old pattern meets the present body. Progress may ask for action, but not every action is Ma’at. Obstacles may ask for endurance, but not every burden should be carried. A return may ask for receiving, but not every gain should be consumed.
-
-The question is simple: What does soften the clay require now?
+Effort applied through the wrong tool is not honorable.
+It is inefficient at best and damaging at worst.
+Match the tool to the task before you begin.
 ''',
     decanFlow: _compressedRekhwerFlowRows1,
     meduNeter: MeduNeterKey(
-      glyph: 'Potter’s wheel, reed pen, and vessel',
-      colorFrequency: 'Deep blue, living gold, and earth green',
-      mantra: '“I practice soften the clay in Ma’at.”',
+      glyph: 'Matched tool and task — the right instrument in the right hand',
+      colorFrequency: 'Clean copper tool against dark worked earth',
+      mantra: '"Right tool. Right task. Less effort, better result."',
     ),
   ),
   'rekhwer_4_1': KemeticDayInfo(
     kemeticDate: 'Rekh-Wer I, Day 4',
-    season: '🌿 Peret – Season of Emergence',
-    month: 'Rekh-Wer (Rḫ-wr) — Great Knowing Held Under Measure',
-    decanName: 'knmw',
+    season: '🌱 Peret II – Active Growth',
+    month: 'Rekh-Wer (Rḫ-wr)',
+    decanName: 'knmw (translation uncertain) | Deck: The Great Knowing',
     starCluster:
         '✨ knmw — a modest decanal star group watched near the eastern horizon during this ten-day interval; exact modern identification is uncertain',
-    maatPrinciple: 'Center the Form',
+    maatPrinciple: 'The Gap in Knowledge Is Costing the Field',
     cosmicContext: '''
-Growth has become established enough to be shaped. Rekh-Wer is great knowing under measure: knowledge that forms, records, corrects, teaches, and serves order without becoming proud of itself.
+Every field has a problem the farmer does not yet understand.
+Not from laziness — from the limits of what has been learned so far.
 
-This day belongs to knmw, Khnum’s shaping power, where raw material becomes form through measure. The star-time movement does not function as decoration. It gives the day a position in the cycle: what appears in the sky, what is happening in the year, and what the heart must practice are held together.
+The crop is doing something unexpected.
+The yield is lower than the effort warrants.
+Something is off and the diagnosis is not yet clear.
 
-Day 4 turns that movement toward center the form.
-
-In practical life, this is where the old pattern meets the present body. Progress may ask for action, but not every action is Ma’at. Obstacles may ask for endurance, but not every burden should be carried. A return may ask for receiving, but not every gain should be consumed.
-
-The question is simple: What does center the form require now?
+Name the gap today.
+What do you not know about what you are tending
+that is quietly costing you?
+Find the answer — from someone who has grown this before,
+from a source, from honest observation.
 ''',
     decanFlow: _compressedRekhwerFlowRows1,
     meduNeter: MeduNeterKey(
-      glyph: 'Potter’s wheel, reed pen, and vessel',
-      colorFrequency: 'Deep blue, living gold, and earth green',
-      mantra: '“I practice center the form in Ma’at.”',
+      glyph: 'Open question mark beside the growing row — the gap named',
+      colorFrequency: 'Growing green with one section of uncertain earth',
+      mantra: '"I name the gap. Then I close it."',
     ),
   ),
   'rekhwer_5_1': KemeticDayInfo(
     kemeticDate: 'Rekh-Wer I, Day 5',
-    season: '🌿 Peret – Season of Emergence',
-    month: 'Rekh-Wer (Rḫ-wr) — Great Knowing Held Under Measure',
-    decanName: 'knmw',
+    season: '🌱 Peret II – Active Growth',
+    month: 'Rekh-Wer (Rḫ-wr)',
+    decanName: 'knmw (translation uncertain) | Deck: The Great Knowing',
     starCluster:
         '✨ knmw — a modest decanal star group watched near the eastern horizon during this ten-day interval; exact modern identification is uncertain',
-    maatPrinciple: 'Apply Measured Pressure',
+    maatPrinciple: 'Imprecise Technique Costs More Than Laziness',
     cosmicContext: '''
-Growth has become established enough to be shaped. Rekh-Wer is great knowing under measure: knowledge that forms, records, corrects, teaches, and serves order without becoming proud of itself.
+A farmer who does not work costs the field one day.
+A farmer who works with imprecise technique costs the field the season.
 
-This day belongs to knmw, Khnum’s shaping power, where raw material becomes form through measure. The star-time movement does not function as decoration. It gives the day a position in the cycle: what appears in the sky, what is happening in the year, and what the heart must practice are held together.
+Bad technique repeated with effort entrenches the error.
+The plant grows wrong, the habit forms wrong, the method calcifies.
 
-Day 5 turns that movement toward apply measured pressure.
-
-In practical life, this is where the old pattern meets the present body. Progress may ask for action, but not every action is Ma’at. Obstacles may ask for endurance, but not every burden should be carried. A return may ask for receiving, but not every gain should be consumed.
-
-The question is simple: What does apply measured pressure require now?
+Where in what you are doing is the technique imprecise?
+Not wrong from lack of effort — wrong from lack of refinement.
+Correct it now, before the season demands full capacity
+and there is no room to adjust.
 ''',
     decanFlow: _compressedRekhwerFlowRows1,
     meduNeter: MeduNeterKey(
-      glyph: 'Potter’s wheel, reed pen, and vessel',
-      colorFrequency: 'Deep blue, living gold, and earth green',
-      mantra: '“I practice apply measured pressure in Ma’at.”',
+      glyph: 'Hand correcting tool angle mid-stroke — refinement in motion',
+      colorFrequency: 'Copper tool adjusted, earth responding correctly',
+      mantra:
+          '"I refine the technique before the season asks everything of it."',
     ),
   ),
   'rekhwer_6_1': KemeticDayInfo(
     kemeticDate: 'Rekh-Wer I, Day 6',
-    season: '🌿 Peret – Season of Emergence',
-    month: 'Rekh-Wer (Rḫ-wr) — Great Knowing Held Under Measure',
-    decanName: 'knmw',
+    season: '🌱 Peret II – Active Growth',
+    month: 'Rekh-Wer (Rḫ-wr)',
+    decanName: 'knmw (translation uncertain) | Deck: The Great Knowing',
     starCluster:
         '✨ knmw — a modest decanal star group watched near the eastern horizon during this ten-day interval; exact modern identification is uncertain',
-    maatPrinciple: 'Check the Proportion',
+    maatPrinciple: 'Knowledge Applied Is Different From Effort Applied',
     cosmicContext: '''
-Growth has become established enough to be shaped. Rekh-Wer is great knowing under measure: knowledge that forms, records, corrects, teaches, and serves order without becoming proud of itself.
+Two farmers, same hours in the field.
+One works from habit and repetition.
+One works from understanding of what the crop needs at this stage.
 
-This day belongs to knmw, Khnum’s shaping power, where raw material becomes form through measure. The star-time movement does not function as decoration. It gives the day a position in the cycle: what appears in the sky, what is happening in the year, and what the heart must practice are held together.
+At harvest, the fields are not the same.
 
-Day 6 turns that movement toward check the proportion.
-
-In practical life, this is where the old pattern meets the present body. Progress may ask for action, but not every action is Ma’at. Obstacles may ask for endurance, but not every burden should be carried. A return may ask for receiving, but not every gain should be consumed.
-
-The question is simple: What does check the proportion require now?
+Rekh-Wer is not asking you to work harder.
+It is asking you to work from knowledge.
+What do you understand about what you are doing
+that you are not yet applying?
+Use that today. Not the effort — the understanding.
 ''',
     decanFlow: _compressedRekhwerFlowRows1,
     meduNeter: MeduNeterKey(
-      glyph: 'Potter’s wheel, reed pen, and vessel',
-      colorFrequency: 'Deep blue, living gold, and earth green',
-      mantra: '“I practice check the proportion in Ma’at.”',
+      glyph: 'Knowing farmer in the field — same hands, better result',
+      colorFrequency: 'Rich green from well-applied knowledge',
+      mantra: '"I apply the knowledge I have, not just the effort."',
     ),
   ),
   'rekhwer_7_1': KemeticDayInfo(
     kemeticDate: 'Rekh-Wer I, Day 7',
-    season: '🌿 Peret – Season of Emergence',
-    month: 'Rekh-Wer (Rḫ-wr) — Great Knowing Held Under Measure',
-    decanName: 'knmw',
+    season: '🌱 Peret II – Active Growth',
+    month: 'Rekh-Wer (Rḫ-wr)',
+    decanName: 'knmw (translation uncertain) | Deck: The Great Knowing',
     starCluster:
         '✨ knmw — a modest decanal star group watched near the eastern horizon during this ten-day interval; exact modern identification is uncertain',
-    maatPrinciple: 'Correct the Collapse',
+    maatPrinciple: 'Shared Knowledge Strengthens the Network',
     cosmicContext: '''
-Growth has become established enough to be shaped. Rekh-Wer is great knowing under measure: knowledge that forms, records, corrects, teaches, and serves order without becoming proud of itself.
+In a field-based life, working knowledge cannot remain private for long.
+A method that saves one crop may save the next household's season.
 
-This day belongs to knmw, Khnum’s shaping power, where raw material becomes form through measure. The star-time movement does not function as decoration. It gives the day a position in the cycle: what appears in the sky, what is happening in the year, and what the heart must practice are held together.
+Hoarding field knowledge while neighbors struggled
+was not competitive advantage — it was Isfet.
 
-Day 7 turns that movement toward correct the collapse.
-
-In practical life, this is where the old pattern meets the present body. Progress may ask for action, but not every action is Ma’at. Obstacles may ask for endurance, but not every burden should be carried. A return may ask for receiving, but not every gain should be consumed.
-
-The question is simple: What does correct the collapse require now?
+What do you know about your craft, your field, your practice
+that someone in your network needs right now?
+Teach it. Pass it. The whole field grows stronger
+when the knowledge moves.
 ''',
     decanFlow: _compressedRekhwerFlowRows1,
     meduNeter: MeduNeterKey(
-      glyph: 'Potter’s wheel, reed pen, and vessel',
-      colorFrequency: 'Deep blue, living gold, and earth green',
-      mantra: '“I practice correct the collapse in Ma’at.”',
+      glyph: 'One farmer showing another the row condition — knowledge passed',
+      colorFrequency: 'Two figures in green, the knowledge moving between them',
+      mantra: '"What I know belongs to the field, not only to me."',
     ),
   ),
   'rekhwer_8_1': KemeticDayInfo(
     kemeticDate: 'Rekh-Wer I, Day 8',
-    season: '🌿 Peret – Season of Emergence',
-    month: 'Rekh-Wer (Rḫ-wr) — Great Knowing Held Under Measure',
-    decanName: 'knmw',
+    season: '🌱 Peret II – Active Growth',
+    month: 'Rekh-Wer (Rḫ-wr)',
+    decanName: 'knmw (translation uncertain) | Deck: The Great Knowing',
     starCluster:
         '✨ knmw — a modest decanal star group watched near the eastern horizon during this ten-day interval; exact modern identification is uncertain',
-    maatPrinciple: 'Strengthen the Vessel',
+    maatPrinciple: 'Correction Is Information, Not Judgment',
     cosmicContext: '''
-Growth has become established enough to be shaped. Rekh-Wer is great knowing under measure: knowledge that forms, records, corrects, teaches, and serves order without becoming proud of itself.
+The experienced farmer who sees a younger farmer doing something wrong
+does not insult them — they correct the technique.
+The correction is not about the farmer. It is about the crop.
 
-This day belongs to knmw, Khnum’s shaping power, where raw material becomes form through measure. The star-time movement does not function as decoration. It gives the day a position in the cycle: what appears in the sky, what is happening in the year, and what the heart must practice are held together.
+You have been in this field for eight days.
+Someone with more experience in what you are growing
+would see something you are missing.
 
-Day 8 turns that movement toward strengthen the vessel.
-
-In practical life, this is where the old pattern meets the present body. Progress may ask for action, but not every action is Ma’at. Obstacles may ask for endurance, but not every burden should be carried. A return may ask for receiving, but not every gain should be consumed.
-
-The question is simple: What does strengthen the vessel require now?
+Find them. Ask them to look.
+Receive what they say without defending the current method.
+The correction is about the crop. So is your response to it.
 ''',
     decanFlow: _compressedRekhwerFlowRows1,
     meduNeter: MeduNeterKey(
-      glyph: 'Potter’s wheel, reed pen, and vessel',
-      colorFrequency: 'Deep blue, living gold, and earth green',
-      mantra: '“I practice strengthen the vessel in Ma’at.”',
+      glyph:
+          'Elder farmer adjusting a younger one\'s grip — correction given and received',
+      colorFrequency: 'Warm earth, two hands, no hierarchy — only the crop',
+      mantra: '"Correction is information. I receive it for the field."',
     ),
   ),
   'rekhwer_9_1': KemeticDayInfo(
     kemeticDate: 'Rekh-Wer I, Day 9',
-    season: '🌿 Peret – Season of Emergence',
-    month: 'Rekh-Wer (Rḫ-wr) — Great Knowing Held Under Measure',
-    decanName: 'knmw',
+    season: '🌱 Peret II – Active Growth',
+    month: 'Rekh-Wer (Rḫ-wr)',
+    decanName: 'knmw (translation uncertain) | Deck: The Great Knowing',
     starCluster:
         '✨ knmw — a modest decanal star group watched near the eastern horizon during this ten-day interval; exact modern identification is uncertain',
-    maatPrinciple: 'Name the Function',
+    maatPrinciple: 'Unrecorded Knowledge Is Fragile',
     cosmicContext: '''
-Growth has become established enough to be shaped. Rekh-Wer is great knowing under measure: knowledge that forms, records, corrects, teaches, and serves order without becoming proud of itself.
+Field records were not administrative excess — they were survival intelligence.
+A bad year with records gave the next season a starting point.
+A bad year without them gave nothing.
 
-This day belongs to knmw, Khnum’s shaping power, where raw material becomes form through measure. The star-time movement does not function as decoration. It gives the day a position in the cycle: what appears in the sky, what is happening in the year, and what the heart must practice are held together.
+What is working right now lives only in your memory.
+Memory is the least reliable storage system available.
 
-Day 9 turns that movement toward name the function.
-
-In practical life, this is where the old pattern meets the present body. Progress may ask for action, but not every action is Ma’at. Obstacles may ask for endurance, but not every burden should be carried. A return may ask for receiving, but not every gain should be consumed.
-
-The question is simple: What does name the function require now?
+Write it down today. The method, the rhythm, what changed and why.
+The knowledge is only as durable as its record.
 ''',
     decanFlow: _compressedRekhwerFlowRows1,
     meduNeter: MeduNeterKey(
-      glyph: 'Potter’s wheel, reed pen, and vessel',
-      colorFrequency: 'Deep blue, living gold, and earth green',
-      mantra: '“I practice name the function in Ma’at.”',
+      glyph: 'Scribe recording the field condition — the method preserved',
+      colorFrequency: 'Ink black on clean papyrus, the growing field behind it',
+      mantra: '"What works must be written. Memory is not enough."',
     ),
   ),
   'rekhwer_10_1': KemeticDayInfo(
     kemeticDate: 'Rekh-Wer I, Day 10',
-    season: '🌿 Peret – Season of Emergence',
-    month: 'Rekh-Wer (Rḫ-wr) — Great Knowing Held Under Measure',
-    decanName: 'knmw',
+    season: '🌱 Peret II – Active Growth',
+    month: 'Rekh-Wer (Rḫ-wr)',
+    decanName: 'knmw (translation uncertain) | Deck: The Great Knowing',
     starCluster:
         '✨ knmw — a modest decanal star group watched near the eastern horizon during this ten-day interval; exact modern identification is uncertain',
-    maatPrinciple: 'Seal the Form',
+    maatPrinciple: 'The First Decan Builds the Knowledge Base',
     cosmicContext: '''
-Growth has become established enough to be shaped. Rekh-Wer is great knowing under measure: knowledge that forms, records, corrects, teaches, and serves order without becoming proud of itself.
+Ten days: you named what you are tending, read before acting,
+matched tool to task, closed a knowledge gap, refined the technique,
+applied understanding rather than effort, shared what you know,
+received correction, and recorded what works.
 
-This day belongs to knmw, Khnum’s shaping power, where raw material becomes form through measure. The star-time movement does not function as decoration. It gives the day a position in the cycle: what appears in the sky, what is happening in the year, and what the heart must practice are held together.
+That is the knowledge base for this field.
 
-Day 10 turns that movement toward seal the form.
-
-In practical life, this is where the old pattern meets the present body. Progress may ask for action, but not every action is Ma’at. Obstacles may ask for endurance, but not every burden should be carried. A return may ask for receiving, but not every gain should be consumed.
-
-The question is simple: What does seal the form require now?
+The second decan applies it — with skill, with consistent craft,
+with less second-guessing and more competent action.
+What do you now know that you did not ten days ago?
+Name it before the next decan begins.
 ''',
     decanFlow: _compressedRekhwerFlowRows1,
     meduNeter: MeduNeterKey(
-      glyph: 'Potter’s wheel, reed pen, and vessel',
-      colorFrequency: 'Deep blue, living gold, and earth green',
-      mantra: '“I practice seal the form in Ma’at.”',
+      glyph: 'Field record closed — the first knowing complete',
+      colorFrequency:
+          'Ink and earth together, the knowledge ready to be applied',
+      mantra: '"I know more than I did. The knowing is the foundation."',
     ),
   ),
   'rekhwer_11_2': KemeticDayInfo(
-    kemeticDate: 'Rekh-Wer II, Day 1',
-    season: '🌿 Peret – Season of Emergence',
-    month: 'Rekh-Wer (Rḫ-wr) — Great Knowing Held Under Measure',
-    decanName: 'ḥry-ib knmw',
+    kemeticDate: 'Rekh-Wer II, Day 11',
+    season: '🌱 Peret II – Active Growth',
+    month: 'Rekh-Wer (Rḫ-wr)',
+    decanName:
+        'ḥry-ib knmw (translation uncertain) | Deck: Heart of the Knowing',
     starCluster:
         '✨ ḥry-ib knmw — a modest decanal star group watched near the eastern horizon during this ten-day interval; exact modern identification is uncertain',
-    maatPrinciple: 'Bring Skill to the Heart',
+    maatPrinciple: 'Apply What Is Known',
     cosmicContext: '''
-Growth has become established enough to be shaped. Rekh-Wer is great knowing under measure: knowledge that forms, records, corrects, teaches, and serves order without becoming proud of itself.
+The first decan built the knowledge base.
+The second decan applies it.
 
-This day belongs to ḥry-ib knmw, the heart of Khnum, where skill listens, corrects, and refines. The star-time movement does not function as decoration. It gives the day a position in the cycle: what appears in the sky, what is happening in the year, and what the heart must practice are held together.
+The error here is re-gathering instead of deploying:
+reading more, researching more, asking more questions
+when the knowledge required for action is already in hand.
 
-Day 1 turns that movement toward bring skill to the heart.
-
-In practical life, this is where the old pattern meets the present body. Progress may ask for action, but not every action is Ma’at. Obstacles may ask for endurance, but not every burden should be carried. A return may ask for receiving, but not every gain should be consumed.
-
-The question is simple: What does bring skill to the heart require now?
+Rekh-Wer's second decan asks for craft, not caution.
+You know enough to act well.
+Act from that knowledge today — with precision, not with more preparation.
 ''',
     decanFlow: _compressedRekhwerFlowRows2,
     meduNeter: MeduNeterKey(
-      glyph: 'Potter’s wheel, reed pen, and vessel',
-      colorFrequency: 'Deep blue, living gold, and earth green',
-      mantra: '“I practice bring skill to the heart in Ma’at.”',
+      glyph:
+          'Farmer working the row with confident technique — knowledge in motion',
+      colorFrequency: 'Rich growing green, copper tool moving with skill',
+      mantra: '"I know enough. I apply it now."',
     ),
   ),
   'rekhwer_12_2': KemeticDayInfo(
-    kemeticDate: 'Rekh-Wer II, Day 2',
-    season: '🌿 Peret – Season of Emergence',
-    month: 'Rekh-Wer (Rḫ-wr) — Great Knowing Held Under Measure',
-    decanName: 'ḥry-ib knmw',
+    kemeticDate: 'Rekh-Wer II, Day 12',
+    season: '🌱 Peret II – Active Growth',
+    month: 'Rekh-Wer (Rḫ-wr)',
+    decanName:
+        'ḥry-ib knmw (translation uncertain) | Deck: Heart of the Knowing',
     starCluster:
         '✨ ḥry-ib knmw — a modest decanal star group watched near the eastern horizon during this ten-day interval; exact modern identification is uncertain',
-    maatPrinciple: 'Listen to the Form',
+    maatPrinciple: 'The Standard Must Hold',
     cosmicContext: '''
-Growth has become established enough to be shaped. Rekh-Wer is great knowing under measure: knowledge that forms, records, corrects, teaches, and serves order without becoming proud of itself.
+A field tended well for ten days and carelessly for ten
+does not average out. The careless stretch damages what the good stretch built.
 
-This day belongs to ḥry-ib knmw, the heart of Khnum, where skill listens, corrects, and refines. The star-time movement does not function as decoration. It gives the day a position in the cycle: what appears in the sky, what is happening in the year, and what the heart must practice are held together.
+The standard established in Rekh-Wer I is not a starting line —
+it is the floor. The work does not go below it.
 
-Day 2 turns that movement toward listen to the form.
-
-In practical life, this is where the old pattern meets the present body. Progress may ask for action, but not every action is Ma’at. Obstacles may ask for endurance, but not every burden should be carried. A return may ask for receiving, but not every gain should be consumed.
-
-The question is simple: What does listen to the form require now?
+Under pressure, under fatigue, when motivation is low:
+the standard holds. Not because it is easy.
+Because the field does not adjust to the farmer's mood.
+Today: hold the standard you established.
 ''',
     decanFlow: _compressedRekhwerFlowRows2,
     meduNeter: MeduNeterKey(
-      glyph: 'Potter’s wheel, reed pen, and vessel',
-      colorFrequency: 'Deep blue, living gold, and earth green',
-      mantra: '“I practice listen to the form in Ma’at.”',
+      glyph:
+          'Plumb line hanging straight regardless of weather — the standard held',
+      colorFrequency: 'Steady gold line, green field at consistent height',
+      mantra: '"The standard does not move. I hold it."',
     ),
   ),
   'rekhwer_13_2': KemeticDayInfo(
-    kemeticDate: 'Rekh-Wer II, Day 3',
-    season: '🌿 Peret – Season of Emergence',
-    month: 'Rekh-Wer (Rḫ-wr) — Great Knowing Held Under Measure',
-    decanName: 'ḥry-ib knmw',
+    kemeticDate: 'Rekh-Wer II, Day 13',
+    season: '🌱 Peret II – Active Growth',
+    month: 'Rekh-Wer (Rḫ-wr)',
+    decanName:
+        'ḥry-ib knmw (translation uncertain) | Deck: Heart of the Knowing',
     starCluster:
         '✨ ḥry-ib knmw — a modest decanal star group watched near the eastern horizon during this ten-day interval; exact modern identification is uncertain',
-    maatPrinciple: 'Separate Error From Material',
+    maatPrinciple: 'The Avoided Section Costs the Whole Field',
     cosmicContext: '''
-Growth has become established enough to be shaped. Rekh-Wer is great knowing under measure: knowledge that forms, records, corrects, teaches, and serves order without becoming proud of itself.
+Every field has a section the farmer tends last, if at all.
+Not the worst section — the one that is difficult, uncomfortable, or unrewarding to work.
+It is not neglected from laziness. It is avoided from preference.
 
-This day belongs to ḥry-ib knmw, the heart of Khnum, where skill listens, corrects, and refines. The star-time movement does not function as decoration. It gives the day a position in the cycle: what appears in the sky, what is happening in the year, and what the heart must practice are held together.
+But the field does not honor preference.
+The avoided section grows weaker and eventually pulls the whole field's yield down.
 
-Day 3 turns that movement toward separate error from material.
-
-In practical life, this is where the old pattern meets the present body. Progress may ask for action, but not every action is Ma’at. Obstacles may ask for endurance, but not every burden should be carried. A return may ask for receiving, but not every gain should be consumed.
-
-The question is simple: What does separate error from material require now?
+What part of what you are building have you been working around?
+Go there today. With full attention. With the knowledge you now have.
+It will not tend itself.
 ''',
     decanFlow: _compressedRekhwerFlowRows2,
     meduNeter: MeduNeterKey(
-      glyph: 'Potter’s wheel, reed pen, and vessel',
-      colorFrequency: 'Deep blue, living gold, and earth green',
-      mantra: '“I practice separate error from material in Ma’at.”',
+      glyph:
+          'Farmer entering the difficult section of the field — the avoided corner faced',
+      colorFrequency:
+          'Darker earth, less tended green — the section that needs the work',
+      mantra:
+          '"The part I avoid is the part that costs everything. I go there today."',
     ),
   ),
   'rekhwer_14_2': KemeticDayInfo(
-    kemeticDate: 'Rekh-Wer II, Day 4',
-    season: '🌿 Peret – Season of Emergence',
-    month: 'Rekh-Wer (Rḫ-wr) — Great Knowing Held Under Measure',
-    decanName: 'ḥry-ib knmw',
+    kemeticDate: 'Rekh-Wer II, Day 14',
+    season: '🌱 Peret II – Active Growth',
+    month: 'Rekh-Wer (Rḫ-wr)',
+    decanName:
+        'ḥry-ib knmw (translation uncertain) | Deck: Heart of the Knowing',
     starCluster:
         '✨ ḥry-ib knmw — a modest decanal star group watched near the eastern horizon during this ten-day interval; exact modern identification is uncertain',
-    maatPrinciple: 'Refine the Hand',
+    maatPrinciple: 'The Field Requires the Right Pace, Not the Fastest One',
     cosmicContext: '''
-Growth has become established enough to be shaped. Rekh-Wer is great knowing under measure: knowledge that forms, records, corrects, teaches, and serves order without becoming proud of itself.
+The farmer who moves too fast through the field
+misses what the slower pass would have caught.
+The one who moves too slowly lets the window close.
 
-This day belongs to ḥry-ib knmw, the heart of Khnum, where skill listens, corrects, and refines. The star-time movement does not function as decoration. It gives the day a position in the cycle: what appears in the sky, what is happening in the year, and what the heart must practice are held together.
+The field requires a specific pace — not the farmer's preferred pace,
+not yesterday's urgency or tomorrow's anxiety.
+Today's condition.
 
-Day 4 turns that movement toward refine the hand.
-
-In practical life, this is where the old pattern meets the present body. Progress may ask for action, but not every action is Ma’at. Obstacles may ask for endurance, but not every burden should be carried. A return may ask for receiving, but not every gain should be consumed.
-
-The question is simple: What does refine the hand require now?
+Read what the work actually needs right now.
+Is this a day for deep attention on one section,
+or broad maintenance across the whole?
+Match the pace to the field, not to the feeling.
 ''',
     decanFlow: _compressedRekhwerFlowRows2,
     meduNeter: MeduNeterKey(
-      glyph: 'Potter’s wheel, reed pen, and vessel',
-      colorFrequency: 'Deep blue, living gold, and earth green',
-      mantra: '“I practice refine the hand in Ma’at.”',
+      glyph:
+          'Farmer adjusting stride to match the row — pace calibrated to the field',
+      colorFrequency:
+          'Even green, unhurried copper, the pace matching the need',
+      mantra: '"I move at the pace the field requires today."',
     ),
   ),
   'rekhwer_15_2': KemeticDayInfo(
-    kemeticDate: 'Rekh-Wer II, Day 5',
-    season: '🌿 Peret – Season of Emergence',
-    month: 'Rekh-Wer (Rḫ-wr) — Great Knowing Held Under Measure',
-    decanName: 'ḥry-ib knmw',
+    kemeticDate: 'Rekh-Wer II, Day 15',
+    season: '🌱 Peret II – Active Growth',
+    month: 'Rekh-Wer (Rḫ-wr)',
+    decanName:
+        'ḥry-ib knmw (translation uncertain) | Deck: Heart of the Knowing',
     starCluster:
         '✨ ḥry-ib knmw — a modest decanal star group watched near the eastern horizon during this ten-day interval; exact modern identification is uncertain',
-    maatPrinciple: 'Receive Correction',
+    maatPrinciple: 'Strength Goes to the Weakest Point',
     cosmicContext: '''
-Growth has become established enough to be shaped. Rekh-Wer is great knowing under measure: knowledge that forms, records, corrects, teaches, and serves order without becoming proud of itself.
+A skilled tender does not only feed the strongest rows.
+The vulnerable section must be read and supported before it pulls down the whole field.
 
-This day belongs to ḥry-ib knmw, the heart of Khnum, where skill listens, corrects, and refines. The star-time movement does not function as decoration. It gives the day a position in the cycle: what appears in the sky, what is happening in the year, and what the heart must practice are held together.
+Skilled tending means reading where things are most at risk
+and directing capacity there, even when the stronger sections are more rewarding to work.
 
-Day 5 turns that movement toward receive correction.
-
-In practical life, this is where the old pattern meets the present body. Progress may ask for action, but not every action is Ma’at. Obstacles may ask for endurance, but not every burden should be carried. A return may ask for receiving, but not every gain should be consumed.
-
-The question is simple: What does receive correction require now?
+Where is the weakest point in what you are building?
+The section with the thinnest root, the least attention, the most risk.
+Go there with everything you know. Today.
 ''',
     decanFlow: _compressedRekhwerFlowRows2,
     meduNeter: MeduNeterKey(
-      glyph: 'Potter’s wheel, reed pen, and vessel',
-      colorFrequency: 'Deep blue, living gold, and earth green',
-      mantra: '“I practice receive correction in Ma’at.”',
+      glyph:
+          'Water directed at the weakest row — the allocation made correctly',
+      colorFrequency: 'River blue to the most vulnerable green',
+      mantra: '"Strength goes to the weakest point. That is skilled tending."',
     ),
   ),
   'rekhwer_16_2': KemeticDayInfo(
-    kemeticDate: 'Rekh-Wer II, Day 6',
-    season: '🌿 Peret – Season of Emergence',
-    month: 'Rekh-Wer (Rḫ-wr) — Great Knowing Held Under Measure',
-    decanName: 'ḥry-ib knmw',
+    kemeticDate: 'Rekh-Wer II, Day 16',
+    season: '🌱 Peret II – Active Growth',
+    month: 'Rekh-Wer (Rḫ-wr)',
+    decanName:
+        'ḥry-ib knmw (translation uncertain) | Deck: Heart of the Knowing',
     starCluster:
         '✨ ḥry-ib knmw — a modest decanal star group watched near the eastern horizon during this ten-day interval; exact modern identification is uncertain',
-    maatPrinciple: 'Remove Excess',
+    maatPrinciple: 'The Method Must Be Protected',
     cosmicContext: '''
-Growth has become established enough to be shaped. Rekh-Wer is great knowing under measure: knowledge that forms, records, corrects, teaches, and serves order without becoming proud of itself.
+A good technique can be disrupted.
+A schedule collapses. An urgency displaces the rhythm.
+Someone else's need overwrites the established practice.
+The method erodes not from abandonment but from interruption compounded.
 
-This day belongs to ḥry-ib knmw, the heart of Khnum, where skill listens, corrects, and refines. The star-time movement does not function as decoration. It gives the day a position in the cycle: what appears in the sky, what is happening in the year, and what the heart must practice are held together.
-
-Day 6 turns that movement toward remove excess.
-
-In practical life, this is where the old pattern meets the present body. Progress may ask for action, but not every action is Ma’at. Obstacles may ask for endurance, but not every burden should be carried. A return may ask for receiving, but not every gain should be consumed.
-
-The question is simple: What does remove excess require now?
+What conditions, if they arrive, would cause you to lose
+what you have learned and established this month?
+Name them.
+Then build one protection against the most likely one.
+The method is worth guarding.
 ''',
     decanFlow: _compressedRekhwerFlowRows2,
     meduNeter: MeduNeterKey(
-      glyph: 'Potter’s wheel, reed pen, and vessel',
-      colorFrequency: 'Deep blue, living gold, and earth green',
-      mantra: '“I practice remove excess in Ma’at.”',
+      glyph: 'Field boundary marked — the method held within its defined space',
+      colorFrequency: 'Protected green inside a clear boundary',
+      mantra: '"The method is worth protecting. I guard it deliberately."',
     ),
   ),
   'rekhwer_17_2': KemeticDayInfo(
-    kemeticDate: 'Rekh-Wer II, Day 7',
-    season: '🌿 Peret – Season of Emergence',
-    month: 'Rekh-Wer (Rḫ-wr) — Great Knowing Held Under Measure',
-    decanName: 'ḥry-ib knmw',
+    kemeticDate: 'Rekh-Wer II, Day 17',
+    season: '🌱 Peret II – Active Growth',
+    month: 'Rekh-Wer (Rḫ-wr)',
+    decanName:
+        'ḥry-ib knmw (translation uncertain) | Deck: Heart of the Knowing',
     starCluster:
         '✨ ḥry-ib knmw — a modest decanal star group watched near the eastern horizon during this ten-day interval; exact modern identification is uncertain',
-    maatPrinciple: 'Strengthen the Center',
+    maatPrinciple: 'Use Knowledge You Were Given',
     cosmicContext: '''
-Growth has become established enough to be shaped. Rekh-Wer is great knowing under measure: knowledge that forms, records, corrects, teaches, and serves order without becoming proud of itself.
+In Ka-ḥer-ka you called in help.
+In Šef-Bedet someone offered correction or guidance.
+In Rekh-Wer I you received correction and asked for it.
 
-This day belongs to ḥry-ib knmw, the heart of Khnum, where skill listens, corrects, and refines. The star-time movement does not function as decoration. It gives the day a position in the cycle: what appears in the sky, what is happening in the year, and what the heart must practice are held together.
+That knowledge is available to you.
+Is it being applied?
 
-Day 7 turns that movement toward strengthen the center.
+Most people receive good instruction and then return
+to their previous method within a week.
+The instruction fades; the habit wins.
 
-In practical life, this is where the old pattern meets the present body. Progress may ask for action, but not every action is Ma’at. Obstacles may ask for endurance, but not every burden should be carried. A return may ask for receiving, but not every gain should be consumed.
-
-The question is simple: What does strengthen the center require now?
+Take one piece of knowledge given to you by someone else this season
+and apply it today — fully, not as a trial.
 ''',
     decanFlow: _compressedRekhwerFlowRows2,
     meduNeter: MeduNeterKey(
-      glyph: 'Potter’s wheel, reed pen, and vessel',
-      colorFrequency: 'Deep blue, living gold, and earth green',
-      mantra: '“I practice strengthen the center in Ma’at.”',
+      glyph:
+          'Received correction put into practice — another\'s knowledge now in the hands',
+      colorFrequency: 'Two tones of earth united in one practiced motion',
+      mantra: '"I use what I was given. That is how knowledge becomes mine."',
     ),
   ),
   'rekhwer_18_2': KemeticDayInfo(
-    kemeticDate: 'Rekh-Wer II, Day 8',
-    season: '🌿 Peret – Season of Emergence',
-    month: 'Rekh-Wer (Rḫ-wr) — Great Knowing Held Under Measure',
-    decanName: 'ḥry-ib knmw',
+    kemeticDate: 'Rekh-Wer II, Day 18',
+    season: '🌱 Peret II – Active Growth',
+    month: 'Rekh-Wer (Rḫ-wr)',
+    decanName:
+        'ḥry-ib knmw (translation uncertain) | Deck: Heart of the Knowing',
     starCluster:
         '✨ ḥry-ib knmw — a modest decanal star group watched near the eastern horizon during this ten-day interval; exact modern identification is uncertain',
-    maatPrinciple: 'Test Under Use',
+    maatPrinciple: 'Measure What the Second Interval Produced',
     cosmicContext: '''
-Growth has become established enough to be shaped. Rekh-Wer is great knowing under measure: knowledge that forms, records, corrects, teaches, and serves order without becoming proud of itself.
+Two intervals in. Eighteen days of Rekh-Wer.
+The scribe records not when it feels right but on schedule.
 
-This day belongs to ḥry-ib knmw, the heart of Khnum, where skill listens, corrects, and refines. The star-time movement does not function as decoration. It gives the day a position in the cycle: what appears in the sky, what is happening in the year, and what the heart must practice are held together.
+What has this field actually produced in the second ten days?
+Not how the work felt. Not the effort given.
+What changed in the growing thing between Day 10 and today?
 
-Day 8 turns that movement toward test under use.
-
-In practical life, this is where the old pattern meets the present body. Progress may ask for action, but not every action is Ma’at. Obstacles may ask for endurance, but not every burden should be carried. A return may ask for receiving, but not every gain should be consumed.
-
-The question is simple: What does test under use require now?
+Write a number if you can. A measure, a comparison, a concrete difference.
+Feeling is not measurement.
+The honest number is what the next decision is made from.
 ''',
     decanFlow: _compressedRekhwerFlowRows2,
     meduNeter: MeduNeterKey(
-      glyph: 'Potter’s wheel, reed pen, and vessel',
-      colorFrequency: 'Deep blue, living gold, and earth green',
-      mantra: '“I practice test under use in Ma’at.”',
+      glyph:
+          'Scribe marking the second interval measurement — the honest count',
+      colorFrequency: 'Clean record, the field assessed without flattery',
+      mantra: '"The honest measure is what I make the next decision from."',
     ),
   ),
   'rekhwer_19_2': KemeticDayInfo(
-    kemeticDate: 'Rekh-Wer II, Day 9',
-    season: '🌿 Peret – Season of Emergence',
-    month: 'Rekh-Wer (Rḫ-wr) — Great Knowing Held Under Measure',
-    decanName: 'ḥry-ib knmw',
+    kemeticDate: 'Rekh-Wer II, Day 19',
+    season: '🌱 Peret II – Active Growth',
+    month: 'Rekh-Wer (Rḫ-wr)',
+    decanName:
+        'ḥry-ib knmw (translation uncertain) | Deck: Heart of the Knowing',
     starCluster:
         '✨ ḥry-ib knmw — a modest decanal star group watched near the eastern horizon during this ten-day interval; exact modern identification is uncertain',
-    maatPrinciple: 'Record the Method',
+    maatPrinciple: 'The Method Must Serve the Field',
     cosmicContext: '''
-Growth has become established enough to be shaped. Rekh-Wer is great knowing under measure: knowledge that forms, records, corrects, teaches, and serves order without becoming proud of itself.
+Yesterday's honest reading revealed the current condition.
+Today the method is adjusted to match it.
 
-This day belongs to ḥry-ib knmw, the heart of Khnum, where skill listens, corrects, and refines. The star-time movement does not function as decoration. It gives the day a position in the cycle: what appears in the sky, what is happening in the year, and what the heart must practice are held together.
+A method that does not change in response to the field's condition
+is not a method — it is a preference.
+The field does not accommodate preference.
 
-Day 9 turns that movement toward record the method.
-
-In practical life, this is where the old pattern meets the present body. Progress may ask for action, but not every action is Ma’at. Obstacles may ask for endurance, but not every burden should be carried. A return may ask for receiving, but not every gain should be consumed.
-
-The question is simple: What does record the method require now?
+What does yesterday's measurement require you to change?
+Not abandon — adjust. One change, based on honest evidence.
+The knowledge is only useful if it changes what you do.
 ''',
     decanFlow: _compressedRekhwerFlowRows2,
     meduNeter: MeduNeterKey(
-      glyph: 'Potter’s wheel, reed pen, and vessel',
-      colorFrequency: 'Deep blue, living gold, and earth green',
-      mantra: '“I practice record the method in Ma’at.”',
+      glyph:
+          'Farmer changing the tool angle based on what the soil showed — method adjusted',
+      colorFrequency: 'Earth read, tool corrected, green responding',
+      mantra:
+          '"The method serves the field. I adjust when the field requires it."',
     ),
   ),
   'rekhwer_20_2': KemeticDayInfo(
-    kemeticDate: 'Rekh-Wer II, Day 10',
-    season: '🌿 Peret – Season of Emergence',
-    month: 'Rekh-Wer (Rḫ-wr) — Great Knowing Held Under Measure',
-    decanName: 'ḥry-ib knmw',
+    kemeticDate: 'Rekh-Wer II, Day 20',
+    season: '🌱 Peret II – Active Growth',
+    month: 'Rekh-Wer (Rḫ-wr)',
+    decanName:
+        'ḥry-ib knmw (translation uncertain) | Deck: Heart of the Knowing',
     starCluster:
         '✨ ḥry-ib knmw — a modest decanal star group watched near the eastern horizon during this ten-day interval; exact modern identification is uncertain',
-    maatPrinciple: 'Seal Discerned Skill',
+    maatPrinciple: 'Two Decans In — Account Before the Last One Begins',
     cosmicContext: '''
-Growth has become established enough to be shaped. Rekh-Wer is great knowing under measure: knowledge that forms, records, corrects, teaches, and serves order without becoming proud of itself.
+Twenty days of Rekh-Wer.
+The knowledge base was built and the craft was applied.
+The standard was held, the difficult section worked,
+the pace calibrated, the weak point strengthened.
 
-This day belongs to ḥry-ib knmw, the heart of Khnum, where skill listens, corrects, and refines. The star-time movement does not function as decoration. It gives the day a position in the cycle: what appears in the sky, what is happening in the year, and what the heart must practice are held together.
+Before the third decan opens: account for the field.
+What knowledge is now solid? What still has gaps?
+What does the field need from the final ten days —
+and what do you need to bring to it?
 
-Day 10 turns that movement toward seal discerned skill.
-
-In practical life, this is where the old pattern meets the present body. Progress may ask for action, but not every action is Ma’at. Obstacles may ask for endurance, but not every burden should be carried. A return may ask for receiving, but not every gain should be consumed.
-
-The question is simple: What does seal discerned skill require now?
+Know clearly what you are carrying into the close of this month.
 ''',
     decanFlow: _compressedRekhwerFlowRows2,
     meduNeter: MeduNeterKey(
-      glyph: 'Potter’s wheel, reed pen, and vessel',
-      colorFrequency: 'Deep blue, living gold, and earth green',
-      mantra: '“I practice seal discerned skill in Ma’at.”',
+      glyph:
+          'Field surveyed at midpoint — the account taken before the final interval',
+      colorFrequency:
+          'Wide green field, the farmer reading all of it with knowing eyes',
+      mantra:
+          '"Two decans in. I know this field. I carry that into the last ten days."',
     ),
   ),
   'rekhwer_21_3': KemeticDayInfo(
-    kemeticDate: 'Rekh-Wer III, Day 1',
-    season: '🌿 Peret – Season of Emergence',
-    month: 'Rekh-Wer (Rḫ-wr) — Great Knowing Held Under Measure',
-    decanName: 'sbꜣ knmw',
+    kemeticDate: 'Rekh-Wer III, Day 21',
+    season: '🌱 Peret II – Active Growth',
+    month: 'Rekh-Wer (Rḫ-wr)',
+    decanName: 'sbȝ knmw (translation uncertain) | Deck: Star of the Knowing',
     starCluster:
         '✨ sbꜣ knmw — a modest decanal star group watched near the eastern horizon during this ten-day interval; exact modern identification is uncertain',
-    maatPrinciple: 'Let Skill Become Reliable',
+    maatPrinciple: 'Consolidate Before Carrying Forward',
     cosmicContext: '''
-Growth has become established enough to be shaped. Rekh-Wer is great knowing under measure: knowledge that forms, records, corrects, teaches, and serves order without becoming proud of itself.
+Twenty days of knowledge built and applied.
+The third decan does not add new techniques — it consolidates what was established
+and makes it durable enough to carry into the next month.
 
-This day belongs to sbꜣ knmw, the star of Khnum, where shaped knowledge becomes reliable in use. The star-time movement does not function as decoration. It gives the day a position in the cycle: what appears in the sky, what is happening in the year, and what the heart must practice are held together.
+What do you know well enough now to act on without hesitation?
+What still has uncertainty that needs one more pass?
 
-Day 1 turns that movement toward let skill become reliable.
-
-In practical life, this is where the old pattern meets the present body. Progress may ask for action, but not every action is Ma’at. Obstacles may ask for endurance, but not every burden should be carried. A return may ask for receiving, but not every gain should be consumed.
-
-The question is simple: What does let skill become reliable require now?
+Name what is solid.
+Name what is still soft.
+The solid goes forward. The soft gets one more interval of attention.
+This is how knowledge becomes part of the permanent craft.
 ''',
     decanFlow: _compressedRekhwerFlowRows3,
     meduNeter: MeduNeterKey(
-      glyph: 'Potter’s wheel, reed pen, and vessel',
-      colorFrequency: 'Deep blue, living gold, and earth green',
-      mantra: '“I practice let skill become reliable in Ma’at.”',
+      glyph:
+          'Knowledge pressed into the field record — consolidated, not scattered',
+      colorFrequency: 'Ink settled, the record complete, ready to carry',
+      mantra: '"I know what is solid. I know what still needs work."',
     ),
   ),
   'rekhwer_22_3': KemeticDayInfo(
-    kemeticDate: 'Rekh-Wer III, Day 2',
-    season: '🌿 Peret – Season of Emergence',
-    month: 'Rekh-Wer (Rḫ-wr) — Great Knowing Held Under Measure',
-    decanName: 'sbꜣ knmw',
+    kemeticDate: 'Rekh-Wer III, Day 22',
+    season: '🌱 Peret II – Active Growth',
+    month: 'Rekh-Wer (Rḫ-wr)',
+    decanName: 'sbȝ knmw (translation uncertain) | Deck: Star of the Knowing',
     starCluster:
         '✨ sbꜣ knmw — a modest decanal star group watched near the eastern horizon during this ten-day interval; exact modern identification is uncertain',
-    maatPrinciple: 'Repeat the Method',
+    maatPrinciple: 'The Gap Must Be Closed Before the Month Ends',
     cosmicContext: '''
-Growth has become established enough to be shaped. Rekh-Wer is great knowing under measure: knowledge that forms, records, corrects, teaches, and serves order without becoming proud of itself.
+On Day 4 you named a gap in your understanding.
+Twenty-two days later: is it closed?
 
-This day belongs to sbꜣ knmw, the star of Khnum, where shaped knowledge becomes reliable in use. The star-time movement does not function as decoration. It gives the day a position in the cycle: what appears in the sky, what is happening in the year, and what the heart must practice are held together.
+A gap named and not closed becomes a structural weakness
+carried into the next month, and then into the next season.
+The field continues to pay for it.
 
-Day 2 turns that movement toward repeat the method.
-
-In practical life, this is where the old pattern meets the present body. Progress may ask for action, but not every action is Ma’at. Obstacles may ask for endurance, but not every burden should be carried. A return may ask for receiving, but not every gain should be consumed.
-
-The question is simple: What does repeat the method require now?
+This is the last interval where closing it costs only time and attention.
+After Rekh-Wer ends, it costs much more.
+Close it today. Or name specifically what the closing requires
+and commit to the timeline before the month seals.
 ''',
     decanFlow: _compressedRekhwerFlowRows3,
     meduNeter: MeduNeterKey(
-      glyph: 'Potter’s wheel, reed pen, and vessel',
-      colorFrequency: 'Deep blue, living gold, and earth green',
-      mantra: '“I practice repeat the method in Ma’at.”',
+      glyph:
+          'Final sealing of a gap in the field boundary — the weakness closed',
+      colorFrequency: 'Sealed earth, no gap remaining in the green',
+      mantra: '"The gap does not carry into next month. I close it now."',
     ),
   ),
   'rekhwer_23_3': KemeticDayInfo(
-    kemeticDate: 'Rekh-Wer III, Day 3',
-    season: '🌿 Peret – Season of Emergence',
-    month: 'Rekh-Wer (Rḫ-wr) — Great Knowing Held Under Measure',
-    decanName: 'sbꜣ knmw',
+    kemeticDate: 'Rekh-Wer III, Day 23',
+    season: '🌱 Peret II – Active Growth',
+    month: 'Rekh-Wer (Rḫ-wr)',
+    decanName: 'sbȝ knmw (translation uncertain) | Deck: Star of the Knowing',
     starCluster:
         '✨ sbꜣ knmw — a modest decanal star group watched near the eastern horizon during this ten-day interval; exact modern identification is uncertain',
-    maatPrinciple: 'Remove Performance From Practice',
+    maatPrinciple: 'The Method Must Survive the Transition',
     cosmicContext: '''
-Growth has become established enough to be shaped. Rekh-Wer is great knowing under measure: knowledge that forms, records, corrects, teaches, and serves order without becoming proud of itself.
+A method that only works under ideal conditions is not yet a method.
+It is a good day's behavior.
 
-This day belongs to sbꜣ knmw, the star of Khnum, where shaped knowledge becomes reliable in use. The star-time movement does not function as decoration. It gives the day a position in the cycle: what appears in the sky, what is happening in the year, and what the heart must practice are held together.
+What you built in Rekh-Wer must hold into Rekh-Nedjes —
+under different demands, different pressures, a new focus.
 
-Day 3 turns that movement toward remove performance from practice.
-
-In practical life, this is where the old pattern meets the present body. Progress may ask for action, but not every action is Ma’at. Obstacles may ask for endurance, but not every burden should be carried. A return may ask for receiving, but not every gain should be consumed.
-
-The question is simple: What does remove performance from practice require now?
+Test the method against one harder condition today.
+Not to break it — to find where it needs reinforcement
+before the conditions change and there is no room to adjust.
+A method strengthened now carries forward. One not tested here collapses there.
 ''',
     decanFlow: _compressedRekhwerFlowRows3,
     meduNeter: MeduNeterKey(
-      glyph: 'Potter’s wheel, reed pen, and vessel',
-      colorFrequency: 'Deep blue, living gold, and earth green',
-      mantra: '“I practice remove performance from practice in Ma’at.”',
+      glyph:
+          'Method tested against a harder condition — the craft proven under pressure',
+      colorFrequency: 'Firm earth under tested green — held, not broken',
+      mantra:
+          '"The method holds under harder conditions. I make sure before the month ends."',
     ),
   ),
   'rekhwer_24_3': KemeticDayInfo(
-    kemeticDate: 'Rekh-Wer III, Day 4',
-    season: '🌿 Peret – Season of Emergence',
-    month: 'Rekh-Wer (Rḫ-wr) — Great Knowing Held Under Measure',
-    decanName: 'sbꜣ knmw',
+    kemeticDate: 'Rekh-Wer III, Day 24',
+    season: '🌱 Peret II – Active Growth',
+    month: 'Rekh-Wer (Rḫ-wr)',
+    decanName: 'sbȝ knmw (translation uncertain) | Deck: Star of the Knowing',
     starCluster:
         '✨ sbꜣ knmw — a modest decanal star group watched near the eastern horizon during this ten-day interval; exact modern identification is uncertain',
-    maatPrinciple: 'Strengthen the Weak Point',
+    maatPrinciple: 'Work at the Level You Have Built',
     cosmicContext: '''
-Growth has become established enough to be shaped. Rekh-Wer is great knowing under measure: knowledge that forms, records, corrects, teaches, and serves order without becoming proud of itself.
+The craftsman who spent a month building a skill
+and then returns to the old, unskilled approach
+has wasted the month.
 
-This day belongs to sbꜣ knmw, the star of Khnum, where shaped knowledge becomes reliable in use. The star-time movement does not function as decoration. It gives the day a position in the cycle: what appears in the sky, what is happening in the year, and what the heart must practice are held together.
+Bring everything acquired in Rekh-Wer to today's work.
+Not effort — precision. Not volume — quality.
+The technique refined, the gap closed, the knowledge applied.
 
-Day 4 turns that movement toward strengthen the weak point.
-
-In practical life, this is where the old pattern meets the present body. Progress may ask for action, but not every action is Ma’at. Obstacles may ask for endurance, but not every burden should be carried. A return may ask for receiving, but not every gain should be consumed.
-
-The question is simple: What does strengthen the weak point require now?
+This is what the month was for.
+Let the field today receive the quality of craft
+that twenty-four days of Rekh-Wer produced.
+Do not go back to the old method.
 ''',
     decanFlow: _compressedRekhwerFlowRows3,
     meduNeter: MeduNeterKey(
-      glyph: 'Potter’s wheel, reed pen, and vessel',
-      colorFrequency: 'Deep blue, living gold, and earth green',
-      mantra: '“I practice strengthen the weak point in Ma’at.”',
+      glyph:
+          'Craftsman at full skill — the month\'s learning expressed in one day\'s work',
+      colorFrequency:
+          'Precise copper, confident green, the skill visible in the result',
+      mantra: '"I work at the level I built. Not below it."',
     ),
   ),
   'rekhwer_25_3': KemeticDayInfo(
-    kemeticDate: 'Rekh-Wer III, Day 5',
-    season: '🌿 Peret – Season of Emergence',
-    month: 'Rekh-Wer (Rḫ-wr) — Great Knowing Held Under Measure',
-    decanName: 'sbꜣ knmw',
+    kemeticDate: 'Rekh-Wer III, Day 25',
+    season: '🌱 Peret II – Active Growth',
+    month: 'Rekh-Wer (Rḫ-wr)',
+    decanName: 'sbȝ knmw (translation uncertain) | Deck: Star of the Knowing',
     starCluster:
         '✨ sbꜣ knmw — a modest decanal star group watched near the eastern horizon during this ten-day interval; exact modern identification is uncertain',
-    maatPrinciple: 'Let the Vessel Hold More',
+    maatPrinciple: 'Knowledge That Is Not Passed On Dies With the Season',
     cosmicContext: '''
-Growth has become established enough to be shaped. Rekh-Wer is great knowing under measure: knowledge that forms, records, corrects, teaches, and serves order without becoming proud of itself.
+Agricultural knowledge survives by being written, spoken, demonstrated, and repeated.
+The method that moves from one farmer to the next
+outlives any single season.
 
-This day belongs to sbꜣ knmw, the star of Khnum, where shaped knowledge becomes reliable in use. The star-time movement does not function as decoration. It gives the day a position in the cycle: what appears in the sky, what is happening in the year, and what the heart must practice are held together.
+Knowledge kept privately dies when the holder loses access to the field.
 
-Day 5 turns that movement toward let the vessel hold more.
-
-In practical life, this is where the old pattern meets the present body. Progress may ask for action, but not every action is Ma’at. Obstacles may ask for endurance, but not every burden should be carried. A return may ask for receiving, but not every gain should be consumed.
-
-The question is simple: What does let the vessel hold more require now?
+What did you learn this month that worked?
+Write it down in a form that survives you stepping away.
+Teach it to one person.
+The knowledge is only as durable as how it is held.
 ''',
     decanFlow: _compressedRekhwerFlowRows3,
     meduNeter: MeduNeterKey(
-      glyph: 'Potter’s wheel, reed pen, and vessel',
-      colorFrequency: 'Deep blue, living gold, and earth green',
-      mantra: '“I practice let the vessel hold more in Ma’at.”',
+      glyph:
+          'Knowledge written and handed to the next farmer — the transmission',
+      colorFrequency: 'Ink on papyrus, the living field behind it continuing',
+      mantra: '"The knowledge survives because I pass it on."',
     ),
   ),
   'rekhwer_26_3': KemeticDayInfo(
-    kemeticDate: 'Rekh-Wer III, Day 6',
-    season: '🌿 Peret – Season of Emergence',
-    month: 'Rekh-Wer (Rḫ-wr) — Great Knowing Held Under Measure',
-    decanName: 'sbꜣ knmw',
+    kemeticDate: 'Rekh-Wer III, Day 26',
+    season: '🌱 Peret II – Active Growth',
+    month: 'Rekh-Wer (Rḫ-wr)',
+    decanName: 'sbȝ knmw (translation uncertain) | Deck: Star of the Knowing',
     starCluster:
         '✨ sbꜣ knmw — a modest decanal star group watched near the eastern horizon during this ten-day interval; exact modern identification is uncertain',
-    maatPrinciple: 'Teach the Method',
+    maatPrinciple:
+        'The Under-Tended Section Must Be Seen Before the Month Closes',
     cosmicContext: '''
-Growth has become established enough to be shaped. Rekh-Wer is great knowing under measure: knowledge that forms, records, corrects, teaches, and serves order without becoming proud of itself.
+Every month has a section that received less skilled attention.
+Not from negligence — from the natural pull toward what is already working.
 
-This day belongs to sbꜣ knmw, the star of Khnum, where shaped knowledge becomes reliable in use. The star-time movement does not function as decoration. It gives the day a position in the cycle: what appears in the sky, what is happening in the year, and what the heart must practice are held together.
+Before Rekh-Wer closes, name the section that was under-tended.
+Not to shame — to correct.
 
-Day 6 turns that movement toward teach the method.
-
-In practical life, this is where the old pattern meets the present body. Progress may ask for action, but not every action is Ma’at. Obstacles may ask for endurance, but not every burden should be carried. A return may ask for receiving, but not every gain should be consumed.
-
-The question is simple: What does teach the method require now?
+Give it focused care today.
+Not as compensation — as completion.
+The month's knowledge belongs to the whole field, not just the parts that were rewarding to work.
+Bring it all up before the month seals.
 ''',
     decanFlow: _compressedRekhwerFlowRows3,
     meduNeter: MeduNeterKey(
-      glyph: 'Potter’s wheel, reed pen, and vessel',
-      colorFrequency: 'Deep blue, living gold, and earth green',
-      mantra: '“I practice teach the method in Ma’at.”',
+      glyph:
+          'Farmer returning to the neglected row before month close — the field made whole',
+      colorFrequency: 'Previously dark green brought level with the rest',
+      mantra: '"The knowledge belongs to the whole field. I bring it all up."',
     ),
   ),
   'rekhwer_27_3': KemeticDayInfo(
-    kemeticDate: 'Rekh-Wer III, Day 7',
-    season: '🌿 Peret – Season of Emergence',
-    month: 'Rekh-Wer (Rḫ-wr) — Great Knowing Held Under Measure',
-    decanName: 'sbꜣ knmw',
+    kemeticDate: 'Rekh-Wer III, Day 27',
+    season: '🌱 Peret II – Active Growth',
+    month: 'Rekh-Wer (Rḫ-wr)',
+    decanName: 'sbȝ knmw (translation uncertain) | Deck: Star of the Knowing',
     starCluster:
         '✨ sbꜣ knmw — a modest decanal star group watched near the eastern horizon during this ten-day interval; exact modern identification is uncertain',
-    maatPrinciple: 'Guard Against Cleverness',
+    maatPrinciple: 'Read the Full Field Before Handing It Forward',
     cosmicContext: '''
-Growth has become established enough to be shaped. Rekh-Wer is great knowing under measure: knowledge that forms, records, corrects, teaches, and serves order without becoming proud of itself.
+The farmer about to transition into the next month
+walks the full field first.
+Not the section that was worked hardest.
+Not the section that looks best.
+The whole field. Honest.
 
-This day belongs to sbꜣ knmw, the star of Khnum, where shaped knowledge becomes reliable in use. The star-time movement does not function as decoration. It gives the day a position in the cycle: what appears in the sky, what is happening in the year, and what the heart must practice are held together.
+What does thirty days of Rekh-Wer show?
+Where is the knowledge strongest? Where are the remaining gaps?
+What will Rekh-Nedjes inherit?
 
-Day 7 turns that movement toward guard against cleverness.
-
-In practical life, this is where the old pattern meets the present body. Progress may ask for action, but not every action is Ma’at. Obstacles may ask for endurance, but not every burden should be carried. A return may ask for receiving, but not every gain should be consumed.
-
-The question is simple: What does guard against cleverness require now?
+Read it all without softening the difficult parts.
+The honest reading now prevents a mistaken plan later.
 ''',
     decanFlow: _compressedRekhwerFlowRows3,
     meduNeter: MeduNeterKey(
-      glyph: 'Potter’s wheel, reed pen, and vessel',
-      colorFrequency: 'Deep blue, living gold, and earth green',
-      mantra: '“I practice guard against cleverness in Ma’at.”',
+      glyph:
+          'Farmer at the field edge reading the whole — the final honest survey',
+      colorFrequency: 'Wide field read completely, no section softened',
+      mantra: '"I read the whole field. Honest. Before I hand it forward."',
     ),
   ),
   'rekhwer_28_3': KemeticDayInfo(
-    kemeticDate: 'Rekh-Wer III, Day 8',
-    season: '🌿 Peret – Season of Emergence',
-    month: 'Rekh-Wer (Rḫ-wr) — Great Knowing Held Under Measure',
-    decanName: 'sbꜣ knmw',
+    kemeticDate: 'Rekh-Wer III, Day 28',
+    season: '🌱 Peret II – Active Growth',
+    month: 'Rekh-Wer (Rḫ-wr)',
+    decanName: 'sbȝ knmw (translation uncertain) | Deck: Star of the Knowing',
     starCluster:
         '✨ sbꜣ knmw — a modest decanal star group watched near the eastern horizon during this ten-day interval; exact modern identification is uncertain',
-    maatPrinciple: 'Serve Through Competence',
+    maatPrinciple: 'The Craft Is the Offering',
     cosmicContext: '''
-Growth has become established enough to be shaped. Rekh-Wer is great knowing under measure: knowledge that forms, records, corrects, teaches, and serves order without becoming proud of itself.
+Ma'at does not weigh intention alone.
+She weighs what was done, how it was done, and whether the work served balance.
 
-This day belongs to sbꜣ knmw, the star of Khnum, where shaped knowledge becomes reliable in use. The star-time movement does not function as decoration. It gives the day a position in the cycle: what appears in the sky, what is happening in the year, and what the heart must practice are held together.
+The quality of craft applied to a living field
+is an ethical act in Kemetic understanding.
+Careless work damages what the earth gave.
+Skilled, honest work returns the care to the source.
 
-Day 8 turns that movement toward serve through competence.
-
-In practical life, this is where the old pattern meets the present body. Progress may ask for action, but not every action is Ma’at. Obstacles may ask for endurance, but not every burden should be carried. A return may ask for receiving, but not every gain should be consumed.
-
-The question is simple: What does serve through competence require now?
+What was the quality of the craft this month?
+Not the result — the execution.
+Did you work with the skill and attention the field deserved?
+That is what is offered today.
 ''',
     decanFlow: _compressedRekhwerFlowRows3,
     meduNeter: MeduNeterKey(
-      glyph: 'Potter’s wheel, reed pen, and vessel',
-      colorFrequency: 'Deep blue, living gold, and earth green',
-      mantra: '“I practice serve through competence in Ma’at.”',
+      glyph: 'Skilled hands before Ma\'at — the craft offered, not the yield',
+      colorFrequency:
+          'Gold scale, clean skilled hands, the field behind them living',
+      mantra: '"The craft is the offering. Ma\'at weighs how I worked."',
     ),
   ),
   'rekhwer_29_3': KemeticDayInfo(
-    kemeticDate: 'Rekh-Wer III, Day 9',
-    season: '🌿 Peret – Season of Emergence',
-    month: 'Rekh-Wer (Rḫ-wr) — Great Knowing Held Under Measure',
-    decanName: 'sbꜣ knmw',
+    kemeticDate: 'Rekh-Wer III, Day 29',
+    season: '🌱 Peret II – Active Growth',
+    month: 'Rekh-Wer (Rḫ-wr)',
+    decanName: 'sbȝ knmw (translation uncertain) | Deck: Star of the Knowing',
     starCluster:
         '✨ sbꜣ knmw — a modest decanal star group watched near the eastern horizon during this ten-day interval; exact modern identification is uncertain',
-    maatPrinciple: 'Preserve the Standard',
+    maatPrinciple: 'Read What the Next Month Requires',
     cosmicContext: '''
-Growth has become established enough to be shaped. Rekh-Wer is great knowing under measure: knowledge that forms, records, corrects, teaches, and serves order without becoming proud of itself.
+Rekh-Nedjes opens next month.
+Not lesser knowledge: knowledge made smaller, closer, and more exposed.
 
-This day belongs to sbꜣ knmw, the star of Khnum, where shaped knowledge becomes reliable in use. The star-time movement does not function as decoration. It gives the day a position in the cycle: what appears in the sky, what is happening in the year, and what the heart must practice are held together.
+Rekh-Wer built the broad craft.
+Rekh-Nedjes tests it under pressure — in the small sign,
+the early warning, the detail that reveals whether the method truly holds
+when conditions tighten.
 
-Day 9 turns that movement toward preserve the standard.
-
-In practical life, this is where the old pattern meets the present body. Progress may ask for action, but not every action is Ma’at. Obstacles may ask for endurance, but not every burden should be carried. A return may ask for receiving, but not every gain should be consumed.
-
-The question is simple: What does preserve the standard require now?
+What fine detail in the field has been below your resolution this month?
+That is what next month will press on.
+Prepare the eye before it arrives.
 ''',
     decanFlow: _compressedRekhwerFlowRows3,
     meduNeter: MeduNeterKey(
-      glyph: 'Potter’s wheel, reed pen, and vessel',
-      colorFrequency: 'Deep blue, living gold, and earth green',
-      mantra: '“I practice preserve the standard in Ma’at.”',
+      glyph:
+          'Eye close to the row — reading the fine detail, not the broad condition',
+      colorFrequency: 'Deep green close up, the subtle sign visible at last',
+      mantra: '"I prepare the eye for the finer reading next month requires."',
     ),
   ),
   'rekhwer_30_3': KemeticDayInfo(
-    kemeticDate: 'Rekh-Wer III, Day 10',
-    season: '🌿 Peret – Season of Emergence',
-    month: 'Rekh-Wer (Rḫ-wr) — Great Knowing Held Under Measure',
-    decanName: 'sbꜣ knmw',
+    kemeticDate: 'Rekh-Wer III, Day 30',
+    season: '🌱 Peret II – Active Growth',
+    month: 'Rekh-Wer (Rḫ-wr)',
+    decanName: 'sbȝ knmw (translation uncertain) | Deck: Star of the Knowing',
     starCluster:
         '✨ sbꜣ knmw — a modest decanal star group watched near the eastern horizon during this ten-day interval; exact modern identification is uncertain',
-    maatPrinciple: 'Seal Great Knowing',
+    maatPrinciple: 'Seal the Month. Carry the Knowledge Forward.',
     cosmicContext: '''
-Growth has become established enough to be shaped. Rekh-Wer is great knowing under measure: knowledge that forms, records, corrects, teaches, and serves order without becoming proud of itself.
+Rekh-Wer closes today.
 
-This day belongs to sbꜣ knmw, the star of Khnum, where shaped knowledge becomes reliable in use. The star-time movement does not function as decoration. It gives the day a position in the cycle: what appears in the sky, what is happening in the year, and what the heart must practice are held together.
+The field was read before it was touched.
+The right tool was matched to the task.
+The gap was named and closed.
+The technique was refined and held under pressure.
+The knowledge was shared, corrected, applied, recorded.
+The difficult section was worked. The weak point was strengthened.
+The craft was offered.
 
-Day 10 turns that movement toward seal great knowing.
-
-In practical life, this is where the old pattern meets the present body. Progress may ask for action, but not every action is Ma’at. Obstacles may ask for endurance, but not every burden should be carried. A return may ask for receiving, but not every gain should be consumed.
-
-The question is simple: What does seal great knowing require now?
+Name the knowledge that now belongs to you — that did not before.
+Hand the field into Rekh-Nedjes with that knowledge intact.
+The knowing travels. The field continues.
 ''',
     decanFlow: _compressedRekhwerFlowRows3,
     meduNeter: MeduNeterKey(
-      glyph: 'Potter’s wheel, reed pen, and vessel',
-      colorFrequency: 'Deep blue, living gold, and earth green',
-      mantra: '“I practice seal great knowing in Ma’at.”',
+      glyph:
+          'Field record sealed and carried forward — the knowledge that travels',
+      colorFrequency:
+          'Living green field, sealed record in hand, moving forward',
+      mantra: '"The knowing is mine now. I carry it into the next month."',
     ),
   ),
+
   'rekhnedjes_1_1': KemeticDayInfo(
     kemeticDate: 'Rekh-Nedjes I, Day 1',
     season: '🌿 Peret – Season of Emergence',

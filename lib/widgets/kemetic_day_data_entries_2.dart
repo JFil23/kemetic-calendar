@@ -720,1023 +720,927 @@ Stand at the threshold until the year opens in Ma’at.
 // JSON-driven overrides for remaining imported day cards
 
 Map<String, KemeticDayInfo> _buildRekhWerIEntries() {
-  const season = "🌿 Peret – Season of Emergence";
-  const month =
-      "Rekh-Wer (Rḫ-wr) — “Great Knowing,” where understanding must prove itself through structure, measure, and responsibility";
-  return _buildGeneratedDecanEntries(
-    keyPrefix: "rekhwer",
-    decan: 1,
-    decanLabel: "Rekh-Wer I",
-    monthLabelForDate: "Rekh-Wer",
-    month: month,
-    season: season,
-    flowRows: _rekhWerOverrideIFlowRows,
-    entries: [
-      (
-        totalDay: 1,
-        starCluster:
-            "✨ knmw — the shaping force, intelligence that forms, measures, and prepares what must function in the real world",
-        maatPrinciple: "Accept the Work of Shaping",
-        cosmicContext:
-            "Peret is no longer about waiting. The waters have receded. What remains is ground that must be worked.\nIn Kemet, this was the moment hands replaced speculation. Fields were not imagined into order — they were cut, leveled, measured, and shaped. Khnum’s force belongs here: not creation as inspiration, but creation as formation.\nSo Day 1 is not about ideas. It is about responsibility.\nWhat you know now must begin to take form. Not perfectly. Not completely. But physically, structurally, measurably.\nThis is where knowledge starts to cost something.",
-        glyph: "Potter’s wheel forming a vessel",
-        colorFrequency: "Worked clay, deep earth red, and measured gold",
-        mantra: "I shape what I am responsible for.",
+  return Map.fromEntries([
+    _dayInfoEntry(
+      key: 'rekhwer_1_1',
+      kemeticDate: 'Rekh-Wer I, Day 1',
+      season: '🌱 Peret II – Active Growth',
+      month:
+          'Rekh-Wer (Rḫ-wr) — the Great Knowledge; the month craft is applied to the living field',
+      decanName: 'knmw (translation uncertain) | Deck: The Great Knowing',
+      starCluster:
+          "✨ knmw — the shaping force, intelligence that forms, measures, and prepares what must function in the real world",
+      maatPrinciple: 'You Cannot Tend What You Do Not Know',
+      cosmicContext: '''
+Šef-Bedet is closed. The root is in. The field is growing.
+
+Now it requires something different from witness and patience.
+It requires knowledge — accurate, specific understanding of what is alive and what it needs.
+
+A farmer who loved the field but did not understand it
+watered at the wrong time, pulled the wrong plant, worked against the season.
+Love without knowledge is not enough in Rekh-Wer.
+
+Today: name exactly what you are tending and what it actually requires at this stage of its life.
+''',
+      decanFlow: _rekhWerOverrideIFlowRows,
+      meduNeter: MeduNeterKey(
+        glyph:
+            'Scribe\'s palette and planting tool side by side — knowledge and practice unified',
+        colorFrequency: 'Ink black and earth brown, the two together',
+        mantra: '"I know what I am tending."',
       ),
-      (
-        totalDay: 2,
-        starCluster: "✨ knmw — form defined through boundary and containment",
-        maatPrinciple: "Mark the Ground",
-        cosmicContext:
-            "Before anything rises, it must be placed.\nKemetic builders did not begin with height — they began with line. A misaligned base guaranteed failure later. So the ground was measured carefully before effort increased.\nToday is that moment.\nYou decide what this work actually is — and what it is not. Without that, energy leaks, effort scatters, and nothing holds.\nClarity of boundary is the first act of power.",
-        glyph: "Straight boundary line drawn into earth",
-        colorFrequency: "Pale sand and charcoal black",
-        mantra: "I define what I am building.",
+    ),
+    _dayInfoEntry(
+      key: 'rekhwer_2_1',
+      kemeticDate: 'Rekh-Wer I, Day 2',
+      season: '🌱 Peret II – Active Growth',
+      month: 'Rekh-Wer (Rḫ-wr)',
+      decanName: 'knmw (translation uncertain) | Deck: The Great Knowing',
+      starCluster: "✨ knmw — form defined through boundary and containment",
+      maatPrinciple: 'Read Before You Act',
+      cosmicContext: '''
+The experienced farmer reads the field before touching it.
+Color of leaf, moisture of soil, direction of lean, condition of the row edge.
+That reading takes minutes and prevents hours of wrong work.
+
+The inexperienced farmer arrives at the field already knowing what they will do.
+They act on yesterday's plan against today's condition.
+The field corrects them eventually — at cost.
+
+Before any work today: observe first.
+What is the actual current condition of what you are growing?
+Let the field speak before you do.
+''',
+      decanFlow: _rekhWerOverrideIFlowRows,
+      meduNeter: MeduNeterKey(
+        glyph:
+            'Farmer kneeling at the row edge before sunrise — reading before working',
+        colorFrequency: 'Pre-dawn blue, the field read in quiet before action',
+        mantra: '"The field speaks first. I listen before I act."',
       ),
-      (
-        totalDay: 3,
-        starCluster:
-            "✨ knmw — the shaping force moving from boundary into first incision",
-        maatPrinciple: "Make It Real",
-        cosmicContext:
-            "A marked field is still only intention.\nIn Kemet, once the ground was set, the first cut mattered more than all prior planning. It was the moment where thought lost its protection. Once the blade touched earth, the work could not return to abstraction.\nDay 3 is that cut.\nThis is where hesitation becomes the real threat. Not lack of knowledge — delay. Not confusion — avoidance.\nYou do not need the full plan today. You need the first irreversible act.\nForm begins where retreat ends.",
-        glyph: "Blade cutting the first furrow",
-        colorFrequency: "Iron gray and deep soil brown",
-        mantra: "I begin where thinking ends.",
+    ),
+    _dayInfoEntry(
+      key: 'rekhwer_3_1',
+      kemeticDate: 'Rekh-Wer I, Day 3',
+      season: '🌱 Peret II – Active Growth',
+      month: 'Rekh-Wer (Rḫ-wr)',
+      decanName: 'knmw (translation uncertain) | Deck: The Great Knowing',
+      starCluster:
+          "✨ knmw — the shaping force moving from boundary into first incision",
+      maatPrinciple: 'The Right Tool Does Less Work for Better Results',
+      cosmicContext: '''
+The Kemite craftsman maintained specific tools for specific tasks.
+A broad hoe for breaking soil. A narrow dibble for placing seed.
+Using the wrong one in the wrong place was not diligence — it was waste.
+
+What task is in front of you today?
+What is the precise instrument — method, person, time, approach — that fits it?
+
+Effort applied through the wrong tool is not honorable.
+It is inefficient at best and damaging at worst.
+Match the tool to the task before you begin.
+''',
+      decanFlow: _rekhWerOverrideIFlowRows,
+      meduNeter: MeduNeterKey(
+        glyph: 'Matched tool and task — the right instrument in the right hand',
+        colorFrequency: 'Clean copper tool against dark worked earth',
+        mantra: '"Right tool. Right task. Less effort, better result."',
       ),
-      (
-        totalDay: 4,
-        starCluster: "✨ knmw — shaping through removal, not accumulation",
-        maatPrinciple: "Clear for Structure",
-        cosmicContext:
-            "What is built correctly is not only assembled — it is cleared.\nIn Kemetic practice, preparation often meant removal before addition. Stones, roots, debris, misalignments — anything that would distort the form later had to go first.\nDay 4 is subtraction.\nYou are not adding more to your life today. You are making space for what must stand correctly.\nMost structures fail because they were built on top of what should have been removed.",
-        glyph: "Cleared ground with removed stone",
-        colorFrequency: "Dust beige and shadow black",
-        mantra: "I remove what distorts the build.",
+    ),
+    _dayInfoEntry(
+      key: 'rekhwer_4_1',
+      kemeticDate: 'Rekh-Wer I, Day 4',
+      season: '🌱 Peret II – Active Growth',
+      month: 'Rekh-Wer (Rḫ-wr)',
+      decanName: 'knmw (translation uncertain) | Deck: The Great Knowing',
+      starCluster: "✨ knmw — shaping through removal, not accumulation",
+      maatPrinciple: 'The Gap in Knowledge Is Costing the Field',
+      cosmicContext: '''
+Every field has a problem the farmer does not yet understand.
+Not from laziness — from the limits of what has been learned so far.
+
+The crop is doing something unexpected.
+The yield is lower than the effort warrants.
+Something is off and the diagnosis is not yet clear.
+
+Name the gap today.
+What do you not know about what you are tending
+that is quietly costing you?
+Find the answer — from someone who has grown this before,
+from a source, from honest observation.
+''',
+      decanFlow: _rekhWerOverrideIFlowRows,
+      meduNeter: MeduNeterKey(
+        glyph: 'Open question mark beside the growing row — the gap named',
+        colorFrequency: 'Growing green with one section of uncertain earth',
+        mantra: '"I name the gap. Then I close it."',
       ),
-      (
-        totalDay: 5,
-        starCluster: "✨ knmw — shaping through measure and truthful count",
-        maatPrinciple: "Face the Numbers",
-        cosmicContext:
-            "A field cannot be worked on imagination.\nIn Kemet, measuring was not optional. Water levels, grain amounts, land boundaries, labor capacity — everything was counted because survival depended on accuracy.\nDay 5 is measurement.\nNot how things feel. Not what you hope. Not what you project.\nWhat is actually there.\nTruth in number removes illusion from decision.",
-        glyph: "Measuring cord stretched across land",
-        colorFrequency: "Pale gold and river blue",
-        mantra: "I work from what is real.",
+    ),
+    _dayInfoEntry(
+      key: 'rekhwer_5_1',
+      kemeticDate: 'Rekh-Wer I, Day 5',
+      season: '🌱 Peret II – Active Growth',
+      month: 'Rekh-Wer (Rḫ-wr)',
+      decanName: 'knmw (translation uncertain) | Deck: The Great Knowing',
+      starCluster: "✨ knmw — shaping through measure and truthful count",
+      maatPrinciple: 'Imprecise Technique Costs More Than Laziness',
+      cosmicContext: '''
+A farmer who does not work costs the field one day.
+A farmer who works with imprecise technique costs the field the season.
+
+Bad technique repeated with effort entrenches the error.
+The plant grows wrong, the habit forms wrong, the method calcifies.
+
+Where in what you are doing is the technique imprecise?
+Not wrong from lack of effort — wrong from lack of refinement.
+Correct it now, before the season demands full capacity
+and there is no room to adjust.
+''',
+      decanFlow: _rekhWerOverrideIFlowRows,
+      meduNeter: MeduNeterKey(
+        glyph: 'Hand correcting tool angle mid-stroke — refinement in motion',
+        colorFrequency: 'Copper tool adjusted, earth responding correctly',
+        mantra:
+            '"I refine the technique before the season asks everything of it."',
       ),
-      (
-        totalDay: 6,
-        starCluster: "✨ knmw — shaping stabilized through repetition",
-        maatPrinciple: "Build the Rhythm",
-        cosmicContext:
-            "Single effort does not hold structure.\nIn Kemetic labor cycles, work repeated at the right time mattered more than bursts of intensity. Irrigation, planting, shaping — all depended on rhythm.\nDay 6 is repetition.\nYou take what you started and give it a consistent place in your day.\nThis is where effort stops being heroic and starts being reliable.",
-        glyph: "Repeated marks in a straight line",
-        colorFrequency: "Steady brown and soft gold",
-        mantra: "Consistency builds what intensity cannot.",
+    ),
+    _dayInfoEntry(
+      key: 'rekhwer_6_1',
+      kemeticDate: 'Rekh-Wer I, Day 6',
+      season: '🌱 Peret II – Active Growth',
+      month: 'Rekh-Wer (Rḫ-wr)',
+      decanName: 'knmw (translation uncertain) | Deck: The Great Knowing',
+      starCluster: "✨ knmw — shaping stabilized through repetition",
+      maatPrinciple: 'Knowledge Applied Is Different From Effort Applied',
+      cosmicContext: '''
+Two farmers, same hours in the field.
+One works from habit and repetition.
+One works from understanding of what the crop needs at this stage.
+
+At harvest, the fields are not the same.
+
+Rekh-Wer is not asking you to work harder.
+It is asking you to work from knowledge.
+What do you understand about what you are doing
+that you are not yet applying?
+Use that today. Not the effort — the understanding.
+''',
+      decanFlow: _rekhWerOverrideIFlowRows,
+      meduNeter: MeduNeterKey(
+        glyph: 'Knowing farmer in the field — same hands, better result',
+        colorFrequency: 'Rich green from well-applied knowledge',
+        mantra: '"I apply the knowledge I have, not just the effort."',
       ),
-      (
-        totalDay: 7,
-        starCluster:
-            "✨ knmw — the shaping force held under pressure without distortion",
-        maatPrinciple: "Hold the Line",
-        cosmicContext:
-            "Structure is tested when it becomes inconvenient.\nIn Kemet, boundaries were not drawn for ideal conditions — they were drawn to hold when pressure arrived: rising water, shifting soil, labor strain, competing needs. A line that disappears under stress was never a line.\nDay 7 is that test.\nYou already defined the boundary. Now something will push against it — time pressure, emotion, fatigue, another person’s urgency, your own desire to bend.\nToday is not about redefining the line.\nIt is about proving it exists.",
-        glyph: "Boundary line pressed firmly into earth",
-        colorFrequency: "Dark earth and fixed gold",
-        mantra: "What I set, I keep.",
+    ),
+    _dayInfoEntry(
+      key: 'rekhwer_7_1',
+      kemeticDate: 'Rekh-Wer I, Day 7',
+      season: '🌱 Peret II – Active Growth',
+      month: 'Rekh-Wer (Rḫ-wr)',
+      decanName: 'knmw (translation uncertain) | Deck: The Great Knowing',
+      starCluster:
+          "✨ knmw — the shaping force held under pressure without distortion",
+      maatPrinciple: 'Shared Knowledge Strengthens the Network',
+      cosmicContext: '''
+In a field-based life, working knowledge cannot remain private for long.
+A method that saves one crop may save the next household's season.
+
+Hoarding field knowledge while neighbors struggled
+was not competitive advantage — it was Isfet.
+
+What do you know about your craft, your field, your practice
+that someone in your network needs right now?
+Teach it. Pass it. The whole field grows stronger
+when the knowledge moves.
+''',
+      decanFlow: _rekhWerOverrideIFlowRows,
+      meduNeter: MeduNeterKey(
+        glyph:
+            'One farmer showing another the row condition — knowledge passed',
+        colorFrequency:
+            'Two figures in green, the knowledge moving between them',
+        mantra: '"What I know belongs to the field, not only to me."',
       ),
-      (
-        totalDay: 8,
-        starCluster:
-            "✨ knmw — shaping strengthened at the points most likely to fail",
-        maatPrinciple: "Reinforce the Weak Point",
-        cosmicContext:
-            "Failure rarely begins in the center.\nIt begins at the joint, the seam, the place you assumed would “probably be fine.” In Kemetic building, those points were reinforced early, not after collapse.\nDay 8 is inspection under honesty.\nYou look for where this structure will give way — not where it looks impressive, but where it is quietly unstable.\nStrength is not proven where things are easy.\nIt is built where they are most likely to break.",
-        glyph: "Reinforced joint bound with cord",
-        colorFrequency: "Bronze and deep blue",
-        mantra: "I strengthen where it matters most.",
+    ),
+    _dayInfoEntry(
+      key: 'rekhwer_8_1',
+      kemeticDate: 'Rekh-Wer I, Day 8',
+      season: '🌱 Peret II – Active Growth',
+      month: 'Rekh-Wer (Rḫ-wr)',
+      decanName: 'knmw (translation uncertain) | Deck: The Great Knowing',
+      starCluster:
+          "✨ knmw — shaping strengthened at the points most likely to fail",
+      maatPrinciple: 'Correction Is Information, Not Judgment',
+      cosmicContext: '''
+The experienced farmer who sees a younger farmer doing something wrong
+does not insult them — they correct the technique.
+The correction is not about the farmer. It is about the crop.
+
+You have been in this field for eight days.
+Someone with more experience in what you are growing
+would see something you are missing.
+
+Find them. Ask them to look.
+Receive what they say without defending the current method.
+The correction is about the crop. So is your response to it.
+''',
+      decanFlow: _rekhWerOverrideIFlowRows,
+      meduNeter: MeduNeterKey(
+        glyph:
+            'Elder farmer adjusting a younger one\'s grip — correction given and received',
+        colorFrequency: 'Warm earth, two hands, no hierarchy — only the crop',
+        mantra: '"Correction is information. I receive it for the field."',
       ),
-      (
-        totalDay: 9,
-        starCluster: "✨ knmw — shaping brought into alignment across all parts",
-        maatPrinciple: "Align the Whole",
-        cosmicContext:
-            "A structure can be strong in pieces and still fail as a whole.\nIn Kemetic work, alignment mattered as much as strength. A misaligned system wastes energy, creates friction, and eventually collapses even if each part is solid on its own.\nDay 9 is integration.\nYou check whether what you are doing actually fits together — your effort, your time, your direction, your commitments.\nOrder is not just strength.\nIt is correct relation between parts.",
-        glyph: "Interlocking forms fitting cleanly",
-        colorFrequency: "Balanced gold and deep green",
-        mantra: "Everything I do must fit.",
+    ),
+    _dayInfoEntry(
+      key: 'rekhwer_9_1',
+      kemeticDate: 'Rekh-Wer I, Day 9',
+      season: '🌱 Peret II – Active Growth',
+      month: 'Rekh-Wer (Rḫ-wr)',
+      decanName: 'knmw (translation uncertain) | Deck: The Great Knowing',
+      starCluster: "✨ knmw — shaping brought into alignment across all parts",
+      maatPrinciple: 'Unrecorded Knowledge Is Fragile',
+      cosmicContext: '''
+Field records were not administrative excess — they were survival intelligence.
+A bad year with records gave the next season a starting point.
+A bad year without them gave nothing.
+
+What is working right now lives only in your memory.
+Memory is the least reliable storage system available.
+
+Write it down today. The method, the rhythm, what changed and why.
+The knowledge is only as durable as its record.
+''',
+      decanFlow: _rekhWerOverrideIFlowRows,
+      meduNeter: MeduNeterKey(
+        glyph: 'Scribe recording the field condition — the method preserved',
+        colorFrequency:
+            'Ink black on clean papyrus, the growing field behind it',
+        mantra: '"What works must be written. Memory is not enough."',
       ),
-      (
-        totalDay: 10,
-        starCluster:
-            "✨ knmw — shaping confirmed through what now stands in reality",
-        maatPrinciple: "Face What Exists",
-        cosmicContext:
-            "The first cycle closes with proof.\nIn Kemet, the measure of work was never intention — it was what stood after the labor was done. A wall either held or it didn’t. A channel either flowed or it didn’t.\nDay 10 is that moment.\nYou step back and look at what is actually there. Not what you meant to do. Not what you almost did. What exists.\nThis is not judgment.\nThis is clarity.\nAnd clarity is what allows the next phase to be built correctly.",
-        glyph: "Standing pillar grounded in earth",
-        colorFrequency: "Stone gray and steady gold",
-        mantra: "What stands is what is real.",
+    ),
+    _dayInfoEntry(
+      key: 'rekhwer_10_1',
+      kemeticDate: 'Rekh-Wer I, Day 10',
+      season: '🌱 Peret II – Active Growth',
+      month: 'Rekh-Wer (Rḫ-wr)',
+      decanName: 'knmw (translation uncertain) | Deck: The Great Knowing',
+      starCluster:
+          "✨ knmw — shaping confirmed through what now stands in reality",
+      maatPrinciple: 'The First Decan Builds the Knowledge Base',
+      cosmicContext: '''
+Ten days: you named what you are tending, read before acting,
+matched tool to task, closed a knowledge gap, refined the technique,
+applied understanding rather than effort, shared what you know,
+received correction, and recorded what works.
+
+That is the knowledge base for this field.
+
+The second decan applies it — with skill, with consistent craft,
+with less second-guessing and more competent action.
+What do you now know that you did not ten days ago?
+Name it before the next decan begins.
+''',
+      decanFlow: _rekhWerOverrideIFlowRows,
+      meduNeter: MeduNeterKey(
+        glyph: 'Field record closed — the first knowing complete',
+        colorFrequency:
+            'Ink and earth together, the knowledge ready to be applied',
+        mantra: '"I know more than I did. The knowing is the foundation."',
       ),
-    ],
-  );
+    ),
+  ]);
 }
 
 Map<String, KemeticDayInfo> _buildRekhWerIIEntries() {
-  const season = '🌿 Peret – Season of Emergence';
-  const month = 'Rekh-Wer (Rḫ-wr) — Great Knowing Held Under Measure';
-  return _buildGeneratedDecanEntries(
-    keyPrefix: 'rekhwer',
-    decan: 2,
-    decanLabel: 'Rekh-Wer II',
-    monthLabelForDate: 'Rekh-Wer',
-    month: month,
-    season: season,
-    decanName: 'ḥry-ib knmw',
-    kemeticDateBuilder: (totalDay, _) => 'Rekh-Wer II, Day $totalDay',
-    flowRows: _rekhWerOverrideIIFlowRows,
-    entries: [
-      (
-        totalDay: 11,
-        starCluster:
-            '✨ ḥry-ib knmw — the heart phase of the knmw decanal sequence; a modest horizon-rising star group used as a night-time marker, with no secure modern constellation identification',
-        maatPrinciple: 'Skill Governed by the Heart',
-        cosmicContext: '''
-The first decan gave form.
+  return Map.fromEntries([
+    _dayInfoEntry(
+      key: 'rekhwer_11_2',
+      kemeticDate: 'Rekh-Wer II, Day 11',
+      season: '🌱 Peret II – Active Growth',
+      month: 'Rekh-Wer (Rḫ-wr)',
+      decanName:
+          'ḥry-ib knmw (translation uncertain) | Deck: Heart of the Knowing',
+      starCluster:
+          '✨ ḥry-ib knmw — the heart phase of the knmw decanal sequence; a modest horizon-rising star group used as a night-time marker, with no secure modern constellation identification',
+      maatPrinciple: 'Apply What Is Known',
+      cosmicContext: '''
+The first decan built the knowledge base.
+The second decan applies it.
 
-The second asks whether that form can be refined by discernment.
+The error here is re-gathering instead of deploying:
+reading more, researching more, asking more questions
+when the knowledge required for action is already in hand.
 
-This is the work of ḥry-ib knmw: the heart of Khnum. The clay has risen. A vessel has begun to appear. But a rising form is not yet a trustworthy form. It must be read by the heart before the hand continues pressing.
-
-Day 11 asks for skill to pause before it improves.
-
-This matters because refinement can become another form of force. A person may keep editing because anxiety cannot stop touching the work. A body may be pushed because discipline has confused itself with punishment. A relationship may be corrected before it has been heard. A project may be improved until its original purpose is buried under clever additions.
-
-The heart must govern the hand.
-
-In Rekh-Wer, knowledge becomes dangerous when it becomes proud of itself. Skill must not act only because it can. It must ask what the form truly needs.
-
-Today begins the work of discernment.
-
-Before shaping more, listen.
-
-Before correcting, understand.
-
-Before pressing, weigh.
-
-Great knowing becomes Ma’at when it lets the heart decide how knowledge should touch the world.
+Rekh-Wer's second decan asks for craft, not caution.
+You know enough to act well.
+Act from that knowledge today — with precision, not with more preparation.
 ''',
-        glyph: 'Heart placed above the potter’s hand',
-        colorFrequency: 'Wet clay brown, deep green, and measured gold',
-        mantra: '“My skill answers to discernment.”',
+      decanFlow: _rekhWerOverrideIIFlowRows,
+      meduNeter: MeduNeterKey(
+        glyph:
+            'Farmer working the row with confident technique — knowledge in motion',
+        colorFrequency: 'Rich growing green, copper tool moving with skill',
+        mantra: '"I know enough. I apply it now."',
       ),
-      (
-        totalDay: 12,
-        starCluster:
-            '✨ ḥry-ib knmw — a small rising decanal group near the horizon in the night sequence, physically treated as a timing marker rather than a securely identified modern cluster',
-        maatPrinciple: 'The Form Heard',
-        cosmicContext: '''
-The form speaks through response.
+    ),
+    _dayInfoEntry(
+      key: 'rekhwer_12_2',
+      kemeticDate: 'Rekh-Wer II, Day 12',
+      season: '🌱 Peret II – Active Growth',
+      month: 'Rekh-Wer (Rḫ-wr)',
+      decanName:
+          'ḥry-ib knmw (translation uncertain) | Deck: Heart of the Knowing',
+      starCluster:
+          '✨ ḥry-ib knmw — a small rising decanal group near the horizon in the night sequence, physically treated as a timing marker rather than a securely identified modern cluster',
+      maatPrinciple: 'The Standard Must Hold',
+      cosmicContext: '''
+A field tended well for ten days and carelessly for ten
+does not average out. The careless stretch damages what the good stretch built.
 
-Day 12 asks for listening.
+The standard established in Rekh-Wer I is not a starting line —
+it is the floor. The work does not go below it.
 
-The clay tells the potter when pressure is too hard. The wall thins. The center wobbles. The surface cracks. The hand that refuses to listen damages what it is trying to make.
-
-The same is true in every kind of work.
-
-The body speaks through fatigue, appetite, stiffness, breath, and pain.
-
-The project speaks through friction, confusion, repetition, and resistance.
-
-The relationship speaks through tone, silence, repair, and recurring tension.
-
-The habit speaks through whether it can survive ordinary days.
-
-The first question is not, “How can this be forced into the desired shape?”
-
-The first question is, “What is the form revealing?”
-
-Great knowing requires observation before correction. A clever hand may make fast changes, but a wise hand listens first.
-
-Today asks for evidence to be read without defensiveness.
-
-What is holding?
-
-What is straining?
-
-What keeps collapsing?
-
-What improves when given space?
-
-What worsens when pressed?
-
-The work is not mute. The body is not mute. The field is not mute.
-
-Discernment begins when the heart listens to the answer of the form.
+Under pressure, under fatigue, when motivation is low:
+the standard holds. Not because it is easy.
+Because the field does not adjust to the farmer's mood.
+Today: hold the standard you established.
 ''',
-        glyph: 'Ear and heart beside a rising vessel',
-        colorFrequency: 'Soft blue, clay brown, and listening gold',
-        mantra: '“I listen to what the form is telling me.”',
+      decanFlow: _rekhWerOverrideIIFlowRows,
+      meduNeter: MeduNeterKey(
+        glyph:
+            'Plumb line hanging straight regardless of weather — the standard held',
+        colorFrequency: 'Steady gold line, green field at consistent height',
+        mantra: '"The standard does not move. I hold it."',
       ),
-      (
-        totalDay: 13,
-        starCluster:
-            '✨ ḥry-ib knmw — a modest horizon marker in the decanal star sequence, with exact modern identification uncertain',
-        maatPrinciple: 'Error Named Without Condemnation',
-        cosmicContext: '''
-Correction requires distinction.
+    ),
+    _dayInfoEntry(
+      key: 'rekhwer_13_2',
+      kemeticDate: 'Rekh-Wer II, Day 13',
+      season: '🌱 Peret II – Active Growth',
+      month: 'Rekh-Wer (Rḫ-wr)',
+      decanName:
+          'ḥry-ib knmw (translation uncertain) | Deck: Heart of the Knowing',
+      starCluster:
+          '✨ ḥry-ib knmw — a modest horizon marker in the decanal star sequence, with exact modern identification uncertain',
+      maatPrinciple: 'The Avoided Section Costs the Whole Field',
+      cosmicContext: '''
+Every field has a section the farmer tends last, if at all.
+Not the worst section — the one that is difficult, uncomfortable, or unrewarding to work.
+It is not neglected from laziness. It is avoided from preference.
 
-Day 13 asks for error to be separated from material.
+But the field does not honor preference.
+The avoided section grows weaker and eventually pulls the whole field's yield down.
 
-A vessel may have one weak wall without being worthless. A skill may have one faulty habit without being false. A relationship may have one repeating wound without being beyond repair. A body may have one weak point without being failed. A project may need one part removed without the whole work being thrown away.
-
-This distinction protects progress.
-
-Without it, every flaw becomes a verdict.
-
-The perfectionist destroys the vessel because it is not finished. The ashamed person abandons the work because one part is crooked. The angry person condemns the whole relationship because one truth hurts. The frightened person calls the whole body broken because one place needs care.
-
-That is not discernment.
-
-Discernment names exactly what is wrong.
-
-No more.
-
-No less.
-
-Today asks for one flaw to be identified with precision and mercy.
-
-What needs correction?
-
-What remains sound?
-
-What should be repaired rather than rejected?
-
-Khnum does not hate the clay because it needs shaping. Great knowing should not hate the material either.
-
-Error named clearly can serve Ma’at. Error used as condemnation becomes Isfet in the mind.
+What part of what you are building have you been working around?
+Go there today. With full attention. With the knowledge you now have.
+It will not tend itself.
 ''',
-        glyph: 'Marked flaw on a vessel beside an unbroken base',
-        colorFrequency: 'Clay red, clear gold, and steady green',
-        mantra: '“I correct the flaw without condemning the whole.”',
+      decanFlow: _rekhWerOverrideIIFlowRows,
+      meduNeter: MeduNeterKey(
+        glyph:
+            'Farmer entering the difficult section of the field — the avoided corner faced',
+        colorFrequency:
+            'Darker earth, less tended green — the section that needs the work',
+        mantra:
+            '"The part I avoid is the part that costs everything. I go there today."',
       ),
-      (
-        totalDay: 14,
-        starCluster:
-            '✨ ḥry-ib knmw — a small decanal rising group observed near the horizon as part of the night-hour order; no secure modern star-cluster assignment should be assumed',
-        maatPrinciple: 'Method Refined',
-        cosmicContext: '''
-Sometimes the material is not the problem.
+    ),
+    _dayInfoEntry(
+      key: 'rekhwer_14_2',
+      kemeticDate: 'Rekh-Wer II, Day 14',
+      season: '🌱 Peret II – Active Growth',
+      month: 'Rekh-Wer (Rḫ-wr)',
+      decanName:
+          'ḥry-ib knmw (translation uncertain) | Deck: Heart of the Knowing',
+      starCluster:
+          '✨ ḥry-ib knmw — a small decanal rising group observed near the horizon as part of the night-hour order; no secure modern star-cluster assignment should be assumed',
+      maatPrinciple: 'The Field Requires the Right Pace, Not the Fastest One',
+      cosmicContext: '''
+The farmer who moves too fast through the field
+misses what the slower pass would have caught.
+The one who moves too slowly lets the window close.
 
-The method is.
+The field requires a specific pace — not the farmer's preferred pace,
+not yesterday's urgency or tomorrow's anxiety.
+Today's condition.
 
-Day 14 asks for the hand to be refined.
-
-A vessel may collapse because the pressure is wrong, not because the clay is worthless. A student may struggle because the teaching is unclear, not because the mind is weak. A body may resist because the training is poorly paced, not because discipline is impossible. A conversation may fail because the timing and tone are wrong, not because truth has no place.
-
-This is one of the humbling lessons of Rekh-Wer.
-
-Knowledge must be willing to examine itself.
-
-The person who knows a little may blame the material. The person under Ma’at asks whether the hand has become careless, proud, rushed, or too rigid.
-
-Today asks for one method to be adjusted.
-
-Change the timing.
-
-Change the words.
-
-Change the tool.
-
-Change the pressure.
-
-Change the order.
-
-Change the amount.
-
-Change the way the work is approached before declaring the work impossible.
-
-Khnum’s hand is powerful because it is responsive.
-
-Great knowing becomes craft when it can refine its own method.
+Read what the work actually needs right now.
+Is this a day for deep attention on one section,
+or broad maintenance across the whole?
+Match the pace to the field, not to the feeling.
 ''',
-        glyph: 'Potter’s hand changing angle on the wheel',
-        colorFrequency: 'Wet clay, responsive blue, and refined gold',
-        mantra: '“I refine the hand before blaming the clay.”',
+      decanFlow: _rekhWerOverrideIIFlowRows,
+      meduNeter: MeduNeterKey(
+        glyph:
+            'Farmer adjusting stride to match the row — pace calibrated to the field',
+        colorFrequency:
+            'Even green, unhurried copper, the pace matching the need',
+        mantra: '"I move at the pace the field requires today."',
       ),
-      (
-        totalDay: 15,
-        starCluster:
-            '✨ ḥry-ib knmw — the midpoint phase of the knmw decanal sequence, a modest rising star group used for timing with uncertain modern identification',
-        maatPrinciple: 'Correction Received',
-        cosmicContext: '''
-The middle of this decan asks for humility.
+    ),
+    _dayInfoEntry(
+      key: 'rekhwer_15_2',
+      kemeticDate: 'Rekh-Wer II, Day 15',
+      season: '🌱 Peret II – Active Growth',
+      month: 'Rekh-Wer (Rḫ-wr)',
+      decanName:
+          'ḥry-ib knmw (translation uncertain) | Deck: Heart of the Knowing',
+      starCluster:
+          '✨ ḥry-ib knmw — the midpoint phase of the knmw decanal sequence, a modest rising star group used for timing with uncertain modern identification',
+      maatPrinciple: 'Strength Goes to the Weakest Point',
+      cosmicContext: '''
+A skilled tender does not only feed the strongest rows.
+The vulnerable section must be read and supported before it pulls down the whole field.
 
-Day 15 belongs to receiving correction.
+Skilled tending means reading where things are most at risk
+and directing capacity there, even when the stronger sections are more rewarding to work.
 
-This is where great knowing is tested. Knowledge can become proud of itself. Skill can mistake experience for immunity. A person can become attached to the first form simply because they made it. A method can be defended because it once worked, even after the evidence has changed.
-
-Correction is not humiliation when it serves Ma’at.
-
-It is protection from hardening in the wrong shape.
-
-A teacher may speak. The body may object. A mistake may repeat. A number may refuse to agree with the story. A friend may say the sentence that reveals the crooked place. A tool may fail because the method is wrong. The field may answer the farmer honestly.
-
-Today asks for useful correction to be received without defense.
-
-Not every voice should shape the vessel.
-
-But the right correction should not be rejected because pride finds it uncomfortable.
-
-What truth can improve the work?
-
-What evidence has been ignored?
-
-What discomfort is actually instruction?
-
-A vessel that accepts correction before firing can still become useful.
-
-A life that accepts correction before collapse can still return to measure.
+Where is the weakest point in what you are building?
+The section with the thinnest root, the least attention, the most risk.
+Go there with everything you know. Today.
 ''',
-        glyph: 'Open hands receiving a measuring cord',
-        colorFrequency: 'Humility blue, clay brown, and honest gold',
-        mantra: '“Correction can protect the form.”',
+      decanFlow: _rekhWerOverrideIIFlowRows,
+      meduNeter: MeduNeterKey(
+        glyph:
+            'Water directed at the weakest row — the allocation made correctly',
+        colorFrequency: 'River blue to the most vulnerable green',
+        mantra:
+            '"Strength goes to the weakest point. That is skilled tending."',
       ),
-      (
-        totalDay: 16,
-        starCluster:
-            '✨ ḥry-ib knmw — a horizon-rising decanal marker in the ten-day star sequence, best described as a small watched group with uncertain modern identity',
-        maatPrinciple: 'Excess Removed',
-        cosmicContext: '''
-Refinement often means removal.
+    ),
+    _dayInfoEntry(
+      key: 'rekhwer_16_2',
+      kemeticDate: 'Rekh-Wer II, Day 16',
+      season: '🌱 Peret II – Active Growth',
+      month: 'Rekh-Wer (Rḫ-wr)',
+      decanName:
+          'ḥry-ib knmw (translation uncertain) | Deck: Heart of the Knowing',
+      starCluster:
+          '✨ ḥry-ib knmw — a horizon-rising decanal marker in the ten-day star sequence, best described as a small watched group with uncertain modern identity',
+      maatPrinciple: 'The Method Must Be Protected',
+      cosmicContext: '''
+A good technique can be disrupted.
+A schedule collapses. An urgency displaces the rhythm.
+Someone else's need overwrites the established practice.
+The method erodes not from abandonment but from interruption compounded.
 
-Day 16 asks for excess to be cut away.
-
-The vessel may be too heavy. The wall may be too thick. The mouth may be cluttered by ornament. The surface may carry marks that weaken the function. What was added in enthusiasm may now keep the form from serving.
-
-This happens in life constantly.
-
-A schedule carries too many tasks.
-
-A project carries too many features.
-
-A room carries too many objects.
-
-A sentence carries too many words.
-
-A relationship carries old arguments that should not keep being stored.
-
-A practice carries rules that no longer serve the body.
-
-Excess can look like richness while quietly weakening the vessel.
-
-Great knowing does not only gather. It removes.
-
-Today asks for one unnecessary part to be released.
-
-Not the living center.
-
-The extra weight.
-
-The thing that makes the form harder to use, harder to maintain, harder to understand, or less truthful.
-
-Removal under Ma’at is not loss. It is the clearing of function.
-
-A vessel becomes more useful when it stops carrying what it was never meant to hold.
+What conditions, if they arrive, would cause you to lose
+what you have learned and established this month?
+Name them.
+Then build one protection against the most likely one.
+The method is worth guarding.
 ''',
-        glyph: 'Chisel removing excess clay from a vessel',
-        colorFrequency: 'Clean gold, clay brown, and clear white',
-        mantra: '“I remove what keeps the form from serving.”',
+      decanFlow: _rekhWerOverrideIIFlowRows,
+      meduNeter: MeduNeterKey(
+        glyph:
+            'Field boundary marked — the method held within its defined space',
+        colorFrequency: 'Protected green inside a clear boundary',
+        mantra: '"The method is worth protecting. I guard it deliberately."',
       ),
-      (
-        totalDay: 17,
-        starCluster:
-            '✨ ḥry-ib knmw — a small rising decanal group in the observed night sequence, physically described as a horizon timing marker rather than a confirmed modern constellation',
-        maatPrinciple: 'Center Strengthened',
-        cosmicContext: '''
-After excess is removed, the center must be strengthened.
+    ),
+    _dayInfoEntry(
+      key: 'rekhwer_17_2',
+      kemeticDate: 'Rekh-Wer II, Day 17',
+      season: '🌱 Peret II – Active Growth',
+      month: 'Rekh-Wer (Rḫ-wr)',
+      decanName:
+          'ḥry-ib knmw (translation uncertain) | Deck: Heart of the Knowing',
+      starCluster:
+          '✨ ḥry-ib knmw — a small rising decanal group in the observed night sequence, physically described as a horizon timing marker rather than a confirmed modern constellation',
+      maatPrinciple: 'Use Knowledge You Were Given',
+      cosmicContext: '''
+In Ka-ḥer-ka you called in help.
+In Šef-Bedet someone offered correction or guidance.
+In Rekh-Wer I you received correction and asked for it.
 
-Day 17 returns to the core.
+That knowledge is available to you.
+Is it being applied?
 
-The danger after cutting away what is unnecessary is forgetting what remains must be reinforced. A vessel still needs a strong base. A practice still needs a reason. A relationship still needs truth. A body still needs nourishment. A project still needs the one function it was made to serve.
+Most people receive good instruction and then return
+to their previous method within a week.
+The instruction fades; the habit wins.
 
-The center carries the whole form.
-
-If the center is weak, outer polish does not matter.
-
-This day asks where the essential part needs support.
-
-The core habit.
-
-The central promise.
-
-The main skill.
-
-The true audience.
-
-The necessary boundary.
-
-The foundation of the body: food, sleep, breath, movement.
-
-The actual purpose beneath all the work.
-
-Rekh-Wer is great knowing, but knowing is not measured by how much is added. It is measured by whether the center is understood and protected.
-
-Today asks for one central thing to be strengthened before more is built around it.
-
-In the vessel, in the life, in the work, in the body: the center must hold.
-
-Everything else depends on that.
+Take one piece of knowledge given to you by someone else this season
+and apply it today — fully, not as a trial.
 ''',
-        glyph: 'Strong base beneath a shaped vessel',
-        colorFrequency: 'Deep green, clay brown, and foundation gold',
-        mantra: '“I strengthen the center that carries the form.”',
+      decanFlow: _rekhWerOverrideIIFlowRows,
+      meduNeter: MeduNeterKey(
+        glyph:
+            'Received correction put into practice — another\'s knowledge now in the hands',
+        colorFrequency: 'Two tones of earth united in one practiced motion',
+        mantra: '"I use what I was given. That is how knowledge becomes mine."',
       ),
-      (
-        totalDay: 18,
-        starCluster:
-            '✨ ḥry-ib knmw — a modest horizon marker in the decanal star order, likely faint compared with major stellar anchors and not securely identified today',
-        maatPrinciple: 'Form Tested in Use',
-        cosmicContext: '''
-A form must be tested by use.
+    ),
+    _dayInfoEntry(
+      key: 'rekhwer_18_2',
+      kemeticDate: 'Rekh-Wer II, Day 18',
+      season: '🌱 Peret II – Active Growth',
+      month: 'Rekh-Wer (Rḫ-wr)',
+      decanName:
+          'ḥry-ib knmw (translation uncertain) | Deck: Heart of the Knowing',
+      starCluster:
+          '✨ ḥry-ib knmw — a modest horizon marker in the decanal star order, likely faint compared with major stellar anchors and not securely identified today',
+      maatPrinciple: 'Measure What the Second Interval Produced',
+      cosmicContext: '''
+Two intervals in. Eighteen days of Rekh-Wer.
+The scribe records not when it feels right but on schedule.
 
-Day 18 asks whether the vessel can hold outside the imagination.
+What has this field actually produced in the second ten days?
+Not how the work felt. Not the effort given.
+What changed in the growing thing between Day 10 and today?
 
-This is the moment when theory meets condition. The vessel receives water. The schedule receives a difficult day. The boundary receives pressure. The relationship receives truth. The body receives ordinary labor. The project receives an actual user, reader, client, household, or need.
-
-Use reveals what planning cannot.
-
-Some things look balanced until they are carried. Some promises sound strong until time tests them. Some methods seem wise until the body has to live inside them. Some beautiful structures fail because no one can use them without strain.
-
-This is not an insult to the work.
-
-It is the next teacher.
-
-Today asks for one form to meet a real condition.
-
-Do not demand perfection from the test.
-
-Watch.
-
-What holds?
-
-What leaks?
-
-What confuses?
-
-What needs reinforcement?
-
-What becomes easier than expected?
-
-Great knowing does not hide inside theory. It lets the form meet the world, then learns from the answer.
-
-A vessel proven in use becomes more trustworthy than one admired from a distance.
+Write a number if you can. A measure, a comparison, a concrete difference.
+Feeling is not measurement.
+The honest number is what the next decision is made from.
 ''',
-        glyph: 'Water being poured into a newly formed vessel',
-        colorFrequency: 'Nile blue, fired clay, and testing gold',
-        mantra: '“I let the form meet real use.”',
+      decanFlow: _rekhWerOverrideIIFlowRows,
+      meduNeter: MeduNeterKey(
+        glyph:
+            'Scribe marking the second interval measurement — the honest count',
+        colorFrequency: 'Clean record, the field assessed without flattery',
+        mantra: '"The honest measure is what I make the next decision from."',
       ),
-      (
-        totalDay: 19,
-        starCluster:
-            '✨ ḥry-ib knmw — a small decanal rising group near the horizon in the night-time sequence, with exact modern star identity uncertain',
-        maatPrinciple: 'Method Preserved',
-        cosmicContext: '''
-What has been learned should not be lost.
+    ),
+    _dayInfoEntry(
+      key: 'rekhwer_19_2',
+      kemeticDate: 'Rekh-Wer II, Day 19',
+      season: '🌱 Peret II – Active Growth',
+      month: 'Rekh-Wer (Rḫ-wr)',
+      decanName:
+          'ḥry-ib knmw (translation uncertain) | Deck: Heart of the Knowing',
+      starCluster:
+          '✨ ḥry-ib knmw — a small decanal rising group near the horizon in the night-time sequence, with exact modern star identity uncertain',
+      maatPrinciple: 'The Method Must Serve the Field',
+      cosmicContext: '''
+Yesterday's honest reading revealed the current condition.
+Today the method is adjusted to match it.
 
-Day 19 asks for the method to be recorded.
+A method that does not change in response to the field's condition
+is not a method — it is a preference.
+The field does not accommodate preference.
 
-Correction has happened. Excess has been removed. The center has been strengthened. The form has been tested. Now the lesson must be preserved before memory dissolves into feeling.
-
-This is Djehuty’s work inside Khnum’s craft.
-
-The hand learns, but the record lets another hand learn later. The body learns, but the written rhythm helps the body remember when stress returns. The project teaches its method, but the method must be named or it will have to be rediscovered through future frustration.
-
-In Kemet, knowledge survived because it was copied, taught, measured, and placed into forms that could continue.
-
-A method unrecorded remains vulnerable.
-
-Today asks for one piece of learning to be written clearly.
-
-What worked?
-
-What failed?
-
-What pressure was too much?
-
-What order should be repeated?
-
-What standard should now govern the work?
-
-This does not need to be elaborate. A simple note can become a future guide.
-
-Great knowing becomes inheritance when it is preserved.
+What does yesterday's measurement require you to change?
+Not abandon — adjust. One change, based on honest evidence.
+The knowledge is only useful if it changes what you do.
 ''',
-        glyph: 'Reed pen beside a finished vessel',
-        colorFrequency: 'Ink black, clay brown, and gold',
-        mantra: '“I preserve the method so wisdom can continue.”',
+      decanFlow: _rekhWerOverrideIIFlowRows,
+      meduNeter: MeduNeterKey(
+        glyph:
+            'Farmer changing the tool angle based on what the soil showed — method adjusted',
+        colorFrequency: 'Earth read, tool corrected, green responding',
+        mantra:
+            '"The method serves the field. I adjust when the field requires it."',
       ),
-      (
-        totalDay: 20,
-        starCluster:
-            '✨ ḥry-ib knmw — the heart phase of the knmw decanal group, a modest horizon-rising timing marker in the star sequence with no secure modern constellation match',
-        maatPrinciple: 'Discerned Skill Sealed',
-        cosmicContext: '''
-Day 20 seals the heart of Khnum.
+    ),
+    _dayInfoEntry(
+      key: 'rekhwer_20_2',
+      kemeticDate: 'Rekh-Wer II, Day 20',
+      season: '🌱 Peret II – Active Growth',
+      month: 'Rekh-Wer (Rḫ-wr)',
+      decanName:
+          'ḥry-ib knmw (translation uncertain) | Deck: Heart of the Knowing',
+      starCluster:
+          '✨ ḥry-ib knmw — the heart phase of the knmw decanal group, a modest horizon-rising timing marker in the star sequence with no secure modern constellation match',
+      maatPrinciple: 'Two Decans In — Account Before the Last One Begins',
+      cosmicContext: '''
+Twenty days of Rekh-Wer.
+The knowledge base was built and the craft was applied.
+The standard was held, the difficult section worked,
+the pace calibrated, the weak point strengthened.
 
-This decan has asked whether skill can accept discernment. The form has been heard. Error has been separated from material. The hand has been refined. Correction has been received. Excess has been removed. The center has been strengthened. The form has been tested in use. The method has been recorded.
+Before the third decan opens: account for the field.
+What knowledge is now solid? What still has gaps?
+What does the field need from the final ten days —
+and what do you need to bring to it?
 
-Now skill is more trustworthy.
-
-Not because it was perfect.
-
-Because it was corrected.
-
-This is one of the deepest teachings of Rekh-Wer. Knowledge under Ma’at does not fear refinement. It does not cling to first attempts. It does not hide from evidence. It does not confuse pride with mastery.
-
-A vessel shaped by correction can hold more than a vessel defended by ego.
-
-A life shaped by truth can continue where performance would break.
-
-Today asks what has become more reliable because it was refined.
-
-Name it.
-
-A method.
-
-A rhythm.
-
-A body practice.
-
-A relationship pattern.
-
-A piece of work.
-
-A way of speaking.
-
-A way of carrying responsibility.
-
-Seal the learning.
-
-What has been corrected in Ma’at can now serve with greater trust.
+Know clearly what you are carrying into the close of this month.
 ''',
-        glyph: 'Corrected vessel sealed with a heart sign',
-        colorFrequency: 'Fired clay, deep green, and sealed gold',
-        mantra: '“What accepts correction becomes trustworthy.”',
+      decanFlow: _rekhWerOverrideIIFlowRows,
+      meduNeter: MeduNeterKey(
+        glyph:
+            'Field surveyed at midpoint — the account taken before the final interval',
+        colorFrequency:
+            'Wide green field, the farmer reading all of it with knowing eyes',
+        mantra:
+            '"Two decans in. I know this field. I carry that into the last ten days."',
       ),
-    ],
-  );
+    ),
+  ]);
 }
 
 Map<String, KemeticDayInfo> _buildRekhWerIIIEntries() {
-  const season = '🌿 Peret – Season of Emergence';
-  const month = 'Rekh-Wer (Rḫ-wr) — Great Knowing Held Under Measure';
-  return _buildGeneratedDecanEntries(
-    keyPrefix: 'rekhwer',
-    decan: 3,
-    decanLabel: 'Rekh-Wer III',
-    monthLabelForDate: 'Rekh-Wer',
-    month: month,
-    season: season,
-    decanName: 'sbꜣ knmw',
-    kemeticDateBuilder: (totalDay, _) => 'Rekh-Wer III, Day $totalDay',
-    flowRows: _rekhWerOverrideIIIFlowRows,
-    entries: [
-      (
-        totalDay: 21,
-        starCluster:
-            '✨ sbꜣ knmw — the star phase of the knmw decanal sequence; a modest horizon-rising marker in the night order, with no secure modern constellation identification',
-        maatPrinciple: 'Reliability Begins',
-        cosmicContext: '''
-The first decan gave form.
+  return Map.fromEntries([
+    _dayInfoEntry(
+      key: 'rekhwer_21_3',
+      kemeticDate: 'Rekh-Wer III, Day 21',
+      season: '🌱 Peret II – Active Growth',
+      month: 'Rekh-Wer (Rḫ-wr)',
+      decanName: 'sbȝ knmw (translation uncertain) | Deck: Star of the Knowing',
+      starCluster:
+          "✨ sbꜣ msḥtjw ḫt — the star phase of the Crocodiles of the Offering sequence; a modest horizon-rising decanal marker in the night order, with no secure modern constellation identification",
+      maatPrinciple: 'Consolidate Before Carrying Forward',
+      cosmicContext: '''
+Twenty days of knowledge built and applied.
+The third decan does not add new techniques — it consolidates what was established
+and makes it durable enough to carry into the next month.
 
-The second refined the form through correction.
+What do you know well enough now to act on without hesitation?
+What still has uncertainty that needs one more pass?
 
-The third asks whether the form can now be trusted.
-
-This is the work of sbꜣ knmw: the star of Khnum. A star becomes useful because it returns in order. A vessel becomes useful because it holds under use. A skill becomes useful because it can be repeated when the conditions are ordinary.
-
-Day 21 asks for reliability.
-
-Not brilliance.
-
-Not display.
-
-Reliability.
-
-The corrected method must now meet a normal day. Not a perfect day. Not a sacredly arranged day. A real one, with distractions, limits, interruptions, and ordinary pressure.
-
-Can the rhythm hold there?
-
-Can the body practice there?
-
-Can the project move there?
-
-Can the relationship use the new method there?
-
-Can the vessel hold when it is no longer being admired from the wheel?
-
-Great knowing is not proven by what is understood once. It is proven by what can guide action repeatedly.
-
-Today asks for one corrected form to be used in ordinary life.
-
-What holds there can begin to become trustworthy.
+Name what is solid.
+Name what is still soft.
+The solid goes forward. The soft gets one more interval of attention.
+This is how knowledge becomes part of the permanent craft.
 ''',
-        glyph: 'Finished vessel placed beneath a steady star',
-        colorFrequency: 'Fired clay, night blue, and stable gold',
-        mantra: '“What holds in ordinary conditions becomes trustworthy.”',
+      decanFlow: _rekhWerOverrideIIIFlowRows,
+      meduNeter: MeduNeterKey(
+        glyph:
+            'Knowledge pressed into the field record — consolidated, not scattered',
+        colorFrequency: 'Ink settled, the record complete, ready to carry',
+        mantra: '"I know what is solid. I know what still needs work."',
       ),
-      (
-        totalDay: 22,
-        starCluster:
-            '✨ sbꜣ knmw — a small rising decanal star group near the horizon in the ten-day sequence, physically treated as a timing marker rather than a firmly identified modern cluster',
-        maatPrinciple: 'Method Repeated',
-        cosmicContext: '''
-Reliability requires repetition.
+    ),
+    _dayInfoEntry(
+      key: 'rekhwer_22_3',
+      kemeticDate: 'Rekh-Wer III, Day 22',
+      season: '🌱 Peret II – Active Growth',
+      month: 'Rekh-Wer (Rḫ-wr)',
+      decanName: 'sbȝ knmw (translation uncertain) | Deck: Star of the Knowing',
+      starCluster:
+          "✨ sbꜣ msḥtjw ḫt — a small decanal rising group near the horizon, treated as a ten-day timing marker rather than a securely identified modern cluster",
+      maatPrinciple: 'The Gap Must Be Closed Before the Month Ends',
+      cosmicContext: '''
+On Day 4 you named a gap in your understanding.
+Twenty-two days later: is it closed?
 
-Day 22 asks for the corrected method to be repeated without impatience.
+A gap named and not closed becomes a structural weakness
+carried into the next month, and then into the next season.
+The field continues to pay for it.
 
-This is harder than it sounds. Once something works, the restless mind often wants to change it immediately. Add more. Make it impressive. Make it faster. Make it new. But competence does not mature when the method is constantly abandoned before it can settle into the body.
-
-The potter learns by returning the hand to the wheel.
-
-The scribe learns by returning the reed to the line.
-
-The healer learns by observing repeated signs.
-
-The farmer learns by watching seasons repeat without assuming each return is empty.
-
-Repetition is not deadness when it serves Ma’at.
-
-It is how truth enters muscle, memory, hand, and rhythm.
-
-Today asks for one useful method to be repeated cleanly. Do not improve it out of anxiety. Do not discard it because it feels simple. Do not confuse novelty with growth.
-
-A vessel becomes reliable when the method that shaped it can be repeated.
-
-A life becomes reliable the same way.
-
-Where repetition holds, skill begins to become inheritance.
+This is the last interval where closing it costs only time and attention.
+After Rekh-Wer ends, it costs much more.
+Close it today. Or name specifically what the closing requires
+and commit to the timeline before the month seals.
 ''',
-        glyph: 'Repeated hand marks around a turning wheel',
-        colorFrequency: 'Clay brown, patterned gold, and deep blue',
-        mantra: '“I repeat what has proven true.”',
+      decanFlow: _rekhWerOverrideIIIFlowRows,
+      meduNeter: MeduNeterKey(
+        glyph:
+            'Final sealing of a gap in the field boundary — the weakness closed',
+        colorFrequency: 'Sealed earth, no gap remaining in the green',
+        mantra: '"The gap does not carry into next month. I close it now."',
       ),
-      (
-        totalDay: 23,
-        starCluster:
-            '✨ sbꜣ knmw — a horizon-based decanal marker in the observed night sequence, likely modest in brightness compared with major stellar anchors and not securely identified today',
-        maatPrinciple: 'Practice Without Display',
-        cosmicContext: '''
-Skill weakens when it becomes performance too soon.
+    ),
+    _dayInfoEntry(
+      key: 'rekhwer_23_3',
+      kemeticDate: 'Rekh-Wer III, Day 23',
+      season: '🌱 Peret II – Active Growth',
+      month: 'Rekh-Wer (Rḫ-wr)',
+      decanName: 'sbȝ knmw (translation uncertain) | Deck: Star of the Knowing',
+      starCluster:
+          "✨ sbꜣ msḥtjw ḫt — a modest horizon-based decanal star marker in the observed night order, with exact modern identification uncertain",
+      maatPrinciple: 'The Method Must Survive the Transition',
+      cosmicContext: '''
+A method that only works under ideal conditions is not yet a method.
+It is a good day's behavior.
 
-Day 23 asks for practice without display.
+What you built in Rekh-Wer must hold into Rekh-Nedjes —
+under different demands, different pressures, a new focus.
 
-This matters because the desire to be seen can pull a forming skill away from its own growth. The hand starts shaping for applause instead of function. The voice speaks to be admired rather than to be true. The body trains to prove something instead of becoming steady. The work is shown before it is strong enough to survive opinion.
-
-Great knowing becomes distorted when it serves image before service.
-
-This day asks for hidden competence.
-
-Do the work without announcing it.
-
-Repeat the method without making it a spectacle.
-
-Practice where no one praises the effort.
-
-Let the form become stronger before it becomes public.
-
-This is not secrecy from fear. It is protection from premature performance. A vessel still drying should not be handed to a crowd. A skill still settling should not be forced to carry reputation before it can carry function.
-
-Ma’at does not require everything real to be immediately visible.
-
-Some things become trustworthy because they are allowed to mature in quiet.
-
-Today asks for one competent act done cleanly without display.
+Test the method against one harder condition today.
+Not to break it — to find where it needs reinforcement
+before the conditions change and there is no room to adjust.
+A method strengthened now carries forward. One not tested here collapses there.
 ''',
-        glyph: 'Hidden hand shaping clay behind a low lamp',
-        colorFrequency: 'Lamp gold, shadow blue, and wet clay',
-        mantra: '“Competence may grow quietly.”',
+      decanFlow: _rekhWerOverrideIIIFlowRows,
+      meduNeter: MeduNeterKey(
+        glyph:
+            'Method tested against a harder condition — the craft proven under pressure',
+        colorFrequency: 'Firm earth under tested green — held, not broken',
+        mantra:
+            '"The method holds under harder conditions. I make sure before the month ends."',
       ),
-      (
-        totalDay: 24,
-        starCluster:
-            '✨ sbꜣ knmw — a modest rising group in the decanal star order, observed near the horizon with uncertain modern astronomical identification',
-        maatPrinciple: 'Weak Point Strengthened',
-        cosmicContext: '''
-A reliable form still has weak points.
+    ),
+    _dayInfoEntry(
+      key: 'rekhwer_24_3',
+      kemeticDate: 'Rekh-Wer III, Day 24',
+      season: '🌱 Peret II – Active Growth',
+      month: 'Rekh-Wer (Rḫ-wr)',
+      decanName: 'sbȝ knmw (translation uncertain) | Deck: Star of the Knowing',
+      starCluster:
+          "✨ sbꜣ msḥtjw ḫt — a small rising decanal group in the ten-day night sequence, best described as a modest watched horizon marker with uncertain modern identity",
+      maatPrinciple: 'Work at the Level You Have Built',
+      cosmicContext: '''
+The craftsman who spent a month building a skill
+and then returns to the old, unskilled approach
+has wasted the month.
 
-Day 24 asks for one of them to be strengthened.
+Bring everything acquired in Rekh-Wer to today's work.
+Not effort — precision. Not volume — quality.
+The technique refined, the gap closed, the knowledge applied.
 
-This is not a return to shame. It is the next phase of craft. Once the vessel holds, the potter can see where the wall remains thin. Once the method repeats, the practitioner can see where attention still slips. Once the body grows stronger, the old weak place becomes clear enough to be trained with care.
-
-This is a gift.
-
-Weakness seen early can become strength.
-
-Weakness ignored becomes future fracture.
-
-Today asks for calm attention to one known weak point.
-
-The part of the skill that still wavers.
-
-The place in the schedule that still breaks.
-
-The phrase that still turns a conversation crooked.
-
-The tool that keeps failing.
-
-The body part that needs steadier care.
-
-The step in the method that still depends on luck.
-
-Do not attack the weakness.
-
-Strengthen it.
-
-There is a difference.
-
-Attack comes from contempt. Strengthening comes from responsibility.
-
-Khnum’s craft does not reject the vessel for needing reinforcement. Great knowing places support where the form most needs to hold.
+This is what the month was for.
+Let the field today receive the quality of craft
+that twenty-four days of Rekh-Wer produced.
+Do not go back to the old method.
 ''',
-        glyph: 'Hand thickening the weak wall of a vessel',
-        colorFrequency: 'Clay red, repair gold, and deep green',
-        mantra: '“I strengthen the place that must hold.”',
+      decanFlow: _rekhWerOverrideIIIFlowRows,
+      meduNeter: MeduNeterKey(
+        glyph:
+            'Craftsman at full skill — the month\'s learning expressed in one day\'s work',
+        colorFrequency:
+            'Precise copper, confident green, the skill visible in the result',
+        mantra: '"I work at the level I built. Not below it."',
       ),
-      (
-        totalDay: 25,
-        starCluster:
-            '✨ sbꜣ knmw — a small decanal horizon marker in the night-time sequence, best described as a modest watched star group with no secure modern cluster assignment',
-        maatPrinciple: 'Capacity Expanded Lawfully',
-        cosmicContext: '''
-A vessel that holds can be tested with more.
+    ),
+    _dayInfoEntry(
+      key: 'rekhwer_25_3',
+      kemeticDate: 'Rekh-Wer III, Day 25',
+      season: '🌱 Peret II – Active Growth',
+      month: 'Rekh-Wer (Rḫ-wr)',
+      decanName: 'sbȝ knmw (translation uncertain) | Deck: Star of the Knowing',
+      starCluster:
+          "✨ sbꜣ msḥtjw ḫt — the midpoint phase of this decanal sequence, a modest horizon-rising star marker in the night order with uncertain modern identification",
+      maatPrinciple: 'Knowledge That Is Not Passed On Dies With the Season',
+      cosmicContext: '''
+Agricultural knowledge survives by being written, spoken, demonstrated, and repeated.
+The method that moves from one farmer to the next
+outlives any single season.
 
-Day 25 asks for lawful increase.
+Knowledge kept privately dies when the holder loses access to the field.
 
-Not overload.
-
-Increase.
-
-The corrected form has held ordinary use. The method has repeated. The weak point has been noticed. Now the question is whether the vessel can carry a little more responsibility without losing shape.
-
-This is how capacity grows under Ma’at.
-
-A body takes on a slightly greater task.
-
-A project receives a real user.
-
-A skill handles a harder version of the work.
-
-A relationship holds a more honest conversation.
-
-A schedule carries a fuller day without returning to chaos.
-
-The increase must be lawful. It should stretch the form, not break it. It should reveal capacity, not punish the vessel for becoming stronger.
-
-Many people remain too small because they fear every increase will repeat the old collapse. Others overload too quickly because early success makes them forget measure.
-
-Today asks for the middle path.
-
-What can this now hold that it could not hold before?
-
-Choose one greater but rightful responsibility.
-
-Let the vessel prove itself under more weight, but not under false weight.
-
-Growth becomes trustworthy when capacity expands by measure.
+What did you learn this month that worked?
+Write it down in a form that survives you stepping away.
+Teach it to one person.
+The knowledge is only as durable as how it is held.
 ''',
-        glyph: 'Vessel receiving a slightly fuller measure of water',
-        colorFrequency: 'Nile blue, fired clay, and careful gold',
-        mantra: '“I increase capacity in right measure.”',
+      decanFlow: _rekhWerOverrideIIIFlowRows,
+      meduNeter: MeduNeterKey(
+        glyph:
+            'Knowledge written and handed to the next farmer — the transmission',
+        colorFrequency: 'Ink on papyrus, the living field behind it continuing',
+        mantra: '"The knowledge survives because I pass it on."',
       ),
-      (
-        totalDay: 26,
-        starCluster:
-            '✨ sbꜣ knmw — a rising decanal group in the horizon-based star sequence, physically described with caution because its exact modern identity is uncertain',
-        maatPrinciple: 'Method Transmitted',
-        cosmicContext: '''
-What is known well enough should be passed on.
+    ),
+    _dayInfoEntry(
+      key: 'rekhwer_26_3',
+      kemeticDate: 'Rekh-Wer III, Day 26',
+      season: '🌱 Peret II – Active Growth',
+      month: 'Rekh-Wer (Rḫ-wr)',
+      decanName: 'sbȝ knmw (translation uncertain) | Deck: Star of the Knowing',
+      starCluster:
+          "✨ sbꜣ msḥtjw ḫt — a decanal star marker in the rising night sequence, physically uncertain and best described as a modest horizon point or small group",
+      maatPrinciple:
+          'The Under-Tended Section Must Be Seen Before the Month Closes',
+      cosmicContext: '''
+Every month has a section that received less skilled attention.
+Not from negligence — from the natural pull toward what is already working.
 
-Day 26 asks for the method to be taught.
+Before Rekh-Wer closes, name the section that was under-tended.
+Not to shame — to correct.
 
-This does not require mastery over every aspect of the craft. It requires enough tested knowledge to make another hand less lost than the first hand was. A method that remains only inside one person is fragile. It can die with memory, mood, fatigue, or silence.
-
-In Kemet, knowledge endured because it was copied, recited, taught, and placed where another reader or worker could use it. The House of Life preserves this principle. Writing keeps a voice active beyond the breath that first spoke it.
-
-Today asks what can now be transmitted.
-
-A recipe.
-
-A routine.
-
-A boundary.
-
-A way of repairing.
-
-A lesson from failure.
-
-A process that made the work easier.
-
-A warning that would save someone time.
-
-A practice that kept the body steady.
-
-Teaching does not mean performing superiority. It means placing knowledge into relation.
-
-Great knowing becomes generous when it becomes usable by another.
-
-Today asks for one method to be explained, written, demonstrated, or handed forward.
-
-A vessel serves more fully when others know how it was made and how it should be used.
+Give it focused care today.
+Not as compensation — as completion.
+The month's knowledge belongs to the whole field, not just the parts that were rewarding to work.
+Bring it all up before the month seals.
 ''',
-        glyph: 'Reed pen and hand passing a small vessel forward',
-        colorFrequency: 'Ink black, clay brown, and teaching gold',
-        mantra: '“What I have learned can help another hand.”',
+      decanFlow: _rekhWerOverrideIIIFlowRows,
+      meduNeter: MeduNeterKey(
+        glyph:
+            'Farmer returning to the neglected row before month close — the field made whole',
+        colorFrequency: 'Previously dark green brought level with the rest',
+        mantra:
+            '"The knowledge belongs to the whole field. I bring it all up."',
       ),
-      (
-        totalDay: 27,
-        starCluster:
-            '✨ sbꜣ knmw — a modest decanal timing marker near the horizon in the ten-day star order; no secure modern star-cluster identification should be assumed',
-        maatPrinciple: 'Cleverness Restrained',
-        cosmicContext: '''
-Cleverness is not the same as wisdom.
+    ),
+    _dayInfoEntry(
+      key: 'rekhwer_27_3',
+      kemeticDate: 'Rekh-Wer III, Day 27',
+      season: '🌱 Peret II – Active Growth',
+      month: 'Rekh-Wer (Rḫ-wr)',
+      decanName: 'sbȝ knmw (translation uncertain) | Deck: Star of the Knowing',
+      starCluster:
+          "✨ sbꜣ msḥtjw ḫt — a small decanal rising group near the horizon in the ten-day star order, treated as a timing marker with uncertain modern identity",
+      maatPrinciple: 'Read the Full Field Before Handing It Forward',
+      cosmicContext: '''
+The farmer about to transition into the next month
+walks the full field first.
+Not the section that was worked hardest.
+Not the section that looks best.
+The whole field. Honest.
 
-Day 27 asks for unnecessary complication to be refused.
+What does thirty days of Rekh-Wer show?
+Where is the knowledge strongest? Where are the remaining gaps?
+What will Rekh-Nedjes inherit?
 
-This is a danger in the month of Rekh-Wer. Once skill appears, the mind may begin adding for the sake of showing it can add. The method becomes ornate. The sentence becomes heavy. The system becomes overbuilt. The ritual becomes difficult to maintain. The project carries features that serve ego more than function.
-
-Great knowing can become refined Isfet when it separates from usefulness.
-
-A vessel does not become better because it is impossible to hold. A teaching does not become wiser because it is hard to understand. A system does not become sacred because it is complex. A practice does not become deeper because it cannot be repeated by the body that needs it.
-
-Today asks for simplicity in service to truth.
-
-Where is cleverness hiding from discipline?
-
-Where is complexity covering fear?
-
-Where is refinement becoming self-display?
-
-What can be made cleaner, plainer, and more useful?
-
-Djehuty’s knowledge serves Ma’at because it measures. Khnum’s craft serves Ma’at because it forms. Neither exists to decorate confusion.
-
-Today asks for the method to remain clean enough to serve life.
+Read it all without softening the difficult parts.
+The honest reading now prevents a mistaken plan later.
 ''',
-        glyph: 'Simple vessel beside discarded ornamental excess',
-        colorFrequency: 'Clean white, clay brown, and restrained gold',
-        mantra: '“Wisdom stays useful.”',
+      decanFlow: _rekhWerOverrideIIIFlowRows,
+      meduNeter: MeduNeterKey(
+        glyph:
+            'Farmer at the field edge reading the whole — the final honest survey',
+        colorFrequency: 'Wide field read completely, no section softened',
+        mantra: '"I read the whole field. Honest. Before I hand it forward."',
       ),
-      (
-        totalDay: 28,
-        starCluster:
-            '✨ sbꜣ knmw — a horizon-rising decanal star group in the observed night sequence, likely modest and not securely matched to any modern constellation',
-        maatPrinciple: 'Competence in Service',
-        cosmicContext: '''
-Competence becomes sacred when it solves a real problem.
+    ),
+    _dayInfoEntry(
+      key: 'rekhwer_28_3',
+      kemeticDate: 'Rekh-Wer III, Day 28',
+      season: '🌱 Peret II – Active Growth',
+      month: 'Rekh-Wer (Rḫ-wr)',
+      decanName: 'sbȝ knmw (translation uncertain) | Deck: Star of the Knowing',
+      starCluster:
+          "✨ sbꜣ msḥtjw ḫt — a modest horizon-based decanal marker used in the night sequence, with exact modern astronomical identification uncertain",
+      maatPrinciple: 'The Craft Is the Offering',
+      cosmicContext: '''
+Ma'at does not weigh intention alone.
+She weighs what was done, how it was done, and whether the work served balance.
 
-Day 28 asks for skill to serve.
+The quality of craft applied to a living field
+is an ethical act in Kemetic understanding.
+Careless work damages what the earth gave.
+Skilled, honest work returns the care to the source.
 
-A shaped vessel should hold water. A written record should preserve truth. A trained hand should repair what is broken. A disciplined body should carry life with less collapse. A clear method should reduce confusion for the next person.
-
-Competence that never serves becomes private display.
-
-Competence under Ma’at enters the world as usefulness.
-
-Today asks for one real problem to be met by the skill that has been formed.
-
-Not the most dramatic problem.
-
-A real one.
-
-Something in the body, home, work, relationship, community, altar, or future that can be better held because capability now exists.
-
-Fix the loose part.
-
-Make the instruction clear.
-
-Prepare the meal.
-
-Organize the record.
-
-Repair the rhythm.
-
-Use the method where it matters.
-
-Great knowing is not proven by saying what is known. It is proven when knowledge helps life continue in better order.
-
-Today asks: who or what is better held because the vessel has become capable?
-
-Competence reaches Ma’at when it becomes service.
+What was the quality of the craft this month?
+Not the result — the execution.
+Did you work with the skill and attention the field deserved?
+That is what is offered today.
 ''',
-        glyph: 'Capable hand repairing a household vessel',
-        colorFrequency: 'Service gold, clay brown, and living green',
-        mantra: '“My skill serves life.”',
+      decanFlow: _rekhWerOverrideIIIFlowRows,
+      meduNeter: MeduNeterKey(
+        glyph: 'Skilled hands before Ma\'at — the craft offered, not the yield',
+        colorFrequency:
+            'Gold scale, clean skilled hands, the field behind them living',
+        mantra: '"The craft is the offering. Ma\'at weighs how I worked."',
       ),
-      (
-        totalDay: 29,
-        starCluster:
-            '✨ sbꜣ knmw — the star phase of the knmw decan, observed as a modest horizon marker in the night order with uncertain modern astronomical identification',
-        maatPrinciple: 'Standard Preserved',
-        cosmicContext: '''
-Familiarity can weaken standards.
+    ),
+    _dayInfoEntry(
+      key: 'rekhwer_29_3',
+      kemeticDate: 'Rekh-Wer III, Day 29',
+      season: '🌱 Peret II – Active Growth',
+      month: 'Rekh-Wer (Rḫ-wr)',
+      decanName: 'sbȝ knmw (translation uncertain) | Deck: Star of the Knowing',
+      starCluster:
+          "✨ sbꜣ msḥtjw ḫt — a small star group in the decanal rising sequence, best described as a modest horizon timing marker rather than a securely identified modern constellation",
+      maatPrinciple: 'Read What the Next Month Requires',
+      cosmicContext: '''
+Rekh-Nedjes opens next month.
+Not lesser knowledge: knowledge made smaller, closer, and more exposed.
 
-Day 29 asks for the standard to be preserved.
+Rekh-Wer built the broad craft.
+Rekh-Nedjes tests it under pressure — in the small sign,
+the early warning, the detail that reveals whether the method truly holds
+when conditions tighten.
 
-When a skill is new, attention is sharp. The hand remembers correction. The mind respects each step. The body listens. But once the method becomes familiar, carelessness can enter quietly.
-
-The vessel is made too quickly.
-
-The record becomes sloppy.
-
-The practice loses its center.
-
-The body is pushed without listening.
-
-The relationship returns to vague speech.
-
-The project is handled as though early success guarantees future order.
-
-This is where standards matter.
-
-A standard is not harshness. It is memory made active. It preserves what correction taught. It keeps the work from drifting back into the errors that refinement already exposed.
-
-Today asks for one rule that will keep competence from becoming careless.
-
-What must always be checked?
-
-What must never be skipped?
-
-What measure protects the form?
-
-What sign reveals drift?
-
-What correction should become permanent law?
-
-Great knowing does not only discover. It preserves the conditions under which knowledge remains true.
-
-A standard protects the skill after the urgency of learning has faded.
+What fine detail in the field has been below your resolution this month?
+That is what next month will press on.
+Prepare the eye before it arrives.
 ''',
-        glyph: 'Measuring cord sealed beside a finished vessel',
-        colorFrequency: 'Gold line, fired clay, and deep blue',
-        mantra: '“The standard remembers what correction taught.”',
+      decanFlow: _rekhWerOverrideIIIFlowRows,
+      meduNeter: MeduNeterKey(
+        glyph:
+            'Eye close to the row — reading the fine detail, not the broad condition',
+        colorFrequency: 'Deep green close up, the subtle sign visible at last',
+        mantra:
+            '"I prepare the eye for the finer reading next month requires."',
       ),
-      (
-        totalDay: 30,
-        starCluster:
-            '✨ sbꜣ knmw — the final star marker of Rekh-Wer’s knmw sequence, best described as a modest rising decanal group near the horizon with no secure modern constellation identification',
-        maatPrinciple: 'Great Knowing Sealed',
-        cosmicContext: '''
-Day 30 closes Rekh-Wer.
+    ),
+    _dayInfoEntry(
+      key: 'rekhwer_30_3',
+      kemeticDate: 'Rekh-Wer III, Day 30',
+      season: '🌱 Peret II – Active Growth',
+      month: 'Rekh-Wer (Rḫ-wr)',
+      decanName: 'sbȝ knmw (translation uncertain) | Deck: Star of the Knowing',
+      starCluster:
+          "✨ sbꜣ msḥtjw ḫt — the final star marker of Mesut-Ra’s Crocodiles of the Offering sequence, a modest horizon-rising decanal group in the night order with uncertain modern identification",
+      maatPrinciple: 'Seal the Month. Carry the Knowledge Forward.',
+      cosmicContext: '''
+Rekh-Wer closes today.
 
-The month began with raw material and ends with trustworthy knowledge.
+The field was read before it was touched.
+The right tool was matched to the task.
+The gap was named and closed.
+The technique was refined and held under pressure.
+The knowledge was shared, corrected, applied, recorded.
+The difficult section was worked. The weak point was strengthened.
+The craft was offered.
 
-Something was shaped. It was centered, pressured, corrected, refined, tested, repeated, taught, simplified, used, and protected by standard. This is the arc of great knowing under Ma’at.
-
-Knowledge did not remain thought.
-
-It became form.
-
-Form did not remain appearance.
-
-It became function.
-
-Function did not remain private.
-
-It became service.
-
-Service did not remain accidental.
-
-It became method.
-
-This is what Rekh-Wer teaches.
-
-Great knowing is not the gathering of impressive ideas. It is the ability to perceive, shape, correct, preserve, and apply what serves life in right relation.
-
-Today asks what is now truly known.
-
-Not because it was read once.
-
-Not because it was imagined.
-
-Because it was lived, shaped, tested, corrected, and used.
-
-Name that knowledge.
-
-Seal the method.
-
-Preserve the standard.
-
-Carry forward only what has proven useful under Ma’at.
-
-A vessel that has been formed and tested can now be trusted to hold. A person shaped by the same discipline can now carry knowledge without letting knowledge become pride.
+Name the knowledge that now belongs to you — that did not before.
+Hand the field into Rekh-Nedjes with that knowledge intact.
+The knowing travels. The field continues.
 ''',
-        glyph: 'Finished vessel, reed pen, and sealed star mark',
-        colorFrequency: 'Fired clay, ink black, deep blue, and sealed gold',
-        mantra: '“What I know must serve Ma’at.”',
+      decanFlow: _rekhWerOverrideIIIFlowRows,
+      meduNeter: MeduNeterKey(
+        glyph:
+            'Field record sealed and carried forward — the knowledge that travels',
+        colorFrequency:
+            'Living green field, sealed record in hand, moving forward',
+        mantra: '"The knowing is mine now. I carry it into the next month."',
       ),
-    ],
-  );
+    ),
+  ]);
 }
 
 Map<String, KemeticDayInfo> _buildRekhNedjesIEntries() {
