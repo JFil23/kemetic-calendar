@@ -108,7 +108,7 @@ void main() {
     const token = EventBadgeToken(
       id: 'partial-widget',
       title: 'Partial practice',
-      color: Colors.orange,
+      color: Color(0xFF64B5F6),
       completionStatus: CompletionStatus.partial,
     );
 
@@ -118,7 +118,49 @@ void main() {
       ),
     );
 
-    expect(find.byIcon(Icons.adjust_rounded), findsOneWidget);
-    expect(find.byIcon(Icons.check_circle), findsNothing);
+    expect(find.byIcon(Icons.incomplete_circle_rounded), findsOneWidget);
+    expect(find.byIcon(Icons.task_alt_rounded), findsNothing);
   });
+
+  testWidgets('reflection event badge renders a journal signifier', (
+    tester,
+  ) async {
+    const token = EventBadgeToken(
+      id: 'reflection-widget',
+      title: 'Reflection practice',
+      color: Color(0xFF8FD7E8),
+      completionStatus: CompletionStatus.none,
+      reflectionStatus: ReflectionStatus.userWritten,
+    );
+
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: Scaffold(body: EventBadgeWidget(token: token, expandable: false)),
+      ),
+    );
+
+    expect(find.byIcon(Icons.edit_note_rounded), findsOneWidget);
+    expect(find.byIcon(Icons.task_alt_rounded), findsNothing);
+  });
+
+  test(
+    'reflection badge token preserves reflection status without observed status',
+    () {
+      final token = EventBadgeToken.buildToken(
+        id: 'reflection-token',
+        title: 'Reflection',
+        color: const Color(0xFF8FD7E8),
+        completionStatus: CompletionStatus.none,
+        reflectionStatus: ReflectionStatus.userWritten,
+      );
+
+      final parsed = EventBadgeToken.parse(
+        token.replaceAll('⟦EVENT_BADGE', ''),
+      );
+
+      expect(parsed, isNotNull);
+      expect(parsed!.completionStatus, CompletionStatus.none);
+      expect(parsed.reflectionStatus, ReflectionStatus.userWritten);
+    },
+  );
 }

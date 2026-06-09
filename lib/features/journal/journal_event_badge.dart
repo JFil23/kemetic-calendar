@@ -26,6 +26,7 @@ class EventBadgeToken {
   final Color color;
   final String? description;
   final CompletionStatus completionStatus;
+  final ReflectionStatus reflectionStatus;
   final CompletionSourceType? sourceType;
 
   const EventBadgeToken({
@@ -37,6 +38,7 @@ class EventBadgeToken {
     required this.color,
     this.description,
     this.completionStatus = CompletionStatus.observed,
+    this.reflectionStatus = ReflectionStatus.none,
     this.sourceType,
   });
 
@@ -59,8 +61,13 @@ class EventBadgeToken {
     final endStr = kv['end'];
     final colorStr = kv['color'];
     final descStr = kv['description'] ?? kv['desc'];
+    final rawCompletionStatus =
+        kv['completionStatus'] ?? kv['completion_status'] ?? kv['status'];
     final completionStatus = CompletionStatusX.fromWireName(
-      kv['completionStatus'] ?? kv['completion_status'] ?? kv['status'],
+      rawCompletionStatus,
+    );
+    final reflectionStatus = _reflectionStatusFromWireName(
+      kv['reflectionStatus'] ?? kv['reflection_status'],
     );
     CompletionSourceType? sourceType;
     final rawSourceType = kv['sourceType'] ?? kv['source_type'];
@@ -101,9 +108,12 @@ class EventBadgeToken {
       end: parseDt(endStr),
       color: parseColor(colorStr),
       description: descStr != null ? unescape(descStr) : null,
-      completionStatus: completionStatus == CompletionStatus.none
+      completionStatus:
+          rawCompletionStatus == null &&
+              completionStatus == CompletionStatus.none
           ? CompletionStatus.observed
           : completionStatus,
+      reflectionStatus: reflectionStatus,
       sourceType: sourceType,
     );
   }
@@ -117,6 +127,7 @@ class EventBadgeToken {
     required Color color,
     String? description,
     CompletionStatus completionStatus = CompletionStatus.observed,
+    ReflectionStatus reflectionStatus = ReflectionStatus.none,
     CompletionSourceType? sourceType,
   }) {
     String fmt(DateTime? dt) => dt?.toUtc().toIso8601String() ?? '';
@@ -137,6 +148,9 @@ class EventBadgeToken {
     if (completionStatus != CompletionStatus.observed) {
       buffer.write('completionStatus=${completionStatus.wireName} ');
     }
+    if (reflectionStatus != ReflectionStatus.none) {
+      buffer.write('reflectionStatus=${reflectionStatus.wireName} ');
+    }
     if (sourceType != null) {
       buffer.write('sourceType=${sourceType.wireName} ');
     }
@@ -146,15 +160,31 @@ class EventBadgeToken {
   }
 }
 
-IconData _badgeIconFor(CompletionStatus status) {
-  switch (status) {
+ReflectionStatus _reflectionStatusFromWireName(String? raw) {
+  switch (raw?.trim().toLowerCase()) {
+    case 'user_written':
+      return ReflectionStatus.userWritten;
+    case 'generated':
+      return ReflectionStatus.generated;
+    case 'linked':
+      return ReflectionStatus.linked;
+    default:
+      return ReflectionStatus.none;
+  }
+}
+
+IconData _badgeIconFor(EventBadgeToken token) {
+  if (token.reflectionStatus != ReflectionStatus.none) {
+    return Icons.edit_note_rounded;
+  }
+  switch (token.completionStatus) {
     case CompletionStatus.partial:
-      return Icons.adjust_rounded;
+      return Icons.incomplete_circle_rounded;
     case CompletionStatus.skipped:
       return Icons.remove_circle_outline_rounded;
     case CompletionStatus.none:
     case CompletionStatus.observed:
-      return Icons.check_circle;
+      return Icons.task_alt_rounded;
   }
 }
 
@@ -241,7 +271,7 @@ class _CollapsedEventBadge extends StatelessWidget {
             mainAxisSize: MainAxisSize.min,
             children: [
               Icon(
-                _badgeIconFor(token.completionStatus),
+                _badgeIconFor(token),
                 size: 14,
                 color: color.withValues(alpha: 0.95),
               ),
@@ -331,7 +361,7 @@ class _ExpandedEventBadge extends StatelessWidget {
                         Row(
                           children: [
                             Icon(
-                              _badgeIconFor(token.completionStatus),
+                              _badgeIconFor(token),
                               size: 14,
                               color: color.withValues(alpha: 0.95),
                             ),

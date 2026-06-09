@@ -19,6 +19,7 @@ import 'package:mobile/core/completion_status.dart';
 import 'package:mobile/core/touch_targets.dart';
 import 'calendar_page.dart';
 import 'calendar_completion.dart';
+import 'calendar_reflection_context.dart';
 import 'day_view_chrome.dart';
 import 'landscape_month_view.dart';
 import 'maat_flow_identity.dart';
@@ -89,8 +90,6 @@ typedef DayViewRestorationCallback =
       double? scrollOffset,
       EventDetailRestorationState? eventDetail,
     });
-
-enum _DetailSheetEndAction { flow, reminder, note, none }
 
 const TextStyle _goldHeaderStyle = TextStyle(
   fontSize: 17,
@@ -3208,28 +3207,6 @@ class _DayViewGridState extends State<DayViewGrid> {
             (flow.isHidden && !flow.isReminder));
   }
 
-  bool _shouldShowEndFlowForId(int? flowId) {
-    final flow = _chromeFlowForId(flowId);
-    return flow != null && !_isRepeatingNoteFlowId(flowId);
-  }
-
-  _DetailSheetEndAction _endActionFor(
-    EventItem event, {
-    required FlowData? flow,
-  }) {
-    if (_shouldShowEndFlowForId(event.flowId)) {
-      return _DetailSheetEndAction.flow;
-    }
-    if (flow == null && event.isReminder) {
-      return _DetailSheetEndAction.reminder;
-    }
-    if ((flow == null || _isRepeatingNoteFlowId(event.flowId)) &&
-        widget.onDeleteNote != null) {
-      return _DetailSheetEndAction.note;
-    }
-    return _DetailSheetEndAction.none;
-  }
-
   bool _isActionableFlowId(int? flowId) {
     if (flowId == null) return false;
     if (widget.activeLedgerFlowIds.contains(flowId)) return true;
@@ -3238,71 +3215,24 @@ class _DayViewGridState extends State<DayViewGrid> {
     return flow.active && !hasRepeatingNoteFlowMetadata(flow.notes);
   }
 
-  Widget _buildEndFlowButton(
-    DayViewSheetEventTarget target, {
-    required BuildContext actionContext,
+  Widget _buildAddReflectionButton({
+    required BuildContext routeContext,
+    required BuildContext sheetContext,
+    required DayViewSheetEventTarget target,
+    required CompletionSourceType sourceType,
   }) {
-    final onEndFlow = widget.onEndFlow;
-    final id = target.event.flowId;
-    final enabled = onEndFlow != null && _shouldShowEndFlowForId(id);
     return OutlinedButton.icon(
-      style: _endButtonStyle(actionContext),
-      onPressed: enabled
-          ? () async {
-              Navigator.pop(actionContext);
-              final routedThroughCalendarPage =
-                  await CalendarPage.endFlowFromEventTarget(target);
-              if (!routedThroughCalendarPage) {
-                onEndFlow(id!);
-              }
-            }
-          : null,
-      icon: const Icon(Icons.stop_circle),
-      label: const Text('End Flow'),
-    );
-  }
-
-  Widget _buildEndNoteButton(
-    EventItem event, {
-    required int ky,
-    required int km,
-    required int kd,
-    required BuildContext actionContext,
-    BuildContext? closeContext,
-  }) {
-    final enabled = widget.onDeleteNote != null;
-    return OutlinedButton.icon(
-      style: _endButtonStyle(actionContext),
-      onPressed: enabled
-          ? () async {
-              Navigator.pop(closeContext ?? actionContext);
-              await widget.onDeleteNote!(ky, km, kd, event);
-            }
-          : null,
-      icon: const Icon(Icons.delete_outline),
-      label: const Text('End Note'),
-    );
-  }
-
-  Widget _buildEndReminderButton(
-    EventItem event, {
-    required BuildContext actionContext,
-    BuildContext? closeContext,
-  }) {
-    final enabled = widget.onEndReminder != null && event.reminderId != null;
-    return OutlinedButton.icon(
-      style: _endButtonStyle(actionContext),
-      onPressed: enabled
-          ? () async {
-              Navigator.pop(closeContext ?? actionContext);
-              final reminderId = event.reminderId;
-              if (reminderId != null) {
-                await widget.onEndReminder?.call(reminderId);
-              }
-            }
-          : null,
-      icon: const Icon(Icons.stop_circle),
-      label: const Text('End Reminder'),
+      style: _endButtonStyle(sheetContext),
+      onPressed: () => unawaited(
+        _openReflectionForTarget(
+          routeContext: routeContext,
+          sheetContext: sheetContext,
+          target: target,
+          sourceType: sourceType,
+        ),
+      ),
+      icon: KemeticGold.icon(Icons.edit_note_rounded),
+      label: const Text('Add reflection'),
     );
   }
 
@@ -5730,22 +5660,48 @@ class _DayViewGridState extends State<DayViewGrid> {
     );
   }
 
-  Future<void> _appendReflectionPrompt(DayViewSheetEventTarget target) async {
-    final cb = widget.onAppendToJournal;
-    if (cb == null) return;
-    final title = target.event.title.trim().isEmpty
-        ? 'this calendar item'
-        : target.event.title.trim();
-    await cb('Reflection on $title\n\n');
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Reflection space added to journal'),
-          backgroundColor: _dayGold,
-          duration: Duration(seconds: 2),
-        ),
-      );
-    }
+  CalendarReflectionContext _reflectionContextForTarget(
+    DayViewSheetEventTarget target, {
+    required CompletionSourceType sourceType,
+    CompletionStatus completionStatus = CompletionStatus.none,
+  }) {
+    final event = target.event;
+    final g = KemeticMath.toGregorian(target.ky, target.km, target.kd);
+    final dayStart = DateTime(g.year, g.month, g.day);
+    return CalendarReflectionContext(
+      sourceType: sourceType,
+      sourceId: _completionIdentityForEvent(event),
+      title: event.title,
+      calendarDate: dayStart,
+      occurrenceId: event.clientEventId ?? event.id ?? event.reminderId,
+      eventId: event.clientEventId ?? event.id ?? event.reminderId,
+      flowId: event.flowId,
+      start: dayStart.add(Duration(minutes: event.startMin)),
+      end: dayStart.add(Duration(minutes: event.endMin)),
+      color: event.color,
+      completionStatus: completionStatus,
+    );
+  }
+
+  Future<void> _openReflectionForTarget({
+    required BuildContext routeContext,
+    required BuildContext sheetContext,
+    required DayViewSheetEventTarget target,
+    required CompletionSourceType sourceType,
+  }) async {
+    final identity = _completionIdentityForEvent(target.event);
+    Navigator.pop(sheetContext);
+    final record = await const CalendarCompletionLocalStore().load(identity);
+    if (!routeContext.mounted) return;
+    final reflectionContext = _reflectionContextForTarget(
+      target,
+      sourceType: sourceType,
+      completionStatus: record.completionStatus,
+    );
+    routeContext.go(
+      reflectionContext.journalRouteLocation,
+      extra: reflectionContext,
+    );
   }
 
   Future<CompletionStatus> _loadCalendarCompletionStatus(
@@ -6217,6 +6173,7 @@ class _DayViewGridState extends State<DayViewGrid> {
           const SizedBox(height: 16),
           _MaatFlowCompletionPanel(
             event: currentEvent,
+            identity: _completionIdentityForEvent(currentEvent),
             completion: completionContext,
             ky: target.ky,
             km: target.km,
@@ -6227,7 +6184,7 @@ class _DayViewGridState extends State<DayViewGrid> {
               status,
               sourceType: CompletionSourceType.maatFlow,
             ),
-            onAddReflection: () => unawaited(_appendReflectionPrompt(target)),
+            onAddReflection: null,
             observedButtonKey:
                 includeOnboardingKeys && _isOnboardingTargetEvent(currentEvent)
                 ? widget.onboardingObservedKey
@@ -6264,9 +6221,7 @@ class _DayViewGridState extends State<DayViewGrid> {
                 completionContext,
               ),
             ),
-            onReflect: widget.onAppendToJournal == null
-                ? null
-                : () => unawaited(_appendReflectionPrompt(target)),
+            onReflect: null,
           ),
         ],
         if (libraryCta != null) ...[
@@ -6311,28 +6266,25 @@ class _DayViewGridState extends State<DayViewGrid> {
   }) {
     final currentEvent = target.event;
     final flow = _chromeFlowForId(currentEvent.flowId);
-    final endAction = _endActionFor(currentEvent, flow: flow);
+    final completionContext = _maatFlowCompletionContextForEvent(
+      currentEvent,
+      flow,
+    );
+    final sourceType = _completionSourceTypeForEvent(
+      currentEvent,
+      flow,
+      completionContext,
+    );
 
     return Row(
       children: [
         const Spacer(),
-        if (endAction == _DetailSheetEndAction.flow)
-          _buildEndFlowButton(target, actionContext: sheetContext)
-        else if (endAction == _DetailSheetEndAction.reminder)
-          _buildEndReminderButton(
-            currentEvent,
-            actionContext: sheetContext,
-            closeContext: sheetContext,
-          )
-        else if (endAction == _DetailSheetEndAction.note)
-          _buildEndNoteButton(
-            currentEvent,
-            ky: target.ky,
-            km: target.km,
-            kd: target.kd,
-            actionContext: sheetContext,
-            closeContext: sheetContext,
-          ),
+        _buildAddReflectionButton(
+          routeContext: rootContext,
+          sheetContext: sheetContext,
+          target: target,
+          sourceType: sourceType,
+        ),
         const SizedBox(width: 8),
         _buildEventDetailOverflowButton(
           rootContext: rootContext,
@@ -6508,6 +6460,20 @@ class _DayViewGridState extends State<DayViewGrid> {
               ],
             ),
           ),
+        if (flow != null &&
+            actionableFlow &&
+            !isReminder &&
+            widget.onEndFlow != null)
+          PopupMenuItem(
+            value: 'end_flow',
+            child: Row(
+              children: [
+                KemeticGold.icon(Icons.stop_circle),
+                const SizedBox(width: 12),
+                const Text('End Flow', style: TextStyle(color: Colors.white)),
+              ],
+            ),
+          ),
         if (isReminder &&
             widget.onEditReminder != null &&
             currentEvent.reminderId != null)
@@ -6524,6 +6490,22 @@ class _DayViewGridState extends State<DayViewGrid> {
               ],
             ),
           ),
+        if (isReminder &&
+            widget.onEndReminder != null &&
+            currentEvent.reminderId != null)
+          PopupMenuItem(
+            value: 'end_reminder',
+            child: Row(
+              children: [
+                KemeticGold.icon(Icons.stop_circle),
+                const SizedBox(width: 12),
+                const Text(
+                  'End Reminder',
+                  style: TextStyle(color: Colors.white),
+                ),
+              ],
+            ),
+          ),
         if ((flow == null || _isRepeatingNoteFlowId(currentEvent.flowId)) &&
             !isReminder &&
             widget.onEditNote != null)
@@ -6534,6 +6516,19 @@ class _DayViewGridState extends State<DayViewGrid> {
                 KemeticGold.icon(Icons.edit),
                 const SizedBox(width: 12),
                 const Text('Edit Note', style: TextStyle(color: Colors.white)),
+              ],
+            ),
+          ),
+        if ((flow == null || _isRepeatingNoteFlowId(currentEvent.flowId)) &&
+            !isReminder &&
+            widget.onDeleteNote != null)
+          PopupMenuItem(
+            value: 'end_note',
+            child: Row(
+              children: [
+                KemeticGold.icon(Icons.delete_outline),
+                const SizedBox(width: 12),
+                const Text('End Note', style: TextStyle(color: Colors.white)),
               ],
             ),
           ),
@@ -7480,6 +7475,7 @@ class _DecanWatchMilestonePanelState extends State<_DecanWatchMilestonePanel> {
 class _MaatFlowCompletionPanel extends StatefulWidget {
   const _MaatFlowCompletionPanel({
     required this.event,
+    required this.identity,
     required this.completion,
     required this.ky,
     required this.km,
@@ -7491,6 +7487,7 @@ class _MaatFlowCompletionPanel extends StatefulWidget {
   });
 
   final EventItem event;
+  final String identity;
   final _MaatFlowCompletionContext completion;
   final int ky;
   final int km;
@@ -7719,6 +7716,10 @@ class _MaatFlowCompletionPanelState extends State<_MaatFlowCompletionPanel> {
         _saving = false;
       });
       final completionStatus = CompletionStatusX.fromWireName(status);
+      await const CalendarCompletionLocalStore().save(
+        identity: widget.identity,
+        status: completionStatus,
+      );
       if (completionStatus.createsJournalContinuity) {
         await widget.onCompletionContinuity?.call(completionStatus);
       }

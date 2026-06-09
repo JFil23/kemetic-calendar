@@ -470,7 +470,14 @@ void main() {
         expect(find.byType(BottomSheet), findsOneWidget);
         expect(find.text('Existing Note'), findsWidgets);
         expect(find.text('10:00 AM – 10:45 AM'), findsOneWidget);
+        expect(find.text('Add reflection'), findsOneWidget);
+        expect(find.text('End Note'), findsNothing);
+
+        await tester.tap(find.byIcon(Icons.more_vert));
+        await tester.pumpAndSettle();
         expect(find.text('End Note'), findsOneWidget);
+        await tester.tapAt(const Offset(10, 10));
+        await tester.pumpAndSettle();
         expect(find.text('New Event'), findsNothing);
       },
     );
@@ -511,7 +518,14 @@ void main() {
         expect(find.byType(BottomSheet), findsOneWidget);
         expect(find.text('Hydrate'), findsWidgets);
         expect(find.text('9:00 AM – 9:30 AM'), findsOneWidget);
+        expect(find.text('Add reflection'), findsOneWidget);
+        expect(find.text('End Reminder'), findsNothing);
+
+        await tester.tap(find.byIcon(Icons.more_vert));
+        await tester.pumpAndSettle();
         expect(find.text('End Reminder'), findsOneWidget);
+        await tester.tapAt(const Offset(10, 10));
+        await tester.pumpAndSettle();
         expect(find.text('Stretch'), findsOneWidget);
         expect(find.text('New Event'), findsNothing);
       },
@@ -702,7 +716,8 @@ void main() {
         await tester.tap(find.text('Flow Block'));
         await tester.pumpAndSettle();
 
-        expect(find.text('End Flow'), findsOneWidget);
+        expect(find.text('Add reflection'), findsOneWidget);
+        expect(find.text('End Flow'), findsNothing);
 
         showGrid.value = false;
         await tester.pump();
@@ -713,12 +728,13 @@ void main() {
 
         await tester.pumpAndSettle();
         expect(tester.takeException(), isNull);
-        expect(find.text('End Flow'), findsOneWidget);
+        expect(find.text('Add reflection'), findsOneWidget);
+        expect(find.text('End Flow'), findsNothing);
       },
     );
 
     testWidgets(
-      'detail sheet keeps End Flow for inactive chrome flows outside the active ledger',
+      'detail sheet keeps inactive chrome flow ending out of the primary slot',
       (tester) async {
         await _setPhoneViewport(tester);
         int? endedFlowId;
@@ -756,30 +772,29 @@ void main() {
         expect(find.text('Archived Practice Flow'), findsWidgets);
         expect(find.text('Make to-do'), findsOneWidget);
         expect(find.text('Share Flow'), findsNothing);
-        expect(find.text('End Flow'), findsOneWidget);
+        expect(find.text('Add reflection'), findsOneWidget);
+        expect(find.text('End Flow'), findsNothing);
         expect(find.text('End Note'), findsNothing);
 
         await tester.tap(find.byIcon(Icons.more_vert));
         await tester.pumpAndSettle();
         expect(find.text('Share Flow'), findsOneWidget);
+        expect(find.text('End Flow'), findsNothing);
         await tester.tapAt(const Offset(10, 10));
         await tester.pumpAndSettle();
 
-        await tester.tap(find.text('End Flow'));
-        await tester.pumpAndSettle();
-
-        expect(endedFlowId, 9);
+        expect(endedFlowId, isNull);
       },
     );
 
     testWidgets(
-      'detail sheet keeps End Flow for active chrome flows outside the active ledger',
+      'detail sheet keeps End Flow in overflow for active chrome flows outside the active ledger',
       (tester) async {
         await _setPhoneViewport(tester);
 
         await tester.pumpWidget(
-          const _DayViewHarness(
-            notes: [
+          _DayViewHarness(
+            notes: const [
               NoteData(
                 title: 'Evening Reflection',
                 allDay: false,
@@ -796,7 +811,8 @@ void main() {
                 active: true,
               ),
             },
-            activeLedgerFlowIds: <int>{},
+            activeLedgerFlowIds: const <int>{},
+            onEndFlow: (_) {},
           ),
         );
         await tester.pumpAndSettle();
@@ -807,12 +823,14 @@ void main() {
         expect(find.text('Cooking and Art Mastery'), findsWidgets);
         expect(find.text('Make to-do'), findsOneWidget);
         expect(find.text('Share Flow'), findsNothing);
-        expect(find.text('End Flow'), findsOneWidget);
+        expect(find.text('Add reflection'), findsOneWidget);
+        expect(find.text('End Flow'), findsNothing);
         expect(find.text('End Note'), findsNothing);
 
         await tester.tap(find.byIcon(Icons.more_vert));
         await tester.pumpAndSettle();
         expect(find.text('Share Flow'), findsOneWidget);
+        expect(find.text('End Flow'), findsOneWidget);
       },
     );
 
@@ -843,6 +861,8 @@ void main() {
         await tester.pumpAndSettle();
 
         await tester.tap(find.text('Local Flow'));
+        await tester.pumpAndSettle();
+        await tester.tap(find.byIcon(Icons.more_vert));
         await tester.pumpAndSettle();
         await tester.tap(find.text('End Flow'));
         await tester.pumpAndSettle();

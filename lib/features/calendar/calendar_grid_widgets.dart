@@ -1,7 +1,5 @@
 part of 'calendar_page.dart';
 
-enum _DetailSheetEndAction { flow, reminder, note, none }
-
 /* ───────────── Year Section (12 months + epagomenal) ───────────── */
 
 class _YearSection extends StatelessWidget {
@@ -1790,28 +1788,6 @@ class _MainCalendarEventDetailSheetState
             (flow.isHidden && !flow.isReminder));
   }
 
-  bool _shouldShowEndFlowForId(int? flowId) {
-    final flow = _flowForId(flowId);
-    return flow != null && !_isRepeatingNoteFlowId(flowId);
-  }
-
-  _DetailSheetEndAction _endActionFor(
-    EventItem event, {
-    required FlowData? flow,
-  }) {
-    if (_shouldShowEndFlowForId(event.flowId)) {
-      return _DetailSheetEndAction.flow;
-    }
-    if (flow == null && event.isReminder) {
-      return _DetailSheetEndAction.reminder;
-    }
-    if ((flow == null || _isRepeatingNoteFlowId(event.flowId)) &&
-        widget.onDeleteNote != null) {
-      return _DetailSheetEndAction.note;
-    }
-    return _DetailSheetEndAction.none;
-  }
-
   bool _isActionableFlowId(int? flowId) {
     if (flowId == null) return false;
     if (widget.activeLedgerFlowIds.contains(flowId)) return true;
@@ -2064,21 +2040,47 @@ class _MainCalendarEventDetailSheetState
     await cb('$token ');
   }
 
-  Future<void> _appendReflectionPrompt(DayViewSheetEventTarget target) async {
-    final cb = widget.onAppendToJournal;
-    if (cb == null) return;
-    final title = target.event.title.trim().isEmpty
-        ? 'this calendar item'
-        : target.event.title.trim();
-    final messenger = ScaffoldMessenger.maybeOf(widget.hostContext);
-    await cb('Reflection on $title\n\n');
-    if (!mounted) return;
-    messenger?.showSnackBar(
-      const SnackBar(
-        content: Text('Reflection space added to journal'),
-        backgroundColor: Color(0xFFFFC145),
-        duration: Duration(seconds: 2),
-      ),
+  CalendarReflectionContext _reflectionContextForTarget(
+    DayViewSheetEventTarget target, {
+    required CompletionSourceType sourceType,
+    CompletionStatus completionStatus = CompletionStatus.none,
+  }) {
+    final event = target.event;
+    final g = KemeticMath.toGregorian(target.ky, target.km, target.kd);
+    final dayStart = DateTime(g.year, g.month, g.day);
+    return CalendarReflectionContext(
+      sourceType: sourceType,
+      sourceId: _completionIdentityForEvent(event),
+      title: event.title,
+      calendarDate: dayStart,
+      occurrenceId: event.clientEventId ?? event.id ?? event.reminderId,
+      eventId: event.clientEventId ?? event.id ?? event.reminderId,
+      flowId: event.flowId,
+      start: dayStart.add(Duration(minutes: event.startMin)),
+      end: dayStart.add(Duration(minutes: event.endMin)),
+      color: event.color,
+      completionStatus: completionStatus,
+    );
+  }
+
+  Future<void> _openReflectionForTarget({
+    required BuildContext routeContext,
+    required BuildContext sheetContext,
+    required DayViewSheetEventTarget target,
+    required CompletionSourceType sourceType,
+  }) async {
+    final identity = _completionIdentityForEvent(target.event);
+    Navigator.pop(sheetContext);
+    final record = await const CalendarCompletionLocalStore().load(identity);
+    if (!routeContext.mounted) return;
+    final reflectionContext = _reflectionContextForTarget(
+      target,
+      sourceType: sourceType,
+      completionStatus: record.completionStatus,
+    );
+    routeContext.go(
+      reflectionContext.journalRouteLocation,
+      extra: reflectionContext,
     );
   }
 
@@ -2330,9 +2332,7 @@ class _MainCalendarEventDetailSheetState
             status,
             sourceType: sourceType,
           ),
-          onReflect: widget.onAppendToJournal == null
-              ? null
-              : () => unawaited(_appendReflectionPrompt(target)),
+          onReflect: null,
         ),
       ],
     );
@@ -2365,66 +2365,24 @@ class _MainCalendarEventDetailSheetState
     );
   }
 
-  Widget _buildEndFlowButton(
-    BuildContext context,
-    DayViewSheetEventTarget target,
-  ) {
-    final flowId = target.event.flowId;
-    final canEndFlow =
-        widget.onEndFlow != null && _shouldShowEndFlowForId(flowId);
+  Widget _buildAddReflectionButton({
+    required BuildContext routeContext,
+    required BuildContext sheetContext,
+    required DayViewSheetEventTarget target,
+    required CompletionSourceType sourceType,
+  }) {
     return OutlinedButton.icon(
-      style: _endActionStyle(context),
-      onPressed: flowId == null || !canEndFlow
-          ? null
-          : () async {
-              Navigator.pop(context);
-              final routedThroughCalendarPage =
-                  await CalendarPage.endFlowFromEventTarget(target);
-              if (!routedThroughCalendarPage) {
-                widget.onEndFlow?.call(flowId);
-              }
-            },
-      icon: const Icon(Icons.stop_circle),
-      label: const Text('End Flow'),
-    );
-  }
-
-  Widget _buildEndNoteButton(
-    BuildContext context,
-    DayViewSheetEventTarget target,
-  ) {
-    final enabled = widget.onDeleteNote != null;
-    return OutlinedButton.icon(
-      style: _endActionStyle(context),
-      onPressed: enabled
-          ? () async {
-              Navigator.pop(context);
-              await widget.onDeleteNote!(
-                target.ky,
-                target.km,
-                target.kd,
-                target.event,
-              );
-            }
-          : null,
-      icon: const Icon(Icons.delete_outline),
-      label: const Text('End Note'),
-    );
-  }
-
-  Widget _buildEndReminderButton(BuildContext context, EventItem event) {
-    final reminderId = event.reminderId;
-    final enabled = widget.onEndReminder != null && reminderId != null;
-    return OutlinedButton.icon(
-      style: _endActionStyle(context),
-      onPressed: enabled
-          ? () async {
-              Navigator.pop(context);
-              await widget.onEndReminder!(reminderId);
-            }
-          : null,
-      icon: const Icon(Icons.stop_circle),
-      label: const Text('End Reminder'),
+      style: _endActionStyle(sheetContext),
+      onPressed: () => unawaited(
+        _openReflectionForTarget(
+          routeContext: routeContext,
+          sheetContext: sheetContext,
+          target: target,
+          sourceType: sourceType,
+        ),
+      ),
+      icon: KemeticGold.icon(Icons.edit_note_rounded),
+      label: const Text('Add reflection'),
     );
   }
 
@@ -2434,17 +2392,17 @@ class _MainCalendarEventDetailSheetState
   }) {
     final currentEvent = target.event;
     final flow = _flowForId(currentEvent.flowId);
-    final endAction = _endActionFor(currentEvent, flow: flow);
+    final sourceType = _completionSourceTypeForEvent(currentEvent, flow);
 
     return Row(
       children: [
         const Spacer(),
-        if (endAction == _DetailSheetEndAction.flow)
-          _buildEndFlowButton(sheetContext, target)
-        else if (endAction == _DetailSheetEndAction.reminder)
-          _buildEndReminderButton(sheetContext, currentEvent)
-        else if (endAction == _DetailSheetEndAction.note)
-          _buildEndNoteButton(sheetContext, target),
+        _buildAddReflectionButton(
+          routeContext: widget.hostContext,
+          sheetContext: sheetContext,
+          target: target,
+          sourceType: sourceType,
+        ),
         const SizedBox(width: 8),
         _buildEventDetailOverflowButton(
           sheetContext: sheetContext,
@@ -2599,6 +2557,20 @@ class _MainCalendarEventDetailSheetState
               ],
             ),
           ),
+        if (hasFlow &&
+            actionableFlow &&
+            !isReminder &&
+            widget.onEndFlow != null)
+          PopupMenuItem(
+            value: 'end_flow',
+            child: Row(
+              children: [
+                KemeticGold.icon(Icons.stop_circle),
+                const SizedBox(width: 12),
+                const Text('End Flow', style: TextStyle(color: Colors.white)),
+              ],
+            ),
+          ),
         if (isReminder &&
             widget.onEditReminder != null &&
             currentEvent.reminderId != null)
@@ -2615,6 +2587,22 @@ class _MainCalendarEventDetailSheetState
               ],
             ),
           ),
+        if (isReminder &&
+            widget.onEndReminder != null &&
+            currentEvent.reminderId != null)
+          PopupMenuItem(
+            value: 'end_reminder',
+            child: Row(
+              children: [
+                KemeticGold.icon(Icons.stop_circle),
+                const SizedBox(width: 12),
+                const Text(
+                  'End Reminder',
+                  style: TextStyle(color: Colors.white),
+                ),
+              ],
+            ),
+          ),
         if ((!hasFlow || _isRepeatingNoteFlowId(currentEvent.flowId)) &&
             !isReminder &&
             widget.onEditNote != null)
@@ -2625,6 +2613,19 @@ class _MainCalendarEventDetailSheetState
                 KemeticGold.icon(Icons.edit),
                 const SizedBox(width: 12),
                 const Text('Edit Note', style: TextStyle(color: Colors.white)),
+              ],
+            ),
+          ),
+        if ((!hasFlow || _isRepeatingNoteFlowId(currentEvent.flowId)) &&
+            !isReminder &&
+            widget.onDeleteNote != null)
+          PopupMenuItem(
+            value: 'end_note',
+            child: Row(
+              children: [
+                KemeticGold.icon(Icons.delete_outline),
+                const SizedBox(width: 12),
+                const Text('End Note', style: TextStyle(color: Colors.white)),
               ],
             ),
           ),

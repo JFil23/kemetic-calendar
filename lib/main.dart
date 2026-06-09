@@ -55,6 +55,7 @@ import 'services/decan_reflection_scheduler.dart';
 import 'features/journal/journal_controller.dart';
 import 'features/journal/journal_entry_detail_page.dart';
 import 'features/journal/journal_page.dart';
+import 'features/calendar/calendar_reflection_context.dart';
 import 'features/maat_guidance/maat_guidance_controller.dart';
 import 'features/maat_guidance/maat_guidance_detail_page.dart';
 import 'features/maat_guidance/maat_guidance_floating_card.dart';
@@ -1581,10 +1582,18 @@ GoRouter _createRouter({required String initialLocation}) => GoRouter(
     ),
     _calmRoute(
       path: '/journal',
-      builder: (context, state) => SessionTrackedRoute(
-        location: state.uri.toString(),
-        child: const JournalRoutePage(),
-      ),
+      builder: (context, state) {
+        final extra = state.extra;
+        final reflectionContext = extra is CalendarReflectionContext
+            ? extra
+            : CalendarReflectionContext.fromQueryParameters(
+                state.uri.queryParameters,
+              );
+        return SessionTrackedRoute(
+          location: state.uri.toString(),
+          child: JournalRoutePage(reflectionContext: reflectionContext),
+        );
+      },
     ),
     _calmRoute(
       path: '/journal/entry/:entryId',
@@ -3882,10 +3891,15 @@ class _EditProfileRoutePageState extends State<EditProfileRoutePage> {
 }
 
 class JournalRoutePage extends StatefulWidget {
-  const JournalRoutePage({super.key, this.controllerForTesting});
+  const JournalRoutePage({
+    super.key,
+    this.controllerForTesting,
+    this.reflectionContext,
+  });
 
   @visibleForTesting
   final JournalController? controllerForTesting;
+  final CalendarReflectionContext? reflectionContext;
 
   @override
   State<JournalRoutePage> createState() => _JournalRoutePageState();
@@ -3901,7 +3915,17 @@ class _JournalRoutePageState extends State<JournalRoutePage>
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
-    _future = _controller.init();
+    _future = _initializeJournalRoute();
+  }
+
+  Future<void> _initializeJournalRoute() async {
+    await _controller.init();
+    final reflectionContext = widget.reflectionContext;
+    if (reflectionContext == null) return;
+    await _controller.loadDate(reflectionContext.calendarDate);
+    await _controller.appendToToday(
+      reflectionContext.buildJournalPrefillText(),
+    );
   }
 
   @override

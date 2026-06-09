@@ -10,6 +10,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/gestures.dart'; // For DragStartBehavior
 import 'package:flutter/rendering.dart';
+import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:mobile/core/completion_status.dart';
@@ -20,6 +21,7 @@ import '../../services/app_restoration_service.dart';
 import 'day_view.dart'; // For NoteData, FlowData
 import 'calendar_page.dart' show CalendarPage, KemeticMath;
 import 'calendar_completion.dart';
+import 'calendar_reflection_context.dart';
 import 'package:mobile/features/calendar/kemetic_time_constants.dart';
 import 'dart:math' as math;
 import 'package:mobile/shared/glossy_text.dart';
@@ -51,8 +53,6 @@ const TextStyle _landscapeActionTextStyle = TextStyle(
   fontFamily: 'GentiumPlus',
   fontFamilyFallback: ['NotoSans', 'Roboto', 'Arial', 'sans-serif'],
 );
-
-enum _DetailSheetEndAction { flow, reminder, note, none }
 
 class _ConstantIntListenable implements ValueListenable<int> {
   const _ConstantIntListenable(this.value);
@@ -1923,28 +1923,6 @@ class _LandscapeMonthGridBodyState extends State<LandscapeMonthGridBody> {
             (flow.isHidden && !flow.isReminder));
   }
 
-  bool _shouldShowEndFlowForId(int? flowId) {
-    final flow = _chromeFlowForId(flowId);
-    return flow != null && !_isRepeatingNoteFlowId(flowId);
-  }
-
-  _DetailSheetEndAction _endActionFor(
-    EventItem event, {
-    required FlowData? flow,
-  }) {
-    if (_shouldShowEndFlowForId(event.flowId)) {
-      return _DetailSheetEndAction.flow;
-    }
-    if (flow == null && event.isReminder) {
-      return _DetailSheetEndAction.reminder;
-    }
-    if ((flow == null || _isRepeatingNoteFlowId(event.flowId)) &&
-        widget.onDeleteNote != null) {
-      return _DetailSheetEndAction.note;
-    }
-    return _DetailSheetEndAction.none;
-  }
-
   bool _isActionableFlowId(int? flowId) {
     if (flowId == null) return false;
     if (widget.activeLedgerFlowIds.contains(flowId)) return true;
@@ -2031,20 +2009,47 @@ class _LandscapeMonthGridBodyState extends State<LandscapeMonthGridBody> {
     await cb('$token ');
   }
 
-  Future<void> _appendReflectionPrompt(DayViewSheetEventTarget target) async {
-    final cb = widget.onAppendToJournal;
-    if (cb == null) return;
-    final title = target.event.title.trim().isEmpty
-        ? 'this calendar item'
-        : target.event.title.trim();
-    await cb('Reflection on $title\n\n');
-    if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Reflection space added to journal'),
-        backgroundColor: Color(0xFFFFC145),
-        duration: Duration(seconds: 2),
-      ),
+  CalendarReflectionContext _reflectionContextForTarget(
+    DayViewSheetEventTarget target, {
+    required CompletionSourceType sourceType,
+    CompletionStatus completionStatus = CompletionStatus.none,
+  }) {
+    final event = target.event;
+    final g = KemeticMath.toGregorian(target.ky, target.km, target.kd);
+    final dayStart = DateTime(g.year, g.month, g.day);
+    return CalendarReflectionContext(
+      sourceType: sourceType,
+      sourceId: _completionIdentityForEvent(event),
+      title: event.title,
+      calendarDate: dayStart,
+      occurrenceId: event.clientEventId ?? event.id ?? event.reminderId,
+      eventId: event.clientEventId ?? event.id ?? event.reminderId,
+      flowId: event.flowId,
+      start: dayStart.add(Duration(minutes: event.startMin)),
+      end: dayStart.add(Duration(minutes: event.endMin)),
+      color: event.color,
+      completionStatus: completionStatus,
+    );
+  }
+
+  Future<void> _openReflectionForTarget({
+    required BuildContext routeContext,
+    required BuildContext sheetContext,
+    required DayViewSheetEventTarget target,
+    required CompletionSourceType sourceType,
+  }) async {
+    final identity = _completionIdentityForEvent(target.event);
+    Navigator.pop(sheetContext);
+    final record = await const CalendarCompletionLocalStore().load(identity);
+    if (!routeContext.mounted) return;
+    final reflectionContext = _reflectionContextForTarget(
+      target,
+      sourceType: sourceType,
+      completionStatus: record.completionStatus,
+    );
+    routeContext.go(
+      reflectionContext.journalRouteLocation,
+      extra: reflectionContext,
     );
   }
 
@@ -2641,69 +2646,24 @@ class _LandscapeMonthGridBodyState extends State<LandscapeMonthGridBody> {
     );
   }
 
-  Widget _buildEndFlowButton(
-    DayViewSheetEventTarget target, {
-    required BuildContext actionContext,
+  Widget _buildAddReflectionButton({
+    required BuildContext routeContext,
+    required BuildContext sheetContext,
+    required DayViewSheetEventTarget target,
+    required CompletionSourceType sourceType,
   }) {
-    final onEndFlow = widget.onEndFlow;
-    final id = target.event.flowId;
-    final enabled = onEndFlow != null && _shouldShowEndFlowForId(id);
     return OutlinedButton.icon(
-      style: _endButtonStyle(actionContext),
-      onPressed: enabled
-          ? () async {
-              Navigator.pop(actionContext);
-              final routedThroughCalendarPage =
-                  await CalendarPage.endFlowFromEventTarget(target);
-              if (!routedThroughCalendarPage) {
-                onEndFlow(id!);
-              }
-            }
-          : null,
-      icon: const Icon(Icons.stop_circle),
-      label: const Text('End Flow'),
-    );
-  }
-
-  Widget _buildEndNoteButton(
-    EventItem event, {
-    required int ky,
-    required int km,
-    required int kd,
-    required BuildContext actionContext,
-  }) {
-    final enabled = widget.onDeleteNote != null;
-    return OutlinedButton.icon(
-      style: _endButtonStyle(actionContext),
-      onPressed: enabled
-          ? () async {
-              Navigator.pop(actionContext);
-              await widget.onDeleteNote!(ky, km, kd, event);
-            }
-          : null,
-      icon: const Icon(Icons.delete_outline),
-      label: const Text('End Note'),
-    );
-  }
-
-  Widget _buildEndReminderButton(
-    EventItem event, {
-    required BuildContext actionContext,
-  }) {
-    final enabled = widget.onEndReminder != null && event.reminderId != null;
-    return OutlinedButton.icon(
-      style: _endButtonStyle(actionContext),
-      onPressed: enabled
-          ? () async {
-              Navigator.pop(actionContext);
-              final reminderId = event.reminderId;
-              if (reminderId != null) {
-                await widget.onEndReminder?.call(reminderId);
-              }
-            }
-          : null,
-      icon: const Icon(Icons.stop_circle),
-      label: const Text('End Reminder'),
+      style: _endButtonStyle(sheetContext),
+      onPressed: () => unawaited(
+        _openReflectionForTarget(
+          routeContext: routeContext,
+          sheetContext: sheetContext,
+          target: target,
+          sourceType: sourceType,
+        ),
+      ),
+      icon: KemeticGold.icon(Icons.edit_note_rounded),
+      label: const Text('Add reflection'),
     );
   }
 
@@ -2904,9 +2864,7 @@ class _LandscapeMonthGridBodyState extends State<LandscapeMonthGridBody> {
             status,
             sourceType: sourceType,
           ),
-          onReflect: widget.onAppendToJournal == null
-              ? null
-              : () => unawaited(_appendReflectionPrompt(target)),
+          onReflect: null,
         ),
       ],
     );
@@ -2945,23 +2903,17 @@ class _LandscapeMonthGridBodyState extends State<LandscapeMonthGridBody> {
   }) {
     final currentEvent = target.event;
     final flow = _chromeFlowForId(currentEvent.flowId);
-    final endAction = _endActionFor(currentEvent, flow: flow);
+    final sourceType = _completionSourceTypeForEvent(currentEvent, flow);
 
     return Row(
       children: [
         const Spacer(),
-        if (endAction == _DetailSheetEndAction.flow)
-          _buildEndFlowButton(target, actionContext: sheetContext)
-        else if (endAction == _DetailSheetEndAction.reminder)
-          _buildEndReminderButton(currentEvent, actionContext: sheetContext)
-        else if (endAction == _DetailSheetEndAction.note)
-          _buildEndNoteButton(
-            currentEvent,
-            ky: target.ky,
-            km: target.km,
-            kd: target.kd,
-            actionContext: sheetContext,
-          ),
+        _buildAddReflectionButton(
+          routeContext: context,
+          sheetContext: sheetContext,
+          target: target,
+          sourceType: sourceType,
+        ),
         const SizedBox(width: 8),
         _buildEventDetailOverflowButton(
           sheetContext: sheetContext,
@@ -3122,6 +3074,20 @@ class _LandscapeMonthGridBodyState extends State<LandscapeMonthGridBody> {
               ],
             ),
           ),
+        if (flow != null &&
+            actionableFlow &&
+            !isReminder &&
+            widget.onEndFlow != null)
+          PopupMenuItem(
+            value: 'end_flow',
+            child: Row(
+              children: [
+                KemeticGold.icon(Icons.stop_circle),
+                const SizedBox(width: 12),
+                const Text('End Flow', style: TextStyle(color: Colors.white)),
+              ],
+            ),
+          ),
         if (isReminder &&
             widget.onEditReminder != null &&
             currentEvent.reminderId != null)
@@ -3138,6 +3104,22 @@ class _LandscapeMonthGridBodyState extends State<LandscapeMonthGridBody> {
               ],
             ),
           ),
+        if (isReminder &&
+            widget.onEndReminder != null &&
+            currentEvent.reminderId != null)
+          PopupMenuItem(
+            value: 'end_reminder',
+            child: Row(
+              children: [
+                KemeticGold.icon(Icons.stop_circle),
+                const SizedBox(width: 12),
+                const Text(
+                  'End Reminder',
+                  style: TextStyle(color: Colors.white),
+                ),
+              ],
+            ),
+          ),
         if ((flow == null || _isRepeatingNoteFlowId(currentEvent.flowId)) &&
             !isReminder &&
             widget.onEditNote != null)
@@ -3148,6 +3130,19 @@ class _LandscapeMonthGridBodyState extends State<LandscapeMonthGridBody> {
                 KemeticGold.icon(Icons.edit),
                 const SizedBox(width: 12),
                 const Text('Edit Note', style: TextStyle(color: Colors.white)),
+              ],
+            ),
+          ),
+        if ((flow == null || _isRepeatingNoteFlowId(currentEvent.flowId)) &&
+            !isReminder &&
+            widget.onDeleteNote != null)
+          PopupMenuItem(
+            value: 'end_note',
+            child: Row(
+              children: [
+                KemeticGold.icon(Icons.delete_outline),
+                const SizedBox(width: 12),
+                const Text('End Note', style: TextStyle(color: Colors.white)),
               ],
             ),
           ),

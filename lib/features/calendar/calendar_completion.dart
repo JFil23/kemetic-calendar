@@ -66,9 +66,9 @@ String calendarCompletionIdentity({
 Color calendarCompletionBadgeColor(CompletionStatus status, Color eventColor) {
   switch (status) {
     case CompletionStatus.observed:
-      return eventColor;
+      return const Color(0xFF4CAF50);
     case CompletionStatus.partial:
-      return const Color(0xFFFFB347);
+      return const Color(0xFF64B5F6);
     case CompletionStatus.skipped:
       return Colors.white38;
     case CompletionStatus.none:
