@@ -1678,11 +1678,13 @@ String? _encodeRepeatingNoteMetadata({
   String? location,
   String? category,
   int? alertMinutes,
+  bool keepMarker = false,
 }) {
   if (detail == null &&
       location == null &&
       category == null &&
-      alertMinutes == null) {
+      alertMinutes == null &&
+      !keepMarker) {
     return null;
   }
   final parts = <String, dynamic>{'kind': 'repeating_note'};

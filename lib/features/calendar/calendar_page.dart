@@ -134,6 +134,7 @@ import '../rhythm/event_todo_action.dart';
 import '../rhythm/event_todo_builder.dart';
 import '../rhythm/data/planner_badge_repo.dart';
 import '../rhythm/pages/todays_alignment_page.dart';
+import 'calendar_recurring_scope.dart';
 
 part 'calendar_flow_models.dart';
 part 'calendar_flow_studio_models.dart';
@@ -17006,6 +17007,8 @@ class CalendarPageState extends State<CalendarPage>
       color: _displayFlowColor(flow.name, flow.color),
       active: flow.active,
       notes: flow.notes,
+      isHidden: flow.isHidden,
+      isReminder: flow.isReminder,
     );
   }
 
@@ -17299,6 +17302,704 @@ class CalendarPageState extends State<CalendarPage>
     return _manualDeleteTombstones.contains(trimmed);
   }
 
+  bool _isRepeatingNoteFlow(_Flow? flow) {
+    if (flow == null) return false;
+    return flow.id > 0 &&
+        !flow.isReminder &&
+        (flow.isHidden || hasRepeatingNoteFlowMetadata(flow.notes));
+  }
+
+  _Flow? _repeatingNoteFlowForId(int? flowId) {
+    if (flowId == null || flowId <= 0) return null;
+    for (final flow in _flows) {
+      if (flow.id == flowId && _isRepeatingNoteFlow(flow)) return flow;
+    }
+    return null;
+  }
+
+  Set<DateTime> _repeatingFlowRuleDates(_Flow flow) {
+    final dates = <DateTime>{};
+    for (final rule in flow.rules) {
+      if (rule is _RuleDates) {
+        dates.addAll(rule.dates.map(calendarRecurringDateOnly));
+      }
+    }
+    return dates;
+  }
+
+  ({bool allDay, TimeOfDay? start, TimeOfDay? end}) _repeatingFlowTimeFields(
+    _Flow flow,
+  ) {
+    for (final rule in flow.rules) {
+      if (rule is _RuleDates) {
+        return (allDay: rule.allDay, start: rule.start, end: rule.end);
+      }
+    }
+    return (allDay: true, start: null, end: null);
+  }
+
+  DateTime _gregorianDateForKemeticDay(int ky, int km, int kd) {
+    return calendarRecurringDateOnly(KemeticMath.toGregorian(ky, km, kd));
+  }
+
+  DateTime? _gregorianDateForNoteBucketKey(String key) {
+    final parts = key.split('-');
+    if (parts.length != 3) return null;
+    final ky = int.tryParse(parts[0]);
+    final km = int.tryParse(parts[1]);
+    final kd = int.tryParse(parts[2]);
+    if (ky == null || km == null || kd == null) return null;
+    return _gregorianDateForKemeticDay(ky, km, kd);
+  }
+
+  DateTime _occurrenceStartLocal({
+    required int ky,
+    required int km,
+    required int kd,
+    required bool allDay,
+    required TimeOfDay? start,
+  }) {
+    final day = KemeticMath.toGregorian(ky, km, kd);
+    final hour = allDay || start == null ? 9 : start.hour;
+    final minute = allDay || start == null ? 0 : start.minute;
+    return DateTime(day.year, day.month, day.day, hour, minute);
+  }
+
+  int _removeLocalRepeatingNotesForDates({
+    required int flowId,
+    required Set<DateTime> dates,
+  }) {
+    if (flowId <= 0 || dates.isEmpty) return 0;
+    final normalizedDates = dates.map(calendarRecurringDateOnly).toSet();
+    var removed = 0;
+    _notes.removeWhere((key, bucket) {
+      final bucketDate = _gregorianDateForNoteBucketKey(key);
+      if (bucketDate == null || !normalizedDates.contains(bucketDate)) {
+        return false;
+      }
+      final before = bucket.length;
+      bucket.removeWhere((note) => (note.flowId ?? -1) == flowId);
+      removed += before - bucket.length;
+      return bucket.isEmpty;
+    });
+    if (removed > 0) {
+      setState(() {});
+      _notifyDayViewDataChanged();
+    }
+    return removed;
+  }
+
+  Future<CalendarRecurringMutationScope?> _showRepeatingEventScopeSheet({
+    required BuildContext context,
+    required bool isDelete,
+  }) {
+    return showCupertinoModalPopup<CalendarRecurringMutationScope>(
+      context: context,
+      builder: (popupContext) => CupertinoActionSheet(
+        actions: [
+          for (final scope in CalendarRecurringMutationScope.values)
+            CupertinoActionSheetAction(
+              isDestructiveAction:
+                  isDelete &&
+                  scope == CalendarRecurringMutationScope.entireSeries,
+              onPressed: () => Navigator.pop(popupContext, scope),
+              child: Text(scope.label),
+            ),
+        ],
+        cancelButton: CupertinoActionSheetAction(
+          onPressed: () => Navigator.pop(popupContext),
+          child: const Text('Cancel'),
+        ),
+      ),
+    );
+  }
+
+  Future<_Flow?> _persistRepeatingNoteFlow({
+    required _Flow flow,
+    required Set<DateTime> dates,
+    required String title,
+    required String? detail,
+    required String? location,
+    required String? calendarId,
+    required bool allDay,
+    required TimeOfDay? startTime,
+    required TimeOfDay? endTime,
+    required Color color,
+    required String? category,
+    required int alertMinutesBefore,
+    DateTime? rescheduleFromDate,
+    String caller = 'repeat_scope_update',
+  }) async {
+    final normalizedDates = dates.map(calendarRecurringDateOnly).toSet();
+    if (normalizedDates.isEmpty) {
+      await _deleteRepeatingNoteFlowSeries(flow);
+      return null;
+    }
+
+    final orderedDates = normalizedDates.toList()..sort();
+    final nextRule = _RuleDates(
+      dates: normalizedDates,
+      allDay: allDay,
+      start: allDay ? null : startTime,
+      end: allDay ? null : endTime,
+    );
+    final nextFlow = _Flow(
+      id: flow.id,
+      calendarId: calendarId,
+      name: title,
+      color: color,
+      active: true,
+      isSaved: flow.isSaved,
+      savedAt: flow.savedAt,
+      rules: [nextRule],
+      start: orderedDates.first,
+      end: orderedDates.last,
+      notes: _encodeRepeatingNoteMetadata(
+        detail: detail,
+        location: location,
+        category: category,
+        alertMinutes: alertMinutesBefore,
+        keepMarker: true,
+      ),
+      shareId: flow.shareId,
+      isHidden: true,
+      isReminder: false,
+      reminderUuid: flow.reminderUuid,
+    );
+
+    final repo = UserEventsRepo(Supabase.instance.client);
+    await repo.upsertFlow(
+      id: nextFlow.id,
+      name: nextFlow.name,
+      color: nextFlow.color.toARGB32(),
+      active: nextFlow.active,
+      calendarId: nextFlow.calendarId,
+      startDate: nextFlow.start,
+      endDate: nextFlow.end,
+      notes: nextFlow.notes,
+      rules: jsonEncode(nextFlow.rules.map(ruleToJson).toList()),
+      isHidden: true,
+      isSaved: nextFlow.isSaved,
+      shareId: nextFlow.shareId,
+      isReminder: false,
+      reminderUuid: nextFlow.reminderUuid,
+    );
+
+    final idx = _flows.indexWhere((f) => f.id == flow.id);
+    if (idx >= 0) {
+      _flows[idx] = nextFlow;
+    } else {
+      _flows.add(nextFlow);
+    }
+
+    if (rescheduleFromDate != null) {
+      await scheduleFlowNotes(
+        flowId: nextFlow.id,
+        rules: nextFlow.rules,
+        flowNotes: nextFlow.notes,
+        startDate: calendarRecurringDateOnly(rescheduleFromDate),
+        endDate: nextFlow.end,
+      );
+    }
+
+    if (kDebugMode) {
+      _calendarDebugPrint(
+        '[RepeatScope] $caller flowId=${nextFlow.id} dates=${normalizedDates.length}',
+      );
+    }
+    return nextFlow;
+  }
+
+  Future<_Flow> _createRepeatingNoteFlowFromDates({
+    required Set<DateTime> dates,
+    required String title,
+    required String? detail,
+    required String? location,
+    required String? calendarId,
+    required bool allDay,
+    required TimeOfDay? startTime,
+    required TimeOfDay? endTime,
+    required Color color,
+    required String? category,
+    required int alertMinutesBefore,
+  }) async {
+    final normalizedDates = dates.map(calendarRecurringDateOnly).toSet();
+    final orderedDates = normalizedDates.toList()..sort();
+    if (orderedDates.isEmpty) {
+      throw ArgumentError('Repeating flow requires at least one date.');
+    }
+
+    final rule = _RuleDates(
+      dates: normalizedDates,
+      allDay: allDay,
+      start: allDay ? null : startTime,
+      end: allDay ? null : endTime,
+    );
+    final notes = _encodeRepeatingNoteMetadata(
+      detail: detail,
+      location: location,
+      category: category,
+      alertMinutes: alertMinutesBefore,
+      keepMarker: true,
+    );
+    final repo = UserEventsRepo(Supabase.instance.client);
+    final flowId = await repo.upsertFlow(
+      id: null,
+      name: title,
+      color: color.toARGB32(),
+      active: true,
+      calendarId: calendarId,
+      startDate: orderedDates.first,
+      endDate: orderedDates.last,
+      notes: notes,
+      rules: jsonEncode([ruleToJson(rule)]),
+      isHidden: true,
+      isReminder: false,
+    );
+
+    final flow = _Flow(
+      id: flowId,
+      calendarId: calendarId,
+      name: title,
+      color: color,
+      active: true,
+      rules: [rule],
+      start: orderedDates.first,
+      end: orderedDates.last,
+      notes: notes,
+      isHidden: true,
+    );
+    _flows.add(flow);
+    if (flowId >= _nextFlowId) _nextFlowId = flowId + 1;
+
+    await scheduleFlowNotes(
+      flowId: flow.id,
+      rules: flow.rules,
+      flowNotes: flow.notes,
+      startDate: orderedDates.first,
+      endDate: orderedDates.last,
+    );
+    return flow;
+  }
+
+  Future<void> _deleteRepeatingNoteFlowSeries(_Flow flow) async {
+    final flowId = flow.id;
+    if (flowId <= 0) return;
+    _removeLocalNotesForFlowReplacement(flowId);
+    _flows.removeWhere((f) => f.id == flowId);
+    if (mounted) setState(() {});
+    _notifyDayViewDataChanged();
+
+    final repo = UserEventsRepo(Supabase.instance.client);
+    await repo.deleteFlow(flowId);
+  }
+
+  Future<void> _deleteRepeatingOccurrenceRow({
+    required _Note note,
+    required String deleteScope,
+  }) async {
+    final repo = UserEventsRepo(Supabase.instance.client);
+    final cid = note.clientEventId?.trim();
+    if (cid != null && cid.isNotEmpty) {
+      await repo.deleteByClientId(
+        cid,
+        semantic: 'repeat_scope_delete',
+        sourceFeature: 'CalendarPage._deleteRepeatingOccurrenceRow',
+        deleteScope: deleteScope,
+      );
+      await Notify.cancelNotificationForEvent(cid);
+      return;
+    }
+    final id = note.id?.trim();
+    if (id != null && id.isNotEmpty) {
+      await repo.delete(id);
+    }
+  }
+
+  Future<void> _notifySharedRepeatingScope({
+    required String? calendarId,
+    required String title,
+    required CalendarRecurringMutationScope scope,
+    required bool isDelete,
+    String? clientEventId,
+    String? eventId,
+    int? flowId,
+  }) {
+    return _notifySharedCalendarMembers(
+      calendarId: calendarId,
+      title: _calendarDisplayName(calendarId),
+      body: '${isDelete ? 'Deleted' : 'Updated'} event: $title',
+      clientEventId: clientEventId,
+      data: <String, dynamic>{
+        'recurrence_scope': scope.name,
+        if (eventId != null && eventId.trim().isNotEmpty) 'event_id': eventId,
+        if (flowId != null && flowId > 0) 'flow_id': flowId,
+      },
+    );
+  }
+
+  Future<bool> _applyRepeatingNoteDeleteScope({
+    required _Note note,
+    required int kYear,
+    required int kMonth,
+    required int kDay,
+    required CalendarRecurringMutationScope scope,
+  }) async {
+    final flow = _repeatingNoteFlowForId(note.flowId);
+    if (flow == null) return false;
+
+    final dates = _repeatingFlowRuleDates(flow);
+    final selectedDate = _gregorianDateForKemeticDay(kYear, kMonth, kDay);
+    final plan = planCalendarRecurringDateScope(
+      originalDates: dates,
+      selectedDate: selectedDate,
+      scope: scope,
+    );
+    if (plan.affectedOriginalDates.isEmpty) return false;
+
+    final meta = _decodeRepeatingNoteMetadata(flow.notes);
+    final time = _repeatingFlowTimeFields(flow);
+    final selectedStart = _occurrenceStartLocal(
+      ky: kYear,
+      km: kMonth,
+      kd: kDay,
+      allDay: note.allDay,
+      start: note.start,
+    );
+    final repo = UserEventsRepo(Supabase.instance.client);
+
+    switch (scope) {
+      case CalendarRecurringMutationScope.thisEventOnly:
+        await _persistRepeatingNoteFlow(
+          flow: flow,
+          dates: plan.keptOriginalDates,
+          title: flow.name,
+          detail: meta.detail,
+          location: meta.location,
+          calendarId: flow.calendarId,
+          allDay: time.allDay,
+          startTime: time.start,
+          endTime: time.end,
+          color: flow.color,
+          category: meta.category,
+          alertMinutesBefore: meta.alertMinutes ?? _alertNoneMinutes,
+          caller: 'repeat_scope_delete_this',
+        );
+        _removeLocalRepeatingNotesForDates(
+          flowId: flow.id,
+          dates: plan.affectedOriginalDates,
+        );
+        await _deleteRepeatingOccurrenceRow(
+          note: note,
+          deleteScope: 'repeat_this_event',
+        );
+        break;
+
+      case CalendarRecurringMutationScope.thisAndFuture:
+        if (plan.keptOriginalDates.isEmpty) {
+          await _deleteRepeatingNoteFlowSeries(flow);
+        } else {
+          await _persistRepeatingNoteFlow(
+            flow: flow,
+            dates: plan.keptOriginalDates,
+            title: flow.name,
+            detail: meta.detail,
+            location: meta.location,
+            calendarId: flow.calendarId,
+            allDay: time.allDay,
+            startTime: time.start,
+            endTime: time.end,
+            color: flow.color,
+            category: meta.category,
+            alertMinutesBefore: meta.alertMinutes ?? _alertNoneMinutes,
+            caller: 'repeat_scope_delete_future_keep_past',
+          );
+          _removeLocalRepeatingNotesForDates(
+            flowId: flow.id,
+            dates: plan.affectedOriginalDates,
+          );
+          await repo.deleteByFlowId(
+            flow.id,
+            fromDate: selectedStart.toUtc(),
+            semantic: 'repeat_scope_delete',
+            sourceFeature: 'CalendarPage._applyRepeatingNoteDeleteScope',
+            deleteScope: 'repeat_this_and_future',
+          );
+        }
+        break;
+
+      case CalendarRecurringMutationScope.entireSeries:
+        await _deleteRepeatingNoteFlowSeries(flow);
+        break;
+    }
+
+    await _notifySharedRepeatingScope(
+      calendarId: note.calendarId ?? flow.calendarId,
+      title: note.title,
+      scope: scope,
+      isDelete: true,
+      clientEventId: note.clientEventId,
+      eventId: note.id,
+      flowId: flow.id,
+    );
+    await _loadFromDisk(source: 'repeat_scope_delete_${scope.name}');
+    return true;
+  }
+
+  Future<({String? clientEventId, String? eventId})>
+  _applyRepeatingNoteEditScope({
+    required _Note originalNote,
+    required int sourceKYear,
+    required int sourceKMonth,
+    required int sourceKDay,
+    required int selYear,
+    required int selMonth,
+    required int selDay,
+    required String title,
+    required String? detail,
+    required String? location,
+    required String? calendarId,
+    required String? calendarName,
+    required bool allDay,
+    required TimeOfDay? startTime,
+    required TimeOfDay? endTime,
+    required Color color,
+    required String? category,
+    required int alertMinutesBefore,
+    required CalendarRecurringMutationScope scope,
+  }) async {
+    final flow = _repeatingNoteFlowForId(originalNote.flowId);
+    if (flow == null) return (clientEventId: null, eventId: null);
+
+    final dates = _repeatingFlowRuleDates(flow);
+    final selectedDate = _gregorianDateForKemeticDay(
+      sourceKYear,
+      sourceKMonth,
+      sourceKDay,
+    );
+    final targetSelectedDate = _gregorianDateForKemeticDay(
+      selYear,
+      selMonth,
+      selDay,
+    );
+    final plan = planCalendarRecurringDateScope(
+      originalDates: dates,
+      selectedDate: selectedDate,
+      targetSelectedDate: targetSelectedDate,
+      scope: scope,
+    );
+    if (plan.affectedOriginalDates.isEmpty) {
+      return (clientEventId: null, eventId: null);
+    }
+
+    final selectedStart = _occurrenceStartLocal(
+      ky: sourceKYear,
+      km: sourceKMonth,
+      kd: sourceKDay,
+      allDay: originalNote.allDay,
+      start: originalNote.start,
+    );
+    final repo = UserEventsRepo(Supabase.instance.client);
+    String? resultClientEventId;
+    String? resultEventId;
+
+    switch (scope) {
+      case CalendarRecurringMutationScope.thisEventOnly:
+        await _persistRepeatingNoteFlow(
+          flow: flow,
+          dates: plan.keptOriginalDates,
+          title: flow.name,
+          detail: _decodeRepeatingNoteMetadata(flow.notes).detail,
+          location: _decodeRepeatingNoteMetadata(flow.notes).location,
+          calendarId: flow.calendarId,
+          allDay: _repeatingFlowTimeFields(flow).allDay,
+          startTime: _repeatingFlowTimeFields(flow).start,
+          endTime: _repeatingFlowTimeFields(flow).end,
+          color: flow.color,
+          category: _decodeRepeatingNoteMetadata(flow.notes).category,
+          alertMinutesBefore:
+              _decodeRepeatingNoteMetadata(flow.notes).alertMinutes ??
+              _alertNoneMinutes,
+          caller: 'repeat_scope_edit_this_keep_series',
+        );
+        _removeLocalRepeatingNotesForDates(
+          flowId: flow.id,
+          dates: plan.affectedOriginalDates,
+        );
+        await _deleteRepeatingOccurrenceRow(
+          note: originalNote,
+          deleteScope: 'repeat_edit_this_original',
+        );
+        final saved = await _saveSingleNoteOnly(
+          selYear: selYear,
+          selMonth: selMonth,
+          selDay: selDay,
+          title: title,
+          detail: detail,
+          location: location,
+          calendarId: calendarId,
+          calendarName: calendarName,
+          allDay: allDay,
+          startTime: startTime,
+          endTime: endTime,
+          color: color,
+          category: category,
+          alertMinutesBefore: alertMinutesBefore,
+          notifyShared: false,
+        );
+        resultClientEventId = saved.clientEventId;
+        resultEventId = saved.eventId;
+        break;
+
+      case CalendarRecurringMutationScope.thisAndFuture:
+        if (plan.keptOriginalDates.isEmpty) {
+          await repo.deleteByFlowId(
+            flow.id,
+            fromDate: selectedStart.toUtc(),
+            semantic: 'repeat_scope_edit',
+            sourceFeature: 'CalendarPage._applyRepeatingNoteEditScope',
+            deleteScope: 'repeat_this_and_future_replace',
+          );
+          final updatedFlow = await _persistRepeatingNoteFlow(
+            flow: flow,
+            dates: plan.shiftedAffectedDates,
+            title: title,
+            detail: detail,
+            location: location,
+            calendarId: calendarId,
+            allDay: allDay,
+            startTime: startTime,
+            endTime: endTime,
+            color: color,
+            category: category,
+            alertMinutesBefore: alertMinutesBefore,
+            rescheduleFromDate: plan.shiftedAffectedDates.reduce(
+              (a, b) => a.isBefore(b) ? a : b,
+            ),
+            caller: 'repeat_scope_edit_future_as_series',
+          );
+          if (updatedFlow != null) {
+            resultClientEventId = _buildCid(
+              ky: selYear,
+              km: selMonth,
+              kd: selDay,
+              title: title,
+              startHour: allDay || startTime == null ? null : startTime.hour,
+              startMinute: allDay || startTime == null
+                  ? null
+                  : startTime.minute,
+              allDay: allDay,
+              flowId: updatedFlow.id,
+            );
+          }
+        } else {
+          final meta = _decodeRepeatingNoteMetadata(flow.notes);
+          final time = _repeatingFlowTimeFields(flow);
+          await _persistRepeatingNoteFlow(
+            flow: flow,
+            dates: plan.keptOriginalDates,
+            title: flow.name,
+            detail: meta.detail,
+            location: meta.location,
+            calendarId: flow.calendarId,
+            allDay: time.allDay,
+            startTime: time.start,
+            endTime: time.end,
+            color: flow.color,
+            category: meta.category,
+            alertMinutesBefore: meta.alertMinutes ?? _alertNoneMinutes,
+            caller: 'repeat_scope_edit_future_keep_past',
+          );
+          _removeLocalRepeatingNotesForDates(
+            flowId: flow.id,
+            dates: plan.affectedOriginalDates,
+          );
+          await repo.deleteByFlowId(
+            flow.id,
+            fromDate: selectedStart.toUtc(),
+            semantic: 'repeat_scope_edit',
+            sourceFeature: 'CalendarPage._applyRepeatingNoteEditScope',
+            deleteScope: 'repeat_this_and_future_original',
+          );
+          final newFlow = await _createRepeatingNoteFlowFromDates(
+            dates: plan.shiftedAffectedDates,
+            title: title,
+            detail: detail,
+            location: location,
+            calendarId: calendarId,
+            allDay: allDay,
+            startTime: startTime,
+            endTime: endTime,
+            color: color,
+            category: category,
+            alertMinutesBefore: alertMinutesBefore,
+          );
+          resultClientEventId = _buildCid(
+            ky: selYear,
+            km: selMonth,
+            kd: selDay,
+            title: title,
+            startHour: allDay || startTime == null ? null : startTime.hour,
+            startMinute: allDay || startTime == null ? null : startTime.minute,
+            allDay: allDay,
+            flowId: newFlow.id,
+          );
+        }
+        break;
+
+      case CalendarRecurringMutationScope.entireSeries:
+        await repo.deleteByFlowId(
+          flow.id,
+          semantic: 'repeat_scope_edit',
+          sourceFeature: 'CalendarPage._applyRepeatingNoteEditScope',
+          deleteScope: 'repeat_entire_series_replace',
+        );
+        final updatedFlow = await _persistRepeatingNoteFlow(
+          flow: flow,
+          dates: plan.shiftedAffectedDates,
+          title: title,
+          detail: detail,
+          location: location,
+          calendarId: calendarId,
+          allDay: allDay,
+          startTime: startTime,
+          endTime: endTime,
+          color: color,
+          category: category,
+          alertMinutesBefore: alertMinutesBefore,
+          rescheduleFromDate: plan.shiftedAffectedDates.reduce(
+            (a, b) => a.isBefore(b) ? a : b,
+          ),
+          caller: 'repeat_scope_edit_entire_series',
+        );
+        if (updatedFlow != null) {
+          resultClientEventId = _buildCid(
+            ky: selYear,
+            km: selMonth,
+            kd: selDay,
+            title: title,
+            startHour: allDay || startTime == null ? null : startTime.hour,
+            startMinute: allDay || startTime == null ? null : startTime.minute,
+            allDay: allDay,
+            flowId: updatedFlow.id,
+          );
+        }
+        break;
+    }
+
+    await _notifySharedRepeatingScope(
+      calendarId: calendarId ?? originalNote.calendarId ?? flow.calendarId,
+      title: title,
+      scope: scope,
+      isDelete: false,
+      clientEventId: resultClientEventId ?? originalNote.clientEventId,
+      eventId: resultEventId ?? originalNote.id,
+      flowId: flow.id,
+    );
+    await _loadFromDisk(source: 'repeat_scope_edit_${scope.name}');
+    return (clientEventId: resultClientEventId, eventId: resultEventId);
+  }
+
   String? _buildDeletionKey({
     String? id,
     String? clientEventId,
@@ -17379,69 +18080,30 @@ class CalendarPageState extends State<CalendarPage>
     final manualCid = _manualCidForNote(note, kYear, kMonth, kDay);
     final int? flowIdForNote = note.flowId;
 
-    // If this is a repeating-note micro-flow, delete the entire series (flow + all occurrences).
-    if (flowIdForNote != null && flowIdForNote > 0) {
-      _Flow? owningFlow;
-      try {
-        owningFlow = _flows.firstWhere((f) => f.id == flowIdForNote);
-      } catch (_) {
-        owningFlow = null;
+    final repeatingFlow = _repeatingNoteFlowForId(flowIdForNote);
+    if (repeatingFlow != null) {
+      final scope = await _showRepeatingEventScopeSheet(
+        context: context,
+        isDelete: true,
+      );
+      if (scope == null) return false;
+      final deleted = await _applyRepeatingNoteDeleteScope(
+        note: note,
+        kYear: kYear,
+        kMonth: kMonth,
+        kDay: kDay,
+        scope: scope,
+      );
+      if (deleted && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('✓ Deleted: $deletedTitle'),
+            backgroundColor: Colors.green,
+            duration: const Duration(seconds: 1),
+          ),
+        );
       }
-      final isRepeatingNoteFlow =
-          owningFlow != null && owningFlow.isHidden && !owningFlow.isReminder;
-      if (isRepeatingNoteFlow) {
-        final repo = UserEventsRepo(Supabase.instance.client);
-
-        // Remove all local occurrences tied to this flow and cancel their notifications.
-        final List<String> cidsToCancel = [];
-        _notes.removeWhere((_, bucket) {
-          bucket.removeWhere((n) {
-            final match = (n.flowId ?? -1) == flowIdForNote;
-            if (match && n.clientEventId != null) {
-              cidsToCancel.add(n.clientEventId!);
-            }
-            return match;
-          });
-          return bucket.isEmpty;
-        });
-        for (final cid in cidsToCancel) {
-          try {
-            await Notify.cancelNotificationForEvent(cid);
-          } catch (_) {
-            // ignore cancellation errors
-          }
-        }
-
-        // Remove the flow locally so it disappears from cache-driven views.
-        _flows.removeWhere((f) => f.id == flowIdForNote);
-        setState(() {});
-        _notifyDayViewDataChanged();
-
-        // Delete from Supabase: all events for the flow, then the flow row.
-        try {
-          await repo.deleteByFlowId(flowIdForNote);
-          await repo.deleteFlow(flowIdForNote);
-        } catch (e) {
-          if (kDebugMode) {
-            _calendarDebugPrint(
-              '[delete-note] Failed to delete repeating flow $flowIdForNote: $e',
-            );
-          }
-        }
-
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('✓ Deleted repeating note series: $deletedTitle'),
-              backgroundColor: Colors.green,
-              duration: const Duration(seconds: 2),
-            ),
-          );
-        }
-
-        await _loadFromDisk(source: 'delete_repeat_series');
-        return true;
-      }
+      return deleted;
     }
     final pendingKey = _buildDeletionKey(
       id: note.id,
@@ -18307,6 +18969,65 @@ class CalendarPageState extends State<CalendarPage>
         clampedEnd ~/ 60,
         clampedEnd % 60,
       );
+
+      final repeatingFlow = _repeatingNoteFlowForId(evt.flowId);
+      if (repeatingFlow != null) {
+        final scope = await _showRepeatingEventScopeSheet(
+          context: context,
+          isDelete: false,
+        );
+        if (scope == null) return;
+        final idx = _findNoteIndexByEvent(ky, km, kd, evt);
+        final originalNote = idx == null
+            ? _Note(
+                id: evt.id,
+                clientEventId: evt.clientEventId,
+                calendarId: evt.calendarId,
+                calendarName: evt.calendarName,
+                title: evt.title,
+                detail: evt.detail,
+                location: evt.location,
+                allDay: evt.allDay,
+                start: TimeOfDay(
+                  hour: evt.startMin ~/ 60,
+                  minute: evt.startMin % 60,
+                ),
+                end: TimeOfDay(hour: evt.endMin ~/ 60, minute: evt.endMin % 60),
+                flowId: evt.flowId,
+                manualColor: evt.manualColor,
+                category: evt.category,
+                alertOffsetMinutes: _decodeDetailMetadata(
+                  evt.detail,
+                ).alertMinutes,
+              )
+            : _notes[key]![idx];
+        await _applyRepeatingNoteEditScope(
+          originalNote: originalNote,
+          sourceKYear: ky,
+          sourceKMonth: km,
+          sourceKDay: kd,
+          selYear: ky,
+          selMonth: km,
+          selDay: kd,
+          title: evt.title,
+          detail: evt.detail,
+          location: evt.location,
+          calendarId: evt.calendarId ?? repeatingFlow.calendarId,
+          calendarName: evt.calendarName,
+          allDay: false,
+          startTime: TimeOfDay(
+            hour: clampedStart ~/ 60,
+            minute: clampedStart % 60,
+          ),
+          endTime: TimeOfDay(hour: clampedEnd ~/ 60, minute: clampedEnd % 60),
+          color: evt.manualColor ?? repeatingFlow.color,
+          category: evt.category,
+          alertMinutesBefore:
+              originalNote.alertOffsetMinutes ?? _alertNoneMinutes,
+          scope: scope,
+        );
+        return;
+      }
 
       final repo = UserEventsRepo(Supabase.instance.client);
       final importedDeviceEvent = isImportedDeviceCalendarEvent(
@@ -24171,6 +24892,10 @@ class CalendarPageState extends State<CalendarPage>
             editingIndex < _notes[initialEditingBucketKey]!.length
         ? _notes[initialEditingBucketKey]![editingIndex]
         : null;
+    final initialEditingRepeatingFlow = _repeatingNoteFlowForId(
+      initialEditingNote?.flowId,
+    );
+    final editingRepeatingNote = initialEditingRepeatingFlow != null;
     final availableCalendars =
         _calendarSummariesById.values
             .where(
@@ -25783,354 +26508,356 @@ class CalendarPageState extends State<CalendarPage>
 
                             const SizedBox(height: 8),
 
-                            // Repeat row
-                            InkWell(
-                              onTap: () async {
-                                final result =
-                                    await showCupertinoModalPopup<
-                                      NoteRepeatOption
-                                    >(
-                                      context: sheetCtx,
-                                      builder: (_) {
-                                        return CupertinoActionSheet(
-                                          title: const GlossyText(
-                                            text: 'Repeat',
-                                            gradient: silverGloss,
-                                            style: TextStyle(fontSize: 18),
-                                          ),
-                                          actions: [
-                                            CupertinoActionSheetAction(
-                                              onPressed: () => Navigator.pop(
-                                                sheetCtx,
-                                                NoteRepeatOption.never,
-                                              ),
-                                              child: const GlossyText(
-                                                text: 'Never',
-                                                gradient: goldGloss,
-                                                style: TextStyle(fontSize: 17),
-                                              ),
-                                            ),
-                                            CupertinoActionSheetAction(
-                                              onPressed: () => Navigator.pop(
-                                                sheetCtx,
-                                                NoteRepeatOption.everyDay,
-                                              ),
-                                              child: const GlossyText(
-                                                text: 'Every Day',
-                                                gradient: goldGloss,
-                                                style: TextStyle(fontSize: 17),
-                                              ),
-                                            ),
-                                            CupertinoActionSheetAction(
-                                              onPressed: () => Navigator.pop(
-                                                sheetCtx,
-                                                NoteRepeatOption.everyWeek,
-                                              ),
-                                              child: const GlossyText(
-                                                text: 'Every Week',
-                                                gradient: goldGloss,
-                                                style: TextStyle(fontSize: 17),
-                                              ),
-                                            ),
-                                            CupertinoActionSheetAction(
-                                              onPressed: () => Navigator.pop(
-                                                sheetCtx,
-                                                NoteRepeatOption.every2Weeks,
-                                              ),
-                                              child: const GlossyText(
-                                                text: 'Every 2 Weeks',
-                                                gradient: goldGloss,
-                                                style: TextStyle(fontSize: 17),
-                                              ),
-                                            ),
-                                            CupertinoActionSheetAction(
-                                              onPressed: () => Navigator.pop(
-                                                sheetCtx,
-                                                NoteRepeatOption.everyMonth,
-                                              ),
-                                              child: const GlossyText(
-                                                text: 'Every Month',
-                                                gradient: goldGloss,
-                                                style: TextStyle(fontSize: 17),
-                                              ),
-                                            ),
-                                            CupertinoActionSheetAction(
-                                              onPressed: () => Navigator.pop(
-                                                sheetCtx,
-                                                NoteRepeatOption.everyYear,
-                                              ),
-                                              child: const GlossyText(
-                                                text: 'Every Year',
-                                                gradient: goldGloss,
-                                                style: TextStyle(fontSize: 17),
-                                              ),
-                                            ),
-                                            CupertinoActionSheetAction(
-                                              onPressed: () async {
-                                                Navigator.pop(sheetCtx);
-                                                final customResult =
-                                                    await Navigator.of(
-                                                      context,
-                                                    ).push<
-                                                      Map<String, dynamic>
-                                                    >(
-                                                      MaterialPageRoute(
-                                                        builder: (_) =>
-                                                            _CustomRepeatPage(
-                                                              initialFrequency:
-                                                                  customFrequency,
-                                                              initialInterval:
-                                                                  customInterval,
-                                                            ),
-                                                      ),
-                                                    );
-                                                if (customResult != null) {
-                                                  setSheetState(() {
-                                                    repeatOption =
-                                                        NoteRepeatOption.custom;
-                                                    customFrequency =
-                                                        customResult['frequency']
-                                                            as SimpleRecurrenceFrequency;
-                                                    customInterval =
-                                                        customResult['interval']
-                                                            as int;
-                                                  });
-                                                  persistDaySheetSession();
-                                                }
-                                              },
-                                              child: const GlossyText(
-                                                text: 'Custom…',
-                                                gradient: goldGloss,
-                                                style: TextStyle(fontSize: 17),
-                                              ),
-                                            ),
-                                          ],
-                                          cancelButton:
-                                              CupertinoActionSheetAction(
-                                                isDestructiveAction: true,
-                                                onPressed: () =>
-                                                    Navigator.pop(sheetCtx),
-                                                child: const Text('Cancel'),
-                                              ),
-                                        );
-                                      },
-                                    );
-                                if (result != null) {
-                                  setSheetState(() {
-                                    repeatOption = result;
-                                    if (result == NoteRepeatOption.never) {
-                                      endType = NoteRepeatEndType.never;
-                                      endDate = null;
-                                    }
-                                  });
-                                  persistDaySheetSession();
-                                }
-                              },
-                              child: Container(
-                                padding: const EdgeInsets.symmetric(
-                                  vertical: 12,
-                                ),
-                                child: Row(
-                                  mainAxisAlignment:
-                                      MainAxisAlignment.spaceBetween,
-                                  children: [
-                                    const GlossyText(
-                                      text: 'Repeat',
-                                      gradient: silverGloss,
-                                      style: TextStyle(fontSize: 14),
-                                    ),
-                                    Row(
-                                      children: [
-                                        GlossyText(
-                                          text: _repeatOptionLabel(
-                                            repeatOption,
-                                            customFrequency,
-                                            customInterval,
-                                          ),
-                                          gradient: goldGloss,
-                                          style: const TextStyle(fontSize: 14),
+                            if (!editingRepeatingNote) ...[
+                              // Repeat row
+                              InkWell(
+                                onTap: () async {
+                                  final result = await showCupertinoModalPopup<NoteRepeatOption>(
+                                    context: sheetCtx,
+                                    builder: (_) {
+                                      return CupertinoActionSheet(
+                                        title: const GlossyText(
+                                          text: 'Repeat',
+                                          gradient: silverGloss,
+                                          style: TextStyle(fontSize: 18),
                                         ),
-                                        const SizedBox(width: 4),
-                                        const Icon(
-                                          Icons.chevron_right,
-                                          size: 18,
-                                          color: Colors.white54,
-                                        ),
-                                      ],
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ),
-
-                            // End Repeat row
-                            InkWell(
-                              onTap: repeatOption == NoteRepeatOption.never
-                                  ? null
-                                  : () async {
-                                      final result =
-                                          await showCupertinoModalPopup<
-                                            NoteRepeatEndType
-                                          >(
-                                            context: sheetCtx,
-                                            builder: (_) {
-                                              return CupertinoActionSheet(
-                                                title: const GlossyText(
-                                                  text: 'End Repeat',
-                                                  gradient: silverGloss,
-                                                  style: TextStyle(
-                                                    fontSize: 18,
-                                                  ),
-                                                ),
-                                                actions: [
-                                                  CupertinoActionSheetAction(
-                                                    onPressed: () =>
-                                                        Navigator.pop(
-                                                          sheetCtx,
-                                                          NoteRepeatEndType
-                                                              .never,
-                                                        ),
-                                                    child: const GlossyText(
-                                                      text: 'Never',
-                                                      gradient: goldGloss,
-                                                      style: TextStyle(
-                                                        fontSize: 17,
-                                                      ),
-                                                    ),
-                                                  ),
-                                                  CupertinoActionSheetAction(
-                                                    onPressed: () async {
-                                                      Navigator.pop(sheetCtx);
-                                                      final gDay =
-                                                          KemeticMath.toGregorian(
-                                                            selYear,
-                                                            selMonth,
-                                                            selDay,
-                                                          );
-                                                      final picked =
-                                                          await pickDateUniversal(
-                                                            context: context,
-                                                            initialDate:
-                                                                endDate ??
-                                                                gDay.add(
-                                                                  const Duration(
-                                                                    days: 30,
-                                                                  ),
-                                                                ),
-                                                            allowPast: false,
-                                                            firstDate: gDay,
-                                                            lastDate: gDay.add(
-                                                              const Duration(
-                                                                days: 365 * 10,
-                                                              ),
-                                                            ),
-                                                          );
-                                                      if (picked != null) {
-                                                        setSheetState(() {
-                                                          endType =
-                                                              NoteRepeatEndType
-                                                                  .onDate;
-                                                          endDate = picked;
-                                                        });
-                                                        persistDaySheetSession();
-                                                      }
-                                                    },
-                                                    child: const GlossyText(
-                                                      text: 'On Date…',
-                                                      gradient: goldGloss,
-                                                      style: TextStyle(
-                                                        fontSize: 17,
-                                                      ),
-                                                    ),
-                                                  ),
-                                                ],
-                                                cancelButton:
-                                                    CupertinoActionSheetAction(
-                                                      isDestructiveAction: true,
-                                                      onPressed: () =>
-                                                          Navigator.pop(
-                                                            sheetCtx,
+                                        actions: [
+                                          CupertinoActionSheetAction(
+                                            onPressed: () => Navigator.pop(
+                                              sheetCtx,
+                                              NoteRepeatOption.never,
+                                            ),
+                                            child: const GlossyText(
+                                              text: 'Never',
+                                              gradient: goldGloss,
+                                              style: TextStyle(fontSize: 17),
+                                            ),
+                                          ),
+                                          CupertinoActionSheetAction(
+                                            onPressed: () => Navigator.pop(
+                                              sheetCtx,
+                                              NoteRepeatOption.everyDay,
+                                            ),
+                                            child: const GlossyText(
+                                              text: 'Every Day',
+                                              gradient: goldGloss,
+                                              style: TextStyle(fontSize: 17),
+                                            ),
+                                          ),
+                                          CupertinoActionSheetAction(
+                                            onPressed: () => Navigator.pop(
+                                              sheetCtx,
+                                              NoteRepeatOption.everyWeek,
+                                            ),
+                                            child: const GlossyText(
+                                              text: 'Every Week',
+                                              gradient: goldGloss,
+                                              style: TextStyle(fontSize: 17),
+                                            ),
+                                          ),
+                                          CupertinoActionSheetAction(
+                                            onPressed: () => Navigator.pop(
+                                              sheetCtx,
+                                              NoteRepeatOption.every2Weeks,
+                                            ),
+                                            child: const GlossyText(
+                                              text: 'Every 2 Weeks',
+                                              gradient: goldGloss,
+                                              style: TextStyle(fontSize: 17),
+                                            ),
+                                          ),
+                                          CupertinoActionSheetAction(
+                                            onPressed: () => Navigator.pop(
+                                              sheetCtx,
+                                              NoteRepeatOption.everyMonth,
+                                            ),
+                                            child: const GlossyText(
+                                              text: 'Every Month',
+                                              gradient: goldGloss,
+                                              style: TextStyle(fontSize: 17),
+                                            ),
+                                          ),
+                                          CupertinoActionSheetAction(
+                                            onPressed: () => Navigator.pop(
+                                              sheetCtx,
+                                              NoteRepeatOption.everyYear,
+                                            ),
+                                            child: const GlossyText(
+                                              text: 'Every Year',
+                                              gradient: goldGloss,
+                                              style: TextStyle(fontSize: 17),
+                                            ),
+                                          ),
+                                          CupertinoActionSheetAction(
+                                            onPressed: () async {
+                                              Navigator.pop(sheetCtx);
+                                              final customResult =
+                                                  await Navigator.of(
+                                                    context,
+                                                  ).push<Map<String, dynamic>>(
+                                                    MaterialPageRoute(
+                                                      builder: (_) =>
+                                                          _CustomRepeatPage(
+                                                            initialFrequency:
+                                                                customFrequency,
+                                                            initialInterval:
+                                                                customInterval,
                                                           ),
-                                                      child: const Text(
-                                                        'Cancel',
-                                                      ),
                                                     ),
-                                              );
+                                                  );
+                                              if (customResult != null) {
+                                                setSheetState(() {
+                                                  repeatOption =
+                                                      NoteRepeatOption.custom;
+                                                  customFrequency =
+                                                      customResult['frequency']
+                                                          as SimpleRecurrenceFrequency;
+                                                  customInterval =
+                                                      customResult['interval']
+                                                          as int;
+                                                });
+                                                persistDaySheetSession();
+                                              }
                                             },
-                                          );
-                                      if (result != null) {
-                                        setSheetState(() {
-                                          endType = result;
-                                          if (result ==
-                                              NoteRepeatEndType.never) {
-                                            endDate = null;
-                                          }
-                                        });
-                                        persistDaySheetSession();
-                                      }
+                                            child: const GlossyText(
+                                              text: 'Custom…',
+                                              gradient: goldGloss,
+                                              style: TextStyle(fontSize: 17),
+                                            ),
+                                          ),
+                                        ],
+                                        cancelButton:
+                                            CupertinoActionSheetAction(
+                                              isDestructiveAction: true,
+                                              onPressed: () =>
+                                                  Navigator.pop(sheetCtx),
+                                              child: const Text('Cancel'),
+                                            ),
+                                      );
                                     },
-                              child: Container(
-                                padding: const EdgeInsets.symmetric(
-                                  vertical: 12,
-                                ),
-                                child: Row(
-                                  mainAxisAlignment:
-                                      MainAxisAlignment.spaceBetween,
-                                  children: [
-                                    GlossyText(
-                                      text: 'End Repeat',
-                                      gradient:
-                                          repeatOption == NoteRepeatOption.never
-                                          ? silverGloss
-                                          : silverGloss,
-                                      style: TextStyle(
-                                        fontSize: 14,
-                                        color:
-                                            repeatOption ==
-                                                NoteRepeatOption.never
-                                            ? Colors.white54
-                                            : Colors.white,
+                                  );
+                                  if (result != null) {
+                                    setSheetState(() {
+                                      repeatOption = result;
+                                      if (result == NoteRepeatOption.never) {
+                                        endType = NoteRepeatEndType.never;
+                                        endDate = null;
+                                      }
+                                    });
+                                    persistDaySheetSession();
+                                  }
+                                },
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    vertical: 12,
+                                  ),
+                                  child: Row(
+                                    mainAxisAlignment:
+                                        MainAxisAlignment.spaceBetween,
+                                    children: [
+                                      const GlossyText(
+                                        text: 'Repeat',
+                                        gradient: silverGloss,
+                                        style: TextStyle(fontSize: 14),
                                       ),
-                                    ),
-                                    Row(
-                                      children: [
-                                        if (repeatOption !=
-                                            NoteRepeatOption.never)
+                                      Row(
+                                        children: [
                                           GlossyText(
-                                            text: _endRepeatLabel(
-                                              endType,
-                                              endDate,
-                                              endCount,
+                                            text: _repeatOptionLabel(
+                                              repeatOption,
+                                              customFrequency,
+                                              customInterval,
                                             ),
                                             gradient: goldGloss,
                                             style: const TextStyle(
                                               fontSize: 14,
                                             ),
-                                          )
-                                        else
-                                          const Text(
-                                            'Never',
-                                            style: TextStyle(
-                                              fontSize: 14,
-                                              color: Colors.white54,
-                                            ),
                                           ),
-                                        const SizedBox(width: 4),
-                                        Icon(
-                                          Icons.chevron_right,
-                                          size: 18,
+                                          const SizedBox(width: 4),
+                                          const Icon(
+                                            Icons.chevron_right,
+                                            size: 18,
+                                            color: Colors.white54,
+                                          ),
+                                        ],
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+
+                              // End Repeat row
+                              InkWell(
+                                onTap: repeatOption == NoteRepeatOption.never
+                                    ? null
+                                    : () async {
+                                        final result =
+                                            await showCupertinoModalPopup<
+                                              NoteRepeatEndType
+                                            >(
+                                              context: sheetCtx,
+                                              builder: (_) {
+                                                return CupertinoActionSheet(
+                                                  title: const GlossyText(
+                                                    text: 'End Repeat',
+                                                    gradient: silverGloss,
+                                                    style: TextStyle(
+                                                      fontSize: 18,
+                                                    ),
+                                                  ),
+                                                  actions: [
+                                                    CupertinoActionSheetAction(
+                                                      onPressed: () =>
+                                                          Navigator.pop(
+                                                            sheetCtx,
+                                                            NoteRepeatEndType
+                                                                .never,
+                                                          ),
+                                                      child: const GlossyText(
+                                                        text: 'Never',
+                                                        gradient: goldGloss,
+                                                        style: TextStyle(
+                                                          fontSize: 17,
+                                                        ),
+                                                      ),
+                                                    ),
+                                                    CupertinoActionSheetAction(
+                                                      onPressed: () async {
+                                                        Navigator.pop(sheetCtx);
+                                                        final gDay =
+                                                            KemeticMath.toGregorian(
+                                                              selYear,
+                                                              selMonth,
+                                                              selDay,
+                                                            );
+                                                        final picked =
+                                                            await pickDateUniversal(
+                                                              context: context,
+                                                              initialDate:
+                                                                  endDate ??
+                                                                  gDay.add(
+                                                                    const Duration(
+                                                                      days: 30,
+                                                                    ),
+                                                                  ),
+                                                              allowPast: false,
+                                                              firstDate: gDay,
+                                                              lastDate: gDay.add(
+                                                                const Duration(
+                                                                  days:
+                                                                      365 * 10,
+                                                                ),
+                                                              ),
+                                                            );
+                                                        if (picked != null) {
+                                                          setSheetState(() {
+                                                            endType =
+                                                                NoteRepeatEndType
+                                                                    .onDate;
+                                                            endDate = picked;
+                                                          });
+                                                          persistDaySheetSession();
+                                                        }
+                                                      },
+                                                      child: const GlossyText(
+                                                        text: 'On Date…',
+                                                        gradient: goldGloss,
+                                                        style: TextStyle(
+                                                          fontSize: 17,
+                                                        ),
+                                                      ),
+                                                    ),
+                                                  ],
+                                                  cancelButton:
+                                                      CupertinoActionSheetAction(
+                                                        isDestructiveAction:
+                                                            true,
+                                                        onPressed: () =>
+                                                            Navigator.pop(
+                                                              sheetCtx,
+                                                            ),
+                                                        child: const Text(
+                                                          'Cancel',
+                                                        ),
+                                                      ),
+                                                );
+                                              },
+                                            );
+                                        if (result != null) {
+                                          setSheetState(() {
+                                            endType = result;
+                                            if (result ==
+                                                NoteRepeatEndType.never) {
+                                              endDate = null;
+                                            }
+                                          });
+                                          persistDaySheetSession();
+                                        }
+                                      },
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    vertical: 12,
+                                  ),
+                                  child: Row(
+                                    mainAxisAlignment:
+                                        MainAxisAlignment.spaceBetween,
+                                    children: [
+                                      GlossyText(
+                                        text: 'End Repeat',
+                                        gradient:
+                                            repeatOption ==
+                                                NoteRepeatOption.never
+                                            ? silverGloss
+                                            : silverGloss,
+                                        style: TextStyle(
+                                          fontSize: 14,
                                           color:
                                               repeatOption ==
                                                   NoteRepeatOption.never
-                                              ? Colors.white24
-                                              : Colors.white54,
+                                              ? Colors.white54
+                                              : Colors.white,
                                         ),
-                                      ],
-                                    ),
-                                  ],
+                                      ),
+                                      Row(
+                                        children: [
+                                          if (repeatOption !=
+                                              NoteRepeatOption.never)
+                                            GlossyText(
+                                              text: _endRepeatLabel(
+                                                endType,
+                                                endDate,
+                                                endCount,
+                                              ),
+                                              gradient: goldGloss,
+                                              style: const TextStyle(
+                                                fontSize: 14,
+                                              ),
+                                            )
+                                          else
+                                            const Text(
+                                              'Never',
+                                              style: TextStyle(
+                                                fontSize: 14,
+                                                color: Colors.white54,
+                                              ),
+                                            ),
+                                          const SizedBox(width: 4),
+                                          Icon(
+                                            Icons.chevron_right,
+                                            size: 18,
+                                            color:
+                                                repeatOption ==
+                                                    NoteRepeatOption.never
+                                                ? Colors.white24
+                                                : Colors.white54,
+                                          ),
+                                        ],
+                                      ),
+                                    ],
+                                  ),
                                 ),
                               ),
-                            ),
+                            ],
 
                             const SizedBox(height: 12),
 
@@ -26265,6 +26992,7 @@ class CalendarPageState extends State<CalendarPage>
                                     ({String clientEventId, String eventId})?
                                     saveResult;
                                     var updatedExistingStandalone = false;
+                                    var handledRepeatingEdit = false;
 
                                     if (selectedCalendar != null &&
                                         !selectedCalendar.canEdit) {
@@ -26280,7 +27008,43 @@ class CalendarPageState extends State<CalendarPage>
                                       return;
                                     }
 
-                                    if (!isRepeating) {
+                                    final editingRepeatingFlow =
+                                        _repeatingNoteFlowForId(
+                                          existingNote?.flowId,
+                                        );
+                                    if (editingRepeatingFlow != null &&
+                                        existingNote != null) {
+                                      final scope =
+                                          await _showRepeatingEventScopeSheet(
+                                            context: sheetCtx,
+                                            isDelete: false,
+                                          );
+                                      if (scope == null) return;
+                                      await _applyRepeatingNoteEditScope(
+                                        originalNote: existingNote,
+                                        sourceKYear: sourceEditingKYear,
+                                        sourceKMonth: sourceEditingKMonth,
+                                        sourceKDay: sourceEditingKDay,
+                                        selYear: selYear,
+                                        selMonth: selMonth,
+                                        selDay: selDay,
+                                        title: t,
+                                        detail: detailForSave.isEmpty
+                                            ? null
+                                            : detailForSave,
+                                        location: loc.isEmpty ? null : loc,
+                                        calendarId: selectedCalendarId,
+                                        calendarName: selectedCalendarLabel,
+                                        allDay: allDay,
+                                        startTime: startTime,
+                                        endTime: endTime,
+                                        color: selectedColor,
+                                        category: selectedCategory,
+                                        alertMinutesBefore: alertMinutesBefore,
+                                        scope: scope,
+                                      );
+                                      handledRepeatingEdit = true;
+                                    } else if (!isRepeating) {
                                       final canUpdateExisting =
                                           existingNote?.id != null &&
                                           ((existingNote?.flowId == null) ||
@@ -26363,7 +27127,8 @@ class CalendarPageState extends State<CalendarPage>
                                       );
                                     }
 
-                                    if (editIndex != null &&
+                                    if (!handledRepeatingEdit &&
+                                        editIndex != null &&
                                         existingNote != null) {
                                       if (updatedExistingStandalone) {
                                         _removeLocalNoteOnly(
@@ -28450,6 +29215,7 @@ class CalendarPageState extends State<CalendarPage>
     Color? color,
     String? category,
     int alertMinutesBefore = _alertNoneMinutes,
+    bool notifyShared = true,
   }) async {
     // Compute event start + alert time
     final gDay = KemeticMath.toGregorian(selYear, selMonth, selDay);
@@ -28567,19 +29333,21 @@ class CalendarPageState extends State<CalendarPage>
         _showNotificationScheduleWarning(scheduleResult?.message);
       }
 
-      await _notifySharedCalendarItemAdded(
-        calendarId: updated.calendarId ?? calendarId,
-        itemType: 'event',
-        itemId: updated.id,
-        itemTitle: title,
-        clientEventId: savedClientEventId,
-        eventId: updated.id,
-        startDate: gDay,
-        endDate: endsAtUtc?.toLocal(),
-        kYear: selYear,
-        kMonth: selMonth,
-        kDay: selDay,
-      );
+      if (notifyShared) {
+        await _notifySharedCalendarItemAdded(
+          calendarId: updated.calendarId ?? calendarId,
+          itemType: 'event',
+          itemId: updated.id,
+          itemTitle: title,
+          clientEventId: savedClientEventId,
+          eventId: updated.id,
+          startDate: gDay,
+          endDate: endsAtUtc?.toLocal(),
+          kYear: selYear,
+          kMonth: selMonth,
+          kDay: selDay,
+        );
+      }
 
       // Also log to app_events for analytics
       try {
@@ -28873,6 +29641,7 @@ class CalendarPageState extends State<CalendarPage>
         location: location,
         category: category,
         alertMinutes: alertMinutesBefore,
+        keepMarker: true,
       ),
       shareId: null,
       isHidden: true, // Critical: these never show in Flow Studio lists

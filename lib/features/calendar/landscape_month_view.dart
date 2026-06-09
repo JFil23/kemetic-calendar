@@ -1915,12 +1915,14 @@ class _LandscapeMonthGridBodyState extends State<LandscapeMonthGridBody> {
 
   bool _isRepeatingNoteFlowId(int? flowId) {
     final flow = _chromeFlowForId(flowId);
-    return flow != null && hasRepeatingNoteFlowMetadata(flow.notes);
+    return flow != null &&
+        (hasRepeatingNoteFlowMetadata(flow.notes) ||
+            (flow.isHidden && !flow.isReminder));
   }
 
   bool _shouldShowEndFlowForId(int? flowId) {
     final flow = _chromeFlowForId(flowId);
-    return flow != null && !hasRepeatingNoteFlowMetadata(flow.notes);
+    return flow != null && !_isRepeatingNoteFlowId(flowId);
   }
 
   _DetailSheetEndAction _endActionFor(
@@ -2960,7 +2962,7 @@ class _LandscapeMonthGridBodyState extends State<LandscapeMonthGridBody> {
           Navigator.pop(sheetContext);
           await widget.onEditReminder!(currentEvent.reminderId!);
         } else if (value == 'edit_note' &&
-            flow == null &&
+            (flow == null || _isRepeatingNoteFlowId(currentEvent.flowId)) &&
             !isReminder &&
             widget.onEditNote != null) {
           Navigator.pop(sheetContext);
@@ -3051,7 +3053,9 @@ class _LandscapeMonthGridBodyState extends State<LandscapeMonthGridBody> {
               ],
             ),
           ),
-        if (flow == null && !isReminder && widget.onEditNote != null)
+        if ((flow == null || _isRepeatingNoteFlowId(currentEvent.flowId)) &&
+            !isReminder &&
+            widget.onEditNote != null)
           PopupMenuItem(
             value: 'edit_note',
             child: Row(

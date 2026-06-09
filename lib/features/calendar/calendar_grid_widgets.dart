@@ -1776,12 +1776,14 @@ class _MainCalendarEventDetailSheetState
 
   bool _isRepeatingNoteFlowId(int? flowId) {
     final flow = _flowForId(flowId);
-    return flow != null && hasRepeatingNoteFlowMetadata(flow.notes);
+    return flow != null &&
+        (hasRepeatingNoteFlowMetadata(flow.notes) ||
+            (flow.isHidden && !flow.isReminder));
   }
 
   bool _shouldShowEndFlowForId(int? flowId) {
     final flow = _flowForId(flowId);
-    return flow != null && !hasRepeatingNoteFlowMetadata(flow.notes);
+    return flow != null && !_isRepeatingNoteFlowId(flowId);
   }
 
   _DetailSheetEndAction _endActionFor(
@@ -2414,7 +2416,7 @@ class _MainCalendarEventDetailSheetState
           Navigator.pop(sheetContext);
           await widget.onEditReminder!(currentEvent.reminderId!);
         } else if (value == 'edit_note' &&
-            !hasFlow &&
+            (!hasFlow || _isRepeatingNoteFlowId(currentEvent.flowId)) &&
             !isReminder &&
             widget.onEditNote != null) {
           Navigator.pop(sheetContext);
@@ -2502,7 +2504,9 @@ class _MainCalendarEventDetailSheetState
               ],
             ),
           ),
-        if (!hasFlow && !isReminder && widget.onEditNote != null)
+        if ((!hasFlow || _isRepeatingNoteFlowId(currentEvent.flowId)) &&
+            !isReminder &&
+            widget.onEditNote != null)
           PopupMenuItem(
             value: 'edit_note',
             child: Row(

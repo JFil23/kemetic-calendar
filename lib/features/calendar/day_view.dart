@@ -1645,6 +1645,8 @@ class FlowData {
   final Color color;
   final bool active;
   final String? notes;
+  final bool isHidden;
+  final bool isReminder;
 
   const FlowData({
     required this.id,
@@ -1652,6 +1654,8 @@ class FlowData {
     required this.color,
     required this.active,
     this.notes,
+    this.isHidden = false,
+    this.isReminder = false,
   });
 }
 
@@ -3215,12 +3219,14 @@ class _DayViewGridState extends State<DayViewGrid> {
 
   bool _isRepeatingNoteFlowId(int? flowId) {
     final flow = _chromeFlowForId(flowId);
-    return flow != null && hasRepeatingNoteFlowMetadata(flow.notes);
+    return flow != null &&
+        (hasRepeatingNoteFlowMetadata(flow.notes) ||
+            (flow.isHidden && !flow.isReminder));
   }
 
   bool _shouldShowEndFlowForId(int? flowId) {
     final flow = _chromeFlowForId(flowId);
-    return flow != null && !hasRepeatingNoteFlowMetadata(flow.notes);
+    return flow != null && !_isRepeatingNoteFlowId(flowId);
   }
 
   _DetailSheetEndAction _endActionFor(
@@ -6353,7 +6359,7 @@ class _DayViewGridState extends State<DayViewGrid> {
           Navigator.pop(sheetContext);
           await widget.onEditReminder!(currentEvent.reminderId!);
         } else if (value == 'edit_note' &&
-            flow == null &&
+            (flow == null || _isRepeatingNoteFlowId(currentEvent.flowId)) &&
             !isReminder &&
             widget.onEditNote != null) {
           Navigator.pop(sheetContext);
@@ -6438,7 +6444,9 @@ class _DayViewGridState extends State<DayViewGrid> {
               ],
             ),
           ),
-        if (flow == null && !isReminder && widget.onEditNote != null)
+        if ((flow == null || _isRepeatingNoteFlowId(currentEvent.flowId)) &&
+            !isReminder &&
+            widget.onEditNote != null)
           PopupMenuItem(
             value: 'edit_note',
             child: Row(
