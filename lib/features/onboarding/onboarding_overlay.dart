@@ -1159,7 +1159,7 @@ class _OnboardingDayInsightCard extends StatelessWidget {
                         ),
                         const SizedBox(height: 18),
                         KemeticGold.text(
-                          '△ Cosmic Context',
+                          '△ The Day’s Rhythm',
                           style: const TextStyle(
                             fontSize: 18,
                             fontWeight: FontWeight.bold,

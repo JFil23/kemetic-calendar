@@ -63,6 +63,7 @@ class _SettingsPageState extends State<SettingsPage> {
   bool _realTimeAlerts = false;
   bool _autoCalendarSync = true;
   bool _usHolidaysEnabled = false;
+  bool _dailyCosmicContextBadgeEnabled = true;
   bool _seedingHolidays = false;
   bool _syncingCalendar = false;
   bool _unlinkingCalendar = false;
@@ -154,6 +155,8 @@ class _SettingsPageState extends State<SettingsPage> {
           _nativeCalendarSyncAvailable &&
           SettingsPrefs.autoCalendarSyncEnabledFrom(prefs);
       _usHolidaysEnabled = SettingsPrefs.usHolidaysEnabledFrom(prefs);
+      _dailyCosmicContextBadgeEnabled =
+          SettingsPrefs.dailyCosmicContextBadgeEnabledFrom(prefs);
       _calendarSyncStatus = calendarStatus;
       _pushTestDeliveryKey = prefs
           .getString(_lastPushTestDeliveryKeyPref)
@@ -219,6 +222,10 @@ class _SettingsPageState extends State<SettingsPage> {
     await prefs.setBool(SettingsPrefs.realTimeAlertsKey, _realTimeAlerts);
     await prefs.setBool(SettingsPrefs.autoCalendarSyncKey, _autoCalendarSync);
     await prefs.setBool(SettingsPrefs.usHolidaysEnabledKey, _usHolidaysEnabled);
+    await prefs.setBool(
+      SettingsPrefs.dailyCosmicContextBadgeEnabledKey,
+      _dailyCosmicContextBadgeEnabled,
+    );
   }
 
   Future<void> _loadSpeechSettings() async {
@@ -830,6 +837,13 @@ class _SettingsPageState extends State<SettingsPage> {
         });
       }
     }
+  }
+
+  Future<void> _setDailyCosmicContextBadgeEnabled(bool enabled) async {
+    setState(() {
+      _dailyCosmicContextBadgeEnabled = enabled;
+    });
+    await _save();
   }
 
   Future<void> _syncCalendarNow() async {
@@ -1875,6 +1889,14 @@ class _SettingsPageState extends State<SettingsPage> {
                           ),
                         )
                       : null,
+                ),
+                const SizedBox(height: 16),
+                _settingSwitch(
+                  title: 'The Day’s Rhythm badge',
+                  subtitle:
+                      'Shows today\'s Day Card rhythm once per local Gregorian day.',
+                  value: _dailyCosmicContextBadgeEnabled,
+                  onChanged: _setDailyCosmicContextBadgeEnabled,
                 ),
               ],
             ),

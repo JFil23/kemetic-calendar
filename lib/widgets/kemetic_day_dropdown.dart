@@ -225,7 +225,7 @@ class _KemeticDayDropdownState extends State<KemeticDayDropdown> {
                             widget.dayInfo.maatPrinciple,
                           ),
                           const SizedBox(height: 20),
-                          _buildSectionHeader('△ Cosmic Context'),
+                          _buildSectionHeader('△ The Day’s Rhythm'),
                           const SizedBox(height: 8),
                           Text(
                             widget.dayInfo.cosmicContext,

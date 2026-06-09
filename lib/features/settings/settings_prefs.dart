@@ -6,6 +6,8 @@ class SettingsPrefs {
   static const realTimeAlertsKey = 'settings:realTimeAlerts';
   static const autoCalendarSyncKey = 'settings:autoCalendarSync';
   static const usHolidaysEnabledKey = 'settings:usHolidaysEnabled';
+  static const dailyCosmicContextBadgeEnabledKey =
+      'settings:dailyCosmicContextBadgeEnabled';
 
   static const legacyCatchUpRemindersKey = 'settings:catchUpReminders';
   static const legacyMissedOnOpenKey = 'settings:missedOnOpen';
@@ -23,6 +25,10 @@ class SettingsPrefs {
     return prefs.getBool(usHolidaysEnabledKey) ?? false;
   }
 
+  static bool dailyCosmicContextBadgeEnabledFrom(SharedPreferences prefs) {
+    return prefs.getBool(dailyCosmicContextBadgeEnabledKey) ?? true;
+  }
+
   static Future<bool> realTimeAlertsEnabled() async {
     final prefs = await SharedPreferences.getInstance();
     return realTimeAlertsEnabledFrom(prefs);
@@ -31,6 +37,11 @@ class SettingsPrefs {
   static Future<bool> autoCalendarSyncEnabled() async {
     final prefs = await SharedPreferences.getInstance();
     return autoCalendarSyncEnabledFrom(prefs);
+  }
+
+  static Future<bool> dailyCosmicContextBadgeEnabled() async {
+    final prefs = await SharedPreferences.getInstance();
+    return dailyCosmicContextBadgeEnabledFrom(prefs);
   }
 
   static Future<void> setAutoCalendarSyncEnabled(

@@ -110,6 +110,8 @@ void main() {
         await tester.pumpAndSettle();
 
         expect(find.textContaining('ꜥḥꜣy', findRichText: true), findsWidgets);
+        expect(find.text('△ The Day’s Rhythm'), findsOneWidget);
+        expect(find.text('△ Cosmic Context'), findsNothing);
 
         final decanRichText = tester
             .widgetList<RichText>(find.byType(RichText))

@@ -14,6 +14,7 @@ import 'package:http/http.dart' as http;
 import 'data/user_events_repo.dart';
 import 'features/calendar/notify.dart';
 import 'features/calendar/calendar_page.dart';
+import 'features/calendar/daily_cosmic_context_badge.dart';
 import 'features/calendar/ics_preview_card.dart';
 import 'utils/ics_parser.dart';
 import 'features/sharing/share_preview_page.dart';
@@ -63,6 +64,8 @@ import 'features/nodes/kemetic_node_library.dart';
 import 'features/nodes/kemetic_node_list_page.dart';
 import 'features/nodes/kemetic_node_reader_page.dart';
 import 'package:mobile/features/onboarding/guided_onboarding_overlay.dart';
+import 'features/onboarding/onboarding_progress.dart';
+import 'features/onboarding/onboarding_storage.dart';
 import 'features/profile/edit_profile_page.dart';
 import 'features/profile/flow_post_detail_page.dart';
 import 'features/profile/flow_post_picker_page.dart';
@@ -2044,11 +2047,20 @@ class _AppChromeState extends State<_AppChrome> {
 Widget buildGlobalFloatingMenuShellForTesting({
   required GoRouter router,
   required Widget child,
+  String? dailyCosmicContextUserId,
+  bool dailyCosmicContextAuthenticated = false,
+  bool? dailyCosmicContextOnboardingComplete,
+  DateTime Function()? dailyCosmicContextNow,
 }) {
   _debugForceGlobalFloatingMenuForTesting = true;
   _launchOverlayDismissed.value = true;
   return _GlobalFloatingMenuShell(
     router: router,
+    dailyCosmicContextUserIdForTesting: dailyCosmicContextUserId,
+    dailyCosmicContextAuthenticatedForTesting: dailyCosmicContextAuthenticated,
+    dailyCosmicContextOnboardingCompleteForTesting:
+        dailyCosmicContextOnboardingComplete,
+    dailyCosmicContextNowForTesting: dailyCosmicContextNow,
     child: KemeticKeyboardHost(child: child),
   );
 }
@@ -2061,10 +2073,21 @@ void resetGlobalFloatingMenuShellForTesting() {
 }
 
 class _GlobalFloatingMenuShell extends StatefulWidget {
-  const _GlobalFloatingMenuShell({required this.router, required this.child});
+  const _GlobalFloatingMenuShell({
+    required this.router,
+    required this.child,
+    this.dailyCosmicContextUserIdForTesting,
+    this.dailyCosmicContextAuthenticatedForTesting = false,
+    this.dailyCosmicContextOnboardingCompleteForTesting,
+    this.dailyCosmicContextNowForTesting,
+  });
 
   final GoRouter router;
   final Widget child;
+  final String? dailyCosmicContextUserIdForTesting;
+  final bool dailyCosmicContextAuthenticatedForTesting;
+  final bool? dailyCosmicContextOnboardingCompleteForTesting;
+  final DateTime Function()? dailyCosmicContextNowForTesting;
 
   @override
   State<_GlobalFloatingMenuShell> createState() =>
@@ -2075,12 +2098,15 @@ class _GlobalFloatingMenuShellState extends State<_GlobalFloatingMenuShell>
     with WidgetsBindingObserver {
   late final MaatGuidanceController _maatGuidanceController =
       MaatGuidanceController(MaatGuidanceRepo(supabase));
+  late final DailyCosmicContextController _dailyCosmicContextController =
+      DailyCosmicContextController(now: widget.dailyCosmicContextNowForTesting);
   Uri _currentUri = Uri(path: '/');
   StreamSubscription<AuthState>? _authSub;
   bool _menuMounted = false;
   bool _menuOpen = false;
   bool _rebuildScheduled = false;
   bool? _lastGuidanceSuppressed;
+  int _dailyCosmicContextEvaluationSerial = 0;
 
   @override
   void initState() {
@@ -2095,7 +2121,10 @@ class _GlobalFloatingMenuShellState extends State<_GlobalFloatingMenuShell>
       _handleMaatGuidancePostEnsureRefresh,
     );
     _maatGuidanceController.addListener(_scheduleRebuild);
-    GuidedOnboardingController.instance.addListener(_scheduleRebuild);
+    _dailyCosmicContextController.addListener(_scheduleRebuild);
+    GuidedOnboardingController.instance.addListener(
+      _handleExternalOverlayGateChanged,
+    );
     _authSub = supabase.auth.onAuthStateChange.listen((_) {
       if (supabase.auth.currentSession == null) {
         _resetFloatingMenuState();
@@ -2111,6 +2140,10 @@ class _GlobalFloatingMenuShellState extends State<_GlobalFloatingMenuShell>
         );
       }
       _scheduleRebuild();
+      _scheduleDailyCosmicContextEvaluation();
+    });
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _scheduleDailyCosmicContextEvaluation();
     });
   }
 
@@ -2125,6 +2158,7 @@ class _GlobalFloatingMenuShellState extends State<_GlobalFloatingMenuShell>
     _currentUri = _readRouterUri();
     widget.router.routerDelegate.addListener(_handleRouteChanged);
     widget.router.routeInformationProvider.addListener(_handleRouteChanged);
+    _scheduleDailyCosmicContextEvaluation();
   }
 
   @override
@@ -2138,8 +2172,12 @@ class _GlobalFloatingMenuShellState extends State<_GlobalFloatingMenuShell>
       _handleMaatGuidancePostEnsureRefresh,
     );
     _maatGuidanceController.removeListener(_scheduleRebuild);
-    GuidedOnboardingController.instance.removeListener(_scheduleRebuild);
+    _dailyCosmicContextController.removeListener(_scheduleRebuild);
+    GuidedOnboardingController.instance.removeListener(
+      _handleExternalOverlayGateChanged,
+    );
     _maatGuidanceController.dispose();
+    _dailyCosmicContextController.dispose();
     unawaited(_authSub?.cancel());
     super.dispose();
   }
@@ -2150,6 +2188,9 @@ class _GlobalFloatingMenuShellState extends State<_GlobalFloatingMenuShell>
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state != AppLifecycleState.resumed) return;
+    if (_dailyCosmicContextAuthenticated) {
+      _scheduleDailyCosmicContextEvaluation();
+    }
     if (supabase.auth.currentSession == null) return;
     unawaited(_maatGuidanceController.evaluateAndRefresh());
   }
@@ -2175,6 +2216,7 @@ class _GlobalFloatingMenuShellState extends State<_GlobalFloatingMenuShell>
     );
     _resetFloatingMenuState();
     unawaited(_maatGuidanceController.refresh());
+    _scheduleDailyCosmicContextEvaluation();
     _scheduleRebuild();
   }
 
@@ -2184,6 +2226,12 @@ class _GlobalFloatingMenuShellState extends State<_GlobalFloatingMenuShell>
         _menuMounted) {
       _resetFloatingMenuState();
     }
+    _scheduleDailyCosmicContextEvaluation();
+    _scheduleRebuild();
+  }
+
+  void _handleExternalOverlayGateChanged() {
+    _scheduleDailyCosmicContextEvaluation();
     _scheduleRebuild();
   }
 
@@ -2219,6 +2267,73 @@ class _GlobalFloatingMenuShellState extends State<_GlobalFloatingMenuShell>
       _floatingMenuModalDepth.value == 0 &&
       MediaQuery.viewInsetsOf(context).bottom == 0;
 
+  bool get _dailyCosmicContextAuthenticated {
+    if (supabase.auth.currentSession != null) return true;
+    return kDebugMode && widget.dailyCosmicContextAuthenticatedForTesting;
+  }
+
+  String? get _dailyCosmicContextUserId {
+    final currentUserId = supabase.auth.currentUser?.id.trim();
+    if (currentUserId != null && currentUserId.isNotEmpty) {
+      return currentUserId;
+    }
+    if (kDebugMode) return widget.dailyCosmicContextUserIdForTesting?.trim();
+    return null;
+  }
+
+  bool _shouldSuppressDailyCosmicContext(BuildContext context) {
+    if (!_launchOverlayDismissed.value) return true;
+    if (!_dailyCosmicContextAuthenticated) return true;
+    if (_floatingMenuModalDepth.value > 0) return true;
+    if (_menuMounted || _menuOpen) return true;
+    if (MediaQuery.viewInsetsOf(context).bottom > 0) return true;
+    if (GuidedOnboardingController.instance.suppressExternalOverlays) {
+      return true;
+    }
+    if (isDailyCosmicContextRouteSuppressed(_currentUri)) return true;
+    return false;
+  }
+
+  void _scheduleDailyCosmicContextEvaluation() {
+    final serial = ++_dailyCosmicContextEvaluationSerial;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || serial != _dailyCosmicContextEvaluationSerial) return;
+      unawaited(_evaluateDailyCosmicContext(serial));
+    });
+    WidgetsBinding.instance.ensureVisualUpdate();
+  }
+
+  Future<void> _evaluateDailyCosmicContext(int serial) async {
+    final isAuthenticated = _dailyCosmicContextAuthenticated;
+    final userId = _dailyCosmicContextUserId;
+    final suppressed = _shouldSuppressDailyCosmicContext(context);
+    final onboardingComplete =
+        isAuthenticated && userId != null && userId.isNotEmpty && !suppressed
+        ? await _dailyCosmicContextOnboardingComplete(userId)
+        : false;
+    if (!mounted || serial != _dailyCosmicContextEvaluationSerial) return;
+    await _dailyCosmicContextController.evaluate(
+      userId: userId,
+      isAuthenticated: isAuthenticated,
+      onboardingComplete: onboardingComplete,
+      suppressed: suppressed,
+    );
+  }
+
+  Future<bool> _dailyCosmicContextOnboardingComplete(String userId) async {
+    final testingOverride =
+        widget.dailyCosmicContextOnboardingCompleteForTesting;
+    if (kDebugMode && testingOverride != null) return testingOverride;
+
+    try {
+      final progress = await OnboardingProgressStorage().loadLocal(userId);
+      if (progress.completedOnboarding) return true;
+      return OnboardingStorage(supabase).isCompletedLocally(userId);
+    } catch (_) {
+      return false;
+    }
+  }
+
   void _resetFloatingMenuStateAfterFrame() {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted || !_menuMounted) return;
@@ -2229,6 +2344,7 @@ class _GlobalFloatingMenuShellState extends State<_GlobalFloatingMenuShell>
   bool _shouldSuppressMaatGuidance(BuildContext context) {
     if (!_launchOverlayDismissed.value) return true;
     if (supabase.auth.currentSession == null) return true;
+    if (_dailyCosmicContextController.hasVisibleBadge) return true;
     if (_floatingMenuModalDepth.value > 0) return true;
     if (_menuMounted || _menuOpen) return true;
     if (MediaQuery.viewInsetsOf(context).bottom > 0) return true;
@@ -2391,6 +2507,10 @@ class _GlobalFloatingMenuShellState extends State<_GlobalFloatingMenuShell>
   }
 
   Future<bool> _handleBackButton() async {
+    if (_dailyCosmicContextController.hasVisibleBadge) {
+      await _dailyCosmicContextController.dismiss();
+      return true;
+    }
     if (!_menuMounted || !_menuOpen) return false;
     await _closeFloatingMenu();
     return true;
@@ -2508,6 +2628,9 @@ class _GlobalFloatingMenuShellState extends State<_GlobalFloatingMenuShell>
                 onPressed: _handleFloatingMenuPressed,
               ),
             ),
+          DailyCosmicContextOverlayHost(
+            controller: _dailyCosmicContextController,
+          ),
           MaatGuidanceOverlayHost(
             controller: _maatGuidanceController,
             onOpen: _openMaatGuidance,

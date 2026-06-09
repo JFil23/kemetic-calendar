@@ -95,6 +95,18 @@ void main() {
       );
     });
 
+    test('daily cosmic context toggle stays in calendar content settings', () {
+      final calendarContent = _sourceBetween(
+        source,
+        "_sectionCard(\n              title: 'Calendar Content'",
+        "_sectionCard(\n              title: 'Speech'",
+      );
+
+      expect(calendarContent, contains('The Day’s Rhythm badge'));
+      expect(calendarContent, contains('_dailyCosmicContextBadgeEnabled'));
+      expect(calendarContent, contains('_setDailyCosmicContextBadgeEnabled'));
+    });
+
     test('build marker renders public version metadata only', () {
       final readBuildInfo = _sourceBetween(
         source,
