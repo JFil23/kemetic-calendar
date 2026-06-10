@@ -68,4 +68,23 @@ void main() {
     expect(hints.cta?.label, 'Read the guiding node');
     expect(hints.fallbackNode, isNull);
   });
+
+  test('parses canonical library node contract from compiled package', () {
+    final hints = DecanReflectionGraphHints.fromGenerationJson({
+      'anchor_nodes': <String>[],
+      'metadata': {
+        'output_control': {
+          'compiled_output_package': {
+            'node_ref': 'renenutet',
+            'node_deep_link': '/nodes/renenutet',
+            'node_title': 'Renenutet',
+            'node_source': 'graph.anchor',
+          },
+        },
+      },
+    });
+
+    expect(hints.canonicalNode?.ref, 'renenutet');
+    expect(hints.canonicalNode?.label, 'Renenutet');
+  });
 }

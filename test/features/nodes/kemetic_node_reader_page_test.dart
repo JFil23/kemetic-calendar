@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
+import 'package:mobile/data/choice_event_repo.dart';
 import 'package:mobile/features/nodes/kemetic_node_library.dart';
 import 'package:mobile/features/nodes/kemetic_node_list_page.dart';
 import 'package:mobile/features/nodes/kemetic_node_reader_page.dart';
@@ -93,6 +94,127 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Serpent'), findsOneWidget);
+  });
+
+  testWidgets('records node opens and internal node-link taps once', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(1170, 2532);
+    tester.view.devicePixelRatio = 3.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    final tracker = _RecordingChoiceEventTracker();
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: KemeticNodeReaderPage(
+          node: KemeticNodeLibrary.resolve('serpent')!,
+          choiceEvents: tracker,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.ensureVisible(find.text('Ra').first);
+    await tester.tap(find.text('Ra').first);
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byType(GlyphBackButton));
+    await tester.pumpAndSettle();
+    await tester.ensureVisible(find.text('Ra').first);
+    await tester.tap(find.text('Ra').first);
+    await tester.pumpAndSettle();
+
+    expect(
+      tracker.calls
+          .where(
+            (call) =>
+                call.eventType == 'node_opened' && call.nodeSlug == 'serpent',
+          )
+          .length,
+      1,
+    );
+    expect(
+      tracker.calls
+          .where(
+            (call) => call.eventType == 'node_opened' && call.nodeSlug == 'ra',
+          )
+          .length,
+      1,
+    );
+    expect(
+      tracker.calls
+          .where(
+            (call) =>
+                call.eventType == 'node_link_tapped' &&
+                call.nodeSlug == 'ra' &&
+                call.sourceSurface == 'library_node_link',
+          )
+          .length,
+      1,
+    );
+    expect(
+      tracker.calls
+          .singleWhere((call) => call.eventType == 'node_link_tapped')
+          .metadata?['from_node_ref'],
+      'serpent',
+    );
+  });
+
+  testWidgets('records route node changes once without rebuild duplicates', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(1170, 2532);
+    tester.view.devicePixelRatio = 3.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    final tracker = _RecordingChoiceEventTracker();
+    final rebuild = ValueNotifier<int>(0);
+    var nodeId = 'serpent';
+    addTearDown(rebuild.dispose);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: ValueListenableBuilder<int>(
+          valueListenable: rebuild,
+          builder: (context, _, _) {
+            return KemeticNodeReaderPage(
+              node: KemeticNodeLibrary.resolve(nodeId)!,
+              choiceEvents: tracker,
+            );
+          },
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    rebuild.value += 1;
+    await tester.pumpAndSettle();
+    nodeId = 'ra';
+    rebuild.value += 1;
+    await tester.pumpAndSettle();
+    rebuild.value += 1;
+    await tester.pumpAndSettle();
+
+    expect(
+      tracker.calls
+          .where(
+            (call) =>
+                call.eventType == 'node_opened' && call.nodeSlug == 'serpent',
+          )
+          .length,
+      1,
+    );
+    expect(
+      tracker.calls
+          .where(
+            (call) => call.eventType == 'node_opened' && call.nodeSlug == 'ra',
+          )
+          .length,
+      1,
+    );
   });
 
   testWidgets('edge-zone right swipe does not pop internal node history', (
@@ -495,6 +617,49 @@ void main() {
     );
     expect(find.textContaining('*', findRichText: true), findsNothing);
   });
+}
+
+class _ChoiceEventCall {
+  const _ChoiceEventCall({
+    required this.eventType,
+    this.nodeSlug,
+    this.reflectionId,
+    this.sourceSurface,
+    this.deliveryId,
+    this.metadata,
+  });
+
+  final String eventType;
+  final String? nodeSlug;
+  final String? reflectionId;
+  final String? sourceSurface;
+  final String? deliveryId;
+  final Map<String, dynamic>? metadata;
+}
+
+class _RecordingChoiceEventTracker implements ChoiceEventTracker {
+  final List<_ChoiceEventCall> calls = <_ChoiceEventCall>[];
+
+  @override
+  Future<void> trackChoiceEvent({
+    required String eventType,
+    String? nodeSlug,
+    String? reflectionId,
+    String? sourceSurface,
+    String? deliveryId,
+    Map<String, dynamic>? metadata,
+  }) async {
+    calls.add(
+      _ChoiceEventCall(
+        eventType: eventType,
+        nodeSlug: nodeSlug,
+        reflectionId: reflectionId,
+        sourceSurface: sourceSurface,
+        deliveryId: deliveryId,
+        metadata: metadata,
+      ),
+    );
+  }
 }
 
 class _ReaderLaunchPage extends StatelessWidget {

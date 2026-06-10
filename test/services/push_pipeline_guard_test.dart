@@ -130,6 +130,8 @@ void main() {
         initialRouteSource,
         contains("'/reflections/\${Uri.encodeComponent(reflectionId)}'"),
       );
+      expect(initialRouteSource, isNot(contains('node_ref')));
+      expect(initialRouteSource, isNot(contains('/nodes/')));
       expect(pushNavigationSource, contains("kind == 'decan_reflection'"));
       expect(
         pushNavigationSource,
@@ -137,6 +139,13 @@ void main() {
           "_router.go('/reflections/\${Uri.encodeComponent(reflectionId)}')",
         ),
       );
+      final decanReflectionNavigationSource = _sourceBetween(
+        pushNavigationSource,
+        "if (kind == 'decan_reflection' && reflectionId != null) {",
+        "if (kind == 'flow_share'",
+      );
+      expect(decanReflectionNavigationSource, isNot(contains('node_ref')));
+      expect(decanReflectionNavigationSource, isNot(contains('/nodes/')));
     });
 
     test(

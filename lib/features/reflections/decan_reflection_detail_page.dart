@@ -6,6 +6,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../core/navigation_fallback.dart';
 import '../../shared/glossy_text.dart';
 
+import '../../data/choice_event_repo.dart';
 import '../../data/decan_reflection_repo.dart';
 import '../../data/decan_reflection_model.dart';
 import '../../data/decan_reflection_prompt_state.dart';
@@ -30,9 +31,13 @@ class DecanReflectionDetailPage extends StatefulWidget {
 class _DecanReflectionDetailPageState extends State<DecanReflectionDetailPage> {
   final _repo = DecanReflectionRepo(Supabase.instance.client);
   final _promptState = DecanReflectionPromptState(Supabase.instance.client);
+  final ChoiceEventTracker _choiceEvents = SupabaseChoiceEventTracker(
+    Supabase.instance.client,
+  );
   final _insightRepo = InsightLinkRepo();
   List<InsightLink> _links = [];
   final List<GestureRecognizer> _linkGestureRecognizers = [];
+  final Set<String> _nodeLinkTapKeys = <String>{};
   List<InlineSpan> _reflectionSpans = const [];
   DecanReflection? _reflection;
   DecanReflectionGraphHints? _graphHints;
@@ -41,6 +46,7 @@ class _DecanReflectionDetailPageState extends State<DecanReflectionDetailPage> {
     offset: -1,
   );
   bool _loading = true;
+  bool _reflectionOpenRecorded = false;
 
   @override
   void initState() {
@@ -62,6 +68,7 @@ class _DecanReflectionDetailPageState extends State<DecanReflectionDetailPage> {
         ? null
         : await _repo.getGraphHintsForReflection(data);
     if (data != null) {
+      unawaited(_recordReflectionOpened(data));
       await _promptState.markInteracted(data.decanStart);
       await _repo.markPromptInteracted(
         decanStart: data.decanStart,
@@ -88,6 +95,39 @@ class _DecanReflectionDetailPageState extends State<DecanReflectionDetailPage> {
       _rebuildReflectionSpans();
       _loading = false;
     });
+  }
+
+  Future<void> _recordReflectionOpened(DecanReflection reflection) async {
+    if (_reflectionOpenRecorded) return;
+    _reflectionOpenRecorded = true;
+    await _choiceEvents.trackChoiceEvent(
+      eventType: 'reflection_opened',
+      reflectionId: reflection.id,
+      sourceSurface: 'decan_reflection_detail',
+      metadata: <String, dynamic>{
+        'decan_start': reflection.decanStart.toUtc().toIso8601String(),
+        'decan_end': reflection.decanEnd.toUtc().toIso8601String(),
+        'decan_name': reflection.decanName,
+      },
+    );
+  }
+
+  Future<void> _recordNodeLinkTapped({
+    required String nodeSlug,
+    required String sourceSurface,
+    Map<String, dynamic>? metadata,
+  }) async {
+    final slug = nodeSlug.trim();
+    if (slug.isEmpty) return;
+    final key = '$sourceSurface:$slug';
+    if (!_nodeLinkTapKeys.add(key)) return;
+    await _choiceEvents.trackChoiceEvent(
+      eventType: 'node_link_tapped',
+      nodeSlug: slug,
+      reflectionId: widget.reflectionId,
+      sourceSurface: sourceSurface,
+      metadata: metadata,
+    );
   }
 
   void _disposeLinkGestureRecognizers() {
@@ -124,6 +164,13 @@ class _DecanReflectionDetailPageState extends State<DecanReflectionDetailPage> {
     final node = KemeticNodeLibrary.resolve(link.targetId);
     if (node == null) return;
     unawaited(
+      _recordNodeLinkTapped(
+        nodeSlug: node.id,
+        sourceSurface: 'decan_reflection_inline_link',
+        metadata: <String, dynamic>{'link_id': link.id},
+      ),
+    );
+    unawaited(
       openDetailRoute<void>(context, '/nodes/${Uri.encodeComponent(node.id)}'),
     );
   }
@@ -134,6 +181,13 @@ class _DecanReflectionDetailPageState extends State<DecanReflectionDetailPage> {
     await _repo.recordSuggestedNodeTap(
       reflectionId: widget.reflectionId,
       nodeSlug: suggestion.node.id,
+    );
+    unawaited(
+      _recordNodeLinkTapped(
+        nodeSlug: suggestion.node.id,
+        sourceSurface: 'decan_reflection_library_continuation',
+        metadata: <String, dynamic>{'reason': suggestion.reason},
+      ),
     );
     if (!mounted) return;
     unawaited(
@@ -148,6 +202,13 @@ class _DecanReflectionDetailPageState extends State<DecanReflectionDetailPage> {
     if (!cta.hasDestination) return;
     switch (cta.type) {
       case 'node':
+        unawaited(
+          _recordNodeLinkTapped(
+            nodeSlug: cta.ref,
+            sourceSurface: 'decan_reflection_cta',
+            metadata: <String, dynamic>{'cta_label': cta.label},
+          ),
+        );
         unawaited(
           openDetailRoute<void>(
             context,
@@ -621,6 +682,14 @@ List<DecanReflectionSuggestedNodeLink> buildDecanReflectionSuggestedNodeLinks(
   if (fallbackNode?.hasNode == true) {
     addNode(fallbackNode!.ref, fallbackNode.label);
   }
+  final canonicalNode = hints.canonicalNode;
+  if (canonicalNode?.hasNode == true) {
+    addNode(canonicalNode!.ref, canonicalNode.label);
+  }
+
+  for (final slug in hints.anchorNodes) {
+    addNode(slug, 'From this reflection');
+  }
 
   final leadAxis = hints.leadAxis?.trim().toUpperCase();
   if (leadAxis != null) {
@@ -628,10 +697,6 @@ List<DecanReflectionSuggestedNodeLink> buildDecanReflectionSuggestedNodeLinks(
       addNode(slug, _leadAxisReason[leadAxis] ?? 'Reflection pattern');
       if (suggestions.isNotEmpty) break;
     }
-  }
-
-  for (final slug in hints.anchorNodes) {
-    addNode(slug, 'From this reflection');
   }
 
   if (suggestions.length < 2 && leadAxis != null) {

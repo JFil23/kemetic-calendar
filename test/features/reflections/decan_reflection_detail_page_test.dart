@@ -134,4 +134,47 @@ void main() {
     expect(suggestions.map((suggestion) => suggestion.node.id), ['maat']);
     expect(suggestions.single.reason, 'Read the guiding node');
   });
+
+  test(
+    'canonical node appears before graph anchors and lead-axis defaults',
+    () {
+      final hints = DecanReflectionGraphHints.fromGenerationJson({
+        'anchor_nodes': <String>['renenutet'],
+        'metadata': {
+          'lead_axis': 'M',
+          'output_control': {
+            'compiled_output_package': {
+              'node_ref': 'ptah',
+              'node_title': 'Ptah',
+            },
+          },
+        },
+      });
+
+      final suggestions = buildDecanReflectionSuggestedNodeLinks(
+        hints,
+        const <InsightLink>[],
+      );
+
+      expect(suggestions.map((suggestion) => suggestion.node.id), [
+        'ptah',
+        'renenutet',
+      ]);
+    },
+  );
+
+  test('graph anchors appear before lead-axis defaults', () {
+    final hints = DecanReflectionGraphHints.fromGenerationJson({
+      'anchor_nodes': <String>['renenutet'],
+      'metadata': {'lead_axis': 'M'},
+    });
+
+    final suggestions = buildDecanReflectionSuggestedNodeLinks(
+      hints,
+      const <InsightLink>[],
+    );
+
+    expect(suggestions.first.node.id, 'renenutet');
+    expect(suggestions.first.reason, 'From this reflection');
+  });
 }

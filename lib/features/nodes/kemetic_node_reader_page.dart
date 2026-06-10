@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import '../../data/choice_event_repo.dart';
 import '../../core/navigation_fallback.dart';
 import '../../core/touch_targets.dart';
 import '../../shared/glossy_text.dart';
@@ -16,12 +17,14 @@ class KemeticNodeReaderPage extends StatefulWidget {
   final KemeticNode node;
   final bool openInsightEditorOnLoad;
   final VoidCallback? onInsightEditorIntentConsumed;
+  final ChoiceEventTracker? choiceEvents;
 
   const KemeticNodeReaderPage({
     super.key,
     required this.node,
     this.openInsightEditorOnLoad = false,
     this.onInsightEditorIntentConsumed,
+    this.choiceEvents,
   });
 
   @override
@@ -59,6 +62,9 @@ class _KemeticNodeReaderPageState extends State<KemeticNodeReaderPage> {
 
   final List<KemeticNode> _history = [];
   final ScrollController _scrollController = ScrollController();
+  final Set<String> _openedNodeIds = <String>{};
+  final Set<String> _nodeLinkTapKeys = <String>{};
+  ChoiceEventTracker? _choiceEvents;
   double _horizontalDrag = 0;
   bool _dragConsumed = false;
   bool _dragStartedInNavigationEdge = false;
@@ -66,12 +72,30 @@ class _KemeticNodeReaderPageState extends State<KemeticNodeReaderPage> {
   @override
   void initState() {
     super.initState();
+    _choiceEvents =
+        widget.choiceEvents ?? SupabaseChoiceEventTracker.tryCreate();
     _history.add(widget.node);
+    _recordNodeOpened(widget.node, sourceSurface: 'library_node_reader');
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (_scrollController.hasClients) {
         _scrollController.jumpTo(0);
       }
     });
+  }
+
+  @override
+  void didUpdateWidget(covariant KemeticNodeReaderPage oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.node.id.toLowerCase() == widget.node.id.toLowerCase()) {
+      return;
+    }
+    _openedNodeIds.clear();
+    _nodeLinkTapKeys.clear();
+    _history
+      ..clear()
+      ..add(widget.node);
+    _recordNodeOpened(widget.node, sourceSurface: 'library_node_reader');
+    _scrollToTop();
   }
 
   @override
@@ -82,13 +106,62 @@ class _KemeticNodeReaderPageState extends State<KemeticNodeReaderPage> {
 
   KemeticNode get _node => _history.last;
 
+  void _recordNodeOpened(KemeticNode node, {required String sourceSurface}) {
+    final slug = node.id.trim();
+    if (slug.isEmpty || !_openedNodeIds.add(slug.toLowerCase())) return;
+    final tracker = _choiceEvents;
+    if (tracker == null) return;
+    unawaited(
+      tracker.trackChoiceEvent(
+        eventType: 'node_opened',
+        nodeSlug: slug,
+        sourceSurface: sourceSurface,
+        metadata: <String, dynamic>{'node_title': node.title},
+      ),
+    );
+  }
+
+  void _recordNodeLinkTapped({
+    required KemeticNode fromNode,
+    required KemeticNode targetNode,
+    required String sourceSurface,
+  }) {
+    final fromSlug = fromNode.id.trim();
+    final targetSlug = targetNode.id.trim();
+    if (fromSlug.isEmpty || targetSlug.isEmpty) return;
+    final key =
+        '$sourceSurface:${fromSlug.toLowerCase()}:'
+        '${targetSlug.toLowerCase()}';
+    if (!_nodeLinkTapKeys.add(key)) return;
+    final tracker = _choiceEvents;
+    if (tracker == null) return;
+    unawaited(
+      tracker.trackChoiceEvent(
+        eventType: 'node_link_tapped',
+        nodeSlug: targetSlug,
+        sourceSurface: sourceSurface,
+        metadata: <String, dynamic>{
+          'from_node_ref': fromSlug,
+          'from_node_title': fromNode.title,
+          'node_title': targetNode.title,
+        },
+      ),
+    );
+  }
+
   void _openNode(String targetId) {
     final target = KemeticNodeLibrary.resolve(targetId);
     if (target == null) return;
     if (target.id.toLowerCase() == _node.id.toLowerCase()) return;
+    _recordNodeLinkTapped(
+      fromNode: _node,
+      targetNode: target,
+      sourceSurface: 'library_node_link',
+    );
     setState(() {
       _history.add(target);
     });
+    _recordNodeOpened(target, sourceSurface: 'library_node_link');
     _scrollToTop();
   }
 
@@ -133,6 +206,7 @@ class _KemeticNodeReaderPageState extends State<KemeticNodeReaderPage> {
     setState(() {
       _history.add(target);
     });
+    _recordNodeOpened(target, sourceSurface: 'library_search');
     await _scrollToTop();
   }
 

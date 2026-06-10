@@ -38,25 +38,37 @@ class DecanReflectionGraphHints {
   final List<String> anchorNodes;
   final DecanReflectionCta? cta;
   final DecanReflectionNodeSuggestion? fallbackNode;
+  final DecanReflectionNodeSuggestion? canonicalNode;
 
   const DecanReflectionGraphHints({
     required this.leadAxis,
     required this.anchorNodes,
     this.cta,
     this.fallbackNode,
+    this.canonicalNode,
   });
 
   bool get isEmpty =>
       leadAxis == null &&
       anchorNodes.isEmpty &&
       cta == null &&
-      fallbackNode == null;
+      fallbackNode == null &&
+      canonicalNode == null;
 
   factory DecanReflectionGraphHints.fromGenerationJson(
     Map<String, dynamic> json,
   ) {
     final metadata = _asStringKeyedMap(json['metadata']);
+    final sourceSnapshot = _asStringKeyedMap(json['source_snapshot']);
     final decisionMatrix = _asStringKeyedMap(metadata['decision_matrix']);
+    final metadataOutputControl = _asStringKeyedMap(metadata['output_control']);
+    final sourceOutputControl = _asStringKeyedMap(
+      sourceSnapshot['output_control'],
+    );
+    final package = _firstMap([
+      metadataOutputControl['compiled_output_package'],
+      sourceOutputControl['compiled_output_package'],
+    ]);
     final rawAnchorNodes = json['anchor_nodes'];
     final fallbackAnchorNodes = decisionMatrix['anchor_nodes'];
     final cta = DecanReflectionCta.fromGenerationJson(json);
@@ -70,6 +82,11 @@ class DecanReflectionGraphHints {
           : _stringList(fallbackAnchorNodes),
       cta: cta.hasDestination ? cta : null,
       fallbackNode: DecanReflectionNodeSuggestion.tryFromCtaFallback(cta),
+      canonicalNode: DecanReflectionNodeSuggestion.tryFromCanonicalMaps([
+        package,
+        metadataOutputControl,
+        sourceOutputControl,
+      ]),
     );
   }
 }
@@ -96,6 +113,20 @@ class DecanReflectionNodeSuggestion {
           ? cta.fallbackLabel!.trim()
           : _defaultCtaLabel('node'),
     );
+  }
+
+  static DecanReflectionNodeSuggestion? tryFromCanonicalMaps(
+    Iterable<Map<String, dynamic>> maps,
+  ) {
+    for (final map in maps) {
+      final ref = _trimmedString(map['node_ref']);
+      if (ref == null) continue;
+      return DecanReflectionNodeSuggestion(
+        ref: ref,
+        label: _trimmedString(map['node_title']) ?? _defaultCtaLabel('node'),
+      );
+    }
+    return null;
   }
 
   bool get hasNode => ref.trim().isNotEmpty;
