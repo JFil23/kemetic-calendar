@@ -1146,6 +1146,18 @@ String? _initialLocationFromPushData(
         : '/shared-flow/${Uri.encodeComponent(shareId)}';
   }
 
+  if (kind == 'dm') {
+    final senderId = _trimmedPushValue(
+      data['conversation_user_id'] ??
+          data['conversationUserId'] ??
+          data['sender_id'] ??
+          data['senderId'],
+    );
+    return senderId == null
+        ? '/inbox'
+        : '/inbox/conversation/${Uri.encodeComponent(senderId)}';
+  }
+
   if (kind == 'event_invite') {
     final shareId = _trimmedPushValue(data['share_id'] ?? data['shareId']);
     return shareId == null
@@ -1153,8 +1165,7 @@ String? _initialLocationFromPushData(
         : '/event-invite/${Uri.encodeComponent(shareId)}';
   }
 
-  if (kind == 'dm' ||
-      kind == 'follow' ||
+  if (kind == 'follow' ||
       kind == 'calendar_invite' ||
       kind == 'calendar_invite_response') {
     return '/inbox';
@@ -3097,7 +3108,12 @@ class _PushIntentBridgeState extends State<PushIntentBridge> {
     }
 
     if (kind == 'dm') {
-      final senderId = _trimmedValue(data['sender_id'] ?? data['senderId']);
+      final senderId = _trimmedValue(
+        data['conversation_user_id'] ??
+            data['conversationUserId'] ??
+            data['sender_id'] ??
+            data['senderId'],
+      );
       if (senderId != null) {
         await _openDmConversation(senderId);
       } else {

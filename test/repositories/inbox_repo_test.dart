@@ -60,6 +60,14 @@ void main() {
 
       expect(
         shouldRetryDmPushFromResponse({
+          'share': {'id': 'share-1'},
+          'push': {'delivered': false, 'reason': 'missing_push_auth'},
+        }),
+        isTrue,
+      );
+
+      expect(
+        shouldRetryDmPushFromResponse({
           'push': {'delivered': true},
         }),
         isFalse,

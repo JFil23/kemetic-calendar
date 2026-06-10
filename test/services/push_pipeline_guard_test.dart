@@ -45,6 +45,46 @@ void main() {
       },
     );
 
+    test('direct message pushes route to the sender conversation', () async {
+      final inboxRepoSource = await File(
+        'lib/repositories/inbox_repo.dart',
+      ).readAsString();
+      final sendDmSource = await File(
+        '../supabase/functions/send_dm_message/index.ts',
+      ).readAsString();
+      final sendPushSource = await File(
+        '../supabase/functions/send_push/index.ts',
+      ).readAsString();
+      final mainSource = await File('lib/main.dart').readAsString();
+      final initialRouteSource = _sourceBetween(
+        mainSource,
+        'String? _initialLocationFromPushData(',
+        "  if (kind == 'event_invite') {",
+      );
+      final pushNavigationSource = _sourceBetween(
+        mainSource,
+        'Future<bool> _handlePushNavigation(Map<String, dynamic> data) async {',
+        'void _openSharedFlow(String shareId) {',
+      );
+
+      expect(inboxRepoSource, contains("'send_dm_message'"));
+      expect(sendDmSource, contains('notification_type: "direct_message"'));
+      expect(sendDmSource, contains('conversation_user_id: senderId'));
+      expect(sendDmSource, contains('headers.Authorization'));
+      expect(sendPushSource, contains('kind === "dm"'));
+      expect(sendPushSource, contains('push_kind: "dm"'));
+      expect(initialRouteSource, contains("kind == 'dm'"));
+      expect(
+        initialRouteSource,
+        contains("'/inbox/conversation/\${Uri.encodeComponent(senderId)}'"),
+      );
+      expect(pushNavigationSource, contains("if (kind == 'dm')"));
+      expect(
+        pushNavigationSource,
+        contains('await _openDmConversation(senderId)'),
+      );
+    });
+
     test('follow pushes are sent and routed to the inbox', () async {
       final profileSource = await File(
         'lib/data/profile_repo.dart',

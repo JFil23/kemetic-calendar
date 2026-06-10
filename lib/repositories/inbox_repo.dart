@@ -74,7 +74,9 @@ bool shouldRetryDmPushFromResponse(dynamic responseData) {
   if (delivered) return false;
 
   final reason = _asDmString(push['reason'])?.toLowerCase();
-  return reason == 'missing_internal_function_key' || reason == 'unauthorized';
+  return reason == 'missing_internal_function_key' ||
+      reason == 'missing_push_auth' ||
+      reason == 'unauthorized';
 }
 
 String userFacingDmSendError(Object error) {
@@ -470,6 +472,12 @@ class InboxRepo {
     required String text,
     String? shareId,
   }) async {
+    final normalizedShareId = shareId?.trim();
+    if (normalizedShareId == null || normalizedShareId.isEmpty) {
+      _log('[InboxRepo] DM push fallback skipped: missing share id');
+      return;
+    }
+
     final senderProfile = await _client
         .from('profiles')
         .select('display_name, handle')
@@ -494,8 +502,11 @@ class InboxRepo {
           'data': {
             'type': 'dm',
             'kind': 'dm',
+            'notification_type': 'direct_message',
+            'notification_kind': 'direct_message',
             'sender_id': senderId,
-            if (shareId != null && shareId.isNotEmpty) 'share_id': shareId,
+            'conversation_user_id': senderId,
+            'share_id': normalizedShareId,
           },
         },
       );
@@ -604,7 +615,10 @@ class InboxRepo {
           'data': {
             'type': 'dm_message_like',
             'kind': 'dm',
+            'notification_type': 'direct_message_like',
+            'notification_kind': 'direct_message_like',
             'sender_id': normalizedLikerUserId,
+            'conversation_user_id': normalizedLikerUserId,
             if (shareId != null && shareId.trim().isNotEmpty)
               'share_id': shareId.trim(),
           },
