@@ -80,6 +80,9 @@ const Gradient _trackSkyFlowGoldGloss = LinearGradient(
   stops: [0.0, 0.34, 0.66, 1.0],
 );
 const String _kNewEventPreviewClientEventId = '__day_view_new_event_preview__';
+const ValueKey<String> _ritualCompletionFeedbackCardKey = ValueKey<String>(
+  'day-view-ritual-completion-feedback-card',
+);
 typedef DayViewRestorationCallback =
     void Function({
       required int kYear,
@@ -97,6 +100,201 @@ const TextStyle _goldHeaderStyle = TextStyle(
   fontFamily: 'GentiumPlus',
   fontFamilyFallback: ['NotoSans', 'Roboto', 'Arial', 'sans-serif'],
 );
+
+enum _RitualCompletionFeedbackLevel { observed, partial }
+
+_RitualCompletionFeedbackLevel? _ritualFeedbackLevelForStatus(
+  CompletionStatus status,
+) {
+  return switch (status) {
+    CompletionStatus.observed => _RitualCompletionFeedbackLevel.observed,
+    CompletionStatus.partial => _RitualCompletionFeedbackLevel.partial,
+    CompletionStatus.none || CompletionStatus.skipped => null,
+  };
+}
+
+Future<void> _triggerRitualCompletionHaptic(
+  _RitualCompletionFeedbackLevel level,
+) async {
+  switch (level) {
+    case _RitualCompletionFeedbackLevel.observed:
+      await AppHaptics.mediumImpact(reason: 'flow_completion_observed');
+      return;
+    case _RitualCompletionFeedbackLevel.partial:
+      await AppHaptics.lightImpact(reason: 'flow_completion_partial');
+      return;
+  }
+}
+
+void _playRitualCompletionFeedback(
+  BuildContext context,
+  CompletionStatus status,
+) {
+  final level = _ritualFeedbackLevelForStatus(status);
+  if (level == null) return;
+  _RitualCompletionFeedbackScope.maybeControllerOf(context)?.play(level);
+}
+
+class _RitualCompletionFeedbackController extends ChangeNotifier {
+  _RitualCompletionFeedbackController({required this.triggerHaptic});
+
+  final Future<void> Function(_RitualCompletionFeedbackLevel level)
+  triggerHaptic;
+
+  _RitualCompletionFeedbackLevel? _latestLevel;
+
+  _RitualCompletionFeedbackLevel? get latestLevel => _latestLevel;
+
+  void play(_RitualCompletionFeedbackLevel level) {
+    _latestLevel = level;
+    unawaited(triggerHaptic(level));
+    notifyListeners();
+  }
+}
+
+class _RitualCompletionFeedbackScope extends InheritedWidget {
+  const _RitualCompletionFeedbackScope({
+    required this.controller,
+    required super.child,
+  });
+
+  final _RitualCompletionFeedbackController controller;
+
+  static _RitualCompletionFeedbackController? maybeControllerOf(
+    BuildContext context,
+  ) {
+    return context
+        .getInheritedWidgetOfExactType<_RitualCompletionFeedbackScope>()
+        ?.controller;
+  }
+
+  @override
+  bool updateShouldNotify(_RitualCompletionFeedbackScope oldWidget) {
+    return controller != oldWidget.controller;
+  }
+}
+
+class _RitualCompletionFeedbackCard extends StatefulWidget {
+  const _RitualCompletionFeedbackCard({
+    required this.enabled,
+    required this.child,
+  });
+
+  final bool enabled;
+  final Widget child;
+
+  @override
+  State<_RitualCompletionFeedbackCard> createState() =>
+      _RitualCompletionFeedbackCardState();
+}
+
+class _RitualCompletionFeedbackCardState
+    extends State<_RitualCompletionFeedbackCard>
+    with SingleTickerProviderStateMixin {
+  late final _RitualCompletionFeedbackController _feedbackController;
+  late final AnimationController _pulseController;
+  late final Animation<double> _pulse;
+  _RitualCompletionFeedbackLevel _activeLevel =
+      _RitualCompletionFeedbackLevel.observed;
+
+  @override
+  void initState() {
+    super.initState();
+    _feedbackController = _RitualCompletionFeedbackController(
+      triggerHaptic: _triggerRitualCompletionHaptic,
+    )..addListener(_handleFeedback);
+    _pulseController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 640),
+    );
+    _pulse = TweenSequence<double>([
+      TweenSequenceItem<double>(
+        tween: Tween<double>(
+          begin: 0,
+          end: 1,
+        ).chain(CurveTween(curve: Curves.easeOutCubic)),
+        weight: 38,
+      ),
+      TweenSequenceItem<double>(
+        tween: Tween<double>(
+          begin: 1,
+          end: 0,
+        ).chain(CurveTween(curve: Curves.easeInOutCubic)),
+        weight: 62,
+      ),
+    ]).animate(_pulseController);
+  }
+
+  @override
+  void dispose() {
+    _feedbackController.removeListener(_handleFeedback);
+    _feedbackController.dispose();
+    _pulseController.dispose();
+    super.dispose();
+  }
+
+  void _handleFeedback() {
+    final level = _feedbackController.latestLevel;
+    if (level == null) return;
+    setState(() => _activeLevel = level);
+    _pulseController.forward(from: 0);
+  }
+
+  BoxDecoration _decorationFor(double pulse) {
+    final observed = _activeLevel == _RitualCompletionFeedbackLevel.observed;
+    final strength = observed ? 1.0 : 0.5;
+    final bloom = pulse * strength;
+    final borderAlpha = (0.4 + (observed ? 0.34 : 0.16) * pulse)
+        .clamp(0.0, 0.78)
+        .toDouble();
+    final pulseColor =
+        Color.lerp(_dayGold, const Color(0xFFFFE9AF), bloom * 0.44) ?? _dayGold;
+    final shadows = <BoxShadow>[
+      BoxShadow(
+        color: Colors.black.withValues(alpha: 0.45),
+        blurRadius: 18,
+        spreadRadius: 1,
+        offset: const Offset(0, 10),
+      ),
+      if (bloom > 0.001)
+        BoxShadow(
+          color: _dayGold.withValues(alpha: (observed ? 0.22 : 0.09) * pulse),
+          blurRadius: 20 + (observed ? 9 : 4) * pulse,
+          spreadRadius: (observed ? 0.8 : 0.35) * pulse,
+        ),
+    ];
+
+    return BoxDecoration(
+      color: Colors.white.withValues(alpha: 0.04),
+      borderRadius: BorderRadius.circular(18),
+      border: Border.all(color: pulseColor.withValues(alpha: borderAlpha)),
+      boxShadow: shadows,
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final card = AnimatedBuilder(
+      animation: _pulse,
+      child: widget.child,
+      builder: (context, child) {
+        return Container(
+          key: _ritualCompletionFeedbackCardKey,
+          width: double.infinity,
+          padding: const EdgeInsets.fromLTRB(18, 18, 18, 20),
+          decoration: _decorationFor(_pulse.value),
+          child: child,
+        );
+      },
+    );
+
+    if (!widget.enabled) return card;
+    return _RitualCompletionFeedbackScope(
+      controller: _feedbackController,
+      child: card,
+    );
+  }
+}
 
 bool _isTrackSkyFlowName(String? name) {
   final normalized = name?.trim().toLowerCase();
@@ -5641,6 +5839,7 @@ class _DayViewGridState extends State<DayViewGrid> {
     required int kd,
     CompletionStatus completionStatus = CompletionStatus.observed,
     CompletionSourceType sourceType = CompletionSourceType.calendarEvent,
+    bool triggerHaptic = true,
   }) async {
     final cb = widget.onAppendToJournal;
     if (cb == null) return;
@@ -5655,7 +5854,9 @@ class _DayViewGridState extends State<DayViewGrid> {
     );
     try {
       await cb('$token ');
-      unawaited(AppHaptics.productiveAction());
+      if (triggerHaptic) {
+        unawaited(AppHaptics.productiveAction());
+      }
     } catch (_) {
       // ignore errors silently to avoid blocking UI
     }
@@ -5665,6 +5866,7 @@ class _DayViewGridState extends State<DayViewGrid> {
     DayViewSheetEventTarget target,
     CompletionStatus status, {
     required CompletionSourceType sourceType,
+    bool triggerHaptic = true,
   }) async {
     await _quickAddToJournal(
       target.event,
@@ -5673,6 +5875,7 @@ class _DayViewGridState extends State<DayViewGrid> {
       kd: target.kd,
       completionStatus: status,
       sourceType: sourceType,
+      triggerHaptic: triggerHaptic,
     );
   }
 
@@ -5924,6 +6127,8 @@ class _DayViewGridState extends State<DayViewGrid> {
       flow,
     );
     final libraryCta = _maatLibraryCtaPayloadForEvent(currentEvent);
+    final enableRitualCompletionFeedback =
+        currentEvent.flowId != null && !isNutrition;
 
     Widget? metaChip;
     if (flow != null) {
@@ -6225,69 +6430,84 @@ class _DayViewGridState extends State<DayViewGrid> {
             currentEvent.clientEventId?.trim().isNotEmpty == true &&
             currentEvent.flowId != null) ...[
           const SizedBox(height: 16),
-          _MaatFlowCompletionPanel(
-            event: currentEvent,
-            identity: _completionIdentityForEvent(currentEvent),
-            completion: completionContext,
-            ky: target.ky,
-            km: target.km,
-            kd: target.kd,
-            onRecordCompletion: widget.onRecordCompletion,
-            onUnrecordCompletion: widget.onUnrecordCompletion,
-            onRemoveCompletionBadge: widget.onRemoveCompletionBadge,
-            onCompletionContinuity: (status) => _appendCompletionContinuity(
-              target,
-              status,
-              sourceType: CompletionSourceType.maatFlow,
+          Builder(
+            builder: (feedbackContext) => _MaatFlowCompletionPanel(
+              event: currentEvent,
+              identity: _completionIdentityForEvent(currentEvent),
+              completion: completionContext,
+              ky: target.ky,
+              km: target.km,
+              kd: target.kd,
+              onRecordCompletion: widget.onRecordCompletion,
+              onUnrecordCompletion: widget.onUnrecordCompletion,
+              onRemoveCompletionBadge: widget.onRemoveCompletionBadge,
+              onCompletionContinuity: (status) => _appendCompletionContinuity(
+                target,
+                status,
+                sourceType: CompletionSourceType.maatFlow,
+                triggerHaptic: false,
+              ),
+              onUserCompletionFeedback: enableRitualCompletionFeedback
+                  ? (status) =>
+                        _playRitualCompletionFeedback(feedbackContext, status)
+                  : null,
+              onAddReflection: null,
+              reloadSignal: completionReloadSignal,
+              observedButtonKey:
+                  includeOnboardingKeys &&
+                      _isOnboardingTargetEvent(currentEvent)
+                  ? widget.onboardingObservedKey
+                  : null,
             ),
-            onAddReflection: null,
-            reloadSignal: completionReloadSignal,
-            observedButtonKey:
-                includeOnboardingKeys && _isOnboardingTargetEvent(currentEvent)
-                ? widget.onboardingObservedKey
-                : null,
           ),
         ] else ...[
           const SizedBox(height: 16),
-          CalendarEventCompletionPanel(
-            identity: _completionIdentityForEvent(currentEvent),
-            sourceType: _completionSourceTypeForEvent(
-              currentEvent,
-              flow,
-              completionContext,
-            ),
-            loadStatus: currentEvent.flowId == null
-                ? null
-                : () => _loadCalendarCompletionStatus(target),
-            onRecordStatus: (status) => _recordCalendarCompletion(
-              target,
-              status,
+          Builder(
+            builder: (feedbackContext) => CalendarEventCompletionPanel(
+              identity: _completionIdentityForEvent(currentEvent),
               sourceType: _completionSourceTypeForEvent(
                 currentEvent,
                 flow,
                 completionContext,
               ),
-              flow: flow,
-            ),
-            onClearStatus: () => _clearCalendarCompletion(
-              target,
-              sourceType: _completionSourceTypeForEvent(
-                currentEvent,
-                flow,
-                completionContext,
+              loadStatus: currentEvent.flowId == null
+                  ? null
+                  : () => _loadCalendarCompletionStatus(target),
+              onRecordStatus: (status) => _recordCalendarCompletion(
+                target,
+                status,
+                sourceType: _completionSourceTypeForEvent(
+                  currentEvent,
+                  flow,
+                  completionContext,
+                ),
+                flow: flow,
               ),
-            ),
-            onCreateContinuity: (status) => _appendCompletionContinuity(
-              target,
-              status,
-              sourceType: _completionSourceTypeForEvent(
-                currentEvent,
-                flow,
-                completionContext,
+              onClearStatus: () => _clearCalendarCompletion(
+                target,
+                sourceType: _completionSourceTypeForEvent(
+                  currentEvent,
+                  flow,
+                  completionContext,
+                ),
               ),
+              onCreateContinuity: (status) => _appendCompletionContinuity(
+                target,
+                status,
+                sourceType: _completionSourceTypeForEvent(
+                  currentEvent,
+                  flow,
+                  completionContext,
+                ),
+                triggerHaptic: !enableRitualCompletionFeedback,
+              ),
+              onUserCompletionFeedback: enableRitualCompletionFeedback
+                  ? (status) =>
+                        _playRitualCompletionFeedback(feedbackContext, status)
+                  : null,
+              onReflect: null,
+              reloadSignal: completionReloadSignal,
             ),
-            onReflect: null,
-            reloadSignal: completionReloadSignal,
           ),
         ],
         if (libraryCta != null) ...[
@@ -6299,22 +6519,8 @@ class _DayViewGridState extends State<DayViewGrid> {
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      child: Container(
-        width: double.infinity,
-        padding: const EdgeInsets.fromLTRB(18, 18, 18, 20),
-        decoration: BoxDecoration(
-          color: Colors.white.withValues(alpha: 0.04),
-          borderRadius: BorderRadius.circular(18),
-          border: Border.all(color: _dayGold.withValues(alpha: 0.4)),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.45),
-              blurRadius: 18,
-              spreadRadius: 1,
-              offset: const Offset(0, 10),
-            ),
-          ],
-        ),
+      child: _RitualCompletionFeedbackCard(
+        enabled: enableRitualCompletionFeedback,
         child: scrollable
             ? SingleChildScrollView(
                 physics: const BouncingScrollPhysics(),
@@ -7553,6 +7759,7 @@ class _MaatFlowCompletionPanel extends StatefulWidget {
     this.onUnrecordCompletion,
     this.onRemoveCompletionBadge,
     this.onCompletionContinuity,
+    this.onUserCompletionFeedback,
     this.onAddReflection,
     this.observedButtonKey,
     this.reloadSignal,
@@ -7574,6 +7781,7 @@ class _MaatFlowCompletionPanel extends StatefulWidget {
   final Future<void> Function(String clientEventId)? onUnrecordCompletion;
   final Future<void> Function(String badgeId)? onRemoveCompletionBadge;
   final Future<void> Function(CompletionStatus status)? onCompletionContinuity;
+  final ValueChanged<CompletionStatus>? onUserCompletionFeedback;
   final VoidCallback? onAddReflection;
   final Key? observedButtonKey;
   final Object? reloadSignal;
@@ -7802,6 +8010,10 @@ class _MaatFlowCompletionPanelState extends State<_MaatFlowCompletionPanel> {
       );
       if (completionStatus.createsJournalContinuity) {
         await widget.onCompletionContinuity?.call(completionStatus);
+      }
+      if (completionStatus == CompletionStatus.observed ||
+          completionStatus == CompletionStatus.partial) {
+        widget.onUserCompletionFeedback?.call(completionStatus);
       }
       unawaited(_maybeCaptureLivingTextDayOneNode(status));
     } catch (_) {

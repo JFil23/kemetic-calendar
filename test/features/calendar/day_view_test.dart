@@ -1,5 +1,8 @@
+import 'dart:math' as math;
+
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:mobile/core/completion_status.dart';
@@ -475,6 +478,223 @@ void main() {
         expect(tokens.last.completionStatus, CompletionStatus.skipped);
       },
     );
+
+    testWidgets(
+      'flow observed completion pulses the card and requests medium haptic',
+      (tester) async {
+        await _setPhoneViewport(tester);
+
+        final recordedStatuses = <CompletionStatus>[];
+
+        await tester.pumpWidget(
+          _DayViewHarness(
+            notes: [
+              _timedNote(
+                clientEventId: 'cid-ritual-observed',
+                title: 'Ritual Observed',
+                startHour: 10,
+                startMinute: 0,
+                endHour: 11,
+                endMinute: 0,
+                flowId: 1,
+              ),
+            ],
+            onRecordCompletion:
+                ({
+                  required String clientEventId,
+                  required int flowId,
+                  required DateTime completedOnDate,
+                  Map<String, dynamic>? metadata,
+                }) async {
+                  recordedStatuses.add(
+                    CompletionStatusX.fromWireName(
+                      metadata?['completion_status']?.toString() ??
+                          metadata?['status']?.toString(),
+                    ),
+                  );
+                },
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        await tester.tap(find.text('Ritual Observed'));
+        await tester.pumpAndSettle();
+
+        final hapticCalls = _capturePlatformHaptics(tester);
+        expect(_ritualPulseAlpha(tester), 0);
+
+        await tester.tap(find.text('Observed').last);
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 140));
+
+        expect(recordedStatuses, <CompletionStatus>[CompletionStatus.observed]);
+        expect(_ritualPulseAlpha(tester), greaterThan(0));
+        expect(
+          _hapticArguments(hapticCalls),
+          contains('HapticFeedbackType.mediumImpact'),
+        );
+
+        await tester.pumpAndSettle();
+        expect(_ritualPulseAlpha(tester), 0);
+      },
+    );
+
+    testWidgets(
+      'flow partly completion pulses weaker and requests light haptic',
+      (tester) async {
+        await _setPhoneViewport(tester);
+
+        final recordedStatuses = <CompletionStatus>[];
+
+        await tester.pumpWidget(
+          _DayViewHarness(
+            notes: [
+              _timedNote(
+                clientEventId: 'cid-ritual-partly',
+                title: 'Ritual Partly',
+                startHour: 10,
+                startMinute: 0,
+                endHour: 11,
+                endMinute: 0,
+                flowId: 1,
+              ),
+            ],
+            onRecordCompletion:
+                ({
+                  required String clientEventId,
+                  required int flowId,
+                  required DateTime completedOnDate,
+                  Map<String, dynamic>? metadata,
+                }) async {
+                  recordedStatuses.add(
+                    CompletionStatusX.fromWireName(
+                      metadata?['completion_status']?.toString() ??
+                          metadata?['status']?.toString(),
+                    ),
+                  );
+                },
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        await tester.tap(find.text('Ritual Partly'));
+        await tester.pumpAndSettle();
+
+        final hapticCalls = _capturePlatformHaptics(tester);
+
+        await tester.tap(find.text('Observed').last);
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 140));
+        final observedPulseAlpha = _ritualPulseAlpha(tester);
+
+        await tester.pumpAndSettle();
+        await tester.tap(find.text('Partly').last);
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 140));
+        final partialPulseAlpha = _ritualPulseAlpha(tester);
+
+        expect(recordedStatuses, <CompletionStatus>[
+          CompletionStatus.observed,
+          CompletionStatus.partial,
+        ]);
+        expect(partialPulseAlpha, greaterThan(0));
+        expect(partialPulseAlpha, lessThan(observedPulseAlpha));
+        expect(
+          _hapticArguments(hapticCalls),
+          contains('HapticFeedbackType.lightImpact'),
+        );
+      },
+    );
+
+    testWidgets('flow skipped completion does not pulse or request haptic', (
+      tester,
+    ) async {
+      await _setPhoneViewport(tester);
+
+      final appendedBadges = <String>[];
+      final recordedStatuses = <CompletionStatus>[];
+
+      await tester.pumpWidget(
+        _DayViewHarness(
+          notes: [
+            _timedNote(
+              clientEventId: 'cid-ritual-skipped',
+              title: 'Ritual Skipped',
+              startHour: 10,
+              startMinute: 0,
+              endHour: 11,
+              endMinute: 0,
+              flowId: 1,
+            ),
+          ],
+          onAppendToJournal: (text) async {
+            appendedBadges.add(text);
+          },
+          onRecordCompletion:
+              ({
+                required String clientEventId,
+                required int flowId,
+                required DateTime completedOnDate,
+                Map<String, dynamic>? metadata,
+              }) async {
+                recordedStatuses.add(
+                  CompletionStatusX.fromWireName(
+                    metadata?['completion_status']?.toString() ??
+                        metadata?['status']?.toString(),
+                  ),
+                );
+              },
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Ritual Skipped'));
+      await tester.pumpAndSettle();
+
+      final hapticCalls = _capturePlatformHaptics(tester);
+
+      await tester.tap(find.text('Skipped').last);
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 140));
+
+      expect(recordedStatuses, <CompletionStatus>[CompletionStatus.skipped]);
+      expect(appendedBadges, hasLength(1));
+      expect(_ritualPulseAlpha(tester), 0);
+      expect(_hapticArguments(hapticCalls), isEmpty);
+    });
+
+    testWidgets('restored flow completion state does not pulse the card', (
+      tester,
+    ) async {
+      await _setPhoneViewport(tester);
+
+      SharedPreferences.setMockInitialValues(<String, Object>{
+        'calendar_completion:local:cid:cid-ritual-restored': 'observed',
+      });
+
+      await tester.pumpWidget(
+        _DayViewHarness(
+          notes: [
+            _timedNote(
+              clientEventId: 'cid-ritual-restored',
+              title: 'Ritual Restored',
+              startHour: 10,
+              startMinute: 0,
+              endHour: 11,
+              endMinute: 0,
+              flowId: 1,
+            ),
+          ],
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Ritual Restored'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Observed'), findsWidgets);
+      expect(_ritualPulseAlpha(tester), 0);
+    });
 
     testWidgets(
       'flow event notification restoration opens the matching detail sheet',
@@ -1700,6 +1920,46 @@ double _detailSheetPageHeight(WidgetTester tester) {
     (widget) => widget is SizedBox && widget.child is PageView,
   );
   return tester.getSize(sizedBox).height;
+}
+
+List<MethodCall> _capturePlatformHaptics(WidgetTester tester) {
+  final calls = <MethodCall>[];
+  tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+    SystemChannels.platform,
+    (call) async {
+      if (call.method == 'HapticFeedback.vibrate') {
+        calls.add(call);
+      }
+      return null;
+    },
+  );
+  addTearDown(() {
+    tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+      SystemChannels.platform,
+      null,
+    );
+  });
+  return calls;
+}
+
+Iterable<Object?> _hapticArguments(List<MethodCall> calls) {
+  return calls.map((call) => call.arguments);
+}
+
+double _ritualPulseAlpha(WidgetTester tester) {
+  final containers = tester.widgetList<Container>(
+    find.byKey(
+      const ValueKey<String>('day-view-ritual-completion-feedback-card'),
+    ),
+  );
+  return containers.fold<double>(0, (maxAlpha, container) {
+    final decoration = container.decoration as BoxDecoration;
+    final shadows = decoration.boxShadow ?? const <BoxShadow>[];
+    if (shadows.length < 2) return maxAlpha;
+    final argb = shadows.last.color.toARGB32();
+    final alpha = ((argb >> 24) & 0xff) / 255;
+    return math.max(maxAlpha, alpha);
+  });
 }
 
 double _screenCenterX(WidgetTester tester) =>
