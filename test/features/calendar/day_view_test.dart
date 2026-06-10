@@ -480,7 +480,7 @@ void main() {
     );
 
     testWidgets(
-      'flow observed completion pulses the card and requests medium haptic',
+      'flow observed completion pulses the rim and requests medium haptic',
       (tester) async {
         await _setPhoneViewport(tester);
 
@@ -521,26 +521,34 @@ void main() {
         await tester.pumpAndSettle();
 
         final hapticCalls = _capturePlatformHaptics(tester);
-        expect(_ritualPulseAlpha(tester), 0);
+        final stableCardFill = _ritualCardFillColor(tester);
+        expect(stableCardFill, isNotNull);
+        expect(_ritualRimIntensity(tester), 0);
+        expect(_ritualPulsePaintsFill(tester), isFalse);
 
         await tester.tap(find.text('Observed').last);
         await tester.pump();
         await tester.pump(const Duration(milliseconds: 140));
 
         expect(recordedStatuses, <CompletionStatus>[CompletionStatus.observed]);
-        expect(_ritualPulseAlpha(tester), greaterThan(0));
+        expect(_ritualPulseMode(tester), 'observed');
+        expect(_ritualRimIntensity(tester), greaterThan(0));
+        expect(_ritualPulseFillAlpha(tester), 0);
+        expect(_ritualPulsePaintsFill(tester), isFalse);
+        expect(_ritualCardFillColor(tester), stableCardFill);
         expect(
           _hapticArguments(hapticCalls),
           contains('HapticFeedbackType.mediumImpact'),
         );
 
         await tester.pumpAndSettle();
-        expect(_ritualPulseAlpha(tester), 0);
+        expect(_ritualRimIntensity(tester), 0);
+        expect(_ritualCardFillColor(tester), stableCardFill);
       },
     );
 
     testWidgets(
-      'flow partly completion pulses weaker and requests light haptic',
+      'flow partly completion pulses the rim weaker and requests light haptic',
       (tester) async {
         await _setPhoneViewport(tester);
 
@@ -581,24 +589,34 @@ void main() {
         await tester.pumpAndSettle();
 
         final hapticCalls = _capturePlatformHaptics(tester);
+        final stableCardFill = _ritualCardFillColor(tester);
+        expect(stableCardFill, isNotNull);
 
         await tester.tap(find.text('Observed').last);
         await tester.pump();
         await tester.pump(const Duration(milliseconds: 140));
-        final observedPulseAlpha = _ritualPulseAlpha(tester);
+        final observedRimIntensity = _ritualRimIntensity(tester);
+        expect(_ritualPulseMode(tester), 'observed');
+        expect(_ritualPulseFillAlpha(tester), 0);
+        expect(_ritualPulsePaintsFill(tester), isFalse);
+        expect(_ritualCardFillColor(tester), stableCardFill);
 
         await tester.pumpAndSettle();
         await tester.tap(find.text('Partly').last);
         await tester.pump();
         await tester.pump(const Duration(milliseconds: 140));
-        final partialPulseAlpha = _ritualPulseAlpha(tester);
+        final partialRimIntensity = _ritualRimIntensity(tester);
 
         expect(recordedStatuses, <CompletionStatus>[
           CompletionStatus.observed,
           CompletionStatus.partial,
         ]);
-        expect(partialPulseAlpha, greaterThan(0));
-        expect(partialPulseAlpha, lessThan(observedPulseAlpha));
+        expect(_ritualPulseMode(tester), 'partial');
+        expect(partialRimIntensity, greaterThan(0));
+        expect(partialRimIntensity, lessThan(observedRimIntensity));
+        expect(_ritualPulseFillAlpha(tester), 0);
+        expect(_ritualPulsePaintsFill(tester), isFalse);
+        expect(_ritualCardFillColor(tester), stableCardFill);
         expect(
           _hapticArguments(hapticCalls),
           contains('HapticFeedbackType.lightImpact'),
@@ -659,7 +677,8 @@ void main() {
 
       expect(recordedStatuses, <CompletionStatus>[CompletionStatus.skipped]);
       expect(appendedBadges, hasLength(1));
-      expect(_ritualPulseAlpha(tester), 0);
+      expect(_ritualRimIntensity(tester), 0);
+      expect(_ritualPulsePaintsFill(tester), isFalse);
       expect(_hapticArguments(hapticCalls), isEmpty);
     });
 
@@ -693,7 +712,8 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('Observed'), findsWidgets);
-      expect(_ritualPulseAlpha(tester), 0);
+      expect(_ritualRimIntensity(tester), 0);
+      expect(_ritualPulsePaintsFill(tester), isFalse);
     });
 
     testWidgets(
@@ -1946,20 +1966,52 @@ Iterable<Object?> _hapticArguments(List<MethodCall> calls) {
   return calls.map((call) => call.arguments);
 }
 
-double _ritualPulseAlpha(WidgetTester tester) {
+Color? _ritualCardFillColor(WidgetTester tester) {
   final containers = tester.widgetList<Container>(
     find.byKey(
       const ValueKey<String>('day-view-ritual-completion-feedback-card'),
     ),
   );
-  return containers.fold<double>(0, (maxAlpha, container) {
-    final decoration = container.decoration as BoxDecoration;
-    final shadows = decoration.boxShadow ?? const <BoxShadow>[];
-    if (shadows.length < 2) return maxAlpha;
-    final argb = shadows.last.color.toARGB32();
-    final alpha = ((argb >> 24) & 0xff) / 255;
-    return math.max(maxAlpha, alpha);
+  if (containers.isEmpty) return null;
+  final container = containers.last;
+  final decoration = container.decoration;
+  if (decoration is! BoxDecoration) return null;
+  return decoration.color;
+}
+
+String _ritualPulseDiagnostics(WidgetTester tester) {
+  final painters = tester.widgetList<CustomPaint>(
+    find.byKey(
+      const ValueKey<String>('day-view-ritual-completion-feedback-rim'),
+    ),
+  );
+  return painters.map((paint) => paint.painter.toString()).join('\n');
+}
+
+double _ritualPulseDiagnosticDouble(WidgetTester tester, String field) {
+  final diagnostics = _ritualPulseDiagnostics(tester);
+  final matches = RegExp('$field: ([0-9.]+)').allMatches(diagnostics);
+  return matches.fold<double>(0, (maxValue, match) {
+    final value = double.tryParse(match.group(1) ?? '') ?? 0;
+    return math.max(maxValue, value);
   });
+}
+
+double _ritualRimIntensity(WidgetTester tester) {
+  return _ritualPulseDiagnosticDouble(tester, 'rimIntensity');
+}
+
+double _ritualPulseFillAlpha(WidgetTester tester) {
+  return _ritualPulseDiagnosticDouble(tester, 'fillAlpha');
+}
+
+bool _ritualPulsePaintsFill(WidgetTester tester) {
+  return _ritualPulseDiagnostics(tester).contains('paintsFill: true');
+}
+
+String? _ritualPulseMode(WidgetTester tester) {
+  final diagnostics = _ritualPulseDiagnostics(tester);
+  return RegExp('mode: ([a-z]+)').firstMatch(diagnostics)?.group(1);
 }
 
 double _screenCenterX(WidgetTester tester) =>

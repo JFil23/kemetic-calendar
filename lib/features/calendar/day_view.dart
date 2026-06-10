@@ -83,6 +83,9 @@ const String _kNewEventPreviewClientEventId = '__day_view_new_event_preview__';
 const ValueKey<String> _ritualCompletionFeedbackCardKey = ValueKey<String>(
   'day-view-ritual-completion-feedback-card',
 );
+const ValueKey<String> _ritualCompletionFeedbackRimKey = ValueKey<String>(
+  'day-view-ritual-completion-feedback-rim',
+);
 typedef DayViewRestorationCallback =
     void Function({
       required int kYear,
@@ -174,6 +177,118 @@ class _RitualCompletionFeedbackScope extends InheritedWidget {
   }
 }
 
+class _RitualCompletionRimPainter extends CustomPainter {
+  const _RitualCompletionRimPainter({
+    required this.level,
+    required this.intensity,
+    required this.progress,
+  });
+
+  final _RitualCompletionFeedbackLevel level;
+  final double intensity;
+  final double progress;
+
+  bool get _observed => level == _RitualCompletionFeedbackLevel.observed;
+
+  double get rimIntensity =>
+      (intensity.clamp(0.0, 1.0) * (_observed ? 1 : 0.5)).toDouble();
+
+  double get fillAlpha => 0;
+
+  double get gleamOpacity =>
+      ((_observed ? 0.34 : 0.14) * intensity.clamp(0.0, 1.0)).toDouble();
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final pulse = intensity.clamp(0.0, 1.0).toDouble();
+    if (pulse <= 0.001 || size.isEmpty) return;
+
+    final observed = _observed;
+    final strength = observed ? 1.0 : 0.5;
+    final rim = pulse * strength;
+    final rect = Offset.zero & size;
+    final rrect = RRect.fromRectAndRadius(
+      rect.deflate(1.5),
+      const Radius.circular(16.5),
+    );
+    final glowColor = _dayGold.withValues(
+      alpha: (observed ? 0.20 : 0.08) * pulse,
+    );
+    final glowPaint = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = observed ? 3.8 : 2.4
+      ..strokeJoin = StrokeJoin.round
+      ..color = glowColor
+      ..maskFilter = MaskFilter.blur(BlurStyle.normal, observed ? 5.5 : 3.0);
+    canvas.drawRRect(rrect, glowPaint);
+
+    final rimColor =
+        Color.lerp(
+          _dayGold,
+          const Color(0xFFFFF1BF),
+          observed ? rim * 0.55 : rim * 0.32,
+        ) ??
+        _dayGold;
+    final rimPaint = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.0 + (observed ? 0.75 : 0.32) * pulse
+      ..strokeJoin = StrokeJoin.round
+      ..color = rimColor.withValues(
+        alpha: (0.42 + (observed ? 0.34 : 0.15) * pulse).clamp(0.0, 0.82),
+      );
+    canvas.drawRRect(rrect, rimPaint);
+
+    final gleamAlpha = gleamOpacity;
+    if (gleamAlpha <= 0.001) return;
+
+    final gleamPath = Path();
+    final rimPath = Path()..addRRect(rrect.deflate(0.25));
+    final pathProgress = progress.clamp(0.0, 1.0).toDouble();
+    final span = observed ? 0.14 : 0.08;
+    final startFraction = 0.02 + pathProgress * (observed ? 0.58 : 0.42);
+    var hasGleam = false;
+    for (final metric in rimPath.computeMetrics()) {
+      final start = metric.length * startFraction;
+      final end = math.min(metric.length, start + metric.length * span);
+      if (end > start) {
+        gleamPath.addPath(metric.extractPath(start, end), Offset.zero);
+        hasGleam = true;
+      }
+    }
+
+    if (!hasGleam) return;
+    final gleamPaint = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = observed ? 2.2 : 1.35
+      ..strokeCap = StrokeCap.round
+      ..strokeJoin = StrokeJoin.round
+      ..color = const Color(0xFFFFF7D8).withValues(alpha: gleamAlpha);
+    canvas.drawPath(gleamPath, gleamPaint);
+  }
+
+  @override
+  bool shouldRepaint(covariant _RitualCompletionRimPainter oldDelegate) {
+    return oldDelegate.level != level ||
+        oldDelegate.intensity != intensity ||
+        oldDelegate.progress != progress;
+  }
+
+  @override
+  String toString() {
+    final mode = switch (level) {
+      _RitualCompletionFeedbackLevel.observed => 'observed',
+      _RitualCompletionFeedbackLevel.partial => 'partial',
+    };
+    return 'RitualCompletionRimPainter('
+        'mode: $mode, '
+        'rimIntensity: ${rimIntensity.toStringAsFixed(3)}, '
+        'gleamOpacity: ${gleamOpacity.toStringAsFixed(3)}, '
+        'fillAlpha: ${fillAlpha.toStringAsFixed(3)}, '
+        'paintsFill: false'
+        ')';
+  }
+}
+
 class _RitualCompletionFeedbackCard extends StatefulWidget {
   const _RitualCompletionFeedbackCard({
     required this.enabled,
@@ -240,50 +355,52 @@ class _RitualCompletionFeedbackCardState
     _pulseController.forward(from: 0);
   }
 
-  BoxDecoration _decorationFor(double pulse) {
-    final observed = _activeLevel == _RitualCompletionFeedbackLevel.observed;
-    final strength = observed ? 1.0 : 0.5;
-    final bloom = pulse * strength;
-    final borderAlpha = (0.4 + (observed ? 0.34 : 0.16) * pulse)
-        .clamp(0.0, 0.78)
-        .toDouble();
-    final pulseColor =
-        Color.lerp(_dayGold, const Color(0xFFFFE9AF), bloom * 0.44) ?? _dayGold;
-    final shadows = <BoxShadow>[
-      BoxShadow(
-        color: Colors.black.withValues(alpha: 0.45),
-        blurRadius: 18,
-        spreadRadius: 1,
-        offset: const Offset(0, 10),
-      ),
-      if (bloom > 0.001)
-        BoxShadow(
-          color: _dayGold.withValues(alpha: (observed ? 0.22 : 0.09) * pulse),
-          blurRadius: 20 + (observed ? 9 : 4) * pulse,
-          spreadRadius: (observed ? 0.8 : 0.35) * pulse,
-        ),
-    ];
-
+  BoxDecoration _baseDecoration() {
     return BoxDecoration(
       color: Colors.white.withValues(alpha: 0.04),
       borderRadius: BorderRadius.circular(18),
-      border: Border.all(color: pulseColor.withValues(alpha: borderAlpha)),
-      boxShadow: shadows,
+      border: Border.all(color: _dayGold.withValues(alpha: 0.4)),
+      boxShadow: [
+        BoxShadow(
+          color: Colors.black.withValues(alpha: 0.45),
+          blurRadius: 18,
+          spreadRadius: 1,
+          offset: const Offset(0, 10),
+        ),
+      ],
     );
   }
 
   @override
   Widget build(BuildContext context) {
-    final card = AnimatedBuilder(
-      animation: _pulse,
+    final baseCard = Container(
+      key: _ritualCompletionFeedbackCardKey,
+      width: double.infinity,
+      padding: const EdgeInsets.fromLTRB(18, 18, 18, 20),
+      decoration: _baseDecoration(),
       child: widget.child,
+    );
+    final card = AnimatedBuilder(
+      animation: _pulseController,
+      child: baseCard,
       builder: (context, child) {
-        return Container(
-          key: _ritualCompletionFeedbackCardKey,
-          width: double.infinity,
-          padding: const EdgeInsets.fromLTRB(18, 18, 18, 20),
-          decoration: _decorationFor(_pulse.value),
-          child: child,
+        return Stack(
+          clipBehavior: Clip.none,
+          children: [
+            child ?? const SizedBox.shrink(),
+            Positioned.fill(
+              child: IgnorePointer(
+                child: CustomPaint(
+                  key: _ritualCompletionFeedbackRimKey,
+                  painter: _RitualCompletionRimPainter(
+                    level: _activeLevel,
+                    intensity: widget.enabled ? _pulse.value : 0,
+                    progress: _pulseController.value,
+                  ),
+                ),
+              ),
+            ),
+          ],
         );
       },
     );
