@@ -163,6 +163,48 @@ void main() {
         expect(markerSource, isNot(contains(secretKey)));
       }
     });
+
+    test('push linked copy requires current device readiness', () {
+      final subtitleSource = _sourceBetween(
+        source,
+        'String _pushToggleSubtitle() {',
+        '\n  bool get _canSendPushSelfTest',
+      );
+
+      expect(subtitleSource, contains('diagnostics.currentDeviceReadyForPush'));
+      expect(
+        subtitleSource.indexOf('diagnostics.currentDeviceReadyForPush'),
+        lessThan(
+          subtitleSource.indexOf(
+            "'This device is linked for account-level push alerts.'",
+          ),
+        ),
+      );
+      expect(subtitleSource, contains('not currently ready for delivery'));
+    });
+
+    test('stale local push setting alone cannot enable self-test dispatch', () {
+      final canSendSource = _sourceBetween(
+        source,
+        'bool get _canSendPushSelfTest {',
+        '\n  String _pushStatusText() {',
+      );
+      final buttonSource = _sourceBetween(
+        source,
+        'child: OutlinedButton(',
+        'child: Text(\n                      _sendingPushTest',
+      );
+
+      expect(canSendSource, contains('_realTimeAlerts'));
+      expect(
+        canSendSource,
+        contains('_pushDiagnostics?.currentDeviceReadyForPush == true'),
+      );
+      expect(
+        buttonSource,
+        contains('onPressed: _canSendPushSelfTest ? _sendPushTest : null'),
+      );
+    });
   });
 }
 

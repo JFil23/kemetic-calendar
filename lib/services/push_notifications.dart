@@ -196,6 +196,9 @@ class PushRegistrationDiagnostics {
   String get tokenSummary => summarizePushToken(registeredToken);
   String get browserSubscriptionSummary =>
       summarizePushToken(browserSubscriptionToken);
+  bool get currentDeviceReadyForPush => pushDiagnosticsCurrentDeviceReady(this);
+  String? get currentDeviceReadinessIssue =>
+      pushDiagnosticsCurrentDeviceReadinessIssue(this);
 }
 
 @immutable
@@ -726,6 +729,11 @@ class PushNotifications {
                 ? 'This browser could not create and register a web push subscription. Check notification permission and installed-PWA status first.'
                 : 'This device could not create and register a push token. Check permission and Firebase config first.'),
       );
+    }
+    final diagnostics = await getDiagnostics();
+    final readinessIssue = diagnostics.currentDeviceReadinessIssue;
+    if (readinessIssue != null) {
+      return PushSelfTestResult(ok: false, message: readinessIssue);
     }
     final deviceId = await _deviceId();
 
@@ -1424,6 +1432,71 @@ String? extractWebPushEndpoint(String? token) {
     // Ignore malformed rows; callers treat null as "not a web push token".
   }
   return null;
+}
+
+@visibleForTesting
+bool pushDiagnosticsCurrentDeviceReady(
+  PushRegistrationDiagnostics diagnostics,
+) {
+  return pushDiagnosticsCurrentDeviceReadinessIssue(diagnostics) == null;
+}
+
+@visibleForTesting
+String? pushDiagnosticsCurrentDeviceReadinessIssue(
+  PushRegistrationDiagnostics diagnostics,
+) {
+  if (!diagnostics.hasSession) {
+    return 'Sign in before sending a test push.';
+  }
+  if (!diagnostics.firebaseReady) {
+    return diagnostics.platform == 'web_push'
+        ? 'Web push is not ready for this build. Refresh push after the app finishes loading.'
+        : 'Firebase push is not ready for this device build.';
+  }
+  if (!diagnostics.permissionGranted) {
+    return 'Notification permission is ${diagnostics.permissionStatus} for this device.';
+  }
+
+  if (diagnostics.platform == 'web_push') {
+    if (!diagnostics.browserSubscriptionPresent) {
+      return 'Web push is not ready on this device because the browser subscription is missing. Refresh push on this device to register this browser.';
+    }
+    if (!diagnostics.databaseRegistered ||
+        !_hasUsablePushToken(diagnostics.registeredToken)) {
+      return 'Web push is not ready on this device because no server token is saved for this browser. Refresh push on this device to relink it.';
+    }
+    if (!webPushServerTokenMatchesBrowserSubscription(
+      registeredToken: diagnostics.registeredToken,
+      browserSubscriptionToken: diagnostics.browserSubscriptionToken,
+    )) {
+      return 'Web push is not ready on this device because the saved server token does not match this browser subscription. Refresh push on this device to relink it.';
+    }
+    return null;
+  }
+
+  if (!diagnostics.databaseRegistered ||
+      !_hasUsablePushToken(diagnostics.registeredToken)) {
+    return 'This device does not have an active server push token. Refresh push on this device to relink it.';
+  }
+  return null;
+}
+
+@visibleForTesting
+bool webPushServerTokenMatchesBrowserSubscription({
+  required String? registeredToken,
+  required String? browserSubscriptionToken,
+}) {
+  final registeredEndpoint = extractWebPushEndpoint(registeredToken);
+  final browserEndpoint = extractWebPushEndpoint(browserSubscriptionToken);
+  return registeredEndpoint != null &&
+      registeredEndpoint.isNotEmpty &&
+      browserEndpoint != null &&
+      browserEndpoint.isNotEmpty &&
+      registeredEndpoint == browserEndpoint;
+}
+
+bool _hasUsablePushToken(String? token) {
+  return token?.trim().isNotEmpty == true;
 }
 
 DateTime? _tryParseTimestamp(String? raw) {

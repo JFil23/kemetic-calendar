@@ -114,6 +114,54 @@ void main() {
       expect(shouldAttemptWebPushAutoRecovery(null), isFalse);
     });
 
+    test('web readiness fails when browser subscription is missing', () {
+      final diagnostics = _diagnostics(
+        platform: 'web_push',
+        databaseRegistered: true,
+        registeredToken: _webSubscriptionJson('https://push.example/stale'),
+      );
+
+      expect(diagnostics.currentDeviceReadyForPush, isFalse);
+      expect(
+        diagnostics.currentDeviceReadinessIssue,
+        contains('browser subscription is missing'),
+      );
+    });
+
+    test('web readiness requires the server token to match the browser', () {
+      final token = _webSubscriptionJson('https://push.example/current');
+
+      expect(
+        _diagnostics(
+          platform: 'web_push',
+          databaseRegistered: true,
+          registeredToken: token,
+          browserSubscriptionToken: token,
+        ).currentDeviceReadyForPush,
+        isTrue,
+      );
+      expect(
+        _diagnostics(
+          platform: 'web_push',
+          databaseRegistered: true,
+          registeredToken: _webSubscriptionJson('https://push.example/stale'),
+          browserSubscriptionToken: token,
+        ).currentDeviceReadyForPush,
+        isFalse,
+      );
+    });
+
+    test('native readiness does not require a browser subscription', () {
+      final diagnostics = _diagnostics(
+        platform: 'ios',
+        databaseRegistered: true,
+        registeredToken: 'native-fcm-token',
+      );
+
+      expect(diagnostics.currentDeviceReadyForPush, isTrue);
+      expect(diagnostics.currentDeviceReadinessIssue, isNull);
+    });
+
     test('delivery receipt helpers read delivery keys and kinds', () {
       expect(
         pushDeliveryKeyFromData({'delivery_key': 'reminder:abc'}),
@@ -165,4 +213,33 @@ void main() {
       );
     });
   });
+}
+
+PushRegistrationDiagnostics _diagnostics({
+  required String platform,
+  bool hasSession = true,
+  bool firebaseReady = true,
+  bool permissionGranted = true,
+  String permissionStatus = 'granted',
+  bool databaseRegistered = false,
+  String? registeredToken,
+  String? browserSubscriptionToken,
+}) {
+  return PushRegistrationDiagnostics(
+    checkedAt: DateTime.utc(2026, 6, 10),
+    firebaseReady: firebaseReady,
+    permissionStatus: permissionStatus,
+    permissionGranted: permissionGranted,
+    platform: platform,
+    hasSession: hasSession,
+    databaseRegistered: databaseRegistered,
+    browserSubscriptionPresent:
+        browserSubscriptionToken != null && browserSubscriptionToken.isNotEmpty,
+    registeredToken: registeredToken,
+    browserSubscriptionToken: browserSubscriptionToken,
+  );
+}
+
+String _webSubscriptionJson(String endpoint) {
+  return '{"endpoint":"$endpoint","keys":{"p256dh":"a","auth":"b"}}';
 }

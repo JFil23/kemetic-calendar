@@ -1134,12 +1134,34 @@ class _SettingsPageState extends State<SettingsPage> {
       return 'Sign in first, then allow notifications for this device.';
     }
     if (_realTimeAlerts) {
-      return 'This device is linked for account-level push alerts.';
+      final diagnostics = _pushDiagnostics;
+      if (diagnostics == null) {
+        return 'Push alerts are on locally. Checking whether this device is ready for delivery.';
+      }
+      if (diagnostics.currentDeviceReadyForPush) {
+        return 'This device is linked for account-level push alerts.';
+      }
+      return diagnostics.currentDeviceReadinessIssue ??
+          'Push alerts are on locally, but this device is not currently ready for delivery.';
     }
     return 'Off by default. Turn this on only for devices that should receive push alerts.';
   }
 
+  bool get _canSendPushSelfTest {
+    return !_sendingPushTest &&
+        !_requestingPush &&
+        _hasSession &&
+        _realTimeAlerts &&
+        _pushDiagnostics?.currentDeviceReadyForPush == true;
+  }
+
   String _pushStatusText() {
+    final readinessIssue = _pushDiagnostics?.currentDeviceReadinessIssue;
+    if (_realTimeAlerts &&
+        readinessIssue != null &&
+        _pushStatus == 'Push alerts are enabled for this device.') {
+      return readinessIssue;
+    }
     if (_pushStatus != null) return _pushStatus!;
     if (_requestingPush) {
       return 'Requesting notification permission...';
@@ -1148,7 +1170,7 @@ class _SettingsPageState extends State<SettingsPage> {
       return 'Checking Firebase, permission, and device registration...';
     }
     if (_realTimeAlerts) {
-      return 'Push alerts are enabled for this device.';
+      return readinessIssue ?? 'Push alerts are enabled for this device.';
     }
     return _hasSession
         ? 'Push alerts are currently off on this device.'
@@ -1205,6 +1227,15 @@ class _SettingsPageState extends State<SettingsPage> {
     } else {
       lines.add(
         'Server registration: this device is not currently linked in push_tokens.',
+      );
+    }
+
+    if (_realTimeAlerts) {
+      final readinessIssue = diagnostics.currentDeviceReadinessIssue;
+      lines.add(
+        readinessIssue == null
+            ? 'Current device readiness: ready for push delivery.'
+            : 'Current device readiness: $readinessIssue',
       );
     }
 
@@ -1730,13 +1761,7 @@ class _SettingsPageState extends State<SettingsPage> {
                         borderRadius: BorderRadius.circular(16),
                       ),
                     ),
-                    onPressed:
-                        _sendingPushTest ||
-                            _requestingPush ||
-                            !_hasSession ||
-                            !_realTimeAlerts
-                        ? null
-                        : _sendPushTest,
+                    onPressed: _canSendPushSelfTest ? _sendPushTest : null,
                     child: Text(
                       _sendingPushTest
                           ? 'Sending test push...'
