@@ -788,6 +788,10 @@ class _FlowPostCommentsSheetState extends State<_FlowPostCommentsSheet> {
         data: {
           'type': type,
           'flow_post_id': widget.post.id,
+          'comment_id': created.id,
+          if (created.parentCommentId != null &&
+              created.parentCommentId!.isNotEmpty)
+            'parent_comment_id': created.parentCommentId!,
           'flow_name': widget.post.name,
         },
       );
@@ -856,6 +860,7 @@ class _FlowPostCommentsSheetState extends State<_FlowPostCommentsSheet> {
           data: {
             'type': 'flow_comment_like',
             'flow_post_id': widget.post.id,
+            'comment_id': comment.id,
             'flow_name': widget.post.name,
           },
         );
