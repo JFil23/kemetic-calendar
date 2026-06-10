@@ -25,27 +25,50 @@ String _legacyWorkerScopeUrl() {
   return Uri.base.resolve(_legacyWorkerScopeSegment).toString();
 }
 
+String _normalizedScopeUrl(String value) {
+  final uri = Uri.base.resolve(value);
+  var normalized = uri.removeFragment().replace(query: '').toString();
+  while (normalized.endsWith('/') && !normalized.endsWith('://')) {
+    final parsed = Uri.parse(normalized);
+    if (parsed.path == '/' || parsed.path.isEmpty) {
+      break;
+    }
+    normalized = normalized.substring(0, normalized.length - 1);
+  }
+  return normalized;
+}
+
+bool _isExactLegacyScope(String scope) {
+  final normalizedScope = _normalizedScopeUrl(scope);
+  final rootScope = _normalizedScopeUrl(_workerScopeUrl());
+  final legacyScope = _normalizedScopeUrl(_legacyWorkerScopeUrl());
+  return normalizedScope == legacyScope && normalizedScope != rootScope;
+}
+
 Future<void> _clearLegacyRegistration(
   web.ServiceWorkerContainer container,
 ) async {
-  final legacy = await container
-      .getRegistration(_legacyWorkerScopeUrl())
-      .toDart;
-  if (legacy == null) {
-    return;
-  }
+  final registrations = await container.getRegistrations().toDart;
 
-  try {
-    final subscription = await legacy.pushManager.getSubscription().toDart;
-    await subscription?.unsubscribe().toDart;
-  } catch (_) {
-    // Best effort only.
-  }
+  for (final registration in registrations.toDart) {
+    if (!_isExactLegacyScope(registration.scope)) {
+      continue;
+    }
 
-  try {
-    await legacy.unregister().toDart;
-  } catch (_) {
-    // Best effort only.
+    try {
+      final subscription = await registration.pushManager
+          .getSubscription()
+          .toDart;
+      await subscription?.unsubscribe().toDart;
+    } catch (_) {
+      // Best effort only.
+    }
+
+    try {
+      await registration.unregister().toDart;
+    } catch (_) {
+      // Best effort only.
+    }
   }
 }
 
@@ -120,7 +143,13 @@ Future<String?> subscribeBrowserPush(String publicKey) async {
 
   final container = web.window.navigator.serviceWorker;
   await _clearLegacyRegistration(container);
-  return _subscriptionToJson(subscription);
+  final verified = await registration.pushManager.getSubscription().toDart;
+  if (verified == null) {
+    throw StateError(
+      'Browser push subscription disappeared after legacy service worker cleanup.',
+    );
+  }
+  return _subscriptionToJson(verified);
 }
 
 Future<void> unsubscribeBrowserPush() async {
