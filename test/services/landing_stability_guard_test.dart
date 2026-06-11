@@ -52,10 +52,13 @@ void main() {
           'Widget _buildProfileLoadingShell()',
           'Widget _buildNoProfile()',
         );
-        final backdrop = _sourceBetween(
+        final backdropSource = await File(
+          'lib/features/profile/profile_backdrop_timeline.dart',
+        ).readAsString();
+
+        expect(
           source,
-          'class _ProfileBackdropState',
-          'class _ProfileBackdropPainter',
+          contains('const Positioned.fill(child: ProfileDayCycleBackdrop())'),
         );
 
         expect(buildMethod, contains('final loadingProfileShell ='));
@@ -79,8 +82,14 @@ void main() {
         expect(loadingShell, contains('final heroHeight ='));
         expect(loadingShell, contains('_profileSkeletonTile'));
         expect(
-          backdrop,
-          contains('const CustomPaint(painter: _ProfileBackdropPainter())'),
+          backdropSource,
+          contains('profileBackdropNeutralPlaceholderKey'),
+        );
+        expect(source, isNot(contains('_ProfileBackdropPainter')));
+        expect(source, isNot(contains('_paintPyramid')));
+        expect(
+          source,
+          isNot(contains('CustomPaint(painter: _ProfileBackdropPainter())')),
         );
       },
     );

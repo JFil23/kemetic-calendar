@@ -4,6 +4,19 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 
 const String profileBackdropAssetDirectory = 'assets/profile/day_cycle_alt_2';
+const Key profileBackdropNeutralPlaceholderKey = ValueKey<String>(
+  'profile-backdrop-neutral-placeholder',
+);
+const Key profileBackdropResolvedImagesKey = ValueKey<String>(
+  'profile-backdrop-resolved-images',
+);
+
+typedef ProfileBackdropImageProviderFactory =
+    ImageProvider<Object> Function(
+      BuildContext context,
+      String assetPath,
+      int? targetWidth,
+    );
 
 class ProfileBackdropFrame {
   final String assetPath;
@@ -122,10 +135,14 @@ class ProfileDayCycleBackdrop extends StatefulWidget {
     super.key,
     this.opacity = 0.9,
     this.alignment = const Alignment(-0.08, -1.0),
+    this.clock,
+    this.imageProviderFactory,
   });
 
   final double opacity;
   final Alignment alignment;
+  final DateTime Function()? clock;
+  final ProfileBackdropImageProviderFactory? imageProviderFactory;
 
   @override
   State<ProfileDayCycleBackdrop> createState() =>
@@ -136,13 +153,15 @@ class _ProfileDayCycleBackdropState extends State<ProfileDayCycleBackdrop>
     with WidgetsBindingObserver {
   static const int _backdropSourceWidth = 2730;
 
-  final Set<String> _precachedAssets = <String>{};
+  final Set<String> _primingAssets = <String>{};
+  final Set<String> _readyAssets = <String>{};
   Timer? _tickTimer;
-  DateTime _visibleNow = profileBackdropPhoneLocalNow();
+  late DateTime _visibleNow;
 
   @override
   void initState() {
     super.initState();
+    _visibleNow = _currentLocalNow();
     WidgetsBinding.instance.addObserver(this);
     _scheduleNextTick();
   }
@@ -151,6 +170,16 @@ class _ProfileDayCycleBackdropState extends State<ProfileDayCycleBackdrop>
   void didChangeDependencies() {
     super.didChangeDependencies();
     _primeAssets(ProfileBackdropBlend.forTime(_visibleNow));
+  }
+
+  @override
+  void didUpdateWidget(ProfileDayCycleBackdrop oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.clock != widget.clock) {
+      _visibleNow = _currentLocalNow();
+      _primeAssets(ProfileBackdropBlend.forTime(_visibleNow));
+      _scheduleNextTick();
+    }
   }
 
   @override
@@ -166,19 +195,44 @@ class _ProfileDayCycleBackdropState extends State<ProfileDayCycleBackdrop>
     _refreshVisibleTime();
   }
 
-  void _primeAssets(ProfileBackdropBlend blend) {
-    final assetsToPrime = <String>[
-      for (final assetPath in {blend.current.assetPath, blend.next.assetPath})
-        if (_precachedAssets.add(assetPath)) assetPath,
-    ];
-    if (assetsToPrime.isEmpty) return;
+  DateTime _currentLocalNow() => profileBackdropPhoneLocalNow(widget.clock);
 
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted) return;
-      for (final assetPath in assetsToPrime) {
-        unawaited(precacheImage(_backdropImageProvider(assetPath), context));
+  List<String> _assetsToPrime(ProfileBackdropBlend blend) => <String>[
+    blend.current.assetPath,
+    blend.next.assetPath,
+  ];
+
+  List<String> _visibleAssetPaths(ProfileBackdropBlend blend) => <String>[
+    blend.current.assetPath,
+    if (blend.t > 0.001) blend.next.assetPath,
+  ];
+
+  bool _visibleAssetsReady(ProfileBackdropBlend blend) {
+    return _visibleAssetPaths(blend).every(_readyAssets.contains);
+  }
+
+  void _primeAssets(ProfileBackdropBlend blend) {
+    for (final assetPath in _assetsToPrime(blend)) {
+      if (_readyAssets.contains(assetPath) || !_primingAssets.add(assetPath)) {
+        continue;
       }
-    });
+      unawaited(
+        precacheImage(_backdropImageProvider(assetPath), context)
+            .then((_) {
+              if (!mounted) return;
+              setState(() {
+                _readyAssets.add(assetPath);
+                _primingAssets.remove(assetPath);
+              });
+            })
+            .catchError((Object _) {
+              if (!mounted) return;
+              setState(() {
+                _primingAssets.remove(assetPath);
+              });
+            }),
+      );
+    }
   }
 
   ImageProvider<Object> _backdropImageProvider(String assetPath) {
@@ -189,11 +243,15 @@ class _ProfileDayCycleBackdropState extends State<ProfileDayCycleBackdrop>
       _backdropSourceWidth,
       math.max(1, (logicalWidth * devicePixelRatio).round()),
     );
+    final imageProviderFactory = widget.imageProviderFactory;
+    if (imageProviderFactory != null) {
+      return imageProviderFactory(context, assetPath, targetWidth);
+    }
     return ResizeImage.resizeIfNeeded(targetWidth, null, AssetImage(assetPath));
   }
 
   void _refreshVisibleTime() {
-    final now = profileBackdropPhoneLocalNow();
+    final now = _currentLocalNow();
     _primeAssets(ProfileBackdropBlend.forTime(now));
     setState(() {
       _visibleNow = now;
@@ -203,7 +261,7 @@ class _ProfileDayCycleBackdropState extends State<ProfileDayCycleBackdrop>
 
   void _scheduleNextTick() {
     _tickTimer?.cancel();
-    final now = profileBackdropPhoneLocalNow();
+    final now = _currentLocalNow();
     _tickTimer = Timer(profileBackdropDelayUntilNextBlendTick(now), () {
       if (!mounted) return;
       _refreshVisibleTime();
@@ -227,22 +285,33 @@ class _ProfileDayCycleBackdropState extends State<ProfileDayCycleBackdrop>
     final blend = ProfileBackdropBlend.forTime(_visibleNow);
     final nextOpacity = blend.t;
     _primeAssets(blend);
+    final showImages = _visibleAssetsReady(blend);
 
     return RepaintBoundary(
       child: SizedBox.expand(
-        child: Opacity(
-          opacity: widget.opacity,
-          child: Stack(
-            fit: StackFit.expand,
-            children: [
-              _buildBackdropImage(blend.current.assetPath),
-              if (nextOpacity > 0.001)
-                Opacity(
-                  opacity: nextOpacity,
-                  child: _buildBackdropImage(blend.next.assetPath),
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            const _ProfileBackdropFallback(
+              key: profileBackdropNeutralPlaceholderKey,
+            ),
+            if (showImages)
+              Opacity(
+                key: profileBackdropResolvedImagesKey,
+                opacity: widget.opacity,
+                child: Stack(
+                  fit: StackFit.expand,
+                  children: [
+                    _buildBackdropImage(blend.current.assetPath),
+                    if (nextOpacity > 0.001)
+                      Opacity(
+                        opacity: nextOpacity,
+                        child: _buildBackdropImage(blend.next.assetPath),
+                      ),
+                  ],
                 ),
-            ],
-          ),
+              ),
+          ],
         ),
       ),
     );
@@ -250,7 +319,7 @@ class _ProfileDayCycleBackdropState extends State<ProfileDayCycleBackdrop>
 }
 
 class _ProfileBackdropFallback extends StatelessWidget {
-  const _ProfileBackdropFallback();
+  const _ProfileBackdropFallback({super.key});
 
   @override
   Widget build(BuildContext context) {
