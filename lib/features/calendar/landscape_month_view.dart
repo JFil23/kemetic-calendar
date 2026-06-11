@@ -640,6 +640,15 @@ class LandscapeMonthView extends StatelessWidget {
   final Future<void> Function(EventItem evt)? onShareNote;
   final Future<void> Function(String text)? onAppendToJournal;
   final Future<void> Function(int flowId)? onSaveFlow;
+  final Future<void> Function({
+    required String clientEventId,
+    required int flowId,
+    required DateTime completedOnDate,
+    Map<String, dynamic>? metadata,
+  })?
+  onRecordCompletion;
+  final Future<void> Function(String clientEventId)? onUnrecordCompletion;
+  final Future<void> Function(String badgeId)? onRemoveCompletionBadge;
   final EventDetailRestorationState? initialEventDetailRestorationState;
   final ValueChanged<EventDetailRestorationState?>?
   onEventDetailRestorationChanged;
@@ -672,6 +681,9 @@ class LandscapeMonthView extends StatelessWidget {
     this.onShareNote,
     this.onAppendToJournal,
     this.onSaveFlow,
+    this.onRecordCompletion,
+    this.onUnrecordCompletion,
+    this.onRemoveCompletionBadge,
     this.initialEventDetailRestorationState,
     this.onEventDetailRestorationChanged,
     this.shouldPreserveEventDetailRestorationOnClose,
@@ -705,6 +717,9 @@ class LandscapeMonthView extends StatelessWidget {
       onShareNote: onShareNote,
       onAppendToJournal: onAppendToJournal,
       onSaveFlow: onSaveFlow,
+      onRecordCompletion: onRecordCompletion,
+      onUnrecordCompletion: onUnrecordCompletion,
+      onRemoveCompletionBadge: onRemoveCompletionBadge,
       initialEventDetailRestorationState: initialEventDetailRestorationState,
       onEventDetailRestorationChanged: onEventDetailRestorationChanged,
       shouldPreserveEventDetailRestorationOnClose:
@@ -753,6 +768,15 @@ class LandscapeMonthPager extends StatefulWidget {
   final Future<void> Function(EventItem evt)? onShareNote;
   final Future<void> Function(String text)? onAppendToJournal;
   final Future<void> Function(int flowId)? onSaveFlow;
+  final Future<void> Function({
+    required String clientEventId,
+    required int flowId,
+    required DateTime completedOnDate,
+    Map<String, dynamic>? metadata,
+  })?
+  onRecordCompletion;
+  final Future<void> Function(String clientEventId)? onUnrecordCompletion;
+  final Future<void> Function(String badgeId)? onRemoveCompletionBadge;
   final EventDetailRestorationState? initialEventDetailRestorationState;
   final ValueChanged<EventDetailRestorationState?>?
   onEventDetailRestorationChanged;
@@ -785,6 +809,9 @@ class LandscapeMonthPager extends StatefulWidget {
     this.onShareNote,
     this.onAppendToJournal,
     this.onSaveFlow,
+    this.onRecordCompletion,
+    this.onUnrecordCompletion,
+    this.onRemoveCompletionBadge,
     this.initialEventDetailRestorationState,
     this.onEventDetailRestorationChanged,
     this.shouldPreserveEventDetailRestorationOnClose,
@@ -1238,6 +1265,9 @@ class _LandscapeMonthPagerState extends State<LandscapeMonthPager> {
           onShareNote: widget.onShareNote,
           onAppendToJournal: widget.onAppendToJournal,
           onSaveFlow: widget.onSaveFlow,
+          onRecordCompletion: widget.onRecordCompletion,
+          onUnrecordCompletion: widget.onUnrecordCompletion,
+          onRemoveCompletionBadge: widget.onRemoveCompletionBadge,
           initialEventDetailRestorationState:
               widget.initialEventDetailRestorationState,
           onEventDetailRestorationChanged:
@@ -1286,6 +1316,15 @@ class LandscapeMonthGridBody extends StatefulWidget {
   final Future<void> Function(EventItem evt)? onShareNote;
   final Future<void> Function(String text)? onAppendToJournal;
   final Future<void> Function(int flowId)? onSaveFlow;
+  final Future<void> Function({
+    required String clientEventId,
+    required int flowId,
+    required DateTime completedOnDate,
+    Map<String, dynamic>? metadata,
+  })?
+  onRecordCompletion;
+  final Future<void> Function(String clientEventId)? onUnrecordCompletion;
+  final Future<void> Function(String badgeId)? onRemoveCompletionBadge;
   final EventDetailRestorationState? initialEventDetailRestorationState;
   final ValueChanged<EventDetailRestorationState?>?
   onEventDetailRestorationChanged;
@@ -1314,6 +1353,9 @@ class LandscapeMonthGridBody extends StatefulWidget {
     this.onShareNote,
     this.onAppendToJournal,
     this.onSaveFlow,
+    this.onRecordCompletion,
+    this.onUnrecordCompletion,
+    this.onRemoveCompletionBadge,
     this.initialEventDetailRestorationState,
     this.onEventDetailRestorationChanged,
     this.shouldPreserveEventDetailRestorationOnClose,
@@ -1961,6 +2003,9 @@ class _LandscapeMonthGridBodyState extends State<LandscapeMonthGridBody> {
     EventItem event,
     FlowData? flow,
   ) {
+    if (hasDayViewMaatFlowCompletionContext(event, flow)) {
+      return CompletionSourceType.maatFlow;
+    }
     if (event.isReminder) return CompletionSourceType.reminder;
     final category = event.category?.trim().toLowerCase() ?? '';
     if (category.contains('itinerary') || category.contains('travel')) {
@@ -1988,6 +2033,7 @@ class _LandscapeMonthGridBodyState extends State<LandscapeMonthGridBody> {
     DayViewSheetEventTarget target,
     CompletionStatus status, {
     required CompletionSourceType sourceType,
+    bool triggerHaptic = true,
   }) async {
     final cb = widget.onAppendToJournal;
     if (cb == null) return;
@@ -2006,7 +2052,28 @@ class _LandscapeMonthGridBodyState extends State<LandscapeMonthGridBody> {
       color: event.color,
       description: detail,
     );
-    await cb('$token ');
+    try {
+      await cb('$token ');
+      if (triggerHaptic) {
+        unawaited(AppHaptics.productiveAction());
+      }
+    } catch (_) {
+      // Keep completion persistence independent from journal badge sync errors.
+    }
+  }
+
+  Future<void> _removeCompletionContinuity(
+    DayViewSheetEventTarget target, {
+    required CompletionSourceType sourceType,
+  }) async {
+    final cb = widget.onRemoveCompletionBadge;
+    if (cb == null) return;
+    await cb(
+      calendarCompletionBadgeId(
+        identity: _completionIdentityForEvent(target.event),
+        sourceType: sourceType,
+      ),
+    );
   }
 
   CalendarReflectionContext _reflectionContextForTarget(
@@ -2095,32 +2162,59 @@ class _LandscapeMonthGridBodyState extends State<LandscapeMonthGridBody> {
     required CompletionSourceType sourceType,
     required FlowData? flow,
   }) async {
+    if (status == CompletionStatus.none) {
+      await _clearCalendarCompletion(target, sourceType: sourceType);
+      return;
+    }
     final clientEventId = target.event.clientEventId?.trim();
     final flowId = target.event.flowId;
     if (clientEventId == null || clientEventId.isEmpty || flowId == null) {
       return;
     }
-    if (status == CompletionStatus.none) {
-      await UserEventsRepo(
-        Supabase.instance.client,
-      ).unrecordEventCompletion(clientEventId);
-      return;
-    }
     final completedOnDate = DateUtils.dateOnly(
       KemeticMath.toGregorian(target.ky, target.km, target.kd),
     );
-    await UserEventsRepo(Supabase.instance.client).recordEventCompletion(
-      clientEventId: clientEventId,
-      flowId: flowId,
+    final metadata = calendarCompletionMetadata(
+      completionStatus: status,
+      sourceType: sourceType,
       completedOnDate: completedOnDate,
-      metadata: calendarCompletionMetadata(
-        completionStatus: status,
-        sourceType: sourceType,
-        completedOnDate: completedOnDate,
-        flowTitle: flow?.name,
-        eventTitle: target.event.title,
-      ),
+      flowTitle: flow?.name,
+      eventTitle: target.event.title,
     );
+    final callback = widget.onRecordCompletion;
+    if (callback != null) {
+      await callback(
+        clientEventId: clientEventId,
+        flowId: flowId,
+        completedOnDate: completedOnDate,
+        metadata: metadata,
+      );
+    } else {
+      await UserEventsRepo(Supabase.instance.client).recordEventCompletion(
+        clientEventId: clientEventId,
+        flowId: flowId,
+        completedOnDate: completedOnDate,
+        metadata: metadata,
+      );
+    }
+  }
+
+  Future<void> _clearCalendarCompletion(
+    DayViewSheetEventTarget target, {
+    required CompletionSourceType sourceType,
+  }) async {
+    final clientEventId = target.event.clientEventId?.trim();
+    if (clientEventId != null && clientEventId.isNotEmpty) {
+      final callback = widget.onUnrecordCompletion;
+      if (callback != null) {
+        await callback(clientEventId);
+      } else {
+        await UserEventsRepo(
+          Supabase.instance.client,
+        ).unrecordEventCompletion(clientEventId);
+      }
+    }
+    await _removeCompletionContinuity(target, sourceType: sourceType);
   }
 
   bool _eventsShareStableIdentity(EventItem a, EventItem b) {
@@ -2703,6 +2797,7 @@ class _LandscapeMonthGridBodyState extends State<LandscapeMonthGridBody> {
   Widget _buildEventDetailSheetPage({
     required DayViewSheetEventTarget target,
     bool scrollable = true,
+    Object? completionReloadSignal,
   }) {
     final currentEvent = target.event;
     final flow = _chromeFlowForId(currentEvent.flowId);
@@ -2714,6 +2809,8 @@ class _LandscapeMonthGridBodyState extends State<LandscapeMonthGridBody> {
         ? _landscapeTrackSkySpecForEvent(currentEvent)
         : null;
     final sourceType = _completionSourceTypeForEvent(currentEvent, flow);
+    final enableRitualCompletionFeedback =
+        currentEvent.flowId != null && !isNutrition;
 
     Widget? metaChip;
     if (flow != null) {
@@ -2814,11 +2911,7 @@ class _LandscapeMonthGridBodyState extends State<LandscapeMonthGridBody> {
             const Icon(Icons.access_time, size: 16, color: Color(0xFF808080)),
             const SizedBox(width: 8),
             Text(
-              _formatTimeRange(
-                currentEvent.startMin,
-                currentEvent.endMin,
-                allDay: currentEvent.allDay,
-              ),
+              _formatTimeRange(currentEvent.startMin, currentEvent.endMin),
               style: const TextStyle(color: Color(0xFF808080)),
             ),
           ],
@@ -2859,46 +2952,73 @@ class _LandscapeMonthGridBodyState extends State<LandscapeMonthGridBody> {
           ),
         ],
         const SizedBox(height: 16),
-        CalendarEventCompletionPanel(
-          identity: _completionIdentityForEvent(currentEvent),
-          sourceType: sourceType,
-          loadStatus: currentEvent.flowId == null
-              ? null
-              : () => _loadCalendarCompletionStatus(target),
-          onRecordStatus: (status) => _recordCalendarCompletion(
-            target,
-            status,
-            sourceType: sourceType,
-            flow: flow,
-          ),
-          onCreateContinuity: (status) => _appendCompletionContinuity(
-            target,
-            status,
-            sourceType: sourceType,
-          ),
-          onReflect: null,
+        Builder(
+          builder: (feedbackContext) {
+            final maatPanel = buildDayViewMaatFlowCompletionPanel(
+              event: currentEvent,
+              flow: flow,
+              identity: _completionIdentityForEvent(currentEvent),
+              ky: target.ky,
+              km: target.km,
+              kd: target.kd,
+              onRecordCompletion: widget.onRecordCompletion,
+              onUnrecordCompletion: widget.onUnrecordCompletion,
+              onRemoveCompletionBadge: widget.onRemoveCompletionBadge,
+              onCompletionContinuity: (status) => _appendCompletionContinuity(
+                target,
+                status,
+                sourceType: CompletionSourceType.maatFlow,
+                triggerHaptic: false,
+              ),
+              onUserCompletionFeedback: enableRitualCompletionFeedback
+                  ? (status) => playDayViewRitualCompletionFeedback(
+                      feedbackContext,
+                      status,
+                    )
+                  : null,
+              onAddReflection: null,
+              reloadSignal: completionReloadSignal,
+            );
+            if (maatPanel != null) return maatPanel;
+
+            return CalendarEventCompletionPanel(
+              identity: _completionIdentityForEvent(currentEvent),
+              sourceType: sourceType,
+              loadStatus: currentEvent.flowId == null
+                  ? null
+                  : () => _loadCalendarCompletionStatus(target),
+              onRecordStatus: (status) => _recordCalendarCompletion(
+                target,
+                status,
+                sourceType: sourceType,
+                flow: flow,
+              ),
+              onClearStatus: () =>
+                  _clearCalendarCompletion(target, sourceType: sourceType),
+              onCreateContinuity: (status) => _appendCompletionContinuity(
+                target,
+                status,
+                sourceType: sourceType,
+                triggerHaptic: !enableRitualCompletionFeedback,
+              ),
+              onUserCompletionFeedback: enableRitualCompletionFeedback
+                  ? (status) => playDayViewRitualCompletionFeedback(
+                      feedbackContext,
+                      status,
+                    )
+                  : null,
+              onReflect: null,
+              reloadSignal: completionReloadSignal,
+            );
+          },
         ),
       ],
     );
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      child: Container(
-        width: double.infinity,
-        padding: const EdgeInsets.fromLTRB(18, 18, 18, 20),
-        decoration: BoxDecoration(
-          color: Colors.white.withValues(alpha: 0.04),
-          borderRadius: BorderRadius.circular(18),
-          border: Border.all(color: _gold.withValues(alpha: 0.4)),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.45),
-              blurRadius: 18,
-              spreadRadius: 1,
-              offset: const Offset(0, 10),
-            ),
-          ],
-        ),
+      child: DayViewRitualCompletionFeedbackCard(
+        enabled: enableRitualCompletionFeedback,
         child: scrollable
             ? SingleChildScrollView(
                 physics: const BouncingScrollPhysics(),
@@ -3286,7 +3406,7 @@ class _LandscapeMonthGridBodyState extends State<LandscapeMonthGridBody> {
         builder: (sheetContext) {
           return ValueListenableBuilder<int>(
             valueListenable: sheetDataListenable,
-            builder: (context, _, _) {
+            builder: (context, dataRevision, _) {
               return ValueListenableBuilder<DayViewSheetEventTarget>(
                 valueListenable: currentTarget,
                 builder: (context, rawTarget, _) {
@@ -3332,6 +3452,7 @@ class _LandscapeMonthGridBodyState extends State<LandscapeMonthGridBody> {
                                         child: _buildEventDetailSheetPage(
                                           target: pageTarget,
                                           scrollable: false,
+                                          completionReloadSignal: dataRevision,
                                         ),
                                       ),
                                     ),
@@ -3381,6 +3502,8 @@ class _LandscapeMonthGridBodyState extends State<LandscapeMonthGridBody> {
                                         itemBuilder: (context, index) {
                                           return _buildEventDetailSheetPage(
                                             target: pages.pages[index],
+                                            completionReloadSignal:
+                                                dataRevision,
                                           );
                                         },
                                       ),
@@ -3617,8 +3740,7 @@ class _LandscapeMonthGridBodyState extends State<LandscapeMonthGridBody> {
     return spans;
   }
 
-  String _formatTimeRange(int startMin, int endMin, {bool allDay = false}) {
-    if (allDay) return 'All day';
+  String _formatTimeRange(int startMin, int endMin) {
     final startHour = startMin ~/ 60;
     final startMinute = startMin % 60;
     final endHour = endMin ~/ 60;

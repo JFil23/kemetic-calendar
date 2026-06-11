@@ -38,16 +38,124 @@ void main() {
       final monthGrid = File(
         'lib/features/calendar/calendar_grid_widgets.dart',
       ).readAsStringSync();
+      final landscape = File(
+        'lib/features/calendar/landscape_month_view.dart',
+      ).readAsStringSync();
 
       expect(dayView, contains('class _MaatFlowCompletionPanel'));
       expect(dayView, contains('CalendarCompletionPicker('));
       expect(dayView, contains('CalendarEventCompletionPanel('));
       expect(monthGrid, contains('CalendarEventCompletionPanel('));
+      expect(landscape, contains('CalendarEventCompletionPanel('));
 
       expect(dayView, contains('CompletionSourceType.maatFlow'));
       expect(dayView, contains('CompletionSourceType.userFlow'));
       expect(dayView, contains('CompletionSourceType.note'));
       expect(dayView, contains('CompletionSourceType.reminder'));
+    },
+  );
+
+  test(
+    'all event detail sheets share the Day View completion behavior contract',
+    () {
+      final sources = {
+        'day_view.dart': File(
+          'lib/features/calendar/day_view.dart',
+        ).readAsStringSync(),
+        'calendar_grid_widgets.dart': File(
+          'lib/features/calendar/calendar_grid_widgets.dart',
+        ).readAsStringSync(),
+        'landscape_month_view.dart': File(
+          'lib/features/calendar/landscape_month_view.dart',
+        ).readAsStringSync(),
+      };
+
+      for (final entry in sources.entries) {
+        final source = entry.value;
+        final firstPanel = source.indexOf('CalendarEventCompletionPanel(');
+        expect(firstPanel, isNonNegative, reason: entry.key);
+        final sheetStart = source.lastIndexOf(
+          'Widget _buildEventDetailSheetPage',
+          firstPanel,
+        );
+        final sheetEnd = source.indexOf(
+          'Widget _buildEventDetailTopActionRow',
+          firstPanel,
+        );
+        expect(sheetStart, isNonNegative, reason: entry.key);
+        expect(sheetEnd, isNonNegative, reason: entry.key);
+        final sheet = source.substring(sheetStart, sheetEnd);
+
+        expect(sheet, contains('onClearStatus:'), reason: entry.key);
+        expect(sheet, contains('_clearCalendarCompletion('), reason: entry.key);
+        expect(sheet, contains('onCreateContinuity:'), reason: entry.key);
+        expect(sheet, contains('triggerHaptic:'), reason: entry.key);
+        expect(sheet, contains('onUserCompletionFeedback:'), reason: entry.key);
+        expect(
+          sheet,
+          contains('playDayViewRitualCompletionFeedback('),
+          reason: entry.key,
+        );
+        expect(sheet, contains('reloadSignal:'), reason: entry.key);
+        expect(
+          sheet,
+          contains('DayViewRitualCompletionFeedbackCard('),
+          reason: entry.key,
+        );
+      }
+
+      for (final entry in sources.entries.where(
+        (entry) => entry.key != 'day_view.dart',
+      )) {
+        expect(
+          entry.value,
+          contains('buildDayViewMaatFlowCompletionPanel('),
+          reason: entry.key,
+        );
+        expect(
+          entry.value,
+          contains('hasDayViewMaatFlowCompletionContext(event, flow)'),
+          reason: entry.key,
+        );
+      }
+    },
+  );
+
+  test(
+    'month and landscape detail sheets wire clear persistence and badge removal',
+    () {
+      final sources = {
+        'calendar_page.dart': File(
+          'lib/features/calendar/calendar_page.dart',
+        ).readAsStringSync(),
+        'calendar_grid_widgets.dart': File(
+          'lib/features/calendar/calendar_grid_widgets.dart',
+        ).readAsStringSync(),
+        'landscape_month_view.dart': File(
+          'lib/features/calendar/landscape_month_view.dart',
+        ).readAsStringSync(),
+      };
+
+      expect(
+        sources['calendar_page.dart']!,
+        contains('onUnrecordCompletion: _unrecordEventCompletion'),
+      );
+      expect(
+        sources['calendar_page.dart']!,
+        contains('await _journalController.removeBadge(badgeId);'),
+      );
+      expect(
+        sources['calendar_grid_widgets.dart']!,
+        contains('onUnrecordCompletion: state?._unrecordEventCompletion'),
+      );
+      for (final entry in sources.entries.where(
+        (entry) => entry.key != 'calendar_page.dart',
+      )) {
+        expect(entry.value, contains('_removeCompletionContinuity('));
+        expect(entry.value, contains('widget.onRemoveCompletionBadge'));
+        expect(entry.value, contains('calendarCompletionBadgeId('));
+        expect(entry.value, contains('await _removeCompletionContinuity('));
+      }
     },
   );
 

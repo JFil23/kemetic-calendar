@@ -138,6 +138,13 @@ void _playRitualCompletionFeedback(
   _RitualCompletionFeedbackScope.maybeControllerOf(context)?.play(level);
 }
 
+void playDayViewRitualCompletionFeedback(
+  BuildContext context,
+  CompletionStatus status,
+) {
+  _playRitualCompletionFeedback(context, status);
+}
+
 class _RitualCompletionFeedbackController extends ChangeNotifier {
   _RitualCompletionFeedbackController({required this.triggerHaptic});
 
@@ -410,6 +417,22 @@ class _RitualCompletionFeedbackCardState
       controller: _feedbackController,
       child: card,
     );
+  }
+}
+
+class DayViewRitualCompletionFeedbackCard extends StatelessWidget {
+  const DayViewRitualCompletionFeedbackCard({
+    super.key,
+    required this.enabled,
+    required this.child,
+  });
+
+  final bool enabled;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    return _RitualCompletionFeedbackCard(enabled: enabled, child: child);
   }
 }
 
@@ -979,6 +1002,56 @@ _MaatFlowCompletionContext? _maatFlowCompletionContextForEvent(
   }
 
   return null;
+}
+
+bool hasDayViewMaatFlowCompletionContext(EventItem event, FlowData? flow) {
+  return _maatFlowCompletionContextForEvent(event, flow) != null;
+}
+
+Widget? buildDayViewMaatFlowCompletionPanel({
+  required EventItem event,
+  required FlowData? flow,
+  required String identity,
+  required int ky,
+  required int km,
+  required int kd,
+  Future<void> Function({
+    required String clientEventId,
+    required int flowId,
+    required DateTime completedOnDate,
+    Map<String, dynamic>? metadata,
+  })?
+  onRecordCompletion,
+  Future<void> Function(String clientEventId)? onUnrecordCompletion,
+  Future<void> Function(String badgeId)? onRemoveCompletionBadge,
+  Future<void> Function(CompletionStatus status)? onCompletionContinuity,
+  ValueChanged<CompletionStatus>? onUserCompletionFeedback,
+  VoidCallback? onAddReflection,
+  Key? observedButtonKey,
+  Object? reloadSignal,
+}) {
+  final completion = _maatFlowCompletionContextForEvent(event, flow);
+  if (completion == null ||
+      event.clientEventId?.trim().isNotEmpty != true ||
+      event.flowId == null) {
+    return null;
+  }
+  return _MaatFlowCompletionPanel(
+    event: event,
+    identity: identity,
+    completion: completion,
+    ky: ky,
+    km: km,
+    kd: kd,
+    onRecordCompletion: onRecordCompletion,
+    onUnrecordCompletion: onUnrecordCompletion,
+    onRemoveCompletionBadge: onRemoveCompletionBadge,
+    onCompletionContinuity: onCompletionContinuity,
+    onUserCompletionFeedback: onUserCompletionFeedback,
+    onAddReflection: onAddReflection,
+    observedButtonKey: observedButtonKey,
+    reloadSignal: reloadSignal,
+  );
 }
 
 const Gradient _dawnHouseRiteFlowGloss = LinearGradient(
@@ -6565,8 +6638,10 @@ class _DayViewGridState extends State<DayViewGrid> {
                 triggerHaptic: false,
               ),
               onUserCompletionFeedback: enableRitualCompletionFeedback
-                  ? (status) =>
-                        _playRitualCompletionFeedback(feedbackContext, status)
+                  ? (status) => playDayViewRitualCompletionFeedback(
+                      feedbackContext,
+                      status,
+                    )
                   : null,
               onAddReflection: null,
               reloadSignal: completionReloadSignal,
@@ -6619,8 +6694,10 @@ class _DayViewGridState extends State<DayViewGrid> {
                 triggerHaptic: !enableRitualCompletionFeedback,
               ),
               onUserCompletionFeedback: enableRitualCompletionFeedback
-                  ? (status) =>
-                        _playRitualCompletionFeedback(feedbackContext, status)
+                  ? (status) => playDayViewRitualCompletionFeedback(
+                      feedbackContext,
+                      status,
+                    )
                   : null,
               onReflect: null,
               reloadSignal: completionReloadSignal,
@@ -6636,7 +6713,7 @@ class _DayViewGridState extends State<DayViewGrid> {
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      child: _RitualCompletionFeedbackCard(
+      child: DayViewRitualCompletionFeedbackCard(
         enabled: enableRitualCompletionFeedback,
         child: scrollable
             ? SingleChildScrollView(

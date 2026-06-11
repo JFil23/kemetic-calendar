@@ -1779,6 +1779,7 @@ class _DayChip extends StatelessWidget {
       category: note.category,
       isReminder: note.isReminder,
       reminderId: note.reminderId,
+      behaviorPayload: note.behaviorPayload,
     );
   }
 
@@ -1830,7 +1831,15 @@ class _DayChip extends StatelessWidget {
           onShareReminder: onShareReminder,
           onEndFlow: onEndFlow,
           onAppendToJournal: onAppendToJournal,
+          dataVersion: state?._dayViewDataVersion,
           onRecordCompletion: state?._recordEventCompletion,
+          onUnrecordCompletion: state?._unrecordEventCompletion,
+          onRemoveCompletionBadge: (badgeId) async {
+            final currentState = CalendarPage.globalKey.currentState;
+            if (currentState?._journalInitialized == true) {
+              await currentState!._journalController.removeBadge(badgeId);
+            }
+          },
         ),
       ).whenComplete(releaseSheet);
     } catch (_) {
@@ -1858,7 +1867,10 @@ class _MainCalendarEventDetailSheet extends StatefulWidget {
     this.onShareReminder,
     this.onEndFlow,
     this.onAppendToJournal,
+    this.dataVersion,
     this.onRecordCompletion,
+    this.onUnrecordCompletion,
+    this.onRemoveCompletionBadge,
   });
 
   final BuildContext hostContext;
@@ -1887,6 +1899,7 @@ class _MainCalendarEventDetailSheet extends StatefulWidget {
   final Future<void> Function(EventItem event)? onShareReminder;
   final void Function(int flowId)? onEndFlow;
   final Future<void> Function(String text)? onAppendToJournal;
+  final ValueListenable<int>? dataVersion;
   final Future<void> Function({
     required String clientEventId,
     required int flowId,
@@ -1894,6 +1907,8 @@ class _MainCalendarEventDetailSheet extends StatefulWidget {
     Map<String, dynamic>? metadata,
   })?
   onRecordCompletion;
+  final Future<void> Function(String clientEventId)? onUnrecordCompletion;
+  final Future<void> Function(String badgeId)? onRemoveCompletionBadge;
 
   @override
   State<_MainCalendarEventDetailSheet> createState() =>
@@ -2053,8 +2068,7 @@ class _MainCalendarEventDetailSheetState
     return normalizeTrackSkyDetailText(_stripCidLines(detail).trim());
   }
 
-  String _formatTimeRange(int startMin, int endMin, {bool allDay = false}) {
-    if (allDay) return 'All day';
+  String _formatTimeRange(int startMin, int endMin) {
     final startHour = startMin ~/ 60;
     final startMinute = startMin % 60;
     final endHour = endMin ~/ 60;
@@ -2109,12 +2123,7 @@ class _MainCalendarEventDetailSheetState
     EventItem event,
     FlowData? flow,
   ) {
-    if (resolveMaatFlowKind(
-          behaviorPayload: event.behaviorPayload,
-          flowName: flow?.name,
-          flowNotes: flow?.notes,
-        ) !=
-        null) {
+    if (hasDayViewMaatFlowCompletionContext(event, flow)) {
       return CompletionSourceType.maatFlow;
     }
     if (event.isReminder) return CompletionSourceType.reminder;
@@ -2144,6 +2153,7 @@ class _MainCalendarEventDetailSheetState
     DayViewSheetEventTarget target,
     CompletionStatus status, {
     required CompletionSourceType sourceType,
+    bool triggerHaptic = true,
   }) async {
     final cb = widget.onAppendToJournal;
     if (cb == null) return;
@@ -2171,7 +2181,28 @@ class _MainCalendarEventDetailSheetState
       color: event.color,
       description: detail,
     );
-    await cb('$token ');
+    try {
+      await cb('$token ');
+      if (triggerHaptic) {
+        unawaited(AppHaptics.productiveAction());
+      }
+    } catch (_) {
+      // Keep completion persistence independent from journal badge sync errors.
+    }
+  }
+
+  Future<void> _removeCompletionContinuity(
+    DayViewSheetEventTarget target, {
+    required CompletionSourceType sourceType,
+  }) async {
+    final cb = widget.onRemoveCompletionBadge;
+    if (cb == null) return;
+    await cb(
+      calendarCompletionBadgeId(
+        identity: _completionIdentityForEvent(target.event),
+        sourceType: sourceType,
+      ),
+    );
   }
 
   CalendarReflectionContext _reflectionContextForTarget(
@@ -2260,15 +2291,13 @@ class _MainCalendarEventDetailSheetState
     required CompletionSourceType sourceType,
     required FlowData? flow,
   }) async {
+    if (status == CompletionStatus.none) {
+      await _clearCalendarCompletion(target, sourceType: sourceType);
+      return;
+    }
     final clientEventId = target.event.clientEventId?.trim();
     final flowId = target.event.flowId;
     if (clientEventId == null || clientEventId.isEmpty || flowId == null) {
-      return;
-    }
-    if (status == CompletionStatus.none) {
-      await UserEventsRepo(
-        Supabase.instance.client,
-      ).unrecordEventCompletion(clientEventId);
       return;
     }
     final completedOnDate = DateUtils.dateOnly(
@@ -2299,9 +2328,28 @@ class _MainCalendarEventDetailSheetState
     }
   }
 
+  Future<void> _clearCalendarCompletion(
+    DayViewSheetEventTarget target, {
+    required CompletionSourceType sourceType,
+  }) async {
+    final clientEventId = target.event.clientEventId?.trim();
+    if (clientEventId != null && clientEventId.isNotEmpty) {
+      final callback = widget.onUnrecordCompletion;
+      if (callback != null) {
+        await callback(clientEventId);
+      } else {
+        await UserEventsRepo(
+          Supabase.instance.client,
+        ).unrecordEventCompletion(clientEventId);
+      }
+    }
+    await _removeCompletionContinuity(target, sourceType: sourceType);
+  }
+
   Widget _buildEventDetailSheetPage({
     required DayViewSheetEventTarget target,
     bool scrollable = true,
+    Object? completionReloadSignal,
   }) {
     final currentEvent = target.event;
     final flow = widget.flowResolver?.call(currentEvent.flowId);
@@ -2320,6 +2368,8 @@ class _MainCalendarEventDetailSheetState
         ? _trackSkyBadgeSpecForTitle(currentEvent.title)
         : null;
     final sourceType = _completionSourceTypeForEvent(currentEvent, flow);
+    final enableRitualCompletionFeedback =
+        currentEvent.flowId != null && !isNutrition;
 
     Widget? metaChip;
     if (flow != null) {
@@ -2415,11 +2465,7 @@ class _MainCalendarEventDetailSheetState
             const Icon(Icons.access_time, size: 16, color: Color(0xFF808080)),
             const SizedBox(width: 8),
             Text(
-              _formatTimeRange(
-                currentEvent.startMin,
-                currentEvent.endMin,
-                allDay: currentEvent.allDay,
-              ),
+              _formatTimeRange(currentEvent.startMin, currentEvent.endMin),
               style: const TextStyle(color: Color(0xFF808080)),
             ),
           ],
@@ -2461,46 +2507,73 @@ class _MainCalendarEventDetailSheetState
           ),
         ],
         const SizedBox(height: 16),
-        CalendarEventCompletionPanel(
-          identity: _completionIdentityForEvent(currentEvent),
-          sourceType: sourceType,
-          loadStatus: currentEvent.flowId == null
-              ? null
-              : () => _loadCalendarCompletionStatus(target),
-          onRecordStatus: (status) => _recordCalendarCompletion(
-            target,
-            status,
-            sourceType: sourceType,
-            flow: flow,
-          ),
-          onCreateContinuity: (status) => _appendCompletionContinuity(
-            target,
-            status,
-            sourceType: sourceType,
-          ),
-          onReflect: null,
+        Builder(
+          builder: (feedbackContext) {
+            final maatPanel = buildDayViewMaatFlowCompletionPanel(
+              event: currentEvent,
+              flow: flow,
+              identity: _completionIdentityForEvent(currentEvent),
+              ky: target.ky,
+              km: target.km,
+              kd: target.kd,
+              onRecordCompletion: widget.onRecordCompletion,
+              onUnrecordCompletion: widget.onUnrecordCompletion,
+              onRemoveCompletionBadge: widget.onRemoveCompletionBadge,
+              onCompletionContinuity: (status) => _appendCompletionContinuity(
+                target,
+                status,
+                sourceType: CompletionSourceType.maatFlow,
+                triggerHaptic: false,
+              ),
+              onUserCompletionFeedback: enableRitualCompletionFeedback
+                  ? (status) => playDayViewRitualCompletionFeedback(
+                      feedbackContext,
+                      status,
+                    )
+                  : null,
+              onAddReflection: null,
+              reloadSignal: completionReloadSignal,
+            );
+            if (maatPanel != null) return maatPanel;
+
+            return CalendarEventCompletionPanel(
+              identity: _completionIdentityForEvent(currentEvent),
+              sourceType: sourceType,
+              loadStatus: currentEvent.flowId == null
+                  ? null
+                  : () => _loadCalendarCompletionStatus(target),
+              onRecordStatus: (status) => _recordCalendarCompletion(
+                target,
+                status,
+                sourceType: sourceType,
+                flow: flow,
+              ),
+              onClearStatus: () =>
+                  _clearCalendarCompletion(target, sourceType: sourceType),
+              onCreateContinuity: (status) => _appendCompletionContinuity(
+                target,
+                status,
+                sourceType: sourceType,
+                triggerHaptic: !enableRitualCompletionFeedback,
+              ),
+              onUserCompletionFeedback: enableRitualCompletionFeedback
+                  ? (status) => playDayViewRitualCompletionFeedback(
+                      feedbackContext,
+                      status,
+                    )
+                  : null,
+              onReflect: null,
+              reloadSignal: completionReloadSignal,
+            );
+          },
         ),
       ],
     );
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      child: Container(
-        width: double.infinity,
-        padding: const EdgeInsets.fromLTRB(18, 18, 18, 20),
-        decoration: BoxDecoration(
-          color: Colors.white.withValues(alpha: 0.04),
-          borderRadius: BorderRadius.circular(18),
-          border: Border.all(color: _gold.withValues(alpha: 0.4)),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.45),
-              blurRadius: 18,
-              spreadRadius: 1,
-              offset: const Offset(0, 10),
-            ),
-          ],
-        ),
+      child: DayViewRitualCompletionFeedbackCard(
+        enabled: enableRitualCompletionFeedback,
         child: scrollable
             ? SingleChildScrollView(
                 physics: const BouncingScrollPhysics(),
@@ -2803,6 +2876,17 @@ class _MainCalendarEventDetailSheetState
 
   @override
   Widget build(BuildContext context) {
+    final dataVersion = widget.dataVersion;
+    if (dataVersion == null) {
+      return _buildSheet(context, null);
+    }
+    return ValueListenableBuilder<int>(
+      valueListenable: dataVersion,
+      builder: (context, dataRevision, _) => _buildSheet(context, dataRevision),
+    );
+  }
+
+  Widget _buildSheet(BuildContext context, Object? completionReloadSignal) {
     final target =
         widget.resolveCurrentEventTarget?.call(_currentTarget) ??
         _currentTarget;
@@ -2841,6 +2925,7 @@ class _MainCalendarEventDetailSheetState
                       child: _buildEventDetailSheetPage(
                         target: pageTarget,
                         scrollable: false,
+                        completionReloadSignal: completionReloadSignal,
                       ),
                     ),
                   ),
@@ -2880,6 +2965,7 @@ class _MainCalendarEventDetailSheetState
                       itemBuilder: (context, index) {
                         return _buildEventDetailSheetPage(
                           target: pages.pages[index],
+                          completionReloadSignal: completionReloadSignal,
                         );
                       },
                     ),

@@ -40,6 +40,7 @@ import '../ai_generation/ai_flow_generation_modal.dart';
 import '../ai_generation/ai_flow_import_payload.dart';
 import '../../models/ai_flow_generation_response.dart';
 import '../../services/ai_reflection_service.dart';
+import '../../services/app_haptics.dart';
 import '../../data/decan_reflection_repo.dart';
 import '../../data/decan_reflection_model.dart';
 import '../../data/decan_reflection_prompt_state.dart';
@@ -8506,6 +8507,7 @@ class CalendarPageState extends State<CalendarPage>
           onAppendToJournal: _journalInitialized
               ? (text) => _journalController.appendToToday(text)
               : null,
+          dataVersion: _dayViewDataVersion,
           onRecordCompletion:
               ({
                 required String clientEventId,
@@ -8518,6 +8520,12 @@ class CalendarPageState extends State<CalendarPage>
                 completedOnDate: completedOnDate,
                 metadata: metadata,
               ),
+          onUnrecordCompletion: _unrecordEventCompletion,
+          onRemoveCompletionBadge: (badgeId) async {
+            if (_journalInitialized) {
+              await _journalController.removeBadge(badgeId);
+            }
+          },
         ),
       );
     } finally {
@@ -30664,6 +30672,24 @@ class CalendarPageState extends State<CalendarPage>
               : null,
           onEndFlow: (id) => _endFlow(id),
           onSaveFlow: _saveFlowById,
+          onRecordCompletion:
+              ({
+                required String clientEventId,
+                required int flowId,
+                required DateTime completedOnDate,
+                Map<String, dynamic>? metadata,
+              }) => _recordEventCompletion(
+                clientEventId: clientEventId,
+                flowId: flowId,
+                completedOnDate: completedOnDate,
+                metadata: metadata,
+              ),
+          onUnrecordCompletion: _unrecordEventCompletion,
+          onRemoveCompletionBadge: (badgeId) async {
+            if (_journalInitialized) {
+              await _journalController.removeBadge(badgeId);
+            }
+          },
           onEventDetailRestorationChanged:
               _handleCalendarEventDetailRestorationChanged,
           shouldPreserveEventDetailRestorationOnClose: () =>

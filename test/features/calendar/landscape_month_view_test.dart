@@ -1,12 +1,23 @@
 import 'dart:io';
+import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:mobile/core/completion_status.dart';
 import 'package:mobile/features/calendar/calendar_page.dart';
 import 'package:mobile/features/calendar/day_view.dart';
 import 'package:mobile/features/calendar/landscape_month_view.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 void main() {
+  setUp(() {
+    SharedPreferences.setMockInitialValues(<String, Object>{});
+    CalendarEventDetailSheetCoordinator.debugResetForTests();
+  });
+
+  tearDown(CalendarEventDetailSheetCoordinator.debugResetForTests);
+
   group('LandscapeMonthPager rotation handoff', () {
     testWidgets(
       'reports the current month when disposed after a settled swipe',
@@ -110,6 +121,190 @@ void main() {
       expect(sharedEvent, isNotNull);
       expect(sharedEvent!.title, 'Landscape note');
       expect(sharedEvent!.clientEventId, 'landscape-note');
+    });
+
+    testWidgets(
+      'detail sheet clears selected completion and removes completion badge',
+      (tester) async {
+        await _setLandscapeViewport(tester);
+        final recordedStatuses = <CompletionStatus>[];
+        final appendedBadges = <String>[];
+        final unrecordedClientEventIds = <String>[];
+        final removedBadgeIds = <String>[];
+
+        await tester.pumpWidget(
+          _LandscapePagerHarness(
+            flowIndex: const {
+              1: FlowData(
+                id: 1,
+                name: 'Practice',
+                color: Colors.green,
+                active: true,
+              ),
+            },
+            notesForDay: (ky, km, kd) => kd == 1
+                ? const [
+                    NoteData(
+                      clientEventId: 'landscape-completion',
+                      title: 'Landscape completion',
+                      allDay: false,
+                      start: TimeOfDay(hour: 0, minute: 0),
+                      end: TimeOfDay(hour: 1, minute: 0),
+                      flowId: 1,
+                    ),
+                  ]
+                : const <NoteData>[],
+            onAppendToJournal: (text) async {
+              appendedBadges.add(text);
+            },
+            onRecordCompletion:
+                ({
+                  required String clientEventId,
+                  required int flowId,
+                  required DateTime completedOnDate,
+                  Map<String, dynamic>? metadata,
+                }) async {
+                  recordedStatuses.add(
+                    CompletionStatusX.fromWireName(
+                      metadata?['completion_status']?.toString() ??
+                          metadata?['status']?.toString(),
+                    ),
+                  );
+                },
+            onUnrecordCompletion: (clientEventId) async {
+              unrecordedClientEventIds.add(clientEventId);
+            },
+            onRemoveCompletionBadge: (badgeId) async {
+              removedBadgeIds.add(badgeId);
+            },
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        await tester.tap(find.text('Landscape completion'));
+        await tester.pumpAndSettle();
+
+        await tester.tap(find.text('Observed').last);
+        await tester.pumpAndSettle();
+        await tester.tap(find.text('Observed').last);
+        await tester.pumpAndSettle();
+
+        expect(recordedStatuses, <CompletionStatus>[CompletionStatus.observed]);
+        expect(appendedBadges, hasLength(1));
+        expect(unrecordedClientEventIds, <String>['landscape-completion']);
+        expect(removedBadgeIds, <String>[
+          'calendar:user_flow:cid:landscape-completion',
+        ]);
+      },
+    );
+
+    testWidgets('detail sheet matches day view pulse and haptic behavior', (
+      tester,
+    ) async {
+      await _setLandscapeViewport(tester);
+      final recordedStatuses = <CompletionStatus>[];
+
+      await tester.pumpWidget(
+        _LandscapePagerHarness(
+          flowIndex: const {
+            1: FlowData(
+              id: 1,
+              name: 'Practice',
+              color: Colors.green,
+              active: true,
+            ),
+          },
+          notesForDay: (ky, km, kd) => kd == 1
+              ? const [
+                  NoteData(
+                    clientEventId: 'landscape-pulse',
+                    title: 'Landscape pulse',
+                    allDay: false,
+                    start: TimeOfDay(hour: 0, minute: 0),
+                    end: TimeOfDay(hour: 1, minute: 0),
+                    flowId: 1,
+                  ),
+                ]
+              : const <NoteData>[],
+          onRecordCompletion:
+              ({
+                required String clientEventId,
+                required int flowId,
+                required DateTime completedOnDate,
+                Map<String, dynamic>? metadata,
+              }) async {
+                recordedStatuses.add(
+                  CompletionStatusX.fromWireName(
+                    metadata?['completion_status']?.toString() ??
+                        metadata?['status']?.toString(),
+                  ),
+                );
+              },
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Landscape pulse'));
+      await tester.pumpAndSettle();
+
+      final hapticCalls = _capturePlatformHaptics(tester);
+      expect(_ritualRimIntensity(tester), 0);
+      expect(_ritualPulsePaintsFill(tester), isFalse);
+
+      await tester.tap(find.text('Observed').last);
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 140));
+      final observedRimIntensity = _ritualRimIntensity(tester);
+
+      expect(_ritualPulseMode(tester), 'observed');
+      expect(observedRimIntensity, greaterThan(0));
+      expect(_ritualPulseFillAlpha(tester), 0);
+      expect(_ritualPulsePaintsFill(tester), isFalse);
+      expect(
+        _hapticArguments(hapticCalls),
+        contains('HapticFeedbackType.mediumImpact'),
+      );
+
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Partly').last);
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 140));
+      final partialRimIntensity = _ritualRimIntensity(tester);
+
+      expect(_ritualPulseMode(tester), 'partial');
+      expect(partialRimIntensity, greaterThan(0));
+      expect(partialRimIntensity, lessThan(observedRimIntensity));
+      expect(_ritualPulseFillAlpha(tester), 0);
+      expect(_ritualPulsePaintsFill(tester), isFalse);
+      expect(
+        _hapticArguments(hapticCalls),
+        contains('HapticFeedbackType.lightImpact'),
+      );
+
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Skipped').last);
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 140));
+
+      expect(recordedStatuses, <CompletionStatus>[
+        CompletionStatus.observed,
+        CompletionStatus.partial,
+        CompletionStatus.skipped,
+      ]);
+      expect(_ritualRimIntensity(tester), 0);
+      expect(_ritualPulsePaintsFill(tester), isFalse);
+      expect(
+        _hapticArguments(
+          hapticCalls,
+        ).where((argument) => argument == 'HapticFeedbackType.mediumImpact'),
+        hasLength(1),
+      );
+      expect(
+        _hapticArguments(
+          hapticCalls,
+        ).where((argument) => argument == 'HapticFeedbackType.lightImpact'),
+        hasLength(1),
+      );
     });
   });
 
@@ -830,13 +1025,29 @@ String _sourceBetween(String source, String start, String end) {
 class _LandscapePagerHarness extends StatelessWidget {
   const _LandscapePagerHarness({
     this.notesForDay,
+    this.flowIndex = const <int, FlowData>{},
     this.onVisibleMonthCommitted,
     this.onShareNote,
+    this.onAppendToJournal,
+    this.onRecordCompletion,
+    this.onUnrecordCompletion,
+    this.onRemoveCompletionBadge,
   });
 
   final List<NoteData> Function(int ky, int km, int kd)? notesForDay;
+  final Map<int, FlowData> flowIndex;
   final void Function(int ky, int km)? onVisibleMonthCommitted;
   final Future<void> Function(EventItem event)? onShareNote;
+  final Future<void> Function(String text)? onAppendToJournal;
+  final Future<void> Function({
+    required String clientEventId,
+    required int flowId,
+    required DateTime completedOnDate,
+    Map<String, dynamic>? metadata,
+  })?
+  onRecordCompletion;
+  final Future<void> Function(String clientEventId)? onUnrecordCompletion;
+  final Future<void> Function(String badgeId)? onRemoveCompletionBadge;
 
   @override
   Widget build(BuildContext context) {
@@ -847,14 +1058,77 @@ class _LandscapePagerHarness extends StatelessWidget {
           initialKm: 4,
           showGregorian: false,
           notesForDay: notesForDay ?? ((_, _, _) => const <NoteData>[]),
-          flowIndex: const <int, FlowData>{},
+          flowIndex: flowIndex,
           getMonthName: (km) => 'Month $km',
           onVisibleMonthCommitted: onVisibleMonthCommitted,
           onShareNote: onShareNote,
+          onAppendToJournal: onAppendToJournal,
+          onRecordCompletion: onRecordCompletion,
+          onUnrecordCompletion: onUnrecordCompletion,
+          onRemoveCompletionBadge: onRemoveCompletionBadge,
         ),
       ),
     );
   }
+}
+
+List<MethodCall> _capturePlatformHaptics(WidgetTester tester) {
+  final calls = <MethodCall>[];
+  tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+    SystemChannels.platform,
+    (call) async {
+      if (call.method == 'HapticFeedback.vibrate') {
+        calls.add(call);
+      }
+      return null;
+    },
+  );
+  addTearDown(() {
+    tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+      SystemChannels.platform,
+      null,
+    );
+  });
+  return calls;
+}
+
+Iterable<Object?> _hapticArguments(List<MethodCall> calls) {
+  return calls.map((call) => call.arguments);
+}
+
+String _ritualPulseDiagnostics(WidgetTester tester) {
+  final painters = tester.widgetList<CustomPaint>(
+    find.byKey(
+      const ValueKey<String>('day-view-ritual-completion-feedback-rim'),
+    ),
+  );
+  return painters.map((paint) => paint.painter.toString()).join('\n');
+}
+
+double _ritualPulseDiagnosticDouble(WidgetTester tester, String field) {
+  final diagnostics = _ritualPulseDiagnostics(tester);
+  final matches = RegExp('$field: ([0-9.]+)').allMatches(diagnostics);
+  return matches.fold<double>(0, (maxValue, match) {
+    final value = double.tryParse(match.group(1) ?? '') ?? 0;
+    return math.max(maxValue, value);
+  });
+}
+
+double _ritualRimIntensity(WidgetTester tester) {
+  return _ritualPulseDiagnosticDouble(tester, 'rimIntensity');
+}
+
+double _ritualPulseFillAlpha(WidgetTester tester) {
+  return _ritualPulseDiagnosticDouble(tester, 'fillAlpha');
+}
+
+bool _ritualPulsePaintsFill(WidgetTester tester) {
+  return _ritualPulseDiagnostics(tester).contains('paintsFill: true');
+}
+
+String? _ritualPulseMode(WidgetTester tester) {
+  final diagnostics = _ritualPulseDiagnostics(tester);
+  return RegExp('mode: ([a-z]+)').firstMatch(diagnostics)?.group(1);
 }
 
 Future<void> _setLandscapeViewport(WidgetTester tester) async {
