@@ -24,6 +24,39 @@ void main() {
     expect(main, isNot(contains('USE_GLOBAL_SIDE_DRAWER_NAVIGATION')));
   });
 
+  test(
+    'global side drawer is an underlay behind the foreground shell',
+    () async {
+      final main = await File('lib/main.dart').readAsString();
+      final shell = _sourceBetween(
+        main,
+        'class _GlobalFloatingMenuShellState',
+        'class PushIntentBridge',
+      );
+      final drawer = await File(
+        'lib/widgets/global_side_drawer.dart',
+      ).readAsString();
+      final drawerWidget = _sourceBetween(
+        drawer,
+        'class GlobalSideDrawer extends StatelessWidget',
+        'class GlobalSideDrawerForeground extends StatelessWidget',
+      );
+
+      expect(shell, contains('GlobalSideDrawer('));
+      expect(shell, contains('GlobalSideDrawerForeground('));
+      expect(
+        shell.indexOf('GlobalSideDrawer('),
+        lessThan(shell.indexOf('GlobalSideDrawerForeground(')),
+      );
+      expect(shell, contains('globalSideDrawerScrimKey'));
+      expect(shell, contains('onTap: () => unawaited(_closeFloatingMenu())'));
+      expect(drawer, contains('globalSideDrawerForegroundKey'));
+      expect(drawer, contains('AnimatedSlide'));
+      expect(drawerWidget, isNot(contains('globalSideDrawerScrimKey')));
+      expect(drawerWidget, isNot(contains('GestureDetector')));
+    },
+  );
+
   test('drawer rows use final labels and include Profile', () async {
     final main = await File('lib/main.dart').readAsString();
     final items = _sourceBetween(
@@ -65,6 +98,16 @@ void main() {
         'Future<void> _openProfileFromDrawer',
         'Future<void> _openFlowsFromDrawer',
       );
+      final flows = _sourceBetween(
+        main,
+        'Future<void> _openFlowsFromDrawer',
+        'Future<void> _openCalendarsFromDrawer',
+      );
+      final calendars = _sourceBetween(
+        main,
+        'Future<void> _openCalendarsFromDrawer',
+        'bool _isDrawerDestinationSelected',
+      );
       final items = _sourceBetween(
         main,
         'List<GlobalSideDrawerItem> _buildGlobalSideDrawerItems()',
@@ -72,14 +115,22 @@ void main() {
       );
 
       expect(primary, contains('openPrimarySection(context, section'));
+      expect(primary, contains('unawaited(_closeFloatingMenu())'));
+      expect(primary, isNot(contains('await _closeFloatingMenu();')));
       expect(profile, contains('openDetailRoute<void>'));
       expect(profile, contains("'/profile/me'"));
+      expect(profile, contains('unawaited(_closeFloatingMenu())'));
+      expect(profile, isNot(contains('await _closeFloatingMenu();')));
       expect(profile, isNot(contains('openPrimarySection')));
       expect(profile, isNot(contains('recordPrimaryTabSelection')));
       expect(
         main,
         isNot(contains('openPrimarySection(context, AppSection.profile')),
       );
+      expect(flows, contains('unawaited(_closeFloatingMenu())'));
+      expect(flows, isNot(contains('await _closeFloatingMenu();')));
+      expect(calendars, contains('unawaited(_closeFloatingMenu())'));
+      expect(calendars, isNot(contains('await _closeFloatingMenu();')));
       expect(items, contains('_openCalendarsFromDrawer()'));
       expect(items, contains('_openFlowsFromDrawer()'));
       expect(main, contains('openUtilityRoute<void>'));

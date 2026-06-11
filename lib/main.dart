@@ -2223,7 +2223,9 @@ class _GlobalFloatingMenuShellState extends State<_GlobalFloatingMenuShell>
     unawaited(
       CalendarPage.dismissAppOwnedTransientOverlaysForRouteChange(navContext),
     );
-    _resetFloatingMenuState();
+    if (!_menuMounted || _menuOpen) {
+      _resetFloatingMenuState();
+    }
     unawaited(_maatGuidanceController.refresh());
     _scheduleDailyCosmicContextEvaluation();
     _scheduleRebuild();
@@ -2447,22 +2449,22 @@ class _GlobalFloatingMenuShellState extends State<_GlobalFloatingMenuShell>
     _traceNavigation('menu close completed', mediaContext: context);
   }
 
-  Future<void> _openPrimarySectionFromDrawer(AppSection section) async {
-    await _closeFloatingMenu();
-    if (!mounted) return;
+  Future<void> _openPrimarySectionFromDrawer(AppSection section) {
+    unawaited(_closeFloatingMenu());
     openPrimarySection(context, section, router: widget.router);
+    return Future<void>.value();
   }
 
-  Future<void> _openProfileFromDrawer() async {
+  Future<void> _openProfileFromDrawer() {
     _traceNavigation(
       '_openProfileFromDrawer entered',
       mediaContext: context,
       state: const <String, Object?>{'route': '/profile/me'},
     );
-    await _closeFloatingMenu();
-    if (!mounted) return;
+    unawaited(_closeFloatingMenu());
+    if (!mounted) return Future<void>.value();
     final navigationContext = _rootNavigatorKey.currentContext ?? context;
-    if (!navigationContext.mounted) return;
+    if (!navigationContext.mounted) return Future<void>.value();
     _traceNavigation(
       "global drawer detail route push('/profile/me') requested",
       mediaContext: context,
@@ -2475,16 +2477,17 @@ class _GlobalFloatingMenuShellState extends State<_GlobalFloatingMenuShell>
         router: widget.router,
       ),
     );
+    return Future<void>.value();
   }
 
-  Future<void> _openFlowsFromDrawer() async {
+  Future<void> _openFlowsFromDrawer() {
     _traceNavigation(
       '_openFlowsFromDrawer entered',
       mediaContext: context,
       state: const <String, Object?>{'route': '/flows'},
     );
-    await _closeFloatingMenu();
-    if (!mounted) return;
+    unawaited(_closeFloatingMenu());
+    if (!mounted) return Future<void>.value();
     _traceNavigation(
       "global drawer utility route push('/flows') requested",
       mediaContext: context,
@@ -2498,16 +2501,17 @@ class _GlobalFloatingMenuShellState extends State<_GlobalFloatingMenuShell>
         router: widget.router,
       ),
     );
+    return Future<void>.value();
   }
 
-  Future<void> _openCalendarsFromDrawer() async {
+  Future<void> _openCalendarsFromDrawer() {
     _traceNavigation(
       '_openCalendarsFromDrawer entered',
       mediaContext: context,
       state: const <String, Object?>{'route': '/calendars'},
     );
-    await _closeFloatingMenu();
-    if (!mounted) return;
+    unawaited(_closeFloatingMenu());
+    if (!mounted) return Future<void>.value();
     _traceNavigation(
       "global drawer utility route push('/calendars') requested",
       mediaContext: context,
@@ -2521,6 +2525,7 @@ class _GlobalFloatingMenuShellState extends State<_GlobalFloatingMenuShell>
         router: widget.router,
       ),
     );
+    return Future<void>.value();
   }
 
   bool _isDrawerDestinationSelected(String destination) {
@@ -2672,30 +2677,58 @@ class _GlobalFloatingMenuShellState extends State<_GlobalFloatingMenuShell>
       child: Stack(
         fit: StackFit.expand,
         children: [
-          widget.child,
           if (shouldMountFloatingMenu && _menuMounted)
             Positioned.fill(
               child: GlobalSideDrawer(
                 open: menuOpenForInteraction,
                 items: _buildGlobalSideDrawerItems(),
-                onDismiss: () => unawaited(_closeFloatingMenu()),
               ),
             ),
-          if (shouldMountFloatingMenu)
-            GlobalMenuBubble(
-              key: globalMenuButtonKey,
-              visible: shouldActivateFloatingMenu,
-              open: menuOpenForInteraction,
-              onPressed: _handleFloatingMenuPressed,
+          GlobalSideDrawerForeground(
+            open: menuOpenForInteraction,
+            child: Stack(
+              fit: StackFit.expand,
+              children: [
+                widget.child,
+                if (shouldMountFloatingMenu && _menuMounted)
+                  Positioned.fill(
+                    child: IgnorePointer(
+                      ignoring: !menuOpenForInteraction,
+                      child: ExcludeSemantics(
+                        excluding: !menuOpenForInteraction,
+                        child: AnimatedOpacity(
+                          opacity: menuOpenForInteraction ? 1 : 0,
+                          duration: globalSideDrawerTransitionDuration,
+                          curve: globalSideDrawerTransitionCurve,
+                          child: GestureDetector(
+                            key: globalSideDrawerScrimKey,
+                            behavior: HitTestBehavior.opaque,
+                            onTap: () => unawaited(_closeFloatingMenu()),
+                            child: const ColoredBox(color: Colors.transparent),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                if (shouldMountFloatingMenu)
+                  GlobalMenuBubble(
+                    key: globalMenuButtonKey,
+                    visible: shouldActivateFloatingMenu,
+                    open: menuOpenForInteraction,
+                    onPressed: _handleFloatingMenuPressed,
+                  ),
+                DailyCosmicContextOverlayHost(
+                  controller: _dailyCosmicContextController,
+                ),
+                MaatGuidanceOverlayHost(
+                  controller: _maatGuidanceController,
+                  onOpen: _openMaatGuidance,
+                  visible:
+                      _maatGuidanceController.hasVisibleDelivery &&
+                      !suppressGuidance,
+                ),
+              ],
             ),
-          DailyCosmicContextOverlayHost(
-            controller: _dailyCosmicContextController,
-          ),
-          MaatGuidanceOverlayHost(
-            controller: _maatGuidanceController,
-            onOpen: _openMaatGuidance,
-            visible:
-                _maatGuidanceController.hasVisibleDelivery && !suppressGuidance,
           ),
         ],
       ),

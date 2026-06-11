@@ -42,8 +42,7 @@ void main() {
     expect(find.byKey(app.globalMenuButtonKey), findsOneWidget);
     expect(find.bySemanticsLabel('Open navigation menu'), findsOneWidget);
 
-    await tester.tap(find.byKey(app.globalMenuButtonKey));
-    await tester.pump(const Duration(milliseconds: 260));
+    await _openDrawer(tester);
 
     expect(find.byKey(globalSideDrawerKey), findsOneWidget);
     expect(find.text('Calendar'), findsWidgets);
@@ -57,12 +56,122 @@ void main() {
     expect(drawerWidth, lessThan(shellWidth));
   });
 
+  testWidgets('drawer is an underlay beneath the translated foreground', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(390, 844);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    final router = _testRouter();
+
+    await _pumpShell(tester, router);
+
+    final closedForegroundRect = tester.getRect(
+      find.byKey(globalSideDrawerForegroundKey),
+    );
+    final closedBubbleRect = tester.getRect(
+      find.byKey(app.globalMenuButtonKey),
+    );
+    final closedPageRect = tester.getRect(
+      find.byKey(const ValueKey<String>('page-Calendar')),
+    );
+    expect(closedForegroundRect.left, closeTo(0, 0.1));
+
+    await _openDrawer(tester);
+
+    final drawerRect = tester.getRect(find.byKey(globalSideDrawerKey));
+    final openForegroundRect = tester.getRect(
+      find.byKey(globalSideDrawerForegroundKey),
+    );
+    final openBubbleRect = tester.getRect(find.byKey(app.globalMenuButtonKey));
+    final openPageRect = tester.getRect(
+      find.byKey(const ValueKey<String>('page-Calendar')),
+    );
+
+    expect(drawerRect.left, closeTo(0, 0.1));
+    expect(openForegroundRect.left, closeTo(drawerRect.width, 0.5));
+    expect(
+      openForegroundRect.left,
+      greaterThanOrEqualTo(drawerRect.right - 0.5),
+    );
+    expect(
+      openPageRect.left - closedPageRect.left,
+      closeTo(drawerRect.width, 0.5),
+    );
+    expect(
+      openBubbleRect.left - closedBubbleRect.left,
+      closeTo(drawerRect.width, 0.5),
+    );
+  });
+
+  testWidgets('outside foreground tap closes the underlay drawer', (
+    tester,
+  ) async {
+    final router = _testRouter();
+
+    await _pumpShell(tester, router);
+    await _openDrawer(tester);
+
+    final drawerRect = tester.getRect(find.byKey(globalSideDrawerKey));
+    expect(find.byKey(globalSideDrawerScrimKey), findsOneWidget);
+
+    await tester.tapAt(Offset(drawerRect.right + 24, 120));
+    await tester.pump(globalSideDrawerTransitionDuration);
+    await tester.pump();
+
+    expect(find.byKey(globalSideDrawerKey), findsNothing);
+  });
+
+  for (final viewport in <Size>[
+    Size(390, 844),
+    Size(844, 390),
+    Size(820, 1180),
+    Size(1180, 820),
+  ]) {
+    testWidgets(
+      'drawer foreground structural smoke ${viewport.width.toInt()}x${viewport.height.toInt()}',
+      (tester) async {
+        tester.view.physicalSize = viewport;
+        tester.view.devicePixelRatio = 1;
+        addTearDown(tester.view.resetPhysicalSize);
+        addTearDown(tester.view.resetDevicePixelRatio);
+
+        final router = _testRouter();
+
+        await _pumpShell(tester, router);
+        final closedBubbleRect = tester.getRect(
+          find.byKey(app.globalMenuButtonKey),
+        );
+
+        await _openDrawer(tester);
+
+        final drawerRect = tester.getRect(find.byKey(globalSideDrawerKey));
+        final foregroundRect = tester.getRect(
+          find.byKey(globalSideDrawerForegroundKey),
+        );
+        final openBubbleRect = tester.getRect(
+          find.byKey(app.globalMenuButtonKey),
+        );
+
+        expect(drawerRect.left, closeTo(0, 0.1));
+        expect(drawerRect.width, lessThan(viewport.width));
+        expect(foregroundRect.left, closeTo(drawerRect.width, 0.6));
+        expect(drawerRect.right, lessThanOrEqualTo(foregroundRect.left + 0.6));
+        expect(
+          openBubbleRect.left - closedBubbleRect.left,
+          closeTo(drawerRect.width, 0.6),
+        );
+      },
+    );
+  }
+
   testWidgets('drawer closes after primary route selection', (tester) async {
     final router = _testRouter();
 
     await _pumpShell(tester, router);
-    await tester.tap(find.byKey(app.globalMenuButtonKey));
-    await tester.pump(const Duration(milliseconds: 260));
+    await _openDrawer(tester);
 
     await tester.tap(find.text('Planner'));
     await tester.pump(const Duration(milliseconds: 260));
@@ -73,6 +182,30 @@ void main() {
       '/rhythm/today',
     );
     expect(find.text('Planner'), findsNothing);
+  });
+
+  testWidgets('drawer route dispatch does not wait for close animation', (
+    tester,
+  ) async {
+    final router = _testRouter();
+
+    await _pumpShell(tester, router);
+    await _openDrawer(tester);
+
+    await tester.tap(find.text('Planner'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 16));
+
+    expect(
+      router.routerDelegate.currentConfiguration.uri.path,
+      '/rhythm/today',
+    );
+    expect(find.text('Planner route'), findsOneWidget);
+    expect(find.byKey(globalSideDrawerKey), findsOneWidget);
+
+    await tester.pump(globalSideDrawerTransitionDuration);
+    await tester.pump();
+    expect(find.byKey(globalSideDrawerKey), findsNothing);
   });
 
   testWidgets('back with closed drawer opens drawer on primary route', (
@@ -154,8 +287,7 @@ void main() {
     final router = _testRouter(initialLocation: '/nodes');
 
     await _pumpShell(tester, router);
-    await tester.tap(find.byKey(app.globalMenuButtonKey));
-    await tester.pump(globalSideDrawerTransitionDuration);
+    await _openDrawer(tester);
     await tester.tap(
       find.byKey(const ValueKey<String>('global-side-drawer-item-Profile')),
     );
@@ -173,8 +305,7 @@ void main() {
     final router = _testRouter(initialLocation: '/nodes');
 
     await _pumpShell(tester, router);
-    await tester.tap(find.byKey(app.globalMenuButtonKey));
-    await tester.pump(globalSideDrawerTransitionDuration);
+    await _openDrawer(tester);
     await tester.tap(
       find.byKey(const ValueKey<String>('global-side-drawer-item-Flows')),
     );
@@ -187,8 +318,7 @@ void main() {
     await tester.pumpAndSettle();
     expect(router.routerDelegate.currentConfiguration.uri.path, '/nodes');
 
-    await tester.tap(find.byKey(app.globalMenuButtonKey));
-    await tester.pump(globalSideDrawerTransitionDuration);
+    await _openDrawer(tester);
     await tester.tap(
       find.byKey(const ValueKey<String>('global-side-drawer-item-Calendars')),
     );
@@ -214,6 +344,12 @@ Future<void> _pumpShell(WidgetTester tester, GoRouter router) async {
     ),
   );
   await tester.pump();
+}
+
+Future<void> _openDrawer(WidgetTester tester) async {
+  await tester.tap(find.byKey(app.globalMenuButtonKey));
+  await tester.pump();
+  await tester.pump(globalSideDrawerTransitionDuration);
 }
 
 GoRouter _testRouter({String initialLocation = '/'}) {
@@ -290,7 +426,7 @@ class _Page extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Text(label),
+            Text(label, key: ValueKey<String>('page-$label')),
             if (closeLabel != null)
               TextButton(onPressed: onClose, child: Text(closeLabel!)),
           ],

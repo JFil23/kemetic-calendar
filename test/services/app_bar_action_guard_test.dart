@@ -928,7 +928,8 @@ void main() {
       expect(items, contains('_openFlowsFromDrawer()'));
       expect(items, contains("label: 'Calendars'"));
       expect(items, contains('_openCalendarsFromDrawer()'));
-      expect(flowStudioCallback, contains('await _closeFloatingMenu()'));
+      expect(flowStudioCallback, contains('unawaited(_closeFloatingMenu())'));
+      expect(flowStudioCallback, isNot(contains('await _closeFloatingMenu()')));
       expect(
         flowStudioCallback,
         contains("global drawer utility route push('/flows') requested"),
@@ -943,10 +944,11 @@ void main() {
       expect(flowStudioCallback, isNot(contains("widget.router.go('/flows')")));
       expect(flowStudioCallback, isNot(contains(".go('/flows')")));
       expect(
-        flowStudioCallback.indexOf('await _closeFloatingMenu()'),
+        flowStudioCallback.indexOf('unawaited(_closeFloatingMenu())'),
         lessThan(flowStudioCallback.indexOf('openUtilityRoute<void>(')),
       );
-      expect(calendarsCallback, contains('await _closeFloatingMenu()'));
+      expect(calendarsCallback, contains('unawaited(_closeFloatingMenu())'));
+      expect(calendarsCallback, isNot(contains('await _closeFloatingMenu()')));
       expect(
         calendarsCallback,
         contains("global drawer utility route push('/calendars') requested"),
@@ -964,7 +966,7 @@ void main() {
       );
       expect(calendarsCallback, isNot(contains(".go('/calendars')")));
       expect(
-        calendarsCallback.indexOf('await _closeFloatingMenu()'),
+        calendarsCallback.indexOf('unawaited(_closeFloatingMenu())'),
         lessThan(calendarsCallback.indexOf('openUtilityRoute<void>(')),
       );
       expect(source, contains("path: '/flows'"));
@@ -1165,14 +1167,28 @@ void main() {
       expect(shell, isNot(contains("segments.first == 'profile'")));
     });
 
-    test('global drawer uses scrim tap dismiss layer', () async {
+    test('global drawer uses foreground tap dismiss layer', () async {
+      final source = await File('lib/main.dart').readAsString();
+      final shell = _sourceBetween(
+        source,
+        'class _GlobalFloatingMenuShellState',
+        'class PushIntentBridge',
+      );
       final drawer = await File(
         'lib/widgets/global_side_drawer.dart',
       ).readAsString();
 
+      expect(shell, contains('globalSideDrawerScrimKey'));
+      expect(shell, contains('HitTestBehavior.opaque'));
+      expect(shell, contains('onTap: () => unawaited(_closeFloatingMenu())'));
+      expect(
+        shell.indexOf('GlobalSideDrawer('),
+        lessThan(shell.indexOf('GlobalSideDrawerForeground(')),
+      );
       expect(drawer, contains('globalSideDrawerScrimKey'));
-      expect(drawer, contains('HitTestBehavior.opaque'));
-      expect(drawer, contains('onTap: onDismiss'));
+      expect(drawer, contains('globalSideDrawerForegroundKey'));
+      expect(drawer, contains('class GlobalSideDrawerForeground'));
+      expect(drawer, contains('AnimatedSlide'));
     });
 
     test('global bubble hit area matches the visible circle', () async {

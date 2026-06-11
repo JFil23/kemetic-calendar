@@ -29,12 +29,14 @@ double globalSideDrawerWidth(BuildContext context) {
   final isLandscape = media.orientation == Orientation.landscape;
 
   final target = switch ((isTablet, isLandscape)) {
-    (false, false) => math.min(304.0, safeWidth * 0.82),
-    (false, true) => math.min(320.0, safeWidth * 0.46),
-    (true, false) => math.min(400.0, math.max(360.0, safeWidth * 0.44)),
-    (true, true) => math.min(448.0, math.max(400.0, safeWidth * 0.33)),
+    (false, false) => math.min(232.0, safeWidth * 0.48),
+    (false, true) => math.min(272.0, safeWidth * 0.34),
+    (true, false) => math.min(304.0, safeWidth * 0.38),
+    (true, true) => math.min(320.0, safeWidth * 0.30),
   };
 
-  final maxPartialWidth = math.max(0.0, safeWidth - 48.0);
+  final maxPartialWidth = isTablet
+      ? math.max(0.0, safeWidth - 80.0)
+      : safeWidth * (isLandscape ? 0.38 : 0.48);
   return target.clamp(0.0, maxPartialWidth).toDouble();
 }

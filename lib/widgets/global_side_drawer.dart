@@ -6,11 +6,16 @@ import 'inbox_icon_with_badge.dart';
 
 const Key globalMenuBubbleKey = ValueKey<String>('global-menu-bubble');
 const Key globalSideDrawerKey = ValueKey<String>('global-side-drawer');
+const Key globalSideDrawerForegroundKey = ValueKey<String>(
+  'global-side-drawer-foreground',
+);
 const Key globalSideDrawerScrimKey = ValueKey<String>(
   'global-side-drawer-scrim',
 );
 const Duration globalSideDrawerTransitionDuration = Duration(milliseconds: 220);
 const Curve globalSideDrawerTransitionCurve = Curves.easeOutCubic;
+const double kGlobalSideDrawerGlyphColumnWidth = 46;
+const double kGlobalSideDrawerRowHeight = 50;
 
 class GlobalSideDrawerItem {
   const GlobalSideDrawerItem({
@@ -103,84 +108,77 @@ class GlobalMenuBubble extends StatelessWidget {
 }
 
 class GlobalSideDrawer extends StatelessWidget {
-  const GlobalSideDrawer({
-    super.key,
-    required this.open,
-    required this.items,
-    required this.onDismiss,
-  });
+  const GlobalSideDrawer({super.key, required this.open, required this.items});
 
   final bool open;
   final List<GlobalSideDrawerItem> items;
-  final VoidCallback onDismiss;
 
   @override
   Widget build(BuildContext context) {
     final drawerWidth = globalSideDrawerWidth(context);
 
-    return Stack(
-      fit: StackFit.expand,
-      children: [
-        Positioned.fill(
-          child: IgnorePointer(
-            ignoring: !open,
-            child: ExcludeSemantics(
-              excluding: !open,
-              child: AnimatedOpacity(
-                opacity: open ? 1 : 0,
-                duration: globalSideDrawerTransitionDuration,
-                curve: globalSideDrawerTransitionCurve,
-                child: GestureDetector(
-                  key: globalSideDrawerScrimKey,
-                  behavior: HitTestBehavior.opaque,
-                  onTap: onDismiss,
-                  child: const ColoredBox(color: Color(0x73000000)),
-                ),
-              ),
-            ),
-          ),
-        ),
-        Positioned(
-          left: 0,
-          top: 0,
-          bottom: 0,
-          width: drawerWidth,
-          child: IgnorePointer(
-            ignoring: !open,
-            child: ExcludeSemantics(
-              excluding: !open,
-              child: AnimatedSlide(
-                offset: open ? Offset.zero : const Offset(-1, 0),
-                duration: globalSideDrawerTransitionDuration,
-                curve: globalSideDrawerTransitionCurve,
-                child: AnimatedOpacity(
-                  opacity: open ? 1 : 0,
-                  duration: globalSideDrawerTransitionDuration,
-                  curve: globalSideDrawerTransitionCurve,
-                  child: Material(
-                    key: globalSideDrawerKey,
-                    color: const Color(0xF6000000),
-                    elevation: 14,
-                    shadowColor: const Color(0xB3000000),
-                    child: SafeArea(
-                      right: false,
-                      bottom: false,
-                      child: ListView.separated(
-                        padding: const EdgeInsets.fromLTRB(16, 18, 14, 18),
-                        itemCount: items.length,
-                        separatorBuilder: (_, _) => const SizedBox(height: 4),
-                        itemBuilder: (context, index) {
-                          return _GlobalSideDrawerRow(item: items[index]);
-                        },
-                      ),
-                    ),
+    return Align(
+      alignment: Alignment.centerLeft,
+      child: SizedBox(
+        width: drawerWidth,
+        height: double.infinity,
+        child: IgnorePointer(
+          ignoring: !open,
+          child: ExcludeSemantics(
+            excluding: !open,
+            child: AnimatedOpacity(
+              opacity: open ? 1 : 0,
+              duration: globalSideDrawerTransitionDuration,
+              curve: globalSideDrawerTransitionCurve,
+              child: Material(
+                key: globalSideDrawerKey,
+                color: const Color(0xF2000000),
+                elevation: 14,
+                shadowColor: const Color(0xB3000000),
+                child: SafeArea(
+                  right: false,
+                  bottom: false,
+                  child: ListView.separated(
+                    padding: const EdgeInsets.fromLTRB(10, 18, 10, 18),
+                    itemCount: items.length,
+                    separatorBuilder: (_, _) => const SizedBox(height: 2),
+                    itemBuilder: (context, index) {
+                      return _GlobalSideDrawerRow(item: items[index]);
+                    },
                   ),
                 ),
               ),
             ),
           ),
         ),
-      ],
+      ),
+    );
+  }
+}
+
+class GlobalSideDrawerForeground extends StatelessWidget {
+  const GlobalSideDrawerForeground({
+    super.key,
+    required this.open,
+    required this.child,
+  });
+
+  final bool open;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    final drawerOffset = open ? globalSideDrawerWidth(context) : 0.0;
+    final foregroundWidth = MediaQuery.sizeOf(context).width;
+
+    return AnimatedSlide(
+      offset: Offset(
+        foregroundWidth == 0 ? 0 : drawerOffset / foregroundWidth,
+        0,
+      ),
+      duration: globalSideDrawerTransitionDuration,
+      curve: globalSideDrawerTransitionCurve,
+      child: SizedBox.expand(key: globalSideDrawerForegroundKey, child: child),
     );
   }
 }
@@ -196,11 +194,11 @@ class _GlobalSideDrawerRow extends StatelessWidget {
         ? const Color(0xFFFFE8A3)
         : const Color(0xFFE8E0D6);
     final background = item.selected
-        ? const Color(0x24D4AF37)
+        ? const Color(0x26D4AF37)
         : Colors.transparent;
     final borderColor = item.selected
-        ? const Color(0x59D4AF37)
-        : Colors.white10;
+        ? const Color(0x40D4AF37)
+        : Colors.transparent;
     final glyph = GlossyGlyph(
       glyph: item.glyph,
       gradient: goldGloss,
@@ -217,34 +215,32 @@ class _GlobalSideDrawerRow extends StatelessWidget {
           borderRadius: BorderRadius.circular(8),
           onTap: item.onSelected,
           child: Container(
-            height: 48,
+            height: kGlobalSideDrawerRowHeight,
             decoration: BoxDecoration(
               color: background,
               borderRadius: BorderRadius.circular(8),
               border: Border.all(color: borderColor),
             ),
-            padding: const EdgeInsets.symmetric(horizontal: 12),
+            padding: const EdgeInsets.only(left: 20, right: 10),
             child: Row(
               children: [
-                SizedBox.square(
-                  dimension: 28,
-                  child: Center(
-                    child: item.showNotificationDot
-                        ? InboxUnreadDotOverlay(
-                            top: -2,
-                            right: -2,
-                            size: 7,
-                            dotColor: const Color(0xFFFF3B30),
-                            borderColor: const Color(0xFF07080A),
-                            borderWidth: 1.1,
-                            child: glyph,
-                          )
-                        : glyph,
+                SizedBox(
+                  key: ValueKey<String>(
+                    'global-side-drawer-glyph-${item.label}',
+                  ),
+                  width: kGlobalSideDrawerGlyphColumnWidth,
+                  height: 40,
+                  child: _GlobalSideDrawerGlyph(
+                    showNotificationDot: item.showNotificationDot,
+                    child: glyph,
                   ),
                 ),
-                const SizedBox(width: 14),
+                const SizedBox(width: 8),
                 Expanded(
                   child: Text(
+                    key: ValueKey<String>(
+                      'global-side-drawer-label-${item.label}',
+                    ),
                     item.label,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
@@ -263,6 +259,39 @@ class _GlobalSideDrawerRow extends StatelessWidget {
           ),
         ),
       ),
+    );
+  }
+}
+
+class _GlobalSideDrawerGlyph extends StatelessWidget {
+  const _GlobalSideDrawerGlyph({
+    required this.child,
+    required this.showNotificationDot,
+  });
+
+  final Widget child;
+  final bool showNotificationDot;
+
+  @override
+  Widget build(BuildContext context) {
+    final glyph = FittedBox(
+      fit: BoxFit.scaleDown,
+      alignment: Alignment.center,
+      child: child,
+    );
+
+    return Center(
+      child: showNotificationDot
+          ? InboxUnreadDotOverlay(
+              top: -2,
+              right: -2,
+              size: 7,
+              dotColor: const Color(0xFFFF3B30),
+              borderColor: const Color(0xFF07080A),
+              borderWidth: 1.1,
+              child: glyph,
+            )
+          : glyph,
     );
   }
 }

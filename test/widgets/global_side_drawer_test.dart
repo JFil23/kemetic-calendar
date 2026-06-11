@@ -40,7 +40,7 @@ void main() {
     expect(tapCount, 1);
   });
 
-  testWidgets('drawer renders partial-width row menu with renamed labels', (
+  testWidgets('phone portrait drawer is slim and below half width', (
     tester,
   ) async {
     tester.view.physicalSize = const Size(390, 844);
@@ -52,13 +52,7 @@ void main() {
       MaterialApp(
         home: Stack(
           fit: StackFit.expand,
-          children: [
-            GlobalSideDrawer(
-              open: true,
-              onDismiss: () {},
-              items: _drawerItems(),
-            ),
-          ],
+          children: [GlobalSideDrawer(open: true, items: _drawerItems())],
         ),
       ),
     );
@@ -70,21 +64,113 @@ void main() {
     expect(find.text('Flow Studio'), findsNothing);
 
     final drawerWidth = tester.getSize(find.byKey(globalSideDrawerKey)).width;
-    expect(drawerWidth, lessThan(390));
-    expect(drawerWidth, closeTo(304, 0.1));
+    expect(drawerWidth, lessThanOrEqualTo(390 * 0.48));
+    expect(drawerWidth, lessThan(220));
+    expect(drawerWidth, closeTo(187.2, 0.1));
   });
 
-  testWidgets('drawer dismisses from scrim and row tap', (tester) async {
+  testWidgets('phone landscape drawer is capped as a side rail', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(844, 390);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    double? width;
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Builder(
+          builder: (context) {
+            width = globalSideDrawerWidth(context);
+            return const SizedBox.shrink();
+          },
+        ),
+      ),
+    );
+
+    expect(width, lessThanOrEqualTo(272));
+    expect(width, lessThanOrEqualTo(844 * 0.38));
+    expect(width, closeTo(272, 0.1));
+  });
+
+  testWidgets('tablet portrait drawer stays fixed width and not giant', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(820, 1180);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    double? width;
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Builder(
+          builder: (context) {
+            width = globalSideDrawerWidth(context);
+            return const SizedBox.shrink();
+          },
+        ),
+      ),
+    );
+
+    expect(width, closeTo(304, 0.1));
+    expect(width, lessThan(820 / 2));
+  });
+
+  testWidgets('drawer rows keep a fixed glyph column without overlap', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(390, 844);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Stack(
+          fit: StackFit.expand,
+          children: [GlobalSideDrawer(open: true, items: _drawerItems())],
+        ),
+      ),
+    );
+
+    final libraryGlyph = tester.getRect(
+      find.byKey(const ValueKey<String>('global-side-drawer-glyph-Library')),
+    );
+    final libraryLabel = tester.getRect(
+      find.byKey(const ValueKey<String>('global-side-drawer-label-Library')),
+    );
+    final calendarsGlyph = tester.getRect(
+      find.byKey(const ValueKey<String>('global-side-drawer-glyph-Calendars')),
+    );
+    final calendarsLabel = tester.getRect(
+      find.byKey(const ValueKey<String>('global-side-drawer-label-Calendars')),
+    );
+    final reflectionsLabel = tester.getRect(
+      find.byKey(
+        const ValueKey<String>('global-side-drawer-label-Reflections'),
+      ),
+    );
+    final calendarsRow = tester.getRect(
+      find.byKey(const ValueKey<String>('global-side-drawer-item-Calendars')),
+    );
+
+    expect(libraryGlyph.width, kGlobalSideDrawerGlyphColumnWidth);
+    expect(calendarsGlyph.width, kGlobalSideDrawerGlyphColumnWidth);
+    expect(libraryGlyph.right, lessThanOrEqualTo(libraryLabel.left - 7.9));
+    expect(calendarsGlyph.right, lessThanOrEqualTo(calendarsLabel.left - 7.9));
+    expect(calendarsGlyph.top, greaterThanOrEqualTo(calendarsRow.top));
+    expect(calendarsGlyph.bottom, lessThanOrEqualTo(calendarsRow.bottom));
+    expect(calendarsLabel.left, libraryLabel.left);
+    expect(reflectionsLabel.left, libraryLabel.left);
+  });
+
+  testWidgets('drawer row tap dispatches selection', (tester) async {
     await tester.pumpWidget(const MaterialApp(home: _DrawerHarness()));
 
     expect(find.text('drawer open'), findsOneWidget);
 
-    await tester.tapAt(const Offset(760, 120));
-    await tester.pumpAndSettle();
-    expect(find.text('drawer closed'), findsOneWidget);
-
-    await tester.tap(find.text('reopen'));
-    await tester.pumpAndSettle();
     await tester.tap(find.text('Planner'));
     await tester.pumpAndSettle();
 
@@ -112,9 +198,10 @@ void main() {
       ),
     );
 
-    expect(width, lessThanOrEqualTo(448));
+    expect(width, lessThanOrEqualTo(340));
     expect(width, lessThan(1366 / 2));
-    expect(width, greaterThanOrEqualTo(400));
+    expect(width, greaterThanOrEqualTo(300));
+    expect(width, closeTo(320, 0.1));
   });
 }
 
@@ -212,7 +299,6 @@ class _DrawerHarnessState extends State<_DrawerHarness> {
               _open = false;
             }),
           ),
-          onDismiss: () => setState(() => _open = false),
         ),
       ],
     );
