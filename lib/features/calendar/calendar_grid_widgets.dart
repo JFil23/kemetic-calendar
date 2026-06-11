@@ -513,6 +513,39 @@ class _YearSection extends StatelessWidget {
 
 /* ───────────────────────── Month & Day Cards ───────────────────────── */
 
+const Color _kSoftGridBackground = Color(0xFF0A0A0A);
+const Color _kSoftDayTileFill = Color(0xFF101010);
+const Color _kSoftDayTileLabel = Color(0xFF2E2E2E);
+const double _kMonthCardHorizontalInset = 8.0;
+const double _kMonthCardTopInset = 10.0;
+const double _kMonthCardBottomInset = 20.0;
+const double _kMonthCardInnerPadding = 6.0;
+const double _kMonthCardRadius = 16.0;
+const double _kDecanColumnGap = 2.0;
+const double _kDecanLabelToWeekdayGap = 7.0;
+const double _kWeekdayToTileGap = 5.0;
+const double _kDecanRowGap = 9.0;
+const double _kDayTileRadius = 11.0;
+const double _kDayTileBorderWidth = 0.45;
+const double _kTodayDayTileBorderWidth = 1.0;
+const double _kTodayDayTileSurfaceGoldBlend = 0.12;
+const double _kTodayDayTileStrokeAlpha = 0.68;
+const double _kDayTileCompactPadding = 5.0;
+const double _kDayTileExpandedHorizontalPadding = 1.5;
+const double _kDayTileExpandedVerticalPadding = 4.0;
+const double _kCompactMarkerGap = 1.0;
+const double _kTextlessPillGap = 3.0;
+const double _kLabeledPillGap = 4.0;
+const double _kDetailsPillGap = 6.0;
+const double _kTextlessPillHeight = 12.0;
+const double _kLabeledPillHeight = 30.0;
+const double _kDetailsPillHeight = 52.0;
+const double _kTextlessPillRadius = 4.0;
+const double _kLabeledPillRadius = 6.0;
+const double _kDetailsPillRadius = 7.0;
+const int _kTextlessPillVisibleCap = 2;
+const int _kLabeledPillVisibleCap = 2;
+
 bool _usesTabletLandscapeMonthGrid(BuildContext context) {
   final media = MediaQuery.of(context);
   return media.orientation == Orientation.landscape &&
@@ -523,8 +556,28 @@ int _detailsMonthVisibleEventCap(BuildContext context) {
   return _usesTabletLandscapeMonthGrid(context) ? 4 : 5;
 }
 
-double _detailsMonthMaxDecanHeight(BuildContext context) {
-  return _usesTabletLandscapeMonthGrid(context) ? 286.0 : 250.0;
+double _detailsMonthMaxDecanHeight(BuildContext _) {
+  return 300.0;
+}
+
+Color _softDayTileFill() => _kSoftDayTileFill;
+
+Color _softDayTileLabel() => _kSoftDayTileLabel;
+
+double _eventPillFontSize({
+  required double maxWidth,
+  required bool isDetailPill,
+}) {
+  if (!maxWidth.isFinite) return isDetailPill ? 10.0 : 9.4;
+  if (isDetailPill) {
+    if (maxWidth < 32) return 8.5;
+    if (maxWidth < 36) return 9.0;
+    if (maxWidth < 42) return 9.5;
+    return 10.0;
+  }
+  if (maxWidth < 32) return 8.4;
+  if (maxWidth < 36) return 8.8;
+  return 9.4;
 }
 
 @visibleForTesting
@@ -725,10 +778,13 @@ class _MonthCard extends StatelessWidget {
         return _chipHeightFor(expansionLevel);
       }
       // Estimate visible pills for this decan and derive a height.
-      // Measurements: label area ~24px; first pill ~50px; subsequent pills ~56px (includes spacing).
-      const double labelAreaHeight = 24.0;
-      const double firstPillHeight = 50.0;
-      const double subsequentPillHeight = 56.0;
+      // Header + tile padding + safe slack; each pill uses the details
+      // pill height plus the inter-pill gap after the first.
+      const double labelAreaHeight = 50.0;
+      const double firstPillHeight = _kDetailsPillHeight;
+      const double subsequentPillHeight =
+          _kDetailsPillHeight + _kDetailsPillGap;
+      const double overflowIndicatorHeight = 19.0;
       const double minHeight =
           80.0; // keep some presence for empty/one-pill decans
       final double maxHeight = _detailsMonthMaxDecanHeight(context);
@@ -736,12 +792,14 @@ class _MonthCard extends StatelessWidget {
 
       final startDay = decanIndex * 10 + 1;
       int maxVisible = 0;
+      bool hasHiddenEvents = false;
       for (int d = startDay; d < startDay + 10; d++) {
         final notes = notesGetter(kMonth, d);
         final visible = notes.length > maxVisibleEvents
             ? maxVisibleEvents
             : notes.length;
         if (visible > maxVisible) maxVisible = visible;
+        if (notes.length > visible) hasHiddenEvents = true;
       }
 
       double pillsHeight = 0.0;
@@ -749,6 +807,9 @@ class _MonthCard extends StatelessWidget {
         pillsHeight = firstPillHeight;
         if (maxVisible > 1) {
           pillsHeight += subsequentPillHeight * (maxVisible - 1);
+        }
+        if (hasHiddenEvents) {
+          pillsHeight += overflowIndicatorHeight;
         }
       }
 
@@ -767,22 +828,27 @@ class _MonthCard extends StatelessWidget {
     final isMonthToday = (todayMonth != null && todayMonth == kMonth);
     final gapBeforeRow = expansionLevel == MonthExpansionLevel.details
         ? 0.0
-        : 6.0;
+        : _kDecanLabelToWeekdayGap;
 
     return Padding(
       key: anchorKey,
-      padding: const EdgeInsets.fromLTRB(16, 10, 16, 20),
+      padding: const EdgeInsets.fromLTRB(
+        _kMonthCardHorizontalInset,
+        _kMonthCardTopInset,
+        _kMonthCardHorizontalInset,
+        _kMonthCardBottomInset,
+      ),
       child: Card(
-        color: Colors.black,
+        color: _kSoftGridBackground,
         elevation: 0,
         surfaceTintColor: Colors.transparent,
         clipBehavior: Clip.none, // avoids unnecessary AA clip
         shape: RoundedRectangleBorder(
           side: BorderSide.none,
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(_kMonthCardRadius),
         ),
         child: Padding(
-          padding: const EdgeInsets.fromLTRB(12, 12, 12, 12),
+          padding: const EdgeInsets.all(_kMonthCardInnerPadding),
           child: AnimatedContainer(
             duration: const Duration(milliseconds: 200),
             curve: Curves.easeOutCubic,
@@ -793,40 +859,52 @@ class _MonthCard extends StatelessWidget {
                 // Header row: Kemetic month name (left), Season+Year (right)
                 Row(
                   children: [
-                    RepaintBoundary(
-                      key: monthHeaderKey,
-                      child: GestureDetector(
-                        onTap: () {
-                          if (onMonthHeaderTap != null) {
-                            onMonthHeaderTap!(context);
-                          } else {
-                            _openMonthInfo(context);
-                          }
-                        },
-                        child: _GlossyMonthNameText(
-                          text: getMonthById(kMonth).displayFull,
-                          style:
-                              _monthTitleGold, // MonthNameText handles font families
-                          gradient: goldGloss,
+                    Expanded(
+                      flex: 2,
+                      child: Align(
+                        alignment: Alignment.centerLeft,
+                        child: RepaintBoundary(
+                          key: monthHeaderKey,
+                          child: GestureDetector(
+                            onTap: () {
+                              if (onMonthHeaderTap != null) {
+                                onMonthHeaderTap!(context);
+                              } else {
+                                _openMonthInfo(context);
+                              }
+                            },
+                            child: _GlossyMonthNameText(
+                              text: getMonthById(kMonth).displayFull,
+                              style:
+                                  _monthTitleGold, // MonthNameText handles font families
+                              gradient: goldGloss,
+                            ),
+                          ),
                         ),
                       ),
                     ),
-                    const Spacer(),
-                    RepaintBoundary(
-                      child: Text(
-                        rightLabel,
-                        style: _neutralOnBlack.copyWith(
-                          fontFamilyFallback: const [
-                            'NotoSans',
-                            'Roboto',
-                            'Arial',
-                            'sans-serif',
-                          ],
-                          letterSpacing: 0,
+                    const SizedBox(width: 8),
+                    Flexible(
+                      child: Align(
+                        alignment: Alignment.centerRight,
+                        child: RepaintBoundary(
+                          child: Text(
+                            rightLabel,
+                            style: _neutralOnBlack.copyWith(
+                              fontFamilyFallback: const [
+                                'NotoSans',
+                                'Roboto',
+                                'Arial',
+                                'sans-serif',
+                              ],
+                              letterSpacing: 0,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.fade,
+                            softWrap: false,
+                            textAlign: TextAlign.right,
+                          ),
                         ),
-                        maxLines: 1,
-                        overflow: TextOverflow.fade,
-                        softWrap: false,
                       ),
                     ),
                   ],
@@ -895,7 +973,7 @@ class _MonthCard extends StatelessWidget {
                     decanIndex: i,
                     showGregorian: showGregorian,
                   ),
-                  const SizedBox(height: 4),
+                  const SizedBox(height: _kWeekdayToTileGap),
 
                   _DecanRow(
                     kYear: kYear,
@@ -923,7 +1001,7 @@ class _MonthCard extends StatelessWidget {
                     onEndFlow: onEndFlow,
                     onAppendToJournal: onAppendToJournal,
                   ),
-                  if (i < 2) SizedBox(height: gapBeforeRow),
+                  if (i < 2) const SizedBox(height: _kDecanRowGap),
                 ],
               ],
             ),
@@ -973,6 +1051,7 @@ class _WeekdayRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final labelColor = _softDayTileLabel();
     final labels = List<String>.generate(10, (i) {
       final day = decanIndex * 10 + i + 1;
       final gregorian = safeLocalDisplay(
@@ -989,13 +1068,11 @@ class _WeekdayRow extends StatelessWidget {
             child: Center(
               child: Text(
                 labels[i],
-                style: _weekdayLabelStyle.copyWith(
-                  color: showGregorian ? _blueLight : _goldLight,
-                ),
+                style: _weekdayLabelStyle.copyWith(color: labelColor),
               ),
             ),
           ),
-          if (i < labels.length - 1) const SizedBox(width: 3),
+          if (i < labels.length - 1) const SizedBox(width: _kDecanColumnGap),
         ],
       ],
     );
@@ -1113,7 +1190,7 @@ class _DecanRow extends StatelessWidget {
               );
             },
           ),
-          if (j < 9) const SizedBox(width: 3),
+          if (j < 9) const SizedBox(width: _kDecanColumnGap),
         ],
       ],
     );
@@ -1198,11 +1275,29 @@ class _DayChip extends StatelessWidget {
       }
     }
     final isCompact = expansionLevel == MonthExpansionLevel.compact;
-    final useTabletLandscapeDetails =
-        expansionLevel == MonthExpansionLevel.details &&
-        _usesTabletLandscapeMonthGrid(context);
+    final isTextlessPill = expansionLevel == MonthExpansionLevel.stacked;
+    final isLabeledPill = expansionLevel == MonthExpansionLevel.labeled;
+    final isDetailsPill = expansionLevel == MonthExpansionLevel.details;
     final chipHeight = decanHeight ?? _chipHeightFor(expansionLevel);
     final nonCompactHeaderHeight = 24.0;
+    final tileRadius = BorderRadius.circular(_kDayTileRadius);
+    final baseTileFill = _softDayTileFill();
+    final tileFill = isToday
+        ? Color.lerp(
+            baseTileFill,
+            _cardBorderGold,
+            _kTodayDayTileSurfaceGoldBlend,
+          )!
+        : baseTileFill;
+    final tileBorderColor = isToday
+        ? _cardBorderGold.withValues(alpha: _kTodayDayTileStrokeAlpha)
+        : tileFill;
+    final tilePadding = isCompact
+        ? const EdgeInsets.all(_kDayTileCompactPadding)
+        : const EdgeInsets.symmetric(
+            horizontal: _kDayTileExpandedHorizontalPadding,
+            vertical: _kDayTileExpandedVerticalPadding,
+          );
 
     Widget buildMiniBlocksCompact({required double maxWidth}) {
       const spacing = 2.5;
@@ -1284,25 +1379,26 @@ class _DayChip extends StatelessWidget {
           }
           return a.title.toLowerCase().compareTo(b.title.toLowerCase());
         });
-      final maxBlocks = expansionLevel == MonthExpansionLevel.stacked
-          ? 2
-          : (expansionLevel == MonthExpansionLevel.details
-                ? _detailsMonthVisibleEventCap(context)
-                : 1);
+      final maxBlocks = isTextlessPill
+          ? _kTextlessPillVisibleCap
+          : (isLabeledPill
+                ? _kLabeledPillVisibleCap
+                : (isDetailsPill ? _detailsMonthVisibleEventCap(context) : 1));
 
       int visibleCount = maxBlocks;
-      if (expansionLevel == MonthExpansionLevel.details &&
+      if (isDetailsPill &&
           availableHeight != null &&
           availableHeight.isFinite) {
-        const double estimatedPillHeight = 40.0;
-        const double spacingHeight = 6.0;
-        const double overflowIndicatorHeight = 15.0;
+        const double estimatedPillHeight = _kDetailsPillHeight;
+        const double spacingHeight = _kDetailsPillGap;
+        const double overflowIndicatorHeight = 19.0;
+        final double safeAvailableHeight = math.max(0, availableHeight - 2.0);
 
         double used = 0;
         int count = 0;
         while (count < sorted.length && count < maxBlocks) {
           final next = estimatedPillHeight + (count == 0 ? 0 : spacingHeight);
-          if (used + next > availableHeight) break;
+          if (used + next > safeAvailableHeight) break;
           used += next;
           count++;
         }
@@ -1310,7 +1406,7 @@ class _DayChip extends StatelessWidget {
         final hasHidden = count < sorted.length;
         if (hasHidden &&
             count > 0 &&
-            used + overflowIndicatorHeight > availableHeight) {
+            used + overflowIndicatorHeight > safeAvailableHeight) {
           count = (count - 1).clamp(0, maxBlocks);
         }
 
@@ -1329,22 +1425,24 @@ class _DayChip extends StatelessWidget {
               note: visible[i],
               color: noteColorResolver(visible[i]),
               isTrackSky: _isTrackSkyFlowName(flowNameGetter?.call(visible[i])),
-              dense: expansionLevel == MonthExpansionLevel.stacked,
-              singleLineLabel: useTabletLandscapeDetails,
-              label: expansionLevel == MonthExpansionLevel.details
+              dense: isTextlessPill,
+              singleLineLabel: isLabeledPill,
+              label: isLabeledPill || isDetailsPill
                   ? _labelFor(visible[i])
                   : null,
-              expand: expansionLevel == MonthExpansionLevel.details,
-              onTap: expansionLevel == MonthExpansionLevel.details
+              expand: isDetailsPill,
+              onTap: isDetailsPill
                   ? () => _showEventDetailFromNote(context, visible[i])
                   : null,
             ),
             if (i != visible.length - 1)
               SizedBox(
-                height: expansionLevel == MonthExpansionLevel.details ? 6 : 3,
+                height: isDetailsPill
+                    ? _kDetailsPillGap
+                    : (isLabeledPill ? _kLabeledPillGap : _kTextlessPillGap),
               ),
           ],
-          if (remaining > 0 && expansionLevel == MonthExpansionLevel.details)
+          if (remaining > 0 && isDetailsPill)
             Padding(
               padding: const EdgeInsets.only(top: 2),
               child: Text(
@@ -1366,193 +1464,229 @@ class _DayChip extends StatelessWidget {
       kYear: kYear,
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(10),
+        borderRadius: tileRadius,
         child: SizedBox(
           key: anchorKey,
           width: double.infinity,
           height: chipHeight,
           child: RepaintBoundary(
-            child: Stack(
-              fit: StackFit.expand,
-              children: [
-                if (highlightAnchorKey != null)
-                  Positioned.fill(
-                    child: IgnorePointer(
-                      child: KeyedSubtree(
-                        key: highlightAnchorKey,
-                        child: const SizedBox.expand(),
-                      ),
-                    ),
+            child: ClipRRect(
+              borderRadius: tileRadius,
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  color: tileFill,
+                  borderRadius: tileRadius,
+                  border: Border.all(
+                    color: tileBorderColor,
+                    width: isToday
+                        ? _kTodayDayTileBorderWidth
+                        : _kDayTileBorderWidth,
                   ),
-                if (isCompact)
-                  Stack(
-                    alignment: Alignment.center,
-                    children: [
-                      GlossyText(
-                        text: label,
-                        style: textStyle,
-                        gradient: gradient,
-                      ),
+                ),
+                child: Stack(
+                  fit: StackFit.expand,
+                  children: [
+                    if (highlightAnchorKey != null)
                       Positioned.fill(
                         child: IgnorePointer(
-                          child: Align(
-                            alignment: Alignment.bottomRight,
-                            child: Padding(
-                              padding: const EdgeInsets.only(
-                                right: 4,
-                                bottom: 4,
-                              ),
-                              child: LayoutBuilder(
-                                builder: (context, constraints) {
-                                  final maxWidth = constraints.maxWidth.isFinite
-                                      ? constraints.maxWidth
-                                      : 0.0;
-                                  return ClipRect(
-                                    child: ConstrainedBox(
-                                      constraints: BoxConstraints(
-                                        maxWidth: maxWidth,
-                                      ),
-                                      child: Align(
-                                        alignment: Alignment.bottomRight,
-                                        child: buildMiniBlocksCompact(
-                                          maxWidth: maxWidth,
-                                        ),
-                                      ),
-                                    ),
-                                  );
-                                },
-                              ),
-                            ),
+                          child: KeyedSubtree(
+                            key: highlightAnchorKey,
+                            child: const SizedBox.expand(),
                           ),
                         ),
                       ),
-                    ],
-                  )
-                else
-                  Column(
-                    mainAxisAlignment: MainAxisAlignment.start,
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      SizedBox(
-                        height: nonCompactHeaderHeight,
-                        child: LayoutBuilder(
-                          builder: (context, constraints) {
-                            final maxWidth = constraints.maxWidth.isFinite
-                                ? constraints.maxWidth
-                                : 0.0;
-                            final canShowTrackSkyMotif =
-                                trackSkyHeaderNote != null && maxWidth >= 14;
-                            final motifWidth = canShowTrackSkyMotif
-                                ? math.min(14.0, maxWidth * 0.4)
-                                : 0.0;
-                            final motifOffset = canShowTrackSkyMotif
-                                ? (motifWidth / 2) + 1.5
-                                : 0.0;
-                            final motifOnLeftEdge = kDay % 10 == 0;
-                            final motifSpec = trackSkyHeaderNote == null
-                                ? null
-                                : _trackSkyBadgeSpecForNote(trackSkyHeaderNote);
-
-                            return Stack(
-                              clipBehavior: Clip.none,
-                              children: [
-                                SizedBox(
-                                  width: double.infinity,
-                                  height: nonCompactHeaderHeight,
-                                  child: Center(
-                                    child: GlossyText(
-                                      text: label,
-                                      style: textStyle,
-                                      gradient: gradient,
+                    Padding(
+                      padding: tilePadding,
+                      child: isCompact
+                          ? LayoutBuilder(
+                              builder: (context, constraints) {
+                                final maxWidth = constraints.maxWidth.isFinite
+                                    ? constraints.maxWidth
+                                    : 0.0;
+                                return Column(
+                                  mainAxisAlignment:
+                                      MainAxisAlignment.spaceBetween,
+                                  crossAxisAlignment:
+                                      CrossAxisAlignment.stretch,
+                                  children: [
+                                    Flexible(
+                                      child: Align(
+                                        alignment: Alignment.topCenter,
+                                        child: GlossyText(
+                                          text: label,
+                                          style: textStyle,
+                                          gradient: gradient,
+                                        ),
+                                      ),
                                     ),
-                                  ),
-                                ),
-                                if (canShowTrackSkyMotif && motifSpec != null)
-                                  Positioned(
-                                    top: 10,
-                                    left: motifOnLeftEdge ? -motifOffset : null,
-                                    right: motifOnLeftEdge
-                                        ? null
-                                        : -motifOffset,
-                                    child: IgnorePointer(
-                                      child: SizedBox(
-                                        width: motifWidth,
-                                        height: 10,
-                                        child: Stack(
-                                          alignment: Alignment.center,
-                                          children: [
-                                            Align(
-                                              alignment: Alignment.topCenter,
-                                              child: SizedBox(
-                                                height: 6.2,
-                                                child: FittedBox(
-                                                  fit: BoxFit.scaleDown,
-                                                  alignment:
-                                                      Alignment.topCenter,
-                                                  child:
-                                                      _buildTrackSkyBadgeMotif(
-                                                        spec: motifSpec,
-                                                        title:
-                                                            trackSkyHeaderNote
-                                                                .title,
-                                                        dense: false,
-                                                      ),
-                                                ),
+                                    const SizedBox(height: _kCompactMarkerGap),
+                                    KeyedSubtree(
+                                      key: ValueKey<String>(
+                                        'k:$kYear-$kMonth-$kDay-marker|${showGregorian ? "G" : "K"}',
+                                      ),
+                                      child: IgnorePointer(
+                                        child: ClipRect(
+                                          child: ConstrainedBox(
+                                            constraints: BoxConstraints(
+                                              maxWidth: maxWidth,
+                                            ),
+                                            child: Align(
+                                              alignment: Alignment.bottomCenter,
+                                              child: buildMiniBlocksCompact(
+                                                maxWidth: maxWidth,
                                               ),
                                             ),
-                                            Align(
-                                              alignment: Alignment.bottomCenter,
-                                              child: Container(
-                                                height: 1.8,
-                                                decoration: BoxDecoration(
-                                                  borderRadius:
-                                                      BorderRadius.circular(
-                                                        999,
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                );
+                              },
+                            )
+                          : Column(
+                              mainAxisAlignment: MainAxisAlignment.start,
+                              crossAxisAlignment: CrossAxisAlignment.stretch,
+                              children: [
+                                SizedBox(
+                                  height: nonCompactHeaderHeight,
+                                  child: LayoutBuilder(
+                                    builder: (context, constraints) {
+                                      final maxWidth =
+                                          constraints.maxWidth.isFinite
+                                          ? constraints.maxWidth
+                                          : 0.0;
+                                      final canShowTrackSkyMotif =
+                                          trackSkyHeaderNote != null &&
+                                          maxWidth >= 14;
+                                      final motifWidth = canShowTrackSkyMotif
+                                          ? math.min(14.0, maxWidth * 0.4)
+                                          : 0.0;
+                                      final motifOffset = canShowTrackSkyMotif
+                                          ? (motifWidth / 2) + 1.5
+                                          : 0.0;
+                                      final motifOnLeftEdge = kDay % 10 == 0;
+                                      final motifSpec =
+                                          trackSkyHeaderNote == null
+                                          ? null
+                                          : _trackSkyBadgeSpecForNote(
+                                              trackSkyHeaderNote,
+                                            );
+
+                                      return Stack(
+                                        clipBehavior: Clip.none,
+                                        children: [
+                                          SizedBox(
+                                            width: double.infinity,
+                                            height: nonCompactHeaderHeight,
+                                            child: Center(
+                                              child: GlossyText(
+                                                text: label,
+                                                style: textStyle,
+                                                gradient: gradient,
+                                              ),
+                                            ),
+                                          ),
+                                          if (canShowTrackSkyMotif &&
+                                              motifSpec != null)
+                                            Positioned(
+                                              top: 10,
+                                              left: motifOnLeftEdge
+                                                  ? -motifOffset
+                                                  : null,
+                                              right: motifOnLeftEdge
+                                                  ? null
+                                                  : -motifOffset,
+                                              child: IgnorePointer(
+                                                child: SizedBox(
+                                                  width: motifWidth,
+                                                  height: 10,
+                                                  child: Stack(
+                                                    alignment: Alignment.center,
+                                                    children: [
+                                                      Align(
+                                                        alignment:
+                                                            Alignment.topCenter,
+                                                        child: SizedBox(
+                                                          height: 6.2,
+                                                          child: FittedBox(
+                                                            fit: BoxFit
+                                                                .scaleDown,
+                                                            alignment: Alignment
+                                                                .topCenter,
+                                                            child: _buildTrackSkyBadgeMotif(
+                                                              spec: motifSpec,
+                                                              title:
+                                                                  trackSkyHeaderNote
+                                                                      .title,
+                                                              dense: false,
+                                                            ),
+                                                          ),
+                                                        ),
                                                       ),
-                                                  gradient: LinearGradient(
-                                                    colors: [
-                                                      motifSpec.accentColor
-                                                          .withValues(
-                                                            alpha: 0.0,
+                                                      Align(
+                                                        alignment: Alignment
+                                                            .bottomCenter,
+                                                        child: Container(
+                                                          height: 1.8,
+                                                          decoration: BoxDecoration(
+                                                            borderRadius:
+                                                                BorderRadius.circular(
+                                                                  999,
+                                                                ),
+                                                            gradient: LinearGradient(
+                                                              colors: [
+                                                                motifSpec
+                                                                    .accentColor
+                                                                    .withValues(
+                                                                      alpha:
+                                                                          0.0,
+                                                                    ),
+                                                                motifSpec
+                                                                    .accentColor
+                                                                    .withValues(
+                                                                      alpha:
+                                                                          0.75,
+                                                                    ),
+                                                                motifSpec
+                                                                    .secondaryAccentColor
+                                                                    .withValues(
+                                                                      alpha:
+                                                                          0.95,
+                                                                    ),
+                                                              ],
+                                                            ),
                                                           ),
-                                                      motifSpec.accentColor
-                                                          .withValues(
-                                                            alpha: 0.75,
-                                                          ),
-                                                      motifSpec
-                                                          .secondaryAccentColor
-                                                          .withValues(
-                                                            alpha: 0.95,
-                                                          ),
+                                                        ),
+                                                      ),
                                                     ],
                                                   ),
                                                 ),
                                               ),
                                             ),
-                                          ],
-                                        ),
-                                      ),
-                                    ),
+                                        ],
+                                      );
+                                    },
                                   ),
+                                ),
+                                Expanded(
+                                  child: LayoutBuilder(
+                                    builder: (context, constraints) {
+                                      return ClipRect(
+                                        child: buildMiniBlocks(
+                                          availableHeight:
+                                              constraints.maxHeight,
+                                        ),
+                                      );
+                                    },
+                                  ),
+                                ),
                               ],
-                            );
-                          },
-                        ),
-                      ),
-                      Expanded(
-                        child: LayoutBuilder(
-                          builder: (context, constraints) {
-                            return ClipRect(
-                              child: buildMiniBlocks(
-                                availableHeight: constraints.maxHeight,
-                              ),
-                            );
-                          },
-                        ),
-                      ),
-                    ],
-                  ),
-              ],
+                            ),
+                    ),
+                  ],
+                ),
+              ),
             ),
           ),
         ),
@@ -1603,7 +1737,7 @@ class _DayChip extends StatelessWidget {
       }
     }
 
-    // For non-details mode (stacked/compact), same logic
+    // For non-details modes, keep labels short and deterministic.
     if (hasFlow) {
       if (hasMeaningfulTitle) {
         final title = short(titleRaw, 50);
@@ -3162,20 +3296,29 @@ class _TrackSkyMiniBadge extends StatelessWidget {
       title: note.title,
       dense: dense,
     );
-    final double badgeHeight = isDetailPill ? 40 : (dense ? 10 : 26);
-    final double motifBoxWidth = showLabel ? 16 : (dense ? 12 : 18);
+    final double badgeHeight = isDetailPill
+        ? _kDetailsPillHeight
+        : (dense ? _kTextlessPillHeight : _kLabeledPillHeight);
+    final double motifBoxWidth = showLabel
+        ? (isDetailPill ? 18 : 15)
+        : (dense ? 12 : 18);
     final double motifBoxHeight = dense ? 10 : 14;
     final EdgeInsetsGeometry padding = showLabel
-        ? const EdgeInsets.fromLTRB(7, 6, 6, 6)
+        ? EdgeInsets.symmetric(
+            horizontal: isDetailPill ? 3 : 3,
+            vertical: isDetailPill ? 6 : 4,
+          )
         : const EdgeInsets.symmetric(horizontal: 4, vertical: 2);
     final BorderRadius radius = BorderRadius.circular(
-      isDetailPill ? 12 : (dense ? 5 : 10),
+      isDetailPill
+          ? _kDetailsPillRadius
+          : (dense ? _kTextlessPillRadius : _kLabeledPillRadius),
     );
 
-    final labelStyle = TextStyle(
+    final baseLabelStyle = TextStyle(
       color: spec.textColor,
-      fontSize: isDetailPill ? 10.5 : 10,
-      height: 1.18,
+      fontSize: isDetailPill ? 10.2 : 9.8,
+      height: isDetailPill ? 1.13 : 1.16,
       fontWeight: isDetailPill ? FontWeight.w600 : FontWeight.w500,
       shadows: [
         Shadow(
@@ -3224,6 +3367,12 @@ class _TrackSkyMiniBadge extends StatelessWidget {
                 builder: (context, constraints) {
                   final canShowMotifWithLabel =
                       showLabel && constraints.maxWidth >= 44;
+                  final labelStyle = baseLabelStyle.copyWith(
+                    fontSize: _eventPillFontSize(
+                      maxWidth: constraints.maxWidth,
+                      isDetailPill: isDetailPill,
+                    ),
+                  );
 
                   return Stack(
                     fit: StackFit.expand,
@@ -3268,10 +3417,12 @@ class _TrackSkyMiniBadge extends StatelessWidget {
                                       alignment: Alignment.centerLeft,
                                       child: Text(
                                         label!,
-                                        maxLines: singleLineLabel ? 1 : 2,
+                                        maxLines: singleLineLabel
+                                            ? 1
+                                            : (isDetailPill ? 3 : 2),
                                         overflow: TextOverflow.ellipsis,
                                         softWrap: !singleLineLabel,
-                                        textAlign: TextAlign.left,
+                                        textAlign: TextAlign.center,
                                         style: labelStyle,
                                       ),
                                     ),
@@ -3368,19 +3519,18 @@ class _MiniEventBlock extends StatelessWidget {
     final isDetailPill = expand && showLabel;
     final bg = color.withValues(alpha: dense ? 0.28 : 0.22);
     final border = color.withValues(alpha: 0.9);
-    final double badgeHeight = isDetailPill ? 38 : (dense ? 8 : 24);
-    final EdgeInsetsGeometry padding = showLabel
-        ? (isDetailPill
-              ? const EdgeInsets.symmetric(horizontal: 3, vertical: 6)
-              : const EdgeInsets.symmetric(horizontal: 7, vertical: 3))
-        : EdgeInsets.zero;
+    final double badgeHeight = isDetailPill
+        ? _kDetailsPillHeight
+        : (dense ? _kTextlessPillHeight : _kLabeledPillHeight);
     final BorderRadius radius = BorderRadius.circular(
-      isDetailPill ? 12 : (dense ? 5 : 10),
+      isDetailPill
+          ? _kDetailsPillRadius
+          : (dense ? _kTextlessPillRadius : _kLabeledPillRadius),
     );
-    final TextStyle labelStyle = TextStyle(
+    final TextStyle baseLabelStyle = TextStyle(
       color: Colors.white,
-      fontSize: isDetailPill ? 10.5 : 10,
-      height: 1.2,
+      fontSize: isDetailPill ? 10.2 : 9.8,
+      height: isDetailPill ? 1.13 : 1.16,
       fontWeight: isDetailPill ? FontWeight.w600 : FontWeight.w500,
     );
     return LayoutBuilder(
@@ -3390,6 +3540,21 @@ class _MiniEventBlock extends StatelessWidget {
                   ? math.min(24.0, constraints.maxWidth)
                   : 24.0)
             : 0.0;
+        final double labelHorizontalPadding = constraints.maxWidth < 42
+            ? 2.0
+            : (isDetailPill ? 4.0 : 4.0);
+        final EdgeInsetsGeometry padding = showLabel
+            ? EdgeInsets.symmetric(
+                horizontal: labelHorizontalPadding,
+                vertical: isDetailPill ? 6.0 : 4.0,
+              )
+            : EdgeInsets.zero;
+        final labelStyle = baseLabelStyle.copyWith(
+          fontSize: _eventPillFontSize(
+            maxWidth: constraints.maxWidth,
+            isDetailPill: isDetailPill,
+          ),
+        );
         final container = Container(
           width: expand ? double.infinity : null,
           height: badgeHeight,
@@ -3397,17 +3562,17 @@ class _MiniEventBlock extends StatelessWidget {
           decoration: BoxDecoration(
             color: bg,
             borderRadius: radius,
-            border: Border.all(color: border, width: dense ? 0.8 : 1.0),
+            border: Border.all(color: border, width: dense ? 1.15 : 1.1),
           ),
           constraints: BoxConstraints(minWidth: minW),
-          alignment: Alignment.centerLeft,
+          alignment: Alignment.center,
           child: showLabel
               ? Text(
                   label!,
-                  maxLines: singleLineLabel ? 1 : 2,
+                  maxLines: singleLineLabel ? 1 : (isDetailPill ? 3 : 2),
                   overflow: TextOverflow.ellipsis,
                   softWrap: !singleLineLabel,
-                  textAlign: TextAlign.left,
+                  textAlign: TextAlign.center,
                   style: labelStyle,
                 )
               : null,
@@ -3473,6 +3638,7 @@ class _EpagomenalCard extends StatelessWidget {
 
   // Weekday labels row for epagomenal days (5 or 6 days)
   Widget _epagomenalWeekdayRow(int dayCount) {
+    final labelColor = _softDayTileLabel();
     const letters = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
     final labels = List<String>.generate(dayCount, (i) {
       final gregorian = safeLocalDisplay(
@@ -3489,13 +3655,11 @@ class _EpagomenalCard extends StatelessWidget {
             child: Center(
               child: Text(
                 labels[i],
-                style: _weekdayLabelStyle.copyWith(
-                  color: showGregorian ? _blueLight : _goldLight,
-                ),
+                style: _weekdayLabelStyle.copyWith(color: labelColor),
               ),
             ),
           ),
-          if (i < labels.length - 1) const SizedBox(width: 3),
+          if (i < labels.length - 1) const SizedBox(width: _kDecanColumnGap),
         ],
       ],
     );
@@ -3521,20 +3685,24 @@ class _EpagomenalCard extends StatelessWidget {
       if (expansionLevel != MonthExpansionLevel.details) {
         return _chipHeightFor(expansionLevel);
       }
-      const double labelAreaHeight = 24.0;
-      const double firstPillHeight = 50.0;
-      const double subsequentPillHeight = 56.0;
+      const double labelAreaHeight = 50.0;
+      const double firstPillHeight = _kDetailsPillHeight;
+      const double subsequentPillHeight =
+          _kDetailsPillHeight + _kDetailsPillGap;
+      const double overflowIndicatorHeight = 19.0;
       const double minHeight = 80.0;
       final double maxHeight = _detailsMonthMaxDecanHeight(context);
       final maxVisibleEvents = _detailsMonthVisibleEventCap(context);
 
       int maxVisible = 0;
+      bool hasHiddenEvents = false;
       for (int d = 1; d <= epiCount; d++) {
         final notes = notesGetter(13, d);
         final visible = notes.length > maxVisibleEvents
             ? maxVisibleEvents
             : notes.length;
         if (visible > maxVisible) maxVisible = visible;
+        if (notes.length > visible) hasHiddenEvents = true;
       }
 
       double pillsHeight = 0.0;
@@ -3542,6 +3710,9 @@ class _EpagomenalCard extends StatelessWidget {
         pillsHeight = firstPillHeight;
         if (maxVisible > 1) {
           pillsHeight += subsequentPillHeight * (maxVisible - 1);
+        }
+        if (hasHiddenEvents) {
+          pillsHeight += overflowIndicatorHeight;
         }
       }
 
@@ -3553,9 +3724,9 @@ class _EpagomenalCard extends StatelessWidget {
 
     return Padding(
       padding: EdgeInsets.fromLTRB(
-        16,
+        _kMonthCardHorizontalInset,
         6,
-        16,
+        _kMonthCardHorizontalInset,
         expansionLevel == MonthExpansionLevel.details ? 6 : 24,
       ),
       child: Card(
@@ -3563,10 +3734,10 @@ class _EpagomenalCard extends StatelessWidget {
         elevation: 0,
         shape: RoundedRectangleBorder(
           side: BorderSide.none,
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(_kMonthCardRadius),
         ),
         child: Padding(
-          padding: const EdgeInsets.fromLTRB(12, 12, 12, 12),
+          padding: const EdgeInsets.all(_kMonthCardInnerPadding),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -3606,7 +3777,7 @@ class _EpagomenalCard extends StatelessWidget {
               ),
 
               _epagomenalWeekdayRow(epiCount),
-              const SizedBox(height: 4),
+              const SizedBox(height: _kWeekdayToTileGap),
 
               Row(
                 children: [
@@ -3644,7 +3815,8 @@ class _EpagomenalCard extends StatelessWidget {
                         onAppendToJournal: onAppendToJournal,
                       ),
                     ),
-                    if (i < epiCount - 1) const SizedBox(width: 3),
+                    if (i < epiCount - 1)
+                      const SizedBox(width: _kDecanColumnGap),
                   ],
                 ],
               ),

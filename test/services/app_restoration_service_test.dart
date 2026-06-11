@@ -383,6 +383,23 @@ void main() {
     expect(prefs.getString(key), isNull);
   });
 
+  test('accepts the labeled calendar expansion restoration state', () async {
+    await AppRestorationService.instance.saveCalendarState(
+      const CalendarRestorationState(
+        kYear: 6267,
+        kMonth: 4,
+        kDay: 12,
+        showGregorian: false,
+        expansion: 'labeled',
+      ),
+    );
+
+    final state = await AppRestorationService.instance.readCalendarState();
+
+    expect(state, isNotNull);
+    expect(state!.expansion, 'labeled');
+  });
+
   test(
     'drops invalid nested restoration payloads without losing route',
     () async {

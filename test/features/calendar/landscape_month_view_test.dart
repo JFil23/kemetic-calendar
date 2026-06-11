@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mobile/features/calendar/calendar_page.dart';
@@ -112,6 +114,293 @@ void main() {
   });
 
   group('Calendar month grid tablet layout', () {
+    testWidgets('all four pinch expansion states render distinctly', (
+      tester,
+    ) async {
+      await _setViewport(tester, const Size(430, 932));
+
+      final heights = <MonthExpansionLevel, double>{};
+      for (final level in MonthExpansionLevel.values) {
+        await _pumpMonthCard(
+          tester,
+          expansionLevel: level,
+          notesForDay: (day) => day == 4
+              ? const [
+                  NoteData(
+                    title: 'Alpha event',
+                    allDay: false,
+                    start: TimeOfDay(hour: 9, minute: 0),
+                    end: TimeOfDay(hour: 10, minute: 0),
+                    manualColor: Colors.purple,
+                  ),
+                  NoteData(
+                    title: 'Beta event',
+                    allDay: false,
+                    start: TimeOfDay(hour: 11, minute: 0),
+                    end: TimeOfDay(hour: 12, minute: 0),
+                    manualColor: Colors.green,
+                  ),
+                ]
+              : const <NoteData>[],
+        );
+
+        final dayCell = find.byKey(const ValueKey<String>('k:6267-1-4|K'));
+        heights[level] = tester.getSize(dayCell).height;
+
+        switch (level) {
+          case MonthExpansionLevel.compact:
+          case MonthExpansionLevel.stacked:
+            expect(find.text('Alpha event'), findsNothing);
+            expect(find.text('Beta event'), findsNothing);
+          case MonthExpansionLevel.labeled:
+          case MonthExpansionLevel.details:
+            expect(find.text('Alpha event'), findsOneWidget);
+            expect(find.text('Beta event'), findsOneWidget);
+        }
+      }
+
+      expect(
+        heights[MonthExpansionLevel.compact]!,
+        lessThan(heights[MonthExpansionLevel.stacked]!),
+      );
+      expect(
+        heights[MonthExpansionLevel.stacked]!,
+        lessThan(heights[MonthExpansionLevel.labeled]!),
+      );
+      expect(
+        heights[MonthExpansionLevel.labeled]!,
+        lessThan(heights[MonthExpansionLevel.details]!),
+      );
+    });
+
+    testWidgets('non-compact event pills match mockup sizing steps', (
+      tester,
+    ) async {
+      await _setViewport(tester, const Size(390, 844));
+      List<NoteData> notesForDay(int day) => day == 4
+          ? const [
+              NoteData(
+                title: 'Alpha event',
+                allDay: false,
+                start: TimeOfDay(hour: 9, minute: 0),
+                end: TimeOfDay(hour: 10, minute: 0),
+                manualColor: Colors.purple,
+              ),
+              NoteData(
+                title: 'Beta event',
+                allDay: false,
+                start: TimeOfDay(hour: 11, minute: 0),
+                end: TimeOfDay(hour: 12, minute: 0),
+                manualColor: Colors.green,
+              ),
+            ]
+          : const <NoteData>[];
+
+      const dayCellKey = ValueKey<String>('k:6267-1-4|K');
+
+      await _pumpMonthCard(
+        tester,
+        expansionLevel: MonthExpansionLevel.stacked,
+        notesForDay: notesForDay,
+      );
+      final stackedPills = _eventPillContainersInDay(find.byKey(dayCellKey));
+      expect(stackedPills, findsNWidgets(2));
+      expect(find.text('Alpha event'), findsNothing);
+      for (final size in _eventPillSizes(tester, stackedPills)) {
+        expect(size.height, closeTo(12.0, 0.1));
+        expect(size.width, greaterThanOrEqualTo(30.0));
+      }
+
+      await _pumpMonthCard(
+        tester,
+        expansionLevel: MonthExpansionLevel.labeled,
+        notesForDay: notesForDay,
+      );
+      final labeledPills = _eventPillContainersInDay(find.byKey(dayCellKey));
+      expect(labeledPills, findsNWidgets(2));
+      for (final size in _eventPillSizes(tester, labeledPills)) {
+        expect(size.height, closeTo(30.0, 0.1));
+        expect(size.width, greaterThanOrEqualTo(30.0));
+      }
+      final labeledText = tester.widget<Text>(find.text('Alpha event'));
+      expect(labeledText.maxLines, 1);
+      expect(labeledText.textAlign, TextAlign.center);
+
+      await _pumpMonthCard(
+        tester,
+        expansionLevel: MonthExpansionLevel.details,
+        notesForDay: notesForDay,
+      );
+      final detailPills = _eventPillContainersInDay(find.byKey(dayCellKey));
+      expect(detailPills, findsNWidgets(2));
+      for (final size in _eventPillSizes(tester, detailPills)) {
+        expect(size.height, closeTo(52.0, 0.1));
+        expect(size.width, greaterThanOrEqualTo(30.0));
+      }
+      final detailText = tester.widget<Text>(find.text('Alpha event'));
+      expect(detailText.maxLines, 3);
+      expect(detailText.textAlign, TextAlign.center);
+    });
+
+    testWidgets('collapsed soft day tiles use visible filled surfaces', (
+      tester,
+    ) async {
+      await _setViewport(tester, const Size(430, 932));
+      await _pumpMonthCard(
+        tester,
+        expansionLevel: MonthExpansionLevel.compact,
+        notesForDay: (day) => day == 4
+            ? const [
+                NoteData(
+                  title: 'Marker event',
+                  allDay: true,
+                  manualColor: Colors.green,
+                ),
+              ]
+            : const <NoteData>[],
+      );
+
+      final dayCell = find.byKey(const ValueKey<String>('k:6267-1-4|K'));
+      final dayNumber = find.descendant(of: dayCell, matching: find.text('4'));
+      final marker = find.byKey(const ValueKey<String>('k:6267-1-4-marker|K'));
+      final monthCard = tester.widget<Card>(find.byType(Card).first);
+      final tileBox = tester.widget<DecoratedBox>(
+        find.descendant(of: dayCell, matching: find.byType(DecoratedBox)).first,
+      );
+      final decoration = tileBox.decoration as BoxDecoration;
+      final radius = decoration.borderRadius! as BorderRadius;
+      final border = decoration.border! as Border;
+
+      expect(monthCard.color, const Color(0xFF0A0A0A));
+      expect(decoration.color, const Color(0xFF101010));
+      expect(decoration.borderRadius, isNotNull);
+      expect(radius.topLeft.x, greaterThanOrEqualTo(11));
+      expect(radius.topLeft.y, greaterThanOrEqualTo(11));
+      expect(border.top.width, greaterThan(0));
+      expect(border.top.width, lessThanOrEqualTo(0.45));
+      expect(border.top.color, const Color(0xFF101010));
+
+      expect(marker, findsOneWidget);
+      expect(dayNumber, findsOneWidget);
+      final numberRect = tester.getRect(dayNumber);
+      final markerRect = tester.getRect(marker);
+      expect(markerRect.center.dy, greaterThan(numberRect.center.dy));
+    });
+
+    testWidgets('kemetic weekday labels use the trial charcoal grid color', (
+      tester,
+    ) async {
+      await _setViewport(tester, const Size(430, 932));
+      await _pumpMonthCard(tester, expansionLevel: MonthExpansionLevel.compact);
+
+      final dayCell = find.byKey(const ValueKey<String>('k:6267-1-1|K'));
+      final tileBox = tester.widget<DecoratedBox>(
+        find.descendant(of: dayCell, matching: find.byType(DecoratedBox)).first,
+      );
+      final tileDecoration = tileBox.decoration as BoxDecoration;
+      final tileFill = tileDecoration.color;
+
+      expect(tileFill, const Color(0xFF101010));
+
+      final weekdayLabels = tester
+          .widgetList<Text>(find.byType(Text))
+          .where(
+            (text) =>
+                text.style?.fontSize == 11 &&
+                text.style?.fontWeight == FontWeight.w600,
+          )
+          .toList();
+
+      expect(weekdayLabels, isNotEmpty);
+      for (final label in weekdayLabels) {
+        expect(label.style?.color, const Color(0xFF2E2E2E));
+        expect(
+          label.style!.color!.computeLuminance(),
+          greaterThan(tileFill!.computeLuminance()),
+        );
+      }
+    });
+
+    testWidgets('month card does not add an expansion control', (tester) async {
+      await _setViewport(tester, const Size(430, 932));
+      await _pumpMonthCard(tester, expansionLevel: MonthExpansionLevel.details);
+
+      expect(find.byType(IconButton), findsNothing);
+      expect(find.byType(TextButton), findsNothing);
+      expect(find.byType(ElevatedButton), findsNothing);
+      expect(find.byType(OutlinedButton), findsNothing);
+      expect(find.byType(PopupMenuButton), findsNothing);
+      expect(find.textContaining('Expand'), findsNothing);
+      expect(find.textContaining('Collapse'), findsNothing);
+    });
+
+    testWidgets('expanded month layout has no overflows across target sizes', (
+      tester,
+    ) async {
+      for (final viewport in const <({String name, Size size})>[
+        (name: 'phone portrait', size: Size(390, 844)),
+        (name: 'phone landscape', size: Size(844, 390)),
+        (name: 'tablet portrait', size: Size(834, 1194)),
+        (name: 'tablet landscape', size: Size(1194, 834)),
+      ]) {
+        await _setViewport(tester, viewport.size);
+        await _pumpMonthCard(
+          tester,
+          expansionLevel: MonthExpansionLevel.details,
+          notesForDay: _denseNotesForLayoutGuard,
+        );
+
+        expect(tester.takeException(), isNull, reason: viewport.name);
+        _expectDecanCellsDoNotOverlap(tester);
+      }
+    });
+
+    testWidgets(
+      'full-expanded event pills stay inside day tiles across target sizes',
+      (tester) async {
+        for (final viewport in const <({String name, Size size})>[
+          (name: 'phone portrait', size: Size(390, 844)),
+          (name: 'phone landscape', size: Size(844, 390)),
+          (name: 'tablet portrait', size: Size(834, 1194)),
+          (name: 'tablet landscape', size: Size(1194, 834)),
+        ]) {
+          await _setViewport(tester, viewport.size);
+          await _pumpMonthCard(
+            tester,
+            expansionLevel: MonthExpansionLevel.details,
+            notesForDay: _denseNotesForLayoutGuard,
+          );
+
+          final dayCell = tester.getRect(
+            find.byKey(const ValueKey<String>('k:6267-1-4|K')),
+          );
+          final eventTexts = find.byWidgetPredicate(
+            (widget) =>
+                widget is Text &&
+                (widget.data?.startsWith('Contained event') ?? false),
+          );
+          expect(eventTexts, findsWidgets, reason: viewport.name);
+
+          for (final element in tester.elementList(eventTexts)) {
+            final box = element.renderObject! as RenderBox;
+            final rect = box.localToGlobal(Offset.zero) & box.size;
+            _expectRectInside(
+              rect,
+              dayCell,
+              reason:
+                  '${viewport.name}: ${tester.widget<Text>(find.byWidget(element.widget)).data}',
+            );
+          }
+
+          final overflowCount = find.textContaining('+');
+          if (overflowCount.evaluate().isNotEmpty) {
+            final countRect = tester.getRect(overflowCount.first);
+            _expectRectInside(countRect, dayCell, reason: viewport.name);
+          }
+        }
+      },
+    );
+
     testWidgets(
       'tablet landscape event chips stay inside day cells and overflow cleanly',
       (tester) async {
@@ -169,6 +458,373 @@ void main() {
       },
     );
   });
+
+  group('Calendar month grid source guards', () {
+    test('pinch expansion has four persisted states and no action control', () {
+      final source = File(
+        'lib/features/calendar/calendar_page.dart',
+      ).readAsStringSync();
+
+      expect(MonthExpansionLevel.values, hasLength(4));
+      expect(MonthExpansionLevel.values.map((level) => level.name), [
+        'compact',
+        'stacked',
+        'labeled',
+        'details',
+      ]);
+      expect(source, contains('PinchGestureSurface('));
+      expect(source, contains('onScaleStart: _onScaleStart'));
+      expect(source, contains('onScaleUpdate: _onScaleUpdate'));
+      expect(source, contains('onScaleEnd: _onScaleEnd'));
+
+      final appBar = _sourceBetween(
+        source,
+        'PreferredSizeWidget _buildCalendarAppBar',
+        'Future<void> _openProfile',
+      );
+      final actions = _sourceBetween(
+        source,
+        'List<_CalendarAction> _calendarActions',
+        'Future<void> _showActionsMenu',
+      );
+      final detachedActions = _sourceBetween(
+        source,
+        'static List<_CalendarAction> _detachedCalendarActions',
+        'static Future<void> _openDetachedSharedCalendarsSheet',
+      );
+      for (final block in [appBar, actions, detachedActions]) {
+        expect(block, isNot(contains('MonthExpansionLevel')));
+        expect(block, isNot(contains('_setExpansionLevelSmooth')));
+        expect(block, isNot(contains('_monthExpansion')));
+      }
+    });
+
+    test('existing calendar buttons and menu controls remain present', () {
+      final source = File(
+        'lib/features/calendar/calendar_page.dart',
+      ).readAsStringSync();
+
+      for (final tooltip in const [
+        "tooltip: 'New note'",
+        "tooltip: 'Search notes'",
+        "tooltip: 'Today'",
+        "tooltip: 'My Profile'",
+      ]) {
+        expect(source, contains(tooltip));
+      }
+
+      for (final label in const [
+        "label: 'Planner'",
+        "label: 'Flow Studio'",
+        "label: 'Library'",
+        "label: 'Journal'",
+        "label: 'Inbox'",
+        "label: 'Calendars'",
+        "label: 'Reflections'",
+        "label: 'Home'",
+        "label: 'Settings'",
+        "label: 'New note'",
+      ]) {
+        expect(source, contains(label));
+      }
+    });
+
+    test('month grid preserves established typography style references', () {
+      final pageSource = File(
+        'lib/features/calendar/calendar_page.dart',
+      ).readAsStringSync();
+      final gridSource = File(
+        'lib/features/calendar/calendar_grid_widgets.dart',
+      ).readAsStringSync();
+
+      for (final styleDefinition in const [
+        'const TextStyle _monthTitleGold = TextStyle(',
+        'const TextStyle _seasonStyle = TextStyle(',
+        'const TextStyle _decanStyle = TextStyle(',
+        'const TextStyle _weekdayLabelStyle = TextStyle(',
+        'const TextStyle _neutralOnBlack = TextStyle(',
+      ]) {
+        expect(pageSource, contains(styleDefinition));
+      }
+
+      final monthCardBlock = _sourceBetween(
+        gridSource,
+        'class _MonthCard extends StatelessWidget',
+        '/// Helper function to generate Kemetic day keys',
+      );
+      expect(monthCardBlock, contains('_monthTitleGold'));
+      expect(monthCardBlock, contains('_neutralOnBlack.copyWith('));
+      expect(monthCardBlock, contains('fontFamilyFallback: const ['));
+      expect(monthCardBlock, contains('letterSpacing: 0,'));
+      expect(monthCardBlock, contains('style: _decanStyle'));
+
+      final weekdayBlock = _sourceBetween(
+        gridSource,
+        'class _WeekdayRow extends StatelessWidget',
+        'class _DecanRow extends StatelessWidget',
+      );
+      expect(weekdayBlock, contains('final labelColor = _softDayTileLabel();'));
+      expect(weekdayBlock, contains('_weekdayLabelStyle.copyWith('));
+      expect(weekdayBlock, contains('color: labelColor'));
+      expect(weekdayBlock, isNot(contains('_blueLight')));
+      expect(weekdayBlock, isNot(contains('_goldLight')));
+
+      final epagomenalWeekdayBlock = _sourceBetween(
+        gridSource,
+        'Widget _epagomenalWeekdayRow',
+        'String? _gregMonthForEpagomenal',
+      );
+      expect(
+        epagomenalWeekdayBlock,
+        contains('final labelColor = _softDayTileLabel();'),
+      );
+      expect(epagomenalWeekdayBlock, contains('_weekdayLabelStyle.copyWith('));
+      expect(epagomenalWeekdayBlock, contains('color: labelColor'));
+      expect(epagomenalWeekdayBlock, isNot(contains('_blueLight')));
+      expect(epagomenalWeekdayBlock, isNot(contains('_goldLight')));
+
+      final dayChipBlock = _sourceBetween(
+        gridSource,
+        'class _DayChip extends StatelessWidget',
+        'class _MiniEventBlock extends StatelessWidget',
+      );
+      expect(dayChipBlock, contains('final textStyle = const TextStyle('));
+      expect(dayChipBlock, contains('fontWeight: FontWeight.w400,'));
+      expect(dayChipBlock, contains('fontSize: 16.0,'));
+      expect(dayChipBlock, contains('letterSpacing: 0.0,'));
+      expect(dayChipBlock, contains('style: labelStyle'));
+      expect(dayChipBlock, isNot(contains('DefaultTextStyle(')));
+      expect(dayChipBlock, isNot(contains('ThemeData(')));
+    });
+
+    test('month layout constants use trial charcoal soft grid colors', () {
+      final source = File(
+        'lib/features/calendar/calendar_grid_widgets.dart',
+      ).readAsStringSync();
+      final constantsBlock = _sourceBetween(
+        source,
+        'const Color _kSoftGridBackground',
+        'bool _usesTabletLandscapeMonthGrid',
+      );
+
+      expect(constantsBlock, contains('_kSoftGridBackground'));
+      expect(constantsBlock, contains('_kSoftDayTileFill'));
+      expect(constantsBlock, contains('_kSoftDayTileLabel'));
+      expect(constantsBlock, contains('_kDayTileRadius'));
+      expect(constantsBlock, contains('_kLabeledPillVisibleCap'));
+      expect(constantsBlock, contains('_kTextlessPillHeight'));
+      expect(constantsBlock, contains('_kLabeledPillHeight'));
+      expect(constantsBlock, contains('_kDetailsPillHeight'));
+      expect(
+        constantsBlock,
+        contains('const Color _kSoftGridBackground = Color(0xFF0A0A0A);'),
+      );
+      expect(
+        constantsBlock,
+        contains('const Color _kSoftDayTileFill = Color(0xFF101010);'),
+      );
+      expect(
+        constantsBlock,
+        contains('const Color _kSoftDayTileLabel = Color(0xFF2E2E2E);'),
+      );
+      expect(constantsBlock, contains('const double _kDayTileRadius = 11.0;'));
+      expect(
+        constantsBlock,
+        contains('const double _kDayTileBorderWidth = 0.45;'),
+      );
+      expect(
+        constantsBlock,
+        contains('const double _kMonthCardHorizontalInset = 8.0;'),
+      );
+      expect(
+        constantsBlock,
+        contains('const double _kMonthCardInnerPadding = 6.0;'),
+      );
+      expect(constantsBlock, contains('const double _kDecanColumnGap = 2.0;'));
+      expect(
+        constantsBlock,
+        contains('const double _kDayTileCompactPadding = 5.0;'),
+      );
+      expect(
+        constantsBlock,
+        contains('const double _kDayTileExpandedHorizontalPadding = 1.5;'),
+      );
+      expect(
+        constantsBlock,
+        contains('const double _kDayTileExpandedVerticalPadding = 4.0;'),
+      );
+      expect(
+        constantsBlock,
+        contains('const double _kCompactMarkerGap = 1.0;'),
+      );
+      expect(
+        constantsBlock,
+        contains('const double _kTextlessPillHeight = 12.0;'),
+      );
+      expect(
+        constantsBlock,
+        contains('const double _kLabeledPillHeight = 30.0;'),
+      );
+      expect(
+        constantsBlock,
+        contains('const double _kDetailsPillHeight = 52.0;'),
+      );
+      expect(
+        constantsBlock,
+        contains('const double _kDetailsPillRadius = 7.0;'),
+      );
+      expect(constantsBlock, isNot(contains('TextStyle(')));
+      expect(constantsBlock, isNot(contains('ThemeData(')));
+
+      final dayChipBlock = _sourceBetween(
+        source,
+        'class _DayChip extends StatelessWidget',
+        'class _MiniEventBlock extends StatelessWidget',
+      );
+      final sharedTileFillBlock = _sourceBetween(
+        source,
+        'Color _softDayTileFill()',
+        'Color _softDayTileLabel()',
+      );
+      expect(sharedTileFillBlock, contains('=> _kSoftDayTileFill'));
+      expect(sharedTileFillBlock, isNot(contains('Colors.')));
+      expect(sharedTileFillBlock, isNot(contains('TextStyle(')));
+      expect(sharedTileFillBlock, isNot(contains('ThemeData(')));
+
+      final sharedTileLabelBlock = _sourceBetween(
+        source,
+        'Color _softDayTileLabel()',
+        '@visibleForTesting',
+      );
+      expect(sharedTileLabelBlock, contains('=> _kSoftDayTileLabel'));
+      expect(sharedTileLabelBlock, isNot(contains('Colors.')));
+      expect(sharedTileLabelBlock, isNot(contains('Color(0x')));
+      expect(sharedTileLabelBlock, isNot(contains('TextStyle(')));
+      expect(sharedTileLabelBlock, isNot(contains('ThemeData(')));
+
+      final tileColorBlock = _sourceBetween(
+        dayChipBlock,
+        'final baseTileFill = _softDayTileFill();',
+        'final tilePadding = isCompact',
+      );
+      expect(tileColorBlock, contains('_cardBorderGold'));
+      expect(tileColorBlock, contains('baseTileFill'));
+      expect(tileColorBlock, contains(': tileFill'));
+      expect(tileColorBlock, isNot(contains('Colors.')));
+      expect(tileColorBlock, isNot(contains('Color(')));
+      expect(tileColorBlock, isNot(contains('TextStyle(')));
+      expect(tileColorBlock, isNot(contains('ThemeData(')));
+
+      final tileDecorationBlock = _sourceBetween(
+        dayChipBlock,
+        'decoration: BoxDecoration(',
+        'child: Stack(',
+      );
+      expect(tileDecorationBlock, contains('color: tileFill'));
+      expect(tileDecorationBlock, contains('color: tileBorderColor'));
+      expect(tileDecorationBlock, isNot(contains('Colors.')));
+      expect(tileDecorationBlock, isNot(contains('Color(')));
+      expect(tileDecorationBlock, isNot(contains('TextStyle(')));
+      expect(tileDecorationBlock, isNot(contains('ThemeData(')));
+    });
+  });
+}
+
+Future<void> _pumpMonthCard(
+  WidgetTester tester, {
+  required MonthExpansionLevel expansionLevel,
+  List<NoteData> Function(int day)? notesForDay,
+}) async {
+  await tester.pumpWidget(
+    MaterialApp(
+      home: Scaffold(
+        body: SingleChildScrollView(
+          child: buildCalendarMonthCardLayoutForTesting(
+            kYear: 6267,
+            kMonth: 1,
+            expansionLevel: expansionLevel,
+            notesForDay: notesForDay ?? ((_) => const <NoteData>[]),
+          ),
+        ),
+      ),
+    ),
+  );
+  await tester.pumpAndSettle();
+}
+
+List<NoteData> _denseNotesForLayoutGuard(int day) {
+  if (day != 4) return const <NoteData>[];
+  return List<NoteData>.generate(
+    6,
+    (index) => NoteData(
+      title: 'Contained event ${index + 1}',
+      allDay: false,
+      start: TimeOfDay(hour: 8 + index, minute: 0),
+      end: TimeOfDay(hour: 9 + index, minute: 0),
+      manualColor: Colors.purple,
+    ),
+  );
+}
+
+void _expectDecanCellsDoNotOverlap(WidgetTester tester) {
+  for (var day = 1; day < 10; day++) {
+    final current = tester.getRect(
+      find.byKey(ValueKey<String>('k:6267-1-$day|K')),
+    );
+    final next = tester.getRect(
+      find.byKey(ValueKey<String>('k:6267-1-${day + 1}|K')),
+    );
+    expect(current.right, lessThanOrEqualTo(next.left));
+  }
+}
+
+void _expectRectInside(Rect inner, Rect outer, {required String reason}) {
+  const epsilon = 0.5;
+  expect(
+    inner.left,
+    greaterThanOrEqualTo(outer.left - epsilon),
+    reason: reason,
+  );
+  expect(inner.top, greaterThanOrEqualTo(outer.top - epsilon), reason: reason);
+  expect(inner.right, lessThanOrEqualTo(outer.right + epsilon), reason: reason);
+  expect(
+    inner.bottom,
+    lessThanOrEqualTo(outer.bottom + epsilon),
+    reason: reason,
+  );
+}
+
+Finder _eventPillContainersInDay(Finder dayCell) {
+  return find.descendant(
+    of: dayCell,
+    matching: find.byWidgetPredicate((widget) {
+      if (widget is! Container) return false;
+      final decoration = widget.decoration;
+      if (decoration is! BoxDecoration) return false;
+      final border = decoration.border;
+      if (border is! Border) return false;
+      final constraints = widget.constraints;
+      return constraints != null &&
+          constraints.hasTightHeight &&
+          decoration.borderRadius != null &&
+          border.top.width >= 1.0;
+    }),
+  );
+}
+
+List<Size> _eventPillSizes(WidgetTester tester, Finder pillFinder) {
+  return [
+    for (final element in pillFinder.evaluate())
+      (element.renderObject! as RenderBox).size,
+  ];
+}
+
+String _sourceBetween(String source, String start, String end) {
+  final startIndex = source.indexOf(start);
+  final endIndex = source.indexOf(end, startIndex + start.length);
+  expect(startIndex, isNot(-1), reason: start);
+  expect(endIndex, isNot(-1), reason: end);
+  return source.substring(startIndex, endIndex);
 }
 
 class _LandscapePagerHarness extends StatelessWidget {
@@ -204,6 +860,16 @@ class _LandscapePagerHarness extends StatelessWidget {
 Future<void> _setLandscapeViewport(WidgetTester tester) async {
   final binding = tester.binding;
   await binding.setSurfaceSize(const Size(1000, 420));
+  binding.platformDispatcher.views.first.devicePixelRatio = 1.0;
+  addTearDown(() async {
+    await binding.setSurfaceSize(null);
+    binding.platformDispatcher.views.first.resetDevicePixelRatio();
+  });
+}
+
+Future<void> _setViewport(WidgetTester tester, Size size) async {
+  final binding = tester.binding;
+  await binding.setSurfaceSize(size);
   binding.platformDispatcher.views.first.devicePixelRatio = 1.0;
   addTearDown(() async {
     await binding.setSurfaceSize(null);

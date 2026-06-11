@@ -356,7 +356,7 @@ class _QuickAddSheetState extends State<_QuickAddSheet> {
   }
 }
 
-enum MonthExpansionLevel { compact, stacked, details }
+enum MonthExpansionLevel { compact, stacked, labeled, details }
 
 enum _OnboardingContinuationStage {
   none,
@@ -371,14 +371,10 @@ const Color _silver = Color(0xFFC8CCD2);
 
 // Gregorian blue (high contrast on dark)
 const Color _blue = Color(0xFF4DA3FF);
-const Color _blueLight = Color(0xFFBFE0FF);
 
 // Richer, deeper gold with visible gleam
 const Color _gold = KemeticGold.base;
 const Color _cardBorderGold = _gold;
-const Color _goldLight = Color(
-  0xFFE6C85A,
-); // Slightly brighter than base gold (for visible gleam)
 
 // Gradients are now imported from shared/glossy_text.dart
 const Gradient _maatBadgeGoldGloss = LinearGradient(
@@ -418,7 +414,6 @@ const TextStyle _weekdayLabelStyle = TextStyle(
   fontSize: 11,
   fontWeight: FontWeight.w600,
   letterSpacing: 0.2,
-  color: _blueLight,
 );
 // Neutral on black — match day numbers / decan rows (no gradient, no glow)
 const TextStyle _neutralOnBlack = TextStyle(
@@ -1213,7 +1208,9 @@ double _chipHeightFor(MonthExpansionLevel level) {
     case MonthExpansionLevel.compact:
       return 36.0;
     case MonthExpansionLevel.stacked:
-      return 58.0;
+      return 62.0;
+    case MonthExpansionLevel.labeled:
+      return 98.0;
     case MonthExpansionLevel.details:
       return 250.0;
   }
@@ -7529,7 +7526,7 @@ class CalendarPageState extends State<CalendarPage>
   final ScrollController _scrollCtrl = ScrollController();
   MonthExpansionLevel _monthExpansion = MonthExpansionLevel.compact;
   double? _scaleGestureAnchor;
-  double _pinchExpansionValue = 0.0; // 0=compact,1=stacked,2=details
+  double _pinchExpansionValue = 0.0; // 0=compact,1=stacked,2=labeled,3=details
   bool _isPinching = false;
   DateTime? _lastPinchUpdate;
   static const Duration _pinchUpdateThrottle = Duration(milliseconds: 16);
@@ -19598,6 +19595,8 @@ class CalendarPageState extends State<CalendarPage>
     switch (raw) {
       case 'stacked':
         return MonthExpansionLevel.stacked;
+      case 'labeled':
+        return MonthExpansionLevel.labeled;
       case 'details':
         return MonthExpansionLevel.details;
       case 'compact':
@@ -19612,6 +19611,8 @@ class CalendarPageState extends State<CalendarPage>
         return 'compact';
       case MonthExpansionLevel.stacked:
         return 'stacked';
+      case MonthExpansionLevel.labeled:
+        return 'labeled';
       case MonthExpansionLevel.details:
         return 'details';
     }
@@ -19756,13 +19757,20 @@ class CalendarPageState extends State<CalendarPage>
     final scaleDelta = details.scale - _scaleGestureAnchor!;
     const scaleSensitivity = 0.15;
     final expansionDelta = scaleDelta / scaleSensitivity;
-    final newValue = (_pinchExpansionValue + expansionDelta).clamp(0.0, 2.0);
+    final maxExpansionIndex = MonthExpansionLevel.values.length - 1;
+    final newValue = (_pinchExpansionValue + expansionDelta).clamp(
+      0.0,
+      maxExpansionIndex.toDouble(),
+    );
 
     if ((newValue - _pinchExpansionValue).abs() > 0.05) {
       _pinchExpansionValue = newValue;
       _scaleGestureAnchor = details.scale;
 
-      final nearestLevel = _pinchExpansionValue.round().clamp(0, 2);
+      final nearestLevel = _pinchExpansionValue.round().clamp(
+        0,
+        maxExpansionIndex,
+      );
       final targetLevel = MonthExpansionLevel.values[nearestLevel];
       if (targetLevel != _monthExpansion) {
         _setExpansionLevelSmooth(targetLevel, entryPoint: 'pinch');
@@ -19774,7 +19782,11 @@ class CalendarPageState extends State<CalendarPage>
     if (_scaleGestureAnchor == null && !_isPinching) return;
 
     final startLevel = _pinchStartLevel ?? _monthExpansion;
-    final nearestLevel = _pinchExpansionValue.round().clamp(0, 2);
+    final maxExpansionIndex = MonthExpansionLevel.values.length - 1;
+    final nearestLevel = _pinchExpansionValue.round().clamp(
+      0,
+      maxExpansionIndex,
+    );
     final targetLevel = MonthExpansionLevel.values[nearestLevel];
     _setExpansionLevelSmooth(targetLevel, entryPoint: 'pinch');
     _pinchExpansionValue = targetLevel.index.toDouble();

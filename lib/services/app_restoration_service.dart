@@ -17,6 +17,7 @@ import 'restoration_trace.dart';
 const Set<String> _validExpansionValues = <String>{
   'compact',
   'stacked',
+  'labeled',
   'details',
 };
 
