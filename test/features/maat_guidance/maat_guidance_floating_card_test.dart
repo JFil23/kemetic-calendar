@@ -110,6 +110,8 @@ void main() {
       findsOneWidget,
     );
     expect(find.textContaining('The account was made plain'), findsNothing);
+    expect(find.byType(Tooltip), findsNothing);
+    expect(find.byIcon(Icons.close), findsOneWidget);
 
     await tester.tap(find.byKey(maatGuidanceOrientationLowerThirdBadgeKey));
     await tester.pump();
@@ -125,6 +127,47 @@ void main() {
     expect(repo.acks, contains('orientation:dismissed'));
     expect(controller.current, isNull);
   });
+
+  testWidgets(
+    'deterministic orientation lower-third dismiss works without Overlay',
+    (tester) async {
+      var openCount = 0;
+      var dismissCount = 0;
+
+      await tester.pumpWidget(
+        Directionality(
+          textDirection: TextDirection.ltr,
+          child: MaatGuidanceOrientationLowerThirdBadge(
+            delivery: _deterministicOrientationDelivery(),
+            maxWidth: 320,
+            onDismiss: () => dismissCount += 1,
+            onOpen: () => openCount += 1,
+          ),
+        ),
+      );
+
+      expect(tester.takeException(), isNull);
+      expect(find.byType(Tooltip), findsNothing);
+      expect(find.byIcon(Icons.close), findsOneWidget);
+      expect(
+        find.byKey(maatGuidanceOrientationLowerThirdDismissButtonKey),
+        findsOneWidget,
+      );
+
+      await tester.tap(
+        find.byKey(maatGuidanceOrientationLowerThirdDismissButtonKey),
+      );
+      await tester.pump();
+
+      expect(dismissCount, 1);
+      expect(openCount, 0);
+
+      await tester.tap(find.byKey(maatGuidanceOrientationLowerThirdBadgeKey));
+      await tester.pump();
+
+      expect(openCount, 1);
+    },
+  );
 
   testWidgets('non-spectrum guidance keeps existing floating card surface', (
     tester,

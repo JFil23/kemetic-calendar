@@ -143,13 +143,17 @@ class MaatGuidanceOrientationLowerThirdBadge extends StatelessWidget {
                     child: Semantics(
                       label: 'Dismiss orientation',
                       button: true,
-                      child: IconButton(
+                      child: GestureDetector(
                         key: maatGuidanceOrientationLowerThirdDismissButtonKey,
-                        padding: EdgeInsets.zero,
-                        tooltip: 'Dismiss',
-                        icon: const Icon(Icons.close, size: 18),
-                        color: Colors.white70,
-                        onPressed: onDismiss,
+                        behavior: HitTestBehavior.opaque,
+                        onTap: onDismiss,
+                        child: const Center(
+                          child: Icon(
+                            Icons.close,
+                            color: Colors.white70,
+                            size: 18,
+                          ),
+                        ),
                       ),
                     ),
                   ),
