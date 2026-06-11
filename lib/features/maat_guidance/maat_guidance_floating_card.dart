@@ -6,6 +6,13 @@ import 'package:mobile/features/onboarding/guided_onboarding_overlay.dart';
 import '../../shared/glossy_text.dart';
 import 'maat_guidance_controller.dart';
 
+const maatGuidanceOrientationLowerThirdBadgeKey = ValueKey<String>(
+  'maat-guidance-orientation-lower-third-badge',
+);
+const maatGuidanceOrientationLowerThirdDismissButtonKey = ValueKey<String>(
+  'maat-guidance-orientation-lower-third-dismiss',
+);
+
 class MaatGuidanceOverlayHost extends StatelessWidget {
   const MaatGuidanceOverlayHost({
     super.key,
@@ -30,6 +37,20 @@ class MaatGuidanceOverlayHost extends StatelessWidget {
           return const SizedBox.shrink();
         }
 
+        if (delivery.isDeterministicWeighingOpeningOrientation) {
+          final media = MediaQuery.of(context);
+          return Positioned(
+            right: 12,
+            bottom: 16 + media.padding.bottom,
+            child: MaatGuidanceOrientationLowerThirdBadge(
+              delivery: delivery,
+              maxWidth: media.size.width * 0.72,
+              onDismiss: () => unawaited(controller.dismissCurrent()),
+              onOpen: () => onOpen(delivery),
+            ),
+          );
+        }
+
         return Positioned.fill(
           child: _MaatGuidanceScrim(
             onDismiss: () => unawaited(controller.dismissCurrent()),
@@ -43,6 +64,101 @@ class MaatGuidanceOverlayHost extends StatelessWidget {
           ),
         );
       },
+    );
+  }
+}
+
+class MaatGuidanceOrientationLowerThirdBadge extends StatelessWidget {
+  const MaatGuidanceOrientationLowerThirdBadge({
+    super.key = maatGuidanceOrientationLowerThirdBadgeKey,
+    required this.delivery,
+    required this.maxWidth,
+    required this.onDismiss,
+    required this.onOpen,
+  });
+
+  final MaatGuidanceDelivery delivery;
+  final double maxWidth;
+  final VoidCallback onDismiss;
+  final VoidCallback onOpen;
+
+  @override
+  Widget build(BuildContext context) {
+    return Semantics(
+      label:
+          '${delivery.lowerThirdBadgeTitle}: ${delivery.lowerThirdBadgeText}',
+      button: true,
+      child: Material(
+        color: Colors.black.withValues(alpha: 0.9),
+        borderRadius: BorderRadius.circular(14),
+        elevation: 8,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(14),
+          onTap: onOpen,
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(14, 10, 8, 10),
+            child: ConstrainedBox(
+              constraints: BoxConstraints(maxWidth: maxWidth),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(
+                    Icons.explore_outlined,
+                    color: KemeticGold.base,
+                    size: 18,
+                  ),
+                  const SizedBox(width: 8),
+                  Flexible(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          delivery.lowerThirdBadgeTitle,
+                          style: const TextStyle(
+                            color: KemeticGold.base,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w700,
+                            letterSpacing: 0,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          delivery.lowerThirdBadgeText,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 12.5,
+                            height: 1.25,
+                            letterSpacing: 0,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 6),
+                  SizedBox.square(
+                    dimension: 34,
+                    child: Semantics(
+                      label: 'Dismiss orientation',
+                      button: true,
+                      child: IconButton(
+                        key: maatGuidanceOrientationLowerThirdDismissButtonKey,
+                        padding: EdgeInsets.zero,
+                        tooltip: 'Dismiss',
+                        icon: const Icon(Icons.close, size: 18),
+                        color: Colors.white70,
+                        onPressed: onDismiss,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
     );
   }
 }

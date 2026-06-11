@@ -273,7 +273,7 @@ class _MaatGuidanceDetailPageState extends State<MaatGuidanceDetailPage> {
             const SizedBox(height: 18),
           ],
           SelectableText(
-            delivery.bodyText,
+            delivery.detailText,
             style: const TextStyle(
               color: Colors.white,
               fontSize: 15,

@@ -108,6 +108,7 @@ class MaatGuidanceDelivery {
     required this.ctaRef,
     required this.triggerReason,
     required this.createdAt,
+    this.renderMetadata,
   });
 
   final String id;
@@ -122,6 +123,7 @@ class MaatGuidanceDelivery {
   final String? ctaRef;
   final String? triggerReason;
   final DateTime? createdAt;
+  final MaatGuidanceRenderMetadata? renderMetadata;
 
   factory MaatGuidanceDelivery.fromJson(Map<String, dynamic> json) {
     final payload = _jsonMap(json['payload']);
@@ -148,10 +150,39 @@ class MaatGuidanceDelivery {
       ctaRef: _trimmed(json['cta_ref']) ?? _trimmed(packageCta['ref']),
       triggerReason: _trimmed(json['trigger_reason']),
       createdAt: _dateTime(json['created_at']),
+      renderMetadata: MaatGuidanceRenderMetadata.maybeFromPayload(payload),
     );
   }
 
   bool get hasCta => ctaType != MaatGuidanceCtaType.none && ctaRef != null;
+
+  bool get isDeterministicWeighingOpeningOrientation =>
+      kind == MaatGuidanceKind.decanOpening &&
+      renderMetadata?.isTheWeighingOpeningOrientation == true;
+
+  String get lowerThirdBadgeTitle {
+    if (isDeterministicWeighingOpeningOrientation) {
+      return renderMetadata?.badgeTitle ?? 'Orientation';
+    }
+    return kind.title;
+  }
+
+  String get lowerThirdBadgeText {
+    if (isDeterministicWeighingOpeningOrientation) {
+      return _trimmed(renderMetadata?.badgeBody) ?? displayTeaserText;
+    }
+    return displayTeaserText;
+  }
+
+  String get detailText {
+    if (isDeterministicWeighingOpeningOrientation) {
+      return _trimmed(renderMetadata?.detailBody) ??
+          _trimmed(renderMetadata?.body) ??
+          _trimmed(renderMetadata?.selectedSeed) ??
+          bodyText;
+    }
+    return bodyText;
+  }
 
   String get decanDisplayName {
     if (kind != MaatGuidanceKind.decanOpening) return '';
@@ -194,6 +225,124 @@ class MaatGuidanceDelivery {
   }
 }
 
+class MaatGuidanceRenderMetadata {
+  const MaatGuidanceRenderMetadata({
+    required this.renderer,
+    required this.usedLlm,
+    required this.llmCost,
+    required this.spectrumFlowKey,
+    required this.responseKind,
+    required this.badgeRole,
+    required this.preferredSurface,
+    this.badgeTitle,
+    this.badgeBody,
+    this.detailBody,
+    this.body,
+    this.selectedSeed,
+    this.raw = const <String, dynamic>{},
+  });
+
+  final String? renderer;
+  final bool? usedLlm;
+  final num? llmCost;
+  final String? spectrumFlowKey;
+  final String? responseKind;
+  final String? badgeRole;
+  final String? preferredSurface;
+  final String? badgeTitle;
+  final String? badgeBody;
+  final String? detailBody;
+  final String? body;
+  final String? selectedSeed;
+  final Map<String, dynamic> raw;
+
+  bool get isDeterministicSpectrum => renderer == 'deterministic_spectrum';
+
+  bool get isTheWeighingOpeningOrientation =>
+      isDeterministicSpectrum &&
+      usedLlm == false &&
+      llmCost == 0 &&
+      spectrumFlowKey == 'the-weighing' &&
+      responseKind == 'orientation' &&
+      badgeRole == 'opening_orientation' &&
+      preferredSurface == 'lower_third_badge';
+
+  static MaatGuidanceRenderMetadata? maybeFromPayload(
+    Map<String, dynamic> payload,
+  ) {
+    if (payload.isEmpty) return null;
+    final metadata = MaatGuidanceRenderMetadata.fromPayload(payload);
+    if (metadata.renderer == null &&
+        metadata.usedLlm == null &&
+        metadata.spectrumFlowKey == null &&
+        metadata.responseKind == null &&
+        metadata.badgeBody == null &&
+        metadata.body == null) {
+      return null;
+    }
+    return metadata;
+  }
+
+  factory MaatGuidanceRenderMetadata.fromPayload(Map<String, dynamic> payload) {
+    final response = _jsonMap(payload['maat_flow_response']);
+    final renderer = _jsonMap(payload['maat_flow_response_renderer']);
+    final outputControl = _jsonMap(payload['output_control']);
+    final spectrumRender = _jsonMap(outputControl['spectrum_render']);
+    final selectedSeed = _jsonMap(
+      response['selectedSeed'] ?? response['selected_seed'],
+    );
+
+    return MaatGuidanceRenderMetadata(
+      renderer:
+          _trimmed(renderer['renderer']) ??
+          _trimmed(response['source']) ??
+          _trimmed(spectrumRender['source']),
+      usedLlm:
+          _boolFrom(renderer['used_llm']) ??
+          _boolFrom(response['usedLlm']) ??
+          _boolFrom(response['used_llm']) ??
+          _boolFrom(spectrumRender['usedLlm']) ??
+          _boolFrom(spectrumRender['used_llm']),
+      llmCost: _numFrom(renderer['llm_cost']),
+      spectrumFlowKey:
+          _trimmed(renderer['spectrum_flow_key']) ??
+          _trimmed(selectedSeed['flowKey']) ??
+          _trimmed(selectedSeed['flow_key']),
+      responseKind:
+          _trimmed(renderer['response_kind']) ??
+          _trimmed(response['responseKind']) ??
+          _trimmed(response['response_kind']) ??
+          _trimmed(spectrumRender['responseKind']) ??
+          _trimmed(spectrumRender['response_kind']),
+      badgeRole:
+          _trimmed(renderer['badge_role']) ??
+          _trimmed(selectedSeed['badgeRole']) ??
+          _trimmed(selectedSeed['badge_role']),
+      preferredSurface:
+          _trimmed(renderer['preferred_surface']) ??
+          _trimmed(selectedSeed['preferredSurface']) ??
+          _trimmed(selectedSeed['preferred_surface']),
+      badgeTitle:
+          _trimmed(renderer['badge_title']) ??
+          _trimmed(response['badgeTitle']) ??
+          _trimmed(response['badge_title']) ??
+          _trimmed(selectedSeed['badgeTitle']) ??
+          _trimmed(selectedSeed['badge_title']),
+      badgeBody:
+          _trimmed(response['badgeBody']) ??
+          _trimmed(response['badge_body']) ??
+          _trimmed(selectedSeed['badgeBody']) ??
+          _trimmed(selectedSeed['badge_body']),
+      detailBody:
+          _trimmed(response['detailBody']) ?? _trimmed(response['detail_body']),
+      body: _trimmed(response['body']),
+      selectedSeed:
+          _trimmed(renderer['selected_seed']) ?? _trimmed(selectedSeed['seed']),
+      raw: payload,
+    );
+  }
+}
+
 Map<String, dynamic> _jsonMap(Object? raw) {
   if (raw is Map<String, dynamic>) return raw;
   if (raw is Map) return Map<String, dynamic>.from(raw);
@@ -224,4 +373,17 @@ String _replaceThisDecanReference(String text, String decanName) {
 DateTime? _dateTime(Object? raw) {
   final text = _trimmed(raw);
   return text == null ? null : DateTime.tryParse(text);
+}
+
+bool? _boolFrom(Object? raw) {
+  if (raw is bool) return raw;
+  final text = _trimmed(raw)?.toLowerCase();
+  if (text == 'true') return true;
+  if (text == 'false') return false;
+  return null;
+}
+
+num? _numFrom(Object? raw) {
+  if (raw is num) return raw;
+  return num.tryParse(raw?.toString() ?? '');
 }

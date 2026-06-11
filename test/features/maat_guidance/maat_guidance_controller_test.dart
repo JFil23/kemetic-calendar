@@ -707,6 +707,82 @@ void main() {
     expect(find.text('node'), findsOneWidget);
   });
 
+  testWidgets('deterministic orientation detail uses detail body', (
+    tester,
+  ) async {
+    final repo = _FakeMaatGuidanceRepo([
+      MaatGuidanceDelivery.fromJson({
+        'id': 'opening-orientation',
+        'kind': 'decan_opening',
+        'decan_period_key': _periodKey,
+        'status': 'pending',
+        'priority': 10,
+        'teaser_text': 'Legacy teaser should not render.',
+        'body_text': 'Legacy body should not render.',
+        'payload': {
+          'maat_flow_response_renderer': {
+            'renderer': 'deterministic_spectrum',
+            'used_llm': false,
+            'llm_cost': 0,
+            'spectrum_flow_key': 'the-weighing',
+            'response_kind': 'orientation',
+            'badge_role': 'opening_orientation',
+            'preferred_surface': 'lower_third_badge',
+            'badge_title': 'Orientation',
+          },
+          'maat_flow_response': {
+            'responseKind': 'orientation',
+            'body': 'Keep the record plain before drawing meaning from it.',
+            'badgeTitle': 'Orientation',
+            'badgeBody':
+                'Keep the record plain before drawing meaning from it.',
+            'detailBody':
+                'Hold the opening record plainly before drawing meaning from it.',
+            'selectedSeed': {
+              'seed': 'Keep the record plain before drawing meaning from it.',
+              'flowKey': 'the-weighing',
+              'badgeRole': 'opening_orientation',
+              'preferredSurface': 'lower_third_badge',
+            },
+          },
+        },
+      }),
+    ]);
+    final controller = MaatGuidanceController(repo);
+    final router = GoRouter(
+      initialLocation: '/maat-guidance/opening-orientation',
+      routes: [
+        GoRoute(
+          path: '/maat-guidance/:deliveryId',
+          builder: (context, state) {
+            return MaatGuidanceScope(
+              controller: controller,
+              child: MaatGuidanceDetailPage(
+                deliveryId: state.pathParameters['deliveryId']!,
+                repo: repo,
+              ),
+            );
+          },
+        ),
+      ],
+    );
+
+    await tester.pumpWidget(MaterialApp.router(routerConfig: router));
+    await tester.pumpAndSettle();
+
+    expect(
+      find.text(
+        'Hold the opening record plainly before drawing meaning from it.',
+      ),
+      findsOneWidget,
+    );
+    expect(
+      find.text('Keep the record plain before drawing meaning from it.'),
+      findsNothing,
+    );
+    expect(repo.acks, <String>['opening-orientation:opened']);
+  });
+
   testWidgets('detail page shows personalized flow preview before accept', (
     tester,
   ) async {

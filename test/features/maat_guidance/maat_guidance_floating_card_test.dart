@@ -1,9 +1,18 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mobile/data/maat_guidance_model.dart';
+import 'package:mobile/data/maat_guidance_repo.dart';
+import 'package:mobile/features/maat_guidance/maat_guidance_controller.dart';
 import 'package:mobile/features/maat_guidance/maat_guidance_floating_card.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
+
+  setUp(() {
+    SharedPreferences.setMockInitialValues(const <String, Object>{});
+  });
+
   testWidgets('floating card dismiss button does not require an Overlay', (
     tester,
   ) async {
@@ -63,6 +72,89 @@ void main() {
 
     expect(openCount, 1);
   });
+
+  testWidgets('deterministic orientation renders as lower-third badge', (
+    tester,
+  ) async {
+    var openCount = 0;
+    final repo = _FakeMaatGuidanceRepo([_deterministicOrientationDelivery()]);
+    final controller = MaatGuidanceController(repo);
+
+    await controller.refresh(force: true);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: Stack(
+            children: [
+              MaatGuidanceOverlayHost(
+                controller: controller,
+                visible: true,
+                onOpen: (_) => openCount += 1,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+
+    expect(
+      find.byKey(maatGuidanceOrientationLowerThirdBadgeKey),
+      findsOneWidget,
+    );
+    expect(find.byType(MaatGuidanceFloatingCard), findsNothing);
+    expect(find.text('Orientation'), findsOneWidget);
+    expect(
+      find.text('Keep the record plain before drawing meaning from it.'),
+      findsOneWidget,
+    );
+    expect(find.textContaining('The account was made plain'), findsNothing);
+
+    await tester.tap(find.byKey(maatGuidanceOrientationLowerThirdBadgeKey));
+    await tester.pump();
+
+    expect(openCount, 1);
+
+    await tester.tap(
+      find.byKey(maatGuidanceOrientationLowerThirdDismissButtonKey),
+    );
+    await tester.pump();
+
+    expect(openCount, 1);
+    expect(repo.acks, contains('orientation:dismissed'));
+    expect(controller.current, isNull);
+  });
+
+  testWidgets('non-spectrum guidance keeps existing floating card surface', (
+    tester,
+  ) async {
+    final repo = _FakeMaatGuidanceRepo([_delivery()]);
+    final controller = MaatGuidanceController(repo);
+
+    await controller.refresh(force: true);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: Stack(
+            children: [
+              MaatGuidanceOverlayHost(
+                controller: controller,
+                visible: true,
+                onOpen: (_) {},
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+
+    expect(find.byKey(maatGuidanceOrientationLowerThirdBadgeKey), findsNothing);
+    expect(find.byType(MaatGuidanceFloatingCard), findsOneWidget);
+    expect(find.text('Read guidance'), findsOneWidget);
+  });
 }
 
 MaatGuidanceDelivery _delivery() {
@@ -102,4 +194,80 @@ MaatGuidanceDelivery _deliveryWithNode() {
     triggerReason: 'decan_boundary',
     createdAt: DateTime.utc(2026, 5, 19),
   );
+}
+
+MaatGuidanceDelivery _deterministicOrientationDelivery() {
+  return MaatGuidanceDelivery.fromJson({
+    'id': 'orientation',
+    'kind': 'decan_opening',
+    'decan_period_key': '2026-05-29:2026-06-07:3-2',
+    'status': 'pending',
+    'priority': 10,
+    'teaser_text': 'Legacy teaser should not render.',
+    'body_text': 'Legacy body should not render.',
+    'payload': {
+      'maat_flow_response_renderer': {
+        'renderer': 'deterministic_spectrum',
+        'used_llm': false,
+        'llm_cost': 0,
+        'spectrum_flow_key': 'the-weighing',
+        'response_kind': 'orientation',
+        'badge_role': 'opening_orientation',
+        'preferred_surface': 'lower_third_badge',
+        'badge_title': 'Orientation',
+      },
+      'maat_flow_response': {
+        'responseKind': 'orientation',
+        'body': 'Keep the record plain before drawing meaning from it.',
+        'badgeTitle': 'Orientation',
+        'badgeBody': 'Keep the record plain before drawing meaning from it.',
+        'selectedSeed': {
+          'seed': 'Keep the record plain before drawing meaning from it.',
+          'flowKey': 'the-weighing',
+          'badgeRole': 'opening_orientation',
+          'preferredSurface': 'lower_third_badge',
+        },
+      },
+    },
+  });
+}
+
+class _FakeMaatGuidanceRepo implements MaatGuidanceDataSource {
+  _FakeMaatGuidanceRepo(this._deliveries);
+
+  final List<MaatGuidanceDelivery> _deliveries;
+  final List<String> acks = <String>[];
+  final Set<String> _terminalIds = <String>{};
+
+  @override
+  Future<void> ack({
+    required String deliveryId,
+    required String action,
+    Map<String, dynamic>? metadata,
+  }) async {
+    acks.add('$deliveryId:$action');
+    if (action == 'dismissed' || action == 'opened' || action == 'acted') {
+      _terminalIds.add(deliveryId);
+    }
+  }
+
+  @override
+  Future<MaatGuidanceEvaluateResult?> evaluate({String? timezone}) async =>
+      null;
+
+  @override
+  Future<MaatGuidanceDelivery?> fetchPending() async {
+    for (final delivery in _deliveries) {
+      if (!_terminalIds.contains(delivery.id)) return delivery;
+    }
+    return null;
+  }
+
+  @override
+  Future<MaatGuidanceDelivery?> getById(String id) async {
+    for (final delivery in _deliveries) {
+      if (delivery.id == id) return delivery;
+    }
+    return null;
+  }
 }
