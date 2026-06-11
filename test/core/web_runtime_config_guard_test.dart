@@ -6,11 +6,15 @@ void main() {
   group('web runtime config guard', () {
     late String mainSource;
     late String buildScriptSource;
+    late String deployScriptSource;
 
     setUpAll(() async {
       mainSource = await File('lib/main.dart').readAsString();
       buildScriptSource = await File(
         'scripts/build_web_release.sh',
+      ).readAsString();
+      deployScriptSource = await File(
+        'scripts/deploy_cloudflare_pages.sh',
       ).readAsString();
     });
 
@@ -89,6 +93,24 @@ void main() {
       expect(
         buildScriptSource,
         contains('build/web/env.json APP_ENV must be staging or prod.'),
+      );
+    });
+
+    test('Cloudflare Pages deploy refuses dirty source trees by default', () {
+      expect(deployScriptSource, contains('git status --porcelain'));
+      expect(deployScriptSource, contains('ALLOW_DIRTY_DEPLOY'));
+      expect(
+        deployScriptSource,
+        contains('ERROR: Refusing to deploy from a dirty git tree.'),
+      );
+      expect(
+        deployScriptSource,
+        contains('deployed build matches source control.'),
+      );
+      expect(deployScriptSource, contains('scripts/build_web_release.sh'));
+      expect(
+        deployScriptSource.indexOf('git status --porcelain'),
+        lessThan(deployScriptSource.indexOf('if [[ -n "\$ENV_FILE_ARG" ]]')),
       );
     });
   });

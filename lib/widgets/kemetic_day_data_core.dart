@@ -85,54 +85,6 @@ List<DecanDayInfo> _buildFlowRows(
   ];
 }
 
-Map<String, KemeticDayInfo> _buildGeneratedDecanEntries({
-  required String keyPrefix,
-  required int decan,
-  required String decanLabel,
-  required String monthLabelForDate,
-  required String month,
-  String season = '🌊 Akhet – Season of Inundation',
-  String? decanName,
-  String Function(int totalDay, int dayInDecan)? kemeticDateBuilder,
-  required List<DecanDayInfo> flowRows,
-  required List<
-    ({
-      int totalDay,
-      String starCluster,
-      String maatPrinciple,
-      String cosmicContext,
-      String glyph,
-      String colorFrequency,
-      String mantra,
-    })
-  >
-  entries,
-}) {
-  return Map.fromEntries(
-    entries.map((entry) {
-      final dayInDecan = entry.totalDay - ((decan - 1) * 10);
-      return _dayInfoEntry(
-        key: '${keyPrefix}_${entry.totalDay}_$decan',
-        kemeticDate:
-            kemeticDateBuilder?.call(entry.totalDay, dayInDecan) ??
-            '$decanLabel, Day ${entry.totalDay}',
-        season: season,
-        month: month,
-        decanName: decanName,
-        starCluster: entry.starCluster,
-        maatPrinciple: entry.maatPrinciple,
-        cosmicContext: entry.cosmicContext,
-        decanFlow: flowRows,
-        meduNeter: MeduNeterKey(
-          glyph: entry.glyph,
-          colorFrequency: entry.colorFrequency,
-          mantra: entry.mantra,
-        ),
-      );
-    }),
-  );
-}
-
 KemeticDayInfo? _getInfoForDay(String dayKey) {
   final direct = _dayInfoMap[dayKey];
   if (direct != null) return direct;

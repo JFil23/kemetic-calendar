@@ -28,6 +28,15 @@ if [[ -z "$PROJECT" ]]; then
   exit 1
 fi
 
+if [[ "${ALLOW_DIRTY_DEPLOY:-0}" != "1" ]] && git rev-parse --is-inside-work-tree >/dev/null 2>&1; then
+  if [[ -n "$(git status --porcelain)" ]]; then
+    echo "ERROR: Refusing to deploy from a dirty git tree." >&2
+    echo "Commit or stash local changes so the deployed build matches source control." >&2
+    echo "Set ALLOW_DIRTY_DEPLOY=1 only for an intentional emergency deploy." >&2
+    exit 1
+  fi
+fi
+
 if [[ -n "$ENV_FILE_ARG" ]]; then
   scripts/build_web_release.sh "$ENV_FILE_ARG"
 else

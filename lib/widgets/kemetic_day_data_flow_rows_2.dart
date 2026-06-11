@@ -3,966 +3,955 @@ part of 'kemetic_day_info.dart';
 final List<DecanDayInfo> _rekhNedjesOverrideIIIFlowRows = _buildFlowRows([
   (
     day: 21,
-    theme: "Let Competence Be Quiet",
+    theme: 'Consolidate the Close Knowledge',
     action:
-        "Do one thing well without announcing, defending, or explaining it.",
-    reflection:
-        "“Can I let the work speak without making myself louder than the work?”",
+        'Gather what Rekh-Nedjes built into one clear account. What is now known that was not at the month\'s start?',
+    reflection: '"What do I know now that I could not see thirty days ago?"',
   ),
   (
     day: 22,
-    theme: "Return to the Standard",
+    theme: 'Resolve What Can Be Resolved',
     action:
-        "Use the standard that survived testing. Do not lower it because the pressure has passed.",
-    reflection: "“What standard must remain even when no one is watching?”",
+        'The open questions from Decan I and II — some can now be closed. Close them. What remains open, name it accurately.',
+    reflection: '"What can I close now? What must I carry open?"',
   ),
   (
     day: 23,
-    theme: "Work Without Heat",
+    theme: 'Harden the Method',
     action:
-        "Complete one necessary task calmly, without crisis-energy or emotional force.",
-    reflection:
-        "“Where can I remove heat from the work and still complete it?”",
+        'The method tested in Rekh-Nedjes — reinforce what held, correct what softened. Make it durable for Renwet\'s demands.',
+    reflection: '"Is the method hard enough to carry into harvest season?"',
   ),
   (
     day: 24,
-    theme: "Trust the Corrected Method",
+    theme: 'Read the Field at Full Precision',
     action:
-        "Use the adjusted method again instead of returning to the old reaction.",
-    reflection: "“What new way must I trust long enough to become natural?”",
+        'One complete close-reading of the field. Every section. Every signal. The final comprehensive pass before the month ends.',
+    reflection: '"Have I read the whole field at this resolution?"',
   ),
   (
     day: 25,
-    theme: "Hold Under Ordinary Pressure",
-    action: "Let the skill meet a normal inconvenience and remain steady.",
-    reflection:
-        "“Can I stay aligned when the pressure is small but irritating?”",
+    theme: 'Transmit the Fine Knowledge',
+    action:
+        'Write, teach, or demonstrate what close reading revealed this month. Knowledge kept private dies with the season.',
+    reflection: '"Who or what carries this knowledge after me?"',
   ),
   (
     day: 26,
-    theme: "Refuse the Need to Prove",
-    action: "Do not overperform. Use only the strength required for the task.",
-    reflection:
-        "“Where am I trying to prove I passed the trial instead of simply living the lesson?”",
+    theme: 'Read for Renwet',
+    action:
+        'Renwet is the harvest month. Begin reading the field for what it will require then — not what it needed now.',
+    reflection: '"What will the field need from me in harvest season?"',
   ),
   (
     day: 27,
-    theme: "Let the Result Stand",
+    theme: 'Honor the Subtle Work',
     action:
-        "Allow one completed action, repair, or decision to stand without reopening it from anxiety.",
-    reflection: "“What is complete enough to stop being handled?”",
+        'The close reading is not glamorous. Name and acknowledge the effort of sustained precise attention this month.',
+    reflection: '"What did close attention cost?"',
   ),
   (
     day: 28,
-    theme: "Become Reliable to Others",
+    theme: 'Offer the Knowledge',
     action:
-        "Let someone experience your steadiness through a kept promise, calm presence, or clean follow-through.",
-    reflection: "“Who can rest more easily because I held my form?”",
+        'Place the quality of knowing built this month in front of Ma\'at. Not what was found — how carefully it was sought.',
+    reflection:
+        '"Did I seek this knowledge with the care Ma\'at would recognize?"',
   ),
   (
     day: 29,
-    theme: "Preserve the Quiet Lesson",
-    action: "Record the practical lesson that made this competence possible.",
-    reflection: "“What did testing teach me that I must not forget?”",
+    theme: 'The Field Moves From Reading to Reaping',
+    action:
+        'Renwet opens next. The mode changes from knowing to reaping. Begin shifting the orientation today.',
+    reflection: '"Am I ready to move from knowing into harvesting?"',
   ),
   (
     day: 30,
-    theme: "Seal Quiet Competence",
+    theme: 'Seal Rekh-Nedjes',
     action:
-        "Close the month by naming the skill, response, or standard that has become trustworthy.",
-    reflection: "“What in me is now steady enough to carry forward?”",
+        'Close the month of small knowledge. Account for what was learned under pressure. Hand the tested field into Renwet.',
+    reflection: '"What knowledge do I carry into the harvest?"',
   ),
 ]);
 
 final List<DecanDayInfo> _renwetOverrideIFlowRows = _buildFlowRows([
   (
     day: 1,
-    theme: "Recognize the First Return",
+    theme: 'The Harvest Arc Opens',
     action:
-        "Name what has begun to come back from earlier effort, care, patience, or discipline.",
-    reflection: "“What is returning now because it was tended before?”",
+        'Name what has been growing since Ka-ḥer-ka. What is now ready — or close to ready — to be gathered?',
+    reflection: '"What is ready to be harvested?"',
   ),
   (
     day: 2,
-    theme: "Receive Without Grasping",
+    theme: 'Read Readiness, Not Desire',
     action:
-        "Accept the first gain without trying to seize the whole future from it.",
-    reflection:
-        "“Can I receive what has arrived without turning it into hunger for more?”",
+        'The field decides when. Not your schedule, not your anxiety. Read the actual condition of what you are gathering.',
+    reflection: '"Is this ready or do I just want it to be ready?"',
   ),
   (
     day: 3,
-    theme: "Inspect the First Yield",
+    theme: 'Harvest Does Not Mean Take Everything',
     action:
-        "Look closely at the first result and learn what it reveals about the whole cycle.",
-    reflection: "“What does this first return tell me about what was planted?”",
+        'Identify what is ready now. Leave what needs more time. Pulling it all at once wastes the field.',
+    reflection: '"What must be left to ripen?"',
   ),
   (
     day: 4,
-    theme: "Honor the Source",
+    theme: 'Prepare the Vessel',
     action:
-        "Name the forces, people, habits, land, ancestors, and conditions that made this return possible.",
-    reflection: "“What helped this come back to me?”",
+        'Before gathering, prepare where it will be stored. A harvest without a vessel is scattered on the ground.',
+    reflection: '"Is there a place ready to receive what I gather?"',
   ),
   (
     day: 5,
-    theme: "Separate the First Share",
+    theme: 'Move at Harvest Speed',
     action:
-        "Set aside what belongs to offering, household, debt, labor, storage, and future seed.",
-    reflection: "“What portion belongs where before I keep any for myself?”",
+        'The harvest window is real. Move deliberately — not rushed, not slow. The field waits for no one\'s convenience.',
+    reflection: '"Am I moving at the pace the harvest requires?"',
   ),
   (
     day: 6,
-    theme: "Pay the Hands",
+    theme: 'Gather With Both Hands',
     action:
-        "Acknowledge, thank, compensate, or support the people and parts of life that carried the work.",
-    reflection: "“Who helped bring this return into being?”",
+        'Do not gather with one hand while holding back with the other. Commit to the gathering completely today.',
+    reflection: '"Am I holding back from what is ready?"',
   ),
   (
     day: 7,
-    theme: "Do Not Mistake Return for Completion",
+    theme: 'Name What Was Produced',
     action:
-        "Let the first gain encourage you without assuming the whole harvest is secured.",
-    reflection:
-        "“Where am I tempted to celebrate before the storehouse is full?”",
+        'Account for what the field actually yielded. Not what was hoped — what grew, what held, what is now in hand.',
+    reflection: '"What did the field actually produce?"',
   ),
   (
     day: 8,
-    theme: "Guard Against Waste",
+    theme: 'Protect What Was Gathered',
     action:
-        "Protect the early return from leaking away through excitement, fear, generosity without measure, or careless spending.",
-    reflection: "“What could waste this blessing before it becomes stable?”",
+        'Gathered grain left in the open is lost to weather, animals, and rot. Secure what you have collected today.',
+    reflection: '"Is what I gathered protected?"',
   ),
   (
     day: 9,
-    theme: "Record What Came In",
+    theme: 'Rest the Farmer During Harvest',
     action:
-        "Write down what actually arrived, what it cost, what remains, and what still depends on care.",
-    reflection: "“What is the true account of this return?”",
+        'Harvest season exhausts. A farmer who does not rest mid-harvest cannot finish it. Rest is part of the production.',
+    reflection: '"Am I resting enough to complete this?"',
   ),
   (
     day: 10,
-    theme: "Seal the First Return",
+    theme: 'Close the First Gathering',
     action:
-        "Close the decan by naming what has returned and how it must now be protected.",
-    reflection:
-        "“What has come back, and what law will keep it from being lost?”",
+        'The first interval of Renwet ends. Account for what was gathered, what remains on the field, and what the next ten days require.',
+    reflection: '"What did the first gathering show?"',
   ),
 ]);
 
 final List<DecanDayInfo> _renwetOverrideIIFlowRows = _buildFlowRows([
   (
     day: 11,
-    theme: "Bring the Harvest to the Heart",
+    theme: 'Gather What the First Interval Left',
     action:
-        "Pause before using what has arrived. Let the heart decide where each portion belongs.",
-    reflection: "“What has come in, and what relation must govern it?”",
+        'Return to what was not ready in Decan I. Has it ripened? Gather what is now ready.',
+    reflection: '"What is ready now that was not ten days ago?"',
   ),
   (
     day: 12,
-    theme: "Weigh the Appetite",
+    theme: 'Sort the Yield',
     action:
-        "Notice the first urge to consume, spend, hide, hoard, display, or overgive.",
-    reflection: "“What hunger rises when abundance appears?”",
+        'Not all grain is equal. Sort what was gathered: what is strong, what is adequate, what cannot be used.',
+    reflection: '"Have I sorted what I gathered or treated it as uniform?"',
   ),
   (
     day: 13,
-    theme: "Name What Is Owed",
+    theme: 'Weigh It Honestly',
     action:
-        "Identify debts, promises, repairs, payments, gratitude, or duties attached to the return.",
-    reflection: "“What must be settled before this gain can be called clean?”",
+        'Measure the actual yield. Not what feels sufficient — the real number, the real quantity, the real condition.',
+    reflection: '"Does the honest weight match what I expected?"',
   ),
   (
     day: 14,
-    theme: "Feed the Household",
+    theme: 'Set Aside the Seed',
     action:
-        "Place nourishment where daily life actually depends on it: food, rest, shelter, tools, health, or order.",
-    reflection: "“What part of the house must be fed first?”",
+        'Before distributing anything, reserve seed for the next planting. The next cycle depends on it.',
+    reflection: '"Have I set aside what the next planting needs?"',
   ),
   (
     day: 15,
-    theme: "Protect the Vulnerable",
+    theme: 'Distribute What Was Gathered',
     action:
-        "Use part of the return to shield the tired, young, old, exposed, neglected, or under-supported.",
-    reflection:
-        "“Who or what remains exposed even after abundance has arrived?”",
+        'Yield that is not distributed does not fulfill its purpose. Move what was gathered to where it serves.',
+    reflection: '"Is the yield moving or sitting?"',
   ),
   (
     day: 16,
-    theme: "Return the Offering",
+    theme: 'Give What Is Owed',
     action:
-        "Give a measured portion back to source: altar, ancestor, community, helper, land, or future need.",
-    reflection: "“Where must gratitude become action?”",
+        'The harvest includes obligations — to people who helped tend the field, to the source, to the community. Settle what is owed.',
+    reflection: '"Who helped make this yield possible?"',
   ),
   (
     day: 17,
-    theme: "Refuse Hoarding",
+    theme: 'Guard Against Over-Distribution',
     action:
-        "Keep what must be preserved, but release what fear is trying to lock away.",
-    reflection: "“Where is protection becoming fear of circulation?”",
+        'The field that gives everything away has nothing for the dry season. Hold enough back. Generosity and sustainability are not opposites.',
+    reflection: '"Am I distributing more than the field can sustain?"',
   ),
   (
     day: 18,
-    theme: "Distribute With Clarity",
+    theme: 'Record the Full Yield',
     action:
-        "Assign portions plainly: what is used now, what is stored, what is offered, what is shared, what is seed.",
-    reflection: "“Does every portion have a rightful place?”",
+        'Document the complete harvest: gathered, sorted, stored, distributed, and reserved. The record is next year\'s starting point.',
+    reflection: '"Is the full harvest recorded?"',
   ),
   (
     day: 19,
-    theme: "Check the Balance After Giving",
+    theme: 'Address the Shortfall',
     action:
-        "Look again after distribution and confirm that no vital relation was starved or overfed.",
-    reflection: "“What changed after the portions moved?”",
+        'The harvest rarely matches the plan exactly. Name what fell short. Name why. That understanding is the correction for next cycle.',
+    reflection: '"What fell short and what does that tell me?"',
   ),
   (
     day: 20,
-    theme: "Seal Right Distribution",
+    theme: 'Account Before the Final Interval',
     action:
-        "Close the decan by naming how abundance will continue circulating without waste, fear, or injustice.",
-    reflection: "“How will this return keep serving Ma’at after today?”",
+        'Twenty days of Renwet. What has been gathered, sorted, and distributed? What does the final decan need to close?',
+    reflection: '"What does the last ten days need to complete?"',
   ),
 ]);
 
 final List<DecanDayInfo> _renwetOverrideIIIFlowRows = _buildFlowRows([
   (
     day: 21,
-    theme: "Store the Reward",
+    theme: 'Complete the Gathering',
     action:
-        "Place what has been gained into a safe container: account, room, record, rhythm, boundary, or storehouse.",
-    reflection: "“What must be secured before it can truly support me?”",
+        'Make the final pass. After this, what remains should remain by decision, not avoidance.',
+    reflection: '"Is there anything still on the field I am leaving behind?"',
   ),
   (
     day: 22,
-    theme: "Protect the Storehouse",
+    theme: 'Seal the Storage',
     action:
-        "Guard what remains from theft, waste, fear, careless access, or emotional spending.",
-    reflection: "“What could still threaten what has been gathered?”",
+        'What was gathered and stored must now be sealed against loss. Secure the jars, protect the reserves, close what is held.',
+    reflection: '"Is the stored yield protected?"',
   ),
   (
     day: 23,
-    theme: "Count What Remains",
+    theme: 'Count the Full Yield',
     action:
-        "Take a truthful account of what is left after offering, debt, household, labor, and protection.",
-    reflection: "“What do I actually have now that the portions have moved?”",
+        'The total harvest — gathered across all three decans. Count it once, completely, before Renwet closes.',
+    reflection: '"What did the full season produce?"',
   ),
   (
     day: 24,
-    theme: "Respect the Tools",
+    theme: 'Offer the First Portion',
     action:
-        "Clean, repair, sharpen, organize, or honor what helped bring the return into being.",
-    reflection: "“What carried the harvest and now deserves care?”",
+        'Before keeping, offer a portion of the yield back to the source — the land, the tradition, the people who made this season possible.',
+    reflection: '"What do I offer before I keep?"',
   ),
   (
     day: 25,
-    theme: "Name the Lesson",
+    theme: 'Feed What the Dry Season Requires',
     action:
-        "Identify what this return taught about timing, care, labor, trust, appetite, or destiny.",
-    reflection: "“What did this harvest teach that I must not forget?”",
+        'Calculate what Shemu will need from this harvest. Store it deliberately, not as remainder but as provision.',
+    reflection: '"Have I stored enough to sustain through the dry season?"',
   ),
   (
     day: 26,
-    theme: "Preserve the Seed",
+    theme: 'Rest the Field',
     action:
-        "Set aside what must feed the next cycle: money, grain, energy, skill, teaching, plan, or protected time.",
-    reflection: "“What must not be consumed because the future needs it?”",
+        'The harvested field needs to rest. Release the pressure you have been placing on it. Let it lie fallow for a moment.',
+    reflection: '"Am I letting the field rest or demanding more from it?"',
   ),
   (
     day: 27,
-    theme: "Rest the Source",
+    theme: 'Honor What the Season Gave',
     action:
-        "Let the body, field, mind, relationship, or system that produced the return recover.",
-    reflection: "“What source needs rest so it can give again later?”",
+        'Name the yield in full — the expected and the unexpected, the abundance and the shortfall. This was the season. Name it.',
+    reflection: '"What did this season actually give?"',
   ),
   (
     day: 28,
-    theme: "Bless the Continuation",
+    theme: 'Give Thanks to Renwet',
     action:
-        "Offer gratitude for what remains and for the order that allowed it to remain.",
-    reflection:
-        "“What blessing continues beyond the first excitement of receiving?”",
+        'Renwet is the goddess of the harvest and the nursing of abundance. Acknowledge what was given and how it came.',
+    reflection: '"Do I acknowledge the source of what I was given?"',
   ),
   (
     day: 29,
-    theme: "Prepare the Handoff",
+    theme: 'Prepare the Empty Field',
     action:
-        "Arrange the stored gain so the next stage can use it without confusion.",
-    reflection:
-        "“How can the next version of my life receive this without disorder?”",
+        'Renwet ends. Shemu opens. The field that gave abundantly now needs to rest and then receive a different kind of attention. Prepare for that shift.',
+    reflection: '"Am I ready to move from abundance into the dry season?"',
   ),
   (
     day: 30,
-    theme: "Seal Sustained Reward",
+    theme: 'Seal Renwet',
     action:
-        "Close Renwet by naming what has become stable enough to carry forward.",
-    reflection:
-        "“What reward has become provision, and what provision has become future?”",
+        'Close the harvest arc. What was planted is gathered. What was gathered is sorted, stored, distributed, offered, and recorded. Hand the field into Shemu.',
+    reflection: '"What does the field carry into the dry season?"',
   ),
 ]);
 
 final List<DecanDayInfo> _hnswOverrideIFlowRows = _buildFlowRows([
   (
     day: 1,
-    theme: "Enter the Path",
-    action: "Name the journey, duty, exchange, or movement now beginning.",
-    reflection: "“Where am I going, and what law must lead me there?”",
+    theme: 'Enter Shemu',
+    action:
+        'Name the shift: Peret is closed. The dry season opens. The harvest is sealed. What must now move?',
+    reflection: '"What does Shemu ask that Peret did not?"',
   ),
   (
     day: 2,
-    theme: "Measure the Constraint",
+    theme: 'Take Inventory Before Movement',
     action:
-        "Identify the real limits around this movement: heat, time, money, energy, distance, or obligation.",
-    reflection: "“What condition must I respect before I move?”",
+        'Before anything is distributed or dispatched, count what exists. Know the full picture before the first load moves.',
+    reflection: '"Do I know what I have?"',
   ),
   (
     day: 3,
-    theme: "Carry Ma’at First",
+    theme: 'Set the Conservation Rhythm',
     action:
-        "Set the ethical standard before the journey begins: speech, trade, conduct, pace, and purpose.",
-    reflection: "“What must stay true no matter where the road takes me?”",
+        'Shemu does not reward Peret pace. Establish a deliberate rhythm: slower output, careful allocation, measured draw.',
+    reflection: '"Is my pace matched to this season?"',
   ),
   (
     day: 4,
-    theme: "Pack Only What Serves",
+    theme: 'Protect the Stored Yield',
     action:
-        "Remove one burden, task, object, promise, or emotional weight that does not belong on this path.",
-    reflection: "“What am I carrying that will distort the journey?”",
+        'What was sealed in Renwet requires active protection now — not assumption. Check the seals. Guard what was gathered.',
+    reflection: '"Is the stored yield still secure?"',
   ),
   (
     day: 5,
-    theme: "Protect the Vessel",
+    theme: 'Decide What Moves',
     action:
-        "Tend the body and mind that must carry the road: water, rest, food, shade, breath, and clear attention.",
-    reflection: "“What must be protected so I can arrive whole?”",
+        'Not everything stored moves in Hnsw. Name what must be distributed and what must be held. The decision is made before the road opens.',
+    reflection: '"What moves and what stays?"',
   ),
   (
     day: 6,
-    theme: "Move With Purpose",
+    theme: 'Work With the Season',
     action:
-        "Take one deliberate step that advances the journey without scattering energy.",
-    reflection: "“What movement actually serves the destination?”",
+        'Movement in heat requires timing. Match effort and dispatch to available conditions — not to an arbitrary schedule.',
+    reflection: '"Am I moving with the season or against it?"',
   ),
   (
     day: 7,
-    theme: "Read the Road",
+    theme: 'Sustain the Crew',
     action:
-        "Observe what the path reveals: delays, helpers, warnings, openings, resistance, or signs of imbalance.",
-    reflection: "“What is the road teaching before I rush past it?”",
+        'The people who move goods through the dry season need tending. Check in. A crew that is not sustained cannot complete the route.',
+    reflection: '"Who in my circle needs sustaining right now?"',
   ),
   (
     day: 8,
-    theme: "Keep the Word Clean",
-    action: "Speak, text, negotiate, or report with accuracy while in motion.",
-    reflection: "“Does my word remain true while I am moving?”",
+    theme: 'Do Not Eat the Seed Grain',
+    action:
+        'The reserve for the next planting is not available to the movement. Protect it regardless of pressure or convenience.',
+    reflection: '"Am I drawing from reserves that must be kept?"',
   ),
   (
     day: 9,
-    theme: "Record the Distance",
+    theme: 'Prepare the First Load',
     action:
-        "Account for what was moved, spent, promised, delivered, learned, or left unfinished.",
-    reflection: "“What actually happened on the path?”",
+        'What leaves storage first? Identify, measure, and prepare it. Movement begins with what is ready to move.',
+    reflection: '"Is the first load ready to move?"',
   ),
   (
     day: 10,
-    theme: "Close the First Passage",
+    theme: 'Close the First Interval',
     action:
-        "End the decan by naming what was carried, what was protected, and what must guide the next movement.",
-    reflection: "“Did I begin this journey in Ma’at?”",
+        'Ten days in. What was counted, what is prepared, what has the first interval cost and clarified?',
+    reflection: '"What does Shemu show me about what I actually have?"',
   ),
 ]);
 
 final List<DecanDayInfo> _hnswOverrideIIFlowRows = _buildFlowRows([
   (
     day: 11,
-    theme: "Lift the Load Correctly",
+    theme: 'Open the Route',
     action:
-        "Name what must now be carried through sustained effort, not first-movement excitement.",
-    reflection:
-        "“What am I carrying now that requires endurance rather than impulse?”",
+        'The goods prepared in Decan I now move. Send the first load. The route is open.',
+    reflection: '"Is the route open and the load moving?"',
   ),
   (
     day: 12,
-    theme: "Set the Terms",
+    theme: 'Hold the Standard Under Heat',
     action:
-        "Clarify the agreement, expectation, payment, promise, or responsibility attached to the load.",
-    reflection:
-        "“What terms must be clear before this burden travels farther?”",
+        'Dry-season movement invites carelessness. Hold the quality of record and care established in Peret — at the adjusted pace, not at lower standard.',
+    reflection: '"Is the quality of my movement holding?"',
   ),
   (
     day: 13,
-    theme: "Balance the Shoulder",
+    theme: 'Repair What the Road Reveals',
     action:
-        "Adjust how the weight is carried so it does not injure the body, schedule, household, or spirit.",
-    reflection: "“Where is the load uneven?”",
+        'The route shows what storage hid: worn tools, weak arrangements, gaps in the method. Repair before breakdown.',
+    reflection: '"What is weakening that needs repair now?"',
   ),
   (
     day: 14,
-    theme: "Keep the Pace",
+    theme: 'Read What the Heat Reveals',
     action:
-        "Move steadily without rushing, dragging, or proving strength through strain.",
-    reflection: "“What pace can carry this all the way?”",
+        'Dry season removes what abundance covered. Name one structural weakness the movement has exposed.',
+    reflection: '"What does the road reveal that Peret hid?"',
   ),
   (
     day: 15,
-    theme: "Guard Against Heat",
+    theme: 'Fulfill the Obligation',
     action:
-        "Notice where effort is becoming irritation, harsh speech, pride, or exhaustion.",
-    reflection: "“Where is endurance starting to turn hot?”",
+        'The harvest included obligations. Move what is owed — goods, payment, acknowledgment, debt settled — to where it belongs.',
+    reflection: '"What obligation must move today?"',
   ),
   (
     day: 16,
-    theme: "Redistribute What Bends",
+    theme: 'Use What Was Stored',
     action:
-        "Ask for help, hand off a portion, renegotiate support, or remove weight that should not remain on one shoulder.",
-    reflection: "“What must be shared before it becomes damage?”",
+        'The stored yield is for use — not for hoarding. Draw from the provision deliberately, without excess and without guilt.',
+    reflection: '"Am I using what was stored or denying myself unnecessarily?"',
   ),
   (
     day: 17,
-    theme: "Honor the Carrier",
-    action: "Care for the person, body, tool, or system carrying the burden.",
-    reflection: "“What has been carrying this quietly, and what does it need?”",
+    theme: 'Find the Dry Season\'s Own Yield',
+    action:
+        'Not every period produces grain. Shemu produces rest, study, repair, and the long work that urgency prevented. Find what this period offers.',
+    reflection: '"What does Shemu produce that Peret could not?"',
   ),
   (
     day: 18,
-    theme: "Continue Without Complaint",
+    theme: 'Record What Was Sent',
     action:
-        "Take the next measured step without turning the hardship into identity.",
-    reflection:
-        "“Can I continue cleanly without feeding the story of struggle?”",
+        'Every dispatch requires a record: what was sent, to whom, when, and expected in return. If it is not recorded, it is lost.',
+    reflection: '"Is what was sent recorded?"',
   ),
   (
     day: 19,
-    theme: "Record the Carried Distance",
+    theme: 'Rest the Carrier',
     action:
-        "Account for what has been moved, what remains, and what the load has cost.",
-    reflection: "“What has this endurance actually carried forward?”",
+        'The person or system moving goods through the dry season requires rest mid-route. Rest now so the final interval can complete the delivery.',
+    reflection: '"Am I resting enough to complete this?"',
   ),
   (
     day: 20,
-    theme: "Seal Sustainable Endurance",
+    theme: 'Account at the Midpoint',
     action:
-        "Close the decan by naming what must change so the load can continue without collapse.",
-    reflection: "“How can this burden keep moving in Ma’at?”",
+        'Twenty days of Hnsw. What was moved, what was fulfilled, what remains? What does the final interval need to close the month?',
+    reflection: '"What does the last ten days need to complete?"',
   ),
 ]);
 
 final List<DecanDayInfo> _hnswOverrideIIIFlowRows = _buildFlowRows([
   (
     day: 21,
-    theme: "Lower the Load",
+    theme: 'Hold Steady as the Dry Season Deepens',
     action:
-        "Notice what has been carried long enough and begin setting it down in right measure.",
-    reflection:
-        "“What burden has reached the point where carrying must become release?”",
+        'The first Shemu month deepens. Do not force urgency or collapse. The route continues at the established pace.',
+    reflection: '"Can I hold steadily through the final interval?"',
   ),
   (
     day: 22,
-    theme: "Recover the Body",
+    theme: 'Use What Remains Wisely',
     action:
-        "Give the body water, rest, food, shade, stretching, silence, or sleep before damage deepens.",
-    reflection:
-        "“Where is my body asking for recovery instead of more endurance?”",
+        'Storage is partial now. Draw deliberately — enough to complete obligations, enough to carry the household deeper into Shemu.',
+    reflection: '"Am I using what remains wisely?"',
   ),
   (
     day: 23,
-    theme: "Reduce the Pace",
+    theme: 'Maintain the Crew Through the Final Stretch',
     action:
-        "Slow one rhythm that has been running on force, urgency, or old survival heat.",
-    reflection:
-        "“What pace must be lowered so the journey does not become collapse?”",
+        'The last interval of the route strains bonds. Tend the crew actively. Those who complete the road together are ready to plant together.',
+    reflection: '"Is the crew intact for the arrival?"',
   ),
   (
     day: 24,
-    theme: "Set Down What Arrived",
+    theme: 'Prepare the Route for What Comes Next',
     action:
-        "Place what has reached its destination into storage, record, offering, home, or proper hands.",
-    reflection: "“What has arrived and now needs to be placed correctly?”",
+        'What was learned about the route in Hnsw — the weak points, the delays, the better timing — record it so next Shemu begins better.',
+    reflection: '"Is the route ready for the next passage?"',
   ),
   (
     day: 25,
-    theme: "Cool the Road",
+    theme: 'Name What the Dry Season Revealed',
     action:
-        "Remove heat from speech, movement, planning, and expectation before the next stage begins.",
-    reflection:
-        "“Where is the road still carrying heat that should be cooled?”",
+        'Record the structural weaknesses, gaps, and method failures Hnsw exposed. These are the construction priorities for next Peret.',
+    reflection: '"What did Hnsw reveal that next Peret must address?"',
   ),
   (
     day: 26,
-    theme: "Repair Travel Wear",
+    theme: 'Guard the Seed Through the Last Stretch',
     action:
-        "Tend what the journey wore down: tools, shoes, accounts, relationships, nerves, body, or trust.",
-    reflection: "“What was damaged by distance and now needs repair?”",
+        'Pressure intensifies as storage depletes. The seed reserve does not move. Guard it through the final interval.',
+    reflection: '"Is the seed reserve still intact?"',
   ),
   (
     day: 27,
-    theme: "Return to Center",
+    theme: 'Offer Thanks for Sufficiency',
     action:
-        "Reconnect with the source that gives the journey meaning: home, altar, body, lineage, duty, or law.",
-    reflection: "“What do I return to so movement does not become wandering?”",
+        'The provision held through the first dry passage. Not abundance — sufficiency. That is what Shemu asks for and what Ma\'at measures here.',
+    reflection: '"Did the provision hold? Do I acknowledge that?"',
   ),
   (
     day: 28,
-    theme: "Give the Travel Report",
+    theme: 'Read the Road Ahead',
     action:
-        "State truthfully what was carried, what was delivered, what was lost, and what was learned.",
-    reflection: "“What is the honest report of this passage?”",
+        'The next dry month will ask more from what remains. Read the route, the provision, and the strain before it arrives.',
+    reflection: '"What does the road ahead require?"',
   ),
   (
     day: 29,
-    theme: "Bless the Arrival",
+    theme: 'Close the First Dry Passage',
     action:
-        "Offer thanks for safe passage, endurance, protection, helpers, and the road itself.",
-    reflection: "“What helped me arrive that deserves gratitude?”",
+        'What was moved, delivered, recorded, and repaired in Hnsw — name it before the month closes.',
+    reflection: '"What did this passage complete?"',
   ),
   (
     day: 30,
-    theme: "Seal the Journey",
+    theme: 'Seal Hnsw',
     action:
-        "Close Hnsw by naming what should travel onward and what must remain behind.",
-    reflection: "“What lesson of movement now belongs to the next season?”",
+        'Close the first Shemu month. Account for what was dispatched, what arrived, what was conserved, and what holds. Hand the dry season forward.',
+    reflection: '"What does the next Shemu month inherit?"',
   ),
 ]);
 
 final List<DecanDayInfo> _hentiHetOverrideIFlowRows = _buildFlowRows([
   (
     day: 1,
-    theme: "Stand Watch Over the Store",
+    theme: 'Enter the Second Dry Month',
     action:
-        "Inspect what has been gathered, stored, protected, or entrusted to your care.",
-    reflection: "“What has been placed in my keeping?”",
+        'Name what Hnsw completed and what it left. What does Ḥenti-ḥet inherit?',
+    reflection: '"What did the first dry month cost and complete?"',
   ),
   (
     day: 2,
-    theme: "Name the Authority",
+    theme: 'Reassess the Provision',
     action:
-        "Clarify what power, role, duty, or responsibility you are holding in this season.",
-    reflection:
-        "“What authority has been given to me, and what law must govern it?”",
+        'Count what remains after Hnsw\'s movement. The number is different now. Plan from the actual figure.',
+    reflection: '"How much remains and how long must it last?"',
   ),
   (
     day: 3,
-    theme: "Guard Without Grasping",
-    action: "Protect what matters without turning protection into possession.",
-    reflection: "“Where does my guarding risk becoming control?”",
+    theme: 'Tighten the Rate',
+    action:
+        'The draw that sustained Hnsw may not be sustainable through a second month. Recalculate and tighten where needed.',
+    reflection: '"Is my current rate sustainable through this month?"',
   ),
   (
     day: 4,
-    theme: "Inspect for Heat",
+    theme: 'Inspect the Storehouse',
     action:
-        "Look for places where pressure, pride, anger, urgency, or fear is heating the system.",
-    reflection: "“Where is force beginning to exceed its purpose?”",
+        'What heat, time, and movement did not reveal before may be visible now. Check the condition of what was held through Hnsw.',
+    reflection:
+        '"What does the storehouse look like after the first dry month?"',
   ),
   (
     day: 5,
-    theme: "Cool the Hand",
+    theme: 'Reduce What the Season Cannot Support',
     action:
-        "Reduce one action, demand, tone, or pace that is becoming too harsh.",
-    reflection:
-        "“What must be cooled before it damages what I mean to protect?”",
+        'If an obligation or arrangement could not survive Hnsw\'s full pressure, it cannot survive Ḥenti-ḥet\'s heat. Release it before it collapses.',
+    reflection: '"What cannot survive this month\'s pressure?"',
   ),
   (
     day: 6,
-    theme: "Protect the Rightful Claim",
+    theme: 'Protect the Practices That Must Survive',
     action:
-        "Defend what has been earned, restored, inherited, or entrusted without becoming cruel.",
-    reflection: "“What must be defended because it belongs in Ma’at?”",
+        'Name the two or three practices — craft, discipline, relationship — that cannot lapse through the deep dry season. Guard them specifically.',
+    reflection: '"What must not lapse through this month?"',
   ),
   (
     day: 7,
-    theme: "Refuse Appetite in Power",
+    theme: 'Sustain the Crew Through Deep Heat',
     action:
-        "Notice where authority is tempted to take more than its rightful portion.",
-    reflection: "“Where does power in me still hunger for possession?”",
+        'Shemu II strains bonds harder than Shemu I. Check in with the people who share your field. The crew that holds here holds through anything.',
+    reflection: '"Who needs sustaining in the deep dry season?"',
   ),
   (
     day: 8,
-    theme: "Return Force to Purpose",
+    theme: 'Find What Deep Heat Produces',
     action:
-        "Redirect strength toward protection, repair, offering, or stabilization.",
-    reflection: "“What should my strength serve now?”",
+        'Peak Shemu has its own yield: clarity, distillation, the refinement that only comes when abundance is stripped away. Find it today.',
+    reflection: '"What does the deep heat clarify?"',
   ),
   (
     day: 9,
-    theme: "Record the Watch",
+    theme: 'Maintain the Record',
     action:
-        "Write what was protected, what was threatened, what was corrected, and what still needs vigilance.",
-    reflection: "“What did my watch reveal?”",
+        'The records built in Rekh-Wer and Rekh-Nedjes must be kept current through Shemu II. Even a brief maintenance pass protects the next growing season.',
+    reflection: '"Are my records current?"',
   ),
   (
     day: 10,
-    theme: "Seal Watchful Authority",
+    theme: 'Close the First Interval',
     action:
-        "Close the decan by naming how power will remain protective, measured, and answerable to Ma’at.",
-    reflection: "“How will I hold authority without becoming its danger?”",
+        'Ten days of Ḥenti-ḥet. What was found, tightened, released, and protected? What does the second interval require?',
+    reflection: '"What does the deep dry season show me about what I have?"',
   ),
 ]);
 
 final List<DecanDayInfo> _hentiHetOverrideIIFlowRows = _buildFlowRows([
   (
     day: 11,
-    theme: 'Bring Power to the Heart',
+    theme: 'Enter the Peak',
     action:
-        'Pause before acting from authority, anger, urgency, or fear. Let the heart weigh the force.',
-    reflection: '“What power is moving in me, and what must govern it?”',
+        'The second decan of Shemu II is the deepest heat. Do not force output. Endure steadily.',
+    reflection:
+        '"Can I hold steady through the peak without collapse or performance?"',
   ),
   (
     day: 12,
-    theme: 'Name the Fire',
+    theme: 'Hold the Standard at Peak Heat',
     action:
-        'Identify the heat beneath the action: anger, fear, desire, pride, grief, protection, or exhaustion.',
-    reflection: '“What is truly burning under this response?”',
+        'Quality does not drop because the season is hard. Hold the standard established in Peret — slower, not lower.',
+    reflection: '"Is the standard holding through the peak?"',
   ),
   (
     day: 13,
-    theme: 'Purify the Intention',
+    theme: 'Draw From What Was Stored',
     action:
-        'Separate what serves Ma’at from what serves ego, punishment, display, or control.',
-    reflection: '“What is this force actually trying to serve?”',
+        'The provision was stored for this moment. Draw from it without guilt. This is exactly what it was made for.',
+    reflection:
+        '"Am I drawing from my provision or denying myself in a season that does not require it?"',
   ),
   (
     day: 14,
-    theme: 'Sweeten the Flame',
+    theme: 'Rest Deeply in Peak Shemu',
     action:
-        'Choose one cooling act: softer speech, water, rest, gentleness, restraint, or a slower answer.',
-    reflection: '“How can this heat be returned to right measure?”',
+        'The deep dry season is the year\'s permission for deep recovery. Take it today. Not collapse — restoration.',
+    reflection: '"Am I using the deep season\'s permission to rest?"',
   ),
   (
     day: 15,
-    theme: 'Repair Harm Done in Heat',
+    theme: 'Tend the Inner Work',
     action:
-        'Correct one place where force, tone, urgency, or pride caused damage.',
-    reflection: '“Where did my heat injure what I meant to protect?”',
+        'Peak heat is the season for study, reflection, and the slow work that growing seasons prevent. Give it real time today.',
+    reflection: '"What inner or long work can only be done in this season?"',
   ),
   (
     day: 16,
-    theme: 'Speak Under Oath',
-    action: 'Speak only what can stand before Ma’at after the feeling passes.',
-    reflection: '“Would this word remain clean in the Hall of Truth?”',
+    theme: 'Protect the Seed Through Peak Pressure',
+    action:
+        'The deepest point of depletion is when the seed reserve is most vulnerable. Confirm it is still intact.',
+    reflection: '"Is the seed reserve protected through the peak?"',
   ),
   (
     day: 17,
-    theme: 'Remove What Feeds the Fire',
+    theme: 'Feed the Bond Through the Hardest Interval',
     action:
-        'Cut away one habit, trigger, object, argument, or pattern that keeps heat alive unnecessarily.',
-    reflection: '“What keeps this fire burning past its purpose?”',
+        'The partnership named in Hathor II is tested most severely here. A small act of maintenance now prevents a large repair later.',
+    reflection: '"Is the bond being fed or only surviving?"',
   ),
   (
     day: 18,
-    theme: 'Offer Strength as Service',
+    theme: 'Measure What the Peak Consumed',
     action:
-        'Use force where it protects, repairs, defends the vulnerable, or stabilizes the whole.',
-    reflection: '“Who or what should receive my strength now?”',
+        'At the height of Shemu II, take stock: what has the peak drawn from what was stored? Is the rate still holding?',
+    reflection: '"What has the peak consumed? Is the rate still sound?"',
   ),
   (
     day: 19,
-    theme: 'Hold Still in the Blaze',
+    theme: 'Name What Survives the Peak',
     action:
-        'Practice composure under provocation. Do not erupt, perform, or collapse.',
-    reflection: '“Can I keep my form while heat is present?”',
+        'What practice, relationship, or capacity has held through the deepest interval? Name it. This is what is genuinely strong.',
+    reflection: '"What survived the peak? That is what is real."',
   ),
   (
     day: 20,
-    theme: 'Seal Governed Fire',
+    theme: 'Account at the Midpoint',
     action:
-        'Close the decan by naming what your power now serves and what it must never become.',
-    reflection: '“Who does my power answer to?”',
+        'Twenty days of Ḥenti-ḥet. The peak has passed or is passing. What was consumed, what holds, what does the final interval need to close this month?',
+    reflection: '"What does the last ten days need to complete?"',
   ),
 ]);
 
 final List<DecanDayInfo> _hentiHetOverrideIIIFlowRows = _buildFlowRows([
   (
     day: 21,
-    theme: 'Recognize What Is Complete',
+    theme: 'Hold Toward the Turn',
     action:
-        'Name where force, vigilance, or protection has fulfilled its purpose and no longer needs to remain raised.',
-    reflection: '“What work is complete enough for my hand to open?”',
+        'The peak is past. The dry season has not ended. Hold the pace steadily through the final interval without forcing the close.',
+    reflection: '"Can I hold the remaining distance without forcing the turn?"',
   ),
   (
     day: 22,
-    theme: 'Open the Hand',
-    action: 'Release one thing being held from fear, pride, habit, or control.',
-    reflection: '“What am I still holding that now belongs back in relation?”',
+    theme: 'Use the Last Provision Carefully',
+    action:
+        'What remains must carry the household through the next month. Draw deliberately. The calculation is different now.',
+    reflection: '"Is the remaining provision sufficient for what comes next?"',
   ),
   (
     day: 23,
-    theme: 'Place the Due Portion',
+    theme: 'Bring the Inner Work to a Resting Point',
     action:
-        'Give what is owed: offering, payment, apology, gratitude, food, rest, attention, or repair.',
-    reflection: '“What portion is due, and where must it be placed?”',
+        'The slow work of Shemu II must reach a resting place — not forced completion, but a point where it can be set down and returned to.',
+    reflection: '"Where does the inner work rest?"',
   ),
   (
     day: 24,
-    theme: 'Return Excess',
+    theme: 'Read What Must Be Remembered',
     action:
-        'Let overflow circulate where it can feed life instead of hardening into possession.',
-    reflection:
-        '“What am I keeping that would serve Ma’at better if released?”',
+        'Look at what Shemu revealed, what survived, and what must not be forgotten when the year moves into memory work.',
+    reflection: '"What must be remembered?"',
   ),
   (
     day: 25,
-    theme: 'Let the Body Stand Down',
+    theme: 'Prepare the Memory House',
     action:
-        'Lower tension, reduce demand, and give the body permission to stop guarding.',
-    reflection: '“Where is my body still braced after the work is done?”',
+        'Gather the names, records, debts, lessons, and lineages that must be carried into the next month.',
+    reflection: '"What belongs in memory?"',
   ),
   (
     day: 26,
-    theme: 'Mend What Force Wore Down',
+    theme: 'Name What Shemu Produced',
     action:
-        'Repair the tool, relationship, space, body, or trust affected by the season’s heat.',
-    reflection: '“What needs mending before peace can truly settle?”',
+        'What did the dry season yield? Rest, clarity, repair, distillation, the inner work, the bond tested and found real. Name it before the next season obscures it.',
+    reflection: '"What did Shemu produce that Peret could not?"',
   ),
   (
     day: 27,
-    theme: 'Restore Peace to the House',
+    theme: 'Honor What Endured',
     action:
-        'Make one act that settles the shared space: clean, feed, apologize, soften, organize, or bless.',
-    reflection: '“What would help this place feel safe and ordered again?”',
+        'Name what held through two months of dry season — the provision, the standard, the bond, the seed, the record. That endurance is trustworthy.',
+    reflection: '"What held through the whole dry season?"',
   ),
   (
     day: 28,
-    theme: 'Record the Release',
+    theme: 'Settle the Dry Season Accounts',
     action:
-        'Write what was offered, returned, repaired, released, and allowed to rest.',
-    reflection: '“What did I return to Ma’at, and what changed because of it?”',
+        'Write what was moved, consumed, protected, and clarified in Shemu. The next month opens on this record.',
+    reflection: '"Are the dry season accounts complete?"',
   ),
   (
     day: 29,
-    theme: 'Rest in Hotep',
+    theme: 'Prepare the Offering of Memory',
     action:
-        'Allow satisfaction after right placement. Do not reopen what has been settled.',
-    reflection: '“Can I let peace remain without disturbing it from habit?”',
+        'What did the dry season prove, preserve, or strip down to truth? Prepare it to be named and carried forward.',
+    reflection: '"What will I carry forward?"',
   ),
   (
     day: 30,
-    theme: 'Seal the Offering',
+    theme: 'Seal Ḥenti-ḥet',
     action:
-        'Close Ḥenti-ḥet by naming what has been returned, what has settled, and what must now remain in peace.',
-    reflection: '“What has been placed correctly enough to rest?”',
+        'Close the second Shemu month. Account for what was endured. What survived the dry season becomes memory, lineage, and obligation. Hand it forward.',
+    reflection: '"What does the year carry into the memory months?"',
   ),
 ]);
 
 final List<DecanDayInfo> _paIpiIFlowRows = _buildFlowRows([
   (
     day: 1,
-    theme: 'Recognize What Endured',
+    theme: 'Enter the Memory Month',
     action:
-        'Name what survived the year, the pressure, the distance, or the loss.',
-    reflection: '“What remained true after everything moved?”',
+        'Name what Ḥenti-ḥet handed forward: what survived, what was clarified, what must now be remembered.',
+    reflection:
+        '"What did the dry season preserve that memory must now carry?"',
   ),
   (
     day: 2,
-    theme: 'Speak the Name',
+    theme: 'Open the Record of Names',
     action:
-        'Say, write, or restore the name of someone or something that should not be forgotten.',
-    reflection: '“Whose name needs to return to my mouth?”',
+        'Name the people — living and dead — whose effort made the season possible. Begin with those closest.',
+    reflection: '"Whose names must I speak this month?"',
   ),
   (
     day: 3,
-    theme: 'Return to the Place of Memory',
-    action: 'Visit, clean, open, or acknowledge a place where memory is held.',
-    reflection: '“What place keeps relation alive for me?”',
+    theme: 'Account for What Was Given',
+    action:
+        'What gifts, labor, knowledge, and care were received this year? Account for them specifically.',
+    reflection: '"What was given to me this year that I have not named?"',
   ),
   (
     day: 4,
-    theme: 'Feed the Ka',
+    theme: 'Name the Lineage',
     action:
-        'Place a real offering: food, water, attention, care, time, repair, or gratitude.',
-    reflection: '“What must be fed so presence can continue?”',
+        'What tradition, knowledge, or practice was passed to you from those who came before? Name its source.',
+    reflection: '"What do I carry that was not originally mine?"',
   ),
   (
     day: 5,
-    theme: 'Sort the Inheritance',
+    theme: 'Speak the Debt',
     action:
-        'Separate what should be carried forward from what should not govern the next cycle.',
+        'What obligation to the dead, the living, or the tradition remains unspoken? Name it plainly.',
     reflection:
-        '“What did I inherit that strengthens me, and what did I inherit that burdens me?”',
+        '"What debt of gratitude or acknowledgment have I not yet spoken?"',
   ),
   (
     day: 6,
-    theme: 'Repair the Broken Chain',
+    theme: 'Tend the Ancestor Practice',
     action:
-        'Restore one neglected link: a name, record, promise, family duty, memory, object, or practice.',
-    reflection: '“Where has continuity weakened, and what can I repair?”',
+        'Perform one act of remembrance: a name spoken, an offering made, a story told, a record consulted.',
+    reflection: '"Have I tended the practice of remembrance this month?"',
   ),
   (
     day: 7,
-    theme: 'Honor the Mourning',
+    theme: 'Read the Full Year',
     action:
-        'Give grief a clean form instead of letting it remain scattered or hidden.',
-    reflection: '“What loss still needs to be honored, not avoided?”',
+        'Look back at the whole year from Thoth to now. What arc do you see? What was built, lost, and learned?',
+    reflection: '"What does the full year show when I stand at its close?"',
   ),
   (
     day: 8,
-    theme: 'Preserve the Record',
+    theme: 'Name What the Year Produced',
     action:
-        'Write, organize, label, save, or speak the truth that should remain after the moment passes.',
-    reflection:
-        '“What must be preserved so the future does not begin without memory?”',
+        'Account for the year\'s yield: tangible and intangible, expected and unexpected. Write it down.',
+    reflection: '"What did this year actually produce?"',
   ),
   (
     day: 9,
-    theme: 'Carry Forward What Held',
+    theme: 'Honor What Was Lost',
     action:
-        'Choose one memory, lesson, name, standard, or practice that deserves continuation.',
-    reflection:
-        '“What has proven worthy of being carried into the next cycle?”',
+        'Name what did not survive the year. A plan, a relationship, a capacity, a person. Speak it without softening.',
+    reflection: '"What was lost this year that deserves to be named?"',
   ),
   (
     day: 10,
-    theme: 'Seal Remembrance',
+    theme: 'Close the First Interval',
     action:
-        'Close the decan by naming what has been remembered, fed, repaired, and entrusted forward.',
-    reflection: '“What remains present because I chose to remember?”',
+        'Ten days of memory work. What has been named, accounted for, and honored? What remains for the second decan?',
+    reflection: '"What does memory still need from this month?"',
   ),
 ]);
 
 final List<DecanDayInfo> _paIpiIIFlowRows = _buildFlowRows([
   (
     day: 11,
-    theme: 'Bring Memory to the Heart',
+    theme: 'Carry the Transmission',
     action:
-        'Pause with what has been remembered and let the heart decide how it should be carried.',
-    reflection: '“What memory now needs discernment, not just feeling?”',
+        'What was received from those who came before must now be carried forward. Name one specific transmission you hold.',
+    reflection: '"What transmission am I responsible for carrying?"',
   ),
   (
     day: 12,
-    theme: 'Distinguish Presence From Weight',
+    theme: 'Teach What Was Learned',
     action:
-        'Separate what keeps relation alive from what keeps the past heavy.',
-    reflection:
-        '“What remembrance strengthens me, and what memory still burdens the heart?”',
+        'The knowledge built in Rekh-Wer and Rekh-Nedjes belongs to more than one person. Pass one piece of it to someone today.',
+    reflection: '"What did I learn this year that someone else needs?"',
   ),
   (
     day: 13,
-    theme: 'Weigh the Inheritance',
+    theme: 'Complete the Unfinished Account',
     action:
-        'Look honestly at what was received from family, lineage, culture, grief, or experience.',
-    reflection:
-        '“What did I receive, and what does Ma’at ask me to do with it?”',
+        'Name one acknowledgment, debt, or obligation that was deferred through the season. Settle or formally name it today.',
+    reflection: '"What account from this year is still open?"',
   ),
   (
     day: 14,
-    theme: 'Let Grief Teach Cleanly',
+    theme: 'Strengthen the Ka Link',
     action:
-        'Name what grief has taught without allowing grief to rule the whole future.',
-    reflection: '“What did loss teach me that can serve life?”',
+        'The ka is maintained through connection: to ancestors, to tradition, to the living community. Perform one act that reinforces the link.',
+    reflection: '"Am I maintaining the connections that sustain my ka?"',
   ),
   (
     day: 15,
-    theme: 'Correct the Record',
-    action: 'Repair one false, incomplete, exaggerated, or inherited story.',
-    reflection: '“What story needs to be brought closer to truth?”',
+    theme: 'Offer What the Year Produced',
+    action:
+        'Place a portion of the year\'s yield — skill, knowledge, resource, acknowledgment — in front of what gave it. Offer before keeping all.',
+    reflection: '"What portion of what I produced belongs to the source?"',
   ),
   (
     day: 16,
-    theme: 'Return Blame to Measure',
+    theme: 'Name the Year\'s Lesson',
     action:
-        'Notice where blame, guilt, or shame has grown beyond its rightful place.',
-    reflection: '“Where has judgment become heavier than truth?”',
+        'Every year teaches one thing the previous year did not. Name this year\'s central lesson — the one that changes how you plant next time.',
+    reflection: '"What did this year teach that I did not know at its start?"',
   ),
   (
     day: 17,
-    theme: 'Make Peace With the Unfinished',
+    theme: 'Honor the Bond That Held',
     action:
-        'Acknowledge what cannot be completed, answered, repaired, or understood fully.',
-    reflection: '“What must I place in Ma’at even without closure?”',
+        'The partnership maintained through Shemu\'s heat — honor it specifically today. Not in general appreciation, in named recognition.',
+    reflection: '"What bond survived the whole year? Have I named that?"',
   ),
   (
     day: 18,
-    theme: 'Choose the Living Thread',
+    theme: 'Record What Must Not Be Lost',
     action:
-        'Select the memory, lesson, practice, or name that should continue because it still feeds life.',
-    reflection: '“What thread remains alive enough to carry forward?”',
+        'Name one piece of knowledge, one name, one lesson from this year that, if unrecorded, will be gone. Write it now.',
+    reflection: '"What from this year must be preserved or it will be lost?"',
   ),
   (
     day: 19,
-    theme: 'Give Memory a Form',
+    theme: 'Prepare the Transmission',
     action:
-        'Turn what has been integrated into a practice, boundary, offering, record, ritual, or standard.',
-    reflection: '“What form will help this memory live cleanly?”',
+        'What you carry from this year — method, understanding, named debt, lineage record — prepare it to be handed forward.',
+    reflection: '"Am I preparing what I carry to outlast me?"',
   ),
   (
     day: 20,
-    theme: 'Seal Integrated Memory',
+    theme: 'Account at the Midpoint',
     action:
-        'Close the decan by naming what has been brought into the heart and how it will be carried.',
-    reflection: '“What memory can now travel forward without ruling me?”',
+        'Twenty days of Pa-Ipi. What has been named, honored, offered, and recorded? What does the final decan need to seal memory?',
+    reflection: '"What does the last ten days need to complete?"',
   ),
 ]);
 
 final List<DecanDayInfo> _paIpiOverrideIIIFlowRows = _buildFlowRows([
   (
     day: 21,
-    theme: 'Name What Continues',
+    theme: 'Begin Memory Completion',
     action:
-        'Identify the memory, name, duty, practice, or lesson that is ready to travel forward.',
-    reflection:
-        '“What is strong enough, clean enough, or true enough to continue?”',
+        'The naming work is done. Now the memory work is sealed: records completed, transmissions finalized, offerings made, and memory prepared for hidden renewal.',
+    reflection: '"What needs to be sealed before memory hands forward?"',
   ),
   (
     day: 22,
-    theme: 'Prepare the Vessel',
+    theme: 'Seal the Year\'s Record',
     action:
-        'Create or strengthen the container that will carry continuity: record, ritual, schedule, teaching, object, or space.',
-    reflection: '“What vessel will help this continue without distortion?”',
+        'Write the final annual account: what was produced, what was lost, who helped, what was learned. Seal it as a record.',
+    reflection: '"Is the year\'s record complete?"',
   ),
   (
     day: 23,
-    theme: 'Speak to the Future',
+    theme: 'Complete the Transmission',
     action:
-        'Write, say, teach, or preserve something for the next person, next season, or next version of yourself.',
-    reflection: '“Who will need this after me?”',
+        'The knowledge or method prepared in Day 19 — complete its passing today. Written, taught, or formally given.',
+    reflection: '"Has the transmission been completed?"',
   ),
   (
     day: 24,
-    theme: 'Protect the Name',
+    theme: 'Memory Is Not Sealed Without the Offering',
     action:
-        'Guard a name, record, memory, or truth from being erased, mocked, simplified, or misused.',
-    reflection:
-        '“What name or truth must be protected so relation stays clean?”',
+        'Before memory is sealed, make one final offering to the source — the land, the tradition, the ancestors, the community. Memory is not complete without it.',
+    reflection: '"Have I offered before I seal memory?"',
   ),
   (
     day: 25,
-    theme: 'Release What Cannot Travel',
+    theme: 'Name What Hidden Renewal Inherits',
     action:
-        'Set down one memory, role, burden, or old story that should not enter the next cycle.',
-    reflection: '“What belongs to the past but not to the path ahead?”',
+        'What seed, method, lesson, and obligation must be carried into Mesut-Ra? Name it so hidden renewal receives something real.',
+    reflection: '"What does hidden renewal inherit from this month?"',
   ),
   (
     day: 26,
-    theme: 'Make Remembrance Repeatable',
+    theme: 'Rest Before the Threshold',
     action:
-        'Turn remembrance into a recurring act: offering, date, phrase, practice, record, or household standard.',
-    reflection: '“How will this be remembered when feeling is not enough?”',
+        'The year is nearly closed. Mesut-Ra approaches: the hidden renewal before the year\'s outer threshold. Rest before the threshold — not collapse, the deliberate stillness before the turn.',
+    reflection: '"Am I resting before the threshold or forcing the close?"',
   ),
   (
     day: 27,
-    theme: 'Join the Chain',
+    theme: 'Give Thanks for the Full Year',
     action:
-        'Notice where you are both descendant and ancestor, receiver and transmitter.',
+        'Name what this year gave — abundance and shortfall both. Give thanks not for the ease but for the completeness of the cycle.',
     reflection:
-        '“What did I receive, and what am I becoming responsible to pass on?”',
+        '"Can I give thanks for the whole year — not just the good parts?"',
   ),
   (
     day: 28,
-    theme: 'Bless the Line',
+    theme: 'Prepare the Ka for Hidden Renewal',
     action:
-        'Offer gratitude to the living, dead, places, practices, and powers that carried continuity this far.',
-    reflection: '“What chain held me before I knew how to hold myself?”',
+        'What posture, intention, or cleared obligation does the ka carry into hidden renewal? Prepare it to receive what Mesut-Ra brings.',
+    reflection: '"How does my ka enter hidden renewal?"',
   ),
   (
     day: 29,
-    theme: 'Hand Forward Cleanly',
+    theme: 'Hold the Threshold',
     action:
-        'Arrange what continues so it can be received without confusion, secrecy, resentment, or disorder.',
-    reflection: '“How can I pass this on without passing on distortion?”',
+        'Pa-Ipi closes tomorrow. Mesut-Ra opens after that. Hold the threshold without rushing hidden renewal.',
+    reflection: '"Can I hold the closing without rushing the opening?"',
   ),
   (
     day: 30,
-    theme: 'Seal Continuity',
+    theme: 'Seal Pa-Ipi',
     action:
-        'Close Pa-Ipi by naming what has been gathered, purified, remembered, and entrusted forward.',
-    reflection: '“What remains alive because I chose to carry it in Ma’at?”',
+        'Close the memory month. What was named, honored, transmitted, and offered. Hand it into Mesut-Ra with accounts complete and transmissions in motion.',
+    reflection: '"What does memory carry into hidden renewal?"',
   ),
 ]);

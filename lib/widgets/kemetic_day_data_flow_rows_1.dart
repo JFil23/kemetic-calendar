@@ -2474,222 +2474,222 @@ final List<DecanDayInfo> _shefBedetIIIFlowRows = _buildFlowRows([
 final List<DecanDayInfo> _mesutRaOverrideIFlowRows = _buildFlowRows([
   (
     day: 1,
-    theme: 'Enter the Hidden Chamber',
+    theme: 'Enter the Hidden Month',
     action:
-        'Name what is forming beneath the surface before trying to reveal it.',
-    reflection: '“What is alive in me that is not ready to appear yet?”',
+        'Name the shift: Pa-Ipi closed. Memory was handed here. What does Mesut-Ra receive?',
+    reflection: '"What did memory hand into the dark?"',
   ),
   (
     day: 2,
-    theme: 'Recognize Latent Power',
+    theme: 'Let What Was Named Rest',
     action:
-        'Notice strength that is present but still concealed, quiet, or unexpressed.',
-    reflection: '“What power is gathering without needing display?”',
+        'The names, debts, lineages, and transmissions of Pa-Ipi do not need more work now. Let them rest in the dark.',
+    reflection: '"Can I let the named things rest without adding more?"',
   ),
   (
     day: 3,
-    theme: 'Stop Forcing Emergence',
+    theme: 'Enter Stillness',
     action:
-        'Withdraw one demand for immediate clarity, proof, answer, or visible progress.',
-    reflection: '“Where am I trying to pull something into daylight too soon?”',
+        'Mesut-Ra asks for the Hathor-I stillness — not collapse, the chosen quiet before the new form arrives.',
+    reflection: '"Am I still enough to receive what this month holds?"',
   ),
   (
     day: 4,
-    theme: 'Guard the Depth',
+    theme: 'Trust the Unseen Work',
     action:
-        'Protect the private space where new life, thought, healing, or direction is still forming.',
-    reflection: '“What needs concealment in order to become whole?”',
+        'The seed planted in Ka-ḥer-ka grew without being watched. What was handed to Mesut-Ra is growing the same way. Do not dig it up.',
+    reflection: '"Can I trust what is working in the dark?"',
   ),
   (
     day: 5,
-    theme: 'Feed the Hidden Process',
+    theme: 'Do Not Force the New Year',
     action:
-        'Give quiet nourishment to what is forming: rest, silence, water, prayer, study, or protected time.',
-    reflection: '“What does this hidden becoming need in order to continue?”',
+        'The impulse to begin is strong. The new year is not yet here. Hold the threshold. The birth comes when it comes.',
+    reflection: '"Am I holding the close or rushing the opening?"',
   ),
   (
     day: 6,
-    theme: 'Listen Beneath the Surface',
+    theme: 'Clear the Final Residue',
     action:
-        'Observe subtle signals from the body, dream, silence, hesitation, desire, or recurring thought.',
-    reflection: '“What is the unseen part of me trying to say?”',
+        'What obligation, resentment, or unresolved pattern from this year has not yet been named? Name it and release it before the year closes.',
+    reflection: '"What from this year still needs to be released?"',
   ),
   (
     day: 7,
-    theme: 'Refuse Premature Naming',
-    action: 'Allow uncertainty to remain where the form is not yet complete.',
-    reflection: '“What am I not ready to name accurately yet?”',
+    theme: 'Tend the Inner Life',
+    action:
+        'Mesut-Ra belongs to the inner work: dream, reflection, the slow thought that the active season could not hold. Give it time today.',
+    reflection: '"What has been waiting for this kind of quiet?"',
   ),
   (
     day: 8,
-    theme: 'Strengthen the Womb of Becoming',
+    theme: 'Name the Form That Is Coming',
     action:
-        'Improve the container around what is forming: schedule, privacy, boundary, body, room, or practice.',
-    reflection: '“What container will help this become without distortion?”',
+        'Not a plan — a seed intention. What wants to be born in the new year? Hold it lightly. Do not plant it yet.',
+    reflection: '"What wants to emerge in the year ahead?"',
   ),
   (
     day: 9,
-    theme: 'Record the Stirring',
+    theme: 'Prepare the Ground Without Forcing It',
     action:
-        'Write what is beginning to move, even if it is not yet clear enough to act on.',
-    reflection: '“What first signs of becoming should I preserve?”',
+        'Clear one thing that would block the new year\'s opening. Not construction — removal. The ground prepared, not the structure built.',
+    reflection: '"What would block the new year if left in place?"',
   ),
   (
     day: 10,
-    theme: 'Seal Hidden Emergence',
+    theme: 'Close the First Dark Interval',
     action:
-        'Close the decan by naming what must remain protected until the right moment of birth.',
-    reflection:
-        '“What is forming, and what law will keep it safe until it can rise?”',
+        'Ten days of hidden renewal. What was received, what was released, what rests in the dark? The second decan holds the gestation.',
+    reflection: '"What is resting in the dark that I must not disturb?"',
   ),
 ]);
 
 final List<DecanDayInfo> _mesutRaOverrideIIFlowRows = _buildFlowRows([
   (
     day: 11,
-    theme: 'Keep the Heart Awake',
+    theme: 'Hold the Depth',
     action:
-        'Remain attentive without forcing action. Notice what is present in the silence.',
-    reflection: '“Can I stay awake to what is forming without rushing it?”',
+        'The second decan is the deepest dark. Hold it without forcing light. The birth is forming.',
+    reflection: '"Can I hold the depth without forcing the light?"',
   ),
   (
     day: 12,
-    theme: 'Listen to the Dark',
+    theme: 'Do Not Interpret the Dark',
     action:
-        'Give time to quiet signs: dream, hesitation, intuition, recurring thought, or body signal.',
-    reflection: '“What is the hidden passage trying to teach me?”',
+        'The gestation is not yet readable. Do not force a meaning onto what is still forming. Allow the ambiguity.',
+    reflection: '"Am I forcing meaning onto what is not yet ready?"',
   ),
   (
     day: 13,
-    theme: 'Separate Stillness From Avoidance',
+    theme: 'Tend What Survives the Dark',
     action:
-        'Ask whether the pause is protecting formation or hiding from necessary truth.',
-    reflection:
-        '“Is this stillness sacred, or am I using it to avoid what must be faced?”',
+        'What practice, bond, or discipline is alive in this quietest month? Tend it — briefly, but do not let it lapse entirely.',
+    reflection: '"What must I tend even in the deepest month?"',
   ),
   (
     day: 14,
-    theme: 'Guard the Inner Chamber',
+    theme: 'Receive What the Dark Offers',
     action:
-        'Protect privacy, rest, silence, and the unfinished process from unnecessary intrusion.',
-    reflection: '“What boundary keeps the hidden work clean?”',
+        'Some things can only be seen in the dark: what truly matters, what was carried unnecessarily, what the light kept hidden. Name one today.',
+    reflection: '"What does the dark reveal that the light hid?"',
   ),
   (
     day: 15,
-    theme: 'Hold the Unclear Thing Gently',
+    theme: 'Sustain the Crew Through the Close',
     action:
-        'Let uncertainty remain without turning it into fear, performance, or premature decision.',
-    reflection: '“What can I hold without needing to solve it today?”',
+        'The partnership that held through the whole year — tend it through the final month. The year closes together.',
+    reflection: '"Is the bond tended through the year\'s close?"',
   ),
   (
     day: 16,
-    theme: 'Watch the Gate',
+    theme: 'Rest at the Year\'s Deepest Point',
     action:
-        'Notice what wants to enter the hidden chamber: fear, pressure, old habit, outside voices, or true guidance.',
-    reflection: '“What should be allowed in, and what should remain outside?”',
+        'This is the year\'s deepest rest permission. Take it fully. The new year will ask for everything again. Restore the capacity now.',
+    reflection: '"Am I resting as deeply as the year\'s close permits?"',
   ),
   (
     day: 17,
-    theme: 'Keep the Lamp Low',
+    theme: 'Complete the Inner Work',
     action:
-        'Use just enough light to see the next sign. Do not overexpose what is still forming.',
-    reflection: '“What small light is enough for this stage?”',
+        'The slow thought or reflection given time in Mesut-Ra I — bring it to a resting point. Not forced completion, a place where it can be set down.',
+    reflection: '"Where does the inner work rest before the new year?"',
   ),
   (
     day: 18,
-    theme: 'Trust the Ordered Passage',
+    theme: 'Keep the Seed Intention Alive',
     action:
-        'Let the process continue through its proper sequence instead of demanding immediate emergence.',
-    reflection:
-        '“What part of this must pass through time before it can become clear?”',
+        'The seed held since Day 8 — is it still alive? Has it clarified? Keep holding it without planting it.',
+    reflection: '"Is the seed intention still alive and unhurried?"',
   ),
   (
     day: 19,
-    theme: 'Record the Night Watch',
+    theme: 'Name What the Year Built That Will Last',
     action:
-        'Write what the silence revealed, what shifted inwardly, and what still remains hidden.',
-    reflection: '“What did I learn by staying present in the dark?”',
+        'From the full arc — Thoth through Mesut-Ra — name one thing that will outlast this year. A skill, a bond, a recorded knowledge, a planted seed.',
+    reflection: '"What from this year will outlast it?"',
   ),
   (
     day: 20,
-    theme: 'Seal Attentive Stillness',
+    theme: 'Account Before the Final Interval',
     action:
-        'Close the decan by naming what the heart must keep watching until the threshold opens.',
-    reflection: '“What requires my attention, not my interference?”',
+        'Twenty days of hidden renewal. What was received, what was released, what rests in the dark? The third decan completes and opens.',
+    reflection: '"What does the last ten days need to complete the year?"',
   ),
 ]);
 
 final List<DecanDayInfo> _mesutRaOverrideIIIFlowRows = _buildFlowRows([
   (
     day: 21,
-    theme: 'Stand at the Threshold',
-    action: 'Name the doorway now before you without crossing it too soon.',
-    reflection: '“What threshold is near, but not yet open?”',
+    theme: 'The Gestation Completes',
+    action:
+        'The dark has done its work. What was placed in Mesut-Ra is ready to move toward the threshold. Do not hold it back.',
+    reflection:
+        '"Is what was held in the dark ready to approach the threshold?"',
   ),
   (
     day: 22,
-    theme: 'Stop Adding to the Old Cycle',
+    theme: 'Name the Year\'s Complete Arc',
     action:
-        'Refuse one unnecessary task, demand, explanation, or repair that belongs to the closing year.',
-    reflection:
-        '“What am I still trying to add to something already complete?”',
+        'Thoth through Mesut-Ra: one full cycle. Name the arc in one sentence. What was this year?',
+    reflection: '"What was this year, named in one breath?"',
   ),
   (
     day: 23,
-    theme: 'Clear the Gate',
+    theme: 'Give the Year Its Final Offering',
     action:
-        'Remove clutter, unfinished noise, emotional residue, or false urgency from the space before emergence.',
-    reflection: '“What must be cleared so the next beginning is not crowded?”',
+        'One final act of acknowledgment for the whole cycle: what it gave, what it cost, who made it possible.',
+    reflection: '"Have I offered the whole year back to what gave it?"',
   ),
   (
     day: 24,
-    theme: 'Gather the Necessary Things',
+    theme: 'Prepare the Seed for the Next Cycle',
     action:
-        'Prepare only what the birth truly needs: water, record, boundary, rest, offering, tool, or intention.',
-    reflection: '“What is actually needed for the next beginning?”',
+        'The seed intention held through Mesut-Ra is clarified and named. Not planted yet — prepared. Thoth receives its name; Ka-ḥer-ka does the planting.',
+    reflection: '"Is the seed intention named and ready to carry?"',
   ),
   (
     day: 25,
-    theme: 'Refuse the False Dawn',
+    theme: 'Clear the Threshold',
     action:
-        'Do not mistake impatience, excitement, fear, or pressure for the true moment of emergence.',
-    reflection:
-        '“Where am I calling something dawn because I am tired of night?”',
+        'What would carry across the threshold as unfinished business? Name it and release it before the Heriu Renpet begins.',
+    reflection: '"What must be released before the threshold opens?"',
   ),
   (
     day: 26,
-    theme: 'Keep the Body Ready',
+    theme: 'Hold the Eve of the Heriu Renpet',
     action:
-        'Prepare the body for emergence through rest, hydration, food, cleanliness, and lowered strain.',
-    reflection: '“What condition must my body be in to receive the new cycle?”',
+        'The five epagomenal days approach. The outside-year births are near. Stay in the closing without rushing the opening.',
+    reflection:
+        '"Can I hold the eve of the threshold without rushing across it?"',
   ),
   (
     day: 27,
-    theme: 'Honor the Last Darkness',
+    theme: 'Give Thanks for the Complete Cycle',
     action:
-        'Let the final hidden stage complete without contempt for its silence.',
-    reflection: '“What part of the dark still has work to finish?”',
+        'The whole year — every season, every decan, every harvest and drought. Give thanks for the completeness of the arc, not just the pleasant parts.',
+    reflection:
+        '"Can I give thanks for the whole cycle — not just what was easy?"',
   ),
   (
     day: 28,
-    theme: 'Listen for the First Light',
+    theme: 'Prepare to Receive the Birth Days',
     action:
-        'Notice the first real sign of readiness without forcing it into action.',
-    reflection: '“What sign of emergence is true enough to trust?”',
+        'The Heriu Renpet are the outside-year days when the divine births occur. Receive this threshold with openness, not urgency.',
+    reflection: '"Am I receiving the birth days or demanding them?"',
   ),
   (
     day: 29,
-    theme: 'Seal the Night Passage',
+    theme: 'Stand at the Threshold',
     action:
-        'Record what was completed, protected, learned, released, and held in silence.',
-    reflection: '“What did the hidden passage make ready?”',
+        'Mesut-Ra closes tomorrow. The year is complete. Stand at the threshold fully — not looking back, not rushing forward. Present at the close.',
+    reflection: '"Am I fully present at the year\'s threshold?"',
   ),
   (
     day: 30,
-    theme: 'Wait at the Edge of Birth',
+    theme: 'Seal Mesut-Ra. The Year Turns.',
     action:
-        'Close Mesut-Ra by standing ready without interference, demand, or fear.',
-    reflection: '“Can I be ready without forcing the birth?”',
+        'Close the final month of the Kemetic year. What was placed in the dark has been renewed. Hand it to the Heriu Renpet. The birth days open. Thoth follows.',
+    reflection: '"What does the renewed year carry into Thoth?"',
   ),
 ]);
 
@@ -2957,145 +2957,145 @@ final List<DecanDayInfo> _rekhWerOverrideIIIFlowRows = _buildFlowRows([
 final List<DecanDayInfo> _rekhNedjesOverrideIFlowRows = _buildFlowRows([
   (
     day: 1,
-    theme: "Enter the Trial",
+    theme: 'Sharpen the Eye',
     action:
-        "Let one practiced skill, method, or commitment meet a real condition without overprotecting it.",
-    reflection:
-        "“What knowledge is ready to be tested outside the safe place?”",
+        'Slow down today\'s observation. Look at what you are growing at closer range than usual.',
+    reflection: '"What did distance hide?"',
   ),
   (
     day: 2,
-    theme: "Notice the First Pressure",
+    theme: 'Read the Small Sign',
     action:
-        "Identify where resistance appears first: body, schedule, emotion, money, relationship, or confidence.",
-    reflection: "“Where does pressure first reveal itself?”",
+        'Find one minor signal in the field that might indicate something larger. Name it and track it.',
+    reflection: '"What small sign is asking for attention?"',
   ),
   (
     day: 3,
-    theme: "Hold the Standard",
+    theme: 'Test the Method Under Pressure',
     action:
-        "Keep one standard intact even when conditions become less comfortable.",
-    reflection:
-        "“What part of Ma’at must not be lowered because pressure arrived?”",
+        'Apply Rekh-Wer\'s method to a harder condition today. Does it hold or does it show a gap?',
+    reflection: '"Does the method hold when conditions tighten?"',
   ),
   (
     day: 4,
-    theme: "Separate Strain From Failure",
-    action: "Name the difficulty without calling the whole path broken.",
-    reflection: "“What is simply being tested, not destroyed?”",
+    theme: 'Name the Early Warning',
+    action:
+        'What condition, if it continued unaddressed, would become a problem within thirty days? Name it now.',
+    reflection: '"What is the early warning I have been ignoring?"',
   ),
   (
     day: 5,
-    theme: "Cool the Reaction",
+    theme: 'Correct Before the Problem Becomes Visible',
     action:
-        "Pause before reacting to discomfort, criticism, delay, or frustration.",
-    reflection:
-        "“What reaction would make the trial harder than it needs to be?”",
+        'Act on yesterday\'s early warning today. A correction made now costs a fraction of what it costs later.',
+    reflection: '"Can I correct this early?"',
   ),
   (
     day: 6,
-    theme: "Read the Weak Point",
+    theme: 'Distinguish Signal From Noise',
     action:
-        "Study what the pressure exposes and identify the place that needs strengthening.",
-    reflection: "“What is the trial teaching me about the form?”",
+        'Not every variation in the field is meaningful. Identify what is a real signal and what is ordinary fluctuation.',
+    reflection: '"Is this a real signal or ordinary variation?"',
   ),
   (
     day: 7,
-    theme: "Continue Without Drama",
+    theme: 'Know What You Do Not Know Yet',
     action:
-        "Take the next correct step without turning difficulty into spectacle.",
-    reflection:
-        "“Can I keep moving without needing the struggle to define me?”",
+        'Name one thing the field is showing that you do not yet understand. Sit with the uncertainty without forcing a diagnosis.',
+    reflection: '"What is the field showing that I cannot yet read?"',
   ),
   (
     day: 8,
-    theme: "Refuse False Rescue",
-    action: "Do not abandon the test too early or call avoidance wisdom.",
-    reflection: "“Where am I tempted to escape before the lesson is complete?”",
+    theme: 'Apply Precision, Not Force',
+    action:
+        'The fine problem requires a fine tool. Resist the impulse to apply broad effort to a narrow issue.',
+    reflection: '"Am I using precision or force on this?"',
   ),
   (
     day: 9,
-    theme: "Preserve the Lesson",
-    action: "Record what pressure revealed so the next attempt begins wiser.",
-    reflection: "“What did this trial show that comfort could not?”",
+    theme: 'Record the Subtle Condition',
+    action:
+        'Document the fine detail you have been tracking this decan. The subtle record is more valuable than the obvious one.',
+    reflection: '"Is the fine condition recorded?"',
   ),
   (
     day: 10,
-    theme: "Seal the First Trial",
+    theme: 'Close the First Interval',
     action:
-        "Close the decan by naming what held, what bent, and what must be strengthened next.",
-    reflection: "“What survived the first test, and what now requires care?”",
+        'Ten days of close reading. What does the field reveal at this resolution that it did not show from a distance?',
+    reflection: '"What did close reading reveal?"',
   ),
 ]);
 
 final List<DecanDayInfo> _rekhNedjesOverrideIIFlowRows = _buildFlowRows([
   (
     day: 11,
-    theme: "Bring the Trial to the Heart",
+    theme: 'Hold the Knowing Under Load',
     action:
-        "Pause after the first test and let the heart judge what pressure revealed.",
-    reflection: "“What did the trial expose that now needs discernment?”",
+        'Apply the close knowledge from Decan I while carrying normal demands. Do not drop the fine reading when the broad work gets heavy.',
+    reflection: '"Does the fine reading hold?"',
   ),
   (
     day: 12,
-    theme: "Distinguish Test From Attack",
+    theme: 'The Standard Under Fatigue',
     action:
-        "Decide whether the pressure is teaching, harming, correcting, or violating.",
-    reflection:
-        "“Is this pressure refining me, or is it breaking right relation?”",
+        'Hold the quality of observation established in the first decan. Fatigue will pull toward broad strokes. Resist it.',
+    reflection: '"Is my seeing coarsening?"',
   ),
   (
     day: 13,
-    theme: "Adjust Without Abandoning",
-    action: "Change one method while keeping the true aim intact.",
-    reflection: "“What can change without betraying the purpose?”",
+    theme: 'What the Pressure Reveals',
+    action:
+        'Note what the pressure of this month has revealed about the method. Pressure is diagnostic — it shows what was solid and what was soft.',
+    reflection: '"What has pressure shown me about what I built?"',
   ),
   (
     day: 14,
-    theme: "Ask for Counsel",
+    theme: 'Correct the Diagnosis',
     action:
-        "Bring one real question to a trusted person, ancestor, record, or inner standard.",
-    reflection: "“Where do I need guidance before I act again?”",
+        'The signal tracked since Day 2 or 4 — does the original reading still hold? Update it based on what you now know.',
+    reflection: '"Was my early reading accurate? What does it say now?"',
   ),
   (
     day: 15,
-    theme: "Receive the Mirror",
+    theme: 'Apply the Small Correction',
     action:
-        "Accept one piece of truthful feedback without turning it into shame or defense.",
-    reflection: "“What truth is being shown to me from outside myself?”",
+        'The fine problem identified in Decan I — apply the precise correction today. Small, exact, at the right point.',
+    reflection: '"Have I applied the correction or only planned it?"',
   ),
   (
     day: 16,
-    theme: "Refine the Response",
+    theme: 'Protect the Subtle Work',
     action:
-        "Choose a calmer, cleaner, more proportionate response than the first reaction.",
-    reflection: "“How would Ma’at answer this pressure?”",
+        'Close observation is easily displaced by urgency. Guard the fine reading practice against the demands that would make everything broad again.',
+    reflection: '"What would erase the fine practice I have built?"',
   ),
   (
     day: 17,
-    theme: "Strengthen the Weak Place",
+    theme: 'Read Another\'s Field',
     action:
-        "Give focused care to the exact place the trial revealed as vulnerable.",
-    reflection:
-        "“What must be strengthened so the same pressure teaches less harshly next time?”",
+        'Observe someone else\'s work with the same close attention you have been giving yours. What does their field reveal?',
+    reflection: '"What does close reading of another\'s field teach me?"',
   ),
   (
     day: 18,
-    theme: "Return to the Field",
+    theme: 'Measure the Subtle Change',
     action:
-        "Re-enter the situation with the corrected method and a steadier heart.",
-    reflection: "“Can I return wiser without returning bitter?”",
+        'Between Day 1 and today: what fine condition has changed? Not the broad growth — the subtle shift that only close reading can detect.',
+    reflection: '"What has changed at the fine level?"',
   ),
   (
     day: 19,
-    theme: "Measure the Change",
-    action: "Observe whether the adjustment actually improved the pattern.",
-    reflection: "“What is different because I corrected my response?”",
+    theme: 'Hold Uncertainty Without Forcing It',
+    action:
+        'The unresolved signal from Day 7 — is it clearer now? If not, hold it without forcing a conclusion. Some signals take longer.',
+    reflection: '"Can I hold what I do not yet understand?"',
   ),
   (
     day: 20,
-    theme: "Seal Adapted Knowing",
-    action: "Close the decan by naming the adjustment that will carry forward.",
-    reflection: "“What has pressure taught me to do differently now?”",
+    theme: 'Account at the Midpoint',
+    action:
+        'Twenty days of Rekh-Nedjes. What close knowledge is now solid? What still needs the final ten days of attention?',
+    reflection: '"What is solid? What needs time?"',
   ),
 ]);

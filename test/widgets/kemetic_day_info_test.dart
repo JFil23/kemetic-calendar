@@ -84,6 +84,49 @@ void main() {
 
       expect(oldStyleLabels, isEmpty);
     });
+
+    test('keeps day card rhythms short and rejects rollback copy', () {
+      final rollbackPhrases = <String>[
+        'The ground is cleared',
+        'An unbegun structure cannot',
+        'unbegun structure',
+        'ground is cleared',
+      ];
+      final overLimitRhythms = <String>[];
+      final rollbackMatches = <String>[];
+
+      for (final entry in KemeticDayData.dayInfoMap.entries) {
+        final rhythm = entry.value.cosmicContext.trim();
+        final wordCount = _wordCount(rhythm);
+        if (wordCount > 60) {
+          overLimitRhythms.add('${entry.key} => $wordCount words');
+        }
+        for (final phrase in rollbackPhrases) {
+          if (rhythm.contains(phrase)) {
+            rollbackMatches.add('${entry.key} contains "$phrase"');
+          }
+        }
+      }
+
+      expect(overLimitRhythms, isEmpty);
+      expect(rollbackMatches, isEmpty);
+
+      final hathor23 = KemeticDayData.getInfoForDay('hathor_23_3');
+      expect(hathor23, isNotNull);
+      expect(
+        hathor23!.cosmicContext.trim(),
+        '''
+Kemite masons roughed the block before they polished it.
+First cuts: broad, approximate, correct in proportion but rough in surface.
+The eye was on structure, not shine.
+
+To wait for perfection before beginning
+is to let the silt dry and the planting window close.
+'''
+            .trim(),
+      );
+      expect(_wordCount(hathor23.cosmicContext), 44);
+    });
   });
 
   group('KemeticDayDropdown', () {
@@ -152,4 +195,10 @@ void main() {
       expect(find.byType(Scrollbar), findsOneWidget);
     });
   });
+}
+
+int _wordCount(String text) {
+  return RegExp(
+    r"[A-Za-z0-9À-ÖØ-öø-ÿĀ-žḀ-ỿꜢꜣ]+(?:[-’'][A-Za-z0-9À-ÖØ-öø-ÿĀ-žḀ-ỿꜢꜣ]+)*",
+  ).allMatches(text).length;
 }
