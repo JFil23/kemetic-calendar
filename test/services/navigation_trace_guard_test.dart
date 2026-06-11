@@ -33,16 +33,16 @@ void main() {
           '$mainSource\n$calendarSource\n$profileSource\n$plannerSource';
 
       for (final label in <String>[
-        'bottom menu button tapped',
-        'global menu mounted/opened',
+        'global drawer bubble tapped',
+        'global drawer mounted/opened',
         'Flow Studio tile tapped',
         'Calendars tile tapped',
-        '_openFlowStudioFromMenu entered',
-        '_openCalendarsFromMenu entered',
+        '_openFlowsFromDrawer entered',
+        '_openCalendarsFromDrawer entered',
         'menu close started',
         'menu close completed',
-        "global menu utility route push('/flows') requested",
-        "global menu utility route push('/calendars') requested",
+        "global drawer utility route push('/flows') requested",
+        "global drawer utility route push('/calendars') requested",
         'calendar overlay state save skipped',
         'detached calendar overlay state save skipped',
         'calendars sheet helper entered',
@@ -123,7 +123,7 @@ void main() {
     ) async {
       var tapCount = 0;
       await NavigationTrace.instance.setEnabled(true);
-      NavigationTrace.instance.record('bottom menu button tapped');
+      NavigationTrace.instance.record('global drawer bubble tapped');
 
       await tester.pumpWidget(
         NavigationTraceOverlay(
@@ -144,7 +144,10 @@ void main() {
       );
 
       expect(find.text('Navigation Trace'), findsOneWidget);
-      expect(find.textContaining('bottom menu button tapped'), findsOneWidget);
+      expect(
+        find.textContaining('global drawer bubble tapped'),
+        findsOneWidget,
+      );
 
       await tester.tap(find.text('Tap target'));
       expect(tapCount, 1);

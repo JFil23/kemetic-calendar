@@ -60,7 +60,7 @@ import 'package:mobile/features/calendar/kemetic_month_metadata.dart';
 import 'package:mobile/widgets/month_name_text.dart';
 import 'package:mobile/widgets/kemetic_app_bar_action.dart';
 import 'package:mobile/core/day_key.dart';
-import 'package:mobile/core/global_bottom_menu_metrics.dart';
+import 'package:mobile/core/app_bottom_insets.dart';
 import 'package:mobile/core/global_menu_routes.dart';
 import 'package:mobile/core/navigation_persistence_policy.dart';
 import 'package:mobile/shared/glossy_text.dart';
@@ -2840,9 +2840,7 @@ class _CalendarActionsMenuPanel extends StatelessWidget {
     final panelWidth = isLandscape
         ? _landscapeMenuPanelWidth(context)
         : double.infinity;
-    final bottomInset = isLandscape
-        ? globalBottomMenuHeight(context)
-        : media.padding.bottom + 62;
+    final bottomInset = media.padding.bottom + 16;
     final maxGridHeight = isLandscape
         ? _landscapeMenuMaxGridHeight(context, bottomInset: bottomInset)
         : null;

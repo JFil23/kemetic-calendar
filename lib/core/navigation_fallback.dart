@@ -72,6 +72,7 @@ Future<T?> openDetailRoute<T>(
   BuildContext context,
   String location, {
   Object? extra,
+  GoRouter? router,
   NavigationSource source = NavigationSource.programmatic,
 }) {
   RestorationCoordinator.instance.suppressRestoreForUserNavigation(
@@ -83,6 +84,7 @@ Future<T?> openDetailRoute<T>(
       source: source,
     ),
   );
+  if (router != null) return router.push<T>(location, extra: extra);
   return context.push<T>(location, extra: extra);
 }
 
@@ -118,6 +120,7 @@ Future<T?> openUtilityRoute<T>(
   }
 
   traceRestoration('navigation utility_route push route=$location');
+  if (router != null) return router.push<T>(location, extra: extra);
   return pushContext.push<T>(location, extra: extra);
 }
 

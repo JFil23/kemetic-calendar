@@ -85,7 +85,7 @@ void main() {
       },
     );
 
-    test('detached global menu closes before primary route dispatch', () async {
+    test('detached calendar actions close before dispatch', () async {
       final source = await File(
         'lib/features/calendar/calendar_page.dart',
       ).readAsString();

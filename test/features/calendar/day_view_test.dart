@@ -87,7 +87,7 @@ void main() {
       expect(scrollable.position.pixels, closeTo(8 * 60, 0.001));
     });
 
-    testWidgets('timeline reserves room above the global bottom menu', (
+    testWidgets('timeline reserves room above the global drawer bubble', (
       tester,
     ) async {
       await _setPhoneViewport(tester);
@@ -119,7 +119,7 @@ void main() {
       );
       final padding = listView.padding as EdgeInsets;
 
-      expect(padding.bottom, 108);
+      expect(padding.bottom, 130);
     });
 
     testWidgets(
@@ -148,7 +148,7 @@ void main() {
           find.byKey(const PageStorageKey<String>('day_timeline_list')),
         );
         final padding = listView.padding as EdgeInsets;
-        expect(padding.bottom, 74);
+        expect(padding.bottom, 96);
 
         final eventSizedBoxes = tester.widgetList<SizedBox>(
           find.ancestor(

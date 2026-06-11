@@ -56,7 +56,7 @@ void main() {
         contains('KemeticKeyboardRevealScope(enabled: false, child: content)'),
       );
       expect(source, contains('final listBottomPadding = embedded'));
-      expect(source, contains('? bottomPaddingAboveGlobalMenu(context, 32)'));
+      expect(source, contains('? bottomPaddingAboveGlobalChrome(context, 32)'));
       expect(source, contains(': 32.0'));
       expect(
         source,

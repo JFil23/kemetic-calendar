@@ -2,7 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/widgets.dart';
-import 'package:mobile/core/global_bottom_menu_metrics.dart';
+import 'package:mobile/core/app_bottom_insets.dart';
 import 'package:mobile/core/navigation_persistence_policy.dart';
 import 'package:mobile/features/calendar/notify.dart';
 import 'package:mobile/services/app_navigation_restoration_controller.dart';

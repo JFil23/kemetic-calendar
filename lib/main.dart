@@ -40,7 +40,6 @@ import 'shared/glossy_text.dart';
 import 'utils/hive_local_storage_web.dart';
 import 'core/async_guard.dart';
 import 'core/app_link_intent.dart';
-import 'core/global_bottom_menu_metrics.dart';
 import 'core/global_menu_routes.dart';
 import 'core/navigation_fallback.dart';
 import 'core/navigation_persistence_policy.dart';
@@ -81,7 +80,7 @@ import 'features/rhythm/pages/todays_alignment_page.dart';
 import 'features/settings/settings_page.dart';
 import 'features/settings/settings_prefs.dart';
 import 'features/reflections/decan_reflection_detail_page.dart';
-import 'widgets/inbox_icon_with_badge.dart';
+import 'widgets/global_side_drawer.dart';
 import 'widgets/kemetic_keyboard.dart';
 import 'widgets/kemetic_day_info.dart';
 import 'services/app_restoration_service.dart';
@@ -739,13 +738,9 @@ final ValueNotifier<int> _maatGuidancePostEnsureRefresh = ValueNotifier<int>(0);
 final _FloatingMenuRouteObserver _floatingMenuRouteObserver =
     _FloatingMenuRouteObserver();
 final GlobalKey globalMenuButtonKey = GlobalKey(
-  debugLabel: 'global_bottom_menu_button',
+  debugLabel: 'global_menu_bubble',
 );
 const Duration _floatingMenuModalSettleDelay = Duration(milliseconds: 80);
-const Duration _globalBottomMenuBarTransitionDuration = Duration(
-  milliseconds: 220,
-);
-const Curve _globalBottomMenuBarTransitionCurve = Curves.easeOutCubic;
 const bool _debugForceGlobalFloatingMenu = bool.fromEnvironment(
   'FORCE_GLOBAL_MENU_FOR_TESTING',
 );
@@ -2212,7 +2207,10 @@ class _GlobalFloatingMenuShellState extends State<_GlobalFloatingMenuShell>
   }
 
   Uri _readRouterUri() {
-    final delegateUri = widget.router.routerDelegate.currentConfiguration.uri;
+    final configuration = widget.router.routerDelegate.currentConfiguration;
+    final topMatch = configuration.lastOrNull;
+    if (topMatch is ImperativeRouteMatch) return topMatch.matches.uri;
+    final delegateUri = configuration.uri;
     if (delegateUri.path.isNotEmpty) return delegateUri;
     return widget.router.routeInformationProvider.value.uri;
   }
@@ -2419,7 +2417,7 @@ class _GlobalFloatingMenuShellState extends State<_GlobalFloatingMenuShell>
   }
 
   void _handleFloatingMenuPressed() {
-    _traceNavigation('bottom menu button tapped', mediaContext: context);
+    _traceNavigation('global drawer bubble tapped', mediaContext: context);
     if (_menuOpen) {
       unawaited(_closeFloatingMenu());
       return;
@@ -2429,56 +2427,68 @@ class _GlobalFloatingMenuShellState extends State<_GlobalFloatingMenuShell>
 
   void _openFloatingMenu() {
     if (!_shouldActivateFloatingMenu(context)) {
-      _traceNavigation('global menu open blocked', mediaContext: context);
+      _traceNavigation('global drawer open blocked', mediaContext: context);
       return;
     }
     setState(() {
       _menuMounted = true;
       _menuOpen = true;
     });
-    _traceNavigation('global menu mounted/opened', mediaContext: context);
+    _traceNavigation('global drawer mounted/opened', mediaContext: context);
   }
 
   Future<void> _closeFloatingMenu() async {
     if (!_menuMounted) return;
     _traceNavigation('menu close started', mediaContext: context);
     setState(() => _menuOpen = false);
-    await Future<void>.delayed(_globalBottomMenuBarTransitionDuration);
+    await Future<void>.delayed(globalSideDrawerTransitionDuration);
     if (!mounted || _menuOpen) return;
     setState(() => _menuMounted = false);
     _traceNavigation('menu close completed', mediaContext: context);
   }
 
-  void _navigateFromMenu(String location) {
-    final section = switch (location) {
-      '/' => AppSection.calendar,
-      '/rhythm/today' => AppSection.planner,
-      '/nodes' => AppSection.library,
-      '/journal' => AppSection.journal,
-      '/inbox' => AppSection.inbox,
-      '/settings' => AppSection.settings,
-      '/reflections' => AppSection.reflections,
-      _ => null,
-    };
-    if (section != null) {
-      openPrimarySection(context, section, router: widget.router);
-      return;
-    }
-    widget.router.go(location);
+  Future<void> _openPrimarySectionFromDrawer(AppSection section) async {
+    await _closeFloatingMenu();
+    if (!mounted) return;
+    openPrimarySection(context, section, router: widget.router);
   }
 
-  Future<void> _openFlowStudioFromMenu() async {
+  Future<void> _openProfileFromDrawer() async {
     _traceNavigation(
-      '_openFlowStudioFromMenu entered',
+      '_openProfileFromDrawer entered',
       mediaContext: context,
-      state: const <String, Object?>{'sheet': 'flowStudio'},
+      state: const <String, Object?>{'route': '/profile/me'},
+    );
+    await _closeFloatingMenu();
+    if (!mounted) return;
+    final navigationContext = _rootNavigatorKey.currentContext ?? context;
+    if (!navigationContext.mounted) return;
+    _traceNavigation(
+      "global drawer detail route push('/profile/me') requested",
+      mediaContext: context,
+      state: const <String, Object?>{'route': '/profile/me'},
+    );
+    unawaited(
+      openDetailRoute<void>(
+        navigationContext,
+        '/profile/me',
+        router: widget.router,
+      ),
+    );
+  }
+
+  Future<void> _openFlowsFromDrawer() async {
+    _traceNavigation(
+      '_openFlowsFromDrawer entered',
+      mediaContext: context,
+      state: const <String, Object?>{'route': '/flows'},
     );
     await _closeFloatingMenu();
     if (!mounted) return;
     _traceNavigation(
-      "global menu utility route push('/flows') requested",
+      "global drawer utility route push('/flows') requested",
       mediaContext: context,
-      state: const <String, Object?>{'sheet': 'flowStudio'},
+      state: const <String, Object?>{'route': '/flows'},
     );
     unawaited(
       openUtilityRoute<void>(
@@ -2490,18 +2500,18 @@ class _GlobalFloatingMenuShellState extends State<_GlobalFloatingMenuShell>
     );
   }
 
-  Future<void> _openCalendarsFromMenu() async {
+  Future<void> _openCalendarsFromDrawer() async {
     _traceNavigation(
-      '_openCalendarsFromMenu entered',
+      '_openCalendarsFromDrawer entered',
       mediaContext: context,
-      state: const <String, Object?>{'sheet': 'calendars'},
+      state: const <String, Object?>{'route': '/calendars'},
     );
     await _closeFloatingMenu();
     if (!mounted) return;
     _traceNavigation(
-      "global menu utility route push('/calendars') requested",
+      "global drawer utility route push('/calendars') requested",
       mediaContext: context,
-      state: const <String, Object?>{'sheet': 'calendars'},
+      state: const <String, Object?>{'route': '/calendars'},
     );
     unawaited(
       openUtilityRoute<void>(
@@ -2513,8 +2523,120 @@ class _GlobalFloatingMenuShellState extends State<_GlobalFloatingMenuShell>
     );
   }
 
+  bool _isDrawerDestinationSelected(String destination) {
+    final path = _currentUri.path.isEmpty ? '/' : _currentUri.path;
+    return switch (destination) {
+      '/' => path == '/',
+      '/rhythm/today' => path.startsWith('/rhythm/'),
+      '/nodes' => path == '/nodes' || path.startsWith('/nodes/'),
+      '/journal' => path == '/journal' || path.startsWith('/journal/'),
+      '/inbox' => path == '/inbox' || path.startsWith('/inbox/'),
+      '/calendars' => path == '/calendars',
+      '/flows' => path == '/flows' || path.startsWith('/flows/'),
+      '/reflections' =>
+        path == '/reflections' || path.startsWith('/reflections/'),
+      '/profile/me' => path == '/profile/me' || path.startsWith('/profile/'),
+      '/settings' => path == '/settings',
+      _ => false,
+    };
+  }
+
+  List<GlobalSideDrawerItem> _buildGlobalSideDrawerItems() {
+    return <GlobalSideDrawerItem>[
+      GlobalSideDrawerItem(
+        label: 'Calendar',
+        glyph: MeduNeterGlyphs.home,
+        selected: _isDrawerDestinationSelected('/'),
+        onSelected: () =>
+            unawaited(_openPrimarySectionFromDrawer(AppSection.calendar)),
+      ),
+      GlobalSideDrawerItem(
+        label: 'Planner',
+        glyph: MeduNeterGlyphs.planner,
+        selected: _isDrawerDestinationSelected('/rhythm/today'),
+        onSelected: () =>
+            unawaited(_openPrimarySectionFromDrawer(AppSection.planner)),
+      ),
+      GlobalSideDrawerItem(
+        label: 'Library',
+        glyph: MeduNeterGlyphs.library,
+        glyphSize: 20,
+        selected: _isDrawerDestinationSelected('/nodes'),
+        onSelected: () =>
+            unawaited(_openPrimarySectionFromDrawer(AppSection.library)),
+      ),
+      GlobalSideDrawerItem(
+        label: 'Journal',
+        glyph: MeduNeterGlyphs.journal,
+        selected: _isDrawerDestinationSelected('/journal'),
+        onSelected: () =>
+            unawaited(_openPrimarySectionFromDrawer(AppSection.journal)),
+      ),
+      GlobalSideDrawerItem(
+        label: 'Inbox',
+        glyph: MeduNeterGlyphs.inbox,
+        showNotificationDot: true,
+        selected: _isDrawerDestinationSelected('/inbox'),
+        onSelected: () =>
+            unawaited(_openPrimarySectionFromDrawer(AppSection.inbox)),
+      ),
+      GlobalSideDrawerItem(
+        label: 'Calendars',
+        glyph: MeduNeterGlyphs.calendars,
+        selected: _isDrawerDestinationSelected('/calendars'),
+        onSelected: () => unawaited(_openCalendarsFromDrawer()),
+      ),
+      GlobalSideDrawerItem(
+        label: 'Flows',
+        glyph: MeduNeterGlyphs.flowStudio,
+        glyphSize: 20,
+        selected: _isDrawerDestinationSelected('/flows'),
+        onSelected: () => unawaited(_openFlowsFromDrawer()),
+      ),
+      GlobalSideDrawerItem(
+        label: 'Reflections',
+        glyph: MeduNeterGlyphs.reflections,
+        glyphSize: 18,
+        selected: _isDrawerDestinationSelected('/reflections'),
+        onSelected: () =>
+            unawaited(_openPrimarySectionFromDrawer(AppSection.reflections)),
+      ),
+      GlobalSideDrawerItem(
+        label: 'Profile',
+        glyph: MeduNeterGlyphs.profile,
+        selected: _isDrawerDestinationSelected('/profile/me'),
+        onSelected: () => unawaited(_openProfileFromDrawer()),
+      ),
+      GlobalSideDrawerItem(
+        label: 'Settings',
+        glyph: MeduNeterGlyphs.settings,
+        selected: _isDrawerDestinationSelected('/settings'),
+        onSelected: () =>
+            unawaited(_openPrimarySectionFromDrawer(AppSection.settings)),
+      ),
+    ];
+  }
+
   void _openMaatGuidance(MaatGuidanceDelivery delivery) {
     _router.go('/maat-guidance/${Uri.encodeComponent(delivery.id)}');
+  }
+
+  bool get _isDrawerBackToggleRoute {
+    final path = _currentUri.path.isEmpty ? '/' : _currentUri.path;
+    return switch (path) {
+      '/' ||
+      '/rhythm/today' ||
+      '/nodes' ||
+      '/journal' ||
+      '/inbox' ||
+      '/settings' ||
+      '/reflections' => true,
+      _ => false,
+    };
+  }
+
+  bool _shouldOpenDrawerForBack(BuildContext context) {
+    return _isDrawerBackToggleRoute && _shouldActivateFloatingMenu(context);
   }
 
   Future<bool> _handleBackButton() async {
@@ -2522,31 +2644,15 @@ class _GlobalFloatingMenuShellState extends State<_GlobalFloatingMenuShell>
       await _dailyCosmicContextController.dismiss();
       return true;
     }
-    if (!_menuMounted || !_menuOpen) return false;
-    await _closeFloatingMenu();
-    return true;
-  }
-
-  Widget _buildFloatingActionsPanel(BuildContext context) {
-    final menuContext =
-        _rootNavigatorKey.currentState?.overlay?.context ??
-        _rootNavigatorKey.currentContext ??
-        context;
-    return CalendarPage.buildDetachedActionsMenuPanel(
-      menuContext,
-      includeNewNote: false,
-      onNavigate: _navigateFromMenu,
-      onOpenFlowStudio: _openFlowStudioFromMenu,
-      onOpenCalendars: _openCalendarsFromMenu,
-      closeMenu: _closeFloatingMenu,
-    );
-  }
-
-  void _handleMenuDragEnd(DragEndDetails details) {
-    final velocity = details.primaryVelocity ?? 0;
-    if (velocity > 80) {
-      unawaited(_closeFloatingMenu());
+    if (_menuMounted && _menuOpen) {
+      await _closeFloatingMenu();
+      return true;
     }
+    if (_shouldOpenDrawerForBack(context)) {
+      _openFloatingMenu();
+      return true;
+    }
+    return false;
   }
 
   @override
@@ -2559,30 +2665,7 @@ class _GlobalFloatingMenuShellState extends State<_GlobalFloatingMenuShell>
     }
     final menuOpenForInteraction = _menuOpen && shouldActivateFloatingMenu;
     final suppressGuidance = _shouldSuppressMaatGuidance(context);
-    final isLandscape =
-        MediaQuery.orientationOf(context) == Orientation.landscape;
-    final bottomMenuHeight = globalBottomMenuHeight(context);
     _syncMaatGuidanceSuppression(suppressGuidance);
-
-    Widget buildAnimatedFloatingPanel() {
-      return IgnorePointer(
-        ignoring: !menuOpenForInteraction,
-        child: ExcludeSemantics(
-          excluding: !menuOpenForInteraction,
-          child: AnimatedSlide(
-            offset: menuOpenForInteraction ? Offset.zero : const Offset(0, 1),
-            duration: _globalBottomMenuBarTransitionDuration,
-            curve: _globalBottomMenuBarTransitionCurve,
-            child: AnimatedOpacity(
-              opacity: menuOpenForInteraction ? 1 : 0,
-              duration: _globalBottomMenuBarTransitionDuration,
-              curve: _globalBottomMenuBarTransitionCurve,
-              child: _buildFloatingActionsPanel(context),
-            ),
-          ),
-        ),
-      );
-    }
 
     return MaatGuidanceScope(
       controller: _maatGuidanceController,
@@ -2590,54 +2673,20 @@ class _GlobalFloatingMenuShellState extends State<_GlobalFloatingMenuShell>
         fit: StackFit.expand,
         children: [
           widget.child,
-          if (shouldMountFloatingMenu && _menuMounted) ...[
+          if (shouldMountFloatingMenu && _menuMounted)
             Positioned.fill(
-              child: _GlobalMenuBarrier(
-                visible: menuOpenForInteraction,
-                onDismiss: _closeFloatingMenu,
+              child: GlobalSideDrawer(
+                open: menuOpenForInteraction,
+                items: _buildGlobalSideDrawerItems(),
+                onDismiss: () => unawaited(_closeFloatingMenu()),
               ),
             ),
-            if (isLandscape)
-              Positioned.fill(
-                child: IgnorePointer(
-                  ignoring: !menuOpenForInteraction,
-                  child: GestureDetector(
-                    behavior: HitTestBehavior.opaque,
-                    onTap: () => unawaited(_closeFloatingMenu()),
-                    child: Align(
-                      alignment: Alignment.bottomCenter,
-                      child: GestureDetector(
-                        behavior: HitTestBehavior.opaque,
-                        onTap: () {},
-                        onVerticalDragEnd: _handleMenuDragEnd,
-                        child: buildAnimatedFloatingPanel(),
-                      ),
-                    ),
-                  ),
-                ),
-              )
-            else
-              Positioned(
-                left: 0,
-                right: 0,
-                bottom: 0,
-                child: GestureDetector(
-                  behavior: HitTestBehavior.translucent,
-                  onVerticalDragEnd: _handleMenuDragEnd,
-                  child: buildAnimatedFloatingPanel(),
-                ),
-              ),
-          ],
           if (shouldMountFloatingMenu)
-            Positioned(
-              left: 0,
-              right: 0,
-              bottom: 0,
-              height: bottomMenuHeight,
-              child: _GlobalBottomMenuBar(
-                visible: shouldActivateFloatingMenu,
-                onPressed: _handleFloatingMenuPressed,
-              ),
+            GlobalMenuBubble(
+              key: globalMenuButtonKey,
+              visible: shouldActivateFloatingMenu,
+              open: menuOpenForInteraction,
+              onPressed: _handleFloatingMenuPressed,
             ),
           DailyCosmicContextOverlayHost(
             controller: _dailyCosmicContextController,
@@ -2649,164 +2698,6 @@ class _GlobalFloatingMenuShellState extends State<_GlobalFloatingMenuShell>
                 _maatGuidanceController.hasVisibleDelivery && !suppressGuidance,
           ),
         ],
-      ),
-    );
-  }
-}
-
-class _GlobalMenuBarrier extends StatelessWidget {
-  const _GlobalMenuBarrier({required this.visible, required this.onDismiss});
-
-  final bool visible;
-  final Future<void> Function() onDismiss;
-
-  @override
-  Widget build(BuildContext context) {
-    return IgnorePointer(
-      ignoring: !visible,
-      child: ExcludeSemantics(
-        excluding: !visible,
-        child: AnimatedOpacity(
-          opacity: visible ? 1 : 0,
-          duration: _globalBottomMenuBarTransitionDuration,
-          curve: _globalBottomMenuBarTransitionCurve,
-          child: GestureDetector(
-            behavior: HitTestBehavior.opaque,
-            onTap: () => unawaited(onDismiss()),
-            child: const ColoredBox(color: Color(0x73000000)),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _GlobalBottomMenuBar extends StatelessWidget {
-  const _GlobalBottomMenuBar({required this.visible, required this.onPressed});
-
-  final bool visible;
-  final VoidCallback onPressed;
-
-  @override
-  Widget build(BuildContext context) {
-    final bottomPadding = MediaQuery.paddingOf(context).bottom;
-    final visualHeight = globalBottomMenuHeight(context);
-
-    return SizedBox(
-      height: visualHeight,
-      child: IgnorePointer(
-        ignoring: !visible,
-        child: ExcludeSemantics(
-          excluding: !visible,
-          child: AnimatedSlide(
-            offset: visible ? Offset.zero : const Offset(0, 1.08),
-            duration: _globalBottomMenuBarTransitionDuration,
-            curve: _globalBottomMenuBarTransitionCurve,
-            child: AnimatedOpacity(
-              opacity: visible ? 1 : 0,
-              duration: _globalBottomMenuBarTransitionDuration,
-              curve: _globalBottomMenuBarTransitionCurve,
-              child: Semantics(
-                key: globalMenuButtonKey,
-                container: true,
-                label: 'Menu',
-                button: true,
-                onTap: onPressed,
-                child: ExcludeSemantics(
-                  child: GestureDetector(
-                    behavior: HitTestBehavior.opaque,
-                    onTap: onPressed,
-                    child: SizedBox.expand(
-                      child: DecoratedBox(
-                        decoration: const BoxDecoration(
-                          color: Color(0xF6000000),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Color(0xB3000000),
-                              blurRadius: 18,
-                              offset: Offset(0, -8),
-                            ),
-                          ],
-                        ),
-                        child: Padding(
-                          padding: EdgeInsets.only(bottom: bottomPadding),
-                          child: const Center(child: _FloatingMenuGlyph()),
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _FloatingMenuGlyph extends StatelessWidget {
-  const _FloatingMenuGlyph();
-
-  @override
-  Widget build(BuildContext context) {
-    return InboxUnreadDotOverlay(
-      top: 1,
-      right: 0,
-      size: 6.5,
-      dotColor: const Color(0xFFFF3B30),
-      borderColor: const Color(0xFF07080A),
-      borderWidth: 1.05,
-      child: const _MenuGlyphText(size: 22, boxSize: 30, yOffset: -1.3),
-    );
-  }
-}
-
-class _MenuGlyphText extends StatelessWidget {
-  const _MenuGlyphText({
-    required this.size,
-    required this.boxSize,
-    this.yOffset = 0,
-  });
-
-  final double size;
-  final double boxSize;
-  final double yOffset;
-
-  @override
-  Widget build(BuildContext context) {
-    return SizedBox.square(
-      dimension: boxSize,
-      child: Center(
-        child: Transform.translate(
-          offset: Offset(0, yOffset),
-          child: ShaderMask(
-            shaderCallback: (bounds) => goldGloss.createShader(bounds),
-            blendMode: BlendMode.srcIn,
-            child: Text(
-              '𓉹',
-              textAlign: TextAlign.center,
-              strutStyle: StrutStyle(
-                fontSize: size,
-                height: 1,
-                forceStrutHeight: true,
-              ),
-              textHeightBehavior: const TextHeightBehavior(
-                applyHeightToFirstAscent: false,
-                applyHeightToLastDescent: false,
-              ),
-              style: TextStyle(
-                color: Colors.white,
-                fontSize: size,
-                height: 1,
-                letterSpacing: 0,
-                fontWeight: FontWeight.w500,
-                fontFamily: 'Noto Sans Egyptian Hieroglyphs',
-                fontFamilyFallback: meduNeterFontFallback,
-              ),
-            ),
-          ),
-        ),
       ),
     );
   }

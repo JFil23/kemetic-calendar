@@ -1,28 +1,6 @@
 import 'package:flutter/widgets.dart';
 
-const double kGlobalBottomMenuBaseHeight = 50;
-const double kGlobalBottomMenuLandscapeBaseHeight = 25;
-const double kGlobalBottomMenuTabletShortestSide = 600;
-
-bool _usesTabletLandscapeBottomMenuMetrics(BuildContext context) {
-  final size = MediaQuery.sizeOf(context);
-  return MediaQuery.orientationOf(context) == Orientation.landscape &&
-      size.shortestSide >= kGlobalBottomMenuTabletShortestSide;
-}
-
-double globalBottomMenuBaseHeight(BuildContext context) {
-  if (MediaQuery.orientationOf(context) != Orientation.landscape) {
-    return kGlobalBottomMenuBaseHeight;
-  }
-  return _usesTabletLandscapeBottomMenuMetrics(context)
-      ? kGlobalBottomMenuBaseHeight
-      : kGlobalBottomMenuLandscapeBaseHeight;
-}
-
-double globalBottomMenuHeight(BuildContext context) {
-  return globalBottomMenuBaseHeight(context) +
-      MediaQuery.paddingOf(context).bottom;
-}
+import 'global_side_drawer_metrics.dart';
 
 class AppBottomInsets {
   const AppBottomInsets._();
@@ -33,7 +11,10 @@ class AppBottomInsets {
     BuildContext context, {
     double extraSpacing = pageGap,
   }) {
-    return globalBottomMenuHeight(context) + extraSpacing;
+    return globalMenuBubbleContentBottomPadding(
+      context,
+      extraSpacing: extraSpacing,
+    );
   }
 
   static double scrollBottomPadding(BuildContext context, double basePadding) {
@@ -41,7 +22,10 @@ class AppBottomInsets {
   }
 }
 
-double bottomPaddingAboveGlobalMenu(BuildContext context, double basePadding) {
+double bottomPaddingAboveGlobalChrome(
+  BuildContext context,
+  double basePadding,
+) {
   return AppBottomInsets.scrollBottomPadding(context, basePadding);
 }
 
@@ -61,26 +45,7 @@ class AppPageScaffold extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final keyboardVisible = MediaQuery.viewInsetsOf(context).bottom > 0;
-    final shouldApply =
-        applyBottomNavInset && !(disableWhenKeyboardVisible && keyboardVisible);
-    final bottomPadding = shouldApply
-        ? AppBottomInsets.contentBottomPadding(
-            context,
-            extraSpacing: extraSpacing,
-          )
-        : 0.0;
-
-    final content = MediaQuery.removePadding(
-      context: context,
-      removeBottom: shouldApply,
-      child: child,
-    );
-
-    return Padding(
-      padding: EdgeInsets.only(bottom: bottomPadding),
-      child: content,
-    );
+    return child;
   }
 }
 

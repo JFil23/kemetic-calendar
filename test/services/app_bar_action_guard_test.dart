@@ -5,7 +5,6 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
-import 'package:mobile/core/global_bottom_menu_metrics.dart';
 import 'package:mobile/core/navigation_fallback.dart';
 import 'package:mobile/features/calendar/calendar_page.dart';
 import 'package:mobile/main.dart' as app;
@@ -86,15 +85,17 @@ void main() {
       expect(_detachedMenuLabels(tester), _expectedDetachedGlobalMenuOrder);
     });
 
-    testWidgets('detached menu respects tablet landscape bottom inset', (
+    testWidgets('detached menu respects tablet landscape safe area inset', (
       tester,
     ) async {
       tester.view.physicalSize = const Size(1194, 834);
       tester.view.devicePixelRatio = 1;
+      tester.view.padding = const FakeViewPadding(bottom: 24);
       addTearDown(tester.view.resetPhysicalSize);
       addTearDown(tester.view.resetDevicePixelRatio);
+      addTearDown(tester.view.resetPadding);
 
-      const bottomMenuKey = ValueKey<String>('test-tablet-bottom-menu');
+      const safeAreaKey = ValueKey<String>('test-tablet-safe-area');
       const gridKey = ValueKey<String>('calendar-actions-grid');
 
       await tester.pumpWidget(
@@ -102,7 +103,6 @@ void main() {
           home: Scaffold(
             body: Builder(
               builder: (context) {
-                final bottomHeight = globalBottomMenuHeight(context);
                 return Stack(
                   fit: StackFit.expand,
                   children: [
@@ -115,9 +115,9 @@ void main() {
                       left: 0,
                       right: 0,
                       bottom: 0,
-                      height: bottomHeight,
+                      height: MediaQuery.paddingOf(context).bottom,
                       child: const ColoredBox(
-                        key: bottomMenuKey,
+                        key: safeAreaKey,
                         color: Colors.black,
                       ),
                     ),
@@ -131,10 +131,10 @@ void main() {
       await tester.pump();
 
       final gridRect = tester.getRect(find.byKey(gridKey));
-      final bottomMenuTop = tester.getTopLeft(find.byKey(bottomMenuKey)).dy;
+      final safeAreaTop = tester.getTopLeft(find.byKey(safeAreaKey)).dy;
       final scaffoldWidth = tester.getSize(find.byType(Scaffold)).width;
 
-      expect(gridRect.bottom, lessThanOrEqualTo(bottomMenuTop));
+      expect(gridRect.bottom, lessThanOrEqualTo(safeAreaTop));
       expect(gridRect.center.dx, closeTo(scaffoldWidth / 2, 0.5));
     });
 
@@ -265,34 +265,22 @@ void main() {
       expect(closeCount, 1);
     });
 
-    testWidgets('global bottom menu height is shorter only in landscape', (
-      tester,
-    ) async {
-      Future<double> pumpWithSize(Size physicalSize) async {
-        tester.view.physicalSize = physicalSize;
-        tester.view.devicePixelRatio = 3;
-        double? height;
-
-        await tester.pumpWidget(
-          MaterialApp(
-            home: Builder(
-              builder: (context) {
-                height = globalBottomMenuHeight(context);
-                return const SizedBox.shrink();
-              },
-            ),
-          ),
+    test(
+      'detached calendar action panel does not reserve old bottom bar',
+      () async {
+        final source = await File(
+          'lib/features/calendar/calendar_page.dart',
+        ).readAsString();
+        final panel = _sourceBetween(
+          source,
+          'class _CalendarActionsMenuPanel extends StatelessWidget',
+          '/* ─────────── Flows (routines): palette + gloss-from-color',
         );
 
-        return height!;
-      }
-
-      addTearDown(tester.view.resetPhysicalSize);
-      addTearDown(tester.view.resetDevicePixelRatio);
-
-      expect(await pumpWithSize(const Size(1170, 2532)), 50);
-      expect(await pumpWithSize(const Size(2532, 1170)), 25);
-    });
+        expect(panel, contains('media.padding.bottom + 16'));
+        expect(panel, isNot(contains('globalBottomMenuHeight')));
+      },
+    );
 
     testWidgets('detached primary routes close before navigation dispatch', (
       tester,
@@ -372,9 +360,7 @@ void main() {
       expect(launchedSheets, <String>['Calendars']);
     });
 
-    testWidgets('global floating menu routes Flow Studio to /flows', (
-      tester,
-    ) async {
+    testWidgets('global drawer routes Flows to /flows', (tester) async {
       tester.view.physicalSize = const Size(1170, 2532);
       tester.view.devicePixelRatio = 3;
       addTearDown(tester.view.resetPhysicalSize);
@@ -443,7 +429,7 @@ void main() {
       await tester.tap(find.byKey(app.globalMenuButtonKey));
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 260));
-      await tester.tap(find.text('Flow Studio'));
+      await tester.tap(find.text('Flows'));
       await tester.pump();
       await tester.pumpAndSettle();
 
@@ -462,9 +448,7 @@ void main() {
       expect(find.text('Profile route'), findsOneWidget);
     });
 
-    testWidgets('global floating menu routes Calendars to /calendars', (
-      tester,
-    ) async {
+    testWidgets('global drawer routes Calendars to /calendars', (tester) async {
       tester.view.physicalSize = const Size(1170, 2532);
       tester.view.devicePixelRatio = 3;
       addTearDown(tester.view.resetPhysicalSize);
@@ -922,42 +906,32 @@ void main() {
       },
     );
 
-    test('global floating actions panel passes sheet callbacks', () async {
+    test('global drawer utility rows use route-backed callbacks', () async {
       final source = await File('lib/main.dart').readAsString();
-      final panel = _sourceBetween(
+      final items = _sourceBetween(
         source,
-        'Widget _buildFloatingActionsPanel(BuildContext context)',
-        'void _handleMenuDragEnd(DragEndDetails details)',
+        'List<GlobalSideDrawerItem> _buildGlobalSideDrawerItems()',
+        'void _openMaatGuidance(MaatGuidanceDelivery delivery)',
       );
       final flowStudioCallback = _sourceBetween(
         source,
-        'Future<void> _openFlowStudioFromMenu()',
-        'Future<void> _openCalendarsFromMenu()',
+        'Future<void> _openFlowsFromDrawer()',
+        'Future<void> _openCalendarsFromDrawer()',
       );
       final calendarsCallback = _sourceBetween(
         source,
-        'Future<void> _openCalendarsFromMenu()',
+        'Future<void> _openCalendarsFromDrawer()',
         'void _openMaatGuidance(MaatGuidanceDelivery delivery)',
       );
-      final navigateFromMenu = _sourceBetween(
-        source,
-        'void _navigateFromMenu(String location)',
-        'Future<void> _openFlowStudioFromMenu()',
-      );
 
-      expect(panel, contains('onOpenFlowStudio: _openFlowStudioFromMenu'));
-      expect(panel, contains('onOpenCalendars: _openCalendarsFromMenu'));
-      expect(navigateFromMenu, contains("'/reflections'"));
-      expect(navigateFromMenu, contains('AppSection.reflections'));
-      expect(navigateFromMenu, contains('openPrimarySection('));
-      expect(
-        navigateFromMenu,
-        contains('openPrimarySection(context, section, router: widget.router)'),
-      );
+      expect(items, contains("label: 'Flows'"));
+      expect(items, contains('_openFlowsFromDrawer()'));
+      expect(items, contains("label: 'Calendars'"));
+      expect(items, contains('_openCalendarsFromDrawer()'));
       expect(flowStudioCallback, contains('await _closeFloatingMenu()'));
       expect(
         flowStudioCallback,
-        contains("global menu utility route push('/flows') requested"),
+        contains("global drawer utility route push('/flows') requested"),
       );
       expect(flowStudioCallback, contains('openUtilityRoute<void>('));
       expect(flowStudioCallback, contains("'/flows'"));
@@ -975,7 +949,7 @@ void main() {
       expect(calendarsCallback, contains('await _closeFloatingMenu()'));
       expect(
         calendarsCallback,
-        contains("global menu utility route push('/calendars') requested"),
+        contains("global drawer utility route push('/calendars') requested"),
       );
       expect(calendarsCallback, contains('openUtilityRoute<void>('));
       expect(calendarsCallback, contains("'/calendars'"));
@@ -1021,6 +995,8 @@ void main() {
         source,
         isNot(contains('_routeToCalendarForGlobalMenuSheetCommand')),
       );
+      expect(source, isNot(contains('_buildFloatingActionsPanel')));
+      expect(source, isNot(contains('_navigateFromMenu')));
       expect(source, isNot(contains('global menu detached sheet open')));
     });
 
@@ -1173,71 +1149,64 @@ void main() {
       },
     );
 
-    test(
-      'global bottom menu is available on profile and feed routes',
-      () async {
-        final source = await File('lib/main.dart').readAsString();
-        final shell = _sourceBetween(
-          source,
-          'class _GlobalFloatingMenuShellState',
-          'class _GlobalMenuBarrier',
-        );
-
-        expect(shell, contains('CalendarPage.buildDetachedActionsMenuPanel'));
-        expect(shell, contains('if (supabase.auth.currentSession == null'));
-        expect(shell, isNot(contains('_usesProfileAppBarMenu')));
-        expect(shell, isNot(contains("segments.first != 'profile'")));
-        expect(shell, isNot(contains("segments.first == 'profile'")));
-      },
-    );
-
-    test('global menu uses landscape side-tap dismiss layer', () async {
+    test('global drawer is available on profile and feed routes', () async {
       final source = await File('lib/main.dart').readAsString();
       final shell = _sourceBetween(
         source,
         'class _GlobalFloatingMenuShellState',
-        'class _GlobalMenuBarrier',
+        'class PushIntentBridge',
       );
 
-      expect(
-        shell,
-        contains('MediaQuery.orientationOf(context) == Orientation.landscape'),
-      );
-      expect(shell, contains('if (isLandscape)'));
-      expect(shell, contains('Positioned.fill'));
-      expect(shell, contains('onTap: () => unawaited(_closeFloatingMenu())'));
+      expect(shell, contains('GlobalSideDrawer('));
+      expect(shell, contains('GlobalMenuBubble('));
+      expect(shell, contains('if (supabase.auth.currentSession == null'));
+      expect(shell, isNot(contains('_usesProfileAppBarMenu')));
+      expect(shell, isNot(contains("segments.first != 'profile'")));
+      expect(shell, isNot(contains("segments.first == 'profile'")));
     });
 
-    test('global bottom menu hit area matches the visible bar', () async {
-      final source = await File('lib/main.dart').readAsString();
-      final bottomBar = _sourceBetween(
-        source,
-        'class _GlobalBottomMenuBar',
-        'class _FloatingMenuGlyph',
+    test('global drawer uses scrim tap dismiss layer', () async {
+      final drawer = await File(
+        'lib/widgets/global_side_drawer.dart',
+      ).readAsString();
+
+      expect(drawer, contains('globalSideDrawerScrimKey'));
+      expect(drawer, contains('HitTestBehavior.opaque'));
+      expect(drawer, contains('onTap: onDismiss'));
+    });
+
+    test('global bubble hit area matches the visible circle', () async {
+      final drawer = await File(
+        'lib/widgets/global_side_drawer.dart',
+      ).readAsString();
+      final bubble = _sourceBetween(
+        drawer,
+        'class GlobalMenuBubble extends StatelessWidget',
+        'class GlobalSideDrawer extends StatelessWidget',
       );
 
-      expect(bottomBar, contains('globalBottomMenuHeight(context)'));
-      expect(bottomBar, contains('onTap: onPressed'));
-      expect(bottomBar, isNot(contains('hitHeight')));
-      expect(bottomBar, isNot(contains('112')));
-      expect(bottomBar, isNot(contains('onPointerUp')));
+      expect(bubble, contains('width: kGlobalMenuBubbleSize'));
+      expect(bubble, contains('height: kGlobalMenuBubbleSize'));
+      expect(bubble, contains('customBorder: const CircleBorder()'));
+      expect(bubble, contains('onTap: onPressed'));
+      expect(bubble, isNot(contains('hitHeight')));
+      expect(bubble, isNot(contains('onPointerUp')));
     });
 
     test(
-      'global bottom menu does not absorb taps while keyboard is visible',
+      'global drawer bubble does not absorb taps while keyboard is visible',
       () async {
         final source = await File('lib/main.dart').readAsString();
         final shell = _sourceBetween(
           source,
           'class _GlobalFloatingMenuShellState',
-          'class _GlobalMenuBarrier',
+          'class PushIntentBridge',
         );
 
         expect(shell, contains('MediaQuery.viewInsetsOf(context).bottom == 0'));
         expect(shell, contains('final keyboardVisible ='));
         expect(shell, contains('final menuOpenForInteraction ='));
-        expect(shell, contains('visible: menuOpenForInteraction'));
-        expect(shell, contains('ignoring: !menuOpenForInteraction'));
+        expect(shell, contains('visible: shouldActivateFloatingMenu'));
         expect(shell, contains('_resetFloatingMenuStateAfterFrame'));
       },
     );
@@ -1252,7 +1221,7 @@ void main() {
         final shell = _sourceBetween(
           main,
           'class _GlobalFloatingMenuShellState',
-          'class _GlobalMenuBarrier',
+          'class PushIntentBridge',
         );
         final cleanup = _sourceBetween(
           calendar,
@@ -1291,7 +1260,7 @@ void main() {
         body,
         contains('EdgeInsets.fromLTRB(16, 16, 16, listBottomPadding)'),
       );
-      expect(body, isNot(contains('bottomPaddingAboveGlobalMenu')));
+      expect(body, isNot(contains('bottomPaddingAboveGlobalChrome')));
       expect(body, isNot(contains('padding: const EdgeInsets.all(16)')));
     });
 
@@ -1315,10 +1284,10 @@ void main() {
         expect(body, contains('bottom: false'));
         expect(body, contains('const listBottomPadding = 24.0;'));
         expect(body, contains('listBottomPadding'));
-        expect(body, isNot(contains('bottomPaddingAboveGlobalMenu(')));
+        expect(body, isNot(contains('bottomPaddingAboveGlobalChrome(')));
         expect(composer, contains('padding: EdgeInsets.zero'));
         expect(composer, isNot(contains('globalBottomMenuHeight(context)')));
-        expect(composer, isNot(contains('bottomPaddingAboveGlobalMenu')));
+        expect(composer, isNot(contains('bottomPaddingAboveGlobalChrome')));
       },
     );
 
@@ -1422,12 +1391,12 @@ void main() {
         expect(planner, contains('final listBottomPadding = embedded'));
         expect(
           planner,
-          contains('? bottomPaddingAboveGlobalMenu(context, 32)'),
+          contains('? bottomPaddingAboveGlobalChrome(context, 32)'),
         );
         expect(planner, contains(': 32.0'));
         expect(planner, contains('keyboardInsetOf(context)'));
         expect(reflections, contains('const listBottomPadding = 16.0;'));
-        expect(reflections, isNot(contains('bottomPaddingAboveGlobalMenu')));
+        expect(reflections, isNot(contains('bottomPaddingAboveGlobalChrome')));
         expect(
           reflections,
           contains('padding: EdgeInsets.fromLTRB(0, 0, 0, listBottomPadding)'),

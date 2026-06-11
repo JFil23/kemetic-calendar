@@ -536,7 +536,7 @@ void main() {
       final handleBackButton = _sourceBetween(
         source,
         'Future<bool> _handleBackButton() async {',
-        '\n  }\n\n  Widget _buildFloatingActionsPanel',
+        '\n  }\n\n  @override\n  Widget build',
       );
 
       expect(
@@ -545,7 +545,11 @@ void main() {
       );
       expect(
         handleBackButton.indexOf('_dailyCosmicContextController.dismiss()'),
-        lessThan(handleBackButton.indexOf('if (!_menuMounted || !_menuOpen)')),
+        lessThan(handleBackButton.indexOf('if (_menuMounted && _menuOpen)')),
+      );
+      expect(
+        handleBackButton.indexOf('_dailyCosmicContextController.dismiss()'),
+        lessThan(handleBackButton.indexOf('_shouldOpenDrawerForBack(context)')),
       );
     },
   );

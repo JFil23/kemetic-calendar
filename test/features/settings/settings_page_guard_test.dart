@@ -39,7 +39,7 @@ void main() {
     });
 
     test('scroll padding does not duplicate the route bottom inset', () {
-      expect(source, isNot(contains('bottomPaddingAboveGlobalMenu')));
+      expect(source, isNot(contains('bottomPaddingAboveGlobalChrome')));
       expect(source, contains('const scrollBottomPadding = 32.0;'));
 
       final scrollView = _sourceBetween(

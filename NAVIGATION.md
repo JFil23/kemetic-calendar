@@ -32,6 +32,33 @@ Primary sections are also durable surfaces when the policy returns
 `/reflections/:reflectionId` is a pushed detail route: it can restore as the
 last visible surface, but it must not record primary selection.
 
+## Global Navigation
+
+The side drawer is the only global navigation path. The app chrome exposes a
+floating bottom-left menu bubble that opens a partial-width left drawer. Do not
+reintroduce a bottom-centered global glyph menu, a 3x3 global navigation grid,
+primary-section page swiping, or swipe-open drawer behavior.
+
+The drawer rows are Calendar, Planner, Library, Journal, Inbox, Calendars,
+Flows, Reflections, Profile, and Settings.
+
+Drawer destinations follow the route categories above:
+
+- Calendar, Planner, Library, Journal, Inbox, Reflections, and Settings use
+  `openPrimarySection`.
+- Profile is a drawer entry but opens `/profile/me` with `openDetailRoute`; it
+  is not a durable primary section and must not record primary selection.
+- Flows and Calendars use `/flows` and `/calendars` with `openUtilityRoute`.
+
+Drawer state is local app chrome state. It is not restoration-backed and should
+not be persisted.
+
+Back behavior:
+
+- Primary route + drawer open: close the drawer.
+- Primary route + drawer closed: open the drawer.
+- Detail or utility route: keep the route's normal close/back behavior.
+
 ### Utility Routes
 
 Utility routes are real app surfaces that should feel temporary. They use
@@ -96,9 +123,9 @@ Examples:
 Sheets close with local modal pop behavior. Sheet persistence is best effort:
 storage or restoration errors must not block sheet opening.
 
-Do not open Calendar-owned sheets from temporary global menu or app-shell
-contexts. Global menu Flow Studio and Calendars use `/flows` and `/calendars`
-with route-backed sheet presentation.
+Do not open Calendar-owned sheets from temporary app-shell contexts. The drawer
+opens Flows and Calendars through `/flows` and `/calendars` with route-backed
+sheet presentation.
 
 ### One-Shot Intents
 

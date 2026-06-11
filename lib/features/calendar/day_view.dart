@@ -14,7 +14,7 @@ import 'package:flutter/gestures.dart';
 import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:mobile/shared/glossy_text.dart';
-import 'package:mobile/core/global_bottom_menu_metrics.dart';
+import 'package:mobile/core/app_bottom_insets.dart';
 import 'package:mobile/core/completion_status.dart';
 import 'package:mobile/core/touch_targets.dart';
 import 'calendar_page.dart';
@@ -4497,7 +4497,7 @@ class _DayViewGridState extends State<DayViewGrid> {
                     clipBehavior: Clip.none,
                     controller: _scrollController,
                     padding: EdgeInsets.only(
-                      bottom: bottomPaddingAboveGlobalMenu(context, 24),
+                      bottom: bottomPaddingAboveGlobalChrome(context, 24),
                     ),
                     cacheExtent: 600, // 🔧 OPTIMIZATION: Cache more items
                     itemCount: 24,
