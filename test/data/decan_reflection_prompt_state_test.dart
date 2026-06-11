@@ -54,4 +54,20 @@ void main() {
 
     expect(await promptState.hasDismissed(DateTime.utc(2026, 5, 11)), isTrue);
   });
+
+  test(
+    'interacted deterministic Weighing reflection decan is not shown twice',
+    () async {
+      final promptState = DecanReflectionPromptState.withUserIdProvider(
+        () => 'weighing-user',
+      );
+      final decanStart = DateTime.utc(2026, 5, 16);
+
+      expect(await promptState.hasInteracted(decanStart), isFalse);
+
+      await promptState.markInteracted(decanStart);
+
+      expect(await promptState.hasInteracted(decanStart), isTrue);
+    },
+  );
 }

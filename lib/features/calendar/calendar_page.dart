@@ -92,6 +92,7 @@ import '../../utils/external_link_utils.dart';
 import 'calendar_invalidation.dart';
 import 'calendar_completion.dart';
 import 'calendar_reflection_context.dart';
+import 'decan_reflection_badge.dart';
 import 'event_filing_service.dart';
 import 'maat_flow_identity.dart';
 import 'track_sky_flow.dart';
@@ -7597,17 +7598,7 @@ class CalendarPageState extends State<CalendarPage>
   final Set<String> _endedReminderIds = {};
 
   // Decan reflection prompt state
-  ({
-    String? id,
-    String decanName,
-    String? decanTheme,
-    DateTime decanStart,
-    DateTime decanEnd,
-    int badgeCount,
-    String reflectionText,
-    bool persisted,
-  })?
-  _reflectionPrompt;
+  CalendarDecanReflectionPrompt? _reflectionPrompt;
   bool _reflectionInFlight = false;
   bool _archivingReflection = false;
   DateTime? _lastReflectionCheckDay;
@@ -30769,61 +30760,14 @@ class CalendarPageState extends State<CalendarPage>
 
     final media = MediaQuery.of(context);
     final maxWidth = media.size.width * 0.72;
-    final preview = prompt.reflectionText.trim().isEmpty
-        ? 'Decan reflection ready'
-        : prompt.reflectionText.trim();
 
     return Positioned(
       right: 12,
       bottom: 16 + media.padding.bottom,
-      child: Material(
-        color: Colors.black.withValues(alpha: 0.9),
-        borderRadius: BorderRadius.circular(14),
-        elevation: 8,
-        child: InkWell(
-          borderRadius: BorderRadius.circular(14),
-          onTap: _showReflectionSheet,
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-            child: ConstrainedBox(
-              constraints: BoxConstraints(maxWidth: maxWidth),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const Icon(Icons.menu_book_rounded, color: _gold, size: 18),
-                  const SizedBox(width: 8),
-                  Flexible(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        const Text(
-                          'Decan reflection',
-                          style: TextStyle(
-                            color: _gold,
-                            fontSize: 12,
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                        const SizedBox(height: 2),
-                        Text(
-                          preview,
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 12.5,
-                            height: 1.25,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ),
+      child: DecanReflectionLowerThirdBadge(
+        prompt: prompt,
+        maxWidth: maxWidth,
+        onTap: _showReflectionSheet,
       ),
     );
   }
@@ -30892,7 +30836,7 @@ class CalendarPageState extends State<CalendarPage>
                   Expanded(
                     child: SingleChildScrollView(
                       child: Text(
-                        prompt.reflectionText,
+                        prompt.detailText,
                         style: const TextStyle(
                           color: Colors.white,
                           fontSize: 14.5,
@@ -31244,17 +31188,7 @@ class CalendarPageState extends State<CalendarPage>
   }
 
   Future<void> _markReflectionPromptInteracted(
-    ({
-      String? id,
-      String decanName,
-      String? decanTheme,
-      DateTime decanStart,
-      DateTime decanEnd,
-      int badgeCount,
-      String reflectionText,
-      bool persisted,
-    })
-    prompt, {
+    CalendarDecanReflectionPrompt prompt, {
     required String interactionKind,
   }) async {
     await _decanReflectionPromptState.markInteracted(prompt.decanStart);
@@ -31263,6 +31197,34 @@ class CalendarPageState extends State<CalendarPage>
       decanEnd: prompt.decanEnd,
       interactionKind: interactionKind,
     );
+  }
+
+  Map<String, dynamic>? _reflectionPayloadMetadataForBadge(
+    EventBadgeToken token, {
+    required DateTime occurredOn,
+  }) {
+    if (!token.isCompletionBadge) return null;
+    final completionStatus = token.completionStatus;
+    if (completionStatus == CompletionStatus.none) return null;
+    final clientEventId = token.completionClientEventId ?? token.eventId;
+    final flowKind = resolveMaatFlowKind(actionId: clientEventId);
+    final metadata = <String, dynamic>{
+      'status': completionStatus.maatStatusName,
+      'completion_status': completionStatus.wireName,
+      'reflection_status': token.reflectionStatus.wireName,
+      if (token.sourceType != null) 'source_type': token.sourceType!.wireName,
+      'completed_on': _formatDateOnlyLocal(occurredOn),
+      'event_title': token.title,
+      if (clientEventId != null && clientEventId.trim().isNotEmpty)
+        'client_event_id': clientEventId.trim(),
+    };
+    if (flowKind != null) {
+      metadata['flow_key'] = flowKind.flowKey;
+      if (flowKind == MaatFlowKind.theWeighing) {
+        metadata['flow_title'] = kTheWeighingTitle;
+      }
+    }
+    return metadata;
   }
 
   Future<void> _maybeLoadDecanReflectionPrompt({bool force = false}) async {
@@ -31314,9 +31276,11 @@ class CalendarPageState extends State<CalendarPage>
         window.end,
       );
       if (existing != null) {
+        final renderMetadata = await _decanReflectionRepo
+            .getRenderMetadataForReflection(existing);
         if (!mounted) return;
         setState(() {
-          _reflectionPrompt = (
+          _reflectionPrompt = CalendarDecanReflectionPrompt(
             id: existing.id,
             decanName: existing.decanName,
             decanTheme: existing.decanTheme,
@@ -31325,29 +31289,37 @@ class CalendarPageState extends State<CalendarPage>
             badgeCount: existing.badgeCount,
             reflectionText: existing.reflectionText,
             persisted: true,
+            renderMetadata: renderMetadata,
           );
         });
         return;
       }
 
       final decanBadges = await _collectDecanBadges(window.start, window.end);
-      final payloadBadges = decanBadges
-          .map(
-            (b) => {
-              'title': b.token.title,
-              'details': b.token.description ?? b.token.title,
-              'tags': b.tags,
-              'event_id': b.token.eventId,
-              'occurred_on': _formatDateOnlyLocal(b.occurredOn),
-              if (b.occurredAt != null)
-                'occurred_at': b.occurredAt!.toUtc().toIso8601String(),
-            },
-          )
-          .toList();
+      final payloadBadges = decanBadges.map((b) {
+        final clientEventId = b.token.completionClientEventId;
+        final metadata = _reflectionPayloadMetadataForBadge(
+          b.token,
+          occurredOn: b.occurredOn,
+        );
+        return <String, dynamic>{
+          'title': b.token.title,
+          'details': b.token.description ?? b.token.title,
+          'tags': b.tags,
+          'event_id': b.token.eventId,
+          if (clientEventId != null && clientEventId.trim().isNotEmpty)
+            'client_event_id': clientEventId.trim(),
+          'occurred_on': _formatDateOnlyLocal(b.occurredOn),
+          if (b.occurredAt != null)
+            'occurred_at': b.occurredAt!.toUtc().toIso8601String(),
+          if (metadata != null) 'metadata': metadata,
+        };
+      }).toList();
 
       String reflectionText = '';
       int badgeCount = decanBadges.length;
       String? reflectionId;
+      DecanReflectionRenderMetadata? responseRenderMetadata;
 
       try {
         final response = await _aiReflectionService.generateReflection(
@@ -31367,12 +31339,17 @@ class CalendarPageState extends State<CalendarPage>
           reflectionText = response.reflection!.trim();
           badgeCount = response.badgeCount ?? badgeCount;
           reflectionId = response.reflectionId;
+          responseRenderMetadata = response.renderMetadata;
           Events.trackIfAuthed('decan_reflection_generated', {
             'kg': true,
             'decision_matrix': true,
             'badge_count': badgeCount,
             'persisted': response.reflectionId != null,
             'branch': response.branch ?? 'unknown',
+            'renderer': response.renderMetadata?.renderer ?? response.modelUsed,
+            'used_llm': response.renderMetadata?.usedLlm,
+            'llm_cost': response.renderMetadata?.llmCost,
+            'spectrum_flow_key': response.renderMetadata?.spectrumFlowKey,
           });
         }
       } catch (_) {
@@ -31391,7 +31368,7 @@ class CalendarPageState extends State<CalendarPage>
 
       if (!mounted) return;
       setState(() {
-        _reflectionPrompt = (
+        _reflectionPrompt = CalendarDecanReflectionPrompt(
           id: reflectionId,
           decanName: window.decanName,
           decanTheme: window.decanTheme,
@@ -31400,6 +31377,7 @@ class CalendarPageState extends State<CalendarPage>
           badgeCount: badgeCount,
           reflectionText: reflectionText.trim(),
           persisted: reflectionId != null,
+          renderMetadata: responseRenderMetadata,
         );
       });
     } catch (e) {
@@ -31430,7 +31408,7 @@ class CalendarPageState extends State<CalendarPage>
         decanStart: prompt.decanStart,
         decanEnd: prompt.decanEnd,
         badgeCount: prompt.badgeCount,
-        reflectionText: prompt.reflectionText,
+        reflectionText: prompt.detailText,
       );
       if (saved == null) {
         throw Exception('Unable to save reflection');

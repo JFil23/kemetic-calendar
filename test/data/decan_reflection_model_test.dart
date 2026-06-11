@@ -87,4 +87,46 @@ void main() {
     expect(hints.canonicalNode?.ref, 'renenutet');
     expect(hints.canonicalNode?.label, 'Renenutet');
   });
+
+  test('parses deterministic spectrum render metadata from generation rows', () {
+    final metadata = DecanReflectionRenderMetadata.fromGenerationJson({
+      'metadata': {
+        'renderer': 'deterministic_spectrum',
+        'used_llm': false,
+        'llm_cost': 0,
+        'spectrum_flow_key': 'the-weighing',
+        'output_control': {
+          'renderer': {
+            'renderer': 'deterministic_spectrum',
+            'anthropic_attempted': false,
+            'deterministic_response': {
+              'badgeBody': 'The record was brought to the scale.',
+              'detailBody':
+                  'The scale was approached. The record was brought to the scale.',
+              'centralTension': 'The scale was approached.',
+              'selectedSeed': {
+                'tier': 'observed',
+                'seed': 'The record was brought to the scale.',
+              },
+            },
+          },
+        },
+      },
+    });
+
+    expect(metadata.renderer, 'deterministic_spectrum');
+    expect(metadata.usedLlm, isFalse);
+    expect(metadata.llmCost, 0);
+    expect(metadata.spectrumFlowKey, 'the-weighing');
+    expect(metadata.isTheWeighingSpectrum, isTrue);
+    expect(metadata.anthropicAttempted, isFalse);
+    expect(metadata.badgeBody, 'The record was brought to the scale.');
+    expect(
+      metadata.detailBody,
+      'The scale was approached. The record was brought to the scale.',
+    );
+    expect(metadata.centralTension, 'The scale was approached.');
+    expect(metadata.selectedTier, 'observed');
+    expect(metadata.selectedSeed, 'The record was brought to the scale.');
+  });
 }

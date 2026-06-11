@@ -7,6 +7,7 @@ class DecanReflection {
   final int badgeCount;
   final String reflectionText;
   final DateTime createdAt;
+  final DecanReflectionRenderMetadata? renderMetadata;
 
   DecanReflection({
     required this.id,
@@ -17,6 +18,7 @@ class DecanReflection {
     required this.badgeCount,
     required this.reflectionText,
     required this.createdAt,
+    this.renderMetadata,
   });
 
   factory DecanReflection.fromJson(Map<String, dynamic> json) {
@@ -29,6 +31,169 @@ class DecanReflection {
       badgeCount: json['badge_count'] as int? ?? 0,
       reflectionText: json['reflection_text'] as String? ?? '',
       createdAt: DateTime.parse(json['created_at'] as String),
+      renderMetadata: json['render_metadata'] is Map
+          ? DecanReflectionRenderMetadata.fromGenerationJson(
+              Map<String, dynamic>.from(json['render_metadata'] as Map),
+            )
+          : null,
+    );
+  }
+
+  DecanReflection copyWith({DecanReflectionRenderMetadata? renderMetadata}) {
+    return DecanReflection(
+      id: id,
+      decanName: decanName,
+      decanTheme: decanTheme,
+      decanStart: decanStart,
+      decanEnd: decanEnd,
+      badgeCount: badgeCount,
+      reflectionText: reflectionText,
+      createdAt: createdAt,
+      renderMetadata: renderMetadata ?? this.renderMetadata,
+    );
+  }
+}
+
+class DecanReflectionRenderMetadata {
+  const DecanReflectionRenderMetadata({
+    required this.renderer,
+    required this.usedLlm,
+    required this.llmCost,
+    required this.spectrumFlowKey,
+    this.responseKind,
+    this.selectedTier,
+    this.selectedSeed,
+    this.badgeTitle,
+    this.badgeBody,
+    this.detailBody,
+    this.centralTension,
+    this.anthropicAttempted,
+    this.raw = const <String, dynamic>{},
+  });
+
+  final String? renderer;
+  final bool? usedLlm;
+  final num? llmCost;
+  final String? spectrumFlowKey;
+  final String? responseKind;
+  final String? selectedTier;
+  final String? selectedSeed;
+  final String? badgeTitle;
+  final String? badgeBody;
+  final String? detailBody;
+  final String? centralTension;
+  final bool? anthropicAttempted;
+  final Map<String, dynamic> raw;
+
+  bool get isDeterministicSpectrum => renderer == 'deterministic_spectrum';
+
+  bool get isTheWeighingSpectrum =>
+      isDeterministicSpectrum && spectrumFlowKey == 'the-weighing';
+
+  factory DecanReflectionRenderMetadata.fromResponseJson(
+    Map<String, dynamic> json,
+  ) {
+    final outputControl = _asStringKeyedMap(
+      json['outputControl'] ?? json['output_control'],
+    );
+    return _fromMaps(root: json, outputControl: outputControl, raw: json);
+  }
+
+  factory DecanReflectionRenderMetadata.fromGenerationJson(
+    Map<String, dynamic> json,
+  ) {
+    final metadata = _asStringKeyedMap(json['metadata']);
+    final sourceSnapshot = _asStringKeyedMap(json['source_snapshot']);
+    final metadataOutputControl = _asStringKeyedMap(metadata['output_control']);
+    final sourceOutputControl = _asStringKeyedMap(
+      sourceSnapshot['output_control'],
+    );
+    final outputControl = metadataOutputControl.isNotEmpty
+        ? metadataOutputControl
+        : sourceOutputControl;
+    return _fromMaps(
+      root: metadata.isNotEmpty ? metadata : sourceSnapshot,
+      outputControl: outputControl,
+      raw: json,
+    );
+  }
+
+  static DecanReflectionRenderMetadata? maybeFromGenerationJson(
+    Map<String, dynamic>? json,
+  ) {
+    if (json == null || json.isEmpty) return null;
+    final metadata = DecanReflectionRenderMetadata.fromGenerationJson(json);
+    if (metadata.renderer == null &&
+        metadata.usedLlm == null &&
+        metadata.spectrumFlowKey == null &&
+        metadata.badgeBody == null &&
+        metadata.detailBody == null) {
+      return null;
+    }
+    return metadata;
+  }
+
+  static DecanReflectionRenderMetadata _fromMaps({
+    required Map<String, dynamic> root,
+    required Map<String, dynamic> outputControl,
+    required Map<String, dynamic> raw,
+  }) {
+    final rendererBlock = _asStringKeyedMap(outputControl['renderer']);
+    final deterministicResponse = _asStringKeyedMap(
+      rendererBlock['deterministic_response'] ??
+          rendererBlock['deterministicResponse'],
+    );
+    final selectedSeed = _asStringKeyedMap(
+      deterministicResponse['selectedSeed'] ??
+          deterministicResponse['selected_seed'],
+    );
+    return DecanReflectionRenderMetadata(
+      renderer:
+          _trimmedString(root['renderer']) ??
+          _trimmedString(rendererBlock['renderer']),
+      usedLlm:
+          _boolFrom(root['used_llm']) ?? _boolFrom(rendererBlock['used_llm']),
+      llmCost:
+          _numFrom(root['llm_cost']) ?? _numFrom(rendererBlock['llm_cost']),
+      spectrumFlowKey:
+          _trimmedString(root['spectrum_flow_key']) ??
+          _trimmedString(rendererBlock['spectrum_flow_key']),
+      responseKind:
+          _trimmedString(root['response_kind']) ??
+          _trimmedString(rendererBlock['response_kind']) ??
+          _trimmedString(deterministicResponse['responseKind']) ??
+          _trimmedString(deterministicResponse['response_kind']),
+      selectedTier:
+          _trimmedString(root['selected_tier']) ??
+          _trimmedString(rendererBlock['selected_tier']) ??
+          _trimmedString(selectedSeed['tier']),
+      selectedSeed:
+          _trimmedString(root['selected_seed']) ??
+          _trimmedString(rendererBlock['selected_seed']) ??
+          _trimmedString(selectedSeed['seed']),
+      badgeTitle:
+          _trimmedString(root['badge_title']) ??
+          _trimmedString(rendererBlock['badge_title']) ??
+          _trimmedString(deterministicResponse['badgeTitle']) ??
+          _trimmedString(deterministicResponse['badge_title']),
+      badgeBody:
+          _trimmedString(root['badge_body']) ??
+          _trimmedString(rendererBlock['badge_body']) ??
+          _trimmedString(deterministicResponse['badgeBody']) ??
+          _trimmedString(deterministicResponse['badge_body']),
+      detailBody:
+          _trimmedString(root['detail_body']) ??
+          _trimmedString(rendererBlock['detail_body']) ??
+          _trimmedString(deterministicResponse['detailBody']) ??
+          _trimmedString(deterministicResponse['detail_body']) ??
+          _trimmedString(deterministicResponse['body']),
+      centralTension:
+          _trimmedString(root['central_tension']) ??
+          _trimmedString(rendererBlock['central_tension']) ??
+          _trimmedString(deterministicResponse['centralTension']) ??
+          _trimmedString(deterministicResponse['central_tension']),
+      anthropicAttempted: _boolFrom(rendererBlock['anthropic_attempted']),
+      raw: raw,
     );
   }
 }
@@ -242,6 +407,21 @@ String _defaultCtaLabel(String type) {
 String? _trimmedString(Object? value) {
   final text = value?.toString().trim();
   return text == null || text.isEmpty ? null : text;
+}
+
+bool? _boolFrom(Object? value) {
+  if (value is bool) return value;
+  final text = value?.toString().trim().toLowerCase();
+  if (text == 'true') return true;
+  if (text == 'false') return false;
+  return null;
+}
+
+num? _numFrom(Object? value) {
+  if (value is num) return value;
+  final text = value?.toString().trim();
+  if (text == null || text.isEmpty) return null;
+  return num.tryParse(text);
 }
 
 List<String> _stringList(Object? value) {

@@ -107,6 +107,66 @@ class DecanReflectionRepo {
     }
   }
 
+  Future<DecanReflectionRenderMetadata?> getRenderMetadataForReflection(
+    DecanReflection reflection,
+  ) async {
+    final uid = _client.auth.currentUser?.id;
+    if (uid == null) return null;
+
+    try {
+      final byReflectionId = await withSupabaseAuthRetry(
+        _client,
+        () => _client
+            .from('reflection_generations')
+            .select('metadata, source_snapshot, created_at')
+            .eq('user_id', uid)
+            .eq('period_type', 'decan')
+            .filter(
+              'source_snapshot->>decan_reflection_id',
+              'eq',
+              reflection.id,
+            )
+            .order('created_at', ascending: false)
+            .limit(1)
+            .maybeSingle(),
+      );
+      final byIdMetadata =
+          DecanReflectionRenderMetadata.maybeFromGenerationJson(
+            byReflectionId == null
+                ? null
+                : Map<String, dynamic>.from(byReflectionId as Map),
+          );
+      if (byIdMetadata != null) return byIdMetadata;
+    } catch (e) {
+      debugPrint('[DecanReflectionRepo] render metadata id lookup error: $e');
+    }
+
+    try {
+      final start = _fmtStoredDate(reflection.decanStart);
+      final end = _fmtStoredDate(reflection.decanEnd);
+      final byWindow = await withSupabaseAuthRetry(
+        _client,
+        () => _client
+            .from('reflection_generations')
+            .select('metadata, source_snapshot, created_at')
+            .eq('user_id', uid)
+            .eq('period_type', 'decan')
+            .like('period_key', '$start:$end:%')
+            .order('created_at', ascending: false)
+            .limit(1)
+            .maybeSingle(),
+      );
+      return DecanReflectionRenderMetadata.maybeFromGenerationJson(
+        byWindow == null ? null : Map<String, dynamic>.from(byWindow as Map),
+      );
+    } catch (e) {
+      debugPrint(
+        '[DecanReflectionRepo] render metadata window lookup error: $e',
+      );
+      return null;
+    }
+  }
+
   Future<DecanReflectionGraphHints?> getGraphHintsForReflection(
     DecanReflection reflection,
   ) async {

@@ -3,6 +3,8 @@
 import 'dart:convert';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../data/decan_reflection_model.dart';
+
 class AIReflectionResponse {
   final bool success;
   final String? reflection;
@@ -13,6 +15,8 @@ class AIReflectionResponse {
   final List<String>? topTags;
   final String? branch;
   final String? reflectionId;
+  final String? reflectionGenerationId;
+  final DecanReflectionRenderMetadata? renderMetadata;
 
   const AIReflectionResponse({
     required this.success,
@@ -24,6 +28,8 @@ class AIReflectionResponse {
     this.topTags,
     this.branch,
     this.reflectionId,
+    this.reflectionGenerationId,
+    this.renderMetadata,
   });
 
   factory AIReflectionResponse.fromJson(Map<String, dynamic> json) {
@@ -37,6 +43,8 @@ class AIReflectionResponse {
       topTags: (json['topTags'] as List?)?.map((e) => e.toString()).toList(),
       branch: json['branch'] as String?,
       reflectionId: json['reflection_id'] as String?,
+      reflectionGenerationId: json['reflection_generation_id'] as String?,
+      renderMetadata: DecanReflectionRenderMetadata.fromResponseJson(json),
     );
   }
 }
@@ -128,8 +136,8 @@ class AIReflectionService {
     // Normalize wrapped responses like { data: { success, reflection, ... } }
     final Map<String, dynamic> normalized =
         (raw['success'] == null && raw['data'] is Map<String, dynamic>)
-            ? raw['data'] as Map<String, dynamic>
-            : raw;
+        ? raw['data'] as Map<String, dynamic>
+        : raw;
 
     return AIReflectionResponse.fromJson(normalized);
   }
