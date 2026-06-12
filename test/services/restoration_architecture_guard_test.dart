@@ -173,6 +173,53 @@ void main() {
     );
 
     test(
+      'auth replay falls back to a fresh authenticated restore on root race',
+      () async {
+        final main = await File('lib/main.dart').readAsString();
+        final replay = _sourceBetween(
+          main,
+          'Future<void> _replayDeferredBootRestoreAfterAuth',
+          'Map<String, dynamic>? _pushIntentDataFromQuery',
+        );
+        final nullBranch = _sourceBetween(
+          replay,
+          'if (destination == null) {',
+          '  RestorationCoordinator.instance.beginAuthResumeRestore(\n'
+              '    targetLocation: destination.route,',
+        );
+
+        expect(
+          nullBranch,
+          contains('final trimmedCurrent = currentRoute.trim();'),
+        );
+        expect(
+          nullBranch,
+          contains("trimmedCurrent.isEmpty || trimmedCurrent == '/'"),
+        );
+        expect(
+          nullBranch,
+          contains(
+            '.restoreLaunchDestination(isAuthenticated: true, includeRemote: true)',
+          ),
+        );
+        expect(
+          nullBranch,
+          contains('final fallbackRoute = fallback.route.trim();'),
+        );
+        expect(
+          nullBranch,
+          contains("fallbackRoute.isEmpty || fallbackRoute == '/'"),
+        );
+        expect(nullBranch, contains('_router.go(fallbackRoute)'));
+        expect(nullBranch, contains("after_auth_deferred_restore_fallback"));
+        expect(
+          nullBranch.indexOf('restoreLaunchDestination'),
+          lessThan(nullBranch.lastIndexOf('return;')),
+        );
+      },
+    );
+
+    test(
       'launch route storage keys stay inside restoration storage files',
       () async {
         final matches = await _filesContainingAny(<String>[

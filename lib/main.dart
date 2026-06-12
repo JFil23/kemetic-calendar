@@ -1072,6 +1072,26 @@ Future<void> _replayDeferredBootRestoreAfterAuth(AuthChangeEvent event) async {
     _bootRestoreDeferredForAuth = false;
     _bootAuthDeferredRestoredLocation = null;
     _bootDeferredRestorePreparedForAuth = false;
+
+    // Timing safety net: on hot restart or fast-auth, initialSession can
+    // fire before _bootRestoreDeferredForAuth is set. If auth confirms while
+    // the app is still at '/', run a fresh authenticated restore before
+    // leaving the user on the boot default.
+    final trimmedCurrent = currentRoute.trim();
+    final isAtRoot = trimmedCurrent.isEmpty || trimmedCurrent == '/';
+    if (isAtRoot) {
+      final fallback = await AppNavigationRestorationController.instance
+          .restoreLaunchDestination(isAuthenticated: true, includeRemote: true);
+      final fallbackRoute = fallback.route.trim();
+      final fallbackIsRoot = fallbackRoute.isEmpty || fallbackRoute == '/';
+      if (!fallbackIsRoot) {
+        RestorationCoordinator.instance.beginAuthResumeRestore(
+          targetLocation: fallbackRoute,
+        );
+        _router.go(fallbackRoute);
+        _traceRouterLocationAfterFrame('after_auth_deferred_restore_fallback');
+      }
+    }
     return;
   }
 
