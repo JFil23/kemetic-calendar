@@ -354,6 +354,7 @@ class AppRouteRegistry {
       pattern: '/flows',
       routeClass: NavigationRouteClass.utility,
       owner: AppRouteOwner.calendar,
+      allowQueryParameters: true,
       canRestoreAsSurface: true,
     ),
     AppRouteDefinition(

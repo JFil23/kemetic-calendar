@@ -26,6 +26,16 @@ String? stableRouteLocationForContinuity(String? location) {
   final nextQuery = Map<String, String>.from(uri.queryParameters);
   final path = uri.path;
 
+  if (path == '/flows') {
+    final output = _stableFlowStudioRoute(uri);
+    traceRestoration(
+      'sanitize input=$normalized output=$output '
+      'reason=${output == normalized ? 'unchanged' : 'flow_studio_submode'} '
+      'durable=true transient=${output == normalized ? 'false' : 'true'}',
+    );
+    return output;
+  }
+
   if (_isFlowEditorRoute(uri)) {
     final output = Uri(path: path).toString();
     traceRestoration(
@@ -89,6 +99,29 @@ bool routeLocationContainsOneShotIntent(String? location) {
     return uri.hasQuery;
   }
   return false;
+}
+
+String _stableFlowStudioRoute(Uri uri) {
+  final mode = uri.queryParameters['mode']?.trim();
+  if (mode == 'myFlows' || mode == 'maatFlows') {
+    return Uri(
+      path: '/flows',
+      queryParameters: <String, String>{'mode': mode!},
+    ).toString();
+  }
+  if (mode == 'maatTemplate') {
+    final templateKey = uri.queryParameters['templateKey']?.trim();
+    if (templateKey != null && templateKey.isNotEmpty) {
+      return Uri(
+        path: '/flows',
+        queryParameters: <String, String>{
+          'mode': mode!,
+          'templateKey': templateKey,
+        },
+      ).toString();
+    }
+  }
+  return '/flows';
 }
 
 bool _isFlowEditorRoute(Uri uri) {

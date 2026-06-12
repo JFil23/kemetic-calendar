@@ -47,6 +47,43 @@ void main() {
     );
   });
 
+  test('Flow Studio submode routes are durable and constrained', () {
+    expect(
+      stableRouteLocationForContinuity('/flows?mode=myFlows'),
+      '/flows?mode=myFlows',
+    );
+    expect(
+      stableRouteLocationForContinuity('/flows?mode=maatFlows'),
+      '/flows?mode=maatFlows',
+    );
+    expect(
+      stableRouteLocationForContinuity(
+        '/flows?mode=maatTemplate&templateKey=the-weighing',
+      ),
+      '/flows?mode=maatTemplate&templateKey=the-weighing',
+    );
+    expect(stableRouteLocationForContinuity('/flows?mode=unknown'), '/flows');
+    expect(
+      stableRouteLocationForContinuity('/flows?mode=maatFlows&_launch=1'),
+      '/flows?mode=maatFlows',
+    );
+
+    const policy = NavigationPersistencePolicy();
+    for (final route in const <String>[
+      '/flows?mode=myFlows',
+      '/flows?mode=maatFlows',
+    ]) {
+      final classification = policy.classifyRoute(
+        route,
+        NavigationSource.programmatic,
+      );
+      expect(classification.accepted, isTrue, reason: route);
+      expect(classification.canRestoreAsSurface, isTrue, reason: route);
+      expect(classification.canonicalRoute, route, reason: route);
+      expect(classification.routeClass, NavigationRouteClass.utility);
+    }
+  });
+
   test('router exposes a flow edit route backed by Flow Studio', () {
     final main = File('lib/main.dart').readAsStringSync();
     final route = _sourceBetween(
@@ -68,6 +105,33 @@ void main() {
     expect(editClassification.canRecordPrimarySelection, isFalse);
     expect(editClassification.canonicalRoute, '/flows/42/edit');
     expect(editClassification.routeClass, NavigationRouteClass.transient);
+  });
+
+  test('Flow Studio route page is initialized from route submode URI', () {
+    final main = File('lib/main.dart').readAsStringSync();
+    final calendar = File(
+      'lib/features/calendar/calendar_page.dart',
+    ).readAsStringSync();
+    final flowsRoute = _sourceBetween(
+      main,
+      "path: '/flows'",
+      "path: '/calendars'",
+    );
+    final routePage = _sourceBetween(
+      calendar,
+      'class _FlowStudioRoutePage extends StatefulWidget',
+      'class _SharedCalendarsRoutePage extends StatelessWidget',
+    );
+
+    expect(flowsRoute, contains('location: state.uri.toString()'));
+    expect(
+      flowsRoute,
+      contains('CalendarPage.buildFlowStudioRoutePage(routeUri: state.uri)'),
+    );
+    expect(routePage, contains('final Uri? routeUri'));
+    expect(routePage, contains('CalendarPage._flowStudioRouteStateFromUri'));
+    expect(routePage, contains("parentRoute: '/flows'"));
+    expect(routePage, contains('_buildDetachedFlowStudioRoot'));
   });
 
   test('Edit Flow actions use edit-by-id route on web', () {

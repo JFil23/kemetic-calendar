@@ -5155,8 +5155,51 @@ class CalendarPage extends StatefulWidget {
     );
   }
 
-  static Widget buildFlowStudioRoutePage() {
-    return const _FlowStudioRoutePage();
+  static Widget buildFlowStudioRoutePage({Uri? routeUri}) {
+    return _FlowStudioRoutePage(routeUri: routeUri);
+  }
+
+  static Map<String, dynamic> _flowStudioRouteStateFromUri(Uri? routeUri) {
+    final mode = routeUri?.queryParameters['mode']?.trim();
+    if (mode == _kFlowStudioModeMyFlows || mode == _kFlowStudioModeMaatFlows) {
+      return <String, dynamic>{'mode': mode};
+    }
+    if (mode == _kFlowStudioModeMaatTemplate) {
+      final templateKey = routeUri?.queryParameters['templateKey']?.trim();
+      if (templateKey != null && templateKey.isNotEmpty) {
+        return <String, dynamic>{
+          'mode': _kFlowStudioModeMaatTemplate,
+          'templateKey': templateKey,
+        };
+      }
+    }
+    return const <String, dynamic>{'mode': _kFlowStudioModeHub};
+  }
+
+  static String? _flowStudioDurableRouteForState(Map<String, dynamic> state) {
+    final mode = (state['mode'] as String?)?.trim();
+    if (mode == null || mode.isEmpty || mode == _kFlowStudioModeHub) {
+      return '/flows';
+    }
+    if (mode == _kFlowStudioModeMyFlows || mode == _kFlowStudioModeMaatFlows) {
+      return Uri(
+        path: '/flows',
+        queryParameters: <String, String>{'mode': mode},
+      ).toString();
+    }
+    if (mode == _kFlowStudioModeMaatTemplate) {
+      final templateKey = (state['templateKey'] as String?)?.trim();
+      if (templateKey != null && templateKey.isNotEmpty) {
+        return Uri(
+          path: '/flows',
+          queryParameters: <String, String>{
+            'mode': mode,
+            'templateKey': templateKey,
+          },
+        ).toString();
+      }
+    }
+    return null;
   }
 
   static Widget buildSharedCalendarsRoutePage() {
@@ -6278,6 +6321,43 @@ class CalendarPage extends StatefulWidget {
     _forgetRememberedJoinedMaatFlow(flowId);
   }
 
+  static bool _isFlowStudioRouteParent(String parentRoute) {
+    final uri = Uri.tryParse(parentRoute.trim());
+    return uri != null &&
+        !uri.hasScheme &&
+        uri.host.isEmpty &&
+        uri.path == '/flows';
+  }
+
+  static Future<void> _recordDetachedFlowStudioRouteState({
+    required BuildContext context,
+    required String parentRoute,
+    required Map<String, dynamic> state,
+  }) async {
+    if (!_isFlowStudioRouteParent(parentRoute)) return;
+    final route = _flowStudioDurableRouteForState(state);
+    if (route == null) return;
+
+    try {
+      if (context.mounted) {
+        final router = GoRouter.of(context);
+        final current = router.routerDelegate.currentConfiguration.uri
+            .toString();
+        if (!_sameRouteLocation(current, route)) {
+          router.go(route);
+        }
+      }
+    } catch (_) {
+      // Some detached restore paths do not have a GoRouter ancestor; the
+      // durable write below is still enough for the next launch.
+    }
+
+    await AppNavigationRestorationController.instance.recordVisibleSurface(
+      route: route,
+      source: NavigationSource.programmatic,
+    );
+  }
+
   static Future<T?> _pushDetachedFlowStudioRoute<T>(
     NavigatorState navigator,
     Route<T> route, {
@@ -6285,6 +6365,11 @@ class CalendarPage extends StatefulWidget {
     required Map<String, dynamic> visibleState,
     required Map<String, dynamic> returnState,
   }) async {
+    await _recordDetachedFlowStudioRouteState(
+      context: navigator.context,
+      parentRoute: parentRoute,
+      state: visibleState,
+    );
     await _saveDetachedCalendarOverlayState(
       parentRoute: parentRoute,
       kind: _kCalendarOverlayKindFlowStudio,
@@ -6297,6 +6382,11 @@ class CalendarPage extends StatefulWidget {
           !RestorationCoordinator
               .instance
               .shouldPreserveOverlayForLifecycleClose) {
+        await _recordDetachedFlowStudioRouteState(
+          context: navigator.context,
+          parentRoute: parentRoute,
+          state: returnState,
+        );
         await _saveDetachedCalendarOverlayState(
           parentRoute: parentRoute,
           kind: _kCalendarOverlayKindFlowStudio,
@@ -7407,7 +7497,9 @@ class CalendarPage extends StatefulWidget {
 }
 
 class _FlowStudioRoutePage extends StatefulWidget {
-  const _FlowStudioRoutePage();
+  const _FlowStudioRoutePage({this.routeUri});
+
+  final Uri? routeUri;
 
   @override
   State<_FlowStudioRoutePage> createState() => _FlowStudioRoutePageState();
@@ -7422,6 +7514,9 @@ class _FlowStudioRoutePageState extends State<_FlowStudioRoutePage> {
 
   @override
   Widget build(BuildContext context) {
+    final restorationState = CalendarPage._flowStudioRouteStateFromUri(
+      widget.routeUri,
+    );
     return UtilitySheetRouteScaffold(
       semanticLabel: 'Flow Studio',
       onClose: _closeRoute,
@@ -7433,9 +7528,7 @@ class _FlowStudioRoutePageState extends State<_FlowStudioRoutePage> {
                 innerCtx: innerCtx,
                 parentRoute: '/flows',
                 flowsRepo: _flowsRepo,
-                restorationState: const <String, dynamic>{
-                  'mode': _kFlowStudioModeHub,
-                },
+                restorationState: restorationState,
               ),
             ),
           ];

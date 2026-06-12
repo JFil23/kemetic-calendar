@@ -364,7 +364,7 @@ void main() {
     'auth initialSession replays deferred Flow Studio utility route',
     () async {
       await AppNavigationRestorationController.instance.recordVisibleSurface(
-        route: '/flows',
+        route: '/flows?mode=maatFlows',
       );
 
       final destination = await AppNavigationRestorationController.instance
@@ -375,7 +375,7 @@ void main() {
           );
 
       expect(destination, isNotNull);
-      expect(destination!.route, '/flows');
+      expect(destination!.route, '/flows?mode=maatFlows');
       expect(
         await _durableMetadataJson(),
         containsPair('routeClass', 'utility'),
@@ -623,6 +623,36 @@ void main() {
   });
 
   test(
+    'visible Flow Studio submodes persist as route-backed utility surfaces',
+    () async {
+      for (final route in const <String>[
+        '/flows?mode=myFlows',
+        '/flows?mode=maatFlows',
+      ]) {
+        SharedPreferences.setMockInitialValues({});
+        AppWindowService.instance.resetForTesting();
+        AppNavigationRestorationController.instance.resetForTesting();
+
+        await AppNavigationRestorationController.instance.recordVisibleSurface(
+          route: route,
+        );
+
+        final destination = await AppNavigationRestorationController.instance
+            .restoreLaunchDestination(isAuthenticated: true);
+
+        expect(await _durableRoute(), route, reason: route);
+        expect(destination.route, route, reason: route);
+        expect(
+          await _durableMetadataJson(),
+          containsPair('routeClass', 'utility'),
+          reason: route,
+        );
+        expect(await _primarySelectionMetadataJson(), isNull, reason: route);
+      }
+    },
+  );
+
+  test(
     'visible detail surface persists while primary selection remains owner',
     () async {
       await AppNavigationRestorationController.instance
@@ -743,7 +773,12 @@ void main() {
 
   test('utility routes restore as surfaces without primary selection', () {
     const policy = NavigationPersistencePolicy();
-    for (final route in const <String>['/flows', '/calendars']) {
+    for (final route in const <String>[
+      '/flows',
+      '/flows?mode=myFlows',
+      '/flows?mode=maatFlows',
+      '/calendars',
+    ]) {
       final classification = policy.classifyRoute(
         route,
         NavigationSource.programmatic,

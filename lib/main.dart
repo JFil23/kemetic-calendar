@@ -1484,7 +1484,7 @@ GoRouter _createRouter({required String initialLocation}) => GoRouter(
       path: '/flows',
       builder: (context, state) => SessionTrackedRoute(
         location: state.uri.toString(),
-        child: CalendarPage.buildFlowStudioRoutePage(),
+        child: CalendarPage.buildFlowStudioRoutePage(routeUri: state.uri),
       ),
     ),
     _utilitySheetRoute(
