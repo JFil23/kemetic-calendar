@@ -150,6 +150,29 @@ void main() {
     );
 
     test(
+      'deferred auth launch restore is not owned by MyApp shell rebuilds',
+      () async {
+        final main = await File('lib/main.dart').readAsString();
+        final myApp = _sourceBetween(
+          main,
+          'class _MyAppState extends State<MyApp>',
+          'class _AppChrome',
+        );
+
+        expect(
+          main,
+          isNot(contains('_scheduleDeferredBootRestoreAfterAuthShellMount')),
+        );
+        expect(myApp, isNot(contains('_prepareDeferredBootRestoreForAuth')));
+        expect(myApp, isNot(contains('_replayDeferredBootRestoreAfterAuth')));
+        expect(
+          myApp,
+          isNot(contains('restoreDeferredLaunchDestinationAfterAuth')),
+        );
+      },
+    );
+
+    test(
       'launch route storage keys stay inside restoration storage files',
       () async {
         final matches = await _filesContainingAny(<String>[
