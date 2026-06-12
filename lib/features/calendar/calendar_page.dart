@@ -1217,6 +1217,32 @@ double _chipHeightFor(MonthExpansionLevel level) {
   }
 }
 
+MonthExpansionLevel monthExpansionRestorationLevelForTesting({
+  required MonthExpansionLevel currentLevel,
+  MonthExpansionLevel? settleTarget,
+  bool isPinching = false,
+  double? pinchProgress,
+  MonthExpansionLevel? pinchStartLevel,
+  double hysteresis = 0.2,
+}) {
+  if (settleTarget != null) return settleTarget;
+  if (!isPinching || pinchProgress == null) return currentLevel;
+  final clamped = pinchProgress.clamp(
+    0.0,
+    (MonthExpansionLevel.values.length - 1).toDouble(),
+  );
+  final startIndex = (pinchStartLevel ?? currentLevel).index;
+  final lower = clamped.floor();
+  final upper = clamped.ceil();
+  final targetIndex = clamped >= startIndex
+      ? (clamped - lower >= 0.5 + hysteresis ? upper : lower)
+      : (upper - clamped >= 0.5 + hysteresis ? lower : upper);
+  return MonthExpansionLevel.values[targetIndex.clamp(
+    0,
+    MonthExpansionLevel.values.length - 1,
+  )];
+}
+
 List<TextSpan> _buildExternalLinkSpans(String text) {
   final spans = <TextSpan>[];
   final regex = externalLinkPattern;
@@ -3708,6 +3734,11 @@ class CalendarPage extends StatefulWidget {
   static bool _detachedFlowStudioSheetOpenOrOpening = false;
   static bool _detachedQuickAddSheetOpenOrOpening = false;
   static String? _lastDetachedCalendarOverlayRestoreKey;
+  static final Map<String, int> _rememberedJoinedMaatFlowIdsByTemplateKey =
+      <String, int>{};
+  static final Map<int, String> _rememberedJoinedMaatTemplateKeysByFlowId =
+      <int, String>{};
+  static String? _rememberedJoinedMaatUserScope;
 
   static CalendarPageState? get _mountedState {
     final state = globalKey.currentState;
@@ -5565,21 +5596,179 @@ class CalendarPage extends StatefulWidget {
   ) async {
     final cachedRows = await repo.restoreCachedFiledFlows();
     if (cachedRows != null) {
-      unawaited(repo.refreshMyFiledFlows());
+      unawaited(
+        repo.refreshMyFiledFlows().then((rows) {
+          _reconcileRememberedMaatJoinsFromLiveSnapshot(
+            _myFlowsFilingSnapshotFromRowsDetached(rows),
+          );
+        }),
+      );
       return _myFlowsFilingSnapshotFromRowsDetached(cachedRows);
     }
     final rows = await repo.refreshMyFiledFlows();
-    return _myFlowsFilingSnapshotFromRowsDetached(rows);
+    final snapshot = _myFlowsFilingSnapshotFromRowsDetached(rows);
+    _reconcileRememberedMaatJoinsFromLiveSnapshot(snapshot);
+    return snapshot;
   }
 
   static bool _snapshotHasActiveMaatInstanceFor(
     _MyFlowsFilingSnapshot? snapshot,
     String tplKey,
   ) {
+    if (_hasRememberedJoinedMaatTemplate(tplKey)) return true;
     if (snapshot == null) return false;
     return snapshot.flows.any((flow) {
       return _flowMatchesActiveMaatTemplate(flow, tplKey);
     });
+  }
+
+  static _MaatFlowCompletionStatus? _snapshotMaatCompletionStatusFor(
+    _MyFlowsFilingSnapshot? snapshot,
+    String tplKey,
+  ) {
+    if (snapshot == null) return null;
+    for (final flow in snapshot.flows) {
+      if (!_flowMatchesActiveMaatTemplate(flow, tplKey)) continue;
+      return _maatCompletionStatusFromCounts(
+        totalEventCount: snapshot.totalEventCounts[flow.id] ?? 0,
+        remainingEventCount: snapshot.remainingEventCounts[flow.id] ?? 0,
+      );
+    }
+    return null;
+  }
+
+  static _MaatFlowCompletionStatus? _maatCompletionStatusFromCounts({
+    required int totalEventCount,
+    required int remainingEventCount,
+  }) {
+    if (totalEventCount <= 0) return null;
+    final remaining = remainingEventCount.clamp(0, totalEventCount).toInt();
+    final completed = totalEventCount - remaining;
+    return (
+      progress: completed / totalEventCount,
+      label: '$completed of $totalEventCount',
+    );
+  }
+
+  static void _rememberJoinedMaatFlowTemplate({
+    required String templateKey,
+    required int flowId,
+  }) {
+    final key = templateKey.trim();
+    if (key.isEmpty || flowId <= 0) return;
+    final scope = _currentRememberedJoinedMaatUserScope();
+    if (scope == null) {
+      _clearRememberedJoinedMaatFlowTemplates();
+      return;
+    }
+    if (_rememberedJoinedMaatUserScope != null &&
+        _rememberedJoinedMaatUserScope != scope) {
+      _clearRememberedJoinedMaatFlowTemplates();
+    }
+    _rememberedJoinedMaatUserScope = scope;
+    _rememberedJoinedMaatFlowIdsByTemplateKey[key] = flowId;
+    _rememberedJoinedMaatTemplateKeysByFlowId[flowId] = key;
+  }
+
+  static bool _hasRememberedJoinedMaatTemplate(String templateKey) {
+    if (!_rememberedJoinedMaatScopeIsCurrent()) return false;
+    final key = templateKey.trim();
+    return key.isNotEmpty &&
+        _rememberedJoinedMaatFlowIdsByTemplateKey.containsKey(key);
+  }
+
+  static void _forgetRememberedJoinedMaatFlow(int flowId) {
+    if (!_rememberedJoinedMaatScopeIsCurrent()) return;
+    final key = _rememberedJoinedMaatTemplateKeysByFlowId.remove(flowId);
+    if (key != null) {
+      _rememberedJoinedMaatFlowIdsByTemplateKey.remove(key);
+    }
+  }
+
+  static String? _currentRememberedJoinedMaatUserScope() {
+    try {
+      final userId = Supabase.instance.client.auth.currentUser?.id.trim();
+      if (userId == null || userId.isEmpty) return null;
+      return userId;
+    } catch (_) {
+      String? uninitializedSupabaseTestScope;
+      assert(() {
+        uninitializedSupabaseTestScope = '__uninitialized_supabase_test__';
+        return true;
+      }());
+      return uninitializedSupabaseTestScope;
+    }
+  }
+
+  static void _clearRememberedJoinedMaatFlowTemplates() {
+    _rememberedJoinedMaatFlowIdsByTemplateKey.clear();
+    _rememberedJoinedMaatTemplateKeysByFlowId.clear();
+    _rememberedJoinedMaatUserScope = null;
+  }
+
+  static bool _rememberedJoinedMaatScopeIsCurrent() {
+    final scope = _currentRememberedJoinedMaatUserScope();
+    if (scope == null) {
+      _clearRememberedJoinedMaatFlowTemplates();
+      return false;
+    }
+    final rememberedScope = _rememberedJoinedMaatUserScope;
+    if (rememberedScope == null) {
+      if (_rememberedJoinedMaatFlowIdsByTemplateKey.isEmpty &&
+          _rememberedJoinedMaatTemplateKeysByFlowId.isEmpty) {
+        _rememberedJoinedMaatUserScope = scope;
+        return true;
+      }
+      _clearRememberedJoinedMaatFlowTemplates();
+      return false;
+    }
+    if (rememberedScope != scope) {
+      _clearRememberedJoinedMaatFlowTemplates();
+      return false;
+    }
+    return true;
+  }
+
+  static void _reconcileRememberedMaatJoinsFromLiveSnapshot(
+    _MyFlowsFilingSnapshot snapshot,
+  ) {
+    if (!_rememberedJoinedMaatScopeIsCurrent()) return;
+    if (_rememberedJoinedMaatFlowIdsByTemplateKey.isEmpty) return;
+    final keysToForget = <String>[];
+    for (final entry in _rememberedJoinedMaatFlowIdsByTemplateKey.entries) {
+      final hasCanonicalFlow = snapshot.flows.any((flow) {
+        return flow.id == entry.value &&
+            _flowMatchesActiveMaatTemplate(flow, entry.key);
+      });
+      if (hasCanonicalFlow) keysToForget.add(entry.key);
+    }
+    for (final key in keysToForget) {
+      final flowId = _rememberedJoinedMaatFlowIdsByTemplateKey.remove(key);
+      if (flowId != null) {
+        _rememberedJoinedMaatTemplateKeysByFlowId.remove(flowId);
+      }
+    }
+  }
+
+  static void _reconcileRememberedMaatJoinsFromLiveFlows(
+    Iterable<_Flow> flows,
+  ) {
+    if (!_rememberedJoinedMaatScopeIsCurrent()) return;
+    if (_rememberedJoinedMaatFlowIdsByTemplateKey.isEmpty) return;
+    final keysToForget = <String>[];
+    for (final entry in _rememberedJoinedMaatFlowIdsByTemplateKey.entries) {
+      final hasCanonicalFlow = flows.any((flow) {
+        return flow.id == entry.value &&
+            _flowMatchesActiveMaatTemplate(flow, entry.key);
+      });
+      if (hasCanonicalFlow) keysToForget.add(entry.key);
+    }
+    for (final key in keysToForget) {
+      final flowId = _rememberedJoinedMaatFlowIdsByTemplateKey.remove(key);
+      if (flowId != null) {
+        _rememberedJoinedMaatTemplateKeysByFlowId.remove(flowId);
+      }
+    }
   }
 
   static bool _flowMatchesActiveMaatTemplate(_Flow flow, String tplKey) {
@@ -6086,6 +6275,7 @@ class CalendarPage extends StatefulWidget {
       endedAtLocal: DateTime.now(),
       deleteAllMaterialized: true,
     );
+    _forgetRememberedJoinedMaatFlow(flowId);
   }
 
   static Future<T?> _pushDetachedFlowStudioRoute<T>(
@@ -6255,7 +6445,9 @@ class CalendarPage extends StatefulWidget {
       initialSnapshot: cachedSnapshot,
       loadSnapshot: () async {
         final rows = await flowsRepo.refreshMyFiledFlows();
-        return _myFlowsFilingSnapshotFromRowsDetached(rows);
+        final snapshot = _myFlowsFilingSnapshotFromRowsDetached(rows);
+        _reconcileRememberedMaatJoinsFromLiveSnapshot(snapshot);
+        return snapshot;
       },
       onPickTemplate: (template) async {
         final importedFlowId = await _pushDetachedMaatFlowTemplateDetail(
@@ -6267,13 +6459,26 @@ class CalendarPage extends StatefulWidget {
           },
         );
         if (importedFlowId != null && importedFlowId > 0 && navigator.mounted) {
-          unawaited(flowsRepo.refreshMyFiledFlows());
+          _rememberJoinedMaatFlowTemplate(
+            templateKey: template.key,
+            flowId: importedFlowId,
+          );
+          await flowsRepo.clearMyFiledFlowsCache();
+          if (!navigator.mounted) return importedFlowId;
+          unawaited(
+            flowsRepo.refreshMyFiledFlows().then((rows) {
+              _reconcileRememberedMaatJoinsFromLiveSnapshot(
+                _myFlowsFilingSnapshotFromRowsDetached(rows),
+              );
+            }),
+          );
           if (navigator.canPop()) {
             navigator.pop(importedFlowId);
           } else {
             Navigator.of(navigator.context, rootNavigator: true).pop();
           }
         }
+        return importedFlowId;
       },
       onCreateNew: () async {
         final edited = await _pushDetachedFlowStudioEditor(
@@ -6479,7 +6684,18 @@ class CalendarPage extends StatefulWidget {
           state: const <String, dynamic>{'mode': _kFlowStudioModeMaatFlows},
         );
         if (importedFlowId != null && importedFlowId > 0) {
-          unawaited(flowsRepo.refreshMyFiledFlows());
+          _rememberJoinedMaatFlowTemplate(
+            templateKey: template!.key,
+            flowId: importedFlowId,
+          );
+          await flowsRepo.clearMyFiledFlowsCache();
+          unawaited(
+            flowsRepo.refreshMyFiledFlows().then((rows) {
+              _reconcileRememberedMaatJoinsFromLiveSnapshot(
+                _myFlowsFilingSnapshotFromRowsDetached(rows),
+              );
+            }),
+          );
         }
       }),
     );
@@ -6797,7 +7013,9 @@ class CalendarPage extends StatefulWidget {
       kDay: today.kDay,
       showGregorian: mountedState?._showGregorian ?? false,
       expansion:
-          mountedState?._expansionToString(mountedState._monthExpansion) ??
+          mountedState?._expansionToString(
+            mountedState._monthExpansionLevelForRestoration(),
+          ) ??
           'compact',
       anchorTarget: CalendarPageState._kCalendarAnchorTargetDayChip,
       anchorAlignment: 0.5,
@@ -7526,6 +7744,7 @@ class CalendarPageState extends State<CalendarPage>
   // Removed _nextAlarmId; notifications are persisted via Notify.scheduleAlertWithPersistence
   final ScrollController _scrollCtrl = ScrollController();
   MonthExpansionLevel _monthExpansion = MonthExpansionLevel.compact;
+  MonthExpansionLevel? _monthExpansionRestorationTarget;
   double? _scaleGestureAnchor;
   double _pinchExpansionValue = 0.0; // 0=compact,1=stacked,2=labeled,3=details
   bool _isPinching = false;
@@ -8421,16 +8640,67 @@ class CalendarPageState extends State<CalendarPage>
     await AppRestorationService.instance.saveOverlayStack(next);
   }
 
+  bool _sameEventDetailRestorationState(
+    EventDetailRestorationState? a,
+    EventDetailRestorationState b,
+  ) {
+    return a != null &&
+        a.kYear == b.kYear &&
+        a.kMonth == b.kMonth &&
+        a.kDay == b.kDay &&
+        a.identityType == b.identityType &&
+        a.identityValue == b.identityValue;
+  }
+
+  Future<void> _enqueueCalendarEventDetailOverlayWrite(
+    Future<void> Function() write,
+  ) {
+    final next = _calendarEventDetailOverlayWriteQueue
+        .catchError((Object error, StackTrace stackTrace) {
+          if (kDebugMode) {
+            _calendarDebugPrint(
+              '[eventDetailOverlay] prior write failed: $error',
+            );
+            _calendarDebugPrint('$stackTrace');
+          }
+        })
+        .then((_) => write());
+    _calendarEventDetailOverlayWriteQueue = next.catchError((
+      Object error,
+      StackTrace stackTrace,
+    ) {
+      if (kDebugMode) {
+        _calendarDebugPrint('[eventDetailOverlay] write failed: $error');
+        _calendarDebugPrint('$stackTrace');
+      }
+    });
+    return next;
+  }
+
   Future<void> _saveCalendarEventDetailOverlayState(
     EventDetailRestorationState state,
-  ) async {
+  ) {
+    final revision = ++_calendarEventDetailOverlayRevision;
+    _activeCalendarEventDetailRestoration = state;
     final payload = state
         .copyWith(
           parentSurface: _kCalendarParentSurfaceRoot,
           clearUpdatedAtMs: true,
         )
         .toJson();
-    await _saveCalendarOverlayState(_kCalendarOverlayKindEventDetail, payload);
+    return _enqueueCalendarEventDetailOverlayWrite(() async {
+      if (revision != _calendarEventDetailOverlayRevision ||
+          !_sameEventDetailRestorationState(
+            _activeCalendarEventDetailRestoration,
+            state,
+          )) {
+        return;
+      }
+      await _saveCalendarOverlayState(
+        _kCalendarOverlayKindEventDetail,
+        payload,
+      );
+    });
   }
 
   Future<void> _saveCalendarEventDetailOverlayForTarget(
@@ -8451,14 +8721,29 @@ class CalendarPageState extends State<CalendarPage>
     EventDetailRestorationState? state,
   ) {
     if (state == null) {
+      if (!_preserveEventDetailOverlayForOrientationHandoff) {
+        _activeCalendarEventDetailRestoration = null;
+      }
       unawaited(_clearCalendarEventDetailOverlayState());
       return;
     }
+    _activeCalendarEventDetailRestoration = state;
     unawaited(_saveCalendarEventDetailOverlayState(state));
   }
 
   Future<void> _clearCalendarEventDetailOverlayState() {
-    return _clearCalendarOverlayState(_kCalendarOverlayKindEventDetail);
+    if (_preserveEventDetailOverlayForOrientationHandoff) {
+      return Future<void>.value();
+    }
+    final revision = ++_calendarEventDetailOverlayRevision;
+    _activeCalendarEventDetailRestoration = null;
+    return _enqueueCalendarEventDetailOverlayWrite(() async {
+      if (revision != _calendarEventDetailOverlayRevision ||
+          _activeCalendarEventDetailRestoration != null) {
+        return;
+      }
+      await _clearCalendarOverlayState(_kCalendarOverlayKindEventDetail);
+    });
   }
 
   DayViewSheetEventTarget? _calendarEventDetailTargetFromState(
@@ -8884,6 +9169,12 @@ class CalendarPageState extends State<CalendarPage>
                       },
                     );
                     if (importedFlowId != null && importedFlowId > 0) {
+                      CalendarPage._rememberJoinedMaatFlowTemplate(
+                        templateKey: template.key,
+                        flowId: importedFlowId,
+                      );
+                      _myFlowsFilingSnapshotCache = null;
+                      await _flowsRepo.clearMyFiledFlowsCache();
                       await _loadFromDisk();
                     }
                   }),
@@ -11322,6 +11613,11 @@ class CalendarPageState extends State<CalendarPage>
   int? _lastViewKd; // last viewed Kemetic day (1..30, or 1..5/6 for month 13)
 
   Orientation? _lastOrientation; // Tracks functional rotation handoff.
+  EventDetailRestorationState? _activeCalendarEventDetailRestoration;
+  Future<void> _calendarEventDetailOverlayWriteQueue = Future<void>.value();
+  int _calendarEventDetailOverlayRevision = 0;
+  bool _preserveEventDetailOverlayForOrientationHandoff = false;
+  bool _eventDetailOrientationHandoffScheduled = false;
 
   static const String _kSessionScopeCalendarView = 'calendar_view';
   static const String _kSessionResumeKindDaySheet = 'calendar_day_sheet';
@@ -12772,6 +13068,12 @@ class CalendarPageState extends State<CalendarPage>
     _MaatFlowTemplate template,
     int flowId,
   ) async {
+    CalendarPage._rememberJoinedMaatFlowTemplate(
+      templateKey: template.key,
+      flowId: flowId,
+    );
+    _myFlowsFilingSnapshotCache = null;
+    await _flowsRepo.clearMyFiledFlowsCache();
     await _loadFromDisk(source: 'onboarding_first_maat_flow_added');
     final firstEvent = _firstUpcomingNoteForFlow(flowId);
     final eventDate = firstEvent == null
@@ -13557,7 +13859,19 @@ class CalendarPageState extends State<CalendarPage>
       kMonth: savedKm,
       kDay: clampedDay,
       showGregorian: false,
-      expansion: savedExpansion ?? _expansionToString(_monthExpansion),
+      expansion:
+          savedExpansion ??
+          _expansionToString(_monthExpansionLevelForRestoration()),
+    );
+  }
+
+  MonthExpansionLevel _monthExpansionLevelForRestoration() {
+    return monthExpansionRestorationLevelForTesting(
+      currentLevel: _monthExpansion,
+      settleTarget: _monthExpansionRestorationTarget,
+      isPinching: _isPinching,
+      pinchProgress: _pinchExpansionValue,
+      pinchStartLevel: _pinchStartLevel,
     );
   }
 
@@ -13581,7 +13895,7 @@ class CalendarPageState extends State<CalendarPage>
       kMonth: km,
       kDay: kd,
       showGregorian: _showGregorian,
-      expansion: _expansionToString(_monthExpansion),
+      expansion: _expansionToString(_monthExpansionLevelForRestoration()),
       anchorTarget: viewportAnchor?.target,
       anchorAlignment: viewportAnchor?.alignment,
       viewportHeight: _currentViewportHeight(),
@@ -14196,6 +14510,56 @@ class CalendarPageState extends State<CalendarPage>
         });
       }
     }
+  }
+
+  void _scheduleEventDetailOrientationHandoff() {
+    if (_eventDetailOrientationHandoffScheduled ||
+        !CalendarEventDetailSheetCoordinator.isOpenOrOpening ||
+        _activeCalendarEventDetailRestoration == null) {
+      return;
+    }
+    _eventDetailOrientationHandoffScheduled = true;
+    _preserveEventDetailOverlayForOrientationHandoff = true;
+
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      if (!mounted) {
+        _eventDetailOrientationHandoffScheduled = false;
+        _preserveEventDetailOverlayForOrientationHandoff = false;
+        return;
+      }
+      try {
+        final navigator = Navigator.of(context, rootNavigator: true);
+        if (navigator.canPop()) {
+          await navigator.maybePop();
+        }
+      } catch (_) {
+        // The route may already be closing during an orientation rebuild.
+      } finally {
+        if (mounted) {
+          final preservedState = _activeCalendarEventDetailRestoration;
+          final media = MediaQuery.maybeOf(context);
+          final useLandscapeGrid =
+              media != null &&
+              media.orientation == Orientation.landscape &&
+              media.size.shortestSide < 600;
+          setState(() {
+            _eventDetailOrientationHandoffScheduled = false;
+            _preserveEventDetailOverlayForOrientationHandoff = false;
+          });
+          if (!useLandscapeGrid &&
+              preservedState != null &&
+              !CalendarEventDetailSheetCoordinator.isOpenOrOpening) {
+            final target = _calendarEventDetailTargetFromState(preservedState);
+            if (target != null) {
+              await _openCalendarEventDetailSheet(target);
+            }
+          }
+        } else {
+          _eventDetailOrientationHandoffScheduled = false;
+          _preserveEventDetailOverlayForOrientationHandoff = false;
+        }
+      }
+    });
   }
 
   void _scheduleOrientationJumpToCurrentView() {
@@ -19639,10 +20003,12 @@ class CalendarPageState extends State<CalendarPage>
     String entryPoint = 'pinch',
   }) {
     if (_monthExpansion == level && !_isPinching) return;
+    _monthExpansionRestorationTarget = level;
     if (_isPinching && _pinchAnchorMonth != null && _pinchAnchorPoint != null) {
       setState(() => _monthExpansion = level);
       WidgetsBinding.instance.addPostFrameCallback((_) {
         _maintainAnchorPoint();
+        _monthExpansionRestorationTarget = null;
       });
     } else {
       final double? offset = _scrollCtrl.hasClients
@@ -19650,6 +20016,7 @@ class CalendarPageState extends State<CalendarPage>
           : null;
 
       setState(() => _monthExpansion = level);
+      _monthExpansionRestorationTarget = null;
 
       if (!_isPinching) {
         _persistExpansionLevel(level);
@@ -19743,6 +20110,7 @@ class CalendarPageState extends State<CalendarPage>
 
   void _onScaleStart(ScaleStartDetails details) {
     if (details.pointerCount < 2) return;
+    _monthExpansionRestorationTarget = null;
     _scaleGestureAnchor = 1.0;
     _isPinching = true;
     _lastPinchUpdate = null;
@@ -20798,6 +21166,7 @@ class CalendarPageState extends State<CalendarPage>
       title: _kMaatFlowsDisplayTitle,
       templates: _kMaatFlowTemplates,
       hasActiveForKey: (key) => _hasActiveMaatInstanceFor(key),
+      progressForKey: _maatCompletionStatusForActiveInstance,
       onPickTemplate: (tpl) async {
         final importedFlowId = await _pushMaatFlowTemplateDetail(
           navigator,
@@ -20807,6 +21176,13 @@ class CalendarPageState extends State<CalendarPage>
           },
         );
         if (importedFlowId != null && importedFlowId > 0 && listCtx.mounted) {
+          CalendarPage._rememberJoinedMaatFlowTemplate(
+            templateKey: tpl.key,
+            flowId: importedFlowId,
+          );
+          _myFlowsFilingSnapshotCache = null;
+          await _flowsRepo.clearMyFiledFlowsCache();
+          if (!listCtx.mounted) return importedFlowId;
           final listNavigator = Navigator.of(listCtx);
           if (listNavigator.canPop()) {
             listNavigator.pop(importedFlowId);
@@ -20814,6 +21190,7 @@ class CalendarPageState extends State<CalendarPage>
             Navigator.of(listCtx, rootNavigator: true).pop();
           }
         }
+        return importedFlowId;
       },
       onCreateNew: () async {
         final edited = await _pushFlowStudioEditor(
@@ -21042,9 +21419,25 @@ class CalendarPageState extends State<CalendarPage>
   /// True if there is at least one *active* instance of template [tplKey]
   /// with any remaining day today or in the future.
   bool _hasActiveMaatInstanceFor(String tplKey) {
+    if (CalendarPage._hasRememberedJoinedMaatTemplate(tplKey)) return true;
     return _flows.any((f) {
       return CalendarPage._flowMatchesActiveMaatTemplate(f, tplKey);
     });
+  }
+
+  _MaatFlowCompletionStatus? _maatCompletionStatusForActiveInstance(
+    String tplKey,
+  ) {
+    for (final flow in _flows) {
+      if (!CalendarPage._flowMatchesActiveMaatTemplate(flow, tplKey)) {
+        continue;
+      }
+      return CalendarPage._maatCompletionStatusFromCounts(
+        totalEventCount: _flowTotalEventCounts[flow.id] ?? 0,
+        remainingEventCount: _flowRemainingEventCounts[flow.id] ?? 0,
+      );
+    }
+    return null;
   }
 
   MoonReturnEnrollmentWindow? _resolveMountedMoonReturnJoinWindow({
@@ -24044,6 +24437,7 @@ class CalendarPageState extends State<CalendarPage>
 
     // End Flow removes the local materialized calendar copy only. Shared,
     // posted, and saved copies are separate records and remain available.
+    CalendarPage._forgetRememberedJoinedMaatFlow(flowId);
     await _loadFromDisk(source: 'end_flow');
   }
   //// === END END FLOW ===
@@ -24299,6 +24693,7 @@ class CalendarPageState extends State<CalendarPage>
                 )
               : null,
           shouldPreserveEventDetailRestorationOnClose: () =>
+              _preserveEventDetailOverlayForOrientationHandoff ||
               RestorationCoordinator
                   .instance
                   .shouldPreserveOverlayForLifecycleClose,
@@ -28454,6 +28849,7 @@ class CalendarPageState extends State<CalendarPage>
         ..clear()
         ..addAll(dedupedNotes);
       _nextFlowId = nextFlowId;
+      CalendarPage._reconcileRememberedMaatJoinsFromLiveFlows(_flows);
 
       if (kDebugMode) {
         _calendarDebugPrint(
@@ -28706,6 +29102,7 @@ class CalendarPageState extends State<CalendarPage>
     final rows = await _flowsRepo.refreshMyFiledFlows();
     final snapshot = _myFlowsFilingSnapshotFromRows(rows);
     _myFlowsFilingSnapshotCache = snapshot;
+    CalendarPage._reconcileRememberedMaatJoinsFromLiveSnapshot(snapshot);
     return snapshot;
   }
 
@@ -30568,6 +30965,7 @@ class CalendarPageState extends State<CalendarPage>
           orientation == Orientation.landscape) {
         _commitVisiblePortraitMonthForRotation();
       }
+      _scheduleEventDetailOrientationHandoff();
 
       if (orientation == Orientation.portrait) {
         if (kDebugMode) {
@@ -30690,9 +31088,12 @@ class CalendarPageState extends State<CalendarPage>
               await _journalController.removeBadge(badgeId);
             }
           },
+          initialEventDetailRestorationState:
+              _activeCalendarEventDetailRestoration,
           onEventDetailRestorationChanged:
               _handleCalendarEventDetailRestorationChanged,
           shouldPreserveEventDetailRestorationOnClose: () =>
+              _preserveEventDetailOverlayForOrientationHandoff ||
               RestorationCoordinator
                   .instance
                   .shouldPreserveOverlayForLifecycleClose,

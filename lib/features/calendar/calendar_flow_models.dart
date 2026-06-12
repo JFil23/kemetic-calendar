@@ -208,6 +208,8 @@ class _MyFlowsFilingSnapshot {
   );
 }
 
+typedef _MaatFlowCompletionStatus = ({double progress, String label});
+
 /// One resolved instance of a flow on a day.
 class _FlowOccurrence {
   final _Flow flow;
