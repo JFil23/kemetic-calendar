@@ -255,6 +255,36 @@ void main() {
   );
 
   test(
+    'programmatic root cannot overwrite a non-root durable surface from Calendar',
+    () async {
+      await _saveDurableRoute('/');
+      await _saveDurableRoute(
+        '/flows?mode=maatFlows',
+        source: NavigationSource.programmatic,
+      );
+      await _saveDurableRoute('/', source: NavigationSource.programmatic);
+      await AppRestorationService.instance.flushPendingWrites();
+
+      final snapshot = await AppRestorationService.instance.readSnapshot();
+
+      expect(snapshot?.routeLocation, '/flows?mode=maatFlows');
+      expect(
+        snapshot?.launchRouteMetadata?.source,
+        NavigationSource.programmatic,
+      );
+      expect(
+        snapshot?.launchRouteMetadata?.canonicalRoute,
+        '/flows?mode=maatFlows',
+      );
+      expect(
+        snapshot?.primarySelectionMetadata?.source,
+        NavigationSource.userPrimaryTab,
+      );
+      expect(snapshot?.primarySelectionMetadata?.canonicalRoute, '/');
+    },
+  );
+
+  test(
     'explicit Calendar primary selection can overwrite non-root primary route',
     () async {
       await _saveDurableRoute('/rhythm/today');

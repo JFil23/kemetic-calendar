@@ -2002,6 +2002,19 @@ class AppRestorationService {
           );
           return;
         }
+        if (existingRoute != null && !_isRootRouteLocation(existingRoute)) {
+          _log(
+            'save launch route rejected input=$location '
+            'source=${metadata.source.wireName} '
+            'classification=${metadata.routeClass.wireName} '
+            'schemaVersion=${metadata.schemaVersion} '
+            'section=${metadata.section?.wireName ?? '<none>'} '
+            'canonical=${metadata.canonicalRoute ?? '<none>'} '
+            'existingRoute=$existingRoute '
+            'reason=programmatic_root_cannot_evict_durable_surface',
+          );
+          return;
+        }
       }
       final previous = (current['routeLocation'] as String?)?.trim();
       current['routeLocation'] = normalized;
