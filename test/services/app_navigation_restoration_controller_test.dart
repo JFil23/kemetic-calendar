@@ -180,6 +180,39 @@ void main() {
   });
 
   test(
+    'programmatic Calendar snapshot restores explicit non-root primary selection',
+    () async {
+      const policy = NavigationPersistencePolicy();
+      final calendarMetadata = policy
+          .classifyRoute('/', NavigationSource.programmatic)
+          .metadata;
+      final plannerMetadata = policy
+          .classifyRoute('/rhythm/today', NavigationSource.userPrimaryTab)
+          .metadata;
+      await _writeRawSnapshot(<String, dynamic>{
+        'routeLocation': '/',
+        navigationLaunchRouteMetadataKey: calendarMetadata.toJson(),
+        navigationPrimarySelectionMetadataKey: plannerMetadata.toJson(),
+      });
+
+      final destination = await AppNavigationRestorationController.instance
+          .restoreLaunchDestination(isAuthenticated: true);
+
+      expect(destination.route, '/rhythm/today');
+      expect(destination.decisionSource, 'primarySelectionOverride');
+      expect(
+        destination.reason,
+        'programmatic_root_overridden_by_primary_selection',
+      );
+      expect(await _durableRoute(), '/');
+      expect(
+        await _primarySelectionMetadataJson(),
+        containsPair('canonicalRoute', '/rhythm/today'),
+      );
+    },
+  );
+
+  test(
     'approved AppSection durable primary commands restore canonical routes',
     () async {
       const policy = NavigationPersistencePolicy();

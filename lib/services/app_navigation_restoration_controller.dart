@@ -224,6 +224,23 @@ class AppNavigationRestorationController {
     final metadata = result.snapshot?.launchRouteMetadata;
     final validationReason = _durableLaunchValidationReason(route, metadata);
     if (validationReason == 'valid_durable_metadata') {
+      final primarySelection = result.snapshot?.primarySelectionMetadata;
+      final primaryRoute = primarySelection?.canonicalRoute?.trim();
+      if (_isRootRoute(route ?? '') &&
+          metadata?.source != NavigationSource.userPrimaryTab &&
+          primarySelection != null &&
+          primarySelection.source == NavigationSource.userPrimaryTab &&
+          primarySelection.canRestoreAsSurface == true &&
+          primaryRoute != null &&
+          primaryRoute.isNotEmpty &&
+          !_isRootRoute(primaryRoute) &&
+          _policy.isValidPrimarySelection(primarySelection)) {
+        return _decision(
+          route: primaryRoute,
+          source: 'primarySelectionOverride',
+          reason: 'programmatic_root_overridden_by_primary_selection',
+        );
+      }
       final destination = _decision(
         route: route!,
         source: result.source ?? 'durablePrimary',

@@ -1957,6 +1957,52 @@ class AppRestorationService {
       'canonical=${metadata.canonicalRoute ?? '<none>'} accepted=true',
     );
     await _mutate((current) {
+      if (_isRootRouteLocation(normalized) &&
+          metadata.source != NavigationSource.userPrimaryTab) {
+        final existingMetadata = NavigationLaunchRouteMetadata.fromJson(
+          current[navigationLaunchRouteMetadataKey],
+        );
+        final existingRoute = (current['routeLocation'] as String?)?.trim();
+        if (existingMetadata?.source == NavigationSource.userPrimaryTab &&
+            !_isRootRouteLocation(existingRoute)) {
+          _log(
+            'save launch route rejected input=$location '
+            'source=${metadata.source.wireName} '
+            'classification=${metadata.routeClass.wireName} '
+            'schemaVersion=${metadata.schemaVersion} '
+            'section=${metadata.section?.wireName ?? '<none>'} '
+            'canonical=${metadata.canonicalRoute ?? '<none>'} '
+            'existingRoute=${existingRoute ?? '<none>'} '
+            'existingSource=${existingMetadata!.source.wireName} '
+            'reason=programmatic_root_cannot_evict_user_primary',
+          );
+          return;
+        }
+        final primaryMetadata = NavigationLaunchRouteMetadata.fromJson(
+          current[navigationPrimarySelectionMetadataKey],
+        );
+        final primaryRoute = primaryMetadata?.canonicalRoute?.trim();
+        if (primaryMetadata?.source == NavigationSource.userPrimaryTab &&
+            primaryRoute != null &&
+            primaryRoute.isNotEmpty &&
+            !_isRootRouteLocation(primaryRoute) &&
+            const NavigationPersistencePolicy().isValidPrimarySelection(
+              primaryMetadata,
+            )) {
+          _log(
+            'save launch route rejected input=$location '
+            'source=${metadata.source.wireName} '
+            'classification=${metadata.routeClass.wireName} '
+            'schemaVersion=${metadata.schemaVersion} '
+            'section=${metadata.section?.wireName ?? '<none>'} '
+            'canonical=${metadata.canonicalRoute ?? '<none>'} '
+            'primaryRoute=$primaryRoute '
+            'primarySource=${primaryMetadata!.source.wireName} '
+            'reason=programmatic_root_cannot_evict_primary_selection',
+          );
+          return;
+        }
+      }
       final previous = (current['routeLocation'] as String?)?.trim();
       current['routeLocation'] = normalized;
       current[navigationLaunchRouteMetadataKey] = metadata.toJson();
