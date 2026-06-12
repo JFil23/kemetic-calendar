@@ -150,6 +150,29 @@ void main() {
     );
 
     test(
+      'deferred auth launch restore is not owned by MyApp shell rebuilds',
+      () async {
+        final main = await File('lib/main.dart').readAsString();
+        final myApp = _sourceBetween(
+          main,
+          'class _MyAppState extends State<MyApp>',
+          'class _AppChrome',
+        );
+
+        expect(
+          main,
+          isNot(contains('_scheduleDeferredBootRestoreAfterAuthShellMount')),
+        );
+        expect(myApp, isNot(contains('_prepareDeferredBootRestoreForAuth')));
+        expect(myApp, isNot(contains('_replayDeferredBootRestoreAfterAuth')));
+        expect(
+          myApp,
+          isNot(contains('restoreDeferredLaunchDestinationAfterAuth')),
+        );
+      },
+    );
+
+    test(
       'launch route storage keys stay inside restoration storage files',
       () async {
         final matches = await _filesContainingAny(<String>[
@@ -604,6 +627,46 @@ void main() {
       expect(calendar, isNot(contains('_CalendarMountedStateBuilder')));
       expect(calendar, isNot(contains('_buildRestoredFlowStudioRouteSheet')));
     });
+
+    test(
+      'Flow Studio submodes are route-backed before overlay restore',
+      () async {
+        final main = await File('lib/main.dart').readAsString();
+        final calendar = await File(
+          'lib/features/calendar/calendar_page.dart',
+        ).readAsString();
+        final flowRoute = _sourceBetween(
+          main,
+          "path: '/flows'",
+          "path: '/calendars'",
+        );
+        final routeState = _sourceBetween(
+          calendar,
+          'static Map<String, dynamic> _flowStudioRouteStateFromUri',
+          'static String? _flowStudioDurableRouteForState',
+        );
+        final durableRoute = _sourceBetween(
+          calendar,
+          'static String? _flowStudioDurableRouteForState',
+          'static Widget buildSharedCalendarsRoutePage',
+        );
+        final detachedPush = _sourceBetween(
+          calendar,
+          'static Future<T?> _pushDetachedFlowStudioRoute',
+          'static Future<_FlowStudioResult?> _pushDetachedFlowStudioEditor',
+        );
+
+        expect(flowRoute, contains('routeUri: state.uri'));
+        expect(routeState, contains('_kFlowStudioModeMyFlows'));
+        expect(routeState, contains('_kFlowStudioModeMaatFlows'));
+        expect(durableRoute, contains("path: '/flows'"));
+        expect(detachedPush, contains('_recordDetachedFlowStudioRouteState'));
+        expect(
+          detachedPush.indexOf('_recordDetachedFlowStudioRouteState'),
+          lessThan(detachedPush.indexOf('_saveDetachedCalendarOverlayState')),
+        );
+      },
+    );
 
     test(
       'non-primary pages stay routable without becoming durable launch routes',

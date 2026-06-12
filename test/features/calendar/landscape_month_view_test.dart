@@ -694,6 +694,26 @@ void main() {
       }
     });
 
+    test('calendar expansion restoration uses interrupted settle target', () {
+      expect(
+        monthExpansionRestorationLevelForTesting(
+          currentLevel: MonthExpansionLevel.compact,
+          settleTarget: MonthExpansionLevel.details,
+        ),
+        MonthExpansionLevel.details,
+      );
+
+      expect(
+        monthExpansionRestorationLevelForTesting(
+          currentLevel: MonthExpansionLevel.compact,
+          isPinching: true,
+          pinchProgress: 1.2,
+          pinchStartLevel: MonthExpansionLevel.compact,
+        ),
+        MonthExpansionLevel.stacked,
+      );
+    });
+
     test('existing calendar buttons and menu controls remain present', () {
       final source = File(
         'lib/features/calendar/calendar_page.dart',

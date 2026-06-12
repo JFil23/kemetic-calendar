@@ -395,6 +395,9 @@ final ValueNotifier<bool> _webAuthExchangeInProgress = ValueNotifier<bool>(
 );
 String? _bootRestoredLocation;
 String? _bootExplicitIntentLocation;
+String? _bootAuthDeferredRestoredLocation;
+bool _bootRestoreDeferredForAuth = false;
+bool _bootDeferredRestorePreparedForAuth = false;
 PushInitialMessage? _bootInitialPushMessage;
 String? _bootInitialAppLinkSignature;
 String? _lastHandledAuthCallbackSignature;
@@ -1008,11 +1011,84 @@ Future<String?> _readBootRestoredLocation() async {
     'updatedAtMs=${result.snapshot?.updatedAtMs ?? '<none>'} '
     'overlayCount=${result.snapshot?.overlayStack.length ?? 0}',
   );
+  final tentativeRoute = result.snapshot?.routeLocation?.trim();
+  if (!hasSession &&
+      result.status == AppRestorationReadStatus.tentative &&
+      tentativeRoute != null &&
+      tentativeRoute.isNotEmpty) {
+    _bootRestoreDeferredForAuth = true;
+    _bootAuthDeferredRestoredLocation = tentativeRoute;
+    traceRestoration(
+      'boot restore deferred_for_auth '
+      'route=$_bootAuthDeferredRestoredLocation '
+      'source=${result.source ?? '<none>'} '
+      'reason=${result.reason ?? '<none>'}',
+    );
+  }
   traceRestoration(
     'boot restore selected=${destination.route} '
     'decisionSource=${destination.decisionSource} reason=${destination.reason}',
   );
   return destination.route;
+}
+
+void _prepareDeferredBootRestoreForAuth(AuthChangeEvent event) {
+  final target = _bootAuthDeferredRestoredLocation?.trim();
+  traceRestoration(
+    'auth deferred restore prepare event=${event.name} '
+    'deferred=$_bootRestoreDeferredForAuth '
+    'prepared=$_bootDeferredRestorePreparedForAuth '
+    'target=${target == null || target.isEmpty ? '<none>' : target} '
+    'explicit=${_hasExplicitBootIntent()}',
+  );
+  if (!_bootRestoreDeferredForAuth ||
+      _bootDeferredRestorePreparedForAuth ||
+      _hasExplicitBootIntent() ||
+      target == null ||
+      target.isEmpty) {
+    return;
+  }
+  RestorationCoordinator.instance.beginAuthResumeRestore(
+    targetLocation: target,
+  );
+  _bootDeferredRestorePreparedForAuth = true;
+}
+
+Future<void> _replayDeferredBootRestoreAfterAuth(AuthChangeEvent event) async {
+  final currentRoute = _routerLocationForTrace();
+  traceRestoration(
+    'auth deferred restore replay start event=${event.name} '
+    'current=$currentRoute deferred=$_bootRestoreDeferredForAuth '
+    'explicit=${_hasExplicitBootIntent()}',
+  );
+  final destination = await AppNavigationRestorationController.instance
+      .restoreDeferredLaunchDestinationAfterAuth(
+        currentRoute: currentRoute,
+        restoreWasDeferredForAuth: _bootRestoreDeferredForAuth,
+        hasExplicitBootIntent: _hasExplicitBootIntent(),
+        includeRemote: true,
+      );
+  if (destination == null) {
+    _bootRestoreDeferredForAuth = false;
+    _bootAuthDeferredRestoredLocation = null;
+    _bootDeferredRestorePreparedForAuth = false;
+    return;
+  }
+
+  RestorationCoordinator.instance.beginAuthResumeRestore(
+    targetLocation: destination.route,
+  );
+  traceRestoration(
+    'auth deferred restore replay apply event=${event.name} '
+    'from=$currentRoute to=${destination.route} '
+    'decisionSource=${destination.decisionSource} '
+    'reason=${destination.reason}',
+  );
+  _bootRestoreDeferredForAuth = false;
+  _bootAuthDeferredRestoredLocation = null;
+  _bootDeferredRestorePreparedForAuth = false;
+  _router.go(destination.route);
+  _traceRouterLocationAfterFrame('after_auth_deferred_restore');
 }
 
 Map<String, dynamic>? _pushIntentDataFromQuery(Map<String, String> params) {
@@ -1408,7 +1484,7 @@ GoRouter _createRouter({required String initialLocation}) => GoRouter(
       path: '/flows',
       builder: (context, state) => SessionTrackedRoute(
         location: state.uri.toString(),
-        child: CalendarPage.buildFlowStudioRoutePage(),
+        child: CalendarPage.buildFlowStudioRoutePage(routeUri: state.uri),
       ),
     ),
     _utilitySheetRoute(
@@ -4488,11 +4564,15 @@ class _AuthGateState extends State<AuthGate> with WidgetsBindingObserver {
   }
 
   Future<void> _handleAuthStateChange(AuthState data) async {
-    if (mounted) setState(() {});
     final ev = data.event;
+    final isSessionReadyEvent =
+        ev == AuthChangeEvent.initialSession || ev == AuthChangeEvent.signedIn;
+    if (isSessionReadyEvent) {
+      _prepareDeferredBootRestoreForAuth(ev);
+    }
+    if (mounted) setState(() {});
 
-    if (ev == AuthChangeEvent.initialSession ||
-        ev == AuthChangeEvent.signedIn) {
+    if (isSessionReadyEvent) {
       Events.debugAuthBanner('onAuthStateChange:$ev');
       await _ensureProfile(); // keep profiles hydrated with email
       await UserEventsRepo.refreshTelemetrySettings(supabase);
@@ -4500,7 +4580,16 @@ class _AuthGateState extends State<AuthGate> with WidgetsBindingObserver {
       final pendingPlannerLaunch = _pendingPlannerLaunchIntent;
       if (pendingPlannerLaunch != null) {
         _pendingPlannerLaunchIntent = null;
+        _bootRestoreDeferredForAuth = false;
+        _bootAuthDeferredRestoredLocation = null;
+        _bootDeferredRestorePreparedForAuth = false;
+        traceRestoration(
+          'auth deferred restore skipped event=${ev.name} '
+          'reason=pending_planner_launch_intent',
+        );
         _routeToPlanner(pendingPlannerLaunch);
+      } else {
+        await _replayDeferredBootRestoreAfterAuth(ev);
       }
       fireAndForgetGuarded(
         'notify init',
@@ -4555,6 +4644,9 @@ class _AuthGateState extends State<AuthGate> with WidgetsBindingObserver {
 
     if (ev == AuthChangeEvent.signedOut) {
       _scheduledDecans = false;
+      _bootRestoreDeferredForAuth = false;
+      _bootAuthDeferredRestoredLocation = null;
+      _bootDeferredRestorePreparedForAuth = false;
       await AppRestorationService.instance.clearBootFallbackIdentity();
       _router.go('/');
       _calendarSync?.stop();

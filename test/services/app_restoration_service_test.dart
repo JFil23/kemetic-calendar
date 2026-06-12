@@ -22,9 +22,12 @@ Map<String, dynamic> _durableRouteFields(String route) {
   };
 }
 
-Future<void> _saveDurableRoute(String route) {
+Future<void> _saveDurableRoute(
+  String route, {
+  NavigationSource source = NavigationSource.userPrimaryTab,
+}) {
   final metadata = const NavigationPersistencePolicy()
-      .classifyRoute(route, NavigationSource.userPrimaryTab)
+      .classifyRoute(route, source)
       .metadata;
   return AppRestorationService.instance.saveDurableLaunchRoute(
     route,
@@ -200,6 +203,105 @@ void main() {
     expect(editor, isNotNull);
     expect(editor!['name'], 'Morning discipline');
   });
+
+  test(
+    'programmatic root cannot overwrite an explicit non-root primary route',
+    () async {
+      await _saveDurableRoute('/rhythm/today');
+      await _saveDurableRoute('/', source: NavigationSource.programmatic);
+      await AppRestorationService.instance.flushPendingWrites();
+
+      final snapshot = await AppRestorationService.instance.readSnapshot();
+
+      expect(snapshot?.routeLocation, '/rhythm/today');
+      expect(
+        snapshot?.launchRouteMetadata?.source,
+        NavigationSource.userPrimaryTab,
+      );
+      expect(
+        snapshot?.primarySelectionMetadata?.canonicalRoute,
+        '/rhythm/today',
+      );
+    },
+  );
+
+  test(
+    'programmatic root cannot overwrite route recovered from primary selection',
+    () async {
+      await _saveDurableRoute('/rhythm/today');
+      await _saveDurableRoute(
+        '/rhythm/today',
+        source: NavigationSource.programmatic,
+      );
+      await _saveDurableRoute('/', source: NavigationSource.programmatic);
+      await AppRestorationService.instance.flushPendingWrites();
+
+      final snapshot = await AppRestorationService.instance.readSnapshot();
+
+      expect(snapshot?.routeLocation, '/rhythm/today');
+      expect(
+        snapshot?.launchRouteMetadata?.source,
+        NavigationSource.programmatic,
+      );
+      expect(
+        snapshot?.primarySelectionMetadata?.source,
+        NavigationSource.userPrimaryTab,
+      );
+      expect(
+        snapshot?.primarySelectionMetadata?.canonicalRoute,
+        '/rhythm/today',
+      );
+    },
+  );
+
+  test(
+    'programmatic root cannot overwrite a non-root durable surface from Calendar',
+    () async {
+      await _saveDurableRoute('/');
+      await _saveDurableRoute(
+        '/flows?mode=maatFlows',
+        source: NavigationSource.programmatic,
+      );
+      await _saveDurableRoute('/', source: NavigationSource.programmatic);
+      await AppRestorationService.instance.flushPendingWrites();
+
+      final snapshot = await AppRestorationService.instance.readSnapshot();
+
+      expect(snapshot?.routeLocation, '/flows?mode=maatFlows');
+      expect(
+        snapshot?.launchRouteMetadata?.source,
+        NavigationSource.programmatic,
+      );
+      expect(
+        snapshot?.launchRouteMetadata?.canonicalRoute,
+        '/flows?mode=maatFlows',
+      );
+      expect(
+        snapshot?.primarySelectionMetadata?.source,
+        NavigationSource.userPrimaryTab,
+      );
+      expect(snapshot?.primarySelectionMetadata?.canonicalRoute, '/');
+    },
+  );
+
+  test(
+    'explicit Calendar primary selection can overwrite non-root primary route',
+    () async {
+      await _saveDurableRoute('/rhythm/today');
+      await _saveDurableRoute('/');
+      await AppRestorationService.instance.flushPendingWrites();
+
+      final snapshot = await AppRestorationService.instance.readSnapshot();
+
+      expect(snapshot?.routeLocation, '/');
+      expect(
+        snapshot?.launchRouteMetadata?.source,
+        NavigationSource.userPrimaryTab,
+      );
+      expect(snapshot?.launchRouteMetadata?.section, AppSection.calendar);
+      expect(snapshot?.primarySelectionMetadata?.canonicalRoute, '/');
+    },
+  );
 
   test(
     'falls back to the latest user snapshot for a new window, then prefers that window once it has state',

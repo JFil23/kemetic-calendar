@@ -970,7 +970,10 @@ void main() {
         lessThan(calendarsCallback.indexOf('openUtilityRoute<void>(')),
       );
       expect(source, contains("path: '/flows'"));
-      expect(source, contains('CalendarPage.buildFlowStudioRoutePage()'));
+      expect(
+        source,
+        contains('CalendarPage.buildFlowStudioRoutePage(routeUri: state.uri)'),
+      );
       expect(source, contains("path: '/calendars'"));
       expect(source, contains('CalendarPage.buildSharedCalendarsRoutePage()'));
       expect(

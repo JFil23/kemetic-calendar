@@ -224,6 +224,23 @@ class AppNavigationRestorationController {
     final metadata = result.snapshot?.launchRouteMetadata;
     final validationReason = _durableLaunchValidationReason(route, metadata);
     if (validationReason == 'valid_durable_metadata') {
+      final primarySelection = result.snapshot?.primarySelectionMetadata;
+      final primaryRoute = primarySelection?.canonicalRoute?.trim();
+      if (_isRootRoute(route ?? '') &&
+          metadata?.source != NavigationSource.userPrimaryTab &&
+          primarySelection != null &&
+          primarySelection.source == NavigationSource.userPrimaryTab &&
+          primarySelection.canRestoreAsSurface == true &&
+          primaryRoute != null &&
+          primaryRoute.isNotEmpty &&
+          !_isRootRoute(primaryRoute) &&
+          _policy.isValidPrimarySelection(primarySelection)) {
+        return _decision(
+          route: primaryRoute,
+          source: 'primarySelectionOverride',
+          reason: 'programmatic_root_overridden_by_primary_selection',
+        );
+      }
       final destination = _decision(
         route: route!,
         source: result.source ?? 'durablePrimary',
@@ -255,6 +272,75 @@ class AppNavigationRestorationController {
       accepted: false,
       reason: hadLegacyRoute ? validationReason : destination.reason,
       finalDestination: destination,
+    );
+    return destination;
+  }
+
+  Future<LaunchDestination?> restoreDeferredLaunchDestinationAfterAuth({
+    required String currentRoute,
+    required bool restoreWasDeferredForAuth,
+    required bool hasExplicitBootIntent,
+    bool includeRemote = false,
+  }) async {
+    final normalizedCurrent = _normalizedInternalRoute(currentRoute) ?? '/';
+    if (!restoreWasDeferredForAuth) {
+      _logAuthDeferredReplay(
+        currentRoute: normalizedCurrent,
+        restoredRoute: null,
+        accepted: false,
+        reason: 'no_auth_deferred_boot_restore',
+      );
+      return null;
+    }
+    if (hasExplicitBootIntent) {
+      _logAuthDeferredReplay(
+        currentRoute: normalizedCurrent,
+        restoredRoute: null,
+        accepted: false,
+        reason: 'explicit_boot_intent_wins',
+      );
+      return null;
+    }
+    if (!_isRootRoute(normalizedCurrent)) {
+      _logAuthDeferredReplay(
+        currentRoute: normalizedCurrent,
+        restoredRoute: null,
+        accepted: false,
+        reason: 'current_route_no_longer_boot_default',
+      );
+      return null;
+    }
+
+    final destination = await restoreLaunchDestination(
+      isAuthenticated: true,
+      includeRemote: includeRemote,
+    );
+    final restoredRoute = _normalizedInternalRoute(destination.route);
+    if (restoredRoute == null || _sameRouteLocation(restoredRoute, '/')) {
+      _logAuthDeferredReplay(
+        currentRoute: normalizedCurrent,
+        restoredRoute: restoredRoute,
+        accepted: false,
+        reason: 'restored_route_is_root_or_empty',
+      );
+      return null;
+    }
+    if (_sameRouteLocation(restoredRoute, normalizedCurrent)) {
+      _logAuthDeferredReplay(
+        currentRoute: normalizedCurrent,
+        restoredRoute: restoredRoute,
+        accepted: false,
+        reason: 'restored_route_already_visible',
+      );
+      return null;
+    }
+
+    _logAuthDeferredReplay(
+      currentRoute: normalizedCurrent,
+      restoredRoute: restoredRoute,
+      accepted: true,
+      reason: destination.reason,
+      decisionSource: destination.decisionSource,
     );
     return destination;
   }
@@ -346,8 +432,13 @@ class AppNavigationRestorationController {
     bool? acceptedOverride,
     String? reasonOverride,
   }) {
+    final uri = Uri.tryParse(classification.requestedRoute);
+    final routePath = uri?.path.trim().isNotEmpty == true
+        ? uri!.path
+        : '<unknown>';
     traceRestoration(
       '[navPersist] request route=${classification.requestedRoute} '
+      'path=$routePath '
       'source=${classification.source.wireName} '
       'classification=${classification.routeClass.wireName} '
       'accepted=${acceptedOverride ?? classification.accepted} '
@@ -355,5 +446,48 @@ class AppNavigationRestorationController {
       'section=${classification.section?.wireName ?? '<none>'} '
       'canonical=${classification.canonicalRoute ?? '<none>'}',
     );
+  }
+
+  void _logAuthDeferredReplay({
+    required String currentRoute,
+    required String? restoredRoute,
+    required bool accepted,
+    required String reason,
+    String? decisionSource,
+  }) {
+    traceRestoration(
+      '[navRestore] auth deferred replay current=$currentRoute '
+      'restored=${restoredRoute ?? '<none>'} '
+      'accepted=$accepted reason=$reason '
+      'decisionSource=${decisionSource ?? '<none>'} '
+      'finalRoute=${accepted ? restoredRoute ?? '<none>' : currentRoute}',
+    );
+  }
+
+  static String? _normalizedInternalRoute(String? route) {
+    final normalized = route?.trim();
+    if (normalized == null || normalized.isEmpty) return null;
+    final uri = Uri.tryParse(normalized);
+    if (uri == null ||
+        uri.hasScheme ||
+        uri.host.isNotEmpty ||
+        !uri.path.startsWith('/')) {
+      return normalized;
+    }
+    return uri.toString();
+  }
+
+  static bool _isRootRoute(String route) {
+    final uri = Uri.tryParse(route.trim());
+    return uri == null || uri.path.isEmpty || uri.path == '/';
+  }
+
+  static bool _sameRouteLocation(String a, String b) {
+    final aUri = Uri.tryParse(a.trim());
+    final bUri = Uri.tryParse(b.trim());
+    if (aUri == null || bUri == null) return a.trim() == b.trim();
+    final aPath = aUri.path.isEmpty ? '/' : aUri.path;
+    final bPath = bUri.path.isEmpty ? '/' : bUri.path;
+    return aPath == bPath && aUri.query == bUri.query;
   }
 }

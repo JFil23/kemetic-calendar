@@ -58,6 +58,13 @@ class RestorationCoordinator {
     );
   }
 
+  void beginAuthResumeRestore({String? targetLocation}) {
+    beginLaunchRestore(
+      reason: RestorationRestoreReason.authResume,
+      targetLocation: targetLocation,
+    );
+  }
+
   void suppressRestoreForUserNavigation({
     required String reason,
     Iterable<String> surfaces = const <String>[],

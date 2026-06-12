@@ -244,6 +244,18 @@ class FlowsRepo {
     return List<FlowRow>.unmodifiable(rows);
   }
 
+  Future<void> clearMyFiledFlowsCache() async {
+    final userId = _currentUserId;
+    if (userId == null) return;
+    _filedFlowsMemoryCache.remove(userId);
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.remove(_filedFlowsCacheKey(userId));
+    } catch (e) {
+      _log('clear filed flow cache failed: $e');
+    }
+  }
+
   FlowFilingCounts? cachedMyFlowFilingCountsSync() {
     final rows = cachedMyFiledFlowsSync();
     if (rows == null) return null;

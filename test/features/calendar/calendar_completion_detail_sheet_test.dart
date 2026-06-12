@@ -492,4 +492,39 @@ void main() {
       expect(openSheetBody, isNot(contains('durableSection')));
     },
   );
+
+  test('event detail overlay writes are revisioned and serialized', () {
+    final calendarPage = File(
+      'lib/features/calendar/calendar_page.dart',
+    ).readAsStringSync();
+
+    expect(calendarPage, contains('_calendarEventDetailOverlayWriteQueue'));
+    expect(calendarPage, contains('_calendarEventDetailOverlayRevision'));
+    expect(
+      calendarPage,
+      contains('revision != _calendarEventDetailOverlayRevision'),
+    );
+    expect(calendarPage, contains('_sameEventDetailRestorationState'));
+    expect(calendarPage, contains('_enqueueCalendarEventDetailOverlayWrite'));
+    expect(
+      calendarPage,
+      contains('if (_preserveEventDetailOverlayForOrientationHandoff)'),
+    );
+  });
+
+  test('Ma’at process-local joined ledger is scoped to active auth user', () {
+    final calendarPage = File(
+      'lib/features/calendar/calendar_page.dart',
+    ).readAsStringSync();
+
+    expect(calendarPage, contains('_rememberedJoinedMaatUserScope'));
+    expect(
+      calendarPage,
+      contains('Supabase.instance.client.auth.currentUser?.id.trim()'),
+    );
+    expect(calendarPage, contains('_currentRememberedJoinedMaatUserScope'));
+    expect(calendarPage, contains('_clearRememberedJoinedMaatFlowTemplates'));
+    expect(calendarPage, contains('if (scope == null)'));
+    expect(calendarPage, contains('rememberedScope != scope'));
+  });
 }

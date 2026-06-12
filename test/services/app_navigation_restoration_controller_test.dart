@@ -180,6 +180,39 @@ void main() {
   });
 
   test(
+    'programmatic Calendar snapshot restores explicit non-root primary selection',
+    () async {
+      const policy = NavigationPersistencePolicy();
+      final calendarMetadata = policy
+          .classifyRoute('/', NavigationSource.programmatic)
+          .metadata;
+      final plannerMetadata = policy
+          .classifyRoute('/rhythm/today', NavigationSource.userPrimaryTab)
+          .metadata;
+      await _writeRawSnapshot(<String, dynamic>{
+        'routeLocation': '/',
+        navigationLaunchRouteMetadataKey: calendarMetadata.toJson(),
+        navigationPrimarySelectionMetadataKey: plannerMetadata.toJson(),
+      });
+
+      final destination = await AppNavigationRestorationController.instance
+          .restoreLaunchDestination(isAuthenticated: true);
+
+      expect(destination.route, '/rhythm/today');
+      expect(destination.decisionSource, 'primarySelectionOverride');
+      expect(
+        destination.reason,
+        'programmatic_root_overridden_by_primary_selection',
+      );
+      expect(await _durableRoute(), '/');
+      expect(
+        await _primarySelectionMetadataJson(),
+        containsPair('canonicalRoute', '/rhythm/today'),
+      );
+    },
+  );
+
+  test(
     'approved AppSection durable primary commands restore canonical routes',
     () async {
       const policy = NavigationPersistencePolicy();
@@ -339,6 +372,152 @@ void main() {
     },
   );
 
+  test(
+    'auth initialSession replays deferred Library route after root boot default',
+    () async {
+      await AppNavigationRestorationController.instance.recordVisibleSurface(
+        route: '/nodes',
+      );
+
+      final destination = await AppNavigationRestorationController.instance
+          .restoreDeferredLaunchDestinationAfterAuth(
+            currentRoute: '/',
+            restoreWasDeferredForAuth: true,
+            hasExplicitBootIntent: false,
+          );
+
+      expect(destination, isNotNull);
+      expect(destination!.route, '/nodes');
+      expect(destination.reason, 'valid_durable_metadata');
+      expect(await _durableRoute(), '/nodes');
+    },
+  );
+
+  test(
+    'auth initialSession replays deferred Flow Studio utility route',
+    () async {
+      await AppNavigationRestorationController.instance.recordVisibleSurface(
+        route: '/flows?mode=maatFlows',
+      );
+
+      final destination = await AppNavigationRestorationController.instance
+          .restoreDeferredLaunchDestinationAfterAuth(
+            currentRoute: '/',
+            restoreWasDeferredForAuth: true,
+            hasExplicitBootIntent: false,
+          );
+
+      expect(destination, isNotNull);
+      expect(destination!.route, '/flows?mode=maatFlows');
+      expect(
+        await _durableMetadataJson(),
+        containsPair('routeClass', 'utility'),
+      );
+    },
+  );
+
+  test(
+    'warm cache and calendar restore do not replace deferred durable page',
+    () async {
+      await AppNavigationRestorationController.instance.recordVisibleSurface(
+        route: '/rhythm/today',
+      );
+      await AppRestorationService.instance.saveCalendarState(
+        const CalendarRestorationState(
+          kYear: 6267,
+          kMonth: 3,
+          kDay: 24,
+          showGregorian: false,
+          expansion: 'details',
+          anchorTarget: 'dayChip',
+          anchorAlignment: 0.5,
+          viewportHeight: 700,
+          layoutRevision: 1,
+          scrollOffset: 2400,
+        ),
+      );
+      await AppRestorationService.instance.saveDayViewState(
+        const DayViewRestorationState(
+          isOpen: false,
+          kYear: 6267,
+          kMonth: 3,
+          kDay: 24,
+          showGregorian: false,
+        ),
+      );
+
+      final destination = await AppNavigationRestorationController.instance
+          .restoreDeferredLaunchDestinationAfterAuth(
+            currentRoute: '/',
+            restoreWasDeferredForAuth: true,
+            hasExplicitBootIntent: false,
+          );
+      final snapshot = await AppRestorationService.instance.readSnapshot();
+
+      expect(destination, isNotNull);
+      expect(destination!.route, '/rhythm/today');
+      expect(snapshot?.routeLocation, '/rhythm/today');
+      expect(snapshot?.calendar?.kMonth, 3);
+      expect(snapshot?.calendar?.kDay, 24);
+    },
+  );
+
+  test(
+    'auth deferred replay does not override explicit or user-changed routes',
+    () async {
+      await AppNavigationRestorationController.instance.recordVisibleSurface(
+        route: '/nodes',
+      );
+
+      final explicit = await AppNavigationRestorationController.instance
+          .restoreDeferredLaunchDestinationAfterAuth(
+            currentRoute: '/',
+            restoreWasDeferredForAuth: true,
+            hasExplicitBootIntent: true,
+          );
+      final userChanged = await AppNavigationRestorationController.instance
+          .restoreDeferredLaunchDestinationAfterAuth(
+            currentRoute: '/rhythm/today',
+            restoreWasDeferredForAuth: true,
+            hasExplicitBootIntent: false,
+          );
+
+      expect(explicit, isNull);
+      expect(userChanged, isNull);
+      expect(await _durableRoute(), '/nodes');
+    },
+  );
+
+  test(
+    'root Ma’at Flow Studio overlay survives deferred auth replay',
+    () async {
+      await AppNavigationRestorationController.instance.recordVisibleSurface(
+        route: '/',
+      );
+      await AppRestorationService.instance.saveOverlayStack(
+        const <Map<String, dynamic>>[
+          <String, dynamic>{
+            'kind': 'calendar.flowStudio',
+            'parentRoute': '/',
+            'mode': 'maatFlows',
+          },
+        ],
+      );
+
+      final destination = await AppNavigationRestorationController.instance
+          .restoreDeferredLaunchDestinationAfterAuth(
+            currentRoute: '/',
+            restoreWasDeferredForAuth: true,
+            hasExplicitBootIntent: false,
+          );
+      final snapshot = await AppRestorationService.instance.readSnapshot();
+
+      expect(destination, isNull);
+      expect(snapshot?.routeLocation, '/');
+      expect(snapshot?.overlayStack.single, containsPair('mode', 'maatFlows'));
+    },
+  );
+
   test('calendar didPushNext and dispose cannot persist Inbox', () async {
     for (final source in const <NavigationSource>[
       NavigationSource.calendarDidPushNext,
@@ -477,6 +656,36 @@ void main() {
   });
 
   test(
+    'visible Flow Studio submodes persist as route-backed utility surfaces',
+    () async {
+      for (final route in const <String>[
+        '/flows?mode=myFlows',
+        '/flows?mode=maatFlows',
+      ]) {
+        SharedPreferences.setMockInitialValues({});
+        AppWindowService.instance.resetForTesting();
+        AppNavigationRestorationController.instance.resetForTesting();
+
+        await AppNavigationRestorationController.instance.recordVisibleSurface(
+          route: route,
+        );
+
+        final destination = await AppNavigationRestorationController.instance
+            .restoreLaunchDestination(isAuthenticated: true);
+
+        expect(await _durableRoute(), route, reason: route);
+        expect(destination.route, route, reason: route);
+        expect(
+          await _durableMetadataJson(),
+          containsPair('routeClass', 'utility'),
+          reason: route,
+        );
+        expect(await _primarySelectionMetadataJson(), isNull, reason: route);
+      }
+    },
+  );
+
+  test(
     'visible detail surface persists while primary selection remains owner',
     () async {
       await AppNavigationRestorationController.instance
@@ -597,7 +806,12 @@ void main() {
 
   test('utility routes restore as surfaces without primary selection', () {
     const policy = NavigationPersistencePolicy();
-    for (final route in const <String>['/flows', '/calendars']) {
+    for (final route in const <String>[
+      '/flows',
+      '/flows?mode=myFlows',
+      '/flows?mode=maatFlows',
+      '/calendars',
+    ]) {
       final classification = policy.classifyRoute(
         route,
         NavigationSource.programmatic,

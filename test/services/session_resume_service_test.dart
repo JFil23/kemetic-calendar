@@ -3,6 +3,7 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:mobile/core/navigation_persistence_policy.dart';
 import 'package:mobile/services/app_restoration_service.dart';
 import 'package:mobile/services/app_window_service.dart';
 import 'package:mobile/services/restoration_coordinator.dart';
@@ -124,6 +125,44 @@ void main() {
       expect(
         (await AppRestorationService.instance.readSnapshot())?.routeLocation,
         isNull,
+      );
+    },
+  );
+
+  testWidgets(
+    'auth-resume root rebuild does not overwrite deferred durable page',
+    (tester) async {
+      final metadata = const NavigationPersistencePolicy()
+          .classifyRoute('/nodes', NavigationSource.programmatic)
+          .metadata;
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(
+        'app_restoration_v1:user-1:window-1',
+        jsonEncode(<String, dynamic>{
+          'schemaVersion': AppRestorationService.schemaVersion,
+          'userId': 'user-1',
+          'windowId': 'window-1',
+          'updatedAtMs': DateTime.now().millisecondsSinceEpoch,
+          'routeLocation': '/nodes',
+          navigationLaunchRouteMetadataKey: metadata.toJson(),
+        }),
+      );
+
+      RestorationCoordinator.instance.beginLaunchRestore(
+        reason: RestorationRestoreReason.authResume,
+        targetLocation: '/nodes',
+      );
+
+      await tester.pumpWidget(
+        const MaterialApp(
+          home: SessionTrackedRoute(location: '/', child: Text('calendar')),
+        ),
+      );
+      await tester.pump();
+
+      expect(
+        (await AppRestorationService.instance.readSnapshot())?.routeLocation,
+        '/nodes',
       );
     },
   );
