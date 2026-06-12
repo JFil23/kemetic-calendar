@@ -1957,11 +1957,19 @@ class AppRestorationService {
       'canonical=${metadata.canonicalRoute ?? '<none>'} accepted=true',
     );
     await _mutate((current) {
+      final previous = (current['routeLocation'] as String?)?.trim();
       current['routeLocation'] = normalized;
       current[navigationLaunchRouteMetadataKey] = metadata.toJson();
       if (metadata.isCurrentUserPrimaryDurable) {
         current[navigationPrimarySelectionMetadataKey] = metadata.toJson();
       }
+      _log(
+        'save launch route committed before='
+        '${previous == null || previous.isEmpty ? '<none>' : previous} '
+        'after=$normalized source=${metadata.source.wireName} '
+        'classification=${metadata.routeClass.wireName} '
+        'section=${metadata.section?.wireName ?? '<none>'}',
+      );
     });
   }
 

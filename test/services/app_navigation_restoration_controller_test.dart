@@ -339,6 +339,152 @@ void main() {
     },
   );
 
+  test(
+    'auth initialSession replays deferred Library route after root boot default',
+    () async {
+      await AppNavigationRestorationController.instance.recordVisibleSurface(
+        route: '/nodes',
+      );
+
+      final destination = await AppNavigationRestorationController.instance
+          .restoreDeferredLaunchDestinationAfterAuth(
+            currentRoute: '/',
+            restoreWasDeferredForAuth: true,
+            hasExplicitBootIntent: false,
+          );
+
+      expect(destination, isNotNull);
+      expect(destination!.route, '/nodes');
+      expect(destination.reason, 'valid_durable_metadata');
+      expect(await _durableRoute(), '/nodes');
+    },
+  );
+
+  test(
+    'auth initialSession replays deferred Flow Studio utility route',
+    () async {
+      await AppNavigationRestorationController.instance.recordVisibleSurface(
+        route: '/flows',
+      );
+
+      final destination = await AppNavigationRestorationController.instance
+          .restoreDeferredLaunchDestinationAfterAuth(
+            currentRoute: '/',
+            restoreWasDeferredForAuth: true,
+            hasExplicitBootIntent: false,
+          );
+
+      expect(destination, isNotNull);
+      expect(destination!.route, '/flows');
+      expect(
+        await _durableMetadataJson(),
+        containsPair('routeClass', 'utility'),
+      );
+    },
+  );
+
+  test(
+    'warm cache and calendar restore do not replace deferred durable page',
+    () async {
+      await AppNavigationRestorationController.instance.recordVisibleSurface(
+        route: '/rhythm/today',
+      );
+      await AppRestorationService.instance.saveCalendarState(
+        const CalendarRestorationState(
+          kYear: 6267,
+          kMonth: 3,
+          kDay: 24,
+          showGregorian: false,
+          expansion: 'details',
+          anchorTarget: 'dayChip',
+          anchorAlignment: 0.5,
+          viewportHeight: 700,
+          layoutRevision: 1,
+          scrollOffset: 2400,
+        ),
+      );
+      await AppRestorationService.instance.saveDayViewState(
+        const DayViewRestorationState(
+          isOpen: false,
+          kYear: 6267,
+          kMonth: 3,
+          kDay: 24,
+          showGregorian: false,
+        ),
+      );
+
+      final destination = await AppNavigationRestorationController.instance
+          .restoreDeferredLaunchDestinationAfterAuth(
+            currentRoute: '/',
+            restoreWasDeferredForAuth: true,
+            hasExplicitBootIntent: false,
+          );
+      final snapshot = await AppRestorationService.instance.readSnapshot();
+
+      expect(destination, isNotNull);
+      expect(destination!.route, '/rhythm/today');
+      expect(snapshot?.routeLocation, '/rhythm/today');
+      expect(snapshot?.calendar?.kMonth, 3);
+      expect(snapshot?.calendar?.kDay, 24);
+    },
+  );
+
+  test(
+    'auth deferred replay does not override explicit or user-changed routes',
+    () async {
+      await AppNavigationRestorationController.instance.recordVisibleSurface(
+        route: '/nodes',
+      );
+
+      final explicit = await AppNavigationRestorationController.instance
+          .restoreDeferredLaunchDestinationAfterAuth(
+            currentRoute: '/',
+            restoreWasDeferredForAuth: true,
+            hasExplicitBootIntent: true,
+          );
+      final userChanged = await AppNavigationRestorationController.instance
+          .restoreDeferredLaunchDestinationAfterAuth(
+            currentRoute: '/rhythm/today',
+            restoreWasDeferredForAuth: true,
+            hasExplicitBootIntent: false,
+          );
+
+      expect(explicit, isNull);
+      expect(userChanged, isNull);
+      expect(await _durableRoute(), '/nodes');
+    },
+  );
+
+  test(
+    'root Ma’at Flow Studio overlay survives deferred auth replay',
+    () async {
+      await AppNavigationRestorationController.instance.recordVisibleSurface(
+        route: '/',
+      );
+      await AppRestorationService.instance.saveOverlayStack(
+        const <Map<String, dynamic>>[
+          <String, dynamic>{
+            'kind': 'calendar.flowStudio',
+            'parentRoute': '/',
+            'mode': 'maatFlows',
+          },
+        ],
+      );
+
+      final destination = await AppNavigationRestorationController.instance
+          .restoreDeferredLaunchDestinationAfterAuth(
+            currentRoute: '/',
+            restoreWasDeferredForAuth: true,
+            hasExplicitBootIntent: false,
+          );
+      final snapshot = await AppRestorationService.instance.readSnapshot();
+
+      expect(destination, isNull);
+      expect(snapshot?.routeLocation, '/');
+      expect(snapshot?.overlayStack.single, containsPair('mode', 'maatFlows'));
+    },
+  );
+
   test('calendar didPushNext and dispose cannot persist Inbox', () async {
     for (final source in const <NavigationSource>[
       NavigationSource.calendarDidPushNext,
