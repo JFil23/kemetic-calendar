@@ -1,5 +1,202 @@
 part of 'calendar_page.dart';
 
+enum _FlowStudioMode { build, compose }
+
+class _FlowStudioTone {
+  const _FlowStudioTone({
+    required this.exactColor,
+    required this.softenedAccent,
+    required this.pageGlow,
+    required this.fieldBorder,
+    required this.selectedPill,
+    required this.selectedPillBorder,
+    required this.ctaBg,
+    required this.ctaBorder,
+    required this.ctaText,
+  });
+
+  final Color exactColor;
+  final Color softenedAccent;
+  final Color pageGlow;
+  final Color fieldBorder;
+  final Color selectedPill;
+  final Color selectedPillBorder;
+  final Color ctaBg;
+  final Color ctaBorder;
+  final Color ctaText;
+
+  factory _FlowStudioTone.resolve(Color activeColor) {
+    final hsl = HSLColor.fromColor(activeColor);
+    final softenedAccent = hsl
+        .withSaturation(math.min(hsl.saturation * 0.62, 0.56))
+        .withLightness(0.54)
+        .toColor();
+    const base = Color(0xFF050403);
+    return _FlowStudioTone(
+      exactColor: activeColor,
+      softenedAccent: softenedAccent,
+      pageGlow: softenedAccent.withValues(alpha: 0.16),
+      fieldBorder: softenedAccent.withValues(alpha: 0.16),
+      selectedPill: Color.alphaBlend(
+        softenedAccent.withValues(alpha: 0.12),
+        base,
+      ),
+      selectedPillBorder: softenedAccent.withValues(alpha: 0.24),
+      ctaBg: Color.alphaBlend(softenedAccent.withValues(alpha: 0.13), base),
+      ctaBorder: softenedAccent.withValues(alpha: 0.34),
+      ctaText: Color.lerp(softenedAccent, const Color(0xFFE8D6A8), 0.18)!,
+    );
+  }
+}
+
+class _FlowStudioSpectrumPicker extends StatelessWidget {
+  const _FlowStudioSpectrumPicker({
+    required this.hue,
+    required this.selectedColor,
+    required this.onHueChanged,
+  });
+
+  final double hue;
+  final Color selectedColor;
+  final ValueChanged<double> onHueChanged;
+
+  static Color _colorFromHue(double hueDegrees) {
+    return HSLColor.fromAHSL(1.0, hueDegrees % 360.0, 0.72, 0.48).toColor();
+  }
+
+  void _updateHue(Offset localPosition, double width) {
+    final t = (localPosition.dx / width).clamp(0.0, 1.0);
+    onHueChanged(t * 360.0);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    const barHeight = 28.0;
+    const thumbSize = 34.0;
+    const hitHeight = 44.0;
+    final gradientColors = <Color>[
+      for (final hue in const [
+        0.0,
+        28.0,
+        56.0,
+        105.0,
+        165.0,
+        210.0,
+        245.0,
+        280.0,
+        320.0,
+        360.0,
+      ])
+        _colorFromHue(hue),
+    ];
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final width = math.max(1.0, constraints.maxWidth);
+        final left = ((hue % 360.0) / 360.0) * width;
+        final minThumbLeft = -thumbSize * 0.16;
+        final maxThumbLeft = math.max(minThumbLeft, width - thumbSize * 0.84);
+        return Semantics(
+          label: 'flow-studio-spectrum',
+          slider: true,
+          value: hue.round().toString(),
+          child: GestureDetector(
+            key: const ValueKey('flow-studio-spectrum'),
+            behavior: HitTestBehavior.opaque,
+            onTapDown: (details) => _updateHue(details.localPosition, width),
+            onHorizontalDragStart: (details) =>
+                _updateHue(details.localPosition, width),
+            onHorizontalDragUpdate: (details) =>
+                _updateHue(details.localPosition, width),
+            child: SizedBox(
+              height: hitHeight,
+              child: Stack(
+                clipBehavior: Clip.none,
+                alignment: Alignment.centerLeft,
+                children: [
+                  Positioned.fill(
+                    top: (hitHeight - barHeight) / 2,
+                    bottom: (hitHeight - barHeight) / 2,
+                    child: DecoratedBox(
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(25),
+                        gradient: LinearGradient(colors: gradientColors),
+                        border: Border.all(
+                          color: const Color(
+                            0xFF4A3312,
+                          ).withValues(alpha: 0.45),
+                        ),
+                        boxShadow: const [
+                          BoxShadow(
+                            color: Color(0x99000000),
+                            blurRadius: 8,
+                            offset: Offset(0, 3),
+                          ),
+                        ],
+                      ),
+                      child: DecoratedBox(
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(25),
+                          gradient: const LinearGradient(
+                            begin: Alignment.topCenter,
+                            end: Alignment.bottomCenter,
+                            colors: [
+                              Color(0x22FFFFFF),
+                              Color(0x00000000),
+                              Color(0x33000000),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                  Positioned(
+                    left: (left - thumbSize / 2).clamp(
+                      minThumbLeft,
+                      maxThumbLeft,
+                    ),
+                    child: Container(
+                      key: const ValueKey('flow-studio-spectrum-thumb'),
+                      width: thumbSize,
+                      height: thumbSize,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: const Color(0xFFF4EBDD),
+                        boxShadow: [
+                          BoxShadow(
+                            color: selectedColor.withValues(alpha: 0.32),
+                            blurRadius: 12,
+                            spreadRadius: 1,
+                          ),
+                          const BoxShadow(
+                            color: Color(0xAA000000),
+                            blurRadius: 8,
+                            offset: Offset(0, 3),
+                          ),
+                        ],
+                      ),
+                      padding: const EdgeInsets.all(4),
+                      child: DecoratedBox(
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: selectedColor,
+                          border: Border.all(
+                            color: Colors.white.withValues(alpha: 0.18),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+}
+
 class _FlowStudioPage extends StatefulWidget {
   const _FlowStudioPage({
     required this.existingFlows,
@@ -9,6 +206,8 @@ class _FlowStudioPage extends StatefulWidget {
     this.onContinuityChanged,
     this.onRouteResult,
     this.onRouteClose,
+    this.debugInitialDraftJson,
+    this.debugDisableDraftPersistence = false,
   });
 
   final List<_Flow> existingFlows;
@@ -18,9 +217,30 @@ class _FlowStudioPage extends StatefulWidget {
   final ValueChanged<Map<String, dynamic>>? onContinuityChanged;
   final Future<void> Function(_FlowStudioResult result)? onRouteResult;
   final FutureOr<void> Function()? onRouteClose;
+  final Map<String, dynamic>? debugInitialDraftJson;
+  final bool debugDisableDraftPersistence;
 
   @override
   State<_FlowStudioPage> createState() => _FlowStudioPageState();
+}
+
+@visibleForTesting
+Widget debugBuildFlowStudioPageForTest({
+  ImportFlowData? importData,
+  int? editFlowId,
+  Map<String, dynamic>? initialDraftJson,
+  Future<void> Function(dynamic result)? onRouteResult,
+}) {
+  return _FlowStudioPage(
+    existingFlows: const <_Flow>[],
+    editFlowId: editFlowId,
+    importData: importData,
+    onRouteResult: onRouteResult == null
+        ? null
+        : (result) => onRouteResult(result),
+    debugInitialDraftJson: initialDraftJson,
+    debugDisableDraftPersistence: true,
+  );
 }
 
 class _FlowStudioPageState extends State<_FlowStudioPage>
@@ -38,7 +258,23 @@ class _FlowStudioPageState extends State<_FlowStudioPage>
 
   // color + mode
   int _selectedColorIndex = 0;
+  _FlowStudioMode _studioMode = _FlowStudioMode.build;
+  double _buildHue = HSLColor.fromColor(_flowPalette[0]).hue;
+  Color? _buildExactColorBeforeDrag = _flowPalette[0];
+  bool _buildColorWasDragged = false;
+  double? _composeHue;
+  Color? _composeExactColorBeforeDrag;
+  bool _composeColorWasDragged = false;
   bool _useKemetic = false; // false = Gregorian, true = Kemetic
+
+  final TextEditingController _composePromptCtrl = TextEditingController();
+  bool _composeUseKemetic = false;
+  DateTime? _composeStartDate, _composeEndDate;
+  bool _composeManualDateRangeEdited = false;
+  bool _composeInitialized = false;
+  bool _composeGenerating = false;
+  String? _composeError;
+  AIFlowGenerationService? _composeAiService;
 
   // date range (Gregorian local, date-only)
   DateTime? _startDate, _endDate;
@@ -48,7 +284,7 @@ class _FlowStudioPageState extends State<_FlowStudioPage>
   // Readiness gate: only allow sync when the editor's state is fully initialized.
   bool _syncReady = false;
 
-  // Single source-of-truth for day keys used by _draftsByDay.
+  // Stable key for draft storage; active editor groups remain the source of truth.
   static String dayKey(int ky, int km, int kd) => '$ky-$km-$kd';
 
   // "same for all" selections
@@ -63,6 +299,7 @@ class _FlowStudioPageState extends State<_FlowStudioPage>
 
   // Loading flag for async flow loading
   bool _isLoadingFlow = false;
+  bool _closeInFlight = false;
 
   // cached spans + per-period selections
   List<_KemeticDecanSpan> _kemeticSpans = const [];
@@ -161,6 +398,166 @@ class _FlowStudioPageState extends State<_FlowStudioPage>
   // ---------- tiny utilities (local to this page) ----------
 
   static DateTime _dateOnly(DateTime d) => DateUtils.dateOnly(d);
+
+  static Color _flowStudioColorFromHue(double hueDegrees) {
+    return HSLColor.fromAHSL(1.0, hueDegrees % 360.0, 0.72, 0.48).toColor();
+  }
+
+  static String _flowStudioHex(Color color) {
+    final rgb = color.toARGB32() & 0x00FFFFFF;
+    return '#${rgb.toRadixString(16).padLeft(6, '0')}';
+  }
+
+  static String _flowStudioColorNameForHue(double hue) {
+    final normalized = hue % 360.0;
+    if (normalized < 12 || normalized >= 345) return 'CRIMSON';
+    if (normalized < 28) return 'VERMILION';
+    if (normalized < 45) return 'EMBER';
+    if (normalized < 62) return 'AMBER';
+    if (normalized < 82) return 'GOLD';
+    if (normalized < 115) return 'GREEN';
+    if (normalized < 150) return 'JADE';
+    if (normalized < 180) return 'TEAL';
+    if (normalized < 205) return 'CYAN';
+    if (normalized < 230) return 'SKY';
+    if (normalized < 255) return 'INDIGO';
+    if (normalized < 285) return 'VIOLET';
+    if (normalized < 320) return 'MAGENTA';
+    return 'ROSE';
+  }
+
+  static double _hueForColor(Color color) => HSLColor.fromColor(color).hue;
+
+  static int _nearestFlowPaletteIndex(Color color) {
+    final target = color.toARGB32() & 0x00FFFFFF;
+    var bestIndex = 0;
+    var bestDistance = double.infinity;
+    for (var i = 0; i < _flowPalette.length; i++) {
+      final current = _flowPalette[i].toARGB32() & 0x00FFFFFF;
+      final tr = (target >> 16) & 0xFF;
+      final tg = (target >> 8) & 0xFF;
+      final tb = target & 0xFF;
+      final cr = (current >> 16) & 0xFF;
+      final cg = (current >> 8) & 0xFF;
+      final cb = current & 0xFF;
+      final distance =
+          math.pow(tr - cr, 2) + math.pow(tg - cg, 2) + math.pow(tb - cb, 2);
+      if (distance < bestDistance) {
+        bestDistance = distance.toDouble();
+        bestIndex = i;
+      }
+    }
+    return bestIndex;
+  }
+
+  Color get _buildColor {
+    if (!_buildColorWasDragged && _buildExactColorBeforeDrag != null) {
+      return _buildExactColorBeforeDrag!;
+    }
+    return _flowStudioColorFromHue(_buildHue);
+  }
+
+  Color get _composeColor {
+    if (!_composeColorWasDragged && _composeExactColorBeforeDrag != null) {
+      return _composeExactColorBeforeDrag!;
+    }
+    return _flowStudioColorFromHue(_composeHue ?? _buildHue);
+  }
+
+  Color get _activeStudioColor =>
+      _studioMode == _FlowStudioMode.build ? _buildColor : _composeColor;
+
+  double get _activeStudioHue => _studioMode == _FlowStudioMode.build
+      ? _buildHue
+      : (_composeHue ?? _buildHue);
+
+  void _setBuildExactColor(Color color) {
+    _buildHue = _hueForColor(color);
+    _buildExactColorBeforeDrag = color;
+    _buildColorWasDragged = false;
+    _selectedColorIndex = _nearestFlowPaletteIndex(color);
+  }
+
+  void _setComposeExactColor(Color color) {
+    _composeHue = _hueForColor(color);
+    _composeExactColorBeforeDrag = color;
+    _composeColorWasDragged = false;
+  }
+
+  void _setActiveStudioHue(double hue) {
+    setState(() {
+      if (_studioMode == _FlowStudioMode.build) {
+        _buildHue = hue;
+        _buildColorWasDragged = true;
+        _buildExactColorBeforeDrag = null;
+        _selectedColorIndex = _nearestFlowPaletteIndex(_buildColor);
+      } else {
+        _composeHue = hue;
+        _composeColorWasDragged = true;
+        _composeExactColorBeforeDrag = null;
+      }
+    });
+    _schedulePersistentDraftSave();
+  }
+
+  void _ensureComposeInitialized() {
+    if (_composeInitialized) return;
+    _composeInitialized = true;
+    _composeUseKemetic = _useKemetic;
+    _composeStartDate = _startDate;
+    _composeEndDate = _endDate;
+    _composeManualDateRangeEdited = _hasFullRange;
+    _setComposeExactColor(_buildColor);
+  }
+
+  void _setStudioMode(_FlowStudioMode mode) {
+    setState(() {
+      if (mode == _FlowStudioMode.compose) {
+        _ensureComposeInitialized();
+      }
+      _studioMode = mode;
+    });
+    _markFlowEditorVisible();
+    _schedulePersistentDraftSave();
+  }
+
+  String _composePromptTitleFallback() {
+    final words = _composePromptCtrl.text
+        .trim()
+        .split(RegExp(r'\s+'))
+        .where((word) => word.isNotEmpty)
+        .take(6)
+        .toList(growable: false);
+    if (words.isEmpty) return '';
+    final title = words
+        .map((word) {
+          if (word.length == 1) return word.toUpperCase();
+          return '${word[0].toUpperCase()}${word.substring(1)}';
+        })
+        .join(' ');
+    return title.length <= 48 ? title : title.substring(0, 48).trimRight();
+  }
+
+  void _switchComposeToManualBuild() {
+    final range = _composeEffectiveDateRange();
+    setState(() {
+      _studioMode = _FlowStudioMode.build;
+      _composeGenerating = false;
+      _composeError = null;
+      _setBuildExactColor(_composeColor);
+      _useKemetic = _composeUseKemetic;
+      _startDate = range.startDate;
+      _endDate = range.endDate;
+      _dateRangeEditedInCurrentEditor = true;
+      final fallbackTitle = _composePromptTitleFallback();
+      if (_nameCtrl.text.trim().isEmpty && fallbackTitle.isNotEmpty) {
+        _nameCtrl.text = fallbackTitle;
+      }
+    });
+    _applySelectionToDrafts();
+    _markFlowEditorVisible();
+    _schedulePersistentDraftSave();
+  }
 
   int _toMinutes(TimeOfDay t) => t.hour * 60 + t.minute;
   TimeOfDay _addMinutes(TimeOfDay t, int delta) {
@@ -292,6 +689,10 @@ class _FlowStudioPageState extends State<_FlowStudioPage>
     final hasContent =
         _nameCtrl.text.trim().isNotEmpty ||
         _overviewCtrl.text.trim().isNotEmpty ||
+        _composePromptCtrl.text.trim().isNotEmpty ||
+        _studioMode != _FlowStudioMode.build ||
+        _buildColorWasDragged ||
+        _composeInitialized ||
         _draftsByDay.isNotEmpty ||
         _draftsByPattern.isNotEmpty ||
         _startDate != null ||
@@ -315,6 +716,18 @@ class _FlowStudioPageState extends State<_FlowStudioPage>
       name: _nameCtrl.text,
       active: _active,
       selectedColorIndex: _selectedColorIndex,
+      studioMode: _studioMode.name,
+      buildHue: _buildHue,
+      buildColorArgb: _buildColor.toARGB32(),
+      buildColorWasDragged: _buildColorWasDragged,
+      composeHue: _composeHue,
+      composeColorArgb: _composeInitialized ? _composeColor.toARGB32() : null,
+      composeColorWasDragged: _composeColorWasDragged,
+      composePrompt: _composePromptCtrl.text,
+      composeUseKemetic: _composeUseKemetic,
+      composeStartDate: _composeStartDate,
+      composeEndDate: _composeEndDate,
+      composeManualDateRangeEdited: _composeManualDateRangeEdited,
       useKemetic: _useKemetic,
       startDate: _startDate,
       endDate: _endDate,
@@ -365,6 +778,44 @@ class _FlowStudioPageState extends State<_FlowStudioPage>
         0,
         _flowPalette.length - 1,
       );
+      final legacyColor = _flowPalette[_selectedColorIndex];
+      if (draft.buildColorArgb != null) {
+        final color = Color(draft.buildColorArgb!);
+        _buildHue = draft.buildHue ?? _hueForColor(color);
+        _buildColorWasDragged = draft.buildColorWasDragged;
+        _buildExactColorBeforeDrag = draft.buildColorWasDragged ? null : color;
+      } else if (draft.buildHue != null) {
+        _buildHue = draft.buildHue!;
+        _buildColorWasDragged = true;
+        _buildExactColorBeforeDrag = null;
+      } else {
+        _setBuildExactColor(legacyColor);
+      }
+      _composePromptCtrl.text = draft.composePrompt;
+      _composeUseKemetic = draft.composeUseKemetic;
+      _composeStartDate = draft.composeStartDate;
+      _composeEndDate = draft.composeEndDate;
+      _composeManualDateRangeEdited = draft.composeManualDateRangeEdited;
+      _composeInitialized =
+          draft.composeHue != null ||
+          draft.composeColorArgb != null ||
+          draft.composePrompt.trim().isNotEmpty ||
+          draft.studioMode == _FlowStudioMode.compose.name;
+      if (draft.composeColorArgb != null) {
+        final color = Color(draft.composeColorArgb!);
+        _composeHue = draft.composeHue ?? _hueForColor(color);
+        _composeColorWasDragged = draft.composeColorWasDragged;
+        _composeExactColorBeforeDrag = draft.composeColorWasDragged
+            ? null
+            : color;
+      } else {
+        _composeHue = draft.composeHue;
+        _composeColorWasDragged = draft.composeHue != null;
+        _composeExactColorBeforeDrag = null;
+      }
+      _studioMode = draft.studioMode == _FlowStudioMode.compose.name
+          ? _FlowStudioMode.compose
+          : _FlowStudioMode.build;
       _useKemetic = draft.useKemetic;
       _startDate = draft.startDate;
       _endDate = draft.endDate;
@@ -444,17 +895,28 @@ class _FlowStudioPageState extends State<_FlowStudioPage>
     _installDraftListeners();
   }
 
+  void _setImportNameControllerText(String name) {
+    if (_nameControllerReady) {
+      _nameCtrl.text = name;
+      return;
+    }
+    _nameCtrl = TextEditingController(text: name);
+    _markNameControllerReady();
+  }
+
   void _installDraftListeners() {
     if (!_nameControllerReady || _draftListenersInstalled) return;
     _draftListenersInstalled = true;
     _nameCtrl.addListener(_schedulePersistentDraftSave);
     _overviewCtrl.addListener(_schedulePersistentDraftSave);
+    _composePromptCtrl.addListener(_schedulePersistentDraftSave);
   }
 
   void _markFlowEditorVisible() {
     final state = <String, dynamic>{
       'mode': _kFlowStudioModeEditor,
       if (widget.editFlowId != null) 'editFlowId': widget.editFlowId,
+      'studioMode': _studioMode.name,
     };
     final onContinuityChanged = widget.onContinuityChanged;
     if (onContinuityChanged != null) {
@@ -472,7 +934,11 @@ class _FlowStudioPageState extends State<_FlowStudioPage>
   }
 
   void _schedulePersistentDraftSave() {
-    if (_suppressDraftSave || !_nameControllerReady) return;
+    if (widget.debugDisableDraftPersistence ||
+        _suppressDraftSave ||
+        !_nameControllerReady) {
+      return;
+    }
     _draftPersistDebounce?.cancel();
     _draftPersistDebounce = Timer(const Duration(milliseconds: 500), () {
       unawaited(_persistDraftNow(reason: 'debounced'));
@@ -480,7 +946,11 @@ class _FlowStudioPageState extends State<_FlowStudioPage>
   }
 
   Future<void> _persistDraftNow({required String reason}) async {
-    if (_suppressDraftSave || !_nameControllerReady) return;
+    if (widget.debugDisableDraftPersistence ||
+        _suppressDraftSave ||
+        !_nameControllerReady) {
+      return;
+    }
     final draft = _captureDraft();
     if (draft == null) {
       await AppRestorationService.instance.saveEditorState(
@@ -587,47 +1057,6 @@ class _FlowStudioPageState extends State<_FlowStudioPage>
     }
   }
 
-  List<_EditorGroup> _groupsFromDraftsFallback() {
-    if (_draftsByDay.isEmpty) return const [];
-    final out = <_EditorGroup>[];
-
-    for (final entry in _draftsByDay.entries) {
-      final key = entry.key; // "ky-km-kd"
-      final parts = key.split('-');
-      if (parts.length != 3) continue;
-
-      final ky = int.tryParse(parts[0]) ?? 0;
-      final km = int.tryParse(parts[1]) ?? 0;
-      final kd = int.tryParse(parts[2]) ?? 0;
-
-      // Skip invalid kemetic keys
-      if (ky <= 0 || km <= 0 || kd <= 0) continue;
-
-      // Convert to Gregorian; skip if conversion fails (throws ArgumentError)
-      DateTime g;
-      try {
-        g = KemeticMath.toGregorian(ky, km, kd);
-      } catch (_) {
-        continue; // Invalid date, skip this entry
-      }
-
-      final header =
-          '${getMonthById(km).displayFull} $kd  •  ${_fmtGregorian(g)}';
-
-      out.add(
-        _EditorGroup(
-          key: key,
-          isPattern: false,
-          header: header,
-          days: [_SelectedDay(key, ky, km, kd, g)],
-        ),
-      );
-    }
-
-    out.sort((a, b) => a.key.compareTo(b.key));
-    return out;
-  }
-
   List<_SelectedDay> _computeSelectedDays() {
     final out = <_SelectedDay>[];
     if (!_hasFullRange) return out;
@@ -693,6 +1122,27 @@ class _FlowStudioPageState extends State<_FlowStudioPage>
     return out;
   }
 
+  bool _draftHasUserContent(_NoteDraft draft) {
+    return draft.titleCtrl.text.trim().isNotEmpty ||
+        draft.locationCtrl.text.trim().isNotEmpty ||
+        draft.detailCtrl.text.trim().isNotEmpty ||
+        draft.category != null ||
+        draft.actionId != null ||
+        draft.behaviorPayload != null;
+  }
+
+  bool _draftListHasUserContent(List<_NoteDraft>? drafts) {
+    if (drafts == null) return false;
+    return drafts.any(_draftHasUserContent);
+  }
+
+  void _disposeDraftList(List<_NoteDraft>? drafts) {
+    if (drafts == null) return;
+    for (final draft in drafts) {
+      draft.dispose();
+    }
+  }
+
   // Keep drafts in sync with the active groups.
   void _syncDraftsWithSelection() {
     // Hard gate: never sync while not ready.
@@ -706,17 +1156,17 @@ class _FlowStudioPageState extends State<_FlowStudioPage>
     };
 
     if (_hasFullRange) {
-      // Remove only keys that are NOT wanted AND are empty shells.
+      // Active groups decide what renders and saves. Meaningful deselected
+      // drafts may stay cached for accidental reselect/system toggles, but
+      // empty shells are removed immediately.
       final removeDay = _draftsByDay.keys
           .where((k) => !wantDayKeys.contains(k))
           .toList();
 
       for (final k in removeDay) {
         final list = _draftsByDay[k];
-        if (list == null || list.isEmpty) {
-          for (final draft in list ?? []) {
-            draft.dispose();
-          }
+        if (!_draftListHasUserContent(list)) {
+          _disposeDraftList(list);
           _draftsByDay.remove(k);
         }
       }
@@ -737,7 +1187,7 @@ class _FlowStudioPageState extends State<_FlowStudioPage>
         }
       }
     }
-    // When !_hasFullRange: do not remove/seed; fallback render will show seeded shells.
+    // When !_hasFullRange: do not remove/seed; no active groups render.
 
     // Pattern-draft syncing (repeat mode).
     final wantPatKeys = {
@@ -749,8 +1199,11 @@ class _FlowStudioPageState extends State<_FlowStudioPage>
           .where((k) => !wantPatKeys.contains(k))
           .toList();
       for (final k in removePat) {
-        _draftsByPattern[k]?.dispose();
-        _draftsByPattern.remove(k);
+        final draft = _draftsByPattern[k];
+        if (draft == null || !_draftHasUserContent(draft)) {
+          draft?.dispose();
+          _draftsByPattern.remove(k);
+        }
       }
     }
     for (final k in wantPatKeys) {
@@ -1613,17 +2066,9 @@ class _FlowStudioPageState extends State<_FlowStudioPage>
   }
 
   Widget _notesEditorsPanel() {
-    List<_EditorGroup> groups = _buildEditorGroups();
+    final groups = _buildEditorGroups();
     const fieldScrollPadding = keyboardManagedTextFieldScrollPadding;
-    // Fallback: if selection/range isn't ready but drafts exist, render from drafts.
-    if (groups.isEmpty) {
-      if (_draftsByDay.isNotEmpty) {
-        groups = _groupsFromDraftsFallback();
-        if (groups.isEmpty) return const SizedBox.shrink();
-      } else {
-        return const SizedBox.shrink();
-      }
-    }
+    if (groups.isEmpty) return const SizedBox.shrink();
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -1988,7 +2433,7 @@ class _FlowStudioPageState extends State<_FlowStudioPage>
       id: _editing?.id ?? -1,
       calendarId: selectedCalendarId,
       name: name,
-      color: _flowPalette[_selectedColorIndex],
+      color: _buildColor,
       active: _active,
       rules: rulesToSave, // ✅ Empty rules for non-AI imports
       start: _startDate,
@@ -2250,7 +2695,19 @@ class _FlowStudioPageState extends State<_FlowStudioPage>
       _selectedCalendarId = _defaultCalendarId();
       _nameCtrl.text = '';
       _active = true;
-      _selectedColorIndex = 0;
+      _studioMode = _FlowStudioMode.build;
+      _setBuildExactColor(_flowPalette[0]);
+      _composePromptCtrl.clear();
+      _composeUseKemetic = false;
+      _composeStartDate = null;
+      _composeEndDate = null;
+      _composeManualDateRangeEdited = false;
+      _composeInitialized = false;
+      _composeHue = null;
+      _composeExactColorBeforeDrag = null;
+      _composeColorWasDragged = false;
+      _composeGenerating = false;
+      _composeError = null;
       _useKemetic = false;
       _startDate = null;
       _endDate = null;
@@ -2298,18 +2755,8 @@ class _FlowStudioPageState extends State<_FlowStudioPage>
       _selectedCalendarId = f.calendarId ?? _defaultCalendarId();
       _nameCtrl.text = f.name;
       _active = f.active;
-
-      final idx = _flowPalette.indexWhere(
-        (c) => c.toARGB32() == f.color.toARGB32(),
-      );
-      _selectedColorIndex = idx >= 0 ? idx : 0;
-
-      // Add debug logging for color not found
-      if (kDebugMode && idx < 0) {
-        _calendarDebugPrint(
-          '[loadFlowForEdit] Color ${f.color.toARGB32().toRadixString(16)} not found in palette, defaulting to index 0',
-        );
-      }
+      _studioMode = _FlowStudioMode.build;
+      _setBuildExactColor(f.color);
 
       _startDate = f.start == null ? null : _dateOnly(f.start!);
       _endDate = f.end == null ? null : _dateOnly(f.end!);
@@ -2491,11 +2938,8 @@ class _FlowStudioPageState extends State<_FlowStudioPage>
           _selectedCalendarId = flowObj.calendarId ?? _defaultCalendarId();
           _nameCtrl.text = flowObj.name;
           _active = flowObj.active;
-
-          final idx = _flowPalette.indexWhere(
-            (c) => c.toARGB32() == flowObj.color.toARGB32(),
-          );
-          _selectedColorIndex = idx >= 0 ? idx : 0;
+          _studioMode = _FlowStudioMode.build;
+          _setBuildExactColor(flowObj.color);
 
           _overviewCtrl.text = _effectiveOverview(flowObj.notes, meta.overview);
 
@@ -2549,12 +2993,8 @@ class _FlowStudioPageState extends State<_FlowStudioPage>
         // Header fields only
         _nameCtrl.text = flowObj.name;
         _active = flowObj.active;
-
-        // Color picker
-        final idx = _flowPalette.indexWhere(
-          (c) => c.toARGB32() == flowObj.color.toARGB32(),
-        );
-        _selectedColorIndex = idx >= 0 ? idx : 0;
+        _studioMode = _FlowStudioMode.build;
+        _setBuildExactColor(flowObj.color);
 
         // Overview
         _overviewCtrl.text = _effectiveOverview(flowObj.notes, meta.overview);
@@ -2868,11 +3308,8 @@ class _FlowStudioPageState extends State<_FlowStudioPage>
       _selectedCalendarId = f.calendarId ?? _defaultCalendarId();
       _nameCtrl.text = f.name;
       _active = f.active;
-
-      final idx = _flowPalette.indexWhere(
-        (c) => c.toARGB32() == f.color.toARGB32(),
-      );
-      _selectedColorIndex = idx >= 0 ? idx : 0;
+      _studioMode = _FlowStudioMode.build;
+      _setBuildExactColor(f.color);
 
       _overviewCtrl.text = _effectiveOverview(f.notes, meta.overview);
 
@@ -3077,8 +3514,7 @@ class _FlowStudioPageState extends State<_FlowStudioPage>
 
   /// Initialize Flow Studio from inbox import data
   Future<void> _initializeFromImport(ImportFlowData data) async {
-    _nameCtrl = TextEditingController(text: data.name);
-    _markNameControllerReady();
+    _setImportNameControllerText(data.name);
     _active = true;
     _isLoadingFlow = true;
     setState(() {});
@@ -3086,11 +3522,8 @@ class _FlowStudioPageState extends State<_FlowStudioPage>
     try {
       await _ensureCalendarChoicesLoaded();
       _selectedCalendarId = data.calendarId ?? _defaultCalendarId();
-
-      final colorIdx = _flowPalette.indexWhere(
-        (c) => c.toARGB32() == data.color,
-      );
-      _selectedColorIndex = colorIdx >= 0 ? colorIdx : 0;
+      _studioMode = _FlowStudioMode.build;
+      _setBuildExactColor(Color(data.color));
 
       _startDate = data.suggestedStartDate != null
           ? _dateOnly(data.suggestedStartDate!)
@@ -3228,6 +3661,9 @@ class _FlowStudioPageState extends State<_FlowStudioPage>
           setState(() {
             _syncReady = true;
           });
+          if (_hasFullRange) {
+            _syncDraftsWithSelection();
+          }
         } else {
           _syncReady = true;
         }
@@ -3321,6 +3757,7 @@ class _FlowStudioPageState extends State<_FlowStudioPage>
       _markNameControllerReady();
       _selectedCalendarId = _defaultCalendarId();
       _active = true;
+      _setBuildExactColor(_flowPalette[0]);
       _useKemetic = false;
       _splitByPeriod = true;
       _flowAlertMinutesBefore = _alertNoneMinutes;
@@ -3331,6 +3768,13 @@ class _FlowStudioPageState extends State<_FlowStudioPage>
       if (_sessionDraft != null) {
         _restoreDraft(_sessionDraft!);
         _sessionDraft = null;
+      } else if (widget.debugInitialDraftJson != null) {
+        final draft = _FlowStudioDraft.fromJson(widget.debugInitialDraftJson);
+        if (draft != null) {
+          _restoreDraft(draft);
+        }
+      } else if (widget.debugDisableDraftPersistence) {
+        // Test-only direct mounts avoid long-lived restoration futures.
       } else {
         unawaited(_restorePersistentDraftIfAny());
       }
@@ -3342,7 +3786,9 @@ class _FlowStudioPageState extends State<_FlowStudioPage>
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
     _draftPersistDebounce?.cancel();
-    if (!_suppressDraftSave) {
+    if (widget.debugDisableDraftPersistence) {
+      _sessionDraft = null;
+    } else if (!_suppressDraftSave) {
       _sessionDraft = _captureDraft();
       unawaited(_persistDraftNow(reason: 'dispose'));
     } else {
@@ -3358,9 +3804,11 @@ class _FlowStudioPageState extends State<_FlowStudioPage>
     if (_draftListenersInstalled) {
       _nameCtrl.removeListener(_schedulePersistentDraftSave);
       _overviewCtrl.removeListener(_schedulePersistentDraftSave);
+      _composePromptCtrl.removeListener(_schedulePersistentDraftSave);
     }
     _nameCtrl.dispose();
     _overviewCtrl.dispose();
+    _composePromptCtrl.dispose();
     for (final dayList in _draftsByDay.values) {
       for (final d in dayList) {
         d.dispose();
@@ -3373,6 +3821,628 @@ class _FlowStudioPageState extends State<_FlowStudioPage>
   }
 
   // ---------- UI bits ----------
+
+  Widget _studioSectionLabel(String text, {String? trailing}) {
+    return Row(
+      children: [
+        Text(
+          text.toUpperCase(),
+          style: const TextStyle(
+            color: Color(0xFF6F604A),
+            fontSize: 12,
+            fontWeight: FontWeight.w700,
+            letterSpacing: 4,
+          ),
+        ),
+        if (trailing != null) ...[
+          const SizedBox(width: 8),
+          Text(
+            trailing,
+            style: const TextStyle(
+              color: Color(0xFF6F604A),
+              fontSize: 14,
+              fontStyle: FontStyle.italic,
+              fontFamily: 'GentiumPlus',
+            ),
+          ),
+        ],
+      ],
+    );
+  }
+
+  InputDecoration _studioInputDecoration({
+    required _FlowStudioTone tone,
+    String? hint,
+    double radius = 18,
+  }) {
+    return InputDecoration(
+      hintText: hint,
+      hintStyle: const TextStyle(color: Color(0xFF6F604A)),
+      filled: true,
+      fillColor: Color.alphaBlend(
+        tone.softenedAccent.withValues(alpha: 0.035),
+        const Color(0xFF050403),
+      ),
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(radius),
+        borderSide: BorderSide(color: tone.fieldBorder),
+      ),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(radius),
+        borderSide: BorderSide(color: tone.fieldBorder),
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(radius),
+        borderSide: BorderSide(
+          color: tone.softenedAccent.withValues(alpha: 0.44),
+          width: 1.25,
+        ),
+      ),
+    );
+  }
+
+  Widget _studioModeToggle(_FlowStudioTone tone) {
+    Widget segment({
+      required _FlowStudioMode mode,
+      required IconData icon,
+      required String label,
+    }) {
+      final selected = _studioMode == mode;
+      return Expanded(
+        child: Padding(
+          padding: const EdgeInsets.all(3),
+          child: InkWell(
+            key: ValueKey(
+              mode == _FlowStudioMode.build
+                  ? 'flow-studio-mode-build'
+                  : 'flow-studio-mode-compose',
+            ),
+            borderRadius: BorderRadius.circular(20),
+            onTap: () => _setStudioMode(mode),
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 180),
+              height: 40,
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(20),
+                color: selected ? tone.selectedPill : Colors.transparent,
+                border: Border.all(
+                  color: selected
+                      ? tone.selectedPillBorder
+                      : Colors.transparent,
+                ),
+                boxShadow: selected
+                    ? [
+                        BoxShadow(
+                          color: tone.softenedAccent.withValues(alpha: 0.07),
+                          blurRadius: 10,
+                          spreadRadius: 1,
+                        ),
+                      ]
+                    : null,
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(
+                    icon,
+                    size: 16,
+                    color: selected ? _gold : const Color(0xFF756A59),
+                  ),
+                  const SizedBox(width: 7),
+                  Text(
+                    label,
+                    style: TextStyle(
+                      color: selected ? _gold : const Color(0xFF756A59),
+                      fontSize: 17,
+                      fontWeight: FontWeight.w600,
+                      fontFamily: 'GentiumPlus',
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      );
+    }
+
+    return Container(
+      height: 46,
+      decoration: BoxDecoration(
+        color: const Color(0xFF070703),
+        borderRadius: BorderRadius.circular(23),
+        border: Border.all(color: const Color(0xFF33260E)),
+      ),
+      child: Row(
+        children: [
+          segment(
+            mode: _FlowStudioMode.build,
+            icon: Icons.edit_outlined,
+            label: 'Build',
+          ),
+          segment(
+            mode: _FlowStudioMode.compose,
+            icon: Icons.auto_awesome,
+            label: 'Compose',
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _colorStudioSection(_FlowStudioTone tone) {
+    final color = _activeStudioColor;
+    final hue = _activeStudioHue;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _studioSectionLabel('Color'),
+        const SizedBox(height: 12),
+        _FlowStudioSpectrumPicker(
+          hue: hue,
+          selectedColor: color,
+          onHueChanged: _setActiveStudioHue,
+        ),
+        const SizedBox(height: 14),
+        _colorReadoutCard(tone, color, hue),
+      ],
+    );
+  }
+
+  Widget _colorReadoutCard(_FlowStudioTone tone, Color color, double hue) {
+    return Container(
+      height: 48,
+      padding: const EdgeInsets.symmetric(horizontal: 14),
+      decoration: BoxDecoration(
+        color: const Color(0xFF050403),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: tone.fieldBorder),
+      ),
+      child: Row(
+        children: [
+          Container(
+            key: const ValueKey('flow-studio-color-preview-dot'),
+            width: 26,
+            height: 26,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: color,
+              boxShadow: [
+                BoxShadow(
+                  color: color.withValues(alpha: 0.18),
+                  blurRadius: 8,
+                  spreadRadius: 1,
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 14),
+          Text(
+            _flowStudioHex(color),
+            key: const ValueKey('flow-studio-color-hex'),
+            style: TextStyle(
+              color: color,
+              fontSize: 14,
+              fontStyle: FontStyle.italic,
+              fontFamily: 'GentiumPlus',
+            ),
+          ),
+          const Spacer(),
+          Text(
+            _flowStudioColorNameForHue(hue),
+            key: const ValueKey('flow-studio-color-name'),
+            style: TextStyle(
+              color: color.withValues(alpha: 0.82),
+              fontSize: 12,
+              fontWeight: FontWeight.w700,
+              letterSpacing: 4,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _studioCta({
+    required _FlowStudioTone tone,
+    required String text,
+    required VoidCallback? onPressed,
+    required Key key,
+    bool busy = false,
+  }) {
+    return SizedBox(
+      key: key,
+      height: 58,
+      width: double.infinity,
+      child: OutlinedButton(
+        onPressed: busy ? null : onPressed,
+        style: OutlinedButton.styleFrom(
+          backgroundColor: tone.ctaBg,
+          foregroundColor: tone.ctaText,
+          side: BorderSide(color: tone.ctaBorder),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(14),
+          ),
+        ),
+        child: busy
+            ? const SizedBox(
+                width: 22,
+                height: 22,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              )
+            : Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Icon(Icons.auto_awesome, size: 20),
+                  const SizedBox(width: 14),
+                  Text(
+                    text,
+                    style: const TextStyle(
+                      fontSize: 26,
+                      fontWeight: FontWeight.w600,
+                      fontFamily: 'GentiumPlus',
+                    ),
+                  ),
+                ],
+              ),
+      ),
+    );
+  }
+
+  Widget _studioTopTintFade(_FlowStudioTone tone) {
+    return SizedBox(
+      height: 0,
+      child: OverflowBox(
+        alignment: Alignment.topCenter,
+        minHeight: 0,
+        maxHeight: 360,
+        child: IgnorePointer(
+          child: Container(
+            height: 360,
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [
+                  tone.softenedAccent.withValues(alpha: 0.18),
+                  tone.softenedAccent.withValues(alpha: 0.10),
+                  tone.softenedAccent.withValues(alpha: 0.04),
+                  Colors.transparent,
+                ],
+                stops: const [0.0, 0.34, 0.64, 1.0],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _systemPillToggle({
+    required _FlowStudioTone tone,
+    required bool useKemetic,
+    required ValueChanged<bool> onChanged,
+  }) {
+    Widget item(bool itemUsesKemetic, String label) {
+      final selected = useKemetic == itemUsesKemetic;
+      return Expanded(
+        child: InkWell(
+          borderRadius: BorderRadius.circular(17),
+          onTap: () => onChanged(itemUsesKemetic),
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 160),
+            height: 34,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(17),
+              color: selected ? tone.selectedPill : Colors.transparent,
+              border: Border.all(
+                color: selected ? tone.selectedPillBorder : Colors.transparent,
+              ),
+            ),
+            child: Text(
+              label,
+              style: TextStyle(
+                color: selected ? _gold : const Color(0xFF776B5B),
+                fontSize: 16,
+                fontFamily: 'GentiumPlus',
+              ),
+            ),
+          ),
+        ),
+      );
+    }
+
+    return SizedBox(
+      height: 40,
+      child: Container(
+        padding: const EdgeInsets.all(3),
+        decoration: BoxDecoration(
+          color: const Color(0xFF080703),
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: tone.fieldBorder),
+        ),
+        child: Row(children: [item(true, 'Kemetic'), item(false, 'Gregorian')]),
+      ),
+    );
+  }
+
+  Widget _composeSystemToggle(_FlowStudioTone tone) {
+    return _systemPillToggle(
+      tone: tone,
+      useKemetic: _composeUseKemetic,
+      onChanged: (value) => setState(() => _composeUseKemetic = value),
+    );
+  }
+
+  Future<void> _pickComposeRangeStart() async {
+    final picked = _composeUseKemetic
+        ? await _pickKemeticDate(initial: _composeStartDate)
+        : await _pickGregorianDate(initial: _composeStartDate);
+    if (!mounted || picked == null) return;
+    final pickedDate = dateOnlyForAiFlow(picked);
+    final fallbackDays = _composeEndDate == null
+        ? _composeDisplayedDurationDays()
+        : math.max(
+            1,
+            _composeEndDate!
+                    .difference(_composeStartDate ?? pickedDate)
+                    .inDays +
+                1,
+          );
+    setState(() {
+      _composeManualDateRangeEdited = true;
+      _composeStartDate = pickedDate;
+      if (_composeEndDate == null || _composeEndDate!.isBefore(pickedDate)) {
+        _composeEndDate = pickedDate.add(Duration(days: fallbackDays - 1));
+      }
+    });
+  }
+
+  Future<void> _pickComposeRangeEnd() async {
+    final picked = _composeUseKemetic
+        ? await _pickKemeticDate(initial: _composeEndDate ?? _composeStartDate)
+        : await _pickGregorianDate(
+            initial: _composeEndDate ?? _composeStartDate,
+          );
+    if (!mounted || picked == null) return;
+    setState(() {
+      _composeManualDateRangeEdited = true;
+      _composeEndDate = dateOnlyForAiFlow(picked);
+    });
+  }
+
+  int _composeDisplayedDurationDays() {
+    final start = _composeStartDate;
+    final end = _composeEndDate;
+    if (start != null && end != null) {
+      final days = end.difference(start).inDays + 1;
+      if (days > 0) return days;
+    }
+    return extractFlowDurationDays(_composePromptCtrl.text) ??
+        defaultAiFlowDurationDays;
+  }
+
+  FlowDateRange _composeEffectiveDateRange() {
+    final defaultStart = dateOnlyForAiFlow(DateTime.now());
+    return resolveAiFlowDateRange(
+      prompt: _composePromptCtrl.text,
+      defaultStartDate: defaultStart,
+      manualStartDate: _composeStartDate,
+      manualEndDate: _composeEndDate,
+      useManualRange: _composeManualDateRangeEdited,
+    );
+  }
+
+  Widget _composeDateRangeSection(_FlowStudioTone tone) {
+    final startLabel = _composeUseKemetic
+        ? _fmtKemetic(_composeStartDate)
+        : _fmtGregorian(_composeStartDate);
+    final endLabel = _composeUseKemetic
+        ? _fmtKemetic(_composeEndDate)
+        : _fmtGregorian(_composeEndDate);
+    Widget dateButton(String label, VoidCallback onPressed) {
+      return Expanded(
+        child: SizedBox(
+          height: 38,
+          child: OutlinedButton(
+            style: OutlinedButton.styleFrom(
+              foregroundColor: tone.ctaText,
+              side: BorderSide(color: tone.fieldBorder, width: 1.2),
+              alignment: Alignment.center,
+              padding: const EdgeInsets.symmetric(horizontal: 12),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(19),
+              ),
+            ),
+            onPressed: _composeGenerating ? null : onPressed,
+            child: Text(label, style: const TextStyle(fontSize: 14)),
+          ),
+        ),
+      );
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            _studioSectionLabel('Date range'),
+            const Spacer(),
+            const Text(
+              'optional',
+              style: TextStyle(
+                color: Color(0xFF6F604A),
+                fontSize: 15,
+                fontStyle: FontStyle.italic,
+                fontFamily: 'GentiumPlus',
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 18),
+        Row(
+          children: [
+            dateButton(startLabel, () => unawaited(_pickComposeRangeStart())),
+            const SizedBox(width: 20),
+            dateButton(endLabel, () => unawaited(_pickComposeRangeEnd())),
+          ],
+        ),
+        if (_composeManualDateRangeEdited) ...[
+          const SizedBox(height: 8),
+          TextButton.icon(
+            onPressed: _composeGenerating
+                ? null
+                : () {
+                    setState(() {
+                      _composeManualDateRangeEdited = false;
+                      final range = _composeEffectiveDateRange();
+                      _composeStartDate = range.startDate;
+                      _composeEndDate = range.endDate;
+                    });
+                  },
+            icon: const Icon(Icons.auto_awesome, size: 16),
+            label: const Text('Use prompt duration'),
+            style: TextButton.styleFrom(foregroundColor: _gold),
+          ),
+        ],
+      ],
+    );
+  }
+
+  Future<void> _shapeComposeFlow() async {
+    final rawPrompt = _composePromptCtrl.text.trim();
+    if (rawPrompt.length < 5) {
+      setState(() {
+        _composeError = rawPrompt.isEmpty
+            ? 'Describe the flow you want to shape.'
+            : 'Add a little more detail before shaping this flow.';
+      });
+      return;
+    }
+
+    final split = splitAiFlowPromptForApi(rawPrompt);
+    final canonicalPrompt = buildCanonicalAiFlowPromptText(
+      description: _composePromptCtrl.text,
+      sourceText: split.sourceText,
+    );
+    final promptType = classifyFlowPrompt(canonicalPrompt);
+    final selectedDateForParsing =
+        _composeStartDate ?? dateOnlyForAiFlow(DateTime.now());
+    final parsedItinerary = promptType == FlowPromptType.itinerarySchedule
+        ? parseItineraryPrompt(
+            canonicalPrompt,
+            selectedStartDate: selectedDateForParsing,
+            now: dateOnlyForAiFlow(DateTime.now()),
+          )
+        : null;
+
+    if (promptType == FlowPromptType.itinerarySchedule &&
+        (parsedItinerary == null || parsedItinerary.events.isEmpty)) {
+      setState(() {
+        _composeError =
+            'Some dates or times could not be resolved. Review the pasted itinerary and try again.';
+      });
+      return;
+    }
+
+    final dateRange = parsedItinerary == null
+        ? _composeEffectiveDateRange()
+        : FlowDateRange(
+            startDate: parsedItinerary.startDate,
+            endDate: parsedItinerary.endDate,
+            durationDays:
+                parsedItinerary.endDate
+                    .difference(parsedItinerary.startDate)
+                    .inDays +
+                1,
+            source: FlowDateRangeSource.itinerarySchedule,
+          );
+    final startDate = dateRange.startDate;
+    final endDate = dateRange.endDate;
+
+    setState(() {
+      _composeGenerating = true;
+      _composeError = null;
+      _composeStartDate = startDate;
+      _composeEndDate = endDate;
+    });
+
+    try {
+      final colorHex = aiFlowColorHexFromColor(_composeColor);
+      final AIFlowGenerationResponse response;
+      if (parsedItinerary != null) {
+        response = parsedItinerary.toAIFlowGenerationResponse(
+          flowColor: colorHex,
+        );
+      } else {
+        AIFlowGenerationService? debugService;
+        assert(() {
+          debugService = AIFlowGenerationService.debugFlowStudioOverride;
+          return true;
+        }());
+        final service =
+            debugService ??
+            (_composeAiService ??= AIFlowGenerationService(
+              Supabase.instance.client,
+            ));
+        response = await service.generate(
+          description: split.description,
+          startDate: startDate,
+          endDate: endDate,
+          flowColor: colorHex,
+          timezone: aiFlowIanaTimezoneForLocal(DateTime.now()),
+          sourceText: split.sourceText,
+        );
+      }
+
+      if (!mounted) return;
+      if (response.success != true) {
+        setState(() {
+          _composeError =
+              response.errorMessage ??
+              'Generation failed. Please check your connection or try again.';
+          _composeGenerating = false;
+        });
+        return;
+      }
+
+      final result = response.copyWith(
+        requestedStartDate: startDate,
+        requestedEndDate: endDate,
+      );
+      if (result.flowId != null) {
+        await _loadFlowByIdFromDb(result.flowId!);
+        if (!mounted) return;
+        setState(() {
+          _studioMode = _FlowStudioMode.build;
+          _composeGenerating = false;
+        });
+        return;
+      }
+
+      final importData = _aiImportDataFromResponse(result, startDate);
+      if (importData == null) {
+        setState(() {
+          _composeError = 'The generated flow had no events to import.';
+          _composeGenerating = false;
+        });
+        return;
+      }
+      await _initializeFromImport(importData);
+      if (!mounted) return;
+      setState(() {
+        _studioMode = _FlowStudioMode.build;
+        _composeGenerating = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _composeError = e.toString().replaceFirst('Exception: ', '');
+        _composeGenerating = false;
+      });
+    }
+  }
 
   Widget _itineraryImportBadge() {
     return Container(
@@ -3416,44 +4486,13 @@ class _FlowStudioPageState extends State<_FlowStudioPage>
     );
   }
 
-  Widget _colorDot(int i) {
-    final selected = i == _selectedColorIndex;
-    return InkWell(
-      onTap: () => setState(() => _selectedColorIndex = i),
-      borderRadius: BorderRadius.circular(16),
-      child: Container(
-        width: 28,
-        height: 28,
-        margin: const EdgeInsets.only(right: 10),
-        decoration: BoxDecoration(
-          shape: BoxShape.circle,
-          gradient: _glossFromColor(_flowPalette[i]),
-          border: Border.all(
-            color: selected ? _gold : Colors.white24,
-            width: selected ? 2.0 : 1.0,
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _modeToggle() {
-    return CupertinoSegmentedControl<bool>(
-      groupValue: _useKemetic,
-      padding: const EdgeInsets.all(2),
-      children: const {
-        true: Padding(
-          padding: EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-          child: Text('Kemetic'),
-        ),
-        false: Padding(
-          padding: EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-          child: Text('Gregorian'),
-        ),
-      },
-      onValueChanged: (v) {
+  Widget _modeToggle(_FlowStudioTone tone) {
+    return _systemPillToggle(
+      tone: tone,
+      useKemetic: _useKemetic,
+      onChanged: (value) {
         setState(() {
-          _useKemetic = v;
+          _useKemetic = value;
         });
         _applySelectionToDrafts();
       },
@@ -3884,25 +4923,32 @@ class _FlowStudioPageState extends State<_FlowStudioPage>
   Future<void> _handleClose() async {
     // Close/cancel never deletes a flow. Deletion is only allowed through the
     // explicit Flow Studio delete action returned as _FlowStudioResult.
-    if (!mounted) return;
-    _suppressDraftSave = true;
-    _draftPersistDebounce?.cancel();
-    _sessionDraft = null;
-    await CalendarPage._clearFlowStudioTransientState();
-    if (!mounted) return;
-    final routeCloseHandler = widget.onRouteClose;
-    if (routeCloseHandler != null) {
-      await routeCloseHandler();
-      return;
-    }
-    final navigator = Navigator.of(context);
-    if (navigator.canPop()) {
-      navigator.pop();
-      return;
-    }
-    final rootNavigator = Navigator.of(context, rootNavigator: true);
-    if (rootNavigator.canPop()) {
-      rootNavigator.pop();
+    if (!mounted || _closeInFlight) return;
+    _closeInFlight = true;
+    try {
+      _suppressDraftSave = true;
+      _draftPersistDebounce?.cancel();
+      _sessionDraft = null;
+      await CalendarPage._clearFlowStudioTransientState();
+      if (!mounted) return;
+      final routeCloseHandler = widget.onRouteClose;
+      if (routeCloseHandler != null) {
+        await routeCloseHandler();
+        return;
+      }
+      final navigator = Navigator.of(context);
+      if (navigator.canPop()) {
+        navigator.pop();
+        return;
+      }
+      final rootNavigator = Navigator.of(context, rootNavigator: true);
+      if (rootNavigator.canPop()) {
+        rootNavigator.pop();
+      }
+    } finally {
+      if (mounted) {
+        _closeInFlight = false;
+      }
     }
   }
 
@@ -3938,250 +4984,452 @@ class _FlowStudioPageState extends State<_FlowStudioPage>
         : _calendarPageState?._calendarSummariesById[selectedCalendarId];
     final canEditSelectedCalendar = _canEditCalendar(selectedCalendarId);
     final bodyPadding = EdgeInsets.fromLTRB(
-      16,
-      16,
-      16,
+      22,
+      20,
+      22,
       AppBottomInsets.contentBottomPadding(context),
     );
     const fieldScrollPadding = keyboardManagedTextFieldScrollPadding;
+    final tone = _FlowStudioTone.resolve(_activeStudioColor);
+    final studioChrome = Color.alphaBlend(
+      tone.softenedAccent.withValues(alpha: 0.16),
+      _bg,
+    );
 
     return Scaffold(
       resizeToAvoidBottomInset: true,
       backgroundColor: _bg,
       appBar: AppBar(
-        backgroundColor: Colors.black,
-        elevation: 0.5,
-        leading: IconButton(
-          tooltip: 'Close',
-          icon: const Icon(Icons.close, color: Colors.white),
-          onPressed: _handleClose,
-        ),
-        title: const Text('Flow Studio', style: TextStyle(color: Colors.white)),
-        actions: [
-          // ✨ NEW: AI Generation Button
-          IconButton(
-            icon: KemeticGold.icon(Icons.auto_awesome),
-            onPressed: _showAIGenerationModal,
-            tooltip: 'Generate with AI',
+        toolbarHeight: 48,
+        backgroundColor: studioChrome,
+        centerTitle: true,
+        elevation: 0,
+        scrolledUnderElevation: 0,
+        surfaceTintColor: Colors.transparent,
+        leadingWidth: 64,
+        leading: Padding(
+          padding: const EdgeInsets.only(left: 8),
+          child: IconButton(
+            tooltip: 'Close',
+            iconSize: 24,
+            padding: EdgeInsets.zero,
+            constraints: const BoxConstraints.tightFor(width: 44, height: 44),
+            icon: const Icon(Icons.close, color: _gold),
+            onPressed: _handleClose,
           ),
-          PopupMenuButton<int>(
-            tooltip: 'Flows menu',
-            icon: const Icon(Icons.more_vert, color: _silver),
-            onSelected: (v) {
-              if (v == 1) _openFlowPicker();
-              if (v == 2) _clearEditorForNew();
-              if (v == 3) _clearEditorForNew();
-            },
-            itemBuilder: (ctx) => [
-              if (widget.existingFlows.isNotEmpty)
-                const PopupMenuItem(
-                  value: 1,
-                  child: ListTile(
-                    leading: Icon(Icons.search),
-                    title: Text('Find / Edit flows…'),
+        ),
+        title: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text(
+              'Flow Studio',
+              style: TextStyle(
+                color: _gold,
+                fontSize: 22,
+                fontWeight: FontWeight.w600,
+                fontFamily: 'GentiumPlus',
+              ),
+            ),
+            const SizedBox(width: 12),
+            SizedBox(
+              width: 32,
+              height: 32,
+              child: OutlinedButton(
+                onPressed: _showAIGenerationModal,
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: _gold,
+                  side: BorderSide(color: tone.ctaBorder),
+                  backgroundColor: tone.ctaBg,
+                  minimumSize: const Size(32, 32),
+                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  visualDensity: VisualDensity.compact,
+                  padding: EdgeInsets.zero,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
                   ),
                 ),
-              const PopupMenuItem(
-                value: 2,
-                child: ListTile(
-                  leading: Icon(Icons.add),
-                  title: Text('New flow'),
-                ),
+                child: const Icon(Icons.auto_awesome, size: 16),
               ),
-              const PopupMenuItem(
-                value: 3,
-                child: ListTile(
-                  leading: Icon(Icons.refresh),
-                  title: Text('Reset fields'),
-                ),
-              ),
-            ],
-          ),
+            ),
+          ],
+        ),
+        actions: [
           if (_editing != null)
             IconButton(
               tooltip: 'Delete',
-              icon: const Icon(Icons.delete_outline, color: _silver),
+              icon: const Icon(Icons.delete_outline, color: _silver, size: 22),
               onPressed: _delete,
             ),
-          TextButton(
-            onPressed: _save,
-            child: const Text('Save', style: TextStyle(color: Colors.white)),
-          ),
+          if (_studioMode == _FlowStudioMode.build)
+            Padding(
+              padding: const EdgeInsets.only(right: 22),
+              child: SizedBox(
+                width: 66,
+                height: 36,
+                child: TextButton(
+                  onPressed: _save,
+                  style: TextButton.styleFrom(
+                    foregroundColor: _gold,
+                    side: BorderSide(color: tone.ctaBorder),
+                    backgroundColor: tone.ctaBg,
+                    minimumSize: const Size(66, 36),
+                    padding: EdgeInsets.zero,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                  ),
+                  child: const Text(
+                    'Save',
+                    style: TextStyle(
+                      fontSize: 17,
+                      fontWeight: FontWeight.w700,
+                      fontFamily: 'GentiumPlus',
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          if (widget.existingFlows.isNotEmpty)
+            PopupMenuButton<int>(
+              tooltip: 'Flows menu',
+              icon: const Icon(Icons.more_vert, color: _silver, size: 22),
+              padding: EdgeInsets.zero,
+              constraints: const BoxConstraints.tightFor(width: 36, height: 44),
+              onSelected: (v) {
+                if (v == 1) _openFlowPicker();
+                if (v == 2) _clearEditorForNew();
+                if (v == 3) _clearEditorForNew();
+              },
+              itemBuilder: (ctx) => const [
+                PopupMenuItem(
+                  value: 1,
+                  child: ListTile(
+                    leading: Icon(Icons.search),
+                    title: Text('Find / Edit flows...'),
+                  ),
+                ),
+                PopupMenuItem(
+                  value: 2,
+                  child: ListTile(
+                    leading: Icon(Icons.add),
+                    title: Text('New flow'),
+                  ),
+                ),
+                PopupMenuItem(
+                  value: 3,
+                  child: ListTile(
+                    leading: Icon(Icons.refresh),
+                    title: Text('Reset fields'),
+                  ),
+                ),
+              ],
+            ),
         ],
+        bottom: PreferredSize(
+          preferredSize: const Size.fromHeight(1),
+          child: Container(
+            margin: const EdgeInsets.symmetric(horizontal: 22),
+            height: 1,
+            color: const Color(0xFF3A210F).withValues(alpha: 0.45),
+          ),
+        ),
       ),
       body: ListView(
         padding: bodyPadding,
         children: [
-          const Text('Name', style: TextStyle(color: _silver, fontSize: 12)),
-          const SizedBox(height: 6),
-          TextField(
-            controller: _nameCtrl,
-            scrollPadding: fieldScrollPadding,
-            style: const TextStyle(color: Colors.white),
-            decoration: _darkInput('Flow name'),
-          ),
-          const SizedBox(height: 14),
-          if (_isItineraryImport) ...[
-            _itineraryImportBadge(),
-            const SizedBox(height: 14),
-          ],
-          const Text(
-            'Overview',
-            style: TextStyle(color: _silver, fontSize: 12),
-          ),
-          const SizedBox(height: 6),
-          TextField(
-            controller: _overviewCtrl,
-            scrollPadding: fieldScrollPadding,
-            style: const TextStyle(color: Colors.white),
-            keyboardType: TextInputType.multiline,
-            textInputAction: TextInputAction.newline,
-            minLines: 4,
-            maxLines: 8,
-            decoration: _darkInput(
-              'Flow overview',
-              hint:
-                  'Describe the purpose, product list, outcomes, links, or context for this flow.',
+          _studioTopTintFade(tone),
+          _studioModeToggle(tone),
+          const SizedBox(height: 30),
+          if (_studioMode == _FlowStudioMode.build) ...[
+            _studioSectionLabel('Name'),
+            const SizedBox(height: 18),
+            TextField(
+              controller: _nameCtrl,
+              scrollPadding: fieldScrollPadding,
+              style: const TextStyle(
+                color: Color(0xFFF2E4C5),
+                fontSize: 38,
+                fontWeight: FontWeight.w700,
+                fontFamily: 'GentiumPlus',
+              ),
+              decoration:
+                  _studioInputDecoration(
+                    tone: tone,
+                    hint: 'FLOW TITLE',
+                    radius: 4,
+                  ).copyWith(
+                    filled: false,
+                    contentPadding: const EdgeInsets.fromLTRB(0, 4, 0, 12),
+                    enabledBorder: UnderlineInputBorder(
+                      borderSide: BorderSide(color: tone.fieldBorder),
+                    ),
+                    focusedBorder: UnderlineInputBorder(
+                      borderSide: BorderSide(color: tone.ctaBorder, width: 1.2),
+                    ),
+                  ),
             ),
-          ),
-          const SizedBox(height: 8),
-
-          SwitchListTile(
-            contentPadding: EdgeInsets.zero,
-            value: _active,
-            onChanged: (v) => setState(() => _active = v),
-            title: const Text('Active', style: TextStyle(color: Colors.white)),
-            activeThumbColor: _gold,
-          ),
-
-          const SizedBox(height: 8),
-          InkWell(
-            onTap: !canEditSelectedCalendar
-                ? null
-                : () async {
-                    await _ensureCalendarChoicesLoaded();
-                    if (!context.mounted) return;
-                    if (_selectedCalendarId == null) {
-                      final defaultCalendarId = _defaultCalendarId();
-                      if (defaultCalendarId != null) {
-                        setState(() {
-                          _selectedCalendarId = defaultCalendarId;
-                        });
-                      }
-                    }
-                    final calendars = _editableCalendars;
-                    if (calendars.isEmpty) return;
-                    final sheetContext = context;
-                    final chosenId = await showCupertinoModalPopup<String>(
-                      context: sheetContext,
-                      builder: (popupCtx) {
-                        return CupertinoActionSheet(
-                          title: const GlossyText(
-                            text: 'Calendar',
-                            gradient: silverGloss,
-                            style: TextStyle(fontSize: 18),
-                          ),
-                          actions: [
-                            for (final calendar in calendars)
-                              CupertinoActionSheetAction(
-                                onPressed: () {
-                                  Navigator.of(popupCtx).pop(calendar.id);
-                                },
-                                child: Text(
-                                  calendar.name,
-                                  style: TextStyle(
-                                    color: calendar.color,
-                                    fontSize: 17,
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                                ),
-                              ),
-                          ],
-                          cancelButton: CupertinoActionSheetAction(
-                            isDestructiveAction: true,
-                            onPressed: () => Navigator.of(popupCtx).pop(),
-                            child: const Text('Cancel'),
-                          ),
-                        );
-                      },
-                    );
-                    if (chosenId == null) return;
-                    setState(() {
-                      _selectedCalendarId = chosenId;
-                    });
-                  },
-            child: Container(
-              padding: const EdgeInsets.symmetric(vertical: 12),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  const GlossyText(
-                    text: 'Calendar',
-                    gradient: silverGloss,
-                    style: TextStyle(fontSize: 14),
-                  ),
-                  Row(
-                    children: [
-                      Text(
-                        _calendarLabelFor(selectedCalendarId),
-                        style: TextStyle(
-                          color: selectedCalendar?.color ?? _gold,
-                          fontSize: 14,
-                          fontWeight: FontWeight.w600,
-                        ),
+            const SizedBox(height: 32),
+            if (_isItineraryImport) ...[
+              _itineraryImportBadge(),
+              const SizedBox(height: 24),
+            ],
+            _colorStudioSection(tone),
+            const SizedBox(height: 34),
+            _studioSectionLabel('Overview'),
+            const SizedBox(height: 12),
+            SizedBox(
+              height: 86,
+              child: TextField(
+                controller: _overviewCtrl,
+                scrollPadding: fieldScrollPadding,
+                style: const TextStyle(
+                  color: Color(0xFFE8E1D5),
+                  fontSize: 16,
+                  height: 1.3,
+                  fontStyle: FontStyle.italic,
+                  fontFamily: 'GentiumPlus',
+                ),
+                keyboardType: TextInputType.multiline,
+                textInputAction: TextInputAction.newline,
+                expands: true,
+                maxLines: null,
+                minLines: null,
+                decoration:
+                    _studioInputDecoration(
+                      tone: tone,
+                      hint:
+                          'Describe the purpose, outcomes, links, or context.',
+                    ).copyWith(
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 14,
                       ),
-                      const SizedBox(width: 4),
-                      const Icon(
-                        Icons.chevron_right,
-                        size: 18,
-                        color: Colors.white54,
-                      ),
-                    ],
-                  ),
-                ],
+                    ),
               ),
             ),
-          ),
-          if (!canEditSelectedCalendar) ...[
+            const SizedBox(height: 20),
+            SwitchListTile(
+              contentPadding: EdgeInsets.zero,
+              value: _active,
+              onChanged: (v) => setState(() => _active = v),
+              title: _studioSectionLabel('Active'),
+              activeThumbColor: tone.ctaText,
+              activeTrackColor: tone.softenedAccent.withValues(alpha: 0.55),
+            ),
+            const Divider(color: Color(0x1FFFFFFF), height: 28),
+            InkWell(
+              onTap: !canEditSelectedCalendar
+                  ? null
+                  : () async {
+                      await _ensureCalendarChoicesLoaded();
+                      if (!context.mounted) return;
+                      if (_selectedCalendarId == null) {
+                        final defaultCalendarId = _defaultCalendarId();
+                        if (defaultCalendarId != null) {
+                          setState(() {
+                            _selectedCalendarId = defaultCalendarId;
+                          });
+                        }
+                      }
+                      final calendars = _editableCalendars;
+                      if (calendars.isEmpty) return;
+                      final sheetContext = context;
+                      final chosenId = await showCupertinoModalPopup<String>(
+                        context: sheetContext,
+                        builder: (popupCtx) {
+                          return CupertinoActionSheet(
+                            title: const GlossyText(
+                              text: 'Calendar',
+                              gradient: silverGloss,
+                              style: TextStyle(fontSize: 18),
+                            ),
+                            actions: [
+                              for (final calendar in calendars)
+                                CupertinoActionSheetAction(
+                                  onPressed: () {
+                                    Navigator.of(popupCtx).pop(calendar.id);
+                                  },
+                                  child: Text(
+                                    calendar.name,
+                                    style: TextStyle(
+                                      color: calendar.color,
+                                      fontSize: 17,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                ),
+                            ],
+                            cancelButton: CupertinoActionSheetAction(
+                              isDestructiveAction: true,
+                              onPressed: () => Navigator.of(popupCtx).pop(),
+                              child: const Text('Cancel'),
+                            ),
+                          );
+                        },
+                      );
+                      if (chosenId == null) return;
+                      setState(() {
+                        _selectedCalendarId = chosenId;
+                      });
+                    },
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: 12),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    _studioSectionLabel('Calendar'),
+                    Row(
+                      children: [
+                        Text(
+                          _calendarLabelFor(selectedCalendarId),
+                          style: TextStyle(
+                            color: selectedCalendar?.color ?? _gold,
+                            fontSize: 17,
+                            fontWeight: FontWeight.w600,
+                            fontFamily: 'GentiumPlus',
+                          ),
+                        ),
+                        const SizedBox(width: 4),
+                        const Icon(
+                          Icons.chevron_right,
+                          size: 18,
+                          color: Color(0xFF6F604A),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            if (!canEditSelectedCalendar) ...[
+              const SizedBox(height: 4),
+              const Text(
+                'You can view this calendar, but you cannot edit it.',
+                style: TextStyle(color: Colors.white54, fontSize: 12),
+              ),
+            ],
+            const Divider(color: Color(0x1FFFFFFF), height: 28),
+            Row(
+              children: [
+                _studioSectionLabel('System'),
+                const Spacer(),
+                Flexible(
+                  fit: FlexFit.loose,
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 200),
+                    child: _modeToggle(tone),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 34),
+            _dateRangeSection(),
+            const SizedBox(height: 12),
+            if (!_hasFullRange)
+              _preRulesHint()
+            else if (_useKemetic)
+              (_splitByPeriod ? _kemeticPerDecan() : _kemeticSingleRow())
+            else
+              (_splitByPeriod ? _gregorianPerWeek() : _gregorianSingleRow()),
+            SizedBox(key: _editorsAnchorKey, height: 0),
+            _notesEditorsPanel(),
+            const SizedBox(height: 24),
+            _studioCta(
+              key: const ValueKey('flow-studio-save-cta'),
+              tone: tone,
+              text: 'Save Flow',
+              onPressed: _save,
+            ),
+          ] else ...[
+            _colorStudioSection(tone),
+            const SizedBox(height: 34),
+            _studioSectionLabel('Describe your flow'),
+            const SizedBox(height: 12),
+            SizedBox(
+              height: 176,
+              child: TextField(
+                controller: _composePromptCtrl,
+                scrollPadding: fieldScrollPadding,
+                expands: true,
+                maxLines: null,
+                minLines: null,
+                keyboardType: TextInputType.multiline,
+                textInputAction: TextInputAction.newline,
+                style: const TextStyle(
+                  color: Color(0xFFE8E1D5),
+                  fontSize: 18,
+                  height: 1.36,
+                  fontStyle: FontStyle.italic,
+                  fontFamily: 'GentiumPlus',
+                ),
+                decoration:
+                    _studioInputDecoration(
+                      tone: tone,
+                      hint: 'Describe what you want this flow to become.',
+                    ).copyWith(
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 18,
+                        vertical: 16,
+                      ),
+                    ),
+              ),
+            ),
+            const SizedBox(height: 34),
+            Row(
+              children: [
+                _studioSectionLabel('System'),
+                const Spacer(),
+                Flexible(
+                  fit: FlexFit.loose,
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 200),
+                    child: _composeSystemToggle(tone),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 34),
+            _composeDateRangeSection(tone),
+            if (_composeError != null) ...[
+              const SizedBox(height: 18),
+              Text(
+                _composeError!,
+                style: const TextStyle(
+                  color: Color(0xFFFFA99A),
+                  fontSize: 13,
+                  height: 1.25,
+                ),
+              ),
+            ],
+            const SizedBox(height: 34),
+            _studioCta(
+              key: const ValueKey('flow-studio-shape-cta'),
+              tone: tone,
+              text: 'Shape this flow',
+              onPressed: () => unawaited(_shapeComposeFlow()),
+              busy: _composeGenerating,
+            ),
+            const SizedBox(height: 12),
+            TextButton.icon(
+              key: const ValueKey('flow-studio-build-manually'),
+              onPressed: _composeGenerating
+                  ? null
+                  : _switchComposeToManualBuild,
+              icon: const Icon(Icons.edit_outlined, size: 18),
+              label: const Text('Build manually'),
+              style: TextButton.styleFrom(foregroundColor: tone.ctaText),
+            ),
             const SizedBox(height: 4),
             const Text(
-              'You can view this calendar, but you cannot edit it.',
-              style: TextStyle(color: Colors.white54, fontSize: 12),
+              'Save becomes available in Build mode.',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                color: Color(0xFF8F8270),
+                fontSize: 12,
+                height: 1.2,
+              ),
             ),
           ],
-          const SizedBox(height: 8),
-          const GlossyText(
-            text: 'Color',
-            style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
-            gradient: silverGloss,
-          ),
-          const SizedBox(height: 8),
-          SizedBox(
-            height: 36,
-            child: ListView.builder(
-              scrollDirection: Axis.horizontal,
-              itemCount: _flowPalette.length,
-              itemBuilder: (_, i) => _colorDot(i),
-            ),
-          ),
-
-          const SizedBox(height: 12),
-          _modeToggle(),
-
-          const SizedBox(height: 12),
-          _dateRangeSection(),
-
-          const SizedBox(height: 6),
-          if (!_hasFullRange)
-            _preRulesHint()
-          else if (_useKemetic)
-            (_splitByPeriod ? _kemeticPerDecan() : _kemeticSingleRow())
-          else
-            (_splitByPeriod ? _gregorianPerWeek() : _gregorianSingleRow()),
-
-          // editors (pattern in repeat mode, per-day in customize mode)
-          SizedBox(key: _editorsAnchorKey, height: 0),
-          _notesEditorsPanel(),
         ],
       ),
     );

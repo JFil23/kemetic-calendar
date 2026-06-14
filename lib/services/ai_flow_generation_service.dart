@@ -13,6 +13,13 @@ class AIFlowGenerationService {
 
   AIFlowGenerationService(this._sb);
 
+  /// Widget-test override for Flow Studio Compose generation.
+  ///
+  /// Runtime code must only read this from an assert-gated block so it cannot
+  /// affect profile or release behavior.
+  @visibleForTesting
+  static AIFlowGenerationService? debugFlowStudioOverride;
+
   static const int _maxSourceTextChars = 48 * 1024;
   static const int _maxSourceBlocks = 24;
 
