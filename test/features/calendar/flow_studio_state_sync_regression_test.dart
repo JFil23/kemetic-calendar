@@ -134,10 +134,7 @@ void main() {
     expect(find.text('Hidden practice'), findsNothing);
     expect(find.text('This detail must not save'), findsNothing);
 
-    await tester.ensureVisible(
-      find.byKey(const ValueKey('flow-studio-save-cta')),
-    );
-    await tester.tap(find.byKey(const ValueKey('flow-studio-save-cta')));
+    await tester.tap(find.text('Save').first);
     await _pumpFlowStudio(tester);
 
     expect(savedResult, isNotNull);
@@ -291,9 +288,155 @@ void main() {
     await _closeFlowStudio(tester);
   });
 
+  testWidgets(
+    'generated Spanish flow save emits durable planned-note payload',
+    (tester) async {
+      _useLargeSurface(tester);
+      dynamic savedResult;
+      final draft = _buildDraft(
+        studioMode: 'compose',
+        composePrompt: 'learn Spanish conjugations',
+        startDate: DateTime(2026, 6, 13),
+        endDate: DateTime(2026, 6, 22),
+      );
+      AIFlowGenerationService.debugFlowStudioOverride =
+          _FakeAIFlowGenerationService(_spanishConjugationResponse());
+      await _openFlowStudio(
+        tester,
+        initialDraftJson: draft,
+        onRouteResult: (result) async {
+          savedResult = result;
+        },
+      );
+
+      await tester.tap(find.byKey(const ValueKey('flow-studio-shape-cta')));
+      await _pumpFlowStudio(tester, const Duration(milliseconds: 1200));
+      expect(find.text('Spanish Conjugation Practice'), findsOneWidget);
+
+      await tester.tap(find.text('Save').first);
+      await _pumpFlowStudio(tester);
+
+      expect(tester.takeException(), isNull);
+      expect(savedResult, isNotNull);
+      expect(savedResult.savedFlow.name, 'Spanish Conjugation Practice');
+      final planned = List<dynamic>.from(savedResult.plannedNotes as Iterable);
+      expect(planned, hasLength(3));
+      expect(
+        planned.map((plannedNote) => plannedNote.note.title),
+        containsAll(<String>[
+          'Present tense -ar reps',
+          'Ser and estar contrast',
+          'Preterite sentence drill',
+        ]),
+      );
+      for (final plannedNote in planned) {
+        expect(plannedNote.note.detail, isNotNull);
+        expect(plannedNote.note.detail.toString().trim(), isNotEmpty);
+        expect(plannedNote.note.start, isNotNull);
+        expect(plannedNote.note.end, isNotNull);
+        expect(plannedNote.note.allDay, isFalse);
+      }
+
+      await _closeFlowStudio(tester);
+    },
+  );
+
+  testWidgets('generated save failure keeps Flow Studio visible with error', (
+    tester,
+  ) async {
+    _useLargeSurface(tester);
+    var saveAttempts = 0;
+    final draft = _buildDraft(
+      studioMode: 'compose',
+      composePrompt: 'learn Spanish conjugations',
+      startDate: DateTime(2026, 6, 13),
+      endDate: DateTime(2026, 6, 22),
+    );
+    AIFlowGenerationService.debugFlowStudioOverride =
+        _FakeAIFlowGenerationService(_spanishConjugationResponse());
+    await _openFlowStudio(
+      tester,
+      initialDraftJson: draft,
+      onRouteResult: (_) async {
+        saveAttempts += 1;
+        throw StateError('planned note insert failed');
+      },
+    );
+
+    await tester.tap(find.byKey(const ValueKey('flow-studio-shape-cta')));
+    await _pumpFlowStudio(tester, const Duration(milliseconds: 1200));
+    await tester.tap(find.text('Save').first);
+    await _pumpFlowStudio(tester);
+
+    expect(tester.takeException(), isNull);
+    expect(saveAttempts, 1);
+    expect(find.text('Flow Studio'), findsOneWidget);
+    expect(find.text('Spanish Conjugation Practice'), findsOneWidget);
+    expect(find.textContaining('planned note insert failed'), findsOneWidget);
+    expect(find.text('Save'), findsOneWidget);
+
+    await _closeFlowStudio(tester);
+  });
+
+  testWidgets(
+    'manual and generated saves share renderable planned-note shape',
+    (tester) async {
+      _useLargeSurface(tester);
+      dynamic manualResult;
+      await _openFlowStudio(
+        tester,
+        initialDraftJson: _buildDraft(
+          startDate: DateTime(2026, 6, 15),
+          endDate: DateTime(2026, 6, 21),
+        ),
+        onRouteResult: (result) async {
+          manualResult = result;
+        },
+      );
+      await tester.enterText(_nameField(), 'Manual Spanish Practice');
+      await _tapChip(tester, 'Mon');
+      await tester.enterText(_editorTitleFields().first, 'Manual conjugation');
+      await tester.enterText(
+        _editorDetailFields().first,
+        'Conjugate hablar in six present-tense forms.',
+      );
+      await tester.tap(find.text('Save').first);
+      await _pumpFlowStudio(tester);
+      _expectRenderablePlannedNotes(manualResult);
+
+      await _closeFlowStudio(tester);
+
+      dynamic generatedResult;
+      AIFlowGenerationService.debugFlowStudioOverride =
+          _FakeAIFlowGenerationService(_spanishConjugationResponse());
+      await _openFlowStudio(
+        tester,
+        initialDraftJson: _buildDraft(
+          studioMode: 'compose',
+          composePrompt: 'learn Spanish conjugations',
+          startDate: DateTime(2026, 6, 13),
+          endDate: DateTime(2026, 6, 22),
+        ),
+        onRouteResult: (result) async {
+          generatedResult = result;
+        },
+      );
+      await tester.tap(find.byKey(const ValueKey('flow-studio-shape-cta')));
+      await _pumpFlowStudio(tester, const Duration(milliseconds: 1200));
+      await tester.tap(find.text('Save').first);
+      await _pumpFlowStudio(tester);
+      _expectRenderablePlannedNotes(generatedResult);
+
+      await _closeFlowStudio(tester);
+    },
+  );
+
   test('Flow Studio render and save paths use active editor groups', () {
     final source = File(
       'lib/features/calendar/calendar_flow_studio_page.dart',
+    ).readAsStringSync();
+    final calendar = File(
+      'lib/features/calendar/calendar_page.dart',
     ).readAsStringSync();
 
     final notesPanel = _sliceBetween(
@@ -312,6 +455,32 @@ void main() {
     );
     expect(saveBody, contains('final groups = _buildEditorGroups();'));
     expect(saveBody, isNot(contains('_draftsByDay.entries')));
+
+    final finishBody = _sliceBetween(
+      source,
+      'Future<void> _finishWithResult(_FlowStudioResult result) async',
+      'void _delete()',
+    );
+    expect(finishBody, contains('await routeResultHandler(result);'));
+    expect(finishBody, contains('Unable to save flow'));
+    expect(finishBody.indexOf('_clearSessionDraft()'), greaterThan(0));
+
+    final applyBody = _sliceBetween(
+      calendar,
+      'Future<void> _applyFlowStudioResult(_FlowStudioResult edited) async',
+      '// Slide-up Flow Studio shell',
+    );
+    expect(applyBody, contains('if (edited.plannedNotes.isNotEmpty)'));
+    expect(applyBody, contains('await _persistFlowStudioResult(edited);'));
+
+    final persistBody = _sliceBetween(
+      calendar,
+      'Future<int?> _persistFlowStudioResult(_FlowStudioResult r) async',
+      '/// Schedules all note occurrences for a flow to the calendar',
+    );
+    expect(persistBody, contains('rollbackNewFlowSave'));
+    expect(persistBody, contains("deleteScope: 'failed_new_flow_save'"));
+    expect(persistBody, contains('await commitGenerationIfNeeded();'));
   });
 }
 
@@ -333,6 +502,58 @@ class _FakeAIFlowGenerationService extends AIFlowGenerationService {
     bool forceRefresh = false,
   }) async {
     return response;
+  }
+}
+
+AIFlowGenerationResponse _spanishConjugationResponse() {
+  return AIFlowGenerationResponse(
+    success: true,
+    flowName: 'Spanish Conjugation Practice',
+    flowColor: '#55dde0',
+    overviewSummary: 'Practice common Spanish conjugation patterns.',
+    notes: jsonEncode([
+      {
+        'day_index': 0,
+        'title': 'Present tense -ar reps',
+        'details':
+            'Conjugate hablar, estudiar, and practicar in all six present-tense forms, then say one original sentence for each verb.',
+        'all_day': false,
+        'start_time': '18:00',
+        'end_time': '18:30',
+      },
+      {
+        'day_index': 2,
+        'title': 'Ser and estar contrast',
+        'details':
+            'Write five paired sentences using ser for identity or traits and estar for location or temporary state, then read them aloud.',
+        'all_day': false,
+        'start_time': '18:00',
+        'end_time': '18:35',
+      },
+      {
+        'day_index': 4,
+        'title': 'Preterite sentence drill',
+        'details':
+            'Conjugate comer, vivir, and hablar in the preterite, then make eight short yesterday sentences with time cues.',
+        'all_day': false,
+        'start_time': '18:00',
+        'end_time': '18:40',
+      },
+    ]),
+  );
+}
+
+void _expectRenderablePlannedNotes(dynamic result) {
+  expect(result, isNotNull);
+  expect(result.savedFlow, isNotNull);
+  final planned = List<dynamic>.from(result.plannedNotes as Iterable);
+  expect(planned, isNotEmpty);
+  for (final plannedNote in planned) {
+    expect(plannedNote.note.title.toString().trim(), isNotEmpty);
+    expect(plannedNote.note.detail.toString().trim(), isNotEmpty);
+    expect(plannedNote.note.start, isNotNull);
+    expect(plannedNote.note.end, isNotNull);
+    expect(plannedNote.note.allDay, isFalse);
   }
 }
 

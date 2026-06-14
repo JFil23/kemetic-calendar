@@ -2476,13 +2476,26 @@ class _FlowStudioPageState extends State<_FlowStudioPage>
   }
 
   Future<void> _finishWithResult(_FlowStudioResult result) async {
-    _clearSessionDraft();
-    _suppressDraftSave = true;
     final routeResultHandler = widget.onRouteResult;
     if (routeResultHandler != null) {
-      await routeResultHandler(result);
+      try {
+        await routeResultHandler(result);
+        _clearSessionDraft();
+        _suppressDraftSave = true;
+      } catch (error, stackTrace) {
+        if (kDebugMode) {
+          _calendarDebugPrint('[FlowStudio] save failed: $error');
+          _calendarDebugPrint('$stackTrace');
+        }
+        if (!mounted) return;
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Unable to save flow: $error')));
+      }
       return;
     }
+    _clearSessionDraft();
+    _suppressDraftSave = true;
     if (!mounted) return;
     Navigator.of(context, rootNavigator: true).pop(result);
   }
