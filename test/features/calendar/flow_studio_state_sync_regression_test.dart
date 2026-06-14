@@ -341,6 +341,71 @@ void main() {
     },
   );
 
+  testWidgets('generated planned-note time edits enter save payload', (
+    tester,
+  ) async {
+    _useLargeSurface(tester);
+    dynamic savedResult;
+    final pickedTimes = <TimeOfDay>[
+      const TimeOfDay(hour: 19, minute: 15),
+      const TimeOfDay(hour: 20, minute: 45),
+    ];
+    AIFlowGenerationService.debugFlowStudioOverride =
+        _FakeAIFlowGenerationService(_spanishConjugationResponse());
+    await _openFlowStudio(
+      tester,
+      initialDraftJson: _buildDraft(
+        studioMode: 'compose',
+        composePrompt: 'learn Spanish conjugations',
+        startDate: DateTime(2026, 6, 13),
+        endDate: DateTime(2026, 6, 22),
+      ),
+      onRouteResult: (result) async {
+        savedResult = result;
+      },
+      debugTimePicker: (_, __) async => pickedTimes.removeAt(0),
+    );
+
+    await tester.tap(find.byKey(const ValueKey('flow-studio-shape-cta')));
+    await _pumpFlowStudio(tester, const Duration(milliseconds: 1200));
+    _expectEnabledTimeEditors(expectedCount: 3);
+
+    await tester.tap(_noteTimeButtons('start').first);
+    await _pumpFlowStudio(tester);
+    await tester.tap(_noteTimeButtons('end').first);
+    await _pumpFlowStudio(tester);
+
+    expect(find.text('Starts: 7:15 PM'), findsOneWidget);
+    expect(find.text('Ends: 8:45 PM'), findsOneWidget);
+
+    await tester.tap(find.text('Save').first);
+    await _pumpFlowStudio(tester);
+
+    expect(savedResult, isNotNull);
+    final planned = List<dynamic>.from(savedResult.plannedNotes as Iterable);
+    final edited = planned.firstWhere(
+      (plannedNote) => plannedNote.note.title == 'Present tense -ar reps',
+    );
+    expect(edited.note.start.hour, 19);
+    expect(edited.note.start.minute, 15);
+    expect(edited.note.end.hour, 20);
+    expect(edited.note.end.minute, 45);
+    expect(
+      planned
+          .where(
+            (plannedNote) => plannedNote.note.title == 'Present tense -ar reps',
+          )
+          .map(
+            (plannedNote) =>
+                plannedNote.note.start.hour * 60 +
+                plannedNote.note.start.minute,
+          ),
+      isNot(contains(18 * 60)),
+    );
+
+    await _closeFlowStudio(tester);
+  });
+
   testWidgets('generated save failure keeps Flow Studio visible with error', (
     tester,
   ) async {
@@ -400,6 +465,7 @@ void main() {
         _editorDetailFields().first,
         'Conjugate hablar in six present-tense forms.',
       );
+      _expectEnabledTimeEditors(expectedCount: 1);
       await tester.tap(find.text('Save').first);
       await _pumpFlowStudio(tester);
       _expectRenderablePlannedNotes(manualResult);
@@ -423,6 +489,7 @@ void main() {
       );
       await tester.tap(find.byKey(const ValueKey('flow-studio-shape-cta')));
       await _pumpFlowStudio(tester, const Duration(milliseconds: 1200));
+      _expectEnabledTimeEditors(expectedCount: 3);
       await tester.tap(find.text('Save').first);
       await _pumpFlowStudio(tester);
       _expectRenderablePlannedNotes(generatedResult);
@@ -446,7 +513,32 @@ void main() {
     );
     expect(notesPanel, contains('final groups = _buildEditorGroups();'));
     expect(notesPanel, contains('if (groups.isEmpty) return'));
+    expect(notesPanel, contains('flow-studio-note-start-'));
+    expect(notesPanel, contains('flow-studio-note-end-'));
     expect(notesPanel, isNot(contains('_groupsFromDraftsFallback')));
+
+    final pickStartBody = _sliceBetween(
+      source,
+      'Future<void> _pickStartFor(_NoteDraft draft) async',
+      'Future<void> _pickEndFor(_NoteDraft draft) async',
+    );
+    expect(pickStartBody, contains('_showFlowTimePicker'));
+    expect(pickStartBody, contains('_schedulePersistentDraftSave();'));
+
+    final pickEndBody = _sliceBetween(
+      source,
+      'Future<void> _pickEndFor(_NoteDraft draft) async',
+      'Future<TimeOfDay?> _showFlowTimePicker',
+    );
+    expect(pickEndBody, contains('_showFlowTimePicker'));
+    expect(pickEndBody, contains('_schedulePersistentDraftSave();'));
+
+    final aiGeneratedLoadBody = _sliceBetween(
+      source,
+      'Future<void> _loadAIGeneratedFlow(int flowId) async',
+      '/// Load a flow by ID from database',
+    );
+    expect(aiGeneratedLoadBody, contains('forceTimedDrafts: true'));
 
     final saveBody = _sliceBetween(
       source,
@@ -578,6 +670,34 @@ Finder _nameField() {
   );
 }
 
+Finder _noteTimeButtons(String kind) {
+  return find.byWidgetPredicate((widget) {
+    final key = widget.key;
+    return widget is OutlinedButton &&
+        key is ValueKey<String> &&
+        key.value.startsWith('flow-studio-note-$kind-');
+  });
+}
+
+void _expectEnabledTimeEditors({required int expectedCount}) {
+  final startButtons = _noteTimeButtons('start');
+  final endButtons = _noteTimeButtons('end');
+  expect(startButtons, findsNWidgets(expectedCount));
+  expect(endButtons, findsNWidgets(expectedCount));
+  for (var i = 0; i < expectedCount; i += 1) {
+    expect(
+      testerWidget<OutlinedButton>(startButtons.at(i)).onPressed,
+      isNotNull,
+    );
+    expect(testerWidget<OutlinedButton>(endButtons.at(i)).onPressed, isNotNull);
+  }
+}
+
+T testerWidget<T extends Widget>(Finder finder) {
+  final element = finder.evaluate().single;
+  return element.widget as T;
+}
+
 Map<String, dynamic> _buildDraft({
   String studioMode = 'build',
   required DateTime startDate,
@@ -621,12 +741,15 @@ Future<void> _openFlowStudio(
   WidgetTester tester, {
   Map<String, dynamic>? initialDraftJson,
   Future<void> Function(dynamic result)? onRouteResult,
+  Future<TimeOfDay?> Function(BuildContext context, TimeOfDay initialTime)?
+  debugTimePicker,
 }) async {
   await tester.pumpWidget(
     MaterialApp(
       home: debugBuildFlowStudioPageForTest(
         initialDraftJson: initialDraftJson,
         onRouteResult: onRouteResult,
+        debugTimePicker: debugTimePicker,
       ),
     ),
   );

@@ -8,6 +8,7 @@ class ReminderService {
   static const _prefsKey = 'local:reminders';
   final Map<String, Reminder> _reminders = {};
   final StreamController<List<Reminder>> _stream = StreamController.broadcast();
+  bool _disposed = false;
 
   ReminderService();
 
@@ -68,10 +69,13 @@ class ReminderService {
   }
 
   void _emit() {
+    if (_disposed || _stream.isClosed) return;
     _stream.add(_reminders.values.toList());
   }
 
   void dispose() {
+    if (_disposed || _stream.isClosed) return;
+    _disposed = true;
     _stream.close();
   }
 }

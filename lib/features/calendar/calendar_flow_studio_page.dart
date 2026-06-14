@@ -208,6 +208,7 @@ class _FlowStudioPage extends StatefulWidget {
     this.onRouteClose,
     this.debugInitialDraftJson,
     this.debugDisableDraftPersistence = false,
+    this.debugTimePicker,
   });
 
   final List<_Flow> existingFlows;
@@ -219,6 +220,11 @@ class _FlowStudioPage extends StatefulWidget {
   final FutureOr<void> Function()? onRouteClose;
   final Map<String, dynamic>? debugInitialDraftJson;
   final bool debugDisableDraftPersistence;
+  final Future<TimeOfDay?> Function(
+    BuildContext context,
+    TimeOfDay initialTime,
+  )?
+  debugTimePicker;
 
   @override
   State<_FlowStudioPage> createState() => _FlowStudioPageState();
@@ -230,6 +236,8 @@ Widget debugBuildFlowStudioPageForTest({
   int? editFlowId,
   Map<String, dynamic>? initialDraftJson,
   Future<void> Function(dynamic result)? onRouteResult,
+  Future<TimeOfDay?> Function(BuildContext context, TimeOfDay initialTime)?
+  debugTimePicker,
 }) {
   return _FlowStudioPage(
     existingFlows: const <_Flow>[],
@@ -240,6 +248,7 @@ Widget debugBuildFlowStudioPageForTest({
         : (result) => onRouteResult(result),
     debugInitialDraftJson: initialDraftJson,
     debugDisableDraftPersistence: true,
+    debugTimePicker: debugTimePicker,
   );
 }
 
@@ -1878,21 +1887,10 @@ class _FlowStudioPageState extends State<_FlowStudioPage>
   // ---------- per-day/pattern note editors ----------
 
   Future<void> _pickStartFor(_NoteDraft draft) async {
-    final t = await showTimePicker(
-      context: context,
-      initialTime: draft.start ?? const TimeOfDay(hour: 12, minute: 0),
-      builder: (c, w) => Theme(
-        data: Theme.of(c).copyWith(
-          colorScheme: const ColorScheme.dark(
-            primary: _gold,
-            surface: _bg,
-            onSurface: Colors.white,
-          ),
-        ),
-        child: w!,
-      ),
+    final t = await _showFlowTimePicker(
+      draft.start ?? const TimeOfDay(hour: 12, minute: 0),
     );
-    if (t == null) return;
+    if (t == null || !mounted) return;
     setState(() {
       draft.start = t;
       if (draft.end != null) {
@@ -1901,16 +1899,36 @@ class _FlowStudioPageState extends State<_FlowStudioPage>
         }
       }
     });
+    _schedulePersistentDraftSave();
   }
 
   Future<void> _pickEndFor(_NoteDraft draft) async {
-    final t = await showTimePicker(
-      context: context,
-      initialTime:
-          draft.end ??
+    final t = await _showFlowTimePicker(
+      draft.end ??
           (draft.start != null
               ? _addMinutes(draft.start!, 60)
               : const TimeOfDay(hour: 13, minute: 0)),
+    );
+    if (t == null || !mounted) return;
+    setState(() {
+      draft.end = t;
+      if (draft.start != null) {
+        if (_toMinutes(t) <= _toMinutes(draft.start!)) {
+          draft.start = _addMinutes(t, -60);
+        }
+      }
+    });
+    _schedulePersistentDraftSave();
+  }
+
+  Future<TimeOfDay?> _showFlowTimePicker(TimeOfDay initialTime) {
+    final debugPicker = widget.debugTimePicker;
+    if (debugPicker != null) {
+      return debugPicker(context, initialTime);
+    }
+    return showTimePicker(
+      context: context,
+      initialTime: initialTime,
       builder: (c, w) => Theme(
         data: Theme.of(c).copyWith(
           colorScheme: const ColorScheme.dark(
@@ -1922,23 +1940,15 @@ class _FlowStudioPageState extends State<_FlowStudioPage>
         child: w!,
       ),
     );
-    if (t == null) return;
-    setState(() {
-      draft.end = t;
-      if (draft.start != null) {
-        if (_toMinutes(t) <= _toMinutes(draft.start!)) {
-          draft.start = _addMinutes(t, -60);
-        }
-      }
-    });
   }
 
   Widget _timeButton(
     String label,
     TimeOfDay? value,
     VoidCallback onTap,
-    bool enabled,
-  ) {
+    bool enabled, {
+    Key? key,
+  }) {
     final h = value?.hourOfPeriod == 0 ? 12 : (value?.hourOfPeriod ?? 12);
     final m = (value?.minute ?? 0).toString().padLeft(2, '0');
     final ap = (value == null)
@@ -1952,6 +1962,7 @@ class _FlowStudioPageState extends State<_FlowStudioPage>
         SizedBox(
           height: 40,
           child: OutlinedButton(
+            key: key,
             style: OutlinedButton.styleFrom(
               foregroundColor: Colors.white,
               side: const BorderSide(color: _silver, width: 1),
@@ -2141,7 +2152,10 @@ class _FlowStudioPageState extends State<_FlowStudioPage>
                         SwitchListTile(
                           contentPadding: EdgeInsets.zero,
                           value: draft.allDay,
-                          onChanged: (v) => setState(() => draft.allDay = v),
+                          onChanged: (v) {
+                            setState(() => draft.allDay = v);
+                            _schedulePersistentDraftSave();
+                          },
                           title: const GlossyText(
                             text: 'All-day',
                             style: TextStyle(fontSize: 14),
@@ -2158,6 +2172,9 @@ class _FlowStudioPageState extends State<_FlowStudioPage>
                                 draft.start,
                                 () => _pickStartFor(draft),
                                 !draft.allDay,
+                                key: ValueKey<String>(
+                                  'flow-studio-note-start-${g.key}-$index',
+                                ),
                               ),
                             ),
                             const SizedBox(width: 8),
@@ -2167,6 +2184,9 @@ class _FlowStudioPageState extends State<_FlowStudioPage>
                                 draft.end,
                                 () => _pickEndFor(draft),
                                 !draft.allDay,
+                                key: ValueKey<String>(
+                                  'flow-studio-note-end-${g.key}-$index',
+                                ),
                               ),
                             ),
                           ],
