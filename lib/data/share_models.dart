@@ -511,12 +511,6 @@ class InboxShareItem {
   }
 
   factory InboxShareItem.fromJson(Map<String, dynamic> json) {
-    if (kDebugMode) {
-      debugPrint(
-        '[InboxItem] Parsing: shareId=${json['share_id']}, kind=${json['kind']}',
-      );
-    }
-
     final payload = _parseJsonMap(json['payload_json']);
     final shareId = _requireString(json, 'share_id');
     final kind = InboxShareKind.fromString(
@@ -566,12 +560,6 @@ class InboxShareItem {
       recipientDisplayName: _nullableString(json['recipient_display_name']),
       recipientAvatarUrl: _nullableString(json['recipient_avatar_url']),
     );
-
-    if (kDebugMode) {
-      debugPrint(
-        '[InboxItem] Created: shareId=${result.shareId}, kind=${result.kind.asString}, isFlow=${result.isFlow}',
-      );
-    }
 
     return result;
   }

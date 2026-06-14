@@ -287,6 +287,7 @@ class _SessionTrackedRouteState extends State<SessionTrackedRoute> {
         RestorationCoordinator
             .instance
             .shouldDeferRootRoutePersistenceForLaunch) {
+      traceRestoration('launch placeholder root persistence suppressed');
       return;
     }
     unawaited(

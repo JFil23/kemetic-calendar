@@ -7,16 +7,19 @@ import 'package:mobile/widgets/month_name_text.dart';
 
 const Color _dayViewGold = KemeticGold.base;
 const Gradient _dayViewGoldGloss = KemeticGold.gloss;
+const Color _dayViewDateBronze = Color(0xFF7A662D);
+const Color _dayViewGregorianBlue = Color(0xFF5DA5E8);
 const TextStyle _dayViewMonthStyle = TextStyle(
-  fontSize: 18,
+  fontSize: 19,
   fontWeight: FontWeight.w500,
-  fontFamily: 'GentiumPlus',
-  fontFamilyFallback: ['NotoSans', 'Roboto', 'Arial', 'sans-serif'],
+  fontFamily: 'CormorantGaramond',
+  fontFamilyFallback: ['GentiumPlus', 'NotoSerif', 'Georgia', 'serif'],
 );
 const TextStyle _dayViewMiniCalendarNumberStyle = TextStyle(
-  fontSize: 14,
-  fontFamily: 'GentiumPlus',
-  fontFamilyFallback: ['NotoSans', 'Roboto', 'Arial', 'sans-serif'],
+  fontSize: 15,
+  fontWeight: FontWeight.w500,
+  fontFamily: 'CormorantGaramond',
+  fontFamilyFallback: ['GentiumPlus', 'NotoSerif', 'Georgia', 'serif'],
 );
 
 class KemeticDayViewHeader extends StatelessWidget {
@@ -37,6 +40,7 @@ class KemeticDayViewHeader extends StatelessWidget {
     this.onOpenQuickAdd,
     this.onOpenSearch,
     this.onOpenProfile,
+    this.onOpenMenu,
   });
 
   final int currentKy;
@@ -55,6 +59,7 @@ class KemeticDayViewHeader extends StatelessWidget {
   final Future<void> Function(BuildContext context)? onOpenQuickAdd;
   final Future<void> Function(BuildContext context)? onOpenSearch;
   final Future<void> Function(BuildContext context)? onOpenProfile;
+  final Future<void> Function(BuildContext context)? onOpenMenu;
 
   @override
   Widget build(BuildContext context) {
@@ -83,9 +88,17 @@ class KemeticDayViewHeader extends StatelessWidget {
     final monthName = showGregorian
         ? _gregorianMonthNames[currentGregorian.month - 1]
         : kemeticMonthName;
+    final closeButtonConstraints = BoxConstraints.tightFor(
+      width: 42,
+      height: headerHeight,
+    );
+    final actionButtonConstraints = BoxConstraints.tightFor(
+      width: 36,
+      height: headerHeight,
+    );
 
     return Container(
-      color: const Color(0xFF0D0D0F),
+      color: const Color(0xFF050403),
       child: SafeArea(
         bottom: false,
         child: Column(
@@ -98,6 +111,9 @@ class KemeticDayViewHeader extends StatelessWidget {
                   IconButton(
                     tooltip: 'Close',
                     icon: KemeticGold.icon(Icons.close),
+                    constraints: closeButtonConstraints,
+                    padding: EdgeInsets.zero,
+                    visualDensity: VisualDensity.compact,
                     onPressed: onClose ?? () {},
                   ),
                   Expanded(
@@ -115,7 +131,9 @@ class KemeticDayViewHeader extends StatelessWidget {
                           icon: Icons.add,
                           gradient: goldGloss,
                         ),
-                        padding: const EdgeInsets.symmetric(horizontal: 4),
+                        constraints: actionButtonConstraints,
+                        padding: EdgeInsets.zero,
+                        visualDensity: VisualDensity.compact,
                         onPressed: () async {
                           await onOpenQuickAdd!(btnCtx);
                         },
@@ -125,7 +143,9 @@ class KemeticDayViewHeader extends StatelessWidget {
                     IconButton(
                       tooltip: 'Search notes',
                       icon: const KemeticAppBarSearchIcon(),
-                      padding: const EdgeInsets.symmetric(horizontal: 4),
+                      constraints: actionButtonConstraints,
+                      padding: EdgeInsets.zero,
+                      visualDensity: VisualDensity.compact,
                       onPressed: () async {
                         await onOpenSearch!(context);
                       },
@@ -133,19 +153,34 @@ class KemeticDayViewHeader extends StatelessWidget {
                   IconButton(
                     tooltip: 'Today',
                     icon: const KemeticAppBarTodayIcon(),
-                    padding: const EdgeInsets.symmetric(horizontal: 4),
+                    constraints: actionButtonConstraints,
+                    padding: EdgeInsets.zero,
+                    visualDensity: VisualDensity.compact,
                     onPressed: onJumpToToday ?? () {},
                   ),
                   IconButton(
                     tooltip: 'My Profile',
                     icon: const KemeticAppBarProfileIcon(),
-                    padding: const EdgeInsets.symmetric(horizontal: 4),
+                    constraints: actionButtonConstraints,
+                    padding: EdgeInsets.zero,
+                    visualDensity: VisualDensity.compact,
                     onPressed: () async {
                       if (onOpenProfile != null) {
                         await onOpenProfile!(context);
                       }
                     },
                   ),
+                  if (onOpenMenu != null)
+                    IconButton(
+                      tooltip: 'Menu',
+                      icon: KemeticGold.icon(Icons.more_vert, size: 25),
+                      constraints: actionButtonConstraints,
+                      padding: EdgeInsets.zero,
+                      visualDensity: VisualDensity.compact,
+                      onPressed: () async {
+                        await onOpenMenu!(context);
+                      },
+                    ),
                 ],
               ),
             ),
@@ -187,12 +222,12 @@ class KemeticDayViewHeader extends StatelessWidget {
                         margin: const EdgeInsets.symmetric(horizontal: 2),
                         alignment: Alignment.center,
                         child: Container(
-                          width: 30,
-                          height: 30,
+                          width: 34,
+                          height: 34,
                           decoration: BoxDecoration(
                             shape: BoxShape.circle,
                             border: isCurrentDay
-                                ? Border.all(color: _dayViewGold, width: 1.5)
+                                ? Border.all(color: _dayViewGold, width: 1.9)
                                 : null,
                           ),
                           child: Center(
@@ -202,11 +237,18 @@ class KemeticDayViewHeader extends StatelessWidget {
                                 color: isToday
                                     ? _dayViewGold
                                     : (isCurrentDay
-                                          ? const Color(0xFFAAAAAA)
-                                          : Colors.white54),
+                                          ? (showGregorian
+                                                ? _dayViewGregorianBlue
+                                                : _dayViewGold)
+                                          : (showGregorian
+                                                ? _dayViewGregorianBlue
+                                                      .withValues(alpha: 0.64)
+                                                : _dayViewDateBronze.withValues(
+                                                    alpha: 0.74,
+                                                  ))),
                                 fontWeight: isCurrentDay || isToday
                                     ? FontWeight.w600
-                                    : FontWeight.normal,
+                                    : FontWeight.w500,
                               ),
                             ),
                           ),
@@ -261,7 +303,7 @@ class _DayViewMonthLabel extends StatelessWidget {
   Widget build(BuildContext context) {
     final label = ShaderMask(
       shaderCallback: (Rect bounds) =>
-          (showGregorian ? whiteGloss : _dayViewGoldGloss).createShader(bounds),
+          (showGregorian ? blueGloss : _dayViewGoldGloss).createShader(bounds),
       blendMode: BlendMode.srcIn,
       child: MonthNameText(
         monthName,

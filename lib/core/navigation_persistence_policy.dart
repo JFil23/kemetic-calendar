@@ -40,7 +40,15 @@ enum NavigationRouteClass {
 
 enum NavigationSource {
   userPrimaryTab,
+  userDrawerSelection,
+  userBack,
+  userDismissal,
+  userExplicitOpen,
   programmatic,
+  restoreReplay,
+  authGate,
+  launchPlaceholder,
+  lifecycle,
   calendarDidPushNext,
   calendarDispose,
   detailRestoration,
@@ -80,8 +88,24 @@ extension NavigationSourceWireName on NavigationSource {
     switch (this) {
       case NavigationSource.userPrimaryTab:
         return 'userPrimaryTab';
+      case NavigationSource.userDrawerSelection:
+        return 'userDrawerSelection';
+      case NavigationSource.userBack:
+        return 'userBack';
+      case NavigationSource.userDismissal:
+        return 'userDismissal';
+      case NavigationSource.userExplicitOpen:
+        return 'userExplicitOpen';
       case NavigationSource.programmatic:
         return 'programmatic';
+      case NavigationSource.restoreReplay:
+        return 'restoreReplay';
+      case NavigationSource.authGate:
+        return 'authGate';
+      case NavigationSource.launchPlaceholder:
+        return 'launchPlaceholder';
+      case NavigationSource.lifecycle:
+        return 'lifecycle';
       case NavigationSource.calendarDidPushNext:
         return 'calendarDidPushNext';
       case NavigationSource.calendarDispose:
@@ -179,8 +203,24 @@ NavigationSource navigationSourceFromWireName(String? raw) {
   switch (raw?.trim()) {
     case 'userPrimaryTab':
       return NavigationSource.userPrimaryTab;
+    case 'userDrawerSelection':
+      return NavigationSource.userDrawerSelection;
+    case 'userBack':
+      return NavigationSource.userBack;
+    case 'userDismissal':
+      return NavigationSource.userDismissal;
+    case 'userExplicitOpen':
+      return NavigationSource.userExplicitOpen;
     case 'programmatic':
       return NavigationSource.programmatic;
+    case 'restoreReplay':
+      return NavigationSource.restoreReplay;
+    case 'authGate':
+      return NavigationSource.authGate;
+    case 'launchPlaceholder':
+      return NavigationSource.launchPlaceholder;
+    case 'lifecycle':
+      return NavigationSource.lifecycle;
     case 'calendarDidPushNext':
       return NavigationSource.calendarDidPushNext;
     case 'calendarDispose':

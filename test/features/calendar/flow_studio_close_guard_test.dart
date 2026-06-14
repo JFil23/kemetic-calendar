@@ -19,6 +19,79 @@ void main() {
     expect(closeHandler, isNot(contains('Delete AI Flow?')));
   });
 
+  test(
+    'Flow Studio route close delegates Ma at list back and editor close',
+    () {
+      final source = File(
+        'lib/features/calendar/calendar_page.dart',
+      ).readAsStringSync();
+
+      final routeStart = source.indexOf('class _FlowStudioRoutePageState');
+      final routeEnd = source.indexOf('class _SharedCalendarsRoutePage');
+      expect(routeStart, isNonNegative);
+      expect(routeEnd, greaterThan(routeStart));
+      final routeSection = source.substring(routeStart, routeEnd);
+      expect(routeSection, contains('_flowStudioNavigatorKey'));
+      expect(routeSection, contains('_routeCloseRequested'));
+      expect(routeSection, contains("closeOrReturn(context, '/')"));
+      expect(routeSection, isNot(contains("context.go('/');")));
+      expect(routeSection, contains('bool _handleSystemBack()'));
+      expect(routeSection, contains('nestedNavigator.pop();'));
+      expect(routeSection, contains('onBackPressed: _handleSystemBack'));
+      expect(routeSection, contains('key: _flowStudioNavigatorKey'));
+      expect(routeSection, contains('onClose: _closeRoute'));
+      expect(routeSection, contains('_returnToFlowStudioHubRoute'));
+      expect(routeSection, contains("context.go('/flows')"));
+      expect(
+        routeSection,
+        contains('onReturnToHub: _returnToFlowStudioHubRoute'),
+      );
+
+      final rootStart = source.indexOf(
+        'static Widget _buildDetachedFlowStudioRoot',
+      );
+      final rootEnd = source.indexOf(
+        'static List<Route<dynamic>> _detachedFlowStudioInitialRoutes',
+      );
+      expect(rootStart, isNonNegative);
+      expect(rootEnd, greaterThan(rootStart));
+      final rootSection = source.substring(rootStart, rootEnd);
+      expect(rootSection, contains('VoidCallback? onClose'));
+      expect(rootSection, contains('onRouteClose: onClose'));
+      expect(rootSection, contains('onClose: onClose'));
+
+      final listStart = source.indexOf(
+        'static Widget _buildDetachedMaatFlowsListPage',
+      );
+      final listEnd = source.indexOf(
+        'static Widget _buildDetachedFlowStudioRoot',
+      );
+      expect(listStart, isNonNegative);
+      expect(listEnd, greaterThan(listStart));
+      final listSection = source.substring(listStart, listEnd);
+      expect(listSection, contains('VoidCallback? onClose'));
+      expect(listSection, contains('if (navigator.canPop())'));
+      expect(listSection, contains('navigator.pop();'));
+      expect(listSection, contains('onClose();'));
+
+      final initialRoutesSection = source.substring(rootEnd, routeStart);
+      expect(initialRoutesSection, contains('VoidCallback? onReturnToHub'));
+      expect(initialRoutesSection, contains('hubRoute(), listRoute'));
+      expect(
+        initialRoutesSection,
+        contains('hubRoute(), listRoute, detailRoute'),
+      );
+    },
+  );
+
+  test('Android app opts in to OnBackInvokedCallback', () {
+    final manifest = File(
+      'android/app/src/main/AndroidManifest.xml',
+    ).readAsStringSync();
+
+    expect(manifest, contains('android:enableOnBackInvokedCallback="true"'));
+  });
+
   test('replacement deletes do not create client-suppressing tombstones', () {
     final calendarSource = File(
       'lib/features/calendar/calendar_page.dart',

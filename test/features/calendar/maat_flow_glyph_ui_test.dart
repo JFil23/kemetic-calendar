@@ -3,6 +3,8 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mobile/features/calendar/calendar_page.dart';
+import 'package:mobile/features/calendar/maat_flow_palette.dart';
+import 'package:mobile/features/calendar/maat_flow_visual_tokens.dart';
 
 void main() {
   test('prebuilt Ma’at Flow templates declare non-empty glyph metadata', () {
@@ -43,8 +45,136 @@ void main() {
     },
   );
 
+  test('Ma’at Flow surface bundles and uses Cormorant Garamond', () {
+    final pubspec = File('pubspec.yaml').readAsStringSync();
+    final webHeaders = File('web/_headers').readAsStringSync();
+    final source = File(
+      'lib/features/calendar/calendar_maat_flows.dart',
+    ).readAsStringSync();
+    const fontAssets = [
+      'ios/Runner/Fonts/CormorantGaramond-Regular.ttf',
+      'ios/Runner/Fonts/CormorantGaramond-Italic.ttf',
+      'ios/Runner/Fonts/CormorantGaramond-Medium.ttf',
+      'ios/Runner/Fonts/CormorantGaramond-MediumItalic.ttf',
+      'ios/Runner/Fonts/CormorantGaramond-SemiBold.ttf',
+    ];
+
+    expect(MaatFlowListTokens.fontFamily, 'CormorantGaramond');
+    expect(MaatFlowListTokens.fontFallback, contains('GentiumPlus'));
+    expect(pubspec, contains('family: CormorantGaramond'));
+    expect(
+      webHeaders,
+      contains('/assets/FontManifest.json\n  Cache-Control: no-cache'),
+    );
+    expect(
+      webHeaders,
+      contains('/assets/ios/Runner/Fonts/*\n  Cache-Control: no-cache'),
+    );
+    for (final asset in fontAssets) {
+      expect(pubspec, contains('asset: $asset'));
+      expect(File(asset).existsSync(), isTrue, reason: 'Missing $asset');
+    }
+    for (final marker in [
+      'Privacy note: private reflections and names are never included in notification previews.',
+      'No Ma’at flows yet.',
+      'Widget _buildDateModeTitle',
+      'Widget _buildEventBadge',
+    ]) {
+      expect(
+        _methodOrLocalSource(source, marker),
+        contains('fontFamily: MaatFlowListTokens.fontFamily'),
+        reason: '$marker must not fall back to the app theme font.',
+      );
+    }
+  });
+
+  test('Ma’at Flow list renders custom glyph rings instead of dots', () {
+    final source = File(
+      'lib/features/calendar/calendar_maat_flows.dart',
+    ).readAsStringSync();
+    final listPage = _sourceBetween(
+      source,
+      'class _MaatFlowsListPageState',
+      '/* ───────────────────────── First Ma',
+    );
+    final recommendationCard = _sourceBetween(
+      source,
+      'Widget _recommendationCard(StarterMaatFlow suggestion)',
+      '@override',
+    );
+
+    expect(listPage, contains('class _MaatFlowIcon'));
+    expect(listPage, contains('class _MaatFlowIconPainter'));
+    expect(listPage, contains('canvas.drawArc('));
+    expect(listPage, contains('_MaatFlowCardStatus.joined('));
+    expect(listPage, contains('template.subtitle'));
+    expect(listPage, isNot(contains('_maatFlowTemplateDurationLabel(t)')));
+    expect(listPage, isNot(contains('Tap for details')));
+    expect(listPage, isNot(contains('maatDecanDefinition.tagline')));
+    expect(recommendationCard, contains('MaatFlowGlyph(glyph: template.glyph'));
+    expect(listPage, isNot(contains('shape: BoxShape.circle')));
+    expect(recommendationCard, isNot(contains('shape: BoxShape.circle')));
+    expect(listPage, isNot(contains('_glossFromColor(t.color)')));
+    expect(
+      recommendationCard,
+      isNot(contains('_glossFromColor(template.color)')),
+    );
+  });
+
+  test('Ma’at Flow list visual tokens match the target card spec', () {
+    expect(MaatFlowListTokens.pageBg, const Color(0xFF050504));
+    expect(MaatFlowListTokens.joinedCardBg, const Color(0xFF120F08));
+    expect(MaatFlowListTokens.joinedCardBorder, const Color(0xCC33270E));
+    expect(MaatFlowListTokens.unjoinedCardBg, const Color(0xFF0D0B07));
+    expect(MaatFlowListTokens.unjoinedCardBorder, const Color(0x99261E0D));
+    expect(MaatFlowListTokens.gold, const Color(0xFFD8B64E));
+    expect(MaatFlowListTokens.joinedTitle, const Color(0xFFD4AE43));
+    expect(MaatFlowListTokens.unjoinedTitle, const Color(0xFF8A7030));
+    expect(MaatFlowListTokens.sectionLabel, const Color(0xFF4A3A1F));
+    expect(MaatFlowListTokens.joinedCategory, const Color(0xFF8A7130));
+    expect(MaatFlowListTokens.unjoinedCategory, const Color(0xFF675327));
+    expect(MaatFlowListTokens.joinedDescription, const Color(0xFF9E9A94));
+    expect(MaatFlowListTokens.unjoinedDescription, const Color(0xFF5A5650));
+    expect(MaatFlowListTokens.joinedStatus, const Color(0xFF7A6A38));
+    expect(MaatFlowListTokens.joinedProgress, const Color(0xFFC8A84A));
+    expect(MaatFlowListTokens.joinedChevron, const Color(0xFFA98840));
+    expect(MaatFlowListTokens.unjoinedChevron, const Color(0xFF594516));
+    expect(MaatFlowListTokens.joinedIconBg, const Color(0xFF191207));
+    expect(MaatFlowListTokens.unjoinedIconBg, const Color(0xFF110E08));
+    expect(MaatFlowListTokens.joinedIconStroke, const Color(0xFFD4AE43));
+    expect(MaatFlowListTokens.unjoinedIconStroke, const Color(0xFF7C6428));
+    expect(MaatFlowListTokens.progressTrack, const Color(0xFF34270E));
+    expect(MaatFlowListTokens.cardRadius, 17);
+    expect(MaatFlowListTokens.cardBorderWidth, 0.5);
+    expect(MaatFlowListTokens.cardHorizontalMargin, 12);
+    expect(MaatFlowListTokens.joinedCardGap, 12);
+    expect(MaatFlowListTokens.unjoinedCardGap, 9);
+    expect(MaatFlowListTokens.joinedToUnjoinedGap, 22);
+    expect(MaatFlowListTokens.iconSize, 52);
+    expect(MaatFlowListTokens.joinedListIconSize, 58);
+    expect(MaatFlowListTokens.unjoinedListIconSize, 52);
+    expect(MaatFlowListTokens.iconInnerSize, 28);
+    expect(MaatFlowListTokens.iconGlyphScale, 1.13);
+    expect(MaatFlowListTokens.progressRingRadius, 26);
+    expect(MaatFlowListTokens.progressRingStrokeWidth, 1.8);
+    expect(MaatFlowListTokens.joinedIconStrokeWidth, 1.35);
+    expect(MaatFlowListTokens.unjoinedIconStrokeWidth, 1.2);
+    expect(
+      MaatFlowListTokens.joinedCardPadding,
+      const EdgeInsets.fromLTRB(18, 26, 18, 26),
+    );
+    expect(
+      MaatFlowListTokens.unjoinedCardPadding,
+      const EdgeInsets.fromLTRB(18, 18, 16, 17),
+    );
+    expect(
+      MaatFlowListTokens.sectionLabelPadding,
+      const EdgeInsets.fromLTRB(12, 0, 12, 14),
+    );
+  });
+
   test(
-    'Ma’at Flow list and starter rows render glyph widgets instead of dots',
+    'Ma’at Flow list uses joined-only glow and joined-only progress rings',
     () {
       final source = File(
         'lib/features/calendar/calendar_maat_flows.dart',
@@ -54,28 +184,45 @@ void main() {
         'class _MaatFlowsListPageState',
         '/* ───────────────────────── First Ma',
       );
-      final recommendationCard = _sourceBetween(
+      final card = _sourceBetween(
         source,
-        'Widget _recommendationCard(StarterMaatFlow suggestion)',
-        '@override',
+        'class _MaatFlowCard extends StatelessWidget',
+        'class _MaatFlowSubtitleParts',
+      );
+      final painter = _sourceBetween(
+        source,
+        'class _MaatFlowIconPainter extends CustomPainter',
+        '/* ───────────────────────── First Ma',
       );
 
-      expect(listPage, contains('leading: MaatFlowGlyph(glyph: t.glyph'));
-      expect(listPage, contains('t.subtitle'));
-      expect(listPage, isNot(contains('_maatFlowTemplateDurationLabel(t)')));
-      expect(listPage, isNot(contains('Tap for details')));
-      expect(listPage, isNot(contains('maatDecanDefinition.tagline')));
+      expect(listPage, contains('_MaatFlowCardGlowLine('));
       expect(
-        recommendationCard,
-        contains('MaatFlowGlyph(glyph: template.glyph'),
+        listPage,
+        contains('if (status.joined) const _MaatFlowCardSurfaceLight()'),
       );
-      expect(listPage, isNot(contains('shape: BoxShape.circle')));
-      expect(recommendationCard, isNot(contains('shape: BoxShape.circle')));
-      expect(listPage, isNot(contains('_glossFromColor(t.color)')));
+      expect(listPage, contains('_maatFlowListPaletteFor(template)'));
+      expect(listPage, contains('_MaatFlowCardBaseLayer(joined:'));
+      expect(listPage, contains('_MaatFlowCardColorWash('));
+      expect(listPage, contains('_MaatFlowCardStripe('));
+      expect(listPage, contains('Opacity(opacity: 0.88'));
+      expect(card, isNot(contains('if (!status.joined) const _MaatFlowCard')));
+      expect(listPage, isNot(contains('_MaatFlowCardGleam')));
       expect(
-        recommendationCard,
-        isNot(contains('_glossFromColor(template.color)')),
+        painter,
+        contains('if (paintBackground && joined && progress != null)'),
       );
+      expect(painter, contains('MaatFlowListTokens.progressTrack'));
+      expect(
+        painter,
+        contains('canvas.scale(MaatFlowListTokens.iconGlyphScale)'),
+      );
+      expect(painter, contains('listAccent'));
+      expect(
+        painter,
+        contains('accent.withValues(alpha: joined ? 0.30 : 0.14)'),
+      );
+      expect(listPage, isNot(contains('_inactiveRing')));
+      expect(listPage, isNot(contains('_ringTrack')));
     },
   );
 
@@ -105,8 +252,14 @@ void main() {
     ).readAsStringSync();
 
     expect(
-      source,
-      contains('style: TextStyle(color: Colors.white38'),
+      _methodOrLocalSource(
+        source,
+        'Privacy note: private reflections and names are never included in notification previews.',
+      ),
+      allOf(
+        contains('color: Colors.white38'),
+        contains('fontFamily: MaatFlowListTokens.fontFamily'),
+      ),
       reason: 'Footer privacy copy should be low-emphasis.',
     );
     expect(_countOccurrences(source, 'const _MaatFlowPrivacyFooter(),'), 9);
@@ -118,6 +271,212 @@ void main() {
     _expectFooterAfter(source, '...kOpenHandEvents.map(');
     _expectFooterAfter(source, '...kDjedEvents.map(');
     _expectFooterAfter(source, '...kDaysOutsideEvents.map(');
+  });
+
+  test('all Ma’at Flow detail branches use the shared detail scaffold', () {
+    final source = File(
+      'lib/features/calendar/calendar_maat_flows.dart',
+    ).readAsStringSync();
+    final detailState = source.substring(
+      source.indexOf('class _MaatFlowTemplateDetailPageState'),
+    );
+    const scaffoldBuilders = [
+      '_buildEnrollmentUnavailableScaffold',
+      '_buildTrackSkyScaffold',
+      '_buildDawnHouseRiteScaffold',
+      '_buildEveningThresholdRiteScaffold',
+      '_buildTheWeighingScaffold',
+      '_buildTheTendingScaffold',
+      '_buildKeptWordScaffold',
+      '_buildWagScaffold',
+      '_buildDecanWatchScaffold',
+      '_buildMaatDecanFlowScaffold',
+      '_buildOpenHandScaffold',
+      '_buildDjedScaffold',
+      '_buildDaysOutsideYearScaffold',
+      '_buildMoonReturnScaffold',
+      '_buildCourseScaffold',
+      '_buildOfferingTableScaffold',
+      '_buildSequenceScaffold',
+    ];
+
+    expect(detailState, isNot(contains('backgroundColor: _bg')));
+    for (final builder in scaffoldBuilders) {
+      expect(
+        _methodSource(source, builder),
+        contains('return _buildMaatFlowDetailScaffold('),
+        reason: '$builder should render through the shared detail scaffold.',
+      );
+    }
+  });
+
+  test('The Weighing detail restructure preserves control handlers', () {
+    final source = File(
+      'lib/features/calendar/calendar_maat_flows.dart',
+    ).readAsStringSync();
+    final scaffold = _sourceBetween(
+      source,
+      'Widget _buildTheWeighingScaffold(BuildContext context)',
+      'Widget _buildTheTendingEventTile',
+    );
+    final overviewZones = _sourceBetween(
+      source,
+      'List<Widget> _buildMaatFlowOverviewZones',
+      'Widget _buildMaatFlowDetailHero',
+    );
+    final timezoneSelector = _sourceBetween(
+      source,
+      'Widget _buildTimezoneSelector()',
+      'Widget _buildStartDateRow',
+    );
+    final startDateRow = _sourceBetween(
+      source,
+      'Widget _buildStartDateRow',
+      'Widget _buildDetailChoiceChips',
+    );
+    final descriptionToggle = _sourceBetween(
+      source,
+      'Widget _buildFullDescriptionToggle',
+      '_MaatFlowDetailContent _detailContentForTemplate',
+    );
+    final sittingTile = _sourceBetween(
+      source,
+      'Widget _buildMaatFlowSittingTile',
+      'Widget _buildMaatFlowDetailSections',
+    );
+
+    expect(scaffold, contains('_buildMaatFlowDetailScaffold'));
+    expect(scaffold, contains('joinButton: _buildTemplateStickyJoinButton'));
+    expect(scaffold, contains('_joinTheWeighingFlow(selectedStart)'));
+    expect(scaffold, contains('_buildTimezoneSelector()'));
+    expect(scaffold, contains('_buildStartDateRow(context, selectedStart)'));
+    expect(scaffold, contains('_buildDetailChoiceChips<TheWeighingLens>'));
+    expect(scaffold, contains('_theWeighingLens = lens'));
+    expect(scaffold, contains('_buildTheWeighingEventTile(context, event)'));
+    expect(overviewZones, contains('_buildFullDescriptionToggle'));
+    expect(timezoneSelector, contains('_setTrackSkyPreviewTimeZone(timezone)'));
+    expect(startDateRow, contains('onPressed: _pickDate'));
+    expect(descriptionToggle, contains('_descriptionExpanded ='));
+    expect(sittingTile, contains('ExpansionTile'));
+  });
+
+  test('Ma’at Flow detail uses shared palette and surface contract', () {
+    final source = File(
+      'lib/features/calendar/calendar_maat_flows.dart',
+    ).readAsStringSync();
+    final calendarPageSource = File(
+      'lib/features/calendar/calendar_page.dart',
+    ).readAsStringSync();
+    final paletteSource = File(
+      'lib/features/calendar/maat_flow_palette.dart',
+    ).readAsStringSync();
+    final detailScaffold = _sourceBetween(
+      source,
+      'Widget _buildMaatFlowDetailScaffold',
+      'List<Widget> _buildMaatFlowOverviewZones',
+    );
+    final overviewZones = _sourceBetween(
+      source,
+      'List<Widget> _buildMaatFlowOverviewZones',
+      'Widget _buildMaatFlowDetailHero',
+    );
+    final hero = _sourceBetween(
+      source,
+      'Widget _buildMaatFlowDetailHero',
+      'Widget _buildAtAGlanceChips',
+    );
+    final chips = _sourceBetween(
+      source,
+      'Widget _buildAtAGlanceChips',
+      'Widget _buildMaatFlowArc',
+    );
+    final arc = _sourceBetween(
+      source,
+      'Widget _buildMaatFlowArc',
+      'Widget _buildMaatFlowArcCard',
+    );
+    final sittingTile = _sourceBetween(
+      source,
+      'Widget _buildMaatFlowSittingTile',
+      'Widget _buildMaatFlowDetailSections',
+    );
+    final expandableTile = _sourceBetween(
+      source,
+      'Widget _buildExpandableFlowEventTile',
+      'Widget _buildMaatFlowSittingTile',
+    );
+    final scaffold = _sourceBetween(
+      source,
+      'Widget _buildTheWeighingScaffold(BuildContext context)',
+      'Widget _buildTheTendingEventTile',
+    );
+
+    final weighing = MaatFlowPalette.resolve(
+      flowId: 'the-weighing',
+      accent: Colors.red,
+    );
+    final standard = MaatFlowPalette.resolve(
+      flowId: 'the-course',
+      accent: const Color(0xFFE8B84A),
+    );
+
+    expect(weighing.isGraphic, isTrue);
+    expect(weighing.accent, const Color(0xFFB8A88A));
+    expect(weighing.glowColor, const Color(0xFFF5E8CB));
+    expect(standard.isGraphic, isFalse);
+    expect(standard.accent, const Color(0xFFE8B84A));
+    expect(standard.glowColor, const Color(0xFFE8B84A));
+    expect(paletteSource, contains('class MaatFlowPalette'));
+    expect(
+      paletteSource,
+      contains('class MaatFlowSurface extends StatelessWidget'),
+    );
+    expect(
+      paletteSource,
+      contains("static const Map<String, MaatFlowPalette> _graphicOverrides"),
+    );
+    expect(paletteSource, contains("'track-the-sky'"));
+    expect(paletteSource, contains("'dawn-house-rite'"));
+    expect(paletteSource, contains("'evening-threshold-rite'"));
+    expect(paletteSource, contains("'the-weighing'"));
+    expect(paletteSource, isNot(contains("'the-course'")));
+    expect(calendarPageSource, contains("import 'maat_flow_palette.dart';"));
+    expect(source, contains('MaatFlowPalette get _palette'));
+    expect(
+      source,
+      contains('class _MaatFlowGlyphTile extends StatelessWidget'),
+    );
+    expect(source, isNot(contains('class _MaatFlowWeighingMaterialSurface')));
+    expect(source, isNot(contains('class _TheWeighingGlyphTile')));
+    expect(
+      detailScaffold,
+      contains(
+        'final scrollBottomPadding = ctaHeight + media.padding.bottom + 24',
+      ),
+    );
+    expect(overviewZones, contains('fontSize: 16'));
+    expect(
+      overviewZones,
+      contains('_buildMaatFlowArc(content.arcBlocks, palette: palette)'),
+    );
+    expect(hero, contains('fontSize: 30'));
+    expect(hero, contains('fontSize: 16'));
+    expect(hero, contains('detailPalette: palette'));
+    expect(hero, contains('MaatFlowPalette.gold'));
+    expect(hero, contains('MaatFlowPalette.silverHi'));
+    expect(chips, contains('MaatFlowSurface('));
+    expect(chips, contains('showCrown: true'));
+    expect(chips, contains('washOpacity: 0.10'));
+    expect(arc, contains('constraints.maxWidth < 330'));
+    expect(arc, contains('height: 132'));
+    expect(arc, contains('MaatFlowSurface('));
+    expect(arc, contains('_MaatFlowArcDivider(palette: palette)'));
+    expect(arc, contains('_MaatFlowArcChevron(palette: palette)'));
+    expect(sittingTile, contains('MaatFlowSurface('));
+    expect(sittingTile, contains('MaatFlowPalette.separator'));
+    expect(sittingTile, contains('_buildMaatFlowDetailSections(detailText)'));
+    expect(expandableTile, contains('MaatFlowSurface('));
+    expect(scaffold, contains('leading: _MaatFlowGlyphTile('));
   });
 }
 
@@ -149,4 +508,33 @@ void _expectFooterAfter(String source, String marker) {
     markerIndex,
   );
   expect(footerIndex, isNonNegative, reason: 'Missing footer after $marker');
+}
+
+String _methodSource(String source, String methodName) {
+  final declaration = RegExp(
+    r'\n  [A-Za-z_][A-Za-z0-9_<>,? ]+\s+' + RegExp.escape(methodName) + r'\(',
+  ).firstMatch(source);
+  if (declaration == null) fail('Missing method: $methodName');
+
+  final memberPattern = RegExp(
+    r'\n  [A-Za-z_][A-Za-z0-9_<>,? ]*\s+_[A-Za-z0-9]+(?:<[^>]+>)?\(',
+  );
+  var end = source.length;
+  for (final match in memberPattern.allMatches(source, declaration.end)) {
+    end = match.start;
+    break;
+  }
+  return source.substring(declaration.start, end);
+}
+
+String _methodOrLocalSource(String source, String marker) {
+  final index = source.indexOf(marker);
+  expect(index, isNonNegative, reason: 'Missing marker: $marker');
+  if (marker.startsWith('Widget ')) {
+    final methodName = marker.split(' ').last;
+    return _methodSource(source, methodName);
+  }
+  final start = (index - 240).clamp(0, source.length);
+  final end = (index + 420).clamp(0, source.length);
+  return source.substring(start, end);
 }

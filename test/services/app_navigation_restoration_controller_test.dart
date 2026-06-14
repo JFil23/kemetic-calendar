@@ -715,6 +715,192 @@ void main() {
     },
   );
 
+  test('user back from detail persists the parent surface', () async {
+    await AppNavigationRestorationController.instance.recordVisibleSurface(
+      route: '/nodes/abydos',
+    );
+
+    await AppNavigationRestorationController.instance.recordSurfaceDismissal(
+      dismissedRoute: '/nodes/abydos',
+      fallbackRoute: '/nodes',
+      source: NavigationSource.userBack,
+    );
+
+    final destination = await AppNavigationRestorationController.instance
+        .restoreLaunchDestination(isAuthenticated: true);
+
+    expect(await _durableRoute(), '/nodes');
+    expect(destination.route, '/nodes');
+    expect(await _durableMetadataJson(), containsPair('source', 'userBack'));
+    expect(await _durableMetadataJson(), containsPair('section', 'library'));
+  });
+
+  test(
+    'user dismissals from restorable details persist named parent surfaces',
+    () async {
+      const cases =
+          <
+            ({
+              String dismissedRoute,
+              String fallbackRoute,
+              NavigationSource source,
+            })
+          >[
+            (
+              dismissedRoute: '/inbox/conversation/friend-1',
+              fallbackRoute: '/inbox',
+              source: NavigationSource.userBack,
+            ),
+            (
+              dismissedRoute: '/journal/entry/entry-1',
+              fallbackRoute: '/journal',
+              source: NavigationSource.userBack,
+            ),
+            (
+              dismissedRoute: '/nodes/abydos',
+              fallbackRoute: '/nodes',
+              source: NavigationSource.userBack,
+            ),
+            (
+              dismissedRoute: '/reflections/reflection-1',
+              fallbackRoute: '/reflections',
+              source: NavigationSource.userDismissal,
+            ),
+            (
+              dismissedRoute: '/flow-post/post-1',
+              fallbackRoute: '/profile/me',
+              source: NavigationSource.userDismissal,
+            ),
+            (
+              dismissedRoute: '/maat-guidance/delivery-1',
+              fallbackRoute: '/',
+              source: NavigationSource.userDismissal,
+            ),
+          ];
+
+      for (final detailCase in cases) {
+        await AppRestorationService.instance.clearCurrentSnapshot();
+
+        await AppNavigationRestorationController.instance.recordVisibleSurface(
+          route: detailCase.dismissedRoute,
+        );
+        expect(
+          await _durableRoute(),
+          detailCase.dismissedRoute,
+          reason: detailCase.dismissedRoute,
+        );
+
+        await AppNavigationRestorationController.instance
+            .recordSurfaceDismissal(
+              dismissedRoute: detailCase.dismissedRoute,
+              fallbackRoute: detailCase.fallbackRoute,
+              source: detailCase.source,
+            );
+
+        final destination = await AppNavigationRestorationController.instance
+            .restoreLaunchDestination(isAuthenticated: true);
+
+        expect(
+          await _durableRoute(),
+          detailCase.fallbackRoute,
+          reason: detailCase.dismissedRoute,
+        );
+        expect(
+          destination.route,
+          detailCase.fallbackRoute,
+          reason: detailCase.dismissedRoute,
+        );
+        expect(
+          await _durableMetadataJson(),
+          containsPair('source', detailCase.source.wireName),
+          reason: detailCase.dismissedRoute,
+        );
+      }
+    },
+  );
+
+  test(
+    'user dismissal from detail to Calendar evicts saved detail route',
+    () async {
+      await AppNavigationRestorationController.instance.recordVisibleSurface(
+        route: '/maat-guidance/delivery-1',
+      );
+
+      await AppNavigationRestorationController.instance.recordSurfaceDismissal(
+        dismissedRoute: '/maat-guidance/delivery-1',
+        fallbackRoute: '/',
+        source: NavigationSource.userDismissal,
+      );
+
+      final destination = await AppNavigationRestorationController.instance
+          .restoreLaunchDestination(isAuthenticated: true);
+
+      expect(await _durableRoute(), '/');
+      expect(destination.route, '/');
+      expect(
+        await _durableMetadataJson(),
+        containsPair('source', 'userDismissal'),
+      );
+    },
+  );
+
+  test('passive root mounts cannot evict a saved detail surface', () async {
+    for (final source in const <NavigationSource>[
+      NavigationSource.programmatic,
+      NavigationSource.authGate,
+      NavigationSource.launchPlaceholder,
+      NavigationSource.restoreReplay,
+      NavigationSource.lifecycle,
+    ]) {
+      await AppRestorationService.instance.clearCurrentSnapshot();
+
+      await AppNavigationRestorationController.instance.recordVisibleSurface(
+        route: '/journal/entry/entry-1',
+      );
+
+      await AppNavigationRestorationController.instance.recordVisibleSurface(
+        route: '/',
+        source: source,
+      );
+
+      final destination = await AppNavigationRestorationController.instance
+          .restoreLaunchDestination(isAuthenticated: true);
+
+      expect(
+        await _durableRoute(),
+        '/journal/entry/entry-1',
+        reason: source.wireName,
+      );
+      expect(
+        destination.route,
+        '/journal/entry/entry-1',
+        reason: source.wireName,
+      );
+    }
+  });
+
+  test(
+    'explicit Calendar primary command evicts a saved detail surface',
+    () async {
+      await AppNavigationRestorationController.instance.recordVisibleSurface(
+        route: '/inbox/conversation/friend-1',
+      );
+
+      await AppNavigationRestorationController.instance
+          .recordPrimaryTabSelection(AppSection.calendar);
+
+      final destination = await AppNavigationRestorationController.instance
+          .restoreLaunchDestination(isAuthenticated: true);
+
+      expect(await _durableRoute(), '/');
+      expect(destination.route, '/');
+      expect(
+        await _durableMetadataJson(),
+        containsPair('source', 'userPrimaryTab'),
+      );
+    },
+  );
+
   test('node action URLs are one-shot and sanitize to stable routes', () async {
     final resolution = await AppNavigationRestorationController.instance
         .consumeOneShotIntent(
@@ -840,6 +1026,35 @@ void main() {
     expect(classification.canRecordPrimarySelection, isFalse);
     expect(classification.routeClass, NavigationRouteClass.transient);
     expect(classification.canonicalRoute, '/profile/me');
+  });
+
+  test('Profile persistence is source-aware', () async {
+    await AppNavigationRestorationController.instance.recordVisibleSurface(
+      route: '/profile/me',
+      source: NavigationSource.userExplicitOpen,
+    );
+
+    expect(await _durableRoute(), '/profile/me');
+    expect(
+      await _durableMetadataJson(),
+      containsPair('source', 'userExplicitOpen'),
+    );
+
+    await AppNavigationRestorationController.instance.recordSurfaceDismissal(
+      dismissedRoute: '/profile/me',
+      fallbackRoute: '/nodes',
+      source: NavigationSource.userBack,
+    );
+
+    expect(await _durableRoute(), '/nodes');
+    expect(await _durableMetadataJson(), containsPair('source', 'userBack'));
+
+    await AppNavigationRestorationController.instance.recordVisibleSurface(
+      route: '/profile/me',
+      source: NavigationSource.authGate,
+    );
+
+    expect(await _durableRoute(), '/nodes');
   });
 
   test('detail routes restore as surfaces with owning sections', () {

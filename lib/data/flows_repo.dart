@@ -382,6 +382,20 @@ class FlowsRepo {
 
   Future<List<FlowRow>> _fetchMyRawFlows() => refreshMyFiledFlows();
 
+  ({Map<int, int> total, Map<int, int> remaining}) _eventCountsFromFlowRows(
+    Iterable<FlowRow> rows, {
+    Set<int>? onlyFlowIds,
+  }) {
+    final totalCounts = <int, int>{};
+    final remainingCounts = <int, int>{};
+    for (final row in rows) {
+      if (onlyFlowIds != null && !onlyFlowIds.contains(row.id)) continue;
+      totalCounts[row.id] = row.totalEventCount;
+      remainingCounts[row.id] = row.remainingEventCount;
+    }
+    return (total: totalCounts, remaining: remainingCounts);
+  }
+
   Future<List<FlowRow>> listMyFiledFlows({int? limit}) async {
     return refreshMyFiledFlows(limit: limit);
   }
@@ -434,23 +448,41 @@ class FlowsRepo {
       }
       return (total: totalCounts, remaining: remainingCounts);
     } catch (e) {
-      _log('get_my_flow_activity unavailable, using local fallback: $e');
+      final cachedRows =
+          cachedMyFiledFlowsSync() ?? await restoreCachedFiledFlows();
+      final cachedCounts = cachedRows == null
+          ? (total: <int, int>{}, remaining: <int, int>{})
+          : _eventCountsFromFlowRows(cachedRows, onlyFlowIds: flowIdSet);
+      if (cachedCounts.total.isNotEmpty || cachedCounts.remaining.isNotEmpty) {
+        _log(
+          'get_my_flow_activity unavailable, using cached filing counts: $e',
+        );
+        return cachedCounts;
+      }
+      _log('get_my_flow_activity unavailable, using query fallback: $e');
     }
 
-    final eventRows =
-        await _client
-                .from('user_event_filing_items_client')
-                .select('filed_flow_id, client_event_id')
-                .eq('user_id', user.id)
-                .inFilter('filed_flow_id', flowIds)
-            as List<dynamic>;
-    final completionRows =
-        await _client
-                .from('user_event_completions')
-                .select('flow_id, client_event_id')
-                .eq('user_id', user.id)
-                .inFilter('flow_id', flowIds)
-            as List<dynamic>;
+    late final List<dynamic> eventRows;
+    late final List<dynamic> completionRows;
+    try {
+      eventRows =
+          await _client
+                  .from('user_event_filing_items_client')
+                  .select('filed_flow_id, client_event_id')
+                  .eq('user_id', user.id)
+                  .inFilter('filed_flow_id', flowIds)
+              as List<dynamic>;
+      completionRows =
+          await _client
+                  .from('user_event_completions')
+                  .select('flow_id, client_event_id')
+                  .eq('user_id', user.id)
+                  .inFilter('flow_id', flowIds)
+              as List<dynamic>;
+    } catch (e) {
+      _log('flow event count query fallback failed: $e');
+      return (total: <int, int>{}, remaining: <int, int>{});
+    }
 
     final completedClientIdsByFlow = <int, Set<String>>{};
     for (final raw in completionRows.cast<Map<String, dynamic>>()) {
@@ -492,8 +524,7 @@ class FlowsRepo {
 
   Future<FlowLedger<FlowRow>> loadMyFlowLedger() async {
     final flows = await _fetchMyRawFlows();
-    final flowIds = flows.map((flow) => flow.id).toList(growable: false);
-    final eventCounts = await _loadMyEventCounts(flowIds);
+    final eventCounts = _eventCountsFromFlowRows(flows);
     return _buildLedger(
       flows,
       totalEventCounts: eventCounts.total,

@@ -124,6 +124,34 @@ class AppNavigationRestorationController {
     );
   }
 
+  Future<void> recordSurfaceDismissal({
+    required String dismissedRoute,
+    required String fallbackRoute,
+    NavigationSource source = NavigationSource.userDismissal,
+  }) async {
+    final normalizedDismissed = dismissedRoute.trim();
+    final normalizedFallback = fallbackRoute.trim();
+    final classification = _policy.classifyRoute(normalizedFallback, source);
+    traceRestoration(
+      'record surface dismissal '
+      'dismissed=${normalizedDismissed.isEmpty ? '<none>' : normalizedDismissed} '
+      'fallback=${normalizedFallback.isEmpty ? '<none>' : normalizedFallback} '
+      'source=${source.wireName} accepted=${classification.accepted} '
+      'reason=${classification.reason} '
+      'canonical=${classification.canonicalRoute ?? '<none>'}',
+    );
+    _logPersistenceAttempt(classification);
+    if (!classification.accepted ||
+        !classification.canRestoreAsSurface ||
+        classification.canonicalRoute == null) {
+      return;
+    }
+    await AppRestorationService.instance.saveDurableLaunchRoute(
+      classification.canonicalRoute!,
+      metadata: classification.metadata,
+    );
+  }
+
   Future<void> recordPageState(PageState state) async {
     final route = state.route;
     if (route == null || route.trim().isEmpty) {

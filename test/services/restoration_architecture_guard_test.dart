@@ -116,14 +116,16 @@ void main() {
         'lib/core/navigation_fallback.dart',
       ).readAsString();
 
-      expect(fallback, contains('_recordRouteAfterClose(router'));
+      expect(fallback, contains('_recordRouteAfterClose('));
       expect(fallback, contains('addPostFrameCallback'));
       expect(
         fallback,
         contains('router.routerDelegate.currentConfiguration.uri.toString()'),
       );
-      expect(fallback, contains('recordVisibleSurface'));
-      expect(fallback, contains('source: NavigationSource.programmatic'));
+      expect(fallback, contains('dismissedRoute'));
+      expect(fallback, contains('recordSurfaceDismissal'));
+      expect(fallback, contains('source: NavigationSource.userBack'));
+      expect(fallback, contains('source: NavigationSource.userDismissal'));
       expect(fallback, contains('suppressRestoreForUserNavigation'));
     });
 
@@ -320,6 +322,7 @@ void main() {
         unorderedEquals(<String>[
           'lib/core/pinch_gesture_surface.dart',
           'lib/features/calendar/calendar_flow_pages.dart',
+          'lib/features/calendar/calendar_flow_studio_page.dart',
           'lib/features/calendar/calendar_grid_widgets.dart',
           'lib/features/calendar/calendar_maat_flows.dart',
           'lib/features/calendar/calendar_month_detail.dart',
@@ -998,9 +1001,12 @@ void main() {
       );
 
       expect(rootRestore, contains('initialRoutesBuilder'));
-      expect(rootRestore, contains('listRoute, detailRoute'));
+      expect(rootRestore, contains('hubRoute, listRoute'));
+      expect(rootRestore, contains('hubRoute, listRoute, detailRoute'));
       expect(rootRestore, isNot(contains('addPostFrameCallback')));
-      expect(detachedRestore, contains('listRoute, detailRoute'));
+      expect(detachedRestore, contains('onReturnToHub'));
+      expect(detachedRestore, contains('hubRoute(), listRoute'));
+      expect(detachedRestore, contains('hubRoute(), listRoute, detailRoute'));
       expect(detachedRestore, isNot(contains('addPostFrameCallback')));
     });
 
@@ -1149,12 +1155,12 @@ void main() {
         );
         expect(saveDetached, contains('RestorationCoordinator.instance.flush'));
 
+        expect(clearDetached, contains('readOverlayStack()'));
+        expect(clearDetached, contains('saveOverlayStack('));
         expect(
           clearDetached,
-          contains('shouldPreserveOverlayForLifecycleClose'),
+          contains('reason: OverlayStackMutationReason.userDismissed'),
         );
-        expect(clearDetached, contains('readOverlayStack()'));
-        expect(clearDetached, contains('saveOverlayStack(next)'));
 
         expect(restoreDetached, contains('readBestSnapshot'));
         expect(
@@ -1425,21 +1431,26 @@ void main() {
           contains('if (_detachedSharedCalendarsSheetOpenOrOpening) return;'),
         );
         expect(detachedShared, contains('!context.mounted'));
+        expect(detachedShared, contains('if (context.mounted)'));
+        expect(detachedShared, contains('_clearDetachedCalendarOverlayState'));
         expect(
           detachedShared,
-          contains('shouldPreserveOverlayForLifecycleClose'),
+          isNot(contains('shouldPreserveOverlayForLifecycleClose')),
         );
-        expect(detachedShared, contains('if (!preserveForLifecycle)'));
         expect(
           detachedFlow,
           contains('if (_detachedFlowStudioSheetOpenOrOpening) return;'),
         );
         expect(detachedFlow, contains('!context.mounted'));
+        expect(detachedFlow, contains('if (context.mounted)'));
         expect(
           detachedFlow,
-          contains('shouldPreserveOverlayForLifecycleClose'),
+          contains('reason: OverlayStackMutationReason.userDismissed'),
         );
-        expect(detachedFlow, contains('if (!preserveForLifecycle)'));
+        expect(
+          detachedFlow,
+          isNot(contains('shouldPreserveOverlayForLifecycleClose')),
+        );
         expect(
           rootShared,
           contains('if (_sharedCalendarsSheetOpenOrOpening) {'),

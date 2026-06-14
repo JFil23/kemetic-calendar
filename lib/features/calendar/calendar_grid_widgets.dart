@@ -29,6 +29,7 @@ class _YearSection extends StatelessWidget {
     this.onMonthHeaderTap,
     this.onDecanTap,
     this.todayDayKey,
+    this.temporalAnchorVisible = true,
   });
 
   final int kYear;
@@ -62,6 +63,7 @@ class _YearSection extends StatelessWidget {
   final Key? Function(int kMonth)? monthHeaderKeyProvider;
   final Key? Function(int kMonth, int kDay)? dayAnchorKeyProvider;
   final Key? todayDayKey; // 🔑
+  final bool temporalAnchorVisible;
 
   @override
   Widget build(BuildContext context) {
@@ -82,6 +84,7 @@ class _YearSection extends StatelessWidget {
           todayDayKey: todayDayKey,
           notesGetter: notesGetter,
           flowColorsGetter: flowColorsGetter,
+          temporalAnchorVisible: temporalAnchorVisible,
           onDayTap: onDayTap,
           showGregorian: showGregorian,
           expansionLevel: expansionLevel,
@@ -116,6 +119,7 @@ class _YearSection extends StatelessWidget {
           todayDayKey: todayDayKey,
           notesGetter: notesGetter,
           flowColorsGetter: flowColorsGetter,
+          temporalAnchorVisible: temporalAnchorVisible,
           onDayTap: onDayTap,
           showGregorian: showGregorian,
           expansionLevel: expansionLevel,
@@ -150,6 +154,7 @@ class _YearSection extends StatelessWidget {
           todayDayKey: todayDayKey,
           notesGetter: notesGetter,
           flowColorsGetter: flowColorsGetter,
+          temporalAnchorVisible: temporalAnchorVisible,
           onDayTap: onDayTap,
           showGregorian: showGregorian,
           expansionLevel: expansionLevel,
@@ -184,6 +189,7 @@ class _YearSection extends StatelessWidget {
           todayDayKey: todayDayKey,
           notesGetter: notesGetter,
           flowColorsGetter: flowColorsGetter,
+          temporalAnchorVisible: temporalAnchorVisible,
           onDayTap: onDayTap,
           showGregorian: showGregorian,
           expansionLevel: expansionLevel,
@@ -220,6 +226,7 @@ class _YearSection extends StatelessWidget {
           todayDayKey: todayDayKey,
           notesGetter: notesGetter,
           flowColorsGetter: flowColorsGetter,
+          temporalAnchorVisible: temporalAnchorVisible,
           onDayTap: onDayTap,
           showGregorian: showGregorian,
           expansionLevel: expansionLevel,
@@ -254,6 +261,7 @@ class _YearSection extends StatelessWidget {
           todayDayKey: todayDayKey,
           notesGetter: notesGetter,
           flowColorsGetter: flowColorsGetter,
+          temporalAnchorVisible: temporalAnchorVisible,
           onDayTap: onDayTap,
           showGregorian: showGregorian,
           expansionLevel: expansionLevel,
@@ -288,6 +296,7 @@ class _YearSection extends StatelessWidget {
           todayDayKey: todayDayKey,
           notesGetter: notesGetter,
           flowColorsGetter: flowColorsGetter,
+          temporalAnchorVisible: temporalAnchorVisible,
           onDayTap: onDayTap,
           showGregorian: showGregorian,
           expansionLevel: expansionLevel,
@@ -322,6 +331,7 @@ class _YearSection extends StatelessWidget {
           todayDayKey: todayDayKey,
           notesGetter: notesGetter,
           flowColorsGetter: flowColorsGetter,
+          temporalAnchorVisible: temporalAnchorVisible,
           onDayTap: onDayTap,
           showGregorian: showGregorian,
           expansionLevel: expansionLevel,
@@ -358,6 +368,7 @@ class _YearSection extends StatelessWidget {
           todayDayKey: todayDayKey,
           notesGetter: notesGetter,
           flowColorsGetter: flowColorsGetter,
+          temporalAnchorVisible: temporalAnchorVisible,
           onDayTap: onDayTap,
           showGregorian: showGregorian,
           expansionLevel: expansionLevel,
@@ -392,6 +403,7 @@ class _YearSection extends StatelessWidget {
           todayDayKey: todayDayKey,
           notesGetter: notesGetter,
           flowColorsGetter: flowColorsGetter,
+          temporalAnchorVisible: temporalAnchorVisible,
           onDayTap: onDayTap,
           showGregorian: showGregorian,
           expansionLevel: expansionLevel,
@@ -426,6 +438,7 @@ class _YearSection extends StatelessWidget {
           todayDayKey: todayDayKey,
           notesGetter: notesGetter,
           flowColorsGetter: flowColorsGetter,
+          temporalAnchorVisible: temporalAnchorVisible,
           onDayTap: onDayTap,
           showGregorian: showGregorian,
           expansionLevel: expansionLevel,
@@ -460,6 +473,7 @@ class _YearSection extends StatelessWidget {
           todayDayKey: todayDayKey,
           notesGetter: notesGetter,
           flowColorsGetter: flowColorsGetter,
+          temporalAnchorVisible: temporalAnchorVisible,
           onDayTap: onDayTap,
           showGregorian: showGregorian,
           expansionLevel: expansionLevel,
@@ -513,24 +527,120 @@ class _YearSection extends StatelessWidget {
 
 /* ───────────────────────── Month & Day Cards ───────────────────────── */
 
-const Color _kSoftGridBackground = Color(0xFF0A0A0A);
-const Color _kSoftDayTileFill = Color(0xFF101010);
-const Color _kSoftDayTileLabel = Color(0xFF2E2E2E);
-const double _kMonthCardHorizontalInset = 8.0;
-const double _kMonthCardTopInset = 10.0;
-const double _kMonthCardBottomInset = 20.0;
-const double _kMonthCardInnerPadding = 6.0;
-const double _kMonthCardRadius = 16.0;
-const double _kDecanColumnGap = 2.0;
-const double _kDecanLabelToWeekdayGap = 7.0;
-const double _kWeekdayToTileGap = 5.0;
-const double _kDecanRowGap = 9.0;
-const double _kDayTileRadius = 11.0;
+class _CalendarTone {
+  static const Color calendarBlack = Color(0xFF020201);
+  static const Color velvetBlack = Color(0xFF060503);
+  static const Color previewCardBase = Color(0xFF070602);
+  static const Color antiqueGold = Color(0xFFC4A64A);
+  static const Color dimGold = Color(0xFF7A6530);
+  static const Color bodyStone = Color(0xFFAFA59A);
+  static const Color mutedStone = Color(0xFF8E8172);
+  static const Color dayNumber = Color(0xFF8A7443);
+  static const Color weekday = Color(0xFF685735);
+  static const Color decanLabel = Color(0xFF846F3F);
+  static const Color sectionLabel = Color(0xFF8A743D);
+  static const Color gregorianBlue = Color(0xFF4DA3FF);
+  static const Color transliteration = Color(0xFF927943);
+
+  static final Color dayCellFill = Color.alphaBlend(
+    antiqueGold.withValues(alpha: 0.035),
+    const Color(0xFF050402),
+  );
+  static final Color dayCellBorder = antiqueGold.withValues(alpha: 0.045);
+  static final Color selectedDayFill = Color.alphaBlend(
+    antiqueGold.withValues(alpha: 0.10),
+    const Color(0xFF080604),
+  );
+  static final Color selectedDayBorder = antiqueGold.withValues(alpha: 0.46);
+  static final Color softDivider = antiqueGold.withValues(alpha: 0.055);
+  static final Color softCardBorder = antiqueGold.withValues(alpha: 0.075);
+
+  static const Gradient mutedGoldGloss = LinearGradient(
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
+    colors: [Color(0xFFD3BD69), Color(0xFF9B803B), Color(0xFFC4A64A)],
+    stops: [0.0, 0.52, 1.0],
+  );
+
+  static Color softenAccent(
+    Color raw, {
+    double saturationScale = 0.55,
+    double lightness = 0.48,
+    double goldBlend = 0.08,
+  }) {
+    final hsl = HSLColor.fromColor(raw);
+    final muted = hsl
+        .withSaturation((hsl.saturation * saturationScale).clamp(0.0, 0.52))
+        .withLightness(lightness)
+        .toColor();
+    return Color.lerp(muted, antiqueGold, goldBlend)!;
+  }
+
+  static Color eventTitle(Color raw) {
+    return Color.lerp(
+      softenAccent(
+        raw,
+        saturationScale: 0.54,
+        lightness: 0.50,
+        goldBlend: 0.07,
+      ),
+      const Color(0xFFE5D1A0),
+      0.18,
+    )!;
+  }
+
+  static Color dot(Color raw) {
+    return Color.lerp(
+      softenAccent(
+        raw,
+        saturationScale: 0.62,
+        lightness: 0.50,
+        goldBlend: 0.04,
+      ),
+      antiqueGold,
+      0.05,
+    )!;
+  }
+}
+
+class _CalendarScale {
+  static const double monthTitleMain = 27.5;
+  static const double monthTitleFramed = 24.75;
+  static const double monthTransliterationRatio = 0.60;
+  static const double rightSeasonMain = 13.8;
+  static const double rightSeasonFramed = 13.2;
+  static const double decanLabelMain = 12.3;
+  static const double decanLabelFramed = 11.6;
+  static const double dayNumber = 12.4;
+  static const double dayDot = 2.35;
+  static const double trackSkyDot = 4.2;
+  static const double infoHeading = 23.0;
+  static const double infoBody = 18.4;
+  static const double infoMeta = 14.7;
+  static const double eventEyebrow = 9.2;
+  static const double eventTitle = 21.5;
+  static const double eventChip = 10.8;
+  static const double eventPurpose = 9.5;
+  static const double eventPurposeBody = 15.2;
+}
+
+const Color _kSoftGridBackground = _CalendarTone.previewCardBase;
+final Color _kSoftDayTileFill = _CalendarTone.dayCellFill;
+const Color _kSoftDayTileLabel = _CalendarTone.weekday;
+const double _kMonthCardHorizontalInset = 16.0;
+const double _kMonthCardTopInset = 8.0;
+const double _kMonthCardBottomInset = 14.0;
+const double _kMonthCardInnerPadding = 10.0;
+const double _kMonthCardRadius = 18.0;
+const double _kDecanColumnGap = 3.0;
+const double _kDecanLabelToWeekdayGap = 4.0;
+const double _kWeekdayToTileGap = 3.0;
+const double _kDecanRowGap = 6.0;
+const double _kDayTileRadius = 3.0;
 const double _kDayTileBorderWidth = 0.45;
 const double _kTodayDayTileBorderWidth = 1.0;
-const double _kTodayDayTileSurfaceGoldBlend = 0.12;
-const double _kTodayDayTileStrokeAlpha = 0.68;
-const double _kDayTileCompactPadding = 5.0;
+const double _kTodayDayTileStrokeAlpha = 0.46;
+const double _kDayTileCompactPadding = 4.0;
 const double _kDayTileExpandedHorizontalPadding = 1.5;
 const double _kDayTileExpandedVerticalPadding = 4.0;
 const double _kCompactMarkerGap = 1.0;
@@ -563,6 +673,84 @@ double _detailsMonthMaxDecanHeight(BuildContext _) {
 Color _softDayTileFill() => _kSoftDayTileFill;
 
 Color _softDayTileLabel() => _kSoftDayTileLabel;
+
+enum _CalendarDayTone { neutral, pastFar, pastNear, today, future }
+
+class _CalendarDayToneSpec {
+  const _CalendarDayToneSpec({
+    required this.fill,
+    required this.border,
+    required this.number,
+  });
+
+  final Color fill;
+  final Color border;
+  final Color number;
+}
+
+_CalendarDayTone _calendarDayTone({
+  required bool isToday,
+  required bool isMonthToday,
+  required bool temporalAnchorVisible,
+  required int day,
+  required int? todayDay,
+}) {
+  if (!isMonthToday || !temporalAnchorVisible || todayDay == null) {
+    return _CalendarDayTone.neutral;
+  }
+  if (isToday) return _CalendarDayTone.today;
+
+  final currentDecanStart = ((todayDay - 1) ~/ 10) * 10 + 1;
+  if (day < currentDecanStart) return _CalendarDayTone.pastFar;
+  if (day < todayDay) return _CalendarDayTone.pastNear;
+  return _CalendarDayTone.future;
+}
+
+_CalendarDayToneSpec _calendarDayToneSpec(_CalendarDayTone tone) {
+  switch (tone) {
+    case _CalendarDayTone.pastFar:
+      return _CalendarDayToneSpec(
+        fill: Color.alphaBlend(
+          _CalendarTone.antiqueGold.withValues(alpha: 0.024),
+          _CalendarTone.velvetBlack,
+        ),
+        border: _CalendarTone.antiqueGold.withValues(alpha: 0.032),
+        number: const Color(0xFF76633A),
+      );
+    case _CalendarDayTone.pastNear:
+      return _CalendarDayToneSpec(
+        fill: Color.alphaBlend(
+          _CalendarTone.antiqueGold.withValues(alpha: 0.030),
+          _CalendarTone.velvetBlack,
+        ),
+        border: _CalendarTone.antiqueGold.withValues(alpha: 0.040),
+        number: const Color(0xFF826D3F),
+      );
+    case _CalendarDayTone.today:
+      return _CalendarDayToneSpec(
+        fill: _CalendarTone.selectedDayFill,
+        border: _CalendarTone.selectedDayBorder.withValues(
+          alpha: _kTodayDayTileStrokeAlpha,
+        ),
+        number: const Color(0xFFE0C55F),
+      );
+    case _CalendarDayTone.future:
+      return _CalendarDayToneSpec(
+        fill: Color.alphaBlend(
+          _CalendarTone.antiqueGold.withValues(alpha: 0.036),
+          _CalendarTone.velvetBlack,
+        ),
+        border: _CalendarTone.antiqueGold.withValues(alpha: 0.045),
+        number: const Color(0xFF927B47),
+      );
+    case _CalendarDayTone.neutral:
+      return _CalendarDayToneSpec(
+        fill: _softDayTileFill(),
+        border: _CalendarTone.dayCellBorder,
+        number: _CalendarTone.dayNumber,
+      );
+  }
+}
 
 double _eventPillFontSize({
   required double maxWidth,
@@ -627,6 +815,78 @@ Widget buildCalendarMonthCardLayoutForTesting({
   );
 }
 
+class _SoftMonthNameTitle extends StatelessWidget {
+  const _SoftMonthNameTitle({
+    required this.shortName,
+    required this.transliteration,
+    required this.fontSize,
+    required this.opacity,
+  });
+
+  final String shortName;
+  final String transliteration;
+  final double fontSize;
+  final double opacity;
+
+  @override
+  Widget build(BuildContext context) {
+    final trans = transliteration.trim();
+    return Opacity(
+      opacity: opacity,
+      child: FittedBox(
+        fit: BoxFit.scaleDown,
+        alignment: Alignment.centerLeft,
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.baseline,
+          textBaseline: TextBaseline.alphabetic,
+          children: [
+            MonthNameText(
+              shortName,
+              maxLines: 1,
+              overflow: TextOverflow.fade,
+              softWrap: false,
+              style: TextStyle(
+                color: Color.lerp(
+                  _CalendarTone.antiqueGold,
+                  _CalendarTone.dimGold,
+                  0.04,
+                ),
+                fontSize: fontSize,
+                height: 1.02,
+                fontWeight: FontWeight.w600,
+                fontFamily: 'CormorantGaramond',
+                fontFamilyFallback: const ['GentiumPlus', 'NotoSans', 'Roboto'],
+              ),
+            ),
+            if (trans.isNotEmpty) ...[
+              const SizedBox(width: 8),
+              MonthNameText(
+                '($trans)',
+                maxLines: 1,
+                overflow: TextOverflow.fade,
+                softWrap: false,
+                style: TextStyle(
+                  color: _CalendarTone.transliteration.withValues(alpha: 0.88),
+                  fontSize: fontSize * _CalendarScale.monthTransliterationRatio,
+                  height: 1.02,
+                  fontWeight: FontWeight.w400,
+                  fontFamily: 'CormorantGaramond',
+                  fontFamilyFallback: const [
+                    'GentiumPlus',
+                    'NotoSans',
+                    'Roboto',
+                  ],
+                ),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 class _MonthCard extends StatelessWidget {
   final Key? anchorKey;
   final Key? monthHeaderKey;
@@ -639,6 +899,8 @@ class _MonthCard extends StatelessWidget {
   final Key? todayDayKey; // 🔑 day anchor to center
   final bool showGregorian;
   final MonthExpansionLevel expansionLevel;
+  final bool temporalAnchorVisible;
+  final bool framedSurface;
 
   final List<_Note> Function(int kMonth, int kDay) notesGetter;
   final List<Color> Function(int kYear, int kMonth, int kDay) flowColorsGetter;
@@ -674,6 +936,8 @@ class _MonthCard extends StatelessWidget {
     required this.flowColorsGetter,
     required this.onDayTap,
     required this.showGregorian,
+    this.temporalAnchorVisible = true,
+    this.framedSurface = false,
     this.expansionLevel = MonthExpansionLevel.compact,
     this.noteColorResolver = _defaultNoteColor,
     this.flowNameGetter,
@@ -708,6 +972,7 @@ class _MonthCard extends StatelessWidget {
   void _openMonthInfo(BuildContext context) {
     Navigator.of(context).push(
       MaterialPageRoute(
+        settings: const RouteSettings(name: calendarMonthDetailRouteName),
         builder: (_) => _MonthDetailPage(
           kYear: kYear,
           kMonth: kMonth,
@@ -737,6 +1002,7 @@ class _MonthCard extends StatelessWidget {
   void _openDecanInfo(BuildContext context, int decanIndex) {
     Navigator.of(context).push(
       MaterialPageRoute(
+        settings: const RouteSettings(name: calendarMonthDetailRouteName),
         builder: (_) => _MonthDetailPage(
           kYear: kYear,
           kMonth: kMonth,
@@ -824,11 +1090,69 @@ class _MonthCard extends StatelessWidget {
     final rightLabel = (yStart == yEnd)
         ? '$seasonShort $yStart'
         : '$seasonShort $yStart/$yEnd';
+    final monthMeta = getMonthById(kMonth);
 
     final isMonthToday = (todayMonth != null && todayMonth == kMonth);
     final gapBeforeRow = expansionLevel == MonthExpansionLevel.details
         ? 0.0
         : _kDecanLabelToWeekdayGap;
+    final monthTitleSize = framedSurface
+        ? _CalendarScale.monthTitleFramed
+        : _CalendarScale.monthTitleMain;
+    final rightLabelStyle = TextStyle(
+      color: const Color(
+        0xFF927842,
+      ).withValues(alpha: framedSurface ? 0.82 : 0.76),
+      fontSize: framedSurface
+          ? _CalendarScale.rightSeasonFramed
+          : _CalendarScale.rightSeasonMain,
+      fontWeight: FontWeight.w500,
+      fontStyle: FontStyle.italic,
+      fontFamily: 'CormorantGaramond',
+      fontFamilyFallback: const ['GentiumPlus', 'NotoSans', 'Roboto'],
+      letterSpacing: 0,
+    );
+    final decanLabelFontSize = framedSurface
+        ? _CalendarScale.decanLabelFramed
+        : _CalendarScale.decanLabelMain;
+    final decanLabelRowHeight = decanLabelFontSize + 3.0;
+    final decanLabelStrut = StrutStyle(
+      fontFamily: 'GentiumPlus',
+      fontSize: decanLabelFontSize,
+      height: 1.0,
+      forceStrutHeight: true,
+    );
+    const decanTextHeightBehavior = TextHeightBehavior(
+      applyHeightToFirstAscent: false,
+      applyHeightToLastDescent: false,
+    );
+    final decanLabelStyle = TextStyle(
+      color: _CalendarTone.decanLabel.withValues(
+        alpha: framedSurface ? 0.92 : 0.86,
+      ),
+      fontSize: decanLabelFontSize,
+      height: 1.0,
+      fontWeight: FontWeight.w500,
+      fontFamily: 'GentiumPlus',
+      fontFamilyFallback: const ['NotoSans', 'Roboto'],
+    );
+    final gregorianDecanLabelStyle = decanLabelStyle.copyWith(
+      color: _CalendarTone.gregorianBlue.withValues(
+        alpha: framedSurface ? 0.82 : 0.76,
+      ),
+    );
+
+    Widget decanLabelText(String text, TextStyle style) {
+      return Text(
+        text,
+        style: style,
+        maxLines: 1,
+        overflow: TextOverflow.fade,
+        softWrap: false,
+        strutStyle: decanLabelStrut,
+        textHeightBehavior: decanTextHeightBehavior,
+      );
+    }
 
     return Padding(
       key: anchorKey,
@@ -839,175 +1163,201 @@ class _MonthCard extends StatelessWidget {
         _kMonthCardBottomInset,
       ),
       child: Card(
-        color: _kSoftGridBackground,
+        margin: EdgeInsets.zero,
+        color: framedSurface ? _kSoftGridBackground : Colors.transparent,
         elevation: 0,
         surfaceTintColor: Colors.transparent,
-        clipBehavior: Clip.none, // avoids unnecessary AA clip
+        clipBehavior: framedSurface ? Clip.antiAlias : Clip.none,
         shape: RoundedRectangleBorder(
-          side: BorderSide.none,
+          side: framedSurface
+              ? BorderSide(color: _CalendarTone.softCardBorder, width: 0.7)
+              : BorderSide.none,
           borderRadius: BorderRadius.circular(_kMonthCardRadius),
         ),
-        child: Padding(
-          padding: const EdgeInsets.all(_kMonthCardInnerPadding),
-          child: AnimatedContainer(
-            duration: const Duration(milliseconds: 200),
-            curve: Curves.easeOutCubic,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Header row: Kemetic month name (left), Season+Year (right)
-                Row(
-                  children: [
-                    Expanded(
-                      flex: 2,
-                      child: Align(
-                        alignment: Alignment.centerLeft,
-                        child: RepaintBoundary(
-                          key: monthHeaderKey,
-                          child: GestureDetector(
-                            onTap: () {
-                              if (onMonthHeaderTap != null) {
-                                onMonthHeaderTap!(context);
-                              } else {
-                                _openMonthInfo(context);
-                              }
-                            },
-                            child: _GlossyMonthNameText(
-                              text: getMonthById(kMonth).displayFull,
-                              style:
-                                  _monthTitleGold, // MonthNameText handles font families
-                              gradient: goldGloss,
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Flexible(
-                      child: Align(
-                        alignment: Alignment.centerRight,
-                        child: RepaintBoundary(
-                          child: Text(
-                            rightLabel,
-                            style: _neutralOnBlack.copyWith(
-                              fontFamilyFallback: const [
-                                'NotoSans',
-                                'Roboto',
-                                'Arial',
-                                'sans-serif',
-                              ],
-                              letterSpacing: 0,
-                            ),
-                            maxLines: 1,
-                            overflow: TextOverflow.fade,
-                            softWrap: false,
-                            textAlign: TextAlign.right,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 10),
-
-                // Three decans
-                for (var i = 0; i < 3; i++) ...[
-                  // Label row: decan on left (Kemetic), Gregorian month on right when needed
+        child: DecoratedBox(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(_kMonthCardRadius),
+            gradient: framedSurface
+                ? LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [
+                      _CalendarTone.antiqueGold.withValues(alpha: 0.029),
+                      Colors.transparent,
+                    ],
+                  )
+                : null,
+          ),
+          child: Padding(
+            padding: const EdgeInsets.all(_kMonthCardInnerPadding),
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 200),
+              curve: Curves.easeOutCubic,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Header row: Kemetic month name (left), Season+Year (right)
                   Row(
                     children: [
-                      // Kemetic decan name
                       Expanded(
-                        child: Visibility(
-                          visible: !showGregorian,
-                          maintainState: true,
-                          maintainAnimation: true,
-                          maintainSize: true,
-                          child: KeyedSubtree(
-                            key: currentDecanIndex == i
-                                ? keyForCurrentDecanHeader(kYear, kMonth, i)
-                                : null,
+                        flex: 3,
+                        child: Align(
+                          alignment: Alignment.centerLeft,
+                          child: RepaintBoundary(
+                            key: monthHeaderKey,
                             child: GestureDetector(
                               onTap: () {
-                                if (onDecanTap != null) {
-                                  onDecanTap!(context, i);
+                                if (onMonthHeaderTap != null) {
+                                  onMonthHeaderTap!(context);
                                 } else {
-                                  _openDecanInfo(context, i);
+                                  _openMonthInfo(context);
                                 }
                               },
-                              child: GlossyText(
-                                text: names[i],
-                                style: _decanStyle,
-                                gradient: silverGloss,
+                              child: _SoftMonthNameTitle(
+                                shortName: monthMeta.displayShort,
+                                transliteration:
+                                    monthMeta.displayTransliteration,
+                                fontSize: monthTitleSize,
+                                opacity: framedSurface ? 0.98 : 0.96,
                               ),
                             ),
                           ),
                         ),
                       ),
-                      // Gregorian month name right-aligned (only when needed)
-                      Expanded(
+                      const SizedBox(width: 8),
+                      Flexible(
                         child: Align(
                           alignment: Alignment.centerRight,
-                          child: Visibility(
-                            visible:
-                                showGregorian &&
-                                _gregLabelForDecanRow(kYear, kMonth, i) != null,
-                            maintainState: true,
-                            maintainAnimation: true,
-                            maintainSize: true,
-                            child: GlossyText(
-                              text:
-                                  _gregLabelForDecanRow(kYear, kMonth, i) ?? '',
-                              style: _decanStyle,
-                              gradient: blueGloss,
+                          child: RepaintBoundary(
+                            child: Text(
+                              rightLabel,
+                              style: rightLabelStyle,
+                              maxLines: 1,
+                              overflow: TextOverflow.fade,
+                              softWrap: false,
+                              textAlign: TextAlign.right,
                             ),
                           ),
                         ),
                       ),
                     ],
                   ),
-                  SizedBox(height: gapBeforeRow),
-                  _WeekdayRow(
-                    kYear: kYear,
-                    kMonth: kMonth,
-                    decanIndex: i,
-                    showGregorian: showGregorian,
-                  ),
-                  const SizedBox(height: _kWeekdayToTileGap),
+                  const SizedBox(height: 8),
 
-                  _DecanRow(
-                    kYear: kYear,
-                    kMonth: kMonth,
-                    decanIndex: i,
-                    todayMonth: todayMonth,
-                    todayDay: todayDay,
-                    todayDayKey: isMonthToday ? todayDayKey : null,
-                    highlightDayKeyProvider: dayAnchorKeyProvider,
-                    notesGetter: notesGetter,
-                    flowColorsGetter: flowColorsGetter,
-                    onDayTap: onDayTap,
-                    showGregorian: showGregorian,
-                    expansionLevel: expansionLevel,
-                    noteColorResolver: noteColorResolver,
-                    flowNameGetter: flowNameGetter,
-                    decanHeight: decanHeights[i],
-                    onManageFlows: onManageFlows,
-                    onEditNote: onEditNote,
-                    onDeleteNote: onDeleteNote,
-                    onShareNote: onShareNote,
-                    onEditReminder: onEditReminder,
-                    onEndReminder: onEndReminder,
-                    onShareReminder: onShareReminder,
-                    onEndFlow: onEndFlow,
-                    onAppendToJournal: onAppendToJournal,
-                  ),
-                  if (i < 2) const SizedBox(height: _kDecanRowGap),
+                  // Three decans
+                  for (var i = 0; i < 3; i++) ...[
+                    // Label row: decan on left (Kemetic), Gregorian month on right when needed
+                    Builder(
+                      builder: (context) {
+                        final gregDecanLabel = _gregLabelForDecanRow(
+                          kYear,
+                          kMonth,
+                          i,
+                        );
+                        return SizedBox(
+                          height: decanLabelRowHeight,
+                          child: Row(
+                            crossAxisAlignment: CrossAxisAlignment.center,
+                            children: [
+                              if (!showGregorian)
+                                KeyedSubtree(
+                                  key: currentDecanIndex == i
+                                      ? keyForCurrentDecanHeader(
+                                          kYear,
+                                          kMonth,
+                                          i,
+                                        )
+                                      : null,
+                                  child: GestureDetector(
+                                    onTap: () {
+                                      if (onDecanTap != null) {
+                                        onDecanTap!(context, i);
+                                      } else {
+                                        _openDecanInfo(context, i);
+                                      }
+                                    },
+                                    child: decanLabelText(
+                                      names[i],
+                                      decanLabelStyle,
+                                    ),
+                                  ),
+                                ),
+                              if (!showGregorian) const SizedBox(width: 8),
+                              Expanded(
+                                child: Container(
+                                  height: 0.5,
+                                  decoration: BoxDecoration(
+                                    gradient: LinearGradient(
+                                      colors: [
+                                        _CalendarTone.softDivider,
+                                        _CalendarTone.antiqueGold.withValues(
+                                          alpha: 0.016,
+                                        ),
+                                        _CalendarTone.antiqueGold.withValues(
+                                          alpha: 0.0,
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              ),
+                              if (showGregorian && gregDecanLabel != null) ...[
+                                const SizedBox(width: 10),
+                                decanLabelText(
+                                  gregDecanLabel,
+                                  gregorianDecanLabelStyle,
+                                ),
+                              ],
+                            ],
+                          ),
+                        );
+                      },
+                    ),
+                    SizedBox(height: gapBeforeRow),
+                    _WeekdayRow(
+                      kYear: kYear,
+                      kMonth: kMonth,
+                      decanIndex: i,
+                      showGregorian: showGregorian,
+                    ),
+                    const SizedBox(height: _kWeekdayToTileGap),
+
+                    _DecanRow(
+                      kYear: kYear,
+                      kMonth: kMonth,
+                      decanIndex: i,
+                      todayMonth: todayMonth,
+                      todayDay: todayDay,
+                      todayDayKey: isMonthToday ? todayDayKey : null,
+                      highlightDayKeyProvider: dayAnchorKeyProvider,
+                      notesGetter: notesGetter,
+                      flowColorsGetter: flowColorsGetter,
+                      temporalAnchorVisible: temporalAnchorVisible,
+                      onDayTap: onDayTap,
+                      showGregorian: showGregorian,
+                      expansionLevel: expansionLevel,
+                      noteColorResolver: noteColorResolver,
+                      flowNameGetter: flowNameGetter,
+                      decanHeight: decanHeights[i],
+                      onManageFlows: onManageFlows,
+                      onEditNote: onEditNote,
+                      onDeleteNote: onDeleteNote,
+                      onShareNote: onShareNote,
+                      onEditReminder: onEditReminder,
+                      onEndReminder: onEndReminder,
+                      onShareReminder: onShareReminder,
+                      onEndFlow: onEndFlow,
+                      onAppendToJournal: onAppendToJournal,
+                    ),
+                    if (i < 2) const SizedBox(height: _kDecanRowGap),
+                  ],
                 ],
-              ],
+              ),
             ),
           ),
         ),
-      ), // Close Card
+      ),
     ); // Close Padding and return
   }
 }
@@ -1091,6 +1441,7 @@ class _DecanRow extends StatelessWidget {
 
   final List<_Note> Function(int kMonth, int kDay) notesGetter;
   final List<Color> Function(int kYear, int kMonth, int kDay) flowColorsGetter;
+  final bool temporalAnchorVisible;
   final void Function(BuildContext, int kMonth, int kDay) onDayTap;
   final MonthExpansionLevel expansionLevel;
   final Color Function(_Note) noteColorResolver;
@@ -1116,6 +1467,7 @@ class _DecanRow extends StatelessWidget {
     required this.todayDay,
     required this.notesGetter,
     required this.flowColorsGetter,
+    required this.temporalAnchorVisible,
     required this.onDayTap,
     required this.showGregorian,
     required this.todayDayKey,
@@ -1145,6 +1497,13 @@ class _DecanRow extends StatelessWidget {
             builder: (_) {
               final day = decanIndex * 10 + (j + 1); // 1..30
               final isToday = isMonthToday && (todayDay == day);
+              final tone = _calendarDayTone(
+                isToday: isToday,
+                isMonthToday: isMonthToday,
+                temporalAnchorVisible: temporalAnchorVisible,
+                day: day,
+                todayDay: todayDay,
+              );
 
               final notes = notesGetter(kMonth, day);
               final flowColors = flowColorsGetter(kYear, kMonth, day);
@@ -1165,6 +1524,7 @@ class _DecanRow extends StatelessWidget {
                   ),
                   label: label,
                   isToday: isToday,
+                  tone: tone,
                   notes: notes,
                   flowColors: flowColors,
                   onTap: () => onDayTap(context, kMonth, day),
@@ -1200,6 +1560,7 @@ class _DecanRow extends StatelessWidget {
 class _DayChip extends StatelessWidget {
   final String label;
   final bool isToday;
+  final _CalendarDayTone tone;
   final List<_Note> notes;
   final List<Color> flowColors;
   final VoidCallback onTap;
@@ -1230,6 +1591,7 @@ class _DayChip extends StatelessWidget {
     super.key, // Add key parameter
     required this.label,
     required this.isToday,
+    this.tone = _CalendarDayTone.neutral,
     required this.notes,
     required this.flowColors,
     required this.onTap,
@@ -1259,14 +1621,18 @@ class _DayChip extends StatelessWidget {
   Widget build(BuildContext context) {
     final textStyle = const TextStyle(
       color: Colors.white,
-      fontWeight: FontWeight.w400,
-      fontSize: 16.0, // <- round to whole px to avoid subpixel blur
-      letterSpacing: 0.0, // <- reduce fuzz on CanvasKit
+      fontWeight: FontWeight.w500,
+      fontSize: _CalendarScale.dayNumber,
+      fontFamily: 'CormorantGaramond',
+      fontFamilyFallback: ['GentiumPlus', 'NotoSans', 'Roboto', 'Arial'],
+      letterSpacing: 0.0,
     );
 
-    final gradient = isToday
-        ? goldGloss
-        : (showGregorian ? blueGloss : silverGloss);
+    final toneSpec = _calendarDayToneSpec(tone);
+    final numberColor = showGregorian
+        ? _CalendarTone.gregorianBlue.withValues(alpha: 0.82)
+        : toneSpec.number;
+    final numberStyle = textStyle.copyWith(color: numberColor);
     _Note? trackSkyHeaderNote;
     for (final note in notes) {
       if (_isTrackSkyFlowName(flowNameGetter?.call(note))) {
@@ -1281,17 +1647,8 @@ class _DayChip extends StatelessWidget {
     final chipHeight = decanHeight ?? _chipHeightFor(expansionLevel);
     final nonCompactHeaderHeight = 24.0;
     final tileRadius = BorderRadius.circular(_kDayTileRadius);
-    final baseTileFill = _softDayTileFill();
-    final tileFill = isToday
-        ? Color.lerp(
-            baseTileFill,
-            _cardBorderGold,
-            _kTodayDayTileSurfaceGoldBlend,
-          )!
-        : baseTileFill;
-    final tileBorderColor = isToday
-        ? _cardBorderGold.withValues(alpha: _kTodayDayTileStrokeAlpha)
-        : tileFill;
+    final tileFill = toneSpec.fill;
+    final tileBorderColor = toneSpec.border;
     final tilePadding = isCompact
         ? const EdgeInsets.all(_kDayTileCompactPadding)
         : const EdgeInsets.symmetric(
@@ -1300,10 +1657,10 @@ class _DayChip extends StatelessWidget {
           );
 
     Widget buildMiniBlocksCompact({required double maxWidth}) {
-      const spacing = 2.5;
+      const spacing = 1.8;
       const maxMarkersCap = 3;
-      const trackSkyMarkerWidth = 7.0;
-      const colorDotWidth = 5.0;
+      const trackSkyMarkerWidth = _CalendarScale.trackSkyDot;
+      const colorDotWidth = _CalendarScale.dayDot;
 
       final double safeMaxWidth = maxWidth.isFinite
           ? (maxWidth > 1 ? maxWidth - 1 : 0)
@@ -1486,6 +1843,25 @@ class _DayChip extends StatelessWidget {
                 child: Stack(
                   fit: StackFit.expand,
                   children: [
+                    if (isToday)
+                      Positioned(
+                        left: 1,
+                        top: 0,
+                        right: 1,
+                        child: IgnorePointer(
+                          child: Container(
+                            height: 1,
+                            decoration: BoxDecoration(
+                              color: _CalendarTone.antiqueGold.withValues(
+                                alpha: 0.46,
+                              ),
+                              borderRadius: const BorderRadius.vertical(
+                                top: Radius.circular(_kDayTileRadius),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
                     if (highlightAnchorKey != null)
                       Positioned.fill(
                         child: IgnorePointer(
@@ -1512,10 +1888,12 @@ class _DayChip extends StatelessWidget {
                                     Flexible(
                                       child: Align(
                                         alignment: Alignment.topCenter,
-                                        child: GlossyText(
-                                          text: label,
-                                          style: textStyle,
-                                          gradient: gradient,
+                                        child: Text(
+                                          label,
+                                          style: numberStyle,
+                                          maxLines: 1,
+                                          overflow: TextOverflow.fade,
+                                          softWrap: false,
                                         ),
                                       ),
                                     ),
@@ -1580,10 +1958,12 @@ class _DayChip extends StatelessWidget {
                                             width: double.infinity,
                                             height: nonCompactHeaderHeight,
                                             child: Center(
-                                              child: GlossyText(
-                                                text: label,
-                                                style: textStyle,
-                                                gradient: gradient,
+                                              child: Text(
+                                                label,
+                                                style: numberStyle,
+                                                maxLines: 1,
+                                                overflow: TextOverflow.fade,
+                                                softWrap: false,
                                               ),
                                             ),
                                           ),
@@ -3027,14 +3407,18 @@ class _ColorDot extends StatelessWidget {
   const _ColorDot({required this.color});
   @override
   Widget build(BuildContext context) {
-    return _Glossy(
-      gradient: _glossFromColor(color), // uses helper from Block 1
+    final softened = _CalendarTone.dot(color);
+    return Opacity(
+      opacity: 0.74,
       child: Container(
-        width: 4.5,
-        height: 4.5,
-        decoration: const BoxDecoration(
-          color: Colors.white,
+        width: _CalendarScale.dayDot,
+        height: _CalendarScale.dayDot,
+        decoration: BoxDecoration(
+          color: softened,
           shape: BoxShape.circle,
+          boxShadow: [
+            BoxShadow(color: softened.withValues(alpha: 0.12), blurRadius: 1.2),
+          ],
         ),
       ),
     );
@@ -3049,19 +3433,19 @@ class _TrackSkyMicroSignifier extends StatelessWidget {
   Widget build(BuildContext context) {
     final spec = _trackSkyBadgeSpecForNote(note);
     return Container(
-      width: 6.5,
-      height: 6.5,
+      width: _CalendarScale.trackSkyDot,
+      height: _CalendarScale.trackSkyDot,
       decoration: BoxDecoration(
         shape: BoxShape.circle,
         gradient: spec.background,
         border: Border.all(
-          color: spec.borderColor.withValues(alpha: 0.8),
+          color: spec.borderColor.withValues(alpha: 0.42),
           width: 0.5,
         ),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.22),
-            blurRadius: 1.4,
+            color: Colors.black.withValues(alpha: 0.18),
+            blurRadius: 1.0,
             offset: const Offset(0, 0.5),
           ),
         ],
@@ -3765,6 +4149,7 @@ class _EpagomenalCard extends StatelessWidget {
     final epiCount = KemeticMath.isLeapKemeticYear(kYear) ? 6 : 5;
 
     final gLabel = _gregMonthForEpagomenal(kYear, epiCount);
+    final epagomenalMeta = getMonthById(13);
 
     // Dynamic height for epagomenal days (parallels regular decan sizing).
     double epagomenalHeightForLayout() {
@@ -3835,13 +4220,11 @@ class _EpagomenalCard extends StatelessWidget {
                     maintainState: true,
                     maintainAnimation: true,
                     maintainSize: true, // keep height so layout doesn't jump
-                    child: GlossyText(
-                      text: 'Heriu Renpet (ḥr.w rnpt)',
-                      style: _monthTitleGold.copyWith(
-                        fontFamily: 'GentiumPlus',
-                        fontFamilyFallback: const ['NotoSans', 'Roboto'],
-                      ),
-                      gradient: goldGloss,
+                    child: _SoftMonthNameTitle(
+                      shortName: epagomenalMeta.displayShort,
+                      transliteration: epagomenalMeta.displayTransliteration,
+                      fontSize: _CalendarScale.monthTitleMain,
+                      opacity: 0.96,
                     ),
                   ),
                   const Spacer(),
@@ -3850,10 +4233,20 @@ class _EpagomenalCard extends StatelessWidget {
                     maintainState: true,
                     maintainAnimation: true,
                     maintainSize: true,
-                    child: GlossyText(
-                      text: gLabel ?? '',
-                      style: _decanStyle,
-                      gradient: blueGloss,
+                    child: Text(
+                      gLabel ?? '',
+                      style: _decanStyle.copyWith(
+                        color: _CalendarTone.gregorianBlue.withValues(
+                          alpha: 0.82,
+                        ),
+                        fontSize: _CalendarScale.decanLabelMain,
+                        height: 1.0,
+                        fontFamily: 'GentiumPlus',
+                        fontFamilyFallback: const ['NotoSans', 'Roboto'],
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.fade,
+                      softWrap: false,
                     ),
                   ),
                 ],
@@ -3877,6 +4270,13 @@ class _EpagomenalCard extends StatelessWidget {
                             ? '${KemeticMath.toGregorian(kYear, 13, i + 1).day}'
                             : '${i + 1}',
                         isToday: isMonthToday && (todayDay == i + 1),
+                        tone: _calendarDayTone(
+                          isToday: isMonthToday && (todayDay == i + 1),
+                          isMonthToday: isMonthToday,
+                          temporalAnchorVisible: true,
+                          day: i + 1,
+                          todayDay: todayDay,
+                        ),
                         notes: notesGetter(13, i + 1),
                         flowColors: flowColorsGetter(kYear, 13, i + 1),
                         onTap: () => onDayTap(context, 13, i + 1),

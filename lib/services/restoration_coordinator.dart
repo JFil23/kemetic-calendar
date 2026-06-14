@@ -263,8 +263,14 @@ class RestorationCoordinator {
     );
   }
 
-  Future<void> saveOverlayStack(List<Map<String, dynamic>> overlayStack) {
-    return AppRestorationService.instance.saveOverlayStack(overlayStack);
+  Future<void> saveOverlayStack(
+    List<Map<String, dynamic>> overlayStack, {
+    OverlayStackMutationReason reason = OverlayStackMutationReason.programmatic,
+  }) {
+    return AppRestorationService.instance.saveOverlayStack(
+      overlayStack,
+      reason: reason,
+    );
   }
 
   Future<Map<String, dynamic>?> readEditorState(String key) {

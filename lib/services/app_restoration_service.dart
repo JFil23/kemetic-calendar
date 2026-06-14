@@ -133,6 +133,38 @@ bool _isTransientFlowStudioEditorOverlay(Map<String, dynamic> entry) {
   return entry['kind'] == 'calendar.flowStudio' && entry['mode'] == 'editor';
 }
 
+int? _overlayEntryUpdatedAtMs(Map<String, dynamic> entry) {
+  final updatedAtMs = _asInt(entry['updatedAtMs']);
+  if (updatedAtMs == null || updatedAtMs < 0) return null;
+  return updatedAtMs;
+}
+
+int? _latestOverlayUpdatedAtMs(List<Map<String, dynamic>> overlayStack) {
+  int? latest;
+  for (final entry in overlayStack) {
+    final updatedAtMs = _overlayEntryUpdatedAtMs(entry);
+    if (updatedAtMs == null) continue;
+    if (latest == null || updatedAtMs > latest) latest = updatedAtMs;
+  }
+  return latest;
+}
+
+List<Map<String, dynamic>> _overlayStackAfterDismissal(
+  List<Map<String, dynamic>> overlayStack,
+  int? overlayDismissedAtMs,
+) {
+  final dismissedAt = overlayDismissedAtMs;
+  if (dismissedAt == null || dismissedAt < 0 || overlayStack.isEmpty) {
+    return overlayStack;
+  }
+  return overlayStack
+      .where((entry) {
+        final updatedAtMs = _overlayEntryUpdatedAtMs(entry);
+        return updatedAtMs == null || updatedAtMs > dismissedAt;
+      })
+      .toList(growable: false);
+}
+
 int? _asInt(Object? raw) => (raw as num?)?.toInt();
 
 bool _isLeapKemeticYear(int kYear) => ((kYear - 1) % 4 + 4) % 4 == 2;
@@ -516,6 +548,7 @@ class AppRestorationSnapshot {
     this.daySheet,
     this.surfaces = const <String, Map<String, dynamic>>{},
     this.overlayStack = const <Map<String, dynamic>>[],
+    this.overlayDismissedAtMs,
     this.editors = const <String, Map<String, dynamic>>{},
     this.cacheHints,
   });
@@ -531,6 +564,7 @@ class AppRestorationSnapshot {
   final Map<String, dynamic>? daySheet;
   final Map<String, Map<String, dynamic>> surfaces;
   final List<Map<String, dynamic>> overlayStack;
+  final int? overlayDismissedAtMs;
   final Map<String, Map<String, dynamic>> editors;
   final Map<String, dynamic>? cacheHints;
 
@@ -569,6 +603,11 @@ class AppRestorationSnapshot {
         ? rawPrimaryMetadata
         : legacyPrimaryMetadata;
     final daySheetRaw = raw['daySheet'];
+    final overlayDismissedAtMs = _asInt(raw['overlayDismissedAtMs']);
+    final overlayStack = _overlayStackAfterDismissal(
+      _asJsonMapList(raw['overlayStack']),
+      overlayDismissedAtMs,
+    );
     return AppRestorationSnapshot(
       userId: userId,
       windowId: windowId,
@@ -580,11 +619,19 @@ class AppRestorationSnapshot {
       dayView: DayViewRestorationState.fromJson(raw['dayView']),
       daySheet: _asJsonMap(daySheetRaw),
       surfaces: _asJsonMapByKey(raw['surfaces']),
-      overlayStack: _asJsonMapList(raw['overlayStack']),
+      overlayStack: overlayStack,
+      overlayDismissedAtMs: overlayDismissedAtMs,
       editors: _asJsonMapByKey(raw['editors']),
       cacheHints: _asJsonMap(raw['cacheHints']),
     );
   }
+}
+
+enum OverlayStackMutationReason {
+  programmatic,
+  userDismissed,
+  lifecyclePause,
+  routeDetachDuringPause,
 }
 
 enum AppRestorationReadStatus { restored, tentative, noSnapshot, awaitingAuth }
@@ -628,6 +675,7 @@ String _snapshotTrace(AppRestorationSnapshot? snapshot) {
   return 'route=${snapshot.routeLocation ?? '<none>'} '
       'updatedAtMs=${snapshot.updatedAtMs} '
       'overlayCount=${snapshot.overlayStack.length} '
+      'overlayDismissedAtMs=${snapshot.overlayDismissedAtMs ?? '<none>'} '
       'overlay=${_overlayStackTrace(snapshot.overlayStack)} '
       'user=${snapshot.userId} window=${snapshot.windowId}';
 }
@@ -858,10 +906,24 @@ class AppRestorationService {
         final overlayStack = _coerceOverlayStack(
           _asJsonMapList(migrated['overlayStack']),
         );
+        final overlayDismissedAtMs = _asInt(migrated['overlayDismissedAtMs']);
+        if (overlayDismissedAtMs == null || overlayDismissedAtMs < 0) {
+          migrated.remove('overlayDismissedAtMs');
+        } else {
+          migrated['overlayDismissedAtMs'] = overlayDismissedAtMs;
+        }
         if (overlayStack.isEmpty) {
           migrated.remove('overlayStack');
         } else {
-          migrated['overlayStack'] = overlayStack;
+          final survivingOverlayStack = _overlayStackAfterDismissal(
+            overlayStack,
+            overlayDismissedAtMs,
+          );
+          if (survivingOverlayStack.isEmpty) {
+            migrated.remove('overlayStack');
+          } else {
+            migrated['overlayStack'] = survivingOverlayStack;
+          }
         }
         return migrated;
       default:
@@ -1479,6 +1541,28 @@ class AppRestorationService {
         currentWindowCandidate.snapshot.overlayStack.isEmpty &&
         latestUserCandidate.snapshot.updatedAtMs >
             currentWindowCandidate.snapshot.updatedAtMs) {
+      final latestOverlayUpdatedAtMs = _latestOverlayUpdatedAtMs(
+        latestUserCandidate.snapshot.overlayStack,
+      );
+      final currentOverlayDismissedAtMs =
+          currentWindowCandidate.snapshot.overlayDismissedAtMs;
+      if (latestOverlayUpdatedAtMs != null &&
+          currentOverlayDismissedAtMs != null &&
+          latestOverlayUpdatedAtMs <= currentOverlayDismissedAtMs) {
+        selected = currentWindowCandidate;
+        reason = 'latest_overlay_rejected_due_to_dismissal';
+        _logStableSelection(
+          userId: userId,
+          windowId: windowId,
+          includeRemote: includeRemote,
+          currentWindowCandidate: currentWindowCandidate,
+          latestUserCandidate: latestUserCandidate,
+          remoteWindowCandidate: remoteWindowCandidate,
+          selected: selected,
+          reason: reason,
+        );
+        return selected;
+      }
       selected = latestUserCandidate;
       reason = 'latest_overlay_over_current_without_overlay';
       _logStableSelection(
@@ -1582,6 +1666,66 @@ class AppRestorationService {
     if (normalized == null || normalized.isEmpty) return true;
     final uri = Uri.tryParse(normalized);
     return uri == null || uri.path.isEmpty || uri.path == '/';
+  }
+
+  bool _sourceCanEvictDurableSurface(NavigationSource source) {
+    switch (source) {
+      case NavigationSource.userPrimaryTab:
+      case NavigationSource.userDrawerSelection:
+      case NavigationSource.userBack:
+      case NavigationSource.userDismissal:
+      case NavigationSource.userExplicitOpen:
+        return true;
+      case NavigationSource.programmatic:
+      case NavigationSource.restoreReplay:
+      case NavigationSource.authGate:
+      case NavigationSource.launchPlaceholder:
+      case NavigationSource.lifecycle:
+      case NavigationSource.calendarDidPushNext:
+      case NavigationSource.calendarDispose:
+      case NavigationSource.detailRestoration:
+      case NavigationSource.modalLifecycle:
+      case NavigationSource.notificationTap:
+      case NavigationSource.searchResultTap:
+      case NavigationSource.sharedCalendarEventTap:
+      case NavigationSource.nodeActionUrl:
+      case NavigationSource.authCallback:
+      case NavigationSource.appLink:
+      case NavigationSource.sessionResume:
+      case NavigationSource.bootRestore:
+      case NavigationSource.unknown:
+        return false;
+    }
+  }
+
+  bool _sourceCanPersistDurableSurface(NavigationSource source) {
+    switch (source) {
+      case NavigationSource.restoreReplay:
+      case NavigationSource.authGate:
+      case NavigationSource.launchPlaceholder:
+      case NavigationSource.lifecycle:
+        return false;
+      case NavigationSource.userPrimaryTab:
+      case NavigationSource.userDrawerSelection:
+      case NavigationSource.userBack:
+      case NavigationSource.userDismissal:
+      case NavigationSource.userExplicitOpen:
+      case NavigationSource.programmatic:
+      case NavigationSource.calendarDidPushNext:
+      case NavigationSource.calendarDispose:
+      case NavigationSource.detailRestoration:
+      case NavigationSource.modalLifecycle:
+      case NavigationSource.notificationTap:
+      case NavigationSource.searchResultTap:
+      case NavigationSource.sharedCalendarEventTap:
+      case NavigationSource.nodeActionUrl:
+      case NavigationSource.authCallback:
+      case NavigationSource.appLink:
+      case NavigationSource.sessionResume:
+      case NavigationSource.bootRestore:
+      case NavigationSource.unknown:
+        return true;
+    }
   }
 
   bool _isDurablePrimaryRouteLocation(String? location) {
@@ -1948,6 +2092,18 @@ class AppRestorationService {
       );
       return;
     }
+    if (!_sourceCanPersistDurableSurface(metadata.source)) {
+      _log(
+        'save launch route rejected input=$location '
+        'source=${metadata.source.wireName} '
+        'classification=${metadata.routeClass.wireName} '
+        'schemaVersion=${metadata.schemaVersion} '
+        'section=${metadata.section?.wireName ?? '<none>'} '
+        'canonical=${metadata.canonicalRoute ?? '<none>'} '
+        'reason=passive_source_cannot_persist',
+      );
+      return;
+    }
     _log(
       'save launch route input=$location sanitized=$normalized '
       'source=${metadata.source.wireName} '
@@ -1958,7 +2114,7 @@ class AppRestorationService {
     );
     await _mutate((current) {
       if (_isRootRouteLocation(normalized) &&
-          metadata.source != NavigationSource.userPrimaryTab) {
+          !_sourceCanEvictDurableSurface(metadata.source)) {
         final existingMetadata = NavigationLaunchRouteMetadata.fromJson(
           current[navigationLaunchRouteMetadataKey],
         );
@@ -2122,18 +2278,37 @@ class AppRestorationService {
         const <Map<String, dynamic>>[];
   }
 
-  Future<void> saveOverlayStack(List<Map<String, dynamic>> overlayStack) async {
+  Future<void> saveOverlayStack(
+    List<Map<String, dynamic>> overlayStack, {
+    OverlayStackMutationReason reason = OverlayStackMutationReason.programmatic,
+  }) async {
     final next = _coerceOverlayStack(overlayStack);
+    final tombstoneDismissal =
+        next.isEmpty && reason == OverlayStackMutationReason.userDismissed;
+    final dismissedAtMs = tombstoneDismissal
+        ? DateTime.now().millisecondsSinceEpoch
+        : null;
+    final action = tombstoneDismissal
+        ? 'tombstone'
+        : next.isEmpty
+        ? 'clear'
+        : 'save';
     _log(
-      'save overlayStack action=${next.isEmpty ? 'clear' : 'save'} '
+      'save overlayStack action=$action '
+      'reason=${reason.name} '
       'inputCount=${overlayStack.length} overlayCount=${next.length} '
-      'overlay=${_overlayStackTrace(next)}',
+      'overlay=${_overlayStackTrace(next)}'
+      '${dismissedAtMs == null ? '' : ' dismissedAtMs=$dismissedAtMs'}',
     );
     await _mutate((current) {
       if (next.isEmpty) {
         current.remove('overlayStack');
+        if (dismissedAtMs != null) {
+          current['overlayDismissedAtMs'] = dismissedAtMs;
+        }
       } else {
         current['overlayStack'] = next;
+        current.remove('overlayDismissedAtMs');
       }
     });
   }

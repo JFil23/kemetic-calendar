@@ -60,7 +60,7 @@ import '../../services/app_restoration_service.dart';
 import '../../utils/external_link_utils.dart';
 import '../../utils/flow_filter_engine.dart';
 
-const double _kMinEventBlockHeight = 64.0; // was 32.0
+const double _kMinEventBlockHeight = 56.0;
 const double _kTimelineLabelWidth = 60.0;
 const double _kTimelineRightPadding = 16.0;
 const double _kEventColumnGap = 4.0;
@@ -103,6 +103,625 @@ const TextStyle _goldHeaderStyle = TextStyle(
   fontFamily: 'GentiumPlus',
   fontFamilyFallback: ['NotoSans', 'Roboto', 'Arial', 'sans-serif'],
 );
+
+const String _dayViewSerifFamily = 'CormorantGaramond';
+const List<String> _dayViewSerifFallback = [
+  'GentiumPlus',
+  'NotoSerif',
+  'Georgia',
+  'serif',
+];
+const List<String> _dayViewSansFallback = [
+  'NotoSans',
+  'Roboto',
+  'Arial',
+  'sans-serif',
+];
+const Color _dayViewInk = Color(0xFFF2E4C6);
+const Color _dayViewSilver = Color(0xFF8A8070);
+const Color _dayViewSilverDim = Color(0xFF645946);
+const Color _dayViewBase = Color(0xFF050403);
+const Color _dayViewCopperAccent = Color(0xFFC06E4D);
+const Color _dayViewWarmStone = Color(0xFFA9988C);
+const Color _dayViewBronzeLabel = Color(0xFF9E7A40);
+
+Color _dayViewMix(Color a, Color b, double t) => Color.lerp(a, b, t)!;
+
+Color _dayViewReadableFlowColor(Color color) {
+  final luminance = color.computeLuminance();
+  if (luminance < 0.18) {
+    return _dayViewMix(color, Colors.white, 0.42);
+  }
+  if (luminance > 0.68) {
+    return _dayViewMix(color, _dayGold, 0.22);
+  }
+  return color;
+}
+
+bool _dayViewIsRedOrangeMaterialColor(Color color) {
+  final hue = HSLColor.fromColor(color).hue;
+  return hue <= 32 || hue >= 342;
+}
+
+bool _dayViewIsBlueMaterialColor(Color color) {
+  final hue = HSLColor.fromColor(color).hue;
+  return hue >= 175 && hue <= 265;
+}
+
+bool _dayViewIsGreenMaterialColor(Color color) {
+  final hue = HSLColor.fromColor(color).hue;
+  return hue > 72 && hue <= 165;
+}
+
+Color _dayViewSoftenedAccent(Color color) {
+  final hsl = HSLColor.fromColor(color);
+  return hsl
+      .withSaturation((hsl.saturation * 0.52).clamp(0.0, 0.50).toDouble())
+      .withLightness(0.46)
+      .toColor();
+}
+
+Color _dayViewMaterialFlowColor(Color color) {
+  final readable = _dayViewReadableFlowColor(color);
+  final hue = HSLColor.fromColor(readable).hue;
+  if (hue <= 28 || hue >= 342) return _dayViewCopperAccent;
+  if (hue > 28 && hue <= 72) {
+    return _dayViewMix(readable, const Color(0xFFC98A5B), 0.5);
+  }
+  return readable;
+}
+
+String _dayViewCategoryLabel(String text, {bool sparkle = false}) {
+  final compact = text.trim().isEmpty ? 'Scheduled' : text.trim();
+  final label = compact.toUpperCase();
+  return sparkle ? '✦ $label' : label;
+}
+
+class _DayViewEventVisual {
+  const _DayViewEventVisual({
+    required this.source,
+    required this.base,
+    required this.wash,
+    required this.washLeft,
+    required this.washMid,
+    required this.washEnd,
+    required this.stripe,
+    required this.border,
+    required this.category,
+    required this.title,
+    required this.metaText,
+    required this.supportText,
+    required this.sectionLabelText,
+    required this.bodyText,
+    required this.metaFill,
+    required this.metaBorder,
+    required this.actionButtonFill,
+    required this.actionButtonBorder,
+    required this.actionButtonText,
+    required this.actionIconFill,
+    required this.actionIconGlyph,
+    required this.completionPanelFill,
+    required this.completionPanelBorder,
+    required this.completionButtonFill,
+    required this.completionButtonBorder,
+    required this.completionButtonText,
+    required this.completionButtonSelectedFill,
+    required this.completionButtonSelectedBorder,
+    required this.completionButtonSelectedText,
+  });
+
+  final Color source;
+  final Color base;
+  final Color wash;
+  final Color washLeft;
+  final Color washMid;
+  final Color washEnd;
+  final Color stripe;
+  final Color border;
+  final Color category;
+  final Color title;
+  final Color metaText;
+  final Color supportText;
+  final Color sectionLabelText;
+  final Color bodyText;
+  final Color metaFill;
+  final Color metaBorder;
+  final Color actionButtonFill;
+  final Color actionButtonBorder;
+  final Color actionButtonText;
+  final Color actionIconFill;
+  final Color actionIconGlyph;
+  final Color completionPanelFill;
+  final Color completionPanelBorder;
+  final Color completionButtonFill;
+  final Color completionButtonBorder;
+  final Color completionButtonText;
+  final Color completionButtonSelectedFill;
+  final Color completionButtonSelectedBorder;
+  final Color completionButtonSelectedText;
+}
+
+class _DayViewExternalAction {
+  const _DayViewExternalAction({
+    required this.label,
+    required this.target,
+    required this.icon,
+    required this.fallbackToMaps,
+  });
+
+  final String label;
+  final String target;
+  final IconData icon;
+  final bool fallbackToMaps;
+}
+
+_DayViewEventVisual _dayViewVisualForEvent(
+  EventItem event,
+  FlowData? flow, {
+  bool isReminder = false,
+  bool isNutrition = false,
+}) {
+  final rawSource = _dayViewReadableFlowColor(
+    isReminder
+        ? const Color(0xFF5CAA5F)
+        : isNutrition
+        ? const Color(0xFF57A9D6)
+        : event.color,
+  );
+  final source = isReminder || isNutrition
+      ? rawSource
+      : _dayViewMaterialFlowColor(rawSource);
+  final redOrange = _dayViewIsRedOrangeMaterialColor(source);
+
+  if (redOrange && !isReminder && !isNutrition) {
+    const accent = Color(0xFFC2673F);
+    return _DayViewEventVisual(
+      source: accent,
+      base: const Color(0xFF160A07),
+      wash: const Color(0xFF4A1E13),
+      washLeft: const Color(0xFF4A1E13),
+      washMid: const Color(0xFF28110C),
+      washEnd: const Color(0xFF120806),
+      stripe: accent.withValues(alpha: 0.58),
+      border: const Color(0xFFC4754C).withValues(alpha: 0.20),
+      category: const Color(0xFFB36B43),
+      title: const Color(0xFFD39A63),
+      metaText: const Color(0xFFA56F45),
+      supportText: const Color(0xFF9A6B4B),
+      sectionLabelText: const Color(0xFF8E713E),
+      bodyText: const Color(0xFFAFA097),
+      metaFill: accent.withValues(alpha: 0.08),
+      metaBorder: accent.withValues(alpha: 0.18),
+      actionButtonFill: const Color(0xFF25110C),
+      actionButtonBorder: const Color(0xFFC06E4D).withValues(alpha: 0.24),
+      actionButtonText: const Color(0xFFD19A63),
+      actionIconFill: const Color(0xFFC06E4D).withValues(alpha: 0.22),
+      actionIconGlyph: const Color(0xFFDFA172),
+      completionPanelFill: const Color(0xFF100706),
+      completionPanelBorder: const Color(0xFFC06E4D).withValues(alpha: 0.14),
+      completionButtonFill: const Color(0xFF070504),
+      completionButtonBorder: const Color(0xFF5A3A23).withValues(alpha: 0.45),
+      completionButtonText: const Color(0xFF9C845E),
+      completionButtonSelectedFill: const Color(0xFF2B160F),
+      completionButtonSelectedBorder: const Color(
+        0xFFC98A5B,
+      ).withValues(alpha: 0.28),
+      completionButtonSelectedText: const Color(0xFFD4A36C),
+    );
+  }
+
+  final softened = _dayViewSoftenedAccent(source);
+  final hue = HSLColor.fromColor(softened).hue;
+  final isBlue = _dayViewIsBlueMaterialColor(softened);
+  final isGreen = _dayViewIsGreenMaterialColor(softened);
+  final isGold = hue > 32 && hue <= 72;
+  final base = isBlue
+      ? const Color(0xFF0D131E)
+      : isGreen
+      ? const Color(0xFF07140B)
+      : isGold
+      ? const Color(0xFF140F07)
+      : Color.alphaBlend(
+          softened.withValues(alpha: 0.10),
+          const Color(0xFF080504),
+        );
+  final title = isBlue
+      ? _dayViewMix(softened, const Color(0xFF7AB4E0), 0.56)
+      : isGreen
+      ? _dayViewMix(softened, const Color(0xFF8FCF9C), 0.44)
+      : isGold
+      ? _dayViewMix(softened, const Color(0xFFD0A956), 0.45)
+      : _dayViewMix(softened, const Color(0xFFE1B982), 0.18);
+  final category = _dayViewMix(softened, _dayViewInk, 0.14);
+  final metaText = _dayViewMix(softened, _dayViewSilver, 0.28);
+  final supportText = _dayViewMix(softened, const Color(0xFF9A7E64), 0.38);
+
+  return _DayViewEventVisual(
+    source: softened,
+    base: base,
+    wash: softened,
+    washLeft: softened,
+    washMid: _dayViewMix(softened, base, 0.42),
+    washEnd: base,
+    stripe: softened.withValues(alpha: isReminder ? 0.54 : 0.58),
+    border: softened.withValues(alpha: 0.20),
+    category: category.withValues(alpha: 0.78),
+    title: title,
+    metaText: metaText.withValues(alpha: 0.78),
+    supportText: supportText.withValues(alpha: 0.78),
+    sectionLabelText: const Color(0xFF8E713E),
+    bodyText: const Color(0xFFAFA097),
+    metaFill: softened.withValues(alpha: 0.08),
+    metaBorder: softened.withValues(alpha: 0.18),
+    actionButtonFill: Color.alphaBlend(
+      softened.withValues(alpha: 0.09),
+      const Color(0xFF080604),
+    ),
+    actionButtonBorder: softened.withValues(alpha: 0.24),
+    actionButtonText: title.withValues(alpha: 0.9),
+    actionIconFill: softened.withValues(alpha: 0.20),
+    actionIconGlyph: title.withValues(alpha: 0.94),
+    completionPanelFill: Color.alphaBlend(
+      softened.withValues(alpha: 0.035),
+      const Color(0xFF070504),
+    ),
+    completionPanelBorder: softened.withValues(alpha: 0.14),
+    completionButtonFill: const Color(0xFF070504),
+    completionButtonBorder: const Color(0xFF5A3A23).withValues(alpha: 0.45),
+    completionButtonText: const Color(0xFF9C845E),
+    completionButtonSelectedFill: Color.alphaBlend(
+      softened.withValues(alpha: 0.14),
+      const Color(0xFF050403),
+    ),
+    completionButtonSelectedBorder: softened.withValues(alpha: 0.28),
+    completionButtonSelectedText: title.withValues(alpha: 0.86),
+  );
+}
+
+Color _dayViewMatteDetailColor(
+  Color color, {
+  double saturationScale = 0.88,
+  double lightnessScale = 0.96,
+}) {
+  final hsl = HSLColor.fromColor(color);
+  return hsl
+      .withSaturation(
+        (hsl.saturation * saturationScale).clamp(0.0, 1.0).toDouble(),
+      )
+      .withLightness(
+        (hsl.lightness * lightnessScale).clamp(0.0, 1.0).toDouble(),
+      )
+      .toColor();
+}
+
+_DayViewEventVisual _dayViewMatteDetailVisual(_DayViewEventVisual visual) {
+  Color matte(
+    Color color, {
+    double saturationScale = 0.88,
+    double lightnessScale = 0.96,
+  }) {
+    return _dayViewMatteDetailColor(
+      color,
+      saturationScale: saturationScale,
+      lightnessScale: lightnessScale,
+    );
+  }
+
+  return _DayViewEventVisual(
+    source: matte(visual.source),
+    base: matte(visual.base, lightnessScale: 0.99),
+    wash: matte(visual.wash),
+    washLeft: matte(visual.washLeft),
+    washMid: matte(visual.washMid, lightnessScale: 0.98),
+    washEnd: matte(visual.washEnd, lightnessScale: 0.99),
+    stripe: matte(visual.stripe),
+    border: matte(visual.border),
+    category: matte(visual.category),
+    title: matte(visual.title),
+    metaText: matte(visual.metaText),
+    supportText: matte(visual.supportText),
+    sectionLabelText: matte(visual.sectionLabelText),
+    bodyText: matte(visual.bodyText, lightnessScale: 0.97),
+    metaFill: matte(visual.metaFill, lightnessScale: 0.98),
+    metaBorder: matte(visual.metaBorder),
+    actionButtonFill: matte(visual.actionButtonFill, lightnessScale: 0.98),
+    actionButtonBorder: matte(visual.actionButtonBorder),
+    actionButtonText: matte(visual.actionButtonText),
+    actionIconFill: matte(visual.actionIconFill),
+    actionIconGlyph: matte(visual.actionIconGlyph),
+    completionPanelFill: matte(
+      visual.completionPanelFill,
+      lightnessScale: 0.99,
+    ),
+    completionPanelBorder: matte(visual.completionPanelBorder),
+    completionButtonFill: matte(visual.completionButtonFill, lightnessScale: 1),
+    completionButtonBorder: matte(visual.completionButtonBorder),
+    completionButtonText: matte(visual.completionButtonText),
+    completionButtonSelectedFill: matte(
+      visual.completionButtonSelectedFill,
+      lightnessScale: 0.98,
+    ),
+    completionButtonSelectedBorder: matte(
+      visual.completionButtonSelectedBorder,
+    ),
+    completionButtonSelectedText: matte(visual.completionButtonSelectedText),
+  );
+}
+
+String _dayViewFlowLabel(
+  EventItem event,
+  FlowData? flow, {
+  required bool isMaatFlow,
+  bool isReminder = false,
+  bool isNutrition = false,
+}) {
+  if (flow != null) {
+    return _dayViewCategoryLabel(flow.name, sparkle: isMaatFlow);
+  }
+  if (isReminder) return _dayViewCategoryLabel('Reminder');
+  if (isNutrition) return _dayViewCategoryLabel('Nutrition');
+  final category = event.category?.trim();
+  if (category != null && category.isNotEmpty) {
+    return _dayViewCategoryLabel(category);
+  }
+  return _dayViewCategoryLabel('Scheduled');
+}
+
+String _dayViewTimelineFlowLabel(
+  EventItem event,
+  FlowData? flow, {
+  required bool isMaatFlow,
+  bool isReminder = false,
+  bool isNutrition = false,
+}) {
+  if (isReminder) {
+    return _dayViewFlowLabel(
+      event,
+      flow,
+      isMaatFlow: isMaatFlow,
+      isReminder: true,
+      isNutrition: isNutrition,
+    );
+  }
+  final category = event.category?.trim();
+  if (category != null && category.isNotEmpty) {
+    return _dayViewCategoryLabel(category, sparkle: isMaatFlow);
+  }
+  return _dayViewFlowLabel(
+    event,
+    flow,
+    isMaatFlow: isMaatFlow,
+    isReminder: isReminder,
+    isNutrition: isNutrition,
+  );
+}
+
+const Set<String> _dayViewExternalPayloadKeys = {
+  'url',
+  'uri',
+  'href',
+  'link',
+  'external_url',
+  'externalurl',
+  'external_link',
+  'externallink',
+  'action_url',
+  'actionurl',
+  'meeting_url',
+  'meetingurl',
+  'video_url',
+  'videourl',
+  'watch_url',
+  'watchurl',
+  'document_url',
+  'documenturl',
+  'map_url',
+  'mapurl',
+};
+
+void _dayViewCollectPayloadTargets(
+  Object? node,
+  List<String> targets, [
+  int depth = 0,
+]) {
+  if (node == null || depth > 4) return;
+  if (node is Map) {
+    for (final entry in node.entries) {
+      final key = entry.key.toString().trim().toLowerCase();
+      final normalizedKey = key.replaceAll(RegExp(r'[\s-]'), '_');
+      final compactKey = normalizedKey.replaceAll('_', '');
+      final value = entry.value;
+      final isTargetKey =
+          _dayViewExternalPayloadKeys.contains(normalizedKey) ||
+          _dayViewExternalPayloadKeys.contains(compactKey);
+      if (isTargetKey) {
+        if (value is String) {
+          targets.add(value);
+        } else if (value is Iterable) {
+          for (final item in value) {
+            if (item is String) targets.add(item);
+          }
+        }
+      }
+      if (value is Map || value is Iterable) {
+        _dayViewCollectPayloadTargets(value, targets, depth + 1);
+      }
+    }
+  } else if (node is Iterable) {
+    for (final item in node) {
+      _dayViewCollectPayloadTargets(item, targets, depth + 1);
+    }
+  }
+}
+
+String _dayViewExternalActionLabel(Uri uri, {required bool fallbackToMaps}) {
+  final scheme = uri.scheme.toLowerCase();
+  final host = uri.host.toLowerCase();
+  if (scheme == 'mailto') return 'Email';
+  if (scheme == 'tel') return 'Call';
+  if (host.contains('youtube.com') || host.contains('youtu.be')) {
+    return 'Watch on YouTube';
+  }
+  if (host.contains('zoom.us') ||
+      host.contains('meet.google') ||
+      host.contains('teams.microsoft')) {
+    return 'Join meeting';
+  }
+  if (fallbackToMaps ||
+      host.contains('maps.google') ||
+      host.contains('apple.com/maps')) {
+    return 'Open map';
+  }
+  if (host.contains('docs.google') ||
+      host.contains('notion.') ||
+      uri.path.toLowerCase().endsWith('.pdf')) {
+    return 'Open document';
+  }
+  return 'Open link';
+}
+
+IconData _dayViewExternalActionIcon(Uri uri, {required bool fallbackToMaps}) {
+  final scheme = uri.scheme.toLowerCase();
+  final host = uri.host.toLowerCase();
+  if (scheme == 'mailto') return Icons.mail_outline_rounded;
+  if (scheme == 'tel') return Icons.call_outlined;
+  if (host.contains('youtube.com') || host.contains('youtu.be')) {
+    return Icons.play_arrow_rounded;
+  }
+  if (host.contains('zoom.us') ||
+      host.contains('meet.google') ||
+      host.contains('teams.microsoft')) {
+    return Icons.videocam_outlined;
+  }
+  if (fallbackToMaps ||
+      host.contains('maps.google') ||
+      host.contains('apple.com/maps')) {
+    return Icons.map_outlined;
+  }
+  if (host.contains('docs.google') ||
+      host.contains('notion.') ||
+      uri.path.toLowerCase().endsWith('.pdf')) {
+    return Icons.description_outlined;
+  }
+  return Icons.open_in_new_rounded;
+}
+
+_DayViewExternalAction? _dayViewExternalActionForRaw(
+  String raw, {
+  bool fallbackToMaps = false,
+}) {
+  final target = normalizeExternalLinkToken(raw);
+  if (target.isEmpty) return null;
+  final uri = buildExternalLaunchUri(target, fallbackToMaps: fallbackToMaps);
+  if (uri == null) return null;
+  return _DayViewExternalAction(
+    label: _dayViewExternalActionLabel(uri, fallbackToMaps: fallbackToMaps),
+    target: target,
+    icon: _dayViewExternalActionIcon(uri, fallbackToMaps: fallbackToMaps),
+    fallbackToMaps: fallbackToMaps,
+  );
+}
+
+_DayViewExternalAction? _dayViewExternalActionForEvent(EventItem event) {
+  final structuredTargets = <String>[];
+  _dayViewCollectPayloadTargets(event.behaviorPayload, structuredTargets);
+  for (final raw in structuredTargets) {
+    final action = _dayViewExternalActionForRaw(raw);
+    if (action != null) return action;
+  }
+
+  final detail = event.detail;
+  if (detail != null && detail.trim().isNotEmpty) {
+    for (final match in externalLinkPattern.allMatches(detail)) {
+      final raw = match.group(0);
+      if (raw == null || !looksLikeLaunchTarget(raw)) continue;
+      final action = _dayViewExternalActionForRaw(raw);
+      if (action != null) return action;
+    }
+  }
+
+  final location = event.location?.trim();
+  if (location != null && location.isNotEmpty) {
+    return _dayViewExternalActionForRaw(location, fallbackToMaps: true);
+  }
+
+  return null;
+}
+
+bool _dayViewShouldShowDetailLocation(
+  EventItem event,
+  _DayViewExternalAction? action,
+) {
+  final location = event.location?.trim();
+  if (location == null || location.isEmpty) return false;
+  if (action == null) return true;
+  final normalized = normalizeExternalLinkToken(location);
+  if (normalized.isNotEmpty && normalized == action.target) return false;
+  return !looksLikeLaunchTarget(location);
+}
+
+bool _dayViewIsStandaloneExternalTargetLine(
+  String line,
+  _DayViewExternalAction action,
+) {
+  final trimmed = line.trim();
+  if (trimmed.isEmpty) return false;
+  final matches = externalLinkPattern.allMatches(trimmed).toList();
+  if (matches.length != 1) return false;
+  final raw = matches.single.group(0);
+  if (raw == null || !looksLikeLaunchTarget(raw)) return false;
+  final normalized = normalizeExternalLinkToken(raw);
+  if (normalized.isEmpty || normalized != action.target) return false;
+  final remainder = trimmed.replaceFirst(raw, '').trim();
+  return remainder.isEmpty || RegExp(r'^[\)\]\}\.,;:!?]+$').hasMatch(remainder);
+}
+
+String _dayViewStripStandaloneExternalTargetLines(
+  String text,
+  _DayViewExternalAction? action,
+) {
+  if (action == null || text.trim().isEmpty) return text;
+  final kept = text
+      .split('\n')
+      .where((line) => !_dayViewIsStandaloneExternalTargetLine(line, action))
+      .toList();
+  return kept.join('\n').trim();
+}
+
+CalendarCompletionPickerStyle _dayViewCompletionPickerStyle(
+  _DayViewEventVisual visual,
+) {
+  return CalendarCompletionPickerStyle(
+    containerPadding: const EdgeInsets.all(10),
+    containerColor: visual.completionPanelFill,
+    containerBorderColor: visual.completionPanelBorder,
+    containerBorderWidth: 0.5,
+    containerRadius: 8,
+    label: 'COMPLETION',
+    labelColor: visual.category.withValues(alpha: 0.82),
+    labelFontSize: 9,
+    labelFontWeight: FontWeight.w600,
+    labelLetterSpacing: 2.0,
+    labelGap: 8,
+    buttonGap: 8,
+    selectedForegroundColor: visual.completionButtonSelectedText,
+    selectedBackgroundColor: visual.completionButtonSelectedFill,
+    selectedBorderColor: visual.completionButtonSelectedBorder,
+    unselectedForegroundColor: visual.completionButtonText,
+    unselectedBackgroundColor: visual.completionButtonFill,
+    unselectedBorderColor: visual.completionButtonBorder,
+    buttonPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+    buttonRadius: 8,
+    buttonBorderWidth: 0.5,
+    buttonFontSize: 14,
+    buttonFontWeight: FontWeight.w500,
+    buttonFontFamily: _dayViewSerifFamily,
+    buttonFontFamilyFallback: _dayViewSerifFallback,
+    buttonMinimumSize: const Size(0, 40),
+    buttonTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+    buttonVisualDensity: const VisualDensity(horizontal: -1, vertical: -1),
+  );
+}
 
 enum _RitualCompletionFeedbackLevel { observed, partial }
 
@@ -215,8 +834,8 @@ class _RitualCompletionRimPainter extends CustomPainter {
     final rim = pulse * strength;
     final rect = Offset.zero & size;
     final rrect = RRect.fromRectAndRadius(
-      rect.deflate(1.5),
-      const Radius.circular(16.5),
+      rect.deflate(0.75),
+      const Radius.circular(12.5),
     );
     final glowColor = _dayGold.withValues(
       alpha: (observed ? 0.20 : 0.08) * pulse,
@@ -300,10 +919,12 @@ class _RitualCompletionFeedbackCard extends StatefulWidget {
   const _RitualCompletionFeedbackCard({
     required this.enabled,
     required this.child,
+    this.visual,
   });
 
   final bool enabled;
   final Widget child;
+  final _DayViewEventVisual? visual;
 
   @override
   State<_RitualCompletionFeedbackCard> createState() =>
@@ -363,6 +984,33 @@ class _RitualCompletionFeedbackCardState
   }
 
   BoxDecoration _baseDecoration() {
+    final visual = widget.visual;
+    if (visual != null) {
+      return BoxDecoration(
+        color: visual.base,
+        gradient: LinearGradient(
+          begin: Alignment.centerLeft,
+          end: Alignment.centerRight,
+          colors: [
+            visual.washLeft.withValues(alpha: 0.36),
+            visual.washMid.withValues(alpha: 0.30),
+            visual.washMid.withValues(alpha: 0.24),
+            visual.washMid.withValues(alpha: 0.20),
+          ],
+          stops: const [0.0, 0.48, 0.82, 1.0],
+        ),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: visual.border, width: 0.6),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.46),
+            blurRadius: 22,
+            spreadRadius: -2,
+            offset: const Offset(0, 12),
+          ),
+        ],
+      );
+    }
     return BoxDecoration(
       color: Colors.white.withValues(alpha: 0.04),
       borderRadius: BorderRadius.circular(18),
@@ -380,11 +1028,15 @@ class _RitualCompletionFeedbackCardState
 
   @override
   Widget build(BuildContext context) {
+    final visual = widget.visual;
     final baseCard = Container(
       key: _ritualCompletionFeedbackCardKey,
       width: double.infinity,
-      padding: const EdgeInsets.fromLTRB(18, 18, 18, 20),
+      padding: visual == null
+          ? const EdgeInsets.fromLTRB(18, 18, 18, 20)
+          : const EdgeInsets.fromLTRB(16, 14, 16, 14),
       decoration: _baseDecoration(),
+      clipBehavior: Clip.hardEdge,
       child: widget.child,
     );
     final card = AnimatedBuilder(
@@ -395,6 +1047,21 @@ class _RitualCompletionFeedbackCardState
           clipBehavior: Clip.none,
           children: [
             child ?? const SizedBox.shrink(),
+            if (visual != null)
+              Positioned(
+                left: 4,
+                top: 3,
+                bottom: 3,
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    color: visual.stripe,
+                    borderRadius: const BorderRadius.horizontal(
+                      left: Radius.circular(9),
+                    ),
+                  ),
+                  child: const SizedBox(width: 2.5),
+                ),
+              ),
             Positioned.fill(
               child: IgnorePointer(
                 child: CustomPaint(
@@ -425,14 +1092,20 @@ class DayViewRitualCompletionFeedbackCard extends StatelessWidget {
     super.key,
     required this.enabled,
     required this.child,
+    this.visual,
   });
 
   final bool enabled;
   final Widget child;
+  final _DayViewEventVisual? visual;
 
   @override
   Widget build(BuildContext context) {
-    return _RitualCompletionFeedbackCard(enabled: enabled, child: child);
+    return _RitualCompletionFeedbackCard(
+      enabled: enabled,
+      visual: visual,
+      child: child,
+    );
   }
 }
 
@@ -2340,6 +3013,10 @@ String _eventIdentityKey(EventItem event) {
   ].join('|');
 }
 
+@visibleForTesting
+Key dayViewOverflowVisualKey(String eventIdentity, int hour) =>
+    ValueKey<String>('day_view_overflow_visual:$eventIdentity:$hour');
+
 bool _eventsShareStableIdentity(EventItem a, EventItem b) {
   final aId = a.id?.trim();
   final bId = b.id?.trim();
@@ -2376,10 +3053,6 @@ bool _eventsOverlap(EventItem a, EventItem b, {double textScale = 1.0}) {
 double _eventVisualTop(EventItem event) => event.startMin.toDouble();
 
 double _eventVisualHeightForLayout(EventItem event, {double textScale = 1.0}) {
-  final bool showTitle = event.title.trim().isNotEmpty;
-  final bool showLocation =
-      event.location != null && event.location!.trim().isNotEmpty;
-
   int durationMinutes = event.endMin - event.startMin;
   if (durationMinutes <= 0) {
     durationMinutes = 15;
@@ -2388,14 +3061,14 @@ double _eventVisualHeightForLayout(EventItem event, {double textScale = 1.0}) {
     durationMinutes = 180;
   }
 
-  final int reminderLineCount = (showTitle ? 1 : 0) + (showLocation ? 1 : 0);
-  final double reminderHeight = math.max(
-    _kMinEventBlockHeight / 2,
-    (reminderLineCount * (14.0 * textScale)) + 12,
-  );
-
   if (event.isReminder) {
-    return reminderHeight;
+    final effectiveTextScale = textScale.clamp(1.0, 1.25).toDouble();
+    final compactPreviewHeight = 54.0 * effectiveTextScale;
+    final durationHeight = durationMinutes
+        .toDouble()
+        .clamp(42.0, 90.0)
+        .toDouble();
+    return math.max(compactPreviewHeight, durationHeight);
   }
 
   final double rawHeight = durationMinutes.toDouble();
@@ -2491,6 +3164,7 @@ class DayViewPage extends StatefulWidget {
   final Future<void> Function(BuildContext context)? onOpenQuickAdd;
   final Future<void> Function(BuildContext context)? onOpenSearch;
   final Future<void> Function(BuildContext context)? onOpenProfile;
+  final Future<void> Function(BuildContext context)? onOpenMenu;
   final VoidCallback? onClose;
   final Future<void> Function()? onUserClose;
   final void Function(int ky, int km, int kd)? onAddNote;
@@ -2583,6 +3257,7 @@ class DayViewPage extends StatefulWidget {
     this.onOpenQuickAdd,
     this.onOpenSearch,
     this.onOpenProfile,
+    this.onOpenMenu,
     this.onClose,
     this.onUserClose,
     this.onAddNote, // 🔧 NEW
@@ -3254,6 +3929,14 @@ class _DayViewPageState extends State<DayViewPage> {
                           (ctx) async {
                             await CalendarPage.openProfileFromAnyContext(ctx);
                           },
+                      onOpenMenu:
+                          widget.onOpenMenu ??
+                          (ctx) async {
+                            await CalendarPage.showActionsMenuFromAnyContext(
+                              ctx,
+                              includeNewNote: false,
+                            );
+                          },
                       dateButtonBuilder: (context, currentGregorian) {
                         final headerDateLabel = _buildHeaderDateLabel(
                           context,
@@ -3276,8 +3959,11 @@ class _DayViewPageState extends State<DayViewPage> {
                                   text: headerDateLabel,
                                   style: const TextStyle(
                                     color: Colors.white,
-                                    fontSize: 15,
+                                    fontSize: 16,
                                     fontWeight: FontWeight.w500,
+                                    fontStyle: FontStyle.italic,
+                                    fontFamily: _dayViewSerifFamily,
+                                    fontFamilyFallback: _dayViewSerifFallback,
                                   ),
                                   gradient: blueGloss,
                                   maxLines: 1,
@@ -3287,9 +3973,12 @@ class _DayViewPageState extends State<DayViewPage> {
                               : Text(
                                   headerDateLabel,
                                   style: const TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 15,
+                                    color: Color(0xFFC7AA52),
+                                    fontSize: 16,
                                     fontWeight: FontWeight.w500,
+                                    fontStyle: FontStyle.italic,
+                                    fontFamily: _dayViewSerifFamily,
+                                    fontFamilyFallback: _dayViewSerifFallback,
                                   ),
                                   softWrap: false,
                                   textAlign: TextAlign.center,
@@ -3578,16 +4267,17 @@ class _DayViewGridState extends State<DayViewGrid> {
   }
 
   ButtonStyle _endButtonStyle(BuildContext context) {
-    // Slightly smaller footprint (~12% shorter) to avoid pushing other controls.
     return withExpandedTouchTargets(
       context,
       OutlinedButton.styleFrom(
-        side: const BorderSide(color: _dayGold),
+        side: BorderSide(color: _dayGold.withValues(alpha: 0.42), width: 0.7),
+        backgroundColor: _dayGold.withValues(alpha: 0.06),
         foregroundColor: _dayGold,
-        padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 7),
-        minimumSize: const Size(0, 35),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+        minimumSize: const Size(0, 40),
         tapTargetSize: MaterialTapTargetSize.shrinkWrap,
         visualDensity: const VisualDensity(horizontal: -1, vertical: -1),
+        shape: const StadiumBorder(),
       ),
     );
   }
@@ -4021,21 +4711,22 @@ class _DayViewGridState extends State<DayViewGrid> {
     return sections;
   }
 
-  Widget _buildDawnHouseRiteDetailText(String detail) {
+  Widget _buildDawnHouseRiteDetailText(
+    String detail, {
+    _DayViewEventVisual? visual,
+  }) {
     final sections = _dawnHouseRiteDetailSections(detail);
     if (sections.isEmpty) return const SizedBox.shrink();
 
-    const headingStyle = TextStyle(
-      color: Color(0xFFFFD486),
-      fontSize: 12,
-      fontWeight: FontWeight.w700,
-      height: 1.2,
+    final headingStyle = TextStyle(
+      color: visual?.sectionLabelText ?? const Color(0xFFFFD486),
+      fontSize: 9,
+      fontWeight: FontWeight.w600,
+      letterSpacing: 2.0,
+      height: 1.15,
+      fontFamilyFallback: _dayViewSansFallback,
     );
-    const bodyStyle = TextStyle(
-      color: Colors.white,
-      fontSize: 14,
-      height: 1.38,
-    );
+    final bodyStyle = _detailBodyStyle(visual: visual);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -4049,7 +4740,7 @@ class _DayViewGridState extends State<DayViewGrid> {
             Text(
               section.body,
               style: bodyStyle.copyWith(
-                color: const Color(0xFFFFEED4),
+                color: _dayViewSilver.withValues(alpha: 0.94),
                 fontStyle: FontStyle.italic,
               ),
             )
@@ -4699,8 +5390,12 @@ class _DayViewGridState extends State<DayViewGrid> {
     return Container(
       height: 60,
       decoration: BoxDecoration(
+        color: hour.isEven ? const Color(0xFF060504) : const Color(0xFF070604),
         border: Border(
-          bottom: BorderSide(color: const Color(0xFF1A1A1A), width: 0.5),
+          top: BorderSide(
+            color: const Color(0xFF21190D).withValues(alpha: 0.7),
+            width: 0.6,
+          ),
         ),
       ),
       child: Stack(
@@ -4712,7 +5407,12 @@ class _DayViewGridState extends State<DayViewGrid> {
             top: 4,
             child: Text(
               _formatHour(hour),
-              style: const TextStyle(fontSize: 11, color: Color(0xFF808080)),
+              style: TextStyle(
+                fontSize: 11,
+                letterSpacing: 0.2,
+                color: _dayViewSilverDim.withValues(alpha: 0.84),
+                fontFamilyFallback: _dayViewSansFallback,
+              ),
             ),
           ),
 
@@ -4816,6 +5516,11 @@ class _DayViewGridState extends State<DayViewGrid> {
           // Event blocks
           ..._buildHourBlocks(hourBlocks),
 
+          // Rows paint in order, so a later hour's background covers any
+          // previous-row overflow. Repaint the visible continuation above the
+          // current row background; tap/drag handling stays in the proxy layer.
+          ..._buildOverflowVisualsForHour(hour),
+
           // Overflow portions of earlier blocks need their own hit targets.
           ..._buildOverflowTapProxiesForHour(hour),
 
@@ -4846,6 +5551,70 @@ class _DayViewGridState extends State<DayViewGrid> {
             block,
             hitHeight: _overlapHitHeightForBlock(block),
           ),
+        ),
+    ];
+  }
+
+  List<Widget> _buildOverflowVisualsForHour(int hour) {
+    final rowStart = hour * 60.0;
+    final rowEnd = rowStart + 60.0;
+    final spillBlocks =
+        _displayBlocks.where((block) {
+          if (_isPreviewBlock(block)) return false;
+          final visualStart = block.event.startMin.toDouble();
+          final visualEnd = visualStart + _eventVisualHeight(block.event);
+          return visualStart < rowStart && visualEnd > rowStart;
+        }).toList()..sort((a, b) {
+          final leftCmp = a.leftOffset.compareTo(b.leftOffset);
+          if (leftCmp != 0) return leftCmp;
+          return _compareEventItemsBySchedule(a.event, b.event);
+        });
+
+    if (spillBlocks.isEmpty) return const [];
+
+    return [
+      for (final block in spillBlocks)
+        Builder(
+          builder: (_) {
+            final visualStart = block.event.startMin.toDouble();
+            final visualEnd = visualStart + _eventVisualHeight(block.event);
+            final visibleHeight =
+                math.min(visualEnd, rowEnd) - math.max(visualStart, rowStart);
+            if (visibleHeight <= 0) return const SizedBox.shrink();
+            final visualHeight = visualEnd - visualStart;
+            final yOffset = rowStart - visualStart;
+            final visualWidth = block.width + 4;
+
+            return Positioned(
+              key: dayViewOverflowVisualKey(
+                _eventIdentityKey(block.event),
+                hour,
+              ),
+              left: _kTimelineLabelWidth + block.leftOffset,
+              top: 0,
+              child: IgnorePointer(
+                child: ExcludeSemantics(
+                  child: SizedBox(
+                    width: visualWidth,
+                    height: visibleHeight,
+                    child: ClipRect(
+                      child: OverflowBox(
+                        alignment: Alignment.topLeft,
+                        minWidth: visualWidth,
+                        maxWidth: visualWidth,
+                        minHeight: visualHeight,
+                        maxHeight: visualHeight,
+                        child: Transform.translate(
+                          offset: Offset(0, -yOffset),
+                          child: _buildEventBlock(block, isPreview: false),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            );
+          },
         ),
     ];
   }
@@ -5190,8 +5959,8 @@ class _DayViewGridState extends State<DayViewGrid> {
 
     final borderRadius = BorderRadius.circular(
       isTrackSky || isDawnHouseRite || isEveningThresholdRite || isTheWeighing
-          ? 8
-          : 4,
+          ? 7
+          : 6,
     );
 
     if (isTrackSky) {
@@ -5525,31 +6294,85 @@ class _DayViewGridState extends State<DayViewGrid> {
       );
     }
 
-    final fillColor = isPreview
-        ? event.color.withValues(alpha: 0.12)
-        : event.color.withValues(alpha: 0.2);
-    final BoxBorder border = isPreview
-        ? Border.all(color: event.color.withValues(alpha: 0.65), width: 1.5)
-        : Border(left: BorderSide(color: event.color, width: 3));
-
+    final visual = _dayViewVisualForEvent(
+      event,
+      flow,
+      isReminder: event.isReminder,
+      isNutrition: event.detail != null && event.detail!.contains('Source:'),
+    );
     return Container(
       width: block.width,
       height: height,
       margin: const EdgeInsets.only(right: 4, bottom: 2),
       decoration: BoxDecoration(
-        color: fillColor,
-        border: border,
         borderRadius: borderRadius,
-      ),
-      padding: EdgeInsets.symmetric(
-        horizontal: 4,
-        vertical: event.isReminder ? 3 : 4,
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: isPreview ? 0.12 : 0.26),
+            blurRadius: 10,
+            spreadRadius: -5,
+            offset: const Offset(0, 5),
+          ),
+        ],
       ),
       clipBehavior: Clip.hardEdge, // ✅ Prevent overflow
-      child: _buildEventTextContents(
-        event,
-        durationMinutes,
-        isPreview: isPreview,
+      child: Stack(
+        children: [
+          Positioned.fill(
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.centerLeft,
+                  end: Alignment.centerRight,
+                  colors: [
+                    Color.alphaBlend(
+                      visual.wash.withValues(alpha: isPreview ? 0.055 : 0.08),
+                      visual.base,
+                    ),
+                    Color.alphaBlend(
+                      visual.wash.withValues(alpha: isPreview ? 0.025 : 0.04),
+                      visual.base,
+                    ),
+                    visual.base,
+                    _dayViewBase,
+                  ],
+                  stops: const [0.0, 0.42, 0.73, 1.0],
+                ),
+                border: Border.all(
+                  color: visual.source.withValues(
+                    alpha: isPreview ? 0.12 : 0.18,
+                  ),
+                  width: isPreview ? 0.65 : 0.55,
+                ),
+                borderRadius: borderRadius,
+              ),
+            ),
+          ),
+          Positioned(
+            left: 0,
+            top: 0,
+            bottom: 0,
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                color: visual.source.withValues(alpha: isPreview ? 0.38 : 0.54),
+              ),
+              child: const SizedBox(width: 2.5),
+            ),
+          ),
+          Padding(
+            padding: EdgeInsets.fromLTRB(
+              event.isReminder ? 9 : 10,
+              event.isReminder ? 4 : 4,
+              6,
+              4,
+            ),
+            child: _buildEventTextContents(
+              event,
+              durationMinutes,
+              isPreview: isPreview,
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -5574,10 +6397,25 @@ class _DayViewGridState extends State<DayViewGrid> {
         isEveningThresholdRite ||
         isTheWeighing;
     final trackSkySpec = isTrackSky ? _trackSkyCardSpecForEvent(event) : null;
+    final isNutrition =
+        event.detail != null && event.detail!.contains('Source:');
+    final visual = _dayViewVisualForEvent(
+      event,
+      flow,
+      isReminder: event.isReminder,
+      isNutrition: isNutrition,
+    );
+    final isMaatFlow = _maatFlowCompletionContextForEvent(event, flow) != null;
+    final flowLabel = _dayViewTimelineFlowLabel(
+      event,
+      flow,
+      isMaatFlow: isMaatFlow,
+      isReminder: event.isReminder,
+      isNutrition: isNutrition,
+    );
 
     final showTitle = event.title.trim().isNotEmpty;
-    final showLocation =
-        event.location != null && event.location!.trim().isNotEmpty;
+    final showPreviewLabel = !isGraphicFlow || (hasFlow && !event.isReminder);
     final trackSkyFlowNameColor = _dayGold.withValues(
       alpha: isPreview ? 0.92 : 1.0,
     );
@@ -5589,19 +6427,12 @@ class _DayViewGridState extends State<DayViewGrid> {
         ? const Color(0xFFF2F0FF).withValues(alpha: isPreview ? 0.92 : 1.0)
         : isTheWeighing
         ? const Color(0xFFFFF8E8).withValues(alpha: isPreview ? 0.92 : 1.0)
-        : (isPreview ? Colors.white70 : Colors.white);
-    final flowColor = hasFlow && !isGraphicFlow
-        ? event.color.withValues(alpha: isPreview ? 0.75 : 1.0)
+        : event.isReminder
+        ? visual.title.withValues(alpha: isPreview ? 0.72 : 0.88)
+        : visual.title.withValues(alpha: isPreview ? 0.74 : 0.9);
+    final flowColor = !isGraphicFlow
+        ? visual.category.withValues(alpha: isPreview ? 0.52 : 0.68)
         : null;
-    final locationColor = isTrackSky
-        ? trackSkySpec!.detailColor.withValues(alpha: isPreview ? 0.78 : 0.96)
-        : isDawnHouseRite
-        ? const Color(0xFFFFDEB2).withValues(alpha: isPreview ? 0.74 : 0.92)
-        : isEveningThresholdRite
-        ? const Color(0xFFE9D6FF).withValues(alpha: isPreview ? 0.74 : 0.92)
-        : isTheWeighing
-        ? const Color(0xFFF5E8CB).withValues(alpha: isPreview ? 0.74 : 0.92)
-        : Colors.white.withValues(alpha: isPreview ? 0.55 : 0.7);
     final titleMaxLines = (event.isReminder || hasFlow || durationMinutes < 90)
         ? 1
         : 2;
@@ -5700,11 +6531,11 @@ class _DayViewGridState extends State<DayViewGrid> {
       mainAxisAlignment: MainAxisAlignment.start,
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Flow name first (if available). Skip for reminders to avoid overflow in short block.
-        if (hasFlow && !event.isReminder) ...[
+        // Compact preview label only; detail/body/location belongs in the sheet.
+        if (showPreviewLabel) ...[
           isTrackSky
               ? buildTrackSkyText(
-                  flow.name,
+                  flow!.name,
                   style: TextStyle(
                     fontSize: 11,
                     fontWeight: FontWeight.w700,
@@ -5716,7 +6547,7 @@ class _DayViewGridState extends State<DayViewGrid> {
                 )
               : isDawnHouseRite
               ? buildTrackSkyText(
-                  flow.name,
+                  flow!.name,
                   style: TextStyle(
                     fontSize: 11,
                     fontWeight: FontWeight.w700,
@@ -5728,7 +6559,7 @@ class _DayViewGridState extends State<DayViewGrid> {
                 )
               : isEveningThresholdRite
               ? buildTrackSkyText(
-                  flow.name,
+                  flow!.name,
                   style: TextStyle(
                     fontSize: 11,
                     fontWeight: FontWeight.w700,
@@ -5740,7 +6571,7 @@ class _DayViewGridState extends State<DayViewGrid> {
                 )
               : isTheWeighing
               ? buildTrackSkyText(
-                  flow.name,
+                  flow!.name,
                   style: TextStyle(
                     fontSize: 11,
                     fontWeight: FontWeight.w700,
@@ -5751,11 +6582,13 @@ class _DayViewGridState extends State<DayViewGrid> {
                   gradient: _theWeighingFlowGloss,
                 )
               : Text(
-                  flow.name,
+                  flowLabel,
                   style: TextStyle(
-                    fontSize: 10,
-                    fontWeight: FontWeight.w600,
+                    fontSize: 9,
+                    fontWeight: FontWeight.w500,
+                    letterSpacing: 1.55,
                     color: flowColor,
+                    fontFamilyFallback: _dayViewSansFallback,
                   ),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
@@ -5812,8 +6645,11 @@ class _DayViewGridState extends State<DayViewGrid> {
               : Text(
                   event.title,
                   style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w500,
+                    fontSize: event.isReminder ? 13.5 : 13.8,
+                    height: 1.08,
+                    fontWeight: FontWeight.w600,
+                    fontFamily: _dayViewSerifFamily,
+                    fontFamilyFallback: _dayViewSerifFallback,
                     color: titleColor,
                   ),
                   maxLines: titleMaxLines,
@@ -5880,9 +6716,13 @@ class _DayViewGridState extends State<DayViewGrid> {
                   // Fallback so you don't get giant red nothing-brick
                   hasFlow ? '(flow block)' : '(scheduled)',
                   style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w400,
-                    color: isPreview ? Colors.white60 : Colors.white70,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w500,
+                    fontFamily: _dayViewSerifFamily,
+                    fontFamilyFallback: _dayViewSerifFallback,
+                    color: visual.title.withValues(
+                      alpha: isPreview ? 0.56 : 0.76,
+                    ),
                     fontStyle: FontStyle.italic,
                   ),
                   maxLines: 1,
@@ -5906,31 +6746,12 @@ class _DayViewGridState extends State<DayViewGrid> {
             overflow: TextOverflow.ellipsis,
           ),
         ],
-
-        // Location (clickable)
-        if (showLocation && !isGraphicFlow)
-          Padding(
-            padding: const EdgeInsets.only(top: 2),
-            child: InkWell(
-              onTap: () => _launchLocation(event.location!.trim()),
-              child: Text(
-                event.location!.trim(),
-                style: TextStyle(
-                  fontSize: 10,
-                  color: locationColor,
-                  decoration: TextDecoration.underline,
-                ),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-              ),
-            ),
-          ),
       ],
     );
   }
 
   Widget _buildNowLine() {
-    return Container(height: 1, color: Colors.red.withValues(alpha: 0.45));
+    return Container(height: 1, color: _dayGold.withValues(alpha: 0.42));
   }
 
   bool _isCurrentHour(int hour) {
@@ -6248,6 +7069,152 @@ class _DayViewGridState extends State<DayViewGrid> {
     return (pages: pages, currentIndex: previous != null ? 1 : 0);
   }
 
+  TextStyle _detailCategoryStyle(_DayViewEventVisual visual) => TextStyle(
+    color: visual.category,
+    fontSize: 10,
+    fontWeight: FontWeight.w600,
+    letterSpacing: 2.0,
+    height: 1.15,
+    fontFamilyFallback: _dayViewSansFallback,
+  );
+
+  TextStyle _detailTitleStyle(_DayViewEventVisual visual) => TextStyle(
+    color: visual.title,
+    fontSize: 21,
+    fontWeight: FontWeight.w500,
+    height: 1.16,
+    fontFamily: _dayViewSerifFamily,
+    fontFamilyFallback: _dayViewSerifFallback,
+  );
+
+  TextStyle _detailBodyStyle({
+    _DayViewEventVisual? visual,
+    bool italic = false,
+  }) => TextStyle(
+    color: visual?.bodyText ?? _dayViewWarmStone.withValues(alpha: 0.9),
+    fontSize: 14,
+    fontWeight: FontWeight.w400,
+    height: 1.58,
+    fontStyle: italic ? FontStyle.italic : FontStyle.normal,
+    fontFamily: _dayViewSerifFamily,
+    fontFamilyFallback: _dayViewSerifFallback,
+  );
+
+  Widget _buildDetailSectionLabel(String label, {_DayViewEventVisual? visual}) {
+    return Text(
+      label.toUpperCase(),
+      style: TextStyle(
+        color:
+            visual?.sectionLabelText ??
+            _dayViewBronzeLabel.withValues(alpha: 0.56),
+        fontSize: 9,
+        fontWeight: FontWeight.w600,
+        height: 1.15,
+        letterSpacing: 2.0,
+        fontFamilyFallback: _dayViewSansFallback,
+      ),
+    );
+  }
+
+  Widget _buildDetailTimeLine(String text, _DayViewEventVisual visual) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(
+          Icons.access_time_rounded,
+          size: 13,
+          color: visual.metaText.withValues(alpha: 0.78),
+        ),
+        const SizedBox(width: 6),
+        Text(
+          text,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: TextStyle(
+            color: visual.metaText,
+            fontSize: 13,
+            fontWeight: FontWeight.w400,
+            height: 1.25,
+            fontStyle: FontStyle.italic,
+            fontFamily: _dayViewSerifFamily,
+            fontFamilyFallback: _dayViewSerifFallback,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildDetailFlowNameLine(String text, _DayViewEventVisual visual) {
+    return Text(
+      text,
+      maxLines: 1,
+      overflow: TextOverflow.ellipsis,
+      style: TextStyle(
+        color: visual.supportText,
+        fontSize: 13,
+        fontWeight: FontWeight.w400,
+        height: 1.25,
+        fontStyle: FontStyle.italic,
+        fontFamily: _dayViewSerifFamily,
+        fontFamilyFallback: _dayViewSerifFallback,
+      ),
+    );
+  }
+
+  Widget _buildDetailExternalActionButton(
+    _DayViewExternalAction action,
+    _DayViewEventVisual visual,
+  ) {
+    return InkWell(
+      borderRadius: BorderRadius.circular(999),
+      onTap: () async {
+        final handled = await launchExternalTarget(
+          action.target,
+          fallbackToMaps: action.fallbackToMaps,
+        );
+        if (!handled && mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Could not open this link.')),
+          );
+        }
+      },
+      child: Container(
+        height: 38,
+        padding: const EdgeInsets.symmetric(horizontal: 16),
+        decoration: BoxDecoration(
+          color: visual.actionButtonFill,
+          borderRadius: BorderRadius.circular(19),
+          border: Border.all(color: visual.actionButtonBorder, width: 0.5),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 18,
+              height: 18,
+              decoration: BoxDecoration(
+                color: visual.actionIconFill,
+                shape: BoxShape.circle,
+              ),
+              child: Icon(action.icon, size: 10, color: visual.actionIconGlyph),
+            ),
+            const SizedBox(width: 8),
+            Text(
+              action.label,
+              style: TextStyle(
+                color: visual.actionButtonText,
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+                fontFamily: _dayViewSerifFamily,
+                fontFamilyFallback: _dayViewSerifFallback,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget _buildEventDetailSheetPage({
     required DayViewSheetEventTarget target,
     bool scrollable = true,
@@ -6309,9 +7276,6 @@ class _DayViewGridState extends State<DayViewGrid> {
             kDay: target.kd,
           )
         : null;
-    final trackSkySpec = isTrackSky
-        ? _trackSkyCardSpecForEvent(currentEvent)
-        : null;
     final completionContext = _maatFlowCompletionContextForEvent(
       currentEvent,
       flow,
@@ -6320,167 +7284,85 @@ class _DayViewGridState extends State<DayViewGrid> {
     final enableRitualCompletionFeedback =
         currentEvent.flowId != null && !isNutrition;
 
-    Widget? metaChip;
-    if (flow != null) {
-      final skyMetaSpec = isTrackSky ? trackSkySpec! : null;
-      metaChip = Container(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-        decoration: BoxDecoration(
-          gradient: isTrackSky
-              ? skyMetaSpec!.background
-              : isDawnHouseRite
-              ? _dawnHouseRiteCardGradient
-              : isEveningThresholdRite
-              ? _eveningThresholdRiteCardGradient
-              : isTheWeighing
-              ? _theWeighingCardGradient
-              : null,
-          color:
-              isTrackSky ||
-                  isDawnHouseRite ||
-                  isEveningThresholdRite ||
-                  isTheWeighing
-              ? null
-              : flow.color.withValues(alpha: 0.16),
-          border: isTrackSky
-              ? Border.all(
-                  color: skyMetaSpec!.borderColor.withValues(alpha: 0.78),
-                )
-              : isDawnHouseRite
-              ? Border.all(
-                  color: const Color(0xFFFFD08A).withValues(alpha: 0.8),
-                )
-              : isEveningThresholdRite
-              ? Border.all(
-                  color: const Color(0xFF7FE0D4).withValues(alpha: 0.78),
-                )
-              : isTheWeighing
-              ? Border.all(
-                  color: const Color(0xFFF5E8CB).withValues(alpha: 0.78),
-                )
-              : null,
-          borderRadius: BorderRadius.circular(8),
-        ),
-        child:
-            isTrackSky ||
-                isDawnHouseRite ||
-                isEveningThresholdRite ||
-                isTheWeighing
-            ? Text(
-                flow.name,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w700,
-                  color: isTrackSky
-                      ? skyMetaSpec!.titleColor
-                      : isDawnHouseRite
-                      ? const Color(0xFFFFF6E3)
-                      : isTheWeighing
-                      ? const Color(0xFFFFF8E8)
-                      : const Color(0xFFF2F0FF),
-                  shadows: [
-                    Shadow(
-                      color: Colors.black.withValues(alpha: 0.42),
-                      offset: const Offset(0, 1),
-                      blurRadius: 2,
-                    ),
-                  ],
-                ),
-              )
-            : Text(
-                flow.name,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  fontSize: 12,
-                  color: flow.color,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-      );
-    } else if (isReminder) {
-      metaChip = Container(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-        decoration: BoxDecoration(
-          color: KemeticGold.base.withValues(alpha: 0.16),
-          borderRadius: BorderRadius.circular(8),
-        ),
-        child: KemeticGold.text(
-          'Reminder',
-          style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
-        ),
-      );
-    } else if (isNutrition) {
-      metaChip = Container(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-        decoration: BoxDecoration(
-          color: KemeticGold.base.withValues(alpha: 0.16),
-          borderRadius: BorderRadius.circular(8),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            KemeticGold.icon(Icons.local_drink, size: 14),
-            const SizedBox(width: 4),
-            KemeticGold.text(
-              'Nutrition',
-              style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500),
-            ),
-          ],
-        ),
-      );
-    }
+    final visual = _dayViewMatteDetailVisual(
+      _dayViewVisualForEvent(
+        currentEvent,
+        flow,
+        isReminder: isReminder,
+        isNutrition: isNutrition,
+      ),
+    );
+    final isMaatFlow = completionContext != null;
+    final detailCategoryLabel = _dayViewFlowLabel(
+      currentEvent,
+      flow,
+      isMaatFlow: isMaatFlow,
+      isReminder: isReminder,
+      isNutrition: isNutrition,
+    );
+    final externalAction = _dayViewExternalActionForEvent(currentEvent);
+    final showDetailLocation = _dayViewShouldShowDetailLocation(
+      currentEvent,
+      externalAction,
+    );
+    final completionPickerStyle = _dayViewCompletionPickerStyle(visual);
 
     final body = Column(
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        if (metaChip != null) metaChip,
-        if (metaChip != null) const SizedBox(height: 12),
-        KemeticGold.text(
-          currentEvent.title,
+        Text(detailCategoryLabel, style: _detailCategoryStyle(visual)),
+        const SizedBox(height: 8),
+        Text(
+          currentEvent.title.trim().isEmpty
+              ? 'Scheduled block'
+              : currentEvent.title,
           maxLines: 3,
           overflow: TextOverflow.ellipsis,
-          style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
+          style: _detailTitleStyle(visual),
         ),
-        const SizedBox(height: 14),
-        Row(
-          children: [
-            const Icon(Icons.access_time, size: 16, color: Color(0xFF808080)),
-            const SizedBox(width: 8),
-            Text(
-              _formatTimeRange(currentEvent.startMin, currentEvent.endMin),
-              style: const TextStyle(color: Color(0xFF808080)),
-            ),
-          ],
+        const SizedBox(height: 8),
+        _buildDetailTimeLine(
+          _formatTimeRange(currentEvent.startMin, currentEvent.endMin),
+          visual,
         ),
-        if (currentEvent.location != null &&
-            currentEvent.location!.isNotEmpty) ...[
+        if (flow != null) ...[
+          const SizedBox(height: 4),
+          _buildDetailFlowNameLine(flow.name, visual),
+        ],
+        if (showDetailLocation) ...[
           const SizedBox(height: 8),
           InkWell(
             onTap: () => _launchLocation(currentEvent.location!.trim()),
             child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Icon(
-                  Icons.location_on,
+                Icon(
+                  Icons.location_on_outlined,
                   size: 16,
-                  color: Color(0xFF808080),
+                  color: visual.metaText,
                 ),
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(
                     currentEvent.location!,
-                    style: const TextStyle(
-                      color: Color(0xFF808080),
+                    style: TextStyle(
+                      color: visual.metaText,
                       decoration: TextDecoration.underline,
+                      fontSize: 12,
+                      height: 1.35,
+                      fontFamily: _dayViewSerifFamily,
+                      fontFamilyFallback: _dayViewSerifFallback,
                     ),
                   ),
                 ),
               ],
             ),
           ),
+        ],
+        if (externalAction != null) ...[
+          const SizedBox(height: 10),
+          _buildDetailExternalActionButton(externalAction, visual),
         ],
         if ((isTrackSky &&
                 _trackSkyDisplayDetail(
@@ -6491,10 +7373,10 @@ class _DayViewGridState extends State<DayViewGrid> {
                 ).isNotEmpty) ||
             (currentEvent.detail != null &&
                 currentEvent.detail!.isNotEmpty)) ...[
-          const SizedBox(height: 16),
+          const SizedBox(height: 12),
           Builder(
             builder: (context) {
-              final displayDetail = isTrackSky
+              final rawDisplayDetail = isTrackSky
                   ? _trackSkyDisplayDetail(
                       currentEvent,
                       ky: target.ky,
@@ -6519,10 +7401,15 @@ class _DayViewGridState extends State<DayViewGrid> {
                       }
                       return _stripCidLines(rawDetail);
                     }();
+              final displayDetail = _dayViewStripStandaloneExternalTargetLines(
+                rawDisplayDetail,
+                externalAction,
+              );
               if (displayDetail.isEmpty || _looksLikeCidDetail(displayDetail)) {
                 return const SizedBox.shrink();
               }
 
+              Widget detailContent;
               if (isDawnHouseRite ||
                   isEveningThresholdRite ||
                   isTheWeighing ||
@@ -6535,14 +7422,26 @@ class _DayViewGridState extends State<DayViewGrid> {
                   isDaysOutsideYear ||
                   isOpenHand ||
                   isDjed) {
-                return _buildDawnHouseRiteDetailText(displayDetail);
+                detailContent = _buildDawnHouseRiteDetailText(
+                  displayDetail,
+                  visual: visual,
+                );
+              } else {
+                detailContent = RichText(
+                  text: TextSpan(
+                    style: _detailBodyStyle(visual: visual),
+                    children: _buildTextSpans(displayDetail),
+                  ),
+                );
               }
 
-              return RichText(
-                text: TextSpan(
-                  style: const TextStyle(fontSize: 14, color: Colors.white),
-                  children: _buildTextSpans(displayDetail),
-                ),
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _buildDetailSectionLabel('Purpose', visual: visual),
+                  const SizedBox(height: 6),
+                  detailContent,
+                ],
               );
             },
           ),
@@ -6550,7 +7449,7 @@ class _DayViewGridState extends State<DayViewGrid> {
         if (currentEvent.flowId != null &&
             tendingEvent != null &&
             tendingEvent.localPrompt != TheTendingLocalPromptKind.none) ...[
-          const SizedBox(height: 16),
+          const SizedBox(height: 12),
           _TheTendingLocalNotesPanel(
             flowId: currentEvent.flowId!,
             event: tendingEvent,
@@ -6559,7 +7458,7 @@ class _DayViewGridState extends State<DayViewGrid> {
         if (currentEvent.flowId != null &&
             keptWordEvent != null &&
             keptWordEvent.localPrompt != KeptWordLocalPromptKind.none) ...[
-          const SizedBox(height: 16),
+          const SizedBox(height: 12),
           _KeptWordLocalNotesPanel(
             flowId: currentEvent.flowId!,
             event: keptWordEvent,
@@ -6568,39 +7467,39 @@ class _DayViewGridState extends State<DayViewGrid> {
         if (currentEvent.flowId != null &&
             wagEvent != null &&
             wagEvent.localPrompt != WagLocalPromptKind.none) ...[
-          const SizedBox(height: 16),
+          const SizedBox(height: 12),
           _TheWagLocalNotesPanel(flowId: currentEvent.flowId!, event: wagEvent),
         ],
         if (currentEvent.flowId != null && daysOutsideEvent != null) ...[
-          const SizedBox(height: 16),
+          const SizedBox(height: 12),
           _DaysOutsideYearLocalNotesPanel(
             flowId: currentEvent.flowId!,
             event: daysOutsideEvent,
           ),
         ],
         if (currentEvent.flowId != null && openHandEvent != null) ...[
-          const SizedBox(height: 16),
+          const SizedBox(height: 12),
           _OpenHandLocalNotesPanel(
             flowId: currentEvent.flowId!,
             event: openHandEvent,
           ),
         ],
         if (currentEvent.flowId != null && djedEvent != null) ...[
-          const SizedBox(height: 16),
+          const SizedBox(height: 12),
           _DjedLocalNotesPanel(flowId: currentEvent.flowId!, event: djedEvent),
         ],
         if (courseEvent != null && courseContext != null) ...[
-          const SizedBox(height: 16),
+          const SizedBox(height: 12),
           _TheCourseDayCardPanel(event: courseEvent, context: courseContext),
         ],
         if (isDecanWatch && decanWatchContext != null) ...[
-          const SizedBox(height: 16),
+          const SizedBox(height: 12),
           _DecanWatchDayCardPanel(context: decanWatchContext),
         ],
         if (currentEvent.flowId != null &&
             isDecanWatch &&
             decanWatchContext != null) ...[
-          const SizedBox(height: 16),
+          const SizedBox(height: 12),
           _DecanWatchLocalNotesPanel(
             flowId: currentEvent.flowId!,
             kYear: target.ky,
@@ -6610,7 +7509,7 @@ class _DayViewGridState extends State<DayViewGrid> {
           ),
         ],
         if (currentEvent.flowId != null && isDecanWatch) ...[
-          const SizedBox(height: 16),
+          const SizedBox(height: 12),
           _DecanWatchMilestonePanel(
             flowId: currentEvent.flowId!,
             kYear: target.ky,
@@ -6619,7 +7518,7 @@ class _DayViewGridState extends State<DayViewGrid> {
         if (completionContext != null &&
             currentEvent.clientEventId?.trim().isNotEmpty == true &&
             currentEvent.flowId != null) ...[
-          const SizedBox(height: 16),
+          const SizedBox(height: 10),
           Builder(
             builder: (feedbackContext) => _MaatFlowCompletionPanel(
               event: currentEvent,
@@ -6645,6 +7544,7 @@ class _DayViewGridState extends State<DayViewGrid> {
                   : null,
               onAddReflection: null,
               reloadSignal: completionReloadSignal,
+              pickerStyle: completionPickerStyle,
               observedButtonKey:
                   includeOnboardingKeys &&
                       _isOnboardingTargetEvent(currentEvent)
@@ -6653,7 +7553,7 @@ class _DayViewGridState extends State<DayViewGrid> {
             ),
           ),
         ] else ...[
-          const SizedBox(height: 16),
+          const SizedBox(height: 10),
           Builder(
             builder: (feedbackContext) => CalendarEventCompletionPanel(
               identity: _completionIdentityForEvent(currentEvent),
@@ -6701,20 +7601,22 @@ class _DayViewGridState extends State<DayViewGrid> {
                   : null,
               onReflect: null,
               reloadSignal: completionReloadSignal,
+              pickerStyle: completionPickerStyle,
             ),
           ),
         ],
         if (libraryCta != null) ...[
-          const SizedBox(height: 16),
+          const SizedBox(height: 12),
           _MaatFlowLibraryCtaPanel(event: currentEvent, cta: libraryCta),
         ],
       ],
     );
 
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      padding: const EdgeInsets.symmetric(vertical: 2),
       child: DayViewRitualCompletionFeedbackCard(
         enabled: enableRitualCompletionFeedback,
+        visual: visual,
         child: scrollable
             ? SingleChildScrollView(
                 physics: const BouncingScrollPhysics(),
@@ -7205,11 +8107,11 @@ class _DayViewGridState extends State<DayViewGrid> {
                     valueListenable: measuredHeights,
                     builder: (context, heights, child) {
                       final maxSheetHeight = math.min(
-                        MediaQuery.sizeOf(context).height * 0.72,
-                        560.0,
+                        MediaQuery.sizeOf(context).height * 0.68,
+                        520.0,
                       );
                       final sheetHeight = (heights[currentKey] ?? 200.0)
-                          .clamp(0.0, math.max(180.0, maxSheetHeight - 112.0))
+                          .clamp(0.0, math.max(180.0, maxSheetHeight - 120.0))
                           .toDouble();
 
                       return SafeArea(
@@ -7245,12 +8147,7 @@ class _DayViewGridState extends State<DayViewGrid> {
                               ),
                             ),
                             Padding(
-                              padding: const EdgeInsets.fromLTRB(
-                                12,
-                                12,
-                                12,
-                                18,
-                              ),
+                              padding: const EdgeInsets.fromLTRB(10, 8, 10, 10),
                               child: Column(
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
@@ -7259,7 +8156,7 @@ class _DayViewGridState extends State<DayViewGrid> {
                                     sheetContext: sheetContext,
                                     target: target,
                                   ),
-                                  const SizedBox(height: 10),
+                                  const SizedBox(height: 8),
                                   AnimatedSize(
                                     duration: const Duration(milliseconds: 180),
                                     curve: Curves.easeOutCubic,
@@ -7295,14 +8192,17 @@ class _DayViewGridState extends State<DayViewGrid> {
                                       ),
                                     ),
                                   ),
-                                  const SizedBox(height: 10),
-                                  _buildEventDetailBottomActionRow(
-                                    rootContext: rootContext,
-                                    sheetContext: sheetContext,
-                                    target: target,
-                                    onTargetChanged: (nextTarget) {
-                                      unawaited(moveToTarget(nextTarget));
-                                    },
+                                  const SizedBox(height: 8),
+                                  SizedBox(
+                                    height: 46,
+                                    child: _buildEventDetailBottomActionRow(
+                                      rootContext: rootContext,
+                                      sheetContext: sheetContext,
+                                      target: target,
+                                      onTargetChanged: (nextTarget) {
+                                        unawaited(moveToTarget(nextTarget));
+                                      },
+                                    ),
                                   ),
                                 ],
                               ),
@@ -7957,6 +8857,7 @@ class _MaatFlowCompletionPanel extends StatefulWidget {
     this.onAddReflection,
     this.observedButtonKey,
     this.reloadSignal,
+    this.pickerStyle,
   });
 
   final EventItem event;
@@ -7979,6 +8880,7 @@ class _MaatFlowCompletionPanel extends StatefulWidget {
   final VoidCallback? onAddReflection;
   final Key? observedButtonKey;
   final Object? reloadSignal;
+  final CalendarCompletionPickerStyle? pickerStyle;
 
   @override
   State<_MaatFlowCompletionPanel> createState() =>
@@ -8319,18 +9221,30 @@ class _MaatFlowCompletionPanelState extends State<_MaatFlowCompletionPanel> {
 
   Widget _statusButton(String status, String label) {
     final selected = _status == status;
+    final style = widget.pickerStyle ?? const CalendarCompletionPickerStyle();
     return Expanded(
       child: OutlinedButton(
         key: status == 'observed' ? widget.observedButtonKey : null,
         style: OutlinedButton.styleFrom(
-          foregroundColor: selected ? Colors.black : Colors.white,
-          backgroundColor: selected ? _dayGold : Colors.transparent,
+          foregroundColor: selected
+              ? style.selectedForegroundColor
+              : style.unselectedForegroundColor,
+          backgroundColor: selected
+              ? style.selectedBackgroundColor
+              : style.unselectedBackgroundColor,
           side: BorderSide(
-            color: selected ? _dayGold : Colors.white24,
-            width: 1.1,
+            color: selected
+                ? style.selectedBorderColor
+                : style.unselectedBorderColor,
+            width: style.buttonBorderWidth,
           ),
-          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+          padding: style.buttonPadding,
+          minimumSize: style.buttonMinimumSize,
+          tapTargetSize: style.buttonTapTargetSize,
+          visualDensity: style.buttonVisualDensity,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(style.buttonRadius),
+          ),
         ),
         onPressed: _saving
             ? null
@@ -8345,7 +9259,12 @@ class _MaatFlowCompletionPanelState extends State<_MaatFlowCompletionPanel> {
           label,
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
-          style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
+          style: TextStyle(
+            fontSize: style.buttonFontSize,
+            fontWeight: style.buttonFontWeight,
+            fontFamily: style.buttonFontFamily,
+            fontFamilyFallback: style.buttonFontFamilyFallback,
+          ),
         ),
       ),
     );
@@ -8370,6 +9289,7 @@ class _MaatFlowCompletionPanelState extends State<_MaatFlowCompletionPanel> {
           showPartial: widget.completion.showPartly,
           observedButtonKey: widget.observedButtonKey,
           onReflect: widget.onAddReflection,
+          style: widget.pickerStyle,
           onChanged: (status) {
             if (status == standardStatus) {
               unawaited(_clear());

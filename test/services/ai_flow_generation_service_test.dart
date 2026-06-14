@@ -125,5 +125,19 @@ Prompt: What does area mean?
 
       expect(message, 'Model output failed validation after retry.');
     });
+
+    test('hides raw note validation paths for guitar generation failures', () {
+      final message = aiFlowBestErrorMessage({
+        'message':
+            'notes[31].details too generic: riff guidance needs fret, string, tab, timestamp, or technique anchors: "intro riff"',
+      });
+
+      expect(
+        message,
+        'The generated guitar plan was too vague in one section. Try again, or build manually while we improve this generator path.',
+      );
+      expect(message, isNot(contains('notes[31].details')));
+      expect(message, isNot(contains('intro riff')));
+    });
   });
 }

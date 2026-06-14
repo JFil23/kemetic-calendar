@@ -491,9 +491,12 @@ Future<void> main() async {
       'restored=${_bootRestoredLocation ?? '<none>'} '
       'initial=$initialLocation',
     );
+    final restoreTargetLocation = _authDeferredRestorePending
+        ? _bootAuthDeferredRestoredLocation
+        : initialLocation;
     RestorationCoordinator.instance.beginLaunchRestore(
       reason: RestorationRestoreReason.coldLaunch,
-      targetLocation: initialLocation,
+      targetLocation: restoreTargetLocation,
     );
     _suppressPassiveLaunchSurfacesForExplicitIntentIfNeeded();
 
@@ -768,6 +771,7 @@ String get rootRouterUriForNavigationTrace {
 class _FloatingMenuRouteObserver extends NavigatorObserver {
   bool _suppressesFloatingMenu(Route<dynamic> route) {
     if (route.settings.name == calendarActionsMenuRouteName) return false;
+    if (route.settings.name == calendarMonthDetailRouteName) return true;
     return route is PopupRoute;
   }
 
@@ -982,6 +986,15 @@ bool _hasExplicitBootIntent() {
       (defaultRoute.isNotEmpty && defaultRoute != Navigator.defaultRouteName);
 }
 
+bool get _authDeferredRestorePending {
+  final target = _bootAuthDeferredRestoredLocation?.trim();
+  return _bootRestoreDeferredForAuth &&
+      !_hasExplicitBootIntent() &&
+      target != null &&
+      target.isNotEmpty &&
+      target != '/';
+}
+
 void _suppressPassiveLaunchSurfacesForExplicitIntentIfNeeded() {
   if (!_hasExplicitBootIntent()) return;
   RestorationCoordinator.instance.suppressRestoreForExplicitIntent(
@@ -1089,6 +1102,10 @@ Future<void> _replayDeferredBootRestoreAfterAuth(AuthChangeEvent event) async {
           targetLocation: fallbackRoute,
         );
         _router.go(fallbackRoute);
+        traceRestoration(
+          'auth deferred restore replay completed route=$fallbackRoute '
+          'reason=fallback_authenticated_restore',
+        );
         _traceRouterLocationAfterFrame('after_auth_deferred_restore_fallback');
       }
     }
@@ -1108,6 +1125,9 @@ Future<void> _replayDeferredBootRestoreAfterAuth(AuthChangeEvent event) async {
   _bootAuthDeferredRestoredLocation = null;
   _bootDeferredRestorePreparedForAuth = false;
   _router.go(destination.route);
+  traceRestoration(
+    'auth deferred restore replay completed route=${destination.route}',
+  );
   _traceRouterLocationAfterFrame('after_auth_deferred_restore');
 }
 
@@ -2369,8 +2389,15 @@ class _GlobalFloatingMenuShellState extends State<_GlobalFloatingMenuShell>
     return true;
   }
 
+  bool get _shouldSuppressFloatingMenuForCurrentRoute {
+    if (_currentUri.queryParameters['onboarding'] == '1') return true;
+    final path = _currentUri.path.isEmpty ? '/' : _currentUri.path;
+    return path == '/calendars';
+  }
+
   bool _shouldActivateFloatingMenu(BuildContext context) =>
       _shouldMountFloatingMenu &&
+      !_shouldSuppressFloatingMenuForCurrentRoute &&
       _floatingMenuModalDepth.value == 0 &&
       MediaQuery.viewInsetsOf(context).bottom == 0;
 
@@ -2806,7 +2833,7 @@ class _GlobalFloatingMenuShellState extends State<_GlobalFloatingMenuShell>
                       ),
                     ),
                   ),
-                if (shouldMountFloatingMenu)
+                if (shouldActivateFloatingMenu || _menuMounted)
                   GlobalMenuBubble(
                     key: globalMenuButtonKey,
                     visible: shouldActivateFloatingMenu,
@@ -4539,6 +4566,20 @@ class _AuthGateState extends State<AuthGate> with WidgetsBindingObserver {
 
     _initDeepLinksMobile(); // custom scheme for Android/iOS native builds
     _initSharingIntent(); // Initialize ICS file sharing
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || !_authDeferredRestorePending) return;
+      final session = supabase.auth.currentSession;
+      if (session == null) return;
+      unawaited(
+        runGuardedAsync(
+          'auth deferred restore current session',
+          () => _handleAuthStateChange(
+            AuthState(AuthChangeEvent.initialSession, session),
+          ),
+          onError: _logAuthGateError,
+        ),
+      );
+    });
   }
 
   @override
@@ -4583,6 +4624,24 @@ class _AuthGateState extends State<AuthGate> with WidgetsBindingObserver {
     }, onConflict: 'id');
   }
 
+  void _startPostAuthStartupWarmups() {
+    fireAndForgetGuarded(
+      'ensure profile',
+      _ensureProfile(),
+      onError: _logAuthGateError,
+    );
+    fireAndForgetGuarded(
+      'telemetry settings refresh',
+      UserEventsRepo.refreshTelemetrySettings(supabase),
+      onError: _logAuthGateError,
+    );
+    fireAndForgetGuarded(
+      'app open log',
+      _logAppOpenOnce(),
+      onError: _logAuthGateError,
+    );
+  }
+
   Future<void> _handleAuthStateChange(AuthState data) async {
     final ev = data.event;
     final isSessionReadyEvent =
@@ -4590,13 +4649,12 @@ class _AuthGateState extends State<AuthGate> with WidgetsBindingObserver {
     if (isSessionReadyEvent) {
       _prepareDeferredBootRestoreForAuth(ev);
     }
-    if (mounted) setState(() {});
+    if (!isSessionReadyEvent && mounted) setState(() {});
 
     if (isSessionReadyEvent) {
       Events.debugAuthBanner('onAuthStateChange:$ev');
-      await _ensureProfile(); // keep profiles hydrated with email
-      await UserEventsRepo.refreshTelemetrySettings(supabase);
-      await _logAppOpenOnce(); // one-shot per cold start
+      final shouldReplayBeforeStartup =
+          _authDeferredRestorePending || _bootDeferredRestorePreparedForAuth;
       final pendingPlannerLaunch = _pendingPlannerLaunchIntent;
       if (pendingPlannerLaunch != null) {
         _pendingPlannerLaunchIntent = null;
@@ -4610,6 +4668,14 @@ class _AuthGateState extends State<AuthGate> with WidgetsBindingObserver {
         _routeToPlanner(pendingPlannerLaunch);
       } else {
         await _replayDeferredBootRestoreAfterAuth(ev);
+      }
+      if (mounted) setState(() {});
+      if (shouldReplayBeforeStartup) {
+        _startPostAuthStartupWarmups();
+      } else {
+        await _ensureProfile(); // keep profiles hydrated with email
+        await UserEventsRepo.refreshTelemetrySettings(supabase);
+        await _logAppOpenOnce(); // one-shot per cold start
       }
       fireAndForgetGuarded(
         'notify init',
@@ -5153,6 +5219,11 @@ class _AuthGateState extends State<AuthGate> with WidgetsBindingObserver {
 
     if (session == null) {
       return LoginScreen(onGoogleSignIn: _signInWithGoogle);
+    }
+
+    if (_authDeferredRestorePending) {
+      traceRestoration('launch restoration shell shown');
+      return const _RouteLoadingScaffold();
     }
 
     // Authenticated

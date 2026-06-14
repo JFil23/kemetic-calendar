@@ -76,4 +76,19 @@ void main() {
       'The generator returned an invalid response. Please try again.',
     );
   });
+
+  test('fromJson hides raw note validation paths from user-facing errors', () {
+    final response = AIFlowGenerationResponse.fromJson({
+      'success': false,
+      'message':
+          'notes[31].details too generic: riff guidance needs fret, string, tab, timestamp, or technique anchors: "intro riff"',
+    });
+
+    expect(
+      response.errorMessage,
+      'The generated guitar plan was too vague in one section. Try again, or build manually while we improve this generator path.',
+    );
+    expect(response.errorMessage, isNot(contains('notes[31].details')));
+    expect(response.errorMessage, isNot(contains('intro riff')));
+  });
 }

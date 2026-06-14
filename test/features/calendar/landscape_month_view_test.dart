@@ -403,7 +403,7 @@ void main() {
       expect(find.text('Alpha event'), findsNothing);
       for (final size in _eventPillSizes(tester, stackedPills)) {
         expect(size.height, closeTo(12.0, 0.1));
-        expect(size.width, greaterThanOrEqualTo(30.0));
+        expect(size.width, greaterThanOrEqualTo(27.0));
       }
 
       await _pumpMonthCard(
@@ -415,7 +415,7 @@ void main() {
       expect(labeledPills, findsNWidgets(2));
       for (final size in _eventPillSizes(tester, labeledPills)) {
         expect(size.height, closeTo(30.0, 0.1));
-        expect(size.width, greaterThanOrEqualTo(30.0));
+        expect(size.width, greaterThanOrEqualTo(27.0));
       }
       final labeledText = tester.widget<Text>(find.text('Alpha event'));
       expect(labeledText.maxLines, 1);
@@ -430,7 +430,7 @@ void main() {
       expect(detailPills, findsNWidgets(2));
       for (final size in _eventPillSizes(tester, detailPills)) {
         expect(size.height, closeTo(52.0, 0.1));
-        expect(size.width, greaterThanOrEqualTo(30.0));
+        expect(size.width, greaterThanOrEqualTo(27.0));
       }
       final detailText = tester.widget<Text>(find.text('Alpha event'));
       expect(detailText.maxLines, 3);
@@ -463,17 +463,23 @@ void main() {
         find.descendant(of: dayCell, matching: find.byType(DecoratedBox)).first,
       );
       final decoration = tileBox.decoration as BoxDecoration;
+      final tileFill = decoration.color!;
       final radius = decoration.borderRadius! as BorderRadius;
       final border = decoration.border! as Border;
 
-      expect(monthCard.color, const Color(0xFF0A0A0A));
-      expect(decoration.color, const Color(0xFF101010));
+      expect(monthCard.color, Colors.transparent);
+      expect(tileFill, isNot(Colors.transparent));
+      expect(tileFill.computeLuminance(), lessThan(0.006));
+      expect(tileFill.computeLuminance(), greaterThan(0));
       expect(decoration.borderRadius, isNotNull);
-      expect(radius.topLeft.x, greaterThanOrEqualTo(11));
-      expect(radius.topLeft.y, greaterThanOrEqualTo(11));
+      expect(radius.topLeft.x, equals(3));
+      expect(radius.topLeft.y, equals(3));
       expect(border.top.width, greaterThan(0));
       expect(border.top.width, lessThanOrEqualTo(0.45));
-      expect(border.top.color, const Color(0xFF101010));
+      expect(
+        border.top.color.computeLuminance(),
+        greaterThan(tileFill.computeLuminance()),
+      );
 
       expect(marker, findsOneWidget);
       expect(dayNumber, findsOneWidget);
@@ -482,7 +488,7 @@ void main() {
       expect(markerRect.center.dy, greaterThan(numberRect.center.dy));
     });
 
-    testWidgets('kemetic weekday labels use the trial charcoal grid color', (
+    testWidgets('kemetic weekday labels use the warm mockup grid color', (
       tester,
     ) async {
       await _setViewport(tester, const Size(430, 932));
@@ -493,9 +499,10 @@ void main() {
         find.descendant(of: dayCell, matching: find.byType(DecoratedBox)).first,
       );
       final tileDecoration = tileBox.decoration as BoxDecoration;
-      final tileFill = tileDecoration.color;
+      final tileFill = tileDecoration.color!;
 
-      expect(tileFill, const Color(0xFF101010));
+      expect(tileFill.computeLuminance(), lessThan(0.006));
+      expect(tileFill.computeLuminance(), greaterThan(0));
 
       final weekdayLabels = tester
           .widgetList<Text>(find.byType(Text))
@@ -508,10 +515,10 @@ void main() {
 
       expect(weekdayLabels, isNotEmpty);
       for (final label in weekdayLabels) {
-        expect(label.style?.color, const Color(0xFF2E2E2E));
+        expect(label.style?.color, const Color(0xFF685735));
         expect(
           label.style!.color!.computeLuminance(),
-          greaterThan(tileFill!.computeLuminance()),
+          greaterThan(tileFill.computeLuminance()),
         );
       }
     });
@@ -744,6 +751,28 @@ void main() {
       }
     });
 
+    test('calendar date system toggle does not post-frame repair scroll', () {
+      final source = File(
+        'lib/features/calendar/calendar_page.dart',
+      ).readAsStringSync();
+
+      final handler = _sourceBetween(
+        source,
+        'void _handleCalendarToggleTapped() {',
+        'GlobalKey? get _calendarMonthCoachmarkTargetKey',
+      );
+
+      expect(handler, contains('_showGregorian = !_showGregorian;'));
+      expect(handler, contains('_scheduleCalendarRestorationSave'));
+      expect(handler, isNot(contains('_currentViewportCalendarAnchor()')));
+      expect(
+        handler,
+        isNot(contains('WidgetsBinding.instance.addPostFrameCallback')),
+      );
+      expect(handler, isNot(contains('_jumpToCalendarAnchorAtAlignmentNow')));
+      expect(handler, isNot(contains('_jumpToTodayNow')));
+    });
+
     test('month grid preserves established typography style references', () {
       final pageSource = File(
         'lib/features/calendar/calendar_page.dart',
@@ -751,13 +780,15 @@ void main() {
       final gridSource = File(
         'lib/features/calendar/calendar_grid_widgets.dart',
       ).readAsStringSync();
+      final detailSource = File(
+        'lib/features/calendar/calendar_month_detail.dart',
+      ).readAsStringSync();
 
       for (final styleDefinition in const [
         'const TextStyle _monthTitleGold = TextStyle(',
         'const TextStyle _seasonStyle = TextStyle(',
         'const TextStyle _decanStyle = TextStyle(',
         'const TextStyle _weekdayLabelStyle = TextStyle(',
-        'const TextStyle _neutralOnBlack = TextStyle(',
       ]) {
         expect(pageSource, contains(styleDefinition));
       }
@@ -767,11 +798,65 @@ void main() {
         'class _MonthCard extends StatelessWidget',
         '/// Helper function to generate Kemetic day keys',
       );
-      expect(monthCardBlock, contains('_monthTitleGold'));
-      expect(monthCardBlock, contains('_neutralOnBlack.copyWith('));
+      expect(monthCardBlock, contains('_SoftMonthNameTitle'));
+      expect(monthCardBlock, contains('_CalendarScale.monthTitleMain'));
+      expect(monthCardBlock, contains('opacity: framedSurface ? 0.98 : 0.96'));
+      expect(monthCardBlock, contains('alpha: 0.029'));
+      expect(monthCardBlock, contains('final rightLabelStyle = TextStyle('));
+      expect(monthCardBlock, contains('final decanLabelStyle = TextStyle('));
+      expect(monthCardBlock, contains('alpha: framedSurface ? 0.92 : 0.86'));
+      expect(monthCardBlock, contains('final gregorianDecanLabelStyle ='));
+      expect(monthCardBlock, contains('_CalendarTone.gregorianBlue'));
+      expect(monthCardBlock, contains('final decanLabelRowHeight ='));
+      expect(monthCardBlock, contains('final decanLabelStrut = StrutStyle('));
+      expect(monthCardBlock, contains('height: decanLabelRowHeight'));
+      expect(monthCardBlock, contains('strutStyle: decanLabelStrut'));
       expect(monthCardBlock, contains('fontFamilyFallback: const ['));
       expect(monthCardBlock, contains('letterSpacing: 0,'));
-      expect(monthCardBlock, contains('style: _decanStyle'));
+      expect(monthCardBlock, contains('decanLabelText('));
+      expect(monthCardBlock, contains('decanLabelStyle'));
+      expect(monthCardBlock, contains('gregorianDecanLabelStyle'));
+      expect(
+        monthCardBlock,
+        isNot(
+          contains(
+            'GlossyText(\n                                text: gregDecanLabel',
+          ),
+        ),
+      );
+
+      final softTitleBlock = _sourceBetween(
+        gridSource,
+        'class _SoftMonthNameTitle extends StatelessWidget',
+        'class _MonthCard extends StatelessWidget',
+      );
+      expect(softTitleBlock, contains('0.04,'));
+      expect(softTitleBlock, contains('alpha: 0.88'));
+
+      final seasonHeaderBlock = _sourceBetween(
+        pageSource,
+        'class _SeasonHeader extends StatelessWidget',
+        '/* ─────────── Shared dark input',
+      );
+      expect(seasonHeaderBlock, contains('_CalendarTone.sectionLabel'));
+      expect(seasonHeaderBlock, isNot(contains('GlossyText(')));
+
+      final epagomenalBlock = _sourceBetween(
+        gridSource,
+        'class _EpagomenalCard extends StatelessWidget',
+        '/* ───────────── Detail Page',
+      );
+      expect(epagomenalBlock, contains('_SoftMonthNameTitle('));
+      expect(epagomenalBlock, contains('_CalendarTone.gregorianBlue'));
+      expect(epagomenalBlock, isNot(contains("text: 'Heriu Renpet")));
+
+      final infoTabBlock = _sourceBetween(
+        detailSource,
+        'class _InfoTab extends StatefulWidget',
+        'class _InfoNodeEntry',
+      );
+      expect(infoTabBlock, contains('monthTitleShort'));
+      expect(infoTabBlock, contains('_SoftMonthNameTitle('));
 
       final weekdayBlock = _sourceBetween(
         gridSource,
@@ -804,15 +889,17 @@ void main() {
         'class _MiniEventBlock extends StatelessWidget',
       );
       expect(dayChipBlock, contains('final textStyle = const TextStyle('));
-      expect(dayChipBlock, contains('fontWeight: FontWeight.w400,'));
-      expect(dayChipBlock, contains('fontSize: 16.0,'));
+      expect(dayChipBlock, contains('fontWeight: FontWeight.w500,'));
+      expect(dayChipBlock, contains('fontSize: _CalendarScale.dayNumber,'));
       expect(dayChipBlock, contains('letterSpacing: 0.0,'));
+      expect(dayChipBlock, contains('final numberColor = showGregorian'));
+      expect(dayChipBlock, contains('_CalendarTone.gregorianBlue.withValues'));
       expect(dayChipBlock, contains('style: labelStyle'));
       expect(dayChipBlock, isNot(contains('DefaultTextStyle(')));
       expect(dayChipBlock, isNot(contains('ThemeData(')));
     });
 
-    test('month layout constants use trial charcoal soft grid colors', () {
+    test('month layout constants use warm rectangular mockup grid colors', () {
       final source = File(
         'lib/features/calendar/calendar_grid_widgets.dart',
       ).readAsStringSync();
@@ -832,33 +919,35 @@ void main() {
       expect(constantsBlock, contains('_kDetailsPillHeight'));
       expect(
         constantsBlock,
-        contains('const Color _kSoftGridBackground = Color(0xFF0A0A0A);'),
+        contains(
+          'const Color _kSoftGridBackground = _CalendarTone.previewCardBase;',
+        ),
       );
       expect(
         constantsBlock,
-        contains('const Color _kSoftDayTileFill = Color(0xFF101010);'),
+        contains('final Color _kSoftDayTileFill = _CalendarTone.dayCellFill;'),
       );
       expect(
         constantsBlock,
-        contains('const Color _kSoftDayTileLabel = Color(0xFF2E2E2E);'),
+        contains('const Color _kSoftDayTileLabel = _CalendarTone.weekday;'),
       );
-      expect(constantsBlock, contains('const double _kDayTileRadius = 11.0;'));
+      expect(constantsBlock, contains('const double _kDayTileRadius = 3.0;'));
       expect(
         constantsBlock,
         contains('const double _kDayTileBorderWidth = 0.45;'),
       );
       expect(
         constantsBlock,
-        contains('const double _kMonthCardHorizontalInset = 8.0;'),
+        contains('const double _kMonthCardHorizontalInset = 16.0;'),
       );
       expect(
         constantsBlock,
-        contains('const double _kMonthCardInnerPadding = 6.0;'),
+        contains('const double _kMonthCardInnerPadding = 10.0;'),
       );
-      expect(constantsBlock, contains('const double _kDecanColumnGap = 2.0;'));
+      expect(constantsBlock, contains('const double _kDecanColumnGap = 3.0;'));
       expect(
         constantsBlock,
-        contains('const double _kDayTileCompactPadding = 5.0;'),
+        contains('const double _kDayTileCompactPadding = 4.0;'),
       );
       expect(
         constantsBlock,
@@ -909,7 +998,7 @@ void main() {
       final sharedTileLabelBlock = _sourceBetween(
         source,
         'Color _softDayTileLabel()',
-        '@visibleForTesting',
+        'enum _CalendarDayTone',
       );
       expect(sharedTileLabelBlock, contains('=> _kSoftDayTileLabel'));
       expect(sharedTileLabelBlock, isNot(contains('Colors.')));
@@ -919,12 +1008,14 @@ void main() {
 
       final tileColorBlock = _sourceBetween(
         dayChipBlock,
-        'final baseTileFill = _softDayTileFill();',
+        'final toneSpec = _calendarDayToneSpec(tone);',
         'final tilePadding = isCompact',
       );
-      expect(tileColorBlock, contains('_cardBorderGold'));
-      expect(tileColorBlock, contains('baseTileFill'));
-      expect(tileColorBlock, contains(': tileFill'));
+      expect(tileColorBlock, contains('final tileFill = toneSpec.fill;'));
+      expect(
+        tileColorBlock,
+        contains('final tileBorderColor = toneSpec.border;'),
+      );
       expect(tileColorBlock, isNot(contains('Colors.')));
       expect(tileColorBlock, isNot(contains('Color(')));
       expect(tileColorBlock, isNot(contains('TextStyle(')));

@@ -96,7 +96,7 @@ void main() {
     await tester.pump(const Duration(milliseconds: 500));
 
     expect(find.text('Flow Studio'), findsOneWidget);
-    expect(find.text('Color'), findsOneWidget);
+    expect(find.text('COLOR'), findsOneWidget);
   });
 
   testWidgets(

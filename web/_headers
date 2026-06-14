@@ -74,6 +74,12 @@
 /widgets/*
   Cache-Control: no-cache
 
+/assets/FontManifest.json
+  Cache-Control: no-cache, must-revalidate
+
+/assets/ios/Runner/Fonts/*
+  Cache-Control: no-cache, must-revalidate
+
 /assets/*
   Cache-Control: public, max-age=31536000, immutable
 

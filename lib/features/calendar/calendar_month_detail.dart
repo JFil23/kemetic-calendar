@@ -278,14 +278,17 @@ class _MonthDetailPageState extends State<_MonthDetailPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: _bg,
+      backgroundColor: _CalendarTone.calendarBlack,
       appBar: AppBar(
-        backgroundColor: Colors.black,
-        elevation: 0.5,
+        backgroundColor: _CalendarTone.calendarBlack,
+        elevation: 0,
         automaticallyImplyLeading: false,
         leading: IconButton(
           tooltip: 'Close',
-          icon: const _GlossyIcon(Icons.close, gradient: goldGloss),
+          icon: const _GlossyIcon(
+            Icons.close,
+            gradient: _CalendarTone.mutedGoldGloss,
+          ),
           onPressed: () => Navigator.of(context).pop(),
         ),
         title: TextButton.icon(
@@ -298,13 +301,13 @@ class _MonthDetailPageState extends State<_MonthDetailPage> {
           label: const Text(
             'Today',
             style: TextStyle(
-              color: _gold,
+              color: _CalendarTone.antiqueGold,
               fontSize: 15,
               fontWeight: FontWeight.w600,
             ),
           ),
           style: TextButton.styleFrom(
-            foregroundColor: _gold,
+            foregroundColor: _CalendarTone.antiqueGold.withValues(alpha: 0.82),
             padding: const EdgeInsets.symmetric(horizontal: 8),
           ),
         ),
@@ -386,6 +389,7 @@ class _MonthDetailPageState extends State<_MonthDetailPage> {
                           selectedDay: d,
                         ),
                         showGregorian: widget.showGregorian,
+                        framedSurface: true,
                         flowNameGetter: widget.flowNameGetter,
                         onManageFlows: widget.onManageFlows,
                         onEditNote: widget.onEditNote,
@@ -408,16 +412,35 @@ class _MonthDetailPageState extends State<_MonthDetailPage> {
                   ],
                 ),
               ),
-              const Divider(height: 1, color: Colors.white10),
+              const Divider(height: 1, color: Color(0x0FFFFFFF)),
               Expanded(
                 child: DefaultTabController(
                   length: _tabTitles.length,
                   child: Column(
                     children: [
                       TabBar(
-                        labelColor: _gold,
-                        unselectedLabelColor: Colors.white70,
-                        indicatorColor: _gold,
+                        labelColor: _CalendarTone.antiqueGold.withValues(
+                          alpha: 0.88,
+                        ),
+                        unselectedLabelColor: const Color(0xFF4C3F24),
+                        indicatorColor: _CalendarTone.antiqueGold.withValues(
+                          alpha: 0.76,
+                        ),
+                        indicatorWeight: 1.4,
+                        indicatorSize: TabBarIndicatorSize.tab,
+                        dividerColor: _CalendarTone.antiqueGold.withValues(
+                          alpha: 0.055,
+                        ),
+                        labelStyle: const TextStyle(
+                          fontFamily: 'CormorantGaramond',
+                          fontSize: 19,
+                          fontWeight: FontWeight.w600,
+                        ),
+                        unselectedLabelStyle: const TextStyle(
+                          fontFamily: 'CormorantGaramond',
+                          fontSize: 19,
+                          fontWeight: FontWeight.w500,
+                        ),
                         tabs: [for (final t in _tabTitles) Tab(text: t)],
                       ),
                       Expanded(
@@ -425,6 +448,12 @@ class _MonthDetailPageState extends State<_MonthDetailPage> {
                           children: [
                             _InfoTab(
                               title: infoTitle,
+                              monthTitleShort: decanIndex == null
+                                  ? monthMeta.displayShort
+                                  : null,
+                              monthTitleTransliteration: decanIndex == null
+                                  ? monthMeta.displayTransliteration
+                                  : null,
                               body: infoBody,
                               speakText: _buildSpeakLine(month, decanIndex),
                               linkMap: infoLinks,
@@ -433,8 +462,6 @@ class _MonthDetailPageState extends State<_MonthDetailPage> {
                               selectionSerial: _infoSelectionSerial,
                             ),
                             _EventsTab(
-                              kYear: pageYear,
-                              kMonth: month,
                               monthLabel: getMonthById(month).displayShort,
                               notes: _buildMonthEvents(pageYear, month),
                               onOpenDay: (d) =>
@@ -482,6 +509,8 @@ class _MonthEvent {
 
 class _InfoTab extends StatefulWidget {
   final String title;
+  final String? monthTitleShort;
+  final String? monthTitleTransliteration;
   final String body;
   final String speakText;
   final List<KemeticNodeLink> linkMap;
@@ -491,6 +520,8 @@ class _InfoTab extends StatefulWidget {
 
   const _InfoTab({
     required this.title,
+    this.monthTitleShort,
+    this.monthTitleTransliteration,
     required this.body,
     required this.speakText,
     required this.linkMap,
@@ -505,9 +536,19 @@ class _InfoTab extends StatefulWidget {
 
 class _InfoTabState extends State<_InfoTab> {
   static const TextStyle _bodyStyle = TextStyle(
-    color: Colors.white,
-    fontSize: 14,
-    height: 1.35,
+    color: _CalendarTone.bodyStone,
+    fontSize: _CalendarScale.infoBody,
+    height: 1.47,
+    fontFamily: 'CormorantGaramond',
+    fontWeight: FontWeight.w400,
+  );
+  static const TextStyle _metaStyle = TextStyle(
+    color: Color(0xFF9A8248),
+    fontSize: _CalendarScale.infoMeta,
+    height: 1.30,
+    fontStyle: FontStyle.italic,
+    fontFamily: 'CormorantGaramond',
+    fontWeight: FontWeight.w400,
   );
 
   final ScrollController _infoController = ScrollController();
@@ -547,10 +588,14 @@ class _InfoTabState extends State<_InfoTab> {
     final title = node?.title ?? widget.title;
     final body = node?.body ?? widget.body;
     final links = node?.links ?? widget.linkMap;
+    final useMonthTitle =
+        !isNodeView &&
+        widget.monthTitleShort != null &&
+        widget.monthTitleTransliteration != null;
 
     return SingleChildScrollView(
       controller: isNodeView ? _nodeController : _infoController,
-      padding: const EdgeInsets.fromLTRB(16, 14, 16, 24),
+      padding: const EdgeInsets.fromLTRB(24, 18, 24, 88),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -559,14 +604,31 @@ class _InfoTabState extends State<_InfoTab> {
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
               Expanded(
-                child: GlossyText(
-                  text: title,
-                  style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
-                  ),
-                  gradient: silverGloss,
-                ),
+                child: useMonthTitle
+                    ? _SoftMonthNameTitle(
+                        shortName: widget.monthTitleShort!,
+                        transliteration: widget.monthTitleTransliteration!,
+                        fontSize: _CalendarScale.monthTitleMain,
+                        opacity: 0.96,
+                      )
+                    : Text(
+                        title,
+                        style: const TextStyle(
+                          color: _CalendarTone.antiqueGold,
+                          fontSize: _CalendarScale.infoHeading,
+                          height: 1.08,
+                          fontWeight: FontWeight.w600,
+                          fontFamily: 'CormorantGaramond',
+                          fontFamilyFallback: [
+                            'GentiumPlus',
+                            'NotoSans',
+                            'Roboto',
+                          ],
+                        ),
+                        maxLines: 2,
+                        overflow: TextOverflow.fade,
+                        softWrap: false,
+                      ),
               ),
               if (!isNodeView) ...[
                 const SizedBox(width: 8),
@@ -574,8 +636,8 @@ class _InfoTabState extends State<_InfoTab> {
                   speakText: widget.speakText,
                   utteranceId:
                       'calendar-info:${widget.selectionSerial}:${widget.title}',
-                  color: _gold,
-                  size: 22,
+                  color: _CalendarTone.antiqueGold.withValues(alpha: 0.62),
+                  size: 16,
                   isPhonetic: true,
                 ),
               ],
@@ -585,7 +647,7 @@ class _InfoTabState extends State<_InfoTab> {
             const SizedBox(height: 8),
             _buildNodeHeader(node),
           ],
-          const SizedBox(height: 8),
+          const SizedBox(height: 16),
           ..._buildParagraphs(body.trim(), links),
           if (isNodeView && libraryNode != null) ...[
             const SizedBox(height: 16),
@@ -631,7 +693,8 @@ class _InfoTabState extends State<_InfoTab> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         ShaderMask(
-          shaderCallback: (Rect bounds) => goldGloss.createShader(bounds),
+          shaderCallback: (Rect bounds) =>
+              _CalendarTone.mutedGoldGloss.createShader(bounds),
           blendMode: BlendMode.srcIn,
           child: Text(
             node.glyph,
@@ -679,20 +742,23 @@ class _InfoTabState extends State<_InfoTab> {
   List<Widget> _buildParagraphs(String body, List<KemeticNodeLink> linkMap) {
     final used = <String>{};
     final widgets = <Widget>[];
+    var paragraphIndex = 0;
     for (final raw in body.split('\n\n')) {
       final paragraph = raw.trimRight();
       if (paragraph.isEmpty) continue;
-      final spans = _linkifyParagraph(paragraph, linkMap, used);
+      final style = paragraphIndex == 0 ? _metaStyle : _bodyStyle;
+      final spans = _linkifyParagraph(paragraph, linkMap, used, style);
       widgets.add(
         RichText(
-          text: TextSpan(style: _bodyStyle, children: spans),
+          text: TextSpan(style: style, children: spans),
           textHeightBehavior: const TextHeightBehavior(
             applyHeightToFirstAscent: false,
             applyHeightToLastDescent: false,
           ),
         ),
       );
-      widgets.add(const SizedBox(height: 12));
+      widgets.add(SizedBox(height: paragraphIndex == 0 ? 18 : 14));
+      paragraphIndex++;
     }
     if (widgets.isNotEmpty) {
       widgets.removeLast();
@@ -704,6 +770,7 @@ class _InfoTabState extends State<_InfoTab> {
     String paragraph,
     List<KemeticNodeLink> linkMap,
     Set<String> used,
+    TextStyle baseStyle,
   ) {
     final matches = <_LinkMatch>[];
     for (final link in linkMap) {
@@ -729,7 +796,7 @@ class _InfoTabState extends State<_InfoTab> {
       if (match.start > cursor) {
         spans.add(TextSpan(text: paragraph.substring(cursor, match.start)));
       }
-      spans.add(_buildLinkSpan(match.link));
+      spans.add(_buildLinkSpan(match.link, baseStyle));
       cursor = match.end;
     }
     if (cursor < paragraph.length) {
@@ -742,7 +809,7 @@ class _InfoTabState extends State<_InfoTab> {
     return spans;
   }
 
-  InlineSpan _buildLinkSpan(KemeticNodeLink link) {
+  InlineSpan _buildLinkSpan(KemeticNodeLink link, TextStyle baseStyle) {
     return WidgetSpan(
       alignment: PlaceholderAlignment.baseline,
       baseline: TextBaseline.alphabetic,
@@ -752,11 +819,12 @@ class _InfoTabState extends State<_InfoTab> {
           behavior: HitTestBehavior.translucent,
           onTap: () => _openNode(link.targetId),
           child: ShaderMask(
-            shaderCallback: (Rect bounds) => goldGloss.createShader(bounds),
+            shaderCallback: (Rect bounds) =>
+                _CalendarTone.mutedGoldGloss.createShader(bounds),
             blendMode: BlendMode.srcIn,
             child: Text(
               link.phrase,
-              style: _bodyStyle.copyWith(
+              style: baseStyle.copyWith(
                 color: Colors.white,
                 fontWeight: FontWeight.w700,
                 shadows: const [
@@ -917,19 +985,76 @@ class _LinkMatch {
 }
 
 class _EventsTab extends StatelessWidget {
-  final int kYear;
-  final int kMonth;
   final String monthLabel;
   final List<_MonthEvent> notes;
   final void Function(int day) onOpenDay;
 
   const _EventsTab({
-    required this.kYear,
-    required this.kMonth,
     required this.monthLabel,
     required this.notes,
     required this.onOpenDay,
   });
+
+  Color _softEventAccent(Color color) {
+    return _CalendarTone.softenAccent(
+      color,
+      saturationScale: 0.52,
+      lightness: 0.46,
+      goldBlend: 0.08,
+    );
+  }
+
+  Color _eventTitleColor(Color color) {
+    return _CalendarTone.eventTitle(color);
+  }
+
+  String _spacedCaps(String text) {
+    final compact = text.trim().toUpperCase().replaceAll(RegExp(r'\s+'), ' ');
+    if (compact.isEmpty) return 'EVENT';
+    return compact.split('').join(' ');
+  }
+
+  bool _isMaatFlow(_MonthEvent event) {
+    final flow = event.flowName?.trim().toLowerCase();
+    if (flow == null || flow.isEmpty) return false;
+    return flow == kDawnHouseRiteTitle.toLowerCase() ||
+        flow == kEveningThresholdRiteTitle.toLowerCase();
+  }
+
+  String _purposePreview(String? detail) {
+    final raw = detail?.trim();
+    if (raw == null || raw.isEmpty) return '';
+    final lines = raw.split(RegExp(r'\r?\n')).map((l) => l.trim()).toList();
+    final sectionHeading = RegExp(
+      r"^(Purpose|Action|Water|Words|Quiet line|Ma'at act|Order act|Evening act|Steps|Provision|Optional|Drink|Privacy|Source|Lens|Cycle|Completion|Current ḥꜣw Context|Day Card|Season Instruction|Confidence|Variant|Outdoor)\s*:?\s*(.*)$",
+      caseSensitive: false,
+    );
+
+    final purpose = <String>[];
+    var collecting = false;
+    for (final line in lines) {
+      if (line.isEmpty) continue;
+      final match = sectionHeading.firstMatch(line);
+      if (match != null) {
+        final heading = match.group(1)!.toLowerCase();
+        final inline = match.group(2)?.trim();
+        if (heading == 'purpose') {
+          collecting = true;
+          if (inline != null && inline.isNotEmpty) {
+            purpose.add(inline);
+          }
+          continue;
+        }
+        if (collecting) break;
+      }
+      if (collecting) {
+        purpose.add(line);
+      }
+    }
+
+    if (purpose.isNotEmpty) return purpose.join(' ').trim();
+    return raw;
+  }
 
   Widget _chip(
     String text, {
@@ -941,18 +1066,28 @@ class _EventsTab extends StatelessWidget {
     return ConstrainedBox(
       constraints: BoxConstraints(maxWidth: maxWidth ?? double.infinity),
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-        margin: const EdgeInsets.only(right: 8, bottom: 6),
+        padding: const EdgeInsets.symmetric(horizontal: 9.5, vertical: 3.5),
+        margin: const EdgeInsets.only(right: 7, bottom: 5),
         decoration: BoxDecoration(
-          color: Colors.white10,
-          borderRadius: BorderRadius.circular(12),
+          color: (color ?? _CalendarTone.mutedStone).withValues(alpha: 0.08),
+          borderRadius: BorderRadius.circular(999),
+          border: Border.all(
+            color: (color ?? _CalendarTone.mutedStone).withValues(alpha: 0.18),
+            width: 0.6,
+          ),
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
             if (icon != null) ...[
-              Icon(icon, size: 12, color: color ?? Colors.white70),
-              const SizedBox(width: 4),
+              Icon(
+                icon,
+                size: 10.5,
+                color: (color ?? _CalendarTone.mutedStone).withValues(
+                  alpha: 0.70,
+                ),
+              ),
+              const SizedBox(width: 3.5),
             ],
             Flexible(
               child: Text(
@@ -961,8 +1096,13 @@ class _EventsTab extends StatelessWidget {
                 overflow: TextOverflow.ellipsis,
                 softWrap: false,
                 style: TextStyle(
-                  color: textColor ?? Colors.white,
-                  fontSize: 12,
+                  color:
+                      textColor ??
+                      (color ?? _CalendarTone.mutedStone).withValues(
+                        alpha: 0.72,
+                      ),
+                  fontSize: _CalendarScale.eventChip,
+                  fontWeight: FontWeight.w600,
                 ),
               ),
             ),
@@ -987,141 +1127,205 @@ class _EventsTab extends StatelessWidget {
     }
 
     return ListView.separated(
-      padding: const EdgeInsets.fromLTRB(16, 14, 16, 24),
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 88),
       itemCount: notes.length,
-      separatorBuilder: (context, index) => const SizedBox(height: 12),
+      separatorBuilder: (context, index) => const SizedBox(height: 10),
       itemBuilder: (context, i) {
         final e = notes[i];
-        final g = KemeticMath.toGregorian(kYear, kMonth, e.day);
         final dateLabel = '$monthLabel ${e.day}';
-        final gregLabel =
-            '${g.month.toString().padLeft(2, '0')}/${g.day.toString().padLeft(2, '0')}/${g.year}';
+        final flowName = e.flowName?.trim();
+        final categoryLabel = flowName == null || flowName.isEmpty
+            ? 'Event'
+            : flowName;
+        final categoryPrefix = _isMaatFlow(e) ? '✦  ' : '';
+        final eventColor = e.color;
+        final accent = _softEventAccent(eventColor);
+        final cardBase = Color.alphaBlend(
+          accent.withValues(alpha: 0.12),
+          const Color(0xFF050403),
+        );
+        final titleColor = _eventTitleColor(eventColor).withValues(alpha: 0.88);
+        final labelColor = accent.withValues(alpha: 0.68);
+        final purpose = _purposePreview(e.detail);
+        final cardRadius = BorderRadius.circular(14);
 
         return Container(
           decoration: BoxDecoration(
-            color: e.color.withValues(alpha: 0.2),
-            borderRadius: BorderRadius.circular(12),
-            border: Border(left: BorderSide(color: e.color, width: 3)),
+            color: cardBase,
+            gradient: LinearGradient(
+              begin: Alignment.centerLeft,
+              end: Alignment.centerRight,
+              colors: [
+                accent.withValues(alpha: 0.11),
+                accent.withValues(alpha: 0.052),
+                accent.withValues(alpha: 0.020),
+              ],
+              stops: const [0.0, 0.48, 1.0],
+            ),
+            borderRadius: cardRadius,
+            border: Border.all(
+              color: accent.withValues(alpha: 0.16),
+              width: 0.7,
+            ),
           ),
+          clipBehavior: Clip.hardEdge,
           child: Material(
             color: Colors.transparent,
             child: InkWell(
-              borderRadius: BorderRadius.circular(12),
+              borderRadius: cardRadius,
               onTap: () => onOpenDay(e.day),
-              child: Padding(
-                padding: const EdgeInsets.symmetric(
-                  vertical: 12.0,
-                  horizontal: 12.0,
-                ),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Container(
-                      width: 10,
-                      height: 10,
-                      margin: const EdgeInsets.only(top: 6),
-                      decoration: const BoxDecoration(
-                        color: Colors.white,
+              child: Stack(
+                children: [
+                  Positioned(
+                    left: 0,
+                    top: 0,
+                    bottom: 0,
+                    child: Container(
+                      width: 3,
+                      color: accent.withValues(alpha: 0.62),
+                    ),
+                  ),
+                  Positioned(
+                    right: 18,
+                    top: 24,
+                    child: Container(
+                      width: 14,
+                      height: 14,
+                      decoration: BoxDecoration(
                         shape: BoxShape.circle,
+                        border: Border.all(
+                          color: accent.withValues(alpha: 0.52),
+                          width: 1.7,
+                        ),
                       ),
                     ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: LayoutBuilder(
-                        builder: (context, constraints) {
-                          final chipMaxWidth = constraints.maxWidth - 8;
-                          return Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                dateLabel,
-                                style: const TextStyle(
-                                  color: Colors.white70,
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w600,
-                                ),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(22, 18, 38, 18),
+                    child: LayoutBuilder(
+                      builder: (context, constraints) {
+                        final chipMaxWidth = constraints.maxWidth - 8;
+                        return Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              '$categoryPrefix${_spacedCaps(categoryLabel)}',
+                              style: TextStyle(
+                                color: labelColor,
+                                fontSize: _CalendarScale.eventEyebrow,
+                                fontWeight: FontWeight.w600,
+                                letterSpacing: 4.0,
                               ),
-                              const SizedBox(height: 4),
-                              Text(
-                                e.displayTitle,
-                                style: const TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                              const SizedBox(height: 6),
-                              Wrap(
-                                children: [
-                                  _chip(
-                                    e.timeLabel,
-                                    icon: Icons.schedule,
-                                    maxWidth: chipMaxWidth,
-                                  ),
-                                  _chip(
-                                    gregLabel,
-                                    icon: Icons.calendar_today,
-                                    maxWidth: chipMaxWidth,
-                                  ),
-                                  if (e.flowName != null &&
-                                      e.flowName!.trim().isNotEmpty)
-                                    _chip(
-                                      e.flowName!.trim(),
-                                      icon: Icons.auto_awesome,
-                                      color: e.color,
-                                      textColor: e.color,
-                                      maxWidth: chipMaxWidth,
-                                    ),
-                                  if (e.note.isReminder)
-                                    _chip(
-                                      'Reminder',
-                                      icon: Icons.notifications_active,
-                                      maxWidth: chipMaxWidth,
-                                    ),
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            const SizedBox(height: 10),
+                            Text(
+                              e.displayTitle,
+                              style: TextStyle(
+                                color: titleColor,
+                                fontSize: _CalendarScale.eventTitle,
+                                height: 1.12,
+                                fontWeight: FontWeight.w600,
+                                fontFamily: 'CormorantGaramond',
+                                fontFamilyFallback: const [
+                                  'GentiumPlus',
+                                  'NotoSans',
+                                  'Roboto',
+                                  'Arial',
+                                  'sans-serif',
                                 ],
                               ),
-                              if ((e.location ?? '').isNotEmpty) ...[
-                                const SizedBox(height: 6),
-                                InkWell(
-                                  onTap: () =>
-                                      _launchExternalPreviewTarget(e.location!),
-                                  child: Text(
-                                    e.location!,
-                                    style: TextStyle(
-                                      color: Colors.white.withValues(
-                                        alpha: 0.7,
-                                      ),
-                                      fontSize: 13,
-                                      fontWeight: FontWeight.w500,
-                                      decoration: TextDecoration.underline,
-                                      decorationColor: Colors.white54,
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            const SizedBox(height: 13),
+                            Wrap(
+                              children: [
+                                _chip(
+                                  e.timeLabel,
+                                  icon: Icons.schedule,
+                                  color: accent,
+                                  maxWidth: chipMaxWidth,
+                                ),
+                                _chip(
+                                  dateLabel,
+                                  icon: Icons.calendar_today,
+                                  color: accent,
+                                  maxWidth: chipMaxWidth,
+                                ),
+                                // The full Gregorian date is available from
+                                // the day view; the mockup keeps month cards
+                                // quiet with only time and Kemetic-day chips.
+                                if (e.note.isReminder)
+                                  _chip(
+                                    'Reminder',
+                                    icon: Icons.notifications_active,
+                                    color: accent,
+                                    maxWidth: chipMaxWidth,
+                                  ),
+                              ],
+                            ),
+                            if ((e.location ?? '').isNotEmpty) ...[
+                              const SizedBox(height: 8),
+                              InkWell(
+                                onTap: () =>
+                                    _launchExternalPreviewTarget(e.location!),
+                                child: Text(
+                                  e.location!,
+                                  style: TextStyle(
+                                    color: accent.withValues(alpha: 0.82),
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w600,
+                                    decoration: TextDecoration.underline,
+                                    decorationColor: accent.withValues(
+                                      alpha: 0.7,
                                     ),
                                   ),
                                 ),
-                              ],
-                              if ((e.detail ?? '').trim().isNotEmpty) ...[
-                                const SizedBox(height: 4),
-                                RichText(
-                                  maxLines: 2,
-                                  overflow: TextOverflow.ellipsis,
-                                  text: TextSpan(
-                                    style: const TextStyle(
-                                      color: Colors.white70,
-                                      fontSize: 13,
-                                    ),
-                                    children: _buildExternalLinkSpans(
-                                      e.detail!.trim(),
-                                    ),
-                                  ),
-                                ),
-                              ],
+                              ),
                             ],
-                          );
-                        },
-                      ),
+                            if (purpose.isNotEmpty) ...[
+                              const SizedBox(height: 10),
+                              Text(
+                                'P U R P O S E',
+                                style: TextStyle(
+                                  color: accent.withValues(alpha: 0.30),
+                                  fontSize: _CalendarScale.eventPurpose,
+                                  fontWeight: FontWeight.w800,
+                                  letterSpacing: 4.0,
+                                ),
+                              ),
+                              const SizedBox(height: 7),
+                              RichText(
+                                maxLines: 3,
+                                overflow: TextOverflow.ellipsis,
+                                text: TextSpan(
+                                  style: const TextStyle(
+                                    color: Color(0xFF9B8E7A),
+                                    fontSize: _CalendarScale.eventPurposeBody,
+                                    height: 1.40,
+                                    fontStyle: FontStyle.italic,
+                                    fontFamily: 'CormorantGaramond',
+                                    fontWeight: FontWeight.w500,
+                                    fontFamilyFallback: [
+                                      'GentiumPlus',
+                                      'NotoSans',
+                                      'Roboto',
+                                      'Arial',
+                                      'sans-serif',
+                                    ],
+                                  ),
+                                  children: _buildExternalLinkSpans(purpose),
+                                ),
+                              ),
+                            ],
+                          ],
+                        );
+                      },
                     ),
-                  ],
-                ),
+                  ),
+                ],
               ),
             ),
           ),

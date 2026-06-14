@@ -386,9 +386,159 @@ void main() {
         await tester.pumpAndSettle();
       },
     );
+
+    testWidgets('late-start real cards repaint into the next hour row', (
+      tester,
+    ) async {
+      await _setPhoneViewport(tester);
+
+      await tester.pumpWidget(
+        const _DayViewHarness(
+          initialScrollOffset: 8 * 60,
+          notes: [
+            NoteData(
+              clientEventId: 'late-reminder',
+              title: 'journal every night',
+              allDay: false,
+              start: TimeOfDay(hour: 8, minute: 30),
+              end: TimeOfDay(hour: 9, minute: 0),
+              manualColor: Colors.green,
+              isReminder: true,
+            ),
+            NoteData(
+              clientEventId: 'late-math-card',
+              title: 'Explain the Mystery',
+              category: 'Daily Math Visuals · 30-Day Path',
+              allDay: false,
+              start: TimeOfDay(hour: 9, minute: 42),
+              end: TimeOfDay(hour: 10, minute: 0),
+              manualColor: Colors.blue,
+            ),
+          ],
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('journal every night'), findsWidgets);
+      expect(find.text('Explain the Mystery'), findsWidgets);
+      expect(
+        find.byKey(dayViewOverflowVisualKey('cid:late-reminder', 9)),
+        findsOneWidget,
+      );
+      expect(
+        find.byKey(dayViewOverflowVisualKey('cid:late-math-card', 10)),
+        findsOneWidget,
+      );
+    });
   });
 
   group('DayViewGrid detail sheet refresh', () {
+    testWidgets('reminder previews keep category and title visible', (
+      tester,
+    ) async {
+      await _setPhoneViewport(tester);
+
+      await tester.pumpWidget(
+        const _DayViewHarness(
+          initialScrollOffset: 7 * 60,
+          notes: [
+            NoteData(
+              clientEventId: 'cid-journal-every-day',
+              title: 'journal every day',
+              allDay: false,
+              start: TimeOfDay(hour: 8, minute: 0),
+              end: TimeOfDay(hour: 9, minute: 0),
+              manualColor: Colors.green,
+              isReminder: true,
+            ),
+          ],
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('REMINDER'), findsWidgets);
+      expect(find.text('journal every day'), findsWidgets);
+    });
+
+    testWidgets(
+      'timeline and detail sheet replace raw YouTube URL with smart action',
+      (tester) async {
+        await _setPhoneViewport(tester);
+        const url = 'https://www.youtube.com/watch?v=abc123';
+
+        await tester.pumpWidget(
+          const _DayViewHarness(
+            initialScrollOffset: 11 * 60,
+            notes: [
+              NoteData(
+                clientEventId: 'cid-daily-math-youtube',
+                title: 'Explain the Mystery',
+                detail:
+                    'Watch the linked video. Focus: explain the basic mystery.',
+                location: url,
+                category: 'Daily Math Visuals · 30-Day Path',
+                allDay: false,
+                start: TimeOfDay(hour: 12, minute: 0),
+                end: TimeOfDay(hour: 13, minute: 0),
+                manualColor: Colors.blue,
+              ),
+            ],
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        expect(find.text('DAILY MATH VISUALS · 30-DAY PATH'), findsWidgets);
+        expect(find.text('Explain the Mystery'), findsWidgets);
+        expect(find.text(url), findsNothing);
+
+        await tester.tap(find.text('Explain the Mystery').first);
+        await tester.pumpAndSettle();
+
+        expect(find.text('Watch on YouTube'), findsOneWidget);
+        expect(find.text(url), findsNothing);
+      },
+    );
+
+    testWidgets('overlapping math cards remain visible as compact previews', (
+      tester,
+    ) async {
+      await _setPhoneViewport(tester);
+      const url = 'https://www.youtube.com/watch?v=abc123';
+
+      await tester.pumpWidget(
+        const _DayViewHarness(
+          initialScrollOffset: 11 * 60,
+          notes: [
+            NoteData(
+              title: 'Explain the Mystery',
+              location: url,
+              category: '30-Day Path',
+              allDay: false,
+              start: TimeOfDay(hour: 12, minute: 0),
+              end: TimeOfDay(hour: 13, minute: 0),
+              manualColor: Colors.blue,
+            ),
+            NoteData(
+              title: 'sin(a+b) Formula',
+              location: url,
+              category: '90-Day Ladder',
+              allDay: false,
+              start: TimeOfDay(hour: 12, minute: 0),
+              end: TimeOfDay(hour: 13, minute: 0),
+              manualColor: Colors.deepOrange,
+            ),
+          ],
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('30-DAY PATH'), findsWidgets);
+      expect(find.text('Explain the Mystery'), findsWidgets);
+      expect(find.text('90-DAY LADDER'), findsWidgets);
+      expect(find.text('sin(a+b) Formula'), findsWidgets);
+      expect(find.text(url), findsNothing);
+    });
+
     testWidgets(
       'completion buttons toggle off and replace journal badges by source id',
       (tester) async {
@@ -1499,6 +1649,37 @@ void main() {
       expect(find.text('Open day view'), findsOneWidget);
       expect(closeEvents, <String>['userClose', 'close']);
       expect(lateRestorationReports, 0);
+    });
+
+    testWidgets('menu button dispatches the provided header menu handler', (
+      tester,
+    ) async {
+      await _setPhoneViewport(tester);
+      var menuOpenCount = 0;
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: DayViewPage(
+            initialKy: 1,
+            initialKm: 2,
+            initialKd: 5,
+            showGregorian: false,
+            notesForDay: (ky, km, kd) => const [],
+            flowIndex: const {},
+            getMonthName: (month) => 'Month $month',
+            onOpenMenu: (_) async {
+              menuOpenCount += 1;
+            },
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.byTooltip('Menu'), findsOneWidget);
+      await tester.tap(find.byTooltip('Menu'));
+      await tester.pumpAndSettle();
+
+      expect(menuOpenCount, 1);
     });
 
     testWidgets('system back reports user close for restoration clearing', (

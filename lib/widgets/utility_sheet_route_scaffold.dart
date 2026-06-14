@@ -20,6 +20,10 @@ class UtilitySheetRouteScaffold extends StatefulWidget {
     required this.semanticLabel,
     this.dismissDistance = 120,
     this.dismissVelocity = 700,
+    this.onBackPressed,
+    this.showRouteChrome = true,
+    this.heightFactor,
+    this.topRadius = 24,
   });
 
   final Widget child;
@@ -27,6 +31,10 @@ class UtilitySheetRouteScaffold extends StatefulWidget {
   final String semanticLabel;
   final double dismissDistance;
   final double dismissVelocity;
+  final bool Function()? onBackPressed;
+  final bool showRouteChrome;
+  final double? heightFactor;
+  final double topRadius;
 
   @override
   State<UtilitySheetRouteScaffold> createState() =>
@@ -45,6 +53,13 @@ class _UtilitySheetRouteScaffoldState extends State<UtilitySheetRouteScaffold> {
     if (_closeRequested) return;
     _closeRequested = true;
     widget.onClose();
+  }
+
+  void _handleSystemBack() {
+    final handled = widget.onBackPressed?.call() ?? false;
+    if (!handled) {
+      _requestClose();
+    }
   }
 
   void _handleDragStart(DragStartDetails details) {
@@ -92,97 +107,114 @@ class _UtilitySheetRouteScaffoldState extends State<UtilitySheetRouteScaffold> {
     final isWide = size.shortestSide >= 600;
     final sideInset = isWide ? 24.0 : 0.0;
     final bottomInset = isWide ? 24.0 : 0.0;
-    final heightFactor = isWide ? 0.9 : 0.92;
+    final heightFactor = widget.heightFactor ?? (isWide ? 0.9 : 0.92);
     final scrimOpacity = 0.58 - (_dragProgress * 0.18);
 
-    return Scaffold(
-      backgroundColor: Colors.transparent,
-      body: Stack(
-        children: [
-          Positioned.fill(
-            child: GestureDetector(
-              key: utilitySheetRouteBackdropKey,
-              behavior: HitTestBehavior.opaque,
-              onTap: _requestClose,
-              child: ColoredBox(
-                color: Colors.black.withValues(alpha: scrimOpacity),
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop) {
+          _handleSystemBack();
+        }
+      },
+      child: Scaffold(
+        backgroundColor: Colors.transparent,
+        body: Stack(
+          children: [
+            Positioned.fill(
+              child: GestureDetector(
+                key: utilitySheetRouteBackdropKey,
+                behavior: HitTestBehavior.opaque,
+                onTap: _requestClose,
+                child: ColoredBox(
+                  color: Colors.black.withValues(alpha: scrimOpacity),
+                ),
               ),
             ),
-          ),
-          Align(
-            alignment: Alignment.bottomCenter,
-            child: SafeArea(
-              top: false,
-              child: Padding(
-                padding: EdgeInsets.fromLTRB(
-                  sideInset,
-                  0,
-                  sideInset,
-                  bottomInset,
-                ),
-                child: FractionallySizedBox(
-                  heightFactor: heightFactor,
-                  widthFactor: 1,
-                  child: ConstrainedBox(
-                    constraints: const BoxConstraints(maxWidth: 720),
-                    child: AnimatedContainer(
-                      duration: _isDragging
-                          ? Duration.zero
-                          : const Duration(milliseconds: 180),
-                      curve: Curves.easeOutCubic,
-                      transform: Matrix4.translationValues(0, _dragOffset, 0),
-                      child: ClipRRect(
-                        borderRadius: const BorderRadius.vertical(
-                          top: Radius.circular(24),
-                        ),
-                        child: Material(
-                          color: Colors.black,
-                          child: Column(
-                            children: [
-                              GestureDetector(
-                                key: utilitySheetRouteDragHandleKey,
-                                behavior: HitTestBehavior.translucent,
-                                onVerticalDragStart: _handleDragStart,
-                                onVerticalDragUpdate: _handleDragUpdate,
-                                onVerticalDragEnd: _handleDragEnd,
-                                onVerticalDragCancel: _handleDragCancel,
-                                child: SizedBox(
-                                  height: 44,
-                                  child: Stack(
+            Align(
+              alignment: Alignment.bottomCenter,
+              child: SafeArea(
+                top: false,
+                child: Padding(
+                  padding: EdgeInsets.fromLTRB(
+                    sideInset,
+                    0,
+                    sideInset,
+                    bottomInset,
+                  ),
+                  child: FractionallySizedBox(
+                    heightFactor: heightFactor,
+                    widthFactor: 1,
+                    child: ConstrainedBox(
+                      constraints: const BoxConstraints(maxWidth: 720),
+                      child: AnimatedContainer(
+                        duration: _isDragging
+                            ? Duration.zero
+                            : const Duration(milliseconds: 180),
+                        curve: Curves.easeOutCubic,
+                        transform: Matrix4.translationValues(0, _dragOffset, 0),
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.vertical(
+                            top: Radius.circular(widget.topRadius),
+                          ),
+                          child: Material(
+                            color: Colors.black,
+                            child: widget.showRouteChrome
+                                ? Column(
                                     children: [
-                                      Align(
-                                        alignment: Alignment.topCenter,
-                                        child: Padding(
-                                          padding: const EdgeInsets.only(
-                                            top: 10,
-                                          ),
-                                          child: Container(
-                                            width: 42,
-                                            height: 4,
-                                            decoration: BoxDecoration(
-                                              color: Colors.white24,
-                                              borderRadius:
-                                                  BorderRadius.circular(2),
-                                            ),
+                                      GestureDetector(
+                                        key: utilitySheetRouteDragHandleKey,
+                                        behavior: HitTestBehavior.translucent,
+                                        onVerticalDragStart: _handleDragStart,
+                                        onVerticalDragUpdate: _handleDragUpdate,
+                                        onVerticalDragEnd: _handleDragEnd,
+                                        onVerticalDragCancel: _handleDragCancel,
+                                        child: SizedBox(
+                                          height: 44,
+                                          child: Stack(
+                                            children: [
+                                              Align(
+                                                alignment: Alignment.topCenter,
+                                                child: Padding(
+                                                  padding:
+                                                      const EdgeInsets.only(
+                                                        top: 10,
+                                                      ),
+                                                  child: Container(
+                                                    width: 42,
+                                                    height: 4,
+                                                    decoration: BoxDecoration(
+                                                      color: Colors.white24,
+                                                      borderRadius:
+                                                          BorderRadius.circular(
+                                                            2,
+                                                          ),
+                                                    ),
+                                                  ),
+                                                ),
+                                              ),
+                                              Align(
+                                                alignment:
+                                                    Alignment.centerRight,
+                                                child: IconButton(
+                                                  key:
+                                                      utilitySheetRouteCloseButtonKey,
+                                                  tooltip:
+                                                      'Close ${widget.semanticLabel}',
+                                                  onPressed: _requestClose,
+                                                  icon: KemeticGold.icon(
+                                                    Icons.close,
+                                                  ),
+                                                ),
+                                              ),
+                                            ],
                                           ),
                                         ),
                                       ),
-                                      Align(
-                                        alignment: Alignment.centerRight,
-                                        child: IconButton(
-                                          key: utilitySheetRouteCloseButtonKey,
-                                          tooltip:
-                                              'Close ${widget.semanticLabel}',
-                                          onPressed: _requestClose,
-                                          icon: KemeticGold.icon(Icons.close),
-                                        ),
-                                      ),
+                                      Expanded(child: widget.child),
                                     ],
-                                  ),
-                                ),
-                              ),
-                              Expanded(child: widget.child),
-                            ],
+                                  )
+                                : widget.child,
                           ),
                         ),
                       ),
@@ -191,8 +223,8 @@ class _UtilitySheetRouteScaffoldState extends State<UtilitySheetRouteScaffold> {
                 ),
               ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }

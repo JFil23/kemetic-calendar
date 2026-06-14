@@ -1184,6 +1184,52 @@ void main() {
     expect(result.snapshot?.overlayStack, isEmpty);
   });
 
+  test('user dismissed overlay stack stores a dismissal tombstone', () async {
+    await AppRestorationService.instance.saveOverlayStack(
+      <Map<String, dynamic>>[
+        <String, dynamic>{
+          'kind': 'calendar.sharedCalendars',
+          'parentRoute': '/',
+          'updatedAtMs': 1000,
+        },
+      ],
+    );
+
+    await AppRestorationService.instance.saveOverlayStack(
+      const <Map<String, dynamic>>[],
+      reason: OverlayStackMutationReason.userDismissed,
+    );
+
+    final result = await AppRestorationService.instance.readBestSnapshot();
+
+    expect(result.snapshot?.overlayStack, isEmpty);
+    expect(result.snapshot?.overlayDismissedAtMs, isNotNull);
+  });
+
+  test(
+    'programmatic overlay clear does not create dismissal tombstone',
+    () async {
+      await AppRestorationService.instance.saveOverlayStack(
+        <Map<String, dynamic>>[
+          <String, dynamic>{
+            'kind': 'calendar.sharedCalendars',
+            'parentRoute': '/',
+            'updatedAtMs': 1000,
+          },
+        ],
+      );
+
+      await AppRestorationService.instance.saveOverlayStack(
+        const <Map<String, dynamic>>[],
+      );
+
+      final result = await AppRestorationService.instance.readBestSnapshot();
+
+      expect(result.snapshot?.overlayStack, isEmpty);
+      expect(result.snapshot?.overlayDismissedAtMs, isNull);
+    },
+  );
+
   test(
     'best snapshot can recover a newer latest overlay when current window is stale',
     () async {
@@ -1224,6 +1270,49 @@ void main() {
         result.snapshot?.overlayStack.single['kind'],
         'calendar.sharedCalendars',
       );
+    },
+  );
+
+  test(
+    'latest overlay is rejected when current window has newer dismissal',
+    () async {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(
+        _snapshotKey(),
+        jsonEncode(<String, dynamic>{
+          'schemaVersion': AppRestorationService.schemaVersion,
+          'userId': 'user-1',
+          'windowId': 'window-1',
+          'updatedAtMs': 3000,
+          'overlayDismissedAtMs': 2500,
+          ..._durableRouteFields('/'),
+        }),
+      );
+      await prefs.setString(
+        'app_restoration_latest_v2:user-1',
+        jsonEncode(<String, dynamic>{
+          'schemaVersion': AppRestorationService.schemaVersion,
+          'userId': 'user-1',
+          'windowId': 'window-2',
+          'updatedAtMs': 4000,
+          ..._durableRouteFields('/'),
+          'overlayStack': <Map<String, dynamic>>[
+            <String, dynamic>{
+              'kind': 'calendar.sharedCalendars',
+              'parentRoute': '/',
+              'updatedAtMs': 2000,
+            },
+          ],
+        }),
+      );
+
+      final result = await AppRestorationService.instance.readBestSnapshot(
+        includeRemote: true,
+      );
+
+      expect(result.snapshot?.updatedAtMs, 3000);
+      expect(result.snapshot?.overlayStack, isEmpty);
+      expect(result.snapshot?.overlayDismissedAtMs, 2500);
     },
   );
 }

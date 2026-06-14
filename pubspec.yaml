@@ -87,6 +87,20 @@ flutter:
         - asset: ios/Runner/Fonts/GentiumPlus-Regular.ttf
         - asset: ios/Runner/Fonts/GentiumPlus-Bold.ttf
           weight: 700
+    - family: CormorantGaramond
+      fonts:
+        - asset: ios/Runner/Fonts/CormorantGaramond-Regular.ttf
+          weight: 400
+        - asset: ios/Runner/Fonts/CormorantGaramond-Italic.ttf
+          weight: 400
+          style: italic
+        - asset: ios/Runner/Fonts/CormorantGaramond-Medium.ttf
+          weight: 500
+        - asset: ios/Runner/Fonts/CormorantGaramond-MediumItalic.ttf
+          weight: 500
+          style: italic
+        - asset: ios/Runner/Fonts/CormorantGaramond-SemiBold.ttf
+          weight: 600
 
   assets:
     - assets/icons/dendera_zodiac_gold.png

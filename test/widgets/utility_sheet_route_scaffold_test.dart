@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:go_router/go_router.dart';
+import 'package:mobile/core/navigation_fallback.dart';
 import 'package:mobile/widgets/utility_sheet_route_scaffold.dart';
 
 void main() {
@@ -78,6 +80,107 @@ void main() {
     await tester.pump(const Duration(milliseconds: 20));
 
     expect(closeCount, 1);
+  });
+
+  testWidgets('system back dismisses once through the close handler', (
+    tester,
+  ) async {
+    var closeCount = 0;
+    await tester.pumpWidget(buildHarness(onClose: () => closeCount++));
+
+    await tester.binding.handlePopRoute();
+    await tester.pump();
+    await tester.binding.handlePopRoute();
+    await tester.pump();
+
+    expect(closeCount, 1);
+  });
+
+  testWidgets('system back can pop a nested route before dismissing', (
+    tester,
+  ) async {
+    var closeCount = 0;
+    final nestedNavigatorKey = GlobalKey<NavigatorState>();
+    await tester.pumpWidget(
+      MaterialApp(
+        home: UtilitySheetRouteScaffold(
+          semanticLabel: 'Nested Sheet',
+          onClose: () => closeCount++,
+          onBackPressed: () {
+            final nestedNavigator = nestedNavigatorKey.currentState;
+            if (nestedNavigator != null && nestedNavigator.canPop()) {
+              nestedNavigator.pop();
+              return true;
+            }
+            return false;
+          },
+          child: Navigator(
+            key: nestedNavigatorKey,
+            onGenerateInitialRoutes: (navigator, initialRoute) => [
+              MaterialPageRoute<void>(
+                builder: (_) => const Center(child: Text('Nested root')),
+              ),
+              MaterialPageRoute<void>(
+                builder: (_) => const Center(child: Text('Nested detail')),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+
+    expect(find.text('Nested detail'), findsOneWidget);
+
+    await tester.binding.handlePopRoute();
+    await tester.pumpAndSettle();
+
+    expect(closeCount, 0);
+    expect(find.text('Nested root'), findsOneWidget);
+    expect(find.text('Nested detail'), findsNothing);
+
+    await tester.binding.handlePopRoute();
+    await tester.pump();
+
+    expect(closeCount, 1);
+  });
+
+  testWidgets('close button can pop a pushed utility route', (tester) async {
+    final router = GoRouter(
+      routes: [
+        GoRoute(
+          path: '/',
+          builder: (context, state) => Scaffold(
+            body: Center(
+              child: TextButton(
+                onPressed: () => context.push('/sheet'),
+                child: const Text('Open sheet'),
+              ),
+            ),
+          ),
+        ),
+        GoRoute(
+          path: '/sheet',
+          builder: (context, state) => UtilitySheetRouteScaffold(
+            semanticLabel: 'Route Sheet',
+            onClose: () => closeOrReturn(context, '/'),
+            child: const Center(child: Text('Route sheet body')),
+          ),
+        ),
+      ],
+    );
+
+    await tester.pumpWidget(MaterialApp.router(routerConfig: router));
+    await tester.tap(find.text('Open sheet'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Route sheet body'), findsOneWidget);
+
+    await tester.tap(find.byKey(utilitySheetRouteCloseButtonKey));
+    await tester.pumpAndSettle();
+
+    expect(router.routerDelegate.currentConfiguration.uri.path, '/');
+    expect(find.text('Open sheet'), findsOneWidget);
+    expect(find.text('Route sheet body'), findsNothing);
   });
 
   testWidgets('body scrolling does not dismiss the route sheet', (

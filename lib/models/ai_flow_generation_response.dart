@@ -72,6 +72,8 @@ class AIFlowGenerationResponse {
     }
     if (error == 'parse') {
       error = 'The generator returned an invalid response. Please try again.';
+    } else if (error != null) {
+      error = _friendlyAiFlowGenerationError(error);
     }
 
     DateTime? parseDate(Object? raw) {
@@ -162,4 +164,29 @@ class AIFlowGenerationResponse {
       aiMetadata: aiMetadata ?? this.aiMetadata,
     );
   }
+}
+
+String _friendlyAiFlowGenerationError(String message) {
+  final trimmed = message.trim();
+  final lower = trimmed.toLowerCase();
+  final isRawValidationPath = RegExp(
+    r'\bnotes\[\d+\]\.(?:details|title|day_index|start_time|end_time)\b',
+  ).hasMatch(lower);
+  final isConcreteDetailFailure =
+      lower.contains('too generic') ||
+      lower.contains('riff guidance needs') ||
+      lower.contains('song chord guidance needs') ||
+      lower.contains('rhythm guidance needs');
+  if (!isRawValidationPath && !isConcreteDetailFailure) return trimmed;
+
+  final isMusicFailure =
+      lower.contains('riff') ||
+      lower.contains('guitar') ||
+      lower.contains('chord') ||
+      lower.contains('strumming') ||
+      lower.contains('song');
+  if (isMusicFailure) {
+    return 'The generated guitar plan was too vague in one section. Try again, or build manually while we improve this generator path.';
+  }
+  return 'The generated plan was too vague in one section. Try again, or build manually while we improve this generator path.';
 }

@@ -56,6 +56,17 @@ void main() {
     expect(drawerWidth, lessThan(shellWidth));
   });
 
+  testWidgets('calendar root suppresses the floating menu bubble', (
+    tester,
+  ) async {
+    final router = _testRouter(initialLocation: '/');
+
+    await _pumpShell(tester, router);
+
+    expect(find.byKey(app.globalMenuButtonKey), findsNothing);
+    expect(find.byKey(globalSideDrawerKey), findsNothing);
+  });
+
   testWidgets('drawer is an underlay beneath the translated foreground', (
     tester,
   ) async {
@@ -75,7 +86,7 @@ void main() {
       find.byKey(app.globalMenuButtonKey),
     );
     final closedPageRect = tester.getRect(
-      find.byKey(const ValueKey<String>('page-Calendar')),
+      find.byKey(const ValueKey<String>('page-Nodes')),
     );
     expect(closedForegroundRect.left, closeTo(0, 0.1));
 
@@ -87,7 +98,7 @@ void main() {
     );
     final openBubbleRect = tester.getRect(find.byKey(app.globalMenuButtonKey));
     final openPageRect = tester.getRect(
-      find.byKey(const ValueKey<String>('page-Calendar')),
+      find.byKey(const ValueKey<String>('page-Nodes')),
     );
 
     expect(drawerRect.left, closeTo(0, 0.1));
@@ -352,7 +363,7 @@ Future<void> _openDrawer(WidgetTester tester) async {
   await tester.pump(globalSideDrawerTransitionDuration);
 }
 
-GoRouter _testRouter({String initialLocation = '/'}) {
+GoRouter _testRouter({String initialLocation = '/nodes'}) {
   return GoRouter(
     initialLocation: initialLocation,
     routes: [

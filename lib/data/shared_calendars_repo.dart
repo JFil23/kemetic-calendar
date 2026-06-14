@@ -271,6 +271,8 @@ class SharedCalendarsRepo {
       return calendars;
     } catch (e) {
       _log('getAcceptedCalendars filing view failed: $e');
+      final cached = await restoreCachedAcceptedCalendars();
+      if (cached != null) return cached;
     }
 
     try {

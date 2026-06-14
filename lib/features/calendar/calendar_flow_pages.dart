@@ -1,5 +1,80 @@
 part of 'calendar_page.dart';
 
+enum _FlowPreviewMode { legacy, active, saved }
+
+enum _MyFlowDayCardVariant { liveHero, savedLead, expandedInline }
+
+class _FlowPreviewMetrics {
+  const _FlowPreviewMetrics({
+    required this.totalEventCount,
+    required this.remainingEventCount,
+    required this.completedEventCount,
+  });
+
+  final int totalEventCount;
+  final int remainingEventCount;
+  final int completedEventCount;
+
+  factory _FlowPreviewMetrics.fromSnapshot({
+    required _Flow flow,
+    required _MyFlowsFilingSnapshot snapshot,
+  }) {
+    final total = snapshot.totalEventCounts[flow.id] ?? 0;
+    final remaining = snapshot.remainingEventCounts[flow.id] ?? 0;
+    final completed = math.max(0, math.min(total, total - remaining));
+    return _FlowPreviewMetrics(
+      totalEventCount: total,
+      remainingEventCount: remaining,
+      completedEventCount: completed,
+    );
+  }
+}
+
+class _FlowDashboardDay {
+  const _FlowDashboardDay({
+    required this.key,
+    required this.dayNumber,
+    required this.event,
+  });
+
+  final String key;
+  final int dayNumber;
+  final FlowEventRow event;
+
+  DateTime get localStart => event.startsAtUtc.toLocal();
+  DateTime? get localEnd => event.endsAtUtc?.toLocal();
+}
+
+class _FlowDashboardPartition {
+  const _FlowDashboardPartition({
+    required this.completed,
+    required this.hero,
+    required this.upcoming,
+    required this.currentDayNumber,
+  });
+
+  final List<_FlowDashboardDay> completed;
+  final _FlowDashboardDay? hero;
+  final List<_FlowDashboardDay> upcoming;
+  final int currentDayNumber;
+}
+
+class _FlowDayContent {
+  const _FlowDayContent({
+    required this.title,
+    required this.timeRange,
+    required this.body,
+    required this.location,
+    required this.externalButtonLabel,
+  });
+
+  final String title;
+  final String timeRange;
+  final String? body;
+  final String? location;
+  final String? externalButtonLabel;
+}
+
 class _FlowPreviewPage extends StatefulWidget {
   const _FlowPreviewPage({
     required this.flow,
@@ -10,11 +85,17 @@ class _FlowPreviewPage extends StatefulWidget {
     this.onEndMaatFlow,
     this.flowSequence,
     this.initialIndex = 0,
+    this.mode = _FlowPreviewMode.legacy,
+    this.metricsByFlow = const <int, _FlowPreviewMetrics>{},
+    this.initialEventsByFlow,
   });
 
   final _Flow flow;
   final List<_Flow>? flowSequence;
   final int initialIndex;
+  final _FlowPreviewMode mode;
+  final Map<int, _FlowPreviewMetrics> metricsByFlow;
+  final Map<int, List<FlowEventRow>>? initialEventsByFlow;
   final String Function(int km, int di) getDecanLabel;
   final String Function(DateTime? g) fmt;
   final void Function(_Flow flow) onEdit;
@@ -28,7 +109,7 @@ class _FlowPreviewPage extends StatefulWidget {
 }
 
 class _FlowPreviewPageState extends State<_FlowPreviewPage> {
-  late final UserEventsRepo _userEventsRepo;
+  UserEventsRepo? _userEventsRepo;
 
   late final List<_Flow> _flowSequence;
   late int _currentIndex;
@@ -38,13 +119,16 @@ class _FlowPreviewPageState extends State<_FlowPreviewPage> {
   final Map<int, List<FlowEventRow>> _eventsByFlow = {};
   final Map<int, Object?> _eventsErrorByFlow = {};
   final Set<int> _loadingFlowIds = {};
+  String? _expandedDayKey;
   DateTime? _selectedStartForSaved;
   bool _isImportingSaved = false;
+
+  UserEventsRepo get _eventsRepo =>
+      _userEventsRepo ??= UserEventsRepo(Supabase.instance.client);
 
   @override
   void initState() {
     super.initState();
-    _userEventsRepo = UserEventsRepo(Supabase.instance.client);
     _flowSequence = (widget.flowSequence ?? [widget.flow]).toList();
     if (_flowSequence.isEmpty) {
       _flowSequence.add(widget.flow);
@@ -59,6 +143,10 @@ class _FlowPreviewPageState extends State<_FlowPreviewPage> {
     }
     _currentIndex = initial;
     _pageController = PageController(initialPage: _currentIndex);
+    final initialEventsByFlow = widget.initialEventsByFlow;
+    if (initialEventsByFlow != null) {
+      _eventsByFlow.addAll(initialEventsByFlow);
+    }
     _loadEventsFor(_flowSequence[_currentIndex]);
   }
 
@@ -219,13 +307,14 @@ class _FlowPreviewPageState extends State<_FlowPreviewPage> {
       return;
     }
 
+    final repo = _eventsRepo;
     setState(() {
       _loadingFlowIds.add(flowId);
       _eventsErrorByFlow.remove(flowId);
     });
 
     try {
-      final events = await _userEventsRepo.getEventsForFlow(flowId);
+      final events = await repo.getEventsForFlow(flowId);
       final normalized = _isTrackSkyFlowName(flow.name)
           ? events.map(_normalizeTrackSkyFlowEventRow).toList()
           : events;
@@ -315,7 +404,7 @@ class _FlowPreviewPageState extends State<_FlowPreviewPage> {
   Future<int> _importSavedFlow(_Flow template, DateTime startDate) async {
     DateTime dateOnly(DateTime d) => DateUtils.dateOnly(d);
     final targetStart = dateOnly(startDate);
-    final events = await _userEventsRepo.getEventsForFlow(template.id);
+    final events = await _eventsRepo.getEventsForFlow(template.id);
 
     DateTime minDate(DateTime a, DateTime b) => a.isBefore(b) ? a : b;
     DateTime maxDate(DateTime a, DateTime b) => a.isAfter(b) ? a : b;
@@ -345,7 +434,7 @@ class _FlowPreviewPageState extends State<_FlowPreviewPage> {
       template.rules.map(CalendarPageState.ruleToJson).toList(),
     );
 
-    final newId = await _userEventsRepo.upsertFlow(
+    final newId = await _eventsRepo.upsertFlow(
       name: template.name,
       color: template.color.toARGB32(),
       active: true,
@@ -412,7 +501,7 @@ class _FlowPreviewPageState extends State<_FlowPreviewPage> {
         flowId: newId,
       );
 
-      await _userEventsRepo.upsertByClientId(
+      await _eventsRepo.upsertByClientId(
         clientEventId: cid,
         title: e.title,
         startsAtUtc: startDt.toUtc(),
@@ -518,7 +607,7 @@ class _FlowPreviewPageState extends State<_FlowPreviewPage> {
           flowId: flowId,
         );
 
-        await _userEventsRepo.upsertByClientId(
+        await _eventsRepo.upsertByClientId(
           clientEventId: cid,
           title: noteTitle,
           startsAtUtc: startsAt.toUtc(),
@@ -580,7 +669,7 @@ class _FlowPreviewPageState extends State<_FlowPreviewPage> {
       final newId = await _importSavedFlow(flow, startDate);
       String? firstClientEventId;
       try {
-        final events = await _userEventsRepo.getEventsForFlow(newId);
+        final events = await _eventsRepo.getEventsForFlow(newId);
         if (events.isNotEmpty) {
           firstClientEventId = events.first.clientEventId;
         }
@@ -1045,19 +1134,619 @@ class _FlowPreviewPageState extends State<_FlowPreviewPage> {
     );
   }
 
+  bool _usesDashboardBody(_Flow flow, ReminderRule? reminderRule) {
+    if (widget.mode == _FlowPreviewMode.legacy) return false;
+    return reminderRule == null && !flow.isReminder;
+  }
+
+  List<_FlowDashboardDay> _dashboardDaysFor(
+    _Flow flow,
+    List<FlowEventRow> events,
+  ) {
+    final sorted = events.toList()
+      ..sort((a, b) => a.startsAtUtc.compareTo(b.startsAtUtc));
+    return [
+      for (var i = 0; i < sorted.length; i++)
+        _FlowDashboardDay(
+          key:
+              '${flow.id}:${sorted[i].id ?? sorted[i].clientEventId ?? '${i}_${sorted[i].startsAtUtc.toIso8601String()}'}',
+          dayNumber: i + 1,
+          event: sorted[i],
+        ),
+    ];
+  }
+
+  int _resolveCurrentDashboardIndex(List<_FlowDashboardDay> days) {
+    if (days.isEmpty) return 0;
+    final today = DateUtils.dateOnly(DateTime.now());
+    for (var i = 0; i < days.length; i++) {
+      if (DateUtils.isSameDay(DateUtils.dateOnly(days[i].localStart), today)) {
+        return i;
+      }
+    }
+    for (var i = 0; i < days.length; i++) {
+      if (DateUtils.dateOnly(days[i].localStart).isAfter(today)) {
+        return i;
+      }
+    }
+    return days.length - 1;
+  }
+
+  _FlowDashboardPartition _partitionDashboardDays(
+    _Flow flow,
+    List<FlowEventRow> events,
+  ) {
+    final days = _dashboardDaysFor(flow, events);
+    if (days.isEmpty) {
+      return const _FlowDashboardPartition(
+        completed: <_FlowDashboardDay>[],
+        hero: null,
+        upcoming: <_FlowDashboardDay>[],
+        currentDayNumber: 1,
+      );
+    }
+
+    if (widget.mode == _FlowPreviewMode.saved) {
+      return _FlowDashboardPartition(
+        completed: const <_FlowDashboardDay>[],
+        hero: days.first,
+        upcoming: days.skip(1).toList(),
+        currentDayNumber: 1,
+      );
+    }
+
+    final currentIndex = _resolveCurrentDashboardIndex(days);
+    return _FlowDashboardPartition(
+      completed: days.take(currentIndex).toList(),
+      hero: days[currentIndex],
+      upcoming: days.skip(currentIndex + 1).toList(),
+      currentDayNumber: days[currentIndex].dayNumber,
+    );
+  }
+
+  _FlowPreviewMetrics _metricsForFlow(_Flow flow, List<FlowEventRow> events) {
+    final metrics = widget.metricsByFlow[flow.id];
+    if (metrics != null) return metrics;
+    return _FlowPreviewMetrics(
+      totalEventCount: events.length,
+      remainingEventCount: events.length,
+      completedEventCount: 0,
+    );
+  }
+
+  bool _isCidOnlyDetail(String text) {
+    final trimmed = text.trim().replaceAll(RegExp(r'\s+'), '');
+    final withPrefix = trimmed.startsWith('kemet_cid:')
+        ? trimmed.substring('kemet_cid:'.length)
+        : trimmed;
+    final cidPattern = RegExp(
+      r'^ky=\d+-km=\d+-kd=\d+\|s=\d+\|t=[^|]+\|f=[^|]+$',
+    );
+    return cidPattern.hasMatch(withPrefix);
+  }
+
+  _FlowDayContent _contentForDashboardDay(
+    _FlowDashboardDay day, {
+    required bool isTrackSky,
+  }) {
+    final event = day.event;
+    final cleanedTitle = _cleanTitle(event.title);
+    final title = cleanedTitle.isEmpty
+        ? (event.title.trim().isEmpty ? '(Untitled day)' : event.title.trim())
+        : cleanedTitle;
+    final cleanedDetail = _stripCidLines(_cleanDetail(event.detail));
+    final detailText = isTrackSky
+        ? buildTrackSkyNarrativeSummary(
+            title: event.title,
+            category: event.category,
+            fallbackGuidance: cleanedDetail,
+          )
+        : cleanedDetail;
+    final body = detailText.isNotEmpty && !_isCidOnlyDetail(detailText)
+        ? detailText
+        : null;
+    final location = (event.location ?? '').trim();
+    final normalizedLocation = location.isEmpty
+        ? ''
+        : normalizeExternalLinkToken(location);
+    final externalLabel = normalizedLocation.isEmpty
+        ? (location.isEmpty ? null : 'Open Location')
+        : normalizedLocation.toLowerCase().contains('youtu')
+        ? 'Watch on YouTube'
+        : 'Open Link';
+
+    return _FlowDayContent(
+      title: title,
+      timeRange: _formatEventTime(day.localStart, day.localEnd, event.allDay),
+      body: body,
+      location: location.isEmpty ? null : location,
+      externalButtonLabel: externalLabel,
+    );
+  }
+
+  Widget _buildDashboardBody({
+    required _Flow flow,
+    required ({bool kemetic, bool split, String overview, String? maatKey})
+    meta,
+    required List<FlowEventRow> events,
+    required bool loading,
+    required Object? error,
+  }) {
+    final palette = _MyFlowCardPalette.fromColor(flow.color);
+    final displayOverview = _effectiveOverview(flow.notes, meta.overview);
+    final bottomPadding = AppBottomInsets.contentBottomPadding(context) + 196;
+    final isTrackSky =
+        meta.maatKey == 'track-the-sky' || _isTrackSkyFlowName(flow.name);
+
+    if (loading && events.isEmpty) {
+      return const Center(child: CircularProgressIndicator(color: _gold));
+    }
+
+    final partition = _partitionDashboardDays(flow, events);
+    final metrics = _metricsForFlow(flow, events);
+    final total = metrics.totalEventCount > 0
+        ? metrics.totalEventCount
+        : events.length;
+    final progressDay = widget.mode == _FlowPreviewMode.saved
+        ? 1
+        : partition.currentDayNumber;
+
+    return ListView(
+      key: PageStorageKey('flow-dashboard-${flow.id}-${widget.mode.name}'),
+      padding: EdgeInsets.fromLTRB(30, 28, 30, bottomPadding),
+      children: [
+        _buildDashboardTitleArea(
+          flow: flow,
+          overview: displayOverview,
+          palette: palette,
+        ),
+        const SizedBox(height: 34),
+        _buildDashboardMetadataBar(
+          flow: flow,
+          meta: meta,
+          palette: palette,
+          progressLabel: 'Day $progressDay · $total',
+        ),
+        const SizedBox(height: 34),
+        if (error != null)
+          _buildDashboardMessage(
+            'Could not load flow days/notes.',
+            palette: palette,
+            isError: true,
+          )
+        else if (events.isEmpty)
+          _buildDashboardMessage(
+            'No days or notes for this flow yet.',
+            palette: palette,
+          )
+        else ...[
+          if (widget.mode == _FlowPreviewMode.active &&
+              partition.completed.isNotEmpty) ...[
+            _buildDashboardSectionHeader(
+              'COMPLETED · ${partition.completed.length} EVENTS',
+              palette,
+            ),
+            const SizedBox(height: 14),
+            ...partition.completed
+                .take(3)
+                .map(
+                  (day) => _buildDashboardExpandableRow(
+                    day: day,
+                    palette: palette,
+                    isCompleted: true,
+                    isTrackSky: isTrackSky,
+                  ),
+                ),
+            if (partition.completed.length > 3) ...[
+              const SizedBox(height: 2),
+              Center(
+                child: Text(
+                  '+ ${partition.completed.length - 3} more completed',
+                  style: const TextStyle(
+                    color: Color(0xFF4A3E22),
+                    fontFamily: MaatFlowListTokens.fontFamily,
+                    fontFamilyFallback: MaatFlowListTokens.fontFallback,
+                    fontSize: 17,
+                    fontStyle: FontStyle.italic,
+                    height: 1.2,
+                  ),
+                ),
+              ),
+            ],
+            const SizedBox(height: 34),
+          ],
+          _buildDashboardSectionHeader(
+            widget.mode == _FlowPreviewMode.saved
+                ? 'DAY 1'
+                : 'TODAY · DAY ${partition.hero?.dayNumber ?? progressDay}',
+            palette,
+          ),
+          const SizedBox(height: 14),
+          if (partition.hero != null)
+            _MyFlowDayContentCard(
+              key: ValueKey<String>('my_flow_day_card_${partition.hero!.key}'),
+              day: partition.hero!,
+              content: _contentForDashboardDay(
+                partition.hero!,
+                isTrackSky: isTrackSky,
+              ),
+              palette: palette,
+              variant: widget.mode == _FlowPreviewMode.saved
+                  ? _MyFlowDayCardVariant.savedLead
+                  : _MyFlowDayCardVariant.liveHero,
+              eyebrow: widget.mode == _FlowPreviewMode.saved
+                  ? 'DAY 1'
+                  : 'TODAY · DAY ${partition.hero!.dayNumber}',
+            ),
+          if (partition.upcoming.isNotEmpty) ...[
+            const SizedBox(height: 46),
+            _buildDashboardSectionHeader('UPCOMING', palette),
+            const SizedBox(height: 14),
+            ...partition.upcoming.map(
+              (day) => _buildDashboardExpandableRow(
+                day: day,
+                palette: palette,
+                isCompleted: false,
+                isTrackSky: isTrackSky,
+              ),
+            ),
+          ],
+        ],
+      ],
+    );
+  }
+
+  Widget _buildDashboardTitleArea({
+    required _Flow flow,
+    required String overview,
+    required _MyFlowCardPalette palette,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Container(
+              width: 16,
+              height: 16,
+              margin: const EdgeInsets.only(top: 15, right: 18),
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: palette.accent,
+              ),
+            ),
+            Expanded(
+              child: Text(
+                flow.name,
+                style: const TextStyle(
+                  color: Color(0xFFF0D46E),
+                  fontFamily: MaatFlowListTokens.fontFamily,
+                  fontFamilyFallback: MaatFlowListTokens.fontFallback,
+                  fontSize: 37,
+                  fontWeight: FontWeight.w600,
+                  height: 1.08,
+                ),
+              ),
+            ),
+          ],
+        ),
+        if (overview.trim().isNotEmpty) ...[
+          const SizedBox(height: 28),
+          Text(
+            overview.trim(),
+            style: const TextStyle(
+              color: Color(0xFFB7AAA0),
+              fontFamily: MaatFlowListTokens.fontFamily,
+              fontFamilyFallback: MaatFlowListTokens.fontFallback,
+              fontSize: 22,
+              fontWeight: FontWeight.w500,
+              height: 1.55,
+            ),
+          ),
+        ],
+      ],
+    );
+  }
+
+  Widget _buildDashboardMetadataBar({
+    required _Flow flow,
+    required ({bool kemetic, bool split, String overview, String? maatKey})
+    meta,
+    required _MyFlowCardPalette palette,
+    required String progressLabel,
+  }) {
+    final values = <({String label, String value, bool accent})>[
+      (
+        label: 'CALENDAR',
+        value: meta.kemetic ? 'Kemetic' : 'Gregorian',
+        accent: false,
+      ),
+      (label: 'STARTED', value: widget.fmt(flow.start), accent: false),
+      (label: 'ENDS', value: widget.fmt(flow.end), accent: false),
+      (label: 'PROGRESS', value: progressLabel, accent: true),
+    ];
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final narrow = constraints.maxWidth < 430;
+        return Container(
+          decoration: const BoxDecoration(
+            border: Border(
+              top: BorderSide(color: Color(0x332A230D), width: 0.8),
+              bottom: BorderSide(color: Color(0x332A230D), width: 0.8),
+            ),
+          ),
+          child: narrow
+              ? Column(
+                  children: [
+                    Row(children: _metadataCells(values.take(2), palette)),
+                    const Divider(height: 1, color: Color(0x332A230D)),
+                    Row(children: _metadataCells(values.skip(2), palette)),
+                  ],
+                )
+              : Row(children: _metadataCells(values, palette)),
+        );
+      },
+    );
+  }
+
+  List<Widget> _metadataCells(
+    Iterable<({String label, String value, bool accent})> values,
+    _MyFlowCardPalette palette,
+  ) {
+    final list = values.toList();
+    return [
+      for (var i = 0; i < list.length; i++) ...[
+        Expanded(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 14),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  list[i].label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    color: Color(0xFF4A3E22),
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    letterSpacing: 3.0,
+                    height: 1,
+                  ),
+                ),
+                const SizedBox(height: 10),
+                Text(
+                  list[i].value,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    color: list[i].accent
+                        ? palette.progressColor
+                        : const Color(0xFFE8D9C3),
+                    fontFamily: MaatFlowListTokens.fontFamily,
+                    fontFamilyFallback: MaatFlowListTokens.fontFallback,
+                    fontSize: 18,
+                    fontStyle: FontStyle.italic,
+                    fontWeight: FontWeight.w600,
+                    height: 1.1,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+        if (i < list.length - 1)
+          const SizedBox(
+            height: 58,
+            child: VerticalDivider(
+              width: 1,
+              thickness: 0.8,
+              color: Color(0x332A230D),
+            ),
+          ),
+      ],
+    ];
+  }
+
+  Widget _buildDashboardSectionHeader(
+    String label,
+    _MyFlowCardPalette palette,
+  ) {
+    return Row(
+      children: [
+        Text(
+          label,
+          style: TextStyle(
+            color: Color.lerp(palette.accent, MaatFlowListTokens.gold, 0.28),
+            fontSize: 13,
+            fontWeight: FontWeight.w600,
+            letterSpacing: 4.0,
+            height: 1,
+          ),
+        ),
+        const SizedBox(width: 20),
+        const Expanded(
+          child: Divider(color: Color(0x332A230D), thickness: 0.8, height: 1),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildDashboardMessage(
+    String message, {
+    required _MyFlowCardPalette palette,
+    bool isError = false,
+  }) {
+    return Container(
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: palette.cardBase,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: palette.cardBorder, width: 0.8),
+      ),
+      child: Text(
+        message,
+        style: TextStyle(
+          color: isError ? const Color(0xFFFF8A72) : const Color(0xFFB7AAA0),
+          fontSize: 15,
+          height: 1.35,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDashboardExpandableRow({
+    required _FlowDashboardDay day,
+    required _MyFlowCardPalette palette,
+    required bool isCompleted,
+    required bool isTrackSky,
+  }) {
+    final expanded = _expandedDayKey == day.key;
+    final content = _contentForDashboardDay(day, isTrackSky: isTrackSky);
+
+    return Column(
+      key: ValueKey<String>('my_flow_day_row_${day.key}'),
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Material(
+          color: Colors.transparent,
+          child: InkWell(
+            key: ValueKey<String>('my_flow_day_tap_${day.key}'),
+            onTap: () {
+              setState(() {
+                _expandedDayKey = expanded ? null : day.key;
+              });
+            },
+            splashColor: palette.accent.withValues(alpha: 0.05),
+            highlightColor: palette.accent.withValues(alpha: 0.03),
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(0, 16, 0, 16),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  SizedBox(
+                    width: 82,
+                    child: Text(
+                      'DAY\n${day.dayNumber}',
+                      style: const TextStyle(
+                        color: Color(0xFF4A3E22),
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: 2.2,
+                        height: 1.18,
+                      ),
+                    ),
+                  ),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          content.title,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            color: Color(0xFF7D6E50),
+                            fontFamily: MaatFlowListTokens.fontFamily,
+                            fontFamilyFallback: MaatFlowListTokens.fontFallback,
+                            fontSize: 22,
+                            fontStyle: FontStyle.italic,
+                            fontWeight: FontWeight.w600,
+                            height: 1.1,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          widget.fmt(day.localStart),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            color: Color(0xFF4E422B),
+                            fontSize: 15,
+                            fontWeight: FontWeight.w600,
+                            height: 1,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  if (isCompleted)
+                    Icon(Icons.check, color: palette.accent, size: 26),
+                  const SizedBox(width: 8),
+                  Icon(
+                    expanded ? Icons.expand_less : Icons.chevron_right,
+                    color: palette.chevronColor,
+                    size: 20,
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+        AnimatedSize(
+          duration: const Duration(milliseconds: 200),
+          curve: Curves.easeInOutCubic,
+          alignment: Alignment.topCenter,
+          child: expanded
+              ? Padding(
+                  padding: const EdgeInsets.only(bottom: 18),
+                  child: _MyFlowDayContentCard(
+                    day: day,
+                    content: content,
+                    palette: palette,
+                    variant: _MyFlowDayCardVariant.expandedInline,
+                    eyebrow: isCompleted
+                        ? 'COMPLETED · DAY ${day.dayNumber}'
+                        : 'DAY ${day.dayNumber}',
+                  ),
+                )
+              : const SizedBox.shrink(),
+        ),
+      ],
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final currentFlow = _flowSequence[_currentIndex];
     final currentMeta = _metaFor(currentFlow);
     final currentEvents = _eventsByFlow[currentFlow.id] ?? const [];
+    final currentReminderRule = _reminderRuleFromFlow(currentFlow);
+    final usesDashboard = _usesDashboardBody(currentFlow, currentReminderRule);
     final isMaatInstance = currentMeta.maatKey != null;
 
     return Scaffold(
-      backgroundColor: _bg,
+      backgroundColor: usesDashboard ? MaatFlowListTokens.pageBg : _bg,
       appBar: AppBar(
-        backgroundColor: Colors.black,
-        elevation: 0.5,
-        title: const Text('Flow', style: TextStyle(color: Colors.white)),
+        backgroundColor: usesDashboard
+            ? MaatFlowListTokens.pageBg
+            : Colors.black,
+        foregroundColor: usesDashboard ? MaatFlowListTokens.gold : Colors.white,
+        surfaceTintColor: Colors.transparent,
+        shadowColor: Colors.transparent,
+        elevation: usesDashboard ? 0 : 0.5,
+        centerTitle: usesDashboard,
+        toolbarHeight: usesDashboard ? 64 : null,
+        iconTheme: IconThemeData(
+          color: usesDashboard ? MaatFlowListTokens.gold : Colors.white,
+        ),
+        title: Text(
+          usesDashboard ? 'My Flows' : 'Flow',
+          style: TextStyle(
+            color: usesDashboard ? MaatFlowListTokens.gold : Colors.white,
+            fontFamily: usesDashboard ? MaatFlowListTokens.fontFamily : null,
+            fontFamilyFallback: usesDashboard
+                ? MaatFlowListTokens.fontFallback
+                : null,
+            fontSize: usesDashboard ? 25 : null,
+            fontWeight: usesDashboard ? FontWeight.w500 : null,
+            height: usesDashboard ? 1 : null,
+          ),
+        ),
         actions: [
           if (isMaatInstance && widget.onEndMaatFlow != null)
             OutlinedButton(
@@ -1165,6 +1854,7 @@ class _FlowPreviewPageState extends State<_FlowPreviewPage> {
             _currentIndex = index;
             _selectedStartForSaved = null;
             _isImportingSaved = false;
+            _expandedDayKey = null;
           });
           _loadEventsFor(_flowSequence[index]);
         },
@@ -1175,6 +1865,15 @@ class _FlowPreviewPageState extends State<_FlowPreviewPage> {
           final loading = _loadingFlowIds.contains(flow.id);
           final error = _eventsErrorByFlow[flow.id];
           final reminderRule = _reminderRuleFromFlow(flow);
+          if (_usesDashboardBody(flow, reminderRule)) {
+            return _buildDashboardBody(
+              flow: flow,
+              meta: meta,
+              events: events,
+              loading: loading,
+              error: error,
+            );
+          }
           return _buildFlowBody(
             flow: flow,
             meta: meta,
@@ -1185,9 +1884,117 @@ class _FlowPreviewPageState extends State<_FlowPreviewPage> {
           );
         },
       ),
-      bottomNavigationBar: currentFlow.isSaved
+      bottomNavigationBar: usesDashboard
+          ? _buildDashboardFooter(currentFlow)
+          : currentFlow.isSaved
           ? _buildSavedImportFooter(currentFlow)
           : null,
+    );
+  }
+
+  Widget _buildDashboardFooter(_Flow flow) {
+    final palette = _MyFlowCardPalette.fromColor(flow.color);
+    if (widget.mode == _FlowPreviewMode.saved) {
+      return SafeArea(
+        minimum: const EdgeInsets.fromLTRB(30, 8, 30, 18),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            _buildDashboardStartDateButton(flow, palette),
+            const SizedBox(height: 12),
+            _buildDashboardCtaButton(
+              label: _isImportingSaved ? 'Importing…' : 'Import Flow',
+              palette: palette,
+              onPressed: _isImportingSaved
+                  ? null
+                  : () => _handleImportSaved(flow),
+              icon: Icons.file_download_outlined,
+            ),
+          ],
+        ),
+      );
+    }
+
+    return SafeArea(
+      minimum: const EdgeInsets.fromLTRB(30, 10, 30, 18),
+      child: _buildDashboardCtaButton(
+        label: 'Manage Flow',
+        palette: palette,
+        onPressed: () => widget.onEdit(flow),
+        icon: Icons.tune,
+      ),
+    );
+  }
+
+  Widget _buildDashboardStartDateButton(
+    _Flow flow,
+    _MyFlowCardPalette palette,
+  ) {
+    final startDate = _savedDisplayStart(flow);
+    final bool hasExplicitSelection =
+        _selectedStartForSaved != null || flow.start != null;
+    final label = hasExplicitSelection
+        ? 'Start: ${startDate.year}-${startDate.month.toString().padLeft(2, '0')}-${startDate.day.toString().padLeft(2, '0')}'
+        : 'Select a start date';
+
+    return SizedBox(
+      width: double.infinity,
+      child: OutlinedButton(
+        style: OutlinedButton.styleFrom(
+          foregroundColor: const Color(0xFFE8D9C3),
+          side: BorderSide(color: palette.cardBorder, width: 1),
+          padding: const EdgeInsets.symmetric(vertical: 13),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+        ),
+        onPressed: _isImportingSaved ? null : () => _pickSavedStart(flow),
+        child: Text(label),
+      ),
+    );
+  }
+
+  Widget _buildDashboardCtaButton({
+    required String label,
+    required _MyFlowCardPalette palette,
+    required VoidCallback? onPressed,
+    required IconData icon,
+  }) {
+    return SizedBox(
+      width: double.infinity,
+      height: 76,
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(20),
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [
+              Color.alphaBlend(
+                palette.accent.withValues(alpha: 0.16),
+                const Color(0xFF160805),
+              ),
+              const Color(0xFF070403),
+            ],
+          ),
+          border: Border.all(color: palette.cardBorder, width: 0.9),
+        ),
+        child: TextButton.icon(
+          onPressed: onPressed,
+          icon: Icon(icon, color: palette.progressColor, size: 22),
+          label: Text(
+            label,
+            style: TextStyle(
+              color: palette.progressColor,
+              fontFamily: MaatFlowListTokens.fontFamily,
+              fontFamilyFallback: MaatFlowListTokens.fontFallback,
+              fontSize: 27,
+              fontWeight: FontWeight.w600,
+              height: 1,
+            ),
+          ),
+        ),
+      ),
     );
   }
 
@@ -1508,6 +2315,194 @@ class _FlowPreviewPageState extends State<_FlowPreviewPage> {
         ),
       );
     }
+  }
+}
+
+class _MyFlowDayContentCard extends StatelessWidget {
+  const _MyFlowDayContentCard({
+    super.key,
+    required this.day,
+    required this.content,
+    required this.palette,
+    required this.variant,
+    required this.eyebrow,
+  });
+
+  final _FlowDashboardDay day;
+  final _FlowDayContent content;
+  final _MyFlowCardPalette palette;
+  final _MyFlowDayCardVariant variant;
+  final String eyebrow;
+
+  @override
+  Widget build(BuildContext context) {
+    final isInline = variant == _MyFlowDayCardVariant.expandedInline;
+    final accentOpacity = isInline ? 0.58 : 0.82;
+    final washOpacity = isInline ? 0.11 : 0.16;
+    final borderOpacity = isInline ? 0.14 : 0.20;
+    final titleSize = isInline ? 30.0 : 33.0;
+
+    return Container(
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: palette.accent.withValues(alpha: borderOpacity),
+          width: 0.9,
+        ),
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(20),
+        child: Stack(
+          children: [
+            Positioned.fill(child: ColoredBox(color: palette.cardBase)),
+            Positioned.fill(
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.centerLeft,
+                    end: Alignment.centerRight,
+                    colors: [
+                      palette.accent.withValues(alpha: washOpacity),
+                      palette.accent.withValues(alpha: washOpacity * 0.35),
+                      Colors.transparent,
+                    ],
+                    stops: const [0, 0.38, 1],
+                  ),
+                ),
+              ),
+            ),
+            Positioned.fill(
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  gradient: RadialGradient(
+                    center: const Alignment(-0.88, -0.92),
+                    radius: 1.12,
+                    colors: [
+                      const Color(
+                        0xFFF4D478,
+                      ).withValues(alpha: isInline ? 0.045 : 0.065),
+                      Colors.transparent,
+                    ],
+                  ),
+                ),
+              ),
+            ),
+            Positioned(
+              left: 0,
+              top: 0,
+              bottom: 0,
+              child: Container(
+                width: 4,
+                color: palette.accent.withValues(alpha: accentOpacity),
+              ),
+            ),
+            Padding(
+              padding: EdgeInsets.fromLTRB(
+                isInline ? 28 : 30,
+                isInline ? 28 : 30,
+                isInline ? 24 : 28,
+                isInline ? 28 : 30,
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    eyebrow,
+                    style: TextStyle(
+                      color: palette.accent.withValues(alpha: 0.86),
+                      fontSize: 13,
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: 3.1,
+                      height: 1,
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+                  Text(
+                    content.title,
+                    style: TextStyle(
+                      color: const Color(0xFFF0D46E),
+                      fontFamily: MaatFlowListTokens.fontFamily,
+                      fontFamilyFallback: MaatFlowListTokens.fontFallback,
+                      fontSize: titleSize,
+                      fontWeight: FontWeight.w600,
+                      height: 1.1,
+                    ),
+                  ),
+                  const SizedBox(height: 22),
+                  Text(
+                    content.timeRange,
+                    style: const TextStyle(
+                      color: Color(0xFF8F817A),
+                      fontFamily: MaatFlowListTokens.fontFamily,
+                      fontFamilyFallback: MaatFlowListTokens.fontFallback,
+                      fontSize: 17,
+                      fontStyle: FontStyle.italic,
+                      fontWeight: FontWeight.w600,
+                      height: 1.2,
+                    ),
+                  ),
+                  if (content.body != null) ...[
+                    const SizedBox(height: 28),
+                    RichText(
+                      text: TextSpan(
+                        style: const TextStyle(
+                          color: Color(0xFFB7AAA0),
+                          fontFamily: MaatFlowListTokens.fontFamily,
+                          fontFamilyFallback: MaatFlowListTokens.fontFallback,
+                          fontSize: 22,
+                          fontWeight: FontWeight.w500,
+                          height: 1.45,
+                        ),
+                        children: _buildExternalLinkSpans(content.body!),
+                      ),
+                    ),
+                  ],
+                  if (content.location != null &&
+                      content.externalButtonLabel != null) ...[
+                    const SizedBox(height: 30),
+                    OutlinedButton.icon(
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: palette.accent,
+                        side: BorderSide(
+                          color: palette.accent.withValues(alpha: 0.42),
+                          width: 1,
+                        ),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 24,
+                          vertical: 14,
+                        ),
+                        minimumSize: const Size(0, 52),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(28),
+                        ),
+                      ),
+                      onPressed: () =>
+                          _launchExternalPreviewTarget(content.location!),
+                      icon: Icon(
+                        content.externalButtonLabel == 'Watch on YouTube'
+                            ? Icons.play_arrow_rounded
+                            : Icons.open_in_new,
+                        size: 20,
+                      ),
+                      label: Text(
+                        content.externalButtonLabel!,
+                        style: const TextStyle(
+                          fontFamily: MaatFlowListTokens.fontFamily,
+                          fontFamilyFallback: MaatFlowListTokens.fontFallback,
+                          fontSize: 21,
+                          fontWeight: FontWeight.w600,
+                          height: 1,
+                        ),
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }
 
@@ -2209,6 +3204,7 @@ class _FlowsViewerPage extends StatefulWidget {
     this.onImportFlow,
     this.onAppendToJournal,
     this.initialFilingSnapshot,
+    this.onPreviewFlowForTesting,
   });
 
   final Future<_MyFlowsFilingSnapshot> Function() loadFilingSnapshot;
@@ -2219,6 +3215,7 @@ class _FlowsViewerPage extends StatefulWidget {
   final FutureOr<void> Function(int flowId) onEndFlow;
   final Future<void> Function(int? importedFlowId)? onImportFlow;
   final Future<void> Function(String text)? onAppendToJournal;
+  final ValueChanged<int>? onPreviewFlowForTesting;
 
   @override
   State<_FlowsViewerPage> createState() => _FlowsViewerPageState();
@@ -2267,6 +3264,52 @@ class _FlowsViewerPageState extends State<_FlowsViewerPage> {
     try {
       await Future<void>.sync(action);
     } finally {
+      await _reloadFiledFlows();
+    }
+  }
+
+  Future<void> _openFlowPreview(List<_Flow> items, int index) async {
+    final flow = items[index];
+    final mode = _tab == FlowListTab.active
+        ? _FlowPreviewMode.active
+        : _FlowPreviewMode.saved;
+    final metricsByFlow = <int, _FlowPreviewMetrics>{
+      for (final item in items)
+        item.id: _FlowPreviewMetrics.fromSnapshot(
+          flow: item,
+          snapshot: _currentSnapshot,
+        ),
+    };
+    final previewForTesting = widget.onPreviewFlowForTesting;
+    if (previewForTesting != null) {
+      previewForTesting(flow.id);
+      return;
+    }
+
+    final importedFlowId = await Navigator.of(context).push<int?>(
+      MaterialPageRoute(
+        builder: (_) => _FlowPreviewPage(
+          flow: flow,
+          flowSequence: items,
+          initialIndex: index,
+          mode: mode,
+          metricsByFlow: metricsByFlow,
+          getDecanLabel: (km, di) =>
+              (DecanMetadata.decanNames[km] ?? const ['I', 'II', 'III'])[di],
+          fmt: widget.fmtGregorian,
+          onEdit: (flow) =>
+              unawaited(_runAndReload(() => widget.onEditFlow(flow.id))),
+          onAppendToJournal: widget.onAppendToJournal,
+          onEndMaatFlow: (flow) {
+            unawaited(_runAndReload(() => widget.onEndFlow(flow.id)));
+            Navigator.of(context).pop();
+          },
+        ),
+      ),
+    );
+    if (!mounted) return;
+    if (importedFlowId != null) {
+      await widget.onImportFlow?.call(importedFlowId);
       await _reloadFiledFlows();
     }
   }
@@ -2345,80 +3388,74 @@ class _FlowsViewerPageState extends State<_FlowsViewerPage> {
 
     final listBottomPadding = AppBottomInsets.contentBottomPadding(context);
     Widget list = ListView.separated(
-      padding: EdgeInsets.fromLTRB(16, 12, 16, listBottomPadding),
+      padding: EdgeInsets.fromLTRB(16, 0, 16, listBottomPadding),
       itemCount: items.length,
-      separatorBuilder: (_, _) =>
-          const Divider(height: 12, color: Colors.white10),
+      separatorBuilder: (_, _) => const SizedBox(height: 14),
       itemBuilder: (ctx, i) {
         final f = items[i];
-        final meta = notesDecode(f.notes);
-        final modeLabel = meta.kemetic ? 'Kemetic' : 'Gregorian';
-        final statusLabel = _tab == FlowListTab.saved ? 'Saved' : 'Active';
-        final rangeLabel =
-            '${widget.fmtGregorian(f.start)} → ${widget.fmtGregorian(f.end)}';
+        final spec = _MyFlowCardDisplaySpec.fromFlow(
+          flow: f,
+          snapshot: _currentSnapshot,
+        );
 
-        return ListTile(
-          onTap: () async {
-            final importedFlowId = await Navigator.of(context).push<int?>(
-              MaterialPageRoute(
-                builder: (_) => _FlowPreviewPage(
-                  flow: f,
-                  flowSequence: items,
-                  initialIndex: i,
-                  getDecanLabel: (km, di) =>
-                      (DecanMetadata.decanNames[km] ??
-                      const ['I', 'II', 'III'])[di],
-                  fmt: widget.fmtGregorian,
-                  onEdit: (flow) => unawaited(
-                    _runAndReload(() => widget.onEditFlow(flow.id)),
-                  ),
-                  onAppendToJournal: widget.onAppendToJournal,
-                  onEndMaatFlow: (flow) {
-                    unawaited(_runAndReload(() => widget.onEndFlow(flow.id)));
-                    Navigator.of(context).pop();
-                  },
-                ),
-              ),
-            );
-            if (!mounted) return;
-            if (importedFlowId != null) {
-              await widget.onImportFlow?.call(importedFlowId);
-              await _reloadFiledFlows();
-            }
+        return _MyFlowCard(
+          spec: spec,
+          isActive: _tab == FlowListTab.active,
+          onTap: () {
+            unawaited(_openFlowPreview(items, i));
           },
-
-          leading: Container(
-            width: 18,
-            height: 18,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              gradient: _glossFromColor(f.color),
-            ),
-          ),
-          title: Text(f.name, style: const TextStyle(color: Colors.white)),
-          subtitle: Text(
-            [
-              statusLabel,
-              modeLabel,
-              if (f.start != null || f.end != null) rangeLabel,
-            ].join(' • '),
-            style: const TextStyle(color: Colors.white70, fontSize: 12),
-          ),
-          trailing: const Icon(Icons.chevron_right, color: _silver),
         );
       },
     );
 
+    Widget content;
+    if (_loading && _snapshot == null) {
+      content = loadingState;
+    } else if (_loadError != null && _currentSnapshot.flows.isEmpty) {
+      content = errorState;
+    } else {
+      content = Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _MyFlowSectionLabel(
+            label: _tab == FlowListTab.active ? 'ACTIVE' : 'SAVED',
+          ),
+          Expanded(child: items.isEmpty ? emptyState : list),
+        ],
+      );
+    }
+
     return Scaffold(
-      backgroundColor: _bg,
+      backgroundColor: MaatFlowListTokens.pageBg,
       appBar: AppBar(
-        backgroundColor: Colors.black,
-        elevation: 0.5,
-        title: const Text('My Flows', style: TextStyle(color: Colors.white)),
+        backgroundColor: MaatFlowListTokens.pageBg,
+        foregroundColor: MaatFlowListTokens.gold,
+        surfaceTintColor: Colors.transparent,
+        shadowColor: Colors.transparent,
+        elevation: 0,
+        centerTitle: true,
+        toolbarHeight: 64,
+        leadingWidth: 64,
+        iconTheme: const IconThemeData(color: MaatFlowListTokens.gold),
+        title: const Text(
+          'My Flows',
+          style: TextStyle(
+            color: MaatFlowListTokens.gold,
+            fontFamily: MaatFlowListTokens.fontFamily,
+            fontFamilyFallback: MaatFlowListTokens.fontFallback,
+            fontSize: 25,
+            fontWeight: FontWeight.w500,
+            height: 1,
+          ),
+        ),
         actions: [
           IconButton(
             tooltip: 'New flow',
-            icon: const Icon(Icons.add, color: _silver),
+            icon: const Icon(
+              Icons.add,
+              color: MaatFlowListTokens.gold,
+              size: 22,
+            ),
             onPressed: () {
               unawaited(_runAndReload(widget.onCreateNew));
             },
@@ -2429,53 +3466,78 @@ class _FlowsViewerPageState extends State<_FlowsViewerPage> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Padding(
-            padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
-            child: Row(
-              children: [
-                Expanded(
-                  child: SegmentedButton<FlowListTab>(
-                    segments: const [
-                      ButtonSegment(
-                        value: FlowListTab.active,
-                        label: Text('Active Flows'),
-                      ),
-                      ButtonSegment(
-                        value: FlowListTab.saved,
-                        label: Text('Saved Flows'),
-                      ),
-                    ],
-                    selected: <FlowListTab>{_tab},
-                    onSelectionChanged: (v) {
-                      if (v.isNotEmpty) {
-                        setState(() => _tab = v.first);
-                      }
-                    },
-                    style: ButtonStyle(
-                      backgroundColor: WidgetStateProperty.all(
-                        const Color(0xFF111111),
-                      ),
-                      foregroundColor: WidgetStateProperty.all(Colors.white),
-                      side: WidgetStateProperty.all(
-                        const BorderSide(color: Colors.white24),
-                      ),
-                      padding: WidgetStateProperty.all(
-                        const EdgeInsets.symmetric(horizontal: 8),
-                      ),
-                    ),
-                  ),
-                ),
-              ],
+            padding: const EdgeInsets.fromLTRB(22, 38, 22, 0),
+            child: _MyFlowsTabSelector(
+              selected: _tab,
+              onChanged: (tab) {
+                if (tab != _tab) setState(() => _tab = tab);
+              },
             ),
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 38),
+          Expanded(child: content),
+        ],
+      ),
+    );
+  }
+}
+
+class _MyFlowSectionLabel extends StatelessWidget {
+  const _MyFlowSectionLabel({required this.label});
+
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(22, 0, 22, 22),
+      child: Text(
+        label,
+        style: const TextStyle(
+          color: Color(0xFF4A3E22),
+          fontSize: 12,
+          fontWeight: FontWeight.w500,
+          letterSpacing: 4.0,
+          height: 1,
+        ),
+      ),
+    );
+  }
+}
+
+enum FlowListTab { active, saved }
+
+class _MyFlowsTabSelector extends StatelessWidget {
+  const _MyFlowsTabSelector({required this.selected, required this.onChanged});
+
+  final FlowListTab selected;
+  final ValueChanged<FlowListTab> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: 64,
+      padding: const EdgeInsets.all(5),
+      decoration: BoxDecoration(
+        color: const Color(0xFF080704),
+        borderRadius: BorderRadius.circular(32),
+        border: Border.all(color: const Color(0x662A230D), width: 0.8),
+      ),
+      child: Row(
+        children: [
           Expanded(
-            child: _loading && _snapshot == null
-                ? loadingState
-                : (_loadError != null && _currentSnapshot.flows.isEmpty)
-                ? errorState
-                : items.isEmpty
-                ? emptyState
-                : list,
+            child: _MyFlowsTabSegment(
+              label: 'Active Flows',
+              selected: selected == FlowListTab.active,
+              onTap: () => onChanged(FlowListTab.active),
+            ),
+          ),
+          Expanded(
+            child: _MyFlowsTabSegment(
+              label: 'Saved Flows',
+              selected: selected == FlowListTab.saved,
+              onTap: () => onChanged(FlowListTab.saved),
+            ),
           ),
         ],
       ),
@@ -2483,7 +3545,341 @@ class _FlowsViewerPageState extends State<_FlowsViewerPage> {
   }
 }
 
-enum FlowListTab { active, saved }
+class _MyFlowsTabSegment extends StatelessWidget {
+  const _MyFlowsTabSegment({
+    required this.label,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final textColor = selected
+        ? const Color(0xFFD0B34A)
+        : const Color(0xFF5A4A2A);
+
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(28),
+        onTap: onTap,
+        splashColor: MaatFlowListTokens.gold.withValues(alpha: 0.05),
+        highlightColor: MaatFlowListTokens.gold.withValues(alpha: 0.03),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 160),
+          curve: Curves.easeOutCubic,
+          decoration: BoxDecoration(
+            color: selected ? const Color(0xFF211807) : Colors.transparent,
+            borderRadius: BorderRadius.circular(28),
+            border: selected
+                ? Border.all(color: const Color(0x7744350F), width: 0.8)
+                : null,
+          ),
+          child: Center(
+            child: FittedBox(
+              fit: BoxFit.scaleDown,
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  if (selected) ...[
+                    const Icon(Icons.check, color: Color(0xFFD0B34A), size: 20),
+                    const SizedBox(width: 10),
+                  ],
+                  Text(
+                    label,
+                    maxLines: 1,
+                    style: TextStyle(
+                      color: textColor,
+                      fontFamily: MaatFlowListTokens.fontFamily,
+                      fontFamilyFallback: MaatFlowListTokens.fontFallback,
+                      fontSize: 18,
+                      fontWeight: FontWeight.w500,
+                      height: 1,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+@visibleForTesting
+Widget buildMyFlowsListPreviewForTesting({
+  bool activeEmpty = false,
+  bool savedEmpty = false,
+  bool includeUnresolvedMaatFlow = false,
+  bool includeMissingProgressFlow = false,
+  ValueChanged<int>? onPreviewFlow,
+  VoidCallback? onCreateNew,
+}) {
+  final snapshot = _buildMyFlowsPreviewSnapshot(
+    activeEmpty: activeEmpty,
+    savedEmpty: savedEmpty,
+    includeUnresolvedMaatFlow: includeUnresolvedMaatFlow,
+    includeMissingProgressFlow: includeMissingProgressFlow,
+  );
+
+  return _FlowsViewerPage(
+    loadFilingSnapshot: () async => snapshot,
+    initialFilingSnapshot: snapshot,
+    fmtGregorian: _formatMyFlowsPreviewGregorian,
+    onCreateNew: onCreateNew ?? () {},
+    onEditFlow: (_) {},
+    onEndFlow: (_) {},
+    onPreviewFlowForTesting: onPreviewFlow,
+  );
+}
+
+@visibleForTesting
+Widget buildMyFlowDetailPreviewForTesting({
+  bool saved = false,
+  bool reminderBacked = false,
+  bool longTitle = false,
+  Color flowColor = const Color(0xFFB95A38),
+  VoidCallback? onManageFlow,
+}) {
+  final now = DateUtils.dateOnly(DateTime.now());
+  final flow = _buildMyFlowsPreviewFlow(
+    id: reminderBacked ? 70 : (saved ? 71 : 72),
+    name: longTitle
+        ? 'Daily Math Visuals: 90-Day Visual Math Ladder'
+        : (saved ? 'Saved Personal Template' : 'Daily Math Visuals'),
+    color: flowColor,
+    active: !saved,
+    isSaved: saved,
+    start: now.subtract(const Duration(days: 2)),
+    end: now.add(const Duration(days: 3)),
+    notes: reminderBacked
+        ? null
+        : 'mode=gregorian;ov=${Uri.encodeComponent('A focused flow with one linked video each day and a short reflection.')}',
+    isReminder: reminderBacked,
+  );
+  final events = reminderBacked
+      ? <FlowEventRow>[
+          _buildMyFlowPreviewEvent(
+            flowId: flow.id,
+            index: 0,
+            title: 'Morning Review',
+            detail: 'A short check-in for the day.',
+            startsAt: now.add(const Duration(hours: 9)),
+            endsAt: now.add(const Duration(hours: 10)),
+          ),
+        ]
+      : <FlowEventRow>[
+          for (var i = 0; i < 6; i++)
+            _buildMyFlowPreviewEvent(
+              flowId: flow.id,
+              index: i,
+              title: [
+                'Area of Square',
+                'How to Simplify Fractions',
+                'Why Does Fermat’s Last Theorem Matter?',
+                'The Birthday Problem and Probability',
+                'What Is the Golden Ratio?',
+                'How Euler’s Formula Connects Everything',
+              ][i],
+              detail: i == 2
+                  ? 'Watch the linked video.\n\n"What does Fermat’s Last Theorem teach about patience in long problems?"'
+                  : 'Watch the linked video and write one short reflection.',
+              location: i == 2
+                  ? 'https://www.youtube.com/watch?v=example'
+                  : null,
+              startsAt: now
+                  .subtract(const Duration(days: 2))
+                  .add(Duration(days: i, hours: 12)),
+              endsAt: now
+                  .subtract(const Duration(days: 2))
+                  .add(Duration(days: i, hours: 13)),
+            ),
+        ];
+
+  return _FlowPreviewPage(
+    flow: flow,
+    mode: reminderBacked
+        ? _FlowPreviewMode.legacy
+        : (saved ? _FlowPreviewMode.saved : _FlowPreviewMode.active),
+    metricsByFlow: {
+      flow.id: _FlowPreviewMetrics(
+        totalEventCount: events.length,
+        remainingEventCount: saved ? events.length : 3,
+        completedEventCount: saved ? 0 : 3,
+      ),
+    },
+    initialEventsByFlow: {flow.id: events},
+    getDecanLabel: (km, di) =>
+        (DecanMetadata.decanNames[km] ?? const ['I', 'II', 'III'])[di],
+    fmt: _formatMyFlowsPreviewGregorian,
+    onEdit: (_) => onManageFlow?.call(),
+    onAppendToJournal: null,
+    onEndMaatFlow: null,
+  );
+}
+
+FlowEventRow _buildMyFlowPreviewEvent({
+  required int flowId,
+  required int index,
+  required String title,
+  required String detail,
+  required DateTime startsAt,
+  DateTime? endsAt,
+  String? location,
+}) {
+  return (
+    id: 'preview-$flowId-$index',
+    clientEventId: 'preview-client-$flowId-$index',
+    calendarId: null,
+    calendarName: null,
+    calendarColor: null,
+    calendarIsPersonal: true,
+    title: title,
+    detail: detail,
+    location: location,
+    allDay: false,
+    startsAtUtc: startsAt.toUtc(),
+    endsAtUtc: endsAt?.toUtc(),
+    flowLocalId: flowId,
+    category: null,
+    actionId: null,
+    behaviorPayload: null,
+  );
+}
+
+_MyFlowsFilingSnapshot _buildMyFlowsPreviewSnapshot({
+  required bool activeEmpty,
+  required bool savedEmpty,
+  required bool includeUnresolvedMaatFlow,
+  required bool includeMissingProgressFlow,
+}) {
+  final activeFlows = <_Flow>[
+    _buildMyFlowsPreviewFlow(
+      id: 1,
+      name: 'Personal Practice',
+      color: const Color(0xFF5C8FD8),
+      start: DateTime(2026, 5, 25),
+      end: DateTime(2026, 6, 23),
+    ),
+    _buildMyFlowsPreviewFlow(
+      id: 2,
+      name: 'Follow the sky',
+      color: const Color(0xFF6876D8),
+      start: DateTime(2026, 5),
+      end: DateTime(2027, 3),
+      notes: 'mode=kemetic;maat=track-the-sky',
+    ),
+  ];
+  if (includeUnresolvedMaatFlow) {
+    activeFlows.add(
+      _buildMyFlowsPreviewFlow(
+        id: 4,
+        name: 'Mystery Maat',
+        color: const Color(0xFFC8A84A),
+        start: DateTime(2026, 7, 1),
+        end: DateTime(2026, 7, 10),
+        notes: 'mode=kemetic;maat=not-a-real-flow',
+      ),
+    );
+  }
+  if (includeMissingProgressFlow) {
+    activeFlows.add(
+      _buildMyFlowsPreviewFlow(
+        id: 5,
+        name: 'No Count Practice',
+        color: const Color(0xFF8A7962),
+        start: DateTime(2026, 8, 1),
+        end: DateTime(2026, 8, 9),
+      ),
+    );
+  }
+
+  final savedFlow = _buildMyFlowsPreviewFlow(
+    id: 3,
+    name: 'The Weighing',
+    color: const Color(0xFFB8A88A),
+    active: false,
+    isSaved: true,
+    savedAt: DateTime(2026, 6, 1),
+    start: DateTime(2026, 5, 24),
+    end: DateTime(2026, 6, 22),
+    notes: 'mode=kemetic;maat=the-weighing',
+  );
+  final savedPersonalFlow = _buildMyFlowsPreviewFlow(
+    id: 6,
+    name: 'Saved Personal Template',
+    color: const Color(0xFF8A4F3C),
+    active: false,
+    isSaved: true,
+    savedAt: DateTime(2026, 5, 30),
+    start: DateTime(2026, 5, 25),
+    end: DateTime(2026, 8, 22),
+  );
+  final flows = <_Flow>[...activeFlows, savedFlow, savedPersonalFlow];
+  final activeIds = activeEmpty
+      ? <int>{}
+      : activeFlows.map((flow) => flow.id).toSet();
+  final savedIds = savedEmpty
+      ? <int>{}
+      : <int>{savedFlow.id, savedPersonalFlow.id};
+  final totalCounts = <int, int>{
+    1: 6,
+    2: 27,
+    3: 9,
+    if (includeUnresolvedMaatFlow) 4: 10,
+  };
+  final remainingCounts = <int, int>{
+    1: 2,
+    2: 22,
+    3: 2,
+    if (includeUnresolvedMaatFlow) 4: 10,
+  };
+
+  return _MyFlowsFilingSnapshot(
+    flows: List<_Flow>.unmodifiable(flows),
+    activeFlowIds: Set<int>.unmodifiable(activeIds),
+    savedFlowIds: Set<int>.unmodifiable(savedIds),
+    totalEventCounts: Map<int, int>.unmodifiable(totalCounts),
+    remainingEventCounts: Map<int, int>.unmodifiable(remainingCounts),
+  );
+}
+
+_Flow _buildMyFlowsPreviewFlow({
+  required int id,
+  required String name,
+  required Color color,
+  DateTime? start,
+  DateTime? end,
+  String? notes,
+  bool active = true,
+  bool isSaved = false,
+  bool isReminder = false,
+  DateTime? savedAt,
+}) {
+  return _Flow(
+    id: id,
+    name: name,
+    color: color,
+    active: active,
+    isSaved: isSaved,
+    savedAt: savedAt,
+    start: start,
+    end: end,
+    notes: notes,
+    rules: const <FlowRule>[],
+    isReminder: isReminder,
+  );
+}
+
+String _formatMyFlowsPreviewGregorian(DateTime? date) {
+  if (date == null) return '--';
+  return '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
+}
 
 /* ───────────────────────── Flow Hub (entry page) ───────────────────────── */
 
@@ -2598,22 +3994,57 @@ class _FlowHubPageState extends State<_FlowHubPage> {
     widget.openMaatFlows();
   }
 
+  void _handleClose() {
+    final onClose = widget.onClose;
+    if (onClose != null) {
+      onClose();
+      return;
+    }
+    final navigator = Navigator.of(context);
+    if (navigator.canPop()) {
+      navigator.pop();
+      return;
+    }
+    unawaited(Navigator.of(context, rootNavigator: true).maybePop());
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: _bg,
       appBar: AppBar(
         backgroundColor: Colors.black,
-        elevation: 0.5,
-        automaticallyImplyLeading: widget.onClose == null,
-        leading: widget.onClose == null
-            ? null
-            : IconButton(
-                tooltip: 'Close',
-                icon: KemeticGold.icon(Icons.close),
-                onPressed: widget.onClose,
-              ),
-        title: const Text('Flow Studio', style: TextStyle(color: Colors.white)),
+        toolbarHeight: 58,
+        elevation: 0,
+        surfaceTintColor: Colors.transparent,
+        automaticallyImplyLeading: false,
+        leading: Padding(
+          padding: const EdgeInsets.only(left: 12),
+          child: IconButton(
+            tooltip: 'Close',
+            iconSize: 24,
+            icon: const Icon(Icons.close, color: _gold),
+            onPressed: _handleClose,
+          ),
+        ),
+        centerTitle: true,
+        title: const Text(
+          'Flow Studio',
+          style: TextStyle(
+            color: _gold,
+            fontSize: 24,
+            fontWeight: FontWeight.w600,
+            fontFamily: 'GentiumPlus',
+          ),
+        ),
+        bottom: PreferredSize(
+          preferredSize: const Size.fromHeight(1),
+          child: Container(
+            margin: const EdgeInsets.symmetric(horizontal: 20),
+            height: 1,
+            color: const Color(0xFF30200D).withValues(alpha: 0.48),
+          ),
+        ),
       ),
       body: SingleChildScrollView(
         padding: EdgeInsets.only(
@@ -2623,29 +4054,34 @@ class _FlowHubPageState extends State<_FlowHubPage> {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Padding(
-              padding: const EdgeInsets.fromLTRB(16, 32, 16, 0),
+              padding: const EdgeInsets.fromLTRB(20, 32, 20, 0),
               child: Align(
                 alignment: Alignment.topCenter,
                 child: ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: 320),
+                  constraints: const BoxConstraints(maxWidth: 340),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      _FlowHubCell(
-                        key: _addFlowHelperKey,
-                        title: 'Add Flow',
-                        subtitle: 'Create a new flow',
-                        onTap: _handleCreateNew,
+                      _FlowHubMaatCard(
+                        title: _kMaatFlowsDisplayTitle,
+                        subtitle:
+                            'Practices offered by the tradition. Each one a\npath you can walk.',
+                        joinedText: '3 of 31',
+                        onTap: _handleOpenMaatFlows,
                       ),
-                      _FlowHubCell(
+                      const SizedBox(height: 14),
+                      _FlowHubMyFlowsCard(
                         title: 'My Flows',
-                        subtitle: 'Your saved and active flows',
+                        subtitle: 'Your active and saved flows.',
+                        statsText: '5 active · 7 saved',
                         onTap: _handleOpenMyFlows,
                       ),
-                      _FlowHubCell(
-                        title: _kMaatFlowsDisplayTitle,
-                        subtitle: "Ma'at template flows",
-                        onTap: _handleOpenMaatFlows,
+                      const SizedBox(height: 14),
+                      _FlowHubAddCard(
+                        key: _addFlowHelperKey,
+                        title: 'Add Flow',
+                        subtitle: 'Begin something new',
+                        onTap: _handleCreateNew,
                       ),
                     ],
                   ),
@@ -2659,8 +4095,238 @@ class _FlowHubPageState extends State<_FlowHubPage> {
   }
 }
 
-class _FlowHubCell extends StatelessWidget {
-  const _FlowHubCell({
+class _FlowHubCardShell extends StatelessWidget {
+  const _FlowHubCardShell({
+    required this.onTap,
+    required this.height,
+    required this.child,
+    this.featured = false,
+  });
+
+  final VoidCallback onTap;
+  final double height;
+  final Widget child;
+  final bool featured;
+
+  @override
+  Widget build(BuildContext context) {
+    final borderColor = featured
+        ? _gold.withValues(alpha: 0.24)
+        : _gold.withValues(alpha: 0.16);
+    return SizedBox(
+      height: height,
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          color: featured ? const Color(0xFF17150B) : const Color(0xFF070604),
+          borderRadius: BorderRadius.circular(featured ? 13 : 11),
+          border: Border.all(color: borderColor),
+        ),
+        child: Material(
+          color: Colors.transparent,
+          child: InkWell(
+            borderRadius: BorderRadius.circular(featured ? 13 : 11),
+            onTap: onTap,
+            child: Stack(
+              children: [
+                Positioned(
+                  top: featured ? 21 : 0,
+                  right: 15,
+                  bottom: featured ? null : 0,
+                  child: Center(
+                    child: Icon(
+                      Icons.chevron_right,
+                      size: 18,
+                      color: _gold.withValues(alpha: 0.22),
+                    ),
+                  ),
+                ),
+                child,
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _FlowHubMaatCard extends StatelessWidget {
+  const _FlowHubMaatCard({
+    required this.title,
+    required this.subtitle,
+    required this.joinedText,
+    required this.onTap,
+  });
+
+  final String title;
+  final String subtitle;
+  final String joinedText;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return _FlowHubCardShell(
+      onTap: onTap,
+      height: 281,
+      featured: true,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(18, 26, 18, 14),
+        child: Column(
+          children: [
+            Container(
+              width: 45,
+              height: 45,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                border: Border.all(color: _gold.withValues(alpha: 0.24)),
+                color: const Color(0xFF090806),
+              ),
+              alignment: Alignment.center,
+              child: Container(
+                width: 39,
+                height: 39,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  border: Border.all(color: _gold.withValues(alpha: 0.17)),
+                ),
+                alignment: Alignment.center,
+                child: Icon(
+                  Icons.balance_outlined,
+                  color: _gold.withValues(alpha: 0.78),
+                  size: 18,
+                ),
+              ),
+            ),
+            const SizedBox(height: 24),
+            Text(
+              title,
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                color: _gold,
+                fontSize: 22,
+                fontWeight: FontWeight.w700,
+                fontFamily: 'GentiumPlus',
+              ),
+            ),
+            const SizedBox(height: 18),
+            Text(
+              subtitle,
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                color: const Color(0xFF8A7848).withValues(alpha: 0.82),
+                fontSize: 13,
+                height: 1.55,
+                fontStyle: FontStyle.italic,
+                fontFamily: 'GentiumPlus',
+              ),
+            ),
+            const Spacer(),
+            Align(
+              alignment: Alignment.centerRight,
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.baseline,
+                textBaseline: TextBaseline.alphabetic,
+                children: [
+                  Text(
+                    'JOINED',
+                    style: TextStyle(
+                      color: _gold.withValues(alpha: 0.42),
+                      fontSize: 9,
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: 2.5,
+                    ),
+                  ),
+                  const SizedBox(width: 9),
+                  Text(
+                    joinedText,
+                    style: TextStyle(
+                      color: _gold.withValues(alpha: 0.72),
+                      fontSize: 13,
+                      fontStyle: FontStyle.italic,
+                      fontFamily: 'GentiumPlus',
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _FlowHubMyFlowsCard extends StatelessWidget {
+  const _FlowHubMyFlowsCard({
+    required this.title,
+    required this.subtitle,
+    required this.statsText,
+    required this.onTap,
+  });
+
+  final String title;
+  final String subtitle;
+  final String statsText;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return _FlowHubCardShell(
+      onTap: onTap,
+      height: 163,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(24, 17, 26, 16),
+        child: Row(
+          children: [
+            const _FlowHubMiniPalette(),
+            const SizedBox(width: 20),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text(
+                    title,
+                    style: const TextStyle(
+                      color: _gold,
+                      fontSize: 19,
+                      fontWeight: FontWeight.w700,
+                      fontFamily: 'GentiumPlus',
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    subtitle,
+                    style: TextStyle(
+                      color: const Color(0xFF7F704D).withValues(alpha: 0.68),
+                      fontSize: 12,
+                      fontStyle: FontStyle.italic,
+                      fontFamily: 'GentiumPlus',
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    statsText,
+                    style: TextStyle(
+                      color: const Color(0xFF7F704D).withValues(alpha: 0.62),
+                      fontSize: 12,
+                      fontStyle: FontStyle.italic,
+                      fontFamily: 'GentiumPlus',
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _FlowHubAddCard extends StatelessWidget {
+  const _FlowHubAddCard({
     super.key,
     required this.title,
     required this.subtitle,
@@ -2673,58 +4339,92 @@ class _FlowHubCell extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      decoration: BoxDecoration(
-        color: const Color(0xFF101114),
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(
-          color: KemeticGold.base.withValues(alpha: 0.72),
-          width: 1.2,
-        ),
-      ),
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          borderRadius: BorderRadius.circular(18),
-          onTap: onTap,
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.center,
-              children: [
-                KemeticGold.text(
-                  title,
-                  textAlign: TextAlign.center,
-                  style: const TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.w700,
+    return _FlowHubCardShell(
+      onTap: onTap,
+      height: 117,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(24, 15, 26, 15),
+        child: Row(
+          children: [
+            Container(
+              width: 32,
+              height: 32,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: const Color(0xFF151303),
+                border: Border.all(color: _gold.withValues(alpha: 0.23)),
+              ),
+              alignment: Alignment.center,
+              child: const Icon(Icons.add, color: _gold, size: 20),
+            ),
+            const SizedBox(width: 17),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text(
+                    title,
+                    style: TextStyle(
+                      color: _gold.withValues(alpha: 0.82),
+                      fontSize: 18,
+                      fontWeight: FontWeight.w600,
+                      fontFamily: 'GentiumPlus',
+                    ),
                   ),
-                  maxLines: 1,
-                  softWrap: false,
-                  overflow: TextOverflow.fade,
-                ),
-                if (subtitle.isNotEmpty) ...[
-                  const SizedBox(height: 4),
+                  const SizedBox(height: 5),
                   Text(
                     subtitle,
-                    textAlign: TextAlign.center,
                     style: TextStyle(
-                      color: Colors.white.withValues(alpha: 0.62),
-                      fontSize: 13,
+                      color: const Color(0xFF7F704D).withValues(alpha: 0.62),
+                      fontSize: 11,
+                      fontStyle: FontStyle.italic,
+                      fontFamily: 'GentiumPlus',
                     ),
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
                   ),
                 ],
-              ],
+              ),
             ),
-          ),
+          ],
         ),
       ),
     );
   }
 }
+
+class _FlowHubMiniPalette extends StatelessWidget {
+  const _FlowHubMiniPalette();
+
+  @override
+  Widget build(BuildContext context) {
+    const colors = [
+      Color(0xFF5A8FC1),
+      Color(0xFFB9603E),
+      Color(0xFF5967B4),
+      Color(0xFF958D7B),
+      Color(0xFF524783),
+      Color(0xFF7A3F25),
+    ];
+    return SizedBox(
+      width: 19,
+      height: 32,
+      child: Wrap(
+        spacing: 5,
+        runSpacing: 5,
+        children: [
+          for (final color in colors)
+            Container(
+              width: 6,
+              height: 6,
+              decoration: BoxDecoration(shape: BoxShape.circle, color: color),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+// Legacy source marker retained for route guard slicing:
+// class _FlowHubCell extends StatelessWidget
 
 /* ───────────────────────── Ma’at Flows list ───────────────────────── */

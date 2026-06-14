@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mobile/data/flows_repo.dart';
 
@@ -104,6 +106,21 @@ void main() {
 
       expect(counts.activeFlows, 2);
       expect(counts.flowEvents, 11);
+    });
+  });
+
+  group('flow ledger hydration', () {
+    test('uses filing view counts without the activity RPC', () {
+      final source = File('lib/data/flows_repo.dart').readAsStringSync();
+      final match = RegExp(
+        r'Future<FlowLedger<FlowRow>> loadMyFlowLedger\(\) async \{([\s\S]*?)\n  \}',
+      ).firstMatch(source);
+
+      expect(match, isNotNull);
+      final body = match!.group(1)!;
+      expect(body, contains('_eventCountsFromFlowRows(flows)'));
+      expect(body, isNot(contains('_loadMyEventCounts')));
+      expect(body, isNot(contains("rpc('get_my_flow_activity')")));
     });
   });
 }

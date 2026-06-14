@@ -192,6 +192,21 @@ void main() {
     expect(routeReader, contains('topMatch.matches.uri'));
   });
 
+  test(
+    'global drawer bubble remains available on the main calendar route',
+    () async {
+      final main = await File('lib/main.dart').readAsString();
+      final suppression = _sourceBetween(
+        main,
+        'bool get _shouldSuppressFloatingMenuForCurrentRoute',
+        'bool _shouldActivateFloatingMenu(BuildContext context)',
+      );
+
+      expect(suppression, isNot(contains("path == '/'")));
+      expect(suppression, contains("path == '/calendars'"));
+    },
+  );
+
   test('drawer state is local and not restoration-backed', () async {
     final main = await File('lib/main.dart').readAsString();
     final shell = _sourceBetween(

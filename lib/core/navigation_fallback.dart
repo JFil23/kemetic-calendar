@@ -22,12 +22,18 @@ void closeOrReturn(
   );
 
   final router = GoRouter.of(context);
+  final dismissedRoute = router.routerDelegate.currentConfiguration.uri
+      .toString();
   if (router.canPop()) {
     traceRestoration(
       'navigation close_or_return pop fallback=$fallbackLocation',
     );
     router.pop(result);
-    _recordRouteAfterClose(router, reason: 'go_router_pop');
+    _recordRouteAfterClose(
+      router,
+      dismissedRoute: dismissedRoute,
+      reason: 'go_router_pop',
+    );
     return;
   }
 
@@ -37,7 +43,11 @@ void closeOrReturn(
       'navigation close_or_return navigator_pop fallback=$fallbackLocation',
     );
     navigator.pop(result);
-    _recordRouteAfterClose(router, reason: 'navigator_pop');
+    _recordRouteAfterClose(
+      router,
+      dismissedRoute: dismissedRoute,
+      reason: 'navigator_pop',
+    );
     return;
   }
 
@@ -46,23 +56,30 @@ void closeOrReturn(
   );
   context.go(fallbackLocation);
   unawaited(
-    AppNavigationRestorationController.instance.recordVisibleSurface(
-      route: fallbackLocation,
-      source: NavigationSource.programmatic,
+    AppNavigationRestorationController.instance.recordSurfaceDismissal(
+      dismissedRoute: dismissedRoute,
+      fallbackRoute: fallbackLocation,
+      source: NavigationSource.userDismissal,
     ),
   );
 }
 
-void _recordRouteAfterClose(GoRouter router, {required String reason}) {
+void _recordRouteAfterClose(
+  GoRouter router, {
+  required String dismissedRoute,
+  required String reason,
+}) {
   WidgetsBinding.instance.addPostFrameCallback((_) {
     final route = router.routerDelegate.currentConfiguration.uri.toString();
     traceRestoration(
-      'navigation close_or_return visible route=$route reason=$reason',
+      'navigation close_or_return visible route=$route '
+      'dismissed=$dismissedRoute reason=$reason',
     );
     unawaited(
-      AppNavigationRestorationController.instance.recordVisibleSurface(
-        route: route,
-        source: NavigationSource.programmatic,
+      AppNavigationRestorationController.instance.recordSurfaceDismissal(
+        dismissedRoute: dismissedRoute,
+        fallbackRoute: route,
+        source: NavigationSource.userBack,
       ),
     );
   });

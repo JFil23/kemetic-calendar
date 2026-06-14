@@ -135,6 +135,71 @@ Map<String, dynamic> calendarCompletionMetadata({
   };
 }
 
+class CalendarCompletionPickerStyle {
+  const CalendarCompletionPickerStyle({
+    this.containerPadding = const EdgeInsets.all(12),
+    this.containerColor = const Color(0x42000000),
+    this.containerBorderColor = const Color(0x4DF5E8CB),
+    this.containerBorderWidth = 1.0,
+    this.containerRadius = 12,
+    this.label = 'Completion',
+    this.labelColor = const Color(0xFFFFD486),
+    this.labelFontSize = 12,
+    this.labelFontWeight = FontWeight.w700,
+    this.labelLetterSpacing = 0,
+    this.labelGap = 8,
+    this.buttonGap = 8,
+    this.selectedForegroundColor = Colors.black,
+    this.selectedBackgroundColor = const Color(0xFFFFD486),
+    this.selectedBorderColor = const Color(0xFFFFD486),
+    this.unselectedForegroundColor = Colors.white,
+    this.unselectedBackgroundColor = Colors.transparent,
+    this.unselectedBorderColor = Colors.white24,
+    this.buttonBorderWidth = 1.1,
+    this.buttonPadding = const EdgeInsets.symmetric(
+      horizontal: 8,
+      vertical: 10,
+    ),
+    this.buttonRadius = 8,
+    this.buttonFontSize = 12,
+    this.buttonFontWeight = FontWeight.w700,
+    this.buttonFontFamily,
+    this.buttonFontFamilyFallback,
+    this.buttonMinimumSize,
+    this.buttonTapTargetSize,
+    this.buttonVisualDensity,
+  });
+
+  final EdgeInsetsGeometry containerPadding;
+  final Color containerColor;
+  final Color containerBorderColor;
+  final double containerBorderWidth;
+  final double containerRadius;
+  final String label;
+  final Color labelColor;
+  final double labelFontSize;
+  final FontWeight labelFontWeight;
+  final double labelLetterSpacing;
+  final double labelGap;
+  final double buttonGap;
+  final Color selectedForegroundColor;
+  final Color selectedBackgroundColor;
+  final Color selectedBorderColor;
+  final Color unselectedForegroundColor;
+  final Color unselectedBackgroundColor;
+  final Color unselectedBorderColor;
+  final double buttonBorderWidth;
+  final EdgeInsetsGeometry buttonPadding;
+  final double buttonRadius;
+  final double buttonFontSize;
+  final FontWeight buttonFontWeight;
+  final String? buttonFontFamily;
+  final List<String>? buttonFontFamilyFallback;
+  final Size? buttonMinimumSize;
+  final MaterialTapTargetSize? buttonTapTargetSize;
+  final VisualDensity? buttonVisualDensity;
+}
+
 class CalendarCompletionPicker extends StatelessWidget {
   const CalendarCompletionPicker({
     super.key,
@@ -145,6 +210,7 @@ class CalendarCompletionPicker extends StatelessWidget {
     this.showPartial = true,
     this.onReflect,
     this.observedButtonKey,
+    this.style,
   });
 
   final CompletionStatus current;
@@ -154,32 +220,36 @@ class CalendarCompletionPicker extends StatelessWidget {
   final bool showPartial;
   final VoidCallback? onReflect;
   final Key? observedButtonKey;
+  final CalendarCompletionPickerStyle? style;
 
   @override
   Widget build(BuildContext context) {
     final disabled = saving || loading;
+    final pickerStyle = style ?? const CalendarCompletionPickerStyle();
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(12),
+      padding: pickerStyle.containerPadding,
       decoration: BoxDecoration(
-        color: Colors.black.withValues(alpha: 0.26),
-        borderRadius: BorderRadius.circular(12),
+        color: pickerStyle.containerColor,
+        borderRadius: BorderRadius.circular(pickerStyle.containerRadius),
         border: Border.all(
-          color: const Color(0xFFF5E8CB).withValues(alpha: 0.3),
+          color: pickerStyle.containerBorderColor,
+          width: pickerStyle.containerBorderWidth,
         ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            'Completion',
+          Text(
+            pickerStyle.label,
             style: TextStyle(
-              color: Color(0xFFFFD486),
-              fontSize: 12,
-              fontWeight: FontWeight.w700,
+              color: pickerStyle.labelColor,
+              fontSize: pickerStyle.labelFontSize,
+              fontWeight: pickerStyle.labelFontWeight,
+              letterSpacing: pickerStyle.labelLetterSpacing,
             ),
           ),
-          const SizedBox(height: 8),
+          SizedBox(height: pickerStyle.labelGap),
           Row(
             children: [
               _CompletionStatusButton(
@@ -188,22 +258,25 @@ class CalendarCompletionPicker extends StatelessWidget {
                 current: current,
                 saving: disabled,
                 onChanged: onChanged,
+                style: pickerStyle,
               ),
               if (showPartial) ...[
-                const SizedBox(width: 8),
+                SizedBox(width: pickerStyle.buttonGap),
                 _CompletionStatusButton(
                   status: CompletionStatus.partial,
                   current: current,
                   saving: disabled,
                   onChanged: onChanged,
+                  style: pickerStyle,
                 ),
               ],
-              const SizedBox(width: 8),
+              SizedBox(width: pickerStyle.buttonGap),
               _CompletionStatusButton(
                 status: CompletionStatus.skipped,
                 current: current,
                 saving: disabled,
                 onChanged: onChanged,
+                style: pickerStyle,
               ),
             ],
           ),
@@ -247,6 +320,7 @@ class CalendarEventCompletionPanel extends StatefulWidget {
     this.onReflect,
     this.observedButtonKey,
     this.reloadSignal,
+    this.pickerStyle,
   });
 
   final String identity;
@@ -260,6 +334,7 @@ class CalendarEventCompletionPanel extends StatefulWidget {
   final VoidCallback? onReflect;
   final Key? observedButtonKey;
   final Object? reloadSignal;
+  final CalendarCompletionPickerStyle? pickerStyle;
 
   @override
   State<CalendarEventCompletionPanel> createState() =>
@@ -354,6 +429,7 @@ class _CalendarEventCompletionPanelState
       loading: _loading,
       observedButtonKey: widget.observedButtonKey,
       onReflect: widget.onReflect,
+      style: widget.pickerStyle,
       onChanged: (status) {
         final next = status == _status && widget.onClearStatus != null
             ? CompletionStatus.none
@@ -371,12 +447,14 @@ class _CompletionStatusButton extends StatelessWidget {
     required this.current,
     required this.saving,
     required this.onChanged,
+    required this.style,
   });
 
   final CompletionStatus status;
   final CompletionStatus current;
   final bool saving;
   final ValueChanged<CompletionStatus> onChanged;
+  final CalendarCompletionPickerStyle style;
 
   @override
   Widget build(BuildContext context) {
@@ -384,23 +462,37 @@ class _CompletionStatusButton extends StatelessWidget {
     return Expanded(
       child: OutlinedButton(
         style: OutlinedButton.styleFrom(
-          foregroundColor: selected ? Colors.black : Colors.white,
+          foregroundColor: selected
+              ? style.selectedForegroundColor
+              : style.unselectedForegroundColor,
           backgroundColor: selected
-              ? const Color(0xFFFFD486)
-              : Colors.transparent,
+              ? style.selectedBackgroundColor
+              : style.unselectedBackgroundColor,
           side: BorderSide(
-            color: selected ? const Color(0xFFFFD486) : Colors.white24,
-            width: 1.1,
+            color: selected
+                ? style.selectedBorderColor
+                : style.unselectedBorderColor,
+            width: style.buttonBorderWidth,
           ),
-          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+          padding: style.buttonPadding,
+          minimumSize: style.buttonMinimumSize,
+          tapTargetSize: style.buttonTapTargetSize,
+          visualDensity: style.buttonVisualDensity,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(style.buttonRadius),
+          ),
         ),
         onPressed: saving ? null : () => onChanged(status),
         child: Text(
           status.label,
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
-          style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
+          style: TextStyle(
+            fontSize: style.buttonFontSize,
+            fontWeight: style.buttonFontWeight,
+            fontFamily: style.buttonFontFamily,
+            fontFamilyFallback: style.buttonFontFamilyFallback,
+          ),
         ),
       ),
     );

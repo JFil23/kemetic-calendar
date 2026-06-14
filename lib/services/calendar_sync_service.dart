@@ -501,7 +501,13 @@ class CalendarSyncService {
   Set<String> _deletedCids = <String>{};
 
   Future<void> ensureInitialized() async {
-    if (_initialized || kIsWeb) return;
+    if (kIsWeb) return;
+    if (_initialized &&
+        (_cacheBox?.isOpen ?? false) &&
+        (_stateBox?.isOpen ?? false)) {
+      return;
+    }
+    _initialized = false;
     if (!Hive.isBoxOpen(_cacheBoxName) && !Hive.isBoxOpen(_stateBoxName)) {
       try {
         await Hive.initFlutter();
@@ -543,9 +549,17 @@ class CalendarSyncService {
 
   Future<void> dispose() async {
     stop();
-    await _cacheBox?.close();
-    await _stateBox?.close();
+    final cacheBox = _cacheBox;
+    final stateBox = _stateBox;
+    _cacheBox = null;
+    _stateBox = null;
     _initialized = false;
+    if (cacheBox?.isOpen ?? false) {
+      await cacheBox?.close();
+    }
+    if (stateBox?.isOpen ?? false) {
+      await stateBox?.close();
+    }
   }
 
   Future<CalendarSyncStatus> getStatus() async {
@@ -1006,16 +1020,21 @@ class CalendarSyncService {
   }
 
   void _writeCache(String cid, _SyncCacheEntry entry) {
-    _cacheBox?.put(cid, entry.toJson());
+    final box = _cacheBox;
+    if (box == null || !box.isOpen) return;
+    unawaited(box.put(cid, entry.toJson()));
   }
 
   String? _resolveCid(NativeCalendarEvent e) {
     if (e.clientEventId != null && e.clientEventId!.isNotEmpty) {
       return e.clientEventId;
     }
+    final stateBox = _stateBox;
     final cachedById = e.nativeId == null
         ? null
-        : _stateBox?.get('cid-for-native-${e.nativeId}');
+        : stateBox?.isOpen == true
+        ? stateBox?.get('cid-for-native-${e.nativeId}')
+        : null;
     if (cachedById is String && cachedById.isNotEmpty) return cachedById;
     if (e.nativeId != null && e.nativeId!.isNotEmpty) {
       return 'native:${e.source}:${e.nativeId}';

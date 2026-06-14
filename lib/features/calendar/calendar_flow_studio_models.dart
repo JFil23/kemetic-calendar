@@ -357,6 +357,18 @@ class _FlowStudioDraft {
   final String name;
   final bool active;
   final int selectedColorIndex;
+  final String studioMode;
+  final double? buildHue;
+  final int? buildColorArgb;
+  final bool buildColorWasDragged;
+  final double? composeHue;
+  final int? composeColorArgb;
+  final bool composeColorWasDragged;
+  final String composePrompt;
+  final bool composeUseKemetic;
+  final DateTime? composeStartDate;
+  final DateTime? composeEndDate;
+  final bool composeManualDateRangeEdited;
   final bool useKemetic;
   final DateTime? startDate;
   final DateTime? endDate;
@@ -379,6 +391,18 @@ class _FlowStudioDraft {
     required this.name,
     required this.active,
     required this.selectedColorIndex,
+    required this.studioMode,
+    required this.buildHue,
+    required this.buildColorArgb,
+    required this.buildColorWasDragged,
+    required this.composeHue,
+    required this.composeColorArgb,
+    required this.composeColorWasDragged,
+    required this.composePrompt,
+    required this.composeUseKemetic,
+    required this.composeStartDate,
+    required this.composeEndDate,
+    required this.composeManualDateRangeEdited,
     required this.useKemetic,
     required this.startDate,
     required this.endDate,
@@ -403,6 +427,20 @@ class _FlowStudioDraft {
       'name': name,
       'active': active,
       'selectedColorIndex': selectedColorIndex,
+      'studioMode': studioMode,
+      if (buildHue != null) 'buildHue': buildHue,
+      if (buildColorArgb != null) 'buildColorArgb': buildColorArgb,
+      'buildColorWasDragged': buildColorWasDragged,
+      if (composeHue != null) 'composeHue': composeHue,
+      if (composeColorArgb != null) 'composeColorArgb': composeColorArgb,
+      'composeColorWasDragged': composeColorWasDragged,
+      'composePrompt': composePrompt,
+      'composeUseKemetic': composeUseKemetic,
+      if (_flowStudioDateToJson(composeStartDate) != null)
+        'composeStartDate': _flowStudioDateToJson(composeStartDate),
+      if (_flowStudioDateToJson(composeEndDate) != null)
+        'composeEndDate': _flowStudioDateToJson(composeEndDate),
+      'composeManualDateRangeEdited': composeManualDateRangeEdited,
       'useKemetic': useKemetic,
       if (_flowStudioDateToJson(startDate) != null)
         'startDate': _flowStudioDateToJson(startDate),
@@ -469,6 +507,19 @@ class _FlowStudioDraft {
       name: json['name'] as String? ?? '',
       active: json['active'] != false,
       selectedColorIndex: (json['selectedColorIndex'] as num?)?.toInt() ?? 0,
+      studioMode: json['studioMode'] as String? ?? 'build',
+      buildHue: (json['buildHue'] as num?)?.toDouble(),
+      buildColorArgb: (json['buildColorArgb'] as num?)?.toInt(),
+      buildColorWasDragged: json['buildColorWasDragged'] == true,
+      composeHue: (json['composeHue'] as num?)?.toDouble(),
+      composeColorArgb: (json['composeColorArgb'] as num?)?.toInt(),
+      composeColorWasDragged: json['composeColorWasDragged'] == true,
+      composePrompt: json['composePrompt'] as String? ?? '',
+      composeUseKemetic: json['composeUseKemetic'] == true,
+      composeStartDate: _flowStudioDateFromJson(json['composeStartDate']),
+      composeEndDate: _flowStudioDateFromJson(json['composeEndDate']),
+      composeManualDateRangeEdited:
+          json['composeManualDateRangeEdited'] == true,
       useKemetic: json['useKemetic'] == true,
       startDate: _flowStudioDateFromJson(json['startDate']),
       endDate: _flowStudioDateFromJson(json['endDate']),
