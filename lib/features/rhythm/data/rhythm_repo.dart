@@ -240,20 +240,23 @@ class RhythmRepo {
     final target = DateUtils.dateOnly(dueDate ?? DateTime.now());
     final todayIso = DateFormat('yyyy-MM-dd').format(target);
     try {
-      final row = await _client
-          .from('todos')
-          .insert({
-            'user_id': uid,
-            'title': trimmed,
-            'due_date': todayIso,
-            'show_on_checklist': true,
-            'show_on_calendar': true,
-            'status': 'pending',
-          })
-          .select(
-            'id, title, notes, due_date, due_time, show_on_checklist, show_on_calendar, status',
-          )
-          .maybeSingle();
+      final row = await withSupabaseAuthRetry(
+        _client,
+        () => _client
+            .from('todos')
+            .insert({
+              'user_id': uid,
+              'title': trimmed,
+              'due_date': todayIso,
+              'show_on_checklist': true,
+              'show_on_calendar': true,
+              'status': 'pending',
+            })
+            .select(
+              'id, title, notes, due_date, due_time, show_on_checklist, show_on_calendar, status',
+            )
+            .maybeSingle(),
+      );
       if (row == null) {
         return const RhythmRepoResult(data: null);
       }
@@ -305,12 +308,15 @@ class RhythmRepo {
     if (rows.isEmpty) return const RhythmRepoResult(data: <RhythmTodo>[]);
 
     try {
-      final response = await _client
-          .from('todos')
-          .insert(rows)
-          .select(
-            'id, title, notes, due_date, due_time, show_on_checklist, show_on_calendar, status',
-          );
+      final response = await withSupabaseAuthRetry(
+        _client,
+        () => _client
+            .from('todos')
+            .insert(rows)
+            .select(
+              'id, title, notes, due_date, due_time, show_on_checklist, show_on_calendar, status',
+            ),
+      );
       final todos = response
           .map<RhythmTodo>(
             (row) => _todoFromRow(Map<String, dynamic>.from(row)),
@@ -350,11 +356,14 @@ class RhythmRepo {
           : null,
     };
     try {
-      await _client
-          .from('todos')
-          .update(payload)
-          .eq('id', todoId)
-          .eq('user_id', uid);
+      await withSupabaseAuthRetry(
+        _client,
+        () => _client
+            .from('todos')
+            .update(payload)
+            .eq('id', todoId)
+            .eq('user_id', uid),
+      );
       return const RhythmRepoResult(data: true);
     } catch (e) {
       if (_isMissingTable(e)) {
@@ -373,7 +382,11 @@ class RhythmRepo {
       );
     }
     try {
-      await _client.from('todos').delete().eq('id', todoId).eq('user_id', uid);
+      await withSupabaseAuthRetry(
+        _client,
+        () =>
+            _client.from('todos').delete().eq('id', todoId).eq('user_id', uid),
+      );
       return const RhythmRepoResult(data: true);
     } catch (e) {
       if (_isMissingTable(e)) {
@@ -576,12 +589,15 @@ class RhythmRepo {
     }
     _logNoteAction('fetch_alignment_notes:start');
     try {
-      final rows = await _client
-          .from('alignment_notes')
-          .select('id, body, position, created_at')
-          .eq('user_id', uid)
-          .order('position', ascending: true)
-          .order('created_at', ascending: true);
+      final rows = await withSupabaseAuthRetry(
+        _client,
+        () => _client
+            .from('alignment_notes')
+            .select('id, body, position, created_at')
+            .eq('user_id', uid)
+            .order('position', ascending: true)
+            .order('created_at', ascending: true),
+      );
 
       final notes = rows.map<RhythmNote>((r) {
         return RhythmNote(
@@ -642,11 +658,14 @@ class RhythmRepo {
     }
     _logNoteAction('insert_alignment_note:start', detail: 'position=$position');
     try {
-      final row = await _client
-          .from('alignment_notes')
-          .insert({'user_id': uid, 'body': trimmed, 'position': position})
-          .select('id, body, position, created_at')
-          .maybeSingle();
+      final row = await withSupabaseAuthRetry(
+        _client,
+        () => _client
+            .from('alignment_notes')
+            .insert({'user_id': uid, 'body': trimmed, 'position': position})
+            .select('id, body, position, created_at')
+            .maybeSingle(),
+      );
 
       if (row == null) return const RhythmRepoResult(data: null);
 
@@ -703,11 +722,14 @@ class RhythmRepo {
     }
     _logNoteAction('update_alignment_note:start', detail: 'noteId=$noteId');
     try {
-      await _client
-          .from('alignment_notes')
-          .update({'body': text.trim()})
-          .eq('id', noteId)
-          .eq('user_id', uid);
+      await withSupabaseAuthRetry(
+        _client,
+        () => _client
+            .from('alignment_notes')
+            .update({'body': text.trim()})
+            .eq('id', noteId)
+            .eq('user_id', uid),
+      );
       _logNoteAction(
         'update_alignment_note:success',
         missingTables: false,
@@ -749,11 +771,14 @@ class RhythmRepo {
     }
     _logNoteAction('delete_alignment_note:start', detail: 'noteId=$noteId');
     try {
-      await _client
-          .from('alignment_notes')
-          .delete()
-          .eq('id', noteId)
-          .eq('user_id', uid);
+      await withSupabaseAuthRetry(
+        _client,
+        () => _client
+            .from('alignment_notes')
+            .delete()
+            .eq('id', noteId)
+            .eq('user_id', uid),
+      );
       _logNoteAction(
         'delete_alignment_note:success',
         missingTables: false,
@@ -805,7 +830,10 @@ class RhythmRepo {
         for (final n in notes)
           {'id': n.id, 'user_id': uid, 'position': n.position, 'body': n.text},
       ];
-      await _client.from('alignment_notes').upsert(payload);
+      await withSupabaseAuthRetry(
+        _client,
+        () => _client.from('alignment_notes').upsert(payload),
+      );
       _logNoteAction(
         'reorder_alignment_notes:success',
         missingTables: false,

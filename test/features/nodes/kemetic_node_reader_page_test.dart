@@ -474,7 +474,7 @@ void main() {
             widget.framed,
       );
       expect(tile, findsWidgets, reason: entry.$1);
-      expect(tester.getSize(tile.first), const Size(48, 48));
+      expect(tester.getSize(tile.first), const Size(40, 40));
       expect(tester.takeException(), isNull);
     }
   });

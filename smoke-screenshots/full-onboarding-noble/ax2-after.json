@@ -1,0 +1,288 @@
+[
+  {
+    "id": "5",
+    "role": "generic",
+    "name": "",
+    "ignored": false,
+    "backendDOMNodeId": 5,
+    "childIds": [
+      "6",
+      "7",
+      "4"
+    ]
+  },
+  {
+    "id": "6",
+    "role": "generic",
+    "name": "",
+    "ignored": false,
+    "backendDOMNodeId": 6,
+    "childIds": []
+  },
+  {
+    "id": "7",
+    "role": "generic",
+    "name": "",
+    "ignored": false,
+    "backendDOMNodeId": 7,
+    "childIds": []
+  },
+  {
+    "id": "4",
+    "role": "generic",
+    "name": "",
+    "ignored": false,
+    "backendDOMNodeId": 4,
+    "childIds": [
+      "1227",
+      "1231"
+    ]
+  },
+  {
+    "id": "1231",
+    "role": "generic",
+    "name": "",
+    "ignored": false,
+    "backendDOMNodeId": 1231,
+    "childIds": [
+      "1232"
+    ]
+  },
+  {
+    "id": "1232",
+    "role": "generic",
+    "name": "",
+    "ignored": false,
+    "backendDOMNodeId": 1232,
+    "childIds": [
+      "1233"
+    ]
+  },
+  {
+    "id": "1233",
+    "role": "generic",
+    "name": "",
+    "ignored": false,
+    "backendDOMNodeId": 1233,
+    "childIds": [
+      "1234"
+    ]
+  },
+  {
+    "id": "1234",
+    "role": "generic",
+    "name": "",
+    "ignored": false,
+    "backendDOMNodeId": 1234,
+    "childIds": [
+      "1235"
+    ]
+  },
+  {
+    "id": "1235",
+    "role": "generic",
+    "name": "",
+    "ignored": false,
+    "backendDOMNodeId": 1235,
+    "childIds": [
+      "1236"
+    ]
+  },
+  {
+    "id": "1236",
+    "role": "generic",
+    "name": "",
+    "ignored": false,
+    "backendDOMNodeId": 1236,
+    "childIds": [
+      "1237"
+    ]
+  },
+  {
+    "id": "1238",
+    "role": "generic",
+    "name": "",
+    "ignored": false,
+    "backendDOMNodeId": 1238,
+    "childIds": []
+  },
+  {
+    "id": "1239",
+    "role": "group",
+    "name": "ḥꜣw Remember who you're becoming or",
+    "ignored": false,
+    "backendDOMNodeId": 1239,
+    "childIds": [
+      "1240",
+      "1242",
+      "9",
+      "1244",
+      "1245",
+      "1246"
+    ]
+  },
+  {
+    "id": "1240",
+    "role": "generic",
+    "name": "",
+    "ignored": false,
+    "backendDOMNodeId": 1240,
+    "childIds": [
+      "10"
+    ]
+  },
+  {
+    "id": "1242",
+    "role": "generic",
+    "name": "",
+    "ignored": false,
+    "backendDOMNodeId": 1242,
+    "childIds": [
+      "11"
+    ]
+  },
+  {
+    "id": "9",
+    "role": "button",
+    "name": "Sign in",
+    "ignored": false,
+    "backendDOMNodeId": 9,
+    "childIds": [
+      "1248"
+    ]
+  },
+  {
+    "id": "1244",
+    "role": "button",
+    "name": "New here? Create an account",
+    "ignored": false,
+    "backendDOMNodeId": 1244,
+    "childIds": [
+      "1249"
+    ]
+  },
+  {
+    "id": "1245",
+    "role": "button",
+    "name": "Forgot password?",
+    "ignored": false,
+    "backendDOMNodeId": 1245,
+    "childIds": [
+      "1250"
+    ]
+  },
+  {
+    "id": "1246",
+    "role": "button",
+    "name": "Continue with Google",
+    "ignored": false,
+    "backendDOMNodeId": 1246,
+    "childIds": [
+      "1251"
+    ]
+  },
+  {
+    "id": "10",
+    "role": "textbox",
+    "name": "Email",
+    "ignored": false,
+    "backendDOMNodeId": 10,
+    "childIds": [
+      "1241"
+    ]
+  },
+  {
+    "id": "11",
+    "role": "textbox",
+    "name": "Password",
+    "ignored": false,
+    "backendDOMNodeId": 11,
+    "childIds": [
+      "1243"
+    ]
+  },
+  {
+    "id": "1248",
+    "role": "StaticText",
+    "name": "Sign in",
+    "ignored": false,
+    "backendDOMNodeId": 1248,
+    "childIds": [
+      "-1000000002"
+    ]
+  },
+  {
+    "id": "1249",
+    "role": "StaticText",
+    "name": "New here? Create an account",
+    "ignored": false,
+    "backendDOMNodeId": 1249,
+    "childIds": [
+      "-1000000003"
+    ]
+  },
+  {
+    "id": "1250",
+    "role": "StaticText",
+    "name": "Forgot password?",
+    "ignored": false,
+    "backendDOMNodeId": 1250,
+    "childIds": [
+      "-1000000004"
+    ]
+  },
+  {
+    "id": "1251",
+    "role": "StaticText",
+    "name": "Continue with Google",
+    "ignored": false,
+    "backendDOMNodeId": 1251,
+    "childIds": [
+      "-1000000005"
+    ]
+  },
+  {
+    "id": "1241",
+    "role": "generic",
+    "name": "",
+    "ignored": false,
+    "backendDOMNodeId": 1241,
+    "childIds": []
+  },
+  {
+    "id": "1243",
+    "role": "generic",
+    "name": "",
+    "ignored": false,
+    "backendDOMNodeId": 1243,
+    "childIds": []
+  },
+  {
+    "id": "-1000000002",
+    "role": "InlineTextBox",
+    "name": "Sign in",
+    "ignored": false,
+    "childIds": []
+  },
+  {
+    "id": "-1000000003",
+    "role": "InlineTextBox",
+    "name": "New here? Create an account",
+    "ignored": false,
+    "childIds": []
+  },
+  {
+    "id": "-1000000004",
+    "role": "InlineTextBox",
+    "name": "Forgot password?",
+    "ignored": false,
+    "childIds": []
+  },
+  {
+    "id": "-1000000005",
+    "role": "InlineTextBox",
+    "name": "Continue with Google",
+    "ignored": false,
+    "childIds": []
+  }
+]

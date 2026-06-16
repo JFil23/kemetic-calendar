@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:mobile/core/touch_targets.dart';
 
 import '../models/rhythm_models.dart';
-import '../theme/rhythm_theme.dart';
+import 'planner/planner_visual_tokens.dart';
 
 class RhythmStateButtonGroup extends StatelessWidget {
   const RhythmStateButtonGroup({
@@ -118,18 +118,33 @@ class RhythmStateDot extends StatelessWidget {
   Widget build(BuildContext context) {
     final (color, background) = switch (state) {
       RhythmItemState.done => (
-        RhythmTheme.aurora,
-        RhythmTheme.aurora.withValues(alpha: 0.14),
+        PlannerVisualTokens.gold,
+        PlannerVisualTokens.gold.withValues(
+          alpha: PlannerVisualTokens.liftedAlpha(0.15),
+        ),
       ),
       RhythmItemState.partial => (
-        RhythmTheme.ember,
-        RhythmTheme.ember.withValues(alpha: 0.14),
+        PlannerVisualTokens.noteGold.withValues(
+          alpha: PlannerVisualTokens.liftedAlpha(0.82),
+        ),
+        PlannerVisualTokens.noteGold.withValues(
+          alpha: PlannerVisualTokens.liftedAlpha(0.10),
+        ),
       ),
       RhythmItemState.skipped => (
-        Colors.redAccent,
-        Colors.redAccent.withValues(alpha: 0.12),
+        Colors.redAccent.withValues(
+          alpha: PlannerVisualTokens.liftedAlpha(0.76),
+        ),
+        Colors.redAccent.withValues(
+          alpha: PlannerVisualTokens.liftedAlpha(0.10),
+        ),
       ),
-      RhythmItemState.pending => (Colors.white54, Colors.white12),
+      RhythmItemState.pending => (
+        PlannerVisualTokens.gold.withValues(
+          alpha: PlannerVisualTokens.liftedAlpha(0.34),
+        ),
+        Colors.transparent,
+      ),
     };
     final resolvedIcon =
         icon ??
@@ -160,7 +175,14 @@ class RhythmStateDot extends StatelessWidget {
               color: isActive ? background : Colors.transparent,
               borderRadius: BorderRadius.circular(borderRadius),
               border: Border.all(
-                color: isActive ? color.withValues(alpha: 0.6) : Colors.white12,
+                color: isActive
+                    ? color.withValues(
+                        alpha: PlannerVisualTokens.liftedAlpha(0.58),
+                      )
+                    : PlannerVisualTokens.gold.withValues(
+                        alpha: PlannerVisualTokens.liftedAlpha(0.14),
+                      ),
+                width: 0.7,
               ),
             ),
             child: Icon(resolvedIcon, size: iconSize, color: color),

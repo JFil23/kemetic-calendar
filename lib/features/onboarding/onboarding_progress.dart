@@ -332,6 +332,7 @@ class OnboardingProgress {
     this.hasSeenObservedJournalPrompt = false,
     this.hasSeenMenuPrompt = false,
     this.completedOnboarding = false,
+    this.skippedOnboarding = false,
     this.seenHelpers = const <String>{},
   });
 
@@ -350,6 +351,7 @@ class OnboardingProgress {
   final bool hasSeenObservedJournalPrompt;
   final bool hasSeenMenuPrompt;
   final bool completedOnboarding;
+  final bool skippedOnboarding;
   final Set<String> seenHelpers;
 
   OnboardingProgress copyWith({
@@ -372,6 +374,7 @@ class OnboardingProgress {
     bool? hasSeenObservedJournalPrompt,
     bool? hasSeenMenuPrompt,
     bool? completedOnboarding,
+    bool? skippedOnboarding,
     Set<String>? seenHelpers,
   }) {
     return OnboardingProgress(
@@ -408,6 +411,7 @@ class OnboardingProgress {
           completedOnboarding ??
           (this.completedOnboarding ||
               (currentStep ?? this.currentStep) == TrueOnboardingStep.complete),
+      skippedOnboarding: skippedOnboarding ?? this.skippedOnboarding,
       seenHelpers: seenHelpers ?? this.seenHelpers,
     );
   }
@@ -437,6 +441,7 @@ class OnboardingProgress {
     'hasSeenObservedJournalPrompt': hasSeenObservedJournalPrompt,
     'hasSeenMenuPrompt': hasSeenMenuPrompt,
     'completedOnboarding': completedOnboarding,
+    'skippedOnboarding': skippedOnboarding,
     'seenHelpers': seenHelpers.toList()..sort(),
   };
 
@@ -472,6 +477,7 @@ class OnboardingProgress {
           json['hasSeenObservedJournalPrompt'] == true,
       hasSeenMenuPrompt: json['hasSeenMenuPrompt'] == true,
       completedOnboarding: json['completedOnboarding'] == true,
+      skippedOnboarding: json['skippedOnboarding'] == true,
       seenHelpers: helperIds,
     );
   }

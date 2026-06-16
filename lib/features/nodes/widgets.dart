@@ -14,6 +14,9 @@ class NodeGlyphMark extends StatelessWidget {
     this.framed = false,
     this.borderRadius = 12,
     this.shadows = false,
+    this.frameColor,
+    this.borderColor,
+    this.gradient,
   });
 
   final String glyph;
@@ -25,6 +28,9 @@ class NodeGlyphMark extends StatelessWidget {
   final bool framed;
   final double borderRadius;
   final bool shadows;
+  final Color? frameColor;
+  final Color? borderColor;
+  final Gradient? gradient;
 
   static const List<String> _glyphFontFallback = [
     'NotoSansEgyptianHieroglyphs',
@@ -129,7 +135,7 @@ class NodeGlyphMark extends StatelessWidget {
                 alignment: alignment,
                 child: ShaderMask(
                   shaderCallback: (Rect bounds) =>
-                      KemeticGold.gloss.createShader(bounds),
+                      (gradient ?? KemeticGold.gloss).createShader(bounds),
                   blendMode: BlendMode.srcIn,
                   child: glyphContent,
                 ),
@@ -147,8 +153,8 @@ class NodeGlyphMark extends StatelessWidget {
       height: height,
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(borderRadius),
-        border: Border.all(color: Colors.white12),
-        color: Colors.white.withValues(alpha: 0.04),
+        border: Border.all(color: borderColor ?? Colors.white12),
+        color: frameColor ?? Colors.white.withValues(alpha: 0.04),
       ),
       child: mark,
     );

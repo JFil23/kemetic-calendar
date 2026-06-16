@@ -46,15 +46,29 @@ class InboxPage extends StatefulWidget {
 class _InboxPageState extends State<InboxPage> {
   static const String _resumeKind = 'inbox_conversation';
   static const String _invitesOverlayKind = 'inbox.invites';
-  static const _bg = Color(0xFF000000);
+  static const _mahoganyTop = Color(0xFF161109);
+  static const _mahogany = Color(0xFF120F08);
+  static const _mahoganyDeep = Color(0xFF0D0B07);
+  static const _bg = _mahoganyDeep;
   static const _gold = KemeticGold.base;
+  static const _goldGlow = Color(0xFFF5E8CB);
+  static const _silverMid = Color(0xFF9E9A94);
+  static const _silverLo = Color(0xFF6A6660);
+  static const _coinDark = Color(0xFF352D12);
+  static const _spine = Color(0x1AD4AF37);
+  static const _serifFont = 'CormorantGaramond';
+  static const List<String> _serifFallback = <String>[
+    'Georgia',
+    'Times New Roman',
+    'serif',
+  ];
   static const Color _summaryGoldLight = Color(0xFFF7E09A);
   static const Color _summaryGoldMid = Color(0xFFE8BE54);
   static const Color _summaryGoldBase = Color(0xFFCA9221);
   static const Color _summaryGoldDeep = Color(0xFF7A5310);
   static const Color _summaryGoldInk = Color(0xFF1C1204);
-  static const double _summaryGlyphAvatarWidth = 42;
-  static const double _summaryGlyphAvatarHeight = 40;
+  static const double _summaryGlyphAvatarWidth = 66;
+  static const double _summaryGlyphAvatarHeight = 66;
   static const String _inviteResponseGlyph = '𓂝';
   static const String _eventInviteGlyph = '𓆳';
   static const Gradient _summaryGoldGradient = LinearGradient(
@@ -291,55 +305,73 @@ class _InboxPageState extends State<InboxPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: _bg,
+      backgroundColor: _mahoganyDeep,
       appBar: AppBar(
-        backgroundColor: _bg,
+        automaticallyImplyLeading: false,
+        backgroundColor: Colors.transparent,
+        surfaceTintColor: Colors.transparent,
         elevation: 0,
-        leading: IconButton(
-          icon: KemeticGold.icon(Icons.close),
-          onPressed: () => popOrGo(context, '/'),
-        ),
-        title: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Text(
-              'Inbox',
-              style: TextStyle(
-                color: Colors.white,
-                fontSize: 17,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-            if (_unreadState.totalUnread > 0) ...[
-              const SizedBox(width: 8),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                decoration: BoxDecoration(
-                  color: _gold,
-                  borderRadius: BorderRadius.circular(12),
+        toolbarHeight: 82,
+        titleSpacing: 0,
+        flexibleSpace: const _InboxMahoganySurface(showCornice: true),
+        title: Padding(
+          padding: const EdgeInsets.fromLTRB(26, 18, 26, 4),
+          child: Row(
+            children: [
+              SizedBox(
+                width: 48,
+                child: Align(
+                  alignment: Alignment.centerLeft,
+                  child: IconButton(
+                    tooltip: 'Close inbox',
+                    padding: EdgeInsets.zero,
+                    visualDensity: VisualDensity.compact,
+                    icon: KemeticGold.icon(Icons.close, size: 27),
+                    onPressed: () => popOrGo(context, '/'),
+                  ),
                 ),
+              ),
+              Expanded(
                 child: Text(
-                  '${_unreadState.totalUnread}',
-                  style: const TextStyle(
-                    color: Colors.black,
-                    fontSize: 12,
-                    fontWeight: FontWeight.bold,
+                  'Inbox',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    color: _goldGlow,
+                    fontSize: 40,
+                    fontWeight: FontWeight.w600,
+                    height: 1,
+                    letterSpacing: 0.5,
+                    fontFamily: _serifFont,
+                    fontFamilyFallback: _serifFallback,
+                    shadows: [
+                      Shadow(
+                        color: _goldGlow.withValues(alpha: 0.18),
+                        blurRadius: 28,
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              SizedBox(
+                width: 48,
+                child: Align(
+                  alignment: Alignment.centerRight,
+                  child: KemeticAppBarAction(
+                    tooltip: 'Search people',
+                    icon: const KemeticAppBarSearchIcon(),
+                    width: 48,
+                    iconBoxSize: 42,
+                    onPressed: _openUserSearch,
                   ),
                 ),
               ),
             ],
-          ],
-        ),
-        actions: [
-          KemeticAppBarAction(
-            tooltip: 'Search people',
-            icon: const KemeticAppBarSearchIcon(),
-            onPressed: _openUserSearch,
           ),
-          const SizedBox(width: 20),
-        ],
+        ),
       ),
-      body: _buildBody(),
+      body: _InboxMahoganySurface(
+        child: Stack(children: [Positioned.fill(child: _buildBody())]),
+      ),
     );
   }
 
@@ -555,47 +587,191 @@ class _InboxPageState extends State<InboxPage> {
 
   Widget _buildBody() {
     const listBottomPadding = 16.0;
+    final listChildren = <Widget>[
+      _buildSectionLabel('Activity'),
+      for (var i = 0; i < _summaryTileCount; i++) _buildSummaryTile(i),
+      _buildSectionLabel('Messages', topMargin: 30),
+      for (final item in _unified)
+        if (item.kind == _UnifiedKind.message)
+          _buildConversationBar(
+            context: context,
+            otherUserId: item.otherUserId!,
+            otherProfile: item.otherProfile!,
+            lastItem: item.items!.last,
+            hasUnread: item.hasUnread ?? false,
+            items: item.items!,
+          )
+        else if (item.kind == _UnifiedKind.calendarNotification)
+          _buildSharedCalendarThreadRow(item.calendarThread!),
+    ];
 
     return RefreshIndicator(
       onRefresh: _handleRefresh,
       color: _gold,
       child: _loading
-          ? const Center(
-              child: CircularProgressIndicator(
-                valueColor: AlwaysStoppedAnimation<Color>(_gold),
+          ? ListView(
+              physics: const AlwaysScrollableScrollPhysics(),
+              padding: const EdgeInsets.fromLTRB(
+                0,
+                30,
+                0,
+                130 + listBottomPadding,
               ),
+              children: const [
+                SizedBox(height: 220),
+                Center(
+                  child: CircularProgressIndicator(
+                    valueColor: AlwaysStoppedAnimation<Color>(_gold),
+                  ),
+                ),
+              ],
             )
           : (_unified.isEmpty && !_hasSummaries
                 ? _buildEmptyState()
-                : ListView.builder(
-                    padding: EdgeInsets.fromLTRB(16, 16, 16, listBottomPadding),
-                    itemCount: _unified.length + _summaryTileCount,
-                    itemBuilder: (context, index) {
-                      if (_hasSummaries && index < _summaryTileCount) {
-                        return _buildSummaryTile(index);
-                      }
-                      final adjIndex = _hasSummaries
-                          ? index - _summaryTileCount
-                          : index;
-                      final item = _unified[adjIndex];
-                      if (item.kind == _UnifiedKind.message) {
-                        return _buildConversationBar(
-                          context: context,
-                          otherUserId: item.otherUserId!,
-                          otherProfile: item.otherProfile!,
-                          lastItem: item.items!.last,
-                          hasUnread: item.hasUnread ?? false,
-                          items: item.items!,
-                        );
-                      } else if (item.kind ==
-                          _UnifiedKind.calendarNotification) {
-                        return _buildSharedCalendarThreadRow(
-                          item.calendarThread!,
-                        );
-                      }
-                      return const SizedBox.shrink();
-                    },
+                : ListView(
+                    physics: const AlwaysScrollableScrollPhysics(),
+                    padding: const EdgeInsets.fromLTRB(
+                      0,
+                      30,
+                      0,
+                      130 + listBottomPadding,
+                    ),
+                    children: listChildren,
                   )),
+    );
+  }
+
+  Widget _buildSectionLabel(String label, {double topMargin = 6}) {
+    Widget rule({required bool mirrored}) {
+      return Container(
+        width: 48,
+        height: 1,
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            colors: mirrored
+                ? const [_spine, Colors.transparent]
+                : const [Colors.transparent, _spine],
+          ),
+        ),
+      );
+    }
+
+    return Container(
+      margin: EdgeInsets.only(top: topMargin, bottom: 16),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          rule(mirrored: true),
+          const SizedBox(width: 10),
+          Text(
+            label.toUpperCase(),
+            textAlign: TextAlign.center,
+            style: const TextStyle(
+              color: _silverLo,
+              fontSize: 12.5,
+              fontWeight: FontWeight.w600,
+              letterSpacing: 3,
+              fontFamily: _serifFont,
+              fontFamilyFallback: _serifFallback,
+            ),
+          ),
+          const SizedBox(width: 10),
+          rule(mirrored: false),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildInboxRow({
+    required Widget leading,
+    required String title,
+    required String subtitle,
+    required Widget trailing,
+    required VoidCallback? onTap,
+    bool activity = false,
+  }) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        highlightColor: _gold.withValues(alpha: 0.045),
+        splashColor: _gold.withValues(alpha: 0.045),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 17),
+          child: Row(
+            children: [
+              SizedBox(width: 84, child: Center(child: leading)),
+              Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 6),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        title,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          color: activity
+                              ? const Color(0xFFFBF3DF)
+                              : Colors.white,
+                          fontSize: 25,
+                          fontWeight: FontWeight.w600,
+                          height: 1.12,
+                          letterSpacing: activity ? 1.2 : 1,
+                          fontFamily: _serifFont,
+                          fontFamilyFallback: _serifFallback,
+                        ),
+                      ),
+                      if (subtitle.isNotEmpty) ...[
+                        const SizedBox(height: 2),
+                        Text(
+                          subtitle,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            color: _silverMid,
+                            fontSize: 17.5,
+                            height: 1.3,
+                            fontFamily: _serifFont,
+                            fontFamilyFallback: _serifFallback,
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+              ),
+              SizedBox(width: 64, child: Center(child: trailing)),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildChevronTrail(bool showUnread) {
+    return SizedBox(
+      width: 48,
+      height: 66,
+      child: Stack(
+        alignment: Alignment.center,
+        children: [
+          const Text(
+            '›',
+            style: TextStyle(
+              color: _silverLo,
+              fontSize: 26,
+              height: 1,
+              fontFamily: _serifFont,
+              fontFamilyFallback: _serifFallback,
+            ),
+          ),
+          if (showUnread)
+            const Positioned(right: 6, top: 20, child: _InboxUnreadDot()),
+        ],
+      ),
     );
   }
 
@@ -808,64 +984,15 @@ class _InboxPageState extends State<InboxPage> {
           }
         }
       },
-      child: ListTile(
-        leading: ProfileAvatar(
-          radius: 24,
-          displayName:
-              otherProfile.displayName ?? otherProfile.handle ?? 'User',
-          avatarUrl: otherProfile.avatarUrl,
-          avatarGlyphIds: otherProfile.avatarGlyphIds,
-          backgroundColor: _gold.withValues(alpha: 0.2),
-          foregroundColor: _gold,
-        ),
-        title: Text(
-          otherProfile.displayName ?? otherProfile.handle ?? 'User',
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-          style: TextStyle(
-            color: Colors.white,
-            fontWeight: hasUnread ? FontWeight.bold : FontWeight.w600,
-          ),
-        ),
-        subtitle: Text(
-          lastItem.isTextMessage
-              ? (lastItem.messageText ?? 'Message')
-              : _conversationPreviewText(lastItem),
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-          style: TextStyle(
-            color: Colors.white.withValues(alpha: 0.7),
-            fontSize: 14,
-          ),
-        ),
-        trailing: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            IconButton(
-              tooltip: 'View profile',
-              icon: const Text(
-                '𓁷',
-                style: TextStyle(
-                  color: _gold,
-                  fontSize: 23,
-                  height: 1,
-                  fontFamily: 'Noto Sans Egyptian Hieroglyphs',
-                  fontFamilyFallback: _meduFontFallback,
-                ),
-              ),
-              onPressed: () => _openProfile(otherUserId),
-            ),
-            if (hasUnread)
-              Container(
-                width: 8,
-                height: 8,
-                margin: const EdgeInsets.only(left: 4),
-                decoration: const BoxDecoration(
-                  color: _gold,
-                  shape: BoxShape.circle,
-                ),
-              ),
-          ],
+      child: _buildInboxRow(
+        leading: _buildMessageAvatar(otherProfile),
+        title: otherProfile.displayName ?? otherProfile.handle ?? 'User',
+        subtitle: lastItem.isTextMessage
+            ? (lastItem.messageText ?? 'Message')
+            : _conversationPreviewText(lastItem),
+        trailing: _buildProfileTrail(
+          showUnread: hasUnread,
+          onPressed: () => _openProfile(otherUserId),
         ),
         onTap: () {
           // Mark unread incoming items as viewed when opening the thread
@@ -876,6 +1003,72 @@ class _InboxPageState extends State<InboxPage> {
             otherProfile: otherProfile,
           );
         },
+      ),
+    );
+  }
+
+  Widget _buildMessageAvatar(ConversationUser profile) {
+    final displayName = profile.displayName ?? profile.handle ?? 'User';
+
+    return Container(
+      width: 66,
+      height: 66,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        gradient: const RadialGradient(
+          center: Alignment(-0.2, -0.36),
+          colors: [Color(0xFF48400F), _coinDark],
+          stops: [0.0, 0.7],
+        ),
+        border: Border.all(color: _gold.withValues(alpha: 0.22)),
+      ),
+      child: ClipOval(
+        child: ProfileAvatar(
+          radius: 33,
+          displayName: displayName,
+          avatarUrl: profile.avatarUrl,
+          avatarGlyphIds: profile.avatarGlyphIds,
+          backgroundColor: Colors.transparent,
+          foregroundColor: _gold,
+          maxInitialCharacters: 1,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildProfileTrail({
+    required bool showUnread,
+    required VoidCallback onPressed,
+  }) {
+    return SizedBox(
+      width: 48,
+      height: 66,
+      child: Stack(
+        alignment: Alignment.center,
+        children: [
+          IconButton(
+            tooltip: 'View profile',
+            padding: EdgeInsets.zero,
+            visualDensity: VisualDensity.compact,
+            icon: const Text(
+              '𓁷',
+              style: TextStyle(
+                color: _gold,
+                fontSize: 23,
+                height: 1,
+                fontFamily: 'Noto Sans Egyptian Hieroglyphs',
+                fontFamilyFallback: _meduFontFallback,
+              ),
+            ),
+            onPressed: onPressed,
+          ),
+          if (showUnread)
+            const Positioned(
+              right: 3,
+              top: 20,
+              child: _InboxUnreadDot(color: _gold, size: 8),
+            ),
+        ],
       ),
     );
   }
@@ -1024,52 +1217,50 @@ class _InboxPageState extends State<InboxPage> {
     final subtitle =
         '${thread.preview} • ${_formatInboxTimestamp(thread.createdAt)}';
 
-    return ListTile(
-      contentPadding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
-      leading: Container(
-        width: 44,
-        height: 44,
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(14),
-          color: accent.withValues(alpha: 0.14),
-          border: Border.all(color: accent.withValues(alpha: 0.32)),
-        ),
-        child: Center(
-          child: Text(
-            MeduNeterGlyphs.calendars,
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              color: accent,
-              fontSize: 22,
-              height: 1,
-              fontWeight: FontWeight.w700,
-              fontFamily: 'GentiumPlus',
-              fontFamilyFallback: _meduFontFallback,
-            ),
+    return _buildInboxRow(
+      leading: _buildCalendarThreadAvatar(accent),
+      title: thread.title,
+      subtitle: subtitle,
+      trailing: _buildCalendarThreadTrail(thread, accent),
+      onTap: () => _openSharedCalendarThread(thread),
+    );
+  }
+
+  Widget _buildCalendarThreadAvatar(Color accent) {
+    return Container(
+      width: 66,
+      height: 66,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        color: accent.withValues(alpha: 0.14),
+        border: Border.all(color: accent.withValues(alpha: 0.32)),
+      ),
+      child: Center(
+        child: Text(
+          MeduNeterGlyphs.calendars,
+          textAlign: TextAlign.center,
+          style: TextStyle(
+            color: accent,
+            fontSize: 26,
+            height: 1,
+            fontWeight: FontWeight.w700,
+            fontFamily: 'GentiumPlus',
+            fontFamilyFallback: _meduFontFallback,
           ),
         ),
       ),
-      title: Text(
-        thread.title,
-        maxLines: 1,
-        overflow: TextOverflow.ellipsis,
-        style: TextStyle(
-          color: Colors.white,
-          fontWeight: thread.hasUnread ? FontWeight.bold : FontWeight.w600,
-        ),
-      ),
-      subtitle: Text(
-        subtitle,
-        maxLines: 2,
-        overflow: TextOverflow.ellipsis,
-        style: TextStyle(
-          color: Colors.white.withValues(alpha: 0.7),
-          fontSize: 14,
-        ),
-      ),
-      trailing: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        crossAxisAlignment: CrossAxisAlignment.end,
+    );
+  }
+
+  Widget _buildCalendarThreadTrail(
+    SharedCalendarInboxThread thread,
+    Color accent,
+  ) {
+    return SizedBox(
+      width: 48,
+      height: 66,
+      child: Stack(
+        alignment: Alignment.center,
         children: [
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
@@ -1079,27 +1270,25 @@ class _InboxPageState extends State<InboxPage> {
             ),
             child: Text(
               thread.unreadCount > 1 ? '${thread.unreadCount}' : 'Calendar',
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
               style: TextStyle(
                 color: accent,
                 fontSize: 11,
                 fontWeight: FontWeight.w700,
+                fontFamily: _serifFont,
+                fontFamilyFallback: _serifFallback,
               ),
             ),
           ),
-          if (thread.hasUnread) ...[
-            const SizedBox(height: 8),
-            Container(
-              width: 8,
-              height: 8,
-              decoration: const BoxDecoration(
-                color: _gold,
-                shape: BoxShape.circle,
-              ),
+          if (thread.hasUnread)
+            const Positioned(
+              right: 2,
+              top: 20,
+              child: _InboxUnreadDot(color: _gold, size: 8),
             ),
-          ],
         ],
       ),
-      onTap: () => _openSharedCalendarThread(thread),
     );
   }
 
@@ -1290,18 +1479,6 @@ class _InboxPageState extends State<InboxPage> {
   bool get _hasCalendarSummary => true;
   int get _summaryTileCount => 3;
 
-  Widget? _buildActivityTileUnreadDot(bool show) {
-    if (!show) return null;
-    return Container(
-      width: 10,
-      height: 10,
-      decoration: const BoxDecoration(
-        color: Colors.redAccent,
-        shape: BoxShape.circle,
-      ),
-    );
-  }
-
   DateTime _latestTimestampForActivity(Iterable<InboxActivityItem> items) {
     return items
         .map((item) => item.createdAt.toUtc())
@@ -1347,17 +1524,12 @@ class _InboxPageState extends State<InboxPage> {
     final subtitleText = a == null
         ? 'Followers and profile activity'
         : '${a.actorName ?? a.actorHandle ?? 'Someone'} started following you';
-    return ListTile(
-      leading: _buildSummaryGlyphAvatar(glyph: '𓀀𓁐', fontSize: 14),
-      title: const Text(
-        'People',
-        style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700),
-      ),
-      subtitle: Text(
-        subtitleText,
-        style: TextStyle(color: Colors.white.withValues(alpha: 0.7)),
-      ),
-      trailing: _buildActivityTileUnreadDot(_unreadState.hasUnreadCommunity),
+    return _buildInboxRow(
+      activity: true,
+      leading: _buildSummaryGlyphAvatar(glyph: '𓀀𓁐', fontSize: 20),
+      title: 'People',
+      subtitle: subtitleText,
+      trailing: _buildChevronTrail(_unreadState.hasUnreadCommunity),
       onTap: _openFollowersSheet,
     );
   }
@@ -1377,19 +1549,12 @@ class _InboxPageState extends State<InboxPage> {
             return preview.isNotEmpty ? '$summary - $preview' : summary;
           }();
 
-    return ListTile(
-      leading: _buildSummaryGlyphAvatar(glyph: '𓂋𓀁', fontSize: 14),
-      title: const Text(
-        'Discussions',
-        style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700),
-      ),
-      subtitle: Text(
-        subtitleText,
-        maxLines: 1,
-        overflow: TextOverflow.ellipsis,
-        style: TextStyle(color: Colors.white.withValues(alpha: 0.7)),
-      ),
-      trailing: _buildActivityTileUnreadDot(_unreadState.hasUnreadMovement),
+    return _buildInboxRow(
+      activity: true,
+      leading: _buildSummaryGlyphAvatar(glyph: '𓂋𓀁', fontSize: 20),
+      title: 'Discussions',
+      subtitle: subtitleText,
+      trailing: _buildChevronTrail(_unreadState.hasUnreadMovement),
       onTap: _openEngagementSheet,
     );
   }
@@ -1546,19 +1711,12 @@ class _InboxPageState extends State<InboxPage> {
                         latestNotification,
                       )));
 
-    return ListTile(
+    return _buildInboxRow(
+      activity: true,
       leading: _buildInvitesSummaryGlyphAvatar(),
-      title: const Text(
-        'Invites',
-        style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700),
-      ),
-      subtitle: Text(
-        subtitle,
-        maxLines: 1,
-        overflow: TextOverflow.ellipsis,
-        style: TextStyle(color: Colors.white.withValues(alpha: 0.7)),
-      ),
-      trailing: _buildActivityTileUnreadDot(_hasUnreadCalendar),
+      title: 'Invites',
+      subtitle: subtitle,
+      trailing: _buildChevronTrail(_hasUnreadCalendar),
       onTap: _openCalendarInboxSheet,
     );
   }
@@ -2199,6 +2357,85 @@ class _InboxPageState extends State<InboxPage> {
     }
 
     context.go(sharedCalendarInboxRouteLocation(calendarId));
+  }
+}
+
+class _InboxMahoganySurface extends StatelessWidget {
+  const _InboxMahoganySurface({this.child, this.showCornice = false});
+
+  final Widget? child;
+  final bool showCornice;
+
+  @override
+  Widget build(BuildContext context) {
+    return DecoratedBox(
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [
+            _InboxPageState._mahoganyTop,
+            _InboxPageState._mahogany,
+            _InboxPageState._mahoganyDeep,
+          ],
+          stops: [0.0, 0.30, 1.0],
+        ),
+      ),
+      child: Stack(
+        fit: StackFit.expand,
+        children: [
+          const DecoratedBox(
+            decoration: BoxDecoration(
+              gradient: RadialGradient(
+                center: Alignment(0, -1.16),
+                radius: 1.18,
+                colors: [
+                  Color(0x12F5E8CB),
+                  Color(0x04D4AF37),
+                  Colors.transparent,
+                ],
+                stops: [0.0, 0.38, 0.60],
+              ),
+            ),
+          ),
+          if (showCornice)
+            const Positioned(
+              top: 0,
+              left: 0,
+              right: 0,
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [
+                      Colors.transparent,
+                      Color(0x59F5E8CB),
+                      Colors.transparent,
+                    ],
+                  ),
+                ),
+                child: SizedBox(height: 1),
+              ),
+            ),
+          if (child != null) Positioned.fill(child: child!),
+        ],
+      ),
+    );
+  }
+}
+
+class _InboxUnreadDot extends StatelessWidget {
+  const _InboxUnreadDot({this.color = Colors.redAccent, this.size = 10});
+
+  final Color color;
+  final double size;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: size,
+      height: size,
+      decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+    );
   }
 }
 

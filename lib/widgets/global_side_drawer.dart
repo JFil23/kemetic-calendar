@@ -41,19 +41,33 @@ class GlobalMenuBubble extends StatelessWidget {
     required this.visible,
     required this.open,
     required this.onPressed,
+    this.style,
   });
 
   final bool visible;
   final bool open;
   final VoidCallback onPressed;
+  final GlobalMenuBubbleStyle? style;
 
   @override
   Widget build(BuildContext context) {
+    final bubbleStyle = style;
+    final size = bubbleStyle?.size ?? kGlobalMenuBubbleSize;
+    final safePadding = MediaQuery.paddingOf(context);
+    final left = bubbleStyle == null
+        ? globalMenuBubbleLeft(context)
+        : bubbleStyle.left +
+              (bubbleStyle.respectSafeArea ? safePadding.left : 0);
+    final bottom = bubbleStyle == null
+        ? globalMenuBubbleBottom(context)
+        : bubbleStyle.bottom +
+              (bubbleStyle.respectSafeArea ? safePadding.bottom : 0);
+
     return Positioned(
-      left: globalMenuBubbleLeft(context),
-      bottom: globalMenuBubbleBottom(context),
-      width: kGlobalMenuBubbleSize,
-      height: kGlobalMenuBubbleSize,
+      left: left,
+      bottom: bottom,
+      width: size,
+      height: size,
       child: IgnorePointer(
         ignoring: !visible,
         child: ExcludeSemantics(
@@ -72,35 +86,108 @@ class GlobalMenuBubble extends StatelessWidget {
                 button: true,
                 onTap: onPressed,
                 child: ExcludeSemantics(
-                  child: Material(
-                    color: const Color(0xF6000000),
-                    shape: const CircleBorder(),
-                    elevation: 10,
-                    shadowColor: const Color(0xB3000000),
-                    child: InkWell(
-                      customBorder: const CircleBorder(),
-                      onTap: onPressed,
-                      child: Center(
-                        child: InboxUnreadDotOverlay(
-                          top: -1,
-                          right: -1,
-                          size: 7,
-                          dotColor: const Color(0xFFFF3B30),
-                          borderColor: const Color(0xFF07080A),
-                          borderWidth: 1.1,
-                          child: const GlossyGlyph(
-                            glyph: '𓉹',
-                            gradient: goldGloss,
-                            size: 24,
-                          ),
-                        ),
-                      ),
-                    ),
+                  child: _GlobalMenuBubbleSurface(
+                    style: bubbleStyle,
+                    onPressed: onPressed,
                   ),
                 ),
               ),
             ),
           ),
+        ),
+      ),
+    );
+  }
+}
+
+class GlobalMenuBubbleStyle {
+  const GlobalMenuBubbleStyle({
+    required this.size,
+    required this.left,
+    required this.bottom,
+    required this.background,
+    required this.borderColor,
+    required this.boxShadow,
+    required this.glyphGradient,
+    required this.glyphSize,
+    this.respectSafeArea = true,
+  });
+
+  final double size;
+  final double left;
+  final double bottom;
+  final Gradient background;
+  final Color borderColor;
+  final List<BoxShadow> boxShadow;
+  final Gradient glyphGradient;
+  final double glyphSize;
+  final bool respectSafeArea;
+}
+
+class _GlobalMenuBubbleSurface extends StatelessWidget {
+  const _GlobalMenuBubbleSurface({
+    required this.style,
+    required this.onPressed,
+  });
+
+  final GlobalMenuBubbleStyle? style;
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    final bubbleStyle = style;
+    final glyph = GlossyGlyph(
+      glyph: '𓉹',
+      gradient: bubbleStyle?.glyphGradient ?? goldGloss,
+      size: bubbleStyle?.glyphSize ?? 24,
+    );
+
+    if (bubbleStyle == null) {
+      return Material(
+        color: const Color(0xF6000000),
+        shape: const CircleBorder(),
+        elevation: 10,
+        shadowColor: const Color(0xB3000000),
+        child: _GlobalMenuBubbleInk(onPressed: onPressed, child: glyph),
+      );
+    }
+
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        gradient: bubbleStyle.background,
+        border: Border.all(color: bubbleStyle.borderColor),
+        boxShadow: bubbleStyle.boxShadow,
+      ),
+      child: Material(
+        color: Colors.transparent,
+        shape: const CircleBorder(),
+        child: _GlobalMenuBubbleInk(onPressed: onPressed, child: glyph),
+      ),
+    );
+  }
+}
+
+class _GlobalMenuBubbleInk extends StatelessWidget {
+  const _GlobalMenuBubbleInk({required this.onPressed, required this.child});
+
+  final VoidCallback onPressed;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      customBorder: const CircleBorder(),
+      onTap: onPressed,
+      child: Center(
+        child: InboxUnreadDotOverlay(
+          top: -1,
+          right: -1,
+          size: 7,
+          dotColor: const Color(0xFFFF3B30),
+          borderColor: const Color(0xFF07080A),
+          borderWidth: 1.1,
+          child: child,
         ),
       ),
     );

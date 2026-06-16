@@ -186,6 +186,27 @@ void main() {
       expect(persistRoute, contains('recordVisibleSurface'));
       expect(persistRoute, isNot(contains('recordRouteLocation')));
       expect(persistRoute, isNot(contains('saveRouteLocation')));
+
+      final disposeStart = source.indexOf('  void dispose()');
+      final disposeEnd = source.indexOf(
+        '  void _recordDismissalAfterRouteSettles',
+        disposeStart,
+      );
+      expect(disposeStart, isNot(-1));
+      expect(disposeEnd, isNot(-1));
+      final disposeBody = source.substring(disposeStart, disposeEnd);
+      expect(disposeBody, contains('shouldPreserveRouteForLifecycleClose'));
+
+      final dismissalStart = source.indexOf(
+        '  void _recordDismissalAfterRouteSettles',
+      );
+      final dismissalEnd = source.indexOf('  @override\n  Widget build');
+      expect(dismissalStart, isNot(-1));
+      expect(dismissalEnd, isNot(-1));
+      final dismissalBody = source.substring(dismissalStart, dismissalEnd);
+      expect(dismissalBody, contains('addPostFrameCallback'));
+      expect(dismissalBody, contains('recordSurfaceDismissal'));
+      expect(dismissalBody, contains('NavigationSource.userBack'));
     },
   );
 }

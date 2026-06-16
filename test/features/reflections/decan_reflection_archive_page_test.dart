@@ -75,6 +75,38 @@ void main() {
     expect(rows.single.id, 'archive-only-opening');
   });
 
+  test(
+    'archive skin keeps locked typography and glyph clearance tokens',
+    () async {
+      final skin = await File(
+        'lib/features/reflections/decan_reflection_skin.dart',
+      ).readAsString();
+
+      expect(skin, contains("fontFamily = 'CormorantGaramond'"));
+      expect(skin, contains("FontFeature('onum')"));
+      expect(skin, contains('scrollBottomPadding = 104'));
+      expect(skin, contains('scrimHeight = 96'));
+    },
+  );
+
+  test('archive preview clipping does not append ellipsis text', () {
+    final rows = buildDecanReflectionArchiveRowsForTesting([
+      DecanReflection(
+        id: 'reflection-long',
+        decanName: 'Hathor — sꜣḥ',
+        decanTheme: 'sꜣḥ',
+        decanStart: DateTime.utc(2026, 5, 6),
+        decanEnd: DateTime.utc(2026, 5, 15),
+        badgeCount: 3,
+        reflectionText: List.filled(40, 'measure').join(' '),
+        createdAt: DateTime.utc(2026, 5, 16),
+      ),
+    ]);
+
+    expect(rows.single.preview, isNot(contains('…')));
+    expect(rows.single.preview, isNot(contains('...')));
+  });
+
   test('prompt dismissed state is not an archive visibility filter', () async {
     final source = await File(
       'lib/features/reflections/decan_reflection_archive_page.dart',

@@ -325,7 +325,7 @@ void main() {
     final flush = _sourceBetween(
       source,
       'void _flushCalendarInvalidationReload',
-      'List<OnboardingSlide> _buildOnboardingSlides',
+      'void _scheduleDaySheetResumeRestore',
     );
     final dispose = _sourceBetween(
       source,
@@ -588,7 +588,7 @@ void main() {
     final dawnHouseRiteHeadless = _sourceBetween(
       source,
       'if (template.kind == _MaatFlowTemplateKind.dawnHouseRite)',
-      'if (template.kind == _MaatFlowTemplateKind.eveningThresholdRite)',
+      'if (template.kind == _MaatFlowTemplateKind.eveningThreshold)',
     );
 
     expect(dawnHouseRiteHeadless, contains('FlowJoinService'));
@@ -631,6 +631,27 @@ void main() {
     },
   );
 
+  test('headless Evening Threshold delegates to FlowJoinService', () {
+    final source = File(
+      'lib/features/calendar/calendar_page.dart',
+    ).readAsStringSync();
+    final eveningThresholdHeadless = _sourceBetween(
+      source,
+      'if (template.kind == _MaatFlowTemplateKind.eveningThreshold)',
+      'if (template.kind == _MaatFlowTemplateKind.eveningThresholdRite)',
+    );
+
+    expect(eveningThresholdHeadless, contains('FlowJoinService'));
+    expect(eveningThresholdHeadless, contains('joinEveningThresholdHeadless'));
+    expect(eveningThresholdHeadless, contains('templateKey: template.key'));
+    expect(eveningThresholdHeadless, contains('templateTitle: template.title'));
+    expect(
+      eveningThresholdHeadless,
+      contains('initialCarryText: eveningThresholdInitialCarry'),
+    );
+    expect(eveningThresholdHeadless, contains('flowIdOrNegativeOne'));
+  });
+
   test('headless Evening Threshold Rite delegates to FlowJoinService', () {
     final source = File(
       'lib/features/calendar/calendar_page.dart',
@@ -671,7 +692,7 @@ void main() {
       final eveningThresholdRiteService = _sourceBetween(
         source,
         'Future<FlowJoinResult> joinEveningThresholdRiteHeadless',
-        'Future<FlowJoinResult> joinTheWeighingHeadless',
+        'Future<FlowJoinResult> joinEveningThresholdHeadless',
       );
 
       expect(
@@ -1193,7 +1214,7 @@ void main() {
     final dawnBranch = _sourceBetween(
       mountedJoin,
       'if (template.kind == _MaatFlowTemplateKind.dawnHouseRite)',
-      'if (template.kind == _MaatFlowTemplateKind.eveningThresholdRite)',
+      'if (template.kind == _MaatFlowTemplateKind.eveningThreshold)',
     );
     final eveningBranch = _sourceBetween(
       mountedJoin,
@@ -1239,10 +1260,11 @@ void main() {
       'if (template.kind == _MaatFlowTemplateKind.trackSky)',
       "// Current Ma'at templates must use explicit branches above;",
     );
-    const explicitTemplateCount = 31;
+    const explicitTemplateCount = 32;
     const explicitKinds = [
       'trackSky',
       'dawnHouseRite',
+      'eveningThreshold',
       'eveningThresholdRite',
       'theWeighing',
       'offeringTable',
@@ -2309,8 +2331,14 @@ const _serviceBackedHeadlessMaatEnrollmentBranches = [
   (
     name: 'Dawn House Rite',
     start: 'if (template.kind == _MaatFlowTemplateKind.dawnHouseRite)',
-    end: 'if (template.kind == _MaatFlowTemplateKind.eveningThresholdRite)',
+    end: 'if (template.kind == _MaatFlowTemplateKind.eveningThreshold)',
     method: 'joinDawnHouseRiteHeadless',
+  ),
+  (
+    name: 'Evening Threshold',
+    start: 'if (template.kind == _MaatFlowTemplateKind.eveningThreshold)',
+    end: 'if (template.kind == _MaatFlowTemplateKind.eveningThresholdRite)',
+    method: 'joinEveningThresholdHeadless',
   ),
   (
     name: 'Evening Threshold Rite',

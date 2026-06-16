@@ -32,9 +32,12 @@ class EventFilingRepo {
     String? calendarId,
     bool liveOnly = false,
     int pageSize = 1000,
+    int? maxRows,
+    DateTime? startsOnOrAfterUtc,
   }) async {
     final trimmedCalendarId = calendarId?.trim();
     final boundedPageSize = pageSize <= 0 ? 1000 : pageSize;
+    final boundedMaxRows = maxRows != null && maxRows > 0 ? maxRows : null;
     final rows = <Map<String, dynamic>>[];
     var offset = 0;
 
@@ -47,19 +50,32 @@ class EventFilingRepo {
         if (liveOnly) {
           query = query.eq('live_on_calendar', true);
         }
+        final windowStart = startsOnOrAfterUtc?.toUtc();
+        if (windowStart != null) {
+          query = query.gte('starts_at', windowStart.toIso8601String());
+        }
+
+        final remaining = boundedMaxRows == null
+            ? boundedPageSize
+            : boundedMaxRows - rows.length;
+        if (remaining <= 0) break;
+        final requestSize = remaining < boundedPageSize
+            ? remaining
+            : boundedPageSize;
 
         final page = await query
             .order('starts_at', ascending: true)
             .order('id', ascending: true)
-            .range(offset, offset + boundedPageSize - 1);
+            .range(offset, offset + requestSize - 1);
 
         final typedPage = (page as List)
             .whereType<Map>()
             .map((row) => row.cast<String, dynamic>())
             .toList(growable: false);
         rows.addAll(typedPage);
-        if (typedPage.length < boundedPageSize) break;
-        offset += boundedPageSize;
+        if (boundedMaxRows != null && rows.length >= boundedMaxRows) break;
+        if (typedPage.length < requestSize) break;
+        offset += requestSize;
       }
     } catch (e) {
       _log('getEventCabinet failed: $e');
@@ -72,10 +88,14 @@ class EventFilingRepo {
   Future<List<UserEvent>> getLiveCalendarEvents(
     String calendarId, {
     int pageSize = 1000,
+    int? maxRows,
+    DateTime? startsOnOrAfterUtc,
   }) async {
     final filedEvents = await getLiveFiledCalendarEvents(
       calendarId,
       pageSize: pageSize,
+      maxRows: maxRows,
+      startsOnOrAfterUtc: startsOnOrAfterUtc,
     );
     return filedEvents.map((entry) => entry.event).toList(growable: false);
   }
@@ -83,6 +103,8 @@ class EventFilingRepo {
   Future<List<FiledEvent>> getLiveFiledCalendarEvents(
     String calendarId, {
     int pageSize = 1000,
+    int? maxRows,
+    DateTime? startsOnOrAfterUtc,
   }) async {
     final trimmed = calendarId.trim();
     if (trimmed.isEmpty) return const [];
@@ -90,6 +112,8 @@ class EventFilingRepo {
       calendarId: trimmed,
       liveOnly: true,
       pageSize: pageSize,
+      maxRows: maxRows,
+      startsOnOrAfterUtc: startsOnOrAfterUtc,
     );
     return cabinet.activeForCalendar(trimmed);
   }

@@ -7,8 +7,8 @@ import 'package:mobile/widgets/month_name_text.dart';
 
 const Color _dayViewGold = KemeticGold.base;
 const Gradient _dayViewGoldGloss = KemeticGold.gloss;
-const Color _dayViewDateBronze = Color(0xFF7A662D);
-const Color _dayViewGregorianBlue = Color(0xFF5DA5E8);
+const Color _dayViewDateBronze = Color(0xFF89743A);
+const Color _dayViewGregorianBlue = Color(0xFF67B0EF);
 const TextStyle _dayViewMonthStyle = TextStyle(
   fontSize: 19,
   fontWeight: FontWeight.w500,
@@ -98,7 +98,7 @@ class KemeticDayViewHeader extends StatelessWidget {
     );
 
     return Container(
-      color: const Color(0xFF050403),
+      color: const Color(0xFF060504),
       child: SafeArea(
         bottom: false,
         child: Column(
@@ -242,9 +242,9 @@ class KemeticDayViewHeader extends StatelessWidget {
                                                 : _dayViewGold)
                                           : (showGregorian
                                                 ? _dayViewGregorianBlue
-                                                      .withValues(alpha: 0.64)
+                                                      .withValues(alpha: 0.76)
                                                 : _dayViewDateBronze.withValues(
-                                                    alpha: 0.74,
+                                                    alpha: 0.88,
                                                   ))),
                                 fontWeight: isCurrentDay || isToday
                                     ? FontWeight.w600
@@ -265,7 +265,7 @@ class KemeticDayViewHeader extends StatelessWidget {
               alignment: Alignment.center,
               child: dateButtonBuilder(context, currentGregorian),
             ),
-            const Divider(height: 1, color: Color(0xFF1A1A1A)),
+            const Divider(height: 1, color: Color(0x3321190D)),
           ],
         ),
       ),

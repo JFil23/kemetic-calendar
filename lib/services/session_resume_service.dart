@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/widgets.dart';
+import 'package:go_router/go_router.dart';
 import 'package:mobile/core/app_bottom_insets.dart';
 import 'package:mobile/core/navigation_persistence_policy.dart';
 import 'package:mobile/features/calendar/notify.dart';
@@ -262,10 +263,19 @@ class SessionTrackedRoute extends StatefulWidget {
 }
 
 class _SessionTrackedRouteState extends State<SessionTrackedRoute> {
+  GoRouter? _router;
+  String? _lastPersistedLocation;
+
   @override
   void initState() {
     super.initState();
     _persistRoute();
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _router = GoRouter.maybeOf(context) ?? _router;
   }
 
   @override
@@ -282,6 +292,7 @@ class _SessionTrackedRouteState extends State<SessionTrackedRoute> {
       'session route observed input=${widget.location} '
       'enabled=${widget.enabled} reason=durable_launch_route_centralized',
     );
+    _lastPersistedLocation = null;
     if (!widget.enabled) return;
     if (_isRootLocation(widget.location) &&
         RestorationCoordinator
@@ -290,12 +301,73 @@ class _SessionTrackedRouteState extends State<SessionTrackedRoute> {
       traceRestoration('launch placeholder root persistence suppressed');
       return;
     }
+    final classification = const NavigationPersistencePolicy().classifyRoute(
+      widget.location,
+      NavigationSource.programmatic,
+    );
+    if (classification.accepted && classification.canRestoreAsSurface) {
+      _lastPersistedLocation = classification.canonicalRoute;
+    }
     unawaited(
       AppNavigationRestorationController.instance.recordVisibleSurface(
         route: widget.location,
         source: NavigationSource.programmatic,
       ),
     );
+  }
+
+  @override
+  void dispose() {
+    final dismissedRoute = _lastPersistedLocation;
+    final router = _router;
+    if (dismissedRoute != null &&
+        router != null &&
+        !RestorationCoordinator.instance.shouldPreserveRouteForLifecycleClose) {
+      _recordDismissalAfterRouteSettles(router, dismissedRoute: dismissedRoute);
+    }
+    super.dispose();
+  }
+
+  void _recordDismissalAfterRouteSettles(
+    GoRouter router, {
+    required String dismissedRoute,
+  }) {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (RestorationCoordinator
+          .instance
+          .shouldPreserveRouteForLifecycleClose) {
+        traceRestoration(
+          'session route dismissal skipped dismissed=$dismissedRoute '
+          'reason=lifecycle_close',
+        );
+        return;
+      }
+
+      final fallbackRoute = router.routerDelegate.currentConfiguration.uri
+          .toString()
+          .trim();
+      if (fallbackRoute.isEmpty ||
+          _sameRouteLocation(fallbackRoute, dismissedRoute)) {
+        traceRestoration(
+          'session route dismissal skipped dismissed=$dismissedRoute '
+          'fallback=${fallbackRoute.isEmpty ? '<none>' : fallbackRoute} '
+          'reason=no_new_visible_route',
+        );
+        return;
+      }
+
+      traceRestoration(
+        'session route dismissed route=$dismissedRoute '
+        'fallback=$fallbackRoute',
+      );
+      unawaited(
+        AppNavigationRestorationController.instance.recordSurfaceDismissal(
+          dismissedRoute: dismissedRoute,
+          fallbackRoute: fallbackRoute,
+          source: NavigationSource.userBack,
+        ),
+      );
+    });
   }
 
   @override
@@ -310,6 +382,15 @@ class _SessionTrackedRouteState extends State<SessionTrackedRoute> {
 bool _isRootLocation(String location) {
   final uri = Uri.tryParse(location.trim());
   return uri == null || uri.path.isEmpty || uri.path == '/';
+}
+
+bool _sameRouteLocation(String a, String b) {
+  final aUri = Uri.tryParse(a.trim());
+  final bUri = Uri.tryParse(b.trim());
+  if (aUri == null || bUri == null) return a.trim() == b.trim();
+  final aPath = aUri.path.isEmpty ? '/' : aUri.path;
+  final bPath = bUri.path.isEmpty ? '/' : bUri.path;
+  return aPath == bPath && aUri.query == bUri.query;
 }
 
 class SessionLifecycleBridge extends StatefulWidget {

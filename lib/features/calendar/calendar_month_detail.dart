@@ -543,7 +543,7 @@ class _InfoTabState extends State<_InfoTab> {
     fontWeight: FontWeight.w400,
   );
   static const TextStyle _metaStyle = TextStyle(
-    color: Color(0xFF9A8248),
+    color: Color(0xFFAA9151),
     fontSize: _CalendarScale.infoMeta,
     height: 1.30,
     fontStyle: FontStyle.italic,
@@ -636,7 +636,7 @@ class _InfoTabState extends State<_InfoTab> {
                   speakText: widget.speakText,
                   utteranceId:
                       'calendar-info:${widget.selectionSerial}:${widget.title}',
-                  color: _CalendarTone.antiqueGold.withValues(alpha: 0.62),
+                  color: _CalendarTone.antiqueGold.withValues(alpha: 0.72),
                   size: 16,
                   isPhonetic: true,
                 ),
@@ -999,8 +999,8 @@ class _EventsTab extends StatelessWidget {
     return _CalendarTone.softenAccent(
       color,
       saturationScale: 0.52,
-      lightness: 0.46,
-      goldBlend: 0.08,
+      lightness: 0.49,
+      goldBlend: 0.10,
     );
   }
 
@@ -1069,10 +1069,10 @@ class _EventsTab extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 9.5, vertical: 3.5),
         margin: const EdgeInsets.only(right: 7, bottom: 5),
         decoration: BoxDecoration(
-          color: (color ?? _CalendarTone.mutedStone).withValues(alpha: 0.08),
+          color: (color ?? _CalendarTone.mutedStone).withValues(alpha: 0.10),
           borderRadius: BorderRadius.circular(999),
           border: Border.all(
-            color: (color ?? _CalendarTone.mutedStone).withValues(alpha: 0.18),
+            color: (color ?? _CalendarTone.mutedStone).withValues(alpha: 0.22),
             width: 0.6,
           ),
         ),
@@ -1084,7 +1084,7 @@ class _EventsTab extends StatelessWidget {
                 icon,
                 size: 10.5,
                 color: (color ?? _CalendarTone.mutedStone).withValues(
-                  alpha: 0.70,
+                  alpha: 0.82,
                 ),
               ),
               const SizedBox(width: 3.5),
@@ -1099,7 +1099,7 @@ class _EventsTab extends StatelessWidget {
                   color:
                       textColor ??
                       (color ?? _CalendarTone.mutedStone).withValues(
-                        alpha: 0.72,
+                        alpha: 0.84,
                       ),
                   fontSize: _CalendarScale.eventChip,
                   fontWeight: FontWeight.w600,
@@ -1141,11 +1141,11 @@ class _EventsTab extends StatelessWidget {
         final eventColor = e.color;
         final accent = _softEventAccent(eventColor);
         final cardBase = Color.alphaBlend(
-          accent.withValues(alpha: 0.12),
-          const Color(0xFF050403),
+          accent.withValues(alpha: 0.145),
+          const Color(0xFF060504),
         );
-        final titleColor = _eventTitleColor(eventColor).withValues(alpha: 0.88);
-        final labelColor = accent.withValues(alpha: 0.68);
+        final titleColor = _eventTitleColor(eventColor).withValues(alpha: 0.96);
+        final labelColor = accent.withValues(alpha: 0.80);
         final purpose = _purposePreview(e.detail);
         final cardRadius = BorderRadius.circular(14);
 
@@ -1156,15 +1156,15 @@ class _EventsTab extends StatelessWidget {
               begin: Alignment.centerLeft,
               end: Alignment.centerRight,
               colors: [
-                accent.withValues(alpha: 0.11),
-                accent.withValues(alpha: 0.052),
-                accent.withValues(alpha: 0.020),
+                accent.withValues(alpha: 0.13),
+                accent.withValues(alpha: 0.064),
+                accent.withValues(alpha: 0.026),
               ],
               stops: const [0.0, 0.48, 1.0],
             ),
             borderRadius: cardRadius,
             border: Border.all(
-              color: accent.withValues(alpha: 0.16),
+              color: accent.withValues(alpha: 0.20),
               width: 0.7,
             ),
           ),
@@ -1182,7 +1182,7 @@ class _EventsTab extends StatelessWidget {
                     bottom: 0,
                     child: Container(
                       width: 3,
-                      color: accent.withValues(alpha: 0.62),
+                      color: accent.withValues(alpha: 0.72),
                     ),
                   ),
                   Positioned(
@@ -1194,7 +1194,7 @@ class _EventsTab extends StatelessWidget {
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
                         border: Border.all(
-                          color: accent.withValues(alpha: 0.52),
+                          color: accent.withValues(alpha: 0.62),
                           width: 1.7,
                         ),
                       ),
@@ -1274,12 +1274,12 @@ class _EventsTab extends StatelessWidget {
                                 child: Text(
                                   e.location!,
                                   style: TextStyle(
-                                    color: accent.withValues(alpha: 0.82),
+                                    color: accent.withValues(alpha: 0.92),
                                     fontSize: 13,
                                     fontWeight: FontWeight.w600,
                                     decoration: TextDecoration.underline,
                                     decorationColor: accent.withValues(
-                                      alpha: 0.7,
+                                      alpha: 0.82,
                                     ),
                                   ),
                                 ),
@@ -1290,7 +1290,7 @@ class _EventsTab extends StatelessWidget {
                               Text(
                                 'P U R P O S E',
                                 style: TextStyle(
-                                  color: accent.withValues(alpha: 0.30),
+                                  color: accent.withValues(alpha: 0.38),
                                   fontSize: _CalendarScale.eventPurpose,
                                   fontWeight: FontWeight.w800,
                                   letterSpacing: 4.0,
@@ -1302,7 +1302,7 @@ class _EventsTab extends StatelessWidget {
                                 overflow: TextOverflow.ellipsis,
                                 text: TextSpan(
                                   style: const TextStyle(
-                                    color: Color(0xFF9B8E7A),
+                                    color: Color(0xFFAEA292),
                                     fontSize: _CalendarScale.eventPurposeBody,
                                     height: 1.40,
                                     fontStyle: FontStyle.italic,

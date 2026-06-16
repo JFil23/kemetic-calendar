@@ -204,6 +204,7 @@ Widget buildMaatFlowTemplateDetailPreviewForTesting({
           DecanWatchLens? decanWatchLens,
           OpenHandLens? openHandLens,
           DjedLens? djedLens,
+          String? eveningThresholdInitialCarry,
         }) async => 1,
   );
 }
@@ -1816,6 +1817,9 @@ class _MaatFlowTemplateDetailPage extends StatefulWidget {
   const _MaatFlowTemplateDetailPage({
     required this.template,
     required this.addInstance,
+    this.onJoined,
+    this.showBackButton = true,
+    this.embeddedInOnboarding = false,
   });
 
   final _MaatFlowTemplate template;
@@ -1841,8 +1845,12 @@ class _MaatFlowTemplateDetailPage extends StatefulWidget {
     DecanWatchLens? decanWatchLens,
     OpenHandLens? openHandLens,
     DjedLens? djedLens,
+    String? eveningThresholdInitialCarry,
   })
   addInstance;
+  final Future<void> Function(int flowId)? onJoined;
+  final bool showBackButton;
+  final bool embeddedInOnboarding;
 
   @override
   State<_MaatFlowTemplateDetailPage> createState() =>
@@ -1962,6 +1970,10 @@ class _MaatFlowTemplateDetailPageState
   DawnHouseRiteLens _dawnLens = DawnHouseRiteLens.neutral;
   bool _dawnStartDateTouched = false;
   bool _dawnJoinInFlight = false;
+  bool _eveningThresholdStartDateTouched = false;
+  bool _eveningThresholdJoinInFlight = false;
+  final TextEditingController _eveningThresholdInitialCarryController =
+      TextEditingController();
   bool _eveningDiscreetMode = false;
   EveningThresholdRiteLens _eveningLens = EveningThresholdRiteLens.neutral;
   bool _eveningStartDateTouched = false;
@@ -2009,6 +2021,16 @@ class _MaatFlowTemplateDetailPageState
     accent: widget.template.color,
   );
 
+  Future<void> _completeJoin(int id) async {
+    final onJoined = widget.onJoined;
+    if (onJoined != null) {
+      await onJoined(id);
+      return;
+    }
+    if (!mounted) return;
+    Navigator.of(context).pop(id);
+  }
+
   @override
   void initState() {
     super.initState();
@@ -2017,6 +2039,8 @@ class _MaatFlowTemplateDetailPageState
       _trackSkyFuture = loadTrackSkyFlowData(_previewTrackSkyTimeZone);
     } else if (widget.template.kind == _MaatFlowTemplateKind.dawnHouseRite) {
       _picked = defaultDawnHouseRiteStartDate(_previewTrackSkyTimeZone);
+    } else if (widget.template.kind == _MaatFlowTemplateKind.eveningThreshold) {
+      _picked = defaultEveningThresholdStartDate(_previewTrackSkyTimeZone);
     } else if (widget.template.kind ==
         _MaatFlowTemplateKind.eveningThresholdRite) {
       _picked = defaultEveningThresholdRiteStartDate(
@@ -2049,6 +2073,12 @@ class _MaatFlowTemplateDetailPageState
     } else if (widget.template.kind == _MaatFlowTemplateKind.maatDecan) {
       _picked = defaultTheDecanWatchStartDate(_previewTrackSkyTimeZone);
     }
+  }
+
+  @override
+  void dispose() {
+    _eveningThresholdInitialCarryController.dispose();
+    super.dispose();
   }
 
   String _kemeticLabelFor(DateTime g) {
@@ -2578,6 +2608,9 @@ class _MaatFlowTemplateDetailPageState
                               if (widget.template.kind ==
                                   _MaatFlowTemplateKind.dawnHouseRite) {
                                 _dawnStartDateTouched = true;
+                              } else if (widget.template.kind ==
+                                  _MaatFlowTemplateKind.eveningThreshold) {
+                                _eveningThresholdStartDateTouched = true;
                               } else if (widget.template.kind ==
                                   _MaatFlowTemplateKind.eveningThresholdRite) {
                                 _eveningStartDateTouched = true;
@@ -3439,6 +3472,10 @@ class _MaatFlowTemplateDetailPageState
           !_dawnStartDateTouched) {
         _picked = defaultDawnHouseRiteStartDate(timezone);
       } else if (widget.template.kind ==
+              _MaatFlowTemplateKind.eveningThreshold &&
+          !_eveningThresholdStartDateTouched) {
+        _picked = defaultEveningThresholdStartDate(timezone);
+      } else if (widget.template.kind ==
               _MaatFlowTemplateKind.eveningThresholdRite &&
           !_eveningStartDateTouched) {
         _picked = defaultEveningThresholdRiteStartDate(
@@ -3680,11 +3717,59 @@ class _MaatFlowTemplateDetailPageState
 
     if (!mounted) return;
     if (id > 0) {
-      Navigator.of(context).pop(id);
+      await _completeJoin(id);
       return;
     }
     setState(() {
       _dawnJoinInFlight = false;
+    });
+  }
+
+  Future<void> _joinEveningThresholdFlow(DateTime selectedStart) async {
+    if (_eveningThresholdJoinInFlight) return;
+    final initialCarry = _eveningThresholdInitialCarryController.text.trim();
+    if (initialCarry.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Name what you carry today first.')),
+      );
+      return;
+    }
+    setState(() {
+      _eveningThresholdJoinInFlight = true;
+    });
+
+    final int id;
+    try {
+      id = await widget.addInstance(
+        template: widget.template,
+        startDate: selectedStart,
+        trackSkyTimeZone: _previewTrackSkyTimeZone,
+        eveningThresholdInitialCarry: initialCarry,
+      );
+    } catch (e, st) {
+      if (kDebugMode) {
+        _calendarDebugPrint('[eveningThreshold] join failed: $e');
+        _calendarDebugPrint('$st');
+      }
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Could not join The Evening Threshold. Please retry.'),
+        ),
+      );
+      setState(() {
+        _eveningThresholdJoinInFlight = false;
+      });
+      return;
+    }
+
+    if (!mounted) return;
+    if (id > 0) {
+      await _completeJoin(id);
+      return;
+    }
+    setState(() {
+      _eveningThresholdJoinInFlight = false;
     });
   }
 
@@ -3723,7 +3808,7 @@ class _MaatFlowTemplateDetailPageState
 
     if (!mounted) return;
     if (id > 0) {
-      Navigator.of(context).pop(id);
+      await _completeJoin(id);
       return;
     }
     setState(() {
@@ -3764,7 +3849,7 @@ class _MaatFlowTemplateDetailPageState
 
     if (!mounted) return;
     if (id > 0) {
-      Navigator.of(context).pop(id);
+      await _completeJoin(id);
       return;
     }
     setState(() {
@@ -3806,7 +3891,7 @@ class _MaatFlowTemplateDetailPageState
 
     if (!mounted) return;
     if (id > 0) {
-      Navigator.of(context).pop(id);
+      await _completeJoin(id);
       return;
     }
     setState(() {
@@ -3847,7 +3932,7 @@ class _MaatFlowTemplateDetailPageState
 
     if (!mounted) return;
     if (id > 0) {
-      Navigator.of(context).pop(id);
+      await _completeJoin(id);
       return;
     }
     setState(() {
@@ -3888,7 +3973,7 @@ class _MaatFlowTemplateDetailPageState
 
     if (!mounted) return;
     if (id > 0) {
-      Navigator.of(context).pop(id);
+      await _completeJoin(id);
       return;
     }
     setState(() {
@@ -3929,7 +4014,7 @@ class _MaatFlowTemplateDetailPageState
 
     if (!mounted) return;
     if (id > 0) {
-      Navigator.of(context).pop(id);
+      await _completeJoin(id);
       return;
     }
     setState(() {
@@ -3970,7 +4055,7 @@ class _MaatFlowTemplateDetailPageState
 
     if (!mounted) return;
     if (id > 0) {
-      Navigator.of(context).pop(id);
+      await _completeJoin(id);
       return;
     }
     setState(() {
@@ -4009,7 +4094,7 @@ class _MaatFlowTemplateDetailPageState
 
     if (!mounted) return;
     if (id > 0) {
-      Navigator.of(context).pop(id);
+      await _completeJoin(id);
       return;
     }
     setState(() {
@@ -4050,7 +4135,7 @@ class _MaatFlowTemplateDetailPageState
 
     if (!mounted) return;
     if (id > 0) {
-      Navigator.of(context).pop(id);
+      await _completeJoin(id);
       return;
     }
     setState(() {
@@ -4091,7 +4176,7 @@ class _MaatFlowTemplateDetailPageState
 
     if (!mounted) return;
     if (id > 0) {
-      Navigator.of(context).pop(id);
+      await _completeJoin(id);
       return;
     }
     setState(() {
@@ -4130,7 +4215,7 @@ class _MaatFlowTemplateDetailPageState
 
     if (!mounted) return;
     if (id > 0) {
-      Navigator.of(context).pop(id);
+      await _completeJoin(id);
       return;
     }
     setState(() {
@@ -4173,7 +4258,7 @@ class _MaatFlowTemplateDetailPageState
 
     if (!mounted) return;
     if (id > 0) {
-      Navigator.of(context).pop(id);
+      await _completeJoin(id);
       return;
     }
     setState(() {
@@ -4215,7 +4300,7 @@ class _MaatFlowTemplateDetailPageState
 
     if (!mounted) return;
     if (id > 0) {
-      Navigator.of(context).pop(id);
+      await _completeJoin(id);
       return;
     }
     setState(() {
@@ -4522,7 +4607,7 @@ class _MaatFlowTemplateDetailPageState
                                         }
                                         if (id > 0) {
                                           Navigator.of(sheetCtx).pop();
-                                          Navigator.of(context).pop(id);
+                                          await _completeJoin(id);
                                         } else {
                                           setSheetState(
                                             () => isWorking = false,
@@ -4651,17 +4736,19 @@ class _MaatFlowTemplateDetailPageState
       toolbarHeight: 58,
       leadingWidth: 64,
       iconTheme: const IconThemeData(color: MaatFlowListTokens.gold),
-      leading: IconButton(
-        tooltip: 'Back',
-        padding: const EdgeInsets.only(left: 15),
-        alignment: Alignment.centerLeft,
-        icon: const Icon(
-          Icons.arrow_back,
-          color: MaatFlowListTokens.gold,
-          size: 22,
-        ),
-        onPressed: () => Navigator.of(context).maybePop(),
-      ),
+      leading: widget.showBackButton
+          ? IconButton(
+              tooltip: 'Back',
+              padding: const EdgeInsets.only(left: 15),
+              alignment: Alignment.centerLeft,
+              icon: const Icon(
+                Icons.arrow_back,
+                color: MaatFlowListTokens.gold,
+                size: 22,
+              ),
+              onPressed: () => Navigator.of(context).maybePop(),
+            )
+          : const SizedBox.shrink(),
       title: _buildDateModeTitle(
         title: widget.template.title,
         fontSize: 25,
@@ -4678,14 +4765,25 @@ class _MaatFlowTemplateDetailPageState
   }) {
     final media = MediaQuery.of(context);
     const ctaHeight = 52.0;
-    final scrollBottomPadding = ctaHeight + media.padding.bottom + 24;
+    final embedded = widget.embeddedInOnboarding;
+    final scrollBottomPadding =
+        ctaHeight +
+        (embedded ? 0 : media.padding.bottom) +
+        (embedded ? 18 : 24);
+    final bodyPadding = embedded
+        ? EdgeInsets.fromLTRB(16, 18, 16, scrollBottomPadding)
+        : EdgeInsets.fromLTRB(14, 16, 14, scrollBottomPadding);
+    final ctaPadding = embedded
+        ? const EdgeInsets.fromLTRB(14, 10, 14, 14)
+        : const EdgeInsets.fromLTRB(18, 14, 18, 22);
     return Scaffold(
       backgroundColor: MaatFlowListTokens.pageBg,
-      appBar: _buildMaatFlowDetailAppBar(context),
+      appBar: embedded ? null : _buildMaatFlowDetailAppBar(context),
       body: SafeArea(
+        top: !embedded,
         bottom: false,
         child: ListView(
-          padding: EdgeInsets.fromLTRB(14, 16, 14, scrollBottomPadding),
+          padding: bodyPadding,
           children: [
             Center(
               child: ConstrainedBox(
@@ -4701,6 +4799,7 @@ class _MaatFlowTemplateDetailPageState
       ),
       bottomNavigationBar: SafeArea(
         top: false,
+        bottom: !embedded,
         child: DecoratedBox(
           decoration: const BoxDecoration(
             gradient: LinearGradient(
@@ -4711,7 +4810,7 @@ class _MaatFlowTemplateDetailPageState
             ),
           ),
           child: Padding(
-            padding: const EdgeInsets.fromLTRB(18, 14, 18, 22),
+            padding: ctaPadding,
             child: Align(
               alignment: Alignment.center,
               heightFactor: 1,
@@ -5401,6 +5500,29 @@ class _MaatFlowTemplateDetailPageState
               range: 'Each dawn',
               title: 'One Act',
               act: 'One right thing before anything else',
+            ),
+          ],
+        );
+      case _MaatFlowTemplateKind.eveningThreshold:
+        return const _MaatFlowDetailContent(
+          orientingSentence:
+              'Each evening, return to the morning measure, name what happened, then choose what crosses into tomorrow.',
+          chips: ['Daily practice', '7 PM local', 'Two taps'],
+          arcBlocks: [
+            _MaatFlowArcBlock(
+              range: 'Event 1',
+              title: 'The Return',
+              act: 'Name how the morning measure landed',
+            ),
+            _MaatFlowArcBlock(
+              range: 'Event 2',
+              title: 'The Carry',
+              act: 'Carry forward or release completely',
+            ),
+            _MaatFlowArcBlock(
+              range: 'Tomorrow',
+              title: 'The Threshold',
+              act: 'Only what was carried follows',
             ),
           ],
         );
@@ -6339,6 +6461,147 @@ class _MaatFlowTemplateDetailPageState
         const _MaatFlowDetailSectionLabel('30-DAY OUTLINE'),
         ...kDawnHouseRiteDays.map(
           (day) => _buildDawnHouseRiteDayTile(context, day),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildEveningThresholdEventTile(
+    BuildContext context,
+    EveningThresholdEvent event,
+  ) {
+    return _buildMaatFlowSittingTile(
+      title: eveningThresholdEventTitle(event),
+      subtitle: event.eventNumber == 1
+          ? 'Evening landing for today\'s carry'
+          : 'Morning crossing from yesterday\'s landing',
+      detailText: eveningThresholdDetailText(event),
+    );
+  }
+
+  Widget _buildEveningThresholdScaffold(BuildContext context) {
+    final l10n = MaterialLocalizations.of(context);
+    final selectedStart =
+        _picked ?? defaultEveningThresholdStartDate(_previewTrackSkyTimeZone);
+    final initialCarryReady = _eveningThresholdInitialCarryController.text
+        .trim()
+        .isNotEmpty;
+    final firstEvent = kEveningThresholdEvents.first;
+    final firstSchedule = dailyEveningThresholdScheduleForDate(
+      localDate: selectedStart,
+      timezone: _previewTrackSkyTimeZone,
+      event: firstEvent,
+    );
+    final finalSchedule = dailyEveningThresholdScheduleForDate(
+      localDate: selectedStart.add(
+        const Duration(days: kEveningThresholdMaterializedDays - 1),
+      ),
+      timezone: _previewTrackSkyTimeZone,
+      event: kEveningThresholdEvents.last,
+    );
+    final firstTime = l10n.formatTimeOfDay(
+      TimeOfDay(
+        hour: firstSchedule.startLocal.hour,
+        minute: firstSchedule.startLocal.minute,
+      ),
+    );
+    final finalTime = l10n.formatTimeOfDay(
+      TimeOfDay(
+        hour: finalSchedule.endLocal.hour,
+        minute: finalSchedule.endLocal.minute,
+      ),
+    );
+
+    return _buildMaatFlowDetailScaffold(
+      context,
+      joinButton: _buildTemplateStickyJoinButton(
+        text: _eveningThresholdJoinInFlight ? 'Joining…' : 'Join Flow',
+        onPressed: _eveningThresholdJoinInFlight || !initialCarryReady
+            ? null
+            : () => _joinEveningThresholdFlow(selectedStart),
+      ),
+      children: [
+        ..._buildMaatFlowOverviewZones(
+          content: _detailContentForTemplate(
+            overrideChips: const <String>[
+              'Evening landing',
+              'Morning crossing',
+              'Carry text',
+            ],
+          ),
+          tagline: widget.template.subtitle,
+          configurationControls: [
+            const _MaatFlowDetailSectionLabel('WHAT DO YOU CARRY TODAY?'),
+            TextField(
+              controller: _eveningThresholdInitialCarryController,
+              maxLines: 3,
+              minLines: 2,
+              textInputAction: TextInputAction.newline,
+              onChanged: (_) => setState(() {}),
+              style: const TextStyle(
+                color: Colors.white,
+                fontFamily: MaatFlowListTokens.fontFamily,
+                fontFamilyFallback: MaatFlowListTokens.fontFallback,
+                fontSize: 15,
+                height: 1.35,
+              ),
+              decoration: InputDecoration(
+                hintText: 'What do you carry today?',
+                hintStyle: TextStyle(
+                  color: Colors.white.withValues(alpha: 0.36),
+                  fontFamily: MaatFlowListTokens.fontFamily,
+                  fontFamilyFallback: MaatFlowListTokens.fontFallback,
+                ),
+                filled: true,
+                fillColor: Colors.black.withValues(alpha: 0.28),
+                contentPadding: const EdgeInsets.all(14),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(14),
+                  borderSide: BorderSide(
+                    color: _palette.accent.withValues(alpha: 0.28),
+                  ),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(14),
+                  borderSide: BorderSide(color: _palette.accent),
+                ),
+              ),
+            ),
+            const SizedBox(height: 18),
+            const _MaatFlowDetailSectionLabel('TIMEZONE'),
+            _buildTimezoneSelector(),
+            const SizedBox(height: 14),
+            Text(
+              'Starts ${_dateLabel(context, selectedStart)} at $firstTime in ${_previewTrackSkyTimeZone.label}. The installed window runs $kEveningThresholdMaterializedDays evening landings and $kEveningThresholdMaterializedDays next-morning crossing decisions, ending ${_dateLabel(context, finalSchedule.endLocal)} at $finalTime.',
+              style: const TextStyle(
+                color: MaatFlowPalette.silverMid,
+                fontFamily: MaatFlowListTokens.fontFamily,
+                fontFamilyFallback: MaatFlowListTokens.fontFallback,
+                fontSize: 14,
+                fontStyle: FontStyle.italic,
+                height: 1.35,
+              ),
+            ),
+            const SizedBox(height: 8),
+            const Text(
+              'The evening event carries the 7:00 PM reminder. The crossing decision appears the next morning and remains an explicit choice.',
+              style: TextStyle(
+                color: MaatFlowPalette.silverLo,
+                fontFamily: MaatFlowListTokens.fontFamily,
+                fontFamilyFallback: MaatFlowListTokens.fontFallback,
+                fontSize: 13,
+                fontStyle: FontStyle.italic,
+                height: 1.35,
+              ),
+            ),
+            const SizedBox(height: 18),
+            _buildStartDateRow(context, selectedStart),
+          ],
+        ),
+        const _MaatFlowDetailSeparator(),
+        const _MaatFlowDetailSectionLabel('DAILY THRESHOLD'),
+        ...kEveningThresholdEvents.map(
+          (event) => _buildEveningThresholdEventTile(context, event),
         ),
       ],
     );
@@ -8125,7 +8388,7 @@ class _MaatFlowTemplateDetailPageState
                   useKemetic: _useKemetic,
                 );
                 if (id > 0 && context.mounted) {
-                  Navigator.of(context).pop(id);
+                  await _completeJoin(id);
                 }
               },
       ),
@@ -8190,6 +8453,9 @@ class _MaatFlowTemplateDetailPageState
     }
     if (widget.template.kind == _MaatFlowTemplateKind.dawnHouseRite) {
       return _buildDawnHouseRiteScaffold(context);
+    }
+    if (widget.template.kind == _MaatFlowTemplateKind.eveningThreshold) {
+      return _buildEveningThresholdScaffold(context);
     }
     if (widget.template.kind == _MaatFlowTemplateKind.eveningThresholdRite) {
       return _buildEveningThresholdRiteScaffold(context);

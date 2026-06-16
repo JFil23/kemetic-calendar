@@ -74,7 +74,7 @@ void main() {
 
     expect(find.text('Badges'), findsOneWidget);
     expect(find.byType(JournalV2Toolbar), findsOneWidget);
-    expect(find.byIcon(Icons.keyboard_hide), findsOneWidget);
+    expect(find.byIcon(Icons.keyboard_hide), findsNothing);
 
     await tester.pumpWidget(
       _JournalHarness(controller: controller, bottomInset: 0),
@@ -146,6 +146,8 @@ void main() {
     expect(field.readOnly, isFalse);
     expect(field.enabled, isNot(false));
     expect(field.focusNode?.hasFocus, isTrue);
+    expect(field.decoration?.filled, isFalse);
+    expect(field.decoration?.fillColor, Colors.transparent);
 
     await tester.enterText(fieldFinder, 'Today I can write.');
     await tester.pump();

@@ -1,6 +1,7 @@
 enum MaatFlowKind {
   trackSky,
   dawnHouseRite,
+  eveningThreshold,
   eveningThresholdRite,
   theWeighing,
   offeringTable,
@@ -39,6 +40,8 @@ extension MaatFlowKindIdentity on MaatFlowKind {
         return 'track-the-sky';
       case MaatFlowKind.dawnHouseRite:
         return 'dawn-house-rite';
+      case MaatFlowKind.eveningThreshold:
+        return 'evening_threshold';
       case MaatFlowKind.eveningThresholdRite:
         return 'evening-threshold-rite';
       case MaatFlowKind.theWeighing:
@@ -153,6 +156,7 @@ bool isMaatFlowReference(
 const Map<String, MaatFlowKind> _flowKeyKinds = <String, MaatFlowKind>{
   'track-the-sky': MaatFlowKind.trackSky,
   'dawn-house-rite': MaatFlowKind.dawnHouseRite,
+  'evening_threshold': MaatFlowKind.eveningThreshold,
   'evening-threshold-rite': MaatFlowKind.eveningThresholdRite,
   'the-weighing': MaatFlowKind.theWeighing,
   'the-offering-table': MaatFlowKind.offeringTable,
@@ -186,6 +190,7 @@ const Map<String, MaatFlowKind> _flowKeyKinds = <String, MaatFlowKind>{
 
 const Map<String, MaatFlowKind> _behaviorKindKinds = <String, MaatFlowKind>{
   'maat_dawn_house_rite_day': MaatFlowKind.dawnHouseRite,
+  'maat_evening_threshold_event': MaatFlowKind.eveningThreshold,
   'maat_evening_threshold_rite_day': MaatFlowKind.eveningThresholdRite,
   'maat_the_weighing_event': MaatFlowKind.theWeighing,
   'maat_offering_table_day': MaatFlowKind.offeringTable,
@@ -221,6 +226,7 @@ const Map<String, MaatFlowKind> _behaviorKindPrefixKinds =
 
 const Map<String, MaatFlowKind> _actionIdPrefixKinds = <String, MaatFlowKind>{
   'dawn-house-rite-day-': MaatFlowKind.dawnHouseRite,
+  'evening-threshold-event-': MaatFlowKind.eveningThreshold,
   'evening-threshold-rite-day-': MaatFlowKind.eveningThresholdRite,
   'the-weighing-event-': MaatFlowKind.theWeighing,
   'the-offering-table-day-': MaatFlowKind.offeringTable,
@@ -256,6 +262,8 @@ const Map<String, MaatFlowKind> _flowNameKinds = <String, MaatFlowKind>{
   'follow the sky': MaatFlowKind.trackSky,
   'track the sky': MaatFlowKind.trackSky,
   'dawn house rite': MaatFlowKind.dawnHouseRite,
+  'the evening threshold': MaatFlowKind.eveningThreshold,
+  'evening threshold': MaatFlowKind.eveningThreshold,
   'evening threshold rite': MaatFlowKind.eveningThresholdRite,
   'the weighing': MaatFlowKind.theWeighing,
   'the offering table': MaatFlowKind.offeringTable,

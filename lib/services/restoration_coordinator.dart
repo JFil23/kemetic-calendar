@@ -225,6 +225,9 @@ class RestorationCoordinator {
     }
   }
 
+  bool get shouldPreserveRouteForLifecycleClose =>
+      shouldPreserveOverlayForLifecycleClose;
+
   Future<Map<String, dynamic>?> readSurfaceState(String key) {
     return AppRestorationService.instance.readSurfaceState(key);
   }

@@ -1,0 +1,58 @@
+[
+  {
+    "id": "5",
+    "role": "generic",
+    "name": "",
+    "ignored": false,
+    "backendDOMNodeId": 5,
+    "childIds": [
+      "1218",
+      "6",
+      "7",
+      "4"
+    ]
+  },
+  {
+    "id": "1218",
+    "role": "button",
+    "name": "Enable accessibility",
+    "ignored": false,
+    "backendDOMNodeId": 1218,
+    "childIds": []
+  },
+  {
+    "id": "6",
+    "role": "generic",
+    "name": "",
+    "ignored": false,
+    "backendDOMNodeId": 6,
+    "childIds": []
+  },
+  {
+    "id": "7",
+    "role": "generic",
+    "name": "",
+    "ignored": false,
+    "backendDOMNodeId": 7,
+    "childIds": []
+  },
+  {
+    "id": "4",
+    "role": "generic",
+    "name": "",
+    "ignored": false,
+    "backendDOMNodeId": 4,
+    "childIds": [
+      "1225",
+      "1229"
+    ]
+  },
+  {
+    "id": "1229",
+    "role": "generic",
+    "name": "",
+    "ignored": false,
+    "backendDOMNodeId": 1229,
+    "childIds": []
+  }
+]

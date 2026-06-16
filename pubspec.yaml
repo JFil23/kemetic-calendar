@@ -101,6 +101,9 @@ flutter:
           style: italic
         - asset: ios/Runner/Fonts/CormorantGaramond-SemiBold.ttf
           weight: 600
+    - family: Noto Sans Egyptian Hieroglyphs
+      fonts:
+        - asset: ios/Runner/Fonts/NotoSansEgyptianHieroglyphs-Regular.ttf
 
   assets:
     - assets/icons/dendera_zodiac_gold.png

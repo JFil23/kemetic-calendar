@@ -532,6 +532,10 @@ class RichTextEditor extends StatefulWidget {
   final List<InsightLink> insightLinks;
   final ValueChanged<InsightLink>? onInsightLinkTap;
   final String? placeholderText;
+  final TextStyle? textStyle;
+  final TextStyle? placeholderStyle;
+  final Color? cursorColor;
+  final bool transparentDecoration;
 
   const RichTextEditor({
     super.key,
@@ -545,6 +549,10 @@ class RichTextEditor extends StatefulWidget {
     this.insightLinks = const [],
     this.onInsightLinkTap,
     this.placeholderText,
+    this.textStyle,
+    this.placeholderStyle,
+    this.cursorColor,
+    this.transparentDecoration = false,
   });
 
   @override
@@ -897,6 +905,12 @@ class RichTextEditorState extends State<RichTextEditor> {
   }
 
   Widget _buildEditableView() {
+    final textStyle =
+        widget.textStyle ??
+        const TextStyle(color: Colors.white, fontSize: 16, height: 1.5);
+    final placeholderStyle =
+        widget.placeholderStyle ??
+        const TextStyle(color: Color(0xFF666666), fontSize: 16, height: 1.5);
     final placeholderText = widget.placeholderText?.trim();
     final showPlaceholder =
         placeholderText != null &&
@@ -922,30 +936,23 @@ class RichTextEditorState extends State<RichTextEditor> {
             enableInteractiveSelection: !widget.readOnly,
             onTapAlwaysCalled: true,
             textAlignVertical: TextAlignVertical.top,
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 16,
-              height: 1.5,
-            ),
+            style: textStyle,
             inputFormatters: _formatters,
-            cursorColor: KemeticGold.base,
-            decoration: const InputDecoration(
+            cursorColor: widget.cursorColor ?? KemeticGold.base,
+            decoration: InputDecoration(
               border: InputBorder.none,
               contentPadding: EdgeInsets.zero,
+              filled: widget.transparentDecoration ? false : null,
+              fillColor: widget.transparentDecoration
+                  ? Colors.transparent
+                  : null,
             ),
             onTap: _handleEditableTap,
             onChanged: _handleTextChanged,
           ),
           if (showPlaceholder)
             IgnorePointer(
-              child: Text(
-                placeholderText,
-                style: const TextStyle(
-                  color: Color(0xFF666666),
-                  fontSize: 16,
-                  height: 1.5,
-                ),
-              ),
+              child: Text(placeholderText, style: placeholderStyle),
             ),
         ],
       ),
@@ -953,11 +960,9 @@ class RichTextEditorState extends State<RichTextEditor> {
   }
 
   Widget _buildReadOnlyView(BoxConstraints constraints) {
-    final baseStyle = const TextStyle(
-      color: Colors.white,
-      fontSize: 16,
-      height: 1.5,
-    );
+    final baseStyle =
+        widget.textStyle ??
+        const TextStyle(color: Colors.white, fontSize: 16, height: 1.5);
 
     final spans = <InlineSpan>[];
     for (final op in _currentBlock.ops) {

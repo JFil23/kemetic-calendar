@@ -48,6 +48,12 @@ typedef FlowJoinPublishHeadlessCalendarInvalidation =
       required List<String> clientEventIds,
     });
 
+typedef FlowJoinPersistEveningThresholdInitialCarry =
+    Future<void> Function({
+      required DateTime localDate,
+      required String carryText,
+    });
+
 typedef MoonReturnWindowResolver =
     MoonReturnEnrollmentWindow? Function({
       required TrackSkyTimeZone timezone,
@@ -248,6 +254,8 @@ class FlowJoinService {
     FlowJoinFileHeadlessEventDelivery? fileHeadlessEventDelivery,
     FlowJoinPublishHeadlessCalendarInvalidation?
     publishHeadlessCalendarInvalidation,
+    FlowJoinPersistEveningThresholdInitialCarry?
+    persistEveningThresholdInitialCarry,
     MoonReturnWindowResolver? resolveMoonReturnWindow,
     MoonReturnOccurrenceResolver? moonReturnOccurrencesForWindow,
     MoonReturnNowProvider? moonReturnNowInZone,
@@ -301,6 +309,9 @@ class FlowJoinService {
        _publishHeadlessCalendarInvalidation =
            publishHeadlessCalendarInvalidation ??
            CalendarPage._publishHeadlessCalendarInvalidation,
+       _persistEveningThresholdInitialCarry =
+           persistEveningThresholdInitialCarry ??
+           _defaultPersistEveningThresholdInitialCarry,
        _resolveMoonReturnWindow =
            resolveMoonReturnWindow ?? _defaultResolveMoonReturnWindow,
        _moonReturnOccurrencesForWindow =
@@ -390,6 +401,8 @@ class FlowJoinService {
   final FlowJoinFileHeadlessEventDelivery _fileHeadlessEventDelivery;
   final FlowJoinPublishHeadlessCalendarInvalidation
   _publishHeadlessCalendarInvalidation;
+  final FlowJoinPersistEveningThresholdInitialCarry
+  _persistEveningThresholdInitialCarry;
   final MoonReturnWindowResolver _resolveMoonReturnWindow;
   final MoonReturnOccurrenceResolver _moonReturnOccurrencesForWindow;
   final MoonReturnNowProvider _moonReturnNowInZone;
@@ -437,6 +450,22 @@ class FlowJoinService {
 
   UserEventsRepo get _repo =>
       _userEventsRepo ?? UserEventsRepo(Supabase.instance.client);
+
+  static Future<void> _defaultPersistEveningThresholdInitialCarry({
+    required DateTime localDate,
+    required String carryText,
+  }) async {
+    final userId = Supabase.instance.client.auth.currentUser?.id;
+    if (userId == null || userId.trim().isEmpty || carryText.trim().isEmpty) {
+      return;
+    }
+    await DailyOrientationRepo(Supabase.instance.client).setCarry(
+      userId: userId,
+      localDate: localDate,
+      chosenReturn: carryText,
+      source: 'initial_enrollment',
+    );
+  }
 
   Future<FlowJoinResult> joinMoonReturnHeadless({
     required String templateKey,
@@ -1531,6 +1560,198 @@ class FlowJoinService {
       if (alertOffsetMinutes != kEventFilingNoAlertMinutes) {
         await _fileHeadlessJoinDelivery(
           debugLabel: 'eveningThresholdRiteHeadless',
+          clientEventId: clientEventId,
+          startsAtLocal: occurrence.startLocal,
+          alertOffsetMinutes: alertOffsetMinutes,
+          title: title,
+          body: detail,
+        );
+      }
+    }
+
+    return _completeHeadlessJoin(
+      flowId: flowId,
+      clientEventIds: clientEventIds,
+    );
+  }
+
+  Future<FlowJoinResult> joinEveningThresholdHeadless({
+    required String templateKey,
+    required String templateTitle,
+    required String templateOverview,
+    required Color templateColor,
+    required String? personalCalendarId,
+    required TrackSkyTimeZone timezone,
+    DateTime? startDate,
+    int defaultMinutesAfterMidnight =
+        kEveningThresholdDefaultMinutesAfterMidnight,
+    int materializedDays = kEveningThresholdMaterializedDays,
+    int alertOffsetMinutes = kEventFilingNoAlertMinutes,
+    String? initialCarryText,
+  }) async {
+    if (kEveningThresholdEvents.isEmpty || materializedDays <= 0) {
+      return const FlowJoinResult.failure(FlowJoinFailureCode.noOccurrences);
+    }
+
+    final firstGregorian = DateUtils.dateOnly(
+      startDate ??
+          defaultEveningThresholdStartDate(
+            timezone,
+            defaultMinutesAfterMidnight: defaultMinutesAfterMidnight,
+          ),
+    );
+    final schedules = <({EveningThresholdEvent event, DateTime date})>[
+      for (var dayIndex = 0; dayIndex < materializedDays; dayIndex++)
+        for (final event in kEveningThresholdEvents)
+          (event: event, date: firstGregorian.add(Duration(days: dayIndex))),
+    ];
+    if (schedules.isEmpty) {
+      return const FlowJoinResult.failure(FlowJoinFailureCode.noOccurrences);
+    }
+
+    final occurrences = <DailyEveningThresholdOccurrenceSchedule>[
+      for (final entry in schedules)
+        dailyEveningThresholdScheduleForDate(
+          localDate: entry.date,
+          timezone: timezone,
+          event: entry.event,
+          defaultMinutesAfterMidnight: defaultMinutesAfterMidnight,
+        ),
+    ];
+    final eveningDates = <DateTime>{
+      for (var i = 0; i < schedules.length; i++)
+        if (schedules[i].event.kind == EveningThresholdEventKind.theReturn)
+          DateUtils.dateOnly(occurrences[i].startLocal),
+    };
+    final morningDates = <DateTime>{
+      for (var i = 0; i < schedules.length; i++)
+        if (schedules[i].event.kind == EveningThresholdEventKind.theCarry)
+          DateUtils.dateOnly(occurrences[i].startLocal),
+    };
+    final dates = <DateTime>{...eveningDates, ...morningDates};
+    final orderedDates = dates.toList()..sort();
+    final notes = [
+      'mode=gregorian',
+      'split=1',
+      if (templateOverview.trim().isNotEmpty)
+        'ov=${Uri.encodeComponent(templateOverview.trim())}',
+      'maat=$templateKey',
+      'evening_threshold_tz=${timezone.key}',
+      'evening_threshold_default=$defaultMinutesAfterMidnight',
+      'evening_threshold_morning_default=$kEveningThresholdDefaultMorningMinutesAfterMidnight',
+      'daily_orientation_link=$kEveningThresholdLinkedTo',
+      'carryover_field=$kEveningThresholdCarryoverField',
+      'landing_field=$kEveningThresholdLandingField',
+      'decision_table=$kEveningThresholdDecisionTable',
+      'materialized_days=$materializedDays',
+    ].join(';');
+
+    final flowId = await _upsertFlowRow(
+      id: null,
+      name: templateTitle,
+      color: templateColor.toARGB32(),
+      active: true,
+      calendarId: personalCalendarId,
+      startDate: orderedDates.first,
+      endDate: orderedDates.last,
+      notes: notes,
+      rules: jsonEncode(
+        <FlowRule>[
+          if (eveningDates.isNotEmpty)
+            _RuleDates(
+              dates: eveningDates,
+              allDay: false,
+              start: TimeOfDay(
+                hour: defaultMinutesAfterMidnight ~/ 60,
+                minute: defaultMinutesAfterMidnight % 60,
+              ),
+              end: TimeOfDay(
+                hour:
+                    (defaultMinutesAfterMidnight +
+                        kEveningThresholdEventDurationMinutes) ~/
+                    60,
+                minute:
+                    (defaultMinutesAfterMidnight +
+                        kEveningThresholdEventDurationMinutes) %
+                    60,
+              ),
+            ),
+          if (morningDates.isNotEmpty)
+            _RuleDates(
+              dates: morningDates,
+              allDay: false,
+              start: const TimeOfDay(
+                hour: kEveningThresholdDefaultMorningMinutesAfterMidnight ~/ 60,
+                minute:
+                    kEveningThresholdDefaultMorningMinutesAfterMidnight % 60,
+              ),
+              end: const TimeOfDay(
+                hour:
+                    (kEveningThresholdDefaultMorningMinutesAfterMidnight +
+                        kEveningThresholdEventDurationMinutes) ~/
+                    60,
+                minute:
+                    (kEveningThresholdDefaultMorningMinutesAfterMidnight +
+                        kEveningThresholdEventDurationMinutes) %
+                    60,
+              ),
+            ),
+        ].map(CalendarPageState.ruleToJson).toList(),
+      ),
+      originType: 'template',
+    );
+
+    final trimmedInitialCarry = initialCarryText?.trim();
+    if (trimmedInitialCarry != null && trimmedInitialCarry.isNotEmpty) {
+      await _persistEveningThresholdInitialCarry(
+        localDate: firstGregorian,
+        carryText: trimmedInitialCarry,
+      );
+    }
+
+    final clientEventIds = <String>[];
+    for (var i = 0; i < schedules.length; i++) {
+      final entry = schedules[i];
+      final occurrence = occurrences[i];
+      final k = KemeticMath.fromGregorian(
+        DateUtils.dateOnly(occurrence.startLocal),
+      );
+      final title = eveningThresholdEventTitle(entry.event);
+      final detail = eveningThresholdDetailText(entry.event);
+      final clientEventId = EventCidUtil.buildClientEventId(
+        ky: k.kYear,
+        km: k.kMonth,
+        kd: k.kDay,
+        title: title,
+        startHour: occurrence.startLocal.hour,
+        startMinute: occurrence.startLocal.minute,
+        allDay: false,
+        flowId: flowId,
+      );
+
+      await _upsertEventRow(
+        clientEventId: clientEventId,
+        title: title,
+        startsAtUtc: occurrence.startUtc,
+        detail: detail,
+        allDay: false,
+        endsAtUtc: occurrence.endUtc,
+        calendarId: personalCalendarId,
+        flowLocalId: flowId,
+        category: 'Ritual',
+        actionId: eveningThresholdActionId(entry.event),
+        behaviorPayload: eveningThresholdBehaviorPayload(
+          event: entry.event,
+          schedule: occurrence,
+        ),
+        caller: 'evening_threshold_join_headless',
+      );
+      clientEventIds.add(clientEventId);
+
+      if (alertOffsetMinutes != kEventFilingNoAlertMinutes &&
+          entry.event.kind == EveningThresholdEventKind.theReturn) {
+        await _fileHeadlessJoinDelivery(
+          debugLabel: 'eveningThresholdHeadless',
           clientEventId: clientEventId,
           startsAtLocal: occurrence.startLocal,
           alertOffsetMinutes: alertOffsetMinutes,

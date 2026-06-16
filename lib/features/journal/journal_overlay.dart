@@ -7,11 +7,15 @@ import 'package:flutter/material.dart';
 import 'package:mobile/core/navigation_fallback.dart';
 import 'package:mobile/core/daily_reflection_question.dart';
 import 'package:mobile/core/touch_targets.dart';
+import 'package:mobile/features/calendar/calendar_page.dart' show KemeticMath;
 import 'package:mobile/features/calendar/calendar_reflection_context.dart';
+import 'package:mobile/features/calendar/kemetic_month_metadata.dart'
+    show getMonthById;
 import 'package:mobile/shared/glossy_text.dart';
 import 'journal_controller.dart';
 import 'journal_constants.dart';
 import '../../core/feature_flags.dart';
+import 'journal_skin_tokens.dart';
 import 'journal_v2_toolbar.dart';
 import 'journal_v2_document_model.dart';
 import 'journal_v2_rich_text.dart';
@@ -115,6 +119,7 @@ class _JournalOverlayState extends State<JournalOverlay>
     _badgeScrollController = ScrollController();
     _focusNode = FocusNode();
     widget.controller.onDraftChanged = _onDraftChanged;
+    widget.controller.onSyncStatusChanged = _onSyncStatusChanged;
 
     // V2 initialization
     _undoSystem = JournalUndoSystem();
@@ -149,7 +154,15 @@ class _JournalOverlayState extends State<JournalOverlay>
     _badgeScrollController.dispose();
     _focusNode.dispose();
     widget.controller.onDraftChanged = null;
+    if (widget.controller.onSyncStatusChanged == _onSyncStatusChanged) {
+      widget.controller.onSyncStatusChanged = null;
+    }
     super.dispose();
+  }
+
+  void _onSyncStatusChanged() {
+    if (!mounted) return;
+    setState(() {});
   }
 
   void _schedulePlaceholderRefresh() {
@@ -366,6 +379,19 @@ class _JournalOverlayState extends State<JournalOverlay>
     _isClosing = true;
     _dismissKeyboard();
     unawaited(_saveAndClose());
+  }
+
+  Future<void> _clearToday() async {
+    await widget.controller.clearToday();
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Cleared today\'s journal'),
+          backgroundColor: KemeticGold.base,
+          duration: Duration(seconds: 2),
+        ),
+      );
+    }
   }
 
   Future<void> _saveAndClose() async {
@@ -614,28 +640,7 @@ class _JournalOverlayState extends State<JournalOverlay>
         }
 
         if (isFullPage) {
-          return Scaffold(
-            backgroundColor: Colors.black,
-            resizeToAvoidBottomInset: true,
-            body: SafeArea(
-              minimum: EdgeInsets.zero,
-              child: GestureDetector(
-                behavior: HitTestBehavior.translucent,
-                onTap: _dismissKeyboard,
-                child: Container(
-                  color: Colors.black,
-                  child: Column(
-                    children: [
-                      _buildHeader(),
-                      if (showJournalToolbar)
-                        _buildToolbar(compact: _keyboardVisible),
-                      Expanded(child: _buildContent()),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-          );
+          return _buildJournalPageSkin(showJournalToolbar: showJournalToolbar);
         }
 
         return SizedBox.expand(
@@ -770,18 +775,7 @@ class _JournalOverlayState extends State<JournalOverlay>
               ),
               IconButton(
                 icon: KemeticGold.icon(Icons.delete_outline),
-                onPressed: () async {
-                  await widget.controller.clearToday();
-                  if (mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('Cleared today\'s journal'),
-                        backgroundColor: KemeticGold.base,
-                        duration: Duration(seconds: 2),
-                      ),
-                    );
-                  }
-                },
+                onPressed: () => unawaited(_clearToday()),
                 tooltip: 'Clear today',
                 padding: expandedIconButtonPadding(context),
                 constraints: expandedIconButtonConstraints(context),
@@ -837,6 +831,314 @@ class _JournalOverlayState extends State<JournalOverlay>
 
   Widget _buildContent() {
     return _buildEditor();
+  }
+
+  Widget _buildJournalPageSkin({required bool showJournalToolbar}) {
+    return Scaffold(
+      backgroundColor: JournalSkinTokens.black,
+      resizeToAvoidBottomInset: true,
+      body: GestureDetector(
+        behavior: HitTestBehavior.translucent,
+        onTap: _dismissKeyboard,
+        child: Stack(
+          children: [
+            const Positioned.fill(
+              child: CustomPaint(painter: JournalBackgroundPainter()),
+            ),
+            SafeArea(
+              minimum: EdgeInsets.zero,
+              child: Column(
+                children: [
+                  _buildJournalSkinMasthead(),
+                  Expanded(
+                    child: ScrollConfiguration(
+                      behavior: ScrollConfiguration.of(
+                        context,
+                      ).copyWith(scrollbars: false),
+                      child: SingleChildScrollView(
+                        physics: const BouncingScrollPhysics(),
+                        padding: const EdgeInsets.fromLTRB(24, 0, 24, 110),
+                        child: _buildJournalSkinScrollContent(
+                          showJournalToolbar: showJournalToolbar,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildJournalSkinMasthead() {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(24, 20, 24, 16),
+          child: Row(
+            children: [
+              const Expanded(
+                child: Text(
+                  'JOURNAL',
+                  style: JournalSkinTokens.mastheadLabelStyle,
+                ),
+              ),
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  _buildMastheadAction(
+                    icon: Icons.history,
+                    tooltip: 'View archive',
+                    onPressed: _openArchive,
+                  ),
+                  const SizedBox(width: 24),
+                  _buildMastheadAction(
+                    icon: Icons.link,
+                    tooltip: 'Link Insight',
+                    onPressed: _startLinkFlow,
+                  ),
+                  const SizedBox(width: 24),
+                  _buildMastheadAction(
+                    icon: Icons.delete_outline,
+                    tooltip: 'Clear today',
+                    onPressed: () => unawaited(_clearToday()),
+                  ),
+                  const SizedBox(width: 24),
+                  _buildMastheadAction(
+                    icon: Icons.close,
+                    tooltip: 'Close',
+                    onPressed: _close,
+                    close: true,
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+        Container(
+          height: 1,
+          margin: const EdgeInsets.symmetric(horizontal: 24),
+          decoration: const BoxDecoration(
+            gradient: JournalSkinTokens.mastheadDividerGradient,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildMastheadAction({
+    required IconData icon,
+    required String tooltip,
+    required VoidCallback onPressed,
+    bool close = false,
+  }) {
+    return IconButton(
+      onPressed: onPressed,
+      tooltip: tooltip,
+      iconSize: 21,
+      padding: EdgeInsets.zero,
+      constraints: const BoxConstraints.tightFor(width: 21, height: 21),
+      visualDensity: VisualDensity.compact,
+      style: ButtonStyle(
+        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+        backgroundColor: const WidgetStatePropertyAll(Colors.transparent),
+        foregroundColor: WidgetStateProperty.resolveWith((states) {
+          if (states.contains(WidgetState.hovered) ||
+              states.contains(WidgetState.pressed) ||
+              states.contains(WidgetState.focused)) {
+            return JournalSkinTokens.gold;
+          }
+          return JournalSkinTokens.gold.withValues(alpha: 0.92);
+        }),
+        overlayColor: WidgetStateProperty.resolveWith((states) {
+          if (states.contains(WidgetState.focused)) {
+            return JournalSkinTokens.goldSoft.withValues(alpha: 0.12);
+          }
+          if (states.contains(WidgetState.hovered) ||
+              states.contains(WidgetState.pressed)) {
+            return JournalSkinTokens.goldSoft.withValues(alpha: 0.08);
+          }
+          return Colors.transparent;
+        }),
+        shape: const WidgetStatePropertyAll(CircleBorder()),
+      ),
+      icon: Icon(icon, weight: close ? 1.9 : 1.6),
+    );
+  }
+
+  Widget _buildJournalSkinScrollContent({required bool showJournalToolbar}) {
+    final keyboardVisible = MediaQuery.of(context).viewInsets.bottom > 0;
+    final badgeHeight = keyboardVisible ? 88.0 : 252.0;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _buildJournalSkinDayHeader(),
+        if (showJournalToolbar)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(2, 4, 2, 0),
+            child: JournalV2Toolbar(
+              controller: widget.controller,
+              onModeChanged: _onToolbarModeChanged,
+              onFormatChanged: _onFormatChanged,
+              onUndo: _onUndo,
+              onRedo: _onRedo,
+              onInsertChart: _onInsertChart,
+              canUndo: _undoSystem.canUndo,
+              canRedo: _undoSystem.canRedo,
+              compact: keyboardVisible,
+              journalPageSkin: true,
+            ),
+          ),
+        _buildJournalSkinSavedLine(),
+        _buildJournalSkinLeafEditor(),
+        SizedBox(height: keyboardVisible ? 8 : 12),
+        _buildBadgeArea(height: badgeHeight, compact: keyboardVisible),
+      ],
+    );
+  }
+
+  Widget _buildJournalSkinDayHeader() {
+    final date = widget.controller.currentDate ?? DateTime.now();
+    final kemetic = KemeticMath.fromGregorian(date);
+    final month = getMonthById(kemetic.kMonth);
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(2, 24, 2, 16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text('ENTRY FOR', style: JournalSkinTokens.dateEyebrowStyle),
+          const SizedBox(height: 7),
+          _buildJournalSkinDateTitleRow(
+            title: '${month.displayShort} ${kemetic.kDay}',
+            gloss: month.displayTransliteration,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildJournalSkinDateTitleRow({
+    required String title,
+    required String gloss,
+  }) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final textScaler = MediaQuery.textScalerOf(context);
+        final titlePainter = TextPainter(
+          text: TextSpan(text: title, style: JournalSkinTokens.dateTitleStyle),
+          maxLines: 1,
+          textDirection: Directionality.of(context),
+          textScaler: textScaler,
+        )..layout();
+        final glossPainter = TextPainter(
+          text: TextSpan(text: gloss, style: JournalSkinTokens.dateGlossStyle),
+          maxLines: 1,
+          textDirection: Directionality.of(context),
+          textScaler: textScaler,
+        )..layout();
+        final fitsInline =
+            titlePainter.width + 12 + glossPainter.width <=
+            constraints.maxWidth;
+
+        if (fitsInline) {
+          return Row(
+            crossAxisAlignment: CrossAxisAlignment.baseline,
+            textBaseline: TextBaseline.alphabetic,
+            children: [
+              Text(title, style: JournalSkinTokens.dateTitleStyle),
+              const SizedBox(width: 12),
+              Text(gloss, style: JournalSkinTokens.dateGlossStyle),
+            ],
+          );
+        }
+
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(title, style: JournalSkinTokens.dateTitleStyle),
+            const SizedBox(height: 2),
+            Text(gloss, style: JournalSkinTokens.dateGlossStyle),
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _buildJournalSkinSavedLine() {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(2, 14, 2, 0),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 14,
+            height: 14,
+            decoration: const BoxDecoration(
+              color: JournalSkinTokens.greenCheck,
+              shape: BoxShape.circle,
+            ),
+            child: const CustomPaint(painter: _JournalSavedCheckPainter()),
+          ),
+          const SizedBox(width: 8),
+          Text(
+            'Saved · ${_formatSavedLineTime(DateTime.now())}',
+            style: JournalSkinTokens.savedLineStyle,
+          ),
+        ],
+      ),
+    );
+  }
+
+  String _formatSavedLineTime(DateTime time) {
+    final hour = time.hour > 12
+        ? time.hour - 12
+        : (time.hour == 0 ? 12 : time.hour);
+    final minute = time.minute.toString().padLeft(2, '0');
+    final period = time.hour >= 12 ? 'PM' : 'AM';
+    return '$hour:$minute $period';
+  }
+
+  Widget _buildJournalSkinLeafEditor() {
+    return Container(
+      height: 300,
+      margin: const EdgeInsets.only(top: 16),
+      decoration: BoxDecoration(
+        gradient: JournalSkinTokens.leafGradient,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: JournalSkinTokens.leafBorder),
+        boxShadow: const [
+          BoxShadow(
+            color: JournalSkinTokens.leafDropShadow,
+            blurRadius: 60,
+            spreadRadius: -28,
+            offset: Offset(0, 24),
+          ),
+        ],
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: Stack(
+        children: [
+          const Positioned.fill(
+            child: IgnorePointer(
+              child: CustomPaint(painter: JournalLeafDecorationPainter()),
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(30, 36, 30, 30),
+            child: Padding(
+              padding: const EdgeInsets.only(top: 6),
+              child: _buildTextLayer(journalSkin: true),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   Widget _buildToolbar({bool compact = false}) {
@@ -950,7 +1252,7 @@ class _JournalOverlayState extends State<JournalOverlay>
     return targetHeight.clamp(52.0, maxBadgeHeight).toDouble();
   }
 
-  Widget _buildTextLayer() {
+  Widget _buildTextLayer({bool journalSkin = false}) {
     final placeholderText = _journalPlaceholderText;
 
     if (FeatureFlags.hasRichText && widget.controller.currentDocument != null) {
@@ -973,10 +1275,22 @@ class _JournalOverlayState extends State<JournalOverlay>
         insightLinks: _insightLinks,
         onInsightLinkTap: _handleLinkTap,
         placeholderText: placeholderText,
+        textStyle: journalSkin ? JournalSkinTokens.entryBodyStyle : null,
+        placeholderStyle: journalSkin
+            ? JournalSkinTokens.entryPlaceholderStyle
+            : null,
+        cursorColor: journalSkin ? JournalSkinTokens.gold : null,
+        transparentDecoration: journalSkin,
       );
     }
 
     // Plain text fallback
+    final textStyle = journalSkin
+        ? JournalSkinTokens.entryBodyStyle
+        : const TextStyle(color: Colors.white, fontSize: 16, height: 1.5);
+    final hintStyle = journalSkin
+        ? JournalSkinTokens.entryPlaceholderStyle
+        : const TextStyle(color: Color(0xFF666666), fontSize: 16);
     return KemeticKeyboardRevealScope(
       enabled: false,
       child: TextField(
@@ -987,12 +1301,15 @@ class _JournalOverlayState extends State<JournalOverlay>
         maxLines: null,
         expands: true,
         textAlignVertical: TextAlignVertical.top,
-        style: const TextStyle(color: Colors.white, fontSize: 16, height: 1.5),
+        style: textStyle,
+        cursorColor: journalSkin ? JournalSkinTokens.gold : KemeticGold.base,
         decoration: InputDecoration(
           hintText: placeholderText,
-          hintStyle: const TextStyle(color: Color(0xFF666666), fontSize: 16),
+          hintStyle: hintStyle,
           border: InputBorder.none,
           contentPadding: EdgeInsets.zero,
+          filled: journalSkin ? false : null,
+          fillColor: journalSkin ? Colors.transparent : null,
         ),
         keyboardType: TextInputType.multiline,
         textInputAction: TextInputAction.newline,
@@ -1163,4 +1480,29 @@ class _JournalOverlayState extends State<JournalOverlay>
       ),
     );
   }
+}
+
+class _JournalSavedCheckPainter extends CustomPainter {
+  const _JournalSavedCheckPainter();
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final checkSize = size.shortestSide * 8 / 14;
+    final left = (size.width - checkSize) / 2;
+    final top = (size.height - checkSize) / 2;
+    final path = Path()
+      ..moveTo(left + checkSize * 0.05, top + checkSize * 0.52)
+      ..lineTo(left + checkSize * 0.38, top + checkSize * 0.84)
+      ..lineTo(left + checkSize * 0.95, top + checkSize * 0.16);
+    final paint = Paint()
+      ..color = JournalSkinTokens.checkStroke
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 2.8
+      ..strokeCap = StrokeCap.round
+      ..strokeJoin = StrokeJoin.round;
+    canvas.drawPath(path, paint);
+  }
+
+  @override
+  bool shouldRepaint(covariant _JournalSavedCheckPainter oldDelegate) => false;
 }

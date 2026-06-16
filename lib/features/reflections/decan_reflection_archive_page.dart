@@ -3,13 +3,15 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../core/navigation_fallback.dart';
-import '../../shared/glossy_text.dart';
+import '../../widgets/kemetic_date_picker.dart';
 
 import '../../data/decan_reflection_repo.dart';
 import '../../data/decan_reflection_model.dart';
 import '../../data/decan_reflection_prompt_state.dart';
 import '../../data/maat_guidance_model.dart';
 import '../../data/maat_guidance_repo.dart';
+import '../calendar/kemetic_month_metadata.dart';
+import 'decan_reflection_skin.dart';
 
 class DecanReflectionArchivePage extends StatefulWidget {
   const DecanReflectionArchivePage({super.key});
@@ -74,122 +76,102 @@ class _DecanReflectionArchivePageState
 
   @override
   Widget build(BuildContext context) {
-    const listBottomPadding = 16.0;
+    return DecanReflectionSkinScaffold(
+      navBar: DecanReflectionNavBar(
+        title: 'Decan Reflections',
+        onBack: () => popOrGo(context, '/'),
+      ),
+      child: _buildContent(context),
+    );
+  }
 
-    return Scaffold(
-      backgroundColor: Colors.black,
-      appBar: AppBar(
-        backgroundColor: Colors.black,
-        elevation: 0,
-        automaticallyImplyLeading: false,
-        leading: IconButton(
-          icon: KemeticGold.icon(Icons.arrow_back),
-          tooltip: 'Back',
-          onPressed: () => popOrGo(context, '/'),
+  Widget _buildContent(BuildContext context) {
+    if (_loading) {
+      return const Center(
+        child: CircularProgressIndicator(
+          valueColor: AlwaysStoppedAnimation<Color>(DecanReflectionTokens.gold),
+          strokeWidth: 2,
         ),
-        iconTheme: const IconThemeData(color: KemeticGold.base),
-        title: const Text(
-          'Decan Reflections',
-          style: TextStyle(
-            color: Colors.white,
-            fontSize: 17,
-            fontWeight: FontWeight.w600,
+      );
+    }
+
+    if (_errorMessage != null) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(30),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: <Widget>[
+              const Text(
+                'Reflections could not load',
+                textAlign: TextAlign.center,
+                style: DecanReflectionTokens.emptyTitleStyle,
+              ),
+              const SizedBox(height: 10),
+              Text(
+                _errorMessage!,
+                textAlign: TextAlign.center,
+                style: DecanReflectionTokens.emptyBodyStyle,
+              ),
+              const SizedBox(height: 18),
+              DecanBridgeAction(
+                label: 'Try again',
+                icon: Icons.refresh,
+                onPressed: _load,
+              ),
+            ],
           ),
         ),
-      ),
-      body: _loading
-          ? const Center(
-              child: CircularProgressIndicator(
-                valueColor: AlwaysStoppedAnimation(KemeticGold.base),
-              ),
-            )
-          : _errorMessage != null
-          ? Center(
-              child: Padding(
-                padding: const EdgeInsets.all(24),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(
-                      'Reflections could not load',
-                      textAlign: TextAlign.center,
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 18,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                    const SizedBox(height: 10),
-                    Text(
-                      _errorMessage!,
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        color: Colors.white.withValues(alpha: 0.7),
-                      ),
-                    ),
-                    const SizedBox(height: 18),
-                    OutlinedButton.icon(
-                      onPressed: _load,
-                      icon: KemeticGold.icon(Icons.refresh, size: 18),
-                      label: KemeticGold.text(
-                        'Try again',
-                        style: const TextStyle(fontWeight: FontWeight.w700),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            )
-          : _items.isEmpty
-          ? Center(
-              child: Text(
-                'No reflections yet',
-                style: TextStyle(color: Colors.white.withValues(alpha: 0.7)),
-              ),
-            )
-          : ListView.separated(
-              padding: EdgeInsets.fromLTRB(0, 0, 0, listBottomPadding),
-              itemCount: _items.length,
-              separatorBuilder: (_, _) =>
-                  const Divider(color: Color(0xFF222222), height: 1),
-              itemBuilder: (context, index) {
-                final item = _items[index];
-                return ListTile(
-                  onTap: () =>
-                      unawaited(openDetailRoute<void>(context, item.route)),
-                  title: Text(
-                    item.title,
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.w600,
+      );
+    }
+
+    if (_items.isEmpty) {
+      return const Center(
+        child: Padding(
+          padding: EdgeInsets.all(30),
+          child: Text(
+            'No reflections yet',
+            textAlign: TextAlign.center,
+            style: DecanReflectionTokens.emptyTitleStyle,
+          ),
+        ),
+      );
+    }
+
+    final months = _groupArchiveEntries(_items);
+    final bottomPadding =
+        DecanReflectionTokens.scrollBottomPadding +
+        MediaQuery.paddingOf(context).bottom;
+
+    return ListView.builder(
+      padding: EdgeInsets.only(top: 8, bottom: bottomPadding),
+      itemCount: months.length,
+      itemBuilder: (context, monthIndex) {
+        final month = months[monthIndex];
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: <Widget>[
+            DecanMonthHeader(label: month.label),
+            DecanTrack(
+              children: <Widget>[
+                for (var i = 0; i < month.entries.length; i++)
+                  DecanChronicleEntry(
+                    type: month.entries[i].type == _ArchiveEntryType.reflection
+                        ? DecanChronicleEntryType.record
+                        : DecanChronicleEntryType.opening,
+                    dateRange: month.entries[i].dateRange,
+                    title: month.entries[i].title,
+                    preview: month.entries[i].preview,
+                    addTopGap: i > 0,
+                    onTap: () => unawaited(
+                      openDetailRoute<void>(context, month.entries[i].route),
                     ),
                   ),
-                  subtitle: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const SizedBox(height: 4),
-                      Text(
-                        item.dateRange,
-                        style: const TextStyle(
-                          color: Colors.white54,
-                          fontSize: 12,
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        item.preview,
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                          color: Colors.white70,
-                          fontSize: 13,
-                        ),
-                      ),
-                    ],
-                  ),
-                );
-              },
+              ],
             ),
+          ],
+        );
+      },
     );
   }
 }
@@ -308,6 +290,51 @@ class _ArchiveEntry {
   final DateTime sortDate;
 }
 
+class _ArchiveMonth {
+  const _ArchiveMonth({required this.label, required this.entries});
+
+  final String label;
+  final List<_ArchiveEntry> entries;
+}
+
+List<_ArchiveMonth> _groupArchiveEntries(List<_ArchiveEntry> entries) {
+  final months = <_ArchiveMonth>[];
+  String? currentKey;
+  var currentEntries = <_ArchiveEntry>[];
+
+  void flush() {
+    if (currentEntries.isEmpty) return;
+    months.add(
+      _ArchiveMonth(
+        label: _monthLabelFor(currentEntries.first.sortDate),
+        entries: List<_ArchiveEntry>.unmodifiable(currentEntries),
+      ),
+    );
+    currentEntries = <_ArchiveEntry>[];
+  }
+
+  for (final entry in entries) {
+    final key = _monthKeyFor(entry.sortDate);
+    if (currentKey != null && key != currentKey) {
+      flush();
+    }
+    currentKey = key;
+    currentEntries.add(entry);
+  }
+  flush();
+  return months;
+}
+
+String _monthKeyFor(DateTime date) {
+  final kDate = KemeticMath.fromGregorian(date.toLocal());
+  return '${kDate.kYear}:${kDate.kMonth}';
+}
+
+String _monthLabelFor(DateTime date) {
+  final kDate = KemeticMath.fromGregorian(date.toLocal());
+  return getMonthById(kDate.kMonth).displayShort;
+}
+
 ({DateTime start, DateTime end})? _periodDates(String periodKey) {
   final parts = periodKey.split(':');
   if (parts.length < 2) return null;
@@ -333,6 +360,5 @@ String _dateOnly(DateTime date) =>
     date.toLocal().toIso8601String().split('T').first;
 
 String _clip(String value) {
-  final text = value.trim();
-  return text.length > 120 ? '${text.substring(0, 120)}…' : text;
+  return value.trim().replaceAll(RegExp(r'\s+'), ' ');
 }

@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -11,6 +12,7 @@ import '../../data/shared_calendars_repo.dart';
 import '../../shared/glossy_text.dart';
 import '../../widgets/kemetic_keyboard.dart';
 import '../../widgets/keyboard_aware.dart';
+import '../reminders/reminder_rule.dart';
 
 typedef SharedCalendarAddEventCallback =
     Future<bool> Function(SharedCalendarSummary calendar);
@@ -21,6 +23,35 @@ typedef SharedCalendarEventTapCallback =
       FiledEvent filedEvent, {
       List<FiledEvent> calendarEvents,
     });
+
+class H3wCalendarSheetTokens {
+  const H3wCalendarSheetTokens._();
+
+  static const pageBase = Color(0xFF0D0B07);
+  static const cardBase = Color(0xFF120F08);
+
+  static const gold = Color(0xFFD4AE43);
+  static const glyphGlow = Color(0xFFF5E8CB);
+
+  static const silverHi = Color(0xFFC8C4BC);
+  static const silverMid = Color(0xFF9E9A94);
+  static const silverLo = Color(0xFF6A6660);
+
+  static const sharedAccent = Color(0xFF7F77DD);
+  static const sharedAccentLight = Color(0xFFAFA9EC);
+  static const sharedAccentGlow = Color(0xFFC6C2F2);
+
+  static const repeatPink = Color(0xFFD4537E);
+  static const repeatPinkLight = Color(0xFFE59AB4);
+
+  static const goldChipText = Color(0xFFC8B26A);
+
+  static const eventGreen = Color(0xFF7BB661);
+  static const eventBlue = Color(0xFF5D9BE8);
+
+  static const serif = 'CormorantGaramond';
+  static const serifFallback = <String>['Georgia', 'Times New Roman', 'serif'];
+}
 
 class SharedCalendarsSheet extends StatefulWidget {
   const SharedCalendarsSheet({
@@ -77,17 +108,22 @@ class SharedCalendarsSheet extends StatefulWidget {
 }
 
 class _SharedCalendarsSheetState extends State<SharedCalendarsSheet> {
+  static const int _calendarEventPreviewLimit = 80;
+  static const int _calendarEventFullPageSize = 250;
+
   static const List<int> _palette = <int>[
-    0xFFD4AF37,
-    0xFF6AA7FF,
-    0xFF57C785,
-    0xFFFF8C42,
-    0xFFE85D75,
-    0xFF8E7CFF,
+    0xFFD4AE43,
+    0xFF5D9BE8,
+    0xFF5DCAA5,
+    0xFFE8943C,
+    0xFFE25577,
+    0xFF7F77DD,
   ];
 
   SharedCalendarsSnapshot? _snapshot;
   final Set<String> _expandedCalendarIds = <String>{};
+  final Set<String> _showAllCalendarEventIds = <String>{};
+  final Set<String> _fullyLoadedCalendarEventIds = <String>{};
   final Set<String> _loadingCalendarEventIds = <String>{};
   final Map<String, List<FiledEvent>> _calendarEventsById =
       <String, List<FiledEvent>>{};
@@ -329,12 +365,94 @@ class _SharedCalendarsSheetState extends State<SharedCalendarsSheet> {
     _changed = true;
   }
 
+  DateTime get _calendarEventWindowStartUtc {
+    final now = DateTime.now();
+    return DateTime(now.year, now.month, now.day).toUtc();
+  }
+
+  Future<List<FiledEvent>> _fetchCalendarEvents(
+    String calendarId, {
+    required bool fullLoad,
+  }) {
+    return widget.repo.getCalendarFiledEvents(
+      calendarId,
+      pageSize: fullLoad
+          ? _calendarEventFullPageSize
+          : _calendarEventPreviewLimit,
+      maxRows: fullLoad ? null : _calendarEventPreviewLimit,
+      startsOnOrAfterUtc: fullLoad ? null : _calendarEventWindowStartUtc,
+    );
+  }
+
+  Future<List<FiledEvent>> _fetchCalendarEventsWithRetry(
+    String calendarId, {
+    required bool fullLoad,
+  }) async {
+    Object? lastError;
+    for (var attempt = 0; attempt < 2; attempt++) {
+      try {
+        return await _fetchCalendarEvents(calendarId, fullLoad: fullLoad);
+      } catch (e) {
+        lastError = e;
+        if (attempt == 0) {
+          await Future<void>.delayed(const Duration(milliseconds: 250));
+        }
+      }
+    }
+    Error.throwWithStackTrace(
+      lastError ?? StateError('Calendar event load failed'),
+      StackTrace.current,
+    );
+  }
+
+  Future<void> _loadCalendarEventsById(
+    String calendarId, {
+    bool fullLoad = false,
+  }) async {
+    final trimmed = calendarId.trim();
+    if (trimmed.isEmpty || _loadingCalendarEventIds.contains(trimmed)) return;
+
+    setState(() {
+      _calendarEventErrorsById.remove(trimmed);
+      _loadingCalendarEventIds.add(trimmed);
+    });
+
+    try {
+      final events = await _fetchCalendarEventsWithRetry(
+        trimmed,
+        fullLoad: fullLoad,
+      );
+      if (!mounted) return;
+      setState(() {
+        _calendarEventsById[trimmed] = events;
+        if (fullLoad) {
+          _fullyLoadedCalendarEventIds.add(trimmed);
+        } else {
+          _fullyLoadedCalendarEventIds.remove(trimmed);
+        }
+        _loadingCalendarEventIds.remove(trimmed);
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _loadingCalendarEventIds.remove(trimmed);
+        if ((_calendarEventsById[trimmed] ?? const <FiledEvent>[]).isEmpty) {
+          _calendarEventErrorsById[trimmed] =
+              'Could not load events for this calendar.';
+        }
+      });
+    }
+  }
+
   Future<void> _toggleCalendarEvents(SharedCalendarSummary calendar) async {
     final calendarId = calendar.id.trim();
     if (calendarId.isEmpty) return;
 
     if (_expandedCalendarIds.contains(calendarId)) {
-      setState(() => _expandedCalendarIds.remove(calendarId));
+      setState(() {
+        _expandedCalendarIds.remove(calendarId);
+        _showAllCalendarEventIds.remove(calendarId);
+      });
       _notifyContinuityChanged();
       return;
     }
@@ -342,25 +460,11 @@ class _SharedCalendarsSheetState extends State<SharedCalendarsSheet> {
     setState(() {
       _expandedCalendarIds.add(calendarId);
       _calendarEventErrorsById.remove(calendarId);
-      _calendarEventsById.remove(calendarId);
-      _loadingCalendarEventIds.add(calendarId);
     });
     _notifyContinuityChanged();
 
-    try {
-      final events = await widget.repo.getCalendarFiledEvents(calendarId);
-      if (!mounted) return;
-      setState(() {
-        _calendarEventsById[calendarId] = events;
-        _loadingCalendarEventIds.remove(calendarId);
-      });
-    } catch (_) {
-      if (!mounted) return;
-      setState(() {
-        _loadingCalendarEventIds.remove(calendarId);
-        _calendarEventErrorsById[calendarId] =
-            'Could not load events for this calendar.';
-      });
+    if (!_calendarEventsById.containsKey(calendarId)) {
+      await _loadCalendarEventsById(calendarId);
     }
   }
 
@@ -383,28 +487,7 @@ class _SharedCalendarsSheetState extends State<SharedCalendarsSheet> {
         .toList(growable: false);
     if (ids.isEmpty) return;
 
-    for (final calendarId in ids) {
-      if (!mounted) return;
-      setState(() {
-        _calendarEventErrorsById.remove(calendarId);
-        _loadingCalendarEventIds.add(calendarId);
-      });
-      try {
-        final events = await widget.repo.getCalendarFiledEvents(calendarId);
-        if (!mounted) return;
-        setState(() {
-          _calendarEventsById[calendarId] = events;
-          _loadingCalendarEventIds.remove(calendarId);
-        });
-      } catch (_) {
-        if (!mounted) return;
-        setState(() {
-          _loadingCalendarEventIds.remove(calendarId);
-          _calendarEventErrorsById[calendarId] =
-              'Could not load events for this calendar.';
-        });
-      }
-    }
+    await Future.wait(ids.map(_loadCalendarEventsById));
   }
 
   Future<_CalendarEditorResult?> _showCalendarEditor({
@@ -438,89 +521,87 @@ class _SharedCalendarsSheetState extends State<SharedCalendarsSheet> {
   @override
   Widget build(BuildContext context) {
     final snapshot = _snapshot;
-    final content = Column(
+    final content = Stack(
       children: [
-        Padding(
-          padding: const EdgeInsets.fromLTRB(16, 10, 12, 12),
-          child: Row(
-            children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: const [
-                    GlossyText(
-                      text: 'Calendars',
-                      gradient: goldGloss,
-                      style: TextStyle(
-                        fontSize: 22,
-                        fontWeight: FontWeight.w700,
+        Column(
+          children: [
+            if (!widget.routeMode)
+              const Padding(
+                padding: EdgeInsets.only(top: 11),
+                child: _H3wSheetGrabber(),
+              ),
+            Expanded(
+              child: _loading
+                  ? const Center(
+                      child: CircularProgressIndicator(
+                        valueColor: AlwaysStoppedAnimation<Color>(
+                          H3wCalendarSheetTokens.gold,
+                        ),
+                      ),
+                    )
+                  : RefreshIndicator(
+                      onRefresh: _reload,
+                      color: H3wCalendarSheetTokens.gold,
+                      backgroundColor: H3wCalendarSheetTokens.cardBase,
+                      child: ListView(
+                        padding: const EdgeInsets.fromLTRB(18, 8, 18, 40),
+                        children: [
+                          _sheetHeader(),
+                          const _H3wHeaderDivider(),
+                          if (snapshot != null &&
+                              snapshot.pendingInvites.isNotEmpty) ...[
+                            _sectionTitle('Invites'),
+                            for (final invite in snapshot.pendingInvites)
+                              _inviteCard(invite),
+                          ],
+                          _sectionTitle('Your calendars'),
+                          if (snapshot == null || snapshot.calendars.isEmpty)
+                            _emptyState()
+                          else
+                            for (final calendar in snapshot.calendars)
+                              _calendarTile(calendar, snapshot),
+                        ],
                       ),
                     ),
-                    SizedBox(height: 2),
-                    Text(
-                      'Manage shared calendars and in-app invites',
-                      style: TextStyle(color: Color(0xFFBFC3C7), fontSize: 13),
-                    ),
-                  ],
-                ),
+            ),
+          ],
+        ),
+        if (widget.showCloseButton)
+          Positioned(
+            top: 20,
+            right: 22,
+            child: IconButton(
+              tooltip: 'Close',
+              padding: EdgeInsets.zero,
+              constraints: const BoxConstraints.tightFor(width: 34, height: 34),
+              visualDensity: VisualDensity.compact,
+              onPressed:
+                  widget.onClose ?? () => Navigator.of(context).pop(_changed),
+              icon: const Icon(
+                Icons.close,
+                color: H3wCalendarSheetTokens.gold,
+                size: 24,
               ),
-              IconButton(
-                tooltip: 'New calendar',
-                onPressed: _saving ? null : _createCalendar,
-                icon: KemeticGold.icon(Icons.add_circle_outline),
-              ),
-              if (widget.showCloseButton)
-                IconButton(
-                  tooltip: 'Close',
-                  onPressed:
-                      widget.onClose ??
-                      () => Navigator.of(context).pop(_changed),
-                  icon: KemeticGold.icon(Icons.close),
-                ),
-            ],
+            ),
           ),
-        ),
-        const Divider(color: Colors.white12, height: 1),
-        Expanded(
-          child: _loading
-              ? const Center(
-                  child: CircularProgressIndicator(
-                    valueColor: AlwaysStoppedAnimation<Color>(KemeticGold.base),
-                  ),
-                )
-              : RefreshIndicator(
-                  onRefresh: _reload,
-                  child: ListView(
-                    padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
-                    children: [
-                      if (snapshot != null &&
-                          snapshot.pendingInvites.isNotEmpty) ...[
-                        _sectionTitle('Invites'),
-                        const SizedBox(height: 10),
-                        for (final invite in snapshot.pendingInvites)
-                          _inviteCard(invite),
-                        const SizedBox(height: 18),
-                      ],
-                      _sectionTitle('Your calendars'),
-                      const SizedBox(height: 10),
-                      if (snapshot == null || snapshot.calendars.isEmpty)
-                        _emptyState()
-                      else
-                        for (final calendar in snapshot.calendars)
-                          _calendarTile(calendar, snapshot),
-                    ],
-                  ),
-                ),
-        ),
       ],
     );
 
     return Container(
       decoration: BoxDecoration(
-        color: Colors.black,
+        color: H3wCalendarSheetTokens.pageBase,
         borderRadius: widget.routeMode
             ? BorderRadius.zero
-            : const BorderRadius.vertical(top: Radius.circular(24)),
+            : const BorderRadius.vertical(top: Radius.circular(26)),
+        boxShadow: widget.routeMode
+            ? null
+            : const [
+                BoxShadow(
+                  color: Color(0x8C000000),
+                  blurRadius: 40,
+                  offset: Offset(0, -10),
+                ),
+              ],
       ),
       child: SafeArea(
         top: widget.routeMode && widget.routeModeSafeAreaTop,
@@ -534,29 +615,86 @@ class _SharedCalendarsSheetState extends State<SharedCalendarsSheet> {
     );
   }
 
+  Widget _sheetHeader() {
+    return Padding(
+      padding: EdgeInsets.only(
+        top: widget.routeMode ? 14 : 14,
+        right: widget.showCloseButton ? 44 : 0,
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Calendars',
+                  style: TextStyle(
+                    color: H3wCalendarSheetTokens.gold,
+                    fontSize: 33,
+                    fontWeight: FontWeight.w600,
+                    height: 1.1,
+                    letterSpacing: 0.3,
+                    fontFamily: H3wCalendarSheetTokens.serif,
+                    fontFamilyFallback: H3wCalendarSheetTokens.serifFallback,
+                  ),
+                ),
+                SizedBox(height: 3),
+                Text(
+                  'Manage shared calendars and in-app invites',
+                  style: TextStyle(
+                    color: H3wCalendarSheetTokens.silverMid,
+                    fontSize: 15,
+                    fontWeight: FontWeight.w400,
+                    fontFamily: H3wCalendarSheetTokens.serif,
+                    fontFamilyFallback: H3wCalendarSheetTokens.serifFallback,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 14),
+          _H3wAddCircleButton(
+            tooltip: 'New calendar',
+            onPressed: _saving ? null : _createCalendar,
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _sectionTitle(String text) {
-    return Text(
-      text,
-      style: TextStyle(
-        color: Colors.white.withValues(alpha: 0.8),
-        fontSize: 13,
-        fontWeight: FontWeight.w700,
-        letterSpacing: 0.3,
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(2, 20, 2, 4),
+      child: Text(
+        text.toUpperCase(),
+        style: const TextStyle(
+          color: H3wCalendarSheetTokens.silverLo,
+          fontSize: 13,
+          fontWeight: FontWeight.w400,
+          letterSpacing: 1.6,
+          fontFamily: H3wCalendarSheetTokens.serif,
+          fontFamilyFallback: H3wCalendarSheetTokens.serifFallback,
+        ),
       ),
     );
   }
 
   Widget _emptyState() {
-    return Container(
+    return H3wCalendarCardSurface(
+      accent: H3wCalendarSheetTokens.gold,
+      isPersonal: true,
       padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(
-        color: const Color(0xFF101114),
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: Colors.white12),
-      ),
       child: Text(
         'Create a family calendar, a friends calendar, or another shared space.',
-        style: TextStyle(color: Colors.white.withValues(alpha: 0.72)),
+        style: const TextStyle(
+          color: H3wCalendarSheetTokens.silverMid,
+          fontSize: 15,
+          fontWeight: FontWeight.w400,
+          fontFamily: H3wCalendarSheetTokens.serif,
+          fontFamilyFallback: H3wCalendarSheetTokens.serifFallback,
+        ),
       ),
     );
   }
@@ -568,155 +706,142 @@ class _SharedCalendarsSheetState extends State<SharedCalendarsSheet> {
     final isVisible = !snapshot.hiddenCalendarIds.contains(calendar.id);
     final isOwner = calendar.role == SharedCalendarRole.owner;
     final isExpanded = _expandedCalendarIds.contains(calendar.id);
-    return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      decoration: BoxDecoration(
-        color: const Color(0xFF101114),
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(
-          color: KemeticGold.base.withValues(alpha: 0.72),
-          width: 1.2,
-        ),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
-        child: Column(
-          children: [
-            InkWell(
-              borderRadius: BorderRadius.circular(12),
-              onTap: () => _toggleCalendarEvents(calendar),
-              child: Padding(
-                padding: const EdgeInsets.symmetric(vertical: 2),
-                child: Row(
-                  children: [
-                    Container(
-                      width: 12,
-                      height: 12,
-                      decoration: BoxDecoration(
-                        color: calendar.color,
-                        shape: BoxShape.circle,
-                      ),
-                    ),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          KemeticGold.text(
-                            calendar.name,
-                            style: const TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w700,
+    final accent = _cardAccent(calendar);
+    final accentLight = _cardAccentLight(calendar);
+
+    return H3wCalendarCardSurface(
+      accent: accent,
+      isPersonal: calendar.isPersonal,
+      child: Column(
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: InkWell(
+                  borderRadius: BorderRadius.circular(12),
+                  onTap: () => _toggleCalendarEvents(calendar),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _calendarDot(accent),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              calendar.name,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                color: calendar.isPersonal
+                                    ? H3wCalendarSheetTokens.gold
+                                    : accentLight,
+                                fontSize: 22,
+                                fontWeight: FontWeight.w600,
+                                height: 1.1,
+                                fontFamily: H3wCalendarSheetTokens.serif,
+                                fontFamilyFallback:
+                                    H3wCalendarSheetTokens.serifFallback,
+                              ),
                             ),
-                            maxLines: 1,
-                            softWrap: false,
-                            overflow: TextOverflow.fade,
-                          ),
-                          const SizedBox(height: 4),
-                          _calendarSubtitle(calendar),
-                        ],
+                            const SizedBox(height: 2),
+                            _calendarSubtitle(calendar),
+                          ],
+                        ),
                       ),
-                    ),
-                    Icon(
-                      isExpanded
-                          ? Icons.keyboard_arrow_up_rounded
-                          : Icons.keyboard_arrow_down_rounded,
-                      color: calendar.color,
-                    ),
-                    const SizedBox(width: 6),
-                    Switch(
-                      value: isVisible,
-                      activeThumbColor: calendar.color,
-                      onChanged: (value) =>
-                          _setCalendarVisible(calendar, value),
-                    ),
-                  ],
+                      const SizedBox(width: 10),
+                      AnimatedRotation(
+                        turns: isExpanded ? 0.5 : 0,
+                        duration: const Duration(milliseconds: 300),
+                        curve: Curves.ease,
+                        child: Icon(
+                          Icons.keyboard_arrow_down_rounded,
+                          color: H3wCalendarSheetTokens.silverMid,
+                          size: 19,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ),
+              const SizedBox(width: 14),
+              _H3wVisibilityToggle(
+                value: isVisible,
+                accent: accent,
+                knobColor: accentLight,
+                isPersonal: calendar.isPersonal,
+                onChanged: (value) => _setCalendarVisible(calendar, value),
+              ),
+            ],
+          ),
+          ClipRect(
+            child: AnimatedSize(
+              duration: const Duration(milliseconds: 320),
+              curve: Curves.ease,
+              alignment: Alignment.topCenter,
+              child: AnimatedOpacity(
+                duration: const Duration(milliseconds: 250),
+                opacity: isExpanded ? 1 : 0,
+                child: isExpanded
+                    ? Column(
+                        children: [
+                          const SizedBox(height: 15),
+                          _calendarEventsDropdown(calendar),
+                          if (!calendar.isPersonal)
+                            _calendarFooterActions(calendar, isOwner),
+                        ],
+                      )
+                    : const SizedBox.shrink(),
+              ),
             ),
-            if (isExpanded) ...[
-              const SizedBox(height: 12),
-              _calendarEventsDropdown(calendar),
-            ],
-            if (!calendar.isPersonal) ...[
-              const SizedBox(height: 10),
-              Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      isOwner
-                          ? 'Owned by you'
-                          : 'Owned by ${calendar.ownerLabel}',
-                      style: TextStyle(
-                        color: Colors.white.withValues(alpha: 0.56),
-                        fontSize: 12,
-                      ),
-                    ),
-                  ),
-                  if (calendar.canSeePendingInvites &&
-                      calendar.pendingInviteCount > 0)
-                    _pendingInviteLink(calendar),
-                ],
-              ),
-              const SizedBox(height: 12),
-              Row(
-                children: [
-                  if (calendar.canManageMembership)
-                    IconButton(
-                      tooltip: 'Invite',
-                      onPressed: _saving
-                          ? null
-                          : () => _inviteToCalendar(calendar),
-                      icon: Icon(Icons.person_add_alt_1, color: calendar.color),
-                    ),
-                  if (calendar.role == SharedCalendarRole.owner)
-                    IconButton(
-                      tooltip: 'Edit',
-                      onPressed: _saving ? null : () => _editCalendar(calendar),
-                      icon: Icon(Icons.edit_outlined, color: calendar.color),
-                    ),
-                  if (calendar.canEditEvents &&
-                      widget.onAddEventRequested != null)
-                    IconButton(
-                      tooltip: 'Add event',
-                      onPressed: _saving
-                          ? null
-                          : () => _addEventToCalendar(calendar),
-                      icon: Icon(
-                        Icons.add_circle_outline,
-                        color: calendar.color,
-                      ),
-                    ),
-                  const Spacer(),
-                  TextButton(
-                    onPressed: _saving ? null : () => _leaveCalendar(calendar),
-                    child: Text(isOwner ? 'Delete' : 'Leave'),
-                  ),
-                ],
-              ),
-            ],
-          ],
-        ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _calendarDot(Color accent) {
+    return Container(
+      width: 13,
+      height: 13,
+      margin: const EdgeInsets.only(top: 5),
+      decoration: BoxDecoration(
+        color: accent,
+        shape: BoxShape.circle,
+        boxShadow: [
+          BoxShadow(color: accent.withValues(alpha: 0.50), blurRadius: 8),
+        ],
       ),
     );
   }
 
   Widget _calendarSubtitle(SharedCalendarSummary calendar) {
-    final style = TextStyle(
-      color: Colors.white.withValues(alpha: 0.62),
-      fontSize: 13,
-    );
     if (calendar.isPersonal) {
-      return Text('Personal calendar', style: style);
+      return const Text(
+        'Personal calendar',
+        style: TextStyle(
+          color: H3wCalendarSheetTokens.silverMid,
+          fontSize: 14,
+          fontWeight: FontWeight.w400,
+          fontFamily: H3wCalendarSheetTokens.serif,
+          fontFamilyFallback: H3wCalendarSheetTokens.serifFallback,
+        ),
+      );
     }
 
     final memberLabel =
         '${calendar.memberCount} ${calendar.memberCount == 1 ? 'member' : 'members'}';
     final memberText = Text(
       memberLabel,
-      style: calendar.canSeeMemberRoster
-          ? style.copyWith(color: calendar.color, fontWeight: FontWeight.w700)
-          : style,
+      style: const TextStyle(
+        color: H3wCalendarSheetTokens.silverHi,
+        fontSize: 14,
+        fontWeight: FontWeight.w400,
+        fontFamily: H3wCalendarSheetTokens.serif,
+        fontFamilyFallback: H3wCalendarSheetTokens.serifFallback,
+      ),
     );
 
     return Wrap(
@@ -733,7 +858,26 @@ class _SharedCalendarsSheetState extends State<SharedCalendarsSheet> {
           )
         else
           memberText,
-        Text(' • ${calendar.roleLabel}', style: style),
+        const Text(
+          ' · ',
+          style: TextStyle(
+            color: H3wCalendarSheetTokens.silverLo,
+            fontSize: 14,
+            fontWeight: FontWeight.w400,
+            fontFamily: H3wCalendarSheetTokens.serif,
+            fontFamilyFallback: H3wCalendarSheetTokens.serifFallback,
+          ),
+        ),
+        Text(
+          calendar.roleLabel,
+          style: const TextStyle(
+            color: H3wCalendarSheetTokens.silverMid,
+            fontSize: 14,
+            fontWeight: FontWeight.w400,
+            fontFamily: H3wCalendarSheetTokens.serif,
+            fontFamilyFallback: H3wCalendarSheetTokens.serifFallback,
+          ),
+        ),
       ],
     );
   }
@@ -744,14 +888,104 @@ class _SharedCalendarsSheetState extends State<SharedCalendarsSheet> {
       onTap: () => _showMembersSheet(calendar, pendingFirst: true),
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 2),
-        child: Text(
-          '${calendar.pendingInviteCount} pending',
-          style: TextStyle(
-            color: calendar.color,
-            fontSize: 12,
-            fontWeight: FontWeight.w700,
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 2),
+          decoration: BoxDecoration(
+            color: H3wCalendarSheetTokens.gold.withValues(alpha: 0.10),
+            borderRadius: BorderRadius.circular(11),
+          ),
+          child: Text(
+            '${calendar.pendingInviteCount} pending',
+            style: const TextStyle(
+              color: H3wCalendarSheetTokens.goldChipText,
+              fontSize: 12.5,
+              fontWeight: FontWeight.w400,
+              height: 1.7,
+              fontFamily: H3wCalendarSheetTokens.serif,
+              fontFamilyFallback: H3wCalendarSheetTokens.serifFallback,
+            ),
           ),
         ),
+      ),
+    );
+  }
+
+  Widget _calendarFooterActions(SharedCalendarSummary calendar, bool isOwner) {
+    final accentLight = _cardAccentLight(calendar);
+    final hasLeftActions =
+        calendar.canManageMembership ||
+        calendar.role == SharedCalendarRole.owner ||
+        (calendar.canEditEvents && widget.onAddEventRequested != null) ||
+        (calendar.canSeePendingInvites && calendar.pendingInviteCount > 0);
+
+    return Container(
+      margin: const EdgeInsets.only(top: 15),
+      padding: const EdgeInsets.only(top: 13),
+      decoration: BoxDecoration(
+        border: Border(
+          top: BorderSide(color: Colors.white.withValues(alpha: 0.06)),
+        ),
+      ),
+      child: Row(
+        children: [
+          if (hasLeftActions)
+            Expanded(
+              child: Wrap(
+                crossAxisAlignment: WrapCrossAlignment.center,
+                spacing: 18,
+                runSpacing: 8,
+                children: [
+                  if (calendar.canManageMembership)
+                    _H3wFooterIconButton(
+                      tooltip: 'Invite',
+                      icon: Icons.person_add_alt_1_outlined,
+                      color: accentLight,
+                      onPressed: _saving
+                          ? null
+                          : () => _inviteToCalendar(calendar),
+                    ),
+                  if (calendar.role == SharedCalendarRole.owner)
+                    _H3wFooterIconButton(
+                      tooltip: 'Edit',
+                      icon: Icons.edit_outlined,
+                      color: accentLight,
+                      onPressed: _saving ? null : () => _editCalendar(calendar),
+                    ),
+                  if (calendar.canEditEvents &&
+                      widget.onAddEventRequested != null)
+                    _H3wFooterIconButton(
+                      tooltip: 'Add event',
+                      icon: Icons.add_circle_outline,
+                      color: accentLight,
+                      onPressed: _saving
+                          ? null
+                          : () => _addEventToCalendar(calendar),
+                    ),
+                  if (calendar.canSeePendingInvites &&
+                      calendar.pendingInviteCount > 0)
+                    _pendingInviteLink(calendar),
+                ],
+              ),
+            )
+          else
+            const Spacer(),
+          TextButton(
+            onPressed: _saving ? null : () => _leaveCalendar(calendar),
+            style: TextButton.styleFrom(
+              foregroundColor: H3wCalendarSheetTokens.silverMid,
+              padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 6),
+              minimumSize: Size.zero,
+              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              textStyle: const TextStyle(
+                fontSize: 15,
+                fontWeight: FontWeight.w400,
+                fontFamily: H3wCalendarSheetTokens.serif,
+                fontFamilyFallback: H3wCalendarSheetTokens.serifFallback,
+              ),
+            ),
+            child: Text(isOwner ? 'Delete' : 'Leave'),
+          ),
+        ],
       ),
     );
   }
@@ -761,11 +995,26 @@ class _SharedCalendarsSheetState extends State<SharedCalendarsSheet> {
     final isLoading = _loadingCalendarEventIds.contains(calendarId);
     final error = _calendarEventErrorsById[calendarId];
     final events = _calendarEventsById[calendarId] ?? const <FiledEvent>[];
+    final accent = _cardAccent(calendar);
+    final accentLight = _cardAccentLight(calendar);
+    final panelAccent = calendar.isPersonal
+        ? H3wCalendarSheetTokens.gold
+        : accent;
+    final panelTitleColor = calendar.isPersonal
+        ? H3wCalendarSheetTokens.goldChipText
+        : accentLight;
+    final showAll = _showAllCalendarEventIds.contains(calendarId);
+    final fullyLoaded = _fullyLoadedCalendarEventIds.contains(calendarId);
+    final totalCount = calendar.liveEventCount > events.length
+        ? calendar.liveEventCount
+        : events.length;
+    final hasMoreEvents = !fullyLoaded && totalCount > events.length;
+    final visibleEvents = events;
 
     Widget body;
-    if (isLoading) {
+    if (isLoading && events.isEmpty) {
       body = Padding(
-        padding: const EdgeInsets.symmetric(vertical: 12),
+        padding: const EdgeInsets.symmetric(vertical: 11),
         child: Row(
           children: [
             SizedBox(
@@ -773,73 +1022,115 @@ class _SharedCalendarsSheetState extends State<SharedCalendarsSheet> {
               height: 16,
               child: CircularProgressIndicator(
                 strokeWidth: 2,
-                valueColor: AlwaysStoppedAnimation<Color>(calendar.color),
+                valueColor: AlwaysStoppedAnimation<Color>(panelTitleColor),
               ),
             ),
             const SizedBox(width: 10),
-            Text(
+            const Text(
               'Loading events...',
-              style: TextStyle(color: Colors.white.withValues(alpha: 0.68)),
+              style: TextStyle(
+                color: H3wCalendarSheetTokens.silverMid,
+                fontSize: 14,
+                fontWeight: FontWeight.w400,
+                fontFamily: H3wCalendarSheetTokens.serif,
+                fontFamilyFallback: H3wCalendarSheetTokens.serifFallback,
+              ),
             ),
           ],
         ),
       );
-    } else if (error != null) {
+    } else if (error != null && events.isEmpty) {
       body = Padding(
-        padding: const EdgeInsets.symmetric(vertical: 10),
+        padding: const EdgeInsets.symmetric(vertical: 11),
         child: Text(
           error,
-          style: const TextStyle(color: Color(0xFFE85D75), fontSize: 13),
+          style: const TextStyle(
+            color: H3wCalendarSheetTokens.repeatPinkLight,
+            fontSize: 14,
+            fontWeight: FontWeight.w400,
+            fontFamily: H3wCalendarSheetTokens.serif,
+            fontFamilyFallback: H3wCalendarSheetTokens.serifFallback,
+          ),
         ),
       );
     } else if (events.isEmpty) {
       body = Padding(
-        padding: const EdgeInsets.symmetric(vertical: 10),
-        child: Text(
+        padding: const EdgeInsets.symmetric(vertical: 11),
+        child: const Text(
           'No events on this calendar.',
-          style: TextStyle(color: Colors.white.withValues(alpha: 0.62)),
+          style: TextStyle(
+            color: H3wCalendarSheetTokens.silverMid,
+            fontSize: 14,
+            fontWeight: FontWeight.w400,
+            fontFamily: H3wCalendarSheetTokens.serif,
+            fontFamilyFallback: H3wCalendarSheetTokens.serifFallback,
+          ),
         ),
       );
     } else {
       body = Column(
         children: [
-          for (var i = 0; i < events.length; i++) ...[
-            _calendarEventRow(events[i], calendar),
-            if (i != events.length - 1)
-              Divider(height: 1, color: Colors.white.withValues(alpha: 0.08)),
-          ],
+          for (var i = 0; i < visibleEvents.length; i++)
+            _calendarEventRow(
+              visibleEvents[i],
+              calendar,
+              showTopBorder: i != 0,
+            ),
+          if (events.length > visibleEvents.length)
+            _showAllEventsButton(calendar, totalCount, panelTitleColor),
+          if (!showAll &&
+              events.length <= visibleEvents.length &&
+              totalCount > visibleEvents.length)
+            _showAllEventsButton(calendar, totalCount, panelTitleColor),
+          if (showAll && isLoading && hasMoreEvents)
+            _loadingMoreEventsRow(panelTitleColor),
         ],
       );
     }
 
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
+      padding: const EdgeInsets.fromLTRB(14, 13, 14, 6),
       decoration: BoxDecoration(
-        color: Colors.black.withValues(alpha: 0.18),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: calendar.color.withValues(alpha: 0.18)),
+        color: panelAccent.withValues(alpha: 0.05),
+        borderRadius: BorderRadius.circular(13),
+        border: Border.all(color: panelAccent.withValues(alpha: 0.18)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              Icon(Icons.event_note_rounded, size: 16, color: calendar.color),
-              const SizedBox(width: 6),
+              Icon(
+                Icons.calendar_today_outlined,
+                size: 16,
+                color: panelTitleColor,
+              ),
+              const SizedBox(width: 8),
               Text(
-                events.isEmpty && !isLoading
-                    ? 'Upcoming events'
-                    : 'Upcoming events (${events.length})',
+                'Upcoming events',
                 style: TextStyle(
-                  color: calendar.color,
-                  fontSize: 12,
-                  fontWeight: FontWeight.w700,
+                  color: panelTitleColor,
+                  fontSize: 15,
+                  fontWeight: FontWeight.w500,
+                  fontFamily: H3wCalendarSheetTokens.serif,
+                  fontFamilyFallback: H3wCalendarSheetTokens.serifFallback,
+                ),
+              ),
+              const SizedBox(width: 8),
+              Text(
+                '· $totalCount',
+                style: const TextStyle(
+                  color: H3wCalendarSheetTokens.silverLo,
+                  fontSize: 14,
+                  fontWeight: FontWeight.w400,
+                  fontFamily: H3wCalendarSheetTokens.serif,
+                  fontFamilyFallback: H3wCalendarSheetTokens.serifFallback,
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 4),
+          const SizedBox(height: 2),
           body,
         ],
       ),
@@ -848,78 +1139,196 @@ class _SharedCalendarsSheetState extends State<SharedCalendarsSheet> {
 
   Widget _calendarEventRow(
     FiledEvent filedEvent,
-    SharedCalendarSummary calendar,
-  ) {
+    SharedCalendarSummary calendar, {
+    bool showTopBorder = false,
+  }) {
     final event = filedEvent.event;
     final title = event.title.trim().isEmpty ? 'Untitled event' : event.title;
     final meta = _eventMetaText(filedEvent);
-    final detail = event.location?.trim().isNotEmpty == true
-        ? event.location!.trim()
-        : event.detail?.trim();
+    final repeatLabel = _eventRepeatLabel(event.detail);
+    final eventColor = _eventDotColor(filedEvent, calendar);
 
     final canOpenEvent = widget.onEventTapRequested != null;
 
     return InkWell(
-      borderRadius: BorderRadius.circular(8),
+      borderRadius: BorderRadius.circular(10),
       onTap: canOpenEvent
           ? () => _openCalendarEvent(calendar, filedEvent)
           : null,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 9),
-        child: Row(
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 11),
+        decoration: BoxDecoration(
+          border: showTopBorder
+              ? Border(
+                  top: BorderSide(color: Colors.white.withValues(alpha: 0.05)),
+                )
+              : null,
+        ),
+        child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Container(
-              width: 8,
-              height: 8,
-              margin: const EdgeInsets.only(top: 6),
-              decoration: BoxDecoration(
-                color: calendar.color,
-                shape: BoxShape.circle,
-              ),
-            ),
-            const SizedBox(width: 10),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
+            Row(
+              children: [
+                Container(
+                  width: 9,
+                  height: 9,
+                  decoration: BoxDecoration(
+                    color: eventColor,
+                    shape: BoxShape.circle,
+                  ),
+                ),
+                const SizedBox(width: 9),
+                Expanded(
+                  child: Text(
                     title,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 14,
-                      fontWeight: FontWeight.w700,
+                      color: H3wCalendarSheetTokens.silverHi,
+                      fontSize: 17,
+                      fontWeight: FontWeight.w500,
+                      fontFamily: H3wCalendarSheetTokens.serif,
+                      fontFamilyFallback: H3wCalendarSheetTokens.serifFallback,
                     ),
                   ),
-                  const SizedBox(height: 3),
-                  Text(
-                    meta,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      color: Colors.white.withValues(alpha: 0.62),
-                      fontSize: 12,
-                    ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 6),
+            Wrap(
+              spacing: 7,
+              runSpacing: 6,
+              children: [
+                _eventChip(
+                  icon: Icons.access_time,
+                  text: meta,
+                  fill: H3wCalendarSheetTokens.gold.withValues(alpha: 0.10),
+                  color: H3wCalendarSheetTokens.goldChipText,
+                ),
+                if (repeatLabel != null)
+                  _eventChip(
+                    icon: Icons.repeat,
+                    text: repeatLabel,
+                    fill: eventColor == H3wCalendarSheetTokens.eventGreen
+                        ? H3wCalendarSheetTokens.eventGreen.withValues(
+                            alpha: 0.14,
+                          )
+                        : H3wCalendarSheetTokens.repeatPink.withValues(
+                            alpha: 0.13,
+                          ),
+                    color: eventColor == H3wCalendarSheetTokens.eventGreen
+                        ? const Color(0xFFA9D391)
+                        : H3wCalendarSheetTokens.repeatPinkLight,
                   ),
-                  if (detail != null && detail.isNotEmpty) ...[
-                    const SizedBox(height: 3),
-                    Text(
-                      detail,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        color: Colors.white.withValues(alpha: 0.48),
-                        fontSize: 12,
-                      ),
-                    ),
-                  ],
-                ],
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _showAllEventsButton(
+    SharedCalendarSummary calendar,
+    int count,
+    Color color,
+  ) {
+    return InkWell(
+      borderRadius: BorderRadius.circular(10),
+      onTap: () {
+        setState(() => _showAllCalendarEventIds.add(calendar.id));
+        if (!_fullyLoadedCalendarEventIds.contains(calendar.id)) {
+          unawaited(_loadCalendarEventsById(calendar.id, fullLoad: true));
+        }
+      },
+      child: Padding(
+        padding: const EdgeInsets.only(top: 10, bottom: 5),
+        child: Center(
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                'Show all $count',
+                style: TextStyle(
+                  color: color,
+                  fontSize: 14,
+                  fontWeight: FontWeight.w400,
+                  fontFamily: H3wCalendarSheetTokens.serif,
+                  fontFamilyFallback: H3wCalendarSheetTokens.serifFallback,
+                ),
+              ),
+              const SizedBox(width: 4),
+              Icon(Icons.keyboard_arrow_down_rounded, color: color, size: 12),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _loadingMoreEventsRow(Color color) {
+    return Padding(
+      padding: const EdgeInsets.only(top: 10, bottom: 5),
+      child: Center(
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            SizedBox(
+              width: 12,
+              height: 12,
+              child: CircularProgressIndicator(
+                strokeWidth: 1.6,
+                valueColor: AlwaysStoppedAnimation<Color>(color),
+              ),
+            ),
+            const SizedBox(width: 7),
+            Text(
+              'Loading more',
+              style: TextStyle(
+                color: color,
+                fontSize: 14,
+                fontWeight: FontWeight.w400,
+                fontFamily: H3wCalendarSheetTokens.serif,
+                fontFamilyFallback: H3wCalendarSheetTokens.serifFallback,
               ),
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _eventChip({
+    required IconData icon,
+    required String text,
+    required Color fill,
+    required Color color,
+  }) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 2),
+      decoration: BoxDecoration(
+        color: fill,
+        borderRadius: BorderRadius.circular(11),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, color: color, size: 12),
+          const SizedBox(width: 5),
+          Text(
+            text,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+              color: color,
+              fontSize: 13,
+              fontWeight: FontWeight.w400,
+              height: 1.7,
+              fontFamily: H3wCalendarSheetTokens.serif,
+              fontFamilyFallback: H3wCalendarSheetTokens.serifFallback,
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -933,111 +1342,476 @@ class _SharedCalendarsSheetState extends State<SharedCalendarsSheet> {
     final day = DateFormat(datePattern).format(localStart);
     if (event.allDay) return '$day • All day';
 
-    final start = DateFormat('h:mm a').format(localStart);
+    final startPeriod = DateFormat('a').format(localStart);
+    final start = DateFormat('h:mm').format(localStart);
     final end = event.endsAt == null
         ? null
-        : DateFormat('h:mm a').format(event.endsAt!.toLocal());
-    return end == null ? '$day • $start' : '$day • $start-$end';
+        : () {
+            final localEnd = event.endsAt!.toLocal();
+            final endPeriod = DateFormat('a').format(localEnd);
+            if (endPeriod == startPeriod) {
+              return '${DateFormat('h:mm').format(localEnd)} $endPeriod';
+            }
+            return DateFormat('h:mm a').format(localEnd);
+          }();
+    return end == null ? '$day • $start $startPeriod' : '$day • $start–$end';
+  }
+
+  Color _cardAccent(SharedCalendarSummary calendar) {
+    return calendar.isPersonal ? H3wCalendarSheetTokens.gold : calendar.color;
+  }
+
+  Color _cardAccentLight(SharedCalendarSummary calendar) {
+    if (calendar.isPersonal) return H3wCalendarSheetTokens.gold;
+    final accent = calendar.color;
+    if (accent.toARGB32() == H3wCalendarSheetTokens.sharedAccent.toARGB32()) {
+      return H3wCalendarSheetTokens.sharedAccentLight;
+    }
+    return Color.lerp(accent, Colors.white, 0.34) ?? accent;
+  }
+
+  Color _eventDotColor(FiledEvent filedEvent, SharedCalendarSummary calendar) {
+    final explicit = _detailColor(filedEvent.event.detail);
+    if (explicit != null) return explicit;
+    final eventColor = filedEvent.event.calendarColor;
+    if (eventColor != null) return Color(0xFF000000 | (eventColor & 0xFFFFFF));
+    return calendar.color;
+  }
+
+  Color? _detailColor(String? raw) {
+    if (raw == null || raw.isEmpty) return null;
+    final match = RegExp(r'(?:^|;)color=([0-9a-fA-FxX]+);').firstMatch(raw);
+    final hex = match?.group(1);
+    if (hex == null) return null;
+    try {
+      final rgb = hex.toLowerCase().startsWith('0x')
+          ? int.parse(hex)
+          : int.parse('0x$hex');
+      return Color(0xFF000000 | (rgb & 0x00FFFFFF));
+    } catch (_) {
+      return null;
+    }
+  }
+
+  String? _eventRepeatLabel(String? detail) {
+    if (detail == null || detail.isEmpty) return null;
+    const marker = 'repeat=';
+    final idx = detail.indexOf(marker);
+    if (idx < 0) return null;
+    final start = idx + marker.length;
+    final end = detail.indexOf(';', start);
+    final jsonStr = (end >= 0)
+        ? detail.substring(start, end)
+        : detail.substring(start);
+    try {
+      final decoded = jsonDecode(jsonStr);
+      if (decoded is! Map<String, dynamic>) return null;
+      final repeat = ReminderRepeat.fromJson(decoded);
+      return _repeatLabel(repeat);
+    } catch (_) {
+      return null;
+    }
+  }
+
+  String? _repeatLabel(ReminderRepeat repeat) {
+    String ordinal(int n) {
+      if (n >= 11 && n <= 13) return '${n}th';
+      switch (n % 10) {
+        case 1:
+          return '${n}st';
+        case 2:
+          return '${n}nd';
+        case 3:
+          return '${n}rd';
+        default:
+          return '${n}th';
+      }
+    }
+
+    switch (repeat.kind) {
+      case ReminderRepeatKind.none:
+        return null;
+      case ReminderRepeatKind.everyNDays:
+        final interval = repeat.interval <= 0 ? 1 : repeat.interval;
+        return interval == 1 ? 'Every day' : 'Every $interval days';
+      case ReminderRepeatKind.weekly:
+        if (repeat.weekdays.isEmpty) return 'Weekly';
+        const labels = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+        final weekdays = repeat.weekdays.toList()..sort();
+        return 'Weekly ${weekdays.map((d) => labels[(d - 1).clamp(0, 6)]).join('/')}';
+      case ReminderRepeatKind.monthlyDay:
+        final days = repeat.monthDays.isEmpty
+            ? <int>[if (repeat.monthDay != null) repeat.monthDay!]
+            : (repeat.monthDays.toList()..sort());
+        if (days.isEmpty) return 'Monthly';
+        return 'Monthly ${days.map(ordinal).join(', ')}';
+      case ReminderRepeatKind.kemeticEveryNDecans:
+        final interval = repeat.interval <= 0 ? 1 : repeat.interval;
+        return interval == 1 ? 'Every decan' : 'Every $interval decans';
+      case ReminderRepeatKind.kemeticDecanDay:
+        final days = repeat.decanDays.toList()..sort();
+        return days.isEmpty
+            ? 'Each decan'
+            : 'Each decan · day ${days.join(', ')}';
+      case ReminderRepeatKind.kemeticMonthDay:
+        final days = repeat.kemeticMonthDays.toList()..sort();
+        return days.isEmpty
+            ? 'Monthly · K'
+            : 'Monthly ${days.map(ordinal).join(', ')} · K';
+    }
   }
 
   Widget _inviteCard(SharedCalendarInvite invite) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      decoration: BoxDecoration(
-        color: const Color(0xFF101114),
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(
-          color: KemeticGold.base.withValues(alpha: 0.72),
-          width: 1.2,
+    return H3wCalendarCardSurface(
+      accent: invite.color,
+      isPersonal: false,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              _calendarDot(invite.color),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  invite.calendarName,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    color: Color.lerp(invite.color, Colors.white, 0.34),
+                    fontSize: 22,
+                    fontWeight: FontWeight.w600,
+                    height: 1.1,
+                    fontFamily: H3wCalendarSheetTokens.serif,
+                    fontFamilyFallback: H3wCalendarSheetTokens.serifFallback,
+                  ),
+                ),
+              ),
+              Text(
+                invite.role == SharedCalendarRole.viewer
+                    ? 'View only'
+                    : 'Can edit',
+                style: const TextStyle(
+                  color: H3wCalendarSheetTokens.silverMid,
+                  fontSize: 14,
+                  fontWeight: FontWeight.w400,
+                  fontFamily: H3wCalendarSheetTokens.serif,
+                  fontFamilyFallback: H3wCalendarSheetTokens.serifFallback,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Text(
+            '${invite.inviterLabel} invited you to join this calendar.',
+            style: const TextStyle(
+              color: H3wCalendarSheetTokens.silverMid,
+              fontSize: 14,
+              fontWeight: FontWeight.w400,
+              fontFamily: H3wCalendarSheetTokens.serif,
+              fontFamilyFallback: H3wCalendarSheetTokens.serifFallback,
+            ),
+          ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Expanded(
+                child: OutlinedButton(
+                  onPressed: _saving
+                      ? null
+                      : () => _runAction(() async {
+                          await widget.repo.respondToInvite(
+                            calendarId: invite.calendarId,
+                            accept: false,
+                            invite: invite,
+                          );
+                        }),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: H3wCalendarSheetTokens.sharedAccentLight,
+                    side: BorderSide(
+                      color: H3wCalendarSheetTokens.sharedAccentLight
+                          .withValues(alpha: 0.42),
+                    ),
+                    textStyle: const TextStyle(
+                      fontSize: 17,
+                      fontWeight: FontWeight.w400,
+                      fontFamily: H3wCalendarSheetTokens.serif,
+                      fontFamilyFallback: H3wCalendarSheetTokens.serifFallback,
+                    ),
+                  ),
+                  child: const Text('Decline'),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: FilledButton(
+                  style: FilledButton.styleFrom(
+                    backgroundColor: invite.color.withValues(alpha: 0.24),
+                    foregroundColor: H3wCalendarSheetTokens.silverHi,
+                    textStyle: const TextStyle(
+                      fontSize: 17,
+                      fontWeight: FontWeight.w500,
+                      fontFamily: H3wCalendarSheetTokens.serif,
+                      fontFamilyFallback: H3wCalendarSheetTokens.serifFallback,
+                    ),
+                  ),
+                  onPressed: _saving
+                      ? null
+                      : () => _runAction(() async {
+                          await widget.repo.respondToInvite(
+                            calendarId: invite.calendarId,
+                            accept: true,
+                            invite: invite,
+                          );
+                        }),
+                  child: const Text('Accept'),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _H3wSheetGrabber extends StatelessWidget {
+  const _H3wSheetGrabber();
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Container(
+        width: 42,
+        height: 5,
+        decoration: BoxDecoration(
+          color: const Color(0xFF3A352C),
+          borderRadius: BorderRadius.circular(3),
         ),
       ),
-      child: Padding(
-        padding: const EdgeInsets.all(14),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Container(
-                  width: 12,
-                  height: 12,
-                  decoration: BoxDecoration(
-                    color: invite.color,
-                    shape: BoxShape.circle,
-                  ),
-                ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: KemeticGold.text(
-                    invite.calendarName,
-                    style: const TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w700,
-                    ),
-                    maxLines: 1,
-                    softWrap: false,
-                    overflow: TextOverflow.fade,
-                  ),
-                ),
-                Text(
-                  invite.role == SharedCalendarRole.viewer
-                      ? 'View only'
-                      : 'Can edit',
-                  style: TextStyle(
-                    color: invite.color,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-              ],
+    );
+  }
+}
+
+class _H3wHeaderDivider extends StatelessWidget {
+  const _H3wHeaderDivider();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: 1,
+      margin: const EdgeInsets.only(top: 18),
+      color: Colors.white.withValues(alpha: 0.07),
+    );
+  }
+}
+
+class _H3wAddCircleButton extends StatelessWidget {
+  const _H3wAddCircleButton({required this.tooltip, required this.onPressed});
+
+  final String tooltip;
+  final VoidCallback? onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    return Tooltip(
+      message: tooltip,
+      child: InkWell(
+        customBorder: const CircleBorder(),
+        onTap: onPressed,
+        child: Container(
+          width: 34,
+          height: 34,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            border: Border.all(
+              color: H3wCalendarSheetTokens.gold.withValues(alpha: 0.50),
+              width: 1.4,
             ),
-            const SizedBox(height: 8),
-            Text(
-              '${invite.inviterLabel} invited you to join this calendar.',
-              style: TextStyle(
-                color: Colors.white.withValues(alpha: 0.68),
-                fontSize: 13,
+          ),
+          child: const Icon(
+            Icons.add,
+            color: H3wCalendarSheetTokens.gold,
+            size: 17,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class H3wCalendarCardSurface extends StatelessWidget {
+  const H3wCalendarCardSurface({
+    super.key,
+    required this.accent,
+    required this.isPersonal,
+    required this.child,
+    this.padding = const EdgeInsets.all(18),
+  });
+
+  final Color accent;
+  final bool isPersonal;
+  final Widget child;
+  final EdgeInsetsGeometry padding;
+
+  @override
+  Widget build(BuildContext context) {
+    final borderColor = isPersonal
+        ? H3wCalendarSheetTokens.gold.withValues(alpha: 0.30)
+        : accent.withValues(alpha: 0.32);
+    final washColor = isPersonal
+        ? H3wCalendarSheetTokens.gold.withValues(alpha: 0.10)
+        : accent.withValues(alpha: 0.14);
+    final crownColor = isPersonal
+        ? H3wCalendarSheetTokens.glyphGlow.withValues(alpha: 0.10)
+        : H3wCalendarSheetTokens.sharedAccentLight.withValues(alpha: 0.12);
+    final hairColor = isPersonal
+        ? H3wCalendarSheetTokens.glyphGlow.withValues(alpha: 0.35)
+        : H3wCalendarSheetTokens.sharedAccentLight.withValues(alpha: 0.40);
+
+    return Container(
+      margin: const EdgeInsets.only(top: 14),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(18),
+        child: DecoratedBox(
+          decoration: BoxDecoration(
+            color: H3wCalendarSheetTokens.cardBase,
+            borderRadius: BorderRadius.circular(18),
+            border: Border.all(color: borderColor),
+          ),
+          child: Stack(
+            children: [
+              Positioned.fill(
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    gradient: RadialGradient(
+                      center: const Alignment(0, -1.18),
+                      radius: isPersonal ? 1.20 : 1.24,
+                      colors: [washColor, Colors.transparent],
+                      stops: [0.0, isPersonal ? 0.60 : 0.62],
+                    ),
+                  ),
+                ),
+              ),
+              Positioned(
+                left: 0,
+                right: 0,
+                top: -110,
+                height: 220,
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    gradient: RadialGradient(
+                      center: Alignment.topCenter,
+                      radius: 0.72,
+                      colors: [crownColor, Colors.transparent],
+                      stops: const [0.0, 0.70],
+                    ),
+                  ),
+                ),
+              ),
+              Positioned(
+                left: 0,
+                right: 0,
+                top: 0,
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [
+                        Colors.transparent,
+                        hairColor,
+                        Colors.transparent,
+                      ],
+                    ),
+                  ),
+                  child: const SizedBox(height: 1),
+                ),
+              ),
+              Padding(padding: padding, child: child),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _H3wVisibilityToggle extends StatelessWidget {
+  const _H3wVisibilityToggle({
+    required this.value,
+    required this.accent,
+    required this.knobColor,
+    required this.isPersonal,
+    required this.onChanged,
+  });
+
+  final bool value;
+  final Color accent;
+  final Color knobColor;
+  final bool isPersonal;
+  final ValueChanged<bool> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    final trackAlpha = value ? (isPersonal ? 0.25 : 0.30) : 0.08;
+    final borderAlpha = value ? (isPersonal ? 0.40 : 0.45) : 0.16;
+
+    return Tooltip(
+      message: value ? 'Hide calendar' : 'Show calendar',
+      child: InkWell(
+        borderRadius: BorderRadius.circular(16),
+        onTap: () => onChanged(!value),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 200),
+          width: 54,
+          height: 30,
+          decoration: BoxDecoration(
+            color: accent.withValues(alpha: trackAlpha),
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: accent.withValues(alpha: borderAlpha)),
+          ),
+          child: AnimatedAlign(
+            duration: const Duration(milliseconds: 200),
+            curve: Curves.ease,
+            alignment: value ? Alignment.centerRight : Alignment.centerLeft,
+            child: Container(
+              width: 24,
+              height: 24,
+              margin: const EdgeInsets.all(3),
+              decoration: BoxDecoration(
+                color: value ? knobColor : H3wCalendarSheetTokens.silverLo,
+                shape: BoxShape.circle,
               ),
             ),
-            const SizedBox(height: 12),
-            Row(
-              children: [
-                Expanded(
-                  child: OutlinedButton(
-                    onPressed: _saving
-                        ? null
-                        : () => _runAction(() async {
-                            await widget.repo.respondToInvite(
-                              calendarId: invite.calendarId,
-                              accept: false,
-                              invite: invite,
-                            );
-                          }),
-                    child: const Text('Decline'),
-                  ),
-                ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: FilledButton(
-                    style: FilledButton.styleFrom(
-                      backgroundColor: invite.color,
-                      foregroundColor: Colors.black,
-                    ),
-                    onPressed: _saving
-                        ? null
-                        : () => _runAction(() async {
-                            await widget.repo.respondToInvite(
-                              calendarId: invite.calendarId,
-                              accept: true,
-                              invite: invite,
-                            );
-                          }),
-                    child: const Text('Accept'),
-                  ),
-                ),
-              ],
-            ),
-          ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _H3wFooterIconButton extends StatelessWidget {
+  const _H3wFooterIconButton({
+    required this.tooltip,
+    required this.icon,
+    required this.color,
+    required this.onPressed,
+  });
+
+  final String tooltip;
+  final IconData icon;
+  final Color color;
+  final VoidCallback? onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    return Tooltip(
+      message: tooltip,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(16),
+        onTap: onPressed,
+        child: Padding(
+          padding: const EdgeInsets.all(2),
+          child: Icon(icon, color: color, size: 19),
         ),
       ),
     );
@@ -1728,39 +2502,102 @@ class _CalendarEditorDialogState extends State<_CalendarEditorDialog> {
   Widget build(BuildContext context) {
     return KemeticKeyboardRevealScope(
       enabled: false,
-      child: AlertDialog(
-        backgroundColor: const Color(0xFF111214),
-        title: Text(
-          widget.initialName.isEmpty ? 'New Calendar' : 'Edit Calendar',
-          style: const TextStyle(color: Colors.white),
-        ),
-        content: SingleChildScrollView(
-          child: SizedBox(
-            width: 360,
+      child: Dialog(
+        backgroundColor: Colors.transparent,
+        insetPadding: const EdgeInsets.symmetric(horizontal: 26),
+        child: Container(
+          width: double.infinity,
+          padding: const EdgeInsets.fromLTRB(22, 24, 22, 20),
+          decoration: BoxDecoration(
+            color: const Color(0xFF16130D),
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(
+              color: H3wCalendarSheetTokens.gold.withValues(alpha: 0.25),
+            ),
+            boxShadow: const [
+              BoxShadow(
+                color: Color(0x99000000),
+                blurRadius: 60,
+                offset: Offset(0, 20),
+              ),
+            ],
+          ),
+          child: SingleChildScrollView(
             child: Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                Text(
+                  widget.initialName.isEmpty ? 'New Calendar' : 'Edit Calendar',
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 25,
+                    fontWeight: FontWeight.w600,
+                    fontFamily: H3wCalendarSheetTokens.serif,
+                    fontFamilyFallback: H3wCalendarSheetTokens.serifFallback,
+                  ),
+                ),
+                const SizedBox(height: 18),
+                const Text(
+                  'Name',
+                  style: TextStyle(
+                    color: H3wCalendarSheetTokens.silverMid,
+                    fontSize: 15,
+                    fontWeight: FontWeight.w400,
+                    fontFamily: H3wCalendarSheetTokens.serif,
+                    fontFamilyFallback: H3wCalendarSheetTokens.serifFallback,
+                  ),
+                ),
+                const SizedBox(height: 7),
                 TextField(
                   controller: _nameCtrl,
                   autofocus: true,
+                  cursorColor: H3wCalendarSheetTokens.sharedAccent,
                   scrollPadding: keyboardManagedTextFieldScrollPadding,
-                  style: const TextStyle(color: Colors.white),
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 17,
+                    fontWeight: FontWeight.w400,
+                    fontFamily: H3wCalendarSheetTokens.serif,
+                    fontFamilyFallback: H3wCalendarSheetTokens.serifFallback,
+                  ),
                   decoration: InputDecoration(
-                    labelText: 'Name',
-                    labelStyle: TextStyle(
-                      color: Colors.white.withValues(alpha: 0.7),
-                    ),
+                    isDense: true,
                     filled: true,
-                    fillColor: const Color(0xFF1A1B1E),
+                    fillColor: const Color(0xFF211C14),
+                    contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 14,
+                      vertical: 13,
+                    ),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide(
+                        color: Colors.white.withValues(alpha: 0.08),
+                      ),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: const BorderSide(
+                        color: H3wCalendarSheetTokens.sharedAccent,
+                      ),
+                    ),
                   ),
                 ),
-                const SizedBox(height: 16),
-                const Text('Color', style: TextStyle(color: Colors.white70)),
-                const SizedBox(height: 10),
+                const SizedBox(height: 20),
+                const Text(
+                  'Color',
+                  style: TextStyle(
+                    color: H3wCalendarSheetTokens.silverMid,
+                    fontSize: 15,
+                    fontWeight: FontWeight.w400,
+                    fontFamily: H3wCalendarSheetTokens.serif,
+                    fontFamilyFallback: H3wCalendarSheetTokens.serifFallback,
+                  ),
+                ),
+                const SizedBox(height: 14),
                 Wrap(
-                  spacing: 10,
-                  runSpacing: 10,
+                  spacing: 14,
+                  runSpacing: 14,
                   children: widget.palette
                       .map((colorValue) {
                         final selected = colorValue == _selectedColor;
@@ -1768,18 +2605,18 @@ class _CalendarEditorDialogState extends State<_CalendarEditorDialog> {
                           onTap: () {
                             setState(() => _selectedColor = colorValue);
                           },
-                          borderRadius: BorderRadius.circular(20),
+                          borderRadius: BorderRadius.circular(23),
                           child: Container(
-                            width: 36,
-                            height: 36,
+                            width: 46,
+                            height: 46,
                             decoration: BoxDecoration(
                               color: Color(colorValue),
                               shape: BoxShape.circle,
                               border: Border.all(
                                 color: selected
                                     ? Colors.white
-                                    : Colors.white.withValues(alpha: 0.12),
-                                width: selected ? 3 : 1,
+                                    : Colors.transparent,
+                                width: 3,
                               ),
                             ),
                           ),
@@ -1787,26 +2624,56 @@ class _CalendarEditorDialogState extends State<_CalendarEditorDialog> {
                       })
                       .toList(growable: false),
                 ),
+                const SizedBox(height: 24),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    TextButton(
+                      onPressed: () => Navigator.of(context).pop(),
+                      style: TextButton.styleFrom(
+                        foregroundColor:
+                            H3wCalendarSheetTokens.sharedAccentLight,
+                        textStyle: const TextStyle(
+                          fontSize: 17,
+                          fontWeight: FontWeight.w400,
+                          fontFamily: H3wCalendarSheetTokens.serif,
+                          fontFamilyFallback:
+                              H3wCalendarSheetTokens.serifFallback,
+                        ),
+                      ),
+                      child: const Text('Cancel'),
+                    ),
+                    const SizedBox(width: 26),
+                    TextButton(
+                      onPressed: () {
+                        final name = _nameCtrl.text.trim();
+                        if (name.isEmpty) return;
+                        Navigator.of(context).pop(
+                          _CalendarEditorResult(
+                            name: name,
+                            colorValue: _selectedColor,
+                          ),
+                        );
+                      },
+                      style: TextButton.styleFrom(
+                        foregroundColor:
+                            H3wCalendarSheetTokens.sharedAccentLight,
+                        textStyle: const TextStyle(
+                          fontSize: 17,
+                          fontWeight: FontWeight.w500,
+                          fontFamily: H3wCalendarSheetTokens.serif,
+                          fontFamilyFallback:
+                              H3wCalendarSheetTokens.serifFallback,
+                        ),
+                      ),
+                      child: const Text('Save'),
+                    ),
+                  ],
+                ),
               ],
             ),
           ),
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text('Cancel'),
-          ),
-          TextButton(
-            onPressed: () {
-              final name = _nameCtrl.text.trim();
-              if (name.isEmpty) return;
-              Navigator.of(context).pop(
-                _CalendarEditorResult(name: name, colorValue: _selectedColor),
-              );
-            },
-            child: const Text('Save'),
-          ),
-        ],
       ),
     );
   }

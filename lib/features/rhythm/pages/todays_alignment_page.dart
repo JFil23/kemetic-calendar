@@ -8,7 +8,6 @@ import 'package:intl/intl.dart';
 import 'package:mobile/core/planner_launch_intent.dart';
 import 'package:mobile/core/navigation_fallback.dart';
 import 'package:mobile/core/app_bottom_insets.dart';
-import 'package:mobile/core/touch_targets.dart';
 import 'package:mobile/core/daily_reflection_question.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -39,7 +38,15 @@ import '../data/planner_badge_repo.dart';
 import '../data/rhythm_repo.dart';
 import '../models/rhythm_models.dart';
 import '../theme/rhythm_theme.dart';
-import '../widgets/rhythm_section_card.dart';
+import '../widgets/planner/planner_completed_section.dart';
+import '../widgets/planner/planner_horizon.dart';
+import '../widgets/planner/planner_notes_section.dart';
+import '../widgets/planner/planner_nutrition_section.dart';
+import '../widgets/planner/planner_todo_section.dart';
+import '../widgets/planner/planner_wall.dart';
+import '../widgets/planner/planner_warm_background.dart';
+import '../widgets/planner/planner_weighing_header.dart';
+import '../widgets/planner/planner_visual_tokens.dart';
 import '../widgets/rhythm_state_button.dart';
 import '../widgets/rhythm_states.dart';
 import '../widgets/rhythm_todo_row.dart';
@@ -88,7 +95,7 @@ class _TodaysAlignmentPageState extends State<TodaysAlignmentPage> {
   final TextEditingController _noteInputController = TextEditingController();
   late PageController _todoPageController;
   final PageController _notePageController = PageController(
-    viewportFraction: 0.9,
+    viewportFraction: PlannerVisualTokens.notesCarouselViewportFraction,
   );
   late PageController _nutritionPageController;
   PageController? _fullscreenPageController;
@@ -162,7 +169,7 @@ class _TodaysAlignmentPageState extends State<TodaysAlignmentPage> {
     _todoPageController = _buildTodoPageController(_activeTodoDayIndex);
     _activeNutritionDayIndex = (_currentDecanDay() - 1).clamp(0, 9);
     _nutritionPageController = PageController(
-      viewportFraction: 0.94,
+      viewportFraction: PlannerVisualTokens.nutritionCarouselViewportFraction,
       initialPage: _activeNutritionDayIndex,
     );
     _bindSessionListeners();
@@ -389,22 +396,40 @@ class _TodaysAlignmentPageState extends State<TodaysAlignmentPage> {
       final cached = await cachedFuture;
       final offlineAdds = cached.where(NutritionItemsCache.isLocal).toList();
       final uploaded = <NutritionItem>[];
+      final remainingLocal = <NutritionItem>[];
+      final replacementIds = <String, String>{};
       var uploadFailed = false;
       for (final item in offlineAdds) {
         try {
-          uploaded.add(await _nutritionRepo.upsert(item));
+          final saved = await _nutritionRepo.upsert(item);
+          uploaded.add(saved);
+          replacementIds[item.id] = saved.id;
         } catch (_) {
           uploadFailed = true;
-          break;
+          remainingLocal.add(item);
         }
       }
       final mergedItems = uploadFailed
-          ? [...items, ...offlineAdds]
+          ? [...items, ...uploaded, ...remainingLocal]
           : [...items, ...uploaded];
       await NutritionItemsCache.save(mergedItems, uid: uid);
+      var updatedStates = _nutritionStatesByKey;
+      if (replacementIds.isNotEmpty) {
+        final storedStates = await _loadNutritionStatesFromPrefs(uid);
+        final migratedStoredStates = _replaceNutritionStateItemIds(
+          storedStates,
+          replacementIds,
+        );
+        await _saveNutritionStatesToPrefs(migratedStoredStates, uid: uid);
+        updatedStates = _replaceNutritionStateItemIds(
+          _nutritionStatesByKey,
+          replacementIds,
+        );
+      }
       if (!mounted) return;
       setState(() {
         _nutritionItems = mergedItems;
+        _nutritionStatesByKey = updatedStates;
         _nutritionLoading = false;
         _nutritionLocalOnly = uploadFailed && offlineAdds.isNotEmpty;
         _nutritionError = _nutritionLocalOnly
@@ -535,35 +560,84 @@ class _TodaysAlignmentPageState extends State<TodaysAlignmentPage> {
   Future<List<NutritionItem>> _saveNutritionItemEdits(
     List<NutritionItem> items,
   ) async {
-    if (_nutritionLocalOnly || items.any(NutritionItemsCache.isLocal)) {
-      final editedById = {for (final item in items) item.id: item};
-      final updated = [
-        for (final item in _nutritionItems) editedById[item.id] ?? item,
-      ];
-      await NutritionItemsCache.save(updated, uid: _currentUserId);
-      if (mounted) {
-        setState(() {
-          _nutritionItems = updated;
-          _nutritionLocalOnly = true;
-        });
-      }
-      _showLocalNutritionWarningOnce();
-      return items;
+    final uid = _currentUserId;
+    if (uid == null || _nutritionMissingTable) {
+      return _saveNutritionItemEditsLocally(items);
     }
+
     final savedItems = <NutritionItem>[];
-    for (final item in items) {
-      savedItems.add(await _nutritionRepo.upsert(item));
+    final replacementIds = <String, String>{};
+    try {
+      for (final item in items) {
+        final saved = await _nutritionRepo.upsert(item);
+        savedItems.add(saved);
+        if (item.id.isNotEmpty && item.id != saved.id) {
+          replacementIds[item.id] = saved.id;
+        }
+      }
+    } catch (_) {
+      return _saveNutritionItemEditsLocally(items);
     }
     if (!mounted) return savedItems;
 
-    final savedById = {for (final item in savedItems) item.id: item};
+    final savedByOriginalId = <String, NutritionItem>{};
+    final savedByRemoteId = <String, NutritionItem>{};
+    for (var i = 0; i < items.length; i++) {
+      savedByOriginalId[items[i].id] = savedItems[i];
+      savedByRemoteId[savedItems[i].id] = savedItems[i];
+    }
+    final updatedItems = [
+      for (final item in _nutritionItems)
+        savedByOriginalId[item.id] ?? savedByRemoteId[item.id] ?? item,
+    ];
+    var updatedStates = _nutritionStatesByKey;
+    if (replacementIds.isNotEmpty) {
+      final storedStates = await _loadNutritionStatesFromPrefs(uid);
+      final migratedStoredStates = _replaceNutritionStateItemIds(
+        storedStates,
+        replacementIds,
+      );
+      await _saveNutritionStatesToPrefs(migratedStoredStates, uid: uid);
+      updatedStates = _replaceNutritionStateItemIds(
+        _nutritionStatesByKey.isEmpty
+            ? migratedStoredStates
+            : _nutritionStatesByKey,
+        replacementIds,
+      );
+    }
     setState(() {
-      _nutritionItems = [
-        for (final item in _nutritionItems) savedById[item.id] ?? item,
-      ];
+      _nutritionItems = updatedItems;
+      _nutritionStatesByKey = updatedStates;
+      _nutritionLocalOnly = updatedItems.any(NutritionItemsCache.isLocal);
+      _nutritionError = _nutritionLocalOnly
+          ? 'Nutrition sources are saved only on this device. Cloud sync is unavailable.'
+          : null;
     });
-    await NutritionItemsCache.save(_nutritionItems, uid: _currentUserId);
+    await NutritionItemsCache.save(updatedItems, uid: uid);
+    if (replacementIds.isNotEmpty) {
+      unawaited(_reconcileNutritionPlannerBadges());
+    }
     return savedItems;
+  }
+
+  Future<List<NutritionItem>> _saveNutritionItemEditsLocally(
+    List<NutritionItem> items,
+  ) async {
+    final editedById = {for (final item in items) item.id: item};
+    final updated = [
+      for (final item in _nutritionItems) editedById[item.id] ?? item,
+    ];
+    await NutritionItemsCache.save(updated, uid: _currentUserId);
+    if (mounted) {
+      setState(() {
+        _nutritionItems = updated;
+        _nutritionLocalOnly = true;
+        _nutritionError =
+            'Nutrition sources are saved only on this device. Cloud sync is unavailable.';
+      });
+    }
+    _showLocalNutritionWarningOnce();
+    return items;
   }
 
   Future<void> _persistTodoState(int index, RhythmItemState state) async {
@@ -920,6 +994,25 @@ class _TodaysAlignmentPageState extends State<TodaysAlignmentPage> {
     return '$dateKey::$itemId';
   }
 
+  Map<String, RhythmItemState> _replaceNutritionStateItemIds(
+    Map<String, RhythmItemState> states,
+    Map<String, String> replacementIds,
+  ) {
+    if (replacementIds.isEmpty || states.isEmpty) return states;
+    final updated = <String, RhythmItemState>{};
+    states.forEach((key, state) {
+      final parts = key.split('::');
+      if (parts.length != 2) {
+        updated[key] = state;
+        return;
+      }
+      final replacementId = replacementIds[parts[1]];
+      updated[replacementId == null ? key : '${parts[0]}::$replacementId'] =
+          state;
+    });
+    return updated;
+  }
+
   RhythmItemState _nutritionStateForItem(
     NutritionItem item, {
     int? decanDay,
@@ -1192,7 +1285,7 @@ class _TodaysAlignmentPageState extends State<TodaysAlignmentPage> {
     if (kd.epagomenal) {
       return short ? 'Epagomenal ${kd.day}' : 'Epagomenal Day ${kd.day}';
     }
-    final monthName = getMonthById(kd.month).hellenized;
+    final monthName = getMonthById(kd.month).displayShort;
     final base = '$monthName ${kd.day}';
     if (short) {
       return base;
@@ -1381,11 +1474,25 @@ class _TodaysAlignmentPageState extends State<TodaysAlignmentPage> {
       return Padding(
         padding: const EdgeInsets.symmetric(horizontal: 4.0),
         child: Container(
-          decoration: RhythmTheme.frostSurface(),
-          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            color: Colors.black.withValues(
+              alpha: PlannerVisualTokens.liftedAlpha(0.16),
+            ),
+            borderRadius: BorderRadius.circular(
+              PlannerVisualTokens.plateRadius,
+            ),
+            border: Border.all(
+              color: PlannerVisualTokens.gold.withValues(
+                alpha: PlannerVisualTokens.liftedAlpha(0.08),
+              ),
+              width: 0.5,
+            ),
+          ),
+          padding: const EdgeInsets.all(16),
           child: Text(
             'No to-dos for this day. Add one above to anchor it.',
-            style: RhythmTheme.subheading,
+            textAlign: TextAlign.center,
+            style: PlannerVisualTokens.captionItalic.copyWith(fontSize: 15),
           ),
         ),
       );
@@ -1406,7 +1513,13 @@ class _TodaysAlignmentPageState extends State<TodaysAlignmentPage> {
               onDelete: () => unawaited(_deleteTodo(i)),
             ),
             if (i != todos.length - 1)
-              const Divider(height: 18, thickness: 0.6, color: Colors.white12),
+              Divider(
+                height: 20,
+                thickness: 0.5,
+                color: PlannerVisualTokens.gold.withValues(
+                  alpha: PlannerVisualTokens.liftedAlpha(0.07),
+                ),
+              ),
           ],
         ],
       ),
@@ -2489,12 +2602,19 @@ class _TodaysAlignmentPageState extends State<TodaysAlignmentPage> {
       behavior: HitTestBehavior.opaque,
       onDoubleTap: () => _showNutritionFullscreen(decanDay, decanName),
       child: Container(
-        margin: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+        margin: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
         padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(
-          color: Colors.white.withValues(alpha: 0.03),
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
+          color: Colors.black.withValues(
+            alpha: PlannerVisualTokens.liftedAlpha(0.16),
+          ),
+          borderRadius: BorderRadius.circular(PlannerVisualTokens.plateRadius),
+          border: Border.all(
+            color: PlannerVisualTokens.gold.withValues(
+              alpha: PlannerVisualTokens.liftedAlpha(0.08),
+            ),
+            width: 0.5,
+          ),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -2509,7 +2629,8 @@ class _TodaysAlignmentPageState extends State<TodaysAlignmentPage> {
                       style: const TextStyle(
                         fontSize: 18,
                         fontWeight: FontWeight.w700,
-                        fontFamily: 'GentiumPlus',
+                        fontFamily: PlannerVisualTokens.serifFamily,
+                        fontFamilyFallback: PlannerVisualTokens.serifFallback,
                       ),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
@@ -2519,20 +2640,31 @@ class _TodaysAlignmentPageState extends State<TodaysAlignmentPage> {
                 Container(
                   padding: const EdgeInsets.symmetric(
                     horizontal: 10,
-                    vertical: 6,
+                    vertical: 5,
                   ),
                   decoration: BoxDecoration(
-                    color: RhythmTheme.aurora.withValues(alpha: 0.12),
-                    borderRadius: BorderRadius.circular(12),
+                    color: PlannerVisualTokens.gold.withValues(
+                      alpha: PlannerVisualTokens.liftedAlpha(0.08),
+                    ),
+                    borderRadius: BorderRadius.circular(999),
                     border: Border.all(
-                      color: RhythmTheme.aurora.withValues(alpha: 0.5),
+                      color: PlannerVisualTokens.gold.withValues(
+                        alpha: PlannerVisualTokens.liftedAlpha(0.28),
+                      ),
+                      width: 0.5,
                     ),
                   ),
                   child: Text(
                     'Day $decanDay',
-                    style: RhythmTheme.label.copyWith(
-                      color: RhythmTheme.aurora,
+                    style: TextStyle(
+                      color: PlannerVisualTokens.gold.withValues(
+                        alpha: PlannerVisualTokens.liftedAlpha(0.74),
+                      ),
+                      fontFamily: PlannerVisualTokens.sansFamily,
+                      fontFamilyFallback: PlannerVisualTokens.sansFallback,
+                      fontSize: 11,
                       fontWeight: FontWeight.w700,
+                      letterSpacing: 0.8,
                     ),
                   ),
                 ),
@@ -2544,17 +2676,21 @@ class _TodaysAlignmentPageState extends State<TodaysAlignmentPage> {
                   ? Center(
                       child: Text(
                         'No sources mapped to Day $decanDay.',
-                        style: RhythmTheme.subheading,
+                        style: PlannerVisualTokens.captionItalic.copyWith(
+                          fontSize: 15,
+                        ),
                         textAlign: TextAlign.center,
                       ),
                     )
                   : ListView.separated(
                       physics: const BouncingScrollPhysics(),
                       itemCount: items.length,
-                      separatorBuilder: (context, index) => const Divider(
+                      separatorBuilder: (context, index) => Divider(
                         height: 14,
-                        thickness: 0.6,
-                        color: Colors.white12,
+                        thickness: 0.5,
+                        color: PlannerVisualTokens.gold.withValues(
+                          alpha: PlannerVisualTokens.liftedAlpha(0.07),
+                        ),
                       ),
                       itemBuilder: (context, i) {
                         final item = items[i];
@@ -2570,9 +2706,7 @@ class _TodaysAlignmentPageState extends State<TodaysAlignmentPage> {
                           crossAxisAlignment: CrossAxisAlignment.center,
                           children: [
                             RhythmStateDot(
-                              state: itemState == RhythmItemState.pending
-                                  ? RhythmItemState.done
-                                  : itemState,
+                              state: itemState,
                               isActive: itemState != RhythmItemState.pending,
                               onTap: () => unawaited(
                                 _toggleNutritionItemDone(
@@ -2588,7 +2722,12 @@ class _TodaysAlignmentPageState extends State<TodaysAlignmentPage> {
                             Expanded(
                               child: Text(
                                 source,
-                                style: RhythmTheme.subheading.copyWith(
+                                style: PlannerVisualTokens.plateBody.copyWith(
+                                  color: const Color(0xFFE0C897).withValues(
+                                    alpha: PlannerVisualTokens.liftedAlpha(
+                                      0.78,
+                                    ),
+                                  ),
                                   fontWeight: FontWeight.w700,
                                 ),
                               ),
@@ -2601,7 +2740,7 @@ class _TodaysAlignmentPageState extends State<TodaysAlignmentPage> {
             const SizedBox(height: 8),
             Text(
               'Double-tap for nutrient + purpose.',
-              style: RhythmTheme.label.copyWith(color: Colors.white54),
+              style: PlannerVisualTokens.captionItalic.copyWith(fontSize: 12),
             ),
           ],
         ),
@@ -2612,301 +2751,35 @@ class _TodaysAlignmentPageState extends State<TodaysAlignmentPage> {
   Widget _buildNutritionSection() {
     final decanName = _currentDecanName();
 
-    return RhythmSectionCard(
-      title: 'Nutrition',
-      subtitle: 'Swipe across the decan to remember your sources.',
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Container(
-            decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.04),
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: Colors.white12),
-            ),
-            child: Column(
-              children: [
-                Padding(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: 10,
-                  ),
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: Text(
-                          'Add to Day ${_activeNutritionDayIndex + 1}',
-                          style: RhythmTheme.subheading.copyWith(
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                      ),
-                      IconButton(
-                        tooltip: _nutritionFormOpen
-                            ? 'Hide add form'
-                            : 'Show add form',
-                        icon: Icon(
-                          _nutritionFormOpen
-                              ? Icons.keyboard_arrow_down
-                              : Icons.keyboard_arrow_up,
-                          color: Colors.white70,
-                        ),
-                        onPressed: () {
-                          setState(() {
-                            _nutritionFormOpen = !_nutritionFormOpen;
-                          });
-                        },
-                      ),
-                    ],
-                  ),
-                ),
-                AnimatedCrossFade(
-                  crossFadeState: _nutritionFormOpen
-                      ? CrossFadeState.showFirst
-                      : CrossFadeState.showSecond,
-                  duration: const Duration(milliseconds: 200),
-                  firstChild: Padding(
-                    padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        TextField(
-                          controller: _nutritionSourceController,
-                          scrollPadding: keyboardManagedTextFieldScrollPadding,
-                          style: RhythmTheme.subheading,
-                          decoration: InputDecoration(
-                            labelText: 'Source',
-                            hintText: 'e.g., Apple, Supplement, Tea',
-                            labelStyle: RhythmTheme.label.copyWith(
-                              color: Colors.white70,
-                            ),
-                            hintStyle: RhythmTheme.label.copyWith(
-                              color: Colors.white38,
-                            ),
-                            filled: true,
-                            fillColor: Colors.white.withValues(alpha: 0.05),
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(10),
-                              borderSide: BorderSide(
-                                color: Colors.white.withValues(alpha: 0.12),
-                              ),
-                            ),
-                          ),
-                          textInputAction: TextInputAction.next,
-                        ),
-                        const SizedBox(height: 8),
-                        TextField(
-                          controller: _nutritionNutrientController,
-                          scrollPadding: keyboardManagedTextFieldScrollPadding,
-                          style: RhythmTheme.subheading,
-                          decoration: InputDecoration(
-                            labelText: 'Nutrient (optional)',
-                            hintText: 'e.g., Vitamin C, Magnesium',
-                            labelStyle: RhythmTheme.label.copyWith(
-                              color: Colors.white70,
-                            ),
-                            hintStyle: RhythmTheme.label.copyWith(
-                              color: Colors.white38,
-                            ),
-                            filled: true,
-                            fillColor: Colors.white.withValues(alpha: 0.05),
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(10),
-                              borderSide: BorderSide(
-                                color: Colors.white.withValues(alpha: 0.12),
-                              ),
-                            ),
-                          ),
-                          textInputAction: TextInputAction.next,
-                        ),
-                        const SizedBox(height: 8),
-                        TextField(
-                          controller: _nutritionPurposeController,
-                          scrollPadding: keyboardManagedTextFieldScrollPadding,
-                          style: RhythmTheme.subheading,
-                          decoration: InputDecoration(
-                            labelText: 'Purpose (optional)',
-                            hintText: 'e.g., Energy, Sleep, Recovery',
-                            labelStyle: RhythmTheme.label.copyWith(
-                              color: Colors.white70,
-                            ),
-                            hintStyle: RhythmTheme.label.copyWith(
-                              color: Colors.white38,
-                            ),
-                            filled: true,
-                            fillColor: Colors.white.withValues(alpha: 0.05),
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(10),
-                              borderSide: BorderSide(
-                                color: Colors.white.withValues(alpha: 0.12),
-                              ),
-                            ),
-                          ),
-                          textInputAction: TextInputAction.done,
-                          onSubmitted: (_) => unawaited(_addNutritionItem()),
-                        ),
-                        const SizedBox(height: 10),
-                        Align(
-                          alignment: Alignment.centerRight,
-                          child: ElevatedButton.icon(
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: RhythmTheme.aurora,
-                              foregroundColor: Colors.black,
-                            ),
-                            onPressed: _nutritionLoading
-                                ? null
-                                : () => unawaited(_addNutritionItem()),
-                            icon: const Icon(Icons.add),
-                            label: const Text('Add to grid'),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  secondChild: const SizedBox.shrink(),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 12),
-          if (_nutritionMissingTable || _nutritionLocalOnly)
-            Container(
-              margin: const EdgeInsets.only(bottom: 10),
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: Colors.orangeAccent.withValues(alpha: 0.12),
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(
-                  color: Colors.orangeAccent.withValues(alpha: 0.4),
-                ),
-              ),
-              child: Row(
-                children: [
-                  const Icon(
-                    Icons.cloud_off,
-                    color: Colors.orangeAccent,
-                    size: 18,
-                  ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: Text(
-                      _nutritionLocalOnly
-                          ? 'Nutrition sources are saved only on this device. Cloud sync is unavailable.'
-                          : 'Nutrition tracking is not available in this environment yet.',
-                      style: RhythmTheme.subheading.copyWith(
-                        color: Colors.orangeAccent,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          if (_nutritionError != null &&
-              !_nutritionMissingTable &&
-              !_nutritionLocalOnly)
-            Container(
-              margin: const EdgeInsets.only(bottom: 10),
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: Colors.redAccent.withValues(alpha: 0.12),
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(
-                  color: Colors.redAccent.withValues(alpha: 0.4),
-                ),
-              ),
-              child: Row(
-                children: [
-                  const Icon(
-                    Icons.error_outline,
-                    color: Colors.redAccent,
-                    size: 18,
-                  ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: Text(
-                      _nutritionError!,
-                      style: RhythmTheme.subheading.copyWith(
-                        color: Colors.redAccent,
-                      ),
-                    ),
-                  ),
-                  TextButton(
-                    onPressed: () => unawaited(_loadNutrition()),
-                    child: const Text('Retry'),
-                  ),
-                ],
-              ),
-            ),
-          if (_nutritionLoading)
-            const Padding(
-              padding: EdgeInsets.symmetric(vertical: 20),
-              child: Center(
-                child: SizedBox(
-                  width: 26,
-                  height: 26,
-                  child: CircularProgressIndicator(
-                    strokeWidth: 2.6,
-                    valueColor: AlwaysStoppedAnimation<Color>(KemeticGold.base),
-                  ),
-                ),
-              ),
-            )
-          else
-            Column(
-              children: [
-                SizedBox(
-                  height: 230,
-                  child: PageView.builder(
-                    controller: _nutritionPageController,
-                    physics: const BouncingScrollPhysics(),
-                    itemCount: 10,
-                    onPageChanged: (index) {
-                      setState(() {
-                        _activeNutritionDayIndex = index;
-                      });
-                      _persistSessionStateSoon();
-                    },
-                    itemBuilder: (context, index) {
-                      return _nutritionGridPage(
-                        index: index,
-                        decanName: decanName,
-                      );
-                    },
-                  ),
-                ),
-                const SizedBox(height: 10),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    for (int i = 0; i < 10; i++)
-                      AnimatedContainer(
-                        duration: const Duration(milliseconds: 200),
-                        margin: const EdgeInsets.symmetric(horizontal: 3),
-                        height: 8,
-                        width: _activeNutritionDayIndex == i ? 18 : 8,
-                        decoration: BoxDecoration(
-                          color: _activeNutritionDayIndex == i
-                              ? RhythmTheme.aurora
-                              : Colors.white.withValues(alpha: 0.3),
-                          borderRadius: BorderRadius.circular(20),
-                        ),
-                      ),
-                  ],
-                ),
-                const SizedBox(height: 6),
-                GestureDetector(
-                  behavior: HitTestBehavior.opaque,
-                  onTap: _openDecanInfo,
-                  child: Text(
-                    'Viewing $decanName — decan day ${_activeNutritionDayIndex + 1} of 10. Swipe or double-tap for detail.',
-                    textAlign: TextAlign.center,
-                    style: RhythmTheme.label.copyWith(color: Colors.white54),
-                  ),
-                ),
-              ],
-            ),
-        ],
-      ),
+    return PlannerNutritionSection(
+      decanName: decanName,
+      activeNutritionDayIndex: _activeNutritionDayIndex,
+      nutritionFormOpen: _nutritionFormOpen,
+      nutritionLoading: _nutritionLoading,
+      nutritionMissingTable: _nutritionMissingTable,
+      nutritionLocalOnly: _nutritionLocalOnly,
+      nutritionError: _nutritionError,
+      nutritionPageController: _nutritionPageController,
+      nutritionSourceController: _nutritionSourceController,
+      nutritionNutrientController: _nutritionNutrientController,
+      nutritionPurposeController: _nutritionPurposeController,
+      onToggleFormOpen: () {
+        setState(() {
+          _nutritionFormOpen = !_nutritionFormOpen;
+        });
+      },
+      onAddNutritionItem: () => unawaited(_addNutritionItem()),
+      onRetryNutrition: () => unawaited(_loadNutrition()),
+      onNutritionPageChanged: (index) {
+        setState(() {
+          _activeNutritionDayIndex = index;
+        });
+        _persistSessionStateSoon();
+      },
+      onOpenDecanInfo: _openDecanInfo,
+      nutritionPageBuilder: (context, index) {
+        return _nutritionGridPage(index: index, decanName: decanName);
+      },
     );
   }
 
@@ -2928,17 +2801,34 @@ class _TodaysAlignmentPageState extends State<TodaysAlignmentPage> {
       padding: fullscreen ? const EdgeInsets.all(24) : const EdgeInsets.all(18),
       margin: fullscreen
           ? null
-          : const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+          : const EdgeInsets.symmetric(horizontal: 5, vertical: 4),
       decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.04),
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: RhythmTheme.aurora.withValues(alpha: 0.4)),
+        borderRadius: BorderRadius.circular(PlannerVisualTokens.plateRadius),
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            Colors.black.withValues(
+              alpha: PlannerVisualTokens.liftedAlpha(0.18),
+            ),
+            Colors.black.withValues(
+              alpha: PlannerVisualTokens.liftedAlpha(0.38),
+            ),
+          ],
+        ),
+        border: Border.all(
+          color: PlannerVisualTokens.gold.withValues(
+            alpha: PlannerVisualTokens.liftedAlpha(0.11),
+          ),
+          width: 0.5,
+        ),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.6),
-            blurRadius: 18,
-            spreadRadius: 2,
-            offset: const Offset(0, 10),
+            color: Colors.black.withValues(
+              alpha: PlannerVisualTokens.liftedAlpha(0.42),
+            ),
+            blurRadius: 12,
+            offset: const Offset(0, 3),
           ),
         ],
       ),
@@ -2962,7 +2852,8 @@ class _TodaysAlignmentPageState extends State<TodaysAlignmentPage> {
                         style: const TextStyle(
                           fontSize: 34,
                           fontWeight: FontWeight.w700,
-                          fontFamily: 'GentiumPlus',
+                          fontFamily: PlannerVisualTokens.serifFamily,
+                          fontFamilyFallback: PlannerVisualTokens.serifFallback,
                           height: 1.15,
                         ),
                         maxLines: null,
@@ -2980,7 +2871,8 @@ class _TodaysAlignmentPageState extends State<TodaysAlignmentPage> {
                 style: const TextStyle(
                   fontSize: 24,
                   fontWeight: FontWeight.w700,
-                  fontFamily: 'GentiumPlus',
+                  fontFamily: PlannerVisualTokens.serifFamily,
+                  fontFamilyFallback: PlannerVisualTokens.serifFallback,
                   height: 1.15,
                 ),
                 maxLines: 6,
@@ -3000,8 +2892,18 @@ class _TodaysAlignmentPageState extends State<TodaysAlignmentPage> {
             top: 4,
             right: 4,
             child: PopupMenuButton<String>(
-              color: Colors.black87,
-              icon: const Icon(Icons.more_vert, color: Colors.white70),
+              color: const Color(0xFF100B06),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(
+                  PlannerVisualTokens.plateRadius,
+                ),
+              ),
+              icon: Icon(
+                Icons.more_vert,
+                color: PlannerVisualTokens.gold.withValues(
+                  alpha: PlannerVisualTokens.liftedAlpha(0.62),
+                ),
+              ),
               onSelected: (value) {
                 if (value == 'edit') {
                   unawaited(_editNote(index));
@@ -3027,168 +2929,31 @@ class _TodaysAlignmentPageState extends State<TodaysAlignmentPage> {
   }
 
   Widget _buildNotesSection() {
-    return RhythmSectionCard(
-      title: 'Notes',
-      subtitle: 'Affirmations to keep front-of-mind. Double-tap to spotlight.',
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          if (_notesLocalOnly)
-            Container(
-              margin: const EdgeInsets.only(bottom: 10),
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: Colors.orangeAccent.withValues(alpha: 0.15),
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(
-                  color: Colors.orangeAccent.withValues(alpha: 0.5),
-                ),
-              ),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Icon(
-                    Icons.cloud_off,
-                    color: Colors.orangeAccent,
-                    size: 18,
-                  ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: Text(
-                      'Planner notes are saved only on this device. Cloud sync is unavailable.',
-                      style: RhythmTheme.subheading.copyWith(
-                        color: Colors.orangeAccent,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          Stack(
-            children: [
-              TextField(
-                controller: _noteInputController,
-                scrollPadding: keyboardManagedTextFieldScrollPadding,
-                minLines: 2,
-                maxLines: 4,
-                style: RhythmTheme.subheading,
-                decoration: InputDecoration(
-                  hintText: 'Write a note, affirmation, or reminder',
-                  hintStyle: RhythmTheme.subheading.copyWith(
-                    color: Colors.white38,
-                  ),
-                  filled: true,
-                  fillColor: Colors.white.withValues(alpha: 0.06),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: BorderSide(
-                      color: Colors.white.withValues(alpha: 0.12),
-                    ),
-                  ),
-                  enabledBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: BorderSide(
-                      color: Colors.white.withValues(alpha: 0.12),
-                    ),
-                  ),
-                  focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: BorderSide(
-                      color: RhythmTheme.aurora.withValues(alpha: 0.6),
-                    ),
-                  ),
-                  contentPadding: const EdgeInsets.fromLTRB(14, 14, 70, 14),
-                ),
-                textCapitalization: TextCapitalization.sentences,
-                textInputAction: TextInputAction.newline,
-                onSubmitted: (_) => unawaited(_addNote()),
-              ),
-              Positioned(
-                right: 8,
-                bottom: 8,
-                child: FloatingActionButton.small(
-                  heroTag: widget.embedded ? null : 'today_alignment_add_note',
-                  backgroundColor: RhythmTheme.aurora,
-                  foregroundColor: Colors.black,
-                  onPressed: () => unawaited(_addNote()),
-                  child: const Icon(Icons.add, size: 22),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          if (_notes.isEmpty)
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: Colors.white.withValues(alpha: 0.04),
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: Colors.white12),
-              ),
-              child: Text(
-                'No notes yet. Add a quick reminder to keep it in your field today.',
-                style: RhythmTheme.subheading,
-              ),
-            )
-          else
-            Column(
-              children: [
-                SizedBox(
-                  height: 200,
-                  child: PageView.builder(
-                    controller: _notePageController,
-                    physics: const BouncingScrollPhysics(),
-                    itemCount: _notes.length,
-                    onPageChanged: (index) {
-                      if (_isSyncingNotePages) {
-                        setState(() {
-                          _activeNoteIndex = index;
-                          if (_fullscreenNote != null) {
-                            _fullscreenNote = _notes[index];
-                          }
-                        });
-                        _persistSessionStateSoon();
-                        return;
-                      }
-                      unawaited(_jumpToNote(index));
-                    },
-                    itemBuilder: (context, index) {
-                      return _noteCard(context, _notes[index], index: index);
-                    },
-                  ),
-                ),
-                const SizedBox(height: 10),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    for (int i = 0; i < _notes.length; i++)
-                      AnimatedContainer(
-                        duration: const Duration(milliseconds: 200),
-                        margin: const EdgeInsets.symmetric(horizontal: 4),
-                        height: 8,
-                        width: _activeNoteIndex == i ? 18 : 8,
-                        decoration: BoxDecoration(
-                          color: _activeNoteIndex == i
-                              ? RhythmTheme.aurora
-                              : Colors.white.withValues(alpha: 0.3),
-                          borderRadius: BorderRadius.circular(20),
-                        ),
-                      ),
-                    IconButton(
-                      onPressed: _showNotePicker,
-                      icon: const Icon(
-                        Icons.list_alt,
-                        color: Colors.white70,
-                        size: 20,
-                      ),
-                      tooltip: 'See all notes',
-                    ),
-                  ],
-                ),
-              ],
-            ),
-        ],
-      ),
+    return PlannerNotesSection(
+      notesLocalOnly: _notesLocalOnly,
+      noteInputController: _noteInputController,
+      notes: _notes,
+      activeNoteIndex: _activeNoteIndex,
+      notePageController: _notePageController,
+      addHeroTag: widget.embedded ? null : 'today_alignment_add_note',
+      onAddNote: () => unawaited(_addNote()),
+      onShowNotePicker: _showNotePicker,
+      onPageChanged: (index) {
+        if (_isSyncingNotePages) {
+          setState(() {
+            _activeNoteIndex = index;
+            if (_fullscreenNote != null) {
+              _fullscreenNote = _notes[index];
+            }
+          });
+          _persistSessionStateSoon();
+          return;
+        }
+        unawaited(_jumpToNote(index));
+      },
+      noteCardBuilder: (context, index) {
+        return _noteCard(context, _notes[index], index: index);
+      },
     );
   }
 
@@ -3352,6 +3117,7 @@ class _TodaysAlignmentPageState extends State<TodaysAlignmentPage> {
         }
 
         final progress = _progress();
+        final progressPercent = (progress * 100).round();
         final plannerAction = _todayPlannerAction();
         final listBottomPadding = embedded
             ? bottomPaddingAboveGlobalChrome(context, 32)
@@ -3362,355 +3128,122 @@ class _TodaysAlignmentPageState extends State<TodaysAlignmentPage> {
           keyboardInset + 32,
         );
 
-        final plannerLeadSections = <Widget>[
-          RhythmSectionCard(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                KemeticGold.text(
-                  'Planner',
-                  style: const TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.w700,
-                    fontFamily: 'GentiumPlus',
+        final question = plannerAction == null
+            ? null
+            : KemeticDayButton(
+                dayKey: plannerAction.dayKey,
+                kYear: plannerAction.kYear,
+                autoOpen: _shouldOpenDayCardOnLoad,
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 10),
+                  child: Center(
+                    child: GlossyText(
+                      text: plannerAction.reflection,
+                      textAlign: TextAlign.center,
+                      softWrap: true,
+                      gradient: _plannerReflectionGloss,
+                      style: RhythmTheme.subheading.copyWith(height: 1.35),
+                    ),
                   ),
                 ),
-                const SizedBox(height: 6),
-                Text(
-                  'Move through today with clarity and grace.',
-                  style: RhythmTheme.subheading,
-                ),
-                const SizedBox(height: 12),
-                Row(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.all(10),
-                      decoration: RhythmTheme.frostSurface(),
-                      child: KemeticGold.icon(Icons.wb_sunny_rounded, size: 22),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            dateLabel,
-                            style: RhythmTheme.subheading.copyWith(
-                              color: _dateAccentColor(),
-                            ),
-                          ),
-                          const SizedBox(height: 6),
-                          LinearProgressIndicator(
-                            value: progress,
-                            minHeight: 8,
-                            backgroundColor: Colors.white12,
-                            valueColor: AlwaysStoppedAnimation<Color>(
-                              RhythmTheme.aurora,
-                            ),
-                          ),
-                          const SizedBox(height: 6),
-                          Text(
-                            '${(progress * 100).round()}% aligned so far',
-                            style: RhythmTheme.subheading.copyWith(
-                              color: Colors.white70,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
+              );
+
+        final plannerHeaderSections = <Widget>[
+          PlannerWeighingHeader(
+            percent: progressPercent,
+            dateLabel: dateLabel,
+            question: question,
           ),
-          if (plannerAction != null) ...[
-            const SizedBox(height: 12),
-            KemeticDayButton(
-              dayKey: plannerAction.dayKey,
-              kYear: plannerAction.kYear,
-              autoOpen: _shouldOpenDayCardOnLoad,
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 10),
-                child: Center(
-                  child: GlossyText(
-                    text: plannerAction.reflection,
-                    textAlign: TextAlign.center,
-                    softWrap: true,
-                    gradient: _plannerReflectionGloss,
-                    style: RhythmTheme.subheading.copyWith(height: 1.35),
-                  ),
-                ),
-              ),
-            ),
-            const SizedBox(height: 14),
-          ] else
-            const SizedBox(height: 14),
-          _buildNotesSection(),
-          const SizedBox(height: 14),
-          _buildNutritionSection(),
-          const SizedBox(height: 14),
+          const PlannerHorizon(),
         ];
 
-        final todoSection = RhythmSectionCard(
-          title: 'To Do',
-          subtitle:
-              'Add what you want to move for this day. Press return or tap Add.',
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Row(
-                children: [
-                  Icon(
-                    Icons.calendar_month_rounded,
-                    size: 18,
-                    color: _dateAccentColor(),
-                  ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      _formatDateLabel(_activeTodoDay, short: true),
-                      style: RhythmTheme.subheading.copyWith(
-                        color: _dateAccentColor(),
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                  ),
-                  ValueListenableBuilder<TextEditingValue>(
-                    valueListenable: _commitmentInputController,
-                    builder: (context, value, child) {
-                      final hasText = value.text.trim().isNotEmpty;
-                      return ElevatedButton.icon(
-                        style: withExpandedTouchTargets(
-                          context,
-                          ElevatedButton.styleFrom(
-                            backgroundColor: RhythmTheme.aurora,
-                            foregroundColor: Colors.black,
-                            disabledBackgroundColor: Colors.white.withValues(
-                              alpha: 0.08,
-                            ),
-                            disabledForegroundColor: Colors.white38,
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 12,
-                              vertical: 10,
-                            ),
-                            visualDensity: VisualDensity.compact,
-                            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                          ),
-                        ),
-                        onPressed: hasText
-                            ? () => unawaited(_commitNewTodo())
-                            : null,
-                        icon: const Icon(Icons.add, size: 16),
-                        label: const Text('Add'),
-                      );
-                    },
-                  ),
-                  if (_sameDay(_activeTodoDay, _todayLocal))
-                    const SizedBox(width: 8),
-                  if (_sameDay(_activeTodoDay, _todayLocal))
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 10,
-                        vertical: 6,
-                      ),
-                      decoration: BoxDecoration(
-                        color: Colors.white.withValues(alpha: 0.08),
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: Colors.white12),
-                      ),
-                      child: const Text(
-                        'Today',
-                        style: TextStyle(
-                          color: Colors.white70,
-                          fontSize: 12,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                    ),
-                ],
-              ),
-              const SizedBox(height: 10),
-              TextField(
-                controller: _commitmentInputController,
-                scrollPadding: keyboardManagedTextFieldScrollPadding,
-                style: RhythmTheme.subheading,
-                decoration: InputDecoration(
-                  hintText: 'Type a commitment, then press return or tap Add',
-                  hintStyle: RhythmTheme.subheading.copyWith(
-                    color: Colors.white38,
-                  ),
-                  filled: true,
-                  fillColor: Colors.white.withValues(alpha: 0.06),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: BorderSide(
-                      color: Colors.white.withValues(alpha: 0.12),
-                    ),
-                  ),
-                  enabledBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: BorderSide(
-                      color: Colors.white.withValues(alpha: 0.12),
-                    ),
-                  ),
-                  focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: BorderSide(
-                      color: RhythmTheme.aurora.withValues(alpha: 0.6),
-                    ),
-                  ),
-                  contentPadding: const EdgeInsets.symmetric(
-                    horizontal: 14,
-                    vertical: 12,
-                  ),
-                  isDense: true,
-                ),
-                textCapitalization: TextCapitalization.sentences,
-                textInputAction: TextInputAction.done,
-                onSubmitted: (_) => unawaited(_commitNewTodo()),
-              ),
-              const SizedBox(height: 12),
-              if (plannerLoading)
-                _buildPlannerLoadingSlot(
-                  label: 'Restoring commitments',
-                  detail: 'Your to-dos will fill in here.',
-                  minHeight: _todoPageHeightEstimate(),
-                )
-              else
-                SizedBox(
-                  height: _todoPageHeightEstimate(),
-                  child: PageView.builder(
-                    controller: _todoPageController,
-                    physics: const BouncingScrollPhysics(),
-                    onPageChanged: _onTodoPageChanged,
-                    itemCount: _todoDays.length,
-                    itemBuilder: (context, index) {
-                      final day = _todoDays[index];
-                      return _buildTodoDayPage(day);
-                    },
-                  ),
-                ),
-              const SizedBox(height: 10),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  for (int i = 0; i < _todoDays.length; i++)
-                    AnimatedContainer(
-                      duration: const Duration(milliseconds: 200),
-                      margin: const EdgeInsets.symmetric(horizontal: 4),
-                      height: 8,
-                      width: _activeTodoDayIndex == i ? 18 : 8,
-                      decoration: BoxDecoration(
-                        color: _activeTodoDayIndex == i
-                            ? RhythmTheme.aurora
-                            : Colors.white.withValues(alpha: 0.3),
-                        borderRadius: BorderRadius.circular(20),
-                      ),
-                    ),
-                ],
-              ),
-              const SizedBox(height: 6),
-              Text(
-                'Swipe to review the previous 2 days or plan 2 days ahead.',
-                textAlign: TextAlign.center,
-                style: RhythmTheme.label.copyWith(color: Colors.white54),
-              ),
-            ],
+        final todoSection = PlannerTodoSection(
+          activeDayLabel: _formatDateLabel(_activeTodoDay, short: true),
+          activeDayIsToday: _sameDay(_activeTodoDay, _todayLocal),
+          dateAccentColor: _dateAccentColor(),
+          commitmentInputController: _commitmentInputController,
+          plannerLoading: plannerLoading,
+          loadingSlot: _buildPlannerLoadingSlot(
+            label: 'Restoring commitments',
+            detail: 'Your to-dos will fill in here.',
+            minHeight: _todoPageHeightEstimate(),
           ),
+          todoPageHeight: _todoPageHeightEstimate(),
+          todoPageController: _todoPageController,
+          todoDayCount: _todoDays.length,
+          activeTodoDayIndex: _activeTodoDayIndex,
+          onAddTodo: () => unawaited(_commitNewTodo()),
+          onTodoPageChanged: _onTodoPageChanged,
+          todoPageBuilder: (context, index) {
+            final day = _todoDays[index];
+            return _buildTodoDayPage(day);
+          },
         );
 
-        final completedSection = RhythmSectionCard(
-          title: 'Completed',
-          subtitle: 'Moments you already honored.',
-          child: plannerLoading
-              ? _buildPlannerLoadingSlot(
-                  label: 'Restoring completed moments',
-                  detail: 'Finished items will appear in this same slot.',
-                )
-              : Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: _completed().isEmpty
-                      ? [
-                          Text(
-                            'Nothing checked off yet. Start small; one step brings momentum.',
-                            style: RhythmTheme.subheading,
-                          ),
-                        ]
-                      : _completed()
-                            .map(
-                              (item) => Padding(
-                                padding: const EdgeInsets.symmetric(
-                                  vertical: 6.0,
-                                ),
-                                child: Row(
-                                  children: [
-                                    const Icon(
-                                      Icons.check_circle,
-                                      color: Colors.greenAccent,
-                                      size: 18,
-                                    ),
-                                    const SizedBox(width: 8),
-                                    Expanded(
-                                      child: Text(
-                                        item.title,
-                                        style: RhythmTheme.subheading,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            )
-                            .toList(),
-                ),
+        final completedSection = PlannerCompletedSection(
+          plannerLoading: plannerLoading,
+          loadingSlot: _buildPlannerLoadingSlot(
+            label: 'Restoring completed moments',
+            detail: 'Finished items will appear in this same slot.',
+          ),
+          completedItems: _completed(),
         );
-
-        final plannerChildren = <Widget>[
-          ...plannerLeadSections,
-          todoSection,
-          const SizedBox(height: 14),
-          completedSection,
-        ];
 
         const todoCenterKey = ValueKey<String>('planner-todo-scroll-center');
         final list = _shouldStartOnTodoSection
             ? CustomScrollView(
+                keyboardDismissBehavior:
+                    ScrollViewKeyboardDismissBehavior.onDrag,
                 center: todoCenterKey,
                 slivers: [
-                  SliverPadding(
-                    padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
-                    sliver: SliverList(
-                      delegate: SliverChildListDelegate(plannerLeadSections),
+                  SliverList(
+                    delegate: SliverChildListDelegate(plannerHeaderSections),
+                  ),
+                  SliverToBoxAdapter(
+                    child: PlannerWall(
+                      bottomPadding: 0,
+                      children: [
+                        _buildNotesSection(),
+                        _buildNutritionSection(),
+                      ],
                     ),
                   ),
-                  SliverPadding(
+                  SliverToBoxAdapter(
                     key: todoCenterKey,
-                    padding: EdgeInsets.fromLTRB(
-                      16,
-                      16,
-                      16,
-                      effectiveListBottomPadding,
-                    ),
-                    sliver: SliverList(
-                      delegate: SliverChildListDelegate([
-                        todoSection,
-                        const SizedBox(height: 14),
-                        completedSection,
-                      ]),
+                    child: PlannerWall(
+                      topPadding: PlannerVisualTokens.plateGap,
+                      bottomPadding: effectiveListBottomPadding,
+                      children: [todoSection, completedSection],
                     ),
                   ),
                 ],
               )
-            : ListView(
-                padding: EdgeInsets.fromLTRB(
-                  16,
-                  16,
-                  16,
-                  effectiveListBottomPadding,
-                ),
-                children: plannerChildren,
+            : CustomScrollView(
+                keyboardDismissBehavior:
+                    ScrollViewKeyboardDismissBehavior.onDrag,
+                slivers: [
+                  SliverList(
+                    delegate: SliverChildListDelegate(plannerHeaderSections),
+                  ),
+                  SliverToBoxAdapter(
+                    child: PlannerWall(
+                      bottomPadding: effectiveListBottomPadding,
+                      children: [
+                        _buildNotesSection(),
+                        _buildNutritionSection(),
+                        todoSection,
+                        completedSection,
+                      ],
+                    ),
+                  ),
+                ],
               );
 
-        return Stack(children: [list, _fullscreenOverlay()]);
+        return PlannerWarmBackground(
+          percent: progressPercent,
+          enabled: !embedded,
+          child: Stack(children: [list, _fullscreenOverlay()]),
+        );
       },
     );
 

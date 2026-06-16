@@ -17,6 +17,7 @@ import 'package:mobile/shared/glossy_text.dart';
 import 'package:mobile/core/app_bottom_insets.dart';
 import 'package:mobile/core/completion_status.dart';
 import 'package:mobile/core/touch_targets.dart';
+import 'package:mobile/features/onboarding/daily_orientation_repo.dart';
 import 'calendar_page.dart';
 import 'calendar_completion.dart';
 import 'calendar_reflection_context.dart';
@@ -25,6 +26,7 @@ import 'landscape_month_view.dart';
 import 'maat_flow_identity.dart';
 import 'track_sky_flow.dart';
 import 'dawn_house_rite_flow.dart';
+import 'evening_threshold_flow.dart';
 import 'evening_threshold_rite_flow.dart';
 import 'the_weighing_flow.dart';
 import 'the_offering_table_flow.dart';
@@ -118,12 +120,12 @@ const List<String> _dayViewSansFallback = [
   'sans-serif',
 ];
 const Color _dayViewInk = Color(0xFFF2E4C6);
-const Color _dayViewSilver = Color(0xFF8A8070);
-const Color _dayViewSilverDim = Color(0xFF645946);
-const Color _dayViewBase = Color(0xFF050403);
+const Color _dayViewSilver = Color(0xFF9B9182);
+const Color _dayViewSilverDim = Color(0xFF776B58);
+const Color _dayViewBase = Color(0xFF060504);
 const Color _dayViewCopperAccent = Color(0xFFC06E4D);
-const Color _dayViewWarmStone = Color(0xFFA9988C);
-const Color _dayViewBronzeLabel = Color(0xFF9E7A40);
+const Color _dayViewWarmStone = Color(0xFFB8AA9A);
+const Color _dayViewBronzeLabel = Color(0xFFAA894F);
 
 Color _dayViewMix(Color a, Color b, double t) => Color.lerp(a, b, t)!;
 
@@ -157,7 +159,7 @@ Color _dayViewSoftenedAccent(Color color) {
   final hsl = HSLColor.fromColor(color);
   return hsl
       .withSaturation((hsl.saturation * 0.52).clamp(0.0, 0.50).toDouble())
-      .withLightness(0.46)
+      .withLightness(0.49)
       .toColor();
 }
 
@@ -277,36 +279,36 @@ _DayViewEventVisual _dayViewVisualForEvent(
     const accent = Color(0xFFC2673F);
     return _DayViewEventVisual(
       source: accent,
-      base: const Color(0xFF160A07),
-      wash: const Color(0xFF4A1E13),
-      washLeft: const Color(0xFF4A1E13),
-      washMid: const Color(0xFF28110C),
-      washEnd: const Color(0xFF120806),
-      stripe: accent.withValues(alpha: 0.58),
-      border: const Color(0xFFC4754C).withValues(alpha: 0.20),
-      category: const Color(0xFFB36B43),
-      title: const Color(0xFFD39A63),
-      metaText: const Color(0xFFA56F45),
-      supportText: const Color(0xFF9A6B4B),
-      sectionLabelText: const Color(0xFF8E713E),
-      bodyText: const Color(0xFFAFA097),
-      metaFill: accent.withValues(alpha: 0.08),
-      metaBorder: accent.withValues(alpha: 0.18),
-      actionButtonFill: const Color(0xFF25110C),
-      actionButtonBorder: const Color(0xFFC06E4D).withValues(alpha: 0.24),
-      actionButtonText: const Color(0xFFD19A63),
-      actionIconFill: const Color(0xFFC06E4D).withValues(alpha: 0.22),
-      actionIconGlyph: const Color(0xFFDFA172),
-      completionPanelFill: const Color(0xFF100706),
-      completionPanelBorder: const Color(0xFFC06E4D).withValues(alpha: 0.14),
-      completionButtonFill: const Color(0xFF070504),
-      completionButtonBorder: const Color(0xFF5A3A23).withValues(alpha: 0.45),
-      completionButtonText: const Color(0xFF9C845E),
-      completionButtonSelectedFill: const Color(0xFF2B160F),
+      base: const Color(0xFF190C08),
+      wash: const Color(0xFF542516),
+      washLeft: const Color(0xFF542516),
+      washMid: const Color(0xFF2F150D),
+      washEnd: const Color(0xFF150A07),
+      stripe: accent.withValues(alpha: 0.65),
+      border: const Color(0xFFC4754C).withValues(alpha: 0.24),
+      category: const Color(0xFFC0774B),
+      title: const Color(0xFFDCA66E),
+      metaText: const Color(0xFFB47A4D),
+      supportText: const Color(0xFFA97855),
+      sectionLabelText: const Color(0xFFA88749),
+      bodyText: const Color(0xFFBDAEA2),
+      metaFill: accent.withValues(alpha: 0.10),
+      metaBorder: accent.withValues(alpha: 0.22),
+      actionButtonFill: const Color(0xFF2B150E),
+      actionButtonBorder: const Color(0xFFC06E4D).withValues(alpha: 0.32),
+      actionButtonText: const Color(0xFFDCA66E),
+      actionIconFill: const Color(0xFFC06E4D).withValues(alpha: 0.28),
+      actionIconGlyph: const Color(0xFFE2AE78),
+      completionPanelFill: const Color(0xFF130907),
+      completionPanelBorder: const Color(0xFFC06E4D).withValues(alpha: 0.20),
+      completionButtonFill: const Color(0xFF090604),
+      completionButtonBorder: const Color(0xFF5A3A23).withValues(alpha: 0.54),
+      completionButtonText: const Color(0xFFA98E66),
+      completionButtonSelectedFill: const Color(0xFF311911),
       completionButtonSelectedBorder: const Color(
         0xFFC98A5B,
-      ).withValues(alpha: 0.28),
-      completionButtonSelectedText: const Color(0xFFD4A36C),
+      ).withValues(alpha: 0.34),
+      completionButtonSelectedText: const Color(0xFFDDAE76),
     );
   }
 
@@ -316,22 +318,22 @@ _DayViewEventVisual _dayViewVisualForEvent(
   final isGreen = _dayViewIsGreenMaterialColor(softened);
   final isGold = hue > 32 && hue <= 72;
   final base = isBlue
-      ? const Color(0xFF0D131E)
+      ? const Color(0xFF0F1723)
       : isGreen
-      ? const Color(0xFF07140B)
+      ? const Color(0xFF09170D)
       : isGold
-      ? const Color(0xFF140F07)
+      ? const Color(0xFF171108)
       : Color.alphaBlend(
-          softened.withValues(alpha: 0.10),
-          const Color(0xFF080504),
+          softened.withValues(alpha: 0.13),
+          const Color(0xFF090604),
         );
   final title = isBlue
-      ? _dayViewMix(softened, const Color(0xFF7AB4E0), 0.56)
+      ? _dayViewMix(softened, const Color(0xFF87C0EA), 0.58)
       : isGreen
-      ? _dayViewMix(softened, const Color(0xFF8FCF9C), 0.44)
+      ? _dayViewMix(softened, const Color(0xFF9BD9A8), 0.46)
       : isGold
-      ? _dayViewMix(softened, const Color(0xFFD0A956), 0.45)
-      : _dayViewMix(softened, const Color(0xFFE1B982), 0.18);
+      ? _dayViewMix(softened, const Color(0xFFD7B45E), 0.47)
+      : _dayViewMix(softened, const Color(0xFFE2C58C), 0.22);
   final category = _dayViewMix(softened, _dayViewInk, 0.14);
   final metaText = _dayViewMix(softened, _dayViewSilver, 0.28);
   final supportText = _dayViewMix(softened, const Color(0xFF9A7E64), 0.38);
@@ -343,45 +345,45 @@ _DayViewEventVisual _dayViewVisualForEvent(
     washLeft: softened,
     washMid: _dayViewMix(softened, base, 0.42),
     washEnd: base,
-    stripe: softened.withValues(alpha: isReminder ? 0.54 : 0.58),
-    border: softened.withValues(alpha: 0.20),
-    category: category.withValues(alpha: 0.78),
+    stripe: softened.withValues(alpha: isReminder ? 0.62 : 0.66),
+    border: softened.withValues(alpha: 0.24),
+    category: category.withValues(alpha: 0.88),
     title: title,
-    metaText: metaText.withValues(alpha: 0.78),
-    supportText: supportText.withValues(alpha: 0.78),
-    sectionLabelText: const Color(0xFF8E713E),
-    bodyText: const Color(0xFFAFA097),
-    metaFill: softened.withValues(alpha: 0.08),
-    metaBorder: softened.withValues(alpha: 0.18),
+    metaText: metaText.withValues(alpha: 0.88),
+    supportText: supportText.withValues(alpha: 0.88),
+    sectionLabelText: const Color(0xFFA88749),
+    bodyText: const Color(0xFFBDAEA2),
+    metaFill: softened.withValues(alpha: 0.10),
+    metaBorder: softened.withValues(alpha: 0.22),
     actionButtonFill: Color.alphaBlend(
-      softened.withValues(alpha: 0.09),
-      const Color(0xFF080604),
+      softened.withValues(alpha: 0.11),
+      const Color(0xFF090604),
     ),
-    actionButtonBorder: softened.withValues(alpha: 0.24),
-    actionButtonText: title.withValues(alpha: 0.9),
-    actionIconFill: softened.withValues(alpha: 0.20),
+    actionButtonBorder: softened.withValues(alpha: 0.29),
+    actionButtonText: title.withValues(alpha: 0.96),
+    actionIconFill: softened.withValues(alpha: 0.24),
     actionIconGlyph: title.withValues(alpha: 0.94),
     completionPanelFill: Color.alphaBlend(
-      softened.withValues(alpha: 0.035),
-      const Color(0xFF070504),
+      softened.withValues(alpha: 0.05),
+      const Color(0xFF080604),
     ),
-    completionPanelBorder: softened.withValues(alpha: 0.14),
-    completionButtonFill: const Color(0xFF070504),
-    completionButtonBorder: const Color(0xFF5A3A23).withValues(alpha: 0.45),
-    completionButtonText: const Color(0xFF9C845E),
+    completionPanelBorder: softened.withValues(alpha: 0.18),
+    completionButtonFill: const Color(0xFF090604),
+    completionButtonBorder: const Color(0xFF5A3A23).withValues(alpha: 0.54),
+    completionButtonText: const Color(0xFFA98E66),
     completionButtonSelectedFill: Color.alphaBlend(
-      softened.withValues(alpha: 0.14),
-      const Color(0xFF050403),
+      softened.withValues(alpha: 0.17),
+      const Color(0xFF060504),
     ),
-    completionButtonSelectedBorder: softened.withValues(alpha: 0.28),
-    completionButtonSelectedText: title.withValues(alpha: 0.86),
+    completionButtonSelectedBorder: softened.withValues(alpha: 0.34),
+    completionButtonSelectedText: title.withValues(alpha: 0.93),
   );
 }
 
 Color _dayViewMatteDetailColor(
   Color color, {
-  double saturationScale = 0.88,
-  double lightnessScale = 0.96,
+  double saturationScale = 0.90,
+  double liftAmount = 0.07,
 }) {
   final hsl = HSLColor.fromColor(color);
   return hsl
@@ -389,7 +391,9 @@ Color _dayViewMatteDetailColor(
         (hsl.saturation * saturationScale).clamp(0.0, 1.0).toDouble(),
       )
       .withLightness(
-        (hsl.lightness * lightnessScale).clamp(0.0, 1.0).toDouble(),
+        (hsl.lightness + ((1.0 - hsl.lightness) * liftAmount))
+            .clamp(0.0, 1.0)
+            .toDouble(),
       )
       .toColor();
 }
@@ -397,23 +401,23 @@ Color _dayViewMatteDetailColor(
 _DayViewEventVisual _dayViewMatteDetailVisual(_DayViewEventVisual visual) {
   Color matte(
     Color color, {
-    double saturationScale = 0.88,
-    double lightnessScale = 0.96,
+    double saturationScale = 0.90,
+    double liftAmount = 0.07,
   }) {
     return _dayViewMatteDetailColor(
       color,
       saturationScale: saturationScale,
-      lightnessScale: lightnessScale,
+      liftAmount: liftAmount,
     );
   }
 
   return _DayViewEventVisual(
     source: matte(visual.source),
-    base: matte(visual.base, lightnessScale: 0.99),
+    base: matte(visual.base, liftAmount: 0.045),
     wash: matte(visual.wash),
     washLeft: matte(visual.washLeft),
-    washMid: matte(visual.washMid, lightnessScale: 0.98),
-    washEnd: matte(visual.washEnd, lightnessScale: 0.99),
+    washMid: matte(visual.washMid, liftAmount: 0.060),
+    washEnd: matte(visual.washEnd, liftAmount: 0.045),
     stripe: matte(visual.stripe),
     border: matte(visual.border),
     category: matte(visual.category),
@@ -421,25 +425,22 @@ _DayViewEventVisual _dayViewMatteDetailVisual(_DayViewEventVisual visual) {
     metaText: matte(visual.metaText),
     supportText: matte(visual.supportText),
     sectionLabelText: matte(visual.sectionLabelText),
-    bodyText: matte(visual.bodyText, lightnessScale: 0.97),
-    metaFill: matte(visual.metaFill, lightnessScale: 0.98),
+    bodyText: matte(visual.bodyText, saturationScale: 0.86, liftAmount: 0.080),
+    metaFill: matte(visual.metaFill, liftAmount: 0.060),
     metaBorder: matte(visual.metaBorder),
-    actionButtonFill: matte(visual.actionButtonFill, lightnessScale: 0.98),
+    actionButtonFill: matte(visual.actionButtonFill, liftAmount: 0.060),
     actionButtonBorder: matte(visual.actionButtonBorder),
     actionButtonText: matte(visual.actionButtonText),
     actionIconFill: matte(visual.actionIconFill),
     actionIconGlyph: matte(visual.actionIconGlyph),
-    completionPanelFill: matte(
-      visual.completionPanelFill,
-      lightnessScale: 0.99,
-    ),
+    completionPanelFill: matte(visual.completionPanelFill, liftAmount: 0.050),
     completionPanelBorder: matte(visual.completionPanelBorder),
-    completionButtonFill: matte(visual.completionButtonFill, lightnessScale: 1),
+    completionButtonFill: matte(visual.completionButtonFill, liftAmount: 0.045),
     completionButtonBorder: matte(visual.completionButtonBorder),
     completionButtonText: matte(visual.completionButtonText),
     completionButtonSelectedFill: matte(
       visual.completionButtonSelectedFill,
-      lightnessScale: 0.98,
+      liftAmount: 0.060,
     ),
     completionButtonSelectedBorder: matte(
       visual.completionButtonSelectedBorder,
@@ -992,10 +993,10 @@ class _RitualCompletionFeedbackCardState
           begin: Alignment.centerLeft,
           end: Alignment.centerRight,
           colors: [
-            visual.washLeft.withValues(alpha: 0.36),
-            visual.washMid.withValues(alpha: 0.30),
-            visual.washMid.withValues(alpha: 0.24),
-            visual.washMid.withValues(alpha: 0.20),
+            visual.washLeft.withValues(alpha: 0.40),
+            visual.washMid.withValues(alpha: 0.34),
+            visual.washMid.withValues(alpha: 0.29),
+            visual.washMid.withValues(alpha: 0.25),
           ],
           stops: const [0.0, 0.48, 0.82, 1.0],
         ),
@@ -1118,6 +1119,10 @@ bool _isDawnHouseRiteFlowName(String? name) {
   return name?.trim().toLowerCase() == kDawnHouseRiteTitle.toLowerCase();
 }
 
+bool _isEveningThresholdFlowName(String? name) {
+  return name?.trim().toLowerCase() == kEveningThresholdTitle.toLowerCase();
+}
+
 bool _isEveningThresholdRiteFlowName(String? name) {
   return name?.trim().toLowerCase() == kEveningThresholdRiteTitle.toLowerCase();
 }
@@ -1179,6 +1184,8 @@ class _MaatFlowCompletionContext {
     this.sharePromptOnComplete = false,
     this.shareButtonLabel = 'Share what went well',
     this.extraStatusLabels = const <String, String>{},
+    this.customStatusLabels = const <String, String>{},
+    this.customStatusesOnly = false,
     this.showPartly = true,
   });
 
@@ -1193,6 +1200,8 @@ class _MaatFlowCompletionContext {
   final bool sharePromptOnComplete;
   final String shareButtonLabel;
   final Map<String, String> extraStatusLabels;
+  final Map<String, String> customStatusLabels;
+  final bool customStatusesOnly;
   final bool showPartly;
 
   Map<String, dynamic> metadataFor({
@@ -1209,6 +1218,11 @@ class _MaatFlowCompletionContext {
       'observed_partly' => 0.55,
       'observed_from_inside' => 0.65,
       'names_spoken' => 0.75,
+      'held' => 1.0,
+      'carry_forward' => 1.0,
+      'release' => 1.0,
+      'working' => 0.55,
+      'slipped' => 0.4,
       'raised' => 1.0,
       'decision_pronounced' => 1.0,
       'transmitted' => 1.0,
@@ -1234,6 +1248,28 @@ class _MaatFlowCompletionContext {
       if (eventNumber != null) 'event_number': eventNumber,
       if (dayNumber != null) 'day_number': dayNumber,
       if (flowDay != null) 'flow_day': flowDay,
+      if (flowKey == kEveningThresholdFlowKey)
+        'daily_orientation': <String, dynamic>{
+          'linked_to': kEveningThresholdLinkedTo,
+          'carryover_field': kEveningThresholdCarryoverField,
+          'landing_field': kEveningThresholdLandingField,
+          'decision_table': kEveningThresholdDecisionTable,
+          if (eventNumber == 1)
+            'landing_status': status == 'working' ? 'working_on_it' : status,
+          if (eventNumber == 2)
+            'carryover_choice': status == 'carry_forward'
+                ? 'carry_it_forward'
+                : status == 'release'
+                ? 'release_it'
+                : status,
+          if (eventNumber == 2)
+            'decision': status == 'carry_forward'
+                ? 'carried'
+                : status == 'release'
+                ? 'released'
+                : status,
+          'evening_reflection_status': 'completed',
+        },
       'knowledge_graph': <String, dynamic>{
         'version': 'maat_flow_completion_v1',
         'event_type': graphEventType,
@@ -1298,6 +1334,8 @@ List<String> _maatGraphNodeSlugsForFlow({
   switch (flowKey) {
     case kDawnHouseRiteFlowKey:
       return const <String>['maat', 'ra'];
+    case kEveningThresholdFlowKey:
+      return const <String>['maat', 'duat', 'ra'];
     case kEveningThresholdRiteFlowKey:
       return const <String>['maat', 'ra', 'ausar'];
     case kTheWeighingFlowKey:
@@ -1400,6 +1438,28 @@ _MaatFlowCompletionContext? _maatFlowCompletionContextForEvent(
       dayNumber: day?.dayNumber,
       graphNodeSlugs: _maatGraphNodeSlugsForFlow(
         flowKey: kDawnHouseRiteFlowKey,
+        eventCategory: event.category,
+      ),
+    );
+  }
+
+  if (_isEveningThresholdFlowName(flowName)) {
+    final thresholdEvent = eveningThresholdEventForEvent(
+      title: event.title,
+      behaviorPayload: event.behaviorPayload,
+    );
+    if (thresholdEvent == null) return null;
+    return _MaatFlowCompletionContext(
+      flowKey: kEveningThresholdFlowKey,
+      flowTitle: kEveningThresholdTitle,
+      eventTitle: event.title,
+      eventCategory: event.category,
+      eventNumber: thresholdEvent.eventNumber,
+      customStatusLabels: thresholdEvent.completionStatusLabels,
+      customStatusesOnly: true,
+      showPartly: false,
+      graphNodeSlugs: _maatGraphNodeSlugsForFlow(
+        flowKey: kEveningThresholdFlowKey,
         eventCategory: event.category,
       ),
     );
@@ -3229,6 +3289,7 @@ class DayViewPage extends StatefulWidget {
   final GlobalKey? onboardingJournalKey;
   final VoidCallback? onOnboardingEventOpened;
   final VoidCallback? onOnboardingObservedJournalNext;
+  final WidgetBuilder? onboardingClosingBannerBuilder;
   final bool showDayCardRevealCoachmarkForOnboarding;
   final VoidCallback? onDayCardRevealCoachmarkCompleted;
   final DayViewRestorationCallback? onRestorationStateChanged;
@@ -3283,6 +3344,7 @@ class DayViewPage extends StatefulWidget {
     this.onboardingJournalKey,
     this.onOnboardingEventOpened,
     this.onOnboardingObservedJournalNext,
+    this.onboardingClosingBannerBuilder,
     this.showDayCardRevealCoachmarkForOnboarding = false,
     this.onDayCardRevealCoachmarkCompleted,
     this.onRestorationStateChanged,
@@ -3814,7 +3876,7 @@ class _DayViewPageState extends State<DayViewPage> {
             }
           },
           child: Scaffold(
-            backgroundColor: const Color(0xFF000000), // True black
+            backgroundColor: _dayViewBase,
             body: OrientationBuilder(
               builder: (context, orientation) {
                 final orient = isTablet ? Orientation.portrait : orientation;
@@ -4049,6 +4111,8 @@ class _DayViewPageState extends State<DayViewPage> {
                                 widget.onOnboardingEventOpened,
                             onOnboardingObservedJournalNext:
                                 widget.onOnboardingObservedJournalNext,
+                            onboardingClosingBannerBuilder:
+                                widget.onboardingClosingBannerBuilder,
                             initialEventDetailRestorationState:
                                 _activeEventDetailRestoration,
                             onEventDetailRestorationChanged:
@@ -4164,6 +4228,7 @@ class DayViewGrid extends StatefulWidget {
   final GlobalKey? onboardingJournalKey;
   final VoidCallback? onOnboardingEventOpened;
   final VoidCallback? onOnboardingObservedJournalNext;
+  final WidgetBuilder? onboardingClosingBannerBuilder;
   final EventDetailRestorationState? initialEventDetailRestorationState;
   final ValueChanged<EventDetailRestorationState?>?
   onEventDetailRestorationChanged;
@@ -4220,6 +4285,7 @@ class DayViewGrid extends StatefulWidget {
     this.onboardingJournalKey,
     this.onOnboardingEventOpened,
     this.onOnboardingObservedJournalNext,
+    this.onboardingClosingBannerBuilder,
     this.initialEventDetailRestorationState,
     this.onEventDetailRestorationChanged,
     this.shouldPreserveEventDetailRestorationOnClose,
@@ -5390,10 +5456,10 @@ class _DayViewGridState extends State<DayViewGrid> {
     return Container(
       height: 60,
       decoration: BoxDecoration(
-        color: hour.isEven ? const Color(0xFF060504) : const Color(0xFF070604),
+        color: hour.isEven ? const Color(0xFF070604) : const Color(0xFF080705),
         border: Border(
           top: BorderSide(
-            color: const Color(0xFF21190D).withValues(alpha: 0.7),
+            color: const Color(0xFF8A743C).withValues(alpha: 0.18),
             width: 0.6,
           ),
         ),
@@ -5410,7 +5476,7 @@ class _DayViewGridState extends State<DayViewGrid> {
               style: TextStyle(
                 fontSize: 11,
                 letterSpacing: 0.2,
-                color: _dayViewSilverDim.withValues(alpha: 0.84),
+                color: _dayViewSilverDim.withValues(alpha: 0.96),
                 fontFamilyFallback: _dayViewSansFallback,
               ),
             ),
@@ -5848,7 +5914,10 @@ class _DayViewGridState extends State<DayViewGrid> {
     Widget wrapOnboardingTarget(Widget child) {
       final key = widget.onboardingEventTargetKey;
       if (!isOnboardingTarget || key == null) return child;
-      return KeyedSubtree(key: key, child: child);
+      return KeyedSubtree(
+        key: key,
+        child: _DayViewOnboardingPulse(child: child),
+      );
     }
 
     void openEventDetail() {
@@ -6326,11 +6395,11 @@ class _DayViewGridState extends State<DayViewGrid> {
                   end: Alignment.centerRight,
                   colors: [
                     Color.alphaBlend(
-                      visual.wash.withValues(alpha: isPreview ? 0.055 : 0.08),
+                      visual.wash.withValues(alpha: isPreview ? 0.066 : 0.10),
                       visual.base,
                     ),
                     Color.alphaBlend(
-                      visual.wash.withValues(alpha: isPreview ? 0.025 : 0.04),
+                      visual.wash.withValues(alpha: isPreview ? 0.030 : 0.05),
                       visual.base,
                     ),
                     visual.base,
@@ -6340,7 +6409,7 @@ class _DayViewGridState extends State<DayViewGrid> {
                 ),
                 border: Border.all(
                   color: visual.source.withValues(
-                    alpha: isPreview ? 0.12 : 0.18,
+                    alpha: isPreview ? 0.14 : 0.22,
                   ),
                   width: isPreview ? 0.65 : 0.55,
                 ),
@@ -6354,7 +6423,7 @@ class _DayViewGridState extends State<DayViewGrid> {
             bottom: 0,
             child: DecoratedBox(
               decoration: BoxDecoration(
-                color: visual.source.withValues(alpha: isPreview ? 0.38 : 0.54),
+                color: visual.source.withValues(alpha: isPreview ? 0.46 : 0.64),
               ),
               child: const SizedBox(width: 2.5),
             ),
@@ -7699,7 +7768,7 @@ class _DayViewGridState extends State<DayViewGrid> {
     return PopupMenuButton<String>(
       icon: KemeticGold.icon(Icons.more_vert),
       tooltip: 'Event options',
-      color: const Color(0xFF000000),
+      color: _dayViewBase,
       onSelected: (value) async {
         if (value == 'end_flow') {
           Navigator.pop(sheetContext);
@@ -8051,7 +8120,7 @@ class _DayViewGridState extends State<DayViewGrid> {
     try {
       showModalBottomSheet(
         context: rootContext,
-        backgroundColor: const Color(0xFF000000),
+        backgroundColor: _dayViewBase,
         isScrollControlled: true,
         builder: (sheetContext) {
           return ValueListenableBuilder<int>(
@@ -8106,109 +8175,136 @@ class _DayViewGridState extends State<DayViewGrid> {
                   return ValueListenableBuilder<Map<String, double>>(
                     valueListenable: measuredHeights,
                     builder: (context, heights, child) {
+                      final hasOnboardingClosingBanner =
+                          _isOnboardingTargetEvent(target.event) &&
+                          widget.onboardingClosingBannerBuilder != null;
                       final maxSheetHeight = math.min(
                         MediaQuery.sizeOf(context).height * 0.68,
                         520.0,
                       );
+                      final reservedChromeHeight = hasOnboardingClosingBanner
+                          ? 250.0
+                          : 120.0;
                       final sheetHeight = (heights[currentKey] ?? 200.0)
-                          .clamp(0.0, math.max(180.0, maxSheetHeight - 120.0))
+                          .clamp(
+                            0.0,
+                            math.max(
+                              180.0,
+                              maxSheetHeight - reservedChromeHeight,
+                            ),
+                          )
                           .toDouble();
 
-                      return SafeArea(
-                        top: false,
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Offstage(
-                              child: Column(
-                                children: [
-                                  for (final pageTarget in pages.pages)
-                                    _MeasureSize(
-                                      key: ValueKey<String>(
+                      final content = Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          if (hasOnboardingClosingBanner) ...[
+                            widget.onboardingClosingBannerBuilder!(
+                              sheetContext,
+                            ),
+                            const SizedBox(height: 2),
+                          ],
+                          Offstage(
+                            child: Column(
+                              children: [
+                                for (final pageTarget in pages.pages)
+                                  _MeasureSize(
+                                    key: ValueKey<String>(
+                                      _detailSheetTargetKey(pageTarget),
+                                    ),
+                                    onChange: (size) {
+                                      updateMeasuredHeight(
                                         _detailSheetTargetKey(pageTarget),
-                                      ),
-                                      onChange: (size) {
-                                        updateMeasuredHeight(
-                                          _detailSheetTargetKey(pageTarget),
-                                          size.height,
-                                        );
-                                      },
-                                      child: SizedBox(
-                                        width: MediaQuery.sizeOf(context).width,
-                                        child: _buildEventDetailSheetPage(
-                                          target: pageTarget,
-                                          scrollable: false,
-                                          includeOnboardingKeys: false,
-                                          completionReloadSignal: dataRevision,
-                                        ),
+                                        size.height,
+                                      );
+                                    },
+                                    child: SizedBox(
+                                      width: MediaQuery.sizeOf(context).width,
+                                      child: _buildEventDetailSheetPage(
+                                        target: pageTarget,
+                                        scrollable: false,
+                                        includeOnboardingKeys: false,
+                                        completionReloadSignal: dataRevision,
                                       ),
                                     ),
-                                ],
-                              ),
+                                  ),
+                              ],
                             ),
-                            Padding(
-                              padding: const EdgeInsets.fromLTRB(10, 8, 10, 10),
-                              child: Column(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  _buildEventDetailTopActionRow(
+                          ),
+                          Padding(
+                            padding: const EdgeInsets.fromLTRB(10, 8, 10, 10),
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                _buildEventDetailTopActionRow(
+                                  rootContext: rootContext,
+                                  sheetContext: sheetContext,
+                                  target: target,
+                                ),
+                                const SizedBox(height: 8),
+                                AnimatedSize(
+                                  duration: const Duration(milliseconds: 180),
+                                  curve: Curves.easeOutCubic,
+                                  alignment: Alignment.bottomCenter,
+                                  child: SizedBox(
+                                    height: sheetHeight,
+                                    child: PageView.builder(
+                                      key: pageViewKey,
+                                      controller: sheetPageController,
+                                      physics: const BouncingScrollPhysics(),
+                                      itemCount: pages.pages.length,
+                                      onPageChanged: (index) {
+                                        if (index == pages.currentIndex) {
+                                          return;
+                                        }
+                                        final nextTarget = pages.pages[index];
+                                        final nextPages =
+                                            _detailSheetPagesForTarget(
+                                              nextTarget,
+                                            );
+                                        resetSheetPageController(
+                                          nextPages.currentIndex,
+                                        );
+                                        unawaited(moveToTarget(nextTarget));
+                                      },
+                                      itemBuilder: (context, index) {
+                                        return _buildEventDetailSheetPage(
+                                          target: pages.pages[index],
+                                          completionReloadSignal: dataRevision,
+                                        );
+                                      },
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(height: 8),
+                                SizedBox(
+                                  height: 46,
+                                  child: _buildEventDetailBottomActionRow(
                                     rootContext: rootContext,
                                     sheetContext: sheetContext,
                                     target: target,
+                                    onTargetChanged: (nextTarget) {
+                                      unawaited(moveToTarget(nextTarget));
+                                    },
                                   ),
-                                  const SizedBox(height: 8),
-                                  AnimatedSize(
-                                    duration: const Duration(milliseconds: 180),
-                                    curve: Curves.easeOutCubic,
-                                    alignment: Alignment.bottomCenter,
-                                    child: SizedBox(
-                                      height: sheetHeight,
-                                      child: PageView.builder(
-                                        key: pageViewKey,
-                                        controller: sheetPageController,
-                                        physics: const BouncingScrollPhysics(),
-                                        itemCount: pages.pages.length,
-                                        onPageChanged: (index) {
-                                          if (index == pages.currentIndex) {
-                                            return;
-                                          }
-                                          final nextTarget = pages.pages[index];
-                                          final nextPages =
-                                              _detailSheetPagesForTarget(
-                                                nextTarget,
-                                              );
-                                          resetSheetPageController(
-                                            nextPages.currentIndex,
-                                          );
-                                          unawaited(moveToTarget(nextTarget));
-                                        },
-                                        itemBuilder: (context, index) {
-                                          return _buildEventDetailSheetPage(
-                                            target: pages.pages[index],
-                                            completionReloadSignal:
-                                                dataRevision,
-                                          );
-                                        },
-                                      ),
-                                    ),
-                                  ),
-                                  const SizedBox(height: 8),
-                                  SizedBox(
-                                    height: 46,
-                                    child: _buildEventDetailBottomActionRow(
-                                      rootContext: rootContext,
-                                      sheetContext: sheetContext,
-                                      target: target,
-                                      onTargetChanged: (nextTarget) {
-                                        unawaited(moveToTarget(nextTarget));
-                                      },
-                                    ),
-                                  ),
-                                ],
-                              ),
+                                ),
+                              ],
                             ),
-                          ],
-                        ),
+                          ),
+                        ],
+                      );
+
+                      return SafeArea(
+                        top: false,
+                        child: hasOnboardingClosingBanner
+                            ? ConstrainedBox(
+                                constraints: BoxConstraints(
+                                  maxHeight:
+                                      MediaQuery.sizeOf(context).height * 0.94,
+                                ),
+                                child: SingleChildScrollView(child: content),
+                              )
+                            : content,
                       );
                     },
                   );
@@ -8362,6 +8458,72 @@ class _TheCourseDayCardPanel extends StatelessWidget {
           ],
         ],
       ),
+    );
+  }
+}
+
+class _DayViewOnboardingPulse extends StatefulWidget {
+  const _DayViewOnboardingPulse({required this.child});
+
+  final Widget child;
+
+  @override
+  State<_DayViewOnboardingPulse> createState() =>
+      _DayViewOnboardingPulseState();
+}
+
+class _DayViewOnboardingPulseState extends State<_DayViewOnboardingPulse>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 2000),
+  )..repeat(reverse: true);
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final reduceMotion =
+        MediaQuery.maybeOf(context)?.disableAnimations == true ||
+        MediaQuery.maybeOf(context)?.accessibleNavigation == true;
+    if (reduceMotion) return widget.child;
+
+    return AnimatedBuilder(
+      animation: _controller,
+      child: widget.child,
+      builder: (context, child) {
+        final t = Curves.easeInOut.transform(_controller.value);
+        return Stack(
+          clipBehavior: Clip.none,
+          children: [
+            child ?? const SizedBox.shrink(),
+            Positioned.fill(
+              child: IgnorePointer(
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(
+                      color: _dayGold.withValues(alpha: 0.25 + (0.23 * t)),
+                      width: 0.5,
+                    ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: _dayGold.withValues(alpha: 0.05 + (0.09 * t)),
+                        blurRadius: 14 + (8 * t),
+                        spreadRadius: 1 + (2 * t),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ],
+        );
+      },
     );
   }
 }
@@ -8890,10 +9052,15 @@ class _MaatFlowCompletionPanel extends StatefulWidget {
 class _MaatFlowCompletionPanelState extends State<_MaatFlowCompletionPanel> {
   final LivingTextDayOneNodeStore _livingTextDayOneNodeStore =
       const LivingTextDayOneNodeStore();
+  final TextEditingController _eveningThresholdReleaseCarryController =
+      TextEditingController();
 
   String? _status;
   bool _loading = true;
   bool _saving = false;
+  DailyOrientationEntry? _eveningThresholdOrientation;
+  DailyOrientationEntry? _eveningThresholdPreviousOrientation;
+  bool _eveningThresholdReleasePending = false;
 
   @override
   void initState() {
@@ -8902,12 +9069,73 @@ class _MaatFlowCompletionPanelState extends State<_MaatFlowCompletionPanel> {
   }
 
   @override
+  void dispose() {
+    _eveningThresholdReleaseCarryController.dispose();
+    super.dispose();
+  }
+
+  @override
   void didUpdateWidget(covariant _MaatFlowCompletionPanel oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.event.clientEventId != widget.event.clientEventId ||
         oldWidget.reloadSignal != widget.reloadSignal) {
+      _eveningThresholdReleaseCarryController.clear();
+      _eveningThresholdReleasePending = false;
       unawaited(_load());
     }
+  }
+
+  bool get _isEveningThresholdCompletion {
+    return widget.completion.flowKey == kEveningThresholdFlowKey;
+  }
+
+  DateTime get _eventGregorianDate {
+    return DateUtils.dateOnly(
+      KemeticMath.toGregorian(widget.ky, widget.km, widget.kd),
+    );
+  }
+
+  DateTime _eveningThresholdOrientationDate() {
+    final raw = widget.event.behaviorPayload?['orientation_local_date']
+        ?.toString()
+        .trim();
+    return _parseDateOnly(raw) ?? _eventGregorianDate;
+  }
+
+  DateTime? _eveningThresholdPreviousOrientationDate() {
+    final raw = widget.event.behaviorPayload?['previous_orientation_local_date']
+        ?.toString()
+        .trim();
+    return _parseDateOnly(raw) ??
+        (widget.completion.eventNumber == 2
+            ? _eventGregorianDate.subtract(const Duration(days: 1))
+            : null);
+  }
+
+  static DateTime? _parseDateOnly(String? raw) {
+    if (raw == null || raw.isEmpty) return null;
+    final parsed = DateTime.tryParse(raw);
+    if (parsed == null) return null;
+    return DateTime(parsed.year, parsed.month, parsed.day);
+  }
+
+  Future<void> _loadEveningThresholdOrientationState(String userId) async {
+    if (!_isEveningThresholdCompletion) return;
+    final repo = DailyOrientationRepo(Supabase.instance.client);
+    final orientationDate = _eveningThresholdOrientationDate();
+    final previousDate = _eveningThresholdPreviousOrientationDate();
+    final orientation = await repo.load(
+      userId: userId,
+      localDate: orientationDate,
+    );
+    final previous = previousDate == null
+        ? null
+        : await repo.load(userId: userId, localDate: previousDate);
+    if (!mounted) return;
+    setState(() {
+      _eveningThresholdOrientation = orientation;
+      _eveningThresholdPreviousOrientation = previous;
+    });
   }
 
   Future<void> _load() async {
@@ -8918,10 +9146,15 @@ class _MaatFlowCompletionPanelState extends State<_MaatFlowCompletionPanel> {
         setState(() {
           _status = null;
           _loading = false;
+          _eveningThresholdOrientation = null;
+          _eveningThresholdPreviousOrientation = null;
+          _eveningThresholdReleasePending = false;
         });
       }
       return;
     }
+
+    await _loadEveningThresholdOrientationState(user.id);
 
     try {
       final row = await Supabase.instance.client
@@ -8931,9 +9164,14 @@ class _MaatFlowCompletionPanelState extends State<_MaatFlowCompletionPanel> {
           .eq('client_event_id', clientEventId)
           .maybeSingle();
       final metadata = row?['metadata'];
-      final nextStatus = metadata is Map
-          ? _normalizeStatus(metadata['status']?.toString())
+      final rawStatus = metadata is Map
+          ? metadata['status']?.toString().trim().toLowerCase()
           : null;
+      final nextStatus =
+          _normalizeStatus(rawStatus) ??
+          (widget.completion.customStatusLabels.containsKey(rawStatus)
+              ? rawStatus
+              : null);
       final hasCompletionRow = row != null;
       if (!mounted) return;
       setState(() {
@@ -8955,6 +9193,11 @@ class _MaatFlowCompletionPanelState extends State<_MaatFlowCompletionPanel> {
         value == 'observed_from_inside' ||
         value == 'skipped' ||
         value == 'names_spoken' ||
+        value == 'held' ||
+        value == 'slipped' ||
+        value == 'working' ||
+        value == 'carry_forward' ||
+        value == 'release' ||
         value == 'raised' ||
         value == 'conversation_pending') {
       return value;
@@ -9026,7 +9269,144 @@ class _MaatFlowCompletionPanelState extends State<_MaatFlowCompletionPanel> {
     return true;
   }
 
-  Future<void> _record(String status) async {
+  bool _hasText(String? value) => value != null && value.trim().isNotEmpty;
+
+  String _landingStatusLabel(String? status) {
+    switch (status?.trim().toLowerCase()) {
+      case 'held':
+        return 'held';
+      case 'slipped':
+        return 'slipped';
+      case 'working':
+      case 'working_on_it':
+        return 'still working on it';
+    }
+    return 'not landed yet';
+  }
+
+  bool _eveningThresholdStatusDisabled(String status) {
+    if (!_isEveningThresholdCompletion) return false;
+    if (widget.completion.eventNumber == 1) {
+      return !_hasText(_eveningThresholdOrientation?.chosenReturn);
+    }
+    if (widget.completion.eventNumber == 2) {
+      return !_hasText(_eveningThresholdPreviousOrientation?.chosenReturn) ||
+          !_hasText(_eveningThresholdPreviousOrientation?.landingStatus);
+    }
+    return false;
+  }
+
+  Future<bool> _ensureEveningThresholdCanChoose() async {
+    final userId = Supabase.instance.client.auth.currentUser?.id;
+    if (userId == null || userId.trim().isEmpty) return true;
+    await _loadEveningThresholdOrientationState(userId);
+    if (widget.completion.eventNumber == 1 &&
+        !_hasText(_eveningThresholdOrientation?.chosenReturn)) {
+      if (!mounted) return false;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'No carry was set this morning. The flow will resume tomorrow.',
+          ),
+        ),
+      );
+      return false;
+    }
+    if (widget.completion.eventNumber == 2 &&
+        (!_hasText(_eveningThresholdPreviousOrientation?.chosenReturn) ||
+            !_hasText(_eveningThresholdPreviousOrientation?.landingStatus))) {
+      if (!mounted) return false;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Land yesterday\'s carry before choosing what crosses.',
+          ),
+        ),
+      );
+      return false;
+    }
+    return true;
+  }
+
+  Future<void> _beginEveningThresholdRelease() async {
+    if (_saving || _loading || !await _ensureEveningThresholdCanChoose()) {
+      return;
+    }
+    final userId = Supabase.instance.client.auth.currentUser?.id;
+    if (userId != null && userId.trim().isNotEmpty) {
+      await DailyOrientationRepo(
+        Supabase.instance.client,
+      ).recordEveningThresholdDecision(
+        userId: userId,
+        decisionDate: _eveningThresholdOrientationDate(),
+        decision: 'released',
+      );
+    }
+    if (!mounted) return;
+    setState(() {
+      _eveningThresholdReleasePending = true;
+      _status = null;
+    });
+  }
+
+  Future<bool> _applyEveningThresholdCompletion(
+    String status, {
+    String? releaseCarryText,
+  }) async {
+    if (!_isEveningThresholdCompletion) return true;
+    final userId = Supabase.instance.client.auth.currentUser?.id;
+    if (userId == null || userId.trim().isEmpty) return true;
+    if (!await _ensureEveningThresholdCanChoose()) return false;
+
+    final repo = DailyOrientationRepo(Supabase.instance.client);
+    final orientationDate = _eveningThresholdOrientationDate();
+    if (widget.completion.eventNumber == 1) {
+      await repo.recordLanding(
+        userId: userId,
+        localDate: orientationDate,
+        landingStatus: status,
+      );
+    } else if (widget.completion.eventNumber == 2) {
+      final previousDate = _eveningThresholdPreviousOrientationDate();
+      final previousCarry = _eveningThresholdPreviousOrientation?.chosenReturn
+          ?.trim();
+      if (previousDate == null ||
+          previousCarry == null ||
+          previousCarry.isEmpty) {
+        return false;
+      }
+      if (status == 'carry_forward') {
+        await repo.carryForward(
+          userId: userId,
+          localDate: orientationDate,
+          previousLocalDate: previousDate,
+          chosenReturn: previousCarry,
+        );
+      } else if (status == 'release') {
+        final newCarry = releaseCarryText?.trim();
+        if (newCarry == null || newCarry.isEmpty) {
+          if (!mounted) return false;
+          setState(() {
+            _eveningThresholdReleasePending = true;
+          });
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Name what you carry today first.')),
+          );
+          return false;
+        }
+        await repo.releaseWithNewCarry(
+          userId: userId,
+          localDate: orientationDate,
+          chosenReturn: newCarry,
+        );
+      }
+    }
+
+    await _loadEveningThresholdOrientationState(userId);
+    return true;
+  }
+
+  Future<void> _record(String status, {String? releaseCarryText}) async {
     if (status == 'none') {
       await _clear();
       return;
@@ -9042,6 +9422,15 @@ class _MaatFlowCompletionPanelState extends State<_MaatFlowCompletionPanel> {
     final completedOnDate = DateUtils.dateOnly(
       KemeticMath.toGregorian(widget.ky, widget.km, widget.kd),
     );
+    final thresholdApplied = await _applyEveningThresholdCompletion(
+      status,
+      releaseCarryText: releaseCarryText,
+    );
+    if (!thresholdApplied) {
+      if (!mounted) return;
+      setState(() => _saving = false);
+      return;
+    }
     final metadata = <String, dynamic>{
       ...widget.completion.metadataFor(
         status: status,
@@ -9098,7 +9487,11 @@ class _MaatFlowCompletionPanelState extends State<_MaatFlowCompletionPanel> {
       setState(() {
         _status = status;
         _saving = false;
+        _eveningThresholdReleasePending = false;
       });
+      if (status == 'release') {
+        _eveningThresholdReleaseCarryController.clear();
+      }
       final completionStatus = CompletionStatusX.fromWireName(status);
       await const CalendarCompletionLocalStore().save(
         identity: widget.identity,
@@ -9152,7 +9545,9 @@ class _MaatFlowCompletionPanelState extends State<_MaatFlowCompletionPanel> {
       setState(() {
         _status = null;
         _saving = false;
+        _eveningThresholdReleasePending = false;
       });
+      _eveningThresholdReleaseCarryController.clear();
     } catch (_) {
       if (!mounted) return;
       setState(() => _saving = false);
@@ -9219,55 +9614,224 @@ class _MaatFlowCompletionPanelState extends State<_MaatFlowCompletionPanel> {
     ).showSnackBar(const SnackBar(content: Text('Day 1 Library entry saved.')));
   }
 
-  Widget _statusButton(String status, String label) {
-    final selected = _status == status;
+  Widget _statusButton(String status, String label, {bool expanded = true}) {
+    final selected =
+        _status == status ||
+        (status == 'release' && _eveningThresholdReleasePending);
     final style = widget.pickerStyle ?? const CalendarCompletionPickerStyle();
-    return Expanded(
-      child: OutlinedButton(
-        key: status == 'observed' ? widget.observedButtonKey : null,
-        style: OutlinedButton.styleFrom(
-          foregroundColor: selected
-              ? style.selectedForegroundColor
-              : style.unselectedForegroundColor,
-          backgroundColor: selected
-              ? style.selectedBackgroundColor
-              : style.unselectedBackgroundColor,
-          side: BorderSide(
-            color: selected
-                ? style.selectedBorderColor
-                : style.unselectedBorderColor,
-            width: style.buttonBorderWidth,
-          ),
-          padding: style.buttonPadding,
-          minimumSize: style.buttonMinimumSize,
-          tapTargetSize: style.buttonTapTargetSize,
-          visualDensity: style.buttonVisualDensity,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(style.buttonRadius),
-          ),
+    final button = OutlinedButton(
+      key: status == 'observed' ? widget.observedButtonKey : null,
+      style: OutlinedButton.styleFrom(
+        foregroundColor: selected
+            ? style.selectedForegroundColor
+            : style.unselectedForegroundColor,
+        backgroundColor: selected
+            ? style.selectedBackgroundColor
+            : style.unselectedBackgroundColor,
+        side: BorderSide(
+          color: selected
+              ? style.selectedBorderColor
+              : style.unselectedBorderColor,
+          width: style.buttonBorderWidth,
         ),
-        onPressed: _saving
-            ? null
-            : () {
-                if (selected) {
-                  unawaited(_clear());
+        padding: style.buttonPadding,
+        minimumSize: style.buttonMinimumSize,
+        tapTargetSize: style.buttonTapTargetSize,
+        visualDensity: style.buttonVisualDensity,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(style.buttonRadius),
+        ),
+      ),
+      onPressed: _saving || _loading || _eveningThresholdStatusDisabled(status)
+          ? null
+          : () {
+              if (selected) {
+                if (status == 'release' && _eveningThresholdReleasePending) {
+                  setState(() {
+                    _eveningThresholdReleasePending = false;
+                    _eveningThresholdReleaseCarryController.clear();
+                  });
                 } else {
-                  unawaited(_record(status));
+                  unawaited(_clear());
                 }
-              },
-        child: Text(
-          label,
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-          style: TextStyle(
-            fontSize: style.buttonFontSize,
-            fontWeight: style.buttonFontWeight,
-            fontFamily: style.buttonFontFamily,
-            fontFamilyFallback: style.buttonFontFamilyFallback,
-          ),
+              } else if (_isEveningThresholdCompletion &&
+                  widget.completion.eventNumber == 2 &&
+                  status == 'release') {
+                unawaited(_beginEveningThresholdRelease());
+              } else {
+                unawaited(_record(status));
+              }
+            },
+      child: Text(
+        label,
+        maxLines: 2,
+        overflow: TextOverflow.ellipsis,
+        textAlign: TextAlign.center,
+        style: TextStyle(
+          fontSize: style.buttonFontSize,
+          fontWeight: style.buttonFontWeight,
+          fontFamily: style.buttonFontFamily,
+          fontFamilyFallback: style.buttonFontFamilyFallback,
         ),
       ),
     );
+    if (!expanded) {
+      return SizedBox(width: double.infinity, child: button);
+    }
+    return Expanded(child: button);
+  }
+
+  Widget _buildEveningThresholdWitnessBlock({
+    required String label,
+    required String body,
+    String? subLabel,
+    String? subBody,
+  }) {
+    final style = widget.pickerStyle ?? const CalendarCompletionPickerStyle();
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: style.unselectedBackgroundColor.withValues(alpha: 0.62),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: style.unselectedBorderColor),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            label,
+            style: TextStyle(
+              color: style.labelColor,
+              fontSize: 11,
+              fontWeight: FontWeight.w800,
+              letterSpacing: 1.2,
+            ),
+          ),
+          const SizedBox(height: 7),
+          Text(
+            body,
+            style: TextStyle(
+              color: style.selectedForegroundColor,
+              fontSize: 15,
+              fontWeight: FontWeight.w700,
+              height: 1.3,
+            ),
+          ),
+          if (subLabel != null && subBody != null) ...[
+            const SizedBox(height: 12),
+            Text(
+              subLabel,
+              style: TextStyle(
+                color: style.labelColor,
+                fontSize: 11,
+                fontWeight: FontWeight.w800,
+                letterSpacing: 1.2,
+              ),
+            ),
+            const SizedBox(height: 6),
+            Text(
+              subBody,
+              style: TextStyle(
+                color: style.unselectedForegroundColor,
+                fontSize: 14,
+                fontWeight: FontWeight.w700,
+                height: 1.25,
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildEveningThresholdReleaseEditor() {
+    final style = widget.pickerStyle ?? const CalendarCompletionPickerStyle();
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const SizedBox(height: 12),
+        TextField(
+          controller: _eveningThresholdReleaseCarryController,
+          maxLines: 3,
+          minLines: 2,
+          onChanged: (_) => setState(() {}),
+          style: TextStyle(
+            color: style.selectedForegroundColor,
+            fontSize: 15,
+            fontWeight: FontWeight.w600,
+            height: 1.3,
+          ),
+          decoration: InputDecoration(
+            labelText: 'What do you carry today?',
+            labelStyle: TextStyle(color: style.labelColor),
+            filled: true,
+            fillColor: style.unselectedBackgroundColor,
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(10),
+              borderSide: BorderSide(color: style.unselectedBorderColor),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(10),
+              borderSide: BorderSide(color: style.selectedBorderColor),
+            ),
+          ),
+        ),
+        const SizedBox(height: 8),
+        Align(
+          alignment: Alignment.centerRight,
+          child: FilledButton(
+            onPressed:
+                _saving ||
+                    _eveningThresholdReleaseCarryController.text.trim().isEmpty
+                ? null
+                : () => unawaited(
+                    _record(
+                      'release',
+                      releaseCarryText:
+                          _eveningThresholdReleaseCarryController.text,
+                    ),
+                  ),
+            child: const Text('Save carry'),
+          ),
+        ),
+      ],
+    );
+  }
+
+  List<Widget> _buildEveningThresholdContextWidgets() {
+    if (!_isEveningThresholdCompletion) return const <Widget>[];
+    final eventNumber = widget.completion.eventNumber;
+    if (eventNumber == 1) {
+      final carried = _eveningThresholdOrientation?.chosenReturn?.trim();
+      return <Widget>[
+        _buildEveningThresholdWitnessBlock(
+          label: 'WHAT YOU CARRIED',
+          body: carried == null || carried.isEmpty
+              ? 'No carry was set this morning. The flow will resume tomorrow.'
+              : carried,
+        ),
+        const SizedBox(height: 12),
+      ];
+    }
+    if (eventNumber == 2) {
+      final previous = _eveningThresholdPreviousOrientation;
+      final carried = previous?.chosenReturn?.trim();
+      return <Widget>[
+        _buildEveningThresholdWitnessBlock(
+          label: 'YESTERDAY YOU CARRIED',
+          body: carried == null || carried.isEmpty
+              ? 'No carry was landed yesterday.'
+              : carried,
+          subLabel: 'IT LANDED AS',
+          subBody: _landingStatusLabel(previous?.landingStatus),
+        ),
+        if (_eveningThresholdReleasePending)
+          _buildEveningThresholdReleaseEditor(),
+        const SizedBox(height: 12),
+      ];
+    }
+    return const <Widget>[];
   }
 
   @override
@@ -9278,10 +9842,56 @@ class _MaatFlowCompletionPanelState extends State<_MaatFlowCompletionPanel> {
         (_status == 'observed' ||
             _status == 'observed_partly' ||
             _status == 'raised');
+    final style = widget.pickerStyle ?? const CalendarCompletionPickerStyle();
+    final eveningThresholdContext = _buildEveningThresholdContextWidgets();
+
+    if (widget.completion.customStatusesOnly) {
+      final customButtons = widget.completion.customStatusLabels.entries
+          .expand<Widget>(
+            (entry) => <Widget>[
+              _statusButton(entry.key, entry.value, expanded: false),
+              SizedBox(height: style.buttonGap),
+            ],
+          )
+          .toList();
+      if (customButtons.isNotEmpty) {
+        customButtons.removeLast();
+      }
+      return Container(
+        width: double.infinity,
+        padding: style.containerPadding,
+        decoration: BoxDecoration(
+          color: style.containerColor,
+          borderRadius: BorderRadius.circular(style.containerRadius),
+          border: Border.all(
+            color: style.containerBorderColor,
+            width: style.containerBorderWidth,
+          ),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            ...eveningThresholdContext,
+            Text(
+              style.label,
+              style: TextStyle(
+                color: style.labelColor,
+                fontSize: style.labelFontSize,
+                fontWeight: style.labelFontWeight,
+                letterSpacing: style.labelLetterSpacing,
+              ),
+            ),
+            SizedBox(height: style.labelGap),
+            ...customButtons,
+          ],
+        ),
+      );
+    }
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        ...eveningThresholdContext,
         CalendarCompletionPicker(
           current: standardStatus,
           saving: _saving,

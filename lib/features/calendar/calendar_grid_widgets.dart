@@ -528,32 +528,32 @@ class _YearSection extends StatelessWidget {
 /* ───────────────────────── Month & Day Cards ───────────────────────── */
 
 class _CalendarTone {
-  static const Color calendarBlack = Color(0xFF020201);
-  static const Color velvetBlack = Color(0xFF060503);
-  static const Color previewCardBase = Color(0xFF070602);
+  static const Color calendarBlack = Color(0xFF060504);
+  static const Color velvetBlack = Color(0xFF080705);
+  static const Color previewCardBase = Color(0xFF0B0806);
   static const Color antiqueGold = Color(0xFFC4A64A);
-  static const Color dimGold = Color(0xFF7A6530);
-  static const Color bodyStone = Color(0xFFAFA59A);
-  static const Color mutedStone = Color(0xFF8E8172);
-  static const Color dayNumber = Color(0xFF8A7443);
-  static const Color weekday = Color(0xFF685735);
-  static const Color decanLabel = Color(0xFF846F3F);
-  static const Color sectionLabel = Color(0xFF8A743D);
+  static const Color dimGold = Color(0xFF89733A);
+  static const Color bodyStone = Color(0xFFBBB0A5);
+  static const Color mutedStone = Color(0xFF9A8C7B);
+  static const Color dayNumber = Color(0xFF987F45);
+  static const Color weekday = Color(0xFF756238);
+  static const Color decanLabel = Color(0xFF927A43);
+  static const Color sectionLabel = Color(0xFF9A8245);
   static const Color gregorianBlue = Color(0xFF4DA3FF);
-  static const Color transliteration = Color(0xFF927943);
+  static const Color transliteration = Color(0xFFA08648);
 
   static final Color dayCellFill = Color.alphaBlend(
-    antiqueGold.withValues(alpha: 0.035),
-    const Color(0xFF050402),
+    antiqueGold.withValues(alpha: 0.048),
+    const Color(0xFF070604),
   );
-  static final Color dayCellBorder = antiqueGold.withValues(alpha: 0.045);
+  static final Color dayCellBorder = antiqueGold.withValues(alpha: 0.060);
   static final Color selectedDayFill = Color.alphaBlend(
-    antiqueGold.withValues(alpha: 0.10),
-    const Color(0xFF080604),
+    antiqueGold.withValues(alpha: 0.12),
+    const Color(0xFF0A0705),
   );
-  static final Color selectedDayBorder = antiqueGold.withValues(alpha: 0.46);
-  static final Color softDivider = antiqueGold.withValues(alpha: 0.055);
-  static final Color softCardBorder = antiqueGold.withValues(alpha: 0.075);
+  static final Color selectedDayBorder = antiqueGold.withValues(alpha: 0.54);
+  static final Color softDivider = antiqueGold.withValues(alpha: 0.070);
+  static final Color softCardBorder = antiqueGold.withValues(alpha: 0.090);
 
   static const Gradient mutedGoldGloss = LinearGradient(
     begin: Alignment.topLeft,
@@ -565,8 +565,8 @@ class _CalendarTone {
   static Color softenAccent(
     Color raw, {
     double saturationScale = 0.55,
-    double lightness = 0.48,
-    double goldBlend = 0.08,
+    double lightness = 0.50,
+    double goldBlend = 0.10,
   }) {
     final hsl = HSLColor.fromColor(raw);
     final muted = hsl
@@ -581,11 +581,11 @@ class _CalendarTone {
       softenAccent(
         raw,
         saturationScale: 0.54,
-        lightness: 0.50,
-        goldBlend: 0.07,
+        lightness: 0.52,
+        goldBlend: 0.08,
       ),
       const Color(0xFFE5D1A0),
-      0.18,
+      0.22,
     )!;
   }
 
@@ -594,11 +594,11 @@ class _CalendarTone {
       softenAccent(
         raw,
         saturationScale: 0.62,
-        lightness: 0.50,
-        goldBlend: 0.04,
+        lightness: 0.54,
+        goldBlend: 0.05,
       ),
       antiqueGold,
-      0.05,
+      0.08,
     )!;
   }
 }
@@ -639,7 +639,7 @@ const double _kDecanRowGap = 6.0;
 const double _kDayTileRadius = 3.0;
 const double _kDayTileBorderWidth = 0.45;
 const double _kTodayDayTileBorderWidth = 1.0;
-const double _kTodayDayTileStrokeAlpha = 0.46;
+const double _kTodayDayTileStrokeAlpha = 0.54;
 const double _kDayTileCompactPadding = 4.0;
 const double _kDayTileExpandedHorizontalPadding = 1.5;
 const double _kDayTileExpandedVerticalPadding = 4.0;
@@ -711,20 +711,20 @@ _CalendarDayToneSpec _calendarDayToneSpec(_CalendarDayTone tone) {
     case _CalendarDayTone.pastFar:
       return _CalendarDayToneSpec(
         fill: Color.alphaBlend(
-          _CalendarTone.antiqueGold.withValues(alpha: 0.024),
+          _CalendarTone.antiqueGold.withValues(alpha: 0.029),
           _CalendarTone.velvetBlack,
         ),
-        border: _CalendarTone.antiqueGold.withValues(alpha: 0.032),
-        number: const Color(0xFF76633A),
+        border: _CalendarTone.antiqueGold.withValues(alpha: 0.039),
+        number: const Color(0xFF826F44),
       );
     case _CalendarDayTone.pastNear:
       return _CalendarDayToneSpec(
         fill: Color.alphaBlend(
-          _CalendarTone.antiqueGold.withValues(alpha: 0.030),
+          _CalendarTone.antiqueGold.withValues(alpha: 0.036),
           _CalendarTone.velvetBlack,
         ),
-        border: _CalendarTone.antiqueGold.withValues(alpha: 0.040),
-        number: const Color(0xFF826D3F),
+        border: _CalendarTone.antiqueGold.withValues(alpha: 0.050),
+        number: const Color(0xFF8D7747),
       );
     case _CalendarDayTone.today:
       return _CalendarDayToneSpec(
@@ -732,16 +732,16 @@ _CalendarDayToneSpec _calendarDayToneSpec(_CalendarDayTone tone) {
         border: _CalendarTone.selectedDayBorder.withValues(
           alpha: _kTodayDayTileStrokeAlpha,
         ),
-        number: const Color(0xFFE0C55F),
+        number: const Color(0xFFE2C862),
       );
     case _CalendarDayTone.future:
       return _CalendarDayToneSpec(
         fill: Color.alphaBlend(
-          _CalendarTone.antiqueGold.withValues(alpha: 0.036),
+          _CalendarTone.antiqueGold.withValues(alpha: 0.043),
           _CalendarTone.velvetBlack,
         ),
-        border: _CalendarTone.antiqueGold.withValues(alpha: 0.045),
-        number: const Color(0xFF927B47),
+        border: _CalendarTone.antiqueGold.withValues(alpha: 0.054),
+        number: const Color(0xFF9D854C),
       );
     case _CalendarDayTone.neutral:
       return _CalendarDayToneSpec(
@@ -1102,7 +1102,7 @@ class _MonthCard extends StatelessWidget {
     final rightLabelStyle = TextStyle(
       color: const Color(
         0xFF927842,
-      ).withValues(alpha: framedSurface ? 0.82 : 0.76),
+      ).withValues(alpha: framedSurface ? 0.92 : 0.86),
       fontSize: framedSurface
           ? _CalendarScale.rightSeasonFramed
           : _CalendarScale.rightSeasonMain,
@@ -1128,7 +1128,7 @@ class _MonthCard extends StatelessWidget {
     );
     final decanLabelStyle = TextStyle(
       color: _CalendarTone.decanLabel.withValues(
-        alpha: framedSurface ? 0.92 : 0.86,
+        alpha: framedSurface ? 0.98 : 0.94,
       ),
       fontSize: decanLabelFontSize,
       height: 1.0,
@@ -1138,7 +1138,7 @@ class _MonthCard extends StatelessWidget {
     );
     final gregorianDecanLabelStyle = decanLabelStyle.copyWith(
       color: _CalendarTone.gregorianBlue.withValues(
-        alpha: framedSurface ? 0.82 : 0.76,
+        alpha: framedSurface ? 0.90 : 0.84,
       ),
     );
 
@@ -1292,7 +1292,7 @@ class _MonthCard extends StatelessWidget {
                                       colors: [
                                         _CalendarTone.softDivider,
                                         _CalendarTone.antiqueGold.withValues(
-                                          alpha: 0.016,
+                                          alpha: 0.022,
                                         ),
                                         _CalendarTone.antiqueGold.withValues(
                                           alpha: 0.0,
@@ -1630,7 +1630,7 @@ class _DayChip extends StatelessWidget {
 
     final toneSpec = _calendarDayToneSpec(tone);
     final numberColor = showGregorian
-        ? _CalendarTone.gregorianBlue.withValues(alpha: 0.82)
+        ? _CalendarTone.gregorianBlue.withValues(alpha: 0.90)
         : toneSpec.number;
     final numberStyle = textStyle.copyWith(color: numberColor);
     _Note? trackSkyHeaderNote;
@@ -1853,7 +1853,7 @@ class _DayChip extends StatelessWidget {
                             height: 1,
                             decoration: BoxDecoration(
                               color: _CalendarTone.antiqueGold.withValues(
-                                alpha: 0.46,
+                                alpha: 0.62,
                               ),
                               borderRadius: const BorderRadius.vertical(
                                 top: Radius.circular(_kDayTileRadius),
@@ -2185,7 +2185,7 @@ class _DayChip extends StatelessWidget {
     try {
       showModalBottomSheet(
         context: context,
-        backgroundColor: const Color(0xFF000000),
+        backgroundColor: _CalendarTone.calendarBlack,
         isScrollControlled: true,
         builder: (_) => _MainCalendarEventDetailSheet(
           hostContext: context,
@@ -3046,7 +3046,7 @@ class _MainCalendarEventDetailSheetState
     return PopupMenuButton<String>(
       icon: KemeticGold.icon(Icons.more_vert),
       tooltip: 'Event options',
-      color: const Color(0xFF000000),
+      color: _CalendarTone.calendarBlack,
       onSelected: (value) async {
         if (value == 'end_flow') {
           Navigator.pop(sheetContext);
@@ -3409,7 +3409,7 @@ class _ColorDot extends StatelessWidget {
   Widget build(BuildContext context) {
     final softened = _CalendarTone.dot(color);
     return Opacity(
-      opacity: 0.74,
+      opacity: 0.86,
       child: Container(
         width: _CalendarScale.dayDot,
         height: _CalendarScale.dayDot,
@@ -3417,7 +3417,7 @@ class _ColorDot extends StatelessWidget {
           color: softened,
           shape: BoxShape.circle,
           boxShadow: [
-            BoxShadow(color: softened.withValues(alpha: 0.12), blurRadius: 1.2),
+            BoxShadow(color: softened.withValues(alpha: 0.15), blurRadius: 1.2),
           ],
         ),
       ),
@@ -3987,8 +3987,8 @@ class _MiniEventBlock extends StatelessWidget {
 
     final showLabel = label != null && !dense;
     final isDetailPill = expand && showLabel;
-    final bg = color.withValues(alpha: dense ? 0.28 : 0.22);
-    final border = color.withValues(alpha: 0.9);
+    final bg = color.withValues(alpha: dense ? 0.32 : 0.26);
+    final border = color.withValues(alpha: 0.95);
     final double badgeHeight = isDetailPill
         ? _kDetailsPillHeight
         : (dense ? _kTextlessPillHeight : _kLabeledPillHeight);
@@ -4201,7 +4201,7 @@ class _EpagomenalCard extends StatelessWidget {
         expansionLevel == MonthExpansionLevel.details ? 6 : 24,
       ),
       child: Card(
-        color: Colors.black,
+        color: _CalendarTone.calendarBlack,
         elevation: 0,
         shape: RoundedRectangleBorder(
           side: BorderSide.none,

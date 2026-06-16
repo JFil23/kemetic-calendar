@@ -376,10 +376,14 @@ class SharedCalendarsRepo {
   Future<List<UserEvent>> getCalendarEvents(
     String calendarId, {
     int pageSize = 1000,
+    int? maxRows,
+    DateTime? startsOnOrAfterUtc,
   }) async {
     final filedEvents = await getCalendarFiledEvents(
       calendarId,
       pageSize: pageSize,
+      maxRows: maxRows,
+      startsOnOrAfterUtc: startsOnOrAfterUtc,
     );
     return filedEvents.map((entry) => entry.event).toList(growable: false);
   }
@@ -387,14 +391,19 @@ class SharedCalendarsRepo {
   Future<List<FiledEvent>> getCalendarFiledEvents(
     String calendarId, {
     int pageSize = 1000,
+    int? maxRows,
+    DateTime? startsOnOrAfterUtc,
   }) async {
     final trimmed = calendarId.trim();
     if (trimmed.isEmpty) return const [];
 
     try {
-      return await EventFilingRepo(
-        _client,
-      ).getLiveFiledCalendarEvents(trimmed, pageSize: pageSize);
+      return await EventFilingRepo(_client).getLiveFiledCalendarEvents(
+        trimmed,
+        pageSize: pageSize,
+        maxRows: maxRows,
+        startsOnOrAfterUtc: startsOnOrAfterUtc,
+      );
     } catch (e) {
       _log('getCalendarFiledEvents failed: $e');
       rethrow;

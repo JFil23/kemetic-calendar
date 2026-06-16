@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
@@ -6,6 +8,20 @@ import 'package:mobile/data/insight_link_model.dart';
 import 'package:mobile/features/reflections/decan_reflection_detail_page.dart';
 
 void main() {
+  test(
+    'detail skin preserves route title and existing link/back handlers',
+    () async {
+      final source = await File(
+        'lib/features/reflections/decan_reflection_detail_page.dart',
+      ).readAsString();
+
+      expect(source, contains("title: 'Reflection'"));
+      expect(source, contains("popOrGo(context, '/reflections')"));
+      expect(source, contains('onPressed: _startLinkFlow'));
+      expect(source, contains('DecanFolioMasthead'));
+    },
+  );
+
   testWidgets(
     'fallback node chip renders and routes while primary flow CTA remains',
     (tester) async {

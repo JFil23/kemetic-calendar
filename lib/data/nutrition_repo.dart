@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:mobile/core/supabase_auth_retry.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 /// Defines the modes for a nutrition schedule.
@@ -181,6 +182,7 @@ bool _isRealUuid(String s) {
 /// [NutritionRepo.delete] to remove an item.
 class NutritionRepo {
   final SupabaseClient _client;
+  static const Duration _requestTimeout = Duration(seconds: 20);
 
   NutritionRepo(this._client);
 
@@ -191,12 +193,15 @@ class NutritionRepo {
     if (user == null) return [];
 
     try {
-      final rows = await _client
-          .from('nutrition_items')
-          .select()
-          .eq('user_id', user.id)
-          .order('created_at')
-          .timeout(const Duration(seconds: 10));
+      final rows = await withSupabaseAuthRetry(
+        _client,
+        () => _client
+            .from('nutrition_items')
+            .select()
+            .eq('user_id', user.id)
+            .order('created_at')
+            .timeout(_requestTimeout),
+      );
       return (rows as List)
           .map((r) => NutritionItem.fromRow(r as Map<String, dynamic>))
           .toList();
@@ -235,11 +240,15 @@ class NutritionRepo {
     }
 
     try {
-      final row = await _client
-          .from('nutrition_items')
-          .upsert(payload, onConflict: 'id')
-          .select()
-          .single();
+      final row = await withSupabaseAuthRetry(
+        _client,
+        () => _client
+            .from('nutrition_items')
+            .upsert(payload, onConflict: 'id')
+            .select()
+            .single()
+            .timeout(_requestTimeout),
+      );
       return NutritionItem.fromRow(row);
     } catch (e) {
       debugPrint('[NutritionRepo] upsert error: $e');
@@ -249,6 +258,13 @@ class NutritionRepo {
 
   /// Deletes a nutrition item by id.
   Future<void> delete(String id) async {
-    await _client.from('nutrition_items').delete().eq('id', id);
+    await withSupabaseAuthRetry(
+      _client,
+      () => _client
+          .from('nutrition_items')
+          .delete()
+          .eq('id', id)
+          .timeout(_requestTimeout),
+    );
   }
 }

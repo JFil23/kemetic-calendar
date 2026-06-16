@@ -104,6 +104,7 @@ import 'maat_flow_visual_tokens.dart';
 import 'maat_flow_identity.dart';
 import 'track_sky_flow.dart';
 import 'dawn_house_rite_flow.dart';
+import 'evening_threshold_flow.dart';
 import 'evening_threshold_rite_flow.dart';
 import 'the_weighing_flow.dart';
 import 'the_offering_table_flow.dart';
@@ -136,6 +137,8 @@ import '../invites/pending_event_invite_overlay.dart';
 import '../onboarding/calendar_month_coachmark.dart';
 import '../onboarding/calendar_toggle_coachmark.dart';
 import 'package:mobile/features/onboarding/guided_onboarding_overlay.dart';
+import '../onboarding/daily_orientation_repo.dart';
+import '../onboarding/decan_compass_copy_repo.dart';
 import '../onboarding/onboarding_overlay.dart';
 import '../onboarding/onboarding_progress.dart';
 import '../onboarding/onboarding_storage.dart';
@@ -376,7 +379,7 @@ enum _OnboardingContinuationStage {
 
 /* ───────────────────── Premium Dark Theme + Gloss ───────────────────── */
 
-const Color _bg = Colors.black; // True black
+const Color _bg = Color(0xFF060504);
 const Color _silver = Color(0xFFC8CCD2);
 
 // Gregorian blue (high contrast on dark)
@@ -3025,6 +3028,7 @@ enum _MaatFlowTemplateKind {
   sequence,
   trackSky,
   dawnHouseRite,
+  eveningThreshold,
   eveningThresholdRite,
   theWeighing,
   offeringTable,
@@ -3108,6 +3112,18 @@ final List<_MaatFlowTemplate> _kMaatFlowTemplates = [
     glyphType: 'ideogram',
     color: const Color(0xFFEFA25C),
     kind: _MaatFlowTemplateKind.dawnHouseRite,
+  ),
+  _MaatFlowTemplate(
+    key: kEveningThresholdFlowKey,
+    title: kEveningThresholdTitle,
+    overview: kEveningThresholdOverview,
+    subtitle: kEveningThresholdSubtitle,
+    glyph: kEveningThresholdGlyph,
+    glyphMeaning: 'Sun at the threshold with the heart weighed',
+    glyphSourceWord: 'akhet / ib',
+    glyphType: 'composite',
+    color: const Color(0xFFC2673F),
+    kind: _MaatFlowTemplateKind.eveningThreshold,
   ),
   _MaatFlowTemplate(
     key: kEveningThresholdRiteFlowKey,
@@ -5974,6 +5990,7 @@ class CalendarPage extends StatefulWidget {
     DecanWatchLens? decanWatchLens,
     OpenHandLens? openHandLens,
     DjedLens? djedLens,
+    String? eveningThresholdInitialCarry,
   }) async {
     final personalCalendarId = await _loadHeadlessPersonalCalendarId();
     if (template.kind == _MaatFlowTemplateKind.trackSky) {
@@ -6158,6 +6175,21 @@ class CalendarPage extends StatefulWidget {
         discreet: dawnDiscreetMode == true,
         lens: dawnLens ?? DawnHouseRiteLens.neutral,
         alertOffsetMinutes: kEventFilingNoAlertMinutes,
+      );
+      return result.flowIdOrNegativeOne;
+    }
+
+    if (template.kind == _MaatFlowTemplateKind.eveningThreshold) {
+      final result = await FlowJoinService().joinEveningThresholdHeadless(
+        templateKey: template.key,
+        templateTitle: template.title,
+        templateOverview: template.overview,
+        templateColor: template.color,
+        personalCalendarId: personalCalendarId,
+        timezone: trackSkyTimeZone ?? detectTrackSkyTimeZone(),
+        startDate: startDate,
+        alertOffsetMinutes: 0,
+        initialCarryText: eveningThresholdInitialCarry,
       );
       return result.flowIdOrNegativeOne;
     }
@@ -9459,6 +9491,7 @@ class CalendarPageState extends State<CalendarPage>
                     DecanWatchLens? decanWatchLens,
                     OpenHandLens? openHandLens,
                     DjedLens? djedLens,
+                    String? eveningThresholdInitialCarry,
                   }) async {
                     final id = await _addMaatFlowInstance(
                       template: template,
@@ -9488,6 +9521,8 @@ class CalendarPageState extends State<CalendarPage>
                       decanWatchLens: decanWatchLens ?? DecanWatchLens.neutral,
                       openHandLens: openHandLens ?? OpenHandLens.neutral,
                       djedLens: djedLens ?? DjedLens.neutral,
+                      eveningThresholdInitialCarry:
+                          eveningThresholdInitialCarry,
                     );
                     return id;
                   },
@@ -9627,6 +9662,7 @@ class CalendarPageState extends State<CalendarPage>
                 DecanWatchLens? decanWatchLens,
                 OpenHandLens? openHandLens,
                 DjedLens? djedLens,
+                String? eveningThresholdInitialCarry,
               }) async {
                 final id = await _addMaatFlowInstance(
                   template: template,
@@ -9653,6 +9689,7 @@ class CalendarPageState extends State<CalendarPage>
                   decanWatchLens: decanWatchLens ?? DecanWatchLens.neutral,
                   openHandLens: openHandLens ?? OpenHandLens.neutral,
                   djedLens: djedLens ?? DjedLens.neutral,
+                  eveningThresholdInitialCarry: eveningThresholdInitialCarry,
                 );
                 return id;
               },
@@ -12298,6 +12335,7 @@ class CalendarPageState extends State<CalendarPage>
   final OnboardingProgressStorage _onboardingProgressStorage =
       OnboardingProgressStorage();
   OnboardingProgress _onboardingProgress = const OnboardingProgress();
+  HawCompassCopy? _onboardingCompassCopy;
   bool _firstMaatFlowSheetOpenOrOpening = false;
   bool _showingCurrentDecanIntroCoachmark = false;
   bool _showingFirstFlowDayCoachmark = false;
@@ -12622,17 +12660,6 @@ class CalendarPageState extends State<CalendarPage>
             }
           }),
     );
-  }
-
-  List<OnboardingSlide> _buildOnboardingSlides() {
-    return [
-      const OnboardingSlide(
-        title: 'Remember who you\'re becoming.',
-        description: '',
-        primaryActionLabel: 'Begin Your Journey',
-        visual: OnboardingWelcomeVisual(),
-      ),
-    ];
   }
 
   void _scheduleDaySheetResumeRestore() {
@@ -12992,6 +13019,14 @@ class CalendarPageState extends State<CalendarPage>
     return _waitForOnboardingCalendarReady(attempt + 1);
   }
 
+  Future<HawCompassCopy> _loadOnboardingCompassCopy() async {
+    final copy = await DecanCompassCopyRepo(
+      Supabase.instance.client,
+    ).loadForDay(kMonth: _today.kMonth, kDay: _today.kDay);
+    _onboardingCompassCopy = copy;
+    return copy;
+  }
+
   Future<void> _saveOnboardingProgress(OnboardingProgress progress) async {
     _onboardingProgress = progress;
     final userId = _currentUserId;
@@ -13090,6 +13125,7 @@ class CalendarPageState extends State<CalendarPage>
       if (_hasPresentedOnboardingThisLaunch) return;
       _hasPresentedOnboardingThisLaunch = true;
       await _saveOnboardingProgress(const OnboardingProgress());
+      await _loadOnboardingCompassCopy();
       GuidedOnboardingController.instance.setExternalOverlaySuppressed(true);
       setState(() => _showOnboarding = true);
       return;
@@ -13122,7 +13158,10 @@ class CalendarPageState extends State<CalendarPage>
 
     await _waitForOnboardingCalendarReady();
     if (!mounted) return;
-    await _presentTrueOnboardingStep(progress.currentStep);
+    await _loadOnboardingCompassCopy();
+    if (!mounted) return;
+    GuidedOnboardingController.instance.setExternalOverlaySuppressed(true);
+    setState(() => _showOnboarding = true);
   }
 
   Future<void> _dismissOnboarding() async {
@@ -13137,22 +13176,350 @@ class CalendarPageState extends State<CalendarPage>
   }
 
   void _handleOnboardingComplete() {
-    unawaited(_completeWelcomeOnboarding());
+    unawaited(_completeHawOnboarding());
   }
 
-  Future<void> _completeWelcomeOnboarding() async {
+  Future<void> _completeHawOnboarding() async {
+    GuidedOnboardingController.instance.clear();
     await _dismissOnboarding();
+    await _updateOnboardingProgress(
+      (progress) => progress.copyWith(
+        hasSeenWelcome: true,
+        hasSeenCurrentDecanIntro: true,
+        hasChosenFirstMaatFlow:
+            progress.hasChosenFirstMaatFlow || _firstMaatFlowId != null,
+        hasTappedFirstFlowDay: true,
+        hasOpenedFirstFlowEvent: true,
+        hasSeenObservedJournalPrompt: true,
+        hasSeenMenuPrompt: true,
+        currentStep: TrueOnboardingStep.complete,
+        completedOnboarding: true,
+      ),
+    );
+    final userId = _currentUserId;
+    if (userId != null && userId.isNotEmpty) {
+      await DailyOrientationRepo(Supabase.instance.client).complete(
+        userId: userId,
+        localDate: DateTime.now(),
+        chosenReturn: _onboardingCompassCopy?.dayAlignedReturnKey,
+        badgeLabel: 'this is ḥꜣw',
+      );
+    }
+    await _markOnboardingCompletedIfNeeded();
+    unawaited(
+      Events.trackIfAuthed('onboarding_completed', const <String, dynamic>{}),
+    );
+    if (mounted) {
+      context.go('/');
+    }
+  }
+
+  Future<void> _handleHawEntryStateSelected(String entryState) async {
     await _updateOnboardingProgress(
       (progress) => progress.copyWith(
         hasSeenWelcome: true,
         currentStep: TrueOnboardingStep.currentDecanIntro,
       ),
     );
+    final userId = _currentUserId;
+    if (userId != null && userId.isNotEmpty) {
+      await DailyOrientationRepo(Supabase.instance.client).start(
+        userId: userId,
+        localDate: DateTime.now(),
+        kemeticDayKey: kemeticDayKey(_today.kMonth, _today.kDay),
+        entryState: entryState,
+        chosenReturn: _onboardingCompassCopy?.dayAlignedReturnKey,
+      );
+    }
     unawaited(
-      Events.trackIfAuthed('onboarding_started', const <String, dynamic>{}),
+      Events.trackIfAuthed('onboarding_entry_state_selected', <String, dynamic>{
+        'entry_state': entryState,
+      }),
     );
-    if (!mounted) return;
-    await _presentTrueOnboardingStep(TrueOnboardingStep.currentDecanIntro);
+  }
+
+  Future<void> _handleHawRecommendedFlowJoined(int flowId) async {
+    final template = _maatTemplateForKey(kEveningThresholdFlowKey);
+    if (template != null) {
+      CalendarPage._rememberJoinedMaatFlowTemplate(
+        templateKey: template.key,
+        flowId: flowId,
+      );
+    }
+    _myFlowsFilingSnapshotCache = null;
+    await _flowsRepo.clearMyFiledFlowsCache();
+    await _loadFromDisk(source: 'onboarding_evening_threshold_join');
+    final firstEvent = _firstUpcomingNoteForFlow(flowId);
+    final eventDate = firstEvent == null
+        ? DateUtils.dateOnly(DateTime.now())
+        : DateUtils.dateOnly(
+            KemeticMath.toGregorian(
+              firstEvent.ky,
+              firstEvent.km,
+              firstEvent.kd,
+            ),
+          );
+    final kDate = firstEvent == null
+        ? KemeticMath.fromGregorian(eventDate)
+        : (kYear: firstEvent.ky, kMonth: firstEvent.km, kDay: firstEvent.kd);
+
+    _firstMaatFlowId = flowId;
+    _firstMaatFlowEventClientEventId = firstEvent?.note.clientEventId;
+    _firstMaatFlowEventKDate = (
+      ky: kDate.kYear,
+      km: kDate.kMonth,
+      kd: kDate.kDay,
+    );
+
+    await _updateOnboardingProgress(
+      (progress) => progress.copyWith(
+        hasChosenFirstMaatFlow: true,
+        firstMaatFlowId: flowId.toString(),
+        firstMaatFlowTemplateId: kEveningThresholdFlowKey,
+        firstMaatFlowEventDate: eventDate,
+        firstMaatFlowEventClientEventId: firstEvent?.note.clientEventId,
+        currentStep: TrueOnboardingStep.firstFlowDayEvent,
+      ),
+    );
+    if (mounted) {
+      setState(() {});
+    }
+    unawaited(
+      Events.trackIfAuthed(
+        'onboarding_evening_threshold_joined',
+        <String, dynamic>{'flow_id': flowId},
+      ),
+    );
+  }
+
+  Widget _buildHawRecommendedFlow(
+    BuildContext context,
+    Future<void> Function(int flowId) advance,
+  ) {
+    final template = _maatTemplateForKey(kEveningThresholdFlowKey);
+    if (template == null) {
+      return const Center(
+        child: Text(
+          'The Evening Threshold is not available right now.',
+          style: TextStyle(color: Colors.white70),
+        ),
+      );
+    }
+    return _MaatFlowTemplateDetailPage(
+      template: template,
+      showBackButton: false,
+      embeddedInOnboarding: true,
+      addInstance:
+          ({
+            required _MaatFlowTemplate template,
+            DateTime? startDate,
+            bool? useKemetic,
+            TrackSkyTimeZone? trackSkyTimeZone,
+            int? alertMinutesBefore,
+            bool? dawnDiscreetMode,
+            DawnHouseRiteLens? dawnLens,
+            bool? eveningDiscreetMode,
+            EveningThresholdRiteLens? eveningLens,
+            int? eveningFallbackMinutesAfterMidnight,
+            TheWeighingLens? theWeighingLens,
+            OfferingTableLens? offeringTableLens,
+            bool? offeringNoCupMode,
+            TheTendingLens? theTendingLens,
+            KeptWordLens? keptWordLens,
+            CourseLens? courseLens,
+            MoonReturnLens? moonReturnLens,
+            WagLens? wagLens,
+            DecanWatchLens? decanWatchLens,
+            OpenHandLens? openHandLens,
+            DjedLens? djedLens,
+            String? eveningThresholdInitialCarry,
+          }) {
+            return _addMaatFlowInstance(
+              template: template,
+              startDate: startDate,
+              useKemetic: useKemetic ?? false,
+              trackSkyTimeZone: trackSkyTimeZone,
+              alertMinutesBefore: alertMinutesBefore ?? _alertNoneMinutes,
+              dawnDiscreetMode: dawnDiscreetMode ?? false,
+              dawnLens: dawnLens ?? DawnHouseRiteLens.neutral,
+              eveningDiscreetMode: eveningDiscreetMode ?? false,
+              eveningLens: eveningLens ?? EveningThresholdRiteLens.neutral,
+              eveningFallbackMinutesAfterMidnight:
+                  eveningFallbackMinutesAfterMidnight ??
+                  kEveningThresholdDefaultFallbackMinutes,
+              theWeighingLens: theWeighingLens ?? TheWeighingLens.neutral,
+              offeringTableLens: offeringTableLens ?? OfferingTableLens.neutral,
+              offeringNoCupMode: offeringNoCupMode ?? false,
+              theTendingLens: theTendingLens ?? TheTendingLens.neutral,
+              keptWordLens: keptWordLens ?? KeptWordLens.neutral,
+              courseLens: courseLens ?? CourseLens.neutral,
+              moonReturnLens: moonReturnLens ?? MoonReturnLens.neutral,
+              wagLens: wagLens ?? WagLens.neutral,
+              decanWatchLens: decanWatchLens ?? DecanWatchLens.neutral,
+              openHandLens: openHandLens ?? OpenHandLens.neutral,
+              djedLens: djedLens ?? DjedLens.neutral,
+              eveningThresholdInitialCarry: eveningThresholdInitialCarry,
+            );
+          },
+      onJoined: (flowId) async {
+        await _handleHawRecommendedFlowJoined(flowId);
+        await advance(flowId);
+      },
+    );
+  }
+
+  Widget _buildHawDayView(
+    BuildContext context,
+    VoidCallback onEventOpened,
+    VoidCallback onClosingComplete,
+  ) {
+    final target =
+        _firstMaatFlowEventKDate ??
+        (ky: _today.kYear, km: _today.kMonth, kd: _today.kDay);
+    final targetNote = _firstFlowTargetNoteForDay(
+      target.ky,
+      target.km,
+      target.kd,
+    );
+    final focusEvent = targetNote == null ? null : _noteToEventItem(targetNote);
+
+    List<NoteData> notesForDayFn(int y, int m, int d) {
+      final notes = _dedupeVisibleDayNotes(
+        _notes['$y-$m-$d'] ?? const <_Note>[],
+      );
+      return notes
+          .map(
+            (n) => NoteData(
+              id: n.id?.toString(),
+              clientEventId: n.clientEventId,
+              calendarId: n.calendarId,
+              calendarName: n.calendarName,
+              title: n.title,
+              detail: n.detail,
+              location: n.location,
+              allDay: n.allDay,
+              start: n.start,
+              end: n.end,
+              flowId: n.flowId,
+              manualColor: n.manualColor,
+              category: n.category,
+              isReminder: n.isReminder,
+              reminderId: n.reminderId,
+              behaviorPayload: n.behaviorPayload,
+            ),
+          )
+          .toList();
+    }
+
+    return DayViewPage(
+      initialKy: target.ky,
+      initialKm: target.km,
+      initialKd: target.kd,
+      showGregorian: _showGregorian,
+      notesForDay: notesForDayFn,
+      flowIndex: _buildCalendarFlowChromeIndex(),
+      flowIndexBuilder: _buildCalendarFlowChromeIndex,
+      activeLedgerFlowIds: _buildActiveLedgerFlowIds(),
+      activeLedgerFlowIdsBuilder: _buildActiveLedgerFlowIds,
+      dataVersion: _dayViewDataVersion,
+      getMonthName: (km) => getMonthById(km).displayFull,
+      initialFirstVisibleMinute: focusEvent == null
+          ? null
+          : (focusEvent.startMin - 60).clamp(0, 24 * 60 - 1).toInt(),
+      focusStartMin: focusEvent?.startMin,
+      focusFlowId: focusEvent?.flowId,
+      focusTitle: focusEvent?.title,
+      onClose: () {},
+      onManageFlows: (flowId) => _getMyFlowsCallback()(flowId),
+      onOpenQuickAdd: (_) => _openQuickAddSheet(),
+      onOpenSearch: (ctx) async => _openSearchForContext(ctx),
+      onOpenProfile: (ctx) => _openProfile(ctx),
+      onOpenMenu: (ctx) => _showActionsMenu(ctx, includeNewNote: false),
+      onDeleteNote: (ky, km, kd, evt) async {
+        await _deleteNoteByEvent(ky, km, kd, evt);
+      },
+      onEditNote: (ky, km, kd, evt) async {
+        await _editNoteByEvent(ky, km, kd, evt);
+      },
+      onMoveEventTime: _moveEventInDayView,
+      onShareNote: (evt) async {
+        await _shareNoteSimple(evt);
+      },
+      onAddNote: (ky, km, kd) =>
+          _openDaySheet(ky, km, kd, allowDateChange: true),
+      onOpenAddNoteWithTime:
+          (
+            ky,
+            km,
+            kd, {
+            TimeOfDay? start,
+            TimeOfDay? end,
+            bool allDay = false,
+          }) {
+            _openDaySheet(
+              ky,
+              km,
+              kd,
+              allowDateChange: true,
+              initialStartTime: start,
+              initialEndTime: end,
+              initialAllDay: allDay,
+            );
+          },
+      onCreateTimedEvent: _handleCreateTimedEvent,
+      onEndFlow: (id) => _endFlow(id),
+      onEditReminder: (id) => _editReminderById(id),
+      onEndReminder: (id) => _endReminderRule(id),
+      onShareReminder: (evt) => _shareNoteSimple(evt),
+      onAppendToJournal: (text) async {
+        if (_journalInitialized) {
+          await _journalController.appendToToday(text);
+        }
+      },
+      onSaveFlow: _saveFlowById,
+      loadCompletedClientEventIds: _loadCompletedClientEventIds,
+      onRecordCompletion:
+          ({
+            required String clientEventId,
+            required int flowId,
+            required DateTime completedOnDate,
+            Map<String, dynamic>? metadata,
+          }) => _recordEventCompletion(
+            clientEventId: clientEventId,
+            flowId: flowId,
+            completedOnDate: completedOnDate,
+            metadata: metadata,
+          ),
+      onUnrecordCompletion: _unrecordEventCompletion,
+      onRemoveCompletionBadge: (badgeId) async {
+        if (_journalInitialized) {
+          await _journalController.removeBadge(badgeId);
+        }
+      },
+      onboardingEventClientEventId: _firstMaatFlowEventClientEventId,
+      onboardingEventTargetKey: _firstFlowEventBlockKey,
+      onOnboardingEventOpened: () {
+        _onboardingProgress = _onboardingProgress.copyWith(
+          hasOpenedFirstFlowEvent: true,
+          currentStep: TrueOnboardingStep.eventDetailObservedJournal,
+        );
+        final userId = _currentUserId;
+        if (userId != null) {
+          unawaited(
+            _onboardingProgressStorage.save(userId, _onboardingProgress),
+          );
+        }
+        onEventOpened();
+      },
+      onboardingClosingBannerBuilder: (sheetContext) =>
+          HawOnboardingClosingBanner(
+            onComplete: () {
+              Navigator.of(sheetContext).maybePop();
+              onClosingComplete();
+            },
+          ),
+      shouldPreserveEventDetailRestorationOnClose: () => false,
+    );
   }
 
   Future<void> _skipOnboarding({required bool confirm}) async {
@@ -13192,8 +13559,15 @@ class CalendarPageState extends State<CalendarPage>
       (progress) => progress.copyWith(
         currentStep: TrueOnboardingStep.complete,
         completedOnboarding: true,
+        skippedOnboarding: true,
       ),
     );
+    final userId = _currentUserId;
+    if (userId != null && userId.isNotEmpty) {
+      await DailyOrientationRepo(
+        Supabase.instance.client,
+      ).skip(userId: userId, localDate: DateTime.now());
+    }
     unawaited(
       Events.trackIfAuthed('onboarding_skipped', const <String, dynamic>{}),
     );
@@ -13237,6 +13611,7 @@ class CalendarPageState extends State<CalendarPage>
     }
   }
 
+  // ignore: unused_element
   Future<void> _presentTrueOnboardingStep(TrueOnboardingStep step) async {
     if (!mounted) return;
     if (step != TrueOnboardingStep.complete) {
@@ -22072,6 +22447,7 @@ class CalendarPageState extends State<CalendarPage>
     DecanWatchLens decanWatchLens = DecanWatchLens.neutral,
     OpenHandLens openHandLens = OpenHandLens.neutral,
     DjedLens djedLens = DjedLens.neutral,
+    String? eveningThresholdInitialCarry,
   }) async {
     if (template.kind == _MaatFlowTemplateKind.trackSky) {
       final timezone = trackSkyTimeZone ?? detectTrackSkyTimeZone();
@@ -23663,6 +24039,32 @@ class CalendarPageState extends State<CalendarPage>
 
       setState(() {});
       return serverFlowId;
+    }
+
+    if (template.kind == _MaatFlowTemplateKind.eveningThreshold) {
+      final result = await FlowJoinService().joinEveningThresholdHeadless(
+        templateKey: template.key,
+        templateTitle: template.title,
+        templateOverview: template.overview,
+        templateColor: template.color,
+        personalCalendarId: _personalCalendarId,
+        timezone: trackSkyTimeZone ?? detectTrackSkyTimeZone(),
+        startDate: startDate,
+        alertOffsetMinutes: 0,
+        initialCarryText: eveningThresholdInitialCarry,
+      );
+      if (!result.succeeded) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Could not create The Evening Threshold events.'),
+            ),
+          );
+        }
+        return result.flowIdOrNegativeOne;
+      }
+      await _loadFromDisk(source: 'evening_threshold_join');
+      return result.flowIdOrNegativeOne;
     }
 
     if (template.kind == _MaatFlowTemplateKind.eveningThresholdRite) {
@@ -28508,6 +28910,18 @@ class CalendarPageState extends State<CalendarPage>
     }());
   }
 
+  ScrollPosition? _singleCalendarScrollPosition() {
+    if (!_scrollCtrl.hasClients) return null;
+    final positions = _scrollCtrl.positions;
+    if (positions.length != 1) return null;
+    return positions.single;
+  }
+
+  double? _calendarScrollOffsetForPreservation() {
+    return _singleCalendarScrollPosition()?.pixels ??
+        _lastKnownCalendarScrollOffset;
+  }
+
   Future<void> _loadFromDisk({
     String source = 'manual',
     bool preserveViewport = false,
@@ -28517,26 +28931,24 @@ class CalendarPageState extends State<CalendarPage>
     }
     _isLoadingFromDisk = true;
 
-    if (kDebugMode) {
-      _calendarDebugPrint('=== _loadFromDisk START ($source) ===');
-    }
-
-    final currentUser = Supabase.instance.client.auth.currentUser;
-    if (currentUser == null) {
-      if (kDebugMode) {
-        _calendarDebugPrint(
-          '[loadFromDisk] Skipping load: no authenticated user',
-        );
-      }
-      _isLoadingFromDisk = false;
-      return;
-    }
-    final preservedScrollOffset = preserveViewport
-        ? (_scrollCtrl.hasClients ? _scrollCtrl.position.pixels : null) ??
-              _lastKnownCalendarScrollOffset
-        : null;
-    await _ensureManualDeleteTombstonesLoaded();
     try {
+      if (kDebugMode) {
+        _calendarDebugPrint('=== _loadFromDisk START ($source) ===');
+      }
+
+      final currentUser = Supabase.instance.client.auth.currentUser;
+      if (currentUser == null) {
+        if (kDebugMode) {
+          _calendarDebugPrint(
+            '[loadFromDisk] Skipping load: no authenticated user',
+          );
+        }
+        return;
+      }
+      final preservedScrollOffset = preserveViewport
+          ? _calendarScrollOffsetForPreservation()
+          : null;
+      await _ensureManualDeleteTombstonesLoaded();
       final fastStartupMode = source.startsWith('startup:');
       final warmStartBackfillMode = source.startsWith('startup_backfill:');
       final keepWarmStartSnapshotVisible =
@@ -29273,17 +29685,15 @@ class CalendarPageState extends State<CalendarPage>
       if (preserveViewport && preservedScrollOffset != null) {
         _lastKnownCalendarScrollOffset = preservedScrollOffset;
         WidgetsBinding.instance.addPostFrameCallback((_) {
-          if (!mounted ||
-              !_scrollCtrl.hasClients ||
-              !_scrollCtrl.position.hasContentDimensions) {
+          final position = _singleCalendarScrollPosition();
+          if (!mounted || position == null || !position.hasContentDimensions) {
             return;
           }
-          final position = _scrollCtrl.position;
           final clamped = preservedScrollOffset.clamp(
             position.minScrollExtent,
             position.maxScrollExtent,
           );
-          _scrollCtrl.jumpTo(clamped);
+          position.jumpTo(clamped);
           _lastKnownCalendarScrollOffset = clamped.toDouble();
         });
       }
@@ -29800,7 +30210,7 @@ class CalendarPageState extends State<CalendarPage>
       try {
         await repo.flowCommit(
           generationId: r.originGenerationId!,
-          flowId: saved!.id,
+          flowId: saved.id,
         );
       } catch (e) {
         if (kDebugMode) {
@@ -29816,7 +30226,7 @@ class CalendarPageState extends State<CalendarPage>
       StackTrace stackTrace,
     ) async {
       if (!isNewFlowSave || saved == null) return;
-      final savedFlow = saved!;
+      final savedFlow = saved;
       if (kDebugMode) {
         _calendarDebugPrint(
           '[persistFlowStudio] Rolling back new flow ${savedFlow.id} after planned-note save failed: $error',
@@ -31613,7 +32023,16 @@ class CalendarPageState extends State<CalendarPage>
           content,
           Positioned.fill(
             child: OnboardingOverlay(
-              slides: _buildOnboardingSlides(),
+              compassCopy:
+                  _onboardingCompassCopy ??
+                  DecanCompassCopyRepo.fallbackForDay(
+                    kMonth: _today.kMonth,
+                    kDay: _today.kDay,
+                  ),
+              recommendedFlowBuilder: _buildHawRecommendedFlow,
+              dayViewBuilder: _buildHawDayView,
+              dayViewEventTargetKey: _firstFlowEventBlockKey,
+              onEntryStateSelected: _handleHawEntryStateSelected,
               onSkip: _handleOnboardingSkip,
               onComplete: _handleOnboardingComplete,
             ),

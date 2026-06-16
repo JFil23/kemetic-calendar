@@ -7,6 +7,7 @@ import 'package:mobile/shared/glossy_text.dart';
 import '../calendar/calendar_page.dart' show KemeticMath;
 import '../calendar/kemetic_month_metadata.dart' show getMonthById;
 import 'journal_controller.dart';
+import 'journal_skin_tokens.dart';
 import 'journal_v2_document_model.dart';
 
 enum JournalV2Mode { type, draw }
@@ -21,6 +22,7 @@ class JournalV2Toolbar extends StatefulWidget {
   final bool canUndo;
   final bool canRedo;
   final bool compact;
+  final bool journalPageSkin;
 
   const JournalV2Toolbar({
     super.key,
@@ -33,6 +35,7 @@ class JournalV2Toolbar extends StatefulWidget {
     this.canUndo = false,
     this.canRedo = false,
     this.compact = false,
+    this.journalPageSkin = false,
   });
 
   @override
@@ -72,6 +75,10 @@ class _JournalV2ToolbarState extends State<JournalV2Toolbar> {
 
   @override
   Widget build(BuildContext context) {
+    if (widget.journalPageSkin) {
+      return _buildJournalPageSkinToolbar();
+    }
+
     final now = DateTime.now();
     final dateLabel = _showKemetic
         ? _formatKemetic(now)
@@ -132,6 +139,172 @@ class _JournalV2ToolbarState extends State<JournalV2Toolbar> {
           _buildStatusBar(),
         ],
       ),
+    );
+  }
+
+  Widget _buildJournalPageSkinToolbar() {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            _buildJournalSkinFormatButton(
+              'B',
+              'bold',
+              _currentAttrs.bold,
+              bold: true,
+            ),
+            const SizedBox(width: 18),
+            _buildJournalSkinFormatButton(
+              'I',
+              'italic',
+              _currentAttrs.italic,
+              italic: true,
+            ),
+            const SizedBox(width: 18),
+            _buildJournalSkinFormatButton(
+              'U',
+              'underline',
+              _currentAttrs.underline,
+              underline: true,
+            ),
+            const SizedBox(width: 18),
+            _buildJournalSkinFormatButton(
+              'S',
+              'strikethrough',
+              _currentAttrs.strikethrough,
+              strikethrough: true,
+            ),
+          ],
+        ),
+        Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            _buildJournalSkinUndoRedoButton(
+              icon: Icons.undo,
+              tooltip: 'Undo',
+              enabled: widget.canUndo,
+              onPressed: widget.onUndo,
+            ),
+            const SizedBox(width: 16),
+            _buildJournalSkinUndoRedoButton(
+              icon: Icons.redo,
+              tooltip: 'Redo',
+              enabled: widget.canRedo,
+              onPressed: widget.onRedo,
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _buildJournalSkinFormatButton(
+    String label,
+    String format,
+    bool isActive, {
+    bool bold = false,
+    bool italic = false,
+    bool underline = false,
+    bool strikethrough = false,
+  }) {
+    final color = isActive
+        ? JournalSkinTokens.goldSoft
+        : JournalSkinTokens.silverMid;
+    return TextButton(
+      onPressed: () => _toggleFormat(format),
+      style: ButtonStyle(
+        padding: const WidgetStatePropertyAll(EdgeInsets.zero),
+        minimumSize: const WidgetStatePropertyAll(Size(24, 30)),
+        fixedSize: const WidgetStatePropertyAll(Size(24, 30)),
+        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+        visualDensity: VisualDensity.compact,
+        backgroundColor: const WidgetStatePropertyAll(Colors.transparent),
+        foregroundColor: WidgetStateProperty.resolveWith((states) {
+          if (states.contains(WidgetState.hovered) ||
+              states.contains(WidgetState.pressed) ||
+              states.contains(WidgetState.focused)) {
+            return JournalSkinTokens.goldSoft;
+          }
+          return color;
+        }),
+        overlayColor: WidgetStateProperty.resolveWith((states) {
+          if (states.contains(WidgetState.focused)) {
+            return JournalSkinTokens.goldSoft.withValues(alpha: 0.12);
+          }
+          if (states.contains(WidgetState.hovered) ||
+              states.contains(WidgetState.pressed)) {
+            return JournalSkinTokens.goldSoft.withValues(alpha: 0.08);
+          }
+          return Colors.transparent;
+        }),
+        shape: WidgetStatePropertyAll(
+          RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
+        ),
+      ),
+      child: Text(
+        label,
+        style: JournalSkinTokens.formatButtonStyle.copyWith(
+          color: color,
+          fontWeight: bold ? FontWeight.w700 : FontWeight.w400,
+          fontStyle: italic ? FontStyle.italic : FontStyle.normal,
+          decoration: underline
+              ? TextDecoration.underline
+              : strikethrough
+              ? TextDecoration.lineThrough
+              : TextDecoration.none,
+          decorationColor: color,
+          decorationThickness: 1.2,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildJournalSkinUndoRedoButton({
+    required IconData icon,
+    required String tooltip,
+    required bool enabled,
+    required VoidCallback onPressed,
+  }) {
+    final color = enabled
+        ? JournalSkinTokens.silverMid
+        : JournalSkinTokens.silverLo;
+    return IconButton(
+      onPressed: enabled ? onPressed : null,
+      tooltip: tooltip,
+      iconSize: 19,
+      padding: EdgeInsets.zero,
+      constraints: const BoxConstraints.tightFor(width: 24, height: 30),
+      visualDensity: VisualDensity.compact,
+      style: ButtonStyle(
+        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+        backgroundColor: const WidgetStatePropertyAll(Colors.transparent),
+        foregroundColor: WidgetStateProperty.resolveWith((states) {
+          if (!enabled) return JournalSkinTokens.silverLo;
+          if (states.contains(WidgetState.hovered) ||
+              states.contains(WidgetState.pressed) ||
+              states.contains(WidgetState.focused)) {
+            return JournalSkinTokens.goldSoft;
+          }
+          return JournalSkinTokens.silverMid;
+        }),
+        overlayColor: WidgetStateProperty.resolveWith((states) {
+          if (!enabled) return Colors.transparent;
+          if (states.contains(WidgetState.focused)) {
+            return JournalSkinTokens.goldSoft.withValues(alpha: 0.12);
+          }
+          if (states.contains(WidgetState.hovered) ||
+              states.contains(WidgetState.pressed)) {
+            return JournalSkinTokens.goldSoft.withValues(alpha: 0.08);
+          }
+          return Colors.transparent;
+        }),
+        shape: WidgetStatePropertyAll(
+          RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
+        ),
+      ),
+      icon: Icon(icon, color: color),
     );
   }
 

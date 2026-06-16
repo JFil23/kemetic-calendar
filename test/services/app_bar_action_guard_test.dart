@@ -1275,10 +1275,8 @@ void main() {
       );
 
       expect(body, contains('const listBottomPadding = 16.0;'));
-      expect(
-        body,
-        contains('EdgeInsets.fromLTRB(16, 16, 16, listBottomPadding)'),
-      );
+      expect(body, contains('EdgeInsets.fromLTRB('));
+      expect(body, contains('130 + listBottomPadding'));
       expect(body, isNot(contains('bottomPaddingAboveGlobalChrome')));
       expect(body, isNot(contains('padding: const EdgeInsets.all(16)')));
     });
@@ -1551,7 +1549,7 @@ void main() {
       final inboxAppBar = _sourceBetween(
         inbox,
         'appBar: AppBar(',
-        'body: _buildBody()',
+        'body: _InboxMahoganySurface(',
       );
 
       expect(inboxAppBar, contains("popOrGo(context, '/')"));

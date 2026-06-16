@@ -4,7 +4,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/gestures.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../core/navigation_fallback.dart';
-import '../../shared/glossy_text.dart';
 
 import '../../data/choice_event_repo.dart';
 import '../../data/decan_reflection_repo.dart';
@@ -18,6 +17,7 @@ import '../calendar/calendar_page.dart';
 import '../nodes/kemetic_node_library.dart';
 import '../nodes/kemetic_node_model.dart';
 import '../nodes/node_link_picker_sheet.dart';
+import 'decan_reflection_skin.dart';
 
 class DecanReflectionDetailPage extends StatefulWidget {
   final String reflectionId;
@@ -39,6 +39,8 @@ class _DecanReflectionDetailPageState extends State<DecanReflectionDetailPage> {
   final List<GestureRecognizer> _linkGestureRecognizers = [];
   final Set<String> _nodeLinkTapKeys = <String>{};
   List<InlineSpan> _reflectionSpans = const [];
+  String _reflectionBodyText = '';
+  String? _reflectionRiteText;
   DecanReflection? _reflection;
   DecanReflectionGraphHints? _graphHints;
   List<DecanReflectionSuggestedNodeLink> _suggestedNodeLinks = const [];
@@ -142,18 +144,22 @@ class _DecanReflectionDetailPageState extends State<DecanReflectionDetailPage> {
     final reflection = _reflection;
     if (reflection == null) {
       _reflectionSpans = const [];
+      _reflectionBodyText = '';
+      _reflectionRiteText = null;
       return;
     }
+    final parts = _splitReflectionTextForFolio(reflection.reflectionText);
+    _reflectionBodyText = parts.body;
+    _reflectionRiteText = parts.rite;
+    final bodyLinks = _links
+        .where((link) => link.start >= 0 && link.end <= parts.body.length)
+        .toList(growable: false);
     // SelectableText.rich only supports TextSpan children, so this page uses
     // recognizer-backed text spans instead of the default WidgetSpan links.
     _reflectionSpans = InsightLinkSpanBuilder.build(
-      text: reflection.reflectionText,
-      links: _links,
-      baseStyle: const TextStyle(
-        color: Colors.white,
-        fontSize: 15,
-        height: 1.5,
-      ),
+      text: parts.body,
+      links: bodyLinks,
+      baseStyle: DecanReflectionTokens.bodyStyle,
       onTap: _handleLinkTap,
       mode: InsightLinkSpanRenderMode.textSpan,
       gestureRecognizers: _linkGestureRecognizers,
@@ -377,115 +383,89 @@ class _DecanReflectionDetailPageState extends State<DecanReflectionDetailPage> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.black,
-      appBar: AppBar(
-        backgroundColor: Colors.black,
-        elevation: 0,
-        automaticallyImplyLeading: false,
-        leading: IconButton(
-          icon: KemeticGold.icon(Icons.arrow_back),
-          tooltip: 'Back',
-          onPressed: () => popOrGo(context, '/reflections'),
+    return DecanReflectionSkinScaffold(
+      navBar: DecanReflectionNavBar(
+        title: 'Reflection',
+        onBack: () => popOrGo(context, '/reflections'),
+        right: DecanReflectionNavIconButton(
+          onPressed: _startLinkFlow,
+          icon: Icons.link,
+          iconSize: 22,
+          tooltip: 'Link Insight',
         ),
-        iconTheme: const IconThemeData(color: KemeticGold.base),
-        title: Text(
-          _reflection?.decanName ?? 'Decan Reflection',
-          style: const TextStyle(
-            color: Colors.white,
-            fontSize: 17,
-            fontWeight: FontWeight.w600,
-          ),
-        ),
-        actions: [
-          IconButton(
-            onPressed: _startLinkFlow,
-            icon: KemeticGold.icon(Icons.link),
-            tooltip: 'Link Insight',
-          ),
-        ],
       ),
-      body: _loading
-          ? const Center(
-              child: CircularProgressIndicator(
-                valueColor: AlwaysStoppedAnimation(KemeticGold.base),
-              ),
-            )
-          : _reflection == null
-          ? Center(
-              child: Text(
-                'Reflection not found',
-                style: TextStyle(color: Colors.white.withValues(alpha: 0.7)),
-              ),
-            )
-          : _buildBody(_reflection!),
+      child: _buildContent(),
     );
+  }
+
+  Widget _buildContent() {
+    if (_loading) {
+      return const Center(
+        child: CircularProgressIndicator(
+          valueColor: AlwaysStoppedAnimation<Color>(DecanReflectionTokens.gold),
+          strokeWidth: 2,
+        ),
+      );
+    }
+    if (_reflection == null) {
+      return const Center(
+        child: Padding(
+          padding: EdgeInsets.all(30),
+          child: Text(
+            'Reflection not found',
+            textAlign: TextAlign.center,
+            style: DecanReflectionTokens.emptyBodyStyle,
+          ),
+        ),
+      );
+    }
+    return _buildBody(_reflection!);
   }
 
   Widget _buildBody(DecanReflection reflection) {
     final dateRange =
         '${reflection.decanStart.toLocal().toIso8601String().split("T").first} → ${reflection.decanEnd.toLocal().toIso8601String().split("T").first}';
+    final bottomPadding =
+        DecanReflectionTokens.scrollBottomPadding +
+        MediaQuery.paddingOf(context).bottom;
+    final subtitle = _folioSubtitleFor(reflection);
 
     return SingleChildScrollView(
-      padding: const EdgeInsets.all(20),
+      padding: EdgeInsets.fromLTRB(30, 14, 30, bottomPadding),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          KemeticGold.text(
-            reflection.decanName,
-            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
+        children: <Widget>[
+          DecanFolioMasthead(
+            title: reflection.decanName,
+            subtitle: subtitle,
+            dateRange: dateRange,
           ),
-          const SizedBox(height: 6),
-          if (reflection.decanTheme != null &&
-              reflection.decanTheme!.isNotEmpty)
-            Text(
-              reflection.decanTheme!,
-              style: const TextStyle(
-                color: Colors.white70,
-                fontSize: 14,
-                fontWeight: FontWeight.w500,
+          if (_reflectionBodyText.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(0, 6, 0, 8),
+              child: SelectableText.rich(
+                TextSpan(
+                  style: DecanReflectionTokens.bodyStyle,
+                  children: _reflectionSpans,
+                ),
+                onSelectionChanged: (selection, _) {
+                  _reflectionSelection = selection;
+                },
               ),
             ),
-          const SizedBox(height: 6),
-          Text(
-            dateRange,
-            style: const TextStyle(color: Colors.white54, fontSize: 13),
-          ),
-          const SizedBox(height: 16),
-          SelectableText.rich(
-            TextSpan(
-              style: const TextStyle(
-                color: Colors.white,
-                fontSize: 15,
-                height: 1.5,
-              ),
-              children: _reflectionSpans,
-            ),
-            onSelectionChanged: (selection, _) {
-              _reflectionSelection = selection;
-            },
-          ),
+          if (_reflectionRiteText != null)
+            DecanRiteBlock(question: _reflectionRiteText!),
           if (_graphHints?.cta?.hasDestination == true) ...[
             const SizedBox(height: 22),
-            SizedBox(
-              width: double.infinity,
-              child: OutlinedButton(
-                onPressed: () => _handleReflectionCta(_graphHints!.cta!),
-                style: OutlinedButton.styleFrom(
-                  foregroundColor: KemeticGold.base,
-                  side: BorderSide(
-                    color: KemeticGold.base.withValues(alpha: 0.55),
-                  ),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  padding: const EdgeInsets.symmetric(vertical: 14),
+            Wrap(
+              spacing: 12,
+              runSpacing: 12,
+              children: <Widget>[
+                DecanBridgeAction(
+                  label: _graphHints!.cta!.label,
+                  onPressed: () => _handleReflectionCta(_graphHints!.cta!),
                 ),
-                child: Text(
-                  _graphHints!.cta!.label,
-                  style: const TextStyle(fontWeight: FontWeight.w700),
-                ),
-              ),
+              ],
             ),
           ],
           if (_suggestedNodeLinks.isNotEmpty) ...[
@@ -496,31 +476,36 @@ class _DecanReflectionDetailPageState extends State<DecanReflectionDetailPage> {
             ),
           ],
           if (_links.isNotEmpty) ...[
-            const SizedBox(height: 12),
-            const Text(
+            const SizedBox(height: 18),
+            Text(
               'Linked nodes',
-              style: TextStyle(
-                color: Colors.white70,
-                fontWeight: FontWeight.w600,
+              style: DecanReflectionTokens.bridgeStyle.copyWith(
+                color: DecanReflectionTokens.inkMid,
               ),
             ),
-            const SizedBox(height: 6),
+            const SizedBox(height: 8),
             Wrap(
-              spacing: 6,
-              runSpacing: 6,
+              spacing: 8,
+              runSpacing: 8,
               children: _links
                   .map(
-                    (l) => InputChip(
+                    (link) => InputChip(
                       label: Text(
-                        l.selectedText.isNotEmpty
-                            ? l.selectedText
+                        link.selectedText.isNotEmpty
+                            ? link.selectedText
                             : 'Linked node',
                         overflow: TextOverflow.ellipsis,
                       ),
                       deleteIcon: const Icon(Icons.close, size: 16),
-                      onDeleted: () => _removeLink(l),
-                      backgroundColor: Colors.white.withValues(alpha: 0.08),
-                      labelStyle: const TextStyle(color: Colors.white70),
+                      onDeleted: () => _removeLink(link),
+                      backgroundColor: Colors.transparent,
+                      side: const BorderSide(
+                        color: DecanReflectionTokens.hairline,
+                      ),
+                      deleteIconColor: DecanReflectionTokens.gold,
+                      labelStyle: DecanReflectionTokens.bridgeStyle.copyWith(
+                        color: DecanReflectionTokens.inkSoft,
+                      ),
                     ),
                   )
                   .toList(),
@@ -554,6 +539,47 @@ class _DecanReflectionDetailPageState extends State<DecanReflectionDetailPage> {
   }
 }
 
+class _ReflectionTextParts {
+  const _ReflectionTextParts({required this.body, this.rite});
+
+  final String body;
+  final String? rite;
+}
+
+_ReflectionTextParts _splitReflectionTextForFolio(String value) {
+  final text = value.trim();
+  if (text.isEmpty) return const _ReflectionTextParts(body: '');
+
+  final separators = RegExp(r'\n\s*\n').allMatches(text).toList();
+  if (separators.isEmpty) {
+    return _ReflectionTextParts(body: text);
+  }
+
+  final lastSeparator = separators.last;
+  final candidate = text.substring(lastSeparator.end).trim();
+  final body = text.substring(0, lastSeparator.start).trimRight();
+  if (body.isEmpty || !_looksLikeRiteText(candidate)) {
+    return _ReflectionTextParts(body: text);
+  }
+
+  return _ReflectionTextParts(body: body, rite: candidate);
+}
+
+bool _looksLikeRiteText(String value) {
+  final text = value.trim();
+  if (text.isEmpty) return false;
+  final lower = text.toLowerCase();
+  return text.endsWith('?') || lower.startsWith('before the next decan opens');
+}
+
+String? _folioSubtitleFor(DecanReflection reflection) {
+  final theme = reflection.decanTheme?.trim();
+  if (theme == null || theme.isEmpty || theme == reflection.decanName.trim()) {
+    return null;
+  }
+  return theme;
+}
+
 class DecanReflectionSuggestedNodeLink {
   final KemeticNode node;
   final String reason;
@@ -580,10 +606,12 @@ class DecanReflectionSuggestedNodeChips extends StatelessWidget {
     if (suggestions.isEmpty) return const SizedBox.shrink();
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Text(
+      children: <Widget>[
+        Text(
           'Continue in the graph',
-          style: TextStyle(color: Colors.white70, fontWeight: FontWeight.w600),
+          style: DecanReflectionTokens.bridgeStyle.copyWith(
+            color: DecanReflectionTokens.inkMid,
+          ),
         ),
         const SizedBox(height: 8),
         Wrap(
@@ -597,7 +625,7 @@ class DecanReflectionSuggestedNodeChips extends StatelessWidget {
                       : Text(
                           suggestion.node.glyph,
                           style: const TextStyle(
-                            color: KemeticGold.base,
+                            color: DecanReflectionTokens.gold,
                             fontSize: 15,
                           ),
                         ),
@@ -607,11 +635,11 @@ class DecanReflectionSuggestedNodeChips extends StatelessWidget {
                   ),
                   tooltip: suggestion.reason,
                   onPressed: () => onOpenSuggestedNode(suggestion),
-                  backgroundColor: Colors.white.withValues(alpha: 0.08),
-                  side: BorderSide(
-                    color: KemeticGold.base.withValues(alpha: 0.35),
+                  backgroundColor: const Color.fromRGBO(212, 174, 67, 0.05),
+                  side: const BorderSide(color: DecanReflectionTokens.hairline),
+                  labelStyle: DecanReflectionTokens.bridgeStyle.copyWith(
+                    color: DecanReflectionTokens.gold,
                   ),
-                  labelStyle: const TextStyle(color: Colors.white70),
                 ),
               )
               .toList(),
