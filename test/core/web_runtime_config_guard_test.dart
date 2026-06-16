@@ -5,11 +5,13 @@ import 'package:flutter_test/flutter_test.dart';
 void main() {
   group('web runtime config guard', () {
     late String mainSource;
+    late String webIndexSource;
     late String buildScriptSource;
     late String deployScriptSource;
 
     setUpAll(() async {
       mainSource = await File('lib/main.dart').readAsString();
+      webIndexSource = await File('web/index.html').readAsString();
       buildScriptSource = await File(
         'scripts/build_web_release.sh',
       ).readAsString();
@@ -113,5 +115,28 @@ void main() {
         lessThan(deployScriptSource.indexOf('if [[ -n "\$ENV_FILE_ARG" ]]')),
       );
     });
+
+    test(
+      'web bootstrap versions Flutter font asset loads for installed PWAs',
+      () {
+        expect(webIndexSource, contains('__kemeticFontAssetFetchPatched'));
+        expect(webIndexSource, contains('__kemeticFontAssetXhrPatched'));
+        expect(webIndexSource, contains('__kemeticFontAssetFontFacePatched'));
+        expect(webIndexSource, contains('/assets/FontManifest.json'));
+        expect(webIndexSource, contains('/assets/ios/Runner/Fonts/'));
+        expect(
+          webIndexSource,
+          contains("url.searchParams.set('v', String(buildVersion))"),
+        );
+        expect(
+          webIndexSource.indexOf('const buildVersion ='),
+          lessThan(webIndexSource.indexOf('__kemeticFontAssetFetchPatched')),
+        );
+        expect(
+          webIndexSource.indexOf('__kemeticFontAssetFetchPatched'),
+          lessThan(webIndexSource.indexOf("s.src = 'flutter_bootstrap.js")),
+        );
+      },
+    );
   });
 }

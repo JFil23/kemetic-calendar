@@ -75,9 +75,11 @@
   Cache-Control: no-cache
 
 /assets/FontManifest.json
+  ! Cache-Control
   Cache-Control: no-cache, must-revalidate
 
 /assets/ios/Runner/Fonts/*
+  ! Cache-Control
   Cache-Control: no-cache, must-revalidate
 
 /assets/*

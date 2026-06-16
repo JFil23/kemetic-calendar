@@ -64,11 +64,19 @@ void main() {
     expect(pubspec, contains('family: CormorantGaramond'));
     expect(
       webHeaders,
-      contains('/assets/FontManifest.json\n  Cache-Control: no-cache'),
+      contains(
+        '/assets/FontManifest.json\n'
+        '  ! Cache-Control\n'
+        '  Cache-Control: no-cache, must-revalidate',
+      ),
     );
     expect(
       webHeaders,
-      contains('/assets/ios/Runner/Fonts/*\n  Cache-Control: no-cache'),
+      contains(
+        '/assets/ios/Runner/Fonts/*\n'
+        '  ! Cache-Control\n'
+        '  Cache-Control: no-cache, must-revalidate',
+      ),
     );
     for (final asset in fontAssets) {
       expect(pubspec, contains('asset: $asset'));

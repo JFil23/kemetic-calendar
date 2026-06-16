@@ -347,6 +347,77 @@
     }
 
     const buildVersion = {{flutter_service_worker_version}};
+
+    function withFontAssetVersion(rawUrl) {
+      if (!buildVersion || rawUrl == null) {
+        return rawUrl;
+      }
+      try {
+        const url = new URL(String(rawUrl), document.baseURI);
+        const isSameOrigin = url.origin === window.location.origin;
+        const isFontManifest = url.pathname.endsWith('/assets/FontManifest.json');
+        const isFontAsset = url.pathname.indexOf('/assets/ios/Runner/Fonts/') !== -1;
+        if (isSameOrigin && (isFontManifest || isFontAsset) && !url.searchParams.has('v')) {
+          url.searchParams.set('v', String(buildVersion));
+          return url.toString();
+        }
+      } catch (_) {
+        // Best effort only; keep Flutter's original URL.
+      }
+      return rawUrl;
+    }
+
+    if (window.fetch && !window.__kemeticFontAssetFetchPatched) {
+      window.__kemeticFontAssetFetchPatched = true;
+      const originalFetch = window.fetch.bind(window);
+      window.fetch = function (input, init) {
+        if (typeof Request !== 'undefined' && input instanceof Request) {
+          const versionedUrl = withFontAssetVersion(input.url);
+          if (versionedUrl !== input.url) {
+            return originalFetch(new Request(versionedUrl, input), init);
+          }
+        } else {
+          const versionedInput = withFontAssetVersion(input);
+          if (versionedInput !== input) {
+            return originalFetch(versionedInput, init);
+          }
+        }
+        return originalFetch(input, init);
+      };
+    }
+
+    if (window.XMLHttpRequest && !window.__kemeticFontAssetXhrPatched) {
+      window.__kemeticFontAssetXhrPatched = true;
+      const originalOpen = window.XMLHttpRequest.prototype.open;
+      window.XMLHttpRequest.prototype.open = function () {
+        const args = Array.prototype.slice.call(arguments);
+        args[1] = withFontAssetVersion(args[1]);
+        return originalOpen.apply(this, args);
+      };
+    }
+
+    if (window.FontFace && !window.__kemeticFontAssetFontFacePatched) {
+      window.__kemeticFontAssetFontFacePatched = true;
+      const OriginalFontFace = window.FontFace;
+      function versionFontFaceSource(source) {
+        if (typeof source !== 'string') {
+          return source;
+        }
+        return source.replace(/url\((['"]?)([^'")]+)\1\)/g, function (match, quote, fontUrl) {
+          const versionedUrl = withFontAssetVersion(fontUrl);
+          if (versionedUrl === fontUrl) {
+            return match;
+          }
+          const outputQuote = quote || '"';
+          return 'url(' + outputQuote + versionedUrl + outputQuote + ')';
+        });
+      }
+      window.FontFace = function (family, source, descriptors) {
+        return new OriginalFontFace(family, versionFontFaceSource(source), descriptors);
+      };
+      window.FontFace.prototype = OriginalFontFace.prototype;
+    }
+
     const s = document.createElement('script');
     if (buildVersion) {
       s.src = 'flutter_bootstrap.js?v=' + encodeURIComponent(buildVersion);
