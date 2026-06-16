@@ -63,6 +63,10 @@ void main() {
     expect(MaatFlowListTokens.fontFallback, contains('GentiumPlus'));
     expect(pubspec, contains('family: CormorantGaramond'));
     expect(
+      webHeaders.indexOf('/assets/*\n'),
+      lessThan(webHeaders.indexOf('/assets/FontManifest.json\n')),
+    );
+    expect(
       webHeaders,
       contains(
         '/assets/FontManifest.json\n'
