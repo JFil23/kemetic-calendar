@@ -56,6 +56,262 @@ void main() {
   );
 
   test(
+    'Evening Threshold detail choices stay tappable and defer release writes',
+    () {
+      final dayView = File(
+        'lib/features/calendar/day_view.dart',
+      ).readAsStringSync();
+
+      final statusButton = _sourceBetween(
+        dayView,
+        'Widget _statusButton',
+        'Widget _buildEveningThresholdWitnessBlock',
+      );
+      expect(statusButton, isNot(contains('_eveningThresholdStatusDisabled')));
+      expect(statusButton, contains('_beginEveningThresholdRelease()'));
+      expect(statusButton, contains('onPressed: _saving || _loading'));
+      expect(statusButton, isNot(contains('chosenReturn')));
+      expect(statusButton, isNot(contains('landingStatus')));
+
+      final beginRelease = _sourceBetween(
+        dayView,
+        'Future<void> _beginEveningThresholdRelease',
+        'Future<bool> _applyEveningThresholdCompletion',
+      );
+      expect(beginRelease, isNot(contains('recordEveningThresholdDecision')));
+
+      final applyCompletion = _sourceBetween(
+        dayView,
+        'Future<bool> _applyEveningThresholdCompletion',
+        'Future<void> _record',
+      );
+      expect(applyCompletion, contains('carryForward('));
+      expect(applyCompletion, contains('releaseWithNewCarry('));
+    },
+  );
+
+  test(
+    'Evening Threshold missing prerequisites use feedback, not disabling',
+    () {
+      final dayView = File(
+        'lib/features/calendar/day_view.dart',
+      ).readAsStringSync();
+
+      final guard = _sourceBetween(
+        dayView,
+        'String? _eveningThresholdPrerequisiteMessage',
+        'Future<void> _beginEveningThresholdRelease',
+      );
+
+      expect(
+        guard,
+        contains(
+          'No carry was set this morning. The flow will resume tomorrow.',
+        ),
+      );
+      expect(
+        guard,
+        contains('Land yesterday\\\'s carry before choosing what crosses.'),
+      );
+      expect(guard, contains('_showSheetFeedback('));
+      expect(
+        guard,
+        contains('_showEveningThresholdPrerequisiteFeedbackIfBlocked()'),
+      );
+      expect(guard, contains('return false;'));
+
+      final statusButton = _sourceBetween(
+        dayView,
+        'Widget _statusButton',
+        'Widget _buildEveningThresholdWitnessBlock',
+      );
+      expect(
+        statusButton,
+        contains('_showEveningThresholdPrerequisiteFeedbackIfBlocked()'),
+      );
+
+      final feedback = _sourceBetween(
+        dayView,
+        'void _showSheetFeedback',
+        'bool _hasText',
+      );
+      expect(feedback, contains('_sheetFeedbackMessage = message'));
+      expect(feedback, contains('Overlay.maybeOf(context, rootOverlay: true)'));
+      expect(feedback, contains('Positioned.fill('));
+      expect(feedback, contains('overlay.insert(_sheetFeedbackOverlay!)'));
+      expect(feedback, contains('ScaffoldMessenger.of(context)'));
+
+      final contextWidgets = _sourceBetween(
+        dayView,
+        'List<Widget> _buildEveningThresholdContextWidgets',
+        '@override\n  Widget build',
+      );
+      expect(contextWidgets, contains('_sheetFeedbackMessage != null'));
+      expect(
+        contextWidgets,
+        contains(
+          '_buildEveningThresholdFeedbackMessage(_sheetFeedbackMessage!)',
+        ),
+      );
+    },
+  );
+
+  test('Evening Threshold carries intention forward until changed', () {
+    final dayView = File(
+      'lib/features/calendar/day_view.dart',
+    ).readAsStringSync();
+    final orientationRepo = File(
+      'lib/features/onboarding/daily_orientation_repo.dart',
+    ).readAsStringSync();
+
+    final loader = _sourceBetween(
+      dayView,
+      'Future<void> _loadEveningThresholdOrientationState',
+      'Future<void> _load()',
+    );
+    expect(loader, contains('loadEffectiveCarry('));
+    expect(loader, isNot(contains('repo.load(')));
+
+    expect(
+      orientationRepo,
+      contains('Future<DailyOrientationEntry?> loadEffectiveCarry'),
+    );
+    expect(orientationRepo, contains('_writeCurrentCarryLocal('));
+    expect(orientationRepo, contains('_readCurrentCarryLocal('));
+    expect(orientationRepo, contains('_loadMostRecentCarry('));
+  });
+
+  test('Evening Threshold orientation tables are migration-backed', () {
+    final migrations = Directory('../supabase/migrations')
+        .listSync()
+        .whereType<File>()
+        .where((file) => file.path.endsWith('.sql'))
+        .map((file) => file.readAsStringSync())
+        .join('\n');
+
+    expect(
+      migrations,
+      contains('create table if not exists public.daily_orientation'),
+    );
+    expect(
+      migrations,
+      contains('create table if not exists public.evening_threshold_decisions'),
+    );
+    expect(migrations, contains('daily_orientation_user_chosen_return_idx'));
+    expect(migrations, contains('where chosen_return is not null'));
+    for (final column in [
+      'kemetic_day_key',
+      'entry_state',
+      'chosen_return',
+      'source',
+      'set_at',
+      'landing_status',
+      'landed_at',
+      'carryover_choice',
+      'evening_reflection_status',
+      'badge_label',
+      'status',
+      'completed_at',
+      'new_carry_text',
+    ]) {
+      expect(migrations, contains(column), reason: column);
+    }
+    expect(migrations, contains('primary key (user_id, local_date)'));
+    expect(migrations, contains('primary key (user_id, decision_date)'));
+    expect(migrations, contains('auth.uid() = user_id'));
+    expect(migrations, contains("decision in ('carried', 'released')"));
+    expect(
+      migrations,
+      contains("landing_status in ('held', 'slipped', 'working_on_it')"),
+    );
+  });
+
+  test('Evening Threshold persistence is remote-first and failure-safe', () {
+    final dayView = File(
+      'lib/features/calendar/day_view.dart',
+    ).readAsStringSync();
+    final orientationRepo = File(
+      'lib/features/onboarding/daily_orientation_repo.dart',
+    ).readAsStringSync();
+
+    final record = _sourceBetween(
+      dayView,
+      'Future<void> _record(String status',
+      'Future<void> _clear',
+    );
+    expect(record.indexOf('try {'), isNonNegative);
+    expect(record.indexOf('_applyEveningThresholdCompletion('), isNonNegative);
+    expect(
+      record.indexOf('try {'),
+      lessThan(record.indexOf('_applyEveningThresholdCompletion(')),
+    );
+    expect(record, contains('Could not record this sitting.'));
+    final failureStart = record.indexOf('    } catch (_) {');
+    expect(failureStart, isNonNegative);
+    final failureBlock = record.substring(failureStart);
+    expect(failureBlock, contains('setState(() => _saving = false)'));
+    expect(
+      failureBlock,
+      isNot(contains('_eveningThresholdReleasePending = false')),
+    );
+
+    final setCarry = _sourceBetween(
+      orientationRepo,
+      'Future<void> setCarry',
+      'Future<void> recordLanding',
+    );
+    expect(
+      setCarry.indexOf('await _upsertRemote(payload)'),
+      lessThan(setCarry.indexOf('await _writeLocal')),
+    );
+    expect(
+      setCarry.indexOf('await _writeLocal'),
+      lessThan(setCarry.indexOf('await _writeCurrentCarryLocal')),
+    );
+
+    final carryForward = _sourceBetween(
+      orientationRepo,
+      'Future<void> carryForward',
+      'Future<void> releaseWithNewCarry',
+    );
+    expect(carryForward, contains('_persistLocalAndRemote('));
+    expect(carryForward, contains("'carryover_choice': 'carry_it_forward'"));
+    expect(
+      carryForward.indexOf('_persistLocalAndRemote('),
+      lessThan(carryForward.indexOf('recordEveningThresholdDecision(')),
+    );
+
+    final release = _sourceBetween(
+      orientationRepo,
+      'Future<void> releaseWithNewCarry',
+      'Future<void> recordEveningThresholdDecision',
+    );
+    expect(
+      release.indexOf('await setCarry('),
+      lessThan(release.indexOf('await recordEveningThresholdDecision(')),
+    );
+    expect(release, contains("decision: 'released'"));
+
+    final decision = _sourceBetween(
+      orientationRepo,
+      'Future<void> recordEveningThresholdDecision',
+      'Future<void> complete',
+    );
+    expect(
+      decision.indexOf(".from('evening_threshold_decisions')"),
+      lessThan(decision.indexOf('await _writeDecisionLocal(payload)')),
+    );
+    expect(decision, contains('throw DailyOrientationPersistenceException'));
+
+    final upsert = _sourceBetween(
+      orientationRepo,
+      'Future<void> _upsertRemote',
+      'static String _dateOnlyIso',
+    );
+    expect(upsert, contains('throw DailyOrientationPersistenceException'));
+  });
+
+  test(
     'all event detail sheets share the Day View completion behavior contract',
     () {
       final sources = {
@@ -527,4 +783,12 @@ void main() {
     expect(calendarPage, contains('if (scope == null)'));
     expect(calendarPage, contains('rememberedScope != scope'));
   });
+}
+
+String _sourceBetween(String source, String startMarker, String endMarker) {
+  final start = source.indexOf(startMarker);
+  expect(start, isNonNegative, reason: 'missing start marker: $startMarker');
+  final end = source.indexOf(endMarker, start + startMarker.length);
+  expect(end, isNonNegative, reason: 'missing end marker: $endMarker');
+  return source.substring(start, end);
 }

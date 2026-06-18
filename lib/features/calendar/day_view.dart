@@ -9054,6 +9054,9 @@ class _MaatFlowCompletionPanelState extends State<_MaatFlowCompletionPanel> {
       const LivingTextDayOneNodeStore();
   final TextEditingController _eveningThresholdReleaseCarryController =
       TextEditingController();
+  OverlayEntry? _sheetFeedbackOverlay;
+  Timer? _sheetFeedbackTimer;
+  String? _sheetFeedbackMessage;
 
   String? _status;
   bool _loading = true;
@@ -9070,8 +9073,86 @@ class _MaatFlowCompletionPanelState extends State<_MaatFlowCompletionPanel> {
 
   @override
   void dispose() {
+    _clearSheetFeedback();
     _eveningThresholdReleaseCarryController.dispose();
     super.dispose();
+  }
+
+  void _clearSheetFeedback() {
+    _sheetFeedbackTimer?.cancel();
+    _sheetFeedbackTimer = null;
+    _sheetFeedbackOverlay?.remove();
+    _sheetFeedbackOverlay = null;
+    _sheetFeedbackMessage = null;
+  }
+
+  void _showSheetFeedback(String message) {
+    _clearSheetFeedback();
+    if (mounted) {
+      setState(() {
+        _sheetFeedbackMessage = message;
+      });
+    }
+
+    final overlay = Overlay.maybeOf(context, rootOverlay: true);
+    if (overlay == null) {
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(SnackBar(content: Text(message)));
+      return;
+    }
+
+    final theme = Theme.of(context);
+    final snackBarTheme = theme.snackBarTheme;
+    final backgroundColor =
+        snackBarTheme.backgroundColor ?? theme.colorScheme.inverseSurface;
+    final textStyle =
+        snackBarTheme.contentTextStyle ??
+        theme.textTheme.bodyMedium?.copyWith(
+          color: theme.colorScheme.onInverseSurface,
+        );
+
+    _sheetFeedbackOverlay = OverlayEntry(
+      builder: (context) => Positioned.fill(
+        child: IgnorePointer(
+          child: SafeArea(
+            minimum: const EdgeInsets.fromLTRB(16, 0, 16, 24),
+            child: Align(
+              alignment: Alignment.bottomCenter,
+              child: Material(
+                elevation: 6,
+                borderRadius: BorderRadius.circular(4),
+                color: backgroundColor,
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 14,
+                  ),
+                  child: Text(
+                    message,
+                    style: textStyle,
+                    textAlign: TextAlign.center,
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+    overlay.insert(_sheetFeedbackOverlay!);
+    _sheetFeedbackTimer = Timer(const Duration(seconds: 4), () {
+      _sheetFeedbackOverlay?.remove();
+      _sheetFeedbackOverlay = null;
+      _sheetFeedbackTimer = null;
+      if (!mounted) {
+        _sheetFeedbackMessage = null;
+        return;
+      }
+      setState(() {
+        _sheetFeedbackMessage = null;
+      });
+    });
   }
 
   @override
@@ -9124,13 +9205,16 @@ class _MaatFlowCompletionPanelState extends State<_MaatFlowCompletionPanel> {
     final repo = DailyOrientationRepo(Supabase.instance.client);
     final orientationDate = _eveningThresholdOrientationDate();
     final previousDate = _eveningThresholdPreviousOrientationDate();
-    final orientation = await repo.load(
+    final orientation = await repo.loadEffectiveCarry(
       userId: userId,
       localDate: orientationDate,
     );
     final previous = previousDate == null
         ? null
-        : await repo.load(userId: userId, localDate: previousDate);
+        : await repo.loadEffectiveCarry(
+            userId: userId,
+            localDate: previousDate,
+          );
     if (!mounted) return;
     setState(() {
       _eveningThresholdOrientation = orientation;
@@ -9271,6 +9355,27 @@ class _MaatFlowCompletionPanelState extends State<_MaatFlowCompletionPanel> {
 
   bool _hasText(String? value) => value != null && value.trim().isNotEmpty;
 
+  String? _eveningThresholdPrerequisiteMessage() {
+    if (!_isEveningThresholdCompletion) return null;
+    if (widget.completion.eventNumber == 1 &&
+        !_hasText(_eveningThresholdOrientation?.chosenReturn)) {
+      return 'No carry was set this morning. The flow will resume tomorrow.';
+    }
+    if (widget.completion.eventNumber == 2 &&
+        (!_hasText(_eveningThresholdPreviousOrientation?.chosenReturn) ||
+            !_hasText(_eveningThresholdPreviousOrientation?.landingStatus))) {
+      return 'Land yesterday\'s carry before choosing what crosses.';
+    }
+    return null;
+  }
+
+  bool _showEveningThresholdPrerequisiteFeedbackIfBlocked() {
+    final message = _eveningThresholdPrerequisiteMessage();
+    if (message == null) return false;
+    _showSheetFeedback(message);
+    return true;
+  }
+
   String _landingStatusLabel(String? status) {
     switch (status?.trim().toLowerCase()) {
       case 'held':
@@ -9284,63 +9389,17 @@ class _MaatFlowCompletionPanelState extends State<_MaatFlowCompletionPanel> {
     return 'not landed yet';
   }
 
-  bool _eveningThresholdStatusDisabled(String status) {
-    if (!_isEveningThresholdCompletion) return false;
-    if (widget.completion.eventNumber == 1) {
-      return !_hasText(_eveningThresholdOrientation?.chosenReturn);
-    }
-    if (widget.completion.eventNumber == 2) {
-      return !_hasText(_eveningThresholdPreviousOrientation?.chosenReturn) ||
-          !_hasText(_eveningThresholdPreviousOrientation?.landingStatus);
-    }
-    return false;
-  }
-
   Future<bool> _ensureEveningThresholdCanChoose() async {
     final userId = Supabase.instance.client.auth.currentUser?.id;
     if (userId == null || userId.trim().isEmpty) return true;
     await _loadEveningThresholdOrientationState(userId);
-    if (widget.completion.eventNumber == 1 &&
-        !_hasText(_eveningThresholdOrientation?.chosenReturn)) {
-      if (!mounted) return false;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text(
-            'No carry was set this morning. The flow will resume tomorrow.',
-          ),
-        ),
-      );
-      return false;
-    }
-    if (widget.completion.eventNumber == 2 &&
-        (!_hasText(_eveningThresholdPreviousOrientation?.chosenReturn) ||
-            !_hasText(_eveningThresholdPreviousOrientation?.landingStatus))) {
-      if (!mounted) return false;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text(
-            'Land yesterday\'s carry before choosing what crosses.',
-          ),
-        ),
-      );
-      return false;
-    }
-    return true;
+    if (!mounted) return false;
+    return !_showEveningThresholdPrerequisiteFeedbackIfBlocked();
   }
 
   Future<void> _beginEveningThresholdRelease() async {
     if (_saving || _loading || !await _ensureEveningThresholdCanChoose()) {
       return;
-    }
-    final userId = Supabase.instance.client.auth.currentUser?.id;
-    if (userId != null && userId.trim().isNotEmpty) {
-      await DailyOrientationRepo(
-        Supabase.instance.client,
-      ).recordEveningThresholdDecision(
-        userId: userId,
-        decisionDate: _eveningThresholdOrientationDate(),
-        decision: 'released',
-      );
     }
     if (!mounted) return;
     setState(() {
@@ -9389,9 +9448,7 @@ class _MaatFlowCompletionPanelState extends State<_MaatFlowCompletionPanel> {
           setState(() {
             _eveningThresholdReleasePending = true;
           });
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Name what you carry today first.')),
-          );
+          _showSheetFeedback('Name what you carry today first.');
           return false;
         }
         await repo.releaseWithNewCarry(
@@ -9422,51 +9479,51 @@ class _MaatFlowCompletionPanelState extends State<_MaatFlowCompletionPanel> {
     final completedOnDate = DateUtils.dateOnly(
       KemeticMath.toGregorian(widget.ky, widget.km, widget.kd),
     );
-    final thresholdApplied = await _applyEveningThresholdCompletion(
-      status,
-      releaseCarryText: releaseCarryText,
-    );
-    if (!thresholdApplied) {
-      if (!mounted) return;
-      setState(() => _saving = false);
-      return;
-    }
-    final metadata = <String, dynamic>{
-      ...widget.completion.metadataFor(
-        status: status,
-        completedOnDate: completedOnDate,
-      ),
-    };
-    if (widget.completion.flowKey == kDecanWatchFlowKey) {
-      final decanIndex = decanForDay(widget.kd);
-      metadata.addAll(<String, dynamic>{
-        'k_year': widget.ky,
-        'k_month': widget.km,
-        'decan_index': decanIndex,
-        'decan_start_day': ((decanIndex - 1) * 10) + 1,
-        'global_decan_id': decanIdFromMonthAndIndex(
-          monthIndex: widget.km.clamp(1, 12).toInt(),
-          decanInMonth: decanIndex.clamp(1, 3).toInt(),
-        ),
-      });
-    } else if (widget.completion.flowKey == kDaysOutsideTheYearFlowKey) {
-      final closingKYear = widget.km == 1 && widget.kd == 1
-          ? widget.ky - 1
-          : widget.ky;
-      metadata.addAll(<String, dynamic>{
-        'closing_k_year': closingKYear,
-        'event_k_year': widget.ky,
-        'k_month': widget.km,
-        'k_day': widget.kd,
-      });
-    } else if (widget.completion.flowKey == kTheDjedFlowKey &&
-        status == 'raised') {
-      metadata.addAll(<String, dynamic>{
-        'completion': 'raised',
-        'raising_seconds': kDjedRaisingSeconds,
-      });
-    }
     try {
+      final thresholdApplied = await _applyEveningThresholdCompletion(
+        status,
+        releaseCarryText: releaseCarryText,
+      );
+      if (!thresholdApplied) {
+        if (!mounted) return;
+        setState(() => _saving = false);
+        return;
+      }
+      final metadata = <String, dynamic>{
+        ...widget.completion.metadataFor(
+          status: status,
+          completedOnDate: completedOnDate,
+        ),
+      };
+      if (widget.completion.flowKey == kDecanWatchFlowKey) {
+        final decanIndex = decanForDay(widget.kd);
+        metadata.addAll(<String, dynamic>{
+          'k_year': widget.ky,
+          'k_month': widget.km,
+          'decan_index': decanIndex,
+          'decan_start_day': ((decanIndex - 1) * 10) + 1,
+          'global_decan_id': decanIdFromMonthAndIndex(
+            monthIndex: widget.km.clamp(1, 12).toInt(),
+            decanInMonth: decanIndex.clamp(1, 3).toInt(),
+          ),
+        });
+      } else if (widget.completion.flowKey == kDaysOutsideTheYearFlowKey) {
+        final closingKYear = widget.km == 1 && widget.kd == 1
+            ? widget.ky - 1
+            : widget.ky;
+        metadata.addAll(<String, dynamic>{
+          'closing_k_year': closingKYear,
+          'event_k_year': widget.ky,
+          'k_month': widget.km,
+          'k_day': widget.kd,
+        });
+      } else if (widget.completion.flowKey == kTheDjedFlowKey &&
+          status == 'raised') {
+        metadata.addAll(<String, dynamic>{
+          'completion': 'raised',
+          'raising_seconds': kDjedRaisingSeconds,
+        });
+      }
       final callback = widget.onRecordCompletion;
       if (callback != null) {
         await callback(
@@ -9508,9 +9565,13 @@ class _MaatFlowCompletionPanelState extends State<_MaatFlowCompletionPanel> {
     } catch (_) {
       if (!mounted) return;
       setState(() => _saving = false);
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Could not record this sitting.')),
-      );
+      if (_isEveningThresholdCompletion) {
+        _showSheetFeedback('Could not record this sitting.');
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Could not record this sitting.')),
+        );
+      }
     }
   }
 
@@ -9642,7 +9703,7 @@ class _MaatFlowCompletionPanelState extends State<_MaatFlowCompletionPanel> {
           borderRadius: BorderRadius.circular(style.buttonRadius),
         ),
       ),
-      onPressed: _saving || _loading || _eveningThresholdStatusDisabled(status)
+      onPressed: _saving || _loading
           ? null
           : () {
               if (selected) {
@@ -9654,6 +9715,9 @@ class _MaatFlowCompletionPanelState extends State<_MaatFlowCompletionPanel> {
                 } else {
                   unawaited(_clear());
                 }
+              } else if (_isEveningThresholdCompletion &&
+                  _showEveningThresholdPrerequisiteFeedbackIfBlocked()) {
+                return;
               } else if (_isEveningThresholdCompletion &&
                   widget.completion.eventNumber == 2 &&
                   status == 'release') {
@@ -9745,6 +9809,29 @@ class _MaatFlowCompletionPanelState extends State<_MaatFlowCompletionPanel> {
     );
   }
 
+  Widget _buildEveningThresholdFeedbackMessage(String message) {
+    final style = widget.pickerStyle ?? const CalendarCompletionPickerStyle();
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        color: style.unselectedBackgroundColor.withValues(alpha: 0.78),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: style.selectedBorderColor),
+      ),
+      child: Text(
+        message,
+        textAlign: TextAlign.center,
+        style: TextStyle(
+          color: style.selectedForegroundColor,
+          fontSize: 14,
+          fontWeight: FontWeight.w600,
+          height: 1.25,
+        ),
+      ),
+    );
+  }
+
   Widget _buildEveningThresholdReleaseEditor() {
     final style = widget.pickerStyle ?? const CalendarCompletionPickerStyle();
     return Column(
@@ -9811,6 +9898,10 @@ class _MaatFlowCompletionPanelState extends State<_MaatFlowCompletionPanel> {
               ? 'No carry was set this morning. The flow will resume tomorrow.'
               : carried,
         ),
+        if (_sheetFeedbackMessage != null) ...[
+          const SizedBox(height: 8),
+          _buildEveningThresholdFeedbackMessage(_sheetFeedbackMessage!),
+        ],
         const SizedBox(height: 12),
       ];
     }
@@ -9828,6 +9919,10 @@ class _MaatFlowCompletionPanelState extends State<_MaatFlowCompletionPanel> {
         ),
         if (_eveningThresholdReleasePending)
           _buildEveningThresholdReleaseEditor(),
+        if (_sheetFeedbackMessage != null) ...[
+          const SizedBox(height: 8),
+          _buildEveningThresholdFeedbackMessage(_sheetFeedbackMessage!),
+        ],
         const SizedBox(height: 12),
       ];
     }
