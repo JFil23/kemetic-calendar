@@ -2351,19 +2351,18 @@ class _LandscapeMonthGridBodyState extends State<LandscapeMonthGridBody> {
   List<Widget> _buildEventsForDay(int day, double colW) {
     final rawNotes = widget.notesForDay(widget.kYear, widget.kMonth, day);
 
-    // ✅ ADD DEBUG LOGGING
     if (kDebugMode && rawNotes.isNotEmpty) {
+      final flowIds = rawNotes
+          .map((note) => note.flowId)
+          .whereType<int>()
+          .toSet()
+          .toList()
+        ..sort();
       _logLandscape('📅 [LANDSCAPE] Building events for day $day');
       _logLandscape('   Year: ${widget.kYear}, Month: ${widget.kMonth}');
       _logLandscape('   Raw notes: ${rawNotes.length}');
       _logLandscape('   FlowIndex keys: ${widget.flowIndex.keys.toList()}');
-      for (final note in rawNotes) {
-        _logLandscape('   - Note: "${note.title}", flowId: ${note.flowId}');
-        if (note.flowId != null) {
-          final flow = _chromeFlowForId(note.flowId);
-          _logLandscape('     Flow color: ${flow?.color}');
-        }
-      }
+      _logLandscape('   Flow ids: $flowIds');
     }
 
     // ✅ NEW: Dedupe notes before rendering to handle legacy duplicates

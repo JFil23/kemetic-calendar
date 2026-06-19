@@ -6041,13 +6041,6 @@ class _DayViewGridState extends State<DayViewGrid> {
     final isTheWeighing = _isTheWeighingFlowName(flow?.name);
     final trackSkySpec = isTrackSky ? _trackSkyCardSpecForEvent(event) : null;
 
-    // 🔍 DEBUG: Log block being rendered
-    if (kDebugMode) {
-      debugPrint(
-        '[_buildEventBlock] Rendering: title="${event.title}", flowId=${event.flowId}, cid=${event.clientEventId}',
-      );
-    }
-
     final int durationMinutes = (event.endMin - event.startMin).clamp(15, 180);
     final double height = _eventVisualHeight(event);
 

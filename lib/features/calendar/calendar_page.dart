@@ -7975,6 +7975,34 @@ class CalendarPageState extends State<CalendarPage>
     );
   }
 
+  NoteData _noteDataFromNote(_Note n) {
+    return NoteData(
+      id: n.id?.toString(),
+      clientEventId: n.clientEventId,
+      calendarId: n.calendarId,
+      calendarName: n.calendarName,
+      title: n.title,
+      detail: n.detail,
+      location: n.location,
+      allDay: n.allDay,
+      start: n.start,
+      end: n.end,
+      flowId: n.flowId,
+      manualColor: n.manualColor,
+      category: n.category,
+      isReminder: n.isReminder,
+      reminderId: n.reminderId,
+      behaviorPayload: n.behaviorPayload,
+    );
+  }
+
+  List<NoteData> _noteDataForDay(int y, int m, int d) {
+    final notes = _dedupeVisibleDayNotes(
+      _notes['$y-$m-$d'] ?? const <_Note>[],
+    );
+    return [for (final note in notes) _noteDataFromNote(note)];
+  }
+
   // Build a reminder id that is unique per event occurrence and alert time.
   String _reminderIdForNote(_Note n, DateTime alertUtc) {
     final base = n.id ?? n.title;
@@ -13446,33 +13474,8 @@ class CalendarPageState extends State<CalendarPage>
     );
     final focusEvent = targetNote == null ? null : _noteToEventItem(targetNote);
 
-    List<NoteData> notesForDayFn(int y, int m, int d) {
-      final notes = _dedupeVisibleDayNotes(
-        _notes['$y-$m-$d'] ?? const <_Note>[],
-      );
-      return notes
-          .map(
-            (n) => NoteData(
-              id: n.id?.toString(),
-              clientEventId: n.clientEventId,
-              calendarId: n.calendarId,
-              calendarName: n.calendarName,
-              title: n.title,
-              detail: n.detail,
-              location: n.location,
-              allDay: n.allDay,
-              start: n.start,
-              end: n.end,
-              flowId: n.flowId,
-              manualColor: n.manualColor,
-              category: n.category,
-              isReminder: n.isReminder,
-              reminderId: n.reminderId,
-              behaviorPayload: n.behaviorPayload,
-            ),
-          )
-          .toList();
-    }
+    List<NoteData> notesForDayFn(int y, int m, int d) =>
+        _noteDataForDay(y, m, d);
 
     return DayViewPage(
       initialKy: target.ky,
@@ -25437,78 +25440,10 @@ class CalendarPageState extends State<CalendarPage>
       await _persistDayViewState(closedState, reason: 'day_view_user_closed');
     }
 
-    // Adapter: Convert _Note to NoteData, and prime reminders for the day
-    List<NoteData> notesForDayFn(int y, int m, int d) {
-      final key = '$y-$m-$d';
-      final notes = _dedupeVisibleDayNotes(_notes[key] ?? const <_Note>[]);
-
-      // Create/update local reminders for timed events on this day (Flutter-only)
-      for (final n in notes) {
-        if (n.isReminder) continue; // reminders manage their own schedule
-        final alertLocal = _alertDateTimeLocal(
-          note: n,
-          kYear: y,
-          kMonth: m,
-          kDay: d,
-        );
-        if (alertLocal == null) continue;
-        final alertUtc = alertLocal.toUtc();
-        final rid = _reminderIdForNote(n, alertUtc);
-        _reminderService.addOrUpdate(
-          Reminder(
-            id: rid,
-            eventId: n.id?.toString(),
-            title: n.title,
-            detail: n.detail,
-            alertAtUtc: alertUtc,
-            flowId: n.flowId?.toString(),
-            createdAt: DateTime.now().toUtc(),
-            updatedAt: DateTime.now().toUtc(),
-          ),
-        );
-      }
-
-      final mapped = notes
-          .map(
-            (n) => NoteData(
-              id: n.id?.toString(),
-              clientEventId: n.clientEventId,
-              calendarId: n.calendarId,
-              calendarName: n.calendarName,
-              title: n.title,
-              detail: n.detail,
-              location: n.location,
-              allDay: n.allDay,
-              start: n.start,
-              end: n.end,
-              flowId: n.flowId,
-              manualColor: n.manualColor,
-              category: n.category,
-              isReminder: n.isReminder,
-              reminderId: n.reminderId,
-              behaviorPayload: n.behaviorPayload,
-            ),
-          )
-          .toList();
-
-      if (kDebugMode) {
-        _calendarDebugPrint(
-          '[DayView adapter] $y-$m-$d _Note -> NoteData count=${notes.length}',
-        );
-        for (int i = 0; i < notes.length; i++) {
-          final n = notes[i];
-          final nd = mapped[i];
-          _calendarDebugPrint(
-            '[DayView adapter] _Note[$i] id=${n.id} cid=${n.clientEventId} title="${n.title}"',
-          );
-          _calendarDebugPrint(
-            '[DayView adapter] NoteData[$i] id=${nd.id} cid=${nd.clientEventId} title="${nd.title}"',
-          );
-        }
-      }
-
-      return mapped;
-    }
+    // Adapter: Convert _Note to NoteData. Reminder writes stay in save/schedule
+    // paths so orientation builds can read calendar state without side effects.
+    List<NoteData> notesForDayFn(int y, int m, int d) =>
+        _noteDataForDay(y, m, d);
 
     // Adapter: Convert _Flow to FlowData
     final flowIndex = _buildCalendarFlowChromeIndex();
