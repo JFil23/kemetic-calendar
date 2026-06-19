@@ -1412,11 +1412,19 @@ void main() {
         );
         expect(planner, contains(': 32.0'));
         expect(planner, contains('keyboardInsetOf(context)'));
-        expect(reflections, contains('const listBottomPadding = 16.0;'));
+        expect(reflections, contains('final bottomPadding ='));
+        expect(
+          reflections,
+          contains('DecanReflectionTokens.scrollBottomPadding +'),
+        );
+        expect(
+          reflections,
+          contains('MediaQuery.paddingOf(context).bottom'),
+        );
         expect(reflections, isNot(contains('bottomPaddingAboveGlobalChrome')));
         expect(
           reflections,
-          contains('padding: EdgeInsets.fromLTRB(0, 0, 0, listBottomPadding)'),
+          contains('padding: EdgeInsets.only(top: 8, bottom: bottomPadding)'),
         );
       },
     );

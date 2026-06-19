@@ -56,14 +56,15 @@ void main() {
     expect(drawerWidth, lessThan(shellWidth));
   });
 
-  testWidgets('calendar root suppresses the floating menu bubble', (
+  testWidgets('calendar root keeps the floating menu bubble available', (
     tester,
   ) async {
     final router = _testRouter(initialLocation: '/');
 
     await _pumpShell(tester, router);
 
-    expect(find.byKey(app.globalMenuButtonKey), findsNothing);
+    expect(find.byKey(app.globalMenuButtonKey), findsOneWidget);
+    expect(find.bySemanticsLabel('Open navigation menu'), findsOneWidget);
     expect(find.byKey(globalSideDrawerKey), findsNothing);
   });
 
