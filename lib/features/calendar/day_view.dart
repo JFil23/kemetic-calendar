@@ -1093,18 +1093,23 @@ class DayViewRitualCompletionFeedbackCard extends StatelessWidget {
     super.key,
     required this.enabled,
     required this.child,
-    this.visual,
-  });
+  }) : _visual = null;
+
+  const DayViewRitualCompletionFeedbackCard._withVisual({
+    required this.enabled,
+    required this.child,
+    required _DayViewEventVisual visual,
+  }) : _visual = visual;
 
   final bool enabled;
   final Widget child;
-  final _DayViewEventVisual? visual;
+  final _DayViewEventVisual? _visual;
 
   @override
   Widget build(BuildContext context) {
     return _RitualCompletionFeedbackCard(
       enabled: enabled,
-      visual: visual,
+      visual: _visual,
       child: child,
     );
   }
@@ -4322,7 +4327,27 @@ class _DayViewGridState extends State<DayViewGrid> {
   int? _lastDragSnappedMinute; // backup of last snapped minute during drag
   String? _initialEventDetailRestoreKey;
   bool _initialEventDetailRestoreInFlight = false;
+  final Set<int> _endingFlowIds = <int>{};
   int? get _focusStartMin => widget.focusStartMin;
+
+  bool _beginEndFlowAction(int flowId) {
+    if (_endingFlowIds.contains(flowId)) return false;
+    setState(() {
+      _endingFlowIds.add(flowId);
+    });
+    return true;
+  }
+
+  void _finishEndFlowAction(int flowId) {
+    if (!_endingFlowIds.contains(flowId)) return;
+    if (!mounted) {
+      _endingFlowIds.remove(flowId);
+      return;
+    }
+    setState(() {
+      _endingFlowIds.remove(flowId);
+    });
+  }
 
   bool _isOnboardingTargetEvent(EventItem event) {
     final targetClientEventId = widget.onboardingEventClientEventId?.trim();
@@ -7683,7 +7708,7 @@ class _DayViewGridState extends State<DayViewGrid> {
 
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 2),
-      child: DayViewRitualCompletionFeedbackCard(
+      child: DayViewRitualCompletionFeedbackCard._withVisual(
         enabled: enableRitualCompletionFeedback,
         visual: visual,
         child: scrollable
@@ -7700,6 +7725,7 @@ class _DayViewGridState extends State<DayViewGrid> {
     required BuildContext rootContext,
     required BuildContext sheetContext,
     required DayViewSheetEventTarget target,
+    required ValueChanged<String?> onEndFlowErrorChanged,
   }) {
     final currentEvent = target.event;
     final flow = _chromeFlowForId(currentEvent.flowId);
@@ -7727,8 +7753,40 @@ class _DayViewGridState extends State<DayViewGrid> {
           rootContext: rootContext,
           sheetContext: sheetContext,
           target: target,
+          onEndFlowErrorChanged: onEndFlowErrorChanged,
         ),
       ],
+    );
+  }
+
+  Widget _buildEventDetailInlineError(String message) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        color: const Color(0xFF4A1414).withValues(alpha: 0.88),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(
+          color: const Color(0xFFE57373).withValues(alpha: 0.45),
+        ),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Icon(Icons.error_outline, color: Color(0xFFFFB4AB), size: 18),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              message,
+              style: const TextStyle(
+                color: Color(0xFFFFDAD6),
+                fontSize: 13,
+                height: 1.25,
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -7759,11 +7817,15 @@ class _DayViewGridState extends State<DayViewGrid> {
     required BuildContext rootContext,
     required BuildContext sheetContext,
     required DayViewSheetEventTarget target,
+    required ValueChanged<String?> onEndFlowErrorChanged,
   }) {
     final currentEvent = target.event;
     final flow = _chromeFlowForId(currentEvent.flowId);
     final actionableFlow = _isActionableFlowId(currentEvent.flowId);
     final isReminder = currentEvent.isReminder;
+    final isEndingFlow =
+        currentEvent.flowId != null &&
+        _endingFlowIds.contains(currentEvent.flowId);
 
     return PopupMenuButton<String>(
       icon: KemeticGold.icon(Icons.more_vert),
@@ -7771,14 +7833,26 @@ class _DayViewGridState extends State<DayViewGrid> {
       color: _dayViewBase,
       onSelected: (value) async {
         if (value == 'end_flow') {
-          Navigator.pop(sheetContext);
           final flowId = currentEvent.flowId;
           final onEndFlow = widget.onEndFlow;
           if (flowId != null && onEndFlow != null) {
-            final routedThroughCalendarPage =
-                await CalendarPage.endFlowFromEventTarget(target);
-            if (!routedThroughCalendarPage) {
-              onEndFlow(flowId);
+            if (!_beginEndFlowAction(flowId)) return;
+            onEndFlowErrorChanged(null);
+            try {
+              final result = await CalendarPage.endFlowFromEventTarget(target);
+              if (result == EndFlowActionResult.success) {
+                if (sheetContext.mounted) Navigator.pop(sheetContext);
+              } else if (result == EndFlowActionResult.failed) {
+                onEndFlowErrorChanged(
+                  'Could not end this flow right now.\n'
+                  'Check your connection and try again.',
+                );
+              } else if (result == EndFlowActionResult.notHandled) {
+                onEndFlow(flowId);
+                if (sheetContext.mounted) Navigator.pop(sheetContext);
+              }
+            } finally {
+              _finishEndFlowAction(flowId);
             }
           }
         } else if (value == 'end_reminder') {
@@ -7903,11 +7977,17 @@ class _DayViewGridState extends State<DayViewGrid> {
             widget.onEndFlow != null)
           PopupMenuItem(
             value: 'end_flow',
+            enabled: !isEndingFlow,
             child: Row(
               children: [
-                KemeticGold.icon(Icons.stop_circle),
+                KemeticGold.icon(
+                  isEndingFlow ? Icons.hourglass_top : Icons.stop_circle,
+                ),
                 const SizedBox(width: 12),
-                const Text('End Flow', style: TextStyle(color: Colors.white)),
+                Text(
+                  isEndingFlow ? 'Ending Flow...' : 'End Flow',
+                  style: const TextStyle(color: Colors.white),
+                ),
               ],
             ),
           ),
@@ -8049,11 +8129,13 @@ class _DayViewGridState extends State<DayViewGrid> {
     );
     _publishEventDetailRestorationTarget(currentTarget.value);
     final measuredHeights = ValueNotifier<Map<String, double>>({});
+    final endFlowError = ValueNotifier<String?>(null);
     final initialPages = _detailSheetPagesForTarget(currentTarget.value);
     PageController sheetPageController = PageController(
       initialPage: initialPages.currentIndex,
     );
     var onboardingDetailPromptScheduled = false;
+    var sheetReleased = false;
 
     if (kDebugMode) {
       debugPrint('[_showEventDetail] Event: "${event.title}"');
@@ -8070,6 +8152,7 @@ class _DayViewGridState extends State<DayViewGrid> {
     }
 
     void updateMeasuredHeight(String key, double height) {
+      if (sheetReleased || !mounted) return;
       final normalized = height.ceilToDouble();
       if (normalized <= 0) return;
       final previous = measuredHeights.value[key];
@@ -8080,6 +8163,7 @@ class _DayViewGridState extends State<DayViewGrid> {
     }
 
     void resetSheetPageController(int initialPage) {
+      if (sheetReleased) return;
       final previous = sheetPageController;
       sheetPageController = PageController(initialPage: initialPage);
       WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -8088,7 +8172,9 @@ class _DayViewGridState extends State<DayViewGrid> {
     }
 
     Future<void> moveToTarget(DayViewSheetEventTarget nextTarget) async {
+      if (sheetReleased || !mounted) return;
       final previousTarget = currentTarget.value;
+      endFlowError.value = null;
       currentTarget.value = nextTarget;
       _publishEventDetailRestorationTarget(nextTarget);
       if (widget.onNavigateToDay != null &&
@@ -8102,7 +8188,15 @@ class _DayViewGridState extends State<DayViewGrid> {
       unawaited(AppHaptics.selection());
     }
 
+    void setEndFlowError(String? message) {
+      if (sheetReleased || !mounted) return;
+      if (endFlowError.value == message) return;
+      endFlowError.value = message;
+    }
+
     void releaseSheet() {
+      if (sheetReleased) return;
+      sheetReleased = true;
       final activeCoachmark = GuidedOnboardingController.instance.target;
       final journalKey = widget.onboardingJournalKey;
       if (activeCoachmark?.key == widget.onboardingObservedKey ||
@@ -8112,6 +8206,7 @@ class _DayViewGridState extends State<DayViewGrid> {
       }
       currentTarget.dispose();
       measuredHeights.dispose();
+      endFlowError.dispose();
       sheetPageController.dispose();
       _clearEventDetailRestorationIfAllowed();
       CalendarEventDetailSheetCoordinator.markClosed();
@@ -8145,7 +8240,7 @@ class _DayViewGridState extends State<DayViewGrid> {
                       Future<
                         void
                       >.delayed(const Duration(milliseconds: 320), () {
-                        if (!mounted) return;
+                        if (sheetReleased || !mounted) return;
                         GuidedOnboardingController.instance.show(
                           CoachmarkTarget(
                             key: widget.onboardingObservedKey,
@@ -8240,6 +8335,34 @@ class _DayViewGridState extends State<DayViewGrid> {
                                   rootContext: rootContext,
                                   sheetContext: sheetContext,
                                   target: target,
+                                  onEndFlowErrorChanged: setEndFlowError,
+                                ),
+                                ValueListenableBuilder<String?>(
+                                  valueListenable: endFlowError,
+                                  builder: (context, message, _) {
+                                    return AnimatedSize(
+                                      duration: const Duration(
+                                        milliseconds: 180,
+                                      ),
+                                      curve: Curves.easeOutCubic,
+                                      alignment: Alignment.topCenter,
+                                      child: message == null
+                                          ? const SizedBox.shrink()
+                                          : Padding(
+                                              padding:
+                                                  const EdgeInsets.fromLTRB(
+                                                    12,
+                                                    8,
+                                                    12,
+                                                    0,
+                                                  ),
+                                              child:
+                                                  _buildEventDetailInlineError(
+                                                    message,
+                                                  ),
+                                            ),
+                                    );
+                                  },
                                 ),
                                 const SizedBox(height: 8),
                                 AnimatedSize(
@@ -9355,6 +9478,36 @@ class _MaatFlowCompletionPanelState extends State<_MaatFlowCompletionPanel> {
 
   bool _hasText(String? value) => value != null && value.trim().isNotEmpty;
 
+  CompletionStatus _completionFeedbackStatusForRawStatus(String status) {
+    final normalized = CompletionStatusX.fromWireName(status);
+    if (normalized == CompletionStatus.observed ||
+        normalized == CompletionStatus.partial) {
+      return normalized;
+    }
+    switch (status.trim().toLowerCase()) {
+      case 'observed_from_inside':
+      case 'names_spoken':
+      case 'held':
+      case 'carry_forward':
+      case 'release':
+      case 'raised':
+      case 'decision_pronounced':
+      case 'transmitted':
+      case 'stones_placed':
+      case 'cooled':
+      case 'spoken':
+      case 'record_complete':
+      case 'beer_poured':
+      case 'golden_one_present':
+        return CompletionStatus.observed;
+      case 'working':
+      case 'slipped':
+      case 'conversation_pending':
+        return CompletionStatus.partial;
+    }
+    return CompletionStatus.none;
+  }
+
   String? _eveningThresholdPrerequisiteMessage() {
     if (!_isEveningThresholdCompletion) return null;
     if (widget.completion.eventNumber == 1 &&
@@ -9557,9 +9710,10 @@ class _MaatFlowCompletionPanelState extends State<_MaatFlowCompletionPanel> {
       if (completionStatus.createsJournalContinuity) {
         await widget.onCompletionContinuity?.call(completionStatus);
       }
-      if (completionStatus == CompletionStatus.observed ||
-          completionStatus == CompletionStatus.partial) {
-        widget.onUserCompletionFeedback?.call(completionStatus);
+      final feedbackStatus = _completionFeedbackStatusForRawStatus(status);
+      if (feedbackStatus == CompletionStatus.observed ||
+          feedbackStatus == CompletionStatus.partial) {
+        widget.onUserCompletionFeedback?.call(feedbackStatus);
       }
       unawaited(_maybeCaptureLivingTextDayOneNode(status));
     } catch (_) {

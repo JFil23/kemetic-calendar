@@ -2307,6 +2307,26 @@ class _MainCalendarEventDetailSheetState
   late DayViewSheetEventTarget _currentTarget;
   late PageController _pageController;
   Map<String, double> _measuredHeights = {};
+  final Set<int> _endingFlowIds = <int>{};
+
+  bool _beginEndFlowAction(int flowId) {
+    if (_endingFlowIds.contains(flowId)) return false;
+    setState(() {
+      _endingFlowIds.add(flowId);
+    });
+    return true;
+  }
+
+  void _finishEndFlowAction(int flowId) {
+    if (!_endingFlowIds.contains(flowId)) return;
+    if (!mounted) {
+      _endingFlowIds.remove(flowId);
+      return;
+    }
+    setState(() {
+      _endingFlowIds.remove(flowId);
+    });
+  }
 
   FlowData? _flowForId(int? flowId) => widget.flowResolver?.call(flowId);
 
@@ -3042,6 +3062,9 @@ class _MainCalendarEventDetailSheetState
     final actionableFlow = _isActionableFlowId(currentEvent.flowId);
     final isReminder = currentEvent.isReminder;
     final hasFlow = flow != null;
+    final isEndingFlow =
+        currentEvent.flowId != null &&
+        _endingFlowIds.contains(currentEvent.flowId);
 
     return PopupMenuButton<String>(
       icon: KemeticGold.icon(Icons.more_vert),
@@ -3049,13 +3072,19 @@ class _MainCalendarEventDetailSheetState
       color: _CalendarTone.calendarBlack,
       onSelected: (value) async {
         if (value == 'end_flow') {
-          Navigator.pop(sheetContext);
           final flowId = currentEvent.flowId;
           if (flowId != null && widget.onEndFlow != null) {
-            final routedThroughCalendarPage =
-                await CalendarPage.endFlowFromEventTarget(target);
-            if (!routedThroughCalendarPage) {
-              widget.onEndFlow!(flowId);
+            if (!_beginEndFlowAction(flowId)) return;
+            try {
+              final result = await CalendarPage.endFlowFromEventTarget(target);
+              if (result == EndFlowActionResult.success) {
+                if (sheetContext.mounted) Navigator.pop(sheetContext);
+              } else if (result == EndFlowActionResult.notHandled) {
+                widget.onEndFlow!(flowId);
+                if (sheetContext.mounted) Navigator.pop(sheetContext);
+              }
+            } finally {
+              _finishEndFlowAction(flowId);
             }
           }
         } else if (value == 'end_reminder') {
@@ -3162,11 +3191,17 @@ class _MainCalendarEventDetailSheetState
             widget.onEndFlow != null)
           PopupMenuItem(
             value: 'end_flow',
+            enabled: !isEndingFlow,
             child: Row(
               children: [
-                KemeticGold.icon(Icons.stop_circle),
+                KemeticGold.icon(
+                  isEndingFlow ? Icons.hourglass_top : Icons.stop_circle,
+                ),
                 const SizedBox(width: 12),
-                const Text('End Flow', style: TextStyle(color: Colors.white)),
+                Text(
+                  isEndingFlow ? 'Ending Flow...' : 'End Flow',
+                  style: const TextStyle(color: Colors.white),
+                ),
               ],
             ),
           ),

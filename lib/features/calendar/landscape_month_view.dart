@@ -19,7 +19,7 @@ import '../../data/user_events_repo.dart';
 import '../../services/app_haptics.dart';
 import '../../services/app_restoration_service.dart';
 import 'day_view.dart'; // For NoteData, FlowData
-import 'calendar_page.dart' show CalendarPage, KemeticMath;
+import 'calendar_page.dart' show CalendarPage, EndFlowActionResult, KemeticMath;
 import 'calendar_completion.dart';
 import 'calendar_reflection_context.dart';
 import 'package:mobile/features/calendar/kemetic_time_constants.dart';
@@ -1393,9 +1393,29 @@ class _LandscapeMonthGridBodyState extends State<LandscapeMonthGridBody> {
   bool _isDisposed = false;
   String? _initialEventDetailRestoreKey;
   bool _initialEventDetailRestoreInFlight = false;
+  final Set<int> _endingFlowIds = <int>{};
 
   bool _syncingH = false;
   bool _syncingV = false;
+
+  bool _beginEndFlowAction(int flowId) {
+    if (_endingFlowIds.contains(flowId)) return false;
+    setState(() {
+      _endingFlowIds.add(flowId);
+    });
+    return true;
+  }
+
+  void _finishEndFlowAction(int flowId) {
+    if (!_endingFlowIds.contains(flowId)) return;
+    if (!mounted) {
+      _endingFlowIds.remove(flowId);
+      return;
+    }
+    setState(() {
+      _endingFlowIds.remove(flowId);
+    });
+  }
 
   @override
   void initState() {
@@ -3086,6 +3106,9 @@ class _LandscapeMonthGridBodyState extends State<LandscapeMonthGridBody> {
     final flow = _chromeFlowForId(currentEvent.flowId);
     final actionableFlow = _isActionableFlowId(currentEvent.flowId);
     final isReminder = currentEvent.isReminder;
+    final isEndingFlow =
+        currentEvent.flowId != null &&
+        _endingFlowIds.contains(currentEvent.flowId);
 
     return PopupMenuButton<String>(
       icon: KemeticGold.icon(Icons.more_vert),
@@ -3093,14 +3116,20 @@ class _LandscapeMonthGridBodyState extends State<LandscapeMonthGridBody> {
       color: const Color(0xFF000000),
       onSelected: (value) async {
         if (value == 'end_flow') {
-          Navigator.pop(sheetContext);
           final flowId = currentEvent.flowId;
           final onEndFlow = widget.onEndFlow;
           if (flowId != null && onEndFlow != null) {
-            final routedThroughCalendarPage =
-                await CalendarPage.endFlowFromEventTarget(target);
-            if (!routedThroughCalendarPage) {
-              onEndFlow(flowId);
+            if (!_beginEndFlowAction(flowId)) return;
+            try {
+              final result = await CalendarPage.endFlowFromEventTarget(target);
+              if (result == EndFlowActionResult.success) {
+                if (sheetContext.mounted) Navigator.pop(sheetContext);
+              } else if (result == EndFlowActionResult.notHandled) {
+                onEndFlow(flowId);
+                if (sheetContext.mounted) Navigator.pop(sheetContext);
+              }
+            } finally {
+              _finishEndFlowAction(flowId);
             }
           }
         } else if (value == 'end_reminder') {
@@ -3212,11 +3241,17 @@ class _LandscapeMonthGridBodyState extends State<LandscapeMonthGridBody> {
             widget.onEndFlow != null)
           PopupMenuItem(
             value: 'end_flow',
+            enabled: !isEndingFlow,
             child: Row(
               children: [
-                KemeticGold.icon(Icons.stop_circle),
+                KemeticGold.icon(
+                  isEndingFlow ? Icons.hourglass_top : Icons.stop_circle,
+                ),
                 const SizedBox(width: 12),
-                const Text('End Flow', style: TextStyle(color: Colors.white)),
+                Text(
+                  isEndingFlow ? 'Ending Flow...' : 'End Flow',
+                  style: const TextStyle(color: Colors.white),
+                ),
               ],
             ),
           ),

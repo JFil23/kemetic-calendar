@@ -5,6 +5,7 @@ enum CalendarInvalidationReason {
   flowDeleted,
   flowJoined,
   eventSaved,
+  calendarImportSynced,
 }
 
 class CalendarInvalidated {

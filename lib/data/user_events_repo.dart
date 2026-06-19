@@ -2359,6 +2359,7 @@ class UserEventsRepo {
       'ai',
       'share_import',
       'profile_import',
+      'saved_import',
       'fork',
       'template',
     };

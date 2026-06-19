@@ -90,6 +90,41 @@ void main() {
     },
   );
 
+  test('Ma’at custom completion choices trigger ritual feedback pulses', () {
+    final dayView = File(
+      'lib/features/calendar/day_view.dart',
+    ).readAsStringSync();
+
+    final feedbackMapper = _sourceBetween(
+      dayView,
+      'CompletionStatus _completionFeedbackStatusForRawStatus',
+      'String? _eveningThresholdPrerequisiteMessage',
+    );
+    expect(feedbackMapper, contains("case 'held':"));
+    expect(feedbackMapper, contains("case 'carry_forward':"));
+    expect(feedbackMapper, contains("case 'release':"));
+    expect(feedbackMapper, contains("return CompletionStatus.observed;"));
+    expect(feedbackMapper, contains("case 'working':"));
+    expect(feedbackMapper, contains("case 'slipped':"));
+    expect(feedbackMapper, contains("return CompletionStatus.partial;"));
+
+    final record = _sourceBetween(
+      dayView,
+      'Future<void> _record(String status',
+      'Future<void> _clear() async',
+    );
+    expect(
+      record,
+      contains(
+        'final feedbackStatus = _completionFeedbackStatusForRawStatus(status);',
+      ),
+    );
+    expect(
+      record,
+      contains('widget.onUserCompletionFeedback?.call(feedbackStatus);'),
+    );
+  });
+
   test(
     'Evening Threshold missing prerequisites use feedback, not disabling',
     () {
@@ -355,7 +390,7 @@ void main() {
         expect(sheet, contains('reloadSignal:'), reason: entry.key);
         expect(
           sheet,
-          contains('DayViewRitualCompletionFeedbackCard('),
+          contains('DayViewRitualCompletionFeedbackCard'),
           reason: entry.key,
         );
       }
@@ -446,6 +481,134 @@ void main() {
       }
     },
   );
+
+  test('End Flow reports success, failure, and not-handled distinctly', () {
+    final calendarPage = File(
+      'lib/features/calendar/calendar_page.dart',
+    ).readAsStringSync();
+
+    expect(
+      calendarPage,
+      contains('enum EndFlowActionResult { success, failed, notHandled }'),
+    );
+
+    final staticHandler = _sourceBetween(
+      calendarPage,
+      'static Future<EndFlowActionResult> endFlowFromEventTarget',
+      'static Future<bool> makeTodoFromEventTarget',
+    );
+    expect(staticHandler, contains('return EndFlowActionResult.notHandled;'));
+    expect(staticHandler, contains('return state._endFlowFromEventTarget'));
+
+    final targetHandler = _sourceBetween(
+      calendarPage,
+      'Future<EndFlowActionResult> _endFlowFromEventTarget',
+      'Future<bool> _makeTodoFromEventTarget',
+    );
+    expect(targetHandler, contains('return EndFlowActionResult.notHandled;'));
+    expect(targetHandler, contains('return _endFlow(flowId);'));
+    expect(targetHandler, isNot(contains('return true;')));
+
+    final endFlowHandler = _sourceBetween(
+      calendarPage,
+      'Future<EndFlowActionResult> _endFlow(',
+      '//// === END END FLOW ===',
+    );
+    expect(endFlowHandler, contains('return EndFlowActionResult.failed;'));
+    expect(endFlowHandler, contains('return EndFlowActionResult.success;'));
+    expect(endFlowHandler, contains("Text('Flow ended.')"));
+  });
+
+  test('End Flow detail sheets await success before closing', () {
+    final sources = {
+      'day_view.dart': File(
+        'lib/features/calendar/day_view.dart',
+      ).readAsStringSync(),
+      'calendar_grid_widgets.dart': File(
+        'lib/features/calendar/calendar_grid_widgets.dart',
+      ).readAsStringSync(),
+      'landscape_month_view.dart': File(
+        'lib/features/calendar/landscape_month_view.dart',
+      ).readAsStringSync(),
+    };
+
+    for (final entry in sources.entries) {
+      final handler = _sourceBetween(
+        entry.value,
+        "if (value == 'end_flow') {",
+        "} else if (value == 'end_reminder')",
+      );
+      final awaitIndex = handler.indexOf(
+        'await CalendarPage.endFlowFromEventTarget(target)',
+      );
+      final popIndex = handler.indexOf('Navigator.pop(sheetContext)');
+
+      expect(awaitIndex, isNonNegative, reason: entry.key);
+      expect(popIndex, isNonNegative, reason: entry.key);
+      expect(awaitIndex, lessThan(popIndex), reason: entry.key);
+      expect(
+        handler,
+        contains('result == EndFlowActionResult.success'),
+        reason: entry.key,
+      );
+      expect(
+        handler,
+        contains('result == EndFlowActionResult.notHandled'),
+        reason: entry.key,
+      );
+      expect(handler, contains('_beginEndFlowAction'), reason: entry.key);
+      expect(handler, contains('_finishEndFlowAction'), reason: entry.key);
+      expect(handler, isNot(contains('routedThroughCalendarPage')));
+    }
+  });
+
+  test('Day detail sheet keeps failed End Flow feedback inside the sheet', () {
+    final dayView = File(
+      'lib/features/calendar/day_view.dart',
+    ).readAsStringSync();
+    final handler = _sourceBetween(
+      dayView,
+      "if (value == 'end_flow') {",
+      "} else if (value == 'end_reminder')",
+    );
+
+    expect(handler, contains('result == EndFlowActionResult.failed'));
+    expect(handler, contains('onEndFlowErrorChanged('));
+    expect(dayView, contains("'Could not end this flow right now.\\n'"));
+    expect(dayView, contains("'Check your connection and try again.'"));
+    expect(dayView, contains('_buildEventDetailInlineError('));
+    expect(dayView, contains('ValueListenableBuilder<String?>'));
+  });
+
+  test('Day detail sheet guards late measurement callbacks after release', () {
+    final dayView = File(
+      'lib/features/calendar/day_view.dart',
+    ).readAsStringSync();
+    final showDetail = _sourceBetween(
+      dayView,
+      'void _showEventDetail(',
+      'String _formatTimeRange',
+    );
+    final updateMeasuredHeight = _sourceBetween(
+      showDetail,
+      'void updateMeasuredHeight',
+      'void resetSheetPageController',
+    );
+    final releaseSheet = _sourceBetween(
+      showDetail,
+      'void releaseSheet()',
+      'try {',
+    );
+
+    expect(showDetail, contains('var sheetReleased = false;'));
+    expect(
+      updateMeasuredHeight,
+      contains('if (sheetReleased || !mounted) return;'),
+    );
+    expect(releaseSheet, contains('if (sheetReleased) return;'));
+    expect(releaseSheet, contains('sheetReleased = true;'));
+    expect(showDetail, contains('endFlowError.dispose();'));
+  });
 
   test(
     'reflection route context targets the real journal route with source data',
@@ -782,6 +945,24 @@ void main() {
     expect(calendarPage, contains('_clearRememberedJoinedMaatFlowTemplates'));
     expect(calendarPage, contains('if (scope == null)'));
     expect(calendarPage, contains('rememberedScope != scope'));
+  });
+
+  test('deleting a flow clears stale Ma’at joined filing state', () {
+    final calendarPage = File(
+      'lib/features/calendar/calendar_page.dart',
+    ).readAsStringSync();
+    final deleteFlow = _sourceBetween(
+      calendarPage,
+      'void _deleteFlow(int flowId) {',
+      'String _formatTimeOfDay(TimeOfDay t) {',
+    );
+
+    expect(
+      deleteFlow,
+      contains('CalendarPage._forgetRememberedJoinedMaatFlow(flowId);'),
+    );
+    expect(deleteFlow, contains('_myFlowsFilingSnapshotCache = null;'));
+    expect(deleteFlow, contains('_flowsRepo.clearMyFiledFlowsCache()'));
   });
 }
 

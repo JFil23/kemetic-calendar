@@ -165,6 +165,8 @@ part 'calendar_note_model.dart';
 part 'calendar_custom_repeat_page.dart';
 part 'flow_join_service.dart';
 
+enum EndFlowActionResult { success, failed, notHandled }
+
 void _calendarDebugPrint(String? message, {int? wrapWidth}) {
   if (kDebugMode) {
     debugPrint(message, wrapWidth: wrapWidth);
@@ -7173,13 +7175,12 @@ class CalendarPage extends StatefulWidget {
     await state._shareFlowFromEventItem(event);
   }
 
-  /// Returns true when a mounted [CalendarPage] host took ownership of the
-  /// end-flow action for this event target.
-  static Future<bool> endFlowFromEventTarget(
+  /// Returns the actual result of the end-flow action for this event target.
+  static Future<EndFlowActionResult> endFlowFromEventTarget(
     DayViewSheetEventTarget target,
   ) async {
     final state = globalKey.currentState;
-    if (state == null || !state.mounted) return false;
+    if (state == null || !state.mounted) return EndFlowActionResult.notHandled;
     return state._endFlowFromEventTarget(target);
   }
 
@@ -9143,7 +9144,7 @@ class CalendarPageState extends State<CalendarPage>
           onEditReminder: _editReminderById,
           onEndReminder: _endReminderRule,
           onShareReminder: (event) async => _shareNoteSimple(event),
-          onEndFlow: (id) => unawaited(_endFlow(id)),
+          onEndFlow: (id) => unawaited(_endFlow(id).then<void>((_) {})),
           onAppendToJournal: _journalInitialized
               ? (text) => _journalController.appendToToday(text)
               : null,
@@ -13878,6 +13879,22 @@ class CalendarPageState extends State<CalendarPage>
     });
     final first = candidates.first;
     return (ky: first.ky, km: first.km, kd: first.kd, note: first.note);
+  }
+
+  ({int ky, int km, int kd, _Note note})?
+  _focusCalendarOnFirstUpcomingFlowEvent(int flowId) {
+    final firstEvent = _firstUpcomingNoteForFlow(flowId);
+    if (firstEvent == null) {
+      if (kDebugMode) {
+        _calendarDebugPrint(
+          '[maatFlowJoin] no hydrated event found for flow $flowId after join',
+        );
+      }
+      return null;
+    }
+    _setView(firstEvent.ky, firstEvent.km, kd: firstEvent.kd);
+    _centerMonth(firstEvent.ky, firstEvent.km);
+    return firstEvent;
   }
 
   _Note? _firstFlowTargetNoteForDay(int ky, int km, int kd) {
@@ -20563,6 +20580,10 @@ class CalendarPageState extends State<CalendarPage>
     );
     final isSaved = flow.isSaved;
 
+    CalendarPage._forgetRememberedJoinedMaatFlow(flowId);
+    _myFlowsFilingSnapshotCache = null;
+    unawaited(_flowsRepo.clearMyFiledFlowsCache());
+
     // prune notes tied to this flow from the in-memory map
     final keysToPrune = <String>[];
     _notes.forEach((k, list) {
@@ -21947,6 +21968,9 @@ class CalendarPageState extends State<CalendarPage>
           );
           _myFlowsFilingSnapshotCache = null;
           await _flowsRepo.clearMyFiledFlowsCache();
+          await _loadFromDisk(source: 'maat_flow_imported');
+          if (!listCtx.mounted) return importedFlowId;
+          _focusCalendarOnFirstUpcomingFlowEvent(importedFlowId);
           if (!listCtx.mounted) return importedFlowId;
           final listNavigator = Navigator.of(listCtx);
           if (listNavigator.canPop()) {
@@ -22052,7 +22076,12 @@ class CalendarPageState extends State<CalendarPage>
             returnState: const <String, dynamic>{'mode': _kFlowStudioModeHub},
           );
           if (importedFlowId != null && importedFlowId > 0) {
-            await _loadFromDisk(source: 'maat_flow_imported');
+            if (_firstUpcomingNoteForFlow(importedFlowId) == null) {
+              await _loadFromDisk(source: 'maat_flow_imported_return');
+            }
+            if (mounted) {
+              _focusCalendarOnFirstUpcomingFlowEvent(importedFlowId);
+            }
           }
         }());
       },
@@ -25135,11 +25164,12 @@ class CalendarPageState extends State<CalendarPage>
   /// canonical RPC. Previously shared, posted, or saved copies live in their
   /// own records and are not removed by this action.
   //// === FLOW LIFECYCLE: END FLOW ===
-  Future<bool> _endFlowFromEventTarget(DayViewSheetEventTarget target) async {
+  Future<EndFlowActionResult> _endFlowFromEventTarget(
+    DayViewSheetEventTarget target,
+  ) async {
     final flowId = target.event.flowId;
-    if (flowId == null) return false;
-    await _endFlow(flowId);
-    return true;
+    if (flowId == null) return EndFlowActionResult.notHandled;
+    return _endFlow(flowId);
   }
 
   Future<bool> _makeTodoFromEventTarget(DayViewSheetEventTarget target) async {
@@ -25207,7 +25237,10 @@ class CalendarPageState extends State<CalendarPage>
     context.go(location);
   }
 
-  Future<void> _endFlow(int flowId, {DateTime? endedAtLocal}) async {
+  Future<EndFlowActionResult> _endFlow(
+    int flowId, {
+    DateTime? endedAtLocal,
+  }) async {
     final repo = UserEventsRepo(Supabase.instance.client);
     final effectiveEndedAtLocal = endedAtLocal ?? DateTime.now();
     if (kDebugMode) {
@@ -25241,13 +25274,19 @@ class CalendarPageState extends State<CalendarPage>
           const SnackBar(content: Text('Could not end this flow right now.')),
         );
       }
-      return;
+      return EndFlowActionResult.failed;
     }
 
     // End Flow removes the local materialized calendar copy only. Shared,
     // posted, and saved copies are separate records and remain available.
     CalendarPage._forgetRememberedJoinedMaatFlow(flowId);
     await _loadFromDisk(source: 'end_flow');
+    if (mounted) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Flow ended.')));
+    }
+    return EndFlowActionResult.success;
   }
   //// === END END FLOW ===
 
@@ -28694,16 +28733,9 @@ class CalendarPageState extends State<CalendarPage>
       }
       return;
     }
-    try {
-      await ShareRepo(
-        Supabase.instance.client,
-      ).syncAcceptedInviteCalendarImports();
-    } catch (e, st) {
-      if (kDebugMode) {
-        _calendarDebugPrint('[startup] invite import sync failed: $e');
-        _calendarDebugPrint('$st');
-      }
-    }
+    await _restoreWarmStartCacheIfAvailable(reason: 'startup_gate:$reason');
+    if (!mounted) return;
+    _syncAcceptedInviteCalendarImportsInBackground(reason);
     final keepWarmStartVisible = _hasWarmStartSnapshotVisibleForCurrentUser();
     // If warm-start data is already on screen, keep it stable until the
     // backfill finishes instead of doing an intermediate visible-window swap.
@@ -28743,6 +28775,29 @@ class CalendarPageState extends State<CalendarPage>
           _calendarDebugPrint(
             '[startup] backfill/reminder sync failed (async): $e',
           );
+          _calendarDebugPrint('$st');
+        }
+      }
+    }());
+  }
+
+  void _syncAcceptedInviteCalendarImportsInBackground(String reason) {
+    unawaited(() async {
+      try {
+        await ShareRepo(
+          Supabase.instance.client,
+        ).syncAcceptedInviteCalendarImports();
+        if (!mounted) return;
+        await _loadCalendarState();
+        if (!mounted) return;
+        CalendarInvalidationBus.instance.publish(
+          const CalendarInvalidated(
+            reason: CalendarInvalidationReason.calendarImportSynced,
+          ),
+        );
+      } catch (e, st) {
+        if (kDebugMode) {
+          _calendarDebugPrint('[startup] invite import sync failed: $e');
           _calendarDebugPrint('$st');
         }
       }
@@ -29182,6 +29237,68 @@ class CalendarPageState extends State<CalendarPage>
       final eventsByFlowId = await flowEventsFuture;
 
       int flowAddedCount = 0;
+      bool committedVisibleCalendar = false;
+
+      void commitVisibleCalendarState(String phase) {
+        if (!mounted) return;
+        final hydratedTrackSkyFlowIds = newFlows
+            .where((flow) => _isTrackSkyFlowName(flow.name))
+            .map((flow) => flow.id)
+            .where((flowId) => flowId > 0)
+            .toSet();
+        final dedupedNotes = <String, List<_Note>>{};
+        newNotes.forEach((key, notes) {
+          final cleaned = _dedupeVisibleDayNotes(
+            notes,
+            trackSkyFlowIds: hydratedTrackSkyFlowIds,
+          );
+          if (cleaned.isNotEmpty) {
+            dedupedNotes[key] = cleaned;
+          }
+        });
+
+        _flows
+          ..clear()
+          ..addAll(newFlows);
+        _notes
+          ..clear()
+          ..addAll(dedupedNotes);
+        _nextFlowId = nextFlowId;
+        CalendarPage._reconcileRememberedMaatJoinsFromLiveFlows(_flows);
+
+        if (kDebugMode) {
+          _calendarDebugPrint(
+            '[loadFromDisk] committed phase=$phase '
+            '_flows.length=${_flows.length} _notes keys=${_notes.length}',
+          );
+        }
+
+        _rebuildReminderRulesFromFlowsIfMissing();
+        _bumpDataVersion();
+        _lastSuccessfulHydrationAt = DateTime.now();
+        _warmStartCacheRestoredForUserId = _activeWarmStartUserId();
+        _warmStartSnapshotVisible = false;
+        if (!committedVisibleCalendar &&
+            preserveViewport &&
+            preservedScrollOffset != null) {
+          _lastKnownCalendarScrollOffset = preservedScrollOffset;
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            final position = _singleCalendarScrollPosition();
+            if (!mounted ||
+                position == null ||
+                !position.hasContentDimensions) {
+              return;
+            }
+            final clamped = preservedScrollOffset.clamp(
+              position.minScrollExtent,
+              position.maxScrollExtent,
+            );
+            position.jumpTo(clamped);
+            _lastKnownCalendarScrollOffset = clamped.toDouble();
+          });
+        }
+        committedVisibleCalendar = true;
+      }
 
       for (final flowId in hydrationFlowIds) {
         try {
@@ -29405,6 +29522,11 @@ class CalendarPageState extends State<CalendarPage>
         _calendarDebugPrint(
           '[loadFromDisk] flow notes added to newNotes: $flowAddedCount',
         );
+      }
+      if (!keepWarmStartSnapshotVisible && flowAddedCount > 0) {
+        // Standalone notes/reminders can be slower or time out. Flow-backed
+        // calendar events should still reach the first useful frame promptly.
+        commitVisibleCalendarState('flow_events');
       }
 
       // Load filing-backed standalone calendar events: notes, reminders, and
@@ -29644,59 +29766,7 @@ class CalendarPageState extends State<CalendarPage>
         }
       }
 
-      final hydratedTrackSkyFlowIds = newFlows
-          .where((flow) => _isTrackSkyFlowName(flow.name))
-          .map((flow) => flow.id)
-          .where((flowId) => flowId > 0)
-          .toSet();
-      final dedupedNotes = <String, List<_Note>>{};
-      newNotes.forEach((key, notes) {
-        final cleaned = _dedupeVisibleDayNotes(
-          notes,
-          trackSkyFlowIds: hydratedTrackSkyFlowIds,
-        );
-        if (cleaned.isNotEmpty) {
-          dedupedNotes[key] = cleaned;
-        }
-      });
-
-      // Force rebuild as soon as visible event data is ready. Flow counts and
-      // reminder regeneration are secondary and can land afterward.
-      _flows
-        ..clear()
-        ..addAll(newFlows);
-      _notes
-        ..clear()
-        ..addAll(dedupedNotes);
-      _nextFlowId = nextFlowId;
-      CalendarPage._reconcileRememberedMaatJoinsFromLiveFlows(_flows);
-
-      if (kDebugMode) {
-        _calendarDebugPrint(
-          '[loadFromDisk] committed _flows.length=${_flows.length} _notes keys=${_notes.length}',
-        );
-      }
-
-      _rebuildReminderRulesFromFlowsIfMissing();
-      _bumpDataVersion();
-      _lastSuccessfulHydrationAt = DateTime.now();
-      _warmStartCacheRestoredForUserId = _activeWarmStartUserId();
-      _warmStartSnapshotVisible = false;
-      if (preserveViewport && preservedScrollOffset != null) {
-        _lastKnownCalendarScrollOffset = preservedScrollOffset;
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          final position = _singleCalendarScrollPosition();
-          if (!mounted || position == null || !position.hasContentDimensions) {
-            return;
-          }
-          final clamped = preservedScrollOffset.clamp(
-            position.minScrollExtent,
-            position.maxScrollExtent,
-          );
-          position.jumpTo(clamped);
-          _lastKnownCalendarScrollOffset = clamped.toDouble();
-        });
-      }
+      commitVisibleCalendarState('complete');
 
       Future<void> finishNonCriticalPostProcessing() async {
         try {

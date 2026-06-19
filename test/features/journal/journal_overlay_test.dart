@@ -347,7 +347,12 @@ void main() {
       expect(repo.upsertCalls, 0);
       expect(controller.loadedDate, DateTime(2026, 6, 9));
       expect(controller.currentDraft, isEmpty);
-      expect(find.text('No badges yet'), findsOneWidget);
+      expect(find.text('𓂝'), findsOneWidget);
+      expect(find.text('No badges yet'), findsNothing);
+      expect(
+        find.text('Event badges you add from day view will appear here.'),
+        findsNothing,
+      );
 
       final field = tester.widget<TextField>(find.byType(TextField));
       expect(field.controller?.text, isEmpty);

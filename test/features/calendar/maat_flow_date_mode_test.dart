@@ -35,6 +35,55 @@ void main() {
     expect(listSource, contains('class _MaatFlowsListPageWithSnapshot'));
   });
 
+  test('Ma_at flow join focuses first hydrated calendar occurrence', () {
+    final source = File(
+      'lib/features/calendar/calendar_page.dart',
+    ).readAsStringSync();
+    final helper = _sourceBetween(
+      source,
+      '_focusCalendarOnFirstUpcomingFlowEvent',
+      '_Note? _firstFlowTargetNoteForDay',
+    );
+    final listJoin = _sourceBetween(
+      source,
+      'Widget _buildMaatFlowsListPage',
+      'Widget _buildFlowStudioHubPage',
+    );
+    final routeReturn = _sourceBetween(
+      source,
+      "source: 'open_maat_flows'",
+      'onCreateNew: () async',
+    );
+
+    expect(helper, contains('_firstUpcomingNoteForFlow(flowId)'));
+    expect(
+      helper,
+      contains('_setView(firstEvent.ky, firstEvent.km, kd: firstEvent.kd)'),
+    );
+    expect(helper, contains('_centerMonth(firstEvent.ky, firstEvent.km)'));
+    expect(
+      listJoin,
+      contains("await _loadFromDisk(source: 'maat_flow_imported')"),
+    );
+    expect(
+      listJoin,
+      contains('_focusCalendarOnFirstUpcomingFlowEvent(importedFlowId)'),
+    );
+    expect(
+      listJoin.indexOf("await _loadFromDisk(source: 'maat_flow_imported')"),
+      lessThan(
+        listJoin.indexOf(
+          '_focusCalendarOnFirstUpcomingFlowEvent(importedFlowId)',
+        ),
+      ),
+    );
+    expect(routeReturn, contains("source: 'maat_flow_imported_return'"));
+    expect(
+      routeReturn,
+      contains('_focusCalendarOnFirstUpcomingFlowEvent(importedFlowId)'),
+    );
+  });
+
   test('Ma_at flow detail pages default to Kemetic date mode', () {
     final source = File(
       'lib/features/calendar/calendar_maat_flows.dart',
@@ -965,7 +1014,7 @@ void main() {
       final mountedJoin = _sourceBetween(
         source,
         'Future<int> _addMaatFlowInstance({',
-        'Future<bool> _endFlowFromEventTarget',
+        'Future<EndFlowActionResult> _endFlowFromEventTarget',
       );
 
       final trackSkyBranch = _sourceBetween(
@@ -1098,7 +1147,7 @@ void main() {
     final mountedJoin = _sourceBetween(
       source,
       'Future<int> _addMaatFlowInstance({',
-      'Future<bool> _endFlowFromEventTarget',
+      'Future<EndFlowActionResult> _endFlowFromEventTarget',
     );
     final trackSkyBranch = _sourceBetween(
       mountedJoin,
@@ -1148,7 +1197,7 @@ void main() {
     final mountedJoin = _sourceBetween(
       source,
       'Future<int> _addMaatFlowInstance({',
-      'Future<bool> _endFlowFromEventTarget',
+      'Future<EndFlowActionResult> _endFlowFromEventTarget',
     );
     final trackSkyBranch = _sourceBetween(
       mountedJoin,
@@ -1208,7 +1257,7 @@ void main() {
     final mountedJoin = _sourceBetween(
       source,
       'Future<int> _addMaatFlowInstance({',
-      'Future<bool> _endFlowFromEventTarget',
+      'Future<EndFlowActionResult> _endFlowFromEventTarget',
     );
 
     final dawnBranch = _sourceBetween(
@@ -1253,7 +1302,7 @@ void main() {
     final mountedJoin = _sourceBetween(
       source,
       'Future<int> _addMaatFlowInstance({',
-      'Future<bool> _endFlowFromEventTarget',
+      'Future<EndFlowActionResult> _endFlowFromEventTarget',
     );
     final explicitBranches = _sourceBetween(
       mountedJoin,
@@ -1316,7 +1365,7 @@ void main() {
     final mountedJoin = _sourceBetween(
       source,
       'Future<int> _addMaatFlowInstance({',
-      'Future<bool> _endFlowFromEventTarget',
+      'Future<EndFlowActionResult> _endFlowFromEventTarget',
     );
     final fallbackStart = mountedJoin.indexOf(
       "// Current Ma'at templates must use explicit branches above;",
@@ -1348,7 +1397,7 @@ void main() {
     final mountedJoin = _sourceBetween(
       source,
       'Future<int> _addMaatFlowInstance({',
-      'Future<bool> _endFlowFromEventTarget',
+      'Future<EndFlowActionResult> _endFlowFromEventTarget',
     );
     final moonReturnBranch = _sourceBetween(
       mountedJoin,
@@ -1387,7 +1436,7 @@ void main() {
       final mountedJoin = _sourceBetween(
         source,
         'Future<int> _addMaatFlowInstance({',
-        'Future<bool> _endFlowFromEventTarget',
+        'Future<EndFlowActionResult> _endFlowFromEventTarget',
       );
       final moonReturnBranch = _sourceBetween(
         mountedJoin,
@@ -1429,7 +1478,7 @@ void main() {
     final mountedJoin = _sourceBetween(
       source,
       'Future<int> _addMaatFlowInstance({',
-      'Future<bool> _endFlowFromEventTarget',
+      'Future<EndFlowActionResult> _endFlowFromEventTarget',
     );
     final wagBranch = _sourceBetween(
       mountedJoin,
@@ -1456,7 +1505,7 @@ void main() {
     final mountedJoin = _sourceBetween(
       source,
       'Future<int> _addMaatFlowInstance({',
-      'Future<bool> _endFlowFromEventTarget',
+      'Future<EndFlowActionResult> _endFlowFromEventTarget',
     );
     final wagBranch = _sourceBetween(
       mountedJoin,
@@ -1497,7 +1546,7 @@ void main() {
     final mountedJoin = _sourceBetween(
       source,
       'Future<int> _addMaatFlowInstance({',
-      'Future<bool> _endFlowFromEventTarget',
+      'Future<EndFlowActionResult> _endFlowFromEventTarget',
     );
     final daysOutsideBranch = _sourceBetween(
       mountedJoin,
@@ -1538,7 +1587,7 @@ void main() {
       final mountedJoin = _sourceBetween(
         source,
         'Future<int> _addMaatFlowInstance({',
-        'Future<bool> _endFlowFromEventTarget',
+        'Future<EndFlowActionResult> _endFlowFromEventTarget',
       );
       final daysOutsideBranch = _sourceBetween(
         mountedJoin,
@@ -1579,7 +1628,7 @@ void main() {
     final mountedJoin = _sourceBetween(
       source,
       'Future<int> _addMaatFlowInstance({',
-      'Future<bool> _endFlowFromEventTarget',
+      'Future<EndFlowActionResult> _endFlowFromEventTarget',
     );
     final decanWatchBranch = _sourceBetween(
       mountedJoin,
@@ -1617,7 +1666,7 @@ void main() {
       final mountedJoin = _sourceBetween(
         source,
         'Future<int> _addMaatFlowInstance({',
-        'Future<bool> _endFlowFromEventTarget',
+        'Future<EndFlowActionResult> _endFlowFromEventTarget',
       );
       final decanWatchBranch = _sourceBetween(
         mountedJoin,
@@ -1667,7 +1716,7 @@ void main() {
     final mountedJoin = _sourceBetween(
       source,
       'Future<int> _addMaatFlowInstance({',
-      'Future<bool> _endFlowFromEventTarget',
+      'Future<EndFlowActionResult> _endFlowFromEventTarget',
     );
     final openHandBranch = _sourceBetween(
       mountedJoin,
@@ -1699,7 +1748,7 @@ void main() {
       final mountedJoin = _sourceBetween(
         source,
         'Future<int> _addMaatFlowInstance({',
-        'Future<bool> _endFlowFromEventTarget',
+        'Future<EndFlowActionResult> _endFlowFromEventTarget',
       );
       final openHandBranch = _sourceBetween(
         mountedJoin,
@@ -1754,7 +1803,7 @@ void main() {
     final mountedJoin = _sourceBetween(
       source,
       'Future<int> _addMaatFlowInstance({',
-      'Future<bool> _endFlowFromEventTarget',
+      'Future<EndFlowActionResult> _endFlowFromEventTarget',
     );
     final djedBranch = _sourceBetween(
       mountedJoin,
@@ -1781,7 +1830,7 @@ void main() {
     final mountedJoin = _sourceBetween(
       source,
       'Future<int> _addMaatFlowInstance({',
-      'Future<bool> _endFlowFromEventTarget',
+      'Future<EndFlowActionResult> _endFlowFromEventTarget',
     );
     final djedBranch = _sourceBetween(
       mountedJoin,
@@ -1832,7 +1881,7 @@ void main() {
       final mountedJoin = _sourceBetween(
         source,
         'Future<int> _addMaatFlowInstance({',
-        'Future<bool> _endFlowFromEventTarget',
+        'Future<EndFlowActionResult> _endFlowFromEventTarget',
       );
       final offeringTableBranch = _sourceBetween(
         mountedJoin,
@@ -1882,7 +1931,7 @@ void main() {
       final mountedJoin = _sourceBetween(
         source,
         'Future<int> _addMaatFlowInstance({',
-        'Future<bool> _endFlowFromEventTarget',
+        'Future<EndFlowActionResult> _endFlowFromEventTarget',
       );
       final weighingBranch = _sourceBetween(
         mountedJoin,
@@ -1938,7 +1987,7 @@ void main() {
       final mountedJoin = _sourceBetween(
         source,
         'Future<int> _addMaatFlowInstance({',
-        'Future<bool> _endFlowFromEventTarget',
+        'Future<EndFlowActionResult> _endFlowFromEventTarget',
       );
       final tendingBranch = _sourceBetween(
         mountedJoin,
@@ -1991,7 +2040,7 @@ void main() {
       final mountedJoin = _sourceBetween(
         source,
         'Future<int> _addMaatFlowInstance({',
-        'Future<bool> _endFlowFromEventTarget',
+        'Future<EndFlowActionResult> _endFlowFromEventTarget',
       );
       final keptWordBranch = _sourceBetween(
         mountedJoin,
@@ -2052,7 +2101,7 @@ void main() {
       final mountedJoin = _sourceBetween(
         source,
         'Future<int> _addMaatFlowInstance({',
-        'Future<bool> _endFlowFromEventTarget',
+        'Future<EndFlowActionResult> _endFlowFromEventTarget',
       );
       final courseBranch = _sourceBetween(
         mountedJoin,
@@ -2118,7 +2167,7 @@ void main() {
     final mountedJoin = _sourceBetween(
       source,
       'Future<int> _addMaatFlowInstance({',
-      'Future<bool> _endFlowFromEventTarget',
+      'Future<EndFlowActionResult> _endFlowFromEventTarget',
     );
 
     for (final branch in _mountedSafeEnrollmentBranches) {
@@ -2250,7 +2299,7 @@ void main() {
     final mountedJoin = _sourceBetween(
       calendarSource,
       'Future<int> _addMaatFlowInstance({',
-      'Future<bool> _endFlowFromEventTarget',
+      'Future<EndFlowActionResult> _endFlowFromEventTarget',
     );
 
     expect(mountedJoin, contains('resolveMaatFlowKind'));
