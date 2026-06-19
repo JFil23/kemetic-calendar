@@ -2307,6 +2307,7 @@ class _MainCalendarEventDetailSheetState
   late DayViewSheetEventTarget _currentTarget;
   late PageController _pageController;
   Map<String, double> _measuredHeights = {};
+  String? _endFlowError;
   final Set<int> _endingFlowIds = <int>{};
 
   bool _beginEndFlowAction(int flowId) {
@@ -2441,8 +2442,20 @@ class _MainCalendarEventDetailSheetState
   void _moveToTarget(DayViewSheetEventTarget nextTarget) {
     setState(() {
       _currentTarget = nextTarget;
+      _endFlowError = null;
     });
     widget.onTargetChanged?.call(nextTarget);
+  }
+
+  void _setEndFlowError(String? message) {
+    if (_endFlowError == message) return;
+    if (!mounted) {
+      _endFlowError = message;
+      return;
+    }
+    setState(() {
+      _endFlowError = message;
+    });
   }
 
   String _cleanDetail(String? raw) {
@@ -3053,6 +3066,37 @@ class _MainCalendarEventDetailSheetState
     );
   }
 
+  Widget _buildEventDetailInlineError(String message) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        color: const Color(0xFF4A1414).withValues(alpha: 0.88),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(
+          color: const Color(0xFFE57373).withValues(alpha: 0.45),
+        ),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Icon(Icons.error_outline, color: Color(0xFFFFB4AB), size: 18),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              message,
+              style: const TextStyle(
+                color: Color(0xFFFFDAD6),
+                fontSize: 13,
+                height: 1.25,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildEventDetailOverflowButton({
     required BuildContext sheetContext,
     required DayViewSheetEventTarget target,
@@ -3075,10 +3119,16 @@ class _MainCalendarEventDetailSheetState
           final flowId = currentEvent.flowId;
           if (flowId != null && widget.onEndFlow != null) {
             if (!_beginEndFlowAction(flowId)) return;
+            _setEndFlowError(null);
             try {
               final result = await CalendarPage.endFlowFromEventTarget(target);
               if (result == EndFlowActionResult.success) {
                 if (sheetContext.mounted) Navigator.pop(sheetContext);
+              } else if (result == EndFlowActionResult.failed) {
+                _setEndFlowError(
+                  'Could not end this flow right now.\n'
+                  'Check your connection and try again.',
+                );
               } else if (result == EndFlowActionResult.notHandled) {
                 widget.onEndFlow!(flowId);
                 if (sheetContext.mounted) Navigator.pop(sheetContext);
@@ -3355,6 +3405,17 @@ class _MainCalendarEventDetailSheetState
                 _buildEventDetailTopActionRow(
                   sheetContext: context,
                   target: target,
+                ),
+                AnimatedSize(
+                  duration: const Duration(milliseconds: 180),
+                  curve: Curves.easeOutCubic,
+                  alignment: Alignment.topCenter,
+                  child: _endFlowError == null
+                      ? const SizedBox.shrink()
+                      : Padding(
+                          padding: const EdgeInsets.fromLTRB(12, 8, 12, 0),
+                          child: _buildEventDetailInlineError(_endFlowError!),
+                        ),
                 ),
                 const SizedBox(height: 10),
                 AnimatedSize(

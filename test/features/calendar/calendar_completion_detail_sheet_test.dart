@@ -580,6 +580,31 @@ void main() {
     expect(dayView, contains('ValueListenableBuilder<String?>'));
   });
 
+  test('Month-grid detail sheet keeps failed End Flow feedback inside the sheet', () {
+    final monthGrid = File(
+      'lib/features/calendar/calendar_grid_widgets.dart',
+    ).readAsStringSync();
+    final handler = _sourceBetween(
+      monthGrid,
+      "if (value == 'end_flow') {",
+      "} else if (value == 'end_reminder')",
+    );
+    final failedBranch = _sourceBetween(
+      handler,
+      'result == EndFlowActionResult.failed',
+      'result == EndFlowActionResult.notHandled',
+    );
+
+    expect(handler, contains('result == EndFlowActionResult.failed'));
+    expect(handler, contains('_setEndFlowError('));
+    expect(monthGrid, contains("'Could not end this flow right now.\\n'"));
+    expect(monthGrid, contains("'Check your connection and try again.'"));
+    expect(monthGrid, contains('_buildEventDetailInlineError('));
+    expect(monthGrid, contains('String? _endFlowError;'));
+    expect(monthGrid, contains('AnimatedSize('));
+    expect(failedBranch, isNot(contains('Navigator.pop(sheetContext);')));
+  });
+
   test('Day detail sheet guards late measurement callbacks after release', () {
     final dayView = File(
       'lib/features/calendar/day_view.dart',
