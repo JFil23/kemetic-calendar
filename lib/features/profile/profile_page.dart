@@ -139,6 +139,8 @@ const Gradient _profileGoldGradient = LinearGradient(
   ],
   stops: [0.0, 0.42, 0.74, 1.0],
 );
+const String _profileSerifFont = 'CormorantGaramond';
+const List<String> _profileSerifFallback = ['GentiumPlus', 'Georgia', 'serif'];
 
 class ProfilePage extends StatefulWidget {
   final String userId;
@@ -1802,7 +1804,7 @@ class _ProfilePageState extends State<ProfilePage>
     final profile = _profile!;
     final topInset = MediaQuery.paddingOf(context).top + kToolbarHeight;
     final height = MediaQuery.sizeOf(context).height;
-    final heroHeight = (height * 0.54).clamp(420.0, 560.0);
+    final heroHeight = (height * 0.72).clamp(560.0, 680.0);
     final bio = profile.bio?.trim() ?? '';
     const bottomPadding = 32.0;
 
@@ -1819,6 +1821,7 @@ class _ProfilePageState extends State<ProfilePage>
               profile,
               topInset: topInset,
               height: heroHeight,
+              bio: bio,
             ),
           ),
           Padding(
@@ -1826,22 +1829,6 @@ class _ProfilePageState extends State<ProfilePage>
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                if (bio.isNotEmpty) ...[
-                  Text(
-                    bio,
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      color: Colors.white.withValues(alpha: 0.86),
-                      fontSize: 15,
-                      height: 1.48,
-                    ),
-                  ),
-                  const SizedBox(height: 22),
-                ],
-                _buildStats(profile),
-                const SizedBox(height: 18),
-                _buildActionCluster(),
-                const SizedBox(height: 28),
                 Container(
                   padding: const EdgeInsets.only(top: 18),
                   decoration: BoxDecoration(
@@ -1889,53 +1876,82 @@ class _ProfilePageState extends State<ProfilePage>
     UserProfile profile, {
     required double topInset,
     required double height,
+    required String bio,
   }) {
-    return SizedBox(
-      height: height,
+    return ConstrainedBox(
+      constraints: BoxConstraints(minHeight: height),
       child: Padding(
-        padding: EdgeInsets.fromLTRB(20, topInset + 20, 20, 24),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.end,
-          children: [
-            Text(
-              profile.effectiveName,
-              textAlign: TextAlign.center,
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-              style: const TextStyle(
-                color: Colors.white,
-                fontSize: 34,
-                fontWeight: FontWeight.w700,
-                height: 1.02,
-                shadows: [
-                  Shadow(
-                    color: Colors.black87,
-                    blurRadius: 18,
-                    offset: Offset(0, 4),
+        padding: EdgeInsets.fromLTRB(20, topInset + 72, 20, 28),
+        child: Align(
+          alignment: Alignment.bottomCenter,
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 420),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                if (profile.handle != null &&
+                    profile.handle!.trim().isNotEmpty) ...[
+                  Text(
+                    '@${profile.handle}',
+                    textAlign: TextAlign.center,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      color: Colors.white.withValues(alpha: 0.78),
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      height: 1.1,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                ],
+                Text(
+                  profile.effectiveName,
+                  textAlign: TextAlign.center,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 52,
+                    fontWeight: FontWeight.w600,
+                    height: 0.96,
+                    fontFamily: _profileSerifFont,
+                    fontFamilyFallback: _profileSerifFallback,
+                    shadows: [
+                      Shadow(
+                        color: Colors.black87,
+                        blurRadius: 18,
+                        offset: Offset(0, 4),
+                      ),
+                    ],
+                  ),
+                ),
+                if (profile.avatarGlyphIds.isNotEmpty) ...[
+                  const SizedBox(height: 18),
+                  _buildGlyphSignature(profile),
+                ],
+                if (bio.isNotEmpty) ...[
+                  const SizedBox(height: 18),
+                  Text(
+                    bio,
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      color: Colors.white.withValues(alpha: 0.86),
+                      fontSize: 16,
+                      fontStyle: FontStyle.italic,
+                      height: 1.32,
+                      fontFamily: _profileSerifFont,
+                      fontFamilyFallback: _profileSerifFallback,
+                    ),
                   ),
                 ],
-              ),
+                const SizedBox(height: 24),
+                _buildStats(profile),
+                const SizedBox(height: 18),
+                _buildActionCluster(),
+              ],
             ),
-            if (profile.handle != null &&
-                profile.handle!.trim().isNotEmpty) ...[
-              const SizedBox(height: 6),
-              Text(
-                '@${profile.handle}',
-                textAlign: TextAlign.center,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  color: Colors.white.withValues(alpha: 0.78),
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ],
-            if (profile.avatarGlyphIds.isNotEmpty) ...[
-              const SizedBox(height: 16),
-              _buildGlyphSignature(profile),
-            ],
-          ],
+          ),
         ),
       ),
     );
@@ -1971,19 +1987,12 @@ class _ProfilePageState extends State<ProfilePage>
     return ConstrainedBox(
       constraints: const BoxConstraints(maxWidth: 420),
       child: Container(
-        width: double.infinity,
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 12),
         decoration: BoxDecoration(
-          color: Colors.black.withValues(alpha: 0.46),
-          borderRadius: BorderRadius.circular(22),
-          border: Border.all(color: _profileGoldMid.withValues(alpha: 0.26)),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.28),
-              blurRadius: 18,
-              offset: const Offset(0, 10),
-            ),
-          ],
+          border: Border(
+            top: BorderSide(color: _profileGoldMid.withValues(alpha: 0.26)),
+            bottom: BorderSide(color: _profileGoldMid.withValues(alpha: 0.26)),
+          ),
         ),
         child: Column(
           children: [
@@ -1992,8 +2001,8 @@ class _ProfilePageState extends State<ProfilePage>
               textAlign: TextAlign.center,
               style: const TextStyle(
                 color: _profileGoldText,
-                fontSize: 18,
-                fontWeight: FontWeight.w700,
+                fontSize: 20,
+                fontWeight: FontWeight.w600,
                 height: 1.1,
                 fontFamily: 'GentiumPlus',
                 fontFamilyFallback: [
@@ -2051,32 +2060,35 @@ class _ProfilePageState extends State<ProfilePage>
       ),
     ];
 
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final compact = constraints.maxWidth < 460;
-        final spacing = 10.0;
-        final columns = compact ? 2 : 4;
-        final itemWidth =
-            (constraints.maxWidth - (spacing * (columns - 1))) / columns;
-
-        return Wrap(
-          spacing: spacing,
-          runSpacing: spacing,
-          children: [
-            for (final stat in stats)
-              SizedBox(
-                width: itemWidth,
-                child: _buildStatItem(
-                  label: stat.label,
-                  value: stat.value,
-                  onTap: stat.onTap,
-                  enabled: stat.enabled,
-                  compact: compact,
-                ),
+    return Container(
+      decoration: BoxDecoration(
+        border: Border(
+          top: BorderSide(color: _profileGoldMid.withValues(alpha: 0.18)),
+          bottom: BorderSide(color: _profileGoldMid.withValues(alpha: 0.18)),
+        ),
+      ),
+      padding: const EdgeInsets.symmetric(vertical: 12),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          for (var index = 0; index < stats.length; index++) ...[
+            if (index > 0)
+              Container(
+                width: 1,
+                height: 44,
+                color: _profileGoldMid.withValues(alpha: 0.16),
               ),
+            Expanded(
+              child: _buildStatItem(
+                label: stats[index].label,
+                value: stats[index].value,
+                onTap: stats[index].onTap,
+                enabled: stats[index].enabled,
+              ),
+            ),
           ],
-        );
-      },
+        ],
+      ),
     );
   }
 
@@ -2085,7 +2097,6 @@ class _ProfilePageState extends State<ProfilePage>
     required String value,
     VoidCallback? onTap,
     bool enabled = true,
-    bool compact = false,
   }) {
     final numberColor = enabled
         ? _profileGoldText
@@ -2097,53 +2108,45 @@ class _ProfilePageState extends State<ProfilePage>
     return Material(
       color: Colors.transparent,
       child: InkWell(
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(3),
         onTap: onTap,
-        child: Ink(
-          decoration: BoxDecoration(
-            color: Colors.black.withValues(alpha: enabled ? 0.34 : 0.22),
-            borderRadius: BorderRadius.circular(20),
-            border: Border.all(
-              color: enabled
-                  ? _profileGoldMid.withValues(alpha: 0.2)
-                  : Colors.white.withValues(alpha: 0.06),
-            ),
-          ),
-          child: Container(
-            constraints: BoxConstraints(minHeight: compact ? 82 : 92),
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                SizedBox(
-                  width: double.infinity,
-                  child: FittedBox(
-                    fit: BoxFit.scaleDown,
-                    child: Text(
-                      value,
-                      style: TextStyle(
-                        color: numberColor,
-                        fontSize: compact ? 25 : 24,
-                        fontWeight: FontWeight.w700,
-                      ),
+        child: Container(
+          constraints: const BoxConstraints(minHeight: 58),
+          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              SizedBox(
+                width: double.infinity,
+                child: FittedBox(
+                  fit: BoxFit.scaleDown,
+                  child: Text(
+                    value,
+                    style: TextStyle(
+                      color: numberColor,
+                      fontSize: 30,
+                      fontWeight: FontWeight.w600,
+                      height: 1,
+                      fontFamily: _profileSerifFont,
+                      fontFamilyFallback: _profileSerifFallback,
                     ),
                   ),
                 ),
-                const SizedBox(height: 6),
-                Text(
-                  label,
-                  textAlign: TextAlign.center,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    color: labelColor,
-                    fontSize: compact ? 12 : 13,
-                    height: 1.2,
-                    fontWeight: FontWeight.w600,
-                  ),
+              ),
+              const SizedBox(height: 6),
+              Text(
+                label,
+                textAlign: TextAlign.center,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  color: labelColor,
+                  fontSize: 10,
+                  height: 1.1,
+                  fontWeight: FontWeight.w600,
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
         ),
       ),
@@ -2191,7 +2194,7 @@ class _ProfilePageState extends State<ProfilePage>
     unawaited(CalendarPage.openMyFlowsFromAnyContext(context));
   }
 
-  Widget _buildFollowButton() {
+  Widget _buildFollowButton({bool fullWidth = false}) {
     final isFollowing = _isFollowing;
     return _buildActionButton(
       label: isFollowing ? 'Following' : 'Follow',
@@ -2204,6 +2207,7 @@ class _ProfilePageState extends State<ProfilePage>
       backgroundColor: isFollowing ? const Color(0xFF0B0B0E) : _profileGoldBase,
       foregroundColor: isFollowing ? _profileGoldText : const Color(0xFF1C1204),
       borderColor: _profileGoldMid,
+      fullWidth: fullWidth,
     );
   }
 
@@ -2277,7 +2281,7 @@ class _ProfilePageState extends State<ProfilePage>
     );
   }
 
-  Widget _buildEditButton() {
+  Widget _buildEditButton({bool fullWidth = false}) {
     return _buildActionButton(
       label: 'Edit Profile',
       icon: Icons.edit_outlined,
@@ -2288,10 +2292,11 @@ class _ProfilePageState extends State<ProfilePage>
       backgroundColor: _profileGoldBase,
       foregroundColor: const Color(0xFF1C1204),
       borderColor: _profileGoldMid,
+      fullWidth: fullWidth,
     );
   }
 
-  Widget _buildFindPeopleButton() {
+  Widget _buildFindPeopleButton({bool fullWidth = false}) {
     return _buildActionButton(
       label: 'Find People',
       icon: Icons.people_outline_rounded,
@@ -2300,44 +2305,58 @@ class _ProfilePageState extends State<ProfilePage>
       },
       foregroundColor: _profileGoldText,
       borderColor: _profileGoldMid.withValues(alpha: 0.42),
+      fullWidth: fullWidth,
     );
   }
 
-  Widget _buildPostFlowButton() {
+  Widget _buildPostFlowButton({bool fullWidth = false}) {
     return _buildActionButton(
       label: 'Post Flow',
       icon: Icons.upload_rounded,
       onPressed: _openPostPicker,
       foregroundColor: _profileGoldText,
       borderColor: _profileGoldMid.withValues(alpha: 0.42),
+      fullWidth: fullWidth,
     );
   }
 
-  Widget _buildPostInsightButton() {
+  Widget _buildPostInsightButton({bool fullWidth = false}) {
     return _buildActionButton(
       label: 'Post Insight',
       icon: Icons.auto_stories_outlined,
       onPressed: _openInsightPostPicker,
       foregroundColor: _profileGoldText,
       borderColor: _profileGoldMid.withValues(alpha: 0.42),
+      fullWidth: fullWidth,
     );
   }
 
   Widget _buildActionCluster() {
-    final actions = _isViewingOwnProfile
-        ? <Widget>[
-            _buildEditButton(),
-            _buildFindPeopleButton(),
-            _buildPostFlowButton(),
-            _buildPostInsightButton(),
-          ]
-        : <Widget>[_buildFollowButton(), _buildProfileSafetyMenu()];
+    if (!_isViewingOwnProfile) {
+      return Row(
+        children: [
+          Expanded(child: _buildFollowButton(fullWidth: true)),
+          const SizedBox(width: 8),
+          _buildProfileSafetyMenu(),
+        ],
+      );
+    }
 
-    return Wrap(
-      alignment: WrapAlignment.center,
-      spacing: 10,
-      runSpacing: 10,
-      children: actions,
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        _buildEditButton(fullWidth: true),
+        const SizedBox(height: 8),
+        Row(
+          children: [
+            Expanded(child: _buildFindPeopleButton(fullWidth: true)),
+            const SizedBox(width: 8),
+            Expanded(child: _buildPostFlowButton(fullWidth: true)),
+          ],
+        ),
+        const SizedBox(height: 8),
+        _buildPostInsightButton(fullWidth: true),
+      ],
     );
   }
 
@@ -2350,6 +2369,7 @@ class _ProfilePageState extends State<ProfilePage>
     Color foregroundColor = _profileGoldText,
     Color backgroundColor = const Color(0xFF0B0B0E),
     Color borderColor = _profileGoldMid,
+    bool fullWidth = false,
   }) {
     final buttonHeight = useExpandedTouchTargets(context)
         ? kMinInteractiveDimension
@@ -2375,13 +2395,34 @@ class _ProfilePageState extends State<ProfilePage>
           maxLines: 1,
           overflow: TextOverflow.fade,
           softWrap: false,
-          style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700),
+          style: const TextStyle(
+            fontSize: 14,
+            fontWeight: FontWeight.w700,
+            fontFamily: _profileSerifFont,
+            fontFamilyFallback: _profileSerifFallback,
+          ),
         ),
       ],
     );
 
+    final buttonContent = fullWidth
+        ? SizedBox(
+            width: double.infinity,
+            height: buttonHeight,
+            child: Center(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 14),
+                child: child,
+              ),
+            ),
+          )
+        : Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+            child: child,
+          );
+
     if (filled) {
-      final radius = BorderRadius.circular(999);
+      final radius = BorderRadius.circular(3);
       final interactive = Material(
         color: Colors.transparent,
         child: Ink(
@@ -2402,14 +2443,11 @@ class _ProfilePageState extends State<ProfilePage>
           child: InkWell(
             borderRadius: radius,
             onTap: onPressed,
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-              child: DefaultTextStyle(
-                style: TextStyle(color: foregroundColor),
-                child: IconTheme(
-                  data: IconThemeData(color: foregroundColor),
-                  child: child,
-                ),
+            child: DefaultTextStyle(
+              style: TextStyle(color: foregroundColor),
+              child: IconTheme(
+                data: IconThemeData(color: foregroundColor),
+                child: buttonContent,
               ),
             ),
           ),
@@ -2423,7 +2461,7 @@ class _ProfilePageState extends State<ProfilePage>
       );
     }
 
-    final radius = BorderRadius.circular(999);
+    final radius = BorderRadius.circular(3);
     final interactive = Material(
       color: Colors.transparent,
       child: Ink(
@@ -2442,14 +2480,11 @@ class _ProfilePageState extends State<ProfilePage>
         child: InkWell(
           borderRadius: radius,
           onTap: onPressed,
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-            child: DefaultTextStyle(
-              style: TextStyle(color: foregroundColor),
-              child: IconTheme(
-                data: IconThemeData(color: foregroundColor),
-                child: child,
-              ),
+          child: DefaultTextStyle(
+            style: TextStyle(color: foregroundColor),
+            child: IconTheme(
+              data: IconThemeData(color: foregroundColor),
+              child: buttonContent,
             ),
           ),
         ),
