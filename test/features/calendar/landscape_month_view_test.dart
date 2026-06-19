@@ -515,7 +515,7 @@ void main() {
 
       expect(weekdayLabels, isNotEmpty);
       for (final label in weekdayLabels) {
-        expect(label.style?.color, const Color(0xFF685735));
+        expect(label.style?.color, const Color(0xFF756238));
         expect(
           label.style!.color!.computeLuminance(),
           greaterThan(tileFill.computeLuminance()),

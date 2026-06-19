@@ -131,7 +131,11 @@ void main() {
     expect(routePage, contains('final Uri? routeUri'));
     expect(routePage, contains('CalendarPage._flowStudioRouteStateFromUri'));
     expect(routePage, contains("parentRoute: '/flows'"));
-    expect(routePage, contains('_buildDetachedFlowStudioRoot'));
+    expect(routePage, contains('UtilitySheetRouteScaffold'));
+    expect(routePage, contains('Navigator('));
+    expect(routePage, contains('_flowStudioNavigatorKey'));
+    expect(routePage, contains('_detachedFlowStudioInitialRoutes'));
+    expect(routePage, contains('onReturnToHub: _returnToFlowStudioHubRoute'));
   });
 
   test('Edit Flow actions use edit-by-id route on web', () {

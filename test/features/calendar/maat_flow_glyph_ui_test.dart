@@ -16,12 +16,13 @@ void main() {
       'final List<_MaatFlowTemplate> _kMaatFlowTemplates = [',
       'CALENDAR PAGE (flows + notes)',
     );
-    const templateCount = 31;
+    const templateCount = 32;
 
     expect(
       _countOccurrences(templateList, '_MaatFlowTemplate('),
       templateCount,
     );
+    expect(templateList, contains('key: kOracleFlowKey'));
     expect(_countOccurrences(templateList, 'glyph:'), templateCount);
     expect(_countOccurrences(templateList, 'glyphMeaning:'), templateCount);
     expect(_countOccurrences(templateList, 'glyphSourceWord:'), templateCount);
@@ -462,10 +463,14 @@ void main() {
     expect(source, isNot(contains('class _TheWeighingGlyphTile')));
     expect(
       detailScaffold,
-      contains(
-        'final scrollBottomPadding = ctaHeight + media.padding.bottom + 24',
-      ),
+      contains('final embedded = widget.embeddedInOnboarding;'),
     );
+    expect(detailScaffold, contains('final scrollBottomPadding ='));
+    expect(detailScaffold, contains('ctaHeight +'));
+    expect(detailScaffold, contains('(embedded ? 0 : media.padding.bottom) +'));
+    expect(detailScaffold, contains('(embedded ? 18 : 24);'));
+    expect(detailScaffold, contains('final bodyPadding = embedded'));
+    expect(detailScaffold, contains('final ctaPadding = embedded'));
     expect(overviewZones, contains('fontSize: 16'));
     expect(
       overviewZones,
