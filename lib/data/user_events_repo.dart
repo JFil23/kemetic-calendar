@@ -1821,10 +1821,22 @@ class UserEventsRepo {
     }).toList();
   }
 
-  /// Fetch reminder occurrences by prefix and from-date (includes id + detail for override detection).
+  /// Fetch reminder occurrences by prefix and from-date.
   Future<
     List<
-      ({String id, String? clientEventId, String? detail, DateTime startsAtUtc})
+      ({
+        String id,
+        String? clientEventId,
+        String title,
+        String? detail,
+        String? location,
+        bool allDay,
+        DateTime startsAtUtc,
+        DateTime? endsAtUtc,
+        String? calendarId,
+        int? flowLocalId,
+        String? category,
+      })
     >
   >
   getReminderOccurrenceRows(
@@ -1837,7 +1849,9 @@ class UserEventsRepo {
     try {
       var query = _client
           .from(_kTable)
-          .select('id,client_event_id,detail,starts_at')
+          .select(
+            'id,client_event_id,title,detail,location,all_day,starts_at,ends_at,calendar_id,flow_local_id,category',
+          )
           .eq('user_id', user.id)
           .like('client_event_id', '$prefix%')
           .gte('starts_at', fromUtc.toUtc().toIso8601String())
@@ -1850,8 +1864,17 @@ class UserEventsRepo {
         return (
           id: row['id'] as String,
           clientEventId: row['client_event_id'] as String?,
+          title: (row['title'] as String?) ?? '',
           detail: row['detail'] as String?,
+          location: row['location'] as String?,
+          allDay: (row['all_day'] as bool?) ?? false,
           startsAtUtc: DateTime.parse(row['starts_at'] as String),
+          endsAtUtc: row['ends_at'] == null
+              ? null
+              : DateTime.parse(row['ends_at'] as String),
+          calendarId: row['calendar_id'] as String?,
+          flowLocalId: (row['flow_local_id'] as num?)?.toInt(),
+          category: row['category'] as String?,
         );
       }).toList();
     } on PostgrestException catch (e) {

@@ -98,6 +98,7 @@ import 'calendar_invalidation.dart';
 import 'calendar_visible_state_policy.dart';
 import 'calendar_completion.dart';
 import 'calendar_reflection_context.dart';
+import 'reminder_sync_idempotence.dart';
 import 'reminder_sync_gate.dart';
 import 'decan_reflection_badge.dart';
 import 'event_filing_service.dart';
@@ -7998,9 +7999,7 @@ class CalendarPageState extends State<CalendarPage>
   }
 
   List<NoteData> _noteDataForDay(int y, int m, int d) {
-    final notes = _dedupeVisibleDayNotes(
-      _notes['$y-$m-$d'] ?? const <_Note>[],
-    );
+    final notes = _dedupeVisibleDayNotes(_notes['$y-$m-$d'] ?? const <_Note>[]);
     return [for (final note in notes) _noteDataFromNote(note)];
   }
 
@@ -16668,8 +16667,7 @@ class CalendarPageState extends State<CalendarPage>
     bool refreshUi = false,
     bool updateLocalCache = true,
   }) async {
-    _pendingReminderSyncRefreshUi =
-        _pendingReminderSyncRefreshUi || refreshUi;
+    _pendingReminderSyncRefreshUi = _pendingReminderSyncRefreshUi || refreshUi;
     _pendingReminderSyncUpdateLocalCache =
         _pendingReminderSyncUpdateLocalCache || updateLocalCache;
 
@@ -16710,6 +16708,9 @@ class CalendarPageState extends State<CalendarPage>
     final windowEnd = _reminderWindowEnd(today, _reminderRules);
     var localCacheChanged = false;
     var processedOccurrenceWrites = 0;
+    var desiredOccurrenceWrites = 0;
+    var skippedUnchangedOccurrenceWrites = 0;
+    var completedOccurrenceWrites = 0;
 
     for (final rule in _reminderRules) {
       await _reminderSyncGate.waitForOrientationCriticalSection();
@@ -16733,6 +16734,10 @@ class CalendarPageState extends State<CalendarPage>
           }
         }
       } catch (_) {}
+      final existingRowsByClientEventId = <String, _ReminderOccurrenceRow>{
+        for (final row in existingRows)
+          if ((row.clientEventId ?? '').isNotEmpty) row.clientEventId!: row,
+      };
 
       // If inactive, skip regeneration entirely.
       if (!rule.active) {
@@ -16843,6 +16848,41 @@ class CalendarPageState extends State<CalendarPage>
               )) {
             continue;
           }
+          desiredOccurrenceWrites += 1;
+          final desiredOccurrence = ReminderOccurrencePayload(
+            clientEventId: cid,
+            title: rule.title,
+            detail: encodedDetail,
+            location: null,
+            startsAtUtc: start.toUtc(),
+            endsAtUtc: end?.toUtc(),
+            allDay: rule.allDay,
+            calendarId: rule.calendarId,
+            category: rule.category,
+            flowLocalId: (flowIdForReminder != null && flowIdForReminder > 0)
+                ? flowIdForReminder
+                : null,
+          );
+          final existingRow = existingRowsByClientEventId[cid];
+          if (existingRow != null &&
+              reminderOccurrencePayloadMatches(
+                desired: desiredOccurrence,
+                existing: ReminderOccurrencePayload(
+                  clientEventId: existingRow.clientEventId ?? '',
+                  title: existingRow.title,
+                  detail: existingRow.detail,
+                  location: existingRow.location,
+                  startsAtUtc: existingRow.startsAtUtc,
+                  endsAtUtc: existingRow.endsAtUtc,
+                  allDay: existingRow.allDay,
+                  calendarId: existingRow.calendarId,
+                  category: existingRow.category,
+                  flowLocalId: existingRow.flowLocalId,
+                ),
+              )) {
+            skippedUnchangedOccurrenceWrites += 1;
+            continue;
+          }
           try {
             final savedEvent = await repo.upsertByClientId(
               clientEventId: cid,
@@ -16887,6 +16927,7 @@ class CalendarPageState extends State<CalendarPage>
               eventId: savedEvent.id,
             );
             processedOccurrenceWrites += 1;
+            completedOccurrenceWrites += 1;
           } catch (_) {
             // non-fatal for individual reminders; local cache already updated
           }
@@ -16899,6 +16940,11 @@ class CalendarPageState extends State<CalendarPage>
       await _loadFromDisk();
     } else if (updateLocalCache && localCacheChanged) {
       _refreshNoteCacheUi();
+    }
+    if (kDebugMode) {
+      _calendarDebugPrint(
+        '[reminder_sync] completed rules=${_reminderRules.length} desired=$desiredOccurrenceWrites upserted=$completedOccurrenceWrites skippedUnchanged=$skippedUnchangedOccurrenceWrites refreshUi=$refreshUi updateLocalCache=$updateLocalCache',
+      );
     }
   }
 
@@ -18139,10 +18185,7 @@ class CalendarPageState extends State<CalendarPage>
         if (!mounted || generation != _orientationCriticalReminderGeneration) {
           return;
         }
-        _endOrientationCriticalReminderSyncDeferral(
-          generation,
-          reason: reason,
-        );
+        _endOrientationCriticalReminderSyncDeferral(generation, reason: reason);
       });
     });
   }

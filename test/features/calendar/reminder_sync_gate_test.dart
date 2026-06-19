@@ -5,22 +5,25 @@ import 'package:mobile/features/calendar/reminder_sync_gate.dart';
 
 void main() {
   group('ReminderSyncGate', () {
-    test('defers sync while orientation-critical rendering is active', () async {
-      final gate = ReminderSyncGate();
-      var runs = 0;
+    test(
+      'defers sync while orientation-critical rendering is active',
+      () async {
+        final gate = ReminderSyncGate();
+        var runs = 0;
 
-      gate.beginOrientationCriticalSection();
-      final sync = gate.runCoalesced(() async {
-        runs += 1;
-      });
+        gate.beginOrientationCriticalSection();
+        final sync = gate.runCoalesced(() async {
+          runs += 1;
+        });
 
-      await Future<void>.delayed(Duration.zero);
-      expect(runs, 0);
+        await Future<void>.delayed(Duration.zero);
+        expect(runs, 0);
 
-      gate.endOrientationCriticalSection();
-      await sync;
-      expect(runs, 1);
-    });
+        gate.endOrientationCriticalSection();
+        await sync;
+        expect(runs, 1);
+      },
+    );
 
     test('coalesces duplicate sync requests while blocked', () async {
       final gate = ReminderSyncGate();
@@ -59,9 +62,10 @@ void main() {
       final first = gate.runCoalesced(task);
       await firstRunEntered.future;
       final second = gate.runCoalesced(task);
+      final third = gate.runCoalesced(task);
 
       releaseFirstRun.complete();
-      await Future.wait([first, second]);
+      await Future.wait([first, second, third]);
       expect(runs, 2);
     });
   });

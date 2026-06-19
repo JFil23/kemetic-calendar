@@ -12,8 +12,15 @@ typedef CreateNutritionReminder =
 typedef _ReminderOccurrenceRow = ({
   String id,
   String? clientEventId,
+  String title,
   String? detail,
+  String? location,
+  bool allDay,
   DateTime startsAtUtc,
+  DateTime? endsAtUtc,
+  String? calendarId,
+  int? flowLocalId,
+  String? category,
 });
 
 /// Intent data for creating a reminder from a nutrition item schedule
