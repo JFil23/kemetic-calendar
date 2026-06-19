@@ -66,6 +66,49 @@ void main() {
       expect(schedulingPath, contains('_reminderService.addOrUpdate'));
     });
 
+    test('reminder sync pauses and coalesces during orientation changes', () {
+      final syncEntry = _sourceBetween(
+        calendarSource,
+        'Future<void> _syncReminderEvents({',
+        'static const int _reminderSyncYieldBatchSize',
+      );
+      final syncWorker = _sourceBetween(
+        calendarSource,
+        'Future<void> _performReminderSync({',
+        'Future<void> _deleteReminderOccurrenceRows',
+      );
+      final orientationMetrics = _sourceBetween(
+        calendarSource,
+        'void didChangeMetrics()',
+        '/* ───── helpers ───── */',
+      );
+      final orientationBuild = _sourceBetween(
+        calendarSource,
+        'final previousOrientation = _lastOrientation;',
+        'if (useGrid) {',
+      );
+
+      expect(syncEntry, contains('_reminderSyncGate.runCoalesced'));
+      expect(syncEntry, contains('_pendingReminderSyncRefreshUi'));
+      expect(syncEntry, contains('_pendingReminderSyncUpdateLocalCache'));
+      expect(
+        syncWorker,
+        contains('_reminderSyncGate.waitForOrientationCriticalSection()'),
+      );
+      expect(syncWorker, contains('_yieldReminderSyncBatchIfNeeded'));
+      expect(syncWorker, contains("caller: 'reminder_sync'"));
+      expect(
+        orientationMetrics,
+        contains("_beginOrientationCriticalReminderSyncDeferral('metrics')"),
+      );
+      expect(
+        orientationBuild,
+        contains(
+          "_beginOrientationCriticalReminderSyncDeferral('calendar_build')",
+        ),
+      );
+    });
+
     test('landscape month build logging does not print raw note titles', () {
       final buildEventsForDay = _sourceBetween(
         landscapeSource,

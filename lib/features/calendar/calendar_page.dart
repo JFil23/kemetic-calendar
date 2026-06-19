@@ -98,6 +98,7 @@ import 'calendar_invalidation.dart';
 import 'calendar_visible_state_policy.dart';
 import 'calendar_completion.dart';
 import 'calendar_reflection_context.dart';
+import 'reminder_sync_gate.dart';
 import 'decan_reflection_badge.dart';
 import 'event_filing_service.dart';
 import 'maat_flow_palette.dart';
@@ -8180,6 +8181,10 @@ class CalendarPageState extends State<CalendarPage>
   late final ReminderRuleStore _reminderRuleStore = ReminderRuleStore();
   final List<ReminderRule> _reminderRules = [];
   bool _reminderRulesLoaded = false;
+  final ReminderSyncGate _reminderSyncGate = ReminderSyncGate();
+  bool _pendingReminderSyncRefreshUi = false;
+  bool _pendingReminderSyncUpdateLocalCache = false;
+  int _orientationCriticalReminderGeneration = 0;
   bool _noteSheetShowReminders = false;
   late final SharedCalendarsRepo _sharedCalendarsRepo = SharedCalendarsRepo(
     Supabase.instance.client,
@@ -15722,6 +15727,7 @@ class CalendarPageState extends State<CalendarPage>
     _authSub?.cancel();
     _calendarInvalidationSub?.cancel();
     _calendarInvalidationReloadDebounce?.cancel();
+    _reminderSyncGate.dispose();
     _reminderService.dispose();
     unawaited(_journalController.forceSave());
     _journalController.onCompletionBadgesRemoved = null;
@@ -16662,6 +16668,40 @@ class CalendarPageState extends State<CalendarPage>
     bool refreshUi = false,
     bool updateLocalCache = true,
   }) async {
+    _pendingReminderSyncRefreshUi =
+        _pendingReminderSyncRefreshUi || refreshUi;
+    _pendingReminderSyncUpdateLocalCache =
+        _pendingReminderSyncUpdateLocalCache || updateLocalCache;
+
+    await _reminderSyncGate.runCoalesced(() async {
+      final shouldRefreshUi = _pendingReminderSyncRefreshUi;
+      final shouldUpdateLocalCache = _pendingReminderSyncUpdateLocalCache;
+      _pendingReminderSyncRefreshUi = false;
+      _pendingReminderSyncUpdateLocalCache = false;
+
+      await _performReminderSync(
+        refreshUi: shouldRefreshUi,
+        updateLocalCache: shouldUpdateLocalCache,
+      );
+    });
+  }
+
+  static const int _reminderSyncYieldBatchSize = 8;
+
+  Future<void> _yieldReminderSyncBatchIfNeeded(int processedWrites) async {
+    if (processedWrites <= 0 ||
+        processedWrites % _reminderSyncYieldBatchSize != 0) {
+      return;
+    }
+    await Future<void>.delayed(Duration.zero);
+    await _reminderSyncGate.waitForOrientationCriticalSection();
+  }
+
+  Future<void> _performReminderSync({
+    bool refreshUi = false,
+    bool updateLocalCache = true,
+  }) async {
+    await _reminderSyncGate.waitForOrientationCriticalSection();
     await _loadReminderRules();
     if (_reminderRules.isEmpty) return;
     final repo = UserEventsRepo(Supabase.instance.client);
@@ -16669,8 +16709,10 @@ class CalendarPageState extends State<CalendarPage>
 
     final windowEnd = _reminderWindowEnd(today, _reminderRules);
     var localCacheChanged = false;
+    var processedOccurrenceWrites = 0;
 
     for (final rule in _reminderRules) {
+      await _reminderSyncGate.waitForOrientationCriticalSection();
       // Persist meta before generating occurrences to keep server source-of-truth in sync.
       await _ensureReminderRuleMeta(rule);
       final overriddenDates = <String>{};
@@ -16728,6 +16770,7 @@ class CalendarPageState extends State<CalendarPage>
           staleIdsToDelete.add(row.id);
         }
       }
+      await _reminderSyncGate.waitForOrientationCriticalSection();
       await _deleteReminderOccurrenceRows(
         repo,
         staleIdsToDelete,
@@ -16755,6 +16798,9 @@ class CalendarPageState extends State<CalendarPage>
 
       if (!rule.id.startsWith('nutrition:')) {
         for (final day in occurrences) {
+          await _reminderSyncGate.waitForOrientationCriticalSection();
+          await _yieldReminderSyncBatchIfNeeded(processedOccurrenceWrites);
+
           final start = rule.allDay
               ? DateTime(day.year, day.month, day.day, 9, 0)
               : DateTime(
@@ -16831,6 +16877,7 @@ class CalendarPageState extends State<CalendarPage>
               alertOffsetMinutes: rule.alertOffsetMinutes,
             );
 
+            await _reminderSyncGate.waitForOrientationCriticalSection();
             await _scheduleAlertForEvent(
               note: note,
               ky: kDate.kYear,
@@ -16839,6 +16886,7 @@ class CalendarPageState extends State<CalendarPage>
               clientEventId: savedEvent.clientEventId ?? cid,
               eventId: savedEvent.id,
             );
+            processedOccurrenceWrites += 1;
           } catch (_) {
             // non-fatal for individual reminders; local cache already updated
           }
@@ -16846,6 +16894,7 @@ class CalendarPageState extends State<CalendarPage>
       }
     }
 
+    await _reminderSyncGate.waitForOrientationCriticalSection();
     if (refreshUi) {
       await _loadFromDisk();
     } else if (updateLocalCache && localCacheChanged) {
@@ -18079,9 +18128,42 @@ class CalendarPageState extends State<CalendarPage>
     await _deleteReminderRule(id);
   }
 
+  void _beginOrientationCriticalReminderSyncDeferral(String reason) {
+    if (!mounted) return;
+    _orientationCriticalReminderGeneration += 1;
+    final generation = _orientationCriticalReminderGeneration;
+    _reminderSyncGate.beginOrientationCriticalSection();
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted || generation != _orientationCriticalReminderGeneration) {
+          return;
+        }
+        _endOrientationCriticalReminderSyncDeferral(
+          generation,
+          reason: reason,
+        );
+      });
+    });
+  }
+
+  void _endOrientationCriticalReminderSyncDeferral(
+    int generation, {
+    required String reason,
+  }) {
+    if (generation != _orientationCriticalReminderGeneration) return;
+    _reminderSyncGate.endOrientationCriticalSection();
+    if (kDebugMode) {
+      _calendarDebugPrint(
+        '[reminder_sync] orientation-critical section ended reason=$reason',
+      );
+    }
+  }
+
   // ✅ Rotation reconcile: re-center on last view after rotation settles
   @override
   void didChangeMetrics() {
+    _beginOrientationCriticalReminderSyncDeferral('metrics');
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
 
@@ -31920,6 +32002,7 @@ class CalendarPageState extends State<CalendarPage>
     // ========================================
     final previousOrientation = _lastOrientation;
     if (previousOrientation != null && previousOrientation != orientation) {
+      _beginOrientationCriticalReminderSyncDeferral('calendar_build');
       if (kDebugMode) {
         _calendarDebugPrint('\n${'🔄' * 30}');
         _calendarDebugPrint('ORIENTATION CHANGED!');
