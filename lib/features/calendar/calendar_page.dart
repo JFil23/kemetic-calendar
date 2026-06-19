@@ -95,6 +95,7 @@ import '../../core/push_intent_bus.dart';
 import '../../widgets/flow_start_date_picker.dart';
 import '../../utils/external_link_utils.dart';
 import 'calendar_invalidation.dart';
+import 'calendar_visible_state_policy.dart';
 import 'calendar_completion.dart';
 import 'calendar_reflection_context.dart';
 import 'decan_reflection_badge.dart';
@@ -8238,6 +8239,67 @@ class CalendarPageState extends State<CalendarPage>
     if (userId == null) return false;
     return _warmStartSnapshotVisible &&
         _warmStartCacheRestoredForUserId == userId;
+  }
+
+  bool _noteBelongsToStandaloneLane(_Note note) {
+    return note.isReminder || (note.flowId ?? -1) <= 0;
+  }
+
+  bool _hasPaintedStandaloneLane(Map<String, List<_Note>> notesByDay) {
+    return notesByDay.values.any(
+      (notes) => notes.any(_noteBelongsToStandaloneLane),
+    );
+  }
+
+  bool _sameStandaloneLaneNote(_Note a, _Note b) {
+    final aClientEventId = a.clientEventId?.trim();
+    final bClientEventId = b.clientEventId?.trim();
+    if (aClientEventId != null &&
+        aClientEventId.isNotEmpty &&
+        aClientEventId == bClientEventId) {
+      return true;
+    }
+
+    final aId = a.id?.trim();
+    final bId = b.id?.trim();
+    if (aId != null && aId.isNotEmpty && aId == bId) {
+      return true;
+    }
+
+    if (a.isReminder && b.isReminder) {
+      final aReminderId = a.reminderId?.trim();
+      final bReminderId = b.reminderId?.trim();
+      if (aReminderId != null &&
+          aReminderId.isNotEmpty &&
+          aReminderId == bReminderId &&
+          a.allDay == b.allDay &&
+          a.start?.hour == b.start?.hour &&
+          a.start?.minute == b.start?.minute) {
+        return true;
+      }
+    }
+
+    return _standaloneDedupeKey(a) == _standaloneDedupeKey(b);
+  }
+
+  int _mergePaintedStandaloneLaneInto(Map<String, List<_Note>> notesByDay) {
+    var preserved = 0;
+    for (final entry in _notes.entries) {
+      final bucket = notesByDay.putIfAbsent(entry.key, () => <_Note>[]);
+      for (final note in entry.value) {
+        if (!_noteBelongsToStandaloneLane(note)) continue;
+        if (bucket.any(
+          (incoming) =>
+              _noteBelongsToStandaloneLane(incoming) &&
+              _sameStandaloneLaneNote(incoming, note),
+        )) {
+          continue;
+        }
+        bucket.add(note);
+        preserved++;
+      }
+    }
+    return preserved;
   }
 
   TimeOfDay? _timeOfDayFromMinutes(dynamic raw) {
@@ -29008,6 +29070,9 @@ class CalendarPageState extends State<CalendarPage>
       final warmStartBackfillMode = source.startsWith('startup_backfill:');
       final keepWarmStartSnapshotVisible =
           warmStartBackfillMode && _hasWarmStartSnapshotVisibleForCurrentUser();
+      final hasPaintedStandaloneLaneAtLoadStart = _hasPaintedStandaloneLane(
+        _notes,
+      );
       final focusWindow = fastStartupMode
           ? _computeStartupVisibleHydrationWindow()
           : null;
@@ -29241,6 +29306,15 @@ class CalendarPageState extends State<CalendarPage>
 
       void commitVisibleCalendarState(String phase) {
         if (!mounted) return;
+        final preservePaintedStandaloneLane =
+            shouldPreservePaintedStandaloneLaneForHydrationCommit(
+              source: source,
+              commitPhase: phase,
+              hasPaintedStandaloneLane: hasPaintedStandaloneLaneAtLoadStart,
+            );
+        final preservedStandaloneCount = preservePaintedStandaloneLane
+            ? _mergePaintedStandaloneLaneInto(newNotes)
+            : 0;
         final hydratedTrackSkyFlowIds = newFlows
             .where((flow) => _isTrackSkyFlowName(flow.name))
             .map((flow) => flow.id)
@@ -29269,7 +29343,8 @@ class CalendarPageState extends State<CalendarPage>
         if (kDebugMode) {
           _calendarDebugPrint(
             '[loadFromDisk] committed phase=$phase '
-            '_flows.length=${_flows.length} _notes keys=${_notes.length}',
+            '_flows.length=${_flows.length} _notes keys=${_notes.length} '
+            'preservedStandalone=$preservedStandaloneCount',
           );
         }
 
@@ -29523,10 +29598,22 @@ class CalendarPageState extends State<CalendarPage>
           '[loadFromDisk] flow notes added to newNotes: $flowAddedCount',
         );
       }
-      if (!keepWarmStartSnapshotVisible && flowAddedCount > 0) {
+      final shouldCommitFlowOnly = shouldCommitFlowOnlyVisibleCalendarState(
+        flowAddedCount: flowAddedCount,
+        keepWarmStartSnapshotVisible: keepWarmStartSnapshotVisible,
+        hasPaintedStandaloneLane: hasPaintedStandaloneLaneAtLoadStart,
+      );
+      if (shouldCommitFlowOnly) {
         // Standalone notes/reminders can be slower or time out. Flow-backed
-        // calendar events should still reach the first useful frame promptly.
+        // calendar events should still reach the first useful frame promptly,
+        // but never by replacing an already-painted standalone lane.
         commitVisibleCalendarState('flow_events');
+      } else if (kDebugMode && flowAddedCount > 0) {
+        _calendarDebugPrint(
+          '[loadFromDisk] skipped flow_events partial commit source=$source '
+          'keepWarmStart=$keepWarmStartSnapshotVisible '
+          'hasStandalone=$hasPaintedStandaloneLaneAtLoadStart',
+        );
       }
 
       // Load filing-backed standalone calendar events: notes, reminders, and
