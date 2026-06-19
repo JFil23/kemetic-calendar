@@ -605,6 +605,31 @@ void main() {
     expect(failedBranch, isNot(contains('Navigator.pop(sheetContext);')));
   });
 
+  test('Landscape detail sheet keeps failed End Flow feedback inside the sheet', () {
+    final landscape = File(
+      'lib/features/calendar/landscape_month_view.dart',
+    ).readAsStringSync();
+    final handler = _sourceBetween(
+      landscape,
+      "if (value == 'end_flow') {",
+      "} else if (value == 'end_reminder')",
+    );
+    final failedBranch = _sourceBetween(
+      handler,
+      'result == EndFlowActionResult.failed',
+      'result == EndFlowActionResult.notHandled',
+    );
+
+    expect(handler, contains('result == EndFlowActionResult.failed'));
+    expect(handler, contains('onEndFlowErrorChanged('));
+    expect(landscape, contains("'Could not end this flow right now.\\n'"));
+    expect(landscape, contains("'Check your connection and try again.'"));
+    expect(landscape, contains('_buildEventDetailInlineError('));
+    expect(landscape, contains('ValueNotifier<String?>(null)'));
+    expect(landscape, contains('ValueListenableBuilder<String?>'));
+    expect(failedBranch, isNot(contains('Navigator.pop(sheetContext);')));
+  });
+
   test('Day detail sheet guards late measurement callbacks after release', () {
     final dayView = File(
       'lib/features/calendar/day_view.dart',

@@ -3051,6 +3051,7 @@ class _LandscapeMonthGridBodyState extends State<LandscapeMonthGridBody> {
   Widget _buildEventDetailTopActionRow({
     required BuildContext sheetContext,
     required DayViewSheetEventTarget target,
+    required ValueChanged<String?> onEndFlowErrorChanged,
   }) {
     final currentEvent = target.event;
     final flow = _chromeFlowForId(currentEvent.flowId);
@@ -3069,6 +3070,7 @@ class _LandscapeMonthGridBodyState extends State<LandscapeMonthGridBody> {
         _buildEventDetailOverflowButton(
           sheetContext: sheetContext,
           target: target,
+          onEndFlowErrorChanged: onEndFlowErrorChanged,
         ),
       ],
     );
@@ -3097,9 +3099,41 @@ class _LandscapeMonthGridBodyState extends State<LandscapeMonthGridBody> {
     );
   }
 
+  Widget _buildEventDetailInlineError(String message) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        color: const Color(0xFF4A1414).withValues(alpha: 0.88),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(
+          color: const Color(0xFFE57373).withValues(alpha: 0.45),
+        ),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Icon(Icons.error_outline, color: Color(0xFFFFB4AB), size: 18),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              message,
+              style: const TextStyle(
+                color: Color(0xFFFFDAD6),
+                fontSize: 13,
+                height: 1.25,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildEventDetailOverflowButton({
     required BuildContext sheetContext,
     required DayViewSheetEventTarget target,
+    required ValueChanged<String?> onEndFlowErrorChanged,
   }) {
     final currentEvent = target.event;
     final flow = _chromeFlowForId(currentEvent.flowId);
@@ -3119,10 +3153,16 @@ class _LandscapeMonthGridBodyState extends State<LandscapeMonthGridBody> {
           final onEndFlow = widget.onEndFlow;
           if (flowId != null && onEndFlow != null) {
             if (!_beginEndFlowAction(flowId)) return;
+            onEndFlowErrorChanged(null);
             try {
               final result = await CalendarPage.endFlowFromEventTarget(target);
               if (result == EndFlowActionResult.success) {
                 if (sheetContext.mounted) Navigator.pop(sheetContext);
+              } else if (result == EndFlowActionResult.failed) {
+                onEndFlowErrorChanged(
+                  'Could not end this flow right now.\n'
+                  'Check your connection and try again.',
+                );
               } else if (result == EndFlowActionResult.notHandled) {
                 onEndFlow(flowId);
                 if (sheetContext.mounted) Navigator.pop(sheetContext);
@@ -3392,6 +3432,7 @@ class _LandscapeMonthGridBodyState extends State<LandscapeMonthGridBody> {
     );
     _publishEventDetailRestorationTarget(currentTarget.value);
     final measuredHeights = ValueNotifier<Map<String, double>>({});
+    final endFlowError = ValueNotifier<String?>(null);
     final initialPages = _detailSheetPagesForTarget(currentTarget.value);
     PageController sheetPageController = PageController(
       initialPage: initialPages.currentIndex,
@@ -3421,6 +3462,7 @@ class _LandscapeMonthGridBodyState extends State<LandscapeMonthGridBody> {
       if (sheetReleased || !mounted) return;
       final previousTarget = currentTarget.value;
       currentTarget.value = nextTarget;
+      endFlowError.value = null;
       _publishEventDetailRestorationTarget(nextTarget);
       if (nextTarget.kd != previousTarget.kd) {
         _scrollToDay(nextTarget.kd);
@@ -3433,9 +3475,16 @@ class _LandscapeMonthGridBodyState extends State<LandscapeMonthGridBody> {
       sheetReleased = true;
       currentTarget.dispose();
       measuredHeights.dispose();
+      endFlowError.dispose();
       sheetPageController.dispose();
       _clearEventDetailRestorationIfAllowed();
       CalendarEventDetailSheetCoordinator.markClosed();
+    }
+
+    void setEndFlowError(String? message) {
+      if (sheetReleased || !mounted) return;
+      if (endFlowError.value == message) return;
+      endFlowError.value = message;
     }
 
     try {
@@ -3512,6 +3561,34 @@ class _LandscapeMonthGridBodyState extends State<LandscapeMonthGridBody> {
                                   _buildEventDetailTopActionRow(
                                     sheetContext: sheetContext,
                                     target: target,
+                                    onEndFlowErrorChanged: setEndFlowError,
+                                  ),
+                                  ValueListenableBuilder<String?>(
+                                    valueListenable: endFlowError,
+                                    builder: (context, message, _) {
+                                      return AnimatedSize(
+                                        duration: const Duration(
+                                          milliseconds: 180,
+                                        ),
+                                        curve: Curves.easeOutCubic,
+                                        alignment: Alignment.topCenter,
+                                        child: message == null
+                                            ? const SizedBox.shrink()
+                                            : Padding(
+                                                padding:
+                                                    const EdgeInsets.fromLTRB(
+                                                      12,
+                                                      8,
+                                                      12,
+                                                      0,
+                                                    ),
+                                                child:
+                                                    _buildEventDetailInlineError(
+                                                      message,
+                                                    ),
+                                              ),
+                                      );
+                                    },
                                   ),
                                   const SizedBox(height: 10),
                                   AnimatedSize(
