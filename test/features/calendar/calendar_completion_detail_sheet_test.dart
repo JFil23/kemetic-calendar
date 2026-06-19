@@ -584,6 +584,9 @@ void main() {
     final dayView = File(
       'lib/features/calendar/day_view.dart',
     ).readAsStringSync();
+    final landscape = File(
+      'lib/features/calendar/landscape_month_view.dart',
+    ).readAsStringSync();
     final showDetail = _sourceBetween(
       dayView,
       'void _showEventDetail(',
@@ -608,6 +611,43 @@ void main() {
     expect(releaseSheet, contains('if (sheetReleased) return;'));
     expect(releaseSheet, contains('sheetReleased = true;'));
     expect(showDetail, contains('endFlowError.dispose();'));
+
+    final measureSize = _sourceBetween(
+      dayView,
+      'class _MeasureSizeRenderObject extends RenderProxyBox',
+      '// Day View - 24-hour timeline',
+    );
+    expect(measureSize, contains('if (!attached) return;'));
+
+    final landscapeShowDetail = _sourceBetween(
+      landscape,
+      'void _showEventDetail(',
+      'String _formatTimeRange',
+    );
+    final landscapeUpdateMeasuredHeight = _sourceBetween(
+      landscapeShowDetail,
+      'void updateMeasuredHeight',
+      'void resetSheetPageController',
+    );
+    final landscapeReleaseSheet = _sourceBetween(
+      landscapeShowDetail,
+      'void releaseSheet()',
+      'try {',
+    );
+    final landscapeMeasureSize = _sourceBetween(
+      landscape,
+      'class _MeasureSizeRenderObject extends RenderProxyBox',
+      'onChange(newSize);\n    });',
+    );
+
+    expect(landscapeShowDetail, contains('var sheetReleased = false;'));
+    expect(
+      landscapeUpdateMeasuredHeight,
+      contains('if (sheetReleased || !mounted) return;'),
+    );
+    expect(landscapeReleaseSheet, contains('if (sheetReleased) return;'));
+    expect(landscapeReleaseSheet, contains('sheetReleased = true;'));
+    expect(landscapeMeasureSize, contains('if (!attached) return;'));
   });
 
   test(

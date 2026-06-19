@@ -3396,8 +3396,10 @@ class _LandscapeMonthGridBodyState extends State<LandscapeMonthGridBody> {
     PageController sheetPageController = PageController(
       initialPage: initialPages.currentIndex,
     );
+    var sheetReleased = false;
 
     void updateMeasuredHeight(String key, double height) {
+      if (sheetReleased || !mounted) return;
       final normalized = height.ceilToDouble();
       if (normalized <= 0) return;
       final previous = measuredHeights.value[key];
@@ -3407,6 +3409,7 @@ class _LandscapeMonthGridBodyState extends State<LandscapeMonthGridBody> {
     }
 
     void resetSheetPageController(int initialPage) {
+      if (sheetReleased) return;
       final previous = sheetPageController;
       sheetPageController = PageController(initialPage: initialPage);
       WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -3415,16 +3418,19 @@ class _LandscapeMonthGridBodyState extends State<LandscapeMonthGridBody> {
     }
 
     void moveToTarget(DayViewSheetEventTarget nextTarget) {
+      if (sheetReleased || !mounted) return;
       final previousTarget = currentTarget.value;
       currentTarget.value = nextTarget;
       _publishEventDetailRestorationTarget(nextTarget);
-      if (mounted && nextTarget.kd != previousTarget.kd) {
+      if (nextTarget.kd != previousTarget.kd) {
         _scrollToDay(nextTarget.kd);
       }
       unawaited(AppHaptics.selection());
     }
 
     void releaseSheet() {
+      if (sheetReleased) return;
+      sheetReleased = true;
       currentTarget.dispose();
       measuredHeights.dispose();
       sheetPageController.dispose();
@@ -3822,6 +3828,7 @@ class _MeasureSizeRenderObject extends RenderProxyBox {
     if (newSize == null || newSize == _oldSize) return;
     _oldSize = newSize;
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!attached) return;
       onChange(newSize);
     });
   }
