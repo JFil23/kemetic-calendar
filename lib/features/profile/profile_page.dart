@@ -29,6 +29,7 @@ import '../onboarding/onboarding_progress.dart';
 import 'flow_post_engagement_row.dart';
 import 'package:mobile/shared/glossy_text.dart';
 import '../../widgets/kemetic_app_bar_action.dart';
+import '../../widgets/profile_avatar.dart';
 import 'profile_backdrop_timeline.dart';
 
 const Color _profileGoldLight = Color(0xFFF7E09A);
@@ -38,9 +39,6 @@ const Color _profileGoldDeep = Color(0xFF7A5310);
 const Color _profileGoldText = Color(0xFFF1CF7A);
 const Color _profileGregorianBlue = Color(0xFF4DA3FF);
 const Color _profileGregorianBlueLight = Color(0xFFBFE0FF);
-const Color _profileFeedMahoganyTop = Color(0xFF161109);
-const Color _profileFeedMahogany = Color(0xFF120F08);
-const Color _profileFeedMahoganyDeep = Color(0xFF0D0B07);
 const int _profileFeedPageSize = 18;
 const double _profileFeedColumnGap = 12;
 const Set<String> _profileFeedKeywordStopWords = <String>{
@@ -141,8 +139,6 @@ const Gradient _profileGoldGradient = LinearGradient(
   ],
   stops: [0.0, 0.42, 0.74, 1.0],
 );
-const String _profileSerifFont = 'CormorantGaramond';
-const List<String> _profileSerifFallback = ['GentiumPlus', 'Georgia', 'serif'];
 
 class ProfilePage extends StatefulWidget {
   final String userId;
@@ -1806,7 +1802,7 @@ class _ProfilePageState extends State<ProfilePage>
     final profile = _profile!;
     final topInset = MediaQuery.paddingOf(context).top + kToolbarHeight;
     final height = MediaQuery.sizeOf(context).height;
-    final heroHeight = (height * 0.72).clamp(560.0, 680.0);
+    final heroHeight = (height * 0.54).clamp(420.0, 560.0);
     final bio = profile.bio?.trim() ?? '';
     const bottomPadding = 32.0;
 
@@ -1823,7 +1819,6 @@ class _ProfilePageState extends State<ProfilePage>
               profile,
               topInset: topInset,
               height: heroHeight,
-              bio: bio,
             ),
           ),
           Padding(
@@ -1831,6 +1826,22 @@ class _ProfilePageState extends State<ProfilePage>
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
+                if (bio.isNotEmpty) ...[
+                  Text(
+                    bio,
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      color: Colors.white.withValues(alpha: 0.86),
+                      fontSize: 15,
+                      height: 1.48,
+                    ),
+                  ),
+                  const SizedBox(height: 22),
+                ],
+                _buildStats(profile),
+                const SizedBox(height: 18),
+                _buildActionCluster(),
+                const SizedBox(height: 28),
                 Container(
                   padding: const EdgeInsets.only(top: 18),
                   decoration: BoxDecoration(
@@ -1878,82 +1889,53 @@ class _ProfilePageState extends State<ProfilePage>
     UserProfile profile, {
     required double topInset,
     required double height,
-    required String bio,
   }) {
-    return ConstrainedBox(
-      constraints: BoxConstraints(minHeight: height),
+    return SizedBox(
+      height: height,
       child: Padding(
-        padding: EdgeInsets.fromLTRB(20, topInset + 72, 20, 28),
-        child: Align(
-          alignment: Alignment.bottomCenter,
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 420),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.end,
-              children: [
-                if (profile.handle != null &&
-                    profile.handle!.trim().isNotEmpty) ...[
-                  Text(
-                    '@${profile.handle}',
-                    textAlign: TextAlign.center,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      color: Colors.white.withValues(alpha: 0.78),
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
-                      height: 1.1,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                ],
-                Text(
-                  profile.effectiveName,
-                  textAlign: TextAlign.center,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 52,
-                    fontWeight: FontWeight.w600,
-                    height: 0.96,
-                    fontFamily: _profileSerifFont,
-                    fontFamilyFallback: _profileSerifFallback,
-                    shadows: [
-                      Shadow(
-                        color: Colors.black87,
-                        blurRadius: 18,
-                        offset: Offset(0, 4),
-                      ),
-                    ],
-                  ),
-                ),
-                if (profile.avatarGlyphIds.isNotEmpty) ...[
-                  const SizedBox(height: 18),
-                  _buildGlyphSignature(profile),
-                ],
-                if (bio.isNotEmpty) ...[
-                  const SizedBox(height: 18),
-                  Text(
-                    bio,
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      color: Colors.white.withValues(alpha: 0.86),
-                      fontSize: 16,
-                      fontStyle: FontStyle.italic,
-                      height: 1.32,
-                      fontFamily: _profileSerifFont,
-                      fontFamilyFallback: _profileSerifFallback,
-                    ),
+        padding: EdgeInsets.fromLTRB(20, topInset + 20, 20, 24),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.end,
+          children: [
+            Text(
+              profile.effectiveName,
+              textAlign: TextAlign.center,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 34,
+                fontWeight: FontWeight.w700,
+                height: 1.02,
+                shadows: [
+                  Shadow(
+                    color: Colors.black87,
+                    blurRadius: 18,
+                    offset: Offset(0, 4),
                   ),
                 ],
-                const SizedBox(height: 24),
-                _buildStats(profile),
-                const SizedBox(height: 18),
-                _buildActionCluster(),
-              ],
+              ),
             ),
-          ),
+            if (profile.handle != null &&
+                profile.handle!.trim().isNotEmpty) ...[
+              const SizedBox(height: 6),
+              Text(
+                '@${profile.handle}',
+                textAlign: TextAlign.center,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  color: Colors.white.withValues(alpha: 0.78),
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
+            if (profile.avatarGlyphIds.isNotEmpty) ...[
+              const SizedBox(height: 16),
+              _buildGlyphSignature(profile),
+            ],
+          ],
         ),
       ),
     );
@@ -1989,12 +1971,19 @@ class _ProfilePageState extends State<ProfilePage>
     return ConstrainedBox(
       constraints: const BoxConstraints(maxWidth: 420),
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 12),
+        width: double.infinity,
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
         decoration: BoxDecoration(
-          border: Border(
-            top: BorderSide(color: _profileGoldMid.withValues(alpha: 0.26)),
-            bottom: BorderSide(color: _profileGoldMid.withValues(alpha: 0.26)),
-          ),
+          color: Colors.black.withValues(alpha: 0.46),
+          borderRadius: BorderRadius.circular(22),
+          border: Border.all(color: _profileGoldMid.withValues(alpha: 0.26)),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.28),
+              blurRadius: 18,
+              offset: const Offset(0, 10),
+            ),
+          ],
         ),
         child: Column(
           children: [
@@ -2003,8 +1992,8 @@ class _ProfilePageState extends State<ProfilePage>
               textAlign: TextAlign.center,
               style: const TextStyle(
                 color: _profileGoldText,
-                fontSize: 20,
-                fontWeight: FontWeight.w600,
+                fontSize: 18,
+                fontWeight: FontWeight.w700,
                 height: 1.1,
                 fontFamily: 'GentiumPlus',
                 fontFamilyFallback: [
@@ -2062,35 +2051,32 @@ class _ProfilePageState extends State<ProfilePage>
       ),
     ];
 
-    return Container(
-      decoration: BoxDecoration(
-        border: Border(
-          top: BorderSide(color: _profileGoldMid.withValues(alpha: 0.18)),
-          bottom: BorderSide(color: _profileGoldMid.withValues(alpha: 0.18)),
-        ),
-      ),
-      padding: const EdgeInsets.symmetric(vertical: 12),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.center,
-        children: [
-          for (var index = 0; index < stats.length; index++) ...[
-            if (index > 0)
-              Container(
-                width: 1,
-                height: 44,
-                color: _profileGoldMid.withValues(alpha: 0.16),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final compact = constraints.maxWidth < 460;
+        final spacing = 10.0;
+        final columns = compact ? 2 : 4;
+        final itemWidth =
+            (constraints.maxWidth - (spacing * (columns - 1))) / columns;
+
+        return Wrap(
+          spacing: spacing,
+          runSpacing: spacing,
+          children: [
+            for (final stat in stats)
+              SizedBox(
+                width: itemWidth,
+                child: _buildStatItem(
+                  label: stat.label,
+                  value: stat.value,
+                  onTap: stat.onTap,
+                  enabled: stat.enabled,
+                  compact: compact,
+                ),
               ),
-            Expanded(
-              child: _buildStatItem(
-                label: stats[index].label,
-                value: stats[index].value,
-                onTap: stats[index].onTap,
-                enabled: stats[index].enabled,
-              ),
-            ),
           ],
-        ],
-      ),
+        );
+      },
     );
   }
 
@@ -2099,6 +2085,7 @@ class _ProfilePageState extends State<ProfilePage>
     required String value,
     VoidCallback? onTap,
     bool enabled = true,
+    bool compact = false,
   }) {
     final numberColor = enabled
         ? _profileGoldText
@@ -2110,45 +2097,53 @@ class _ProfilePageState extends State<ProfilePage>
     return Material(
       color: Colors.transparent,
       child: InkWell(
-        borderRadius: BorderRadius.circular(3),
+        borderRadius: BorderRadius.circular(20),
         onTap: onTap,
-        child: Container(
-          constraints: const BoxConstraints(minHeight: 58),
-          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              SizedBox(
-                width: double.infinity,
-                child: FittedBox(
-                  fit: BoxFit.scaleDown,
-                  child: Text(
-                    value,
-                    style: TextStyle(
-                      color: numberColor,
-                      fontSize: 30,
-                      fontWeight: FontWeight.w600,
-                      height: 1,
-                      fontFamily: _profileSerifFont,
-                      fontFamilyFallback: _profileSerifFallback,
+        child: Ink(
+          decoration: BoxDecoration(
+            color: Colors.black.withValues(alpha: enabled ? 0.34 : 0.22),
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(
+              color: enabled
+                  ? _profileGoldMid.withValues(alpha: 0.2)
+                  : Colors.white.withValues(alpha: 0.06),
+            ),
+          ),
+          child: Container(
+            constraints: BoxConstraints(minHeight: compact ? 82 : 92),
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                SizedBox(
+                  width: double.infinity,
+                  child: FittedBox(
+                    fit: BoxFit.scaleDown,
+                    child: Text(
+                      value,
+                      style: TextStyle(
+                        color: numberColor,
+                        fontSize: compact ? 25 : 24,
+                        fontWeight: FontWeight.w700,
+                      ),
                     ),
                   ),
                 ),
-              ),
-              const SizedBox(height: 6),
-              Text(
-                label,
-                textAlign: TextAlign.center,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  color: labelColor,
-                  fontSize: 10,
-                  height: 1.1,
-                  fontWeight: FontWeight.w600,
+                const SizedBox(height: 6),
+                Text(
+                  label,
+                  textAlign: TextAlign.center,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    color: labelColor,
+                    fontSize: compact ? 12 : 13,
+                    height: 1.2,
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),
@@ -2196,7 +2191,7 @@ class _ProfilePageState extends State<ProfilePage>
     unawaited(CalendarPage.openMyFlowsFromAnyContext(context));
   }
 
-  Widget _buildFollowButton({bool fullWidth = false}) {
+  Widget _buildFollowButton() {
     final isFollowing = _isFollowing;
     return _buildActionButton(
       label: isFollowing ? 'Following' : 'Follow',
@@ -2209,7 +2204,6 @@ class _ProfilePageState extends State<ProfilePage>
       backgroundColor: isFollowing ? const Color(0xFF0B0B0E) : _profileGoldBase,
       foregroundColor: isFollowing ? _profileGoldText : const Color(0xFF1C1204),
       borderColor: _profileGoldMid,
-      fullWidth: fullWidth,
     );
   }
 
@@ -2283,7 +2277,7 @@ class _ProfilePageState extends State<ProfilePage>
     );
   }
 
-  Widget _buildEditButton({bool fullWidth = false}) {
+  Widget _buildEditButton() {
     return _buildActionButton(
       label: 'Edit Profile',
       icon: Icons.edit_outlined,
@@ -2294,11 +2288,10 @@ class _ProfilePageState extends State<ProfilePage>
       backgroundColor: _profileGoldBase,
       foregroundColor: const Color(0xFF1C1204),
       borderColor: _profileGoldMid,
-      fullWidth: fullWidth,
     );
   }
 
-  Widget _buildFindPeopleButton({bool fullWidth = false}) {
+  Widget _buildFindPeopleButton() {
     return _buildActionButton(
       label: 'Find People',
       icon: Icons.people_outline_rounded,
@@ -2307,58 +2300,44 @@ class _ProfilePageState extends State<ProfilePage>
       },
       foregroundColor: _profileGoldText,
       borderColor: _profileGoldMid.withValues(alpha: 0.42),
-      fullWidth: fullWidth,
     );
   }
 
-  Widget _buildPostFlowButton({bool fullWidth = false}) {
+  Widget _buildPostFlowButton() {
     return _buildActionButton(
       label: 'Post Flow',
       icon: Icons.upload_rounded,
       onPressed: _openPostPicker,
       foregroundColor: _profileGoldText,
       borderColor: _profileGoldMid.withValues(alpha: 0.42),
-      fullWidth: fullWidth,
     );
   }
 
-  Widget _buildPostInsightButton({bool fullWidth = false}) {
+  Widget _buildPostInsightButton() {
     return _buildActionButton(
       label: 'Post Insight',
       icon: Icons.auto_stories_outlined,
       onPressed: _openInsightPostPicker,
       foregroundColor: _profileGoldText,
       borderColor: _profileGoldMid.withValues(alpha: 0.42),
-      fullWidth: fullWidth,
     );
   }
 
   Widget _buildActionCluster() {
-    if (!_isViewingOwnProfile) {
-      return Row(
-        children: [
-          Expanded(child: _buildFollowButton(fullWidth: true)),
-          const SizedBox(width: 8),
-          _buildProfileSafetyMenu(),
-        ],
-      );
-    }
+    final actions = _isViewingOwnProfile
+        ? <Widget>[
+            _buildEditButton(),
+            _buildFindPeopleButton(),
+            _buildPostFlowButton(),
+            _buildPostInsightButton(),
+          ]
+        : <Widget>[_buildFollowButton(), _buildProfileSafetyMenu()];
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        _buildEditButton(fullWidth: true),
-        const SizedBox(height: 8),
-        Row(
-          children: [
-            Expanded(child: _buildFindPeopleButton(fullWidth: true)),
-            const SizedBox(width: 8),
-            Expanded(child: _buildPostFlowButton(fullWidth: true)),
-          ],
-        ),
-        const SizedBox(height: 8),
-        _buildPostInsightButton(fullWidth: true),
-      ],
+    return Wrap(
+      alignment: WrapAlignment.center,
+      spacing: 10,
+      runSpacing: 10,
+      children: actions,
     );
   }
 
@@ -2371,7 +2350,6 @@ class _ProfilePageState extends State<ProfilePage>
     Color foregroundColor = _profileGoldText,
     Color backgroundColor = const Color(0xFF0B0B0E),
     Color borderColor = _profileGoldMid,
-    bool fullWidth = false,
   }) {
     final buttonHeight = useExpandedTouchTargets(context)
         ? kMinInteractiveDimension
@@ -2397,34 +2375,13 @@ class _ProfilePageState extends State<ProfilePage>
           maxLines: 1,
           overflow: TextOverflow.fade,
           softWrap: false,
-          style: const TextStyle(
-            fontSize: 14,
-            fontWeight: FontWeight.w700,
-            fontFamily: _profileSerifFont,
-            fontFamilyFallback: _profileSerifFallback,
-          ),
+          style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700),
         ),
       ],
     );
 
-    final buttonContent = fullWidth
-        ? SizedBox(
-            width: double.infinity,
-            height: buttonHeight,
-            child: Center(
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 14),
-                child: child,
-              ),
-            ),
-          )
-        : Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-            child: child,
-          );
-
     if (filled) {
-      final radius = BorderRadius.circular(3);
+      final radius = BorderRadius.circular(999);
       final interactive = Material(
         color: Colors.transparent,
         child: Ink(
@@ -2445,11 +2402,14 @@ class _ProfilePageState extends State<ProfilePage>
           child: InkWell(
             borderRadius: radius,
             onTap: onPressed,
-            child: DefaultTextStyle(
-              style: TextStyle(color: foregroundColor),
-              child: IconTheme(
-                data: IconThemeData(color: foregroundColor),
-                child: buttonContent,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+              child: DefaultTextStyle(
+                style: TextStyle(color: foregroundColor),
+                child: IconTheme(
+                  data: IconThemeData(color: foregroundColor),
+                  child: child,
+                ),
               ),
             ),
           ),
@@ -2463,7 +2423,7 @@ class _ProfilePageState extends State<ProfilePage>
       );
     }
 
-    final radius = BorderRadius.circular(3);
+    final radius = BorderRadius.circular(999);
     final interactive = Material(
       color: Colors.transparent,
       child: Ink(
@@ -2482,11 +2442,14 @@ class _ProfilePageState extends State<ProfilePage>
         child: InkWell(
           borderRadius: radius,
           onTap: onPressed,
-          child: DefaultTextStyle(
-            style: TextStyle(color: foregroundColor),
-            child: IconTheme(
-              data: IconThemeData(color: foregroundColor),
-              child: buttonContent,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+            child: DefaultTextStyle(
+              style: TextStyle(color: foregroundColor),
+              child: IconTheme(
+                data: IconThemeData(color: foregroundColor),
+                child: child,
+              ),
             ),
           ),
         ),
@@ -2869,25 +2832,18 @@ class _ProfilePageState extends State<ProfilePage>
         children: [
           _profileGoldTextWidget(
             'Community Feed',
-            style: const TextStyle(
-              fontSize: 38,
-              fontWeight: FontWeight.w600,
-              height: 1,
-              fontFamily: _profileSerifFont,
-              fontFamilyFallback: _profileSerifFallback,
-            ),
+            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
           ),
-          const SizedBox(height: 14),
+          const SizedBox(height: 4),
           Text(
-            'Practices and reflections moving through your field.',
+            'Flows and insights from the people you follow, plus the wider field.',
             style: TextStyle(
               color: Colors.white.withValues(alpha: 0.62),
-              fontSize: 17,
-              fontWeight: FontWeight.w600,
+              fontSize: 13,
               height: 1.3,
             ),
           ),
-          const SizedBox(height: 18),
+          const SizedBox(height: 12),
           Row(
             children: [
               Icon(
@@ -2968,15 +2924,16 @@ class _ProfilePageState extends State<ProfilePage>
           ),
         ),
         Container(
-          padding: const EdgeInsets.fromLTRB(0, 4, 0, 0),
+          padding: const EdgeInsets.fromLTRB(14, 16, 14, 12),
           decoration: BoxDecoration(
-            color: Colors.black.withValues(alpha: 0.08),
+            color: Colors.black.withValues(alpha: 0.26),
             borderRadius: BorderRadius.circular(26),
-            border: Border.all(color: _profileGoldMid.withValues(alpha: 0.08)),
+            border: Border.all(color: _profileGoldMid.withValues(alpha: 0.26)),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withValues(alpha: 0.26),
+                color: Colors.black.withValues(alpha: 0.34),
                 blurRadius: 24,
+                spreadRadius: 1,
                 offset: const Offset(0, 14),
               ),
             ],
@@ -3186,179 +3143,6 @@ class _ProfilePageState extends State<ProfilePage>
     return (left, right);
   }
 
-  BoxDecoration _feedMahoganyCardDecoration({
-    Color? borderColor,
-    bool expanded = false,
-  }) {
-    final fillAlpha = expanded ? 0.05 : 0.045;
-    return BoxDecoration(
-      gradient: LinearGradient(
-        begin: Alignment.topLeft,
-        end: Alignment.bottomRight,
-        colors: [
-          _profileFeedMahoganyTop.withValues(alpha: fillAlpha),
-          _profileFeedMahogany.withValues(alpha: fillAlpha),
-          _profileFeedMahoganyDeep.withValues(alpha: fillAlpha),
-        ],
-      ),
-      borderRadius: BorderRadius.circular(expanded ? 26 : 22),
-      border: Border.all(
-        color: (borderColor ?? _profileGoldMid).withValues(
-          alpha: expanded ? 0.3 : 0.28,
-        ),
-      ),
-      boxShadow: [
-        BoxShadow(
-          color: Colors.black.withValues(alpha: expanded ? 0.38 : 0.34),
-          blurRadius: expanded ? 26 : 20,
-          offset: Offset(0, expanded ? 16 : 12),
-        ),
-      ],
-    );
-  }
-
-  String _feedAuthorBadgeName({
-    required String? handle,
-    required String fallback,
-  }) {
-    final rawHandle = handle?.trim();
-    final raw = rawHandle != null && rawHandle.isNotEmpty
-        ? rawHandle
-        : fallback.trim();
-    final normalized = raw.startsWith('@') ? raw.substring(1) : raw;
-    return normalized.isEmpty ? 'COMMUNITY' : normalized.toUpperCase();
-  }
-
-  Widget _buildFeedBadgeLine({
-    required String kind,
-    required String author,
-    required Widget dot,
-    VoidCallback? onTap,
-    bool expanded = false,
-  }) {
-    final content = Row(
-      mainAxisSize: MainAxisSize.min,
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Padding(padding: const EdgeInsets.only(top: 5), child: dot),
-        const SizedBox(width: 10),
-        Flexible(
-          child: Text(
-            '$kind · $author',
-            maxLines: 2,
-            overflow: TextOverflow.ellipsis,
-            style: TextStyle(
-              color: Colors.white.withValues(alpha: 0.64),
-              fontSize: expanded ? 12 : 11,
-              fontWeight: FontWeight.w700,
-              height: 1.18,
-              letterSpacing: 2.4,
-            ),
-          ),
-        ),
-      ],
-    );
-
-    if (onTap == null) return content;
-    return GestureDetector(
-      behavior: HitTestBehavior.opaque,
-      onTap: onTap,
-      child: content,
-    );
-  }
-
-  Widget _buildFeedAccentDot({
-    required Color accent,
-    int? gradientColor,
-    double size = 8,
-  }) {
-    return Container(
-      width: size,
-      height: size,
-      decoration: BoxDecoration(
-        shape: BoxShape.circle,
-        color: gradientColor == null ? accent : null,
-        gradient: gradientColor == null ? null : glossFromColor(gradientColor),
-      ),
-    );
-  }
-
-  int _flowLessonCount(FlowPost post) {
-    final events = _flowPayloadEvents(post);
-    if (events.isNotEmpty) return events.length;
-    return 0;
-  }
-
-  String? _flowCadenceLabel(FlowPost post) {
-    final rules = _flowRuleMaps(post);
-    if (rules.isEmpty) return null;
-    final types = rules
-        .map((rule) => (rule['type'] as String? ?? '').trim().toLowerCase())
-        .where((type) => type.isNotEmpty)
-        .toSet();
-    if (types.contains('week')) {
-      for (final rule in rules) {
-        final weekdays = rule['weekdays'];
-        if (weekdays is List && weekdays.length >= 7) return 'Daily';
-      }
-      return 'Weekly';
-    }
-    if (types.contains('decan')) return 'Decan';
-    if (types.contains('dates')) return 'Custom';
-    return 'Scheduled';
-  }
-
-  Widget _buildFlowPracticeMetaRow(FlowPost post, {bool expanded = false}) {
-    final lessonCount = _flowLessonCount(post);
-    final cadence = _flowCadenceLabel(post);
-    if (lessonCount <= 0 && cadence == null) return const SizedBox.shrink();
-
-    final textStyle = TextStyle(
-      color: Colors.white.withValues(alpha: 0.9),
-      fontSize: expanded ? 15 : 13,
-      fontWeight: FontWeight.w700,
-      height: 1.2,
-    );
-    final iconColor = _profileGoldText.withValues(alpha: 0.78);
-
-    Widget metaItem(IconData icon, String text) {
-      return Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: expanded ? 16 : 14, color: iconColor),
-          const SizedBox(width: 7),
-          Text(text, style: textStyle),
-        ],
-      );
-    }
-
-    return Wrap(
-      spacing: expanded ? 14 : 12,
-      runSpacing: 6,
-      crossAxisAlignment: WrapCrossAlignment.center,
-      children: [
-        if (lessonCount > 0)
-          metaItem(
-            Icons.tonality_outlined,
-            '$lessonCount lesson${lessonCount == 1 ? '' : 's'}',
-          ),
-        if (cadence != null) metaItem(Icons.sync_rounded, cadence),
-      ],
-    );
-  }
-
-  ({String lead, String rest}) _splitFeedPreviewText(String value) {
-    final normalized = value.replaceAll(RegExp(r'\s+'), ' ').trim();
-    if (normalized.isEmpty) return (lead: '', rest: '');
-    final match = RegExp(r'^(.+?[.!?])\s+(.+)$').firstMatch(normalized);
-    if (match == null) return (lead: normalized, rest: '');
-    return (lead: match.group(1)!.trim(), rest: match.group(2)!.trim());
-  }
-
-  String _formatFeedCardDate(DateTime date, {bool compact = false}) {
-    return _formatPostDate(date, compact: compact).replaceAll(' • ', ' · ');
-  }
-
   double _estimateFeedTileHeight(ProfileFeedItem item, double cardWidth) {
     if (item.kind == ProfileFeedItemKind.insight) {
       return _estimateInsightFeedTileHeight(item.insightPost!, cardWidth);
@@ -3370,52 +3154,41 @@ class _ProfilePageState extends State<ProfilePage>
       text: TextSpan(
         text: title.isEmpty ? 'Untitled Flow' : title,
         style: const TextStyle(
-          fontSize: 24,
-          fontWeight: FontWeight.w600,
-          height: 1.04,
-          fontFamily: _profileSerifFont,
-          fontFamilyFallback: _profileSerifFallback,
+          fontSize: 20,
+          fontWeight: FontWeight.w700,
+          height: 1.08,
         ),
       ),
       maxLines: 6,
       textDirection: direction,
-    )..layout(maxWidth: math.max(0, cardWidth - 40));
-    final overview = cleanFlowOverview(post.notes);
-    final preview = _splitFeedPreviewText(overview);
-    final bodyPainter = TextPainter(
-      text: TextSpan(
-        text: '${preview.lead} ${preview.rest}'.trim(),
-        style: const TextStyle(
-          fontSize: 16,
-          height: 1.26,
-          fontFamily: _profileSerifFont,
-          fontFamilyFallback: _profileSerifFallback,
-        ),
-      ),
-      maxLines: 4,
-      textDirection: direction,
-    )..layout(maxWidth: math.max(0, cardWidth - 40));
-    return 202 + titlePainter.size.height + bodyPainter.size.height;
+    )..layout(maxWidth: math.max(0, cardWidth - 28));
+    return 214 + titlePainter.size.height;
   }
 
   double _estimateInsightFeedTileHeight(InsightPost post, double cardWidth) {
     final direction = Directionality.of(context);
-    final bodyPainter = TextPainter(
+    final headingPainter = TextPainter(
       text: TextSpan(
-        text: '“${_insightPreviewText(post.bodyText)}”',
+        text: post.nodeTitle,
         style: const TextStyle(
           fontSize: 20,
-          fontStyle: FontStyle.italic,
-          height: 1.35,
-          fontFamily: _profileSerifFont,
-          fontFamilyFallback: _profileSerifFallback,
+          fontWeight: FontWeight.w700,
+          height: 1.08,
         ),
       ),
-      maxLines: 6,
+      maxLines: 4,
+      textDirection: direction,
+    )..layout(maxWidth: math.max(0, cardWidth - 28));
+    final bodyPainter = TextPainter(
+      text: TextSpan(
+        text: _insightPreviewText(post.bodyText),
+        style: const TextStyle(fontSize: 14, height: 1.35),
+      ),
+      maxLines: 7,
       ellipsis: '…',
       textDirection: direction,
-    )..layout(maxWidth: math.max(0, cardWidth - 40));
-    return 128 + bodyPainter.size.height;
+    )..layout(maxWidth: math.max(0, cardWidth - 28));
+    return 248 + headingPainter.size.height + bodyPainter.size.height;
   }
 
   Widget _buildFeedItemTile(ProfileFeedItem item) {
@@ -3431,193 +3204,317 @@ class _ProfilePageState extends State<ProfilePage>
     final post = item.flowPost!;
     final accent = Color(0xFF000000 | (post.color & 0x00FFFFFF));
     final title = cleanFlowTitle(post.name);
-    final overview = cleanFlowOverview(post.notes);
-    final preview = _splitFeedPreviewText(overview);
-    final author = _feedAuthorBadgeName(
-      handle: post.authorHandle,
-      fallback: post.authorLabel,
-    );
+    final label = _ownsPost(post)
+        ? 'Your Flow'
+        : post.isFollowingAuthor
+        ? 'Following'
+        : 'Community';
+    final authorHandle = post.authorHandle?.trim();
+    final authorDisplayName = post.authorDisplayName?.trim();
+    final showHandle =
+        authorHandle != null &&
+        authorHandle.isNotEmpty &&
+        authorDisplayName != null &&
+        authorDisplayName.isNotEmpty &&
+        authorHandle.toLowerCase() != authorDisplayName.toLowerCase();
 
     return Container(
-      clipBehavior: Clip.antiAlias,
-      decoration: _feedMahoganyCardDecoration(borderColor: _profileGoldMid),
-      child: Stack(
-        children: [
-          Positioned.fill(
-            left: 0,
-            right: null,
-            child: Container(
-              width: 4,
-              decoration: BoxDecoration(gradient: glossFromColor(post.color)),
-            ),
-          ),
-          Material(
-            color: Colors.transparent,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(20, 18, 18, 0),
-                  child: _buildFeedBadgeLine(
-                    kind: 'PRACTICE',
-                    author: author,
-                    dot: _buildFeedAccentDot(
-                      accent: accent,
-                      gradientColor: post.color,
-                    ),
-                    onTap: () => _openFeedAuthorProfile(post.userId),
-                  ),
-                ),
-                InkWell(
-                  onTap: () => _expandFeedItem(item),
-                  borderRadius: BorderRadius.circular(18),
-                  child: Padding(
-                    padding: const EdgeInsets.fromLTRB(20, 18, 18, 10),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        _profileGoldTextWidget(
-                          title.isEmpty ? 'Untitled Flow' : title,
-                          maxLines: 5,
-                          overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
-                            fontSize: 24,
-                            fontWeight: FontWeight.w600,
-                            height: 1.04,
-                            fontFamily: _profileSerifFont,
-                            fontFamilyFallback: _profileSerifFallback,
-                          ),
-                        ),
-                        const SizedBox(height: 16),
-                        _buildFlowPracticeMetaRow(post),
-                        if (preview.lead.isNotEmpty) ...[
-                          const SizedBox(height: 18),
-                          Text(
-                            preview.lead,
-                            maxLines: 3,
-                            overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
-                              color: _profileGoldText,
-                              fontSize: 17,
-                              fontWeight: FontWeight.w600,
-                              height: 1.18,
-                              fontFamily: _profileSerifFont,
-                              fontFamilyFallback: _profileSerifFallback,
-                            ),
-                          ),
-                        ],
-                        if (preview.rest.isNotEmpty) ...[
-                          const SizedBox(height: 4),
-                          Text(
-                            preview.rest,
-                            maxLines: 3,
-                            overflow: TextOverflow.fade,
-                            style: TextStyle(
-                              color: Colors.white.withValues(alpha: 0.56),
-                              fontSize: 17,
-                              height: 1.28,
-                              fontFamily: _profileSerifFont,
-                              fontFamilyFallback: _profileSerifFallback,
-                            ),
-                          ),
-                        ],
-                      ],
-                    ),
-                  ),
-                ),
-                Divider(
-                  color: Colors.white.withValues(alpha: 0.08),
-                  height: 1,
-                  indent: 20,
-                  endIndent: 18,
-                ),
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(14, 2, 12, 6),
-                  child: FlowPostEngagementRow(
-                    key: ValueKey('feed_${post.id}'),
-                    post: post,
-                    lazyComments: true,
-                    compact: true,
-                  ),
-                ),
-              ],
-            ),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.045),
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(color: _profileGoldMid.withValues(alpha: 0.28)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.34),
+            blurRadius: 20,
+            offset: const Offset(0, 12),
           ),
         ],
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            InkWell(
+              borderRadius: const BorderRadius.vertical(
+                top: Radius.circular(22),
+              ),
+              onTap: () => _expandFeedItem(item),
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(14, 14, 14, 0),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 6,
+                  ),
+                  decoration: BoxDecoration(
+                    color: accent.withValues(alpha: 0.18),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: accent.withValues(alpha: 0.3)),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Container(
+                        width: 8,
+                        height: 8,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          gradient: glossFromColor(post.color),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        label,
+                        style: TextStyle(
+                          color: accent.withValues(alpha: 0.95),
+                          fontSize: 11,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(14, 12, 14, 0),
+              child: _buildFeedAuthorHeader(
+                userId: post.userId,
+                displayName: post.authorLabel,
+                handle: post.authorHandle,
+                showHandle: showHandle,
+                avatarUrl: post.authorAvatarUrl,
+                avatarGlyphIds: post.authorAvatarGlyphIds,
+              ),
+            ),
+            InkWell(
+              onTap: () => _expandFeedItem(item),
+              borderRadius: BorderRadius.circular(18),
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(14, 14, 14, 10),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    _profileGoldTextWidget(
+                      title.isEmpty ? 'Untitled Flow' : title,
+                      maxLines: 6,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.w700,
+                        height: 1.08,
+                      ),
+                    ),
+                    const SizedBox(height: 14),
+                    Row(
+                      children: [
+                        Icon(
+                          Icons.schedule_outlined,
+                          size: 14,
+                          color: _postDateIconColor(0.42),
+                        ),
+                        const SizedBox(width: 7),
+                        Expanded(
+                          child: Text(
+                            'Posted ${_formatPostDate(post.createdAt, compact: true)}',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              color: _postDateTextColor(0.54),
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Icon(
+                          Icons.north_east_rounded,
+                          size: 18,
+                          color: _profileGoldText.withValues(alpha: 0.86),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(8, 0, 8, 4),
+              child: FlowPostEngagementRow(
+                key: ValueKey('feed_${post.id}'),
+                post: post,
+                lazyComments: true,
+                compact: true,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
 
   Widget _buildFeedInsightTile(ProfileFeedItem item) {
     final post = item.insightPost!;
-    final author = _feedAuthorBadgeName(
-      handle: post.authorHandle,
-      fallback: post.authorLabel,
-    );
+    final label = _ownsInsightPost(post)
+        ? 'Your Insight'
+        : post.isFollowingAuthor
+        ? 'Following'
+        : 'Community';
+    final authorHandle = post.authorHandle?.trim();
+    final authorDisplayName = post.authorDisplayName?.trim();
+    final showHandle =
+        authorHandle != null &&
+        authorHandle.isNotEmpty &&
+        authorDisplayName != null &&
+        authorDisplayName.isNotEmpty &&
+        authorHandle.toLowerCase() != authorDisplayName.toLowerCase();
 
     return Container(
-      clipBehavior: Clip.antiAlias,
-      decoration: _feedMahoganyCardDecoration(borderColor: _profileGoldMid),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.045),
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(color: _profileGoldMid.withValues(alpha: 0.28)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.34),
+            blurRadius: 20,
+            offset: const Offset(0, 12),
+          ),
+        ],
+      ),
       child: Material(
         color: Colors.transparent,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
+            InkWell(
+              borderRadius: const BorderRadius.vertical(
+                top: Radius.circular(22),
+              ),
+              onTap: () => _expandFeedItem(item),
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(14, 14, 14, 0),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 6,
+                  ),
+                  decoration: BoxDecoration(
+                    color: _profileGoldBase.withValues(alpha: 0.16),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                      color: _profileGoldMid.withValues(alpha: 0.28),
+                    ),
+                  ),
+                  child: Text(
+                    label,
+                    style: const TextStyle(
+                      color: _profileGoldText,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+              ),
+            ),
             Padding(
-              padding: const EdgeInsets.fromLTRB(20, 18, 18, 0),
-              child: _buildFeedBadgeLine(
-                kind: 'REFLECTION',
-                author: author,
-                dot: _buildFeedAccentDot(accent: _profileGoldText),
-                onTap: () => _openFeedAuthorProfile(post.userId),
+              padding: const EdgeInsets.fromLTRB(14, 12, 14, 0),
+              child: _buildFeedAuthorHeader(
+                userId: post.userId,
+                displayName: post.authorLabel,
+                handle: post.authorHandle,
+                showHandle: showHandle,
+                avatarUrl: post.authorAvatarUrl,
+                avatarGlyphIds: post.authorAvatarGlyphIds,
               ),
             ),
             InkWell(
               onTap: () => _expandFeedItem(item),
-              borderRadius: BorderRadius.circular(22),
+              borderRadius: BorderRadius.circular(18),
               child: Padding(
-                padding: const EdgeInsets.fromLTRB(20, 20, 18, 20),
+                padding: const EdgeInsets.fromLTRB(14, 14, 14, 14),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        if ((post.nodeGlyph?.trim().isNotEmpty ?? false))
+                          Padding(
+                            padding: const EdgeInsets.only(right: 8),
+                            child: Text(
+                              post.nodeGlyph!,
+                              style: const TextStyle(
+                                color: _profileGoldText,
+                                fontSize: 20,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                          ),
+                        Expanded(
+                          child: _profileGoldTextWidget(
+                            post.nodeTitle,
+                            maxLines: 4,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              fontSize: 20,
+                              fontWeight: FontWeight.w700,
+                              height: 1.08,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
                     Text(
-                      '“${_insightPreviewText(post.bodyText)}”',
-                      maxLines: 6,
-                      overflow: TextOverflow.fade,
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 21,
-                        fontStyle: FontStyle.italic,
-                        height: 1.36,
-                        fontFamily: _profileSerifFont,
-                        fontFamilyFallback: _profileSerifFallback,
+                      _insightPreviewText(post.bodyText),
+                      maxLines: 7,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        color: Colors.white.withValues(alpha: 0.88),
+                        fontSize: 14,
+                        fontWeight: FontWeight.w500,
+                        height: 1.35,
                       ),
                     ),
-                    const SizedBox(height: 18),
+                    const SizedBox(height: 14),
                     Text(
-                      _formatFeedCardDate(post.entryDate, compact: false),
+                      'Dated ${_formatPostDate(post.entryDate, compact: true)}',
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(
-                        color: Colors.white.withValues(alpha: 0.58),
-                        fontSize: 14,
-                        fontWeight: FontWeight.w700,
-                        height: 1.2,
+                        color: _postDateTextColor(0.56),
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
                       ),
                     ),
-                    if (post.nodeTitle.trim().isNotEmpty) ...[
-                      const SizedBox(height: 8),
-                      Text(
-                        post.nodeTitle,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                          color: _profileGoldText.withValues(alpha: 0.7),
-                          fontSize: 12,
-                          fontWeight: FontWeight.w700,
+                    const SizedBox(height: 4),
+                    Text(
+                      'Posted ${_formatPostDate(post.createdAt, compact: true)}',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        color: _postDateTextColor(0.5),
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    Align(
+                      alignment: Alignment.centerRight,
+                      child: TextButton(
+                        onPressed: () => _expandFeedItem(item),
+                        child: _profileGoldTextWidget(
+                          'Read more',
+                          style: const TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w700,
+                          ),
                         ),
                       ),
-                    ],
+                    ),
                   ],
                 ),
               ),
@@ -3737,78 +3634,99 @@ class _ProfilePageState extends State<ProfilePage>
       post.notes,
       decodedOverview: meta.overview,
     );
-    final preview = _splitFeedPreviewText(overview);
     final scheduleLines = _flowScheduleSummaryLines(post);
     final events = _flowPayloadEvents(post);
-    final author = _feedAuthorBadgeName(
-      handle: post.authorHandle,
-      fallback: post.authorLabel,
-    );
 
     return _buildExpandedFeedCardShell(
       key: ValueKey('expanded_flow_${post.id}'),
-      topChip: _buildFeedBadgeLine(
-        kind: 'PRACTICE',
-        author: author,
-        dot: _buildFeedAccentDot(
-          accent: accent,
-          gradientColor: post.color,
-          size: 9,
+      topChip: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+        decoration: BoxDecoration(
+          color: accent.withValues(alpha: 0.18),
+          borderRadius: BorderRadius.circular(999),
+          border: Border.all(color: accent.withValues(alpha: 0.32)),
         ),
-        onTap: () => _openFeedAuthorProfile(post.userId),
-        expanded: true,
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 9,
+              height: 9,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                gradient: glossFromColor(post.color),
+              ),
+            ),
+            const SizedBox(width: 8),
+            Text(
+              _ownsPost(post) ? 'Your Flow' : 'Posted Flow',
+              style: TextStyle(
+                color: accent.withValues(alpha: 0.95),
+                fontSize: 11,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ],
+        ),
       ),
       body: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          _buildExpandedFeedAuthorRow(
+            userId: post.userId,
+            displayName: post.authorLabel,
+            handle: post.authorHandle,
+            displayHandleWhenDistinct:
+                (post.authorHandle?.trim().isNotEmpty ?? false) &&
+                (post.authorDisplayName?.trim().isNotEmpty ?? false) &&
+                post.authorHandle?.toLowerCase() !=
+                    post.authorDisplayName?.toLowerCase(),
+            avatarUrl: post.authorAvatarUrl,
+            avatarGlyphIds: post.authorAvatarGlyphIds,
+          ),
+          const SizedBox(height: 16),
           _profileGoldTextWidget(
             title.isEmpty ? 'Untitled Flow' : title,
             style: const TextStyle(
-              fontSize: 32,
-              fontWeight: FontWeight.w600,
-              height: 1,
-              fontFamily: _profileSerifFont,
-              fontFamilyFallback: _profileSerifFallback,
-            ),
-          ),
-          const SizedBox(height: 16),
-          _buildFlowPracticeMetaRow(post, expanded: true),
-          const SizedBox(height: 12),
-          Text(
-            'Posted ${_formatFeedCardDate(post.createdAt)}',
-            style: TextStyle(
-              color: _postDateTextColor(0.58),
-              fontSize: 12,
+              fontSize: 26,
               fontWeight: FontWeight.w700,
+              height: 1.05,
             ),
           ),
-          const SizedBox(height: 20),
-          if (preview.lead.isNotEmpty) ...[
-            Text(
-              preview.lead,
-              style: const TextStyle(
-                color: _profileGoldText,
-                fontSize: 20,
-                fontWeight: FontWeight.w600,
-                height: 1.2,
-                fontFamily: _profileSerifFont,
-                fontFamilyFallback: _profileSerifFallback,
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Icon(
+                Icons.schedule_outlined,
+                size: 15,
+                color: _postDateIconColor(0.46),
               ),
-            ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  'Posted ${_formatPostDate(post.createdAt)}',
+                  style: TextStyle(
+                    color: _postDateTextColor(0.58),
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 18),
+          if (overview.isNotEmpty) ...[
+            _buildExpandedSectionTitle('Overview'),
             const SizedBox(height: 6),
-          ],
-          if (preview.rest.isNotEmpty) ...[
             Text(
-              preview.rest,
-              style: TextStyle(
-                color: Colors.white.withValues(alpha: 0.72),
-                fontSize: 18,
-                height: 1.36,
-                fontFamily: _profileSerifFont,
-                fontFamilyFallback: _profileSerifFallback,
+              overview,
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 15,
+                height: 1.48,
               ),
             ),
-            const SizedBox(height: 20),
+            const SizedBox(height: 18),
           ],
           _buildExpandedSectionTitle('Schedule'),
           const SizedBox(height: 8),
@@ -3856,7 +3774,6 @@ class _ProfilePageState extends State<ProfilePage>
             FlowPostEngagementRow(
               key: ValueKey('expanded_${post.id}'),
               post: post,
-              compact: true,
             ),
             const SizedBox(height: 2),
             Align(
@@ -3896,54 +3813,93 @@ class _ProfilePageState extends State<ProfilePage>
   }
 
   Widget _buildExpandedInsightDetailCard(InsightPost post) {
-    final author = _feedAuthorBadgeName(
-      handle: post.authorHandle,
-      fallback: post.authorLabel,
-    );
+    final handle = post.authorHandle?.trim();
+    final displayName = post.authorDisplayName?.trim();
 
     return _buildExpandedFeedCardShell(
       key: ValueKey('expanded_insight_${post.id}'),
-      topChip: _buildFeedBadgeLine(
-        kind: 'REFLECTION',
-        author: author,
-        dot: _buildFeedAccentDot(accent: _profileGoldText, size: 9),
-        onTap: () => _openFeedAuthorProfile(post.userId),
-        expanded: true,
+      topChip: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+        decoration: BoxDecoration(
+          color: _profileGoldBase.withValues(alpha: 0.16),
+          borderRadius: BorderRadius.circular(999),
+          border: Border.all(color: _profileGoldMid.withValues(alpha: 0.28)),
+        ),
+        child: Text(
+          _ownsInsightPost(post) ? 'Your Insight' : 'Posted Insight',
+          style: const TextStyle(
+            color: _profileGoldText,
+            fontSize: 11,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
       ),
       body: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            '“${_insightPreviewText(post.bodyText)}”',
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 24,
-              fontStyle: FontStyle.italic,
-              height: 1.36,
-              fontFamily: _profileSerifFont,
-              fontFamilyFallback: _profileSerifFallback,
-            ),
+          _buildExpandedFeedAuthorRow(
+            userId: post.userId,
+            displayName: post.authorLabel,
+            handle: handle,
+            displayHandleWhenDistinct:
+                handle != null &&
+                handle.isNotEmpty &&
+                displayName != null &&
+                displayName.isNotEmpty &&
+                handle.toLowerCase() != displayName.toLowerCase(),
+            avatarUrl: post.authorAvatarUrl,
+            avatarGlyphIds: post.authorAvatarGlyphIds,
           ),
-          const SizedBox(height: 20),
-          Text(
-            _formatFeedCardDate(post.entryDate),
-            style: TextStyle(
-              color: Colors.white.withValues(alpha: 0.58),
-              fontSize: 14,
-              fontWeight: FontWeight.w700,
-            ),
+          const SizedBox(height: 16),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              if ((post.nodeGlyph?.trim().isNotEmpty ?? false))
+                Padding(
+                  padding: const EdgeInsets.only(right: 10),
+                  child: Text(
+                    post.nodeGlyph!,
+                    style: const TextStyle(
+                      color: _profileGoldText,
+                      fontSize: 26,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+              Expanded(
+                child: _profileGoldTextWidget(
+                  post.nodeTitle,
+                  style: const TextStyle(
+                    fontSize: 26,
+                    fontWeight: FontWeight.w700,
+                    height: 1.05,
+                  ),
+                ),
+              ),
+            ],
           ),
-          if (post.nodeTitle.trim().isNotEmpty) ...[
-            const SizedBox(height: 16),
-            _buildExpandedSectionTitle(post.nodeTitle),
-          ],
+          const SizedBox(height: 12),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              _buildExpandedMetaPill(
+                'Dated ${_formatPostDate(post.entryDate, compact: true)}',
+              ),
+              _buildExpandedMetaPill(
+                'Posted ${_formatPostDate(post.createdAt, compact: true)}',
+              ),
+            ],
+          ),
+          const SizedBox(height: 18),
+          _buildExpandedSectionTitle('Insight'),
           const SizedBox(height: 8),
           Text(
-            'Posted ${_formatFeedCardDate(post.createdAt, compact: true)}',
-            style: TextStyle(
-              color: Colors.white.withValues(alpha: 0.48),
-              fontSize: 12,
-              fontWeight: FontWeight.w700,
+            post.bodyText.trim(),
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 15,
+              height: 1.56,
             ),
           ),
         ],
@@ -3982,8 +3938,18 @@ class _ProfilePageState extends State<ProfilePage>
   }) {
     return Container(
       key: key,
-      clipBehavior: Clip.antiAlias,
-      decoration: _feedMahoganyCardDecoration(expanded: true),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.05),
+        borderRadius: BorderRadius.circular(26),
+        border: Border.all(color: _profileGoldMid.withValues(alpha: 0.3)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.38),
+            blurRadius: 26,
+            offset: const Offset(0, 16),
+          ),
+        ],
+      ),
       child: Material(
         color: Colors.transparent,
         child: Column(
@@ -4026,6 +3992,90 @@ class _ProfilePageState extends State<ProfilePage>
               Divider(color: Colors.white.withValues(alpha: 0.08), height: 1),
               footer,
             ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildExpandedFeedAuthorRow({
+    required String userId,
+    required String displayName,
+    required String? handle,
+    required bool displayHandleWhenDistinct,
+    required String? avatarUrl,
+    required List<String> avatarGlyphIds,
+  }) {
+    return _buildFeedAuthorHeader(
+      userId: userId,
+      displayName: displayName,
+      handle: handle,
+      showHandle: displayHandleWhenDistinct,
+      avatarUrl: avatarUrl,
+      avatarGlyphIds: avatarGlyphIds,
+      avatarRadius: 16,
+      nameFontSize: 14,
+      handleFontSize: 12,
+    );
+  }
+
+  Widget _buildFeedAuthorHeader({
+    required String userId,
+    required String displayName,
+    required String? handle,
+    required bool showHandle,
+    required String? avatarUrl,
+    required List<String> avatarGlyphIds,
+    double avatarRadius = 14,
+    double nameFontSize = 13,
+    double handleFontSize = 11,
+  }) {
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: () => _openFeedAuthorProfile(userId),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 2),
+        child: Row(
+          children: [
+            ProfileAvatar(
+              displayName: displayName,
+              avatarUrl: avatarUrl,
+              avatarGlyphIds: avatarGlyphIds,
+              radius: avatarRadius,
+              foregroundColor: _profileGoldText,
+              backgroundColor: const Color(0xFF111115),
+              borderColor: _profileGoldMid.withValues(alpha: 0.24),
+              borderWidth: 1,
+            ),
+            SizedBox(width: avatarRadius >= 16 ? 12 : 10),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    displayName,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: nameFontSize,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  if (showHandle && handle != null)
+                    Text(
+                      '@$handle',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        color: Colors.white.withValues(alpha: 0.58),
+                        fontSize: handleFontSize,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                ],
+              ),
+            ),
           ],
         ),
       ),

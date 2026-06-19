@@ -18,13 +18,6 @@ import '../../widgets/kemetic_heart_icon.dart';
 import '../../widgets/keyboard_aware.dart';
 import '../../widgets/profile_avatar.dart';
 
-const String _flowPostEngagementSerifFont = 'CormorantGaramond';
-const List<String> _flowPostEngagementSerifFallback = [
-  'GentiumPlus',
-  'Georgia',
-  'serif',
-];
-
 class FlowPostEngagementRow extends StatefulWidget {
   final FlowPost post;
   final bool autoOpenComments;
@@ -186,12 +179,8 @@ class _FlowPostEngagementRowState extends State<FlowPostEngagementRow> {
         final iconSize = compact ? 22.0 : 24.0;
         final spacing = compact ? 4.0 : 6.0;
 
-        if (compact) {
-          return _buildCompactFeedRow(actionMinHeight: actionMinHeight);
-        }
-
         return Padding(
-          padding: const EdgeInsets.only(top: 10, bottom: 6),
+          padding: EdgeInsets.only(top: compact ? 6 : 10, bottom: 6),
           child: Row(
             children: [
               Expanded(
@@ -204,9 +193,9 @@ class _FlowPostEngagementRowState extends State<FlowPostEngagementRow> {
                         onTap: _likeButtonEnabled ? _toggleLike : null,
                         borderRadius: BorderRadius.circular(999),
                         child: Padding(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 4,
-                            vertical: 6,
+                          padding: EdgeInsets.symmetric(
+                            horizontal: compact ? 2 : 4,
+                            vertical: compact ? 4 : 6,
                           ),
                           child: _buildLikeIcon(iconSize),
                         ),
@@ -221,12 +210,12 @@ class _FlowPostEngagementRowState extends State<FlowPostEngagementRow> {
                                     : null),
                           borderRadius: BorderRadius.circular(999),
                           child: Padding(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 4,
-                              vertical: 6,
+                            padding: EdgeInsets.symmetric(
+                              horizontal: compact ? 2 : 4,
+                              vertical: compact ? 4 : 6,
                             ),
                             child: Text(
-                              _likeLabel(compact: false),
+                              _likeLabel(compact: compact),
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                               softWrap: false,
@@ -277,125 +266,6 @@ class _FlowPostEngagementRowState extends State<FlowPostEngagementRow> {
     );
   }
 
-  Widget _buildCompactFeedRow({required double actionMinHeight}) {
-    final countStyle = TextStyle(
-      color: Colors.white.withValues(alpha: 0.52),
-      fontSize: 13,
-      fontWeight: FontWeight.w700,
-      height: 1,
-    );
-
-    final carryStyle = const TextStyle(
-      color: KemeticGold.base,
-      fontSize: 15,
-      fontWeight: FontWeight.w700,
-      height: 1,
-      fontFamily: _flowPostEngagementSerifFont,
-      fontFamilyFallback: _flowPostEngagementSerifFallback,
-    );
-
-    return ConstrainedBox(
-      constraints: BoxConstraints(minHeight: actionMinHeight),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 8),
-        child: Row(
-          children: [
-            Expanded(
-              child: InkWell(
-                onTap: _likeButtonEnabled ? _toggleLike : null,
-                borderRadius: BorderRadius.circular(3),
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 4,
-                    vertical: 8,
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      if (_likeUpdating)
-                        const SizedBox(
-                          width: 14,
-                          height: 14,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            valueColor: AlwaysStoppedAnimation<Color>(
-                              KemeticGold.base,
-                            ),
-                          ),
-                        )
-                      else
-                        const Icon(
-                          Icons.add_rounded,
-                          color: KemeticGold.base,
-                          size: 20,
-                        ),
-                      const SizedBox(width: 5),
-                      Flexible(
-                        child: Text(
-                          _engagementUnavailable
-                              ? 'Unavailable'
-                              : 'Carry forward',
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          softWrap: false,
-                          style: carryStyle,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-            InkWell(
-              onTap: _likesListEnabled
-                  ? _openLikesSheet
-                  : (_engagementUnavailable ? _showMigrationNeeded : null),
-              borderRadius: BorderRadius.circular(3),
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    KemeticHeartIcon(
-                      size: 17,
-                      color: _likedByMe
-                          ? Colors.redAccent
-                          : Colors.white.withValues(alpha: 0.48),
-                      filled: _likedByMe,
-                    ),
-                    const SizedBox(width: 4),
-                    Text(_compactLikeCountLabel(), style: countStyle),
-                  ],
-                ),
-              ),
-            ),
-            InkWell(
-              onTap: _engagementUnavailable
-                  ? _showMigrationNeeded
-                  : _openCommentsSheet,
-              borderRadius: BorderRadius.circular(3),
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(
-                      Icons.format_quote_rounded,
-                      size: 18,
-                      color: Colors.white.withValues(alpha: 0.48),
-                    ),
-                    const SizedBox(width: 2),
-                    Text(_compactCommentCountLabel(), style: countStyle),
-                  ],
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
   bool get _likeButtonEnabled =>
       !_engagementUnavailable && !_likesLoading && !_likeUpdating;
 
@@ -428,24 +298,12 @@ class _FlowPostEngagementRowState extends State<FlowPostEngagementRow> {
     return compact ? '$_likesCount' : '$_likesCount Likes';
   }
 
-  String _compactLikeCountLabel() {
-    if (_engagementUnavailable) return 'Off';
-    if (_likesLoading && !_hasLikeCountSnapshot) return '0';
-    return '$_likesCount';
-  }
-
   String _commentLabel({required bool compact}) {
     if (_engagementUnavailable) return compact ? 'Off' : 'Unavailable';
     if (_commentsLoading && !_hasCommentCountSnapshot) {
       return compact ? 'Chat' : 'Comments';
     }
     return compact ? '$_commentsCount' : '$_commentsCount Comments';
-  }
-
-  String _compactCommentCountLabel() {
-    if (_engagementUnavailable) return 'Off';
-    if (_commentsLoading && !_hasCommentCountSnapshot) return '0';
-    return '$_commentsCount';
   }
 
   void _showDebugHapticsSnackBar(AppHapticResult result) {
