@@ -68,6 +68,67 @@ void main() {
     expect(find.byKey(globalSideDrawerKey), findsNothing);
   });
 
+  testWidgets('Library list and reader keep the floating menu bubble available', (
+    tester,
+  ) async {
+    final router = _testRouter(initialLocation: '/nodes');
+
+    await _pumpShell(tester, router);
+
+    expect(find.byKey(app.globalMenuButtonKey), findsOneWidget);
+    expect(find.bySemanticsLabel('Open navigation menu'), findsOneWidget);
+
+    router.go('/nodes/maat');
+    await tester.pumpAndSettle();
+
+    expect(find.text('Node reader route'), findsOneWidget);
+    expect(find.byKey(app.globalMenuButtonKey), findsOneWidget);
+    expect(find.bySemanticsLabel('Open navigation menu'), findsOneWidget);
+  });
+
+  testWidgets('full-screen search route suppresses global menu bubble', (
+    tester,
+  ) async {
+    tester.view.viewInsets = const FakeViewPadding(bottom: 320);
+    addTearDown(tester.view.reset);
+
+    final router = _testRouter(
+      initialLocation: '/nodes',
+      nodesBuilder: (context) => const _SearchLauncherPage(),
+    );
+
+    await _pumpShell(tester, router);
+
+    expect(find.byKey(app.globalMenuButtonKey), findsNothing);
+
+    tester.view.viewInsets = FakeViewPadding.zero;
+    await tester.pump();
+    expect(find.byKey(app.globalMenuButtonKey), findsOneWidget);
+
+    await tester.tap(find.byKey(_SearchLauncherPage.openSearchKey));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Search suggestions'), findsOneWidget);
+    expect(find.byKey(app.globalMenuButtonKey), findsNothing);
+    expect(find.byKey(globalSideDrawerKey), findsNothing);
+    expect(app.globalFloatingMenuModalDepthValue, greaterThan(0));
+
+    await tester.tapAt(const Offset(48, 780));
+    await tester.pumpAndSettle();
+    expect(find.byKey(globalSideDrawerKey), findsNothing);
+
+    await tester.tap(find.byKey(_TestSearchDelegate.closeSearchKey));
+    await tester.pumpAndSettle();
+    await tester.pump(_floatingMenuModalSettleDelayForTesting);
+
+    expect(find.text('Search suggestions'), findsNothing);
+    expect(app.globalFloatingMenuModalDepthValue, 0);
+    expect(find.byKey(app.globalMenuButtonKey), findsOneWidget);
+
+    await _openDrawer(tester);
+    expect(find.byKey(globalSideDrawerKey), findsOneWidget);
+  });
+
   testWidgets('drawer is an underlay beneath the translated foreground', (
     tester,
   ) async {
@@ -364,9 +425,15 @@ Future<void> _openDrawer(WidgetTester tester) async {
   await tester.pump(globalSideDrawerTransitionDuration);
 }
 
-GoRouter _testRouter({String initialLocation = '/nodes'}) {
+GoRouter _testRouter({
+  String initialLocation = '/nodes',
+  WidgetBuilder? nodesBuilder,
+}) {
   return GoRouter(
     initialLocation: initialLocation,
+    observers: <NavigatorObserver>[
+      app.globalFloatingMenuRouteObserverForTesting,
+    ],
     routes: [
       GoRoute(path: '/', builder: (context, state) => const _Page('Calendar')),
       GoRoute(
@@ -375,7 +442,12 @@ GoRouter _testRouter({String initialLocation = '/nodes'}) {
       ),
       GoRoute(
         path: '/nodes',
-        builder: (context, state) => const _Page('Nodes'),
+        builder: (context, state) =>
+            nodesBuilder?.call(context) ?? const _Page('Nodes'),
+      ),
+      GoRoute(
+        path: '/nodes/:nodeId',
+        builder: (context, state) => const _Page('Node reader route'),
       ),
       GoRoute(
         path: '/journal',
@@ -445,5 +517,57 @@ class _Page extends StatelessWidget {
         ),
       ),
     );
+  }
+}
+
+const Duration _floatingMenuModalSettleDelayForTesting = Duration(
+  milliseconds: 80,
+);
+
+class _SearchLauncherPage extends StatelessWidget {
+  const _SearchLauncherPage();
+
+  static const openSearchKey = ValueKey<String>('open-shell-search');
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: Center(
+        child: TextButton(
+          key: openSearchKey,
+          onPressed: () => showSearch<String?>(
+            context: context,
+            delegate: _TestSearchDelegate(),
+          ),
+          child: const Text('Open search'),
+        ),
+      ),
+    );
+  }
+}
+
+class _TestSearchDelegate extends SearchDelegate<String?> {
+  static const closeSearchKey = ValueKey<String>('close-shell-search');
+
+  @override
+  List<Widget>? buildActions(BuildContext context) => const <Widget>[];
+
+  @override
+  Widget? buildLeading(BuildContext context) {
+    return IconButton(
+      key: closeSearchKey,
+      icon: const Icon(Icons.arrow_back),
+      onPressed: () => close(context, null),
+    );
+  }
+
+  @override
+  Widget buildResults(BuildContext context) {
+    return const Center(child: Text('Search results'));
+  }
+
+  @override
+  Widget buildSuggestions(BuildContext context) {
+    return const Center(child: Text('Search suggestions'));
   }
 }

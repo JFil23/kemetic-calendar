@@ -756,6 +756,10 @@ bool _debugForceGlobalFloatingMenuForTesting = false;
 
 int get globalFloatingMenuModalDepthValue => _floatingMenuModalDepth.value;
 
+@visibleForTesting
+NavigatorObserver get globalFloatingMenuRouteObserverForTesting =>
+    _floatingMenuRouteObserver;
+
 bool get rootNavigatorContextMountedForNavigationTrace =>
     _rootNavigatorKey.currentContext?.mounted ?? false;
 
@@ -771,9 +775,20 @@ String get rootRouterUriForNavigationTrace {
 }
 
 class _FloatingMenuRouteObserver extends NavigatorObserver {
+  bool _isSearchRoute(Route<dynamic> route) {
+    if (route is! PageRoute<dynamic>) return false;
+    try {
+      final Object? delegate = (route as dynamic).delegate;
+      return delegate is SearchDelegate<dynamic>;
+    } catch (_) {
+      return false;
+    }
+  }
+
   bool _suppressesFloatingMenu(Route<dynamic> route) {
     if (route.settings.name == calendarActionsMenuRouteName) return false;
     if (route.settings.name == calendarMonthDetailRouteName) return true;
+    if (_isSearchRoute(route)) return true;
     return route is PopupRoute;
   }
 
