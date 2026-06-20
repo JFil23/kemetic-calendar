@@ -293,6 +293,38 @@ void main() {
     await _closeFlowStudio(tester);
   });
 
+  testWidgets('imported edit toolbar fits narrow mobile width', (tester) async {
+    _useMobilePortraitSurface(tester);
+    final draft = _buildDraft(
+      name: 'CODEX_INBOX_IMPORT_SMOKE',
+      editingFlowId: 771,
+      startDate: DateTime(2026, 6, 21),
+      endDate: DateTime(2026, 6, 22),
+    );
+
+    await _openFlowStudio(
+      tester,
+      initialDraftJson: draft,
+      debugHasExistingFlows: true,
+    );
+
+    expect(tester.takeException(), isNull);
+    expect(find.byTooltip('Close'), findsOneWidget);
+    expect(find.byTooltip('Delete'), findsOneWidget);
+    expect(find.byTooltip('Flows menu'), findsOneWidget);
+    expect(find.byIcon(Icons.auto_awesome), findsAtLeastNWidgets(1));
+    expect(find.text('Save'), findsOneWidget);
+
+    await tester.tap(find.byTooltip('Flows menu'));
+    await tester.pumpAndSettle();
+    expect(tester.takeException(), isNull);
+    expect(find.text('Find / Edit flows...'), findsOneWidget);
+    expect(find.text('New flow'), findsOneWidget);
+    expect(find.text('Reset fields'), findsOneWidget);
+
+    await _closeFlowStudio(tester);
+  });
+
   testWidgets('date system toggle hides inactive editors and restores them', (
     tester,
   ) async {
@@ -845,6 +877,8 @@ T testerWidget<T extends Widget>(Finder finder) {
 }
 
 Map<String, dynamic> _buildDraft({
+  String name = '',
+  int? editingFlowId,
   String studioMode = 'build',
   required DateTime startDate,
   required DateTime endDate,
@@ -853,7 +887,8 @@ Map<String, dynamic> _buildDraft({
   String date(DateTime value) => DateUtils.dateOnly(value).toIso8601String();
 
   return <String, dynamic>{
-    'name': '',
+    'editingFlowId': editingFlowId,
+    'name': name,
     'active': true,
     'selectedColorIndex': 0,
     'studioMode': studioMode,
@@ -887,6 +922,7 @@ Future<void> _openFlowStudio(
   WidgetTester tester, {
   ImportFlowData? importData,
   Map<String, dynamic>? initialDraftJson,
+  bool debugHasExistingFlows = false,
   Future<void> Function(dynamic result)? onRouteResult,
   Future<TimeOfDay?> Function(BuildContext context, TimeOfDay initialTime)?
   debugTimePicker,
@@ -896,6 +932,7 @@ Future<void> _openFlowStudio(
       home: debugBuildFlowStudioPageForTest(
         importData: importData,
         initialDraftJson: initialDraftJson,
+        debugHasExistingFlows: debugHasExistingFlows,
         onRouteResult: onRouteResult,
         debugTimePicker: debugTimePicker,
       ),
@@ -927,6 +964,15 @@ Future<void> _pumpFlowStudio(
 
 void _useLargeSurface(WidgetTester tester) {
   tester.view.physicalSize = const Size(1200, 2400);
+  tester.view.devicePixelRatio = 1;
+  addTearDown(() {
+    tester.view.resetPhysicalSize();
+    tester.view.resetDevicePixelRatio();
+  });
+}
+
+void _useMobilePortraitSurface(WidgetTester tester) {
+  tester.view.physicalSize = const Size(393, 852);
   tester.view.devicePixelRatio = 1;
   addTearDown(() {
     tester.view.resetPhysicalSize();

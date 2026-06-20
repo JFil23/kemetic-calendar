@@ -235,12 +235,23 @@ Widget debugBuildFlowStudioPageForTest({
   ImportFlowData? importData,
   int? editFlowId,
   Map<String, dynamic>? initialDraftJson,
+  bool debugHasExistingFlows = false,
   Future<void> Function(dynamic result)? onRouteResult,
   Future<TimeOfDay?> Function(BuildContext context, TimeOfDay initialTime)?
   debugTimePicker,
 }) {
   return _FlowStudioPage(
-    existingFlows: const <_Flow>[],
+    existingFlows: debugHasExistingFlows
+        ? <_Flow>[
+            _Flow(
+              id: 1,
+              name: 'Existing flow',
+              color: _gold,
+              active: true,
+              rules: const <FlowRule>[],
+            ),
+          ]
+        : const <_Flow>[],
     editFlowId: editFlowId,
     importData: importData,
     onRouteResult: onRouteResult == null
@@ -5093,15 +5104,20 @@ class _FlowStudioPageState extends State<_FlowStudioPage>
           ),
         ),
         title: Row(
-          mainAxisSize: MainAxisSize.min,
+          mainAxisSize: MainAxisSize.max,
           children: [
-            const Text(
-              'Flow Studio',
-              style: TextStyle(
-                color: _gold,
-                fontSize: 22,
-                fontWeight: FontWeight.w600,
-                fontFamily: 'GentiumPlus',
+            const Flexible(
+              child: Text(
+                'Flow Studio',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                softWrap: false,
+                style: TextStyle(
+                  color: _gold,
+                  fontSize: 22,
+                  fontWeight: FontWeight.w600,
+                  fontFamily: 'GentiumPlus',
+                ),
               ),
             ),
             const SizedBox(width: 12),
@@ -5168,7 +5184,10 @@ class _FlowStudioPageState extends State<_FlowStudioPage>
               tooltip: 'Flows menu',
               icon: const Icon(Icons.more_vert, color: _silver, size: 22),
               padding: EdgeInsets.zero,
-              constraints: const BoxConstraints.tightFor(width: 36, height: 44),
+              constraints: const BoxConstraints(
+                minWidth: 220,
+                maxWidth: 280,
+              ),
               onSelected: (v) {
                 if (v == 1) _openFlowPicker();
                 if (v == 2) _clearEditorForNew();
