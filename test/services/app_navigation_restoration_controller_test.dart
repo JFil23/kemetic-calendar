@@ -844,6 +844,63 @@ void main() {
     },
   );
 
+  test(
+    'user back from Library primary to Calendar clears stale primary selection',
+    () async {
+      await AppNavigationRestorationController.instance
+          .recordPrimaryTabSelection(AppSection.library);
+      expect(await _durableRoute(), '/nodes');
+      expect(
+        await _primarySelectionMetadataJson(),
+        containsPair('canonicalRoute', '/nodes'),
+      );
+
+      await AppNavigationRestorationController.instance.recordSurfaceDismissal(
+        dismissedRoute: '/nodes',
+        fallbackRoute: '/',
+        source: NavigationSource.userBack,
+      );
+
+      final destination = await AppNavigationRestorationController.instance
+          .restoreLaunchDestination(isAuthenticated: true);
+
+      expect(await _durableRoute(), '/');
+      expect(destination.route, '/');
+      expect(await _durableMetadataJson(), containsPair('source', 'userBack'));
+      expect(await _primarySelectionMetadataJson(), isNull);
+    },
+  );
+
+  test(
+    'user dismissal from Journal primary to Calendar clears stale primary selection',
+    () async {
+      await AppNavigationRestorationController.instance
+          .recordPrimaryTabSelection(AppSection.journal);
+      expect(await _durableRoute(), '/journal');
+      expect(
+        await _primarySelectionMetadataJson(),
+        containsPair('canonicalRoute', '/journal'),
+      );
+
+      await AppNavigationRestorationController.instance.recordSurfaceDismissal(
+        dismissedRoute: '/journal',
+        fallbackRoute: '/',
+        source: NavigationSource.userDismissal,
+      );
+
+      final destination = await AppNavigationRestorationController.instance
+          .restoreLaunchDestination(isAuthenticated: true);
+
+      expect(await _durableRoute(), '/');
+      expect(destination.route, '/');
+      expect(
+        await _durableMetadataJson(),
+        containsPair('source', 'userDismissal'),
+      );
+      expect(await _primarySelectionMetadataJson(), isNull);
+    },
+  );
+
   test('passive root mounts cannot evict a saved detail surface', () async {
     for (final source in const <NavigationSource>[
       NavigationSource.programmatic,

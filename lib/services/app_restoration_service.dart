@@ -1728,6 +1728,36 @@ class AppRestorationService {
     }
   }
 
+  bool _sourceClearsPrimarySelectionOnRoot(NavigationSource source) {
+    switch (source) {
+      case NavigationSource.userBack:
+      case NavigationSource.userDismissal:
+        return true;
+      case NavigationSource.userPrimaryTab:
+      case NavigationSource.userDrawerSelection:
+      case NavigationSource.userExplicitOpen:
+      case NavigationSource.programmatic:
+      case NavigationSource.restoreReplay:
+      case NavigationSource.authGate:
+      case NavigationSource.launchPlaceholder:
+      case NavigationSource.lifecycle:
+      case NavigationSource.calendarDidPushNext:
+      case NavigationSource.calendarDispose:
+      case NavigationSource.detailRestoration:
+      case NavigationSource.modalLifecycle:
+      case NavigationSource.notificationTap:
+      case NavigationSource.searchResultTap:
+      case NavigationSource.sharedCalendarEventTap:
+      case NavigationSource.nodeActionUrl:
+      case NavigationSource.authCallback:
+      case NavigationSource.appLink:
+      case NavigationSource.sessionResume:
+      case NavigationSource.bootRestore:
+      case NavigationSource.unknown:
+        return false;
+    }
+  }
+
   bool _isDurablePrimaryRouteLocation(String? location) {
     final normalized = location?.trim();
     if (normalized == null || normalized.isEmpty) return false;
@@ -2177,6 +2207,9 @@ class AppRestorationService {
       current[navigationLaunchRouteMetadataKey] = metadata.toJson();
       if (metadata.isCurrentUserPrimaryDurable) {
         current[navigationPrimarySelectionMetadataKey] = metadata.toJson();
+      } else if (_isRootRouteLocation(normalized) &&
+          _sourceClearsPrimarySelectionOnRoot(metadata.source)) {
+        current.remove(navigationPrimarySelectionMetadataKey);
       }
       _log(
         'save launch route committed before='
