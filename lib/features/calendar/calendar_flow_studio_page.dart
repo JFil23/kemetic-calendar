@@ -2448,17 +2448,22 @@ class _FlowStudioPageState extends State<_FlowStudioPage>
     final bool isAiImport = widget.importData?.share.payloadId == 'ai-local';
     final bool isImportedFlow = widget.importData != null && !isAiImport;
     final List<FlowRule> rulesToSave = isImportedFlow ? <FlowRule>[] : rules;
+    final hasMaterializedSchedule =
+        rulesToSave.isNotEmpty || planned.isNotEmpty;
     final hasScheduledOutput =
         _startDate != null ||
         _endDate != null ||
         rulesToSave.isNotEmpty ||
         planned.isNotEmpty;
+    final importedWithoutMaterializedSchedule =
+        isImportedFlow && !hasMaterializedSchedule;
     final saveAsUnscheduledTemplate =
-        widget.importData == null &&
-        !_isAIGeneratedFlow &&
-        !hasScheduledOutput &&
-        !(_editing?.isReminder ?? false) &&
-        !(_editing?.isHidden ?? false);
+        importedWithoutMaterializedSchedule ||
+        (widget.importData == null &&
+            !_isAIGeneratedFlow &&
+            !hasScheduledOutput &&
+            !(_editing?.isReminder ?? false) &&
+            !(_editing?.isHidden ?? false));
     final flowIsSaved =
         (_editing?.isSaved ?? false) || saveAsUnscheduledTemplate;
 
@@ -3608,6 +3613,13 @@ class _FlowStudioPageState extends State<_FlowStudioPage>
       final eventsJson = payload?['events'] as List<dynamic>?;
 
       if (eventsJson != null && eventsJson.isNotEmpty) {
+        if (!isAiImport) {
+          // Shared-flow payload snapshots are already concrete event instances.
+          // Keep them in per-day mode so Save persists the individual rows
+          // instead of requiring a repeating weekday template selection.
+          _useKemetic = false;
+          _splitByPeriod = true;
+        }
         final baseDate = _startDate ?? DateTime.now();
         final userEvents = <UserEvent>[];
         for (final e in eventsJson) {
@@ -3716,7 +3728,20 @@ class _FlowStudioPageState extends State<_FlowStudioPage>
           _syncReady = true;
         }
       } else {
-        _endDate = requestedEndDate ?? _startDate;
+        final suggestedWeekdays =
+            data.share.suggestedSchedule?.weekdays ?? const <int>[];
+        final hasImportSchedule =
+            isAiImport ||
+            data.rules.isNotEmpty ||
+            suggestedWeekdays.isNotEmpty ||
+            requestedEndDate != null;
+        if (!hasImportSchedule) {
+          _startDate = null;
+          _endDate = null;
+          _dateRangeEditedInCurrentEditor = false;
+        } else {
+          _endDate = requestedEndDate ?? _startDate;
+        }
         _syncReady = true;
         _rebuildSpans();
       }

@@ -37,6 +37,8 @@ class _FlowSpanSummary {
 class SharedFlowDetailsPage extends StatefulWidget {
   final InboxShareItem? share; // non-imported
   final int? flowId; // imported
+  final int?
+  importedFlowId; // imported state while still rendering share payload
   final Map<String, dynamic>? payloadJson; // direct payload (e.g., flow post)
   final bool showImportFooter;
   final bool showRemoveButton;
@@ -47,6 +49,7 @@ class SharedFlowDetailsPage extends StatefulWidget {
     super.key,
     this.share,
     this.flowId,
+    this.importedFlowId,
     this.payloadJson,
     this.showImportFooter = true,
     this.showRemoveButton = false,
@@ -71,7 +74,7 @@ class _SharedFlowDetailsPageState extends State<SharedFlowDetailsPage> {
   };
 
   late final UserEventsRepo _userEventsRepo;
-  late final Future<_SharedFlowData> _flowFuture;
+  late Future<_SharedFlowData> _flowFuture;
   Future<_FlowSpanSummary?>? _spanFuture;
   bool _trackedShareViewed = false;
   final Set<String> _selectedFeedbackTags = <String>{};
@@ -131,6 +134,21 @@ class _SharedFlowDetailsPageState extends State<SharedFlowDetailsPage> {
       }
     }
 
+    _configureFutures();
+  }
+
+  @override
+  void didUpdateWidget(covariant SharedFlowDetailsPage oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.flowId != widget.flowId ||
+        oldWidget.importedFlowId != widget.importedFlowId ||
+        oldWidget.share?.shareId != widget.share?.shareId ||
+        oldWidget.payloadJson != widget.payloadJson) {
+      _configureFutures();
+    }
+  }
+
+  void _configureFutures() {
     if (widget.flowId != null) {
       _flowFuture = _loadFromDb(widget.flowId!);
       _spanFuture = _loadSpanSummary(); // ✅ Only for imported flows
@@ -138,8 +156,10 @@ class _SharedFlowDetailsPageState extends State<SharedFlowDetailsPage> {
       _flowFuture = Future.value(_fromPayload(widget.payloadJson!));
       _spanFuture = Future.value(null);
     } else {
-      _flowFuture = Future.value(_fromShare(widget.share!));
-      _spanFuture = Future.value(null); // ✅ Not imported yet - no events
+      _flowFuture = Future.value(
+        _fromShare(widget.share!, importedFlowId: widget.importedFlowId),
+      );
+      _spanFuture = Future.value(null); // ✅ Payload shares show snapshot events
     }
   }
 
@@ -232,7 +252,7 @@ class _SharedFlowDetailsPageState extends State<SharedFlowDetailsPage> {
     );
   }
 
-  _SharedFlowData _fromShare(InboxShareItem share) {
+  _SharedFlowData _fromShare(InboxShareItem share, {int? importedFlowId}) {
     // ✅ 1) Try typed model first
     final payload = share.flowPayload;
 
@@ -270,8 +290,8 @@ class _SharedFlowDetailsPageState extends State<SharedFlowDetailsPage> {
         rulesJson: payload.rules,
         eventsJson: eventsJson, // ✅ List<dynamic> format
         suggestedScheduleJson: share.suggestedSchedule?.toJson(),
-        isImported: false,
-        flowId: null,
+        isImported: importedFlowId != null,
+        flowId: importedFlowId,
         share: share,
       );
     }
@@ -309,8 +329,8 @@ class _SharedFlowDetailsPageState extends State<SharedFlowDetailsPage> {
       rulesJson: (payloadMap['rules'] as List<dynamic>? ?? const []),
       eventsJson: (payloadMap['events'] as List<dynamic>? ?? const []),
       suggestedScheduleJson: share.suggestedSchedule?.toJson(),
-      isImported: false,
-      flowId: null,
+      isImported: importedFlowId != null,
+      flowId: importedFlowId,
       share: share,
     );
   }
@@ -1069,6 +1089,25 @@ class _SharedFlowImportFooterState extends State<_SharedFlowImportFooter> {
 
                     try {
                       final share = widget.flowData.share!;
+                      final existingFlowId = await _userEventsRepo
+                          .getFlowIdByShareId(share.shareId);
+                      if (existingFlowId != null) {
+                        final inboxRepo = InboxRepo(Supabase.instance.client);
+                        await inboxRepo.markImported(
+                          share.shareId,
+                          isFlow: true,
+                        );
+                        if (!context.mounted) return;
+                        await CalendarPage.openFlowEditorFromAnyContext(
+                          context,
+                          flowId: existingFlowId,
+                          fallbackLocation: widget.fallbackLocation,
+                          source: 'shared_flow_details',
+                        );
+                        if (mounted) setState(() => _isWorking = false);
+                        return;
+                      }
+
                       final payload = share.payloadJson;
                       if (payload == null) {
                         throw Exception('No flow data available');
@@ -1081,6 +1120,7 @@ class _SharedFlowImportFooterState extends State<_SharedFlowImportFooter> {
                           ? null
                           : '${scheduledStart.year}-${scheduledStart.month.toString().padLeft(2, '0')}-${scheduledStart.day.toString().padLeft(2, '0')}';
 
+                      if (!context.mounted) return;
                       final flowId = await CalendarPage.importFlowFromShare(
                         context,
                         ImportFlowData(

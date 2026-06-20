@@ -2662,16 +2662,28 @@ class UserEventsRepo {
     }
   }
 
-  /// Get flow by share_id
+  /// Get an imported flow for a share.
+  ///
+  /// Older Inbox imports linked `flows.share_id`. Route-backed Flow Studio
+  /// imports preserve lineage with `flows.origin_share_id`, so both columns are
+  /// valid import-status markers for a share.
   Future<int?> getFlowIdByShareId(String shareId) async {
     try {
+      final user = _client.auth.currentUser;
+      if (user == null || !_isUuid(shareId)) return null;
       final response = await _client
           .from('flows')
-          .select('id')
-          .eq('share_id', shareId)
-          .maybeSingle();
+          .select('id, active, is_saved, created_at')
+          .eq('user_id', user.id)
+          .or('share_id.eq.$shareId,origin_share_id.eq.$shareId')
+          .order('active', ascending: false)
+          .order('is_saved', ascending: false)
+          .order('created_at', ascending: false)
+          .limit(1);
 
-      return response?['id'] as int?;
+      final rows = (response as List).cast<Map<String, dynamic>>();
+      if (rows.isEmpty) return null;
+      return (rows.first['id'] as num?)?.toInt();
     } catch (e) {
       if (kDebugMode) {
         debugPrint('[UserEventsRepo] Error getting flow by share_id: $e');

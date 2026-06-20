@@ -3,8 +3,9 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:mobile/data/share_models.dart';
 import 'package:mobile/features/calendar/calendar_page.dart'
-    show debugBuildFlowStudioPageForTest;
+    show ImportFlowData, debugBuildFlowStudioPageForTest;
 import 'package:mobile/models/ai_flow_generation_response.dart';
 import 'package:mobile/services/ai_flow_generation_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -178,6 +179,114 @@ void main() {
     expect(savedResult.savedFlow.isSaved, isTrue);
     expect(savedResult.savedFlow.start, isNull);
     expect(savedResult.savedFlow.end, isNull);
+    expect(savedResult.savedFlow.rules, isEmpty);
+    expect(List<dynamic>.from(savedResult.plannedNotes as Iterable), isEmpty);
+
+    await _closeFlowStudio(tester);
+  });
+
+  testWidgets('shared import snapshot events save without weekday selection', (
+    tester,
+  ) async {
+    _useLargeSurface(tester);
+    dynamic savedResult;
+    final importData = _buildSharedImportData(
+      events: const [
+        {
+          'offset_days': 0,
+          'title': 'CODEX_INBOX_IMPORT_SMOKE opening',
+          'detail': 'first imported snapshot',
+          'location': 'Audit room',
+          'all_day': false,
+          'start_time': '09:15',
+          'end_time': '10:00',
+          'action_id': 'tap-one',
+          'behavior_payload': {'kind': 'tap'},
+        },
+        {
+          'offset_days': 1,
+          'title': 'CODEX_INBOX_IMPORT_SMOKE closing',
+          'detail': 'second imported snapshot',
+          'all_day': false,
+          'start_time': '18:30',
+          'end_time': '19:05',
+        },
+      ],
+    );
+
+    await _openFlowStudio(
+      tester,
+      importData: importData,
+      onRouteResult: (result) async {
+        savedResult = result;
+      },
+    );
+
+    await tester.tap(find.text('Save').first);
+    await _pumpFlowStudio(tester);
+
+    expect(savedResult, isNotNull);
+    expect(savedResult.savedFlow.name, 'CODEX_INBOX_IMPORT_SMOKE');
+    expect(savedResult.savedFlow.isSaved, isFalse);
+    expect(savedResult.savedFlow.shareId, _testShareId);
+    expect(savedResult.originType, 'share_import');
+    expect(savedResult.originFlowId, 765);
+    expect(savedResult.rootFlowId, 765);
+    expect(savedResult.originShareId, _testShareId);
+    expect(savedResult.savedFlow.rules, isEmpty);
+
+    final planned = List<dynamic>.from(savedResult.plannedNotes as Iterable);
+    expect(planned, hasLength(2));
+    expect(
+      planned.map((plannedNote) => plannedNote.note.title),
+      containsAll(<String>[
+        'CODEX_INBOX_IMPORT_SMOKE opening',
+        'CODEX_INBOX_IMPORT_SMOKE closing',
+      ]),
+    );
+
+    final opening = planned.firstWhere(
+      (plannedNote) =>
+          plannedNote.note.title == 'CODEX_INBOX_IMPORT_SMOKE opening',
+    );
+    expect(opening.note.detail, 'first imported snapshot');
+    expect(opening.note.location, 'Audit room');
+    expect(opening.note.allDay, isFalse);
+    expect(opening.note.start.hour, 9);
+    expect(opening.note.start.minute, 15);
+    expect(opening.note.end.hour, 10);
+    expect(opening.note.end.minute, 0);
+    expect(opening.note.actionId, 'tap-one');
+    expect(opening.note.behaviorPayload, {'kind': 'tap'});
+
+    await _closeFlowStudio(tester);
+  });
+
+  testWidgets('no-schedule shared import saves as a findable template', (
+    tester,
+  ) async {
+    _useLargeSurface(tester);
+    dynamic savedResult;
+    final importData = _buildSharedImportData(events: const []);
+
+    await _openFlowStudio(
+      tester,
+      importData: importData,
+      onRouteResult: (result) async {
+        savedResult = result;
+      },
+    );
+
+    await tester.tap(find.text('Save').first);
+    await _pumpFlowStudio(tester);
+
+    expect(savedResult, isNotNull);
+    expect(savedResult.savedFlow.name, 'CODEX_INBOX_IMPORT_SMOKE');
+    expect(savedResult.savedFlow.active, isTrue);
+    expect(savedResult.savedFlow.isSaved, isTrue);
+    expect(savedResult.savedFlow.shareId, _testShareId);
+    expect(savedResult.originType, 'share_import');
+    expect(savedResult.originShareId, _testShareId);
     expect(savedResult.savedFlow.rules, isEmpty);
     expect(List<dynamic>.from(savedResult.plannedNotes as Iterable), isEmpty);
 
@@ -776,6 +885,7 @@ Map<String, dynamic> _buildDraft({
 
 Future<void> _openFlowStudio(
   WidgetTester tester, {
+  ImportFlowData? importData,
   Map<String, dynamic>? initialDraftJson,
   Future<void> Function(dynamic result)? onRouteResult,
   Future<TimeOfDay?> Function(BuildContext context, TimeOfDay initialTime)?
@@ -784,6 +894,7 @@ Future<void> _openFlowStudio(
   await tester.pumpWidget(
     MaterialApp(
       home: debugBuildFlowStudioPageForTest(
+        importData: importData,
         initialDraftJson: initialDraftJson,
         onRouteResult: onRouteResult,
         debugTimePicker: debugTimePicker,
@@ -821,6 +932,47 @@ void _useLargeSurface(WidgetTester tester) {
     tester.view.resetPhysicalSize();
     tester.view.resetDevicePixelRatio();
   });
+}
+
+const _testShareId = '11111111-1111-4111-8111-111111111111';
+
+ImportFlowData _buildSharedImportData({
+  required List<Map<String, dynamic>> events,
+}) {
+  final share = InboxShareItem(
+    shareId: _testShareId,
+    kind: InboxShareKind.flow,
+    recipientId: 'recipient',
+    senderId: 'sender',
+    payloadId: '765',
+    title: 'CODEX_INBOX_IMPORT_SMOKE',
+    createdAt: DateTime.utc(2026, 6, 19),
+    suggestedSchedule: SuggestedSchedule(
+      startDate: '2026-06-19',
+      weekdays: const [],
+    ),
+    payloadJson: {
+      'flow_id': 765,
+      'name': 'CODEX_INBOX_IMPORT_SMOKE',
+      'color': 0xFF4DD0E1,
+      'notes': '',
+      'rules': const [],
+      'events': events,
+    },
+  );
+
+  return ImportFlowData(
+    share: share,
+    name: 'CODEX_INBOX_IMPORT_SMOKE',
+    color: 0xFF4DD0E1,
+    notes: '',
+    rules: const [],
+    suggestedStartDate: DateTime(2026, 6, 19),
+    suggestedEndDate: events.isEmpty ? null : DateTime(2026, 6, 20),
+    originFlowId: 765,
+    rootFlowId: 765,
+    originType: 'share_import',
+  );
 }
 
 String _sliceBetween(String source, String startNeedle, String endNeedle) {

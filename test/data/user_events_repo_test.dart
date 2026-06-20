@@ -76,6 +76,26 @@ void main() {
       expect(migrationSource, contains("'saved_import'"));
       expect(migrationSource, contains('flows_origin_type_check'));
     });
+
+    test('share import status lookup accepts route-backed lineage', () {
+      final repoSource = File(
+        'lib/data/user_events_repo.dart',
+      ).readAsStringSync();
+      final lookupBody = _sourceBetween(
+        repoSource,
+        'Future<int?> getFlowIdByShareId(String shareId) async {',
+        "debugPrint('[UserEventsRepo] Error getting flow by share_id: \$e');",
+      );
+
+      expect(lookupBody, contains(".from('flows')"));
+      expect(lookupBody, contains(".eq('user_id', user.id)"));
+      expect(
+        lookupBody,
+        contains(".or('share_id.eq.\$shareId,origin_share_id.eq.\$shareId')"),
+      );
+      expect(lookupBody, contains(".order('active', ascending: false)"));
+      expect(lookupBody, contains(".order('is_saved', ascending: false)"));
+    });
   });
 }
 
