@@ -1396,21 +1396,32 @@ void main() {
     });
 
     test(
-      'planner embedded mode keeps menu space while routed lists do not',
+      'planner routes keep menu space while archive lists use local safe-area padding',
       () async {
         final planner = await File(
           'lib/features/rhythm/pages/todays_alignment_page.dart',
+        ).readAsString();
+        final tracker = await File(
+          'lib/features/rhythm/pages/commitment_tracker_page.dart',
         ).readAsString();
         final reflections = await File(
           'lib/features/reflections/decan_reflection_archive_page.dart',
         ).readAsString();
 
-        expect(planner, contains('final listBottomPadding = embedded'));
         expect(
           planner,
-          contains('? bottomPaddingAboveGlobalChrome(context, 32)'),
+          contains(
+            'final listBottomPadding = bottomPaddingAboveGlobalChrome(context, 32);',
+          ),
         );
-        expect(planner, contains(': 32.0'));
+        expect(
+          tracker,
+          contains('bottomPaddingAboveGlobalChrome(context, 32)'),
+        );
+        expect(
+          planner,
+          isNot(contains('final listBottomPadding = embedded')),
+        );
         expect(planner, contains('keyboardInsetOf(context)'));
         expect(reflections, contains('final bottomPadding ='));
         expect(

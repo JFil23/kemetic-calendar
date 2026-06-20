@@ -3119,9 +3119,7 @@ class _TodaysAlignmentPageState extends State<TodaysAlignmentPage> {
         final progress = _progress();
         final progressPercent = (progress * 100).round();
         final plannerAction = _todayPlannerAction();
-        final listBottomPadding = embedded
-            ? bottomPaddingAboveGlobalChrome(context, 32)
-            : 32.0;
+        final listBottomPadding = bottomPaddingAboveGlobalChrome(context, 32);
         final keyboardInset = keyboardInsetOf(context);
         final effectiveListBottomPadding = math.max(
           listBottomPadding,
