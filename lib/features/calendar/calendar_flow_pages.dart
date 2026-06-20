@@ -3905,11 +3905,21 @@ class _FlowHubPageState extends State<_FlowHubPage> {
     debugLabel: 'flow_studio_add_flow_helper',
   );
   bool _helperPrompted = false;
+  bool _helperPromptScheduled = false;
 
   @override
   void initState() {
     super.initState();
-    unawaited(_maybeShowFlowStudioAddFlowHelper());
+    _scheduleFlowStudioAddFlowHelper();
+  }
+
+  void _scheduleFlowStudioAddFlowHelper() {
+    if (_helperPromptScheduled) return;
+    _helperPromptScheduled = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      unawaited(_maybeShowFlowStudioAddFlowHelper());
+    });
   }
 
   Future<void> _maybeShowFlowStudioAddFlowHelper() async {

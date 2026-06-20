@@ -5,8 +5,24 @@ import 'package:mobile/features/onboarding/onboarding_progress.dart';
 
 void main() {
   test('Flow Studio Add Flow helper uses a stable ID and dismiss gate', () {
+    final fullSource = _read('lib/features/calendar/calendar_flow_pages.dart');
+    final stateSource = _between(
+      fullSource,
+      'class _FlowHubPageState extends State<_FlowHubPage>',
+      '  @override\n  Widget build',
+    );
+    final initStateSource = _between(
+      stateSource,
+      '  void initState()',
+      '  void _scheduleFlowStudioAddFlowHelper()',
+    );
+    final scheduleSource = _between(
+      stateSource,
+      '  void _scheduleFlowStudioAddFlowHelper()',
+      '  Future<void> _maybeShowFlowStudioAddFlowHelper()',
+    );
     final source = _between(
-      _read('lib/features/calendar/calendar_flow_pages.dart'),
+      fullSource,
       'Future<void> _maybeShowFlowStudioAddFlowHelper',
       '  Future<void> _markFlowStudioHelperCompleted',
     );
@@ -29,6 +45,23 @@ void main() {
     expect(completeIndex, greaterThan(helperIdIndex));
     expect(completionIdIndex, greaterThan(completeIndex));
     expect(clearIndex, greaterThan(completeIndex));
+    expect(initStateSource, contains('_scheduleFlowStudioAddFlowHelper();'));
+    expect(
+      initStateSource,
+      isNot(contains('unawaited(_maybeShowFlowStudioAddFlowHelper())')),
+    );
+    expect(stateSource, contains('bool _helperPromptScheduled = false;'));
+    expect(scheduleSource, contains('if (_helperPromptScheduled) return;'));
+    expect(scheduleSource, contains('_helperPromptScheduled = true;'));
+    expect(
+      scheduleSource,
+      contains('WidgetsBinding.instance.addPostFrameCallback((_) {'),
+    );
+    expect(scheduleSource, contains('if (!mounted) return;'));
+    expect(
+      scheduleSource,
+      contains('unawaited(_maybeShowFlowStudioAddFlowHelper());'),
+    );
     expect(source, isNot(contains('OnboardingHelperIds.flowBuilder')));
     expect(source, contains('helper.analyticsEvent'));
     expect(
