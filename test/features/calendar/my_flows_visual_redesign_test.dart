@@ -79,6 +79,20 @@ void main() {
     },
   );
 
+  testWidgets('My Flows files no-schedule custom flows under Saved', (
+    tester,
+  ) async {
+    await _pumpMyFlows(tester, includeNoScheduleSavedFlow: true);
+
+    expect(find.text('CODEX_NO_SCHEDULE_FLOW_VISIBILITY'), findsNothing);
+
+    await tester.tap(find.text('Saved Flows'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('CODEX_NO_SCHEDULE_FLOW_VISIBILITY'), findsOneWidget);
+    expect(find.text('Saved Personal Template'), findsOneWidget);
+  });
+
   testWidgets('My Flows card taps delegate through the existing preview path', (
     tester,
   ) async {
@@ -274,6 +288,7 @@ Future<void> _pumpMyFlows(
   bool savedEmpty = false,
   bool includeUnresolvedMaatFlow = false,
   bool includeMissingProgressFlow = false,
+  bool includeNoScheduleSavedFlow = false,
   ValueChanged<int>? onPreviewFlow,
   VoidCallback? onCreateNew,
 }) async {
@@ -285,6 +300,7 @@ Future<void> _pumpMyFlows(
         savedEmpty: savedEmpty,
         includeUnresolvedMaatFlow: includeUnresolvedMaatFlow,
         includeMissingProgressFlow: includeMissingProgressFlow,
+        includeNoScheduleSavedFlow: includeNoScheduleSavedFlow,
         onPreviewFlow: onPreviewFlow,
         onCreateNew: onCreateNew,
       ),

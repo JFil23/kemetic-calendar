@@ -2448,6 +2448,19 @@ class _FlowStudioPageState extends State<_FlowStudioPage>
     final bool isAiImport = widget.importData?.share.payloadId == 'ai-local';
     final bool isImportedFlow = widget.importData != null && !isAiImport;
     final List<FlowRule> rulesToSave = isImportedFlow ? <FlowRule>[] : rules;
+    final hasScheduledOutput =
+        _startDate != null ||
+        _endDate != null ||
+        rulesToSave.isNotEmpty ||
+        planned.isNotEmpty;
+    final saveAsUnscheduledTemplate =
+        widget.importData == null &&
+        !_isAIGeneratedFlow &&
+        !hasScheduledOutput &&
+        !(_editing?.isReminder ?? false) &&
+        !(_editing?.isHidden ?? false);
+    final flowIsSaved =
+        (_editing?.isSaved ?? false) || saveAsUnscheduledTemplate;
 
     final flow = _Flow(
       id: _editing?.id ?? -1,
@@ -2455,6 +2468,8 @@ class _FlowStudioPageState extends State<_FlowStudioPage>
       name: name,
       color: _buildColor,
       active: _active,
+      isSaved: flowIsSaved,
+      savedAt: flowIsSaved ? (_editing?.savedAt ?? DateTime.now()) : null,
       rules: rulesToSave, // ✅ Empty rules for non-AI imports
       start: _startDate,
       end: _endDate,
@@ -4411,6 +4426,7 @@ class _FlowStudioPageState extends State<_FlowStudioPage>
       } else {
         AIFlowGenerationService? debugService;
         assert(() {
+          // ignore: invalid_use_of_visible_for_testing_member
           debugService = AIFlowGenerationService.debugFlowStudioOverride;
           return true;
         }());

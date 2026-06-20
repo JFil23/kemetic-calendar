@@ -138,6 +138,7 @@ void main() {
     await _pumpFlowStudio(tester);
 
     expect(savedResult, isNotNull);
+    expect(savedResult.savedFlow.isSaved, isFalse);
     final planned = List<dynamic>.from(savedResult.plannedNotes as Iterable);
     expect(planned, hasLength(1));
     final savedNote = planned.single.note;
@@ -151,6 +152,34 @@ void main() {
       planned.map((plannedNote) => plannedNote.note.detail),
       isNot(contains('This detail must not save')),
     );
+
+    await _closeFlowStudio(tester);
+  });
+
+  testWidgets('manual no-schedule save creates a saved template payload', (
+    tester,
+  ) async {
+    _useLargeSurface(tester);
+    dynamic savedResult;
+    await _openFlowStudio(
+      tester,
+      onRouteResult: (result) async {
+        savedResult = result;
+      },
+    );
+
+    await tester.enterText(_nameField(), 'CODEX_NO_SCHEDULE_FLOW_VISIBILITY');
+    await tester.tap(find.text('Save').first);
+    await _pumpFlowStudio(tester);
+
+    expect(savedResult, isNotNull);
+    expect(savedResult.savedFlow.name, 'CODEX_NO_SCHEDULE_FLOW_VISIBILITY');
+    expect(savedResult.savedFlow.active, isTrue);
+    expect(savedResult.savedFlow.isSaved, isTrue);
+    expect(savedResult.savedFlow.start, isNull);
+    expect(savedResult.savedFlow.end, isNull);
+    expect(savedResult.savedFlow.rules, isEmpty);
+    expect(List<dynamic>.from(savedResult.plannedNotes as Iterable), isEmpty);
 
     await _closeFlowStudio(tester);
   });
@@ -363,7 +392,7 @@ void main() {
       onRouteResult: (result) async {
         savedResult = result;
       },
-      debugTimePicker: (_, __) async => pickedTimes.removeAt(0),
+      debugTimePicker: (_, _) async => pickedTimes.removeAt(0),
     );
 
     await tester.tap(find.byKey(const ValueKey('flow-studio-shape-cta')));
@@ -571,8 +600,16 @@ void main() {
       '/// Schedules all note occurrences for a flow to the calendar',
     );
     expect(persistBody, contains('rollbackNewFlowSave'));
+    expect(persistBody, contains('isSaved: r.savedFlow!.isSaved'));
     expect(persistBody, contains("deleteScope: 'failed_new_flow_save'"));
     expect(persistBody, contains('await commitGenerationIfNeeded();'));
+
+    final headlessPersistBody = _sliceBetween(
+      calendar,
+      'static Future<int?> _persistFlowStudioResultHeadless',
+      'static Future<int?> importFlowFromShare',
+    );
+    expect(headlessPersistBody, contains('isSaved: f.isSaved'));
   });
 }
 

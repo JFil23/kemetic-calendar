@@ -3617,6 +3617,7 @@ Widget buildMyFlowsListPreviewForTesting({
   bool savedEmpty = false,
   bool includeUnresolvedMaatFlow = false,
   bool includeMissingProgressFlow = false,
+  bool includeNoScheduleSavedFlow = false,
   ValueChanged<int>? onPreviewFlow,
   VoidCallback? onCreateNew,
 }) {
@@ -3625,6 +3626,7 @@ Widget buildMyFlowsListPreviewForTesting({
     savedEmpty: savedEmpty,
     includeUnresolvedMaatFlow: includeUnresolvedMaatFlow,
     includeMissingProgressFlow: includeMissingProgressFlow,
+    includeNoScheduleSavedFlow: includeNoScheduleSavedFlow,
   );
 
   return _FlowsViewerPage(
@@ -3757,6 +3759,7 @@ _MyFlowsFilingSnapshot _buildMyFlowsPreviewSnapshot({
   required bool savedEmpty,
   required bool includeUnresolvedMaatFlow,
   required bool includeMissingProgressFlow,
+  required bool includeNoScheduleSavedFlow,
 }) {
   final activeFlows = <_Flow>[
     _buildMyFlowsPreviewFlow(
@@ -3820,13 +3823,30 @@ _MyFlowsFilingSnapshot _buildMyFlowsPreviewSnapshot({
     start: DateTime(2026, 5, 25),
     end: DateTime(2026, 8, 22),
   );
-  final flows = <_Flow>[...activeFlows, savedFlow, savedPersonalFlow];
+  final noScheduleSavedFlow = _buildMyFlowsPreviewFlow(
+    id: 7,
+    name: 'CODEX_NO_SCHEDULE_FLOW_VISIBILITY',
+    color: const Color(0xFF6E8F5E),
+    active: true,
+    isSaved: true,
+    savedAt: DateTime(2026, 6, 2),
+  );
+  final flows = <_Flow>[
+    ...activeFlows,
+    savedFlow,
+    savedPersonalFlow,
+    if (includeNoScheduleSavedFlow) noScheduleSavedFlow,
+  ];
   final activeIds = activeEmpty
       ? <int>{}
       : activeFlows.map((flow) => flow.id).toSet();
   final savedIds = savedEmpty
       ? <int>{}
-      : <int>{savedFlow.id, savedPersonalFlow.id};
+      : <int>{
+          savedFlow.id,
+          savedPersonalFlow.id,
+          if (includeNoScheduleSavedFlow) noScheduleSavedFlow.id,
+        };
   final totalCounts = <int, int>{
     1: 6,
     2: 27,
