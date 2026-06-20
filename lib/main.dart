@@ -743,6 +743,9 @@ const Color _launchBackdrop = Color(0xFF171518);
 final ValueNotifier<int> _floatingMenuModalDepth = ValueNotifier<int>(0);
 final ValueNotifier<bool> _launchOverlayDismissed = ValueNotifier<bool>(false);
 final ValueNotifier<int> _maatGuidancePostEnsureRefresh = ValueNotifier<int>(0);
+const MethodChannel _shellBackChannel = MethodChannel(
+  'com.kemetic.calendar/shell_back',
+);
 final _FloatingMenuRouteObserver _floatingMenuRouteObserver =
     _FloatingMenuRouteObserver();
 final GlobalKey globalMenuButtonKey = GlobalKey(
@@ -2243,6 +2246,9 @@ class _GlobalFloatingMenuShellState extends State<_GlobalFloatingMenuShell>
   StreamSubscription<AuthState>? _authSub;
   bool _menuMounted = false;
   bool _menuOpen = false;
+  bool _drawerBackGestureActive = false;
+  bool _drawerBackPopRouteConsumePending = false;
+  Timer? _drawerBackPopRouteConsumeTimer;
   bool _rebuildScheduled = false;
   bool? _lastGuidanceSuppressed;
   int _dailyCosmicContextEvaluationSerial = 0;
@@ -2261,6 +2267,7 @@ class _GlobalFloatingMenuShellState extends State<_GlobalFloatingMenuShell>
     );
     _maatGuidanceController.addListener(_scheduleRebuild);
     _dailyCosmicContextController.addListener(_scheduleRebuild);
+    _shellBackChannel.setMethodCallHandler(_handleShellBackMethodCall);
     GuidedOnboardingController.instance.addListener(
       _handleExternalOverlayGateChanged,
     );
@@ -2312,17 +2319,46 @@ class _GlobalFloatingMenuShellState extends State<_GlobalFloatingMenuShell>
     );
     _maatGuidanceController.removeListener(_scheduleRebuild);
     _dailyCosmicContextController.removeListener(_scheduleRebuild);
+    _shellBackChannel.setMethodCallHandler(null);
     GuidedOnboardingController.instance.removeListener(
       _handleExternalOverlayGateChanged,
     );
     _maatGuidanceController.dispose();
     _dailyCosmicContextController.dispose();
+    _drawerBackPopRouteConsumeTimer?.cancel();
     unawaited(_authSub?.cancel());
     super.dispose();
   }
 
   @override
   Future<bool> didPopRoute() => _handleBackButton();
+
+  Future<Object?> _handleShellBackMethodCall(MethodCall call) async {
+    if (call.method != 'handleAndroidBack') {
+      throw MissingPluginException('No shell back handler for ${call.method}');
+    }
+    return _handleAndroidBackButton();
+  }
+
+  @override
+  bool handleStartBackGesture(PredictiveBackEvent backEvent) {
+    if (!(_menuMounted && _menuOpen)) return false;
+    _drawerBackGestureActive = true;
+    return true;
+  }
+
+  @override
+  void handleCommitBackGesture() {
+    if (!_drawerBackGestureActive) return;
+    _drawerBackGestureActive = false;
+    _consumeNextPopRouteAfterDrawerBackGesture();
+    unawaited(_closeFloatingMenu());
+  }
+
+  @override
+  void handleCancelBackGesture() {
+    _drawerBackGestureActive = false;
+  }
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
@@ -2380,8 +2416,24 @@ class _GlobalFloatingMenuShellState extends State<_GlobalFloatingMenuShell>
   }
 
   void _resetFloatingMenuState() {
+    _drawerBackGestureActive = false;
+    _drawerBackPopRouteConsumePending = false;
+    _drawerBackPopRouteConsumeTimer?.cancel();
+    _drawerBackPopRouteConsumeTimer = null;
     _menuMounted = false;
     _menuOpen = false;
+  }
+
+  void _consumeNextPopRouteAfterDrawerBackGesture() {
+    _drawerBackPopRouteConsumePending = true;
+    _drawerBackPopRouteConsumeTimer?.cancel();
+    _drawerBackPopRouteConsumeTimer = Timer(
+      globalSideDrawerTransitionDuration + const Duration(milliseconds: 250),
+      () {
+        _drawerBackPopRouteConsumePending = false;
+        _drawerBackPopRouteConsumeTimer = null;
+      },
+    );
   }
 
   void _scheduleRebuild() {
@@ -2820,6 +2872,12 @@ class _GlobalFloatingMenuShellState extends State<_GlobalFloatingMenuShell>
   }
 
   Future<bool> _handleBackButton() async {
+    if (_drawerBackPopRouteConsumePending) {
+      _drawerBackPopRouteConsumePending = false;
+      _drawerBackPopRouteConsumeTimer?.cancel();
+      _drawerBackPopRouteConsumeTimer = null;
+      return true;
+    }
     if (_dailyCosmicContextController.hasVisibleBadge) {
       await _dailyCosmicContextController.dismiss();
       return true;
@@ -2830,6 +2888,24 @@ class _GlobalFloatingMenuShellState extends State<_GlobalFloatingMenuShell>
     }
     if (_shouldOpenDrawerForBack(context)) {
       _openFloatingMenu();
+      return true;
+    }
+    return false;
+  }
+
+  Future<bool> _handleAndroidBackButton() async {
+    if (_drawerBackPopRouteConsumePending) {
+      _drawerBackPopRouteConsumePending = false;
+      _drawerBackPopRouteConsumeTimer?.cancel();
+      _drawerBackPopRouteConsumeTimer = null;
+      return true;
+    }
+    if (_dailyCosmicContextController.hasVisibleBadge) {
+      await _dailyCosmicContextController.dismiss();
+      return true;
+    }
+    if (_menuMounted && _menuOpen) {
+      await _closeFloatingMenu();
       return true;
     }
     return false;

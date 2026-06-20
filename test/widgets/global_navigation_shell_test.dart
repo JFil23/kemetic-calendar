@@ -1,4 +1,7 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:mobile/core/navigation_fallback.dart';
@@ -314,6 +317,94 @@ void main() {
     expect(find.byKey(globalSideDrawerKey), findsNothing);
   });
 
+  testWidgets('predictive back with open drawer closes before route changes', (
+    tester,
+  ) async {
+    final router = _testRouter(initialLocation: '/nodes');
+
+    await _pumpShell(tester, router);
+    await _openDrawer(tester);
+
+    await _startPredictiveBackGesture(tester);
+    await _commitPredictiveBackGesture(tester);
+    await tester.pump(globalSideDrawerTransitionDuration);
+    await tester.pump();
+
+    expect(router.routerDelegate.currentConfiguration.uri.path, '/nodes');
+    expect(find.byKey(globalSideDrawerKey), findsNothing);
+    expect(find.text('Nodes'), findsOneWidget);
+  });
+
+  testWidgets('drawer predictive back consumes follow-up pop route', (
+    tester,
+  ) async {
+    final router = _testRouter(initialLocation: '/nodes');
+
+    await _pumpShell(tester, router);
+    await _openDrawer(tester);
+
+    await _startPredictiveBackGesture(tester);
+    await _commitPredictiveBackGesture(tester);
+    final handled = await tester.binding.handlePopRoute();
+    await tester.pump(globalSideDrawerTransitionDuration);
+    await tester.pump();
+
+    expect(handled, isTrue);
+    expect(router.routerDelegate.currentConfiguration.uri.path, '/nodes');
+    expect(find.byKey(globalSideDrawerKey), findsNothing);
+    expect(find.text('Nodes'), findsOneWidget);
+  });
+
+  testWidgets('native Android back channel closes open drawer first', (
+    tester,
+  ) async {
+    final router = _testRouter(initialLocation: '/nodes');
+
+    await _pumpShell(tester, router);
+    await _openDrawer(tester);
+
+    final handledFuture = _sendShellBack(tester);
+    await tester.pump(globalSideDrawerTransitionDuration);
+    await tester.pump();
+    final handled = await handledFuture;
+
+    expect(handled, isTrue);
+    expect(router.routerDelegate.currentConfiguration.uri.path, '/nodes');
+    expect(find.byKey(globalSideDrawerKey), findsNothing);
+    expect(find.text('Nodes'), findsOneWidget);
+  });
+
+  testWidgets('native Android back channel does not open closed drawer', (
+    tester,
+  ) async {
+    final router = _testRouter(initialLocation: '/nodes');
+
+    await _pumpShell(tester, router);
+
+    final handled = await _sendShellBack(tester);
+
+    expect(handled, isFalse);
+    expect(router.routerDelegate.currentConfiguration.uri.path, '/nodes');
+    expect(find.byKey(globalSideDrawerKey), findsNothing);
+    expect(find.text('Nodes'), findsOneWidget);
+  });
+
+  testWidgets('predictive back keeps closed drawer behavior on primary route', (
+    tester,
+  ) async {
+    final router = _testRouter(initialLocation: '/nodes');
+
+    await _pumpShell(tester, router);
+
+    await _startPredictiveBackGesture(tester);
+    await _commitPredictiveBackGesture(tester);
+    await tester.pump(globalSideDrawerTransitionDuration);
+
+    expect(router.routerDelegate.currentConfiguration.uri.path, '/nodes');
+    expect(find.byKey(globalSideDrawerKey), findsOneWidget);
+    expect(find.text('Library'), findsOneWidget);
+  });
+
   testWidgets('repeated back toggles drawer without leaving primary route', (
     tester,
   ) async {
@@ -354,6 +445,31 @@ void main() {
     expect(router.routerDelegate.currentConfiguration.uri.path, '/nodes');
     expect(find.byKey(globalSideDrawerKey), findsNothing);
     expect(find.text('Nodes'), findsOneWidget);
+  });
+
+  testWidgets('search route back still closes search before drawer handling', (
+    tester,
+  ) async {
+    final router = _testRouter(
+      initialLocation: '/nodes',
+      nodesBuilder: (context) => const _SearchLauncherPage(),
+    );
+
+    await _pumpShell(tester, router);
+    await tester.tap(find.byKey(_SearchLauncherPage.openSearchKey));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Search suggestions'), findsOneWidget);
+    expect(find.byKey(globalSideDrawerKey), findsNothing);
+
+    await tester.binding.handlePopRoute();
+    await tester.pumpAndSettle();
+    await tester.pump(_floatingMenuModalSettleDelayForTesting);
+
+    expect(find.text('Search suggestions'), findsNothing);
+    expect(find.byKey(globalSideDrawerKey), findsNothing);
+    expect(router.routerDelegate.currentConfiguration.uri.path, '/nodes');
+    expect(find.text('Open search'), findsOneWidget);
   });
 
   testWidgets('profile opens as detail route from the drawer', (tester) async {
@@ -423,6 +539,48 @@ Future<void> _openDrawer(WidgetTester tester) async {
   await tester.tap(find.byKey(app.globalMenuButtonKey));
   await tester.pump();
   await tester.pump(globalSideDrawerTransitionDuration);
+}
+
+Future<void> _startPredictiveBackGesture(WidgetTester tester) async {
+  final message = const StandardMethodCodec().encodeMethodCall(
+    MethodCall('startBackGesture', <String, Object?>{
+      'touchOffset': <double>[5, 300],
+      'progress': 0.0,
+      'swipeEdge': 0,
+    }),
+  );
+  await tester.binding.defaultBinaryMessenger.handlePlatformMessage(
+    'flutter/backgesture',
+    message,
+    (ByteData? _) {},
+  );
+  await tester.pump();
+}
+
+Future<void> _commitPredictiveBackGesture(WidgetTester tester) async {
+  final message = const StandardMethodCodec().encodeMethodCall(
+    MethodCall('commitBackGesture'),
+  );
+  await tester.binding.defaultBinaryMessenger.handlePlatformMessage(
+    'flutter/backgesture',
+    message,
+    (ByteData? _) {},
+  );
+  await tester.pump();
+}
+
+Future<bool> _sendShellBack(WidgetTester tester) async {
+  final completer = Completer<ByteData?>();
+  final message = const StandardMethodCodec().encodeMethodCall(
+    const MethodCall('handleAndroidBack'),
+  );
+  await tester.binding.defaultBinaryMessenger.handlePlatformMessage(
+    'com.kemetic.calendar/shell_back',
+    message,
+    completer.complete,
+  );
+  final response = await completer.future;
+  return const StandardMethodCodec().decodeEnvelope(response!) as bool;
 }
 
 GoRouter _testRouter({

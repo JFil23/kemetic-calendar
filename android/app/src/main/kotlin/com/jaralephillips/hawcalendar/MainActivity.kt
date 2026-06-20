@@ -5,8 +5,11 @@ import android.content.ContentUris
 import android.content.ContentValues
 import android.content.pm.PackageManager
 import android.net.Uri
+import android.os.Build
 import android.provider.CalendarContract
 import android.provider.Settings
+import android.window.OnBackInvokedCallback
+import android.window.OnBackInvokedDispatcher
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import io.flutter.embedding.android.FlutterActivity
@@ -16,11 +19,17 @@ import java.util.TimeZone
 
 class MainActivity : FlutterActivity() {
   private val channelName = "com.kemetic.calendar/sync"
+  private val shellBackChannelName = "com.kemetic.calendar/shell_back"
   private val permissionRequest = 9910
   private var pendingPermissionResult: MethodChannel.Result? = null
+  private var shellBackChannel: MethodChannel? = null
+  private var shellBackCallback: OnBackInvokedCallback? = null
 
   override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
     super.configureFlutterEngine(flutterEngine)
+
+    shellBackChannel = MethodChannel(flutterEngine.dartExecutor.binaryMessenger, shellBackChannelName)
+    registerShellBackCallback()
 
     MethodChannel(flutterEngine.dartExecutor.binaryMessenger, channelName).setMethodCallHandler { call, result ->
       when (call.method) {
@@ -75,6 +84,66 @@ class MainActivity : FlutterActivity() {
         else -> result.notImplemented()
       }
     }
+  }
+
+  override fun onDestroy() {
+    unregisterShellBackCallback()
+    shellBackChannel = null
+    super.onDestroy()
+  }
+
+  @Deprecated("Deprecated in Java")
+  override fun onBackPressed() {
+    handleAndroidBack()
+  }
+
+  private fun registerShellBackCallback() {
+    if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU || shellBackCallback != null) {
+      return
+    }
+    val callback = OnBackInvokedCallback { handleAndroidBack() }
+    onBackInvokedDispatcher.registerOnBackInvokedCallback(
+      OnBackInvokedDispatcher.PRIORITY_DEFAULT,
+      callback
+    )
+    shellBackCallback = callback
+  }
+
+  private fun unregisterShellBackCallback() {
+    if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) {
+      return
+    }
+    shellBackCallback?.let { onBackInvokedDispatcher.unregisterOnBackInvokedCallback(it) }
+    shellBackCallback = null
+  }
+
+  private fun handleAndroidBack() {
+    val channel = shellBackChannel
+    if (channel == null) {
+      forwardBackToFlutter()
+      return
+    }
+
+    channel.invokeMethod("handleAndroidBack", null, object : MethodChannel.Result {
+      override fun success(result: Any?) {
+        if (result == true) {
+          return
+        }
+        forwardBackToFlutter()
+      }
+
+      override fun error(errorCode: String, errorMessage: String?, errorDetails: Any?) {
+        forwardBackToFlutter()
+      }
+
+      override fun notImplemented() {
+        forwardBackToFlutter()
+      }
+    })
+  }
+
+  private fun forwardBackToFlutter() {
+    flutterEngine?.navigationChannel?.popRoute()
   }
 
   private fun hasCalendarPermission(): Boolean {
