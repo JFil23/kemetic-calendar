@@ -1,11 +1,12 @@
 import 'package:flutter/material.dart';
 
+import '../../shared/candlelit_mahogany_background.dart';
 import '../../widgets/global_side_drawer.dart';
 
 class DecanReflectionTokens {
   const DecanReflectionTokens._();
 
-  static const Color base = Color(0xFF0D0B07);
+  static const Color base = CandlelitMahoganyBackground.base;
   static const Color baseRaise = Color(0xFF120F08);
   static const Color ink = Color(0xFFE9E2D2);
   static const Color inkSoft = Color(0xFFC8C4BC);
@@ -40,12 +41,7 @@ class DecanReflectionTokens {
   static const double scrollBottomPadding = 104;
   static const double scrimHeight = 96;
 
-  static const Gradient crownBloom = RadialGradient(
-    center: Alignment(0, -1.2),
-    radius: 1.2,
-    colors: <Color>[Color.fromRGBO(93, 82, 65, 0.18), Colors.transparent],
-    stops: <double>[0, 0.6],
-  );
+  static const Gradient crownBloom = CandlelitMahoganyBackground.crownBloom;
 
   static const Gradient monthRule = LinearGradient(
     colors: <Color>[hairline, Colors.transparent],
@@ -79,12 +75,7 @@ class DecanReflectionTokens {
 
   static const Gradient glyphIcon = LinearGradient(colors: <Color>[gold, gold]);
 
-  static const Gradient bottomScrim = LinearGradient(
-    begin: Alignment.topCenter,
-    end: Alignment.bottomCenter,
-    colors: <Color>[Colors.transparent, base],
-    stops: <double>[0, 0.78],
-  );
+  static const Gradient bottomScrim = CandlelitMahoganyBackground.bottomScrim;
 
   static const TextStyle navTitleStyle = TextStyle(
     fontFamily: fontFamily,
@@ -277,38 +268,16 @@ class DecanReflectionSkinScaffold extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: DecanReflectionTokens.base,
-      body: Stack(
-        fit: StackFit.expand,
-        children: <Widget>[
-          const DecoratedBox(
-            decoration: BoxDecoration(
-              color: DecanReflectionTokens.base,
-              gradient: DecanReflectionTokens.crownBloom,
-            ),
+      body: CandlelitMahoganyBackground(
+        child: SafeArea(
+          bottom: false,
+          child: Column(
+            children: <Widget>[
+              navBar,
+              Expanded(child: child),
+            ],
           ),
-          SafeArea(
-            bottom: false,
-            child: Column(
-              children: <Widget>[
-                navBar,
-                Expanded(child: child),
-              ],
-            ),
-          ),
-          const Positioned(
-            left: 0,
-            right: 0,
-            bottom: 0,
-            height: DecanReflectionTokens.scrimHeight,
-            child: IgnorePointer(
-              child: DecoratedBox(
-                decoration: BoxDecoration(
-                  gradient: DecanReflectionTokens.bottomScrim,
-                ),
-              ),
-            ),
-          ),
-        ],
+        ),
       ),
     );
   }

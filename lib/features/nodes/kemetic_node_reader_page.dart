@@ -5,6 +5,7 @@ import '../../core/app_bottom_insets.dart';
 import '../../data/choice_event_repo.dart';
 import '../../core/navigation_fallback.dart';
 import '../../core/touch_targets.dart';
+import '../../shared/candlelit_mahogany_background.dart';
 import '../../shared/glossy_text.dart';
 import '../../widgets/kemetic_app_bar_action.dart';
 import '../../widgets/insight_link_text.dart';
@@ -222,7 +223,7 @@ class _KemeticNodeReaderPageState extends State<KemeticNodeReaderPage> {
         }
       },
       child: Scaffold(
-        backgroundColor: Colors.black,
+        backgroundColor: CandlelitMahoganyBackground.base,
         appBar: AppBar(
           backgroundColor: Colors.black,
           elevation: 0,
@@ -290,63 +291,66 @@ class _KemeticNodeReaderPageState extends State<KemeticNodeReaderPage> {
             ],
           ),
         ),
-        body: SafeArea(
-          child: Builder(
-            builder: (context) {
-              return GestureDetector(
-                behavior: HitTestBehavior.translucent,
-                onHorizontalDragStart: (details) {
-                  _horizontalDrag = 0;
-                  _dragConsumed = false;
-                  _dragStartedInNavigationEdge = _isInNavigationEdgeExclusion(
-                    details,
-                  );
-                },
-                onHorizontalDragUpdate: (details) {
-                  if (_dragStartedInNavigationEdge || _dragConsumed) return;
-                  final delta = details.primaryDelta ?? 0;
-                  if (delta > 0) {
-                    _horizontalDrag += delta;
-                  }
-                  if (_horizontalDrag > 48) {
-                    _dragConsumed = _popNode();
-                  }
-                },
-                onHorizontalDragEnd: (_) {
-                  _horizontalDrag = 0;
-                  _dragConsumed = false;
-                  _dragStartedInNavigationEdge = false;
-                },
-                onHorizontalDragCancel: () {
-                  _horizontalDrag = 0;
-                  _dragConsumed = false;
-                  _dragStartedInNavigationEdge = false;
-                },
-                child: SingleChildScrollView(
-                  controller: _scrollController,
-                  padding: EdgeInsets.fromLTRB(
-                    20,
-                    14,
-                    20,
-                    AppBottomInsets.scrollBottomPadding(context, 28),
+        body: CandlelitMahoganyBackground(
+          paintBottomScrimAboveChild: false,
+          child: SafeArea(
+            child: Builder(
+              builder: (context) {
+                return GestureDetector(
+                  behavior: HitTestBehavior.translucent,
+                  onHorizontalDragStart: (details) {
+                    _horizontalDrag = 0;
+                    _dragConsumed = false;
+                    _dragStartedInNavigationEdge = _isInNavigationEdgeExclusion(
+                      details,
+                    );
+                  },
+                  onHorizontalDragUpdate: (details) {
+                    if (_dragStartedInNavigationEdge || _dragConsumed) return;
+                    final delta = details.primaryDelta ?? 0;
+                    if (delta > 0) {
+                      _horizontalDrag += delta;
+                    }
+                    if (_horizontalDrag > 48) {
+                      _dragConsumed = _popNode();
+                    }
+                  },
+                  onHorizontalDragEnd: (_) {
+                    _horizontalDrag = 0;
+                    _dragConsumed = false;
+                    _dragStartedInNavigationEdge = false;
+                  },
+                  onHorizontalDragCancel: () {
+                    _horizontalDrag = 0;
+                    _dragConsumed = false;
+                    _dragStartedInNavigationEdge = false;
+                  },
+                  child: SingleChildScrollView(
+                    controller: _scrollController,
+                    padding: EdgeInsets.fromLTRB(
+                      20,
+                      14,
+                      20,
+                      AppBottomInsets.scrollBottomPadding(context, 28),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        _buildHeader(),
+                        const SizedBox(height: 18),
+                        ...paragraphs,
+                        NodeUserInsightsSection(
+                          node: _node,
+                          openEditorOnLoad: widget.openInsightEditorOnLoad,
+                          onRouteEditorConsumed:
+                              widget.onInsightEditorIntentConsumed,
+                        ),
+                      ],
+                    ),
                   ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      _buildHeader(),
-                      const SizedBox(height: 18),
-                      ...paragraphs,
-                      NodeUserInsightsSection(
-                        node: _node,
-                        openEditorOnLoad: widget.openInsightEditorOnLoad,
-                        onRouteEditorConsumed:
-                            widget.onInsightEditorIntentConsumed,
-                      ),
-                    ],
-                  ),
-                ),
-              );
-            },
+                );
+              },
+            ),
           ),
         ),
       ),
