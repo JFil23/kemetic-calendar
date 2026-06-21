@@ -69,6 +69,46 @@ void main() {
     expect(drawerWidth, closeTo(187.2, 0.1));
   });
 
+  testWidgets('phone portrait drawer uses upper date header and lower nav', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(390, 844);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Stack(
+          fit: StackFit.expand,
+          children: [GlobalSideDrawer(open: true, items: _drawerItems())],
+        ),
+      ),
+    );
+
+    final headerRect = tester.getRect(
+      find.byKey(globalSideDrawerDateHeaderKey),
+    );
+    final dividerRect = tester.getRect(
+      find.byKey(globalSideDrawerDateDividerKey),
+    );
+    final calendarRect = tester.getRect(
+      find.byKey(const ValueKey<String>('global-side-drawer-item-Calendar')),
+    );
+    final settingsRect = tester.getRect(
+      find.byKey(const ValueKey<String>('global-side-drawer-item-Settings')),
+    );
+
+    expect(find.byKey(globalSideDrawerDateMonthKey), findsOneWidget);
+    expect(find.byKey(globalSideDrawerDateDayKey), findsOneWidget);
+    expect(headerRect.bottom, lessThan(calendarRect.top));
+    expect(dividerRect.top, greaterThan(headerRect.bottom));
+    expect(dividerRect.bottom, lessThan(calendarRect.top));
+    expect(calendarRect.top, closeTo(844 * 0.30, 1));
+    expect(settingsRect.center.dy, greaterThan(844 * 0.86));
+    expect(settingsRect.bottom, lessThanOrEqualTo(844));
+  });
+
   testWidgets('phone landscape drawer is capped as a side rail', (
     tester,
   ) async {

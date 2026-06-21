@@ -2038,30 +2038,32 @@ final List<DecanDayInfo> _hathorIIIFlowRows = _buildFlowRows([
 final List<DecanDayInfo> _kaHerKaIFlowRows = _buildFlowRows([
   (
     day: 1,
-    theme: 'Become Still Enough to Receive',
+    theme: 'See the Ground as It Is',
     action:
-        'Pause unnecessary motion. Let the noise from the last three months drain away.',
-    reflection: '"What needs silence before it can be placed?"',
+        'The flood drains and the field lies bare. Before any tool is lifted, the Kemite walks out and reads what the water left.',
+    reflection: '"A beginning starts from what is here, not what was hoped."',
   ),
   (
     day: 2,
-    theme: 'Clear the Field',
+    theme: 'Clear the Wreckage',
     action:
-        'Remove what the flood left — debris, stale arrangements, old obligations past their season.',
-    reflection: '"What remnants block what is coming?"',
+        'Debris litters the fresh silt. The old reed and broken stalk are carried off, because seed dropped on clutter never roots.',
+    reflection: '"The ground is made empty before it is filled."',
   ),
   (
     day: 3,
-    theme: 'Name What Ended',
-    action: 'Say what closed plainly. No softening, no denial.',
-    reflection: '"Can I name it without bitterness?"',
+    theme: 'Spend the Best of What Was Saved',
+    action:
+        'At the grain jar, the fullest seed is set apart for the ground, because weak grain returns a weak crop.',
+    reflection:
+        '"What is held back from the planting is held back from the year."',
   ),
   (
     day: 4,
-    theme: 'Select What Carries Forward',
+    theme: 'The Seed Leaves the Hand',
     action:
-        'From what ended, take one thing worth keeping. Not everything — the strongest seed.',
-    reflection: '"What good in this still feeds me?"',
+        'The grain is cast across the field. Once it lands it cannot be gathered back, so the sowing is done with care.',
+    reflection: '"What is committed cannot be uncommitted."',
   ),
   (
     day: 5,
@@ -2110,72 +2112,73 @@ final List<DecanDayInfo> _kaHerKaIFlowRows = _buildFlowRows([
 final List<DecanDayInfo> _kaHerKaIIFlowRows = _buildFlowRows([
   (
     day: 11,
-    theme: 'Re-Enter Motion',
+    theme: 'The Daily Round',
     action:
-        'Resume one responsibility. Not everything — one. Deliberate, not urgent.',
-    reflection: '"Where do I re-enter honestly?"',
+        'The field needs no heroics now, only return. The Kemite walks the same rows each morning, and the steadiness is the work.',
+    reflection: '"What is begun is kept alive by returning, not by surges."',
   ),
   (
     day: 12,
-    theme: 'Govern the Impulse',
+    theme: 'The First Pest',
     action:
-        'Name the impulse before acting on it. Is this intention or reaction?',
-    reflection: '"What drives this — intention or reaction?"',
+        'Insects find the young leaves. The Kemite acts at once, before a few become many.',
+    reflection: '"A small threat is met while it is still small."',
   ),
   (
     day: 13,
-    theme: 'Feed What Is Returning',
+    theme: 'Water by Measure',
     action:
-        'Direct energy toward the one thing trying to come back. Water it. Remove what competes.',
-    reflection: '"Am I nurturing revival or starving it?"',
+        'The channel is opened just enough and no more, because too much water rots the root as surely as too little starves it.',
+    reflection: '"The right amount is its own discipline."',
   ),
   (
     day: 14,
-    theme: 'Accept the Obligation',
+    theme: 'The Shared Channel',
     action:
-        'Name what is now yours to guard. Say it explicitly. The crop needs a farmer, not a witness.',
-    reflection: '"What is now mine to protect?"',
+        'The water that feeds one field passes first through others. The Kemite takes his measure and lets it move on.',
+    reflection: '"What is shared is used in turn, not seized."',
   ),
   (
     day: 15,
-    theme: 'Place Strength Where It Is Needed',
+    theme: 'Endure the Wind',
     action:
-        'Direct force at what the field actually needs — not what will be noticed.',
-    reflection: '"Who does this effort serve?"',
+        'A hard wind flattens part of the field. The Kemite does not fight the sky; he waits, then lifts what can be lifted.',
+    reflection: '"Some forces are endured, not opposed."',
   ),
   (
     day: 16,
-    theme: 'Restore the Basics',
+    theme: 'The Row That Failed',
     action:
-        'Sleep at a real hour. Eat a real meal. Look at the account. Sweep the floor. Consistently, not perfectly.',
-    reflection: '"Does my rhythm honor life or exhaust it?"',
+        'One row never took. The Kemite turns it under and gives its water to the rows that thrive.',
+    reflection: '"Strength is moved from what failed to what is working."',
   ),
   (
     day: 17,
-    theme: 'Ask for Help',
-    action: 'Call in support. No one tends the whole field alone.',
-    reflection: '"Where am I pretending I can carry this alone?"',
+    theme: 'Hold the Hand Back',
+    action:
+        'The crop is strong, and the urge is to push it harder. The Kemite does nothing extra, because a thriving field is spoiled by over-handling.',
+    reflection: '"Strength is shown as much in restraint as in force."',
   ),
   (
     day: 18,
-    theme: 'Return to the Circle',
+    theme: 'Read the Crop',
     action:
-        'Reconnect with one person or group you withdrew from in the flood season.',
-    reflection: '"Where do I belong that I have been avoiding?"',
+        'A yellow leaf, a curled edge — the field speaks in small signs. The Kemite reads them and adjusts before trouble spreads.',
+    reflection: '"The work tells what it needs to the one who watches."',
   ),
   (
     day: 19,
-    theme: 'Let Commitment Be Seen',
+    theme: 'The Borrowed Hands',
     action:
-        'Show one sign you have returned to the work: a kept appointment, a restored rhythm, a message sent.',
-    reflection: '"What commitment can be witnessed?"',
+        'A heavy task needs more than one back. The Kemite calls on a neighbor, knowing the call will come back to him in turn.',
+    reflection: '"Help given is help stored against the day it is needed."',
   ),
   (
     day: 20,
-    theme: 'Give Thanks for Endurance',
+    theme: 'The Field Stands',
     action:
-        'Offer gratitude not for perfection — for persistence. Name what held when the flood was high.',
-    reflection: '"Do I honor the part of me that stayed?"',
+        'The crop stands firm and green, past its fragile start. What was tended carefully now holds on its own.',
+    reflection: '"What was governed with care now stands on its own."',
   ),
 ]);
 

@@ -250,25 +250,15 @@ A strong year does not begin with perfection. It begins with truthful correction
   // 🌿 ŠEF-BEDET I — DAYS 1–10  (First Decan - knmw)
   // ==========================================================
   'sefbedet_1_1': KemeticDayInfo(
-    kemeticDate: 'Šef-Bedet I, Day 1 (Day 1 of Šef-Bedet / Tybi)',
-    season: '🌿 Peret – Season of Emergence',
-    month:
-        'Šef-Bedet (šf-bdt) — "The Nourisher," "She Who Feeds with Grain." šf = to feed, to provide. bdt = offering, bread, sustenance. This month is not conquest — it is compassionate maintenance.',
-    decanName: 'sbꜣ ḫnty-ḥr ("Star of the Foremost")',
-    starCluster: '✨ Star of the Foremost — trusted growth.',
-    maatPrinciple: 'Form the Vessel',
+    kemeticDate: 'Šef-Bedet I, Day 1 (Day 1 of Šef-Bedet)',
+    season: '🌱 Peret – Emergence Season',
+    month: 'Šef-Bedet ("Šf-bdt")',
+    decanName: 'ḫnty-ḥr ("Foremost of the Sky")',
+    starCluster:
+        '✨ ḫnty-ḥr — the Foremost of the Sky, the leading star of the group, watched through this ten-day interval.',
+    maatPrinciple: 'Emergence Belongs to the Whole House',
     cosmicContext:
-        '''Day 1 is not "start hustling." Day 1 is "prepare the vessel."
-
-Khnum does not throw raw mud at fate — he kneads, shapes, and smooths a container that can actually hold life. The Kemite mirrored that. Floors were swept. Storage jars were rinsed. Sleeping mats were dried in sun. Quiet routines were reestablished after the violence of flood and grief.
-
-This is how balance begins: not with drama, but with readiness.
-
-Today you clear a space, physically and in rhythm. You decide: this is where nourishment will live.
-You choose one part of your life that will receive care this cycle — body, home, craft, lineage — and you build it a seat.
-
-In Kemet, an unprepared jar wasted grain.
-In you, an unprepared life wastes blessing.''',
+        '''Green pricks the mud where the flood has gone. The farmer sees it, then hears the house behind him: a wife measuring grain, children arguing over the first row, a neighbor calling from the path. Emergence does not belong to one pair of hands. It changes the meaning of everyone's morning.''',
     decanFlow: [
       DecanDayInfo(
         day: 1,
@@ -342,27 +332,22 @@ In you, an unprepared life wastes blessing.''',
       glyph:
           'Potter\'s wheel beneath a ram\'s head — Khnum forming a body from wet clay',
       colorFrequency: 'Damp earth brown with first-light gold at the rim',
-      mantra: '"I prepare a place for life."',
+      mantra: '"What rises before me belongs to more than me."',
     ),
   ),
 
   'sefbedet_2_1': KemeticDayInfo(
-    kemeticDate: 'Šef-Bedet I, Day 2 (Day 2 of Šef-Bedet / Tybi)',
-    season: '🌿 Peret – Season of Emergence',
-    month:
-        'Šef-Bedet — "The Nourisher," the ethical demand to feed life, not just witness it.',
-    decanName: 'sbꜣ ḫnty-ḥr ("Star of the Foremost")',
-    starCluster: '✨ Star of the Foremost — trusted growth.',
-    maatPrinciple: 'Moisten the Clay',
-    cosmicContext: '''Day 2 is hydration.
+    kemeticDate: 'Šef-Bedet I, Day 2',
+    season: '🌱 Peret – Emergence Season',
+    month: 'Šef-Bedet ("Šf-bdt")',
+    decanName: 'ḫnty-ḥr ("Foremost of the Sky")',
+    starCluster:
+        '✨ ḫnty-ḥr — the Foremost of the Sky, the leading star of the group, watched through this ten-day interval.',
+    maatPrinciple: 'When a Thing Becomes Itself, the Real Work Begins',
+    cosmicContext:
+        '''The seedlings put out their first true leaves — not the pale shoots of sprouting, but the real form of what they will become. The Kemite sees the crop has crossed into being itself, and knows the easy part is over.
 
-In Kemet this was literal: the first careful watering so young roots wouldn't die. But it was also body-law. After grief, after fear, after hunger, a person dries out inside — lips, joints, sleep, patience.
-
-Today you reintroduce moisture. Drink. Oil skin. Stretch slowly. Schedule breath between demands so you stop moving like a hunted animal.
-
-This is not indulgence. This is structural repair. Cracked clay shatters on the wheel. Khnum can't shape what's already split.
-
-Your task is to soften, not collapse — to become workable again.''',
+The arrival of a thing is not the end of effort. It is the moment the real demands begin.''',
     decanFlow: [
       DecanDayInfo(
         day: 1,
@@ -435,28 +420,22 @@ Your task is to soften, not collapse — to become workable again.''',
     meduNeter: MeduNeterKey(
       glyph: 'Water jar tilted over sprouting grain',
       colorFrequency: 'River blue against young green',
-      mantra: '"I soften what was hardened by fear."',
+      mantra: '"When the work becomes itself, I take up the real tending."',
     ),
   ),
 
   'sefbedet_3_1': KemeticDayInfo(
-    kemeticDate: 'Šef-Bedet I, Day 3 (Day 3 of Šef-Bedet / Tybi)',
-    season: '🌿 Peret – Season of Emergence',
-    month: 'Šef-Bedet — Feeding as law, provision as devotion.',
-    decanName: 'sbꜣ ḫnty-ḥr ("Star of the Foremost")',
-    starCluster: '✨ Star of the Foremost — trusted growth.',
-    maatPrinciple: 'Plant Intention',
-    cosmicContext: '''Day 3 is root.
+    kemeticDate: 'Šef-Bedet I, Day 3',
+    season: '🌱 Peret – Emergence Season',
+    month: 'Šef-Bedet ("Šf-bdt")',
+    decanName: 'ḫnty-ḥr ("Foremost of the Sky")',
+    starCluster:
+        '✨ ḫnty-ḥr — the Foremost of the Sky, the leading star of the group, watched through this ten-day interval.',
+    maatPrinciple: 'Choose the Order of Attention',
+    cosmicContext:
+        '''The emerging field needs many things at once — water here, weeding there, shade for the youngest rows. The Kemite cannot do all of it today, so they walk the field and decide the order, beginning where delay would cost the most.
 
-Today is not "set 12 goals." Kemet didn't scatter seed everywhere on the first pass — that wastes labor and insults the land.
-
-Today you choose one living intention for this 10-day cycle. One. You name it aloud. You write it. You plant it.
-
-That intention can be physical (repair sleep), relational (restore trust with one person), economic (stabilize one bill), or sacred (reclaim morning prayer).
-
-Ma'at hates chaos. Chaos is "I want everything." Order is "I will grow this."
-
-Your job is to commit to something that deserves to live in you, and press it gently into the soil.''',
+Attention spread evenly over everything arrives nowhere in time. What is tended first is chosen on purpose.''',
     decanFlow: [
       DecanDayInfo(
         day: 1,
@@ -529,26 +508,23 @@ Your job is to commit to something that deserves to live in you, and press it ge
     meduNeter: MeduNeterKey(
       glyph: 'Seed pressed into open palm',
       colorFrequency: 'Wet black soil with a single green point',
-      mantra: '"I plant what I will protect."',
+      mantra:
+          '"I choose what to tend first, instead of scattering myself thin."',
     ),
   ),
 
   'sefbedet_4_1': KemeticDayInfo(
-    kemeticDate: 'Šef-Bedet I, Day 4 (Day 4 of Šef-Bedet / Tybi)',
-    season: '🌿 Peret – Season of Emergence',
-    month: 'Šef-Bedet — The month where feeding is civilization\'s first duty.',
-    decanName: 'sbꜣ ḫnty-ḥr ("Star of the Foremost")',
-    starCluster: '✨ Star of the Foremost — trusted growth.',
-    maatPrinciple: 'Feed What You Planted',
-    cosmicContext: '''Day 4 is proof.
+    kemeticDate: 'Šef-Bedet I, Day 4',
+    season: '🌱 Peret – Emergence Season',
+    month: 'Šef-Bedet ("Šf-bdt")',
+    decanName: 'ḫnty-ḥr ("Foremost of the Sky")',
+    starCluster:
+        '✨ ḫnty-ḥr — the Foremost of the Sky, the leading star of the group, watched through this ten-day interval.',
+    maatPrinciple: 'Fast Growth Is Not Always Strong Growth',
+    cosmicContext:
+        '''One patch has shot up far ahead of the rest, taller and greener. Rather than celebrate it, the Kemite kneels and checks the stems, because a plant that races upward often does so on a thin, shallow root that the first hard day will topple.
 
-Anyone can say "I'm going to change." Kemet didn't respect speech without grain.
-
-Today you materially feed the thing you planted yesterday. If you swore to heal your body, you feed your body — real nutrients, real rest. If you swore to repair trust, you feed that relationship — time, apology, presence. If you swore to stabilize money, you feed that ledger — sit down and look at it in daylight.
-
-Ma'at is not fantasy. Ma'at is resourced.
-
-Ask yourself: "Did I give life calories, or did I just declare a dream?"''',
+What rises fastest draws the eye, but speed alone proves nothing about what holds underneath.''',
     decanFlow: [
       DecanDayInfo(
         day: 1,
@@ -621,28 +597,22 @@ Ask yourself: "Did I give life calories, or did I just declare a dream?"''',
     meduNeter: MeduNeterKey(
       glyph: 'Open hand offering bread and a small jar',
       colorFrequency: 'Warm grain-gold and baked-clay red',
-      mantra: '"I give real fuel to what I said matters."',
+      mantra: '"I check what grows fastest instead of trusting its speed."',
     ),
   ),
 
   'sefbedet_5_1': KemeticDayInfo(
-    kemeticDate: 'Šef-Bedet I, Day 5 (Day 5 of Šef-Bedet / Tybi)',
-    season: '🌿 Peret – Season of Emergence',
-    month: 'Šef-Bedet — The ethics of care, made visible.',
-    decanName: 'sbꜣ ḫnty-ḥr ("Star of the Foremost")',
-    starCluster: '✨ Star of the Foremost — trusted growth.',
-    maatPrinciple: 'Protect the Fragile',
-    cosmicContext: '''Day 5 is boundary.
+    kemeticDate: 'Šef-Bedet I, Day 5',
+    season: '🌱 Peret – Emergence Season',
+    month: 'Šef-Bedet ("Šf-bdt")',
+    decanName: 'ḫnty-ḥr ("Foremost of the Sky")',
+    starCluster:
+        '✨ ḫnty-ḥr — the Foremost of the Sky, the leading star of the group, watched through this ten-day interval.',
+    maatPrinciple: 'The Slow Part Is Where the Season Turns',
+    cosmicContext:
+        '''A corner of the field lags, its shoots thin and pale beside the thriving rows. The easy thing is to write it off and tend the strong. Instead the Kemite gives it the most care, knowing the harvest is often decided by its weakest ground.
 
-In Kemet, you did not shame a seed for needing protection. You ringed it. You watched. You warned children not to stomp. You moved goats.
-
-So today you name what is still too tender to survive attack, and you place gentle guard around it. Limit noise. Limit exposure. Limit access.
-
-This is not hiding. This is stewardship.
-
-A sprout is not a forest, but a forest dies if you mock the sprout for needing guarding.
-
-You have permission to protect new life in you without apology.''',
+What lags is not abandoned. It is exactly where attention does the most.''',
     decanFlow: [
       DecanDayInfo(
         day: 1,
@@ -715,26 +685,20 @@ You have permission to protect new life in you without apology.''',
     meduNeter: MeduNeterKey(
       glyph: 'Reed fence around a young shoot',
       colorFrequency: 'Pale green wrapped in protective straw-gold',
-      mantra: '"I guard the tender so it can become strong."',
+      mantra: '"I give the most care to what lags, not the least."',
     ),
   ),
 
   'sefbedet_6_1': KemeticDayInfo(
-    kemeticDate: 'Šef-Bedet I, Day 6 (Day 6 of Šef-Bedet / Tybi)',
-    season: '🌿 Peret – Season of Emergence',
-    month: 'Šef-Bedet — Compassion as infrastructure.',
-    decanName: 'sbꜣ ḫnty-ḥr ("Star of the Foremost")',
-    starCluster: '✨ Star of the Foremost — trusted growth.',
-    maatPrinciple: 'Breathe Into the Work',
-    cosmicContext: '''Day 6 is nervous system alignment.
-
-After crisis, the body keeps behaving like danger is still here. Shoulders lock. Jaw grinds. Sleep stays shallow. You move like you're outrunning a wave that already passed.
-
-Kemet understood: frantic hands spill grain.
-
-Today you slow. You inhale fully. You exhale longer than you inhale. You match task to breath instead of desperation. You let your body register, "We are in Emergence now, not drowning."
-
-This is not laziness. This is you re-teaching your body Ma'at.''',
+    kemeticDate: 'Šef-Bedet I, Day 6',
+    season: '🌱 Peret – Emergence Season',
+    month: 'Šef-Bedet ("Šf-bdt")',
+    decanName: 'ḫnty-ḥr ("Foremost of the Sky")',
+    starCluster:
+        '✨ ḫnty-ḥr — the Foremost of the Sky, the leading star of the group, watched through this ten-day interval.',
+    maatPrinciple: 'Boundaries Are a Form of Care',
+    cosmicContext:
+        '''A goat noses at a weak fence near the neighbor's plot. Boys run. An old woman shouts from a doorway. The animal wants leaves, not trouble, but trouble does not need intention. Boundaries are part of care. A village survives because each house keeps its hunger from entering another house.''',
     decanFlow: [
       DecanDayInfo(
         day: 1,
@@ -807,28 +771,22 @@ This is not laziness. This is you re-teaching your body Ma'at.''',
     meduNeter: MeduNeterKey(
       glyph: 'Curved ram horn above flowing breath lines',
       colorFrequency: 'Soft river teal fading into calm sand',
-      mantra: '"I move in calm strength, not panic."',
+      mantra: '"I protect the line that keeps hunger from becoming harm."',
     ),
   ),
 
   'sefbedet_7_1': KemeticDayInfo(
-    kemeticDate: 'Šef-Bedet I, Day 7 (Day 7 of Šef-Bedet / Tybi)',
-    season: '🌿 Peret – Season of Emergence',
-    month:
-        'Šef-Bedet — "She Who Feeds with Grain," which includes honoring whoever grows, cooks, carries, and serves.',
-    decanName: 'sbꜣ ḫnty-ḥr ("Star of the Foremost")',
-    starCluster: '✨ Star of the Foremost — trusted growth.',
-    maatPrinciple: 'Honor the Providers',
-    cosmicContext: '''Day 7 is gratitude with names.
+    kemeticDate: 'Šef-Bedet I, Day 7',
+    season: '🌱 Peret – Emergence Season',
+    month: 'Šef-Bedet ("Šf-bdt")',
+    decanName: 'ḫnty-ḥr ("Foremost of the Sky")',
+    starCluster:
+        '✨ ḫnty-ḥr — the Foremost of the Sky, the leading star of the group, watched through this ten-day interval.',
+    maatPrinciple: 'The Hardest Intruder Is the One That Blends In',
+    cosmicContext:
+        '''Among the seedlings grows a weed almost indistinguishable from the crop. The Kemite studies the tiny difference — a wrong green, a different vein — and pulls it, because the intruder that mimics the real thing does the most damage unnoticed.
 
-In Kemet, they thanked Renenutet (goddess of the stored grain) and they thanked the woman who baked the bread. Both were sacred.
-
-Today you speak the names — of the people, forces, and systems that keep you nourished. The person who watches your child. The check that cleared. The body that still carries you. The elder who taught you how to survive.
-
-You do not pretend you did this alone. Isolation is a lie from isfet.
-
-Recognition is not weakness.
-Recognition is alignment with reality.''',
+What imitates the work hides inside it. Telling the two apart is the whole task.''',
     decanFlow: [
       DecanDayInfo(
         day: 1,
@@ -901,26 +859,20 @@ Recognition is alignment with reality.''',
     meduNeter: MeduNeterKey(
       glyph: 'Outstretched hands presenting a full bowl',
       colorFrequency: 'Harvest gold cupped by human brown',
-      mantra: '"I name and honor the ones who keep me alive."',
+      mantra: '"I learn what only imitates the work, and remove it."',
     ),
   ),
 
   'sefbedet_8_1': KemeticDayInfo(
-    kemeticDate: 'Šef-Bedet I, Day 8 (Day 8 of Šef-Bedet / Tybi)',
-    season: '🌿 Peret – Season of Emergence',
-    month: 'Šef-Bedet — Provision equals justice.',
-    decanName: 'sbꜣ ḫnty-ḥr ("Star of the Foremost")',
-    starCluster: '✨ Star of the Foremost — trusted growth.',
-    maatPrinciple: 'Distribute Fairly',
-    cosmicContext: '''Day 8 is balance of giving.
-
-Kemet fed the vulnerable — not as pity, but as law. At the same time, Kemet did not demand self-erasure from the provider. Both extremes break Ma'at.
-
-So today you examine how you share. Money, time, attention, food, presence. Are you hoarding out of fear? Are you bleeding out to prove worth?
-
-To live Ma'at is to circulate resources so life continues — without starving yourself to decorate someone else's comfort.
-
-Your sharing must sustain the circle, including you.''',
+    kemeticDate: 'Šef-Bedet I, Day 8',
+    season: '🌱 Peret – Emergence Season',
+    month: 'Šef-Bedet ("Šf-bdt")',
+    decanName: 'ḫnty-ḥr ("Foremost of the Sky")',
+    starCluster:
+        '✨ ḫnty-ḥr — the Foremost of the Sky, the leading star of the group, watched through this ten-day interval.',
+    maatPrinciple: 'Order Begins While the Room Is Quiet',
+    cosmicContext:
+        '''Before the granary fills, the scribe begins. He marks old grain, promised grain, missing grain, and grain already spoken for. A small error now can become hunger later. A clear count gives the household a future it can stand inside.''',
     decanFlow: [
       DecanDayInfo(
         day: 1,
@@ -993,30 +945,20 @@ Your sharing must sustain the circle, including you.''',
     meduNeter: MeduNeterKey(
       glyph: 'Balanced scale with grain on both pans',
       colorFrequency: 'Matte clay brown and measured sun-yellow',
-      mantra:
-          '"I circulate what sustains life — and I include myself in that life."',
+      mantra: '"I set things in order before need begins to shout."',
     ),
   ),
 
   'sefbedet_9_1': KemeticDayInfo(
-    kemeticDate: 'Šef-Bedet I, Day 9 (Day 9 of Šef-Bedet / Tybi)',
-    season: '🌿 Peret – Season of Emergence',
-    month:
-        'Šef-Bedet — Month of provision, of counting what exists so no one starves in illusion.',
-    decanName: 'sbꜣ ḫnty-ḥr ("Star of the Foremost")',
-    starCluster: '✨ Star of the Foremost — trusted growth.',
-    maatPrinciple: 'Record the Yield',
-    cosmicContext: '''Day 9 is ledger.
-
-Kemet wrote everything: water level, grain in storage, labor owed, mouths to be fed. This wasn't greed. This was survival through clarity.
-
-Today you count. Not fantasize — count. What have you actually stabilized so far this cycle? What money came in? What tasks were completed? What healing occurred between you and someone else? What strength returned to your body?
-
-Ma'at is reality, not wish.
-
-If the number is small, you honor that number.
-If the number is big, you honor that number.
-You refuse delusion either way.''',
+    kemeticDate: 'Šef-Bedet I, Day 9',
+    season: '🌱 Peret – Emergence Season',
+    month: 'Šef-Bedet ("Šf-bdt")',
+    decanName: 'ḫnty-ḥr ("Foremost of the Sky")',
+    starCluster:
+        '✨ ḫnty-ḥr — the Foremost of the Sky, the leading star of the group, watched through this ten-day interval.',
+    maatPrinciple: 'Craft Gives Shape to Hope',
+    cosmicContext:
+        '''The potter turns wet clay into jars for a harvest not yet ready. Beside him, a basket maker splits reeds. Their work trusts a future no one can command. Preparation is a kind of belief. It gives shape to abundance before abundance has agreed to arrive.''',
     decanFlow: [
       DecanDayInfo(
         day: 1,
@@ -1089,28 +1031,22 @@ You refuse delusion either way.''',
     meduNeter: MeduNeterKey(
       glyph: 'Scribe palette with tally marks beside a grain heap',
       colorFrequency: 'Ink black against stored-grain gold',
-      mantra: '"I face the truth of what exists."',
+      mantra: '"I give form to the good that is still on its way."',
     ),
   ),
 
   'sefbedet_10_1': KemeticDayInfo(
-    kemeticDate: 'Šef-Bedet I, Day 10 (Day 10 of Šef-Bedet / Tybi)',
-    season: '🌿 Peret – Season of Emergence',
-    month:
-        'Šef-Bedet — Month of nourishment as civilization\'s first vow after chaos.',
-    decanName: 'sbꜣ ḫnty-ḥr ("Star of the Foremost")',
-    starCluster: '✨ Star of the Foremost — trusted growth.',
-    maatPrinciple: 'Seal the Promise to Continue',
-    cosmicContext: '''Day 10 is vow.
+    kemeticDate: 'Šef-Bedet I, Day 10',
+    season: '🌱 Peret – Emergence Season',
+    month: 'Šef-Bedet ("Šf-bdt")',
+    decanName: 'ḫnty-ḥr ("Foremost of the Sky")',
+    starCluster:
+        '✨ ḫnty-ḥr — the Foremost of the Sky, the leading star of the group, watched through this ten-day interval.',
+    maatPrinciple: 'What Is Fully Seen Can Be Rightly Ordered',
+    cosmicContext:
+        '''The first ten days of Šef-Bedet close. The field has emerged, and the Kemite has walked all of it — the racing patch, the slow corner, the crowded row, the hidden weed. The whole is known now, its care given in right order.
 
-Kemet never ended a decan with "That was nice." They ended with commitment. The question was always: will you keep feeding what you brought to life, or will you abandon it the moment the crisis feeling wears off?
-
-Today you speak a quiet promise to your own future. Not loud. Not performative. Just real.
-
-You decide what you will keep alive through steady care — body practice, shared table, repaired bond, restored income stream, morning prayer, a child's stability.
-
-You tell that life, "I'm staying."
-That is Ma'at: continuity.''',
+Only what is seen in full can be tended well. The knowing comes before the steady work.''',
     decanFlow: [
       DecanDayInfo(
         day: 1,
@@ -1183,7 +1119,7 @@ That is Ma'at: continuity.''',
     meduNeter: MeduNeterKey(
       glyph: 'Joined hands over a small, steady flame in a clay lamp',
       colorFrequency: 'Ember red held inside protective earth-brown',
-      mantra: '"I keep feeding what I chose to keep alive."',
+      mantra: '"Having seen it whole, I can tend it in right order."',
     ),
   ),
 
@@ -1191,20 +1127,15 @@ That is Ma'at: continuity.''',
   // 🌿 ŠEF-BEDET II — DAYS 11–20  (Second Decan - smd srt)
   // ==========================================================
   'sefbedet_11_2': KemeticDayInfo(
-    kemeticDate: 'Šef-Bedet II, Day 11 (Day 11 of Šef-Bedet / Tybi)',
-    season: '🌿 Peret – Season of Emergence',
-    month:
-        'Šef-Bedet (šf-bdt) — "The Nourisher," declaring that to feed and to sustain is sacred duty, not charity.',
-    decanName: 'sbꜣ ḫnty-ḥr ("Star of the Foremost")',
-    starCluster: '✨ Star of the Foremost — trusted growth.',
-    maatPrinciple: 'Walk the Boundary',
-    cosmicContext: '''Day 11 is patrol.
-
-After the clay is shaped and the shoots are up, the work shifts from forming to guarding. The ancients walked the edges of their plots at dawn and dusk, scanning for burrows, tracks, chew marks, fungus, theft. That walk was not paranoia. It was love.
-
-Today you walk your own perimeter — money, body, time, home, children, peace. You look honestly at where chaos is slipping in: late-night scrolling that wrecks your sleep, a person who only calls when they're hungry, a leak in your spending, a stress spiral that's already drying you out.
-
-Renenutet's gaze was considered mercy because it caught the threat early. You do the same. You do not look away.''',
+    kemeticDate: 'Šef-Bedet II, Day 11 (Day 11 of Šef-Bedet)',
+    season: '🌱 Peret – Emergence Season',
+    month: 'Šef-Bedet ("Šf-bdt")',
+    decanName: 'ḥry-ib ḫnty-ḥr ("Heart of the Foremost")',
+    starCluster:
+        '✨ ḥry-ib ḫnty-ḥr — the Heart of the Foremost, the central star of the group, watched through this ten-day interval.',
+    maatPrinciple: 'Do Not Trust the Surface Alone',
+    cosmicContext:
+        '''At the edge of the field, an older farmer kneels and presses two fingers into the soil. The top is dark. Below, it is still dry. He sends a boy back to open the furrow wider. Green leaves can flatter the eye. Roots tell the truth.''',
     decanFlow: [
       DecanDayInfo(
         day: 11,
@@ -1280,26 +1211,22 @@ Renenutet's gaze was considered mercy because it caught the threat early. You do
     meduNeter: MeduNeterKey(
       glyph: 'Coiled cobra encircling a bundle of grain',
       colorFrequency: 'Guarding bronze around ripening green',
-      mantra: '"I see what approaches my field."',
+      mantra: '"I look beneath what seems well."',
     ),
   ),
 
   'sefbedet_12_2': KemeticDayInfo(
-    kemeticDate: 'Šef-Bedet II, Day 12 (Day 12 of Šef-Bedet / Tybi)',
-    season: '🌿 Peret – Season of Emergence',
-    month: 'Šef-Bedet — The month where nourishment becomes a social contract.',
-    decanName: 'sbꜣ ḫnty-ḥr ("Star of the Foremost")',
-    starCluster: '✨ Star of the Foremost — trusted growth.',
-    maatPrinciple: 'Name the Pest',
-    cosmicContext: '''Day 12 is honesty.
+    kemeticDate: 'Šef-Bedet II, Day 12',
+    season: '🌱 Peret – Emergence Season',
+    month: 'Šef-Bedet ("Šf-bdt")',
+    decanName: 'ḥry-ib ḫnty-ḥr ("Heart of the Foremost")',
+    starCluster:
+        '✨ ḥry-ib ḫnty-ḥr — the Heart of the Foremost, the central star of the group, watched through this ten-day interval.',
+    maatPrinciple: 'Care Past the Limit Becomes Harm',
+    cosmicContext:
+        '''The Kemite loves the strongest rows and wants to give them more water. But the soil is full, and more would drown the roots it means to help. So the Kemite stops: knowing when to withhold is as much care as giving.
 
-In Kemet, you did not pretend rats were "not that bad." You named them. You trapped them. You sealed the grain.
-
-Today you stop romanticizing the thing that is draining you. You say its name — the habit that's bleeding money, the person who escalates drama then says it's love, the excuse that keeps you tired, the food that keeps you inflamed and fogged, the self-story that keeps you small.
-
-You don't have to fix it all in one motion. But you must stop lying about it.
-
-Ma'at cannot operate where denial is being worshiped.''',
+Kindness past what can be received turns into damage. The limit is part of the love.''',
     decanFlow: [
       DecanDayInfo(
         day: 11,
@@ -1375,26 +1302,22 @@ Ma'at cannot operate where denial is being worshiped.''',
     meduNeter: MeduNeterKey(
       glyph: 'Cobra head flared, tongue extended toward a gnawing rat',
       colorFrequency: 'Warning red at the hood edge, deep soil brown beneath',
-      mantra: '"I will not pretend the threat is harmless."',
+      mantra: '"I stop my care at the limit of what can be used."',
     ),
   ),
 
   'sefbedet_13_2': KemeticDayInfo(
-    kemeticDate: 'Šef-Bedet II, Day 13 (Day 13 of Šef-Bedet / Tybi)',
-    season: '🌿 Peret – Season of Emergence',
-    month: 'Šef-Bedet — The ethic of keeping what lives, alive.',
-    decanName: 'sbꜣ ḫnty-ḥr ("Star of the Foremost")',
-    starCluster: '✨ Star of the Foremost — trusted growth.',
-    maatPrinciple: 'Lay Protective Offerings',
-    cosmicContext: '''Day 13 is reinforcement.
+    kemeticDate: 'Šef-Bedet II, Day 13',
+    season: '🌱 Peret – Emergence Season',
+    month: 'Šef-Bedet ("Šf-bdt")',
+    decanName: 'ḥry-ib ḫnty-ḥr ("Heart of the Foremost")',
+    starCluster:
+        '✨ ḥry-ib ḫnty-ḥr — the Heart of the Foremost, the central star of the group, watched through this ten-day interval.',
+    maatPrinciple: 'Growth Is Guided, Not Only Fed',
+    cosmicContext:
+        '''The climbing stems reach blindly in every direction. The Kemite stakes them and turns them toward the light, so their strength goes upward instead of sprawling. The plant would grow either way, but only guided does it grow well.
 
-This is where you add actual measures that keep you safe tomorrow, not just today. You install a boundary and you also fortify that boundary.
-
-In Kemet that meant patching the grain store, posting a watcher, smoothing the mud seal, leaving milk at the edge of the field. In your life that means: meal prep to keep your body steady, password changes, sleep schedule enforcement, cash moved somewhere it won't get casually spent, a conversation where expectations are stated in daylight.
-
-Protection is not just "back off." Protection is "here is the system that keeps me well."
-
-You are allowed to build that system.''',
+Feeding a thing is not the whole of tending it. How it grows matters as much as that it grows.''',
     decanFlow: [
       DecanDayInfo(
         day: 11,
@@ -1471,26 +1394,22 @@ You are allowed to build that system.''',
       glyph:
           'Four small offering bowls at the four corners of a planted square',
       colorFrequency: 'Milk white cooling over fertile green',
-      mantra: '"I maintain the guard that maintains me."',
+      mantra: '"I guide how the work grows, not only that it grows."',
     ),
   ),
 
   'sefbedet_14_2': KemeticDayInfo(
-    kemeticDate: 'Šef-Bedet II, Day 14 (Day 14 of Šef-Bedet / Tybi)',
-    season: '🌿 Peret – Season of Emergence',
-    month: 'Šef-Bedet — Nourishment requires defense.',
-    decanName: 'sbꜣ ḫnty-ḥr ("Star of the Foremost")',
-    starCluster: '✨ Star of the Foremost — trusted growth.',
-    maatPrinciple: 'Strike the Threat',
-    cosmicContext: '''Day 14 is decisive removal.
+    kemeticDate: 'Šef-Bedet II, Day 14',
+    season: '🌱 Peret – Emergence Season',
+    month: 'Šef-Bedet ("Šf-bdt")',
+    decanName: 'ḥry-ib ḫnty-ḥr ("Heart of the Foremost")',
+    starCluster:
+        '✨ ḥry-ib ḫnty-ḥr — the Heart of the Foremost, the central star of the group, watched through this ten-day interval.',
+    maatPrinciple: 'Patience Is a Form of Tending',
+    cosmicContext:
+        '''Some rows need nothing today. They are watered, weeded, and well — and the only thing they ask is time. The Kemite passes them by without fussing, because the urge to always be doing can disturb what is quietly thriving.
 
-There is a point where guarding is not enough. You don't negotiate with the rat inside the grain bin. You remove it.
-
-Today you cut off something that is actively harming what you're growing. That might mean blocking access, saying "No, that's done," canceling a drain subscription, throwing out what keeps dragging you backward, refusing to keep arguing with someone who feeds on the argument.
-
-In Kemet this wasn't considered cruelty. It was considered kindness to the entire village.
-
-You are allowed to eliminate what is killing the field.''',
+Knowing when a thing needs nothing is harder than knowing when it needs something. Restraint, rightly placed, is care.''',
     decanFlow: [
       DecanDayInfo(
         day: 11,
@@ -1567,29 +1486,22 @@ You are allowed to eliminate what is killing the field.''',
       glyph: 'Striking cobra over fallen vermin',
       colorFrequency:
           'Sunlit gold at the hood edge, blacked-out shadow beneath',
-      mantra: '"I remove what endangers my future."',
+      mantra: '"I let what is thriving be, and call the waiting care."',
     ),
   ),
 
   'sefbedet_15_2': KemeticDayInfo(
-    kemeticDate: 'Šef-Bedet II, Day 15 (Day 15 of Šef-Bedet / Tybi)',
-    season: '🌿 Peret – Season of Emergence',
-    month:
-        'Šef-Bedet — The month where compassion is maintenance, not softness.',
-    decanName: 'sbꜣ ḫnty-ḥr ("Star of the Foremost")',
-    starCluster: '✨ Star of the Foremost — trusted growth.',
-    maatPrinciple: 'Cool the Field',
-    cosmicContext: '''Day 15 is heat management.
+    kemeticDate: 'Šef-Bedet II, Day 15',
+    season: '🌱 Peret – Emergence Season',
+    month: 'Šef-Bedet ("Šf-bdt")',
+    decanName: 'ḥry-ib ḫnty-ḥr ("Heart of the Foremost")',
+    starCluster:
+        '✨ ḥry-ib ḫnty-ḥr — the Heart of the Foremost, the central star of the group, watched through this ten-day interval.',
+    maatPrinciple: 'Tend for What Is Coming',
+    cosmicContext:
+        '''The Kemite reads the sky — the haze that means heat, the wind that means dry days — and waters more heavily now, before the hard stretch arrives. Care given only for today leaves the field unready for tomorrow.
 
-Too much sun scorches sprouts. Too much anger scorches relationships. Too much adrenaline scorches the body.
-
-Cooling the field is not apathy. It's intelligent regulation.
-
-Today you deliberately lower destructive heat. You de-escalate a fight before it becomes scorched earth. You reduce input that overstimulates you. You ice inflammation. You step back from the argument that will cost you sleep and money.
-
-In Kemet they shaded the most tender growth. You shade what is tender in you and around you.
-
-Your calm is not surrender. Your calm is preservation.''',
+Good tending looks past the present moment. It prepares for the weather that has not yet come.''',
     decanFlow: [
       DecanDayInfo(
         day: 11,
@@ -1665,27 +1577,20 @@ Your calm is not surrender. Your calm is preservation.''',
     meduNeter: MeduNeterKey(
       glyph: 'Curled serpent exhaling cool breath across young shoots',
       colorFrequency: 'Pale blue-green over sun-warmed earth',
-      mantra: '"I lower the heat so life can keep growing."',
+      mantra: '"I tend for what is coming, not only for today."',
     ),
   ),
 
   'sefbedet_16_2': KemeticDayInfo(
-    kemeticDate: 'Šef-Bedet II, Day 16 (Day 16 of Šef-Bedet / Tybi)',
-    season: '🌿 Peret – Season of Emergence',
-    month: 'Šef-Bedet — Survival is stored, not improvised.',
-    decanName: 'sbꜣ ḫnty-ḥr ("Star of the Foremost")',
-    starCluster: '✨ Star of the Foremost — trusted growth.',
-    maatPrinciple: 'Guard the Storehouse',
-    cosmicContext: '''Day 16 is defense of what you already secured.
-
-Kemet counted grain, sealed jars, posted watchers, logged access. That wasn't greed. That was "these lives will eat in the dry months."
-
-Today you secure your stored value. That could be literal food, money you finally put aside, the energy you finally reclaimed, trust you rebuilt with someone, even knowledge you worked hard to earn.
-
-Ask, "Is it actually safe, or is it bleeding out through casual leaks?"
-
-You are allowed to protect your reserves without guilt.
-You are not required to let others raid what you bled to save.''',
+    kemeticDate: 'Šef-Bedet II, Day 16',
+    season: '🌱 Peret – Emergence Season',
+    month: 'Šef-Bedet ("Šf-bdt")',
+    decanName: 'ḥry-ib ḫnty-ḥr ("Heart of the Foremost")',
+    starCluster:
+        '✨ ḥry-ib ḫnty-ḥr — the Heart of the Foremost, the central star of the group, watched through this ten-day interval.',
+    maatPrinciple: 'Timing Makes the Gift Merciful',
+    cosmicContext:
+        '''At dusk, water is carried instead of wasted at noon. The soil receives it. The workers receive bread when their bodies can use it. Timing is mercy. A good gift given at the wrong hour becomes thin. The same hand can waste or bless by choosing its moment.''',
     decanFlow: [
       DecanDayInfo(
         day: 11,
@@ -1761,27 +1666,20 @@ You are not required to let others raid what you bled to save.''',
     meduNeter: MeduNeterKey(
       glyph: 'Bound grain jar with serpent coiled around the lid',
       colorFrequency: 'Deep storage brown, sealed with protective bronze',
-      mantra: '"What I saved will remain mine."',
+      mantra: '"I give at the hour when the gift can live."',
     ),
   ),
 
   'sefbedet_17_2': KemeticDayInfo(
-    kemeticDate: 'Šef-Bedet II, Day 17 (Day 17 of Šef-Bedet / Tybi)',
-    season: '🌿 Peret – Season of Emergence',
-    month:
-        'Šef-Bedet — Feeding is communal, but not everyone is allowed in the granary.',
-    decanName: 'sbꜣ ḫnty-ḥr ("Star of the Foremost")',
-    starCluster: '✨ Star of the Foremost — trusted growth.',
-    maatPrinciple: 'Tighten the Circle',
-    cosmicContext: '''Day 17 is access control.
-
-Ancient villages understood something a lot of modern people pretend not to understand: not everyone should be inside your protected space.
-
-Today you redraw who is allowed close. Who gets your time, your softness, your attention, your plans, your body, your money, your peace. You are not required to be available to everyone who wants you.
-
-This is not cruelty. This is hygiene.
-
-Renenutet does not apologize for who she keeps out of the grain house. Neither do you.''',
+    kemeticDate: 'Šef-Bedet II, Day 17',
+    season: '🌱 Peret – Emergence Season',
+    month: 'Šef-Bedet ("Šf-bdt")',
+    decanName: 'ḥry-ib ḫnty-ḥr ("Heart of the Foremost")',
+    starCluster:
+        '✨ ḥry-ib ḫnty-ḥr — the Heart of the Foremost, the central star of the group, watched through this ten-day interval.',
+    maatPrinciple: 'Competence Is Patience Stored in Tools',
+    cosmicContext:
+        '''Under a strip of shade, a metalworker sharpens a sickle blade. The harvest is not here, yet the edge must be ready before need shouts. Sparks fall and vanish. So much of competence looks like nothing afterward. Only the clean cut remembers the patience that made it possible.''',
     decanFlow: [
       DecanDayInfo(
         day: 11,
@@ -1857,26 +1755,20 @@ Renenutet does not apologize for who she keeps out of the grain house. Neither d
     meduNeter: MeduNeterKey(
       glyph: 'Serpent coiled at a doorway, head lifted',
       colorFrequency: 'Threshold copper edging into shadow',
-      mantra: '"Not everyone crosses into my protected ground."',
+      mantra: '"I sharpen what future labor will need."',
     ),
   ),
 
   'sefbedet_18_2': KemeticDayInfo(
-    kemeticDate: 'Šef-Bedet II, Day 18 (Day 18 of Šef-Bedet / Tybi)',
-    season: '🌿 Peret – Season of Emergence',
-    month: 'Šef-Bedet — Your responsibility now includes record of loss.',
-    decanName: 'sbꜣ ḫnty-ḥr ("Star of the Foremost")',
-    starCluster: '✨ Star of the Foremost — trusted growth.',
-    maatPrinciple: 'Track the Losses',
-    cosmicContext: '''Day 18 is accounting without shame.
-
-In Kemet, the scribe didn't cry over what was gone. They wrote it down. "We lost this much to mold. We lost this much to rats. We lost this much to neglect." Then they changed the system.
-
-Today you admit where life leaked. Money you shouldn't have spent. Time you gave to chaos. Food you ate that made you weak. Words you said that damaged trust. Hours of sleep you burned.
-
-This is not self-hate. This is survival math.
-
-If you won't face where you're bleeding, you will keep bleeding.''',
+    kemeticDate: 'Šef-Bedet II, Day 18',
+    season: '🌱 Peret – Emergence Season',
+    month: 'Šef-Bedet ("Šf-bdt")',
+    decanName: 'ḥry-ib ḫnty-ḥr ("Heart of the Foremost")',
+    starCluster:
+        '✨ ḥry-ib ḫnty-ḥr — the Heart of the Foremost, the central star of the group, watched through this ten-day interval.',
+    maatPrinciple: 'Hidden Processes Deserve Trust',
+    cosmicContext:
+        '''The brewer checks sealed jars. Foam has risen and settled without witness. Beer will pay labor, strengthen bodies, and soften hard talk at evening. The jar teaches hidden work. Not everything must be watched to be faithful. Some things ripen best under clay, away from praise.''',
     decanFlow: [
       DecanDayInfo(
         day: 11,
@@ -1953,26 +1845,20 @@ If you won't face where you're bleeding, you will keep bleeding.''',
       glyph: 'Scribe palette beside a jar with a crack',
       colorFrequency:
           'Ink black and warning red traced along the fracture line',
-      mantra: '"I admit the leak so I can seal it."',
+      mantra: '"I trust what ripens without needing my witness."',
     ),
   ),
 
   'sefbedet_19_2': KemeticDayInfo(
-    kemeticDate: 'Šef-Bedet II, Day 19 (Day 19 of Šef-Bedet / Tybi)',
-    season: '🌿 Peret – Season of Emergence',
-    month: 'Šef-Bedet — The duty to feed includes the duty to define terms.',
-    decanName: 'sbꜣ ḫnty-ḥr ("Star of the Foremost")',
-    starCluster: '✨ Star of the Foremost — trusted growth.',
-    maatPrinciple: 'Reinforce the Oath',
-    cosmicContext: '''Day 19 is declaration.
-
-In Kemet, they spoke vows out loud: how grain would be used, who had rights to take, how peace in the household would be kept. Spoken law became lived law.
-
-Today you restate your terms for your own life. Say them aloud or write them clearly. "This is how I will be treated. This is how my resources will move. This is how I keep my body. This is how we speak in this house. This is how conflict will be handled."
-
-You are not being dramatic. You are engraving Ma'at.
-
-If you don't say your law, people will pretend you don't have one.''',
+    kemeticDate: 'Šef-Bedet II, Day 19',
+    season: '🌱 Peret – Emergence Season',
+    month: 'Šef-Bedet ("Šf-bdt")',
+    decanName: 'ḥry-ib ḫnty-ḥr ("Heart of the Foremost")',
+    starCluster:
+        '✨ ḥry-ib ḫnty-ḥr — the Heart of the Foremost, the central star of the group, watched through this ten-day interval.',
+    maatPrinciple: 'Strength Requires Care Before Use',
+    cosmicContext:
+        '''The oxen are brushed and fed before they are asked to pull. A boy learns where to stand, where not to place his foot, how to speak without striking. Power must be tended before it is used. The animal that helps make bread also requires bread's patience.''',
     decanFlow: [
       DecanDayInfo(
         day: 11,
@@ -2048,28 +1934,20 @@ If you don't say your law, people will pretend you don't have one.''',
     meduNeter: MeduNeterKey(
       glyph: 'Raised cobra beside a carved oath-staff / standard',
       colorFrequency: 'Statement gold on disciplined dark brown',
-      mantra: '"My law is spoken and will be honored."',
+      mantra: '"I tend strength before I ask it to carry weight."',
     ),
   ),
 
   'sefbedet_20_2': KemeticDayInfo(
-    kemeticDate: 'Šef-Bedet II, Day 20 (Day 20 of Šef-Bedet / Tybi)',
-    season: '🌿 Peret – Season of Emergence',
-    month: 'Šef-Bedet — "The Nourisher," now fortified.',
-    decanName: 'sbꜣ ḫnty-ḥr ("Star of the Foremost")',
-    starCluster: '✨ Star of the Foremost — trusted growth.',
-    maatPrinciple: 'Stand Watch at Dusk',
-    cosmicContext: '''Day 20 is quiet vigilance.
-
-The end of this decan is not explosive. It's settled. Serpent-coiled. Eyes half-lidded but awake.
-
-Tonight you sit with awareness. You slow your body, soften your jaw, and you review the patterns you saw across these ten days: Where did threats show up? Where did you shut them down early? Where did you wait too long? Who proved trustworthy? Who revealed themselves?
-
-Renenutet inspects the fields at night. You inspect your life at night.
-
-This is not anxiety. This is guardianship.
-
-You tell the world, and yourself: "I am awake at my own border."''',
+    kemeticDate: 'Šef-Bedet II, Day 20',
+    season: '🌱 Peret – Emergence Season',
+    month: 'Šef-Bedet ("Šf-bdt")',
+    decanName: 'ḥry-ib ḫnty-ḥr ("Heart of the Foremost")',
+    starCluster:
+        '✨ ḥry-ib ḫnty-ḥr — the Heart of the Foremost, the central star of the group, watched through this ten-day interval.',
+    maatPrinciple: 'Justice Keeps the Field from Bitterness',
+    cosmicContext:
+        '''At the edge of two plots, elders judge a boundary stone shifted by water. No blade is drawn. No voice wins by loudness. They remember old marks, listen to both houses, and set the stone again. Justice is also fieldwork. It keeps tomorrow from being poisoned. When the stone stands again, no one has won. Two houses have been spared from teaching their children to hate a furrow.''',
     decanFlow: [
       DecanDayInfo(
         day: 11,
@@ -2145,7 +2023,7 @@ You tell the world, and yourself: "I am awake at my own border."''',
     meduNeter: MeduNeterKey(
       glyph: 'Serpent coiled in a ring, single eye open',
       colorFrequency: 'Twilight bronze around deep green life',
-      mantra: '"I remain awake at my border."',
+      mantra: '"I restore the line so tomorrow can grow cleanly."',
     ),
   ),
 
@@ -2153,24 +2031,15 @@ You tell the world, and yourself: "I am awake at my own border."''',
   // 🌿 ŠEF-BEDET III — DAYS 21–30  (Third Decan - srt)
   // ==========================================================
   'sefbedet_21_3': KemeticDayInfo(
-    kemeticDate: 'Šef-Bedet III, Day 21 (Day 21 of Šef-Bedet / Tybi)',
-    season: '🌿 Peret – Season of Emergence',
-    month:
-        'Šef-Bedet (šf-bdt) — "The Nourisher," the promise that life will be fed.',
+    kemeticDate: 'Šef-Bedet III, Day 21 (Day 21 of Šef-Bedet)',
+    season: '🌱 Peret – Emergence Season',
+    month: 'Šef-Bedet ("Šf-bdt")',
     decanName: 'sbꜣ ḫnty-ḥr ("Star of the Foremost")',
-    starCluster: '✨ Star of the Foremost — trusted growth.',
-    maatPrinciple: 'Exhale the Tension',
-    cosmicContext: '''Day 21 is unclench.
-
-For twenty days you've been shaping and guarding. You've been on alert. You've checked doors, watched tone, watched faces, watched bills, watched your own mind for sabotage.
-
-Today is the first sanctioned loosening. In Kemet, this was when the village shoulders literally dropped. Laughter returned to normal volume. People stretched longer. Sleep deepened.
-
-You are not "slacking." You are letting your nervous system come down from defense mode.
-
-Ask your body, "Where am I still braced for danger that already passed?" and let that place soften.
-
-Trust is part of Ma'at. Panic forever is not.''',
+    starCluster:
+        '✨ sbꜣ ḫnty-ḥr — the Star of the Foremost, the bright marker of the group, watched through this ten-day interval.',
+    maatPrinciple: 'Living Things Must Outgrow Their Keeper',
+    cosmicContext:
+        '''The crop now stands without constant touching. The farmer walks more slowly, seeing which tasks are his and which belong to root, sun, insect, wind, and time. Trust is not absence. It is attention with open hands. The living thing must be allowed to live beyond the keeper.''',
     decanFlow: [
       DecanDayInfo(
         day: 21,
@@ -2244,28 +2113,22 @@ Trust is part of Ma'at. Panic forever is not.''',
     meduNeter: MeduNeterKey(
       glyph: 'Long serpent stretched in a relaxed curve around a planted field',
       colorFrequency: 'Soft dusk gold around calm green',
-      mantra: '"I can breathe. The field is held."',
+      mantra: '"I watch without making the living thing smaller."',
     ),
   ),
 
   'sefbedet_22_3': KemeticDayInfo(
-    kemeticDate: 'Šef-Bedet III, Day 22 (Day 22 of Šef-Bedet / Tybi)',
-    season: '🌿 Peret – Season of Emergence',
-    month: 'Šef-Bedet — Feeding made real.',
+    kemeticDate: 'Šef-Bedet III, Day 22',
+    season: '🌱 Peret – Emergence Season',
+    month: 'Šef-Bedet ("Šf-bdt")',
     decanName: 'sbꜣ ḫnty-ḥr ("Star of the Foremost")',
-    starCluster: '✨ Star of the Foremost — trusted growth.',
-    maatPrinciple: 'Acknowledge the Living Field',
-    cosmicContext: '''Day 22 is witness.
+    starCluster:
+        '✨ sbꜣ ḫnty-ḥr — the Star of the Foremost, the bright marker of the group, watched through this ten-day interval.',
+    maatPrinciple: 'The Urge to Act Is Not the Need to Act',
+    cosmicContext:
+        '''Everything is going well, yet the Kemite feels the restless pull to do something — to water, to weed, to fix what is not broken. They hold still, because action taken only to soothe restlessness disturbs a field that needs nothing.
 
-You look directly at what is alive because of your discipline and you refuse to downplay it.
-
-In Kemet, this was a quiet walk-through. Adults would point for children: "See that canal? We dug that. See those shoots? We kept the pests off. See that storage? We sealed it." You did not pretend it "just worked out." You tied survival to labor and to Ma'at.
-
-Today you inventory the life that still exists because you showed up. Your household. Your own body. Your work. Your clarity. Your children's sense of safety.
-
-Let yourself say, "That's alive because I guarded it."
-
-That naming is not ego. That naming is instruction.''',
+Doing something is not always better than nothing. The itch to act and the need to act differ.''',
     decanFlow: [
       DecanDayInfo(
         day: 21,
@@ -2339,26 +2202,22 @@ That naming is not ego. That naming is instruction.''',
     meduNeter: MeduNeterKey(
       glyph: 'Eye of a serpent looking inward at a thriving stalk',
       colorFrequency: 'Living green with steady bronze outline',
-      mantra: '"I see what is alive because of me."',
+      mantra: '"I tell the urge to act apart from the need to act."',
     ),
   ),
 
   'sefbedet_23_3': KemeticDayInfo(
-    kemeticDate: 'Šef-Bedet III, Day 23 (Day 23 of Šef-Bedet / Tybi)',
-    season: '🌿 Peret – Season of Emergence',
-    month: 'Šef-Bedet — The Nourisher.',
+    kemeticDate: 'Šef-Bedet III, Day 23',
+    season: '🌱 Peret – Emergence Season',
+    month: 'Šef-Bedet ("Šf-bdt")',
     decanName: 'sbꜣ ḫnty-ḥr ("Star of the Foremost")',
-    starCluster: '✨ Star of the Foremost — trusted growth.',
-    maatPrinciple: 'Bless What Will Feed Others',
-    cosmicContext: '''Day 23 is generosity with structure.
+    starCluster:
+        '✨ sbꜣ ḫnty-ḥr — the Star of the Foremost, the bright marker of the group, watched through this ten-day interval.',
+    maatPrinciple: 'What Never Struggles Never Grows Able',
+    cosmicContext:
+        '''A row wilts in the midday heat, and the Kemite wants to rush water to it. But evening will revive it, and a plant that meets a little hardship grows deeper roots and a tougher stem. So the Kemite waits.
 
-In Kemet, part of what was guarded was always meant to circulate — to elders, to children, to ritual, to the temple granary that would feed the town in famine. Feeding others was not "extra credit." It was woven into the system from the start.
-
-Today you locate what in your life will nourish beyond you — your labor, your skill, your stored resource, your steadiness, your clarity — and you bless it for that purpose.
-
-Ask, "Who will eat because I did not collapse?"
-
-This is sacred. You are not small. Your survival is not private.''',
+A thing rescued from every struggle never builds the strength struggle would have given it.''',
     decanFlow: [
       DecanDayInfo(
         day: 21,
@@ -2432,28 +2291,20 @@ This is sacred. You are not small. Your survival is not private.''',
     meduNeter: MeduNeterKey(
       glyph: 'Serpent encircling a basket of grain being handed outward',
       colorFrequency: 'Warm gold over shared earth-brown',
-      mantra: '"What I guarded will feed more than me."',
+      mantra: '"I let a small struggle stand, so strength can grow from it."',
     ),
   ),
 
   'sefbedet_24_3': KemeticDayInfo(
-    kemeticDate: 'Šef-Bedet III, Day 24 (Day 24 of Šef-Bedet / Tybi)',
-    season: '🌿 Peret – Season of Emergence',
-    month: 'Šef-Bedet — Compassion as infrastructure.',
+    kemeticDate: 'Šef-Bedet III, Day 24',
+    season: '🌱 Peret – Emergence Season',
+    month: 'Šef-Bedet ("Šf-bdt")',
     decanName: 'sbꜣ ḫnty-ḥr ("Star of the Foremost")',
-    starCluster: '✨ Star of the Foremost — trusted growth.',
-    maatPrinciple: 'Loosen Control (Without Abandoning Order)',
-    cosmicContext: '''Day 24 is the release of the death grip.
-
-You cannot micromanage every drop of water and every breath of everyone you love forever. That turns you into the drought.
-
-The work now is to trust the systems you built. Trust the canal you dug. Trust the lock you set. Trust the boundary you spoke. Trust the person you trained to help. Trust your own rhythm.
-
-You do not abandon order — you simply stop strangling it.
-
-Ask, "Where can I let go of constant panic and let Ma'at carry some weight?"
-
-If you never rest, you become the predator you swore to keep out.''',
+    starCluster:
+        '✨ sbꜣ ḫnty-ḥr — the Star of the Foremost, the bright marker of the group, watched through this ten-day interval.',
+    maatPrinciple: 'Help Crosses Boundaries Before Speech',
+    cosmicContext:
+        '''In a low field, a farmer finds water lingering too long. The shoots yellow at their feet. He opens a channel with help from two neighbors who owe him nothing today. Good community is not sentiment. It is a hoe passed across a boundary before loss spreads.''',
     decanFlow: [
       DecanDayInfo(
         day: 21,
@@ -2527,28 +2378,20 @@ If you never rest, you become the predator you swore to keep out.''',
     meduNeter: MeduNeterKey(
       glyph: 'Long serpent in a loose ring, not constricting — simply present',
       colorFrequency: 'Calm olive and warm clay',
-      mantra: '"I trust the order I built."',
+      mantra: '"I pass the tool across the boundary in time."',
     ),
   ),
 
   'sefbedet_25_3': KemeticDayInfo(
-    kemeticDate: 'Šef-Bedet III, Day 25 (Day 25 of Šef-Bedet / Tybi)',
-    season: '🌿 Peret – Season of Emergence',
-    month: 'Šef-Bedet — The month that keeps the world fed.',
+    kemeticDate: 'Šef-Bedet III, Day 25',
+    season: '🌱 Peret – Emergence Season',
+    month: 'Šef-Bedet ("Šf-bdt")',
     decanName: 'sbꜣ ḫnty-ḥr ("Star of the Foremost")',
-    starCluster: '✨ Star of the Foremost — trusted growth.',
-    maatPrinciple: 'Tend the Vessel',
-    cosmicContext: '''Day 25 is maintenance of the carrier.
-
-In Kemet, they did oiling, bandaging, sharpening, retying, mending. Tools were serviced. Feet were washed. Backs were rubbed with oils. Throats were soothed with honey and beer. This was seen as duty, not luxury.
-
-You are the vessel that delivers nourishment to your world. Your throat carries instruction. Your hands carry food. Your body carries presence.
-
-Today you tend that vessel. Sleep, stretch, hydrate, clean, soothe, repair, groom, re-center.
-
-Ask: "Am I treating the carrier of all this life like something sacred, or something disposable?"
-
-You cannot pour if you keep tearing the container.''',
+    starCluster:
+        '✨ sbꜣ ḫnty-ḥr — the Star of the Foremost, the bright marker of the group, watched through this ten-day interval.',
+    maatPrinciple: 'Clean Cloth Remembers Dirty Hands',
+    cosmicContext:
+        '''Women sit where the light is good and twist flax into thread. Linen will wrap bodies, cover bread, bind bundles, dress priests, and mark dignity in heat. The crop outside is not the only harvest. A priest may stand spotless in white linen, but the cloth remembers the women, the stems, and the dust.''',
     decanFlow: [
       DecanDayInfo(
         day: 21,
@@ -2623,26 +2466,20 @@ You cannot pour if you keep tearing the container.''',
       glyph:
           'Serpent curled gently around a water jar, not squeezing — supporting',
       colorFrequency: 'Restful blue-grey and body-warm amber',
-      mantra: '"I keep the carrier intact."',
+      mantra: '"I honor the hands hidden inside what appears clean."',
     ),
   ),
 
   'sefbedet_26_3': KemeticDayInfo(
-    kemeticDate: 'Šef-Bedet III, Day 26 (Day 26 of Šef-Bedet / Tybi)',
-    season: '🌿 Peret – Season of Emergence',
-    month: 'Šef-Bedet — Nourishment is a lineage act.',
+    kemeticDate: 'Šef-Bedet III, Day 26',
+    season: '🌱 Peret – Emergence Season',
+    month: 'Šef-Bedet ("Šf-bdt")',
     decanName: 'sbꜣ ḫnty-ḥr ("Star of the Foremost")',
-    starCluster: '✨ Star of the Foremost — trusted growth.',
-    maatPrinciple: 'Name the Inheritance',
-    cosmicContext: '''Day 26 is clarity about what continues after you.
-
-In Kemet, nothing was allowed to be "accidental legacy." Skills were handed down deliberately — irrigation timing, seed choice, preservation methods, prayer cadence, negotiation style, law of the household. You said what stays.
-
-Today you define your inheritance. Not money only — pattern. Rhythm. Expectation of order. Emotional safety. A way to speak truth without humiliation.
-
-Ask, "What am I actually handing forward?"
-
-If you don't name it, chaos will name it for you.''',
+    starCluster:
+        '✨ sbꜣ ḫnty-ḥr — the Star of the Foremost, the bright marker of the group, watched through this ten-day interval.',
+    maatPrinciple: 'Memory Feeds Courage',
+    cosmicContext:
+        '''At a small household place, food is set for the dead. A little beer. A little bread. Names are spoken quietly. The ancestors do not weed the rows, yet they remain part of the household economy. Memory feeds courage. Courage feeds the hands that return to work.''',
     decanFlow: [
       DecanDayInfo(
         day: 21,
@@ -2717,28 +2554,20 @@ If you don't name it, chaos will name it for you.''',
       glyph:
           'Serpent encircling a small bundle handed from a larger hand to a smaller hand',
       colorFrequency: 'Ancestral brown and dawn gold',
-      mantra: '"I decide what continues."',
+      mantra: '"I feed memory so courage can return to the work."',
     ),
   ),
 
   'sefbedet_27_3': KemeticDayInfo(
-    kemeticDate: 'Šef-Bedet III, Day 27 (Day 27 of Šef-Bedet / Tybi)',
-    season: '🌿 Peret – Season of Emergence',
-    month: 'Šef-Bedet — The month where feeding becomes proof of devotion.',
+    kemeticDate: 'Šef-Bedet III, Day 27',
+    season: '🌱 Peret – Emergence Season',
+    month: 'Šef-Bedet ("Šf-bdt")',
     decanName: 'sbꜣ ḫnty-ḥr ("Star of the Foremost")',
-    starCluster: '✨ Star of the Foremost — trusted growth.',
-    maatPrinciple: 'Give Thanks Without Apology',
-    cosmicContext: '''Day 27 is unapologetic thanksgiving.
-
-Kemet did not practice fake humility. When the field held, they thanked loudly. When the jars sealed, they thanked. When the children ate, they thanked. Gratitude was considered intelligent recognition of cosmic partnership.
-
-Today you thank openly. Not "I'm lucky, I don't deserve this," but "I worked with Ma'at, and we kept this alive together."
-
-Can you sit in what you actually did without shrinking, joking, or dismissing it?
-
-Ask, "Can I receive the reality that I did sacred work?"
-
-Receiving that truth stabilizes your spirit for the next cycle.''',
+    starCluster:
+        '✨ sbꜣ ḫnty-ḥr — the Star of the Foremost, the bright marker of the group, watched through this ten-day interval.',
+    maatPrinciple: 'Exchange Reveals the Shape of Trust',
+    cosmicContext:
+        '''In the market shade, people trade fish, onions, sandals, gossip, and promises. One basket buys help. One jar settles anger. One debt waits. The economy moves in small things before the harvest makes noise. Every exchange asks the same question: who will still stand with whom tomorrow?''',
     decanFlow: [
       DecanDayInfo(
         day: 21,
@@ -2812,28 +2641,20 @@ Receiving that truth stabilizes your spirit for the next cycle.''',
     meduNeter: MeduNeterKey(
       glyph: 'Outstretched hands holding grain upward within a serpent ring',
       colorFrequency: 'Offering gold over river-deep green',
-      mantra: '"I honor what we built, without apology."',
+      mantra: '"I trade in ways that leave relationship standing."',
     ),
   ),
 
   'sefbedet_28_3': KemeticDayInfo(
-    kemeticDate: 'Šef-Bedet III, Day 28 (Day 28 of Šef-Bedet / Tybi)',
-    season: '🌿 Peret – Season of Emergence',
-    month: 'Šef-Bedet — The Nourisher, preparing to conclude her term.',
+    kemeticDate: 'Šef-Bedet III, Day 28',
+    season: '🌱 Peret – Emergence Season',
+    month: 'Šef-Bedet ("Šf-bdt")',
     decanName: 'sbꜣ ḫnty-ḥr ("Star of the Foremost")',
-    starCluster: '✨ Star of the Foremost — trusted growth.',
-    maatPrinciple: 'Bind the Promise',
-    cosmicContext: '''Day 28 is vow.
-
-You now speak continuation into reality. In Kemet, this might be: "This canal will be cleared again next season." "This household will remain in Ma'at." "This food will be apportioned with justice." "This voice will not lie."
-
-You choose one balance — one — and you bind yourself to holding it.
-
-Ask, "What balance will I refuse to let collapse after today?"
-
-This is not theater. This is maintenance of civilization at your scale.
-
-Civilization falls when no one binds promise at the small level.''',
+    starCluster:
+        '✨ sbꜣ ḫnty-ḥr — the Star of the Foremost, the bright marker of the group, watched through this ten-day interval.',
+    maatPrinciple: 'Care Must Release Control',
+    cosmicContext:
+        '''Wind crosses the field all afternoon. No one can bargain with it. Leaves bend, dust lifts, and the farmer stops pretending his care is control. Maat is not command over the world. It is right action inside a world that remains larger than the one acting.''',
     decanFlow: [
       DecanDayInfo(
         day: 21,
@@ -2907,27 +2728,20 @@ Civilization falls when no one binds promise at the small level.''',
     meduNeter: MeduNeterKey(
       glyph: 'Serpent forming a closed ring around a single upright Djed',
       colorFrequency: 'Oath gold and pillar-stable sandstone',
-      mantra: '"This balance will remain under my watch."',
+      mantra: '"I act rightly without pretending to rule the whole."',
     ),
   ),
 
   'sefbedet_29_3': KemeticDayInfo(
-    kemeticDate: 'Šef-Bedet III, Day 29 (Day 29 of Šef-Bedet / Tybi)',
-    season: '🌿 Peret – Season of Emergence',
-    month:
-        'Šef-Bedet — Still feeding, but beginning to turn toward harvest logic.',
+    kemeticDate: 'Šef-Bedet III, Day 29',
+    season: '🌱 Peret – Emergence Season',
+    month: 'Šef-Bedet ("Šf-bdt")',
     decanName: 'sbꜣ ḫnty-ḥr ("Star of the Foremost")',
-    starCluster: '✨ Star of the Foremost — trusted growth.',
-    maatPrinciple: 'Align with Graceful Pace',
-    cosmicContext: '''Day 29 is rhythm correction.
-
-You cannot carry the next month if your current pace is devouring you. The serpent who encircles the world moves in one unbroken line, not in panic jolts.
-
-Today you examine your tempo: sleep, speech, work hours, spending rate, emotional output. You ask, "Is this pace survivable long-term?"
-
-If the answer is no, you slow something. Not everything — something. You adjust toward grace, not collapse.
-
-Kemet understood this: no field survives if the farmer burns out before harvest.''',
+    starCluster:
+        '✨ sbꜣ ḫnty-ḥr — the Star of the Foremost, the bright marker of the group, watched through this ten-day interval.',
+    maatPrinciple: 'Preparation Turns Waiting into Form',
+    cosmicContext:
+        '''Near the threshing floor, tools are gathered though the grain is not ready. Baskets wait. Ropes wait. Children practice staying clear of hooves. Waiting has changed its texture. It is no longer empty. It has become readiness, and readiness has a sound: reeds, blades, rope, breath.''',
     decanFlow: [
       DecanDayInfo(
         day: 21,
@@ -3002,7 +2816,7 @@ Kemet understood this: no field survives if the farmer burns out before harvest.
       glyph:
           'Long serpent flowing in one smooth line above evenly spaced footprints',
       colorFrequency: 'Even river blue and grounded earth umber',
-      mantra: '"I move at a pace I can keep."',
+      mantra: '"I let waiting become readiness in my hands."',
     ),
   ),
 };
