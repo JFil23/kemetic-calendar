@@ -1129,7 +1129,8 @@ bool _isEveningThresholdFlowName(String? name) {
 }
 
 bool _isEveningThresholdRiteFlowName(String? name) {
-  return name?.trim().toLowerCase() == kEveningThresholdRiteTitle.toLowerCase();
+  return resolveMaatFlowKind(flowName: name) ==
+      MaatFlowKind.eveningThresholdRite;
 }
 
 bool _isTheWeighingFlowName(String? name) {
@@ -1213,6 +1214,7 @@ class _MaatFlowCompletionContext {
     required String status,
     required DateTime completedOnDate,
   }) {
+    final completionStatus = _maatCompletionStatusForRawStatus(status);
     final graphEventType = status == 'skipped'
         ? 'flow_skipped'
         : status == 'conversation_pending'
@@ -1244,6 +1246,9 @@ class _MaatFlowCompletionContext {
 
     return <String, dynamic>{
       'status': status,
+      'completion_status': completionStatus.wireName,
+      'reflection_status': ReflectionStatus.none.wireName,
+      'source_type': CompletionSourceType.maatFlow.wireName,
       'flow_key': flowKey,
       'flow_title': flowTitle,
       'event_title': eventTitle,
@@ -1318,6 +1323,38 @@ _MaatLibraryCtaPayload? _maatLibraryCtaPayloadForEvent(EventItem event) {
 
 String _formatCompletionDate(DateTime date) {
   return '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
+}
+
+CompletionStatus _maatCompletionStatusForRawStatus(String status) {
+  final normalized = CompletionStatusX.fromWireName(status);
+  if (normalized == CompletionStatus.observed ||
+      normalized == CompletionStatus.partial ||
+      normalized == CompletionStatus.skipped) {
+    return normalized;
+  }
+  switch (status.trim().toLowerCase()) {
+    case 'observed_from_inside':
+    case 'names_spoken':
+    case 'held':
+    case 'carry_forward':
+    case 'release':
+    case 'raised':
+    case 'decision_pronounced':
+    case 'transmitted':
+    case 'stones_placed':
+    case 'cooled':
+    case 'spoken':
+    case 'record_complete':
+    case 'beer_poured':
+    case 'golden_one_present':
+      return CompletionStatus.observed;
+    case 'conversation_pending':
+    case 'working':
+      return CompletionStatus.partial;
+    case 'slipped':
+      return CompletionStatus.skipped;
+  }
+  return CompletionStatus.none;
 }
 
 List<String> _dedupeMaatNodeSlugs(Iterable<String> values) {
@@ -9464,36 +9501,6 @@ class _MaatFlowCompletionPanelState extends State<_MaatFlowCompletionPanel> {
 
   bool _hasText(String? value) => value != null && value.trim().isNotEmpty;
 
-  CompletionStatus _completionFeedbackStatusForRawStatus(String status) {
-    final normalized = CompletionStatusX.fromWireName(status);
-    if (normalized == CompletionStatus.observed ||
-        normalized == CompletionStatus.partial) {
-      return normalized;
-    }
-    switch (status.trim().toLowerCase()) {
-      case 'observed_from_inside':
-      case 'names_spoken':
-      case 'held':
-      case 'carry_forward':
-      case 'release':
-      case 'raised':
-      case 'decision_pronounced':
-      case 'transmitted':
-      case 'stones_placed':
-      case 'cooled':
-      case 'spoken':
-      case 'record_complete':
-      case 'beer_poured':
-      case 'golden_one_present':
-        return CompletionStatus.observed;
-      case 'working':
-      case 'slipped':
-      case 'conversation_pending':
-        return CompletionStatus.partial;
-    }
-    return CompletionStatus.none;
-  }
-
   String? _eveningThresholdPrerequisiteMessage() {
     if (!_isEveningThresholdCompletion) return null;
     if (widget.completion.eventNumber == 1 &&
@@ -9501,9 +9508,8 @@ class _MaatFlowCompletionPanelState extends State<_MaatFlowCompletionPanel> {
       return 'No carry was set this morning. The flow will resume tomorrow.';
     }
     if (widget.completion.eventNumber == 2 &&
-        (!_hasText(_eveningThresholdPreviousOrientation?.chosenReturn) ||
-            !_hasText(_eveningThresholdPreviousOrientation?.landingStatus))) {
-      return 'Land yesterday\'s carry before choosing what crosses.';
+        !_hasText(_eveningThresholdPreviousOrientation?.chosenReturn)) {
+      return 'No unresolved carry is available to cross.';
     }
     return null;
   }
@@ -9593,6 +9599,7 @@ class _MaatFlowCompletionPanelState extends State<_MaatFlowCompletionPanel> {
         await repo.releaseWithNewCarry(
           userId: userId,
           localDate: orientationDate,
+          previousLocalDate: previousDate,
           chosenReturn: newCarry,
         );
       }
@@ -9663,6 +9670,9 @@ class _MaatFlowCompletionPanelState extends State<_MaatFlowCompletionPanel> {
           'raising_seconds': kDjedRaisingSeconds,
         });
       }
+      final completionStatus = _maatCompletionStatusForRawStatus(status);
+      final completionIdentity = widget.identity;
+      final completionContinuity = widget.onCompletionContinuity;
       final callback = widget.onRecordCompletion;
       if (callback != null) {
         await callback(
@@ -9679,6 +9689,14 @@ class _MaatFlowCompletionPanelState extends State<_MaatFlowCompletionPanel> {
           metadata: metadata,
         );
       }
+      await const CalendarCompletionLocalStore().save(
+        identity: completionIdentity,
+        status: completionStatus,
+      );
+      if (completionStatus.createsJournalContinuity &&
+          completionContinuity != null) {
+        await completionContinuity(completionStatus);
+      }
       if (!mounted) return;
       setState(() {
         _status = status;
@@ -9688,18 +9706,9 @@ class _MaatFlowCompletionPanelState extends State<_MaatFlowCompletionPanel> {
       if (status == 'release') {
         _eveningThresholdReleaseCarryController.clear();
       }
-      final completionStatus = CompletionStatusX.fromWireName(status);
-      await const CalendarCompletionLocalStore().save(
-        identity: widget.identity,
-        status: completionStatus,
-      );
-      if (completionStatus.createsJournalContinuity) {
-        await widget.onCompletionContinuity?.call(completionStatus);
-      }
-      final feedbackStatus = _completionFeedbackStatusForRawStatus(status);
-      if (feedbackStatus == CompletionStatus.observed ||
-          feedbackStatus == CompletionStatus.partial) {
-        widget.onUserCompletionFeedback?.call(feedbackStatus);
+      if (completionStatus == CompletionStatus.observed ||
+          completionStatus == CompletionStatus.partial) {
+        widget.onUserCompletionFeedback?.call(completionStatus);
       }
       unawaited(_maybeCaptureLivingTextDayOneNode(status));
     } catch (_) {

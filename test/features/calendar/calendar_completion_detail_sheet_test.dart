@@ -56,6 +56,57 @@ void main() {
   );
 
   test(
+    'Ma’at completions use shared badge sync metadata and refresh hooks',
+    () {
+      final dayView = File(
+        'lib/features/calendar/day_view.dart',
+      ).readAsStringSync();
+      final calendarPage = File(
+        'lib/features/calendar/calendar_page.dart',
+      ).readAsStringSync();
+
+      final metadata = _sourceBetween(
+        dayView,
+        'Map<String, dynamic> metadataFor',
+        'class _MaatLibraryCtaPayload',
+      );
+      expect(
+        metadata,
+        contains("'completion_status': completionStatus.wireName"),
+      );
+      expect(
+        metadata,
+        contains("'reflection_status': ReflectionStatus.none.wireName"),
+      );
+      expect(
+        metadata,
+        contains("'source_type': CompletionSourceType.maatFlow.wireName"),
+      );
+
+      final appendHelper = _sourceBetween(
+        calendarPage,
+        'Future<void> _appendToJournalAndRefresh',
+        'Future<void> _removeCompletionBadgeAndRefresh',
+      );
+      expect(appendHelper, contains('_ensureJournalControllerReady()'));
+      expect(
+        appendHelper,
+        contains('await _journalController.appendToToday(text)'),
+      );
+      expect(appendHelper, contains('_notifyDayViewDataChanged()'));
+
+      expect(
+        calendarPage,
+        contains('onAppendToJournal: _appendToJournalAndRefresh'),
+      );
+      expect(
+        calendarPage,
+        contains('onRemoveCompletionBadge: _removeCompletionBadgeAndRefresh'),
+      );
+    },
+  );
+
+  test(
     'Evening Threshold detail choices stay tappable and defer release writes',
     () {
       final dayView = File(
@@ -97,16 +148,17 @@ void main() {
 
     final feedbackMapper = _sourceBetween(
       dayView,
-      'CompletionStatus _completionFeedbackStatusForRawStatus',
-      'String? _eveningThresholdPrerequisiteMessage',
+      'CompletionStatus _maatCompletionStatusForRawStatus',
+      'List<String> _dedupeMaatNodeSlugs',
     );
     expect(feedbackMapper, contains("case 'held':"));
     expect(feedbackMapper, contains("case 'carry_forward':"));
     expect(feedbackMapper, contains("case 'release':"));
     expect(feedbackMapper, contains("return CompletionStatus.observed;"));
     expect(feedbackMapper, contains("case 'working':"));
-    expect(feedbackMapper, contains("case 'slipped':"));
     expect(feedbackMapper, contains("return CompletionStatus.partial;"));
+    expect(feedbackMapper, contains("case 'slipped':"));
+    expect(feedbackMapper, contains("return CompletionStatus.skipped;"));
 
     final record = _sourceBetween(
       dayView,
@@ -116,12 +168,12 @@ void main() {
     expect(
       record,
       contains(
-        'final feedbackStatus = _completionFeedbackStatusForRawStatus(status);',
+        'final completionStatus = _maatCompletionStatusForRawStatus(status);',
       ),
     );
     expect(
       record,
-      contains('widget.onUserCompletionFeedback?.call(feedbackStatus);'),
+      contains('widget.onUserCompletionFeedback?.call(completionStatus);'),
     );
   });
 
@@ -144,10 +196,13 @@ void main() {
           'No carry was set this morning. The flow will resume tomorrow.',
         ),
       );
-      expect(
-        guard,
-        contains('Land yesterday\\\'s carry before choosing what crosses.'),
+      expect(guard, contains('No unresolved carry is available to cross.'));
+      final prerequisite = _sourceBetween(
+        dayView,
+        'String? _eveningThresholdPrerequisiteMessage',
+        'bool _showEveningThresholdPrerequisiteFeedbackIfBlocked',
       );
+      expect(prerequisite, isNot(contains('landingStatus')));
       expect(guard, contains('_showSheetFeedback('));
       expect(
         guard,
@@ -297,11 +352,7 @@ void main() {
     );
     expect(
       setCarry.indexOf('await _upsertRemote(payload)'),
-      lessThan(setCarry.indexOf('await _writeLocal')),
-    );
-    expect(
-      setCarry.indexOf('await _writeLocal'),
-      lessThan(setCarry.indexOf('await _writeCurrentCarryLocal')),
+      lessThan(setCarry.indexOf('await _writeCarryLocalFromPayload(payload)')),
     );
 
     final carryForward = _sourceBetween(
@@ -309,11 +360,16 @@ void main() {
       'Future<void> carryForward',
       'Future<void> releaseWithNewCarry',
     );
-    expect(carryForward, contains('_persistLocalAndRemote('));
+    expect(carryForward, contains('await _upsertRemote(carryPayload)'));
+    expect(carryForward, contains('await _upsertRemote(previousPayload)'));
+    expect(
+      carryForward,
+      contains('await _upsertDecisionRemote(decisionPayload)'),
+    );
     expect(carryForward, contains("'carryover_choice': 'carry_it_forward'"));
     expect(
-      carryForward.indexOf('_persistLocalAndRemote('),
-      lessThan(carryForward.indexOf('recordEveningThresholdDecision(')),
+      carryForward.indexOf('await _upsertDecisionRemote(decisionPayload)'),
+      lessThan(carryForward.indexOf('await _writeCarryLocalFromPayload')),
     );
 
     final release = _sourceBetween(
@@ -321,9 +377,11 @@ void main() {
       'Future<void> releaseWithNewCarry',
       'Future<void> recordEveningThresholdDecision',
     );
+    expect(release, contains("'carryover_choice': 'release_it'"));
+    expect(release, contains('await _upsertDecisionRemote(decisionPayload)'));
     expect(
-      release.indexOf('await setCarry('),
-      lessThan(release.indexOf('await recordEveningThresholdDecision(')),
+      release.indexOf('await _upsertDecisionRemote(decisionPayload)'),
+      lessThan(release.indexOf('await _writeCarryLocalFromPayload')),
     );
     expect(release, contains("decision: 'released'"));
 
@@ -333,7 +391,7 @@ void main() {
       'Future<void> complete',
     );
     expect(
-      decision.indexOf(".from('evening_threshold_decisions')"),
+      decision.indexOf('await _upsertDecisionRemote(payload)'),
       lessThan(decision.indexOf('await _writeDecisionLocal(payload)')),
     );
     expect(decision, contains('throw DailyOrientationPersistenceException'));
@@ -433,7 +491,7 @@ void main() {
       );
       expect(
         sources['calendar_page.dart']!,
-        contains('await _journalController.removeBadge(badgeId);'),
+        contains('onRemoveCompletionBadge: _removeCompletionBadgeAndRefresh'),
       );
       expect(
         sources['calendar_grid_widgets.dart']!,
@@ -580,55 +638,61 @@ void main() {
     expect(dayView, contains('ValueListenableBuilder<String?>'));
   });
 
-  test('Month-grid detail sheet keeps failed End Flow feedback inside the sheet', () {
-    final monthGrid = File(
-      'lib/features/calendar/calendar_grid_widgets.dart',
-    ).readAsStringSync();
-    final handler = _sourceBetween(
-      monthGrid,
-      "if (value == 'end_flow') {",
-      "} else if (value == 'end_reminder')",
-    );
-    final failedBranch = _sourceBetween(
-      handler,
-      'result == EndFlowActionResult.failed',
-      'result == EndFlowActionResult.notHandled',
-    );
+  test(
+    'Month-grid detail sheet keeps failed End Flow feedback inside the sheet',
+    () {
+      final monthGrid = File(
+        'lib/features/calendar/calendar_grid_widgets.dart',
+      ).readAsStringSync();
+      final handler = _sourceBetween(
+        monthGrid,
+        "if (value == 'end_flow') {",
+        "} else if (value == 'end_reminder')",
+      );
+      final failedBranch = _sourceBetween(
+        handler,
+        'result == EndFlowActionResult.failed',
+        'result == EndFlowActionResult.notHandled',
+      );
 
-    expect(handler, contains('result == EndFlowActionResult.failed'));
-    expect(handler, contains('_setEndFlowError('));
-    expect(monthGrid, contains("'Could not end this flow right now.\\n'"));
-    expect(monthGrid, contains("'Check your connection and try again.'"));
-    expect(monthGrid, contains('_buildEventDetailInlineError('));
-    expect(monthGrid, contains('String? _endFlowError;'));
-    expect(monthGrid, contains('AnimatedSize('));
-    expect(failedBranch, isNot(contains('Navigator.pop(sheetContext);')));
-  });
+      expect(handler, contains('result == EndFlowActionResult.failed'));
+      expect(handler, contains('_setEndFlowError('));
+      expect(monthGrid, contains("'Could not end this flow right now.\\n'"));
+      expect(monthGrid, contains("'Check your connection and try again.'"));
+      expect(monthGrid, contains('_buildEventDetailInlineError('));
+      expect(monthGrid, contains('String? _endFlowError;'));
+      expect(monthGrid, contains('AnimatedSize('));
+      expect(failedBranch, isNot(contains('Navigator.pop(sheetContext);')));
+    },
+  );
 
-  test('Landscape detail sheet keeps failed End Flow feedback inside the sheet', () {
-    final landscape = File(
-      'lib/features/calendar/landscape_month_view.dart',
-    ).readAsStringSync();
-    final handler = _sourceBetween(
-      landscape,
-      "if (value == 'end_flow') {",
-      "} else if (value == 'end_reminder')",
-    );
-    final failedBranch = _sourceBetween(
-      handler,
-      'result == EndFlowActionResult.failed',
-      'result == EndFlowActionResult.notHandled',
-    );
+  test(
+    'Landscape detail sheet keeps failed End Flow feedback inside the sheet',
+    () {
+      final landscape = File(
+        'lib/features/calendar/landscape_month_view.dart',
+      ).readAsStringSync();
+      final handler = _sourceBetween(
+        landscape,
+        "if (value == 'end_flow') {",
+        "} else if (value == 'end_reminder')",
+      );
+      final failedBranch = _sourceBetween(
+        handler,
+        'result == EndFlowActionResult.failed',
+        'result == EndFlowActionResult.notHandled',
+      );
 
-    expect(handler, contains('result == EndFlowActionResult.failed'));
-    expect(handler, contains('onEndFlowErrorChanged('));
-    expect(landscape, contains("'Could not end this flow right now.\\n'"));
-    expect(landscape, contains("'Check your connection and try again.'"));
-    expect(landscape, contains('_buildEventDetailInlineError('));
-    expect(landscape, contains('ValueNotifier<String?>(null)'));
-    expect(landscape, contains('ValueListenableBuilder<String?>'));
-    expect(failedBranch, isNot(contains('Navigator.pop(sheetContext);')));
-  });
+      expect(handler, contains('result == EndFlowActionResult.failed'));
+      expect(handler, contains('onEndFlowErrorChanged('));
+      expect(landscape, contains("'Could not end this flow right now.\\n'"));
+      expect(landscape, contains("'Check your connection and try again.'"));
+      expect(landscape, contains('_buildEventDetailInlineError('));
+      expect(landscape, contains('ValueNotifier<String?>(null)'));
+      expect(landscape, contains('ValueListenableBuilder<String?>'));
+      expect(failedBranch, isNot(contains('Navigator.pop(sheetContext);')));
+    },
+  );
 
   test('Day detail sheet guards late measurement callbacks after release', () {
     final dayView = File(

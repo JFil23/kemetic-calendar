@@ -8308,6 +8308,38 @@ class CalendarPageState extends State<CalendarPage>
     _scheduleWarmStartCacheSave();
   }
 
+  Future<bool> _ensureJournalControllerReady() async {
+    if (_journalInitialized) return true;
+    try {
+      await _journalController.init();
+      if (mounted) {
+        setState(() => _journalInitialized = true);
+      }
+      return true;
+    } catch (error) {
+      if (kDebugMode) {
+        _calendarDebugPrint(
+          '[calendar] journal init for badge sync failed: $error',
+        );
+      }
+      return false;
+    }
+  }
+
+  Future<void> _appendToJournalAndRefresh(String text) async {
+    if (text.trim().isEmpty) return;
+    if (!await _ensureJournalControllerReady()) return;
+    await _journalController.appendToToday(text);
+    _notifyDayViewDataChanged();
+  }
+
+  Future<void> _removeCompletionBadgeAndRefresh(String badgeId) async {
+    if (badgeId.trim().isEmpty) return;
+    if (!await _ensureJournalControllerReady()) return;
+    await _journalController.removeBadge(badgeId);
+    _notifyDayViewDataChanged();
+  }
+
   void _publishWarmStateSnapshot() {
     _CalendarWarmStateStore.save(
       userId: _activeWarmStartUserId(),
@@ -9581,9 +9613,7 @@ class CalendarPageState extends State<CalendarPage>
           onEndReminder: _endReminderRule,
           onShareReminder: (event) async => _shareNoteSimple(event),
           onEndFlow: (id) => unawaited(_endFlow(id).then<void>((_) {})),
-          onAppendToJournal: _journalInitialized
-              ? (text) => _journalController.appendToToday(text)
-              : null,
+          onAppendToJournal: _appendToJournalAndRefresh,
           dataVersion: _dayViewDataVersion,
           onRecordCompletion:
               ({
@@ -9598,11 +9628,7 @@ class CalendarPageState extends State<CalendarPage>
                 metadata: metadata,
               ),
           onUnrecordCompletion: _unrecordEventCompletion,
-          onRemoveCompletionBadge: (badgeId) async {
-            if (_journalInitialized) {
-              await _journalController.removeBadge(badgeId);
-            }
-          },
+          onRemoveCompletionBadge: _removeCompletionBadgeAndRefresh,
         ),
       );
     } finally {
@@ -13882,11 +13908,7 @@ class CalendarPageState extends State<CalendarPage>
       onEditReminder: (id) => _editReminderById(id),
       onEndReminder: (id) => _endReminderRule(id),
       onShareReminder: (evt) => _shareNoteSimple(evt),
-      onAppendToJournal: (text) async {
-        if (_journalInitialized) {
-          await _journalController.appendToToday(text);
-        }
-      },
+      onAppendToJournal: _appendToJournalAndRefresh,
       onSaveFlow: _saveFlowById,
       loadCompletedClientEventIds: _loadCompletedClientEventIds,
       onRecordCompletion:
@@ -13902,11 +13924,7 @@ class CalendarPageState extends State<CalendarPage>
             metadata: metadata,
           ),
       onUnrecordCompletion: _unrecordEventCompletion,
-      onRemoveCompletionBadge: (badgeId) async {
-        if (_journalInitialized) {
-          await _journalController.removeBadge(badgeId);
-        }
-      },
+      onRemoveCompletionBadge: _removeCompletionBadgeAndRefresh,
       onboardingEventClientEventId: _firstMaatFlowEventClientEventId,
       onboardingEventTargetKey: _firstFlowEventBlockKey,
       onOnboardingEventOpened: () {
@@ -14892,9 +14910,7 @@ class CalendarPageState extends State<CalendarPage>
         onEndReminder: (id) async => _endReminderRule(id),
         onShareReminder: (evt) async => _shareNoteSimple(evt),
         onEndFlow: (id) => _endFlow(id),
-        onAppendToJournal: _journalInitialized
-            ? (text) => _journalController.appendToToday(text)
-            : null,
+        onAppendToJournal: _appendToJournalAndRefresh,
         decanIndex: decanIndex,
       ),
     );
@@ -22435,10 +22451,7 @@ class CalendarPageState extends State<CalendarPage>
                                 await _loadFromDisk();
                               }
                             },
-                            onAppendToJournal: _journalInitialized
-                                ? (text) =>
-                                      _journalController.appendToToday(text)
-                                : null,
+                            onAppendToJournal: _appendToJournalAndRefresh,
                           );
                         },
                       ),
@@ -22580,9 +22593,7 @@ class CalendarPageState extends State<CalendarPage>
                     await _loadFromDisk();
                   }
                 },
-                onAppendToJournal: _journalInitialized
-                    ? (text) => _journalController.appendToToday(text)
-                    : null,
+                onAppendToJournal: _appendToJournalAndRefresh,
               ),
             ),
             visibleState: const <String, dynamic>{
@@ -22748,9 +22759,7 @@ class CalendarPageState extends State<CalendarPage>
               await _loadFromDisk();
             }
           },
-          onAppendToJournal: _journalInitialized
-              ? (text) => _journalController.appendToToday(text)
-              : null,
+          onAppendToJournal: _appendToJournalAndRefresh,
         );
       },
     );
@@ -25991,11 +26000,7 @@ class CalendarPageState extends State<CalendarPage>
           onEditReminder: (id) => _editReminderById(id),
           onEndReminder: (id) => _endReminderRule(id),
           onShareReminder: (evt) => _shareNoteSimple(evt),
-          onAppendToJournal: (text) async {
-            if (_journalInitialized) {
-              await _journalController.appendToToday(text);
-            }
-          },
+          onAppendToJournal: _appendToJournalAndRefresh,
           showDayCardRevealCoachmarkForOnboarding:
               shouldShowDayCardRevealCoachmark,
           onDayCardRevealCoachmarkCompleted: shouldShowDayCardRevealCoachmark
@@ -26023,11 +26028,7 @@ class CalendarPageState extends State<CalendarPage>
                 metadata: metadata,
               ),
           onUnrecordCompletion: _unrecordEventCompletion,
-          onRemoveCompletionBadge: (badgeId) async {
-            if (_journalInitialized) {
-              await _journalController.removeBadge(badgeId);
-            }
-          },
+          onRemoveCompletionBadge: _removeCompletionBadgeAndRefresh,
           onboardingEventClientEventId: shouldPassFirstFlowOnboardingTargets
               ? _firstMaatFlowEventClientEventId
               : null,
@@ -26303,6 +26304,7 @@ class CalendarPageState extends State<CalendarPage>
       if (kDebugMode) {
         _calendarDebugPrint('[DayView] recordEventCompletion failed: $e');
       }
+      rethrow;
     }
   }
 
@@ -26508,6 +26510,7 @@ class CalendarPageState extends State<CalendarPage>
       if (kDebugMode) {
         _calendarDebugPrint('[DayView] unrecordEventCompletion failed: $e');
       }
+      rethrow;
     }
   }
 
@@ -32506,9 +32509,7 @@ class CalendarPageState extends State<CalendarPage>
           onShareNote: (evt) async {
             await _shareNoteSimple(evt);
           },
-          onAppendToJournal: _journalInitialized
-              ? (text) => _journalController.appendToToday(text)
-              : null,
+          onAppendToJournal: _appendToJournalAndRefresh,
           onEndFlow: (id) => _endFlow(id),
           onSaveFlow: _saveFlowById,
           onRecordCompletion:
@@ -32524,11 +32525,7 @@ class CalendarPageState extends State<CalendarPage>
                 metadata: metadata,
               ),
           onUnrecordCompletion: _unrecordEventCompletion,
-          onRemoveCompletionBadge: (badgeId) async {
-            if (_journalInitialized) {
-              await _journalController.removeBadge(badgeId);
-            }
-          },
+          onRemoveCompletionBadge: _removeCompletionBadgeAndRefresh,
           initialEventDetailRestorationState:
               _activeCalendarEventDetailRestoration,
           onEventDetailRestorationChanged:
@@ -33402,9 +33399,7 @@ class CalendarPageState extends State<CalendarPage>
                   onEndReminder: (id) async => _endReminderRule(id),
                   onShareReminder: (evt) async => _shareNoteSimple(evt),
                   onEndFlow: (id) => _endFlow(id),
-                  onAppendToJournal: _journalInitialized
-                      ? (text) => _journalController.appendToToday(text)
-                      : null,
+                  onAppendToJournal: _appendToJournalAndRefresh,
                 );
               },
               childCount: 200, //
@@ -33450,9 +33445,7 @@ class CalendarPageState extends State<CalendarPage>
               onEndReminder: (id) async => _endReminderRule(id),
               onShareReminder: (evt) async => _shareNoteSimple(evt),
               onEndFlow: (id) => _endFlow(id),
-              onAppendToJournal: _journalInitialized
-                  ? (text) => _journalController.appendToToday(text)
-                  : null,
+              onAppendToJournal: _appendToJournalAndRefresh,
             ),
           ),
 
@@ -33497,9 +33490,7 @@ class CalendarPageState extends State<CalendarPage>
                   onEndReminder: (id) async => _endReminderRule(id),
                   onShareReminder: (evt) async => _shareNoteSimple(evt),
                   onEndFlow: (id) => _endFlow(id),
-                  onAppendToJournal: _journalInitialized
-                      ? (text) => _journalController.appendToToday(text)
-                      : null,
+                  onAppendToJournal: _appendToJournalAndRefresh,
                 );
               },
               childCount: 200, //

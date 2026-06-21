@@ -6,7 +6,8 @@ import 'package:timezone/timezone.dart' as tz;
 import 'track_sky_flow.dart';
 
 const String kEveningThresholdRiteFlowKey = 'evening-threshold-rite';
-const String kEveningThresholdRiteTitle = 'Evening Threshold Rite';
+const String kEveningThresholdRiteTitle = 'The Closing';
+const String kEveningThresholdRiteLegacyTitle = 'Evening Threshold Rite';
 const int kEveningThresholdRiteDurationMinutes = 3;
 const int kEveningThresholdDefaultFallbackMinutes = 20 * 60;
 

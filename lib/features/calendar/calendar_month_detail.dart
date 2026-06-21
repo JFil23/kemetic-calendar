@@ -1026,7 +1026,8 @@ class _EventsTab extends StatelessWidget {
     final flow = event.flowName?.trim().toLowerCase();
     if (flow == null || flow.isEmpty) return false;
     return flow == kDawnHouseRiteTitle.toLowerCase() ||
-        flow == kEveningThresholdRiteTitle.toLowerCase();
+        resolveMaatFlowKind(flowName: flow) ==
+            MaatFlowKind.eveningThresholdRite;
   }
 
   String _purposePreview(String? detail) {
