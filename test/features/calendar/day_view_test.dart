@@ -12,6 +12,8 @@ import 'package:mobile/features/calendar/day_view.dart';
 import 'package:mobile/features/calendar/landscape_month_view.dart';
 import 'package:mobile/features/calendar/living_text_day_one_node_store.dart';
 import 'package:mobile/features/calendar/maat_decan_flow.dart';
+import 'package:mobile/features/calendar/maat_flow_palette.dart';
+import 'package:mobile/features/calendar/the_weighing_flow.dart';
 import 'package:mobile/features/journal/journal_badge_utils.dart';
 import 'package:mobile/features/journal/journal_event_badge.dart';
 import 'package:mobile/services/app_restoration_service.dart';
@@ -559,6 +561,98 @@ void main() {
 
         expect(find.text('Watch on YouTube'), findsOneWidget);
         expect(find.text(url), findsNothing);
+      },
+    );
+
+    testWidgets(
+      'Ma_at flow detail sheet uses gold section headers without duplicate labels',
+      (tester) async {
+        await _setPhoneViewport(tester);
+        final event = kTheWeighingEvents.singleWhere(
+          (event) => event.eventNumber == 9,
+        );
+        final title = theWeighingEventTitle(event);
+        final recordedStatuses = <CompletionStatus>[];
+
+        await tester.pumpWidget(
+          _DayViewHarness(
+            initialScrollOffset: 9 * 60,
+            flowIndex: const <int, FlowData>{
+              90: FlowData(
+                id: 90,
+                name: kTheWeighingTitle,
+                color: Colors.amber,
+                active: true,
+                notes: 'weighing_lens=neutral',
+              ),
+            },
+            notes: [
+              NoteData(
+                clientEventId: 'cid-the-weighing-9',
+                title: title,
+                detail: theWeighingDetailText(
+                  event,
+                  lens: TheWeighingLens.neutral,
+                ),
+                category: event.decanSection,
+                allDay: false,
+                start: const TimeOfDay(hour: 10, minute: 0),
+                end: const TimeOfDay(hour: 10, minute: 10),
+                flowId: 90,
+              ),
+            ],
+            onRecordCompletion:
+                ({
+                  required String clientEventId,
+                  required int flowId,
+                  required DateTime completedOnDate,
+                  Map<String, dynamic>? metadata,
+                }) async {
+                  recordedStatuses.add(
+                    CompletionStatusX.fromWireName(
+                      metadata?['completion_status']?.toString(),
+                    ),
+                  );
+                },
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        final eventSurface = find
+            .ancestor(
+              of: find.text(title).first,
+              matching: find.byType(GestureDetector),
+            )
+            .last;
+        await tester.tap(eventSurface);
+        await tester.pumpAndSettle();
+
+        for (final label in const <String>['PURPOSE', 'WORDS', 'STEPS']) {
+          final finder = find.text(label);
+          expect(finder, findsOneWidget);
+          final text = tester.widget<Text>(finder);
+          expect(text.style?.color, MaatFlowPalette.interiorLabel);
+          expect(text.style?.letterSpacing, 1.6);
+        }
+        expect(find.text('Purpose'), findsNothing);
+
+        final bodyFinder = find.textContaining(
+          'These lines are not aspirational',
+        );
+        expect(bodyFinder, findsOneWidget);
+        final bodyText = tester.widget<Text>(bodyFinder);
+        expect(bodyText.style?.color, isNot(MaatFlowPalette.interiorLabel));
+
+        expect(find.text('Observed'), findsWidgets);
+        expect(find.text('Partly'), findsWidgets);
+        expect(find.text('Skipped'), findsWidgets);
+
+        await tester.ensureVisible(find.text('Observed').last);
+        await tester.pumpAndSettle();
+        await tester.tap(find.text('Observed').last);
+        await tester.pumpAndSettle();
+
+        expect(recordedStatuses, <CompletionStatus>[CompletionStatus.observed]);
       },
     );
 

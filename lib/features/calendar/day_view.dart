@@ -25,6 +25,8 @@ import 'calendar_reflection_context.dart';
 import 'day_view_chrome.dart';
 import 'landscape_month_view.dart';
 import 'maat_flow_identity.dart';
+import 'maat_flow_palette.dart';
+import 'maat_flow_visual_tokens.dart';
 import 'track_sky_flow.dart';
 import 'dawn_house_rite_flow.dart';
 import 'evening_threshold_flow.dart';
@@ -4148,15 +4150,36 @@ class _DayViewGridState extends State<DayViewGrid> {
     return spans;
   }
 
-  List<({String heading, String body})> _dawnHouseRiteDetailSections(
-    String detail,
-  ) {
+  String _normalizeMaatDetailSectionLabel(String value) {
+    return value
+        .trim()
+        .replaceAll(RegExp(r'[:：]+$'), '')
+        .replaceAll(RegExp(r'\s+'), ' ')
+        .toLowerCase();
+  }
+
+  String _stripDuplicateMaatSectionHeading({
+    required String heading,
+    required String body,
+  }) {
+    final lines = body.split(RegExp(r'\r?\n'));
+    if (lines.isEmpty) return body.trim();
+    final normalizedHeading = _normalizeMaatDetailSectionLabel(heading);
+    final firstLine = lines.first.trim();
+    if (normalizedHeading.isEmpty ||
+        _normalizeMaatDetailSectionLabel(firstLine) != normalizedHeading) {
+      return body.trim();
+    }
+    return lines.skip(1).join('\n').trim();
+  }
+
+  List<({String heading, String body})> _maatFlowDetailSections(String detail) {
     final cleaned = _stripCidLines(detail).trim();
     if (cleaned.isEmpty) return const <({String heading, String body})>[];
 
     final sections = <({String heading, String body})>[];
     final headingPattern = RegExp(
-      r"^(Purpose|Action|Water|Words|Quiet line|Ma'at act|Order act|Evening act|Steps|Provision|Optional|Drink|Privacy|Source|Lens|Cycle|Completion|Current ḥꜣw Context|Day Card|Season Instruction|Confidence|Variant|Outdoor)\s*:?\s*(.*)$",
+      r"^(Purpose|Action|Water|Words|Quiet line|Ma'at act|Order act|Evening act|Steps|Provision|Optional|Drink|Privacy|Source|Lens|Cycle|Complete|Completion|Material Ledger|Spoken Record|Record You Leave|Current ḥꜣw Context|Day Card|Season Instruction|Confidence|Variant|Outdoor)\s*:?\s*(.*)$",
       caseSensitive: false,
     );
     final buffer = <String>[];
@@ -4173,7 +4196,12 @@ class _DayViewGridState extends State<DayViewGrid> {
           lowerHeading == 'completion') {
         return;
       }
-      sections.add((heading: heading, body: body));
+      final displayBody = _stripDuplicateMaatSectionHeading(
+        heading: heading,
+        body: body,
+      );
+      if (displayBody.isEmpty) return;
+      sections.add((heading: heading, body: displayBody));
     }
 
     for (final rawLine in cleaned.split(RegExp(r'\r?\n'))) {
@@ -4207,30 +4235,42 @@ class _DayViewGridState extends State<DayViewGrid> {
     return sections;
   }
 
-  Widget _buildDawnHouseRiteDetailText(
+  Widget _buildMaatFlowDetailText(
     String detail, {
     CalendarEventVisualStyle? visual,
   }) {
-    final sections = _dawnHouseRiteDetailSections(detail);
+    final sections = _maatFlowDetailSections(detail);
     if (sections.isEmpty) return const SizedBox.shrink();
+    final hasStructuredSections = sections.any(
+      (section) => section.heading.isNotEmpty,
+    );
+    final displaySections = hasStructuredSections
+        ? sections
+        : <({String heading, String body})>[
+            (
+              heading: 'Purpose',
+              body: sections.map((section) => section.body).join('\n').trim(),
+            ),
+          ];
 
-    final headingStyle = TextStyle(
-      color: visual?.sectionLabelText ?? const Color(0xFFFFD486),
-      fontSize: 9,
+    const headingStyle = TextStyle(
+      color: MaatFlowPalette.interiorLabel,
+      fontFamily: MaatFlowListTokens.fontFamily,
+      fontFamilyFallback: MaatFlowListTokens.fontFallback,
+      fontSize: 10,
       fontWeight: FontWeight.w600,
-      letterSpacing: 2.0,
-      height: 1.15,
-      fontFamilyFallback: _dayViewSansFallback,
+      letterSpacing: 1.6,
+      height: 1,
     );
     final bodyStyle = _detailBodyStyle(visual: visual);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        for (final section in sections) ...[
+        for (final section in displaySections) ...[
           if (section.heading.isNotEmpty)
-            Text(section.heading, style: headingStyle),
-          if (section.heading.isNotEmpty) const SizedBox(height: 3),
+            Text(section.heading.toUpperCase(), style: headingStyle),
+          if (section.heading.isNotEmpty) const SizedBox(height: 8),
           if (section.heading.toLowerCase() == 'words' ||
               section.heading.toLowerCase() == 'quiet line')
             Text(
@@ -4242,7 +4282,7 @@ class _DayViewGridState extends State<DayViewGrid> {
             )
           else
             Text(section.body, style: bodyStyle),
-          if (section != sections.last) const SizedBox(height: 12),
+          if (section != displaySections.last) const SizedBox(height: 12),
         ],
       ],
     );
@@ -6611,12 +6651,6 @@ class _DayViewGridState extends State<DayViewGrid> {
     final bool isNutrition =
         currentEvent.detail != null && currentEvent.detail!.contains('Source:');
     final bool isTrackSky = _isTrackSkyFlowName(flow?.name);
-    final bool isDawnHouseRite = _isDawnHouseRiteFlowName(flow?.name);
-    final bool isEveningThresholdRite = _isEveningThresholdRiteFlowName(
-      flow?.name,
-    );
-    final bool isTheWeighing = _isTheWeighingFlowName(flow?.name);
-    final bool isOfferingTable = _isOfferingTableFlowName(flow?.name);
     final bool isTheTending = _isTheTendingFlowName(flow?.name);
     final bool isKeptWord = _isKeptWordFlowName(flow?.name);
     final bool isTheCourse = _isTheCourseFlowName(flow?.name);
@@ -6793,20 +6827,10 @@ class _DayViewGridState extends State<DayViewGrid> {
                 return const SizedBox.shrink();
               }
 
+              final rendersMaatFlowSections = isMaatFlow;
               Widget detailContent;
-              if (isDawnHouseRite ||
-                  isEveningThresholdRite ||
-                  isTheWeighing ||
-                  isOfferingTable ||
-                  isTheTending ||
-                  isKeptWord ||
-                  isTheCourse ||
-                  isTheWag ||
-                  isDecanWatch ||
-                  isDaysOutsideYear ||
-                  isOpenHand ||
-                  isDjed) {
-                detailContent = _buildDawnHouseRiteDetailText(
+              if (rendersMaatFlowSections) {
+                detailContent = _buildMaatFlowDetailText(
                   displayDetail,
                   visual: visual,
                 );
@@ -6818,6 +6842,8 @@ class _DayViewGridState extends State<DayViewGrid> {
                   ),
                 );
               }
+
+              if (rendersMaatFlowSections) return detailContent;
 
               return Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
