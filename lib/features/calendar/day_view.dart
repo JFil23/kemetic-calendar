@@ -724,7 +724,7 @@ CalendarCompletionPickerStyle _dayViewCompletionPickerStyle(
   );
 }
 
-enum _RitualCompletionFeedbackLevel { observed, partial }
+enum _RitualCompletionFeedbackLevel { observed, partial, skipped }
 
 _RitualCompletionFeedbackLevel? _ritualFeedbackLevelForStatus(
   CompletionStatus status,
@@ -732,7 +732,8 @@ _RitualCompletionFeedbackLevel? _ritualFeedbackLevelForStatus(
   return switch (status) {
     CompletionStatus.observed => _RitualCompletionFeedbackLevel.observed,
     CompletionStatus.partial => _RitualCompletionFeedbackLevel.partial,
-    CompletionStatus.none || CompletionStatus.skipped => null,
+    CompletionStatus.skipped => _RitualCompletionFeedbackLevel.skipped,
+    CompletionStatus.none => null,
   };
 }
 
@@ -745,6 +746,9 @@ Future<void> _triggerRitualCompletionHaptic(
       return;
     case _RitualCompletionFeedbackLevel.partial:
       await AppHaptics.lightImpact(reason: 'flow_completion_partial');
+      return;
+    case _RitualCompletionFeedbackLevel.skipped:
+      await AppHaptics.lightImpact(reason: 'flow_completion_skipped');
       return;
   }
 }
@@ -905,6 +909,7 @@ class _RitualCompletionRimPainter extends CustomPainter {
     final mode = switch (level) {
       _RitualCompletionFeedbackLevel.observed => 'observed',
       _RitualCompletionFeedbackLevel.partial => 'partial',
+      _RitualCompletionFeedbackLevel.skipped => 'skipped',
     };
     return 'RitualCompletionRimPainter('
         'mode: $mode, '
@@ -9202,6 +9207,8 @@ class _MaatFlowCompletionPanelState extends State<_MaatFlowCompletionPanel> {
       TextEditingController();
   OverlayEntry? _sheetFeedbackOverlay;
   Timer? _sheetFeedbackTimer;
+  final CalendarCompletionFeedbackScheduler _completionFeedbackScheduler =
+      CalendarCompletionFeedbackScheduler();
   String? _sheetFeedbackMessage;
 
   String? _status;
@@ -9220,8 +9227,25 @@ class _MaatFlowCompletionPanelState extends State<_MaatFlowCompletionPanel> {
   @override
   void dispose() {
     _clearSheetFeedback();
+    _completionFeedbackScheduler.dispose();
     _eveningThresholdReleaseCarryController.dispose();
     super.dispose();
+  }
+
+  void _cancelCompletionFeedback() {
+    _completionFeedbackScheduler.cancel();
+  }
+
+  void _scheduleCompletionFeedback(CompletionStatus status) {
+    final callback = widget.onUserCompletionFeedback;
+    if (callback == null) {
+      _cancelCompletionFeedback();
+      return;
+    }
+    _completionFeedbackScheduler.schedule(status, () {
+      if (!mounted) return;
+      callback(status);
+    });
   }
 
   void _clearSheetFeedback() {
@@ -9304,8 +9328,12 @@ class _MaatFlowCompletionPanelState extends State<_MaatFlowCompletionPanel> {
   @override
   void didUpdateWidget(covariant _MaatFlowCompletionPanel oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.event.clientEventId != widget.event.clientEventId ||
-        oldWidget.reloadSignal != widget.reloadSignal) {
+    if (oldWidget.event.clientEventId != widget.event.clientEventId) {
+      _cancelCompletionFeedback();
+      _eveningThresholdReleaseCarryController.clear();
+      _eveningThresholdReleasePending = false;
+      unawaited(_load());
+    } else if (oldWidget.reloadSignal != widget.reloadSignal) {
       _eveningThresholdReleaseCarryController.clear();
       _eveningThresholdReleasePending = false;
       unawaited(_load());
@@ -9621,6 +9649,9 @@ class _MaatFlowCompletionPanelState extends State<_MaatFlowCompletionPanel> {
       return;
     }
     if (!await _canRecordStatus(status)) return;
+    if (!mounted) return;
+    final completionStatus = _maatCompletionStatusForRawStatus(status);
+    _scheduleCompletionFeedback(completionStatus);
     setState(() => _saving = true);
     final completedOnDate = DateUtils.dateOnly(
       KemeticMath.toGregorian(widget.ky, widget.km, widget.kd),
@@ -9631,6 +9662,7 @@ class _MaatFlowCompletionPanelState extends State<_MaatFlowCompletionPanel> {
         releaseCarryText: releaseCarryText,
       );
       if (!thresholdApplied) {
+        _cancelCompletionFeedback();
         if (!mounted) return;
         setState(() => _saving = false);
         return;
@@ -9670,7 +9702,6 @@ class _MaatFlowCompletionPanelState extends State<_MaatFlowCompletionPanel> {
           'raising_seconds': kDjedRaisingSeconds,
         });
       }
-      final completionStatus = _maatCompletionStatusForRawStatus(status);
       final completionIdentity = widget.identity;
       final completionContinuity = widget.onCompletionContinuity;
       final callback = widget.onRecordCompletion;
@@ -9706,12 +9737,9 @@ class _MaatFlowCompletionPanelState extends State<_MaatFlowCompletionPanel> {
       if (status == 'release') {
         _eveningThresholdReleaseCarryController.clear();
       }
-      if (completionStatus == CompletionStatus.observed ||
-          completionStatus == CompletionStatus.partial) {
-        widget.onUserCompletionFeedback?.call(completionStatus);
-      }
       unawaited(_maybeCaptureLivingTextDayOneNode(status));
     } catch (_) {
+      _cancelCompletionFeedback();
       if (!mounted) return;
       setState(() => _saving = false);
       if (_isEveningThresholdCompletion) {
@@ -9726,6 +9754,7 @@ class _MaatFlowCompletionPanelState extends State<_MaatFlowCompletionPanel> {
 
   Future<void> _clear() async {
     if (_saving) return;
+    _cancelCompletionFeedback();
     final clientEventId = widget.event.clientEventId?.trim();
     if (clientEventId == null || clientEventId.isEmpty) return;
     setState(() => _saving = true);

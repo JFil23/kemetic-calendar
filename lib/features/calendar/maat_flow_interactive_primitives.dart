@@ -147,19 +147,14 @@ class FlowCarryBanner extends StatelessWidget {
 }
 
 class FlowTapCompletionResult {
-  const FlowTapCompletionResult._({
-    required this.saved,
-    required this.changed,
-  });
+  const FlowTapCompletionResult._({required this.saved, required this.changed});
 
-  const FlowTapCompletionResult.saved()
-    : this._(saved: true, changed: true);
+  const FlowTapCompletionResult.saved() : this._(saved: true, changed: true);
 
   const FlowTapCompletionResult.unchanged()
     : this._(saved: true, changed: false);
 
-  const FlowTapCompletionResult.failed()
-    : this._(saved: false, changed: false);
+  const FlowTapCompletionResult.failed() : this._(saved: false, changed: false);
 
   final bool saved;
   final bool changed;
@@ -223,9 +218,9 @@ class _FlowTapCompletionPanelState extends State<FlowTapCompletionPanel> {
       if (!result.saved) {
         setState(() => _saving = false);
         if (widget.failureMessage.trim().isNotEmpty) {
-          ScaffoldMessenger.maybeOf(context)?.showSnackBar(
-            SnackBar(content: Text(widget.failureMessage)),
-          );
+          ScaffoldMessenger.maybeOf(
+            context,
+          )?.showSnackBar(SnackBar(content: Text(widget.failureMessage)));
         }
         return;
       }
@@ -236,18 +231,16 @@ class _FlowTapCompletionPanelState extends State<FlowTapCompletionPanel> {
         _saving = false;
       });
 
-      if (result.changed &&
-          (next == CompletionStatus.observed ||
-              next == CompletionStatus.partial)) {
+      if (result.changed && calendarCompletionStatusTriggersFeedback(next)) {
         widget.onCanonicalCompletionPulse?.call(next);
       }
     } catch (_) {
       if (!mounted) return;
       setState(() => _saving = false);
       if (widget.failureMessage.trim().isNotEmpty) {
-        ScaffoldMessenger.maybeOf(context)?.showSnackBar(
-          SnackBar(content: Text(widget.failureMessage)),
-        );
+        ScaffoldMessenger.maybeOf(
+          context,
+        )?.showSnackBar(SnackBar(content: Text(widget.failureMessage)));
       }
     }
   }

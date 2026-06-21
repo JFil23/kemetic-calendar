@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mobile/core/completion_status.dart';
+import 'package:mobile/features/calendar/calendar_completion.dart';
 import 'package:mobile/features/calendar/calendar_page.dart';
 import 'package:mobile/features/calendar/day_view.dart';
 import 'package:mobile/features/calendar/landscape_month_view.dart';
@@ -253,6 +254,11 @@ void main() {
 
       await tester.tap(find.text('Observed').last);
       await tester.pump();
+      await tester.pump(
+        kCalendarCompletionFeedbackDelay - const Duration(milliseconds: 1),
+      );
+      expect(_ritualRimIntensity(tester), 0);
+      await tester.pump(const Duration(milliseconds: 1));
       await tester.pump(const Duration(milliseconds: 140));
       final observedRimIntensity = _ritualRimIntensity(tester);
 
@@ -268,6 +274,7 @@ void main() {
       await tester.pumpAndSettle();
       await tester.tap(find.text('Partly').last);
       await tester.pump();
+      await tester.pump(kCalendarCompletionFeedbackDelay);
       await tester.pump(const Duration(milliseconds: 140));
       final partialRimIntensity = _ritualRimIntensity(tester);
 
@@ -284,14 +291,17 @@ void main() {
       await tester.pumpAndSettle();
       await tester.tap(find.text('Skipped').last);
       await tester.pump();
+      await tester.pump(kCalendarCompletionFeedbackDelay);
       await tester.pump(const Duration(milliseconds: 140));
+      final skippedRimIntensity = _ritualRimIntensity(tester);
 
       expect(recordedStatuses, <CompletionStatus>[
         CompletionStatus.observed,
         CompletionStatus.partial,
         CompletionStatus.skipped,
       ]);
-      expect(_ritualRimIntensity(tester), 0);
+      expect(_ritualPulseMode(tester), 'skipped');
+      expect(skippedRimIntensity, greaterThan(0));
       expect(_ritualPulsePaintsFill(tester), isFalse);
       expect(
         _hapticArguments(
@@ -303,7 +313,7 @@ void main() {
         _hapticArguments(
           hapticCalls,
         ).where((argument) => argument == 'HapticFeedbackType.lightImpact'),
-        hasLength(1),
+        hasLength(2),
       );
     });
   });

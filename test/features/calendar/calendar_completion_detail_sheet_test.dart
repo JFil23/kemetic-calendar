@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
@@ -171,9 +172,17 @@ void main() {
         'final completionStatus = _maatCompletionStatusForRawStatus(status);',
       ),
     );
+    expect(record, contains('_scheduleCompletionFeedback(completionStatus);'));
+
+    final maatPanel = _sourceBetween(
+      dayView,
+      'class _MaatFlowCompletionPanelState',
+      'Future<void> _clear() async',
+    );
+    expect(maatPanel, contains('CalendarCompletionFeedbackScheduler'));
     expect(
-      record,
-      contains('widget.onUserCompletionFeedback?.call(completionStatus);'),
+      maatPanel,
+      contains('_scheduleCompletionFeedback(completionStatus);'),
     );
   });
 
@@ -1023,6 +1032,145 @@ void main() {
         CompletionStatus.partial,
         CompletionStatus.skipped,
       ]);
+    },
+  );
+
+  testWidgets(
+    'completion feedback is scheduled at 500ms before persistence finishes',
+    (tester) async {
+      SharedPreferences.setMockInitialValues(<String, Object>{});
+      final recorded = <CompletionStatus>[];
+      final feedback = <CompletionStatus>[];
+      final recordCompleter = Completer<void>();
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: CalendarEventCompletionPanel(
+              identity: 'cid:event-1',
+              sourceType: CompletionSourceType.userFlow,
+              loadStatus: () async => CompletionStatus.none,
+              onRecordStatus: (status) async {
+                recorded.add(status);
+                await recordCompleter.future;
+              },
+              onUserCompletionFeedback: feedback.add,
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Observed'));
+      await tester.pump();
+
+      expect(recorded, <CompletionStatus>[CompletionStatus.observed]);
+      expect(feedback, isEmpty);
+
+      await tester.pump(
+        kCalendarCompletionFeedbackDelay - const Duration(milliseconds: 1),
+      );
+      expect(feedback, isEmpty);
+
+      await tester.pump(const Duration(milliseconds: 1));
+      expect(feedback, <CompletionStatus>[CompletionStatus.observed]);
+      expect(recordCompleter.isCompleted, isFalse);
+
+      recordCompleter.complete();
+      await tester.pumpAndSettle();
+      expect(feedback, <CompletionStatus>[CompletionStatus.observed]);
+    },
+  );
+
+  testWidgets(
+    'ordinary completion feedback survives a reload signal before 500ms',
+    (tester) async {
+      SharedPreferences.setMockInitialValues(<String, Object>{});
+      final recorded = <CompletionStatus>[];
+      final feedback = <CompletionStatus>[];
+      final recordCompleter = Completer<void>();
+      var reloadSignal = Object();
+      late StateSetter setHarnessState;
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: StatefulBuilder(
+              builder: (context, setState) {
+                setHarnessState = setState;
+                return CalendarEventCompletionPanel(
+                  identity: 'cid:generated-flow-event',
+                  sourceType: CompletionSourceType.userFlow,
+                  loadStatus: () async => CompletionStatus.none,
+                  reloadSignal: reloadSignal,
+                  onRecordStatus: (status) async {
+                    recorded.add(status);
+                    setHarnessState(() {
+                      reloadSignal = Object();
+                    });
+                    await recordCompleter.future;
+                  },
+                  onUserCompletionFeedback: feedback.add,
+                );
+              },
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Observed'));
+      await tester.pump();
+
+      expect(recorded, <CompletionStatus>[CompletionStatus.observed]);
+      await tester.pump(
+        kCalendarCompletionFeedbackDelay - const Duration(milliseconds: 1),
+      );
+      expect(feedback, isEmpty);
+
+      await tester.pump(const Duration(milliseconds: 1));
+      expect(feedback, <CompletionStatus>[CompletionStatus.observed]);
+
+      recordCompleter.complete();
+      await tester.pumpAndSettle();
+      expect(feedback, <CompletionStatus>[CompletionStatus.observed]);
+    },
+  );
+
+  testWidgets(
+    'completion feedback timer is canceled safely on disposal before 500ms',
+    (tester) async {
+      SharedPreferences.setMockInitialValues(<String, Object>{});
+      final feedback = <CompletionStatus>[];
+      final recordCompleter = Completer<void>();
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: CalendarEventCompletionPanel(
+              identity: 'cid:dismissed-flow-event',
+              sourceType: CompletionSourceType.userFlow,
+              loadStatus: () async => CompletionStatus.none,
+              onRecordStatus: (_) => recordCompleter.future,
+              onUserCompletionFeedback: feedback.add,
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Observed'));
+      await tester.pump();
+      await tester.pump(
+        kCalendarCompletionFeedbackDelay - const Duration(milliseconds: 1),
+      );
+
+      await tester.pumpWidget(const MaterialApp(home: SizedBox.shrink()));
+      recordCompleter.complete();
+      await tester.pump(kCalendarCompletionFeedbackDelay);
+
+      expect(feedback, isEmpty);
+      expect(tester.takeException(), isNull);
     },
   );
 

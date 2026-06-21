@@ -6,6 +6,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:mobile/core/completion_status.dart';
+import 'package:mobile/features/calendar/calendar_completion.dart';
 import 'package:mobile/features/calendar/calendar_page.dart' show KemeticMath;
 import 'package:mobile/features/calendar/day_view.dart';
 import 'package:mobile/features/calendar/landscape_month_view.dart';
@@ -692,7 +693,7 @@ void main() {
     );
 
     testWidgets(
-      'flow observed completion pulses the rim and requests medium haptic',
+      'ordinary flow observed completion pulses the rim and requests medium haptic',
       (tester) async {
         await _setPhoneViewport(tester);
 
@@ -740,6 +741,11 @@ void main() {
 
         await tester.tap(find.text('Observed').last);
         await tester.pump();
+        await tester.pump(
+          kCalendarCompletionFeedbackDelay - const Duration(milliseconds: 1),
+        );
+        expect(_ritualRimIntensity(tester), 0);
+        await tester.pump(const Duration(milliseconds: 1));
         await tester.pump(const Duration(milliseconds: 140));
 
         expect(recordedStatuses, <CompletionStatus>[CompletionStatus.observed]);
@@ -760,7 +766,7 @@ void main() {
     );
 
     testWidgets(
-      'flow partly completion pulses the rim weaker and requests light haptic',
+      'ordinary flow partly completion pulses the rim weaker and requests light haptic',
       (tester) async {
         await _setPhoneViewport(tester);
 
@@ -806,6 +812,7 @@ void main() {
 
         await tester.tap(find.text('Observed').last);
         await tester.pump();
+        await tester.pump(kCalendarCompletionFeedbackDelay);
         await tester.pump(const Duration(milliseconds: 140));
         final observedRimIntensity = _ritualRimIntensity(tester);
         expect(_ritualPulseMode(tester), 'observed');
@@ -816,6 +823,7 @@ void main() {
         await tester.pumpAndSettle();
         await tester.tap(find.text('Partly').last);
         await tester.pump();
+        await tester.pump(kCalendarCompletionFeedbackDelay);
         await tester.pump(const Duration(milliseconds: 140));
         final partialRimIntensity = _ritualRimIntensity(tester);
 
@@ -836,63 +844,69 @@ void main() {
       },
     );
 
-    testWidgets('flow skipped completion does not pulse or request haptic', (
-      tester,
-    ) async {
-      await _setPhoneViewport(tester);
+    testWidgets(
+      'ordinary flow skipped completion pulses and requests light haptic',
+      (tester) async {
+        await _setPhoneViewport(tester);
 
-      final appendedBadges = <String>[];
-      final recordedStatuses = <CompletionStatus>[];
+        final appendedBadges = <String>[];
+        final recordedStatuses = <CompletionStatus>[];
 
-      await tester.pumpWidget(
-        _DayViewHarness(
-          notes: [
-            _timedNote(
-              clientEventId: 'cid-ritual-skipped',
-              title: 'Ritual Skipped',
-              startHour: 10,
-              startMinute: 0,
-              endHour: 11,
-              endMinute: 0,
-              flowId: 1,
-            ),
-          ],
-          onAppendToJournal: (text) async {
-            appendedBadges.add(text);
-          },
-          onRecordCompletion:
-              ({
-                required String clientEventId,
-                required int flowId,
-                required DateTime completedOnDate,
-                Map<String, dynamic>? metadata,
-              }) async {
-                recordedStatuses.add(
-                  CompletionStatusX.fromWireName(
-                    metadata?['completion_status']?.toString() ??
-                        metadata?['status']?.toString(),
-                  ),
-                );
-              },
-        ),
-      );
-      await tester.pumpAndSettle();
+        await tester.pumpWidget(
+          _DayViewHarness(
+            notes: [
+              _timedNote(
+                clientEventId: 'cid-ritual-skipped',
+                title: 'Ritual Skipped',
+                startHour: 10,
+                startMinute: 0,
+                endHour: 11,
+                endMinute: 0,
+                flowId: 1,
+              ),
+            ],
+            onAppendToJournal: (text) async {
+              appendedBadges.add(text);
+            },
+            onRecordCompletion:
+                ({
+                  required String clientEventId,
+                  required int flowId,
+                  required DateTime completedOnDate,
+                  Map<String, dynamic>? metadata,
+                }) async {
+                  recordedStatuses.add(
+                    CompletionStatusX.fromWireName(
+                      metadata?['completion_status']?.toString() ??
+                          metadata?['status']?.toString(),
+                    ),
+                  );
+                },
+          ),
+        );
+        await tester.pumpAndSettle();
 
-      await tester.tap(find.text('Ritual Skipped'));
-      await tester.pumpAndSettle();
+        await tester.tap(find.text('Ritual Skipped'));
+        await tester.pumpAndSettle();
 
-      final hapticCalls = _capturePlatformHaptics(tester);
+        final hapticCalls = _capturePlatformHaptics(tester);
 
-      await tester.tap(find.text('Skipped').last);
-      await tester.pump();
-      await tester.pump(const Duration(milliseconds: 140));
+        await tester.tap(find.text('Skipped').last);
+        await tester.pump();
+        await tester.pump(kCalendarCompletionFeedbackDelay);
+        await tester.pump(const Duration(milliseconds: 140));
 
-      expect(recordedStatuses, <CompletionStatus>[CompletionStatus.skipped]);
-      expect(appendedBadges, hasLength(1));
-      expect(_ritualRimIntensity(tester), 0);
-      expect(_ritualPulsePaintsFill(tester), isFalse);
-      expect(_hapticArguments(hapticCalls), isEmpty);
-    });
+        expect(recordedStatuses, <CompletionStatus>[CompletionStatus.skipped]);
+        expect(appendedBadges, hasLength(1));
+        expect(_ritualPulseMode(tester), 'skipped');
+        expect(_ritualRimIntensity(tester), greaterThan(0));
+        expect(_ritualPulsePaintsFill(tester), isFalse);
+        expect(
+          _hapticArguments(hapticCalls),
+          contains('HapticFeedbackType.lightImpact'),
+        );
+      },
+    );
 
     testWidgets('restored flow completion state does not pulse the card', (
       tester,
