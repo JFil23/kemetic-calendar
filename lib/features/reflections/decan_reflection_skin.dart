@@ -288,12 +288,18 @@ class DecanReflectionNavBar extends StatelessWidget {
     super.key,
     required this.title,
     required this.onBack,
+    this.leadingIcon = Icons.chevron_left,
+    this.leadingTooltip = 'Back',
     this.right,
+    this.rightWidth = 48,
   });
 
   final String title;
   final VoidCallback onBack;
+  final IconData leadingIcon;
+  final String leadingTooltip;
   final Widget? right;
+  final double rightWidth;
 
   @override
   Widget build(BuildContext context) {
@@ -307,8 +313,8 @@ class DecanReflectionNavBar extends StatelessWidget {
               width: 48,
               child: Center(
                 child: DecanReflectionNavIconButton(
-                  tooltip: 'Back',
-                  icon: Icons.chevron_left,
+                  tooltip: leadingTooltip,
+                  icon: leadingIcon,
                   iconSize: 24,
                   onPressed: onBack,
                 ),
@@ -323,7 +329,10 @@ class DecanReflectionNavBar extends StatelessWidget {
                 style: DecanReflectionTokens.navTitleStyle,
               ),
             ),
-            SizedBox(width: 48, child: Center(child: right)),
+            SizedBox(
+              width: rightWidth,
+              child: Center(child: right),
+            ),
           ],
         ),
       ),
