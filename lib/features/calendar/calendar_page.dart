@@ -96,6 +96,7 @@ import '../../core/push_intent_bus.dart';
 import '../../widgets/flow_start_date_picker.dart';
 import '../../widgets/gregorian_date_picker.dart' show showGregorianDatePicker;
 import '../../widgets/kemetic_date_picker.dart' show showKemeticDatePicker;
+import '../../widgets/recurrence_until_date_picker.dart';
 import '../../utils/external_link_utils.dart';
 import 'calendar_invalidation.dart';
 import 'calendar_visible_state_policy.dart';
@@ -28551,8 +28552,8 @@ class CalendarPageState extends State<CalendarPage>
                                                               selDay,
                                                             );
                                                         final picked =
-                                                            await pickDateUniversal(
-                                                              context: context,
+                                                            await RecurrenceUntilDatePicker.show(
+                                                              context,
                                                               initialDate:
                                                                   endDate ??
                                                                   gDay.add(

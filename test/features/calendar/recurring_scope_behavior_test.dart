@@ -1,6 +1,12 @@
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:mobile/features/calendar/calendar_page.dart'
+    show
+        NoteRepeatEndType,
+        NoteRepeatOption,
+        SimpleRecurrenceFrequency,
+        generateNoteRecurrenceDates;
 import 'package:mobile/features/calendar/calendar_recurring_scope.dart';
 
 void main() {
@@ -56,6 +62,44 @@ void main() {
         DateTime(2026, 6, 11),
         DateTime(2026, 6, 12),
       });
+    });
+
+    test(
+      'repeat until includes the selected until date without off-by-one',
+      () {
+        final generated = generateNoteRecurrenceDates(
+          startDate: DateTime(2026, 6, 1),
+          repeatOption: NoteRepeatOption.everyDay,
+          customFrequency: SimpleRecurrenceFrequency.daily,
+          customInterval: 1,
+          endType: NoteRepeatEndType.onDate,
+          endDate: DateTime(2026, 6, 3),
+          endCount: 10,
+          horizonEnd: DateTime(2026, 6, 10),
+        );
+
+        expect(generated, {
+          DateTime(2026, 6, 1),
+          DateTime(2026, 6, 2),
+          DateTime(2026, 6, 3),
+        });
+        expect(generated, isNot(contains(DateTime(2026, 6, 4))));
+      },
+    );
+
+    test('repeat count end type remains independent from until date', () {
+      final generated = generateNoteRecurrenceDates(
+        startDate: DateTime(2026, 6, 1),
+        repeatOption: NoteRepeatOption.everyDay,
+        customFrequency: SimpleRecurrenceFrequency.daily,
+        customInterval: 1,
+        endType: NoteRepeatEndType.afterCount,
+        endDate: DateTime(2026, 6, 30),
+        endCount: 2,
+        horizonEnd: DateTime(2026, 6, 30),
+      );
+
+      expect(generated, {DateTime(2026, 6, 1), DateTime(2026, 6, 2)});
     });
   });
 
@@ -157,6 +201,40 @@ void main() {
       expect(createFlow, contains('scheduleFlowNotes'));
       expect(editScope, contains('repeat_this_and_future'));
       expect(editScope, contains('repeat_entire_series_replace'));
+    });
+
+    test('note recurrence until picker is isolated to End Repeat On Date', () {
+      final endRepeatRow = _sourceBetween(
+        calendarPage,
+        '// End Repeat row',
+        '// COLOR PICKER',
+      );
+      expect(endRepeatRow, contains('RecurrenceUntilDatePicker.show'));
+      expect(endRepeatRow, contains('initialDate:'));
+      expect(endRepeatRow, contains('firstDate: gDay'));
+      expect(endRepeatRow, contains('lastDate: gDay.add'));
+      expect(endRepeatRow, contains('endDate = picked'));
+      expect(endRepeatRow, isNot(contains('await pickDateUniversal')));
+
+      final saveRepeatingNote = _sourceBetween(
+        calendarPage,
+        'Future<void> _saveRepeatingNoteAsHiddenFlow',
+        'Future<DateTime?> pickDateUniversal',
+      );
+      expect(saveRepeatingNote, contains('_buildNoteRuleDates'));
+      expect(saveRepeatingNote, contains('endType: endType'));
+      expect(saveRepeatingNote, contains('endDate: endDate'));
+      expect(saveRepeatingNote, contains('CalendarPageState.ruleToJson(rule)'));
+    });
+
+    test('reminder repeat end date remains on the existing helper', () {
+      final reminderEditor = _sourceBetween(
+        calendarPage,
+        'Future<bool> _openReminderEditor',
+        'Future<void> _editReminderById',
+      );
+      expect(reminderEditor, contains('await pickDateUniversal'));
+      expect(reminderEditor, isNot(contains('RecurrenceUntilDatePicker.show')));
     });
 
     test('shared calendar update fanout respects selected scope', () {
