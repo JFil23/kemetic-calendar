@@ -32280,10 +32280,7 @@ class CalendarPageState extends State<CalendarPage>
       _ensurePortraitCentered();
     }
 
-    final scrollView = Offstage(
-      offstage: _portraitRecenterPending && isPortrait,
-      child: _buildCalendarScrollView(),
-    );
+    final scrollView = _buildCalendarScrollView();
 
     final content = PinchGestureSurface(
       enableTouchPinch: allowTouchPinchGestures,

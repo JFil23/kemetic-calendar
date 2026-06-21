@@ -143,6 +143,22 @@ void main() {
       expect(coveredRouteBranch, isNot(contains('LandscapeMonthView(')));
     });
 
+    test('portrait recenter keeps Calendar body painted', () {
+      final bodyWithJournal = _sourceBetween(
+        calendarSource,
+        'Widget _buildBodyWithJournal() {',
+        '/* ───────────── Decan Reflection Badge & Archive ───────────── */',
+      );
+
+      expect(bodyWithJournal, contains('_ensurePortraitCentered();'));
+      expect(bodyWithJournal, contains('_buildCalendarScrollView()'));
+      expect(bodyWithJournal, isNot(contains('Offstage(')));
+      expect(
+        bodyWithJournal,
+        isNot(contains('offstage: _portraitRecenterPending && isPortrait')),
+      );
+    });
+
     test('landscape month build logging does not print raw note titles', () {
       final buildEventsForDay = _sourceBetween(
         landscapeSource,
