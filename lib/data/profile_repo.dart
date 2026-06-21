@@ -402,10 +402,31 @@ class ProfileRepo {
           .eq('id', userId)
           .maybeSingle();
 
-      if (response == null) return null;
+      if (response == null) return _getCurrentUserProfileFallback(userId);
       return _overlayLiveFlowCounts(UserProfile.fromJson(response));
     } catch (e) {
       _log('[ProfileRepo] Error fetching profile: $e');
+      return _getCurrentUserProfileFallback(userId);
+    }
+  }
+
+  Future<UserProfile?> _getCurrentUserProfileFallback(String userId) async {
+    final currentUserId = _client.auth.currentUser?.id;
+    if (currentUserId == null || currentUserId != userId) {
+      return null;
+    }
+
+    try {
+      final rows = await _runProfilesQuery(
+        (selectClause) =>
+            _client.from('profiles').select(selectClause).eq('id', userId),
+      );
+      if (rows.isEmpty) return null;
+
+      final row = Map<String, dynamic>.from(rows.first as Map);
+      return _overlayLiveFlowCounts(UserProfile.fromJson(row));
+    } catch (e) {
+      _log('[ProfileRepo] Error fetching current profile fallback: $e');
       return null;
     }
   }
