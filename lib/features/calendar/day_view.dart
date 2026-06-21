@@ -20,6 +20,7 @@ import 'package:mobile/core/touch_targets.dart';
 import 'package:mobile/features/onboarding/daily_orientation_repo.dart';
 import 'calendar_page.dart';
 import 'calendar_completion.dart';
+import 'calendar_event_visual_style.dart';
 import 'calendar_reflection_context.dart';
 import 'day_view_chrome.dart';
 import 'landscape_month_view.dart';
@@ -70,17 +71,6 @@ const double _kSingleEventWidthFactor = 0.8;
 const double _kDayViewHourHeight = 60.0;
 const double _kDayViewPixelsPerMinute = _kDayViewHourHeight / 60.0;
 const Color _dayGold = KemeticGold.base;
-const Gradient _trackSkyFlowGoldGloss = LinearGradient(
-  begin: Alignment.centerLeft,
-  end: Alignment.centerRight,
-  colors: [
-    Color(0xFFFFF1BF),
-    Color(0xFFF8DA79),
-    Color(0xFFFFF8D9),
-    Color(0xFFF1CE67),
-  ],
-  stops: [0.0, 0.34, 0.66, 1.0],
-);
 const String _kNewEventPreviewClientEventId = '__day_view_new_event_preview__';
 const ValueKey<String> _ritualCompletionFeedbackCardKey = ValueKey<String>(
   'day-view-ritual-completion-feedback-card',
@@ -119,128 +109,16 @@ const List<String> _dayViewSansFallback = [
   'Arial',
   'sans-serif',
 ];
-const Color _dayViewInk = Color(0xFFF2E4C6);
 const Color _dayViewSilver = Color(0xFF9B9182);
 const Color _dayViewSilverDim = Color(0xFF776B58);
 const Color _dayViewBase = Color(0xFF060504);
-const Color _dayViewCopperAccent = Color(0xFFC06E4D);
 const Color _dayViewWarmStone = Color(0xFFB8AA9A);
 const Color _dayViewBronzeLabel = Color(0xFFAA894F);
-
-Color _dayViewMix(Color a, Color b, double t) => Color.lerp(a, b, t)!;
-
-Color _dayViewReadableFlowColor(Color color) {
-  final luminance = color.computeLuminance();
-  if (luminance < 0.18) {
-    return _dayViewMix(color, Colors.white, 0.42);
-  }
-  if (luminance > 0.68) {
-    return _dayViewMix(color, _dayGold, 0.22);
-  }
-  return color;
-}
-
-bool _dayViewIsRedOrangeMaterialColor(Color color) {
-  final hue = HSLColor.fromColor(color).hue;
-  return hue <= 32 || hue >= 342;
-}
-
-bool _dayViewIsBlueMaterialColor(Color color) {
-  final hue = HSLColor.fromColor(color).hue;
-  return hue >= 175 && hue <= 265;
-}
-
-bool _dayViewIsGreenMaterialColor(Color color) {
-  final hue = HSLColor.fromColor(color).hue;
-  return hue > 72 && hue <= 165;
-}
-
-Color _dayViewSoftenedAccent(Color color) {
-  final hsl = HSLColor.fromColor(color);
-  return hsl
-      .withSaturation((hsl.saturation * 0.52).clamp(0.0, 0.50).toDouble())
-      .withLightness(0.49)
-      .toColor();
-}
-
-Color _dayViewMaterialFlowColor(Color color) {
-  final readable = _dayViewReadableFlowColor(color);
-  final hue = HSLColor.fromColor(readable).hue;
-  if (hue <= 28 || hue >= 342) return _dayViewCopperAccent;
-  if (hue > 28 && hue <= 72) {
-    return _dayViewMix(readable, const Color(0xFFC98A5B), 0.5);
-  }
-  return readable;
-}
 
 String _dayViewCategoryLabel(String text, {bool sparkle = false}) {
   final compact = text.trim().isEmpty ? 'Scheduled' : text.trim();
   final label = compact.toUpperCase();
   return sparkle ? '✦ $label' : label;
-}
-
-class _DayViewEventVisual {
-  const _DayViewEventVisual({
-    required this.source,
-    required this.base,
-    required this.wash,
-    required this.washLeft,
-    required this.washMid,
-    required this.washEnd,
-    required this.stripe,
-    required this.border,
-    required this.category,
-    required this.title,
-    required this.metaText,
-    required this.supportText,
-    required this.sectionLabelText,
-    required this.bodyText,
-    required this.metaFill,
-    required this.metaBorder,
-    required this.actionButtonFill,
-    required this.actionButtonBorder,
-    required this.actionButtonText,
-    required this.actionIconFill,
-    required this.actionIconGlyph,
-    required this.completionPanelFill,
-    required this.completionPanelBorder,
-    required this.completionButtonFill,
-    required this.completionButtonBorder,
-    required this.completionButtonText,
-    required this.completionButtonSelectedFill,
-    required this.completionButtonSelectedBorder,
-    required this.completionButtonSelectedText,
-  });
-
-  final Color source;
-  final Color base;
-  final Color wash;
-  final Color washLeft;
-  final Color washMid;
-  final Color washEnd;
-  final Color stripe;
-  final Color border;
-  final Color category;
-  final Color title;
-  final Color metaText;
-  final Color supportText;
-  final Color sectionLabelText;
-  final Color bodyText;
-  final Color metaFill;
-  final Color metaBorder;
-  final Color actionButtonFill;
-  final Color actionButtonBorder;
-  final Color actionButtonText;
-  final Color actionIconFill;
-  final Color actionIconGlyph;
-  final Color completionPanelFill;
-  final Color completionPanelBorder;
-  final Color completionButtonFill;
-  final Color completionButtonBorder;
-  final Color completionButtonText;
-  final Color completionButtonSelectedFill;
-  final Color completionButtonSelectedBorder;
-  final Color completionButtonSelectedText;
 }
 
 class _DayViewExternalAction {
@@ -257,197 +135,26 @@ class _DayViewExternalAction {
   final bool fallbackToMaps;
 }
 
-_DayViewEventVisual _dayViewVisualForEvent(
+CalendarEventVisualStyle _dayViewVisualForEvent(
   EventItem event,
   FlowData? flow, {
   bool isReminder = false,
   bool isNutrition = false,
 }) {
-  final rawSource = _dayViewReadableFlowColor(
-    isReminder
-        ? const Color(0xFF5CAA5F)
-        : isNutrition
-        ? const Color(0xFF57A9D6)
-        : event.color,
-  );
-  final source = isReminder || isNutrition
-      ? rawSource
-      : _dayViewMaterialFlowColor(rawSource);
-  final redOrange = _dayViewIsRedOrangeMaterialColor(source);
-
-  if (redOrange && !isReminder && !isNutrition) {
-    const accent = Color(0xFFC2673F);
-    return _DayViewEventVisual(
-      source: accent,
-      base: const Color(0xFF190C08),
-      wash: const Color(0xFF542516),
-      washLeft: const Color(0xFF542516),
-      washMid: const Color(0xFF2F150D),
-      washEnd: const Color(0xFF150A07),
-      stripe: accent.withValues(alpha: 0.65),
-      border: const Color(0xFFC4754C).withValues(alpha: 0.24),
-      category: const Color(0xFFC0774B),
-      title: const Color(0xFFDCA66E),
-      metaText: const Color(0xFFB47A4D),
-      supportText: const Color(0xFFA97855),
-      sectionLabelText: const Color(0xFFA88749),
-      bodyText: const Color(0xFFBDAEA2),
-      metaFill: accent.withValues(alpha: 0.10),
-      metaBorder: accent.withValues(alpha: 0.22),
-      actionButtonFill: const Color(0xFF2B150E),
-      actionButtonBorder: const Color(0xFFC06E4D).withValues(alpha: 0.32),
-      actionButtonText: const Color(0xFFDCA66E),
-      actionIconFill: const Color(0xFFC06E4D).withValues(alpha: 0.28),
-      actionIconGlyph: const Color(0xFFE2AE78),
-      completionPanelFill: const Color(0xFF130907),
-      completionPanelBorder: const Color(0xFFC06E4D).withValues(alpha: 0.20),
-      completionButtonFill: const Color(0xFF090604),
-      completionButtonBorder: const Color(0xFF5A3A23).withValues(alpha: 0.54),
-      completionButtonText: const Color(0xFFA98E66),
-      completionButtonSelectedFill: const Color(0xFF311911),
-      completionButtonSelectedBorder: const Color(
-        0xFFC98A5B,
-      ).withValues(alpha: 0.34),
-      completionButtonSelectedText: const Color(0xFFDDAE76),
-    );
-  }
-
-  final softened = _dayViewSoftenedAccent(source);
-  final hue = HSLColor.fromColor(softened).hue;
-  final isBlue = _dayViewIsBlueMaterialColor(softened);
-  final isGreen = _dayViewIsGreenMaterialColor(softened);
-  final isGold = hue > 32 && hue <= 72;
-  final base = isBlue
-      ? const Color(0xFF0F1723)
-      : isGreen
-      ? const Color(0xFF09170D)
-      : isGold
-      ? const Color(0xFF171108)
-      : Color.alphaBlend(
-          softened.withValues(alpha: 0.13),
-          const Color(0xFF090604),
-        );
-  final title = isBlue
-      ? _dayViewMix(softened, const Color(0xFF87C0EA), 0.58)
-      : isGreen
-      ? _dayViewMix(softened, const Color(0xFF9BD9A8), 0.46)
-      : isGold
-      ? _dayViewMix(softened, const Color(0xFFD7B45E), 0.47)
-      : _dayViewMix(softened, const Color(0xFFE2C58C), 0.22);
-  final category = _dayViewMix(softened, _dayViewInk, 0.14);
-  final metaText = _dayViewMix(softened, _dayViewSilver, 0.28);
-  final supportText = _dayViewMix(softened, const Color(0xFF9A7E64), 0.38);
-
-  return _DayViewEventVisual(
-    source: softened,
-    base: base,
-    wash: softened,
-    washLeft: softened,
-    washMid: _dayViewMix(softened, base, 0.42),
-    washEnd: base,
-    stripe: softened.withValues(alpha: isReminder ? 0.62 : 0.66),
-    border: softened.withValues(alpha: 0.24),
-    category: category.withValues(alpha: 0.88),
-    title: title,
-    metaText: metaText.withValues(alpha: 0.88),
-    supportText: supportText.withValues(alpha: 0.88),
-    sectionLabelText: const Color(0xFFA88749),
-    bodyText: const Color(0xFFBDAEA2),
-    metaFill: softened.withValues(alpha: 0.10),
-    metaBorder: softened.withValues(alpha: 0.22),
-    actionButtonFill: Color.alphaBlend(
-      softened.withValues(alpha: 0.11),
-      const Color(0xFF090604),
-    ),
-    actionButtonBorder: softened.withValues(alpha: 0.29),
-    actionButtonText: title.withValues(alpha: 0.96),
-    actionIconFill: softened.withValues(alpha: 0.24),
-    actionIconGlyph: title.withValues(alpha: 0.94),
-    completionPanelFill: Color.alphaBlend(
-      softened.withValues(alpha: 0.05),
-      const Color(0xFF080604),
-    ),
-    completionPanelBorder: softened.withValues(alpha: 0.18),
-    completionButtonFill: const Color(0xFF090604),
-    completionButtonBorder: const Color(0xFF5A3A23).withValues(alpha: 0.54),
-    completionButtonText: const Color(0xFFA98E66),
-    completionButtonSelectedFill: Color.alphaBlend(
-      softened.withValues(alpha: 0.17),
-      const Color(0xFF060504),
-    ),
-    completionButtonSelectedBorder: softened.withValues(alpha: 0.34),
-    completionButtonSelectedText: title.withValues(alpha: 0.93),
+  return resolveCalendarEventVisualStyle(
+    eventColor: event.color,
+    flowName: flow?.name,
+    flowNotes: flow?.notes,
+    eventTitle: event.title,
+    behaviorPayload: event.behaviorPayload,
+    isReminder: isReminder,
+    isNutrition: isNutrition,
   );
 }
 
-Color _dayViewMatteDetailColor(
-  Color color, {
-  double saturationScale = 0.90,
-  double liftAmount = 0.07,
-}) {
-  final hsl = HSLColor.fromColor(color);
-  return hsl
-      .withSaturation(
-        (hsl.saturation * saturationScale).clamp(0.0, 1.0).toDouble(),
-      )
-      .withLightness(
-        (hsl.lightness + ((1.0 - hsl.lightness) * liftAmount))
-            .clamp(0.0, 1.0)
-            .toDouble(),
-      )
-      .toColor();
-}
-
-_DayViewEventVisual _dayViewMatteDetailVisual(_DayViewEventVisual visual) {
-  Color matte(
-    Color color, {
-    double saturationScale = 0.90,
-    double liftAmount = 0.07,
-  }) {
-    return _dayViewMatteDetailColor(
-      color,
-      saturationScale: saturationScale,
-      liftAmount: liftAmount,
-    );
-  }
-
-  return _DayViewEventVisual(
-    source: matte(visual.source),
-    base: matte(visual.base, liftAmount: 0.045),
-    wash: matte(visual.wash),
-    washLeft: matte(visual.washLeft),
-    washMid: matte(visual.washMid, liftAmount: 0.060),
-    washEnd: matte(visual.washEnd, liftAmount: 0.045),
-    stripe: matte(visual.stripe),
-    border: matte(visual.border),
-    category: matte(visual.category),
-    title: matte(visual.title),
-    metaText: matte(visual.metaText),
-    supportText: matte(visual.supportText),
-    sectionLabelText: matte(visual.sectionLabelText),
-    bodyText: matte(visual.bodyText, saturationScale: 0.86, liftAmount: 0.080),
-    metaFill: matte(visual.metaFill, liftAmount: 0.060),
-    metaBorder: matte(visual.metaBorder),
-    actionButtonFill: matte(visual.actionButtonFill, liftAmount: 0.060),
-    actionButtonBorder: matte(visual.actionButtonBorder),
-    actionButtonText: matte(visual.actionButtonText),
-    actionIconFill: matte(visual.actionIconFill),
-    actionIconGlyph: matte(visual.actionIconGlyph),
-    completionPanelFill: matte(visual.completionPanelFill, liftAmount: 0.050),
-    completionPanelBorder: matte(visual.completionPanelBorder),
-    completionButtonFill: matte(visual.completionButtonFill, liftAmount: 0.045),
-    completionButtonBorder: matte(visual.completionButtonBorder),
-    completionButtonText: matte(visual.completionButtonText),
-    completionButtonSelectedFill: matte(
-      visual.completionButtonSelectedFill,
-      liftAmount: 0.060,
-    ),
-    completionButtonSelectedBorder: matte(
-      visual.completionButtonSelectedBorder,
-    ),
-    completionButtonSelectedText: matte(visual.completionButtonSelectedText),
-  );
-}
+CalendarEventVisualStyle _dayViewMatteDetailVisual(
+  CalendarEventVisualStyle visual,
+) => visual.asDetailSurface();
 
 String _dayViewFlowLabel(
   EventItem event,
@@ -690,7 +397,7 @@ String _dayViewStripStandaloneExternalTargetLines(
 }
 
 CalendarCompletionPickerStyle _dayViewCompletionPickerStyle(
-  _DayViewEventVisual visual,
+  CalendarEventVisualStyle visual,
 ) {
   return CalendarCompletionPickerStyle(
     containerPadding: const EdgeInsets.all(10),
@@ -930,7 +637,7 @@ class _RitualCompletionFeedbackCard extends StatefulWidget {
 
   final bool enabled;
   final Widget child;
-  final _DayViewEventVisual? visual;
+  final CalendarEventVisualStyle? visual;
 
   @override
   State<_RitualCompletionFeedbackCard> createState() =>
@@ -1103,12 +810,12 @@ class DayViewRitualCompletionFeedbackCard extends StatelessWidget {
   const DayViewRitualCompletionFeedbackCard._withVisual({
     required this.enabled,
     required this.child,
-    required _DayViewEventVisual visual,
+    required CalendarEventVisualStyle visual,
   }) : _visual = visual;
 
   final bool enabled;
   final Widget child;
-  final _DayViewEventVisual? _visual;
+  final CalendarEventVisualStyle? _visual;
 
   @override
   Widget build(BuildContext context) {
@@ -1834,54 +1541,6 @@ Widget? buildDayViewMaatFlowCompletionPanel({
   );
 }
 
-const Gradient _dawnHouseRiteFlowGloss = LinearGradient(
-  begin: Alignment.centerLeft,
-  end: Alignment.centerRight,
-  colors: [
-    Color(0xFFFFE8B8),
-    Color(0xFFF3A55E),
-    Color(0xFFFFF3D6),
-    Color(0xFFE98E52),
-  ],
-  stops: [0.0, 0.34, 0.66, 1.0],
-);
-
-const LinearGradient _dawnHouseRiteCardGradient = LinearGradient(
-  begin: Alignment.topCenter,
-  end: Alignment.bottomCenter,
-  colors: [
-    Color(0xFF12152C),
-    Color(0xFF3A315D),
-    Color(0xFFB56A6E),
-    Color(0xFFF2B45F),
-  ],
-  stops: [0.0, 0.38, 0.76, 1.0],
-);
-
-const Gradient _theWeighingFlowGloss = LinearGradient(
-  begin: Alignment.centerLeft,
-  end: Alignment.centerRight,
-  colors: [
-    Color(0xFFF5E8CB),
-    Color(0xFFB8A88A),
-    Color(0xFFFFF8E8),
-    Color(0xFF8D7C5F),
-  ],
-  stops: [0.0, 0.34, 0.66, 1.0],
-);
-
-const LinearGradient _theWeighingCardGradient = LinearGradient(
-  begin: Alignment.topLeft,
-  end: Alignment.bottomRight,
-  colors: [
-    Color(0xFF111213),
-    Color(0xFF2C2A25),
-    Color(0xFF5D5241),
-    Color(0xFFB8A88A),
-  ],
-  stops: [0.0, 0.42, 0.78, 1.0],
-);
-
 Widget _buildDawnHouseRiteAccent({required bool compact, double size = 24}) {
   final sunSize = compact ? size * 0.46 : size * 0.56;
   return SizedBox(
@@ -1952,30 +1611,6 @@ Widget _buildDawnHouseRiteAccent({required bool compact, double size = 24}) {
   );
 }
 
-const Gradient _eveningThresholdRiteFlowGloss = LinearGradient(
-  begin: Alignment.centerLeft,
-  end: Alignment.centerRight,
-  colors: [
-    Color(0xFFF4EEFF),
-    Color(0xFFB9C7FF),
-    Color(0xFFFFE7A8),
-    Color(0xFF7FE0D4),
-  ],
-  stops: [0.0, 0.38, 0.62, 1.0],
-);
-
-const LinearGradient _eveningThresholdRiteCardGradient = LinearGradient(
-  begin: Alignment.topLeft,
-  end: Alignment.bottomRight,
-  colors: [
-    Color(0xFF030611),
-    Color(0xFF111634),
-    Color(0xFF193248),
-    Color(0xFF2B254E),
-  ],
-  stops: [0.0, 0.36, 0.7, 1.0],
-);
-
 Widget _buildEveningThresholdRiteAccent({
   required bool compact,
   double size = 24,
@@ -2034,270 +1669,6 @@ Widget _buildEveningThresholdRiteAccent({
   );
 }
 
-enum _TrackSkyCardKind {
-  moon,
-  lunarEclipse,
-  solarEclipse,
-  meteor,
-  planet,
-  solarSeason,
-  genericSky,
-}
-
-class _TrackSkyCardSpec {
-  final _TrackSkyCardKind kind;
-  final Gradient background;
-  final Color borderColor;
-  final Color accentColor;
-  final Color accentSecondaryColor;
-  final Color titleColor;
-  final Color labelColor;
-  final Color detailColor;
-  final Color glowColor;
-
-  const _TrackSkyCardSpec({
-    required this.kind,
-    required this.background,
-    required this.borderColor,
-    required this.accentColor,
-    required this.accentSecondaryColor,
-    required this.titleColor,
-    required this.labelColor,
-    required this.detailColor,
-    required this.glowColor,
-  });
-}
-
-_TrackSkyCardKind _trackSkyCardKindForTitle(String title) {
-  if (title.contains('solar eclipse') || title.contains('ring of fire')) {
-    return _TrackSkyCardKind.solarEclipse;
-  }
-  if (title.contains('lunar eclipse') ||
-      title.contains('blood moon') ||
-      title.contains('penumbral') ||
-      title.contains('partial lunar')) {
-    return _TrackSkyCardKind.lunarEclipse;
-  }
-  if (title.contains('moon')) return _TrackSkyCardKind.moon;
-  if (title.contains('lyrids') ||
-      title.contains('aquariids') ||
-      title.contains('perseids') ||
-      title.contains('geminids') ||
-      title.contains('quadrantids') ||
-      title.contains('meteor')) {
-    return _TrackSkyCardKind.meteor;
-  }
-  if (title.contains('equinox') || title.contains('solstice')) {
-    return _TrackSkyCardKind.solarSeason;
-  }
-  if (title.contains('planet') ||
-      title.contains('conjunction') ||
-      title.contains('opposition') ||
-      title.contains('elongation') ||
-      title.contains('venus') ||
-      title.contains('mars') ||
-      title.contains('jupiter') ||
-      title.contains('saturn') ||
-      title.contains('mercury')) {
-    return _TrackSkyCardKind.planet;
-  }
-  return _TrackSkyCardKind.genericSky;
-}
-
-Color _trackSkyMoonTint(String title) {
-  if (title.contains('blood')) return const Color(0xFFC7655D);
-  if (title.contains('blue moon')) return const Color(0xFFA8D6FF);
-  if (title.contains('pink')) return const Color(0xFFF5B4D7);
-  if (title.contains('flower')) return const Color(0xFFFFE3B0);
-  if (title.contains('strawberry')) return const Color(0xFFF39AA6);
-  if (title.contains('harvest')) return const Color(0xFFF5C46B);
-  if (title.contains('hunter')) return const Color(0xFFCF925B);
-  if (title.contains('snow') || title.contains('cold')) {
-    return const Color(0xFFEAF5FF);
-  }
-  if (title.contains('wolf')) return const Color(0xFFD9E6FF);
-  if (title.contains('beaver')) return const Color(0xFFD7B58F);
-  if (title.contains('buck')) return const Color(0xFFE0BF8C);
-  if (title.contains('sturgeon')) return const Color(0xFFE7EEF9);
-  return const Color(0xFFF4E7CF);
-}
-
-Color _trackSkyMeteorTint(String title) {
-  if (title.contains('perseids')) return const Color(0xFF9FCAFF);
-  if (title.contains('geminids')) return const Color(0xFFA9F5EF);
-  if (title.contains('lyrids')) return const Color(0xFFD7C3FF);
-  if (title.contains('quadrantids')) return const Color(0xFFEAF5FF);
-  if (title.contains('aquariids')) return const Color(0xFF8DEAF7);
-  return const Color(0xFFB9D0FF);
-}
-
-Color _trackSkyPlanetTint(String title) {
-  if (title.contains('mars')) return const Color(0xFFE17D5D);
-  if (title.contains('venus')) return const Color(0xFFF6E2C0);
-  if (title.contains('jupiter')) return const Color(0xFFF4C88D);
-  if (title.contains('saturn')) return const Color(0xFFE8D27A);
-  if (title.contains('mercury')) return const Color(0xFFD9E1F0);
-  return const Color(0xFFBFD2FF);
-}
-
-Color _trackSkySolarTint(String title) {
-  if (title.contains('winter')) return const Color(0xFFF1D4A3);
-  if (title.contains('summer')) return const Color(0xFFF7B45A);
-  if (title.contains('autumn')) return const Color(0xFFF19A62);
-  if (title.contains('vernal') || title.contains('spring')) {
-    return const Color(0xFFF8CDA0);
-  }
-  return const Color(0xFFF3C47E);
-}
-
-_TrackSkyCardSpec _trackSkyCardSpecForEvent(EventItem event) {
-  final title = event.title.trim().toLowerCase();
-  final kind = _trackSkyCardKindForTitle(title);
-  switch (kind) {
-    case _TrackSkyCardKind.moon:
-      final tint = _trackSkyMoonTint(title);
-      return _TrackSkyCardSpec(
-        kind: kind,
-        background: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [
-            const Color(0xFF040813),
-            Color.lerp(const Color(0xFF16245D), tint, 0.16)!,
-            const Color(0xFF2A1F52),
-          ],
-        ),
-        borderColor: tint.withValues(alpha: 0.78),
-        accentColor: tint,
-        accentSecondaryColor: Colors.white,
-        titleColor: const Color(0xFFF7FAFF),
-        labelColor: const Color(0xFFE3EAFF),
-        detailColor: const Color(0xFFD9E4FF),
-        glowColor: tint.withValues(alpha: 0.56),
-      );
-    case _TrackSkyCardKind.lunarEclipse:
-      final tint = _trackSkyMoonTint(title);
-      return _TrackSkyCardSpec(
-        kind: kind,
-        background: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [
-            const Color(0xFF05070F),
-            Color.lerp(const Color(0xFF301126), tint, 0.34)!,
-            const Color(0xFF120812),
-          ],
-        ),
-        borderColor: tint.withValues(alpha: 0.82),
-        accentColor: tint,
-        accentSecondaryColor: const Color(0xFFFFD7BF),
-        titleColor: const Color(0xFFFFF6F1),
-        labelColor: const Color(0xFFFFE8DD),
-        detailColor: const Color(0xFFFFD9CC),
-        glowColor: tint.withValues(alpha: 0.56),
-      );
-    case _TrackSkyCardKind.solarEclipse:
-      final tint = title.contains('ring of fire')
-          ? const Color(0xFFFFA24B)
-          : const Color(0xFFF4E6C1);
-      return _TrackSkyCardSpec(
-        kind: kind,
-        background: const LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [Color(0xFF03050B), Color(0xFF171B2E), Color(0xFF090B14)],
-        ),
-        borderColor: tint.withValues(alpha: 0.84),
-        accentColor: tint,
-        accentSecondaryColor: const Color(0xFFFFD26A),
-        titleColor: const Color(0xFFFFF8EF),
-        labelColor: const Color(0xFFFFEED5),
-        detailColor: const Color(0xFFFFDCB0),
-        glowColor: tint.withValues(alpha: 0.58),
-      );
-    case _TrackSkyCardKind.meteor:
-      final tint = _trackSkyMeteorTint(title);
-      return _TrackSkyCardSpec(
-        kind: kind,
-        background: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [
-            const Color(0xFF050816),
-            Color.lerp(const Color(0xFF1E1B54), tint, 0.2)!,
-            const Color(0xFF0C1029),
-          ],
-        ),
-        borderColor: tint.withValues(alpha: 0.82),
-        accentColor: tint,
-        accentSecondaryColor: Colors.white,
-        titleColor: const Color(0xFFF4F8FF),
-        labelColor: const Color(0xFFDCE8FF),
-        detailColor: const Color(0xFFCAE3FF),
-        glowColor: tint.withValues(alpha: 0.55),
-      );
-    case _TrackSkyCardKind.planet:
-      final tint = _trackSkyPlanetTint(title);
-      return _TrackSkyCardSpec(
-        kind: kind,
-        background: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [
-            const Color(0xFF050915),
-            Color.lerp(const Color(0xFF13224B), tint, 0.18)!,
-            const Color(0xFF161038),
-          ],
-        ),
-        borderColor: tint.withValues(alpha: 0.8),
-        accentColor: tint,
-        accentSecondaryColor: const Color(0xFFE9EFFF),
-        titleColor: const Color(0xFFF8FAFF),
-        labelColor: const Color(0xFFDDE6FF),
-        detailColor: const Color(0xFFD7E2FF),
-        glowColor: tint.withValues(alpha: 0.52),
-      );
-    case _TrackSkyCardKind.solarSeason:
-      final tint = _trackSkySolarTint(title);
-      return _TrackSkyCardSpec(
-        kind: kind,
-        background: LinearGradient(
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-          colors: [
-            const Color(0xFF071326),
-            Color.lerp(const Color(0xFF5C2F57), tint, 0.26)!,
-            Color.lerp(const Color(0xFFF18E5B), tint, 0.4)!,
-          ],
-          stops: const [0.0, 0.58, 1.0],
-        ),
-        borderColor: tint.withValues(alpha: 0.84),
-        accentColor: tint,
-        accentSecondaryColor: const Color(0xFFFFE7B8),
-        titleColor: const Color(0xFFFFFAF1),
-        labelColor: const Color(0xFFFFEFD5),
-        detailColor: const Color(0xFFFFE1B7),
-        glowColor: tint.withValues(alpha: 0.56),
-      );
-    case _TrackSkyCardKind.genericSky:
-      return const _TrackSkyCardSpec(
-        kind: _TrackSkyCardKind.genericSky,
-        background: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [Color(0xFF090D1E), Color(0xFF222A5B), Color(0xFF4B5EBB)],
-        ),
-        borderColor: Color(0xFFA4B1FF),
-        accentColor: Color(0xFFDCE6FF),
-        accentSecondaryColor: Colors.white,
-        titleColor: Color(0xFFF8FAFF),
-        labelColor: Color(0xFFE0E8FF),
-        detailColor: Color(0xFFD8E2FF),
-        glowColor: Color(0x88A4B1FF),
-      );
-  }
-}
-
 List<Widget> _buildTrackSkyCardStars({
   required String seed,
   required Color tint,
@@ -2337,7 +1708,7 @@ List<Widget> _buildTrackSkyCardStars({
 }
 
 Widget _buildTrackSkyCardAccent(
-  _TrackSkyCardSpec spec,
+  CalendarEventGraphicStyle spec,
   String title, {
   double size = 24,
 }) {
@@ -2362,8 +1733,10 @@ Widget _buildTrackSkyCardAccent(
     );
   }
 
-  switch (spec.kind) {
-    case _TrackSkyCardKind.moon:
+  switch (spec.trackSkyKind) {
+    case null:
+      return const SizedBox.shrink();
+    case CalendarTrackSkyCardKind.moon:
       return planet(
         color: spec.accentColor,
         shadow: [
@@ -2373,7 +1746,7 @@ Widget _buildTrackSkyCardAccent(
           ),
         ],
       );
-    case _TrackSkyCardKind.lunarEclipse:
+    case CalendarTrackSkyCardKind.lunarEclipse:
       return SizedBox(
         width: size,
         height: size,
@@ -2399,7 +1772,7 @@ Widget _buildTrackSkyCardAccent(
           ],
         ),
       );
-    case _TrackSkyCardKind.solarEclipse:
+    case CalendarTrackSkyCardKind.solarEclipse:
       return SizedBox(
         width: size,
         height: size,
@@ -2420,7 +1793,7 @@ Widget _buildTrackSkyCardAccent(
           ],
         ),
       );
-    case _TrackSkyCardKind.meteor:
+    case CalendarTrackSkyCardKind.meteor:
       return SizedBox(
         width: size + 10,
         height: size,
@@ -2466,7 +1839,7 @@ Widget _buildTrackSkyCardAccent(
           ],
         ),
       );
-    case _TrackSkyCardKind.planet:
+    case CalendarTrackSkyCardKind.planet:
       if (lower.contains('saturn')) {
         return SizedBox(
           width: size + 6,
@@ -2546,7 +1919,7 @@ Widget _buildTrackSkyCardAccent(
           ),
         ],
       );
-    case _TrackSkyCardKind.solarSeason:
+    case CalendarTrackSkyCardKind.solarSeason:
       return SizedBox(
         width: size + 8,
         height: size,
@@ -2587,7 +1960,7 @@ Widget _buildTrackSkyCardAccent(
           ],
         ),
       );
-    case _TrackSkyCardKind.genericSky:
+    case CalendarTrackSkyCardKind.genericSky:
       return planet(
         color: spec.accentSecondaryColor,
         diameter: 8,
@@ -4836,7 +4209,7 @@ class _DayViewGridState extends State<DayViewGrid> {
 
   Widget _buildDawnHouseRiteDetailText(
     String detail, {
-    _DayViewEventVisual? visual,
+    CalendarEventVisualStyle? visual,
   }) {
     final sections = _dawnHouseRiteDetailSections(detail);
     if (sections.isEmpty) return const SizedBox.shrink();
@@ -6067,20 +5440,27 @@ class _DayViewGridState extends State<DayViewGrid> {
   }) {
     final event = block.event;
     final flow = _chromeFlowForId(event.flowId);
-    final isTrackSky = _isTrackSkyFlowName(flow?.name);
-    final isDawnHouseRite = _isDawnHouseRiteFlowName(flow?.name);
-    final isEveningThresholdRite = _isEveningThresholdRiteFlowName(flow?.name);
-    final isTheWeighing = _isTheWeighingFlowName(flow?.name);
-    final trackSkySpec = isTrackSky ? _trackSkyCardSpecForEvent(event) : null;
+    final isNutrition =
+        event.detail != null && event.detail!.contains('Source:');
+    final visual = _dayViewVisualForEvent(
+      event,
+      flow,
+      isReminder: event.isReminder,
+      isNutrition: isNutrition,
+    );
+    final graphic = visual.graphic;
+    final isTrackSky = graphic?.kind == CalendarEventGraphicKind.trackSky;
+    final isDawnHouseRite =
+        graphic?.kind == CalendarEventGraphicKind.dawnHouseRite;
+    final isEveningThresholdRite =
+        graphic?.kind == CalendarEventGraphicKind.eveningThresholdRite;
+    final isTheWeighing = graphic?.kind == CalendarEventGraphicKind.theWeighing;
+    final trackSkySpec = isTrackSky ? graphic : null;
 
     final int durationMinutes = (event.endMin - event.startMin).clamp(15, 180);
     final double height = _eventVisualHeight(event);
 
-    final borderRadius = BorderRadius.circular(
-      isTrackSky || isDawnHouseRite || isEveningThresholdRite || isTheWeighing
-          ? 7
-          : 6,
-    );
+    final borderRadius = BorderRadius.circular(graphic != null ? 7 : 6);
 
     if (isTrackSky) {
       return Container(
@@ -6180,6 +5560,7 @@ class _DayViewGridState extends State<DayViewGrid> {
     }
 
     if (isDawnHouseRite) {
+      final graphicStyle = graphic!;
       return Container(
         width: block.width,
         height: height,
@@ -6193,9 +5574,9 @@ class _DayViewGridState extends State<DayViewGrid> {
               offset: const Offset(0, 4),
             ),
             BoxShadow(
-              color: const Color(
-                0xFFFFB765,
-              ).withValues(alpha: isPreview ? 0.08 : 0.16),
+              color: graphicStyle.glowColor.withValues(
+                alpha: isPreview ? 0.08 : 0.16,
+              ),
               blurRadius: kIsWeb ? 10 : 14,
               spreadRadius: -3,
             ),
@@ -6207,12 +5588,12 @@ class _DayViewGridState extends State<DayViewGrid> {
             Positioned.fill(
               child: DecoratedBox(
                 decoration: BoxDecoration(
-                  gradient: _dawnHouseRiteCardGradient,
+                  gradient: graphicStyle.background,
                   borderRadius: borderRadius,
                   border: Border.all(
-                    color: const Color(
-                      0xFFFFD08A,
-                    ).withValues(alpha: isPreview ? 0.68 : 0.9),
+                    color: graphicStyle.borderColor.withValues(
+                      alpha: isPreview ? 0.68 : 0.9,
+                    ),
                     width: 0.9,
                   ),
                 ),
@@ -6270,6 +5651,7 @@ class _DayViewGridState extends State<DayViewGrid> {
     }
 
     if (isEveningThresholdRite) {
+      final graphicStyle = graphic!;
       return Container(
         width: block.width,
         height: height,
@@ -6283,9 +5665,9 @@ class _DayViewGridState extends State<DayViewGrid> {
               offset: const Offset(0, 4),
             ),
             BoxShadow(
-              color: const Color(
-                0xFF66D7CF,
-              ).withValues(alpha: isPreview ? 0.07 : 0.15),
+              color: graphicStyle.glowColor.withValues(
+                alpha: isPreview ? 0.07 : 0.15,
+              ),
               blurRadius: kIsWeb ? 10 : 14,
               spreadRadius: -3,
             ),
@@ -6297,12 +5679,12 @@ class _DayViewGridState extends State<DayViewGrid> {
             Positioned.fill(
               child: DecoratedBox(
                 decoration: BoxDecoration(
-                  gradient: _eveningThresholdRiteCardGradient,
+                  gradient: graphicStyle.background,
                   borderRadius: borderRadius,
                   border: Border.all(
-                    color: const Color(
-                      0xFF7FE0D4,
-                    ).withValues(alpha: isPreview ? 0.58 : 0.82),
+                    color: graphicStyle.borderColor.withValues(
+                      alpha: isPreview ? 0.58 : 0.82,
+                    ),
                     width: 0.9,
                   ),
                 ),
@@ -6340,9 +5722,11 @@ class _DayViewGridState extends State<DayViewGrid> {
                           begin: Alignment.topCenter,
                           end: Alignment.bottomCenter,
                           colors: [
-                            const Color(0xFF8CDAD1).withValues(alpha: 0.08),
-                            const Color(0xFF8CDAD1).withValues(alpha: 0.42),
-                            const Color(0xFFFFE4A3).withValues(alpha: 0.22),
+                            graphicStyle.accentColor.withValues(alpha: 0.08),
+                            graphicStyle.accentColor.withValues(alpha: 0.42),
+                            graphicStyle.accentSecondaryColor.withValues(
+                              alpha: 0.22,
+                            ),
                           ],
                         ),
                       ),
@@ -6379,13 +5763,14 @@ class _DayViewGridState extends State<DayViewGrid> {
     }
 
     if (isTheWeighing) {
+      final graphicStyle = graphic!;
       return Container(
         width: block.width,
         height: height,
         margin: const EdgeInsets.only(right: 4, bottom: 2),
         decoration: BoxDecoration(
           borderRadius: borderRadius,
-          gradient: _theWeighingCardGradient,
+          gradient: graphicStyle.background,
           boxShadow: [
             BoxShadow(
               color: Colors.black.withValues(alpha: isPreview ? 0.16 : 0.28),
@@ -6398,9 +5783,9 @@ class _DayViewGridState extends State<DayViewGrid> {
         foregroundDecoration: BoxDecoration(
           borderRadius: borderRadius,
           border: Border.all(
-            color: const Color(
-              0xFFF5E8CB,
-            ).withValues(alpha: isPreview ? 0.28 : 0.52),
+            color: graphicStyle.borderColor.withValues(
+              alpha: isPreview ? 0.28 : 0.52,
+            ),
           ),
         ),
         clipBehavior: Clip.hardEdge,
@@ -6413,12 +5798,6 @@ class _DayViewGridState extends State<DayViewGrid> {
       );
     }
 
-    final visual = _dayViewVisualForEvent(
-      event,
-      flow,
-      isReminder: event.isReminder,
-      isNutrition: event.detail != null && event.detail!.contains('Source:'),
-    );
     return Container(
       width: block.width,
       height: height,
@@ -6504,18 +5883,6 @@ class _DayViewGridState extends State<DayViewGrid> {
   }) {
     final flow = _chromeFlowForId(event.flowId);
     final bool hasFlow = flow != null;
-    final bool isTrackSky = _isTrackSkyFlowName(flow?.name);
-    final bool isDawnHouseRite = _isDawnHouseRiteFlowName(flow?.name);
-    final bool isEveningThresholdRite = _isEveningThresholdRiteFlowName(
-      flow?.name,
-    );
-    final bool isTheWeighing = _isTheWeighingFlowName(flow?.name);
-    final bool isGraphicFlow =
-        isTrackSky ||
-        isDawnHouseRite ||
-        isEveningThresholdRite ||
-        isTheWeighing;
-    final trackSkySpec = isTrackSky ? _trackSkyCardSpecForEvent(event) : null;
     final isNutrition =
         event.detail != null && event.detail!.contains('Source:');
     final visual = _dayViewVisualForEvent(
@@ -6524,6 +5891,10 @@ class _DayViewGridState extends State<DayViewGrid> {
       isReminder: event.isReminder,
       isNutrition: isNutrition,
     );
+    final graphic = visual.graphic;
+    final bool isTrackSky = graphic?.kind == CalendarEventGraphicKind.trackSky;
+    final bool isGraphicFlow = graphic != null;
+    final trackSkySpec = isTrackSky ? graphic : null;
     final isMaatFlow = _maatFlowCompletionContextForEvent(event, flow) != null;
     final flowLabel = _dayViewTimelineFlowLabel(
       event,
@@ -6535,17 +5906,13 @@ class _DayViewGridState extends State<DayViewGrid> {
 
     final showTitle = event.title.trim().isNotEmpty;
     final showPreviewLabel = !isGraphicFlow || (hasFlow && !event.isReminder);
-    final trackSkyFlowNameColor = _dayGold.withValues(
+    final graphicFlowNameColor = (graphic?.labelColor ?? _dayGold).withValues(
       alpha: isPreview ? 0.92 : 1.0,
     );
-    final titleColor = isTrackSky
-        ? trackSkySpec!.titleColor.withValues(alpha: isPreview ? 0.94 : 1.0)
-        : isDawnHouseRite
-        ? const Color(0xFFFFF6E3).withValues(alpha: isPreview ? 0.92 : 1.0)
-        : isEveningThresholdRite
-        ? const Color(0xFFF2F0FF).withValues(alpha: isPreview ? 0.92 : 1.0)
-        : isTheWeighing
-        ? const Color(0xFFFFF8E8).withValues(alpha: isPreview ? 0.92 : 1.0)
+    final titleColor = isGraphicFlow
+        ? graphic.titleColor.withValues(
+            alpha: isPreview ? (isTrackSky ? 0.94 : 0.92) : 1.0,
+          )
         : event.isReminder
         ? visual.title.withValues(alpha: isPreview ? 0.72 : 0.88)
         : visual.title.withValues(alpha: isPreview ? 0.74 : 0.9);
@@ -6655,53 +6022,17 @@ class _DayViewGridState extends State<DayViewGrid> {
       children: [
         // Compact preview label only; detail/body/location belongs in the sheet.
         if (showPreviewLabel) ...[
-          isTrackSky
+          isGraphicFlow
               ? buildTrackSkyText(
                   flow!.name,
                   style: TextStyle(
                     fontSize: 11,
                     fontWeight: FontWeight.w700,
-                    color: trackSkyFlowNameColor,
+                    color: graphicFlowNameColor,
                   ),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  gradient: _trackSkyFlowGoldGloss,
-                )
-              : isDawnHouseRite
-              ? buildTrackSkyText(
-                  flow!.name,
-                  style: TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w700,
-                    color: trackSkyFlowNameColor,
-                  ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  gradient: _dawnHouseRiteFlowGloss,
-                )
-              : isEveningThresholdRite
-              ? buildTrackSkyText(
-                  flow!.name,
-                  style: TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w700,
-                    color: trackSkyFlowNameColor,
-                  ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  gradient: _eveningThresholdRiteFlowGloss,
-                )
-              : isTheWeighing
-              ? buildTrackSkyText(
-                  flow!.name,
-                  style: TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w700,
-                    color: trackSkyFlowNameColor,
-                  ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  gradient: _theWeighingFlowGloss,
+                  gradient: graphic.flowLabelGradient,
                 )
               : Text(
                   flowLabel,
@@ -6720,44 +6051,11 @@ class _DayViewGridState extends State<DayViewGrid> {
 
         // Note title - only render if meaningful
         if (showTitle)
-          isTrackSky
+          isGraphicFlow
               ? buildTrackSkyText(
                   event.title,
                   style: TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w700,
-                    color: titleColor,
-                  ),
-                  maxLines: titleMaxLines,
-                  overflow: TextOverflow.ellipsis,
-                )
-              : isDawnHouseRite
-              ? buildTrackSkyText(
-                  event.title,
-                  style: TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w700,
-                    color: titleColor,
-                  ),
-                  maxLines: titleMaxLines,
-                  overflow: TextOverflow.ellipsis,
-                )
-              : isEveningThresholdRite
-              ? buildTrackSkyText(
-                  event.title,
-                  style: TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w700,
-                    color: titleColor,
-                  ),
-                  maxLines: titleMaxLines,
-                  overflow: TextOverflow.ellipsis,
-                )
-              : isTheWeighing
-              ? buildTrackSkyText(
-                  event.title,
-                  style: TextStyle(
-                    fontSize: 13,
+                    fontSize: isTrackSky ? 14 : 13,
                     fontWeight: FontWeight.w700,
                     color: titleColor,
                   ),
@@ -6778,57 +6076,15 @@ class _DayViewGridState extends State<DayViewGrid> {
                   overflow: TextOverflow.ellipsis,
                 )
         else
-          isTrackSky
+          isGraphicFlow
               ? buildTrackSkyText(
                   hasFlow ? '(flow block)' : '(scheduled)',
                   style: TextStyle(
                     fontSize: 13,
                     fontWeight: FontWeight.w400,
-                    color: trackSkySpec!.labelColor.withValues(
+                    color: graphic.labelColor.withValues(
                       alpha: isPreview ? 0.8 : 0.9,
                     ),
-                    fontStyle: FontStyle.italic,
-                  ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                )
-              : isDawnHouseRite
-              ? buildTrackSkyText(
-                  hasFlow ? '(flow block)' : '(scheduled)',
-                  style: TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w400,
-                    color: const Color(
-                      0xFFFFE8C6,
-                    ).withValues(alpha: isPreview ? 0.78 : 0.9),
-                    fontStyle: FontStyle.italic,
-                  ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                )
-              : isEveningThresholdRite
-              ? buildTrackSkyText(
-                  hasFlow ? '(flow block)' : '(scheduled)',
-                  style: TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w400,
-                    color: const Color(
-                      0xFFDDEAFF,
-                    ).withValues(alpha: isPreview ? 0.78 : 0.9),
-                    fontStyle: FontStyle.italic,
-                  ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                )
-              : isTheWeighing
-              ? buildTrackSkyText(
-                  hasFlow ? '(flow block)' : '(scheduled)',
-                  style: TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w400,
-                    color: const Color(
-                      0xFFFFF8E8,
-                    ).withValues(alpha: isPreview ? 0.78 : 0.9),
                     fontStyle: FontStyle.italic,
                   ),
                   maxLines: 1,
@@ -7191,7 +6447,7 @@ class _DayViewGridState extends State<DayViewGrid> {
     return (pages: pages, currentIndex: previous != null ? 1 : 0);
   }
 
-  TextStyle _detailCategoryStyle(_DayViewEventVisual visual) => TextStyle(
+  TextStyle _detailCategoryStyle(CalendarEventVisualStyle visual) => TextStyle(
     color: visual.category,
     fontSize: 10,
     fontWeight: FontWeight.w600,
@@ -7200,7 +6456,7 @@ class _DayViewGridState extends State<DayViewGrid> {
     fontFamilyFallback: _dayViewSansFallback,
   );
 
-  TextStyle _detailTitleStyle(_DayViewEventVisual visual) => TextStyle(
+  TextStyle _detailTitleStyle(CalendarEventVisualStyle visual) => TextStyle(
     color: visual.title,
     fontSize: 21,
     fontWeight: FontWeight.w500,
@@ -7210,7 +6466,7 @@ class _DayViewGridState extends State<DayViewGrid> {
   );
 
   TextStyle _detailBodyStyle({
-    _DayViewEventVisual? visual,
+    CalendarEventVisualStyle? visual,
     bool italic = false,
   }) => TextStyle(
     color: visual?.bodyText ?? _dayViewWarmStone.withValues(alpha: 0.9),
@@ -7222,7 +6478,10 @@ class _DayViewGridState extends State<DayViewGrid> {
     fontFamilyFallback: _dayViewSerifFallback,
   );
 
-  Widget _buildDetailSectionLabel(String label, {_DayViewEventVisual? visual}) {
+  Widget _buildDetailSectionLabel(
+    String label, {
+    CalendarEventVisualStyle? visual,
+  }) {
     return Text(
       label.toUpperCase(),
       style: TextStyle(
@@ -7238,7 +6497,7 @@ class _DayViewGridState extends State<DayViewGrid> {
     );
   }
 
-  Widget _buildDetailTimeLine(String text, _DayViewEventVisual visual) {
+  Widget _buildDetailTimeLine(String text, CalendarEventVisualStyle visual) {
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
@@ -7266,7 +6525,10 @@ class _DayViewGridState extends State<DayViewGrid> {
     );
   }
 
-  Widget _buildDetailFlowNameLine(String text, _DayViewEventVisual visual) {
+  Widget _buildDetailFlowNameLine(
+    String text,
+    CalendarEventVisualStyle visual,
+  ) {
     return Text(
       text,
       maxLines: 1,
@@ -7285,7 +6547,7 @@ class _DayViewGridState extends State<DayViewGrid> {
 
   Widget _buildDetailExternalActionButton(
     _DayViewExternalAction action,
-    _DayViewEventVisual visual,
+    CalendarEventVisualStyle visual,
   ) {
     return InkWell(
       borderRadius: BorderRadius.circular(999),
