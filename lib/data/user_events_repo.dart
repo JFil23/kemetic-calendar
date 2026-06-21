@@ -3,6 +3,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'birthday_calendar.dart';
 import '../features/calendar/notify.dart';
 import '../telemetry/telemetry.dart';
 import '../utils/flow_filter_engine.dart';
@@ -31,6 +32,23 @@ typedef FlowEventRow = ({
   String? category,
   String? actionId,
   Map<String, dynamic>? behaviorPayload,
+});
+
+typedef StandaloneEventRow = ({
+  String? id,
+  String? clientEventId,
+  String? calendarId,
+  String? calendarName,
+  int? calendarColor,
+  bool calendarIsPersonal,
+  String title,
+  String? detail,
+  String? location,
+  bool allDay,
+  DateTime startsAtUtc,
+  DateTime? endsAtUtc,
+  int? flowLocalId,
+  String? category,
 });
 
 bool _isUuid(String? v) {
@@ -93,6 +111,30 @@ String _formatDateOnlyLocal(DateTime value) {
   final month = local.month.toString().padLeft(2, '0');
   final day = local.day.toString().padLeft(2, '0');
   return '${local.year}-$month-$day';
+}
+
+StandaloneEventRow _standaloneRowFromBirthdayOccurrence(
+  BirthdayOccurrence occurrence,
+) {
+  final row = occurrence.toStandaloneEventRow();
+  return (
+    id: row['id'] as String?,
+    clientEventId: row['client_event_id'] as String?,
+    calendarId: row['calendar_id'] as String?,
+    calendarName: row['calendar_name'] as String?,
+    calendarColor: (row['calendar_color'] as num?)?.toInt(),
+    calendarIsPersonal: (row['calendar_is_personal'] as bool?) ?? false,
+    title: (row['title'] as String?) ?? '',
+    detail: row['detail'] as String?,
+    location: row['location'] as String?,
+    allDay: (row['all_day'] as bool?) ?? true,
+    startsAtUtc: DateTime.parse(row['starts_at'] as String),
+    endsAtUtc: row['ends_at'] == null
+        ? null
+        : DateTime.parse(row['ends_at'] as String),
+    flowLocalId: (row['flow_local_id'] as num?)?.toInt(),
+    category: row['category'] as String?,
+  );
 }
 
 @immutable
@@ -1386,7 +1428,7 @@ class UserEventsRepo {
         '(${startUtc.toUtc().toIso8601String()} → ${endUtc.toUtc().toIso8601String()})',
       );
 
-      return rows
+      final events = rows
           .cast<Map<String, dynamic>>()
           .map((row) {
             if (!filingRowIsStandaloneCalendarEvent(row)) {
@@ -1442,6 +1484,21 @@ class UserEventsRepo {
             })
           >()
           .toList();
+
+      final birthdayOccurrences = await BirthdayCalendarRepo(
+        _client,
+      ).getOccurrencesForRange(startUtc: startUtc, endUtc: endUtc);
+      events.addAll(
+        birthdayOccurrences.map(_standaloneRowFromBirthdayOccurrence),
+      );
+      events.sort((a, b) {
+        final byStart = a.startsAtUtc.compareTo(b.startsAtUtc);
+        if (byStart != 0) return byStart;
+        return (a.clientEventId ?? a.id ?? '').compareTo(
+          b.clientEventId ?? b.id ?? '',
+        );
+      });
+      return events;
     } on PostgrestException catch (e) {
       _log(
         'getStandaloneEventsForDateRange ✗ code=${e.code} message=${e.message} hint=${e.hint} details=${e.details} '
@@ -1676,6 +1733,33 @@ class UserEventsRepo {
         flowLocalId: canonicalFiledFlowIdForEventRow(row),
         category: row['category'] as String?,
       ));
+    }
+
+    final birthdayOccurrences = await BirthdayCalendarRepo(
+      _client,
+    ).getOccurrencesForRange(startUtc: startUtc, endUtc: endUtc);
+    for (final occurrence in birthdayOccurrences) {
+      final row = _standaloneRowFromBirthdayOccurrence(occurrence);
+      final id = row.id;
+      final cid = row.clientEventId;
+      if (id != null && id.isNotEmpty) {
+        if (seenIds.contains(id)) continue;
+        seenIds.add(id);
+      } else if (cid != null && cid.isNotEmpty) {
+        if (seenCids.contains(cid)) continue;
+        seenCids.add(cid);
+      }
+      events.add(row);
+    }
+
+    if (birthdayOccurrences.isNotEmpty) {
+      events.sort((a, b) {
+        final byStart = a.startsAtUtc.compareTo(b.startsAtUtc);
+        if (byStart != 0) return byStart;
+        return (a.clientEventId ?? a.id ?? '').compareTo(
+          b.clientEventId ?? b.id ?? '',
+        );
+      });
     }
 
     if (kDebugMode) {

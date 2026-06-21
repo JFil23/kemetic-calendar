@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 import 'package:mobile/core/navigation_fallback.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../data/event_filing_engine.dart';
+import '../../data/birthday_calendar.dart';
 import '../../data/user_events_repo.dart';
 import '../../data/flows_repo.dart';
 import '../../data/shared_calendar_models.dart';
@@ -11554,6 +11555,12 @@ class CalendarPageState extends State<CalendarPage>
   }
 
   bool _canReassignDetailTargetCalendar(EventItem event) {
+    if (_isBirthdayOccurrence(
+      category: event.category,
+      clientEventId: event.clientEventId,
+    )) {
+      return false;
+    }
     final calendars = _detailSheetCalendarOptions();
     if (calendars.isEmpty) return false;
     final fallbackCalendarId =
@@ -19773,6 +19780,13 @@ class CalendarPageState extends State<CalendarPage>
 
     // Capture note before removal so we know what to delete remotely.
     final note = list[index];
+    if (_isBirthdayOccurrence(
+      category: note.category,
+      clientEventId: note.clientEventId,
+    )) {
+      _showBirthdayReadOnlyMessage();
+      return false;
+    }
     final String deletedTitle = note.title;
     final manualCid = _manualCidForNote(note, kYear, kMonth, kDay);
     final int? flowIdForNote = note.flowId;
@@ -20336,6 +20350,13 @@ class CalendarPageState extends State<CalendarPage>
   }
 
   Future<void> _deleteNoteByEvent(int ky, int km, int kd, EventItem evt) async {
+    if (_isBirthdayOccurrence(
+      category: evt.category,
+      clientEventId: evt.clientEventId,
+    )) {
+      _showBirthdayReadOnlyMessage();
+      return;
+    }
     final idx = _findNoteIndexByEvent(ky, km, kd, evt);
     if (idx != null) {
       await _deleteNote(ky, km, kd, idx);
@@ -20343,6 +20364,13 @@ class CalendarPageState extends State<CalendarPage>
   }
 
   Future<void> _editNoteByEvent(int ky, int km, int kd, EventItem evt) async {
+    if (_isBirthdayOccurrence(
+      category: evt.category,
+      clientEventId: evt.clientEventId,
+    )) {
+      _showBirthdayReadOnlyMessage();
+      return;
+    }
     final idx = _findNoteIndexByEvent(ky, km, kd, evt);
     if (idx == null) return;
     final key = _kKey(ky, km, kd);
@@ -20366,6 +20394,25 @@ class CalendarPageState extends State<CalendarPage>
         editingIndex: idx,
       );
     });
+  }
+
+  bool _isBirthdayOccurrence({String? category, String? clientEventId}) {
+    final normalizedCategory = category?.trim().toLowerCase();
+    if (normalizedCategory == 'birthday') return true;
+    final normalizedClientEventId = (clientEventId ?? '').trim().toLowerCase();
+    return normalizedClientEventId.startsWith('birthday:') ||
+        normalizedClientEventId.startsWith('$kBirthdaysSystemType:');
+  }
+
+  void _showBirthdayReadOnlyMessage() {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text(
+          'Birthday editing is managed from the Birthdays calendar.',
+        ),
+      ),
+    );
   }
 
   Future<void> _openFlowShareSheetFromEvent({
