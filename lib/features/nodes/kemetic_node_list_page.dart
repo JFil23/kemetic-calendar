@@ -8,47 +8,57 @@ import '../../widgets/kemetic_app_bar_action.dart';
 import 'kemetic_node_library.dart';
 import 'library_canon_adapter.dart';
 import 'library_canon_list.dart';
+import 'library_read_progress_store.dart';
 import 'library_read_state.dart';
 import 'library_visual_tokens.dart';
 import 'kemetic_node_search_delegate.dart';
 import 'widgets.dart';
 
 class KemeticNodeListPage extends StatefulWidget {
-  const KemeticNodeListPage({super.key, this.initialNodeId});
+  const KemeticNodeListPage({
+    super.key,
+    this.initialNodeId,
+    this.readProgressStore,
+  });
 
   final String? initialNodeId;
+  final LibraryReadProgressStore? readProgressStore;
 
   @override
   State<KemeticNodeListPage> createState() => _KemeticNodeListPageState();
 }
 
-class _KemeticNodeListPageState extends State<KemeticNodeListPage> {
+class _KemeticNodeListPageState extends State<KemeticNodeListPage>
+    with WidgetsBindingObserver {
   static const double _estimatedRowExtent = 338;
   static const double _targetTopInset = 112;
-  static const LibraryReadSnapshot _referenceVisualReadSnapshot =
-      LibraryReadSnapshot(readNodeIds: {'cosmic_order'});
 
   late final ScrollController _scrollController;
-  late final List<LibraryCanonEntryViewModel> _entries;
+  late LibraryReadProgressStore _readProgressStore;
   final Map<String, GlobalKey> _nodeKeys = {};
+  LibraryReadSnapshot _readSnapshot = const LibraryReadSnapshot();
 
   @override
   void initState() {
     super.initState();
-    _entries = buildLibraryCanonEntries(
-      nodes: KemeticNodeLibrary.nodes,
-      readSnapshot: _referenceVisualReadSnapshot,
-    );
+    WidgetsBinding.instance.addObserver(this);
+    _readProgressStore = widget.readProgressStore ?? LibraryReadProgressStore();
     _scrollController = ScrollController(
       initialScrollOffset: _estimatedOffsetFor(widget.initialNodeId),
       keepScrollOffset: widget.initialNodeId == null,
     );
+    unawaited(_loadReadSnapshot());
     _scheduleFocusedNodeRestore();
   }
 
   @override
   void didUpdateWidget(covariant KemeticNodeListPage oldWidget) {
     super.didUpdateWidget(oldWidget);
+    if (oldWidget.readProgressStore != widget.readProgressStore) {
+      _readProgressStore =
+          widget.readProgressStore ?? LibraryReadProgressStore();
+      unawaited(_loadReadSnapshot());
+    }
     if (oldWidget.initialNodeId != widget.initialNodeId) {
       _scheduleFocusedNodeRestore();
     }
@@ -56,8 +66,16 @@ class _KemeticNodeListPageState extends State<KemeticNodeListPage> {
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _scrollController.dispose();
     super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      unawaited(_loadReadSnapshot());
+    }
   }
 
   int? _nodeIndex(String? nodeId) {
@@ -84,6 +102,14 @@ class _KemeticNodeListPageState extends State<KemeticNodeListPage> {
 
   GlobalKey _nodeKey(String nodeId) =>
       _nodeKeys.putIfAbsent(nodeId, GlobalKey.new);
+
+  Future<void> _loadReadSnapshot() async {
+    final snapshot = await _readProgressStore.readSnapshot();
+    if (!mounted) return;
+    setState(() {
+      _readSnapshot = snapshot;
+    });
+  }
 
   void _scheduleFocusedNodeRestore([int attempt = 0]) {
     final focusedNodeId = _canonicalNodeId(widget.initialNodeId);
@@ -138,12 +164,19 @@ class _KemeticNodeListPageState extends State<KemeticNodeListPage> {
       openDetailRoute<void>(
         context,
         '/nodes/${Uri.encodeComponent(selectedNodeId)}',
-      ),
+      ).whenComplete(() {
+        if (mounted) unawaited(_loadReadSnapshot());
+      }),
     );
   }
 
   @override
   Widget build(BuildContext context) {
+    final entries = buildLibraryCanonEntries(
+      nodes: KemeticNodeLibrary.nodes,
+      readSnapshot: _readSnapshot,
+    );
+
     return Scaffold(
       backgroundColor: LibraryVisualTokens.base,
       appBar: AppBar(
@@ -216,7 +249,7 @@ class _KemeticNodeListPageState extends State<KemeticNodeListPage> {
             gradient: LibraryVisualTokens.pageGradient,
           ),
           child: LibraryCanonList(
-            entries: _entries,
+            entries: entries,
             controller: _scrollController,
             nodeKeyFor: _nodeKey,
             onOpenEntry: (entry) {
@@ -224,7 +257,9 @@ class _KemeticNodeListPageState extends State<KemeticNodeListPage> {
                 openDetailRoute<void>(
                   context,
                   '/nodes/${Uri.encodeComponent(entry.node.id)}',
-                ),
+                ).whenComplete(() {
+                  if (mounted) unawaited(_loadReadSnapshot());
+                }),
               );
             },
           ),

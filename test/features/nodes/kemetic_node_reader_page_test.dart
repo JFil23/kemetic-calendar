@@ -5,6 +5,7 @@ import 'package:mobile/data/choice_event_repo.dart';
 import 'package:mobile/features/nodes/kemetic_node_library.dart';
 import 'package:mobile/features/nodes/kemetic_node_list_page.dart';
 import 'package:mobile/features/nodes/kemetic_node_reader_page.dart';
+import 'package:mobile/features/nodes/library_read_progress_store.dart';
 import 'package:mobile/features/nodes/node_user_insights_section.dart';
 import 'package:mobile/features/nodes/widgets.dart';
 import 'package:mobile/main.dart' as app;
@@ -527,6 +528,51 @@ void main() {
     expect(find.text('Human Mirror'), findsOneWidget);
   });
 
+  testWidgets('persists and restores reader scroll progress', (tester) async {
+    tester.view.physicalSize = const Size(1170, 2532);
+    tester.view.devicePixelRatio = 3.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    final prefs = await SharedPreferences.getInstance();
+    var now = DateTime(2026, 6, 21, 12);
+    final store = LibraryReadProgressStore(prefs: prefs, now: () => now);
+    final node = KemeticNodeLibrary.resolve('human_emergence')!;
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: KemeticNodeReaderPage(node: node, readProgressStore: store),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.drag(_readerScrollView(), const Offset(0, -360));
+    await tester.pump(const Duration(milliseconds: 500));
+    await tester.pump();
+
+    final savedProgress = await store.readNodeProgress('human_emergence');
+    expect(savedProgress, isNotNull);
+    expect(savedProgress!.lastScrollOffset, greaterThan(0));
+    expect(savedProgress.completedAt, isNull);
+
+    final savedOffset = savedProgress.lastScrollOffset;
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pumpAndSettle();
+
+    now = DateTime(2026, 6, 21, 12, 1);
+    await tester.pumpWidget(
+      MaterialApp(
+        home: KemeticNodeReaderPage(node: node, readProgressStore: store),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    final scrollView = tester.widget<SingleChildScrollView>(
+      _readerScrollView(),
+    );
+    expect(scrollView.controller!.offset, closeTo(savedOffset, 1));
+  });
+
   testWidgets('renders ancient african tree table grids', (tester) async {
     tester.view.physicalSize = const Size(1170, 2532);
     tester.view.devicePixelRatio = 3.0;
@@ -635,6 +681,15 @@ class _ChoiceEventCall {
   final String? sourceSurface;
   final String? deliveryId;
   final Map<String, dynamic>? metadata;
+}
+
+Finder _readerScrollView() {
+  return find.byWidgetPredicate(
+    (widget) =>
+        widget is SingleChildScrollView &&
+        widget.controller != null &&
+        widget.scrollDirection == Axis.vertical,
+  );
 }
 
 class _RecordingChoiceEventTracker implements ChoiceEventTracker {

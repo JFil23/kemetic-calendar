@@ -83,14 +83,17 @@ class LibraryCanonEntry extends StatelessWidget {
 
   static String _stateLabel(LibraryChapterVisualState state) {
     return switch (state) {
-      LibraryChapterVisualState.read => 'Read',
-      LibraryChapterVisualState.current => 'Current',
       LibraryChapterVisualState.unread => 'Unread',
+      LibraryChapterVisualState.inProgress => 'In progress',
+      LibraryChapterVisualState.current => 'Current',
+      LibraryChapterVisualState.completed => 'Complete',
     };
   }
 
   static String _semanticAction(LibraryChapterVisualState state) {
     return switch (state) {
+      LibraryChapterVisualState.completed => 'read again',
+      LibraryChapterVisualState.inProgress => 'continue reading',
       LibraryChapterVisualState.current => 'continue reading',
       _ => 'open',
     };
@@ -109,16 +112,16 @@ class _ChapterTablet extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final current = visualState == LibraryChapterVisualState.current;
-    final read = visualState == LibraryChapterVisualState.read;
+    final completed = visualState == LibraryChapterVisualState.completed;
     final borderColor = current
         ? LibraryVisualTokens.gold
-        : read
-        ? LibraryVisualTokens.spineLit
+        : completed
+        ? LibraryVisualTokens.spineLit.withValues(alpha: 0.74)
         : LibraryVisualTokens.spine;
     final numeralColor = current
         ? LibraryVisualTokens.gold
-        : read
-        ? LibraryVisualTokens.spineLit
+        : completed
+        ? LibraryVisualTokens.spineLit.withValues(alpha: 0.74)
         : LibraryVisualTokens.goldDim;
 
     return Container(
@@ -131,10 +134,10 @@ class _ChapterTablet extends StatelessWidget {
         borderRadius: BorderRadius.circular(18),
         border: Border.all(color: borderColor, width: current ? 1.5 : 1),
         boxShadow: [
-          if (read)
+          if (completed)
             BoxShadow(
-              color: LibraryVisualTokens.spineLit.withValues(alpha: 0.24),
-              blurRadius: 12,
+              color: LibraryVisualTokens.spineLit.withValues(alpha: 0.12),
+              blurRadius: 10,
             ),
           if (current) ...[
             BoxShadow(
@@ -384,31 +387,32 @@ class _MetaRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final marker = switch (visualState) {
-      LibraryChapterVisualState.read => '✦ READ',
+      LibraryChapterVisualState.unread => '✦ READ',
+      LibraryChapterVisualState.inProgress => 'CONTINUE →',
       LibraryChapterVisualState.current => 'CONTINUE →',
-      LibraryChapterVisualState.unread => null,
+      LibraryChapterVisualState.completed => 'COMPLETE',
     };
 
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
         Text('$readingMinutes MIN', style: LibraryVisualTokens.metaStyle()),
-        if (marker != null) ...[
-          const SizedBox(width: 14),
-          Flexible(
-            child: Text(
-              marker,
-              maxLines: 1,
-              overflow: TextOverflow.fade,
-              softWrap: false,
-              style: LibraryVisualTokens.metaStyle().copyWith(
-                color: visualState == LibraryChapterVisualState.current
-                    ? LibraryVisualTokens.gold
-                    : LibraryVisualTokens.spineLit,
-              ),
+        const SizedBox(width: 14),
+        Flexible(
+          child: Text(
+            marker,
+            maxLines: 1,
+            overflow: TextOverflow.fade,
+            softWrap: false,
+            style: LibraryVisualTokens.metaStyle().copyWith(
+              color: visualState == LibraryChapterVisualState.current
+                  ? LibraryVisualTokens.gold
+                  : visualState == LibraryChapterVisualState.completed
+                  ? LibraryVisualTokens.lowText
+                  : LibraryVisualTokens.spineLit,
             ),
           ),
-        ],
+        ),
       ],
     );
   }

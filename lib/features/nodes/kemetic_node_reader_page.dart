@@ -1,6 +1,8 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
+import 'package:go_router/go_router.dart';
 import '../../core/app_bottom_insets.dart';
 import '../../data/choice_event_repo.dart';
 import '../../core/navigation_fallback.dart';
@@ -12,6 +14,8 @@ import '../../widgets/insight_link_text.dart';
 import 'kemetic_node_library.dart';
 import 'kemetic_node_model.dart';
 import 'kemetic_node_search_delegate.dart';
+import 'library_read_progress_store.dart';
+import 'library_read_state.dart';
 import 'widgets.dart';
 import 'node_user_insights_section.dart';
 
@@ -20,6 +24,7 @@ class KemeticNodeReaderPage extends StatefulWidget {
   final bool openInsightEditorOnLoad;
   final VoidCallback? onInsightEditorIntentConsumed;
   final ChoiceEventTracker? choiceEvents;
+  final LibraryReadProgressStore? readProgressStore;
 
   const KemeticNodeReaderPage({
     super.key,
@@ -27,6 +32,7 @@ class KemeticNodeReaderPage extends StatefulWidget {
     this.openInsightEditorOnLoad = false,
     this.onInsightEditorIntentConsumed,
     this.choiceEvents,
+    this.readProgressStore,
   });
 
   @override
@@ -66,7 +72,12 @@ class _KemeticNodeReaderPageState extends State<KemeticNodeReaderPage> {
   final ScrollController _scrollController = ScrollController();
   final Set<String> _openedNodeIds = <String>{};
   final Set<String> _nodeLinkTapKeys = <String>{};
+  late LibraryReadProgressStore _readProgressStore;
   ChoiceEventTracker? _choiceEvents;
+  Timer? _progressSaveDebounce;
+  int _restoreRequestId = 0;
+  bool _bookmarkActive = false;
+  bool _userScrolledSinceRestoreRequest = false;
   double _horizontalDrag = 0;
   bool _dragConsumed = false;
   bool _dragStartedInNavigationEdge = false;
@@ -74,34 +85,37 @@ class _KemeticNodeReaderPageState extends State<KemeticNodeReaderPage> {
   @override
   void initState() {
     super.initState();
+    _readProgressStore = widget.readProgressStore ?? LibraryReadProgressStore();
     _choiceEvents =
         widget.choiceEvents ?? SupabaseChoiceEventTracker.tryCreate();
+    _scrollController.addListener(_scheduleProgressSave);
     _history.add(widget.node);
-    _recordNodeOpened(widget.node, sourceSurface: 'library_node_reader');
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (_scrollController.hasClients) {
-        _scrollController.jumpTo(0);
-      }
-    });
+    _beginNodeSession(widget.node, sourceSurface: 'library_node_reader');
   }
 
   @override
   void didUpdateWidget(covariant KemeticNodeReaderPage oldWidget) {
     super.didUpdateWidget(oldWidget);
+    if (oldWidget.readProgressStore != widget.readProgressStore) {
+      _readProgressStore =
+          widget.readProgressStore ?? LibraryReadProgressStore();
+    }
     if (oldWidget.node.id.toLowerCase() == widget.node.id.toLowerCase()) {
       return;
     }
+    _persistCurrentProgress();
     _openedNodeIds.clear();
     _nodeLinkTapKeys.clear();
     _history
       ..clear()
       ..add(widget.node);
-    _recordNodeOpened(widget.node, sourceSurface: 'library_node_reader');
-    _scrollToTop();
+    _beginNodeSession(widget.node, sourceSurface: 'library_node_reader');
   }
 
   @override
   void dispose() {
+    _progressSaveDebounce?.cancel();
+    _persistCurrentProgress(cancelDebounce: false);
     _scrollController.dispose();
     super.dispose();
   }
@@ -121,6 +135,133 @@ class _KemeticNodeReaderPageState extends State<KemeticNodeReaderPage> {
         metadata: <String, dynamic>{'node_title': node.title},
       ),
     );
+  }
+
+  void _beginNodeSession(KemeticNode node, {required String sourceSurface}) {
+    _recordNodeOpened(node, sourceSurface: sourceSurface);
+    _userScrolledSinceRestoreRequest = false;
+    final requestId = ++_restoreRequestId;
+    unawaited(_recordReaderOpenedAndRestore(node, requestId: requestId));
+  }
+
+  Future<void> _recordReaderOpenedAndRestore(
+    KemeticNode node, {
+    required int requestId,
+  }) async {
+    final progress = await _readProgressStore.recordOpened(node.id);
+    if (!_isActiveRestoreRequest(node, requestId)) return;
+    _setBookmarkActiveFor(node.id, progress);
+    _restoreScrollPositionFor(node.id, progress.resumeScrollOffset);
+  }
+
+  bool _isActiveRestoreRequest(KemeticNode node, int requestId) {
+    return mounted &&
+        requestId == _restoreRequestId &&
+        node.id.toLowerCase() == _node.id.toLowerCase();
+  }
+
+  void _restoreScrollPositionFor(String nodeId, double? scrollOffset) {
+    if (scrollOffset == null || scrollOffset <= 0) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || nodeId.toLowerCase() != _node.id.toLowerCase()) return;
+      if (_userScrolledSinceRestoreRequest) return;
+      if (!_scrollController.hasClients) return;
+      final position = _scrollController.position;
+      final targetOffset = scrollOffset
+          .clamp(0, position.maxScrollExtent)
+          .toDouble();
+      _scrollController.jumpTo(targetOffset);
+    });
+  }
+
+  void _scheduleProgressSave() {
+    _progressSaveDebounce?.cancel();
+    _progressSaveDebounce = Timer(const Duration(milliseconds: 450), () {
+      _progressSaveDebounce = null;
+      _persistCurrentProgress(cancelDebounce: false, updateBookmarkState: true);
+    });
+  }
+
+  void _persistCurrentProgress({
+    bool cancelDebounce = true,
+    bool updateBookmarkState = false,
+  }) {
+    unawaited(
+      _saveCurrentProgress(
+        cancelDebounce: cancelDebounce,
+        updateBookmarkState: updateBookmarkState,
+      ),
+    );
+  }
+
+  Future<LibraryNodeProgress?> _saveCurrentProgress({
+    bool cancelDebounce = true,
+    bool updateBookmarkState = false,
+  }) async {
+    if (cancelDebounce) {
+      _progressSaveDebounce?.cancel();
+      _progressSaveDebounce = null;
+    }
+    final sample = _currentProgressSample();
+    if (sample == null) return null;
+    final nodeId = _node.id;
+    final progress = await _readProgressStore.saveScrollProgress(
+      nodeId: nodeId,
+      progressPercent: sample.progressPercent,
+      lastScrollOffset: sample.scrollOffset,
+    );
+    if (updateBookmarkState) {
+      _setBookmarkActiveFor(nodeId, progress);
+    }
+    return progress;
+  }
+
+  _ReaderProgressSample? _currentProgressSample() {
+    if (!_scrollController.hasClients) return null;
+    final position = _scrollController.position;
+    final maxScrollExtent = position.maxScrollExtent;
+    final scrollOffset = position.pixels.clamp(0, maxScrollExtent).toDouble();
+    final progressPercent = maxScrollExtent <= 0
+        ? 100.0
+        : ((scrollOffset / maxScrollExtent) * 100).clamp(0, 100).toDouble();
+    return _ReaderProgressSample(
+      progressPercent: progressPercent,
+      scrollOffset: scrollOffset,
+    );
+  }
+
+  void _setBookmarkActiveFor(String nodeId, LibraryNodeProgress progress) {
+    if (!mounted || nodeId.toLowerCase() != _node.id.toLowerCase()) return;
+    final active = progress.isBookmarked && !progress.isCompleted;
+    if (_bookmarkActive == active) return;
+    setState(() {
+      _bookmarkActive = active;
+    });
+  }
+
+  Future<void> _toggleBookmark() async {
+    _progressSaveDebounce?.cancel();
+    _progressSaveDebounce = null;
+    final sample =
+        _currentProgressSample() ??
+        const _ReaderProgressSample(progressPercent: 0, scrollOffset: 0);
+    final nodeId = _node.id;
+    final LibraryNodeProgress progress;
+    if (_bookmarkActive) {
+      await _readProgressStore.saveScrollProgress(
+        nodeId: nodeId,
+        progressPercent: sample.progressPercent,
+        lastScrollOffset: sample.scrollOffset,
+      );
+      progress = await _readProgressStore.clearBookmark(nodeId);
+    } else {
+      progress = await _readProgressStore.setBookmark(
+        nodeId: nodeId,
+        progressPercent: sample.progressPercent,
+        scrollOffset: sample.scrollOffset,
+      );
+    }
+    _setBookmarkActiveFor(nodeId, progress);
   }
 
   void _recordNodeLinkTapped({
@@ -155,6 +296,7 @@ class _KemeticNodeReaderPageState extends State<KemeticNodeReaderPage> {
     final target = KemeticNodeLibrary.resolve(targetId);
     if (target == null) return;
     if (target.id.toLowerCase() == _node.id.toLowerCase()) return;
+    _persistCurrentProgress();
     _recordNodeLinkTapped(
       fromNode: _node,
       targetNode: target,
@@ -163,8 +305,7 @@ class _KemeticNodeReaderPageState extends State<KemeticNodeReaderPage> {
     setState(() {
       _history.add(target);
     });
-    _recordNodeOpened(target, sourceSurface: 'library_node_link');
-    _scrollToTop();
+    _beginNodeSession(target, sourceSurface: 'library_node_link');
   }
 
   Future<void> _scrollToTop() async {
@@ -174,22 +315,31 @@ class _KemeticNodeReaderPageState extends State<KemeticNodeReaderPage> {
     }
   }
 
-  bool _popNode() {
+  bool _popNode({bool persist = true}) {
     if (_history.length <= 1) return false;
+    if (persist) {
+      _persistCurrentProgress();
+    }
     setState(() {
       _history.removeLast();
     });
-    _scrollToTop();
+    _beginNodeSession(_node, sourceSurface: 'library_node_history');
     return true;
   }
 
-  void _handleBackNavigation() {
-    if (_popNode()) return;
+  Future<void> _handleBackNavigation() async {
+    await _saveCurrentProgress();
+    if (!mounted) return;
+    if (_popNode(persist: false)) return;
     final location = Uri(
       path: '/nodes',
       queryParameters: {'focus': _node.id},
     ).toString();
-    popOrGo(context, location);
+    if (GoRouter.maybeOf(context) != null) {
+      popOrGo(context, location);
+      return;
+    }
+    Navigator.maybeOf(context)?.pop();
   }
 
   bool _isInNavigationEdgeExclusion(DragStartDetails details) {
@@ -205,22 +355,21 @@ class _KemeticNodeReaderPageState extends State<KemeticNodeReaderPage> {
       await _scrollToTop();
       return;
     }
+    _persistCurrentProgress();
     setState(() {
       _history.add(target);
     });
-    _recordNodeOpened(target, sourceSurface: 'library_search');
-    await _scrollToTop();
+    _beginNodeSession(target, sourceSurface: 'library_search');
   }
 
   @override
   Widget build(BuildContext context) {
     final paragraphs = _buildParagraphs(_node);
     return PopScope(
-      canPop: _history.length <= 1,
+      canPop: false,
       onPopInvokedWithResult: (didPop, _) {
-        if (!didPop) {
-          _popNode();
-        }
+        if (didPop) return;
+        unawaited(_handleBackNavigation());
       },
       child: Scaffold(
         backgroundColor: CandlelitMahoganyBackground.base,
@@ -233,10 +382,24 @@ class _KemeticNodeReaderPageState extends State<KemeticNodeReaderPage> {
           leadingWidth: 64,
           leading: GlyphBackButton(
             showLabel: false,
-            onTap: _handleBackNavigation,
+            onTap: () {
+              unawaited(_handleBackNavigation());
+            },
           ),
           titleSpacing: 0,
           actions: [
+            KemeticAppBarAction(
+              tooltip: _bookmarkActive ? 'Remove bookmark' : 'Bookmark place',
+              icon: KemeticGold.icon(
+                _bookmarkActive
+                    ? Icons.bookmark
+                    : Icons.bookmark_border_outlined,
+                size: 22,
+              ),
+              onPressed: () {
+                unawaited(_toggleBookmark());
+              },
+            ),
             Padding(
               padding: const EdgeInsets.only(right: 22),
               child: KemeticAppBarAction(
@@ -325,27 +488,35 @@ class _KemeticNodeReaderPageState extends State<KemeticNodeReaderPage> {
                     _dragConsumed = false;
                     _dragStartedInNavigationEdge = false;
                   },
-                  child: SingleChildScrollView(
-                    controller: _scrollController,
-                    padding: EdgeInsets.fromLTRB(
-                      20,
-                      14,
-                      20,
-                      AppBottomInsets.scrollBottomPadding(context, 28),
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        _buildHeader(),
-                        const SizedBox(height: 18),
-                        ...paragraphs,
-                        NodeUserInsightsSection(
-                          node: _node,
-                          openEditorOnLoad: widget.openInsightEditorOnLoad,
-                          onRouteEditorConsumed:
-                              widget.onInsightEditorIntentConsumed,
-                        ),
-                      ],
+                  child: NotificationListener<UserScrollNotification>(
+                    onNotification: (notification) {
+                      if (notification.direction != ScrollDirection.idle) {
+                        _userScrolledSinceRestoreRequest = true;
+                      }
+                      return false;
+                    },
+                    child: SingleChildScrollView(
+                      controller: _scrollController,
+                      padding: EdgeInsets.fromLTRB(
+                        20,
+                        14,
+                        20,
+                        AppBottomInsets.scrollBottomPadding(context, 28),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          _buildHeader(),
+                          const SizedBox(height: 18),
+                          ...paragraphs,
+                          NodeUserInsightsSection(
+                            node: _node,
+                            openEditorOnLoad: widget.openInsightEditorOnLoad,
+                            onRouteEditorConsumed:
+                                widget.onInsightEditorIntentConsumed,
+                          ),
+                        ],
+                      ),
                     ),
                   ),
                 );
@@ -794,6 +965,16 @@ class _KemeticNodeReaderPageState extends State<KemeticNodeReaderPage> {
 
     return quotesBefore.isOdd && quotesThrough >= quotesBefore;
   }
+}
+
+class _ReaderProgressSample {
+  const _ReaderProgressSample({
+    required this.progressPercent,
+    required this.scrollOffset,
+  });
+
+  final double progressPercent;
+  final double scrollOffset;
 }
 
 class _LinkMatch {
