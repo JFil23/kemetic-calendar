@@ -651,658 +651,598 @@ final List<DecanDayInfo> _compressedHathorFlowRows3 = _buildFlowRows([
 final List<DecanDayInfo> _compressedKaherkaFlowRows1 = _buildFlowRows([
   (
     day: 1,
-    theme: 'See the Ground as It Is',
+    theme: 'See the Ground',
     action:
-        'The flood drains and the field lies bare. Before any tool is lifted, the Kemite walks out and reads what the water left.',
-    reflection: '"A beginning starts from what is here, not what was hoped."',
+        'Look honestly at where you actually stand before you plan a thing.',
+    reflection: '"What is truly here to work with?"',
   ),
   (
     day: 2,
-    theme: 'Clear the Wreckage',
-    action:
-        'Debris litters the fresh silt. The old reed and broken stalk are carried off, because seed dropped on clutter never roots.',
-    reflection: '"The ground is made empty before it is filled."',
+    theme: 'Clear the Ground',
+    action: 'Remove the old wreckage so something new has room to take root.',
+    reflection: '"What must I carry off first?"',
   ),
   (
     day: 3,
-    theme: 'Spend the Best of What Was Saved',
-    action:
-        'At the grain jar, the fullest seed is set apart for the ground, because weak grain returns a weak crop.',
-    reflection:
-        '"What is held back from the planting is held back from the year."',
+    theme: 'Spend the Best',
+    action: 'Commit your strongest effort to the start, not your leftovers.',
+    reflection: '"Am I planting my best, or hoarding it?"',
   ),
   (
     day: 4,
-    theme: 'The Seed Leaves the Hand',
+    theme: 'Release the Seed',
     action:
-        'The grain is cast across the field. Once it lands it cannot be gathered back, so the sowing is done with care.',
-    reflection: '"What is committed cannot be uncommitted."',
+        'Commit with care, knowing it cannot be taken back once it leaves your hand.',
+    reflection: '"What am I ready to commit for good?"',
   ),
   (
     day: 5,
-    theme: 'Ground the Body',
-    action:
-        'Bare feet, slow breath, real food, water. The ka requires a body in order to act.',
-    reflection: '"Is my body ready to carry what I am placing?"',
+    theme: 'Trust the Unseen',
+    action: 'Let what is forming form, without digging it up to be sure.',
+    reflection: '"Can I trust what I cannot yet see?"',
   ),
   (
     day: 6,
-    theme: 'Read the Returning Pattern',
-    action:
-        'Note what has persisted through the disruption — the habits, relationships, disciplines that held.',
-    reflection: '"What pattern returns without being forced?"',
+    theme: 'Mend the Commons',
+    action: 'Help keep up what protects everyone, not only yourself.',
+    reflection: '"What shared thing needs my hands?"',
   ),
   (
     day: 7,
-    theme: 'Guard Speech as Seed',
-    action:
-        'Say only what you intend to feed. Leave unspoken what you intend to leave behind.',
-    reflection: '"What am I planting with my mouth?"',
+    theme: 'Keep Your Pace',
+    action: 'Hear how fast others move, then return to your own timing.',
+    reflection: '"Whose pace am I carrying that isn\'t mine?"',
   ),
   (
     day: 8,
-    theme: 'Place the Seed',
-    action:
-        'Set the intention, practice, or project into the ground. Not preparation — placement. It goes in today.',
-    reflection: '"What seed is ready?"',
+    theme: 'Guard the Small',
+    action: 'Let the first fragile sign grow before you fuss over it.',
+    reflection: '"What new thing needs to be left alone?"',
   ),
   (
     day: 9,
-    theme: 'Trust Hidden Work',
-    action:
-        'Do not dig up what you just planted to check on it. Leave it in the dark.',
-    reflection: '"Can I trust hidden life?"',
+    theme: 'Hold Less',
+    action: 'Give up some good growth so the whole can grow strong.',
+    reflection: '"What good thing must I let go of?"',
   ),
   (
     day: 10,
-    theme: 'Seal the Field',
-    action:
-        'Close the vigil. Stop attending to what you placed. Seal the field and let it rest.',
-    reflection: '"Can the old form rest?"',
+    theme: 'Let It Hold',
+    action: 'Trust what you set in place, and give it the patience it needs.',
+    reflection: '"Have I done the start, and can I now wait?"',
   ),
 ]);
 
 final List<DecanDayInfo> _compressedKaherkaFlowRows2 = _buildFlowRows([
   (
     day: 11,
-    theme: 'The Daily Round',
-    action:
-        'The field needs no heroics now, only return. The Kemite walks the same rows each morning, and the steadiness is the work.',
-    reflection: '"What is begun is kept alive by returning, not by surges."',
+    theme: 'Return Daily',
+    action: 'Keep showing up to the work after the excitement has gone.',
+    reflection: '"What needs my steady return?"',
   ),
   (
     day: 12,
-    theme: 'The First Pest',
-    action:
-        'Insects find the young leaves. The Kemite acts at once, before a few become many.',
-    reflection: '"A small threat is met while it is still small."',
+    theme: 'Meet It Small',
+    action: 'Address the small threat now, before it grows past meeting.',
+    reflection: '"What small thing am I letting slide?"',
   ),
   (
     day: 13,
-    theme: 'Water by Measure',
+    theme: 'Spend by Measure',
     action:
-        'The channel is opened just enough and no more, because too much water rots the root as surely as too little starves it.',
-    reflection: '"The right amount is its own discipline."',
+        'Ration what must last against the long wait, not the hunger of the moment.',
+    reflection: '"What must I make last?"',
   ),
   (
     day: 14,
-    theme: 'The Shared Channel',
-    action:
-        'The water that feeds one field passes first through others. The Kemite takes his measure and lets it move on.',
-    reflection: '"What is shared is used in turn, not seized."',
+    theme: 'Share in Turn',
+    action: 'Take your measure of what is shared, then let it move on.',
+    reflection: '"Am I taking more than my turn?"',
   ),
   (
     day: 15,
-    theme: 'Endure the Wind',
+    theme: 'Outlast the Wind',
     action:
-        'A hard wind flattens part of the field. The Kemite does not fight the sky; he waits, then lifts what can be lifted.',
-    reflection: '"Some forces are endured, not opposed."',
+        'Stop fighting what you cannot move; wait it out, then begin again.',
+    reflection: '"What am I wasting strength fighting?"',
   ),
   (
     day: 16,
-    theme: 'The Row That Failed',
-    action:
-        'One row never took. The Kemite turns it under and gives its water to the rows that thrive.',
-    reflection: '"Strength is moved from what failed to what is working."',
+    theme: 'Move Your Strength',
+    action: 'Shift effort from what has failed to what is working.',
+    reflection: '"Where am I still pouring effort that\'s gone?"',
   ),
   (
     day: 17,
     theme: 'Hold the Hand Back',
-    action:
-        'The crop is strong, and the urge is to push it harder. The Kemite does nothing extra, because a thriving field is spoiled by over-handling.',
-    reflection: '"Strength is shown as much in restraint as in force."',
+    action: 'Show strength by not acting, when the work needs no driving.',
+    reflection: '"Where would restraint serve better than force?"',
   ),
   (
     day: 18,
-    theme: 'Read the Crop',
+    theme: 'Read the Signs',
     action:
-        'A yellow leaf, a curled edge — the field speaks in small signs. The Kemite reads them and adjusts before trouble spreads.',
-    reflection: '"The work tells what it needs to the one who watches."',
+        'Watch closely and answer the small signals before trouble spreads.',
+    reflection: '"What is the work quietly telling me?"',
   ),
   (
     day: 19,
-    theme: 'The Borrowed Hands',
-    action:
-        'A heavy task needs more than one back. The Kemite calls on a neighbor, knowing the call will come back to him in turn.',
-    reflection: '"Help given is help stored against the day it is needed."',
+    theme: 'Lend and Borrow',
+    action: 'Give help freely; it returns the day your own load is too heavy.',
+    reflection: '"Whose help have I stored, or owe?"',
   ),
   (
     day: 20,
-    theme: 'The Field Stands',
+    theme: 'It Stands',
     action:
-        'The crop stands firm and green, past its fragile start. What was tended carefully now holds on its own.',
-    reflection: '"What was governed with care now stands on its own."',
+        'See what your care has built, now strong enough to hold on its own.',
+    reflection: '"What have I governed into strength?"',
   ),
 ]);
 
 final List<DecanDayInfo> _compressedKaherkaFlowRows3 = _buildFlowRows([
   (
     day: 21,
-    theme: 'Work as Offering',
+    theme: 'Let It Give Time Back',
     action:
-        'Approach today\'s labor as something placed in front of Ma\'at, not performed for an audience.',
-    reflection: '"Am I working or am I proving?"',
+        'When the work can stand, let it return you to the rest of your life.',
+    reflection: '"What has my work been keeping me from?"',
   ),
   (
     day: 22,
-    theme: 'Reopen the Flow',
-    action:
-        'Clear one blockage — financial, relational, creative, physical. Let the current move.',
-    reflection: '"Where has the channel silted shut?"',
+    theme: 'Keep Order Early',
+    action: 'Keep things in good order before there is plenty to show for it.',
+    reflection: '"What deserves care before the reward arrives?"',
   ),
   (
     day: 23,
-    theme: 'Raise the Djed',
-    action:
-        'Stand back up one thing that was knocked flat: a boundary, a practice, a standard you dropped.',
-    reflection: '"What will I stand upright again?"',
+    theme: 'Witness It Now',
+    action: 'Record what is true now, while the marks are still fresh.',
+    reflection: '"What should I note before it fades?"',
   ),
   (
     day: 24,
-    theme: 'Maintain the Vessel',
+    theme: 'Learn What Not to Harm',
     action:
-        'Tend the physical space. Your dwelling is the ka\'s working environment.',
-    reflection: '"Does this space support life?"',
+        'Teach the young what must not be stepped on before giving them a task.',
+    reflection: '"What must be protected as others learn?"',
   ),
   (
     day: 25,
-    theme: 'Relight the Flame',
+    theme: 'Even the Uneven',
     action:
-        'Kindle one thing that went cold in the flood months. Cup it until it holds.',
-    reflection: '"What flame must I tend to keep this alive?"',
+        'When fortune lands unequally, move some of yours toward the short.',
+    reflection: '"Where did luck fall unevenly near me?"',
   ),
   (
     day: 26,
-    theme: 'Set the Stroke with the Crew',
+    theme: 'Small Hands Guard',
     action:
-        'Coordinate with those who share your field. Shared direction, shared meal, shared account.',
-    reflection: '"Who rows beside me in this season?"',
+        'Let even unskilled effort defend what is still too young to defend itself.',
+    reflection: '"What small help is guarding something fragile?"',
   ),
   (
     day: 27,
-    theme: 'Honor What Survived',
+    theme: 'Make for the Unseen Day',
     action:
-        'Name what held through the flood. Not what you wish had happened — what actually endured.',
-    reflection: '"What strength survived?"',
+        'Prepare the tools a later task will need, before the need is visible.',
+    reflection: '"What am I making ready for a day not here yet?"',
   ),
   (
     day: 28,
-    theme: 'Give Thanks in Motion',
+    theme: 'Hold the Pattern',
     action:
-        'Work and give thanks simultaneously. The offering is in the labor itself.',
-    reflection: '"Am I remembering the source while I act?"',
+        'Set this season among the others, so it is not mistaken for the first.',
+    reflection: '"What pattern keeps me from losing perspective?"',
   ),
   (
     day: 29,
-    theme: 'Align With the Season',
+    theme: 'Name the Debt',
     action:
-        'Match your pace to what this moment actually requires. Not what you wish — what is real.',
-    reflection: '"Is my rhythm fighting life?"',
+        'Speak the obligation plainly now, while it is still a relationship.',
+    reflection: '"What unspoken debt should I name clearly?"',
   ),
   (
     day: 30,
-    theme: 'Seal the Month',
+    theme: 'It Has Entered Every House',
     action:
-        'Close Ka-ḥer-ka with an honest accounting. What was placed, what returned, what now holds. Hand it forward clean.',
-    reflection: '"What am I carrying into the next month?"',
+        'See how what took root in private has already changed the life around it.',
+    reflection: '"What that I began has quietly reshaped the whole?"',
   ),
 ]);
 
 final List<DecanDayInfo> _compressedShefbedetFlowRows1 = _buildFlowRows([
   (
     day: 1,
-    theme: 'Witness the First Growth',
+    theme: 'Meet What Emerges',
     action:
-        'Look at what has emerged without grabbing it. Presence before management.',
-    reflection: '"What has broken the surface?"',
+        'Greet what has come into the open instead of trusting it from afar.',
+    reflection: '"What has finally shown itself to me?"',
   ),
   (
     day: 2,
-    theme: 'Do Not Harvest Early',
+    theme: 'Begin the Real Work',
     action:
-        'Resist pulling return before it is ready. A shoot pulled too soon does not replant.',
-    reflection: '"Am I moving too fast for what is growing?"',
+        'Once a thing becomes itself, begin the real tending the easy part hid.',
+    reflection: '"What real work begins now that this is real?"',
   ),
   (
     day: 3,
-    theme: 'Give It Water',
-    action:
-        'Apply one direct resource to the thing that emerged: time, attention, money, rest.',
-    reflection: '"What does this growth actually need?"',
+    theme: 'Order Your Attention',
+    action: 'Choose what to tend first instead of scattering yourself thin.',
+    reflection: '"What deserves my attention first?"',
   ),
   (
     day: 4,
-    theme: 'Clear What Competes',
-    action:
-        'Remove one thing drawing from the same soil. Not everything — the most damaging one.',
-    reflection: '"What is competing for this root?"',
+    theme: 'Check the Fast Patch',
+    action: 'Look beneath what grows fastest instead of trusting its speed.',
+    reflection: '"What looks impressive but unproven?"',
   ),
   (
     day: 5,
-    theme: 'Name What Has Changed',
-    action:
-        'Something is different from last month. Name it plainly without overstating it.',
-    reflection: '"What is actually different now?"',
+    theme: 'Tend What Lags',
+    action: 'Give the most care to your weakest ground, not the least.',
+    reflection: '"What part am I tempted to write off?"',
   ),
   (
     day: 6,
-    theme: 'Protect Without Smothering',
+    theme: 'Keep the Boundary',
     action:
-        'Guard the emerging thing from early pressure — but do not cage it.',
-    reflection: '"Am I protecting or controlling?"',
+        'Hold the line that keeps one hunger from becoming another\'s harm.',
+    reflection: '"What boundary protects more than it limits?"',
   ),
   (
     day: 7,
-    theme: 'Let It Be Seen',
-    action:
-        'Show the emergence to one person who can witness it well — not critique it, witness it.',
-    reflection: '"Who can see this without damaging it?"',
+    theme: 'Name the Imitator',
+    action: 'Learn what only mimics the real work, and remove it.',
+    reflection: '"What blends in that does not belong?"',
   ),
   (
     day: 8,
-    theme: 'Work the Row',
-    action:
-        'Return to basic tending. Not inspired work — steady, repeated care.',
-    reflection: '"Am I showing up for the ordinary maintenance?"',
+    theme: 'Set Things in Order',
+    action: 'Put things in order now, before need begins to shout.',
+    reflection: '"What should I count while it is still quiet?"',
   ),
   (
     day: 9,
-    theme: 'Read the Condition',
-    action:
-        'Check what the growth is actually doing. Not what you hoped — what is real.',
-    reflection: '"What is the honest condition of this?"',
+    theme: 'Shape for What\'s Coming',
+    action: 'Prepare a place for the good that has not yet arrived.',
+    reflection: '"What am I preparing to receive?"',
   ),
   (
     day: 10,
-    theme: 'Seal the First Interval',
-    action:
-        'Note what emerged in ten days. Close the first watch. The roots are beginning.',
-    reflection: '"What truly emerged?"',
+    theme: 'See It Whole',
+    action: 'Take in the whole before tending the parts in right order.',
+    reflection: '"Have I seen the whole of this yet?"',
   ),
 ]);
 
 final List<DecanDayInfo> _compressedShefbedetFlowRows2 = _buildFlowRows([
   (
     day: 11,
-    theme: 'Feed the Root, Not the Leaf',
-    action:
-        'Direct resources at the foundation of what is growing, not its visible surface.',
-    reflection: '"Am I feeding the root or performing care?"',
+    theme: 'Look Beneath',
+    action: 'Check below the surface; do not trust the green leaf alone.',
+    reflection: '"What looks fine on top but isn\'t underneath?"',
   ),
   (
     day: 12,
-    theme: 'Extend the Row',
-    action:
-        'Grow the practice or project by one unit. Longer, wider, more consistent.',
-    reflection: '"What is the next step, not the next leap?"',
+    theme: 'Stop at Enough',
+    action: 'Stop your care at the limit of what can be received.',
+    reflection: '"Where is my giving becoming too much?"',
   ),
   (
     day: 13,
-    theme: 'Weatherproof It',
-    action:
-        'Identify the condition that would damage this if it hit today. Build one layer of protection.',
-    reflection: '"What would damage this if it came now?"',
+    theme: 'Guide the Growth',
+    action: 'Guide how the work grows, not only that it grows.',
+    reflection: '"What needs shaping, not just feeding?"',
   ),
   (
     day: 14,
-    theme: 'Build the Rhythm',
-    action:
-        'Set a repeating cadence for the tending: daily, weekly, a specific time. Make it structural.',
-    reflection: '"Does this have a rhythm or just intention?"',
+    theme: 'Let It Be',
+    action: 'Let what is thriving alone, and call the waiting care.',
+    reflection: '"What needs nothing from me right now?"',
   ),
   (
     day: 15,
-    theme: 'Bring Others Into It',
-    action:
-        'Share what is growing with someone who will actively support it — not observe it, support it.',
-    reflection: '"Who belongs in this field with me?"',
+    theme: 'Tend Ahead',
+    action: 'Prepare for the weather that has not yet come.',
+    reflection: '"What am I not yet ready for?"',
   ),
   (
     day: 16,
-    theme: 'Address the Lean',
-    action:
-        'Find where it is growing unevenly. Correct toward balance before it becomes a structural problem.',
-    reflection: '"Where is this leaning that will become a problem?"',
+    theme: 'Time the Gift',
+    action: 'Give at the hour the gift can actually be used.',
+    reflection: '"When, not just what, should I give?"',
   ),
   (
     day: 17,
-    theme: 'Rest the Farmer',
-    action:
-        'The field grows while the farmer sleeps. Rest is maintenance, not absence.',
-    reflection: '"Am I resting enough to sustain this?"',
+    theme: 'Sharpen Early',
+    action: 'Ready what future work will need, before the need shouts.',
+    reflection: '"What should I sharpen now for later?"',
   ),
   (
     day: 18,
-    theme: 'Measure the Growth',
-    action:
-        'Quantify one change from Day 1 of Šef-Bedet to today. Make it concrete.',
-    reflection: '"How much has actually changed?"',
+    theme: 'Trust the Unseen',
+    action: 'Trust what ripens out of sight, without needing to watch it.',
+    reflection: '"What can I trust to work without watching?"',
   ),
   (
     day: 19,
-    theme: 'Thin the Row',
-    action:
-        'Remove one extra demand, weak shoot, or competing growth the field cannot support right now.',
-    reflection: '"What must be thinned?"',
+    theme: 'Tend the Strength',
+    action: 'Care for what you rely on before you ask it to carry weight.',
+    reflection: '"What strength have I leaned on but not tended?"',
   ),
   (
     day: 20,
-    theme: 'Survey the Field',
-    action:
-        'Stand back. Look at the whole, not just the part you have been tending. Note the full condition.',
-    reflection: '"What does the whole field look like?"',
+    theme: 'Keep It Just',
+    action: 'Restore a wrong cleanly, so tomorrow can grow without bitterness.',
+    reflection: '"What must I set right before it festers?"',
   ),
 ]);
 
 final List<DecanDayInfo> _compressedShefbedetFlowRows3 = _buildFlowRows([
   (
     day: 21,
-    theme: 'Let It Root',
-    action:
-        'Stop moving the plant. Consistent conditions now. Stability is the final act of establishment.',
-    reflection: '"Have I let this stay long enough to root?"',
+    theme: 'Let It Outgrow You',
+    action: 'Watch with open hands; let the living thing live beyond you.',
+    reflection: '"What have I been holding too tightly?"',
   ),
   (
     day: 22,
-    theme: 'Name What This Has Become',
-    action:
-        'Give the growing thing its actual name — what it is now, not what you hoped it would be.',
-    reflection: '"What is this, honestly?"',
+    theme: 'Tell Urge From Need',
+    action: 'Hold still when the urge to act is not a real need.',
+    reflection: '"Is this a need to act, or only an itch?"',
   ),
   (
     day: 23,
-    theme: 'Build for Harder Conditions',
-    action:
-        'Add one layer of protection while the growth is still easy to support.',
-    reflection: '"What will this need under pressure?"',
+    theme: 'Let It Struggle',
+    action: 'Let a small hardship stand, so real strength can grow from it.',
+    reflection: '"What struggle am I tempted to rescue too soon?"',
   ),
   (
     day: 24,
-    theme: 'Give Thanks for the Ground',
+    theme: 'Help Before Asked',
     action:
-        'Acknowledge what made this growth possible — the flood, the silt, Ka-ḥer-ka\'s preparation, other people\'s work.',
-    reflection: '"What held the ground so this could grow?"',
+        'Pass the tool across the boundary before loss has a chance to spread.',
+    reflection: '"Where is help needed before it\'s requested?"',
   ),
   (
     day: 25,
-    theme: 'Commit to What Has Proven Itself',
-    action:
-        'Record, formalize, or commit to one thing that should no longer be treated as a trial.',
-    reflection: '"What needs to stop being temporary?"',
+    theme: 'Honor Hidden Hands',
+    action: 'Honor the unseen hands inside what appears clean and finished.',
+    reflection: '"Whose hidden work am I standing on?"',
   ),
   (
     day: 26,
-    theme: 'Tend the Edges',
+    theme: 'Feed the Memory',
     action:
-        'The center of the field has your attention. Tend the edges today — what is peripheral but still alive.',
-    reflection: '"What at the edge needs care?"',
+        'Remember those who came before, so courage can return to the work.',
+    reflection: '"Who steadies me by being remembered?"',
   ),
   (
     day: 27,
-    theme: 'Trust What Is Established',
+    theme: 'Trade in Trust',
     action:
-        'The roots are in. Stop treating this as fragile. Act from the assumption that it will hold.',
-    reflection: '"Am I still treating this as more fragile than it is?"',
+        'Trade in ways that leave the relationship still standing tomorrow.',
+    reflection: '"Does this exchange leave trust intact?"',
   ),
   (
     day: 28,
-    theme: 'Offer the Month',
+    theme: 'Release Control',
     action:
-        'Place what this month produced in front of Ma\'at. Not the crop — the farmer, the field, the care given.',
-    reflection: '"What did I tend that Ma\'at can weigh?"',
+        'Act rightly without pretending to command what is larger than you.',
+    reflection: '"What must I act on, and what must I release?"',
   ),
   (
     day: 29,
-    theme: 'Align With What Comes Next',
-    action:
-        'Šef-Bedet ends tomorrow. Read what the next month requires. Begin the transition in the body and mind.',
-    reflection: '"Am I ready for what the next season asks?"',
+    theme: 'Ready the Tools',
+    action: 'Let your waiting become readiness for the moment of need.',
+    reflection: '"Is my waiting filled, or just empty?"',
   ),
   (
     day: 30,
-    theme: 'Seal the Month',
-    action:
-        'Close Šef-Bedet. Account for what grew. Hand it forward into the next month as a field in production, not a field in emergence.',
-    reflection: '"What am I handing forward?"',
+    theme: 'Carry a World',
+    action: 'Carry this not as a single moment, but as a whole world begun.',
+    reflection: '"What cycle have I begun?"',
   ),
 ]);
 
 final List<DecanDayInfo> _compressedRekhwerFlowRows1 = _buildFlowRows([
   (
     day: 1,
-    theme: 'Know What You Are Tending',
+    theme: 'It Enters Other Mouths',
     action:
-        'Name what is growing clearly. What kind of thing is it? What does it actually need at this stage?',
-    reflection: '"Do I know what I am tending?"',
+        'Accept that once a thing can be seen, it no longer belongs to you alone.',
+    reflection: '"What of mine has begun a public life?"',
   ),
   (
     day: 2,
-    theme: 'Read the Condition Before Acting',
+    theme: 'Keep the Same Loaf',
     action:
-        'Before any work on the growing thing today, observe first. What is the current state?',
-    reflection: '"What does the field say before I say anything?"',
+        'Do not spend on promise; let the proof arrive before the portion grows.',
+    reflection: '"Where am I spending on hope, not yield?"',
   ),
   (
     day: 3,
-    theme: 'Use the Right Tool',
-    action:
-        'Match the instrument to the task. The wrong tool applied with effort still damages the crop.',
-    reflection: '"Is this the right tool for what this requires?"',
+    theme: 'Meet Need With Dignity',
+    action: 'Answer another\'s need before it becomes a public shame.',
+    reflection: '"Whose need could I meet before it is exposed?"',
   ),
   (
     day: 4,
-    theme: 'Learn What You Do Not Yet Know',
+    theme: 'Refuse the Hurry',
     action:
-        'Name one gap in your understanding of what you are growing. Find the answer today.',
-    reflection: '"What do I not know that is costing the field?"',
+        'Let skill guide pressure; what is rushed folds before it can hold.',
+    reflection: '"What am I trying to raise too fast?"',
   ),
   (
     day: 5,
-    theme: 'Correct the Technique',
-    action:
-        'Find where your method is imprecise. Refine it before the season demands full capacity.',
-    reflection: '"Where is my technique costing more than it should?"',
+    theme: 'Let the Heat Decide',
+    action: 'Shape what feeds many by readiness, not by appetite.',
+    reflection: '"What am I rushing to feed before it\'s ready?"',
   ),
   (
     day: 6,
-    theme: 'Apply Knowledge, Not Just Effort',
-    action:
-        'Work smarter through understanding today, not just harder through repetition.',
-    reflection: '"Am I applying knowledge or just force?"',
+    theme: 'Ask Who Saw It',
+    action: 'Stop a loose word by asking what is true before it hardens.',
+    reflection: '"What rumor am I letting pass unquestioned?"',
   ),
   (
     day: 7,
-    theme: 'Teach What You Know',
-    action:
-        'Pass one piece of working knowledge to someone in your field. Shared craft strengthens the whole network.',
-    reflection: '"What do I know that someone nearby needs?"',
+    theme: 'Teach the Reason',
+    action: 'Pass on not just the motion, but the reason that keeps it alive.',
+    reflection: '"What do I do well that I cannot yet explain?"',
   ),
   (
     day: 8,
-    theme: 'Receive Correction',
+    theme: 'Let Joy Wait',
     action:
-        'Ask someone with more field experience to review what you are doing. Receive their correction without defense.',
-    reflection: '"Can I receive correction?"',
+        'Look ahead with hope, but wait to promise until the house can bear it.',
+    reflection: '"What promise am I tempted to make too early?"',
   ),
   (
     day: 9,
-    theme: 'Document the Method',
+    theme: 'Give a Clean Limit',
     action:
-        'Write down what is working. A method that exists only in memory gets lost at the worst moment.',
-    reflection: '"Is the knowledge recorded or only in my head?"',
+        'Set the honest limit; a promise too large becomes tomorrow\'s betrayal.',
+    reflection: '"Where would a clean no protect more than a yes?"',
   ),
   (
     day: 10,
-    theme: 'Close the First Knowing',
-    action:
-        'Note what you now understand about this field that you did not at the month\'s start. The knowing is the foundation.',
-    reflection: '"What do I know now that I did not know ten days ago?"',
+    theme: 'Guard the Unfinished',
+    action: 'Protect what is unfinished from the stories built around it.',
+    reflection: '"What expectation must I keep from outrunning the work?"',
   ),
 ]);
 
 final List<DecanDayInfo> _compressedRekhwerFlowRows2 = _buildFlowRows([
   (
     day: 11,
-    theme: 'Act From What You Know',
+    theme: 'First Form Is Not Final',
     action:
-        'Apply the knowledge built in Decan I without re-litigating it. Less questioning, more competent action.',
-    reflection: '"Am I acting from knowledge or still gathering it?"',
+        'Do not treat early shape as a finished outcome; it can still turn.',
+    reflection: '"What have I called done that is only begun?"',
   ),
   (
     day: 12,
-    theme: 'Maintain the Standard',
-    action:
-        'Hold the quality you established. Do not let the standard drift under pressure or fatigue.',
-    reflection: '"Is the standard holding or drifting?"',
+    theme: 'See Before You Act',
+    action: 'Let the eye catch the flaw before the hand moves to fix it.',
+    reflection: '"Where should I pause before acting?"',
   ),
   (
     day: 13,
-    theme: 'Work the Difficult Section',
-    action:
-        'The part of the field you have been avoiding. Go there today with full attention.',
-    reflection: '"What part of this have I been avoiding?"',
+    theme: 'Count What Can Hold',
+    action: 'Judge what is real strength from what is only crowded show.',
+    reflection: '"What looks like growth but cannot hold?"',
   ),
   (
     day: 14,
-    theme: 'Calibrate the Pace',
-    action:
-        'Match effort to what the field actually requires today — not yesterday\'s urgency, not tomorrow\'s anxiety.',
-    reflection: '"Am I moving at the pace the field needs?"',
+    theme: 'Confirm by Return',
+    action: 'Trust guidance proven over many seeings, not a single glance.',
+    reflection: '"What am I judging on one look alone?"',
   ),
   (
     day: 15,
-    theme: 'Strengthen What Is Weak',
-    action:
-        'Find the weakest section of what you are growing. Direct skilled attention there today.',
-    reflection: '"Where is the weakest point in what I am building?"',
+    theme: 'Shape Help to Fragility',
+    action: 'Match the force of your help to what the thing can bear.',
+    reflection: '"Where is my help too heavy for what it helps?"',
   ),
   (
     day: 16,
-    theme: 'Protect the Knowledge',
-    action:
-        'What you have learned this month could be disrupted. Guard the method against conditions that would erode it.',
-    reflection: '"What would cause me to lose what I have learned?"',
+    theme: 'Hold Without Choking',
+    action: 'Bind firmly enough to hold, loosely enough to let life move.',
+    reflection: '"Where am I holding too tight, or too loose?"',
   ),
   (
     day: 17,
-    theme: 'Work With Another\'s Knowledge',
-    action:
-        'Apply something learned from someone else — a method, a correction, a piece of advice not yet fully used.',
-    reflection: '"Whose knowledge am I not yet using?"',
+    theme: 'Know Which Hurt to Help',
+    action: 'Tell what needs help, what needs time, and what must be released.',
+    reflection: '"What needs help, what needs time, what needs letting go?"',
   ),
   (
     day: 18,
-    theme: 'Read the Growth Accurately',
-    action:
-        'Measure or assess honestly what the field produced in this second interval. Not how it felt — what actually grew.',
-    reflection: '"What does the honest measure say?"',
+    theme: 'Let the Heat Leave',
+    action: 'Wait for anger to cool before you judge; heat distorts the scale.',
+    reflection: '"What should I not decide while still hot?"',
   ),
   (
     day: 19,
-    theme: 'Adjust the Method',
+    theme: 'Correct to Shape',
     action:
-        'Based on Day 18\'s honest reading, change one thing about how you are working. The method must serve the field, not the other way.',
-    reflection: '"What does the reading require me to change?"',
+        'Correct in a way that shapes the person, not just punishes the act.',
+    reflection: '"Am I correcting to teach, or only to punish?"',
   ),
   (
     day: 20,
-    theme: 'Account for the Decan',
-    action:
-        'Two decans of Rekh-Wer complete. What knowledge was built and applied? What does the field now require for the final ten days?',
-    reflection: '"What does the field need from the last decan?"',
+    theme: 'What Is Judged Holds',
+    action: 'Let the heart govern the hand, and what is formed will hold.',
+    reflection: '"What have I shaped with judgment, not just effort?"',
   ),
 ]);
 
 final List<DecanDayInfo> _compressedRekhwerFlowRows3 = _buildFlowRows([
   (
     day: 21,
-    theme: 'Consolidate What You Know',
-    action:
-        'Review the knowledge built this month. What is solid? What still needs reinforcement before the month closes?',
-    reflection: '"What do I know well enough to teach?"',
+    theme: 'Proven by Returning',
+    action: 'Build trust by appearing rightly, again and again.',
+    reflection: '"What earns trust by how reliably it returns?"',
   ),
   (
     day: 22,
-    theme: 'Close the Knowledge Gap',
-    action:
-        'The gap identified in Day 4 — has it been closed? If not, close it now before the month ends.',
-    reflection: '"Is the gap closed or still costing the field?"',
+    theme: 'Effort That Knows Where to Go',
+    action: 'Spend effort where it is needed, not equally on everything.',
+    reflection: '"Where am I working hard in the wrong places?"',
   ),
   (
     day: 23,
-    theme: 'Strengthen the Method for Carrying',
-    action:
-        'What you built this month must survive into next month. Strengthen it against the conditions ahead.',
-    reflection: '"Will this method hold into the next month?"',
+    theme: 'It Holds Without You',
+    action: 'Let what you taught be carried by another, unwatched.',
+    reflection: '"What have I taught well enough to leave alone?"',
   ),
   (
     day: 24,
-    theme: 'Work the Field at Full Skill',
+    theme: 'Carry, Don\'t Display',
     action:
-        'Bring everything learned this month to bear today. Not effort — the full precision of what was practiced.',
-    reflection: '"Am I working at the level I have built?"',
+        'Let competence prove itself by carrying people safely, not by show.',
+    reflection: '"Where am I performing skill instead of using it?"',
   ),
   (
     day: 25,
-    theme: 'Pass the Knowledge On',
-    action:
-        'Whatever you learned this month that worked — write it, share it, formalize it so it survives beyond this season.',
-    reflection: '"Who or what carries this knowledge after me?"',
+    theme: 'Look at the Right Hour',
+    action: 'Look when the sign can be seen; some truths show only briefly.',
+    reflection: '"What can I only catch at the right moment?"',
   ),
   (
     day: 26,
-    theme: 'Tend the Overlooked',
+    theme: 'Test Before the Load',
     action:
-        'The section that got the least skilled attention this month. Give it focused care before the month closes.',
-    reflection: '"What did I under-tend this month?"',
+        'Test again what carried weight before; past strength is not present proof.',
+    reflection: '"What am I trusting only because it held last time?"',
   ),
   (
     day: 27,
-    theme: 'Read the Full Field',
-    action:
-        'Stand back from all of Rekh-Wer. What does the whole field look like? What will it need in Rekh-Nedjes?',
-    reflection: '"What does the full field tell me?"',
+    theme: 'Catch the First Tightening',
+    action: 'Act at the first sign of trouble, before it becomes a break.',
+    reflection: '"What early tension can I ease before it snaps?"',
   ),
   (
     day: 28,
-    theme: 'Offer the Craft',
-    action:
-        'The knowledge applied this month is an offering. Place the quality of your craft in front of Ma\'at.',
-    reflection: '"Did I work with the quality Ma\'at would recognize?"',
+    theme: 'Let It Speak Back',
+    action: 'Let what you taught correct you; that is when it has taken root.',
+    reflection: '"Can what I taught now teach me?"',
   ),
   (
     day: 29,
-    theme: 'Prepare the Transition',
+    theme: 'Vigilance Shared',
     action:
-        'Rekh-Nedjes opens next month. Read what it will require. Begin adjusting the approach before the month turns.',
-    reflection: '"What does the next month require that this one did not?"',
+        'Let trusted knowledge spread the watch, so it rests on no one alone.',
+    reflection: '"What no longer depends on my fear alone?"',
   ),
   (
     day: 30,
-    theme: 'Seal Rekh-Wer',
-    action:
-        'Account for what was learned, applied, and built. Name the knowledge that now belongs to you. Hand the field forward.',
-    reflection: '"What knowledge do I carry out of this month?"',
+    theme: 'The Method Holds',
+    action: 'Let what you built carry on past your own hands, still sound.',
+    reflection: '"What of mine now holds without me?"',
   ),
 ]);
 
@@ -5158,244 +5098,212 @@ A thing tended with judgment grows past needing rescue. Governed well, it carrie
     ),
   ),
   'kaherka_21_3': KemeticDayInfo(
-    kemeticDate: 'Ka-ḥer-ka III, Day 21',
+    kemeticDate: 'Ka-ḥer-ka III, Day 21 (Day 21 of Ka-ḥer-ka)',
     season: '🌊 Akhet Closing – Inundation Withdraws',
-    month: 'Ka-ḥer-ka ("Ka upon Ka" — doubled life-force)',
-    decanName:
-        'rmṯ n pt / remetch en pet ("People of Heaven") | Deck: The Crew of Heaven',
+    month: 'Ka-ḥer-ka ("Ka upon Ka")',
+    decanName: 'sbꜣ msḥtjw ("Star of the Foreleg")',
     starCluster:
-        '✨ sbꜣ msḥtjw — the northern Foreleg star group, commonly associated with the Big Dipper form: seven bright stars making a bowl and bent handle around the northern sky',
-    maatPrinciple: 'Labor Is Placed, Not Performed',
-    cosmicContext: '''
-The Crew of Heaven does not row for applause.
-They row because the barque requires it —
-because the sun would not cross the sky without them.
+        '✨ sbꜣ msḥtjw — the Star of the Foreleg, the bright marker of the northern group, watched through this ten-day interval.',
+    maatPrinciple: 'When a Thing Can Stand, It Returns You to Your Life',
+    cosmicContext:
+        '''For the first time in days, the rows ask nothing urgent, and the Kemite leaves before the heat. He goes home and mends what waited — a roof beam, a cracked jar. The field gives his hours back.
 
-Two decans of Ka-ḥer-ka have passed.
-The seed was placed. The ka was re-engaged.
-Now the third decan asks the simplest question:
-are you working or are you proving?
-''',
+Care that never releases you has not fully succeeded. When a thing can stand, it returns you to your life.''',
     decanFlow: _compressedKaherkaFlowRows3,
     meduNeter: MeduNeterKey(
-      glyph: 'Oar in water — the crew rowing without witness',
-      colorFrequency: 'Deep river black and working copper',
-      mantra: '"I work for the field. The field is enough witness."',
+      glyph:
+          'A figure leaving the quiet field early to mend a roof beam at home',
+      colorFrequency:
+          'Young rows needing nothing, attention turning back to the house',
+      mantra: '"When my work can stand, I let it return me to my life."',
     ),
   ),
   'kaherka_22_3': KemeticDayInfo(
     kemeticDate: 'Ka-ḥer-ka III, Day 22',
     season: '🌊 Akhet Closing – Inundation Withdraws',
     month: 'Ka-ḥer-ka ("Ka upon Ka")',
-    decanName:
-        'rmṯ n pt / remetch en pet ("People of Heaven") | Deck: The Crew of Heaven',
+    decanName: 'sbꜣ msḥtjw ("Star of the Foreleg")',
     starCluster:
-        '✨ sbꜣ msḥtjw — the northern Foreleg star group, commonly associated with the Big Dipper form: seven bright stars making a bowl and bent handle around the northern sky',
-    maatPrinciple: 'A Blocked Channel Cannot Feed the Field',
-    cosmicContext: '''
-The Crew of Heaven clears the path for Ra's barque.
-They remove the obstacles — not because clearing is glorious
-but because the barque cannot move through obstruction.
-''',
+        '✨ sbꜣ msḥtjw — the Star of the Foreleg, the bright marker of the northern group, watched through this ten-day interval.',
+    maatPrinciple: 'Reverence Is Order Kept Before Plenty Arrives',
+    cosmicContext:
+        '''In the temple court, priests wash linen, polish vessels, and grind incense — though the fields are still young and the offering stores not yet refilled. The rites for the netjeru are readied against an abundance not yet come.
+
+Reverence does not wait for plenty to act. It is order kept before there is anything to show.''',
     decanFlow: _compressedKaherkaFlowRows3,
     meduNeter: MeduNeterKey(
-      glyph: 'Cleared channel with water beginning to flow',
-      colorFrequency: 'Nile blue returning to worked clay-brown',
-      mantra: '"I clear the channel so life can move again."',
+      glyph:
+          'Priests washing linen and polishing vessels in the lean stretch before plenty',
+      colorFrequency:
+          'Temple linen white and incense grey kept ready ahead of the harvest',
+      mantra: '"I keep order before there is plenty to show for it."',
     ),
   ),
   'kaherka_23_3': KemeticDayInfo(
     kemeticDate: 'Ka-ḥer-ka III, Day 23',
     season: '🌊 Akhet Closing – Inundation Withdraws',
     month: 'Ka-ḥer-ka ("Ka upon Ka")',
-    decanName:
-        'rmṯ n pt / remetch en pet ("People of Heaven") | Deck: The Crew of Heaven',
+    decanName: 'sbꜣ msḥtjw ("Star of the Foreleg")',
     starCluster:
-        '✨ sbꜣ msḥtjw — the northern Foreleg star group, commonly associated with the Big Dipper form: seven bright stars making a bowl and bent handle around the northern sky',
-    maatPrinciple: 'The Djed Must Stand',
-    cosmicContext: '''
-The Djed — the spine of Asar, the pillar of stability — was knocked flat by the flood.
-The crew raises it. Not because it is easy. Because the world needs it upright.
-''',
+        '✨ sbꜣ msḥtjw — the Star of the Foreleg, the bright marker of the northern group, watched through this ten-day interval.',
+    maatPrinciple: 'What Is Witnessed Early Is Not Fought Over Later',
+    cosmicContext:
+        '''A scribe and the elders walk the fresh mud, noting where the water stood, which plots took silt, which were scoured. The marks will soon fade. They set them down while the ground still shows the truth, before memory can bend it.
+
+What is witnessed while the evidence is fresh is not argued over once it is gone.''',
     decanFlow: _compressedKaherkaFlowRows3,
     meduNeter: MeduNeterKey(
       glyph:
-          'Djed pillar being raised by hands — the spine of stability restored',
-      colorFrequency: 'Rooted sandstone gold with steady dark bands',
-      mantra: '"I raise what was knocked flat. The world needs it standing."',
+          'A scribe and elders recording the fresh flood marks before they fade',
+      colorFrequency:
+          'Wet silt lines read and written down before they dry away',
+      mantra: '"I set down what is true while the marks are still fresh."',
     ),
   ),
   'kaherka_24_3': KemeticDayInfo(
     kemeticDate: 'Ka-ḥer-ka III, Day 24',
     season: '🌊 Akhet Closing – Inundation Withdraws',
     month: 'Ka-ḥer-ka ("Ka upon Ka")',
-    decanName:
-        'rmṯ n pt / remetch en pet ("People of Heaven") | Deck: The Crew of Heaven',
+    decanName: 'sbꜣ msḥtjw ("Star of the Foreleg")',
     starCluster:
-        '✨ sbꜣ msḥtjw — the northern Foreleg star group, commonly associated with the Big Dipper form: seven bright stars making a bowl and bent handle around the northern sky',
-    maatPrinciple: 'The Ka Requires a Maintained Environment',
-    cosmicContext: '''
-The crew that rows Ra's barque maintains the barque.
-They bail water, check the timbers, keep the hull from taking on the Duat.
-A deteriorating vessel loses the thing it carries.
+        '✨ sbꜣ msḥtjw — the Star of the Foreleg, the bright marker of the northern group, watched through this ten-day interval.',
+    maatPrinciple: 'The Young Join the Work by Learning What Not to Harm',
+    cosmicContext:
+        '''Children chase each other with reed stems toward the field edge. An older sister catches them before they cut across the planted ground, shows them the safe path, then sets them to carrying water. Their first task is learning what not to touch.
 
-Your household is the hull.
-Floor, workspace, bedroom, kitchen.
-A deteriorating environment leaks the vitality you are trying to build.
-''',
+Belonging in the work begins not with what to do, but with what must never be harmed.''',
     decanFlow: _compressedKaherkaFlowRows3,
     meduNeter: MeduNeterKey(
-      glyph: 'Hands checking the hull — the vessel maintained from inside',
-      colorFrequency: 'Ship-wood brown and steady ochre',
-      mantra: '"I keep the vessel worthy of what it carries."',
+      glyph:
+          'An older child turning the young from the planted ground onto the safe path',
+      colorFrequency: 'Running children steered clear of the tender young rows',
+      mantra: '"I teach what must not be harmed before I give the task."',
     ),
   ),
   'kaherka_25_3': KemeticDayInfo(
     kemeticDate: 'Ka-ḥer-ka III, Day 25',
     season: '🌊 Akhet Closing – Inundation Withdraws',
     month: 'Ka-ḥer-ka ("Ka upon Ka")',
-    decanName:
-        'rmṯ n pt / remetch en pet ("People of Heaven") | Deck: The Crew of Heaven',
+    decanName: 'sbꜣ msḥtjw ("Star of the Foreleg")',
     starCluster:
-        '✨ sbꜣ msḥtjw — the northern Foreleg star group, commonly associated with the Big Dipper form: seven bright stars making a bowl and bent handle around the northern sky',
-    maatPrinciple: 'Relight What Went Cold',
-    cosmicContext: '''
-The crew carries a flame through the Duat.
-Without it, the barque navigates blind.
+        '✨ sbꜣ msḥtjw — the Star of the Foreleg, the bright marker of the northern group, watched through this ten-day interval.',
+    maatPrinciple:
+        'When Fortune Lands Unevenly, Maat Is What the Village Does Next',
+    cosmicContext:
+        '''The flood left one downriver plot pale and thin, while another house has more silt than it can use. Without anyone calling it charity, baskets of earth cross the path. The water did not choose fairly, and the choosing now falls to them.
 
-Things go cold in the flood season — not because they died,
-but because they ran out of fuel and no one refilled them.
-
-A creative practice. A physical discipline. A friendship.
-A daily prayer. A standard quietly dropped.
-These are not gone. They are unlit.
-''',
+Fortune lands unevenly and asks nothing. What the village does in answer is where Maat begins.''',
     decanFlow: _compressedKaherkaFlowRows3,
     meduNeter: MeduNeterKey(
-      glyph: 'Small flame cupped in two hands — the relight, not the blaze',
-      colorFrequency: 'Ember gold in dark copper',
-      mantra: '"I relight this. I do not walk away until it holds."',
+      glyph:
+          'Baskets of silt crossing the path from a rich plot to a scoured one',
+      colorFrequency:
+          'Rich dark earth moving toward pale, short-changed ground',
+      mantra: '"When luck falls unevenly, I help even it."',
     ),
   ),
   'kaherka_26_3': KemeticDayInfo(
     kemeticDate: 'Ka-ḥer-ka III, Day 26',
     season: '🌊 Akhet Closing – Inundation Withdraws',
     month: 'Ka-ḥer-ka ("Ka upon Ka")',
-    decanName:
-        'rmṯ n pt / remetch en pet ("People of Heaven") | Deck: The Crew of Heaven',
+    decanName: 'sbꜣ msḥtjw ("Star of the Foreleg")',
     starCluster:
-        '✨ sbꜣ msḥtjw — the northern Foreleg star group, commonly associated with the Big Dipper form: seven bright stars making a bowl and bent handle around the northern sky',
-    maatPrinciple: 'The Crew Rows Together',
-    cosmicContext: '''
-The divine crew does not take shifts.
-They row in synchrony or the barque does not advance.
-One oar pulling when the others are still does not move the vessel — it turns it in place.
+        '✨ sbꜣ msḥtjw — the Star of the Foreleg, the bright marker of the northern group, watched through this ten-day interval.',
+    maatPrinciple: 'Sometimes the Future Is Defended by Small Hands',
+    cosmicContext:
+        '''Sparrows drop onto the young green at first light. The children stand among the rows with rattles and thrown clods, noise enough to keep the flock moving. The work is not skilled, but the tender shoots would be stripped without it.
 
-The Crew of Heaven rising now asks:
-who shares this field with you,
-and when did you last coordinate with them?
-''',
+Protection is not always grand. Some of the future is defended by children making noise in a field.''',
     decanFlow: _compressedKaherkaFlowRows3,
     meduNeter: MeduNeterKey(
-      glyph: 'Multiple oars in the water at the same angle — synchronized',
-      colorFrequency: 'River black with parallel gold oar-lines',
-      mantra: '"We row together. That is how the barque moves."',
+      glyph:
+          'Children with rattles keeping a flock of sparrows off the young green',
+      colorFrequency:
+          'Bird-grey lifting off bright young shoots under small, loud guard',
+      mantra:
+          '"I let even small, plain effort defend what cannot yet defend itself."',
     ),
   ),
   'kaherka_27_3': KemeticDayInfo(
     kemeticDate: 'Ka-ḥer-ka III, Day 27',
     season: '🌊 Akhet Closing – Inundation Withdraws',
     month: 'Ka-ḥer-ka ("Ka upon Ka")',
-    decanName:
-        'rmṯ n pt / remetch en pet ("People of Heaven") | Deck: The Crew of Heaven',
+    decanName: 'sbꜣ msḥtjw ("Star of the Foreleg")',
     starCluster:
-        '✨ sbꜣ msḥtjw — the northern Foreleg star group, commonly associated with the Big Dipper form: seven bright stars making a bowl and bent handle around the northern sky',
-    maatPrinciple: 'Quiet Strength Is Also Strength',
-    cosmicContext: '''
-The crew does not sing about rowing. They row.
-Their virtue is in the doing, not the announcement.
-The barque crosses the Duat because they showed up in the dark,
-put their hands on the oar, and did not stop.
-''',
+        '✨ sbꜣ msḥtjw — the Star of the Foreleg, the bright marker of the northern group, watched through this ten-day interval.',
+    maatPrinciple: 'Unseen Makers Prepare Before They Are Needed',
+    cosmicContext:
+        '''In the shade, a rope maker twists fiber into yoke ties, gate bindings, and carrying slings. The crop is far from the work these will serve, yet his hands already shape the tools of a season no one watching the rows can see.
+
+A future task is possible only because someone prepared its tools before the need could be seen.''',
     decanFlow: _compressedKaherkaFlowRows3,
     meduNeter: MeduNeterKey(
-      glyph: 'Crew rowing in darkness — the unwitnessed labor',
-      colorFrequency: 'Deep river black with a thin trail of gold in the wake',
-      mantra: '"The quiet work counts. I name it."',
+      glyph:
+          'A rope maker twisting fiber for a season the young field has not reached',
+      colorFrequency:
+          'Fiber tan worked into rope long before the work it will serve',
+      mantra: '"I make ready the tools a later task will need."',
     ),
   ),
   'kaherka_28_3': KemeticDayInfo(
     kemeticDate: 'Ka-ḥer-ka III, Day 28',
     season: '🌊 Akhet Closing – Inundation Withdraws',
     month: 'Ka-ḥer-ka ("Ka upon Ka")',
-    decanName:
-        'rmṯ n pt / remetch en pet ("People of Heaven") | Deck: The Crew of Heaven',
+    decanName: 'sbꜣ msḥtjw ("Star of the Foreleg")',
     starCluster:
-        '✨ sbꜣ msḥtjw — the northern Foreleg star group, commonly associated with the Big Dipper form: seven bright stars making a bowl and bent handle around the northern sky',
-    maatPrinciple: 'Labor and Gratitude Are the Same Act',
-    cosmicContext: '''
-The crew rows and the hymns to Ra are sung simultaneously.
-Not before, not after — during.
-Labor and gratitude are not separate categories.
-The offering is in the motion itself.
+        '✨ sbꜣ msḥtjw — the Star of the Foreleg, the bright marker of the northern group, watched through this ten-day interval.',
+    maatPrinciple: 'Memory Keeps the Present From Thinking It Is the First',
+    cosmicContext:
+        '''An elder points to old stains high on a wall — marks from floods richer and poorer than this. The young listen, because this year must be understood among the others. The field is new; the pattern it belongs to is old.
 
-You have been working your way through Ka-ḥer-ka.
-Today you do not stop to give thanks — you work and you are grateful at the same time.
-''',
+Memory is a tool. It keeps the present from believing it is the first season anyone has lived.''',
     decanFlow: _compressedKaherkaFlowRows3,
     meduNeter: MeduNeterKey(
-      glyph: 'Oar moving through water — the hymn in the motion',
-      colorFrequency: 'River gold in dark water — action and gratitude unified',
-      mantra: '"I work and I am grateful. They are the same."',
+      glyph: 'An elder showing the young old flood stains high on a wall',
+      colorFrequency:
+          'Faded high-water marks read against this year\'s fresh line',
+      mantra: '"I set this season among the others, not above them."',
     ),
   ),
   'kaherka_29_3': KemeticDayInfo(
     kemeticDate: 'Ka-ḥer-ka III, Day 29',
     season: '🌊 Akhet Closing – Inundation Withdraws',
     month: 'Ka-ḥer-ka ("Ka upon Ka")',
-    decanName:
-        'rmṯ n pt / remetch en pet ("People of Heaven") | Deck: The Crew of Heaven',
+    decanName: 'sbꜣ msḥtjw ("Star of the Foreleg")',
     starCluster:
-        '✨ sbꜣ msḥtjw — the northern Foreleg star group, commonly associated with the Big Dipper form: seven bright stars making a bowl and bent handle around the northern sky',
-    maatPrinciple: 'The Season Sets the Pace',
-    cosmicContext: '''
-The barque does not row at the same speed through every gate of the Duat.
-Some passages require long strokes.
-Some require the oars raised and the barque to drift.
-The crew reads the passage — they do not impose a fixed speed on a variable current.
-''',
+        '✨ sbꜣ msḥtjw — the Star of the Foreleg, the bright marker of the northern group, watched through this ten-day interval.',
+    maatPrinciple: 'A Debt Named Early Stays a Relationship',
+    cosmicContext:
+        '''In the shade near the lane, two households speak plainly — borrowed seed, a shared ox, a day of labor promised. A neighbor witnesses. Nothing is tense yet, and that is the point: the debt is named while it is still an arrangement between friends.
+
+A debt spoken clearly stays a relationship. A debt left vague hardens into a wound.''',
     decanFlow: _compressedKaherkaFlowRows3,
     meduNeter: MeduNeterKey(
-      glyph: 'Oar raised for a drift passage — reading the current',
-      colorFrequency: 'River silver and quiet earth',
-      mantra: '"I row at the pace the season requires."',
+      glyph:
+          'Two households naming a debt plainly in the shade, a neighbor witnessing',
+      colorFrequency: 'A plain agreement spoken in the cool shade of the lane',
+      mantra: '"I name what is owed while it is still a relationship."',
     ),
   ),
   'kaherka_30_3': KemeticDayInfo(
     kemeticDate: 'Ka-ḥer-ka III, Day 30',
     season: '🌊 Akhet Closing – Inundation Withdraws',
-    month:
-        'Ka-ḥer-ka ("Ka upon Ka" — the seed placed, the ka re-engaged, the crew rowing)',
-    decanName:
-        'rmṯ n pt / remetch en pet ("People of Heaven") | Deck: The Crew of Heaven',
+    month: 'Ka-ḥer-ka ("Ka upon Ka")',
+    decanName: 'sbꜣ msḥtjw ("Star of the Foreleg")',
     starCluster:
-        '✨ sbꜣ msḥtjw — the northern Foreleg star group, commonly associated with the Big Dipper form: seven bright stars making a bowl and bent handle around the northern sky',
-    maatPrinciple: 'Seal the Month. Hand It Forward Clean.',
-    cosmicContext: '''
-Ka-ḥer-ka closes today.
+        '✨ sbꜣ msḥtjw — the Star of the Foreleg, the bright marker of the northern group, watched through this ten-day interval.',
+    maatPrinciple: 'What Takes Root in the Dark Rises Through the Whole Life',
+    cosmicContext:
+        '''At dusk the Kemite walks home past the temple court, the rope maker, children with dusty feet, women measuring stores, neighbors talking across field lines. The crop is still young, but it has entered every house.
 
-The flood withdrew. The black silt received the seed.
-The field was cleared and the vigil was kept.
-The ka re-entered motion, the obligation was accepted,
-the basics were restored, the help was called in.
-The Djed was raised, the channel was cleared,
-the flame was relit, the crew coordinated, the labor offered.
-''',
+What takes root in the dark does not stay private. It rises first through the world ordering itself around it.''',
     decanFlow: _compressedKaherkaFlowRows3,
     meduNeter: MeduNeterKey(
-      glyph: 'Barque at the eastern gate — the crossing complete',
-      colorFrequency: 'First light gold over river black',
-      mantra: '"The month is complete. I hand it forward clean."',
+      glyph:
+          'The walk home at dusk past temple, rope maker, children, women, and neighbors',
+      colorFrequency:
+          'A whole village at dusk already arranged around the young field',
+      mantra: '"What I rooted in the dark has already entered every house."',
     ),
   ),
   'sefbedet_1_1': KemeticDayInfo(
@@ -5954,736 +5862,640 @@ A thing rescued from every struggle never builds the strength struggle would hav
   ),
 
   'rekhwer_1_1': KemeticDayInfo(
-    kemeticDate: 'Rekh-Wer I, Day 1',
-    season: '🌱 Peret II – Active Growth',
-    month:
-        'Rekh-Wer (Rḫ-wr) — the Great Knowledge; the month craft is applied to the living field',
-    decanName: 'knmw (translation uncertain) | Deck: The Great Knowing',
+    kemeticDate: 'Rekh-Wer I, Day 1 (Day 1 of Rekh-Wer)',
+    season: '🌱 Peret – Emergence Season',
+    month: 'Rekh-Wer ("Rḫ-wr")',
+    decanName: 'knmw ("Khnum")',
     starCluster:
-        '✨ knmw — a modest decanal star group watched near the eastern horizon during this ten-day interval; exact modern identification is uncertain',
-    maatPrinciple: 'You Cannot Tend What You Do Not Know',
-    cosmicContext: '''
-Šef-Bedet is closed. The root is in. The field is growing.
+        '✨ knmw — Khnum, the potter at the wheel, his stars watched through this ten-day interval.',
+    maatPrinciple: 'What Can Be Seen No Longer Belongs to You Alone',
+    cosmicContext:
+        '''At the well, women weigh the fields aloud — whose stands strong, whose came up thin. The Kemite is nowhere near, yet his field is judged in his absence. It has begun a public life he does not control.
 
-Now it requires something different from witness and patience.
-It requires knowledge — accurate, specific understanding of what is alive and what it needs.
-''',
+Once a thing can be seen, it stops belonging only to the one who made it.''',
     decanFlow: _compressedRekhwerFlowRows1,
     meduNeter: MeduNeterKey(
-      glyph:
-          'Scribe\'s palette and planting tool side by side — knowledge and practice unified',
-      colorFrequency: 'Ink black and earth brown, the two together',
-      mantra: '"I know what I am tending."',
+      glyph: 'Women at the well weighing the fields aloud, the Kemite absent',
+      colorFrequency:
+          'Well stone and water, a field discussed by those who do not tend it',
+      mantra:
+          '"What others can see of my work, they will picture in their own way."',
     ),
   ),
   'rekhwer_2_1': KemeticDayInfo(
     kemeticDate: 'Rekh-Wer I, Day 2',
-    season: '🌱 Peret II – Active Growth',
-    month: 'Rekh-Wer (Rḫ-wr)',
-    decanName: 'knmw (translation uncertain) | Deck: The Great Knowing',
+    season: '🌱 Peret – Emergence Season',
+    month: 'Rekh-Wer ("Rḫ-wr")',
+    decanName: 'knmw ("Khnum")',
     starCluster:
-        '✨ knmw — a modest decanal star group watched near the eastern horizon during this ten-day interval; exact modern identification is uncertain',
-    maatPrinciple: 'Read Before You Act',
-    cosmicContext: '''
-The experienced farmer reads the field before touching it.
-Color of leaf, moisture of soil, direction of lean, condition of the row edge.
-That reading takes minutes and prevents hours of wrong work.
-''',
+        '✨ knmw — Khnum, the potter at the wheel, his stars watched through this ten-day interval.',
+    maatPrinciple: 'Hope Enters the House Early; Bread Does Not',
+    cosmicContext:
+        '''The children hear the field praised outside and come in expecting fuller bowls. But the wife cuts the same portions as yesterday. The jar has not risen because the rows look promising; an admired field has not yet fed anyone.
+
+Hope may arrive in the house ahead of the harvest. The bread still waits on grain not yet cut.''',
     decanFlow: _compressedRekhwerFlowRows1,
     meduNeter: MeduNeterKey(
       glyph:
-          'Farmer kneeling at the row edge before sunrise — reading before working',
-      colorFrequency: 'Pre-dawn blue, the field read in quiet before action',
-      mantra: '"The field speaks first. I listen before I act."',
+          'A wife cutting the same portions while children expect more from praise outside',
+      colorFrequency:
+          'An unchanged grain jar beside hopes raised by a promising field',
+      mantra: '"I let hope enter early, but I do not yet spend the harvest."',
     ),
   ),
   'rekhwer_3_1': KemeticDayInfo(
     kemeticDate: 'Rekh-Wer I, Day 3',
-    season: '🌱 Peret II – Active Growth',
-    month: 'Rekh-Wer (Rḫ-wr)',
-    decanName: 'knmw (translation uncertain) | Deck: The Great Knowing',
+    season: '🌱 Peret – Emergence Season',
+    month: 'Rekh-Wer ("Rḫ-wr")',
+    decanName: 'knmw ("Khnum")',
     starCluster:
-        '✨ knmw — a modest decanal star group watched near the eastern horizon during this ten-day interval; exact modern identification is uncertain',
-    maatPrinciple: 'The Right Tool Does Less Work for Better Results',
-    cosmicContext: '''
-The Kemite craftsman maintained specific tools for specific tasks.
-A broad hoe for breaking soil. A narrow dibble for placing seed.
-Using the wrong one in the wrong place was not diligence — it was waste.
+        '✨ knmw — Khnum, the potter at the wheel, his stars watched through this ten-day interval.',
+    maatPrinciple: 'Meet the Need While It Can Still Keep Its Dignity',
+    cosmicContext:
+        '''Before dawn, a woman from a poorer plot comes quietly for flour enough to carry the week. The wife gives it without a word, in the dark, so the asking never becomes a thing the lane sees.
 
-What task is in front of you today?
-What is the precise instrument — method, person, time, approach — that fits it?
-''',
+Good help arrives early and quietly. It answers the need while the one who has it can still keep their dignity whole.''',
     decanFlow: _compressedRekhwerFlowRows1,
     meduNeter: MeduNeterKey(
-      glyph: 'Matched tool and task — the right instrument in the right hand',
-      colorFrequency: 'Clean copper tool against dark worked earth',
-      mantra: '"Right tool. Right task. Less effort, better result."',
+      glyph:
+          'A neighbor met quietly at the door before dawn, given flour without a word',
+      colorFrequency:
+          'A pre-dawn doorway exchange that keeps need from public view',
+      mantra: '"I meet need quietly, before it becomes someone\'s shame."',
     ),
   ),
   'rekhwer_4_1': KemeticDayInfo(
     kemeticDate: 'Rekh-Wer I, Day 4',
-    season: '🌱 Peret II – Active Growth',
-    month: 'Rekh-Wer (Rḫ-wr)',
-    decanName: 'knmw (translation uncertain) | Deck: The Great Knowing',
+    season: '🌱 Peret – Emergence Season',
+    month: 'Rekh-Wer ("Rḫ-wr")',
+    decanName: 'knmw ("Khnum")',
     starCluster:
-        '✨ knmw — a modest decanal star group watched near the eastern horizon during this ten-day interval; exact modern identification is uncertain',
-    maatPrinciple: 'The Gap in Knowledge Is Costing the Field',
-    cosmicContext: '''
-Every field has a problem the farmer does not yet understand.
-Not from laziness — from the limits of what has been learned so far.
+        '✨ knmw — Khnum, the potter at the wheel, his stars watched through this ten-day interval.',
+    maatPrinciple: 'Skill Is Pressure Guided by Understanding',
+    cosmicContext:
+        '''In the potter\'s yard, households wait for jars. A young helper, hurried by the line, pulls the wall up too fast, and the clay folds. The potter begins again, slower. The vessels they wait for have to hold.
 
-The crop is doing something unexpected.
-The yield is lower than the effort warrants.
-Something is off and the diagnosis is not yet clear.
-''',
+Force alone does not shape a thing; it collapses it. Skill is the same pressure, guided by what the clay can take.''',
     decanFlow: _compressedRekhwerFlowRows1,
     meduNeter: MeduNeterKey(
-      glyph: 'Open question mark beside the growing row — the gap named',
-      colorFrequency: 'Growing green with one section of uncertain earth',
-      mantra: '"I name the gap. Then I close it."',
+      glyph: 'A folded, slumped pot beside the potter beginning again, slower',
+      colorFrequency:
+          'Wet clay risen too fast and collapsed, then reworked with patience',
+      mantra:
+          '"I guide pressure with understanding, instead of forcing the work."',
     ),
   ),
   'rekhwer_5_1': KemeticDayInfo(
     kemeticDate: 'Rekh-Wer I, Day 5',
-    season: '🌱 Peret II – Active Growth',
-    month: 'Rekh-Wer (Rḫ-wr)',
-    decanName: 'knmw (translation uncertain) | Deck: The Great Knowing',
+    season: '🌱 Peret – Emergence Season',
+    month: 'Rekh-Wer ("Rḫ-wr")',
+    decanName: 'knmw ("Khnum")',
     starCluster:
-        '✨ knmw — a modest decanal star group watched near the eastern horizon during this ten-day interval; exact modern identification is uncertain',
-    maatPrinciple: 'Imprecise Technique Costs More Than Laziness',
-    cosmicContext: '''
-A farmer who does not work costs the field one day.
-A farmer who works with imprecise technique costs the field the season.
+        '✨ knmw — Khnum, the potter at the wheel, his stars watched through this ten-day interval.',
+    maatPrinciple: 'What Feeds Many Is Shaped by Timing, Not Appetite',
+    cosmicContext:
+        '''Several households bring dough to the shared oven, the children hovering, hungry. The heat is close but not yet right. Pushed in too early, loaves come out heavy; too late, they burn. The baker waits on the fire, not the children.
 
-Bad technique repeated with effort entrenches the error.
-The plant grows wrong, the habit forms wrong, the method calcifies.
-''',
+What feeds many cannot be ruled by the hungriest mouth. It is shaped by the heat, not the impatience.''',
     decanFlow: _compressedRekhwerFlowRows1,
     meduNeter: MeduNeterKey(
-      glyph: 'Hand correcting tool angle mid-stroke — refinement in motion',
-      colorFrequency: 'Copper tool adjusted, earth responding correctly',
-      mantra:
-          '"I refine the technique before the season asks everything of it."',
+      glyph:
+          'Dough held back from the shared oven until the heat is truly ready',
+      colorFrequency:
+          'A communal oven brought to the right heat while hungry children wait',
+      mantra: '"I shape what feeds many by readiness, not by appetite."',
     ),
   ),
   'rekhwer_6_1': KemeticDayInfo(
     kemeticDate: 'Rekh-Wer I, Day 6',
-    season: '🌱 Peret II – Active Growth',
-    month: 'Rekh-Wer (Rḫ-wr)',
-    decanName: 'knmw (translation uncertain) | Deck: The Great Knowing',
+    season: '🌱 Peret – Emergence Season',
+    month: 'Rekh-Wer ("Rḫ-wr")',
+    decanName: 'knmw ("Khnum")',
     starCluster:
-        '✨ knmw — a modest decanal star group watched near the eastern horizon during this ten-day interval; exact modern identification is uncertain',
-    maatPrinciple: 'Knowledge Applied Is Different From Effort Applied',
-    cosmicContext: '''
-Two farmers, same hours in the field.
-One works from habit and repetition.
-One works from understanding of what the crop needs at this stage.
+        '✨ knmw — Khnum, the potter at the wheel, his stars watched through this ten-day interval.',
+    maatPrinciple: 'A Loose Word Becomes a Wound When No One Asks What Is True',
+    cosmicContext:
+        '''In the market shade, someone says the Kemite\'s strong rows must mean he took more than his turn. An older woman asks who saw it. No one did. Without a witness the story loses shape before it becomes a weapon.
 
-At harvest, the fields are not the same.
-''',
+A loose word hardens into a wound only when no one asks if it is true. The question stops it.''',
     decanFlow: _compressedRekhwerFlowRows1,
     meduNeter: MeduNeterKey(
-      glyph: 'Knowing farmer in the field — same hands, better result',
-      colorFrequency: 'Rich green from well-applied knowledge',
-      mantra: '"I apply the knowledge I have, not just the effort."',
+      glyph:
+          'An elder in the market asking who saw it, a rumor losing its shape',
+      colorFrequency: 'A hardening story dissolved by a single plain question',
+      mantra: '"I ask what is true, before a loose word becomes a wound."',
     ),
   ),
   'rekhwer_7_1': KemeticDayInfo(
     kemeticDate: 'Rekh-Wer I, Day 7',
-    season: '🌱 Peret II – Active Growth',
-    month: 'Rekh-Wer (Rḫ-wr)',
-    decanName: 'knmw (translation uncertain) | Deck: The Great Knowing',
+    season: '🌱 Peret – Emergence Season',
+    month: 'Rekh-Wer ("Rḫ-wr")',
+    decanName: 'knmw ("Khnum")',
     starCluster:
-        '✨ knmw — a modest decanal star group watched near the eastern horizon during this ten-day interval; exact modern identification is uncertain',
-    maatPrinciple: 'Shared Knowledge Strengthens the Network',
-    cosmicContext: '''
-In a field-based life, working knowledge cannot remain private for long.
-A method that saves one crop may save the next household's season.
+        '✨ knmw — Khnum, the potter at the wheel, his stars watched through this ten-day interval.',
+    maatPrinciple: 'A Skill Survives Only When Its Reason Is Passed On',
+    cosmicContext:
+        '''A girl grinds with all her force, scattering flour past the stone. Her grandmother stops her hand and shows why the pressure must fall evenly. The motion can be copied, but its reason makes it last.
 
-Hoarding field knowledge while neighbors struggled
-was not competitive advantage — it was Isfet.
-''',
+A skill taught as mere motion is forgotten in a generation. Taught with its reason, it lasts for hands not yet born.''',
     decanFlow: _compressedRekhwerFlowRows1,
     meduNeter: MeduNeterKey(
-      glyph: 'One farmer showing another the row condition — knowledge passed',
-      colorFrequency: 'Two figures in green, the knowledge moving between them',
-      mantra: '"What I know belongs to the field, not only to me."',
+      glyph:
+          'A grandmother resetting a girl\'s grinding rhythm, teaching the reason',
+      colorFrequency:
+          'Scattered flour brought back to an even, understood motion',
+      mantra: '"I teach the reason with the motion, so the skill outlasts me."',
     ),
   ),
   'rekhwer_8_1': KemeticDayInfo(
     kemeticDate: 'Rekh-Wer I, Day 8',
-    season: '🌱 Peret II – Active Growth',
-    month: 'Rekh-Wer (Rḫ-wr)',
-    decanName: 'knmw (translation uncertain) | Deck: The Great Knowing',
+    season: '🌱 Peret – Emergence Season',
+    month: 'Rekh-Wer ("Rḫ-wr")',
+    decanName: 'knmw ("Khnum")',
     starCluster:
-        '✨ knmw — a modest decanal star group watched near the eastern horizon during this ten-day interval; exact modern identification is uncertain',
-    maatPrinciple: 'Correction Is Information, Not Judgment',
-    cosmicContext: '''
-The experienced farmer who sees a younger farmer doing something wrong
-does not insult them — they correct the technique.
-The correction is not about the farmer. It is about the crop.
+        '✨ knmw — Khnum, the potter at the wheel, his stars watched through this ten-day interval.',
+    maatPrinciple:
+        'Joy May Look Ahead; Wisdom Waits Until the House Can Bear It',
+    cosmicContext:
+        '''After dusk, two families speak of joining their houses once the crop is safe — the jars, the cloth, who will host. The mothers smile; the fathers count quietly. Nothing is announced; the promise is not yet one the season can carry.
 
-You have been in this field for eight days.
-Someone with more experience in what you are growing
-would see something you are missing.
-''',
+Joy is right to look ahead. Wisdom holds the promise back until the house can bear its weight.''',
     decanFlow: _compressedRekhwerFlowRows1,
     meduNeter: MeduNeterKey(
       glyph:
-          'Elder farmer adjusting a younger one\'s grip — correction given and received',
-      colorFrequency: 'Warm earth, two hands, no hierarchy — only the crop',
-      mantra: '"Correction is information. I receive it for the field."',
+          'Two families after dusk speaking of joining houses, nothing yet announced',
+      colorFrequency:
+          'Warm evening talk of a union held back until the crop is safe',
+      mantra:
+          '"I let joy look ahead, but wait to promise what the house can bear."',
     ),
   ),
   'rekhwer_9_1': KemeticDayInfo(
     kemeticDate: 'Rekh-Wer I, Day 9',
-    season: '🌱 Peret II – Active Growth',
-    month: 'Rekh-Wer (Rḫ-wr)',
-    decanName: 'knmw (translation uncertain) | Deck: The Great Knowing',
+    season: '🌱 Peret – Emergence Season',
+    month: 'Rekh-Wer ("Rḫ-wr")',
+    decanName: 'knmw ("Khnum")',
     starCluster:
-        '✨ knmw — a modest decanal star group watched near the eastern horizon during this ten-day interval; exact modern identification is uncertain',
-    maatPrinciple: 'Unrecorded Knowledge Is Fragile',
-    cosmicContext: '''
-Field records were not administrative excess — they were survival intelligence.
-A bad year with records gave the next season a starting point.
-A bad year without them gave nothing.
+        '✨ knmw — Khnum, the potter at the wheel, his stars watched through this ten-day interval.',
+    maatPrinciple: 'A Clean Limit Protects Better Than a Generous Lie',
+    cosmicContext:
+        '''A cousin asks the Kemite to pledge more help than he can safely give. The easy thing would be to promise it all. Instead he names what he can truly do, because a promise too large becomes tomorrow\'s broken word.
 
-What is working right now lives only in your memory.
-Memory is the least reliable storage system available.
-''',
+A clean limit protects the bond better than a generous lie. The honest no holds where the yes would crack.''',
     decanFlow: _compressedRekhwerFlowRows1,
     meduNeter: MeduNeterKey(
-      glyph: 'Scribe recording the field condition — the method preserved',
-      colorFrequency: 'Ink black on clean papyrus, the growing field behind it',
-      mantra: '"What works must be written. Memory is not enough."',
+      glyph: 'A measured promise given to a cousin, the limit named honestly',
+      colorFrequency: 'A warm request answered with a clean, protective limit',
+      mantra:
+          '"I give the honest limit, because it holds where the lie would break."',
     ),
   ),
   'rekhwer_10_1': KemeticDayInfo(
     kemeticDate: 'Rekh-Wer I, Day 10',
-    season: '🌱 Peret II – Active Growth',
-    month: 'Rekh-Wer (Rḫ-wr)',
-    decanName: 'knmw (translation uncertain) | Deck: The Great Knowing',
+    season: '🌱 Peret – Emergence Season',
+    month: 'Rekh-Wer ("Rḫ-wr")',
+    decanName: 'knmw ("Khnum")',
     starCluster:
-        '✨ knmw — a modest decanal star group watched near the eastern horizon during this ten-day interval; exact modern identification is uncertain',
-    maatPrinciple: 'The First Decan Builds the Knowledge Base',
-    cosmicContext: '''
-Ten days: you named what you are tending, read before acting,
-matched tool to task, closed a knowledge gap, refined the technique,
-applied understanding rather than effort, shared what you know,
-received correction, and recorded what works.
+        '✨ knmw — Khnum, the potter at the wheel, his stars watched through this ten-day interval.',
+    maatPrinciple:
+        'What Is Unfinished Must Be Guarded From the Stories Built Around It',
+    cosmicContext:
+        '''By evening the field is everywhere but the field — in well-talk, cut portions, quiet loans, a stopped rumor, the oven\'s timing, marriage talk, a measured promise. The grain is not ready, yet the village has begun living toward it.
 
-That is the knowledge base for this field.
-''',
+What is unfinished must be protected from the stories built on it. The expectation must not outrun the work.''',
     decanFlow: _compressedRekhwerFlowRows1,
     meduNeter: MeduNeterKey(
-      glyph: 'Field record closed — the first knowing complete',
+      glyph:
+          'The young field carried through the whole village\'s talk, loans, and plans',
       colorFrequency:
-          'Ink and earth together, the knowledge ready to be applied',
-      mantra: '"I know more than I did. The knowing is the foundation."',
+          'An unfinished crop already living in every corner of village life',
+      mantra: '"I guard the unfinished work from the stories built around it."',
     ),
   ),
   'rekhwer_11_2': KemeticDayInfo(
-    kemeticDate: 'Rekh-Wer II, Day 11',
-    season: '🌱 Peret II – Active Growth',
-    month: 'Rekh-Wer (Rḫ-wr)',
-    decanName:
-        'ḥry-ib knmw (translation uncertain) | Deck: Heart of the Knowing',
+    kemeticDate: 'Rekh-Wer II, Day 11 (Day 11 of Rekh-Wer)',
+    season: '🌱 Peret – Emergence Season',
+    month: 'Rekh-Wer ("Rḫ-wr")',
+    decanName: 'ḥry-ib knmw ("Heart of Khnum")',
     starCluster:
-        '✨ ḥry-ib knmw — a modest decanal star group watched near the eastern horizon during this ten-day interval; exact modern identification is uncertain',
-    maatPrinciple: 'Apply What Is Known',
-    cosmicContext: '''
-The first decan built the knowledge base.
-The second decan applies it.
+        '✨ ḥry-ib knmw — the Heart of Khnum, the central stars of the group, watched through this ten-day interval.',
+    maatPrinciple: 'Recognition Is Not Completion',
+    cosmicContext:
+        '''The crop has taken a shape people can read, and they speak of its yield as if already counted. An older farmer walking beside the Kemite only shakes his head: he has seen fields this far along still turn.
 
-The error here is re-gathering instead of deploying:
-reading more, researching more, asking more questions
-when the knowledge required for action is already in hand.
-''',
+What has taken shape still has to be judged. Being recognizable is a long way from being done.''',
     decanFlow: _compressedRekhwerFlowRows2,
     meduNeter: MeduNeterKey(
       glyph:
-          'Farmer working the row with confident technique — knowledge in motion',
-      colorFrequency: 'Rich growing green, copper tool moving with skill',
-      mantra: '"I know enough. I apply it now."',
+          'Two farmers reading a crop whose shape is clear but not yet settled',
+      colorFrequency:
+          'A recognizable young form that could still turn either way',
+      mantra:
+          '"I do not mistake a shape I can name for a thing that is finished."',
     ),
   ),
   'rekhwer_12_2': KemeticDayInfo(
     kemeticDate: 'Rekh-Wer II, Day 12',
-    season: '🌱 Peret II – Active Growth',
-    month: 'Rekh-Wer (Rḫ-wr)',
-    decanName:
-        'ḥry-ib knmw (translation uncertain) | Deck: Heart of the Knowing',
+    season: '🌱 Peret – Emergence Season',
+    month: 'Rekh-Wer ("Rḫ-wr")',
+    decanName: 'ḥry-ib knmw ("Heart of Khnum")',
     starCluster:
-        '✨ ḥry-ib knmw — a modest decanal star group watched near the eastern horizon during this ten-day interval; exact modern identification is uncertain',
-    maatPrinciple: 'The Standard Must Hold',
-    cosmicContext: '''
-A field tended well for ten days and carelessly for ten
-does not average out. The careless stretch damages what the good stretch built.
+        '✨ ḥry-ib knmw — the Heart of Khnum, the central stars of the group, watched through this ten-day interval.',
+    maatPrinciple: 'Skill Begins When the Hand Waits for the Heart',
+    cosmicContext:
+        '''At the wheel, an apprentice catches the clay wall leaning and stops before it folds. The master does not praise quick hands. He praises the pause — the moment the boy saw the flaw and held still.
 
-The standard established in Rekh-Wer I is not a starting line —
-it is the floor. The work does not go below it.
-''',
+The hand that moves before it has judged makes the error worse. Skill begins when the hand waits for the eye.''',
     decanFlow: _compressedRekhwerFlowRows2,
     meduNeter: MeduNeterKey(
-      glyph:
-          'Plumb line hanging straight regardless of weather — the standard held',
-      colorFrequency: 'Steady gold line, green field at consistent height',
-      mantra: '"The standard does not move. I hold it."',
+      glyph: 'An apprentice halting his hand as the clay wall begins to lean',
+      colorFrequency: 'A leaning wall caught in the pause before it could fold',
+      mantra: '"I let my hand wait until my judgment has seen clearly."',
     ),
   ),
   'rekhwer_13_2': KemeticDayInfo(
     kemeticDate: 'Rekh-Wer II, Day 13',
-    season: '🌱 Peret II – Active Growth',
-    month: 'Rekh-Wer (Rḫ-wr)',
-    decanName:
-        'ḥry-ib knmw (translation uncertain) | Deck: Heart of the Knowing',
+    season: '🌱 Peret – Emergence Season',
+    month: 'Rekh-Wer ("Rḫ-wr")',
+    decanName: 'ḥry-ib knmw ("Heart of Khnum")',
     starCluster:
-        '✨ ḥry-ib knmw — a modest decanal star group watched near the eastern horizon during this ten-day interval; exact modern identification is uncertain',
-    maatPrinciple: 'The Avoided Section Costs the Whole Field',
-    cosmicContext: '''
-Every field has a section the farmer tends last, if at all.
-Not the worst section — the one that is difficult, uncomfortable, or unrewarding to work.
-It is not neglected from laziness. It is avoided from preference.
+        '✨ ḥry-ib knmw — the Heart of Khnum, the central stars of the group, watched through this ten-day interval.',
+    maatPrinciple: 'Not Everything That Multiplies Is Strength',
+    cosmicContext:
+        '''The crop has thickened, and a younger farmer calls the dense green a rich sign. The Kemite kneels and parts it. Some blades are rooted deep; others are only crowded growth, shallow, that the first dry wind will take.
 
-But the field does not honor preference.
-The avoided section grows weaker and eventually pulls the whole field's yield down.
-''',
+Not all that multiplies is strength. Discernment counts what can actually hold, beneath what merely looks like plenty.''',
     decanFlow: _compressedRekhwerFlowRows2,
     meduNeter: MeduNeterKey(
       glyph:
-          'Farmer entering the difficult section of the field — the avoided corner faced',
+          'Hands parting dense green to tell rooted blades from crowded ones',
       colorFrequency:
-          'Darker earth, less tended green — the section that needs the work',
-      mantra:
-          '"The part I avoid is the part that costs everything. I go there today."',
+          'Thick growth divided into what holds and what only fills space',
+      mantra: '"I count what can hold, not merely what has multiplied."',
     ),
   ),
   'rekhwer_14_2': KemeticDayInfo(
     kemeticDate: 'Rekh-Wer II, Day 14',
-    season: '🌱 Peret II – Active Growth',
-    month: 'Rekh-Wer (Rḫ-wr)',
-    decanName:
-        'ḥry-ib knmw (translation uncertain) | Deck: Heart of the Knowing',
+    season: '🌱 Peret – Emergence Season',
+    month: 'Rekh-Wer ("Rḫ-wr")',
+    decanName: 'ḥry-ib knmw ("Heart of Khnum")',
     starCluster:
-        '✨ ḥry-ib knmw — a modest decanal star group watched near the eastern horizon during this ten-day interval; exact modern identification is uncertain',
-    maatPrinciple: 'The Field Requires the Right Pace, Not the Fastest One',
-    cosmicContext: '''
-The farmer who moves too fast through the field
-misses what the slower pass would have caught.
-The one who moves too slowly lets the window close.
+        '✨ ḥry-ib knmw — the Heart of Khnum, the central stars of the group, watched through this ten-day interval.',
+    maatPrinciple: 'Guidance Becomes Trustworthy Through Repeated Seeing',
+    cosmicContext:
+        '''From the temple court, a watcher tracks ḥry-ib knmw across several nights. One clear sighting is not enough: haze, horizon, the eye\'s angle can mislead. The star\'s true place is known by return, not a single glance.
 
-The field requires a specific pace — not the farmer's preferred pace,
-not yesterday's urgency or tomorrow's anxiety.
-Today's condition.
-''',
+What guides reliably is seen again and again. A single look deceives; the pattern, returned to, tells the truth.''',
     decanFlow: _compressedRekhwerFlowRows2,
     meduNeter: MeduNeterKey(
       glyph:
-          'Farmer adjusting stride to match the row — pace calibrated to the field',
+          'A watcher tracking the decan star across several nights to be sure of it',
       colorFrequency:
-          'Even green, unhurried copper, the pace matching the need',
-      mantra: '"I move at the pace the field requires today."',
+          'A star\'s true place confirmed by return, not a single glance',
+      mantra: '"I trust what repeated seeing confirms, not one glance."',
     ),
   ),
   'rekhwer_15_2': KemeticDayInfo(
     kemeticDate: 'Rekh-Wer II, Day 15',
-    season: '🌱 Peret II – Active Growth',
-    month: 'Rekh-Wer (Rḫ-wr)',
-    decanName:
-        'ḥry-ib knmw (translation uncertain) | Deck: Heart of the Knowing',
+    season: '🌱 Peret – Emergence Season',
+    month: 'Rekh-Wer ("Rḫ-wr")',
+    decanName: 'ḥry-ib knmw ("Heart of Khnum")',
     starCluster:
-        '✨ ḥry-ib knmw — a modest decanal star group watched near the eastern horizon during this ten-day interval; exact modern identification is uncertain',
-    maatPrinciple: 'Strength Goes to the Weakest Point',
-    cosmicContext: '''
-A skilled tender does not only feed the strongest rows.
-The vulnerable section must be read and supported before it pulls down the whole field.
+        '✨ ḥry-ib knmw — the Heart of Khnum, the central stars of the group, watched through this ten-day interval.',
+    maatPrinciple: 'Help Must Be Shaped to the Fragility of What It Helps',
+    cosmicContext:
+        '''Sun and water have baked a hard skin over the soil around the young stems. The Kemite breaks it with a small tool, not the hoe. The crust must be opened, but the roots cannot survive a rough hand.
 
-Skilled tending means reading where things are most at risk
-and directing capacity there, even when the stronger sections are more rewarding to work.
-''',
+The same task asks different force depending on what it touches. Help is shaped to the fragility of what it helps.''',
     decanFlow: _compressedRekhwerFlowRows2,
     meduNeter: MeduNeterKey(
       glyph:
-          'Water directed at the weakest row — the allocation made correctly',
-      colorFrequency: 'River blue to the most vulnerable green',
-      mantra: '"Strength goes to the weakest point. That is skilled tending."',
+          'A small tool breaking the soil crust without cutting the young root',
+      colorFrequency:
+          'A hard crust opened gently around stems too fragile for the hoe',
+      mantra: '"I shape my help to the fragility of what it touches."',
     ),
   ),
   'rekhwer_16_2': KemeticDayInfo(
     kemeticDate: 'Rekh-Wer II, Day 16',
-    season: '🌱 Peret II – Active Growth',
-    month: 'Rekh-Wer (Rḫ-wr)',
-    decanName:
-        'ḥry-ib knmw (translation uncertain) | Deck: Heart of the Knowing',
+    season: '🌱 Peret – Emergence Season',
+    month: 'Rekh-Wer ("Rḫ-wr")',
+    decanName: 'ḥry-ib knmw ("Heart of Khnum")',
     starCluster:
-        '✨ ḥry-ib knmw — a modest decanal star group watched near the eastern horizon during this ten-day interval; exact modern identification is uncertain',
-    maatPrinciple: 'The Method Must Be Protected',
-    cosmicContext: '''
-A good technique can be disrupted.
-A schedule collapses. An urgency displaces the rhythm.
-Someone else's need overwrites the established practice.
-The method erodes not from abandonment but from interruption compounded.
-''',
+        '✨ ḥry-ib knmw — the Heart of Khnum, the central stars of the group, watched through this ten-day interval.',
+    maatPrinciple:
+        'Press Too Little and It Fails; Too Hard and Care Becomes Harm',
+    cosmicContext:
+        '''A boy cuts his palm on a reed edge carrying bundles. An older woman washes it and wraps it in linen. She ties the knot, then loosens it once: it must hold the wound without making the fingers go cold.
+
+Good care lives in a narrow band. Too loose, it fails to hold; too tight, the care itself does harm.''',
     decanFlow: _compressedRekhwerFlowRows2,
     meduNeter: MeduNeterKey(
-      glyph: 'Field boundary marked — the method held within its defined space',
-      colorFrequency: 'Protected green inside a clear boundary',
-      mantra: '"The method is worth protecting. I guard it deliberately."',
+      glyph:
+          'A linen binding tied, then loosened once, to hold without choking',
+      colorFrequency:
+          'A wound wrapped firm enough to hold, loose enough for blood to move',
+      mantra:
+          '"I bind firmly enough to hold, and loosely enough to let life move."',
     ),
   ),
   'rekhwer_17_2': KemeticDayInfo(
     kemeticDate: 'Rekh-Wer II, Day 17',
-    season: '🌱 Peret II – Active Growth',
-    month: 'Rekh-Wer (Rḫ-wr)',
-    decanName:
-        'ḥry-ib knmw (translation uncertain) | Deck: Heart of the Knowing',
+    season: '🌱 Peret – Emergence Season',
+    month: 'Rekh-Wer ("Rḫ-wr")',
+    decanName: 'ḥry-ib knmw ("Heart of Khnum")',
     starCluster:
-        '✨ ḥry-ib knmw — a modest decanal star group watched near the eastern horizon during this ten-day interval; exact modern identification is uncertain',
-    maatPrinciple: 'Use Knowledge You Were Given',
-    cosmicContext: '''
-In Ka-ḥer-ka you called in help.
-In Šef-Bedet someone offered correction or guidance.
-In Rekh-Wer I you received correction and asked for it.
+        '✨ ḥry-ib knmw — the Heart of Khnum, the central stars of the group, watched through this ten-day interval.',
+    maatPrinciple:
+        'Know Which Hurt Needs Help, Which Needs Time, Which Must Be Released',
+    cosmicContext:
+        '''A night wind has leaned part of the field. The Kemite does not lift every stem alike. Some spring up at a touch; some need a prop; one is cracked at the base, pulled before it rots the row.
 
-That knowledge is available to you.
-Is it being applied?
-
-Most people receive good instruction and then return
-to their previous method within a week.
-The instruction fades; the habit wins.
-''',
+Not every hurt is answered the same. Judgment tells apart what needs help, what needs time, and what to let go.''',
     decanFlow: _compressedRekhwerFlowRows2,
     meduNeter: MeduNeterKey(
       glyph:
-          'Received correction put into practice — another\'s knowledge now in the hands',
-      colorFrequency: 'Two tones of earth united in one practiced motion',
-      mantra: '"I use what I was given. That is how knowledge becomes mine."',
+          'Bent stems sorted by hand: some righted, some propped, one pulled',
+      colorFrequency:
+          'A wind-leaned row judged stem by stem, each answered in kind',
+      mantra:
+          '"I tell apart what needs help, what needs time, and what to release."',
     ),
   ),
   'rekhwer_18_2': KemeticDayInfo(
     kemeticDate: 'Rekh-Wer II, Day 18',
-    season: '🌱 Peret II – Active Growth',
-    month: 'Rekh-Wer (Rḫ-wr)',
-    decanName:
-        'ḥry-ib knmw (translation uncertain) | Deck: Heart of the Knowing',
+    season: '🌱 Peret – Emergence Season',
+    month: 'Rekh-Wer ("Rḫ-wr")',
+    decanName: 'ḥry-ib knmw ("Heart of Khnum")',
     starCluster:
-        '✨ ḥry-ib knmw — a modest decanal star group watched near the eastern horizon during this ten-day interval; exact modern identification is uncertain',
-    maatPrinciple: 'Measure What the Second Interval Produced',
-    cosmicContext: '''
-Two intervals in. Eighteen days of Rekh-Wer.
-The scribe records not when it feels right but on schedule.
+        '✨ ḥry-ib knmw — the Heart of Khnum, the central stars of the group, watched through this ten-day interval.',
+    maatPrinciple: 'Judgment Made in Heat Becomes Part of the Fire',
+    cosmicContext:
+        '''A jar breaks in the lane, and two households accuse each other while the sun is high and tempers higher. The elder called to judge refuses now. They will speak at dusk, with witnesses, when the anger has cooled.
 
-What has this field actually produced in the second ten days?
-Not how the work felt. Not the effort given.
-What changed in the growing thing between Day 10 and today?
-''',
+A judgment passed in the heat only adds to the blaze. Cooled first, the matter can be weighed instead of fought.''',
     decanFlow: _compressedRekhwerFlowRows2,
     meduNeter: MeduNeterKey(
-      glyph:
-          'Scribe marking the second interval measurement — the honest count',
-      colorFrequency: 'Clean record, the field assessed without flattery',
-      mantra: '"The honest measure is what I make the next decision from."',
+      glyph: 'An elder refusing to judge a hot quarrel until the cool of dusk',
+      colorFrequency:
+          'A midday dispute held back to be weighed when anger has cooled',
+      mantra:
+          '"I do not pass judgment in the heat that would only feed the fire."',
     ),
   ),
   'rekhwer_19_2': KemeticDayInfo(
     kemeticDate: 'Rekh-Wer II, Day 19',
-    season: '🌱 Peret II – Active Growth',
-    month: 'Rekh-Wer (Rḫ-wr)',
-    decanName:
-        'ḥry-ib knmw (translation uncertain) | Deck: Heart of the Knowing',
+    season: '🌱 Peret – Emergence Season',
+    month: 'Rekh-Wer ("Rḫ-wr")',
+    decanName: 'ḥry-ib knmw ("Heart of Khnum")',
     starCluster:
-        '✨ ḥry-ib knmw — a modest decanal star group watched near the eastern horizon during this ten-day interval; exact modern identification is uncertain',
-    maatPrinciple: 'The Method Must Serve the Field',
-    cosmicContext: '''
-Yesterday's honest reading revealed the current condition.
-Today the method is adjusted to match it.
+        '✨ ḥry-ib knmw — the Heart of Khnum, the central stars of the group, watched through this ten-day interval.',
+    maatPrinciple:
+        'Correction Should Shape the Person, Not Only Punish the Act',
+    cosmicContext:
+        '''A boy, too eager, mishandles an animal and the lane sees it. The Kemite could shame him on the spot. Instead he waits until the boy is past his fright and able to listen, then shows him what went wrong.
 
-A method that does not change in response to the field's condition
-is not a method — it is a preference.
-The field does not accommodate preference.
-''',
+Correction aimed only at the mistake teaches nothing. Aimed at the person, when it can be heard, it shapes them.''',
     decanFlow: _compressedRekhwerFlowRows2,
     meduNeter: MeduNeterKey(
       glyph:
-          'Farmer changing the tool angle based on what the soil showed — method adjusted',
-      colorFrequency: 'Earth read, tool corrected, green responding',
-      mantra:
-          '"The method serves the field. I adjust when the field requires it."',
+          'A correction held back until the boy is calm enough to truly hear it',
+      colorFrequency:
+          'A public mistake answered later, in private, so it can teach',
+      mantra: '"I correct to shape the person, not only to punish the act."',
     ),
   ),
   'rekhwer_20_2': KemeticDayInfo(
     kemeticDate: 'Rekh-Wer II, Day 20',
-    season: '🌱 Peret II – Active Growth',
-    month: 'Rekh-Wer (Rḫ-wr)',
-    decanName:
-        'ḥry-ib knmw (translation uncertain) | Deck: Heart of the Knowing',
+    season: '🌱 Peret – Emergence Season',
+    month: 'Rekh-Wer ("Rḫ-wr")',
+    decanName: 'ḥry-ib knmw ("Heart of Khnum")',
     starCluster:
-        '✨ ḥry-ib knmw — a modest decanal star group watched near the eastern horizon during this ten-day interval; exact modern identification is uncertain',
-    maatPrinciple: 'Two Decans In — Account Before the Last One Begins',
-    cosmicContext: '''
-Twenty days of Rekh-Wer.
-The knowledge base was built and the craft was applied.
-The standard was held, the difficult section worked,
-the pace calibrated, the weak point strengthened.
-''',
+        '✨ ḥry-ib knmw — the Heart of Khnum, the central stars of the group, watched through this ten-day interval.',
+    maatPrinciple: 'When the Heart Governs the Hand, What Is Formed Can Hold',
+    cosmicContext:
+        '''By the decan\'s close the village is not louder, but more careful. Measures re-counted, a wound bound, bent stems judged, a quarrel cooled, a boy taught. The crop still only grows — yet the people shaping it are shaped in turn.
+
+What is formed under a governing heart holds. Pressure judged before it is applied makes a thing that lasts.''',
     decanFlow: _compressedRekhwerFlowRows2,
     meduNeter: MeduNeterKey(
       glyph:
-          'Field surveyed at midpoint — the account taken before the final interval',
+          'A village grown more careful, the crop and the people both shaped',
       colorFrequency:
-          'Wide green field, the farmer reading all of it with knowing eyes',
-      mantra:
-          '"Two decans in. I know this field. I carry that into the last ten days."',
+          'A steadier village at the decan\'s close, formed by its own judging',
+      mantra: '"When my heart governs my hand, what I form can hold."',
     ),
   ),
   'rekhwer_21_3': KemeticDayInfo(
-    kemeticDate: 'Rekh-Wer III, Day 21',
-    season: '🌱 Peret II – Active Growth',
-    month: 'Rekh-Wer (Rḫ-wr)',
-    decanName: 'sbꜣ knmw (translation uncertain) | Deck: Star of the Knowing',
+    kemeticDate: 'Rekh-Wer III, Day 21 (Day 21 of Rekh-Wer)',
+    season: '🌱 Peret – Emergence Season',
+    month: 'Rekh-Wer ("Rḫ-wr")',
+    decanName: 'sbꜣ knmw ("Star of Khnum")',
     starCluster:
-        '✨ sbꜣ knmw — a modest decanal star group watched near the eastern horizon during this ten-day interval; exact modern identification is uncertain',
-    maatPrinciple: 'Consolidate Before Carrying Forward',
-    cosmicContext: '''
-Twenty days of knowledge built and applied.
-The third decan does not add new techniques — it consolidates what was established
-and makes it durable enough to carry into the next month.
+        '✨ sbꜣ knmw — the Star of Khnum, the bright marker of the group, watched through this ten-day interval.',
+    maatPrinciple: 'Trust Is Built by Appearing Rightly, Again and Again',
+    cosmicContext:
+        '''Before dawn a young watcher finds sbꜣ knmw exactly where the elder said it would rise. No one explains the sky now. The star proves itself by keeping its place, night after night, with no voice to vouch for it.
 
-What do you know well enough now to act on without hesitation?
-What still has uncertainty that needs one more pass?
-''',
+A thing earns trust not by being declared reliable, but by returning rightly, until doubt has nowhere to stand.''',
     decanFlow: _compressedRekhwerFlowRows3,
     meduNeter: MeduNeterKey(
       glyph:
-          'Knowledge pressed into the field record — consolidated, not scattered',
-      colorFrequency: 'Ink settled, the record complete, ready to carry',
-      mantra: '"I know what is solid. I know what still needs work."',
+          'A young watcher finding the decan star exactly where it was taught to be',
+      colorFrequency:
+          'A star keeping its place in the pattern, proving itself by return',
+      mantra: '"I earn trust by appearing rightly, again and again."',
     ),
   ),
   'rekhwer_22_3': KemeticDayInfo(
     kemeticDate: 'Rekh-Wer III, Day 22',
-    season: '🌱 Peret II – Active Growth',
-    month: 'Rekh-Wer (Rḫ-wr)',
-    decanName: 'sbꜣ knmw (translation uncertain) | Deck: Star of the Knowing',
+    season: '🌱 Peret – Emergence Season',
+    month: 'Rekh-Wer ("Rḫ-wr")',
+    decanName: 'sbꜣ knmw ("Star of Khnum")',
     starCluster:
-        '✨ sbꜣ knmw — a modest decanal star group watched near the eastern horizon during this ten-day interval; exact modern identification is uncertain',
-    maatPrinciple: 'The Gap Must Be Closed Before the Month Ends',
-    cosmicContext: '''
-On Day 4 you named a gap in your understanding.
-Twenty-two days later: is it closed?
+        '✨ sbꜣ knmw — the Star of Khnum, the bright marker of the group, watched through this ten-day interval.',
+    maatPrinciple: 'Competence Is Effort That Knows Where to Go',
+    cosmicContext:
+        '''The Kemite walks the field and no longer checks everything alike. His hand goes to the row that has changed; his eye passes over what is sound. He has learned the shape of rightness, so his attention falls only where needed.
 
-A gap named and not closed becomes a structural weakness
-carried into the next month, and then into the next season.
-The field continues to pay for it.
-''',
+Competence is not doing more. It is effort that knows where to land, sparing what is already well.''',
     decanFlow: _compressedRekhwerFlowRows3,
     meduNeter: MeduNeterKey(
       glyph:
-          'Final sealing of a gap in the field boundary — the weakness closed',
-      colorFrequency: 'Sealed earth, no gap remaining in the green',
-      mantra: '"The gap does not carry into next month. I close it now."',
+          'A figure moving straight to the changed row, passing over the sound ones',
+      colorFrequency:
+          'Attention falling only where needed across a known field',
+      mantra: '"I send my effort where it is needed, not equally everywhere."',
     ),
   ),
   'rekhwer_23_3': KemeticDayInfo(
     kemeticDate: 'Rekh-Wer III, Day 23',
-    season: '🌱 Peret II – Active Growth',
-    month: 'Rekh-Wer (Rḫ-wr)',
-    decanName: 'sbꜣ knmw (translation uncertain) | Deck: Star of the Knowing',
+    season: '🌱 Peret – Emergence Season',
+    month: 'Rekh-Wer ("Rḫ-wr")',
+    decanName: 'sbꜣ knmw ("Star of Khnum")',
     starCluster:
-        '✨ sbꜣ knmw — a modest decanal star group watched near the eastern horizon during this ten-day interval; exact modern identification is uncertain',
-    maatPrinciple: 'The Method Must Survive the Transition',
-    cosmicContext: '''
-A method that only works under ideal conditions is not yet a method.
-It is a good day's behavior.
+        '✨ sbꜣ knmw — the Star of Khnum, the bright marker of the group, watched through this ten-day interval.',
+    maatPrinciple: 'Teaching Has Taken Root When It Works Without the Teacher',
+    cosmicContext:
+        '''The Kemite sends a younger hand to walk the rows alone. They return with the right report — one bent place, one dry edge, no panic over the rest. The field was carried by what had been taught.
 
-What you built in Rekh-Wer must hold into Rekh-Nedjes —
-under different demands, different pressures, a new focus.
-''',
+A lesson has truly rooted when it works with the teacher nowhere in sight. The knowing belongs now to the learner.''',
     decanFlow: _compressedRekhwerFlowRows3,
     meduNeter: MeduNeterKey(
       glyph:
-          'Method tested against a harder condition — the craft proven under pressure',
-      colorFrequency: 'Firm earth under tested green — held, not broken',
-      mantra:
-          '"The method holds under harder conditions. I make sure before the month ends."',
+          'A younger hand returning from the rows with exactly the right report',
+      colorFrequency: 'A field walked and read by eyes the teacher trained',
+      mantra: '"What I taught has rooted when it works without me watching."',
     ),
   ),
   'rekhwer_24_3': KemeticDayInfo(
     kemeticDate: 'Rekh-Wer III, Day 24',
-    season: '🌱 Peret II – Active Growth',
-    month: 'Rekh-Wer (Rḫ-wr)',
-    decanName: 'sbꜣ knmw (translation uncertain) | Deck: Star of the Knowing',
+    season: '🌱 Peret – Emergence Season',
+    month: 'Rekh-Wer ("Rḫ-wr")',
+    decanName: 'sbꜣ knmw ("Star of Khnum")',
     starCluster:
-        '✨ sbꜣ knmw — a modest decanal star group watched near the eastern horizon during this ten-day interval; exact modern identification is uncertain',
-    maatPrinciple: 'Work at the Level You Have Built',
-    cosmicContext: '''
-The craftsman who spent a month building a skill
-and then returns to the old, unskilled approach
-has wasted the month.
+        '✨ sbꜣ knmw — the Star of Khnum, the bright marker of the group, watched through this ten-day interval.',
+    maatPrinciple: 'Competence Proves Itself by Carrying People Safely',
+    cosmicContext:
+        '''At the canal crossing, jars and children wait in the loaded boat. The old boatman hands the pole to his apprentice. The current pulls hard, but the boat turns cleanly across. No one claps; everyone steps off dry.
 
-Bring everything acquired in Rekh-Wer to today's work.
-Not effort — precision. Not volume — quality.
-The technique refined, the gap closed, the knowledge applied.
-''',
+Real competence needs no display. It shows in the plain fact that the people it carried arrived safely.''',
     decanFlow: _compressedRekhwerFlowRows3,
     meduNeter: MeduNeterKey(
       glyph:
-          'Craftsman at full skill — the month\'s learning expressed in one day\'s work',
+          'An apprentice taking the pole, the loaded boat turning cleanly across',
       colorFrequency:
-          'Precise copper, confident green, the skill visible in the result',
-      mantra: '"I work at the level I built. Not below it."',
+          'A safe crossing with no applause, everyone stepping off dry',
+      mantra:
+          '"I let my skill prove itself by carrying others safely, not by show."',
     ),
   ),
   'rekhwer_25_3': KemeticDayInfo(
     kemeticDate: 'Rekh-Wer III, Day 25',
-    season: '🌱 Peret II – Active Growth',
-    month: 'Rekh-Wer (Rḫ-wr)',
-    decanName: 'sbꜣ knmw (translation uncertain) | Deck: Star of the Knowing',
+    season: '🌱 Peret – Emergence Season',
+    month: 'Rekh-Wer ("Rḫ-wr")',
+    decanName: 'sbꜣ knmw ("Star of Khnum")',
     starCluster:
-        '✨ sbꜣ knmw — a modest decanal star group watched near the eastern horizon during this ten-day interval; exact modern identification is uncertain',
-    maatPrinciple: 'Knowledge That Is Not Passed On Dies With the Season',
-    cosmicContext: '''
-Agricultural knowledge survives by being written, spoken, demonstrated, and repeated.
-The method that moves from one farmer to the next
-outlives any single season.
+        '✨ sbꜣ knmw — the Star of Khnum, the bright marker of the group, watched through this ten-day interval.',
+    maatPrinciple: 'Some Truths Appear Only to the Eye That Knows When to Look',
+    cosmicContext:
+        '''Before sunrise the Kemite takes the younger hand to the field. Dew clings across the rows, but one strip dries too fast — trouble below. By noon the dew is gone and it looks like the rest.
 
-Knowledge kept privately dies when the holder loses access to the field.
-''',
+Some truths show only briefly, to the one who knows when to look. Miss it, and the sign hides until it is damage.''',
     decanFlow: _compressedRekhwerFlowRows3,
     meduNeter: MeduNeterKey(
       glyph:
-          'Knowledge written and handed to the next farmer — the transmission',
-      colorFrequency: 'Ink on papyrus, the living field behind it continuing',
-      mantra: '"The knowledge survives because I pass it on."',
+          'Dew drying too fast on one strip, a sign seen only before sunrise',
+      colorFrequency:
+          'An early-morning sign that noon would have hidden entirely',
+      mantra: '"I look at the hour when the sign can still be seen."',
     ),
   ),
   'rekhwer_26_3': KemeticDayInfo(
     kemeticDate: 'Rekh-Wer III, Day 26',
-    season: '🌱 Peret II – Active Growth',
-    month: 'Rekh-Wer (Rḫ-wr)',
-    decanName: 'sbꜣ knmw (translation uncertain) | Deck: Star of the Knowing',
+    season: '🌱 Peret – Emergence Season',
+    month: 'Rekh-Wer ("Rḫ-wr")',
+    decanName: 'sbꜣ knmw ("Star of Khnum")',
     starCluster:
-        '✨ sbꜣ knmw — a modest decanal star group watched near the eastern horizon during this ten-day interval; exact modern identification is uncertain',
-    maatPrinciple:
-        'The Under-Tended Section Must Be Seen Before the Month Closes',
-    cosmicContext: '''
-Every month has a section that received less skilled attention.
-Not from negligence — from the natural pull toward what is already working.
+        '✨ sbꜣ knmw — the Star of Khnum, the bright marker of the group, watched through this ten-day interval.',
+    maatPrinciple: 'What Has Carried Weight Before Must Still Be Tested',
+    cosmicContext:
+        '''In the lane, jars are tied for carrying. The rope looks sound because it held yesterday. A woman twists it once anyway, finds it fraying, and swaps it. No one praises the clay that did not shatter.
 
-Before Rekh-Wer closes, name the section that was under-tended.
-Not to shame — to correct.
-''',
+That a thing held weight before is no promise it will again. What carries is tested fresh, every time.''',
     decanFlow: _compressedRekhwerFlowRows3,
     meduNeter: MeduNeterKey(
-      glyph:
-          'Farmer returning to the neglected row before month close — the field made whole',
-      colorFrequency: 'Previously dark green brought level with the rest',
-      mantra: '"The knowledge belongs to the whole field. I bring it all up."',
+      glyph: 'A worn rope found and replaced before the jars are lifted again',
+      colorFrequency:
+          'A fray caught by hand before yesterday\'s rope could fail today',
+      mantra:
+          '"I test again what carried weight before, every time it carries."',
     ),
   ),
   'rekhwer_27_3': KemeticDayInfo(
     kemeticDate: 'Rekh-Wer III, Day 27',
-    season: '🌱 Peret II – Active Growth',
-    month: 'Rekh-Wer (Rḫ-wr)',
-    decanName: 'sbꜣ knmw (translation uncertain) | Deck: Star of the Knowing',
+    season: '🌱 Peret – Emergence Season',
+    month: 'Rekh-Wer ("Rḫ-wr")',
+    decanName: 'sbꜣ knmw ("Star of Khnum")',
     starCluster:
-        '✨ sbꜣ knmw — a modest decanal star group watched near the eastern horizon during this ten-day interval; exact modern identification is uncertain',
-    maatPrinciple: 'Read the Full Field Before Handing It Forward',
-    cosmicContext: '''
-The farmer about to transition into the next month
-walks the full field first.
-Not the section that was worked hardest.
-Not the section that looks best.
-The whole field. Honest.
+        '✨ sbꜣ knmw — the Star of Khnum, the bright marker of the group, watched through this ten-day interval.',
+    maatPrinciple: 'Trouble Prevented Early Leaves Almost No Story Behind',
+    cosmicContext:
+        '''A donkey carrying jars stiffens when a mat snaps in the wind. A child stands too close; a jar slides. The handler lowers his voice, a woman lifts the child clear, another steadies the load — and the panic dies before it starts.
 
-What does thirty days of Rekh-Wer show?
-Where is the knowledge strongest? Where are the remaining gaps?
-What will Rekh-Nedjes inherit?
-''',
+Competence catches the first tightening, not just the break. What it prevents leaves almost no trace.''',
     decanFlow: _compressedRekhwerFlowRows3,
     meduNeter: MeduNeterKey(
-      glyph:
-          'Farmer at the field edge reading the whole — the final honest survey',
-      colorFrequency: 'Wide field read completely, no section softened',
-      mantra: '"I read the whole field. Honest. Before I hand it forward."',
+      glyph: 'A startled donkey calmed and steadied before the panic can begin',
+      colorFrequency:
+          'A near-bolt eased by quick hands, leaving nothing spilled',
+      mantra: '"I catch the first tightening, before it becomes a break."',
     ),
   ),
   'rekhwer_28_3': KemeticDayInfo(
     kemeticDate: 'Rekh-Wer III, Day 28',
-    season: '🌱 Peret II – Active Growth',
-    month: 'Rekh-Wer (Rḫ-wr)',
-    decanName: 'sbꜣ knmw (translation uncertain) | Deck: Star of the Knowing',
+    season: '🌱 Peret – Emergence Season',
+    month: 'Rekh-Wer ("Rḫ-wr")',
+    decanName: 'sbꜣ knmw ("Star of Khnum")',
     starCluster:
-        '✨ sbꜣ knmw — a modest decanal star group watched near the eastern horizon during this ten-day interval; exact modern identification is uncertain',
-    maatPrinciple: 'The Craft Is the Offering',
-    cosmicContext: '''
-Ma'at does not weigh intention alone.
-She weighs what was done, how it was done, and whether the work served balance.
+        '✨ sbꜣ knmw — the Star of Khnum, the bright marker of the group, watched through this ten-day interval.',
+    maatPrinciple:
+        'Knowledge Has Taken Root When It Can Speak Back to Its Teacher',
+    cosmicContext:
+        '''The younger hand points to a curled edge in the shaded row. The Kemite nearly waves it off — he has read this field a hundred times — then kneels and finds it real. The lesson returns through the one he taught.
 
-The quality of craft applied to a living field
-is an ethical act in Kemetic understanding.
-Careless work damages what the earth gave.
-Skilled, honest work returns the care to the source.
-''',
+A teaching has rooted when it can correct the teacher. What instructs its own source is true knowledge.''',
     decanFlow: _compressedRekhwerFlowRows3,
     meduNeter: MeduNeterKey(
-      glyph: 'Skilled hands before Ma\'at — the craft offered, not the yield',
+      glyph: 'A student catching a real sign the teacher almost dismissed',
       colorFrequency:
-          'Gold scale, clean skilled hands, the field behind them living',
-      mantra: '"The craft is the offering. Ma\'at weighs how I worked."',
+          'A lesson returning to correct the eyes that first gave it',
+      mantra: '"What I taught has rooted when it can teach me in return."',
     ),
   ),
   'rekhwer_29_3': KemeticDayInfo(
     kemeticDate: 'Rekh-Wer III, Day 29',
-    season: '🌱 Peret II – Active Growth',
-    month: 'Rekh-Wer (Rḫ-wr)',
-    decanName: 'sbꜣ knmw (translation uncertain) | Deck: Star of the Knowing',
+    season: '🌱 Peret – Emergence Season',
+    month: 'Rekh-Wer ("Rḫ-wr")',
+    decanName: 'sbꜣ knmw ("Star of Khnum")',
     starCluster:
-        '✨ sbꜣ knmw — a modest decanal star group watched near the eastern horizon during this ten-day interval; exact modern identification is uncertain',
-    maatPrinciple: 'Read What the Next Month Requires',
-    cosmicContext: '''
-Rekh-Nedjes opens next month.
-Not lesser knowledge: knowledge made smaller, closer, and more exposed.
+        '✨ sbꜣ knmw — the Star of Khnum, the bright marker of the group, watched through this ten-day interval.',
+    maatPrinciple:
+        'When Knowledge Can Be Trusted, Vigilance Need Not Belong to One Body',
+    cosmicContext:
+        '''That night the Kemite does not sit by the channel. The gate is set where the village agreed; the watcher knows the order, the young know which sound means trouble. For the first time this season, he sleeps.
 
-Rekh-Wer built the broad craft.
-Rekh-Nedjes tests it under pressure — in the small sign,
-the early warning, the detail that reveals whether the method truly holds
-when conditions tighten.
-''',
+When knowledge can be trusted across many hands, the watch is shared. No one carries the whole weight of staying awake.''',
     decanFlow: _compressedRekhwerFlowRows3,
     meduNeter: MeduNeterKey(
       glyph:
-          'Eye close to the row — reading the fine detail, not the broad condition',
-      colorFrequency: 'Deep green close up, the subtle sign visible at last',
-      mantra: '"I prepare the eye for the finer reading next month requires."',
+          'The Kemite sleeping while a trained watch holds the channel through the night',
+      colorFrequency:
+          'A night watch shared across many hands, resting on no one alone',
+      mantra:
+          '"When the knowing is shared, vigilance no longer rests on me alone."',
     ),
   ),
   'rekhwer_30_3': KemeticDayInfo(
     kemeticDate: 'Rekh-Wer III, Day 30',
-    season: '🌱 Peret II – Active Growth',
-    month: 'Rekh-Wer (Rḫ-wr)',
-    decanName: 'sbꜣ knmw (translation uncertain) | Deck: Star of the Knowing',
+    season: '🌱 Peret – Emergence Season',
+    month: 'Rekh-Wer ("Rḫ-wr")',
+    decanName: 'sbꜣ knmw ("Star of Khnum")',
     starCluster:
-        '✨ sbꜣ knmw — a modest decanal star group watched near the eastern horizon during this ten-day interval; exact modern identification is uncertain',
-    maatPrinciple: 'Seal the Month. Carry the Knowledge Forward.',
-    cosmicContext: '''
-Rekh-Wer closes today.
+        '✨ sbꜣ knmw — the Star of Khnum, the bright marker of the group, watched through this ten-day interval.',
+    maatPrinciple:
+        'Where Knowledge Can Be Trusted, the Next Cycle Does Not Begin From Uncertainty',
+    cosmicContext:
+        '''Rekh-Wer closes with the crop unfinished but the village steadier. The star found by a younger eye, the field read by another hand, the boat crossed, the rope tested, the donkey calmed. The method has left its first hands and still holds.
 
-The field was read before it was touched.
-The right tool was matched to the task.
-The gap was named and closed.
-The technique was refined and held under pressure.
-The knowledge was shared, corrected, applied, recorded.
-The difficult section was worked. The weak point was strengthened.
-The craft was offered.
-''',
+Where knowledge can be trusted, what comes next does not start over. It stands on what was proven.''',
     decanFlow: _compressedRekhwerFlowRows3,
     meduNeter: MeduNeterKey(
-      glyph:
-          'Field record sealed and carried forward — the knowledge that travels',
+      glyph: 'The method working in many trained hands as the month closes',
       colorFrequency:
-          'Living green field, sealed record in hand, moving forward',
-      mantra: '"The knowing is mine now. I carry it into the next month."',
+          'A steadier village carrying proven knowledge into what comes next',
+      mantra:
+          '"What was proven, I carry forward, so the next cycle does not start in doubt."',
     ),
   ),
 

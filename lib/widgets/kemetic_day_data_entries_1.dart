@@ -2235,29 +2235,24 @@ Map<String, KemeticDayInfo> _buildKaHerKaIIIEntries() {
   return Map.fromEntries([
     _dayInfoEntry(
       key: 'kaherka_21_3',
-      kemeticDate: 'Ka-ḥer-ka III, Day 21',
+      kemeticDate: 'Ka-ḥer-ka III, Day 21 (Day 21 of Ka-ḥer-ka)',
       season: '🌊 Akhet Closing – Inundation Withdraws',
-      month: 'Ka-ḥer-ka ("Ka upon Ka" — doubled life-force)',
-      decanName:
-          'rmṯ n pt / remetch en pet ("People of Heaven") | Deck: The Crew of Heaven',
+      month: 'Ka-ḥer-ka ("Ka upon Ka")',
+      decanName: 'sbꜣ msḥtjw ("Star of the Foreleg")',
       starCluster:
-          '✨ sbꜣ msḥtjw — the star of the northern Foreleg group, observed within the seven-star Big Dipper form whose bowl and handle create a clear bent shape in the northern sky',
-      maatPrinciple: 'Labor Is Placed, Not Performed',
-      cosmicContext: '''
-The Crew of Heaven does not row for applause.
-They row because the barque requires it —
-because the sun would not cross the sky without them.
+          '✨ sbꜣ msḥtjw — the Star of the Foreleg, the bright marker of the northern group, watched through this ten-day interval.',
+      maatPrinciple: 'When a Thing Can Stand, It Returns You to Your Life',
+      cosmicContext:
+          '''For the first time in days, the rows ask nothing urgent, and the Kemite leaves before the heat. He goes home and mends what waited — a roof beam, a cracked jar. The field gives his hours back.
 
-Two decans of Ka-ḥer-ka have passed.
-The seed was placed. The ka was re-engaged.
-Now the third decan asks the simplest question:
-are you working or are you proving?
-''',
+Care that never releases you has not fully succeeded. When a thing can stand, it returns you to your life.''',
       decanFlow: _kaHerKaIIIFlowRows,
       meduNeter: MeduNeterKey(
-        glyph: 'Oar in water — the crew rowing without witness',
-        colorFrequency: 'Deep river black and working copper',
-        mantra: '"I work for the field. The field is enough witness."',
+        glyph:
+            'A figure leaving the quiet field early to mend a roof beam at home',
+        colorFrequency:
+            'Young rows needing nothing, attention turning back to the house',
+        mantra: '"When my work can stand, I let it return me to my life."',
       ),
     ),
     _dayInfoEntry(
@@ -2265,21 +2260,21 @@ are you working or are you proving?
       kemeticDate: 'Ka-ḥer-ka III, Day 22',
       season: '🌊 Akhet Closing – Inundation Withdraws',
       month: 'Ka-ḥer-ka ("Ka upon Ka")',
-      decanName:
-          'rmṯ n pt / remetch en pet ("People of Heaven") | Deck: The Crew of Heaven',
+      decanName: 'sbꜣ msḥtjw ("Star of the Foreleg")',
       starCluster:
-          '✨ sbꜣ msḥtjw — a marker within the northern Foreleg asterism, tied to the bright seven-star pattern commonly recognized as the Big Dipper',
-      maatPrinciple: 'A Blocked Channel Cannot Feed the Field',
-      cosmicContext: '''
-The Crew of Heaven clears the path for Ra's barque.
-They remove the obstacles — not because clearing is glorious
-but because the barque cannot move through obstruction.
-''',
+          '✨ sbꜣ msḥtjw — the Star of the Foreleg, the bright marker of the northern group, watched through this ten-day interval.',
+      maatPrinciple: 'Reverence Is Order Kept Before Plenty Arrives',
+      cosmicContext:
+          '''In the temple court, priests wash linen, polish vessels, and grind incense — though the fields are still young and the offering stores not yet refilled. The rites for the netjeru are readied against an abundance not yet come.
+
+Reverence does not wait for plenty to act. It is order kept before there is anything to show.''',
       decanFlow: _kaHerKaIIIFlowRows,
       meduNeter: MeduNeterKey(
-        glyph: 'Cleared channel with water beginning to flow',
-        colorFrequency: 'Nile blue returning to worked clay-brown',
-        mantra: '"I clear the channel so life can move again."',
+        glyph:
+            'Priests washing linen and polishing vessels in the lean stretch before plenty',
+        colorFrequency:
+            'Temple linen white and incense grey kept ready ahead of the harvest',
+        mantra: '"I keep order before there is plenty to show for it."',
       ),
     ),
     _dayInfoEntry(
@@ -2287,21 +2282,21 @@ but because the barque cannot move through obstruction.
       kemeticDate: 'Ka-ḥer-ka III, Day 23',
       season: '🌊 Akhet Closing – Inundation Withdraws',
       month: 'Ka-ḥer-ka ("Ka upon Ka")',
-      decanName:
-          'rmṯ n pt / remetch en pet ("People of Heaven") | Deck: The Crew of Heaven',
+      decanName: 'sbꜣ msḥtjw ("Star of the Foreleg")',
       starCluster:
-          '✨ sbꜣ msḥtjw — the Foreleg star marker within the northern seven-star angular form, seen as a distinct bowl-and-handle pattern circling the northern sky',
-      maatPrinciple: 'The Djed Must Stand',
-      cosmicContext: '''
-The Djed — the spine of Asar, the pillar of stability — was knocked flat by the flood.
-The crew raises it. Not because it is easy. Because the world needs it upright.
-''',
+          '✨ sbꜣ msḥtjw — the Star of the Foreleg, the bright marker of the northern group, watched through this ten-day interval.',
+      maatPrinciple: 'What Is Witnessed Early Is Not Fought Over Later',
+      cosmicContext:
+          '''A scribe and the elders walk the fresh mud, noting where the water stood, which plots took silt, which were scoured. The marks will soon fade. They set them down while the ground still shows the truth, before memory can bend it.
+
+What is witnessed while the evidence is fresh is not argued over once it is gone.''',
       decanFlow: _kaHerKaIIIFlowRows,
       meduNeter: MeduNeterKey(
         glyph:
-            'Djed pillar being raised by hands — the spine of stability restored',
-        colorFrequency: 'Rooted sandstone gold with steady dark bands',
-        mantra: '"I raise what was knocked flat. The world needs it standing."',
+            'A scribe and elders recording the fresh flood marks before they fade',
+        colorFrequency:
+            'Wet silt lines read and written down before they dry away',
+        mantra: '"I set down what is true while the marks are still fresh."',
       ),
     ),
     _dayInfoEntry(
@@ -2309,25 +2304,21 @@ The crew raises it. Not because it is easy. Because the world needs it upright.
       kemeticDate: 'Ka-ḥer-ka III, Day 24',
       season: '🌊 Akhet Closing – Inundation Withdraws',
       month: 'Ka-ḥer-ka ("Ka upon Ka")',
-      decanName:
-          'rmṯ n pt / remetch en pet ("People of Heaven") | Deck: The Crew of Heaven',
+      decanName: 'sbꜣ msḥtjw ("Star of the Foreleg")',
       starCluster:
-          '✨ sbꜣ msḥtjw — a guiding point in the northern Foreleg group, physically set within the recognizable seven-star bent form of the Big Dipper',
-      maatPrinciple: 'The Ka Requires a Maintained Environment',
-      cosmicContext: '''
-The crew that rows Ra's barque maintains the barque.
-They bail water, check the timbers, keep the hull from taking on the Duat.
-A deteriorating vessel loses the thing it carries.
+          '✨ sbꜣ msḥtjw — the Star of the Foreleg, the bright marker of the northern group, watched through this ten-day interval.',
+      maatPrinciple: 'The Young Join the Work by Learning What Not to Harm',
+      cosmicContext:
+          '''Children chase each other with reed stems toward the field edge. An older sister catches them before they cut across the planted ground, shows them the safe path, then sets them to carrying water. Their first task is learning what not to touch.
 
-Your household is the hull.
-Floor, workspace, bedroom, kitchen.
-A deteriorating environment leaks the vitality you are trying to build.
-''',
+Belonging in the work begins not with what to do, but with what must never be harmed.''',
       decanFlow: _kaHerKaIIIFlowRows,
       meduNeter: MeduNeterKey(
-        glyph: 'Hands checking the hull — the vessel maintained from inside',
-        colorFrequency: 'Ship-wood brown and steady ochre',
-        mantra: '"I keep the vessel worthy of what it carries."',
+        glyph:
+            'An older child turning the young from the planted ground onto the safe path',
+        colorFrequency:
+            'Running children steered clear of the tender young rows',
+        mantra: '"I teach what must not be harmed before I give the task."',
       ),
     ),
     _dayInfoEntry(
@@ -2335,27 +2326,22 @@ A deteriorating environment leaks the vitality you are trying to build.
       kemeticDate: 'Ka-ḥer-ka III, Day 25',
       season: '🌊 Akhet Closing – Inundation Withdraws',
       month: 'Ka-ḥer-ka ("Ka upon Ka")',
-      decanName:
-          'rmṯ n pt / remetch en pet ("People of Heaven") | Deck: The Crew of Heaven',
+      decanName: 'sbꜣ msḥtjw ("Star of the Foreleg")',
       starCluster:
-          '✨ sbꜣ msḥtjw — part of the northern Foreleg constellation-form, appearing as a stable angular group of bright stars rather than a compact cluster',
-      maatPrinciple: 'Relight What Went Cold',
-      cosmicContext: '''
-The crew carries a flame through the Duat.
-Without it, the barque navigates blind.
+          '✨ sbꜣ msḥtjw — the Star of the Foreleg, the bright marker of the northern group, watched through this ten-day interval.',
+      maatPrinciple:
+          'When Fortune Lands Unevenly, Maat Is What the Village Does Next',
+      cosmicContext:
+          '''The flood left one downriver plot pale and thin, while another house has more silt than it can use. Without anyone calling it charity, baskets of earth cross the path. The water did not choose fairly, and the choosing now falls to them.
 
-Things go cold in the flood season — not because they died,
-but because they ran out of fuel and no one refilled them.
-
-A creative practice. A physical discipline. A friendship.
-A daily prayer. A standard quietly dropped.
-These are not gone. They are unlit.
-''',
+Fortune lands unevenly and asks nothing. What the village does in answer is where Maat begins.''',
       decanFlow: _kaHerKaIIIFlowRows,
       meduNeter: MeduNeterKey(
-        glyph: 'Small flame cupped in two hands — the relight, not the blaze',
-        colorFrequency: 'Ember gold in dark copper',
-        mantra: '"I relight this. I do not walk away until it holds."',
+        glyph:
+            'Baskets of silt crossing the path from a rich plot to a scoured one',
+        colorFrequency:
+            'Rich dark earth moving toward pale, short-changed ground',
+        mantra: '"When luck falls unevenly, I help even it."',
       ),
     ),
     _dayInfoEntry(
@@ -2363,25 +2349,22 @@ These are not gone. They are unlit.
       kemeticDate: 'Ka-ḥer-ka III, Day 26',
       season: '🌊 Akhet Closing – Inundation Withdraws',
       month: 'Ka-ḥer-ka ("Ka upon Ka")',
-      decanName:
-          'rmṯ n pt / remetch en pet ("People of Heaven") | Deck: The Crew of Heaven',
+      decanName: 'sbꜣ msḥtjw ("Star of the Foreleg")',
       starCluster:
-          '✨ sbꜣ msḥtjw — the Foreleg star marker in the northern sky, associated with the Big Dipper’s seven bright stars forming a bowl and extended handle',
-      maatPrinciple: 'The Crew Rows Together',
-      cosmicContext: '''
-The divine crew does not take shifts.
-They row in synchrony or the barque does not advance.
-One oar pulling when the others are still does not move the vessel — it turns it in place.
+          '✨ sbꜣ msḥtjw — the Star of the Foreleg, the bright marker of the northern group, watched through this ten-day interval.',
+      maatPrinciple: 'Sometimes the Future Is Defended by Small Hands',
+      cosmicContext:
+          '''Sparrows drop onto the young green at first light. The children stand among the rows with rattles and thrown clods, noise enough to keep the flock moving. The work is not skilled, but the tender shoots would be stripped without it.
 
-The Crew of Heaven rising now asks:
-who shares this field with you,
-and when did you last coordinate with them?
-''',
+Protection is not always grand. Some of the future is defended by children making noise in a field.''',
       decanFlow: _kaHerKaIIIFlowRows,
       meduNeter: MeduNeterKey(
-        glyph: 'Multiple oars in the water at the same angle — synchronized',
-        colorFrequency: 'River black with parallel gold oar-lines',
-        mantra: '"We row together. That is how the barque moves."',
+        glyph:
+            'Children with rattles keeping a flock of sparrows off the young green',
+        colorFrequency:
+            'Bird-grey lifting off bright young shoots under small, loud guard',
+        mantra:
+            '"I let even small, plain effort defend what cannot yet defend itself."',
       ),
     ),
     _dayInfoEntry(
@@ -2389,23 +2372,21 @@ and when did you last coordinate with them?
       kemeticDate: 'Ka-ḥer-ka III, Day 27',
       season: '🌊 Akhet Closing – Inundation Withdraws',
       month: 'Ka-ḥer-ka ("Ka upon Ka")',
-      decanName:
-          'rmṯ n pt / remetch en pet ("People of Heaven") | Deck: The Crew of Heaven',
+      decanName: 'sbꜣ msḥtjw ("Star of the Foreleg")',
       starCluster:
-          '✨ sbꜣ msḥtjw — a stable northern seven-star pattern linked with the Foreleg, visually consistent across the night as it circles near the northern sky',
-      maatPrinciple: 'Quiet Strength Is Also Strength',
-      cosmicContext: '''
-The crew does not sing about rowing. They row.
-Their virtue is in the doing, not the announcement.
-The barque crosses the Duat because they showed up in the dark,
-put their hands on the oar, and did not stop.
-''',
+          '✨ sbꜣ msḥtjw — the Star of the Foreleg, the bright marker of the northern group, watched through this ten-day interval.',
+      maatPrinciple: 'Unseen Makers Prepare Before They Are Needed',
+      cosmicContext:
+          '''In the shade, a rope maker twists fiber into yoke ties, gate bindings, and carrying slings. The crop is far from the work these will serve, yet his hands already shape the tools of a season no one watching the rows can see.
+
+A future task is possible only because someone prepared its tools before the need could be seen.''',
       decanFlow: _kaHerKaIIIFlowRows,
       meduNeter: MeduNeterKey(
-        glyph: 'Crew rowing in darkness — the unwitnessed labor',
+        glyph:
+            'A rope maker twisting fiber for a season the young field has not reached',
         colorFrequency:
-            'Deep river black with a thin trail of gold in the wake',
-        mantra: '"The quiet work counts. I name it."',
+            'Fiber tan worked into rope long before the work it will serve',
+        mantra: '"I make ready the tools a later task will need."',
       ),
     ),
     _dayInfoEntry(
@@ -2413,26 +2394,20 @@ put their hands on the oar, and did not stop.
       kemeticDate: 'Ka-ḥer-ka III, Day 28',
       season: '🌊 Akhet Closing – Inundation Withdraws',
       month: 'Ka-ḥer-ka ("Ka upon Ka")',
-      decanName:
-          'rmṯ n pt / remetch en pet ("People of Heaven") | Deck: The Crew of Heaven',
+      decanName: 'sbꜣ msḥtjw ("Star of the Foreleg")',
       starCluster:
-          '✨ sbꜣ msḥtjw — a guiding star within the northern Foreleg asterism, part of the bright angular Big Dipper form visible around the northern sky',
-      maatPrinciple: 'Labor and Gratitude Are the Same Act',
-      cosmicContext: '''
-The crew rows and the hymns to Ra are sung simultaneously.
-Not before, not after — during.
-Labor and gratitude are not separate categories.
-The offering is in the motion itself.
+          '✨ sbꜣ msḥtjw — the Star of the Foreleg, the bright marker of the northern group, watched through this ten-day interval.',
+      maatPrinciple: 'Memory Keeps the Present From Thinking It Is the First',
+      cosmicContext:
+          '''An elder points to old stains high on a wall — marks from floods richer and poorer than this. The young listen, because this year must be understood among the others. The field is new; the pattern it belongs to is old.
 
-You have been working your way through Ka-ḥer-ka.
-Today you do not stop to give thanks — you work and you are grateful at the same time.
-''',
+Memory is a tool. It keeps the present from believing it is the first season anyone has lived.''',
       decanFlow: _kaHerKaIIIFlowRows,
       meduNeter: MeduNeterKey(
-        glyph: 'Oar moving through water — the hymn in the motion',
+        glyph: 'An elder showing the young old flood stains high on a wall',
         colorFrequency:
-            'River gold in dark water — action and gratitude unified',
-        mantra: '"I work and I am grateful. They are the same."',
+            'Faded high-water marks read against this year\'s fresh line',
+        mantra: '"I set this season among the others, not above them."',
       ),
     ),
     _dayInfoEntry(
@@ -2440,50 +2415,43 @@ Today you do not stop to give thanks — you work and you are grateful at the sa
       kemeticDate: 'Ka-ḥer-ka III, Day 29',
       season: '🌊 Akhet Closing – Inundation Withdraws',
       month: 'Ka-ḥer-ka ("Ka upon Ka")',
-      decanName:
-          'rmṯ n pt / remetch en pet ("People of Heaven") | Deck: The Crew of Heaven',
+      decanName: 'sbꜣ msḥtjw ("Star of the Foreleg")',
       starCluster:
-          '✨ sbꜣ msḥtjw — the Foreleg star in the northern sky, physically understood through the stable seven-star angular pattern of the Big Dipper asterism',
-      maatPrinciple: 'The Season Sets the Pace',
-      cosmicContext: '''
-The barque does not row at the same speed through every gate of the Duat.
-Some passages require long strokes.
-Some require the oars raised and the barque to drift.
-The crew reads the passage — they do not impose a fixed speed on a variable current.
-''',
+          '✨ sbꜣ msḥtjw — the Star of the Foreleg, the bright marker of the northern group, watched through this ten-day interval.',
+      maatPrinciple: 'A Debt Named Early Stays a Relationship',
+      cosmicContext:
+          '''In the shade near the lane, two households speak plainly — borrowed seed, a shared ox, a day of labor promised. A neighbor witnesses. Nothing is tense yet, and that is the point: the debt is named while it is still an arrangement between friends.
+
+A debt spoken clearly stays a relationship. A debt left vague hardens into a wound.''',
       decanFlow: _kaHerKaIIIFlowRows,
       meduNeter: MeduNeterKey(
-        glyph: 'Oar raised for a drift passage — reading the current',
-        colorFrequency: 'River silver and quiet earth',
-        mantra: '"I row at the pace the season requires."',
+        glyph:
+            'Two households naming a debt plainly in the shade, a neighbor witnessing',
+        colorFrequency:
+            'A plain agreement spoken in the cool shade of the lane',
+        mantra: '"I name what is owed while it is still a relationship."',
       ),
     ),
     _dayInfoEntry(
       key: 'kaherka_30_3',
       kemeticDate: 'Ka-ḥer-ka III, Day 30',
       season: '🌊 Akhet Closing – Inundation Withdraws',
-      month:
-          'Ka-ḥer-ka ("Ka upon Ka" — the seed placed, the ka re-engaged, the crew rowing)',
-      decanName:
-          'rmṯ n pt / remetch en pet ("People of Heaven") | Deck: The Crew of Heaven',
+      month: 'Ka-ḥer-ka ("Ka upon Ka")',
+      decanName: 'sbꜣ msḥtjw ("Star of the Foreleg")',
       starCluster:
-          '✨ sbꜣ msḥtjw — the star of the northern Foreleg group, set within the seven-star Big Dipper pattern whose repeated visibility makes it a stable guide in the northern sky',
-      maatPrinciple: 'Seal the Month. Hand It Forward Clean.',
-      cosmicContext: '''
-Ka-ḥer-ka closes today.
+          '✨ sbꜣ msḥtjw — the Star of the Foreleg, the bright marker of the northern group, watched through this ten-day interval.',
+      maatPrinciple: 'What Takes Root in the Dark Rises Through the Whole Life',
+      cosmicContext:
+          '''At dusk the Kemite walks home past the temple court, the rope maker, children with dusty feet, women measuring stores, neighbors talking across field lines. The crop is still young, but it has entered every house.
 
-The flood withdrew. The black silt received the seed.
-The field was cleared and the vigil was kept.
-The ka re-entered motion, the obligation was accepted,
-the basics were restored, the help was called in.
-The Djed was raised, the channel was cleared,
-the flame was relit, the crew coordinated, the labor offered.
-''',
+What takes root in the dark does not stay private. It rises first through the world ordering itself around it.''',
       decanFlow: _kaHerKaIIIFlowRows,
       meduNeter: MeduNeterKey(
-        glyph: 'Barque at the eastern gate — the crossing complete',
-        colorFrequency: 'First light gold over river black',
-        mantra: '"The month is complete. I hand it forward clean."',
+        glyph:
+            'The walk home at dusk past temple, rope maker, children, women, and neighbors',
+        colorFrequency:
+            'A whole village at dusk already arranged around the young field',
+        mantra: '"What I rooted in the dark has already entered every house."',
       ),
     ),
   ]);

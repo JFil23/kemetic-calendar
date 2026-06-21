@@ -1059,10 +1059,15 @@ void main() {
         expect(routeSource, isNot(contains("GoRouter.of(context).go('/')")));
         expect(routeSource, isNot(contains('showModalBottomSheet')));
         expect(routeSource, isNot(contains('CalendarPage.globalKey')));
-        expect(calendarSource, contains('static Widget _buildDetachedFlowStudioRoot'));
         expect(
           calendarSource,
-          contains('static List<Route<dynamic>> _detachedFlowStudioInitialRoutes'),
+          contains('static Widget _buildDetachedFlowStudioRoot'),
+        );
+        expect(
+          calendarSource,
+          contains(
+            'static List<Route<dynamic>> _detachedFlowStudioInitialRoutes',
+          ),
         );
         expect(flowHubSource, contains('this.onClose'));
         expect(flowHubSource, contains('widget.onClose'));
@@ -1122,7 +1127,10 @@ void main() {
         expect(routeScaffold, contains('BorderRadius.vertical'));
         expect(routeScaffold, contains('this.topRadius = 24'));
         expect(routeScaffold, contains('final double topRadius'));
-        expect(routeScaffold, contains('top: Radius.circular(widget.topRadius)'));
+        expect(
+          routeScaffold,
+          contains('top: Radius.circular(widget.topRadius)'),
+        );
         expect(routeScaffold, contains('Close \${widget.semanticLabel}'));
         expect(routeScaffold, contains('GestureDetector'));
         expect(routeScaffold, contains('FractionallySizedBox'));
@@ -1442,20 +1450,14 @@ void main() {
           tracker,
           contains('bottomPaddingAboveGlobalChrome(context, 32)'),
         );
-        expect(
-          planner,
-          isNot(contains('final listBottomPadding = embedded')),
-        );
+        expect(planner, isNot(contains('final listBottomPadding = embedded')));
         expect(planner, contains('keyboardInsetOf(context)'));
         expect(reflections, contains('final bottomPadding ='));
         expect(
           reflections,
           contains('DecanReflectionTokens.scrollBottomPadding +'),
         );
-        expect(
-          reflections,
-          contains('MediaQuery.paddingOf(context).bottom'),
-        );
+        expect(reflections, contains('MediaQuery.paddingOf(context).bottom'));
         expect(reflections, isNot(contains('bottomPaddingAboveGlobalChrome')));
         expect(
           reflections,
