@@ -134,6 +134,78 @@ void main() {
       expect(find.text('Duration: 10 days'), findsOneWidget);
     },
   );
+
+  testWidgets(
+    'AI generator Gregorian start picker preserves cancel and done contract',
+    (tester) async {
+      _useSmallPhoneSurface(tester);
+
+      await _openAiFlowModal(
+        tester,
+        initialStartDate: DateTime(2026, 6, 3),
+        initialEndDate: DateTime(2026, 6, 12),
+        initialDateRangeIsManual: true,
+      );
+
+      expect(find.text('Jun 3'), findsOneWidget);
+      expect(find.text('Duration: 10 days'), findsOneWidget);
+
+      await tester.tap(find.text('Jun 3'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Pick Gregorian date'), findsOneWidget);
+      expect(find.text('Gregorian Calendar'), findsOneWidget);
+
+      await tester.tap(find.text('Cancel'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Jun 3'), findsOneWidget);
+      expect(find.text('Duration: 10 days'), findsOneWidget);
+
+      await tester.tap(find.text('Jun 3'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Done'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Jun 3'), findsOneWidget);
+      expect(find.text('Duration: 10 days'), findsOneWidget);
+    },
+  );
+
+  testWidgets(
+    'AI generator Kemetic start picker opens through app Kemetic wrapper',
+    (tester) async {
+      _useSmallPhoneSurface(tester);
+
+      final start = DateTime(2025, 3, 20);
+      final end = DateTime(2025, 3, 29);
+      await _openAiFlowModal(
+        tester,
+        initialStartDate: start,
+        initialEndDate: end,
+        initialDateRangeIsManual: true,
+      );
+
+      await tester.tap(find.text('Kemetic'));
+      await tester.pumpAndSettle();
+
+      final startLabel = _kemeticDateLabel(start);
+      expect(find.text(startLabel), findsOneWidget);
+
+      await tester.tap(find.text(startLabel));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Pick Kemetic date'), findsOneWidget);
+      expect(find.text('Kemetic Calendar'), findsOneWidget);
+      expect(find.text(getMonthById(1).displayFull), findsWidgets);
+
+      await tester.tap(find.text('Done'));
+      await tester.pumpAndSettle();
+
+      expect(find.text(startLabel), findsOneWidget);
+      expect(find.text('Duration: 10 days'), findsOneWidget);
+    },
+  );
 }
 
 Future<void> _openAiFlowModal(
@@ -181,6 +253,15 @@ String _kemeticDateLabel(DateTime date) {
 
 void _useLargeSurface(WidgetTester tester) {
   tester.view.physicalSize = const Size(900, 1400);
+  tester.view.devicePixelRatio = 1;
+  addTearDown(() {
+    tester.view.resetPhysicalSize();
+    tester.view.resetDevicePixelRatio();
+  });
+}
+
+void _useSmallPhoneSurface(WidgetTester tester) {
+  tester.view.physicalSize = const Size(390, 844);
   tester.view.devicePixelRatio = 1;
   addTearDown(() {
     tester.view.resetPhysicalSize();

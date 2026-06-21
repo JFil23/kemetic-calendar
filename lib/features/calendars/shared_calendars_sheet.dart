@@ -10,7 +10,9 @@ import '../../data/birthday_calendar.dart';
 import '../../data/event_filing_engine.dart';
 import '../../data/shared_calendar_models.dart';
 import '../../data/shared_calendars_repo.dart';
+import '../../shared/date_picker/stone_register_date_picker.dart';
 import '../../shared/glossy_text.dart';
+import '../../widgets/gregorian_date_picker.dart';
 import '../../widgets/kemetic_keyboard.dart';
 import '../../widgets/keyboard_aware.dart';
 import '../calendar/notify.dart';
@@ -2632,26 +2634,20 @@ class _BirthdayEditorDialogState extends State<_BirthdayEditorDialog> {
 
   Future<void> _pickBirthday() async {
     final now = DateTime.now();
-    final picked = await showDatePicker(
-      context: context,
-      initialDate: _birthday ?? DateTime(now.year - 18, now.month, now.day),
-      firstDate: DateTime(now.year - 130),
-      lastDate: DateTime(now.year + 1, 12, 31),
-      builder: (context, child) {
-        return Theme(
-          data: Theme.of(context).copyWith(
-            colorScheme: const ColorScheme.dark(
-              primary: H3wCalendarSheetTokens.gold,
-              surface: Color(0xFF16130D),
-              onSurface: Colors.white,
-            ),
-            dialogTheme: const DialogThemeData(
-              backgroundColor: Color(0xFF16130D),
-            ),
-          ),
-          child: child ?? const SizedBox.shrink(),
-        );
-      },
+    final firstYear = now.year - 130;
+    final lastYear = now.year + 1;
+    final seed = _birthday ?? DateTime(now.year - 18, now.month, now.day);
+    final picked = await StoneRegisterDatePicker.show<DateTime>(
+      context,
+      initialValue: DateUtils.dateOnly(seed),
+      adapter: GregorianDatePickerAdapter(
+        yearStart: firstYear,
+        yearCount: lastYear - firstYear + 1,
+      ),
+      initialMode: StoneDatePickerCalendarMode.gregorian,
+      allowModeSwitch: false,
+      title: 'Pick birthday',
+      subtitle: 'Gregorian Calendar',
     );
     if (picked == null || !mounted) return;
     setState(() {

@@ -1,8 +1,8 @@
-import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
-import 'package:mobile/features/calendar/kemetic_time_constants.dart';
 import 'package:mobile/features/calendar/kemetic_month_metadata.dart';
-import 'package:mobile/shared/glossy_text.dart';
+import 'package:mobile/features/calendar/kemetic_time_constants.dart';
+import 'package:mobile/shared/date_picker/stone_register_date_picker.dart';
+import 'package:mobile/shared/date_picker/stone_register_date_picker_theme.dart';
 
 /* ═══════════════════════ KEMETIC MATH (FIXED) ═══════════════════════ */
 
@@ -136,230 +136,123 @@ Future<DateTime?> showKemeticDatePicker({
   required BuildContext context,
   DateTime? initialDate,
 }) async {
-  final initK = KemeticMath.fromGregorian(initialDate ?? DateTime.now());
-  int ky = initK.kYear, km = initK.kMonth, kd = initK.kDay;
+  final seed = DateUtils.dateOnly(initialDate ?? DateTime.now());
+  final initK = KemeticMath.fromGregorian(seed);
+  return StoneRegisterDatePicker.show<DateTime>(
+    context,
+    initialValue: seed,
+    adapter: KemeticDatePickerAdapter(yearStart: initK.kYear - 200),
+    initialMode: StoneDatePickerCalendarMode.kemetic,
+    allowModeSwitch: false,
+    title: 'Pick Kemetic date',
+    subtitle: 'Kemetic Calendar',
+  );
+}
 
-  int maxDayFor(int year, int month) =>
+class KemeticDatePickerAdapter extends StoneDatePickerAdapter<DateTime> {
+  const KemeticDatePickerAdapter({required this.yearStart});
+
+  final int yearStart;
+  static const int yearCount = 401;
+
+  @override
+  List<StoneWheelColumn> buildColumns(
+    DateTime value,
+    StoneDatePickerCalendarMode mode,
+  ) {
+    final k = _clampedKemetic(value);
+    final max = _maxDayFor(k.kYear, k.kMonth);
+    final day = k.kDay.clamp(1, max).toInt();
+    return [
+      StoneWheelColumn(
+        id: 'month',
+        values: List<String>.generate(
+          13,
+          (index) => getMonthById(index + 1).displayFull,
+        ),
+        selectedIndex: k.kMonth - 1,
+        flex: 5,
+        looping: true,
+        textStyle: const TextStyle(
+          fontFamily: StoneRegisterDatePickerTheme.serifFontFamily,
+          fontSize: 18,
+          fontWeight: FontWeight.w500,
+          height: 1.05,
+        ),
+      ),
+      StoneWheelColumn(
+        id: 'day',
+        values: List<String>.generate(max, (index) => '${index + 1}'),
+        selectedIndex: day - 1,
+        flex: 3,
+        looping: true,
+      ),
+      StoneWheelColumn(
+        id: 'year',
+        values: List<String>.generate(
+          yearCount,
+          (index) => _gregYearLabelFor(yearStart + index, k.kMonth),
+        ),
+        selectedIndex: (k.kYear - yearStart).clamp(0, yearCount - 1).toInt(),
+        flex: 4,
+      ),
+    ];
+  }
+
+  @override
+  DateTime clampOrNormalize(DateTime value, StoneDatePickerCalendarMode mode) {
+    final k = _clampedKemetic(value);
+    return DateUtils.dateOnly(
+      KemeticMath.toGregorian(k.kYear, k.kMonth, k.kDay),
+    );
+  }
+
+  @override
+  String formatValue(DateTime value, StoneDatePickerCalendarMode mode) {
+    final k = _clampedKemetic(value);
+    final gregorian = KemeticMath.toGregorian(k.kYear, k.kMonth, k.kDay);
+    return '${getMonthById(k.kMonth).displayFull} ${k.kDay}, ${gregorian.year}';
+  }
+
+  @override
+  StoneWheelSelection selectionFromValue(
+    DateTime value,
+    StoneDatePickerCalendarMode mode,
+  ) {
+    final k = _clampedKemetic(value);
+    return StoneWheelSelection({
+      'month': k.kMonth - 1,
+      'day': k.kDay - 1,
+      'year': (k.kYear - yearStart).clamp(0, yearCount - 1).toInt(),
+    });
+  }
+
+  @override
+  DateTime valueFromSelection(
+    StoneWheelSelection selection,
+    StoneDatePickerCalendarMode mode,
+  ) {
+    final kYear = yearStart + selection.indexOf('year');
+    final kMonth = selection.indexOf('month') + 1;
+    final max = _maxDayFor(kYear, kMonth);
+    final kDay = (selection.indexOf('day') + 1).clamp(1, max).toInt();
+    return DateUtils.dateOnly(KemeticMath.toGregorian(kYear, kMonth, kDay));
+  }
+
+  ({int kYear, int kMonth, int kDay}) _clampedKemetic(DateTime value) {
+    final k = KemeticMath.fromGregorian(value);
+    final year = k.kYear.clamp(yearStart, yearStart + yearCount - 1).toInt();
+    final max = _maxDayFor(year, k.kMonth);
+    return (kYear: year, kMonth: k.kMonth, kDay: k.kDay.clamp(1, max).toInt());
+  }
+
+  int _maxDayFor(int year, int month) =>
       (month == 13) ? (KemeticMath.isLeapKemeticYear(year) ? 6 : 5) : 30;
 
-  final yearStart = initK.kYear - 200;
-  final yearCtrl = FixedExtentScrollController(
-    initialItem: (ky - yearStart).clamp(0, 400),
-  );
-  final monthCtrl = FixedExtentScrollController(
-    initialItem: (km - 1).clamp(0, 12),
-  );
-  final dayCtrl = FixedExtentScrollController(initialItem: (kd - 1));
-
-  return showModalBottomSheet<DateTime>(
-    context: context,
-    isScrollControlled: true,
-    backgroundColor: Colors.black,
-    shape: const RoundedRectangleBorder(
-      borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
-    ),
-    builder: (sheetCtx) {
-      int localKy = ky, localKm = km, localKd = kd;
-
-      int dayMax() => maxDayFor(localKy, localKm);
-
-      // Helper to format year label with Gregorian equivalent
-      String gregYearLabelFor(int kYear, int kMonth) {
-        final lastDay = maxDayFor(kYear, kMonth);
-        final yStart = KemeticMath.toGregorian(kYear, kMonth, 1).year;
-        final yEnd = KemeticMath.toGregorian(kYear, kMonth, lastDay).year;
-        return (yStart == yEnd) ? '$yStart' : '$yStart/$yEnd';
-      }
-
-      return StatefulBuilder(
-        builder: (sheetCtx, setSheetState) {
-          if (localKd > dayMax()) localKd = dayMax();
-
-          return Padding(
-            padding: EdgeInsets.only(
-              left: 16,
-              right: 16,
-              top: 12,
-              bottom: MediaQuery.of(sheetCtx).viewInsets.bottom + 12,
-            ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                // Drag handle
-                Container(
-                  width: 36,
-                  height: 4,
-                  margin: const EdgeInsets.only(bottom: 12),
-                  decoration: BoxDecoration(
-                    color: Colors.white24,
-                    borderRadius: BorderRadius.circular(2),
-                  ),
-                ),
-
-                // Title
-                const GlossyText(
-                  text: 'Pick Kemetic date',
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
-                  gradient: goldGloss,
-                ),
-                const SizedBox(height: 8),
-
-                // 3-Wheel Picker
-                SizedBox(
-                  height: 160,
-                  child: Row(
-                    children: [
-                      // Month wheel
-                      Expanded(
-                        flex: 4,
-                        child: CupertinoPicker(
-                          scrollController: monthCtrl,
-                          itemExtent: 32,
-                          looping: true,
-                          backgroundColor: const Color(0x00121214),
-                          onSelectedItemChanged: (i) {
-                            setSheetState(() {
-                              localKm = (i % 13) + 1;
-                              final max = maxDayFor(localKy, localKm);
-                              if (localKd > max) {
-                                localKd = max;
-                                if (dayCtrl.hasClients) {
-                                  WidgetsBinding.instance.addPostFrameCallback(
-                                    (_) => dayCtrl.jumpToItem(localKd - 1),
-                                  );
-                                }
-                              }
-                            });
-                          },
-                          children: List<Widget>.generate(13, (i) {
-                            final m = i + 1;
-                            final label = getMonthById(m).displayFull;
-                            return Center(
-                              child: GlossyText(
-                                text: label,
-                                style: const TextStyle(fontSize: 14),
-                                gradient: silverGloss,
-                              ),
-                            );
-                          }),
-                        ),
-                      ),
-                      const SizedBox(width: 6),
-
-                      // Day wheel
-                      Expanded(
-                        flex: 3,
-                        child: CupertinoPicker(
-                          scrollController: dayCtrl,
-                          itemExtent: 32,
-                          looping: true,
-                          backgroundColor: const Color(0x00121214),
-                          onSelectedItemChanged: (i) {
-                            setSheetState(() {
-                              final max = maxDayFor(localKy, localKm);
-                              localKd = (i % max) + 1;
-                            });
-                          },
-                          children: List<Widget>.generate(dayMax(), (i) {
-                            final d = i + 1;
-                            return Center(
-                              child: GlossyText(
-                                text: '$d',
-                                style: const TextStyle(fontSize: 14),
-                                gradient: silverGloss,
-                              ),
-                            );
-                          }),
-                        ),
-                      ),
-                      const SizedBox(width: 6),
-
-                      // Year wheel (with Gregorian equivalent)
-                      Expanded(
-                        flex: 4,
-                        child: CupertinoPicker(
-                          scrollController: yearCtrl,
-                          itemExtent: 32,
-                          looping: false,
-                          backgroundColor: const Color(0x00121214),
-                          onSelectedItemChanged: (i) {
-                            setSheetState(() {
-                              localKy = yearStart + i;
-                              final max = maxDayFor(localKy, localKm);
-                              if (localKd > max) {
-                                localKd = max;
-                                if (dayCtrl.hasClients) {
-                                  WidgetsBinding.instance.addPostFrameCallback(
-                                    (_) => dayCtrl.jumpToItem(localKd - 1),
-                                  );
-                                }
-                              }
-                            });
-                          },
-                          children: List<Widget>.generate(401, (i) {
-                            final ky = yearStart + i;
-                            final label = gregYearLabelFor(ky, localKm);
-                            return Center(
-                              child: GlossyText(
-                                text: label,
-                                style: const TextStyle(fontSize: 14),
-                                gradient: silverGloss,
-                              ),
-                            );
-                          }),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-
-                const SizedBox(height: 12),
-
-                // Cancel / Done buttons
-                Row(
-                  children: [
-                    Expanded(
-                      child: OutlinedButton(
-                        style: OutlinedButton.styleFrom(
-                          foregroundColor: Colors.white,
-                          side: const BorderSide(color: silver),
-                        ),
-                        onPressed: () => Navigator.pop(sheetCtx, null),
-                        child: const Text('Cancel'),
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: ElevatedButton(
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: gold,
-                          foregroundColor: Colors.white,
-                        ),
-                        onPressed: () {
-                          final g = KemeticMath.toGregorian(
-                            localKy,
-                            localKm,
-                            localKd,
-                          );
-                          Navigator.pop(sheetCtx, DateUtils.dateOnly(g));
-                        },
-                        child: const GlossyText(
-                          text: 'Done',
-                          style: TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w600,
-                          ),
-                          gradient: whiteGloss,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          );
-        },
-      );
-    },
-  );
+  String _gregYearLabelFor(int kYear, int kMonth) {
+    final lastDay = _maxDayFor(kYear, kMonth);
+    final yStart = KemeticMath.toGregorian(kYear, kMonth, 1).year;
+    final yEnd = KemeticMath.toGregorian(kYear, kMonth, lastDay).year;
+    return (yStart == yEnd) ? '$yStart' : '$yStart/$yEnd';
+  }
 }
