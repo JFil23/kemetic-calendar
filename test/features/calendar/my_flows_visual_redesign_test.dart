@@ -236,6 +236,76 @@ void main() {
     expect(find.text('Import Flow'), findsOneWidget);
   });
 
+  testWidgets(
+    'Saved flow start picker opens with normalized date and Cancel preserves footer',
+    (tester) async {
+      _useSmallPhoneSurface(tester);
+      final expectedStart = DateUtils.dateOnly(DateTime.now());
+      final expectedLabel = _startLabel(expectedStart);
+
+      await _pumpMyFlowDetail(tester, saved: true);
+
+      expect(find.text(expectedLabel), findsOneWidget);
+      expect(find.text('Import Flow'), findsOneWidget);
+
+      await tester.tap(find.widgetWithText(OutlinedButton, expectedLabel));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Start date'), findsOneWidget);
+      expect(find.text('Gregorian Calendar'), findsOneWidget);
+      expect(
+        find.text(_gregorianMonthAbbreviation(expectedStart.month)),
+        findsWidgets,
+      );
+      expect(find.text('${expectedStart.day}'), findsWidgets);
+      expect(find.text('${expectedStart.year}'), findsWidgets);
+
+      await tester.tap(find.widgetWithText(OutlinedButton, 'Cancel'));
+      await tester.pumpAndSettle();
+
+      expect(find.text(expectedLabel), findsOneWidget);
+      expect(find.text('Import Flow'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    },
+  );
+
+  testWidgets(
+    'Saved flow start picker Done preserves visible date and reopens',
+    (tester) async {
+      _useSmallPhoneSurface(tester);
+      final expectedStart = DateUtils.dateOnly(DateTime.now());
+      final expectedLabel = _startLabel(expectedStart);
+
+      await _pumpMyFlowDetail(tester, saved: true);
+
+      await tester.tap(find.widgetWithText(OutlinedButton, expectedLabel));
+      await tester.pumpAndSettle();
+      await tester.tap(find.widgetWithText(ElevatedButton, 'Done'));
+      await tester.pumpAndSettle();
+
+      expect(find.text(expectedLabel), findsOneWidget);
+      expect(find.text('Import Flow'), findsOneWidget);
+
+      await tester.tap(find.widgetWithText(OutlinedButton, expectedLabel));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Start date'), findsOneWidget);
+      expect(
+        find.text(_gregorianMonthAbbreviation(expectedStart.month)),
+        findsWidgets,
+      );
+      expect(find.text('${expectedStart.day}'), findsWidgets);
+      expect(find.text('${expectedStart.year}'), findsWidgets);
+
+      await tester.tap(find.widgetWithText(ElevatedButton, 'Done'));
+      await tester.pumpAndSettle();
+
+      expect(find.text(expectedLabel), findsOneWidget);
+      expect(find.text('Import Flow'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    },
+  );
+
   testWidgets('Detail rows expand, collapse, and switch inline content', (
     tester,
   ) async {
@@ -367,4 +437,34 @@ Future<void> _pumpMyFlowDetail(
     ),
   );
   await tester.pumpAndSettle();
+}
+
+void _useSmallPhoneSurface(WidgetTester tester) {
+  tester.view.physicalSize = const Size(390, 844);
+  tester.view.devicePixelRatio = 1;
+  addTearDown(tester.view.resetPhysicalSize);
+  addTearDown(tester.view.resetDevicePixelRatio);
+}
+
+String _startLabel(DateTime date) {
+  final normalized = DateUtils.dateOnly(date);
+  return 'Start: ${normalized.year}-${normalized.month.toString().padLeft(2, '0')}-${normalized.day.toString().padLeft(2, '0')}';
+}
+
+String _gregorianMonthAbbreviation(int month) {
+  const labels = <int, String>{
+    1: 'Jan',
+    2: 'Feb',
+    3: 'Mar',
+    4: 'Apr',
+    5: 'May',
+    6: 'Jun',
+    7: 'Jul',
+    8: 'Aug',
+    9: 'Sep',
+    10: 'Oct',
+    11: 'Nov',
+    12: 'Dec',
+  };
+  return labels[month]!;
 }
