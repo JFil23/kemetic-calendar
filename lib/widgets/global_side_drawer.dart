@@ -10,6 +10,9 @@ import 'inbox_icon_with_badge.dart';
 import 'month_name_text.dart';
 
 const Key globalMenuBubbleKey = ValueKey<String>('global-menu-bubble');
+const Key globalMenuBubbleSurfaceKey = ValueKey<String>(
+  'global-menu-bubble-surface',
+);
 const Key globalSideDrawerKey = ValueKey<String>('global-side-drawer');
 const Key globalSideDrawerDateHeaderKey = ValueKey<String>(
   'global-side-drawer-date-header',
@@ -49,6 +52,31 @@ const Gradient _kGlobalSideDrawerDayGoldGloss = LinearGradient(
   stops: [0, 0.52, 1],
 );
 
+const GlobalMenuBubbleStyle globalTransparentMenuBubbleStyle =
+    GlobalMenuBubbleStyle(
+      size: 52,
+      left: 18,
+      bottom: 22,
+      background: RadialGradient(
+        center: Alignment(0, -0.3),
+        radius: 0.76,
+        colors: <Color>[Color.fromRGBO(245, 232, 203, 0.14), Color(0xFF120F08)],
+        stops: <double>[0, 0.6],
+      ),
+      borderColor: Color.fromRGBO(212, 174, 67, 0.18),
+      boxShadow: <BoxShadow>[
+        BoxShadow(
+          color: Color.fromRGBO(0, 0, 0, 0.55),
+          blurRadius: 30,
+          offset: Offset(0, 8),
+        ),
+      ],
+      glyphGradient: LinearGradient(
+        colors: <Color>[Color(0xFFD4AE43), Color(0xFFD4AE43)],
+      ),
+      glyphSize: 24,
+    );
+
 class GlobalSideDrawerItem {
   const GlobalSideDrawerItem({
     required this.label,
@@ -83,17 +111,14 @@ class GlobalMenuBubble extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final bubbleStyle = style;
-    final size = bubbleStyle?.size ?? kGlobalMenuBubbleSize;
+    final bubbleStyle = style ?? globalTransparentMenuBubbleStyle;
+    final double size = bubbleStyle.size;
     final safePadding = MediaQuery.paddingOf(context);
-    final left = bubbleStyle == null
-        ? globalMenuBubbleLeft(context)
-        : bubbleStyle.left +
-              (bubbleStyle.respectSafeArea ? safePadding.left : 0);
-    final bottom = bubbleStyle == null
-        ? globalMenuBubbleBottom(context)
-        : bubbleStyle.bottom +
-              (bubbleStyle.respectSafeArea ? safePadding.bottom : 0);
+    final left =
+        bubbleStyle.left + (bubbleStyle.respectSafeArea ? safePadding.left : 0);
+    final bottom =
+        bubbleStyle.bottom +
+        (bubbleStyle.respectSafeArea ? safePadding.bottom : 0);
 
     return Positioned(
       left: left,
@@ -162,7 +187,7 @@ class _GlobalMenuBubbleSurface extends StatelessWidget {
     required this.onPressed,
   });
 
-  final GlobalMenuBubbleStyle? style;
+  final GlobalMenuBubbleStyle style;
   final VoidCallback onPressed;
 
   @override
@@ -170,21 +195,12 @@ class _GlobalMenuBubbleSurface extends StatelessWidget {
     final bubbleStyle = style;
     final glyph = GlossyGlyph(
       glyph: '𓉹',
-      gradient: bubbleStyle?.glyphGradient ?? goldGloss,
-      size: bubbleStyle?.glyphSize ?? 24,
+      gradient: bubbleStyle.glyphGradient,
+      size: bubbleStyle.glyphSize,
     );
 
-    if (bubbleStyle == null) {
-      return Material(
-        color: const Color(0xF6000000),
-        shape: const CircleBorder(),
-        elevation: 10,
-        shadowColor: const Color(0xB3000000),
-        child: _GlobalMenuBubbleInk(onPressed: onPressed, child: glyph),
-      );
-    }
-
     return DecoratedBox(
+      key: globalMenuBubbleSurfaceKey,
       decoration: BoxDecoration(
         shape: BoxShape.circle,
         gradient: bubbleStyle.background,

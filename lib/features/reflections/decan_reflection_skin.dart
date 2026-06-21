@@ -237,22 +237,7 @@ class DecanReflectionTokens {
 }
 
 const GlobalMenuBubbleStyle decanReflectionGlobalMenuBubbleStyle =
-    GlobalMenuBubbleStyle(
-      size: 52,
-      left: 18,
-      bottom: 22,
-      background: DecanReflectionTokens.glyphFill,
-      borderColor: Color.fromRGBO(212, 174, 67, 0.18),
-      boxShadow: <BoxShadow>[
-        BoxShadow(
-          color: Color.fromRGBO(0, 0, 0, 0.55),
-          blurRadius: 30,
-          offset: Offset(0, 8),
-        ),
-      ],
-      glyphGradient: DecanReflectionTokens.glyphIcon,
-      glyphSize: 24,
-    );
+    globalTransparentMenuBubbleStyle;
 
 class DecanReflectionSkinScaffold extends StatelessWidget {
   const DecanReflectionSkinScaffold({

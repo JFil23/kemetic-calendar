@@ -1220,14 +1220,19 @@ void main() {
 
       expect(
         bubble,
-        contains('final size = bubbleStyle?.size ?? kGlobalMenuBubbleSize'),
+        contains(
+          'final bubbleStyle = style ?? globalTransparentMenuBubbleStyle',
+        ),
       );
+      expect(bubble, contains('final double size = bubbleStyle.size'));
       expect(bubble, contains('final double size'));
       expect(bubble, contains('width: size'));
       expect(bubble, contains('height: size'));
+      expect(bubble, contains('key: globalMenuBubbleSurfaceKey'));
       expect(bubble, contains('customBorder: const CircleBorder()'));
       expect(bubble, contains('onTap: onPressed'));
       expect(bubble, isNot(contains('hitHeight')));
+      expect(bubble, isNot(contains('Color(0xF6000000)')));
       expect(bubble, isNot(contains('onPointerUp')));
     });
 

@@ -55,7 +55,6 @@ import 'services/decan_reflection_scheduler.dart';
 import 'features/journal/journal_controller.dart';
 import 'features/journal/journal_entry_detail_page.dart';
 import 'features/journal/journal_page.dart';
-import 'features/journal/journal_skin_tokens.dart';
 import 'features/calendar/calendar_reflection_context.dart';
 import 'features/maat_guidance/maat_guidance_controller.dart';
 import 'features/maat_guidance/maat_guidance_detail_page.dart';
@@ -75,7 +74,6 @@ import 'features/profile/insight_post_picker_page.dart';
 import 'features/profile/profile_page.dart';
 import 'features/profile/profile_search_page.dart';
 import 'features/reflections/decan_reflection_archive_page.dart';
-import 'features/reflections/decan_reflection_skin.dart';
 import 'features/rhythm/pages/commitment_tracker_page.dart';
 import 'features/rhythm/pages/rhythm_editors.dart';
 import 'features/rhythm/pages/todays_alignment_page.dart';
@@ -2835,38 +2833,6 @@ class _GlobalFloatingMenuShellState extends State<_GlobalFloatingMenuShell>
     };
   }
 
-  bool get _isJournalRoute {
-    final path = _currentUri.path.isEmpty ? '/' : _currentUri.path;
-    return path == '/journal' || path.startsWith('/journal/');
-  }
-
-  bool get _isReflectionsRoute {
-    final path = _currentUri.path.isEmpty ? '/' : _currentUri.path;
-    return path == '/reflections' || path.startsWith('/reflections/');
-  }
-
-  GlobalMenuBubbleStyle? get _globalMenuBubbleStyle {
-    if (_isReflectionsRoute) return decanReflectionGlobalMenuBubbleStyle;
-    if (!_isJournalRoute) return null;
-    return const GlobalMenuBubbleStyle(
-      size: 60,
-      left: 20,
-      bottom: 24,
-      background: JournalSkinTokens.floatingGlyphBackground,
-      borderColor: JournalSkinTokens.floatingGlyphBorder,
-      boxShadow: [
-        BoxShadow(
-          color: JournalSkinTokens.floatingGlyphShadow,
-          blurRadius: 24,
-          spreadRadius: -10,
-          offset: Offset(0, 10),
-        ),
-      ],
-      glyphGradient: JournalSkinTokens.floatingGlyphIconGradient,
-      glyphSize: 28,
-    );
-  }
-
   bool _shouldOpenDrawerForBack(BuildContext context) {
     return _isDrawerBackToggleRoute && _shouldActivateFloatingMenu(context);
   }
@@ -2967,7 +2933,6 @@ class _GlobalFloatingMenuShellState extends State<_GlobalFloatingMenuShell>
                     visible: shouldActivateFloatingMenu,
                     open: menuOpenForInteraction,
                     onPressed: _handleFloatingMenuPressed,
-                    style: _globalMenuBubbleStyle,
                   ),
                 DailyCosmicContextOverlayHost(
                   controller: _dailyCosmicContextController,

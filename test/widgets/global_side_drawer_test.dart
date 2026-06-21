@@ -32,9 +32,11 @@ void main() {
     );
 
     final bubbleRect = tester.getRect(find.byKey(globalMenuBubbleKey));
-    expect(bubbleRect.left, 24);
-    expect(bubbleRect.bottom, 844 - 40);
+    expect(bubbleRect.left, 26);
+    expect(bubbleRect.bottom, 844 - 46);
+    expect(bubbleRect.size, const Size(52, 52));
     expect(find.bySemanticsLabel('Open navigation menu'), findsOneWidget);
+    _expectTransparentMenuBubbleSurface(tester);
 
     await tester.tap(find.byKey(globalMenuBubbleKey));
     expect(tapCount, 1);
@@ -243,6 +245,36 @@ void main() {
     expect(width, greaterThanOrEqualTo(300));
     expect(width, closeTo(320, 0.1));
   });
+}
+
+void _expectTransparentMenuBubbleSurface(WidgetTester tester) {
+  final surface = tester.widget<DecoratedBox>(
+    find.byKey(globalMenuBubbleSurfaceKey),
+  );
+  final decoration = surface.decoration as BoxDecoration;
+  final border = decoration.border! as Border;
+
+  expect(decoration.shape, BoxShape.circle);
+  expect(
+    decoration.gradient,
+    same(globalTransparentMenuBubbleStyle.background),
+  );
+  expect(border.top.color, globalTransparentMenuBubbleStyle.borderColor);
+  expect(
+    decoration.boxShadow,
+    same(globalTransparentMenuBubbleStyle.boxShadow),
+  );
+
+  final glyphFinder = find.descendant(
+    of: find.byKey(globalMenuBubbleSurfaceKey),
+    matching: find.byType(GlossyGlyph),
+  );
+  expect(glyphFinder, findsOneWidget);
+
+  final glyph = tester.widget<GlossyGlyph>(glyphFinder);
+  expect(glyph.glyph, '𓉹');
+  expect(glyph.gradient, same(globalTransparentMenuBubbleStyle.glyphGradient));
+  expect(glyph.size, globalTransparentMenuBubbleStyle.glyphSize);
 }
 
 List<GlobalSideDrawerItem> _drawerItems({VoidCallback? onSelected}) {

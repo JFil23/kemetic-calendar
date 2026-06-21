@@ -6,6 +6,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:mobile/core/navigation_fallback.dart';
 import 'package:mobile/main.dart' as app;
+import 'package:mobile/shared/glossy_text.dart';
 import 'package:mobile/widgets/global_side_drawer.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -71,23 +72,73 @@ void main() {
     expect(find.byKey(globalSideDrawerKey), findsNothing);
   });
 
-  testWidgets('Library list and reader keep the floating menu bubble available', (
-    tester,
-  ) async {
-    final router = _testRouter(initialLocation: '/nodes');
+  testWidgets(
+    'Library list and reader keep the floating menu bubble available',
+    (tester) async {
+      final router = _testRouter(initialLocation: '/nodes');
 
-    await _pumpShell(tester, router);
+      await _pumpShell(tester, router);
 
-    expect(find.byKey(app.globalMenuButtonKey), findsOneWidget);
-    expect(find.bySemanticsLabel('Open navigation menu'), findsOneWidget);
+      expect(find.byKey(app.globalMenuButtonKey), findsOneWidget);
+      expect(find.bySemanticsLabel('Open navigation menu'), findsOneWidget);
 
-    router.go('/nodes/maat');
-    await tester.pumpAndSettle();
+      router.go('/nodes/maat');
+      await tester.pumpAndSettle();
 
-    expect(find.text('Node reader route'), findsOneWidget);
-    expect(find.byKey(app.globalMenuButtonKey), findsOneWidget);
-    expect(find.bySemanticsLabel('Open navigation menu'), findsOneWidget);
-  });
+      expect(find.text('Node reader route'), findsOneWidget);
+      expect(find.byKey(app.globalMenuButtonKey), findsOneWidget);
+      expect(find.bySemanticsLabel('Open navigation menu'), findsOneWidget);
+    },
+  );
+
+  testWidgets(
+    'primary and detail routes share the transparent menu bubble skin',
+    (tester) async {
+      const routes = <String, String>{
+        '/': 'Calendar route',
+        '/rhythm/today': 'Planner route',
+        '/nodes': 'Library route',
+        '/nodes/maat': 'Node reader route',
+        '/journal': 'Journal route',
+        '/inbox': 'Inbox route',
+        '/settings': 'Settings route',
+        '/reflections': 'Reflections route',
+        '/profile/me': 'Profile route',
+      };
+
+      for (final route in routes.entries) {
+        app.resetGlobalFloatingMenuShellForTesting();
+        final router = _testRouter(initialLocation: route.key);
+
+        await _pumpShell(tester, router);
+
+        expect(find.byKey(app.globalMenuButtonKey), findsOneWidget);
+        expect(
+          find.bySemanticsLabel('Open navigation menu'),
+          findsOneWidget,
+          reason: route.value,
+        );
+        _expectSharedTransparentMenuBubble(tester, route.value);
+
+        await _openDrawer(tester);
+
+        expect(
+          find.byKey(globalSideDrawerKey),
+          findsOneWidget,
+          reason: route.value,
+        );
+        expect(
+          find.bySemanticsLabel('Close navigation menu'),
+          findsOneWidget,
+          reason: route.value,
+        );
+        _expectSharedTransparentMenuBubble(tester, route.value);
+
+        await tester.pumpWidget(const SizedBox.shrink());
+        await tester.pump();
+      }
+    },
+  );
 
   testWidgets('full-screen search route suppresses global menu bubble', (
     tester,
@@ -539,6 +590,67 @@ Future<void> _openDrawer(WidgetTester tester) async {
   await tester.tap(find.byKey(app.globalMenuButtonKey));
   await tester.pump();
   await tester.pump(globalSideDrawerTransitionDuration);
+}
+
+void _expectSharedTransparentMenuBubble(
+  WidgetTester tester,
+  String routeLabel,
+) {
+  expect(find.byType(GlobalMenuBubble), findsOneWidget, reason: routeLabel);
+  expect(
+    find.byKey(globalMenuBubbleSurfaceKey),
+    findsOneWidget,
+    reason: routeLabel,
+  );
+  expect(
+    find.byWidgetPredicate(
+      (widget) => widget is Material && widget.color == const Color(0xF6000000),
+    ),
+    findsNothing,
+    reason: routeLabel,
+  );
+
+  final surface = tester.widget<DecoratedBox>(
+    find.byKey(globalMenuBubbleSurfaceKey),
+  );
+  final decoration = surface.decoration as BoxDecoration;
+  final border = decoration.border! as Border;
+
+  expect(decoration.shape, BoxShape.circle, reason: routeLabel);
+  expect(
+    decoration.gradient,
+    same(globalTransparentMenuBubbleStyle.background),
+    reason: routeLabel,
+  );
+  expect(
+    border.top.color,
+    globalTransparentMenuBubbleStyle.borderColor,
+    reason: routeLabel,
+  );
+  expect(
+    decoration.boxShadow,
+    same(globalTransparentMenuBubbleStyle.boxShadow),
+    reason: routeLabel,
+  );
+
+  final glyphFinder = find.descendant(
+    of: find.byKey(globalMenuBubbleSurfaceKey),
+    matching: find.byType(GlossyGlyph),
+  );
+  expect(glyphFinder, findsOneWidget, reason: routeLabel);
+
+  final glyph = tester.widget<GlossyGlyph>(glyphFinder);
+  expect(glyph.glyph, '𓉹', reason: routeLabel);
+  expect(
+    glyph.gradient,
+    same(globalTransparentMenuBubbleStyle.glyphGradient),
+    reason: routeLabel,
+  );
+  expect(
+    glyph.size,
+    globalTransparentMenuBubbleStyle.glyphSize,
+    reason: routeLabel,
+  );
 }
 
 Future<void> _startPredictiveBackGesture(WidgetTester tester) async {
