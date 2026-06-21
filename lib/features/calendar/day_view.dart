@@ -6539,11 +6539,14 @@ class _DayViewGridState extends State<DayViewGrid> {
       required TextOverflow overflow,
       Gradient? gradient,
     }) {
+      final compactStyle = style.height == null
+          ? style.copyWith(height: 1.05)
+          : style;
       final softWrap = maxLines != 1;
       if (gradient != null) {
         return GlossyText(
           text: text,
-          style: style,
+          style: compactStyle,
           gradient: gradient,
           maxLines: maxLines,
           overflow: overflow,
@@ -6553,7 +6556,7 @@ class _DayViewGridState extends State<DayViewGrid> {
       if (kIsWeb) {
         return Text(
           text,
-          style: style.copyWith(
+          style: compactStyle.copyWith(
             shadows: const [
               Shadow(
                 color: Color(0x22FFF8D6),
@@ -6567,17 +6570,17 @@ class _DayViewGridState extends State<DayViewGrid> {
           softWrap: softWrap,
         );
       }
-      final highlightStyle = style.copyWith(
+      final highlightStyle = compactStyle.copyWith(
         color: Colors.white.withValues(alpha: isPreview ? 0.56 : 0.74),
         shadows: null,
       );
-      final shadowStyle = style.copyWith(
+      final shadowStyle = compactStyle.copyWith(
         color: const Color(
           0xFF02050C,
         ).withValues(alpha: isPreview ? 0.28 : 0.42),
         shadows: null,
       );
-      final fillStyle = style.copyWith(color: style.color);
+      final fillStyle = compactStyle.copyWith(color: compactStyle.color);
       return Stack(
         children: [
           ExcludeSemantics(
@@ -6680,7 +6683,7 @@ class _DayViewGridState extends State<DayViewGrid> {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
-          SizedBox(height: isGraphicFlow ? 1 : 2),
+          SizedBox(height: isGraphicFlow ? 0 : 2),
         ],
 
         // Note title - only render if meaningful
@@ -6819,7 +6822,7 @@ class _DayViewGridState extends State<DayViewGrid> {
         if (isTrackSky &&
             trackSkyTeaser.isNotEmpty &&
             durationMinutes >= 45) ...[
-          const SizedBox(height: 1),
+          const SizedBox(height: 0),
           buildTrackSkyText(
             trackSkyTeaser,
             style: TextStyle(

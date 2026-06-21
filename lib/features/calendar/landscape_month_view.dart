@@ -1374,6 +1374,7 @@ class _LandscapeMonthGridBodyState extends State<LandscapeMonthGridBody> {
   static const double _daySepW = 1.0; // day separator
   static const double _hourSepH = 1.0; // hour separator
   static const double _kLandscapeEventMinHeight = 64.0;
+  static const int _visibleEventDayBuffer = 1;
 
   // 🔧 UPDATED: Use shared color constants
   static const Color _gold = _landscapeGold;
@@ -1394,6 +1395,9 @@ class _LandscapeMonthGridBodyState extends State<LandscapeMonthGridBody> {
   String? _initialEventDetailRestoreKey;
   bool _initialEventDetailRestoreInFlight = false;
   final Set<int> _endingFlowIds = <int>{};
+  int _visibleEventStartDay = 1;
+  int _visibleEventEndDay = 6;
+  bool _visibleEventRangeUpdateScheduled = false;
 
   bool _syncingH = false;
   bool _syncingV = false;
@@ -1446,6 +1450,7 @@ class _LandscapeMonthGridBodyState extends State<LandscapeMonthGridBody> {
         );
       }
       _syncingH = false;
+      _scheduleVisibleEventRangeUpdate();
     });
 
     // Sync vertical scrolling
@@ -1472,6 +1477,7 @@ class _LandscapeMonthGridBodyState extends State<LandscapeMonthGridBody> {
     });
 
     // Scroll to initial day if provided (from day view)
+    _initializeVisibleEventRange();
     if (widget.initialDay != null) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         _scrollToDay(widget.initialDay!);
@@ -1497,6 +1503,7 @@ class _LandscapeMonthGridBodyState extends State<LandscapeMonthGridBody> {
   @override
   void dispose() {
     _isDisposed = true;
+    _visibleEventRangeUpdateScheduled = false;
     if (kDebugMode) {
       _logLandscape('🔴 [LANDSCAPE] LandscapeMonthGridBody dispose()');
       _logLandscape(
@@ -1522,6 +1529,49 @@ class _LandscapeMonthGridBodyState extends State<LandscapeMonthGridBody> {
       duration: const Duration(milliseconds: 300),
       curve: Curves.easeOut,
     );
+    _scheduleVisibleEventRangeUpdate();
+  }
+
+  void _initializeVisibleEventRange() {
+    final maxDay = _getDaysInMonth();
+    final initialDay = widget.initialDay?.clamp(1, maxDay).toInt() ?? 1;
+    _visibleEventStartDay = math.max(1, initialDay - 2);
+    _visibleEventEndDay = math.min(maxDay, initialDay + 4);
+  }
+
+  void _scheduleVisibleEventRangeUpdate() {
+    if (_visibleEventRangeUpdateScheduled || _isDisposed) return;
+    _visibleEventRangeUpdateScheduled = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _visibleEventRangeUpdateScheduled = false;
+      _updateVisibleEventRange();
+    });
+  }
+
+  void _updateVisibleEventRange() {
+    if (!mounted || !_hGrid.hasClients) return;
+    final width = MediaQuery.sizeOf(context).width;
+    final colW = (width - _gutterW) / 5.0;
+    final dayStride = colW + _daySepW;
+    if (dayStride <= 0) return;
+
+    final firstVisibleDay = (_hGrid.offset / dayStride).floor() + 1;
+    final visibleDayCount = ((width - _gutterW) / dayStride).ceil();
+    final maxDay = _getDaysInMonth();
+    final nextStart = math.max(1, firstVisibleDay - _visibleEventDayBuffer);
+    final nextEnd = math.min(
+      maxDay,
+      firstVisibleDay + visibleDayCount + _visibleEventDayBuffer,
+    );
+
+    if (nextStart == _visibleEventStartDay &&
+        nextEnd == _visibleEventEndDay) {
+      return;
+    }
+    setState(() {
+      _visibleEventStartDay = nextStart;
+      _visibleEventEndDay = nextEnd;
+    });
   }
 
   String? _eventDetailRestoreKey(EventDetailRestorationState? state) {
@@ -1731,7 +1781,11 @@ class _LandscapeMonthGridBodyState extends State<LandscapeMonthGridBody> {
                           _buildGridLines(dayCount, colW),
 
                           // Event blocks
-                          for (int day = 1; day <= dayCount; day++)
+                          for (
+                            int day = _visibleEventStartDay;
+                            day <= _visibleEventEndDay;
+                            day++
+                          )
                             ..._buildEventsForDay(day, colW),
                         ],
                       ),

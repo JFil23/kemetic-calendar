@@ -32036,9 +32036,11 @@ class CalendarPageState extends State<CalendarPage>
     final size = MediaQuery.sizeOf(context);
     final orientation = MediaQuery.orientationOf(context);
     final isLandscape = orientation == Orientation.landscape;
+    final routeIsCurrent = ModalRoute.of(context)?.isCurrent ?? true;
     // Landscape grid only on phone-sized screens; tablets/desktop stay on portrait layout.
     final useGrid = isLandscape && size.shortestSide < 600;
-    if (!useGrid) {
+    final shouldBuildLandscapeGrid = useGrid && routeIsCurrent;
+    if (!shouldBuildLandscapeGrid) {
       _landscapeTodayAction = null;
     }
 
@@ -32053,9 +32055,7 @@ class CalendarPageState extends State<CalendarPage>
         _calendarDebugPrint('ORIENTATION CHANGED!');
         _calendarDebugPrint('From: $previousOrientation → To: $orientation');
         _calendarDebugPrint('Navigator canPop: ${Navigator.canPop(context)}');
-        _calendarDebugPrint(
-          'Modal route active: ${ModalRoute.of(context)?.isCurrent ?? false}',
-        );
+        _calendarDebugPrint('Modal route active: $routeIsCurrent');
         _calendarDebugPrint('${'🔄' * 30}\n');
       }
 
@@ -32076,7 +32076,14 @@ class CalendarPageState extends State<CalendarPage>
     }
     _lastOrientation = orientation;
 
-    if (useGrid) {
+    if (!routeIsCurrent) {
+      return const Scaffold(
+        backgroundColor: _bg,
+        body: SizedBox.shrink(),
+      );
+    }
+
+    if (shouldBuildLandscapeGrid) {
       // ✅ FIX 5: Only call if state is missing (optimization)
       // The method already has a guard, but this prevents unnecessary function calls
       // ✅ FIX 6: Also prevent during landscape updates to avoid side effects

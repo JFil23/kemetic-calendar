@@ -857,6 +857,12 @@ void main() {
       );
       expect(infoTabBlock, contains('monthTitleShort'));
       expect(infoTabBlock, contains('_SoftMonthNameTitle('));
+      expect(infoTabBlock, contains('_transliterationFontFallback'));
+      expect(infoTabBlock, contains('GentiumPlus'));
+      expect(
+        infoTabBlock,
+        contains('fontFamilyFallback: _transliterationFontFallback'),
+      );
 
       final weekdayBlock = _sourceBetween(
         gridSource,

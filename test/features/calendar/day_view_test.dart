@@ -8,6 +8,7 @@ import 'package:go_router/go_router.dart';
 import 'package:mobile/core/completion_status.dart';
 import 'package:mobile/features/calendar/calendar_page.dart' show KemeticMath;
 import 'package:mobile/features/calendar/day_view.dart';
+import 'package:mobile/features/calendar/landscape_month_view.dart';
 import 'package:mobile/features/calendar/living_text_day_one_node_store.dart';
 import 'package:mobile/features/calendar/maat_decan_flow.dart';
 import 'package:mobile/features/journal/journal_badge_utils.dart';
@@ -165,6 +166,67 @@ void main() {
         );
       },
     );
+
+    testWidgets('Track Sky event cards fit long moon copy without overflow', (
+      tester,
+    ) async {
+      await _setPhoneViewport(tester);
+
+      await tester.pumpWidget(
+        _DayViewHarness(
+          initialScrollOffset: 15 * 60,
+          flowIndex: const <int, FlowData>{
+            99: FlowData(
+              id: 99,
+              name: 'Follow the sky',
+              color: Colors.indigo,
+              active: true,
+              notes: 'sky_tz=pacific',
+            ),
+          },
+          notes: [
+            _timedNote(
+              title: 'Strawberry Moon + Micromoon (Full)',
+              startHour: 15,
+              startMinute: 30,
+              endHour: 16,
+              endMinute: 15,
+              flowId: 99,
+            ),
+          ],
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(tester.takeException(), isNull);
+      expect(find.text('Follow the sky'), findsWidgets);
+      expect(find.text('Strawberry Moon + Micromoon (Full)'), findsWidgets);
+    });
+
+    testWidgets('phone landscape Day View uses the landscape month surface', (
+      tester,
+    ) async {
+      await _setPhoneLandscapeViewport(tester);
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: DayViewPage(
+            initialKy: 1,
+            initialKm: 2,
+            initialKd: 5,
+            showGregorian: false,
+            notesForDay: (_, _, _) => const [],
+            flowIndex: const {},
+            getMonthName: (month) => 'Month $month',
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(tester.takeException(), isNull);
+      expect(find.byType(LandscapeMonthView), findsOneWidget);
+      expect(find.byType(DayViewGrid), findsNothing);
+    });
 
     test(
       'single non-overlapping events keep the phone width factor by default',
@@ -2036,6 +2098,15 @@ String _gregorianMonthName(int month) {
 Future<void> _setPhoneViewport(WidgetTester tester) async {
   tester.view.devicePixelRatio = 1.0;
   tester.view.physicalSize = const Size(390, 844);
+  addTearDown(() async {
+    tester.view.resetPhysicalSize();
+    tester.view.resetDevicePixelRatio();
+  });
+}
+
+Future<void> _setPhoneLandscapeViewport(WidgetTester tester) async {
+  tester.view.devicePixelRatio = 1.0;
+  tester.view.physicalSize = const Size(844, 390);
   addTearDown(() async {
     tester.view.resetPhysicalSize();
     tester.view.resetDevicePixelRatio();

@@ -6,6 +6,11 @@ class JournalSkinTokens {
   const JournalSkinTokens._();
 
   static const String fontFamily = 'CormorantGaramond';
+  static const List<String> transliterationFallback = <String>[
+    'GentiumPlus',
+    'NotoSans',
+    'Roboto',
+  ];
 
   static const Color black = Color(0xFF000000);
   static const Color pageGlow = Color(0xFF14110A);
@@ -68,6 +73,7 @@ class JournalSkinTokens {
 
   static const TextStyle mastheadLabelStyle = TextStyle(
     fontFamily: fontFamily,
+    fontFamilyFallback: transliterationFallback,
     fontSize: 13,
     fontWeight: FontWeight.w600,
     letterSpacing: 5,
@@ -76,6 +82,7 @@ class JournalSkinTokens {
 
   static const TextStyle dateEyebrowStyle = TextStyle(
     fontFamily: fontFamily,
+    fontFamilyFallback: transliterationFallback,
     fontSize: 13,
     fontWeight: FontWeight.w500,
     letterSpacing: 3,
@@ -84,6 +91,7 @@ class JournalSkinTokens {
 
   static const TextStyle dateTitleStyle = TextStyle(
     fontFamily: fontFamily,
+    fontFamilyFallback: transliterationFallback,
     fontSize: 40,
     fontWeight: FontWeight.w600,
     letterSpacing: 0.3,
@@ -93,6 +101,7 @@ class JournalSkinTokens {
 
   static const TextStyle dateGlossStyle = TextStyle(
     fontFamily: fontFamily,
+    fontFamilyFallback: transliterationFallback,
     fontSize: 22,
     fontWeight: FontWeight.w500,
     fontStyle: FontStyle.italic,
@@ -101,12 +110,14 @@ class JournalSkinTokens {
 
   static const TextStyle formatButtonStyle = TextStyle(
     fontFamily: fontFamily,
+    fontFamilyFallback: transliterationFallback,
     fontSize: 20,
     color: silverMid,
   );
 
   static const TextStyle savedLineStyle = TextStyle(
     fontFamily: fontFamily,
+    fontFamilyFallback: transliterationFallback,
     fontSize: 15,
     fontWeight: FontWeight.w400,
     letterSpacing: 0.3,
@@ -115,6 +126,7 @@ class JournalSkinTokens {
 
   static const TextStyle entryBodyStyle = TextStyle(
     fontFamily: fontFamily,
+    fontFamilyFallback: transliterationFallback,
     fontSize: 26,
     fontWeight: FontWeight.w400,
     fontStyle: FontStyle.italic,
@@ -124,6 +136,7 @@ class JournalSkinTokens {
 
   static const TextStyle entryPlaceholderStyle = TextStyle(
     fontFamily: fontFamily,
+    fontFamilyFallback: transliterationFallback,
     fontSize: 26,
     fontWeight: FontWeight.w400,
     fontStyle: FontStyle.italic,

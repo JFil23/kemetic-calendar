@@ -9,6 +9,7 @@ import 'package:mobile/features/calendar/calendar_reflection_context.dart';
 import 'package:mobile/features/journal/journal_badge_utils.dart';
 import 'package:mobile/features/journal/journal_controller.dart';
 import 'package:mobile/features/journal/journal_overlay.dart';
+import 'package:mobile/features/journal/journal_skin_tokens.dart';
 import 'package:mobile/features/journal/journal_v2_toolbar.dart';
 import 'package:mobile/main.dart' as app;
 import 'package:mobile/services/session_resume_service.dart';
@@ -37,6 +38,21 @@ void main() {
 
   setUp(() {
     SharedPreferences.setMockInitialValues({});
+  });
+
+  test('journal skin date typography falls back for transliteration glyphs', () {
+    expect(
+      JournalSkinTokens.dateTitleStyle.fontFamilyFallback,
+      contains('GentiumPlus'),
+    );
+    expect(
+      JournalSkinTokens.dateGlossStyle.fontFamilyFallback,
+      contains('GentiumPlus'),
+    );
+    expect(
+      JournalSkinTokens.entryBodyStyle.fontFamilyFallback,
+      contains('GentiumPlus'),
+    );
   });
 
   testWidgets('badge section and toolbar stay visible while keyboard is open', (

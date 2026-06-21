@@ -85,7 +85,7 @@ void main() {
       final orientationBuild = _sourceBetween(
         calendarSource,
         'final previousOrientation = _lastOrientation;',
-        'if (useGrid) {',
+        'if (shouldBuildLandscapeGrid) {',
       );
 
       expect(syncEntry, contains('_reminderSyncGate.runCoalesced'));
@@ -109,6 +109,40 @@ void main() {
       );
     });
 
+    test('covered Calendar route does not build hidden landscape grid', () {
+      final landscapeBranch = _sourceBetween(
+        calendarSource,
+        'final routeIsCurrent = ModalRoute.of(context)?.isCurrent ?? true;',
+        'if (shouldBuildLandscapeGrid) {',
+      );
+      final gridBranch = _sourceBetween(
+        calendarSource,
+        'if (shouldBuildLandscapeGrid) {',
+        'final scaffold = Scaffold(',
+      );
+
+      expect(landscapeBranch, contains('final useGrid ='));
+      expect(
+        landscapeBranch,
+        contains('final shouldBuildLandscapeGrid = useGrid && routeIsCurrent;'),
+      );
+      expect(gridBranch, contains('LandscapeMonthView('));
+      expect(gridBranch, isNot(contains('if (useGrid) {')));
+    });
+
+    test('covered Calendar route skips heavy calendar body builds', () {
+      final coveredRouteBranch = _sourceBetween(
+        calendarSource,
+        'if (!routeIsCurrent) {',
+        'if (shouldBuildLandscapeGrid) {',
+      );
+
+      expect(coveredRouteBranch, contains('Scaffold('));
+      expect(coveredRouteBranch, contains('SizedBox.shrink()'));
+      expect(coveredRouteBranch, isNot(contains('_buildBodyWithJournal')));
+      expect(coveredRouteBranch, isNot(contains('LandscapeMonthView(')));
+    });
+
     test('landscape month build logging does not print raw note titles', () {
       final buildEventsForDay = _sourceBetween(
         landscapeSource,
@@ -119,6 +153,26 @@ void main() {
       expect(buildEventsForDay, contains('Raw notes:'));
       expect(buildEventsForDay, isNot(contains('note.title')));
       expect(buildEventsForDay, isNot(contains('Note: "')));
+    });
+
+    test('landscape month builds event cards only for visible day range', () {
+      final gridBodyState = _sourceBetween(
+        landscapeSource,
+        'class _LandscapeMonthGridBodyState extends State<LandscapeMonthGridBody>',
+        'Widget _buildDayHeader(int day, double colW)',
+      );
+      final eventLoop = _sourceBetween(
+        gridBodyState,
+        '// Event blocks',
+        '],',
+      );
+
+      expect(gridBodyState, contains('_visibleEventStartDay'));
+      expect(gridBodyState, contains('_visibleEventEndDay'));
+      expect(gridBodyState, contains('_updateVisibleEventRange'));
+      expect(eventLoop, contains('int day = _visibleEventStartDay'));
+      expect(eventLoop, contains('day <= _visibleEventEndDay'));
+      expect(eventLoop, isNot(contains('int day = 1; day <= dayCount')));
     });
 
     test('Day View event block rendering does not log raw event titles', () {
