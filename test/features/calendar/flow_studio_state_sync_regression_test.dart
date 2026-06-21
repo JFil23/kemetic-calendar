@@ -4,8 +4,9 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mobile/data/share_models.dart';
+import 'package:mobile/features/calendar/kemetic_month_metadata.dart';
 import 'package:mobile/features/calendar/calendar_page.dart'
-    show ImportFlowData, debugBuildFlowStudioPageForTest;
+    show ImportFlowData, KemeticMath, debugBuildFlowStudioPageForTest;
 import 'package:mobile/models/ai_flow_generation_response.dart';
 import 'package:mobile/services/ai_flow_generation_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -359,6 +360,127 @@ void main() {
     await _closeFlowStudio(tester);
   });
 
+  testWidgets(
+    'build date picker opens with Gregorian value and preserves Cancel Done reopen on small phone',
+    (tester) async {
+      _useMobilePortraitSurface(tester);
+      final start = DateTime(2026, 6, 15);
+      final end = DateTime(2026, 6, 21);
+      final draft = _buildDraft(startDate: start, endDate: end);
+      await _openFlowStudio(tester, initialDraftJson: draft);
+
+      expect(find.text(_dateLabel(start)), findsOneWidget);
+      expect(find.text(_dateLabel(end)), findsOneWidget);
+
+      await _tapOutlinedDateButton(tester, _dateLabel(start));
+      expect(find.text('Pick Gregorian date'), findsOneWidget);
+      expect(find.text('Gregorian Calendar'), findsOneWidget);
+      expect(find.text('June'), findsWidgets);
+      expect(find.text('15'), findsWidgets);
+      expect(find.text('2026'), findsWidgets);
+      expect(tester.takeException(), isNull);
+
+      await _tapPickerCancel(tester);
+      expect(find.text(_dateLabel(start)), findsOneWidget);
+      expect(find.text(_dateLabel(end)), findsOneWidget);
+      expect(find.text('Save Flow'), findsOneWidget);
+
+      await _tapOutlinedDateButton(tester, _dateLabel(start));
+      await _tapPickerDone(tester);
+      expect(tester.takeException(), isNull);
+      expect(find.text(_dateLabel(start)), findsOneWidget);
+      expect(find.text(_dateLabel(end)), findsOneWidget);
+
+      await _tapOutlinedDateButton(tester, _dateLabel(start));
+      expect(find.text('Pick Gregorian date'), findsOneWidget);
+      expect(find.text('June'), findsWidgets);
+      expect(find.text('15'), findsWidgets);
+      expect(find.text('2026'), findsWidgets);
+      await _tapPickerCancel(tester);
+
+      await _closeFlowStudio(tester);
+    },
+  );
+
+  testWidgets(
+    'build Kemetic date picker uses app conversion and preserves Done result',
+    (tester) async {
+      _useLargeSurface(tester);
+      final start = DateTime(2026, 6, 15);
+      final end = DateTime(2026, 6, 21);
+      final draft = _buildDraft(startDate: start, endDate: end);
+      await _openFlowStudio(tester, initialDraftJson: draft);
+
+      await tester.tap(find.text('Kemetic'));
+      await _pumpFlowStudio(tester);
+
+      final startLabel = _kemeticLabel(start);
+      final startK = KemeticMath.fromGregorian(start);
+      expect(find.text(startLabel), findsOneWidget);
+
+      await _tapOutlinedDateButton(tester, startLabel);
+      expect(find.text('Pick Kemetic date'), findsOneWidget);
+      expect(find.text('Kemetic Calendar'), findsOneWidget);
+      expect(find.text(getMonthById(startK.kMonth).displayFull), findsWidgets);
+      expect(find.text('${startK.kDay}'), findsWidgets);
+
+      await _tapPickerDone(tester);
+      expect(find.text(startLabel), findsOneWidget);
+
+      await tester.tap(find.text('Gregorian'));
+      await _pumpFlowStudio(tester);
+      expect(find.text(_dateLabel(start)), findsOneWidget);
+      expect(find.text(_dateLabel(end)), findsOneWidget);
+
+      await _closeFlowStudio(tester);
+    },
+  );
+
+  testWidgets(
+    'compose date picker preserves prompt Cancel Done and reopen behavior',
+    (tester) async {
+      _useLargeSurface(tester);
+      final start = DateTime(2026, 6, 13);
+      final end = DateTime(2026, 6, 22);
+      final draft = _buildDraft(
+        studioMode: 'compose',
+        composePrompt: 'practice piano',
+        startDate: start,
+        endDate: end,
+      );
+      await _openFlowStudio(tester, initialDraftJson: draft);
+
+      expect(find.text('practice piano'), findsOneWidget);
+      expect(find.text(_dateLabel(start)), findsOneWidget);
+      expect(find.text(_dateLabel(end)), findsOneWidget);
+      expect(find.text('Shape this flow'), findsOneWidget);
+
+      await _tapOutlinedDateButton(tester, _dateLabel(start));
+      expect(find.text('Pick Gregorian date'), findsOneWidget);
+      expect(find.text('Gregorian Calendar'), findsOneWidget);
+      await _tapPickerCancel(tester);
+      expect(find.text('practice piano'), findsOneWidget);
+      expect(find.text(_dateLabel(start)), findsOneWidget);
+      expect(find.text(_dateLabel(end)), findsOneWidget);
+
+      await _tapOutlinedDateButton(tester, _dateLabel(end));
+      await _tapPickerDone(tester);
+      expect(find.text('practice piano'), findsOneWidget);
+      expect(find.text(_dateLabel(start)), findsOneWidget);
+      expect(find.text(_dateLabel(end)), findsOneWidget);
+      expect(find.text('Use prompt duration'), findsOneWidget);
+
+      await _tapOutlinedDateButton(tester, _dateLabel(end));
+      expect(find.text('Pick Gregorian date'), findsOneWidget);
+      expect(find.text('June'), findsWidgets);
+      expect(find.text('22'), findsWidgets);
+      expect(find.text('2026'), findsWidgets);
+      await _tapPickerCancel(tester);
+
+      await _closeFlowStudio(tester);
+    },
+  );
+
   testWidgets('Compose failure preserves prompt and exposes manual recovery', (
     tester,
   ) async {
@@ -703,6 +825,32 @@ void main() {
     expect(pickEndBody, contains('_showFlowTimePicker'));
     expect(pickEndBody, contains('_schedulePersistentDraftSave();'));
 
+    final pickGregorianDateBody = _sliceBetween(
+      source,
+      'Future<DateTime?> _pickGregorianDate',
+      'Future<DateTime?> _pickKemeticDate',
+    );
+    expect(pickGregorianDateBody, contains('showGregorianDatePicker'));
+    expect(pickGregorianDateBody, isNot(contains('showModalBottomSheet')));
+
+    final pickKemeticDateBody = _sliceBetween(
+      source,
+      'Future<DateTime?> _pickKemeticDate',
+      'Future<void> _pickRangeStart',
+    );
+    expect(pickKemeticDateBody, contains('showKemeticDatePicker'));
+    expect(pickKemeticDateBody, isNot(contains('showModalBottomSheet')));
+
+    final rebuildBody = _sliceBetween(
+      source,
+      'void _rebuildSpans()',
+      '// Kemetic decans present',
+    );
+    expect(
+      rebuildBody,
+      contains('if (_hasFullRange && _endDate!.isBefore(_startDate!))'),
+    );
+
     final aiGeneratedLoadBody = _sliceBetween(
       source,
       'Future<void> _loadAIGeneratedFlow(int flowId) async',
@@ -954,6 +1102,25 @@ Future<void> _tapChip(WidgetTester tester, String label) async {
   await _pumpFlowStudio(tester);
 }
 
+Future<void> _tapOutlinedDateButton(WidgetTester tester, String label) async {
+  final button = find.widgetWithText(OutlinedButton, label);
+  expect(button, findsAtLeastNWidgets(1));
+  await tester.ensureVisible(button.first);
+  await tester.pump();
+  await tester.tap(button.first, warnIfMissed: false);
+  await tester.pumpAndSettle();
+}
+
+Future<void> _tapPickerCancel(WidgetTester tester) async {
+  await tester.tap(find.widgetWithText(OutlinedButton, 'Cancel'));
+  await tester.pumpAndSettle();
+}
+
+Future<void> _tapPickerDone(WidgetTester tester) async {
+  await tester.tap(find.widgetWithText(ElevatedButton, 'Done'));
+  await tester.pumpAndSettle();
+}
+
 Future<void> _pumpFlowStudio(
   WidgetTester tester, [
   Duration duration = const Duration(milliseconds: 250),
@@ -978,6 +1145,27 @@ void _useMobilePortraitSurface(WidgetTester tester) {
     tester.view.resetPhysicalSize();
     tester.view.resetDevicePixelRatio();
   });
+}
+
+String _dateLabel(DateTime value) {
+  final date = DateUtils.dateOnly(value);
+  return '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
+}
+
+String _kemeticLabel(DateTime value) {
+  final k = KemeticMath.fromGregorian(DateUtils.dateOnly(value));
+  final month = getMonthById(k.kMonth).displayFull;
+  final yearLabel = _gregYearLabelForTest(k.kYear, k.kMonth);
+  return '$month ${k.kDay} • $yearLabel';
+}
+
+String _gregYearLabelForTest(int kYear, int kMonth) {
+  final lastDay = (kMonth == 13)
+      ? (KemeticMath.isLeapKemeticYear(kYear) ? 6 : 5)
+      : 30;
+  final yStart = KemeticMath.toGregorian(kYear, kMonth, 1).year;
+  final yEnd = KemeticMath.toGregorian(kYear, kMonth, lastDay).year;
+  return yStart == yEnd ? '$yStart' : '$yStart/$yEnd';
 }
 
 const _testShareId = '11111111-1111-4111-8111-111111111111';
