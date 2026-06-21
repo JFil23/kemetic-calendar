@@ -3229,7 +3229,6 @@ class DayViewPage extends StatefulWidget {
   final Future<void> Function(BuildContext context)? onOpenQuickAdd;
   final Future<void> Function(BuildContext context)? onOpenSearch;
   final Future<void> Function(BuildContext context)? onOpenProfile;
-  final Future<void> Function(BuildContext context)? onOpenMenu;
   final VoidCallback? onClose;
   final Future<void> Function()? onUserClose;
   final void Function(int ky, int km, int kd)? onAddNote;
@@ -3323,7 +3322,6 @@ class DayViewPage extends StatefulWidget {
     this.onOpenQuickAdd,
     this.onOpenSearch,
     this.onOpenProfile,
-    this.onOpenMenu,
     this.onClose,
     this.onUserClose,
     this.onAddNote, // 🔧 NEW
@@ -3995,14 +3993,6 @@ class _DayViewPageState extends State<DayViewPage> {
                           widget.onOpenProfile ??
                           (ctx) async {
                             await CalendarPage.openProfileFromAnyContext(ctx);
-                          },
-                      onOpenMenu:
-                          widget.onOpenMenu ??
-                          (ctx) async {
-                            await CalendarPage.showActionsMenuFromAnyContext(
-                              ctx,
-                              includeNewNote: false,
-                            );
                           },
                       dateButtonBuilder: (context, currentGregorian) {
                         final headerDateLabel = _buildHeaderDateLabel(

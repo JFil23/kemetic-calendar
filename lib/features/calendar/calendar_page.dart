@@ -13505,7 +13505,6 @@ class CalendarPageState extends State<CalendarPage>
       onOpenQuickAdd: (_) => _openQuickAddSheet(),
       onOpenSearch: (ctx) async => _openSearchForContext(ctx),
       onOpenProfile: (ctx) => _openProfile(ctx),
-      onOpenMenu: (ctx) => _showActionsMenu(ctx, includeNewNote: false),
       onDeleteNote: (ky, km, kd, evt) async {
         await _deleteNoteByEvent(ky, km, kd, evt);
       },
@@ -25615,7 +25614,6 @@ class CalendarPageState extends State<CalendarPage>
           onOpenQuickAdd: (_) => _openQuickAddSheet(),
           onOpenSearch: (ctx) async => _openSearchForContext(ctx),
           onOpenProfile: (ctx) => _openProfile(ctx),
-          onOpenMenu: (ctx) => _showActionsMenu(ctx, includeNewNote: false),
           onDeleteNote: (ky, km, kd, evt) async {
             await _deleteNoteByEvent(ky, km, kd, evt);
           },

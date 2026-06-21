@@ -1713,11 +1713,8 @@ void main() {
       expect(lateRestorationReports, 0);
     });
 
-    testWidgets('menu button dispatches the provided header menu handler', (
-      tester,
-    ) async {
+    testWidgets('header omits duplicate global menu action', (tester) async {
       await _setPhoneViewport(tester);
-      var menuOpenCount = 0;
 
       await tester.pumpWidget(
         MaterialApp(
@@ -1729,19 +1726,17 @@ void main() {
             notesForDay: (ky, km, kd) => const [],
             flowIndex: const {},
             getMonthName: (month) => 'Month $month',
-            onOpenMenu: (_) async {
-              menuOpenCount += 1;
-            },
           ),
         ),
       );
       await tester.pumpAndSettle();
 
-      expect(find.byTooltip('Menu'), findsOneWidget);
-      await tester.tap(find.byTooltip('Menu'));
-      await tester.pumpAndSettle();
-
-      expect(menuOpenCount, 1);
+      expect(find.byTooltip('Menu'), findsNothing);
+      expect(find.byIcon(Icons.more_vert), findsNothing);
+      expect(find.byTooltip('New note'), findsOneWidget);
+      expect(find.byTooltip('Search notes'), findsOneWidget);
+      expect(find.byTooltip('Today'), findsOneWidget);
+      expect(find.byTooltip('My Profile'), findsOneWidget);
     });
 
     testWidgets('system back reports user close for restoration clearing', (
