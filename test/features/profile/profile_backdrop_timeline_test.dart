@@ -83,6 +83,33 @@ void main() {
     expect(backdropSource, contains('profileBackdropNeutralPlaceholderKey'));
   });
 
+  test('community feed flow taps keep feed-specific expansion behavior', () {
+    final profileSource = File(
+      'lib/features/profile/profile_page.dart',
+    ).readAsStringSync();
+    final tileSource = _methodSource(
+      profileSource,
+      'Widget _buildFeedFlowTile(ProfileFeedItem item)',
+      'Widget _buildFeedInsightTile(ProfileFeedItem item)',
+    );
+    final expandedSource = _methodSource(
+      profileSource,
+      'Widget _buildExpandedFlowDetailCard(FlowPost post)',
+      'Widget _buildExpandedInsightDetailCard(InsightPost post)',
+    );
+
+    expect(tileSource, contains('onTap: () => _expandFeedItem(item)'));
+    expect(tileSource, isNot(contains('_openPostDetails')));
+    expect(tileSource, isNot(contains('FlowPostDetailPage')));
+
+    expect(expandedSource, contains('_buildExpandedFeedCardShell'));
+    expect(expandedSource, contains('_buildExpandedFlowEventTile(event)'));
+    expect(expandedSource, contains('FlowPostEngagementRow('));
+    expect(expandedSource, contains('onPressed: () => _savePost(post)'));
+    expect(expandedSource, isNot(contains('SharedFlowDetailsPage')));
+    expect(expandedSource, isNot(contains('buildCanonicalCustomFlowDetail')));
+  });
+
   testWidgets(
     'uses a neutral placeholder until the intended backdrop asset resolves',
     (tester) async {
@@ -140,6 +167,16 @@ void main() {
       await tester.pumpWidget(const SizedBox.shrink());
     },
   );
+}
+
+String _methodSource(String source, String startMarker, String endMarker) {
+  final start = source.indexOf(startMarker);
+  final end = source.indexOf(endMarker, start + startMarker.length);
+
+  expect(start, isNonNegative, reason: startMarker);
+  expect(end, isNonNegative, reason: endMarker);
+
+  return source.substring(start, end);
 }
 
 Finder _obsoleteProfileBackdropPainters() {

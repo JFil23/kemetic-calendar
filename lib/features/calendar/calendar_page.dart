@@ -3779,6 +3779,347 @@ class CalendarPage extends StatefulWidget {
 
   static bool get hasMountedHost => _mountedState != null;
 
+  static FlowDetailActionPolicy resolveCanonicalCustomFlowActionPolicy({
+    required FlowDetailSource source,
+    required bool isLocalFlow,
+    bool isOwner = false,
+    bool isImported = false,
+    bool isSaved = false,
+    bool isReadOnly = false,
+    bool busy = false,
+    FutureOr<void> Function()? onPressed,
+    String? startDateLabel,
+    FutureOr<void> Function()? onStartDatePressed,
+  }) {
+    if (isReadOnly) {
+      return FlowDetailActionPolicy(
+        source: source,
+        kind: FlowDetailActionKind.viewOnly,
+        label: 'View Only',
+        icon: Icons.visibility_outlined,
+        enabled: false,
+        onPressed: null,
+      );
+    }
+
+    if (source == FlowDetailSource.inboxShare ||
+        source == FlowDetailSource.directShare) {
+      if (isImported || isLocalFlow) {
+        return FlowDetailActionPolicy(
+          source: source,
+          kind: FlowDetailActionKind.openImported,
+          label: 'Manage Flow',
+          icon: Icons.tune,
+          busy: busy,
+          onPressed: onPressed,
+        );
+      }
+      return FlowDetailActionPolicy(
+        source: source,
+        kind: FlowDetailActionKind.importFlow,
+        label: 'Import Flow',
+        busyLabel: 'Importing...',
+        icon: Icons.file_download_outlined,
+        busy: busy,
+        onPressed: onPressed,
+        startDateLabel: startDateLabel,
+        onStartDatePressed: onStartDatePressed,
+      );
+    }
+
+    if (source == FlowDetailSource.profilePost ||
+        source == FlowDetailSource.profileActivity) {
+      if (isSaved || isImported || isLocalFlow) {
+        return FlowDetailActionPolicy(
+          source: source,
+          kind: FlowDetailActionKind.openSaved,
+          label: 'Manage Flow',
+          icon: Icons.tune,
+          busy: busy,
+          onPressed: onPressed,
+        );
+      }
+      return FlowDetailActionPolicy(
+        source: source,
+        kind: FlowDetailActionKind.addToMyFlows,
+        label: 'Add to My Flows',
+        busyLabel: 'Adding...',
+        icon: Icons.bookmark_add_outlined,
+        busy: busy,
+        onPressed: onPressed,
+      );
+    }
+
+    return FlowDetailActionPolicy(
+      source: source,
+      kind: FlowDetailActionKind.manage,
+      label: isOwner || isLocalFlow ? 'Manage Flow' : 'View Only',
+      icon: isOwner || isLocalFlow ? Icons.tune : Icons.visibility_outlined,
+      enabled: isOwner || isLocalFlow,
+      busy: busy,
+      onPressed: isOwner || isLocalFlow ? onPressed : null,
+    );
+  }
+
+  static Widget buildCanonicalCustomFlowDetail({
+    required String name,
+    required int color,
+    String? notes,
+    List<dynamic> rulesJson = const <dynamic>[],
+    List<dynamic> eventsJson = const <dynamic>[],
+    int? flowId,
+    DateTime? startDate,
+    DateTime? endDate,
+    bool active = true,
+    bool isSaved = false,
+    bool previewAsTemplate = false,
+    FlowDetailActionPolicy? actionPolicy,
+    bool showFlowOptions = false,
+  }) {
+    final syntheticId = flowId ?? _syntheticFlowIdForSnapshot(name, eventsJson);
+    final flow = _Flow(
+      id: syntheticId,
+      name: name.trim().isEmpty ? 'Flow' : name.trim(),
+      color: _flowDetailColor(color),
+      active: active,
+      isSaved: isSaved || previewAsTemplate,
+      savedAt: isSaved || previewAsTemplate ? DateTime.now().toUtc() : null,
+      rules: _parseCanonicalFlowDetailRules(rulesJson),
+      start: startDate?.toLocal(),
+      end: endDate?.toLocal(),
+      notes: notes,
+    );
+
+    final events = _canonicalFlowDetailEventsFromSnapshot(
+      eventsJson,
+      flowId: syntheticId,
+      flowName: flow.name,
+      baseStart: flow.start,
+    );
+    final metrics = events.isEmpty
+        ? const <int, _FlowPreviewMetrics>{}
+        : <int, _FlowPreviewMetrics>{
+            syntheticId: _metricsForCanonicalFlowDetail(
+              events,
+              template: previewAsTemplate || isSaved || !active,
+            ),
+          };
+    final initialEventsByFlow = events.isEmpty
+        ? null
+        : <int, List<FlowEventRow>>{syntheticId: events};
+    final mode = previewAsTemplate || isSaved || !active
+        ? _FlowPreviewMode.saved
+        : _FlowPreviewMode.active;
+
+    return _FlowPreviewPage(
+      flow: flow,
+      mode: mode,
+      metricsByFlow: metrics,
+      initialEventsByFlow: initialEventsByFlow,
+      getDecanLabel: (km, di) =>
+          (DecanMetadata.decanNames[km] ?? const ['I', 'II', 'III'])[di],
+      fmt: _formatDetachedGregorian,
+      onEdit: (_) {},
+      onAppendToJournal: null,
+      onEndMaatFlow: null,
+      actionPolicy: actionPolicy,
+      showFlowOptions: showFlowOptions,
+    );
+  }
+
+  static Widget? buildCanonicalMaatFlowDetail({
+    required String name,
+    String? notes,
+    List<dynamic> eventsJson = const <dynamic>[],
+  }) {
+    final templateKey = _canonicalMaatTemplateKeyForSnapshot(
+      name: name,
+      notes: notes,
+      eventsJson: eventsJson,
+    );
+    if (templateKey == null) return null;
+
+    for (final template in _kMaatFlowTemplates) {
+      if (template.key != templateKey) continue;
+      return _MaatFlowTemplateDetailPage(
+        template: template,
+        addInstance: _addMaatFlowInstanceHeadless,
+      );
+    }
+    return null;
+  }
+
+  static String? _canonicalMaatTemplateKeyForSnapshot({
+    required String name,
+    String? notes,
+    List<dynamic> eventsJson = const <dynamic>[],
+  }) {
+    final directKind = resolveMaatFlowKind(flowName: name, flowNotes: notes);
+    if (directKind != null) return directKind.flowKey;
+
+    for (final raw in eventsJson) {
+      if (raw is! Map) continue;
+      final event = Map<String, dynamic>.from(raw);
+      final behaviorPayload = event['behavior_payload'];
+      final behaviorPayloadMap = behaviorPayload is Map
+          ? Map<String, dynamic>.from(behaviorPayload)
+          : null;
+      final eventKind = resolveMaatFlowKind(
+        actionId: event['action_id']?.toString(),
+        behaviorPayload: behaviorPayloadMap,
+      );
+      if (eventKind != null) return eventKind.flowKey;
+    }
+    return null;
+  }
+
+  static Color _flowDetailColor(int raw) {
+    if ((raw & 0xFF000000) != 0) return Color(raw);
+    return Color(rgbToArgb(raw));
+  }
+
+  static int _syntheticFlowIdForSnapshot(
+    String name,
+    List<dynamic> eventsJson,
+  ) {
+    var hash = 17;
+    for (final unit in name.codeUnits) {
+      hash = ((hash * 31) + unit) & 0x3FFFFFFF;
+    }
+    hash = ((hash * 31) + eventsJson.length) & 0x3FFFFFFF;
+    return -(hash + 1);
+  }
+
+  static List<FlowRule> _parseCanonicalFlowDetailRules(
+    List<dynamic> rulesJson,
+  ) {
+    if (rulesJson.isEmpty) return const <FlowRule>[];
+    final parsed = <FlowRule>[];
+    for (final raw in rulesJson) {
+      if (raw is! Map) continue;
+      try {
+        parsed.add(ruleFromJson(Map<String, dynamic>.from(raw)));
+      } catch (_) {
+        // Ignore malformed snapshot rules; the event snapshot still renders.
+      }
+    }
+    return parsed;
+  }
+
+  static _FlowPreviewMetrics _metricsForCanonicalFlowDetail(
+    List<FlowEventRow> events, {
+    required bool template,
+  }) {
+    final total = events.length;
+    if (template) {
+      return _FlowPreviewMetrics(
+        totalEventCount: total,
+        remainingEventCount: total,
+        completedEventCount: 0,
+      );
+    }
+    final today = DateUtils.dateOnly(DateTime.now());
+    final remaining = events.where((event) {
+      final date = DateUtils.dateOnly(event.startsAtUtc.toLocal());
+      return !date.isBefore(today);
+    }).length;
+    return _FlowPreviewMetrics(
+      totalEventCount: total,
+      remainingEventCount: remaining,
+      completedEventCount: total - remaining,
+    );
+  }
+
+  static List<FlowEventRow> _canonicalFlowDetailEventsFromSnapshot(
+    List<dynamic> eventsJson, {
+    required int flowId,
+    required String flowName,
+    DateTime? baseStart,
+  }) {
+    if (eventsJson.isEmpty) return const <FlowEventRow>[];
+    final base = DateUtils.dateOnly(baseStart ?? DateTime.now());
+    final rows = <FlowEventRow>[];
+    for (var index = 0; index < eventsJson.length; index++) {
+      final raw = eventsJson[index];
+      if (raw is! Map) continue;
+      final event = Map<String, dynamic>.from(raw);
+      final allDay = (event['all_day'] as bool?) ?? false;
+      final offset = (event['offset_days'] as num?)?.toInt() ?? index;
+      final date =
+          _dateOnlyFromSnapshot(event['date']) ??
+          _dateOnlyFromSnapshot(event['start_date']) ??
+          base.add(Duration(days: offset));
+      final startParts = _timePartsFromSnapshot(event['start_time']);
+      final endParts = _optionalTimePartsFromSnapshot(event['end_time']);
+      final start = DateTime(
+        date.year,
+        date.month,
+        date.day,
+        allDay ? 9 : startParts.$1,
+        allDay ? 0 : startParts.$2,
+      );
+      final DateTime? end = allDay
+          ? null
+          : endParts == null
+          ? start.add(const Duration(hours: 1))
+          : DateTime(date.year, date.month, date.day, endParts.$1, endParts.$2);
+
+      rows.add((
+        id: event['id'] as String?,
+        clientEventId:
+            event['client_event_id'] as String? ??
+            'snapshot_flow_${flowId}_$index',
+        calendarId: event['calendar_id'] as String?,
+        calendarName: event['calendar_name'] as String?,
+        calendarColor: (event['calendar_color'] as num?)?.toInt(),
+        calendarIsPersonal: (event['calendar_is_personal'] as bool?) ?? true,
+        title: (event['title'] as String?)?.trim().isNotEmpty == true
+            ? (event['title'] as String).trim()
+            : flowName,
+        detail: event['detail'] as String?,
+        location: event['location'] as String?,
+        allDay: allDay,
+        startsAtUtc: start.toUtc(),
+        endsAtUtc: end?.toUtc(),
+        flowLocalId: flowId,
+        category: event['category'] as String?,
+        actionId: (event['action_id'] as String?)?.trim(),
+        behaviorPayload: event['behavior_payload'] is Map
+            ? Map<String, dynamic>.from(event['behavior_payload'] as Map)
+            : null,
+      ));
+    }
+    rows.sort((a, b) => a.startsAtUtc.compareTo(b.startsAtUtc));
+    return rows;
+  }
+
+  static DateTime? _dateOnlyFromSnapshot(dynamic value) {
+    if (value == null) return null;
+    if (value is DateTime) return DateUtils.dateOnly(value);
+    final parsed = DateTime.tryParse(value.toString());
+    return parsed == null ? null : DateUtils.dateOnly(parsed.toLocal());
+  }
+
+  static (int, int) _timePartsFromSnapshot(dynamic value) {
+    return _optionalTimePartsFromSnapshot(value) ?? (9, 0);
+  }
+
+  static (int, int)? _optionalTimePartsFromSnapshot(dynamic value) {
+    final raw = value?.toString().trim();
+    if (raw == null || raw.isEmpty) return null;
+    final match = RegExp(
+      r'^(\d{1,2}):(\d{2})(?:\s*(am|pm))?$',
+      caseSensitive: false,
+    ).firstMatch(raw);
+    if (match == null) return null;
+    var hour = int.tryParse(match.group(1) ?? '') ?? 9;
+    final minute = int.tryParse(match.group(2) ?? '') ?? 0;
+    final meridian = match.group(3)?.toLowerCase();
+    if (meridian == 'pm' && hour < 12) hour += 12;
+    if (meridian == 'am' && hour == 12) hour = 0;
+    return (hour.clamp(0, 23).toInt(), minute.clamp(0, 59).toInt());
+  }
+
   static Future<void> dismissMountedReflectionPromptIfAny() async {
     final state = _mountedState;
     if (state == null) return;
@@ -32075,10 +32416,7 @@ class CalendarPageState extends State<CalendarPage>
     _lastOrientation = orientation;
 
     if (!routeIsCurrent) {
-      return const Scaffold(
-        backgroundColor: _bg,
-        body: SizedBox.shrink(),
-      );
+      return const Scaffold(backgroundColor: _bg, body: SizedBox.shrink());
     }
 
     if (shouldBuildLandscapeGrid) {

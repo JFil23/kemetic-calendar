@@ -1085,6 +1085,49 @@ class ProfileRepo {
     }
   }
 
+  Future<int?> getSavedFlowPostFlowId(FlowPost post) async {
+    try {
+      final userId = _client.auth.currentUser?.id;
+      if (userId == null) return null;
+
+      final saveRows = await _client
+          .from('flow_saves')
+          .select('flow_id,saved_at')
+          .eq('user_id', userId)
+          .eq('saved_from', 'profile')
+          .eq('metadata->>flow_post_id', post.id)
+          .order('saved_at', ascending: false)
+          .limit(1);
+      final saves = (saveRows as List).cast<Map<String, dynamic>>();
+      if (saves.isNotEmpty) {
+        return (saves.first['flow_id'] as num?)?.toInt();
+      }
+    } catch (e) {
+      _log('[ProfileRepo] flow_post save lookup failed: $e');
+    }
+
+    try {
+      final userId = _client.auth.currentUser?.id;
+      final sourceFlowId = post.sourceFlowId;
+      if (userId == null || sourceFlowId == null) return null;
+
+      final flowRows = await _client
+          .from('flows')
+          .select('id,created_at')
+          .eq('user_id', userId)
+          .eq('origin_type', 'profile_import')
+          .eq('origin_flow_id', sourceFlowId)
+          .order('created_at', ascending: false)
+          .limit(1);
+      final flows = (flowRows as List).cast<Map<String, dynamic>>();
+      if (flows.isEmpty) return null;
+      return (flows.first['id'] as num?)?.toInt();
+    } catch (e) {
+      _log('[ProfileRepo] profile_import flow lookup failed: $e');
+      return null;
+    }
+  }
+
   /// Save someone else's flow post into my saved flows.
   Future<int?> saveFlowPostToMyFlows(
     FlowPost post, {
@@ -1093,6 +1136,8 @@ class ProfileRepo {
     try {
       final userId = _client.auth.currentUser?.id;
       if (userId == null) return null;
+      final existingFlowId = await getSavedFlowPostFlowId(post);
+      if (existingFlowId != null) return existingFlowId;
 
       DateTime? parseDate(String? raw) {
         if (raw == null) return null;

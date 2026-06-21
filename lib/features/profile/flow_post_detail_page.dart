@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:mobile/shared/glossy_text.dart';
@@ -5,6 +7,12 @@ import 'package:mobile/shared/glossy_text.dart';
 import '../../core/navigation_fallback.dart';
 import '../../data/flow_post_model.dart';
 import '../../data/profile_repo.dart';
+import '../calendar/calendar_page.dart'
+    show
+        CalendarPage,
+        FlowDetailActionKind,
+        FlowDetailActionPolicy,
+        FlowDetailSource;
 import '../inbox/shared_flow_details_page.dart';
 import 'flow_post_engagement_row.dart';
 
@@ -38,6 +46,8 @@ class _FlowPostDetailPageState extends State<FlowPostDetailPage> {
   bool _saving = false;
   bool _removing = false;
   bool _safetyActionRunning = false;
+  final Map<String, int> _savedFlowIdsByPostId = <String, int>{};
+  final Set<String> _saveLookupCompletePostIds = <String>{};
 
   FlowPost get _activePost => _posts[_activeIndex];
   bool get _showsPager => _posts.length > 1;
@@ -52,6 +62,7 @@ class _FlowPostDetailPageState extends State<FlowPostDetailPage> {
         : <FlowPost>[widget.post];
     _activeIndex = widget.initialIndex.clamp(0, _posts.length - 1);
     _pageController = PageController(initialPage: _activeIndex);
+    _refreshSavedStateFor(_activePost);
   }
 
   @override
@@ -73,6 +84,47 @@ class _FlowPostDetailPageState extends State<FlowPostDetailPage> {
         };
   }
 
+  void _refreshSavedStateFor(FlowPost post) {
+    if (_saveLookupCompletePostIds.contains(post.id)) return;
+    _saveLookupCompletePostIds.add(post.id);
+    unawaited(() async {
+      final flowId = await _repo.getSavedFlowPostFlowId(post);
+      if (!mounted || flowId == null) return;
+      setState(() => _savedFlowIdsByPostId[post.id] = flowId);
+    }());
+  }
+
+  FlowDetailActionPolicy _actionPolicyFor(FlowPost post) {
+    final savedFlowId = _savedFlowIdsByPostId[post.id];
+    if (widget.isOwner) {
+      return FlowDetailActionPolicy(
+        source: FlowDetailSource.profilePost,
+        kind: FlowDetailActionKind.manage,
+        label: 'Remove from profile',
+        busyLabel: 'Removing...',
+        icon: Icons.delete_outline,
+        busy: _removing,
+        onPressed: () => _removePost(post),
+      );
+    }
+    if (savedFlowId != null) {
+      return CalendarPage.resolveCanonicalCustomFlowActionPolicy(
+        source: FlowDetailSource.profilePost,
+        isLocalFlow: true,
+        isSaved: true,
+        busy: _saving,
+        onPressed: () => _openSavedFlow(savedFlowId, post),
+      );
+    }
+    return CalendarPage.resolveCanonicalCustomFlowActionPolicy(
+      source: FlowDetailSource.profilePost,
+      isLocalFlow: false,
+      isSaved: false,
+      busy: _saving,
+      onPressed: () => _savePost(post),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final post = _activePost;
@@ -90,12 +142,14 @@ class _FlowPostDetailPageState extends State<FlowPostDetailPage> {
                     itemCount: _posts.length,
                     onPageChanged: (index) {
                       setState(() => _activeIndex = index);
+                      _refreshSavedStateFor(_posts[index]);
                     },
                     itemBuilder: (context, index) {
                       return SharedFlowDetailsPage(
                         key: ValueKey(_posts[index].id),
                         payloadJson: _payloadFor(_posts[index]),
                         showImportFooter: false,
+                        actionPolicy: _actionPolicyFor(_posts[index]),
                         fallbackLocation:
                             '/profile/${Uri.encodeComponent(_posts[index].userId)}',
                       );
@@ -104,6 +158,7 @@ class _FlowPostDetailPageState extends State<FlowPostDetailPage> {
                 : SharedFlowDetailsPage(
                     payloadJson: _payloadFor(post),
                     showImportFooter: false,
+                    actionPolicy: _actionPolicyFor(post),
                     fallbackLocation:
                         '/profile/${Uri.encodeComponent(post.userId)}',
                   ),
@@ -155,68 +210,19 @@ class _FlowPostDetailPageState extends State<FlowPostDetailPage> {
                       autoOpenComments: widget.openCommentsOnLoad,
                     ),
                   ),
-                  const SizedBox(height: 12),
-                  SizedBox(
-                    width: double.infinity,
-                    child: widget.isOwner
-                        ? _buildRemoveButton()
-                        : Row(
-                            children: [
-                              Expanded(child: _buildSaveButton()),
-                              const SizedBox(width: 8),
-                              _buildSafetyMenu(),
-                            ],
-                          ),
-                  ),
+                  if (!widget.isOwner) ...[
+                    const SizedBox(height: 8),
+                    Align(
+                      alignment: Alignment.centerRight,
+                      child: _buildSafetyMenu(),
+                    ),
+                  ],
                 ],
               ),
             ),
           ),
         ],
       ),
-    );
-  }
-
-  Widget _buildSaveButton() {
-    return ElevatedButton(
-      onPressed: _saving ? null : _save,
-      style: ElevatedButton.styleFrom(
-        backgroundColor: KemeticGold.base,
-        foregroundColor: Colors.black,
-        padding: const EdgeInsets.symmetric(vertical: 14),
-      ),
-      child: _saving
-          ? const SizedBox(
-              width: 18,
-              height: 18,
-              child: CircularProgressIndicator(
-                strokeWidth: 2,
-                valueColor: AlwaysStoppedAnimation<Color>(Colors.black),
-              ),
-            )
-          : const Text('Save Flow'),
-    );
-  }
-
-  Widget _buildRemoveButton() {
-    return ElevatedButton(
-      onPressed: _removing ? null : _remove,
-      style: ElevatedButton.styleFrom(
-        backgroundColor: Colors.redAccent.withValues(alpha: 0.15),
-        foregroundColor: Colors.redAccent,
-        side: const BorderSide(color: Colors.redAccent),
-        padding: const EdgeInsets.symmetric(vertical: 14),
-      ),
-      child: _removing
-          ? const SizedBox(
-              width: 18,
-              height: 18,
-              child: CircularProgressIndicator(
-                strokeWidth: 2,
-                valueColor: AlwaysStoppedAnimation<Color>(Colors.redAccent),
-              ),
-            )
-          : const Text('Remove from profile'),
     );
   }
 
@@ -249,11 +255,14 @@ class _FlowPostDetailPageState extends State<FlowPostDetailPage> {
     );
   }
 
-  Future<void> _save() async {
+  Future<void> _savePost(FlowPost post) async {
     setState(() => _saving = true);
-    final flowId = await _repo.saveFlowPostToMyFlows(_activePost);
+    final flowId = await _repo.saveFlowPostToMyFlows(post);
     if (!mounted) return;
-    setState(() => _saving = false);
+    setState(() {
+      _saving = false;
+      if (flowId != null) _savedFlowIdsByPostId[post.id] = flowId;
+    });
     if (flowId == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -271,9 +280,18 @@ class _FlowPostDetailPageState extends State<FlowPostDetailPage> {
     );
   }
 
-  Future<void> _remove() async {
+  Future<void> _openSavedFlow(int flowId, FlowPost post) async {
+    await CalendarPage.openFlowEditorFromAnyContext(
+      context,
+      flowId: flowId,
+      fallbackLocation: '/profile/${Uri.encodeComponent(post.userId)}',
+      source: 'profile_flow_post',
+    );
+  }
+
+  Future<void> _removePost(FlowPost post) async {
     setState(() => _removing = true);
-    final ok = await _repo.deleteFlowPost(_activePost.id);
+    final ok = await _repo.deleteFlowPost(post.id);
     if (!mounted) return;
     setState(() => _removing = false);
     if (!ok) {
@@ -287,7 +305,7 @@ class _FlowPostDetailPageState extends State<FlowPostDetailPage> {
     }
     popOrGo(
       context,
-      '/profile/${Uri.encodeComponent(_activePost.userId)}',
+      '/profile/${Uri.encodeComponent(post.userId)}',
       result: true,
     );
   }

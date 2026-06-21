@@ -13,26 +13,17 @@ import '../../data/flows_repo.dart';
 import '../../data/user_events_repo.dart';
 import '../../repositories/inbox_repo.dart';
 import '../../utils/detail_sanitizer.dart';
-import '../../shared/glossy_text.dart';
+import '../../shared/glossy_text.dart' show KemeticGold;
 import '../../features/calendar/calendar_page.dart'
-    show CalendarPage, notesDecode, ImportFlowData;
-import '../../features/calendar/kemetic_month_metadata.dart' show getMonthById;
+    show
+        CalendarPage,
+        FlowDetailActionKind,
+        FlowDetailActionPolicy,
+        FlowDetailSource,
+        ImportFlowData;
 import '../../widgets/flow_start_date_picker.dart';
 
 const Color _bg = Color(0xFF000000);
-
-/// Simple container for flow span summary (day count + date range)
-class _FlowSpanSummary {
-  final int dayCount;
-  final DateTime start;
-  final DateTime end;
-
-  const _FlowSpanSummary({
-    required this.dayCount,
-    required this.start,
-    required this.end,
-  });
-}
 
 class SharedFlowDetailsPage extends StatefulWidget {
   final InboxShareItem? share; // non-imported
@@ -43,6 +34,7 @@ class SharedFlowDetailsPage extends StatefulWidget {
   final bool showImportFooter;
   final bool showRemoveButton;
   final Future<void> Function()? onRemove;
+  final FlowDetailActionPolicy? actionPolicy;
   final String fallbackLocation;
 
   const SharedFlowDetailsPage({
@@ -54,6 +46,7 @@ class SharedFlowDetailsPage extends StatefulWidget {
     this.showImportFooter = true,
     this.showRemoveButton = false,
     this.onRemove,
+    this.actionPolicy,
     this.fallbackLocation = '/inbox',
   }) : assert(
          share != null || flowId != null || payloadJson != null,
@@ -65,21 +58,15 @@ class SharedFlowDetailsPage extends StatefulWidget {
 }
 
 class _SharedFlowDetailsPageState extends State<SharedFlowDetailsPage> {
-  static const _feedbackTagLabels = <String, String>{
-    'wrong_time': 'Wrong time',
-    'too_much': 'Too much',
-    'too_easy': 'Too easy',
-    'irrelevant': 'Irrelevant',
-    'great_fit': 'Great fit',
-  };
-
   late final UserEventsRepo _userEventsRepo;
   late Future<_SharedFlowData> _flowFuture;
-  Future<_FlowSpanSummary?>? _spanFuture;
   bool _trackedShareViewed = false;
-  final Set<String> _selectedFeedbackTags = <String>{};
-  int? _selectedRating;
-  bool _isSubmittingFeedback = false;
+  DateTime? _selectedStart;
+  bool _isImporting = false;
+  int? _localImportedFlowId;
+
+  int? get _effectiveImportedFlowId =>
+      _localImportedFlowId ?? widget.importedFlowId;
 
   /// Merge duplicate events (same day/title/time/detail/location) to avoid double rendering
   List<Map<String, dynamic>> _dedupeEvents(List<Map<String, dynamic>> events) {
@@ -151,15 +138,12 @@ class _SharedFlowDetailsPageState extends State<SharedFlowDetailsPage> {
   void _configureFutures() {
     if (widget.flowId != null) {
       _flowFuture = _loadFromDb(widget.flowId!);
-      _spanFuture = _loadSpanSummary(); // ✅ Only for imported flows
     } else if (widget.payloadJson != null) {
       _flowFuture = Future.value(_fromPayload(widget.payloadJson!));
-      _spanFuture = Future.value(null);
     } else {
       _flowFuture = Future.value(
-        _fromShare(widget.share!, importedFlowId: widget.importedFlowId),
+        _fromShare(widget.share!, importedFlowId: _effectiveImportedFlowId),
       );
-      _spanFuture = Future.value(null); // ✅ Payload shares show snapshot events
     }
   }
 
@@ -192,44 +176,10 @@ class _SharedFlowDetailsPageState extends State<SharedFlowDetailsPage> {
     }
   }
 
-  Future<_FlowSpanSummary?> _loadSpanSummary() async {
-    // ✅ Only works for imported flows (widget.flowId != null)
-    if (widget.flowId == null) return null;
-
-    try {
-      final records = await _userEventsRepo.getEventsForFlow(widget.flowId!);
-
-      if (records.isEmpty) return null;
-
-      DateTime minDate = DateUtils.dateOnly(
-        records.first.startsAtUtc.toLocal(),
-      );
-      DateTime maxDate = minDate;
-      final dayKeys = <String>{};
-
-      for (final r in records) {
-        final local = r.startsAtUtc.toLocal();
-        final only = DateUtils.dateOnly(local);
-
-        if (only.isBefore(minDate)) minDate = only;
-        if (only.isAfter(maxDate)) maxDate = only;
-
-        // simple key to count distinct days
-        dayKeys.add('${only.year}-${only.month}-${only.day}');
-      }
-
-      return _FlowSpanSummary(
-        dayCount: dayKeys.length,
-        start: minDate,
-        end: maxDate,
-      );
-    } catch (e) {
-      // If RLS or anything else blocks this, just don't show the label
-      if (kDebugMode) {
-        debugPrint('[SharedFlowDetailsPage] span summary error: $e');
-      }
-      return null;
-    }
+  DateTime? _parsePayloadDate(dynamic value) {
+    if (value == null) return null;
+    if (value is DateTime) return value;
+    return DateTime.tryParse(value.toString());
   }
 
   Future<_SharedFlowData> _loadFromDb(int flowId) async {
@@ -248,6 +198,10 @@ class _SharedFlowDetailsPageState extends State<SharedFlowDetailsPage> {
       suggestedScheduleJson: null,
       isImported: true,
       flowId: flowId,
+      startDate: row.startDate,
+      endDate: row.endDate,
+      active: row.active,
+      isSaved: row.isSaved,
       share: null,
     );
   }
@@ -292,6 +246,10 @@ class _SharedFlowDetailsPageState extends State<SharedFlowDetailsPage> {
         suggestedScheduleJson: share.suggestedSchedule?.toJson(),
         isImported: importedFlowId != null,
         flowId: importedFlowId,
+        startDate: _parsePayloadDate(share.suggestedSchedule?.startDate),
+        endDate: null,
+        active: importedFlowId != null,
+        isSaved: importedFlowId == null,
         share: share,
       );
     }
@@ -331,6 +289,12 @@ class _SharedFlowDetailsPageState extends State<SharedFlowDetailsPage> {
       suggestedScheduleJson: share.suggestedSchedule?.toJson(),
       isImported: importedFlowId != null,
       flowId: importedFlowId,
+      startDate:
+          _parsePayloadDate(payloadMap['start_date']) ??
+          _parsePayloadDate(share.suggestedSchedule?.startDate),
+      endDate: _parsePayloadDate(payloadMap['end_date']),
+      active: importedFlowId != null,
+      isSaved: importedFlowId == null,
       share: share,
     );
   }
@@ -350,42 +314,186 @@ class _SharedFlowDetailsPageState extends State<SharedFlowDetailsPage> {
           payload['suggested_schedule'] as Map<String, dynamic>?,
       isImported: false,
       flowId: null,
+      startDate: _parsePayloadDate(payload['start_date']),
+      endDate: _parsePayloadDate(payload['end_date']),
+      active: false,
+      isSaved: true,
       share: null,
     );
   }
 
-  Future<void> _submitFlowFeedback() async {
-    if (widget.flowId == null) return;
-    if (_selectedFeedbackTags.isEmpty) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('Select at least one tag.')));
+  FlowDetailActionPolicy _actionPolicyFor(_SharedFlowData data) {
+    final explicitPolicy = widget.actionPolicy;
+    if (explicitPolicy != null) return explicitPolicy;
+
+    if (widget.showRemoveButton && widget.onRemove != null) {
+      return FlowDetailActionPolicy(
+        source: FlowDetailSource.profilePost,
+        kind: FlowDetailActionKind.manage,
+        label: 'Remove from profile',
+        busyLabel: 'Removing...',
+        icon: Icons.delete_outline,
+        busy: _isImporting,
+        onPressed: widget.onRemove,
+      );
+    }
+
+    if (!widget.showImportFooter) {
+      return CalendarPage.resolveCanonicalCustomFlowActionPolicy(
+        source: FlowDetailSource.other,
+        isLocalFlow: false,
+        isReadOnly: true,
+      );
+    }
+
+    if (data.isImported && data.flowId != null) {
+      return CalendarPage.resolveCanonicalCustomFlowActionPolicy(
+        source: FlowDetailSource.inboxShare,
+        isLocalFlow: true,
+        isImported: true,
+        busy: _isImporting,
+        onPressed: () => _openImportedFlow(data.flowId!),
+      );
+    }
+
+    return CalendarPage.resolveCanonicalCustomFlowActionPolicy(
+      source: FlowDetailSource.inboxShare,
+      isLocalFlow: false,
+      isImported: false,
+      busy: _isImporting,
+      onPressed: () => _handleSharedImport(data),
+      startDateLabel: _startDateLabel(data),
+      onStartDatePressed: () => _pickImportStartDate(data),
+    );
+  }
+
+  String _startDateLabel(_SharedFlowData data) {
+    final suggestedStr = data.suggestedScheduleJson?['start_date'] as String?;
+    final suggestedDate = _parsePayloadDate(suggestedStr);
+    final displayDate = _selectedStart ?? data.startDate ?? suggestedDate;
+    if (displayDate == null) return 'Select a start date';
+    final date = DateUtils.dateOnly(displayDate);
+    return 'Start: ${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
+  }
+
+  Future<void> _pickImportStartDate(_SharedFlowData data) async {
+    final suggestedStr = data.suggestedScheduleJson?['start_date'] as String?;
+    final suggestedDate = _parsePayloadDate(suggestedStr);
+    final picked = await FlowStartDatePicker.show(
+      context,
+      initialDate:
+          _selectedStart ?? data.startDate ?? suggestedDate ?? DateTime.now(),
+    );
+
+    if (picked != null && mounted) {
+      setState(() => _selectedStart = DateUtils.dateOnly(picked));
+    }
+  }
+
+  Future<void> _openImportedFlow(int flowId) async {
+    await CalendarPage.openFlowEditorFromAnyContext(
+      context,
+      flowId: flowId,
+      fallbackLocation: widget.fallbackLocation,
+      source: 'shared_flow_details',
+    );
+  }
+
+  Future<void> _handleSharedImport(_SharedFlowData data) async {
+    if (_isImporting) return;
+    final share = data.share;
+    if (share == null) return;
+
+    final suggestedStr = data.suggestedScheduleJson?['start_date'] as String?;
+    final suggestedDate = _parsePayloadDate(suggestedStr);
+    final scheduledStart = _selectedStart ?? data.startDate ?? suggestedDate;
+    if (scheduledStart == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please select a start date first.')),
+      );
       return;
     }
 
-    setState(() => _isSubmittingFeedback = true);
+    setState(() => _isImporting = true);
 
     try {
-      await _userEventsRepo.trackFlowFeedback(
-        flowId: widget.flowId!,
-        tags: _selectedFeedbackTags.toList(),
-        rating: _selectedRating,
-        shareId: widget.share?.shareId,
+      final existingFlowId = await _userEventsRepo.getFlowIdByShareId(
+        share.shareId,
+      );
+      if (existingFlowId != null) {
+        final inboxRepo = InboxRepo(Supabase.instance.client);
+        await inboxRepo.markImported(share.shareId, isFlow: true);
+        if (!mounted) return;
+        setState(() {
+          _localImportedFlowId = existingFlowId;
+          _isImporting = false;
+          _configureFutures();
+        });
+        return;
+      }
+
+      final payload = share.payloadJson;
+      if (payload == null) {
+        throw Exception('No flow data available');
+      }
+      final originFlowId =
+          (payload['flow_id'] as num?)?.toInt() ??
+          int.tryParse(share.payloadId);
+      final scheduledStartIso =
+          '${scheduledStart.year}-${scheduledStart.month.toString().padLeft(2, '0')}-${scheduledStart.day.toString().padLeft(2, '0')}';
+
+      if (!context.mounted) return;
+      final flowId = await CalendarPage.importFlowFromShare(
+        // ignore: use_build_context_synchronously
+        context,
+        ImportFlowData(
+          share: share,
+          name: (payload['name'] as String?) ?? share.title,
+          color: payload['color'] as int? ?? 0xFF4DD0E1,
+          notes: payload['notes'] as String?,
+          rules: payload['rules'] as List<dynamic>? ?? const [],
+          suggestedStartDate: scheduledStart,
+          originFlowId: originFlowId,
+          rootFlowId: originFlowId,
+          originType: 'share_import',
+        ),
       );
 
       if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('Feedback sent')));
-    } catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Failed to send feedback: $e')));
-    } finally {
-      if (mounted) {
-        setState(() => _isSubmittingFeedback = false);
+
+      if (flowId != null) {
+        final inboxRepo = InboxRepo(Supabase.instance.client);
+        await inboxRepo.markImported(share.shareId, isFlow: true);
+        unawaited(
+          _userEventsRepo.trackFlowImported(
+            flowId: flowId,
+            shareId: share.shareId,
+            originType: 'share_import',
+            originFlowId: originFlowId,
+            scheduledStartIso: scheduledStartIso,
+          ),
+        );
+        if (!mounted) return;
+        setState(() {
+          _localImportedFlowId = flowId;
+          _isImporting = false;
+          _configureFutures();
+        });
+      } else {
+        setState(() => _isImporting = false);
       }
+    } catch (e) {
+      if (!mounted || !context.mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Import failed: $e')));
+      unawaited(
+        _userEventsRepo.trackFlowImportFailed(
+          shareId: share.shareId,
+          error: e.toString(),
+        ),
+      );
+      setState(() => _isImporting = false);
     }
   }
 
@@ -415,304 +523,32 @@ class _SharedFlowDetailsPageState extends State<SharedFlowDetailsPage> {
         }
 
         final data = snapshot.data!;
-        final meta = notesDecode(data.notes);
-        final flowName = cleanFlowTitle(data.name);
-        final overview = cleanFlowOverview(
-          data.notes,
-          decodedOverview: meta.overview,
-        );
-        final kemetic = meta.kemetic;
-        final split = meta.split;
-
-        final rulesJson = data.rulesJson
-            .whereType<Map<String, dynamic>>()
-            .toList();
         final eventsJson = _dedupeEvents(
           data.eventsJson.whereType<Map<String, dynamic>>().toList(),
         );
+        final maatDetail = CalendarPage.buildCanonicalMaatFlowDetail(
+          name: cleanFlowTitle(data.name),
+          notes: data.notes,
+          eventsJson: eventsJson,
+        );
+        if (maatDetail != null) return maatDetail;
 
-        return Scaffold(
-          backgroundColor: _bg,
-          appBar: AppBar(
-            backgroundColor: Colors.black,
-            elevation: 0.5,
-            leading: IconButton(
-              icon: KemeticGold.icon(Icons.arrow_back),
-              onPressed: () => popOrGo(context, widget.fallbackLocation),
-            ),
-            title: const Text('Flow', style: TextStyle(color: Colors.white)),
-          ),
-          body: Column(
-            children: [
-              Expanded(
-                child: ListView(
-                  padding: const EdgeInsets.fromLTRB(16.0, 16.0, 16.0, 24.0),
-                  children: [
-                    // Name
-                    GlossyText(
-                      text: flowName.isEmpty ? 'Flow' : flowName,
-                      style: const TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.w600,
-                      ),
-                      gradient: goldGloss,
-                    ),
-                    const SizedBox(height: 10),
+        final actionPolicy = _actionPolicyFor(data);
 
-                    // Overview
-                    const GlossyText(
-                      text: 'Overview',
-                      style: TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w500,
-                      ),
-                      gradient: goldGloss,
-                    ),
-                    const SizedBox(height: 4),
-                    // Show only human-readable overview text; suppress metadata/code blobs.
-                    Text(
-                      overview.isNotEmpty ? overview : '—',
-                      style: const TextStyle(fontSize: 14, color: Colors.white),
-                    ),
-                    const SizedBox(height: 16),
-
-                    // Mode
-                    Row(
-                      children: [
-                        Text(
-                          kemetic ? 'Kemetic' : 'Gregorian',
-                          style: const TextStyle(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w500,
-                            color: Colors.white,
-                          ),
-                        ),
-                        if (split)
-                          const Padding(
-                            padding: EdgeInsets.only(left: 8),
-                            child: Text(
-                              'Custom dates',
-                              style: TextStyle(
-                                fontSize: 12,
-                                color: Colors.grey,
-                              ),
-                            ),
-                          ),
-                      ],
-                    ),
-                    const SizedBox(height: 16),
-
-                    // Schedule
-                    const GlossyText(
-                      text: 'Schedule',
-                      style: TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w500,
-                      ),
-                      gradient: goldGloss,
-                    ),
-                    const SizedBox(height: 4),
-
-                    // ⭐️ New tiny range/length label (only for imported flows)
-                    FutureBuilder<_FlowSpanSummary?>(
-                      future: _spanFuture,
-                      builder: (context, snapshot) {
-                        final summary = snapshot.data;
-                        if (summary == null) {
-                          return const SizedBox.shrink();
-                        }
-
-                        String fmt(DateTime d) {
-                          const months = [
-                            'Jan',
-                            'Feb',
-                            'Mar',
-                            'Apr',
-                            'May',
-                            'Jun',
-                            'Jul',
-                            'Aug',
-                            'Sep',
-                            'Oct',
-                            'Nov',
-                            'Dec',
-                          ];
-                          final m = months[d.month - 1];
-                          return '$m ${d.day}, ${d.year}';
-                        }
-
-                        final label =
-                            '${summary.dayCount} day${summary.dayCount == 1 ? '' : 's'} • '
-                            '${fmt(summary.start)} → ${fmt(summary.end)}';
-
-                        return Padding(
-                          padding: const EdgeInsets.only(bottom: 4),
-                          child: Text(
-                            label,
-                            style: const TextStyle(
-                              fontSize: 12,
-                              color: Colors.white70,
-                            ),
-                          ),
-                        );
-                      },
-                    ),
-
-                    const SizedBox(height: 4),
-
-                    if (rulesJson.isEmpty)
-                      const Text(
-                        'No schedule information.',
-                        style: TextStyle(fontSize: 13, color: Colors.grey),
-                      )
-                    else
-                      _SharedFlowSchedulePreview(
-                        rulesJson: rulesJson,
-                        kemetic: kemetic,
-                      ),
-                    const SizedBox(height: 24),
-
-                    // Events section - always show if events exist
-                    // ✅ Removed isImported check since we set it to false for inbox shares
-                    if (eventsJson.isNotEmpty) ...[
-                      const GlossyText(
-                        text: 'Events',
-                        style: TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w500,
-                        ),
-                        gradient: goldGloss,
-                      ),
-                      const SizedBox(height: 4),
-                      ...eventsJson.map((event) {
-                        return _SharedEventTile(event: event);
-                      }),
-                    ],
-                    if (widget.flowId != null) ...[
-                      const SizedBox(height: 24),
-                      const GlossyText(
-                        text: 'How did this flow fit?',
-                        style: TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w500,
-                        ),
-                        gradient: goldGloss,
-                      ),
-                      const SizedBox(height: 8),
-                      Wrap(
-                        spacing: 8,
-                        runSpacing: 8,
-                        children: _feedbackTagLabels.entries.map((entry) {
-                          final selected = _selectedFeedbackTags.contains(
-                            entry.key,
-                          );
-                          return FilterChip(
-                            label: Text(entry.value),
-                            labelStyle: TextStyle(
-                              color: selected ? Colors.black : Colors.white,
-                            ),
-                            selected: selected,
-                            selectedColor: KemeticGold.base,
-                            checkmarkColor: Colors.black,
-                            backgroundColor: const Color(0xFF111111),
-                            side: BorderSide(
-                              color: selected
-                                  ? KemeticGold.base
-                                  : Colors.white24,
-                            ),
-                            onSelected: (value) {
-                              setState(() {
-                                if (value) {
-                                  _selectedFeedbackTags.add(entry.key);
-                                } else {
-                                  _selectedFeedbackTags.remove(entry.key);
-                                }
-                              });
-                            },
-                          );
-                        }).toList(),
-                      ),
-                      const SizedBox(height: 12),
-                      Text(
-                        'Rating (optional)',
-                        style: TextStyle(
-                          fontSize: 13,
-                          color: Colors.white.withValues(alpha: 0.8),
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      Wrap(
-                        spacing: 8,
-                        children: List.generate(5, (index) {
-                          final rating = index + 1;
-                          final selected = _selectedRating == rating;
-                          return ChoiceChip(
-                            label: Text('$rating'),
-                            labelStyle: TextStyle(
-                              color: selected ? Colors.black : Colors.white,
-                            ),
-                            selected: selected,
-                            selectedColor: KemeticGold.base,
-                            backgroundColor: const Color(0xFF111111),
-                            side: BorderSide(
-                              color: selected
-                                  ? KemeticGold.base
-                                  : Colors.white24,
-                            ),
-                            onSelected: (value) {
-                              setState(() {
-                                _selectedRating = value ? rating : null;
-                              });
-                            },
-                          );
-                        }),
-                      ),
-                      const SizedBox(height: 12),
-                      SizedBox(
-                        width: double.infinity,
-                        child: ElevatedButton(
-                          onPressed: _isSubmittingFeedback
-                              ? null
-                              : _submitFlowFeedback,
-                          child: Text(
-                            _isSubmittingFeedback ? 'Sending…' : 'Submit',
-                          ),
-                        ),
-                      ),
-                    ],
-                  ],
-                ),
-              ),
-
-              // Footer
-              if (widget.showRemoveButton && widget.onRemove != null)
-                SafeArea(
-                  minimum: const EdgeInsets.all(16),
-                  child: ElevatedButton(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.redAccent.withValues(alpha: 0.15),
-                      foregroundColor: Colors.redAccent,
-                      side: const BorderSide(color: Colors.redAccent),
-                      padding: const EdgeInsets.symmetric(vertical: 14),
-                    ),
-                    onPressed: () async {
-                      await widget.onRemove!();
-                    },
-                    child: const Text('Remove from profile'),
-                  ),
-                )
-              else if (widget.showImportFooter)
-                SafeArea(
-                  minimum: const EdgeInsets.all(16),
-                  child: data.isImported
-                      ? _ImportedFlowFooter(flowId: data.flowId!)
-                      : _SharedFlowImportFooter(
-                          flowData: data,
-                          fallbackLocation: widget.fallbackLocation,
-                        ),
-                ),
-            ],
-          ),
+        return CalendarPage.buildCanonicalCustomFlowDetail(
+          name: cleanFlowTitle(data.name),
+          color: data.color,
+          notes: data.notes,
+          rulesJson: data.rulesJson,
+          eventsJson: eventsJson,
+          flowId: data.flowId,
+          startDate: data.startDate,
+          endDate: data.endDate,
+          active: data.active,
+          isSaved: data.isSaved,
+          previewAsTemplate: !data.isImported,
+          actionPolicy: actionPolicy,
+          showFlowOptions: false,
         );
       },
     );
@@ -729,6 +565,10 @@ class _SharedFlowData {
   final Map<String, dynamic>? suggestedScheduleJson;
   final bool isImported;
   final int? flowId;
+  final DateTime? startDate;
+  final DateTime? endDate;
+  final bool active;
+  final bool isSaved;
   final InboxShareItem? share;
 
   _SharedFlowData({
@@ -740,442 +580,10 @@ class _SharedFlowData {
     required this.suggestedScheduleJson,
     required this.isImported,
     required this.flowId,
+    required this.startDate,
+    required this.endDate,
+    required this.active,
+    required this.isSaved,
     required this.share,
   });
-}
-
-class _SharedFlowSchedulePreview extends StatelessWidget {
-  final List<Map<String, dynamic>> rulesJson;
-  final bool kemetic;
-
-  const _SharedFlowSchedulePreview({
-    required this.rulesJson,
-    required this.kemetic,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    if (rulesJson.isEmpty) {
-      return const SizedBox.shrink();
-    }
-
-    final ruleJson = rulesJson.first;
-    final type = ruleJson['type'] as String?;
-
-    if (type == 'decan') {
-      return _buildDecanRuleFromJson(ruleJson);
-    } else if (type == 'week') {
-      return _buildWeekRuleFromJson(ruleJson);
-    } else if (type == 'dates') {
-      return _buildDatesRuleFromJson(ruleJson);
-    }
-
-    return const Text(
-      'Custom schedule',
-      style: TextStyle(fontSize: 13, color: Colors.white70),
-    );
-  }
-
-  Widget _buildDecanRuleFromJson(Map<String, dynamic> json) {
-    final months = (json['months'] as List<dynamic>? ?? const []).cast<int>()
-      ..sort();
-    final decans = (json['decans'] as List<dynamic>? ?? const []).cast<int>()
-      ..sort();
-    final days = (json['daysInDecan'] as List<dynamic>? ?? const []).cast<int>()
-      ..sort();
-
-    final monthLabels = months
-        .map((m) => getMonthById(m).displayFull)
-        .join(', ');
-
-    final decanLabels = decans.map((d) => ['I', 'II', 'III'][d - 1]).join(', ');
-
-    if (days.isNotEmpty) {
-      return Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'Months: $monthLabels',
-            style: const TextStyle(fontSize: 13, color: Colors.white),
-          ),
-          Text(
-            'Decans: $decanLabels',
-            style: const TextStyle(fontSize: 13, color: Colors.white),
-          ),
-          Text(
-            'Days in decan: ${days.join(', ')}',
-            style: const TextStyle(fontSize: 13, color: Colors.white),
-          ),
-        ],
-      );
-    } else {
-      return Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'Months: $monthLabels',
-            style: const TextStyle(fontSize: 13, color: Colors.white),
-          ),
-          Text(
-            'Decans: $decanLabels (all days)',
-            style: const TextStyle(fontSize: 13, color: Colors.white),
-          ),
-        ],
-      );
-    }
-  }
-
-  Widget _buildWeekRuleFromJson(Map<String, dynamic> json) {
-    final weekdays =
-        (json['weekdays'] as List<dynamic>? ?? const []).cast<int>()..sort();
-
-    const weekdayNames = <int, String>{
-      DateTime.monday: 'Mon',
-      DateTime.tuesday: 'Tue',
-      DateTime.wednesday: 'Wed',
-      DateTime.thursday: 'Thu',
-      DateTime.friday: 'Fri',
-      DateTime.saturday: 'Sat',
-      DateTime.sunday: 'Sun',
-    };
-
-    final labels = weekdays.map((w) => weekdayNames[w] ?? 'Day $w').join(', ');
-
-    return Text(
-      'Repeats on: $labels',
-      style: const TextStyle(fontSize: 13, color: Colors.white),
-    );
-  }
-
-  Widget _buildDatesRuleFromJson(Map<String, dynamic> json) {
-    final msList = (json['dates'] as List<dynamic>? ?? const []).cast<int>();
-    if (msList.isEmpty) {
-      return const Text(
-        'No dates selected',
-        style: TextStyle(fontSize: 13, color: Colors.white70),
-      );
-    }
-
-    final dates =
-        msList
-            .map(
-              (ms) =>
-                  DateUtils.dateOnly(DateTime.fromMillisecondsSinceEpoch(ms)),
-            )
-            .toList()
-          ..sort();
-
-    String fmt(DateTime d) =>
-        '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
-
-    if (dates.length == 1) {
-      return Text(
-        'Occurs on: ${fmt(dates.first)}',
-        style: const TextStyle(fontSize: 13, color: Colors.white),
-      );
-    }
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          'Occurs on ${dates.length} dates',
-          style: const TextStyle(fontSize: 13, color: Colors.white),
-        ),
-        Text(
-          'From ${fmt(dates.first)} to ${fmt(dates.last)}',
-          style: const TextStyle(fontSize: 13, color: Colors.white70),
-        ),
-      ],
-    );
-  }
-}
-
-/// Widget to display a single event from the events[] array in payloadJson
-class _SharedEventTile extends StatelessWidget {
-  final Map<String, dynamic> event;
-
-  const _SharedEventTile({required this.event});
-
-  @override
-  Widget build(BuildContext context) {
-    final title = cleanFlowTitle(event['title'] as String?);
-    final detail = cleanFlowDetail(event['detail'] as String?);
-    final location = event['location'] as String?;
-    final allDay = event['all_day'] as bool? ?? false;
-    final startTime = event['start_time'] as String?;
-    final endTime = event['end_time'] as String?;
-    final int? offsetDays = (event['offset_days'] as num?)?.toInt();
-    final int? dayNumber = offsetDays != null
-        ? (offsetDays + 1)
-        : null; // Snapshot offsets are zero-based
-
-    return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: const Color(0xFF111111),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0x22FFFFFF)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Title and offset
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Expanded(
-                child: Text(
-                  title.isEmpty ? 'Untitled Event' : title,
-                  style: const TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
-                    color: Colors.white,
-                  ),
-                ),
-              ),
-              if (dayNumber != null)
-                Text(
-                  'Day $dayNumber',
-                  style: const TextStyle(fontSize: 12, color: Colors.white70),
-                ),
-            ],
-          ),
-
-          // Time
-          if (!allDay && startTime != null) ...[
-            const SizedBox(height: 4),
-            Text(
-              endTime != null ? '$startTime - $endTime' : startTime,
-              style: const TextStyle(fontSize: 12, color: Colors.white70),
-            ),
-          ] else if (allDay) ...[
-            const SizedBox(height: 4),
-            const Text(
-              'All day',
-              style: TextStyle(fontSize: 12, color: Colors.white70),
-            ),
-          ],
-
-          // Detail
-          if (detail.isNotEmpty) ...[
-            const SizedBox(height: 8),
-            Text(
-              detail.trim(),
-              style: const TextStyle(fontSize: 13, color: Colors.white),
-            ),
-          ],
-
-          // Location
-          if (location != null && location.trim().isNotEmpty) ...[
-            const SizedBox(height: 8),
-            Text(
-              location.trim(),
-              style: const TextStyle(
-                fontSize: 13,
-                color: Color(0xFF4DA3FF),
-                decoration: TextDecoration.underline,
-              ),
-            ),
-          ],
-        ],
-      ),
-    );
-  }
-}
-
-class _ImportedFlowFooter extends StatelessWidget {
-  final int flowId;
-
-  const _ImportedFlowFooter({required this.flowId});
-
-  @override
-  Widget build(BuildContext context) {
-    return SizedBox(
-      width: double.infinity,
-      child: ElevatedButton(
-        onPressed: () async {
-          await CalendarPage.openFlowEditorFromAnyContext(
-            context,
-            flowId: flowId,
-            fallbackLocation: '/shared-flow/by-flow/$flowId',
-            source: 'shared_flow_details',
-          );
-        },
-        child: const Text('Edit Flow'),
-      ),
-    );
-  }
-}
-
-class _SharedFlowImportFooter extends StatefulWidget {
-  final _SharedFlowData flowData;
-  final String fallbackLocation;
-
-  const _SharedFlowImportFooter({
-    required this.flowData,
-    required this.fallbackLocation,
-  });
-
-  @override
-  State<_SharedFlowImportFooter> createState() =>
-      _SharedFlowImportFooterState();
-}
-
-class _SharedFlowImportFooterState extends State<_SharedFlowImportFooter> {
-  DateTime? _selectedStart;
-  bool _isWorking = false;
-  late final UserEventsRepo _userEventsRepo;
-
-  @override
-  void initState() {
-    super.initState();
-    _userEventsRepo = UserEventsRepo(Supabase.instance.client);
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final suggestedStr =
-        widget.flowData.suggestedScheduleJson?['start_date'] as String?;
-    final DateTime? suggestedDate = suggestedStr != null
-        ? DateTime.tryParse(suggestedStr)
-        : null;
-
-    final displayDate = _selectedStart ?? suggestedDate;
-
-    final label = displayDate == null
-        ? 'Select a start date'
-        : 'Start: ${displayDate.year}-${displayDate.month.toString().padLeft(2, '0')}-${displayDate.day.toString().padLeft(2, '0')}';
-
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        SizedBox(
-          width: double.infinity,
-          child: OutlinedButton(
-            onPressed: _isWorking
-                ? null
-                : () async {
-                    final picked = await FlowStartDatePicker.show(
-                      context,
-                      initialDate: displayDate ?? DateTime.now(),
-                    );
-
-                    if (picked != null && mounted) {
-                      setState(() => _selectedStart = picked);
-                    }
-                  },
-            child: Text(label),
-          ),
-        ),
-        const SizedBox(height: 12),
-        SizedBox(
-          width: double.infinity,
-          child: ElevatedButton(
-            onPressed: _isWorking
-                ? null
-                : () async {
-                    if (_selectedStart == null && suggestedDate == null) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text('Please select a start date first.'),
-                        ),
-                      );
-                      return;
-                    }
-
-                    setState(() => _isWorking = true);
-
-                    try {
-                      final share = widget.flowData.share!;
-                      final existingFlowId = await _userEventsRepo
-                          .getFlowIdByShareId(share.shareId);
-                      if (existingFlowId != null) {
-                        final inboxRepo = InboxRepo(Supabase.instance.client);
-                        await inboxRepo.markImported(
-                          share.shareId,
-                          isFlow: true,
-                        );
-                        if (!context.mounted) return;
-                        await CalendarPage.openFlowEditorFromAnyContext(
-                          context,
-                          flowId: existingFlowId,
-                          fallbackLocation: widget.fallbackLocation,
-                          source: 'shared_flow_details',
-                        );
-                        if (mounted) setState(() => _isWorking = false);
-                        return;
-                      }
-
-                      final payload = share.payloadJson;
-                      if (payload == null) {
-                        throw Exception('No flow data available');
-                      }
-                      final originFlowId =
-                          (payload['flow_id'] as num?)?.toInt() ??
-                          int.tryParse(share.payloadId);
-                      final scheduledStart = _selectedStart ?? suggestedDate;
-                      final scheduledStartIso = scheduledStart == null
-                          ? null
-                          : '${scheduledStart.year}-${scheduledStart.month.toString().padLeft(2, '0')}-${scheduledStart.day.toString().padLeft(2, '0')}';
-
-                      if (!context.mounted) return;
-                      final flowId = await CalendarPage.importFlowFromShare(
-                        context,
-                        ImportFlowData(
-                          share: share,
-                          name: (payload['name'] as String?) ?? share.title,
-                          color: payload['color'] as int? ?? 0xFF4DD0E1,
-                          notes: payload['notes'] as String?,
-                          rules: payload['rules'] as List<dynamic>? ?? const [],
-                          suggestedStartDate: _selectedStart ?? suggestedDate,
-                          originFlowId: originFlowId,
-                          rootFlowId: originFlowId,
-                          originType: 'share_import',
-                        ),
-                      );
-
-                      if (!mounted) return;
-
-                      if (flowId != null) {
-                        final inboxRepo = InboxRepo(Supabase.instance.client);
-                        await inboxRepo.markImported(
-                          share.shareId,
-                          isFlow: true,
-                        );
-                        unawaited(
-                          _userEventsRepo.trackFlowImported(
-                            flowId: flowId,
-                            shareId: share.shareId,
-                            originType: 'share_import',
-                            originFlowId: originFlowId,
-                            scheduledStartIso: scheduledStartIso,
-                          ),
-                        );
-                        if (!context.mounted) return;
-                        popOrGo(context, widget.fallbackLocation);
-                      } else {
-                        setState(() => _isWorking = false);
-                      }
-                    } catch (e) {
-                      if (!mounted || !context.mounted) return;
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text('Import failed: $e')),
-                      );
-                      unawaited(
-                        _userEventsRepo.trackFlowImportFailed(
-                          shareId: widget.flowData.share?.shareId,
-                          error: e.toString(),
-                        ),
-                      );
-                      setState(() => _isWorking = false);
-                    }
-                  },
-            child: Text(_isWorking ? 'Importing…' : 'Import Flow'),
-          ),
-        ),
-      ],
-    );
-  }
 }
