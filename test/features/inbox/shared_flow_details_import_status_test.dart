@@ -127,6 +127,72 @@ void main() {
     expect(find.text('Manage Flow'), findsNothing);
   });
 
+  testWidgets(
+    'shared flow import start picker Cancel preserves suggested date on small phone',
+    (tester) async {
+      _useSmallPhoneSurface(tester);
+
+      await _pumpSharedFlowImport(tester);
+
+      expect(find.text('Start: 2026-06-19'), findsOneWidget);
+      expect(find.text('Import Flow'), findsOneWidget);
+
+      await tester.tap(
+        find.widgetWithText(OutlinedButton, 'Start: 2026-06-19'),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('Start date'), findsOneWidget);
+      expect(find.text('Gregorian Calendar'), findsOneWidget);
+      expect(find.text('Jun'), findsWidgets);
+      expect(find.text('19'), findsWidgets);
+      expect(find.text('2026'), findsWidgets);
+
+      await tester.tap(find.widgetWithText(OutlinedButton, 'Cancel'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Start: 2026-06-19'), findsOneWidget);
+      expect(find.text('Import Flow'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    },
+  );
+
+  testWidgets(
+    'shared flow import start picker Done preserves visible date and reopens',
+    (tester) async {
+      _useSmallPhoneSurface(tester);
+
+      await _pumpSharedFlowImport(tester);
+
+      await tester.tap(
+        find.widgetWithText(OutlinedButton, 'Start: 2026-06-19'),
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(find.widgetWithText(ElevatedButton, 'Done'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Start: 2026-06-19'), findsOneWidget);
+      expect(find.text('Import Flow'), findsOneWidget);
+
+      await tester.tap(
+        find.widgetWithText(OutlinedButton, 'Start: 2026-06-19'),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('Start date'), findsOneWidget);
+      expect(find.text('Jun'), findsWidgets);
+      expect(find.text('19'), findsWidgets);
+      expect(find.text('2026'), findsWidgets);
+
+      await tester.tap(find.widgetWithText(ElevatedButton, 'Done'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Start: 2026-06-19'), findsOneWidget);
+      expect(find.text('Import Flow'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    },
+  );
+
   testWidgets('profile-posted payload renders Add to My Flows action policy', (
     tester,
   ) async {
@@ -228,6 +294,25 @@ void main() {
       expect(find.text('Overview'), findsNothing);
     },
   );
+}
+
+Future<void> _pumpSharedFlowImport(WidgetTester tester) async {
+  await tester.pumpWidget(
+    MaterialApp(
+      home: SharedFlowDetailsPage(share: _share(), fallbackLocation: '/inbox'),
+    ),
+  );
+
+  await tester.pump();
+  await tester.pump(const Duration(milliseconds: 50));
+  expect(find.text('CODEX_INBOX_IMPORT_SMOKE'), findsOneWidget);
+}
+
+void _useSmallPhoneSurface(WidgetTester tester) {
+  tester.view.physicalSize = const Size(390, 844);
+  tester.view.devicePixelRatio = 1;
+  addTearDown(tester.view.resetPhysicalSize);
+  addTearDown(tester.view.resetDevicePixelRatio);
 }
 
 InboxShareItem _share() {
