@@ -6,6 +6,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:mobile/features/ai_generation/ai_flow_generation_modal.dart';
 import 'package:mobile/features/calendar/calendar_page.dart' show CalendarPage;
 import 'package:mobile/features/calendar/kemetic_month_metadata.dart';
+import 'package:mobile/shared/date_picker/kemetic_picker_labels.dart';
 import 'package:mobile/widgets/kemetic_date_picker.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -197,7 +198,7 @@ void main() {
 
       expect(find.text('Pick Kemetic date'), findsOneWidget);
       expect(find.text('Kemetic Calendar'), findsOneWidget);
-      expect(find.text(getMonthById(1).displayFull), findsWidgets);
+      expect(find.text(kemeticPickerMonthLabel(1)), findsWidgets);
 
       await tester.tap(find.text('Done'));
       await tester.pumpAndSettle();

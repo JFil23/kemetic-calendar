@@ -3,7 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:mobile/core/completion_status.dart';
 import 'package:mobile/features/calendar/calendar_completion.dart';
 import 'package:mobile/features/calendar/calendar_page.dart' show KemeticMath;
-import 'package:mobile/features/calendar/kemetic_month_metadata.dart';
+import 'package:mobile/shared/date_picker/kemetic_picker_labels.dart';
 import 'package:mobile/shared/date_picker/stone_register_date_picker.dart';
 import 'package:mobile/widgets/maat_flow_date_picker.dart';
 
@@ -69,7 +69,7 @@ void main() {
       expect(find.text('Start date'), findsOneWidget);
       expect(find.text('Kemetic Calendar'), findsWidgets);
       final kDate = KemeticMath.fromGregorian(initial);
-      expect(find.text(getMonthById(kDate.kMonth).displayFull), findsWidgets);
+      expect(find.text(kemeticPickerMonthLabel(kDate.kMonth)), findsWidgets);
       expect(find.text('${kDate.kDay}'), findsWidgets);
     },
   );

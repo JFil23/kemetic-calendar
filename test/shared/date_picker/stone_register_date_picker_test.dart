@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:mobile/features/calendar/kemetic_month_metadata.dart';
+import 'package:mobile/shared/date_picker/kemetic_picker_labels.dart';
 import 'package:mobile/shared/date_picker/stone_register_date_picker.dart';
 import 'package:mobile/widgets/gregorian_date_picker.dart';
 import 'package:mobile/widgets/kemetic_date_picker.dart';
@@ -145,7 +145,7 @@ void main() {
     'migrated Kemetic picker uses app month metadata and conversion',
     (tester) async {
       DateTime? result;
-      final monthLabel = getMonthById(1).displayFull;
+      final monthLabel = kemeticPickerMonthLabel(1);
 
       await _pumpPickerHost(
         tester,

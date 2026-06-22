@@ -60,7 +60,7 @@ class StoneRegisterDatePickerSheet<T> extends StatefulWidget {
 
 class _StoneRegisterDatePickerSheetState<T>
     extends State<StoneRegisterDatePickerSheet<T>> {
-  final Map<String, FixedExtentScrollController> _controllers = {};
+  final Map<String, ScrollController> _controllers = {};
 
   late T _value;
   late StoneDatePickerCalendarMode _mode;
@@ -202,13 +202,27 @@ class _StoneRegisterDatePickerSheetState<T>
       _columns = widget.adapter.buildColumns(_value, _mode);
       _ensureControllers();
     });
-    _syncControllers();
+    _syncControllers(exceptColumnId: columnId);
   }
 
   StoneWheelSelection _selectionFromColumns() {
     return StoneWheelSelection({
-      for (final column in _columns) column.id: column.selectedIndex,
+      for (final column in _columns)
+        column.id: _nearestControllerIndexFor(column),
     });
+  }
+
+  int _nearestControllerIndexFor(StoneWheelColumn column) {
+    final controller = _controllers[column.id];
+    if (controller != null && controller.hasClients) {
+      return StoneRegisterWheelMetrics.selectedIndexForOffset(
+        column,
+        controller.offset,
+      );
+    }
+    return column.selectedIndex
+        .clamp(0, column.values.isEmpty ? 0 : column.values.length - 1)
+        .toInt();
   }
 
   void _ensureControllers() {
@@ -223,31 +237,30 @@ class _StoneRegisterDatePickerSheetState<T>
     for (final column in _columns) {
       _controllers.putIfAbsent(
         column.id,
-        () => FixedExtentScrollController(
-          initialItem: column.selectedIndex
-              .clamp(0, column.values.isEmpty ? 0 : column.values.length - 1)
-              .toInt(),
+        () => ScrollController(
+          initialScrollOffset: StoneRegisterWheelMetrics.initialOffsetFor(
+            column,
+          ),
         ),
       );
     }
   }
 
-  void _syncControllers() {
+  void _syncControllers({String? exceptColumnId}) {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       for (final column in _columns) {
+        if (column.id == exceptColumnId) continue;
         if (column.values.isEmpty) continue;
         final controller = _controllers[column.id];
         if (controller == null || !controller.hasClients) continue;
-        final target = column.selectedIndex
-            .clamp(0, column.values.length - 1)
-            .toInt();
-        final current = controller.selectedItem;
-        final visuallyCurrent = column.looping
-            ? current % column.values.length
-            : current;
-        if (visuallyCurrent == target) continue;
-        controller.jumpToItem(target);
+        final targetOffset = StoneRegisterWheelMetrics.offsetForSelectedIndex(
+          column,
+          column.selectedIndex,
+          currentOffset: controller.offset,
+        );
+        if ((controller.offset - targetOffset).abs() < 0.5) continue;
+        controller.jumpTo(targetOffset);
       }
     });
   }

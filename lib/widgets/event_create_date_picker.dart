@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:mobile/features/calendar/calendar_page.dart' show KemeticMath;
 import 'package:mobile/features/calendar/kemetic_month_metadata.dart';
+import 'package:mobile/shared/date_picker/kemetic_picker_labels.dart';
 import 'package:mobile/shared/date_picker/stone_register_date_picker.dart';
 import 'package:mobile/shared/date_picker/stone_register_date_picker_theme.dart';
 
@@ -195,7 +196,7 @@ class EventCreateDatePickerAdapter
         id: 'month',
         values: List<String>.generate(
           13,
-          (index) => getMonthById(index + 1).displayFull,
+          (index) => kemeticPickerMonthLabel(index + 1),
         ),
         selectedIndex: k.kMonth - 1,
         flex: 5,

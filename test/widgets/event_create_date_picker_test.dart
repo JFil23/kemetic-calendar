@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mobile/features/calendar/calendar_page.dart' show KemeticMath;
-import 'package:mobile/features/calendar/kemetic_month_metadata.dart';
+import 'package:mobile/shared/date_picker/kemetic_picker_labels.dart';
 import 'package:mobile/shared/date_picker/stone_register_date_picker.dart';
 import 'package:mobile/widgets/event_create_date_picker.dart';
 
@@ -84,7 +84,7 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('Kemetic Calendar'), findsWidgets);
-      expect(find.text(getMonthById(kDate.kMonth).displayFull), findsWidgets);
+      expect(find.text(kemeticPickerMonthLabel(kDate.kMonth)), findsWidgets);
       expect(find.text('${kDate.kDay}'), findsWidgets);
 
       await tester.tap(find.widgetWithText(ElevatedButton, 'Done'));

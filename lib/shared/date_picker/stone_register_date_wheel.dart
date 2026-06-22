@@ -1,8 +1,13 @@
-import 'dart:math' as math;
+import 'dart:async';
 
-import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/scheduler.dart';
 import 'package:mobile/shared/date_picker/stone_register_date_picker_theme.dart';
+
+const _stoneWheelSnapDebounce = Duration(milliseconds: 90);
+const _stoneWheelSnapDuration = Duration(milliseconds: 170);
+const _stoneWheelLoopingCycleCount = 101;
+const _stoneWheelLoopingCenterCycle = _stoneWheelLoopingCycleCount ~/ 2;
 
 @immutable
 class StoneWheelColumn {
@@ -42,6 +47,115 @@ class StoneWheelSelection {
   }
 }
 
+class StoneRegisterWheelMetrics {
+  const StoneRegisterWheelMetrics._();
+
+  static double initialOffsetFor(StoneWheelColumn column) {
+    return offsetForSelectedIndex(column, column.selectedIndex);
+  }
+
+  static int selectedIndexForOffset(StoneWheelColumn column, double offset) {
+    final valueCount = column.values.length;
+    if (valueCount == 0) return 0;
+    final virtualIndex = (offset / StoneRegisterDatePickerTheme.rowHeight)
+        .round();
+    return _normalizedIndexForVirtualIndex(column, virtualIndex);
+  }
+
+  static double snapOffsetFor(StoneWheelColumn column, double currentOffset) {
+    return offsetForSelectedIndex(
+      column,
+      selectedIndexForOffset(column, currentOffset),
+      currentOffset: currentOffset,
+    );
+  }
+
+  static double offsetForSelectedIndex(
+    StoneWheelColumn column,
+    int selectedIndex, {
+    double? currentOffset,
+  }) {
+    final virtualIndex = _virtualIndexForSelectedIndex(
+      column,
+      selectedIndex,
+      currentOffset: currentOffset,
+    );
+    return virtualIndex * StoneRegisterDatePickerTheme.rowHeight;
+  }
+
+  static int itemCountFor(StoneWheelColumn column) {
+    final valueCount = column.values.length;
+    if (valueCount == 0) return 0;
+    return column.looping
+        ? valueCount * _stoneWheelLoopingCycleCount
+        : valueCount;
+  }
+
+  static int valueIndexForVirtualIndex(
+    StoneWheelColumn column,
+    int virtualIndex,
+  ) {
+    return _normalizedIndexForVirtualIndex(column, virtualIndex);
+  }
+
+  static int _virtualIndexForSelectedIndex(
+    StoneWheelColumn column,
+    int selectedIndex, {
+    double? currentOffset,
+  }) {
+    final valueCount = column.values.length;
+    if (valueCount == 0) return 0;
+    final normalized = selectedIndex % valueCount;
+    final targetIndex = normalized < 0 ? normalized + valueCount : normalized;
+    if (!column.looping) {
+      return targetIndex.clamp(0, valueCount - 1).toInt();
+    }
+
+    if (currentOffset == null) {
+      return _stoneWheelLoopingCenterCycle * valueCount + targetIndex;
+    }
+
+    final currentVirtual =
+        (currentOffset / StoneRegisterDatePickerTheme.rowHeight).round();
+    final currentCycle = (currentVirtual ~/ valueCount)
+        .clamp(0, _stoneWheelLoopingCycleCount - 1)
+        .toInt();
+    var bestVirtual = currentCycle * valueCount + targetIndex;
+    var bestDistance = (bestVirtual - currentVirtual).abs();
+
+    for (final cycle in <int>[
+      currentCycle - 1,
+      currentCycle,
+      currentCycle + 1,
+    ]) {
+      if (cycle < 0 || cycle >= _stoneWheelLoopingCycleCount) continue;
+      final candidate = cycle * valueCount + targetIndex;
+      final distance = (candidate - currentVirtual).abs();
+      if (distance < bestDistance) {
+        bestVirtual = candidate;
+        bestDistance = distance;
+      }
+    }
+
+    return bestVirtual
+        .clamp(0, valueCount * _stoneWheelLoopingCycleCount - 1)
+        .toInt();
+  }
+
+  static int _normalizedIndexForVirtualIndex(
+    StoneWheelColumn column,
+    int virtualIndex,
+  ) {
+    final valueCount = column.values.length;
+    if (valueCount == 0) return 0;
+    if (!column.looping) {
+      return virtualIndex.clamp(0, valueCount - 1).toInt();
+    }
+    final normalized = virtualIndex % valueCount;
+    return normalized < 0 ? normalized + valueCount : normalized;
+  }
+}
+
 class StoneRegisterDateWheel extends StatelessWidget {
   const StoneRegisterDateWheel({
     super.key,
@@ -52,7 +166,7 @@ class StoneRegisterDateWheel extends StatelessWidget {
   });
 
   final List<StoneWheelColumn> columns;
-  final Map<String, FixedExtentScrollController> controllers;
+  final Map<String, ScrollController> controllers;
   final Color accent;
   final void Function(String columnId, int selectedIndex) onSelectedItemChanged;
 
@@ -132,16 +246,94 @@ class _WheelColumnView extends StatelessWidget {
   });
 
   final StoneWheelColumn column;
-  final FixedExtentScrollController? controller;
+  final ScrollController? controller;
   final Color accent;
   final ValueChanged<int> onSelectedItemChanged;
 
   @override
   Widget build(BuildContext context) {
-    final values = column.values;
-    if (values.isEmpty || controller == null) {
+    if (column.values.isEmpty || controller == null) {
       return const SizedBox.shrink();
     }
+
+    return _WheelColumnScroller(
+      column: column,
+      controller: controller!,
+      accent: accent,
+      onSelectedItemChanged: onSelectedItemChanged,
+    );
+  }
+}
+
+class _WheelColumnScroller extends StatefulWidget {
+  const _WheelColumnScroller({
+    required this.column,
+    required this.controller,
+    required this.accent,
+    required this.onSelectedItemChanged,
+  });
+
+  final StoneWheelColumn column;
+  final ScrollController controller;
+  final Color accent;
+  final ValueChanged<int> onSelectedItemChanged;
+
+  @override
+  State<_WheelColumnScroller> createState() => _WheelColumnScrollerState();
+}
+
+class _WheelColumnScrollerState extends State<_WheelColumnScroller> {
+  late final ValueNotifier<double> _scrollOffset;
+  Timer? _snapTimer;
+  bool _frameScheduled = false;
+  int? _lastReportedIndex;
+
+  @override
+  void initState() {
+    super.initState();
+    _scrollOffset = ValueNotifier<double>(
+      widget.controller.hasClients
+          ? widget.controller.offset
+          : widget.controller.initialScrollOffset,
+    );
+    _lastReportedIndex = StoneRegisterWheelMetrics.selectedIndexForOffset(
+      widget.column,
+      _scrollOffset.value,
+    );
+    widget.controller.addListener(_handleScroll);
+  }
+
+  @override
+  void didUpdateWidget(covariant _WheelColumnScroller oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.controller != widget.controller) {
+      oldWidget.controller.removeListener(_handleScroll);
+      widget.controller.addListener(_handleScroll);
+      _scrollOffset.value = widget.controller.hasClients
+          ? widget.controller.offset
+          : widget.controller.initialScrollOffset;
+      _lastReportedIndex = StoneRegisterWheelMetrics.selectedIndexForOffset(
+        widget.column,
+        _scrollOffset.value,
+      );
+    }
+  }
+
+  @override
+  void dispose() {
+    _snapTimer?.cancel();
+    widget.controller.removeListener(_handleScroll);
+    _scrollOffset.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final values = widget.column.values;
+    if (values.isEmpty) {
+      return const SizedBox.shrink();
+    }
+    final itemCount = StoneRegisterWheelMetrics.itemCountFor(widget.column);
 
     return ShaderMask(
       blendMode: BlendMode.dstIn,
@@ -156,36 +348,90 @@ class _WheelColumnView extends StatelessWidget {
         ],
         stops: [0, 0.30, 0.70, 1],
       ).createShader(bounds),
-      child: CupertinoPicker(
-        key: ValueKey('stone-register-wheel-${column.id}'),
-        scrollController: controller,
-        itemExtent: StoneRegisterDatePickerTheme.rowHeight,
-        looping: column.looping,
-        backgroundColor: Colors.transparent,
-        selectionOverlay: const SizedBox.shrink(),
-        onSelectedItemChanged: (index) {
-          final normalized = column.looping ? index % values.length : index;
-          onSelectedItemChanged(normalized);
+      child: NotificationListener<ScrollEndNotification>(
+        onNotification: (_) {
+          _scheduleDeferredSnap();
+          return false;
         },
-        children: List<Widget>.generate(values.length, (index) {
-          return _WheelItem(
-            label: values[index],
-            distance: _visualDistance(index, column),
-            accent: accent,
-            baseStyle: column.textStyle,
-          );
-        }),
+        child: ListView.builder(
+          key: ValueKey('stone-register-wheel-${widget.column.id}'),
+          controller: widget.controller,
+          itemExtent: StoneRegisterDatePickerTheme.rowHeight,
+          padding: const EdgeInsets.symmetric(
+            vertical: StoneRegisterDatePickerTheme.rowHeight * 2,
+          ),
+          itemCount: itemCount,
+          itemBuilder: (context, virtualIndex) {
+            final valueIndex =
+                StoneRegisterWheelMetrics.valueIndexForVirtualIndex(
+                  widget.column,
+                  virtualIndex,
+                );
+            return ValueListenableBuilder<double>(
+              valueListenable: _scrollOffset,
+              builder: (context, offset, _) {
+                final fractionalIndex =
+                    offset / StoneRegisterDatePickerTheme.rowHeight;
+                return _WheelItem(
+                  label: values[valueIndex],
+                  distance: (virtualIndex - fractionalIndex).abs(),
+                  accent: widget.accent,
+                  baseStyle: widget.column.textStyle,
+                );
+              },
+            );
+          },
+        ),
       ),
     );
   }
 
-  int _visualDistance(int index, StoneWheelColumn column) {
-    final selected = column.selectedIndex
-        .clamp(0, column.values.length - 1)
-        .toInt();
-    final raw = (index - selected).abs();
-    if (!column.looping || column.values.isEmpty) return math.min(raw, 3);
-    return math.min(raw, column.values.length - raw).clamp(0, 3).toInt();
+  void _handleScroll() {
+    _scheduleOffsetRepaint();
+    _reportNearestIndex();
+    _scheduleDeferredSnap();
+  }
+
+  void _scheduleOffsetRepaint() {
+    if (_frameScheduled) return;
+    _frameScheduled = true;
+    SchedulerBinding.instance.scheduleFrameCallback((_) {
+      _frameScheduled = false;
+      if (!mounted || !widget.controller.hasClients) return;
+      _scrollOffset.value = widget.controller.offset;
+    });
+  }
+
+  void _reportNearestIndex() {
+    if (!widget.controller.hasClients) return;
+    final selectedIndex = StoneRegisterWheelMetrics.selectedIndexForOffset(
+      widget.column,
+      widget.controller.offset,
+    );
+    if (_lastReportedIndex == selectedIndex) return;
+    _lastReportedIndex = selectedIndex;
+    widget.onSelectedItemChanged(selectedIndex);
+  }
+
+  void _scheduleDeferredSnap() {
+    _snapTimer?.cancel();
+    _snapTimer = Timer(_stoneWheelSnapDebounce, _snapToNearestIndex);
+  }
+
+  void _snapToNearestIndex() {
+    if (!mounted || !widget.controller.hasClients) return;
+    final target = StoneRegisterWheelMetrics.snapOffsetFor(
+      widget.column,
+      widget.controller.offset,
+    );
+    if ((target - widget.controller.offset).abs() < 0.5) return;
+    unawaited(
+      widget.controller.animateTo(
+        target,
+        duration: _stoneWheelSnapDuration,
+        curve: Curves.easeOutCubic,
+      ),
+    );
   }
 }
 
@@ -198,25 +444,14 @@ class _WheelItem extends StatelessWidget {
   });
 
   final String label;
-  final int distance;
+  final double distance;
   final Color accent;
   final TextStyle? baseStyle;
 
   @override
   Widget build(BuildContext context) {
-    final selected = distance == 0;
-    final color = switch (distance) {
-      0 => const Color(0xFFEFE8DB),
-      1 => StoneRegisterDatePickerTheme.silverMid.withValues(alpha: 0.72),
-      2 => StoneRegisterDatePickerTheme.silverLow.withValues(alpha: 0.54),
-      _ => StoneRegisterDatePickerTheme.silverLow.withValues(alpha: 0.30),
-    };
-    final scale = switch (distance) {
-      0 => 1.06,
-      1 => 0.92,
-      2 => 0.83,
-      _ => 0.78,
-    };
+    final visual = _WheelItemVisuals.fromDistance(distance);
+    final selected = distance < 0.45;
     final style =
         (baseStyle ??
                 const TextStyle(
@@ -226,7 +461,7 @@ class _WheelItem extends StatelessWidget {
                   height: 1.05,
                 ))
             .copyWith(
-              color: color,
+              color: visual.color,
               shadows: selected
                   ? [
                       Shadow(
@@ -243,20 +478,17 @@ class _WheelItem extends StatelessWidget {
             );
 
     return Center(
-      child: AnimatedScale(
-        duration: const Duration(milliseconds: 150),
-        curve: Curves.easeOut,
-        scale: scale,
-        child: AnimatedDefaultTextStyle(
-          duration: const Duration(milliseconds: 150),
-          curve: Curves.easeOut,
-          style: style,
-          textAlign: TextAlign.center,
+      child: Transform.scale(
+        scale: visual.scale,
+        child: Opacity(
+          opacity: visual.opacity,
           child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 2),
+            padding: const EdgeInsets.symmetric(horizontal: 3),
             child: Text(
               label,
-              maxLines: 2,
+              textAlign: TextAlign.center,
+              style: style,
+              maxLines: 1,
               overflow: TextOverflow.fade,
               softWrap: false,
             ),
@@ -264,6 +496,58 @@ class _WheelItem extends StatelessWidget {
         ),
       ),
     );
+  }
+}
+
+@immutable
+class _WheelItemVisuals {
+  const _WheelItemVisuals({
+    required this.scale,
+    required this.opacity,
+    required this.color,
+  });
+
+  final double scale;
+  final double opacity;
+  final Color color;
+
+  static _WheelItemVisuals fromDistance(double distance) {
+    final normalized = distance.clamp(0.0, 3.0).toDouble();
+    if (normalized <= 1) {
+      final t = normalized;
+      return _WheelItemVisuals(
+        scale: _lerp(1.06, 0.92, t),
+        opacity: _lerp(1.0, 0.62, t),
+        color: Color.lerp(
+          const Color(0xFFEFE8DB),
+          StoneRegisterDatePickerTheme.silverMid,
+          t,
+        )!,
+      );
+    }
+    if (normalized <= 2) {
+      final t = normalized - 1;
+      return _WheelItemVisuals(
+        scale: _lerp(0.92, 0.83, t),
+        opacity: _lerp(0.62, 0.32, t),
+        color: Color.lerp(
+          StoneRegisterDatePickerTheme.silverMid,
+          StoneRegisterDatePickerTheme.silverLow,
+          t,
+        )!,
+      );
+    }
+
+    final t = normalized - 2;
+    return _WheelItemVisuals(
+      scale: _lerp(0.83, 0.76, t),
+      opacity: _lerp(0.32, 0.08, t),
+      color: StoneRegisterDatePickerTheme.silverLow,
+    );
+  }
+
+  static double _lerp(double start, double end, double t) {
+    return start + (end - start) * t;
   }
 }
 

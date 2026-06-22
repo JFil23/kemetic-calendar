@@ -10466,85 +10466,98 @@ class CalendarPageState extends State<CalendarPage>
                         ? 'Gregorian Calendar'
                         : 'Kemetic Calendar';
 
-                    return InkWell(
-                      borderRadius: BorderRadius.circular(10),
-                      onTap: isSaving
-                          ? null
-                          : () async {
-                              final picked = await EventCreateDatePicker.show(
-                                context: dialogCtx,
-                                initialDate: KemeticMath.toGregorian(
-                                  selYear,
-                                  selMonth,
-                                  selDay,
-                                ),
-                                initialMode: dateMode,
-                              );
-                              if (picked == null || !dialogCtx.mounted) {
-                                return;
-                              }
-                              setDialogState(() {
-                                setSelectedEventDate(picked.date);
-                                showGregorianDates =
-                                    picked.mode ==
-                                    EventCreateDatePickerMode.gregorian;
-                              });
-                            },
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 12,
-                          vertical: 10,
+                    return Semantics(
+                      button: true,
+                      label: 'Change event date',
+                      child: InkWell(
+                        key: const ValueKey<String>(
+                          'event_create_date_picker_trigger',
                         ),
-                        decoration: BoxDecoration(
-                          border: Border.all(color: Colors.white24),
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                        child: Row(
-                          children: [
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Wrap(
-                                    alignment: WrapAlignment.start,
-                                    crossAxisAlignment:
-                                        WrapCrossAlignment.center,
-                                    children: [
-                                      _GlossyMonthNameText(
-                                        text: monthText,
-                                        style: dateTitleStyle,
-                                        gradient: titleGradient,
-                                      ),
-                                      GlossyText(
-                                        text: ' $dayText • ${titleG.year}',
-                                        textAlign: TextAlign.center,
-                                        style: dateTitleStyle,
-                                        gradient: titleGradient,
-                                        maxLines: 1,
-                                        softWrap: false,
-                                        overflow: TextOverflow.fade,
-                                      ),
-                                    ],
+                        borderRadius: BorderRadius.circular(10),
+                        onTap: isSaving
+                            ? null
+                            : () async {
+                                final picked = await EventCreateDatePicker.show(
+                                  context: dialogCtx,
+                                  initialDate: KemeticMath.toGregorian(
+                                    selYear,
+                                    selMonth,
+                                    selDay,
                                   ),
-                                  const SizedBox(height: 2),
-                                  Text(
-                                    subtitle,
-                                    style: const TextStyle(
-                                      color: Colors.white54,
-                                      fontSize: 11,
-                                      letterSpacing: 0.4,
-                                    ),
-                                  ),
-                                ],
+                                  initialMode: dateMode,
+                                );
+                                if (picked == null || !dialogCtx.mounted) {
+                                  return;
+                                }
+                                setDialogState(() {
+                                  setSelectedEventDate(picked.date);
+                                  showGregorianDates =
+                                      picked.mode ==
+                                      EventCreateDatePickerMode.gregorian;
+                                });
+                              },
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 10,
+                          ),
+                          decoration: BoxDecoration(
+                            border: Border.all(color: Colors.white24),
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: Row(
+                            children: [
+                              const Icon(
+                                Icons.calendar_month_outlined,
+                                color: _gold,
+                                size: 20,
                               ),
-                            ),
-                            const SizedBox(width: 8),
-                            const Icon(
-                              Icons.chevron_right,
-                              color: Colors.white54,
-                              size: 22,
-                            ),
-                          ],
+                              const SizedBox(width: 10),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Wrap(
+                                      alignment: WrapAlignment.start,
+                                      crossAxisAlignment:
+                                          WrapCrossAlignment.center,
+                                      children: [
+                                        _GlossyMonthNameText(
+                                          text: monthText,
+                                          style: dateTitleStyle,
+                                          gradient: titleGradient,
+                                        ),
+                                        GlossyText(
+                                          text: ' $dayText • ${titleG.year}',
+                                          textAlign: TextAlign.center,
+                                          style: dateTitleStyle,
+                                          gradient: titleGradient,
+                                          maxLines: 1,
+                                          softWrap: false,
+                                          overflow: TextOverflow.fade,
+                                        ),
+                                      ],
+                                    ),
+                                    const SizedBox(height: 2),
+                                    Text(
+                                      subtitle,
+                                      style: const TextStyle(
+                                        color: Colors.white54,
+                                        fontSize: 11,
+                                        letterSpacing: 0.4,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              const Icon(
+                                Icons.chevron_right,
+                                color: Colors.white54,
+                                size: 22,
+                              ),
+                            ],
+                          ),
                         ),
                       ),
                     );
@@ -26686,6 +26699,14 @@ class CalendarPageState extends State<CalendarPage>
                           alignment: WrapAlignment.center,
                           crossAxisAlignment: WrapCrossAlignment.center,
                           children: [
+                            if (allowDateChange) ...[
+                              const Icon(
+                                Icons.calendar_month_outlined,
+                                color: _gold,
+                                size: 18,
+                              ),
+                              const SizedBox(width: 6),
+                            ],
                             _GlossyMonthNameText(
                               text: showGregorianDates
                                   ? _gregMonthNames[titleG.month]
@@ -26704,6 +26725,14 @@ class CalendarPageState extends State<CalendarPage>
                               softWrap: false,
                               overflow: TextOverflow.fade,
                             ),
+                            if (allowDateChange) ...[
+                              const SizedBox(width: 4),
+                              const Icon(
+                                Icons.expand_more,
+                                color: Colors.white70,
+                                size: 18,
+                              ),
+                            ],
                           ],
                         ),
                       ),

@@ -8,6 +8,7 @@ import 'package:mobile/features/calendar/kemetic_month_metadata.dart';
 import 'package:mobile/features/calendar/calendar_page.dart'
     show ImportFlowData, KemeticMath, debugBuildFlowStudioPageForTest;
 import 'package:mobile/models/ai_flow_generation_response.dart';
+import 'package:mobile/shared/date_picker/kemetic_picker_labels.dart';
 import 'package:mobile/services/ai_flow_generation_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -421,7 +422,7 @@ void main() {
       await _tapOutlinedDateButton(tester, startLabel);
       expect(find.text('Pick Kemetic date'), findsOneWidget);
       expect(find.text('Kemetic Calendar'), findsOneWidget);
-      expect(find.text(getMonthById(startK.kMonth).displayFull), findsWidgets);
+      expect(find.text(kemeticPickerMonthLabel(startK.kMonth)), findsWidgets);
       expect(find.text('${startK.kDay}'), findsWidgets);
 
       await _tapPickerDone(tester);

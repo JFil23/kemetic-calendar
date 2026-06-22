@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:mobile/data/choice_event_repo.dart';
-import 'package:mobile/features/calendar/kemetic_month_metadata.dart';
 import 'package:mobile/features/nodes/kemetic_node_library.dart';
 import 'package:mobile/features/nodes/kemetic_node_model.dart';
 import 'package:mobile/features/nodes/kemetic_node_list_page.dart';
@@ -11,6 +10,7 @@ import 'package:mobile/features/nodes/library_read_progress_store.dart';
 import 'package:mobile/features/nodes/node_user_insights_section.dart';
 import 'package:mobile/features/nodes/widgets.dart';
 import 'package:mobile/main.dart' as app;
+import 'package:mobile/shared/date_picker/kemetic_picker_labels.dart';
 import 'package:mobile/utils/kemetic_date_format.dart';
 import 'package:mobile/widgets/kemetic_date_picker.dart' show KemeticMath;
 import 'package:shared_preferences/shared_preferences.dart';
@@ -473,7 +473,7 @@ void main() {
       expect(find.text('Pick Kemetic date'), findsOneWidget);
       expect(find.text('Kemetic Calendar'), findsOneWidget);
       expect(
-        find.text(getMonthById(initialKemetic.kMonth).displayFull),
+        find.text(kemeticPickerMonthLabel(initialKemetic.kMonth)),
         findsWidgets,
       );
 
@@ -511,7 +511,7 @@ void main() {
 
       expect(find.text('Pick Kemetic date'), findsOneWidget);
       expect(
-        find.text(getMonthById(initialKemetic.kMonth).displayFull),
+        find.text(kemeticPickerMonthLabel(initialKemetic.kMonth)),
         findsWidgets,
       );
       expect(find.text('${initialKemetic.kDay}'), findsWidgets);

@@ -21,6 +21,9 @@ void main() {
       );
 
       expect(picker, contains('EventCreateDatePicker.show'));
+      expect(picker, contains('event_create_date_picker_trigger'));
+      expect(picker, contains('Change event date'));
+      expect(picker, contains('Icons.calendar_month_outlined'));
       expect(picker, contains('initialDate: KemeticMath.toGregorian'));
       expect(picker, contains('initialMode: dateMode'));
       expect(picker, contains('setSelectedEventDate(picked.date)'));
