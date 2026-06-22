@@ -96,6 +96,7 @@ import '../../core/push_intent_bus.dart';
 import '../../widgets/flow_start_date_picker.dart';
 import '../../widgets/day_sheet_date_picker.dart';
 import '../../widgets/event_create_date_picker.dart';
+import '../../widgets/maat_flow_date_picker.dart';
 import '../../widgets/gregorian_date_picker.dart' show showGregorianDatePicker;
 import '../../widgets/kemetic_date_picker.dart' show showKemeticDatePicker;
 import '../../widgets/recurrence_until_date_picker.dart';
