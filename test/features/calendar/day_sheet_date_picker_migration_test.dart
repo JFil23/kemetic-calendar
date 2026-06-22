@@ -108,7 +108,7 @@ void main() {
 
     expect(
       builder,
-      contains('final dayNotes = _getNotes(selYear, selMonth, selDay)'),
+      contains('final dayNotes = _calendarSheetNoteCandidatesForDay('),
     );
     expect(builder, contains('final dayEvents = _calendarSheetEventsForDay('));
     expect(
@@ -148,16 +148,39 @@ void main() {
         'FlowRecordSnapshot _flowRecordSnapshotFromFlow',
       );
 
+      expect(helper, contains('final window = _calendarSheetDayWindow'));
       expect(helper, contains('for (final occurrence in _getFlowOccurrences'));
-      expect(helper, contains('for (final note in dayNotes)'));
+      expect(helper, contains('for (final entry in dayNotes)'));
       expect(helper, contains('final flowId = note.flowId'));
-      expect(helper, contains('if (flowId == null || flowId <= 0) continue'));
-      expect(helper, contains('if (flow?.isHidden ?? false) continue'));
-      expect(helper, contains('name: flow?.name ?? note.title'));
+      expect(helper, contains('_calendarSheetNoteBelongsInScheduledFlows'));
+      expect(helper, contains('filterAndDedupeDaySheetCandidates'));
+      expect(helper, contains("sourceType: 'event_backed_flow'"));
+      expect(helper, contains('startsAtLocal: range.start'));
+      expect(helper, contains('endsAtLocal: range.end'));
+      expect(helper, contains('name: flow.name'));
       expect(helper, contains('color: _noteColor(note)'));
       expect(helper, contains('rows.sort'));
     },
   );
+
+  test('Notes on this day uses selected-day note occurrences only', () async {
+    final source = await File(
+      'lib/features/calendar/calendar_page.dart',
+    ).readAsString();
+    final helper = _sourceBetween(
+      source,
+      'List<EventItem> _calendarSheetEventsForDay',
+      'DayViewSheetEventTarget? _resolveCalendarAdjacentEventTarget',
+    );
+
+    expect(helper, contains('final window = _calendarSheetDayWindow'));
+    expect(helper, contains('_calendarSheetNoteCandidatesForDay'));
+    expect(helper, contains('_calendarSheetNoteBelongsInNotes'));
+    expect(helper, contains('filterAndDedupeDaySheetCandidates'));
+    expect(helper, contains("sourceType: 'note'"));
+    expect(helper, contains('_calendarSheetEventItemFromNote'));
+    expect(helper, isNot(contains('_getNotes(ky, km, kd)')));
+  });
 
   test(
     'new reminders opened from Day sheet seed from the selected day',
@@ -217,15 +240,37 @@ void main() {
     expect(calendarSource, contains('debugDaySheetSmokeOnLaunch'));
     expect(calendarSource, contains('buildDebugDaySheetSmokeRoute'));
     expect(calendarSource, contains('_debugDaySheetSmokeEnabled'));
+    expect(mainSource, contains("String.fromEnvironment('H3W_DEBUG_ROUTE')"));
+    expect(
+      mainSource,
+      contains("bool.fromEnvironment(\n  'H3W_DEBUG_DAY_SHEET_SMOKE'"),
+    );
+    expect(mainSource, contains('_debugDaySheetSmokeBootRequested'));
+    expect(mainSource, contains('_debugDaySheetSmokeFallbackConfig'));
+    expect(
+      mainSource,
+      contains("kIsWeb && _isDebugDaySheetSmokeLocation(Uri.base.toString())"),
+    );
     expect(route, contains('if (kDebugMode)'));
+    expect(route, contains('path: _kDebugDaySheetSmokeRoute'));
     expect(route, contains('SessionTrackedRoute'));
     expect(route, contains('CalendarPage.buildDebugDaySheetSmokeRoute()'));
+    expect(
+      mainSource,
+      contains(
+        'if (_debugDaySheetSmokeBootRequested) {\n      return _buildAuthedApp();',
+      ),
+    );
 
     expect(fixture, contains("name: 'The Weighing'"));
     expect(fixture, contains("name: 'journal every day'"));
     expect(fixture, contains("name: 'journal every night'"));
+    expect(fixture, contains("name: 'same decan off-day flow'"));
+    expect(fixture, contains("name: 'template only flow'"));
     expect(fixture, contains('rules: const <FlowRule>[]'));
     expect(fixture, contains("title: 'Smoke note: offering list'"));
+    expect(fixture, contains("title: 'Smoke note: midnight overlap'"));
+    expect(fixture, contains("title: 'Smoke note: next day only'"));
     expect(fixture, contains("title: 'Daily offering reminder'"));
     expect(fixture, contains("title: 'Decan reflection reminder'"));
     expect(fixture, contains('ReminderRepeatKind.everyNDays'));

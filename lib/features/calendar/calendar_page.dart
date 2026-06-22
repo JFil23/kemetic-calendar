@@ -162,6 +162,7 @@ import '../rhythm/event_todo_builder.dart';
 import '../rhythm/data/planner_badge_repo.dart';
 import '../rhythm/pages/todays_alignment_page.dart';
 import 'calendar_recurring_scope.dart';
+import 'day_sheet_scope.dart';
 
 part 'calendar_flow_models.dart';
 part 'calendar_flow_studio_models.dart';
@@ -12629,7 +12630,7 @@ class CalendarPageState extends State<CalendarPage>
   static final DateTime _debugDaySheetSmokeGregorianDate = DateTime(
     2026,
     6,
-    22,
+    21,
   );
 
   bool get _debugDaySheetSmokeEnabled =>
@@ -12639,7 +12640,9 @@ class CalendarPageState extends State<CalendarPage>
     assert(_debugDaySheetSmokeEnabled);
 
     final gDay = DateUtils.dateOnly(_debugDaySheetSmokeGregorianDate);
+    final nextGDay = gDay.add(const Duration(days: 1));
     final kDay = KemeticMath.fromGregorian(gDay);
+    final nextKDay = KemeticMath.fromGregorian(nextGDay);
     const personalCalendarId = 'debug-day-sheet-personal';
     const ownerId = 'debug-day-sheet-owner';
     final calendar = SharedCalendarSummary(
@@ -12653,8 +12656,8 @@ class CalendarPageState extends State<CalendarPage>
       status: SharedCalendarInviteStatus.accepted,
       memberCount: 1,
       pendingInviteCount: 0,
-      liveEventCount: 3,
-      liveFlowCount: 3,
+      liveEventCount: 6,
+      liveFlowCount: 5,
     );
 
     final weighingFlow = _Flow(
@@ -12701,6 +12704,33 @@ class CalendarPageState extends State<CalendarPage>
       start: gDay,
       end: gDay,
     );
+    final sameDecanOffDayFlow = _Flow(
+      id: 9004,
+      calendarId: personalCalendarId,
+      name: 'same decan off-day flow',
+      color: daySheetColorPalette[6],
+      active: true,
+      rules: <FlowRule>[
+        _RuleDates(
+          dates: <DateTime>{nextGDay},
+          allDay: false,
+          start: const TimeOfDay(hour: 12, minute: 0),
+          end: const TimeOfDay(hour: 12, minute: 30),
+        ),
+      ],
+      start: nextGDay,
+      end: nextGDay,
+    );
+    final templateOnlyFlow = _Flow(
+      id: 9005,
+      calendarId: personalCalendarId,
+      name: 'template only flow',
+      color: daySheetColorPalette[7],
+      active: true,
+      rules: const <FlowRule>[],
+      start: gDay,
+      end: nextGDay,
+    );
 
     _calendarSummariesById = <String, SharedCalendarSummary>{
       personalCalendarId: calendar,
@@ -12712,9 +12742,24 @@ class CalendarPageState extends State<CalendarPage>
     _pendingInitialHydration = false;
 
     final dayKey = _kKey(kDay.kYear, kDay.kMonth, kDay.kDay);
+    final nextDayKey = _kKey(nextKDay.kYear, nextKDay.kMonth, nextKDay.kDay);
     _notes
       ..clear()
       ..[dayKey] = <_Note>[
+        _Note(
+          id: 'debug-day-sheet-note-weighing',
+          clientEventId: 'debug:day-sheet:flow-note:weighing',
+          calendarId: personalCalendarId,
+          calendarName: calendar.name,
+          title: 'The Weighing',
+          detail: 'Event-backed duplicate of the computed selected-day flow.',
+          allDay: false,
+          start: const TimeOfDay(hour: 9, minute: 0),
+          end: const TimeOfDay(hour: 9, minute: 30),
+          flowId: weighingFlow.id,
+          manualColor: daySheetColorPalette[0],
+          category: NoteCategory.spirit,
+        ),
         _Note(
           id: 'debug-day-sheet-note-offering',
           clientEventId: 'debug:day-sheet:note:offering',
@@ -12757,18 +12802,54 @@ class CalendarPageState extends State<CalendarPage>
           manualColor: daySheetColorPalette[4],
           category: NoteCategory.recovery,
         ),
+        _Note(
+          id: 'debug-day-sheet-note-midnight',
+          clientEventId: 'debug:day-sheet:note:midnight',
+          calendarId: personalCalendarId,
+          calendarName: calendar.name,
+          title: 'Smoke note: midnight overlap',
+          detail: 'Visible on both the start day and the following day.',
+          location: 'Debug shrine',
+          allDay: false,
+          start: const TimeOfDay(hour: 23, minute: 30),
+          end: const TimeOfDay(hour: 0, minute: 30),
+          manualColor: daySheetColorPalette[8],
+          category: NoteCategory.body,
+        ),
+      ]
+      ..[nextDayKey] = <_Note>[
+        _Note(
+          id: 'debug-day-sheet-note-next-day',
+          clientEventId: 'debug:day-sheet:note:next-day',
+          calendarId: personalCalendarId,
+          calendarName: calendar.name,
+          title: 'Smoke note: next day only',
+          detail: 'Appears after changing the Day sheet picker by one day.',
+          location: 'Debug shrine',
+          allDay: false,
+          start: const TimeOfDay(hour: 14, minute: 0),
+          end: const TimeOfDay(hour: 14, minute: 30),
+          manualColor: daySheetColorPalette[5],
+          category: NoteCategory.mind,
+        ),
       ];
 
     _flows
       ..clear()
-      ..addAll(<_Flow>[weighingFlow, journalDayFlow, journalNightFlow]);
+      ..addAll(<_Flow>[
+        weighingFlow,
+        journalDayFlow,
+        journalNightFlow,
+        sameDecanOffDayFlow,
+        templateOnlyFlow,
+      ]);
     _flowTotalEventCounts
       ..clear()
-      ..addAll(<int, int>{9001: 1, 9002: 1, 9003: 1});
+      ..addAll(<int, int>{9001: 1, 9002: 1, 9003: 1, 9004: 1, 9005: 0});
     _flowRemainingEventCounts
       ..clear()
-      ..addAll(<int, int>{9001: 1, 9002: 1, 9003: 1});
-    _nextFlowId = 9004;
+      ..addAll(<int, int>{9001: 1, 9002: 1, 9003: 1, 9004: 1, 9005: 0});
+    _nextFlowId = 9006;
 
     _reminderRules
       ..clear()
@@ -16432,6 +16513,59 @@ class CalendarPageState extends State<CalendarPage>
     await _reminderRuleStore.saveAll(_reminderRules);
   }
 
+  void _upsertDebugDaySheetSmokeReminderRule(ReminderRule rule) {
+    assert(_debugDaySheetSmokeEnabled);
+    _endedReminderIds.remove(rule.id);
+
+    final idx = _reminderRules.indexWhere((r) => r.id == rule.id);
+    if (idx >= 0) {
+      _reminderRules[idx] = rule;
+    } else {
+      _reminderRules.add(rule);
+    }
+    final deduped = _dedupeReminderRules(_reminderRules);
+    _reminderRules
+      ..clear()
+      ..addAll(deduped);
+    _reminderRulesLoaded = true;
+
+    var changed = _pruneReminderNotes(rule.id, fromDate: null);
+    final windowStart = DateUtils.dateOnly(rule.startLocal);
+    final windowEnd = _reminderWindowEnd(windowStart, [rule]);
+    changed =
+        _materializeReminderLocally(
+          rule: rule,
+          occurrences: _generateReminderOccurrences(
+            rule,
+            windowStart,
+            windowEnd,
+          ),
+          notify: false,
+        ) ||
+        changed;
+    if (changed) {
+      _refreshNoteCacheUi();
+    }
+    if (mounted) {
+      setState(() {});
+      _bumpDataVersion();
+    }
+  }
+
+  void _deleteDebugDaySheetSmokeReminderRule(String id) {
+    assert(_debugDaySheetSmokeEnabled);
+    _endedReminderIds.add(id);
+    _reminderRules.removeWhere((r) => r.id == id);
+    final changed = _pruneReminderNotes(id, fromDate: null);
+    if (changed) {
+      _refreshNoteCacheUi();
+    }
+    if (mounted) {
+      setState(() {});
+      _bumpDataVersion();
+    }
+  }
+
   bool _isUuid(String s) {
     final re = RegExp(
       r'^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$',
@@ -16462,6 +16596,10 @@ class CalendarPageState extends State<CalendarPage>
       throw StateError(
         'Invalid nutrition rule id (expected uuid suffix): ${rule.id}',
       );
+    }
+    if (_debugDaySheetSmokeEnabled) {
+      _upsertDebugDaySheetSmokeReminderRule(effectiveRule);
+      return;
     }
 
     // If a reminder is recreated with the same id, clear any tombstone flag.
@@ -16577,6 +16715,10 @@ class CalendarPageState extends State<CalendarPage>
   }
 
   Future<void> _deleteReminderRule(String id) async {
+    if (_debugDaySheetSmokeEnabled) {
+      _deleteDebugDaySheetSmokeReminderRule(id);
+      return;
+    }
     _endedReminderIds.add(id);
     await _saveEndedReminderIds();
 
@@ -18448,6 +18590,109 @@ class CalendarPageState extends State<CalendarPage>
     return _dedupeVisibleDayNotes(visible);
   }
 
+  DaySheetDayWindow _calendarSheetDayWindow(int kYear, int kMonth, int kDay) {
+    return daySheetWindowFor(KemeticMath.toGregorian(kYear, kMonth, kDay));
+  }
+
+  DateTime _calendarSheetLocalTimeOnDay(DateTime day, TimeOfDay time) {
+    return DateTime(day.year, day.month, day.day, time.hour, time.minute);
+  }
+
+  ({DateTime start, DateTime end}) _calendarSheetLocalRangeForTimes({
+    required DateTime dayStart,
+    required bool allDay,
+    required TimeOfDay? start,
+    required TimeOfDay? end,
+  }) {
+    if (allDay) {
+      return (start: dayStart, end: dayStart.add(const Duration(days: 1)));
+    }
+
+    final startTime = start ?? const TimeOfDay(hour: 9, minute: 0);
+    final startsAt = _calendarSheetLocalTimeOnDay(dayStart, startTime);
+    final endsAt = end == null
+        ? startsAt.add(const Duration(minutes: 30))
+        : daySheetEndAfterStart(
+            startsAt,
+            _calendarSheetLocalTimeOnDay(dayStart, end),
+          );
+
+    return (start: startsAt, end: endsAt);
+  }
+
+  ({DateTime start, DateTime end}) _calendarSheetLocalRangeForNote(
+    _Note note,
+    DateTime bucketStart,
+  ) {
+    return _calendarSheetLocalRangeForTimes(
+      dayStart: bucketStart,
+      allDay: note.allDay,
+      start: note.start,
+      end: note.end,
+    );
+  }
+
+  DaySheetListCandidate _calendarSheetNoteCandidate(
+    _Note note,
+    DateTime bucketStart, {
+    required String sourceType,
+  }) {
+    final range = _calendarSheetLocalRangeForNote(note, bucketStart);
+    return DaySheetListCandidate(
+      title: note.title,
+      sourceType: sourceType,
+      allDay: note.allDay,
+      startsAtLocal: range.start,
+      endsAtLocal: range.end,
+      eventId: note.id,
+      clientEventId: note.clientEventId,
+      flowId: note.flowId,
+      reminderId: note.reminderId,
+    );
+  }
+
+  List<_DaySheetNoteOccurrence> _calendarSheetNoteCandidatesForDay(
+    int kYear,
+    int kMonth,
+    int kDay,
+  ) {
+    final window = _calendarSheetDayWindow(kYear, kMonth, kDay);
+    final previousDay = window.start.subtract(const Duration(days: 1));
+    final previousK = KemeticMath.fromGregorian(previousDay);
+
+    return <_DaySheetNoteOccurrence>[
+      for (final note in _getNotes(kYear, kMonth, kDay))
+        (note: note, bucketStart: window.start),
+      for (final note in _getNotes(
+        previousK.kYear,
+        previousK.kMonth,
+        previousK.kDay,
+      ))
+        (note: note, bucketStart: previousDay),
+    ];
+  }
+
+  bool _calendarSheetNoteBelongsInNotes(_Note note, Map<int, _Flow> flowsById) {
+    if (note.isReminder) return false;
+    final flowId = note.flowId;
+    if (flowId == null || flowId <= 0) return true;
+    final flow = flowsById[flowId];
+    if (flow == null) return false;
+    return flow.isHidden || hasRepeatingNoteFlowMetadata(flow.notes);
+  }
+
+  bool _calendarSheetNoteBelongsInScheduledFlows(
+    _Note note,
+    Map<int, _Flow> flowsById,
+  ) {
+    if (note.isReminder) return false;
+    final flowId = note.flowId;
+    if (flowId == null || flowId <= 0) return false;
+    final flow = flowsById[flowId];
+    if (flow == null) return false;
+    return !flow.isHidden && !hasRepeatingNoteFlowMetadata(flow.notes);
+  }
+
   ReminderRule? _reminderRuleFromFlow(_Flow f) {
     if (f.notes == null || f.notes!.trim().isEmpty) return null;
     try {
@@ -18466,7 +18711,8 @@ class CalendarPageState extends State<CalendarPage>
   /// Flow occurrences that apply to a given Kemetic date (computed on demand).
   List<_FlowOccurrence> _getFlowOccurrences(int kYear, int kMonth, int kDay) {
     final g = KemeticMath.toGregorian(kYear, kMonth, kDay);
-    final gDate = DateUtils.dateOnly(g);
+    final dayWindow = daySheetWindowFor(g);
+    final gDate = dayWindow.start;
     final out = <_FlowOccurrence>[];
     for (final f in _flows) {
       if (!f.active) continue;
@@ -18486,33 +18732,46 @@ class CalendarPageState extends State<CalendarPage>
                   hour: rr.startLocal.hour,
                   minute: rr.startLocal.minute,
                 );
-          final endTod = rr.allDay
-              ? null
-              : TimeOfDay.fromDateTime(
-                  DateTime(
-                    gDate.year,
-                    gDate.month,
-                    gDate.day,
-                    rr.startLocal.hour,
-                    rr.startLocal.minute,
-                  ).add(const Duration(minutes: 30)),
+          final startsAt = rr.allDay
+              ? gDate
+              : DateTime(
+                  gDate.year,
+                  gDate.month,
+                  gDate.day,
+                  rr.startLocal.hour,
+                  rr.startLocal.minute,
                 );
+          final endsAt = rr.allDay
+              ? gDate.add(const Duration(days: 1))
+              : startsAt.add(const Duration(minutes: 30));
+          final endTod = rr.allDay ? null : TimeOfDay.fromDateTime(endsAt);
           out.add(
             _FlowOccurrence(
               flow: f,
               allDay: rr.allDay,
+              startsAtLocal: startsAt,
+              endsAtLocal: endsAt,
               start: startTod,
               end: endTod,
+              reminderId: rr.id,
             ),
           );
         }
       } else {
         for (final r in f.rules) {
           if (r.matches(ky: kYear, km: kMonth, kd: kDay, g: g)) {
+            final range = _calendarSheetLocalRangeForTimes(
+              dayStart: gDate,
+              allDay: r.allDay,
+              start: r.start,
+              end: r.end,
+            );
             out.add(
               _FlowOccurrence(
                 flow: f,
                 allDay: r.allDay,
+                startsAtLocal: range.start,
+                endsAtLocal: range.end,
                 start: r.start,
                 end: r.end,
               ),
@@ -18528,10 +18787,10 @@ class CalendarPageState extends State<CalendarPage>
     int kYear,
     int kMonth,
     int kDay,
-    List<_Note> dayNotes,
+    List<_DaySheetNoteOccurrence> dayNotes,
   ) {
-    final rows = <_DaySheetScheduledFlowRow>[];
-    final seen = <String>{};
+    final window = _calendarSheetDayWindow(kYear, kMonth, kDay);
+    final candidates = <_DaySheetScheduledFlowRow>[];
     final flowsById = _allFlowsById();
 
     void addRow({
@@ -18541,21 +18800,15 @@ class CalendarPageState extends State<CalendarPage>
       required bool allDay,
       required TimeOfDay? start,
       required TimeOfDay? end,
+      required DateTime startsAtLocal,
+      required DateTime endsAtLocal,
+      required String sourceType,
+      String? eventId,
+      String? clientEventId,
+      String? reminderId,
     }) {
       final safeName = name.trim().isEmpty ? 'Flow' : name.trim();
-      final startMin = allDay || start == null
-          ? -1
-          : start.hour * 60 + start.minute;
-      final endMin = allDay || end == null ? -1 : end.hour * 60 + end.minute;
-      final key = [
-        flowId ?? 0,
-        safeName.toLowerCase(),
-        allDay,
-        startMin,
-        endMin,
-      ].join('|');
-      if (!seen.add(key)) return;
-      rows.add(
+      candidates.add(
         _DaySheetScheduledFlowRow(
           flowId: flowId,
           name: safeName,
@@ -18563,6 +18816,12 @@ class CalendarPageState extends State<CalendarPage>
           allDay: allDay,
           start: start,
           end: end,
+          startsAtLocal: startsAtLocal,
+          endsAtLocal: endsAtLocal,
+          sourceType: sourceType,
+          eventId: eventId,
+          clientEventId: clientEventId,
+          reminderId: reminderId,
         ),
       );
     }
@@ -18575,23 +18834,52 @@ class CalendarPageState extends State<CalendarPage>
         allDay: occurrence.allDay,
         start: occurrence.start,
         end: occurrence.end,
+        startsAtLocal: occurrence.startsAtLocal,
+        endsAtLocal: occurrence.endsAtLocal,
+        sourceType: occurrence.flow.isReminder ? 'reminder' : 'computed_flow',
+        reminderId: occurrence.reminderId,
       );
     }
 
-    for (final note in dayNotes) {
+    for (final entry in dayNotes) {
+      final note = entry.note;
       final flowId = note.flowId;
-      if (flowId == null || flowId <= 0) continue;
-      final flow = flowsById[flowId];
-      if (flow?.isHidden ?? false) continue;
+      if (!_calendarSheetNoteBelongsInScheduledFlows(note, flowsById)) {
+        continue;
+      }
+      final flow = flowsById[flowId!]!;
+      final range = _calendarSheetLocalRangeForNote(note, entry.bucketStart);
       addRow(
         flowId: flowId,
-        name: flow?.name ?? note.title,
+        name: flow.name,
         color: _noteColor(note),
         allDay: note.allDay,
         start: note.start,
         end: note.end,
+        startsAtLocal: range.start,
+        endsAtLocal: range.end,
+        sourceType: 'event_backed_flow',
+        eventId: note.id,
+        clientEventId: note.clientEventId,
+        reminderId: note.reminderId,
       );
     }
+
+    final rows = filterAndDedupeDaySheetCandidates(
+      candidates,
+      window: window,
+      candidateOf: (row) => DaySheetListCandidate(
+        title: row.name,
+        sourceType: row.sourceType,
+        allDay: row.allDay,
+        startsAtLocal: row.startsAtLocal,
+        endsAtLocal: row.endsAtLocal,
+        eventId: row.eventId,
+        clientEventId: row.clientEventId,
+        flowId: row.flowId,
+        reminderId: row.reminderId,
+      ),
+    );
 
     rows.sort((a, b) {
       final startCompare = _daySheetTimeSortMinutes(
@@ -26778,7 +27066,11 @@ class CalendarPageState extends State<CalendarPage>
                 selMonth,
                 selDay,
               ); // safe
-              final dayNotes = _getNotes(selYear, selMonth, selDay);
+              final dayNotes = _calendarSheetNoteCandidatesForDay(
+                selYear,
+                selMonth,
+                selDay,
+              );
               final dayEvents = _calendarSheetEventsForDay(
                 selYear,
                 selMonth,
@@ -32712,7 +33004,20 @@ class CalendarPageState extends State<CalendarPage>
   }
 
   List<EventItem> _calendarSheetEventsForDay(int ky, int km, int kd) {
-    final notes = _getNotes(ky, km, kd);
+    final window = _calendarSheetDayWindow(ky, km, kd);
+    final flowsById = _allFlowsById();
+    final noteOccurrences = filterAndDedupeDaySheetCandidates(
+      _calendarSheetNoteCandidatesForDay(ky, km, kd).where(
+        (entry) => _calendarSheetNoteBelongsInNotes(entry.note, flowsById),
+      ),
+      window: window,
+      candidateOf: (entry) => _calendarSheetNoteCandidate(
+        entry.note,
+        entry.bucketStart,
+        sourceType: 'note',
+      ),
+    );
+    final notes = [for (final entry in noteOccurrences) entry.note];
     final events = [
       for (final note in notes) _calendarSheetEventItemFromNote(note),
     ];

@@ -22,6 +22,7 @@ typedef _ReminderOccurrenceRow = ({
   int? flowLocalId,
   String? category,
 });
+typedef _DaySheetNoteOccurrence = ({_Note note, DateTime bucketStart});
 
 /// Intent data for creating a reminder from a nutrition item schedule
 class NutritionReminderIntent {
@@ -223,11 +224,17 @@ class _FlowOccurrence {
   final bool allDay;
   final TimeOfDay? start;
   final TimeOfDay? end;
+  final DateTime startsAtLocal;
+  final DateTime endsAtLocal;
+  final String? reminderId;
   const _FlowOccurrence({
     required this.flow,
     required this.allDay,
+    required this.startsAtLocal,
+    required this.endsAtLocal,
     this.start,
     this.end,
+    this.reminderId,
   });
 }
 
@@ -238,14 +245,26 @@ class _DaySheetScheduledFlowRow {
   final bool allDay;
   final TimeOfDay? start;
   final TimeOfDay? end;
+  final DateTime startsAtLocal;
+  final DateTime endsAtLocal;
+  final String sourceType;
+  final String? eventId;
+  final String? clientEventId;
+  final String? reminderId;
 
   const _DaySheetScheduledFlowRow({
     required this.flowId,
     required this.name,
     required this.color,
     required this.allDay,
+    required this.startsAtLocal,
+    required this.endsAtLocal,
+    required this.sourceType,
     this.start,
     this.end,
+    this.eventId,
+    this.clientEventId,
+    this.reminderId,
   });
 }
 

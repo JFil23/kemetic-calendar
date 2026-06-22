@@ -106,6 +106,13 @@ const appSiteUrlEnv = String.fromEnvironment(
   'APP_SITE_URL',
   defaultValue: defaultProductionAppSiteUrl,
 );
+const _kDebugDaySheetSmokeRoute = '/debug/day-sheet-smoke';
+const _debugInitialRouteEnv = String.fromEnvironment('H3W_DEBUG_ROUTE');
+const _debugDaySheetSmokeEnv = bool.fromEnvironment(
+  'H3W_DEBUG_DAY_SHEET_SMOKE',
+);
+
+bool _debugDaySheetSmokeBootRequested = false;
 
 typedef AppRuntimeConfig = ({
   String url,
@@ -193,6 +200,46 @@ Future<AppRuntimeConfig> _loadSupabaseConfig() async {
     anonKey: anonKey,
     appEnvironment: appEnvironment,
     appSiteUrl: appSiteUrl,
+  );
+}
+
+bool _isDebugDaySheetSmokeLocation(String? raw) {
+  if (!kDebugMode) return false;
+  final value = raw?.trim();
+  if (value == null || value.isEmpty) return false;
+  final uri = Uri.tryParse(value);
+  final path = uri?.path.isNotEmpty == true
+      ? uri!.path
+      : value.split('?').first.split('#').first;
+  return path == _kDebugDaySheetSmokeRoute;
+}
+
+String? _debugInitialLocationFromDefines() {
+  if (!kDebugMode) return null;
+  if (_debugDaySheetSmokeEnv) return _kDebugDaySheetSmokeRoute;
+  if (_isDebugDaySheetSmokeLocation(_debugInitialRouteEnv)) {
+    return _kDebugDaySheetSmokeRoute;
+  }
+  return null;
+}
+
+bool _debugDaySheetSmokeRequestedAtBoot() {
+  if (!kDebugMode) return false;
+  if (_debugInitialLocationFromDefines() != null) return true;
+  if (kIsWeb && _isDebugDaySheetSmokeLocation(Uri.base.toString())) {
+    return true;
+  }
+  return _isDebugDaySheetSmokeLocation(
+    PlatformDispatcher.instance.defaultRouteName,
+  );
+}
+
+AppRuntimeConfig _debugDaySheetSmokeFallbackConfig() {
+  return (
+    url: 'https://debug-day-sheet-smoke.supabase.co',
+    anonKey: 'sb_publishable_debug_day_sheet_smoke_route_only',
+    appEnvironment: 'dev',
+    appSiteUrl: defaultProductionAppSiteUrl,
   );
 }
 
@@ -434,11 +481,22 @@ Future<void> main() async {
 
     WidgetsFlutterBinding.ensureInitialized();
     debugPrint('[boot] main() executed');
+    _debugDaySheetSmokeBootRequested = _debugDaySheetSmokeRequestedAtBoot();
 
     // Register background handler for FCM (no-op on web)
     registerPushBackgroundHandler();
 
-    final supabaseConfig = await _loadSupabaseConfig();
+    var supabaseConfig = await _loadSupabaseConfig();
+    var runtimeConfigErrors = _runtimeConfigErrors(supabaseConfig);
+    if (_debugDaySheetSmokeBootRequested && runtimeConfigErrors.isNotEmpty) {
+      supabaseConfig = _debugDaySheetSmokeFallbackConfig();
+      runtimeConfigErrors = _runtimeConfigErrors(supabaseConfig);
+      if (kDebugMode) {
+        debugPrint(
+          '[debug-smoke] Using local placeholder Supabase config for $_kDebugDaySheetSmokeRoute',
+        );
+      }
+    }
 
     if (kDebugMode) {
       debugPrint('🔍 SUPABASE_URL: ${supabaseConfig.url}');
@@ -453,7 +511,6 @@ Future<void> main() async {
       );
     }
 
-    final runtimeConfigErrors = _runtimeConfigErrors(supabaseConfig);
     if (runtimeConfigErrors.isNotEmpty) {
       runApp(_runtimeConfigErrorApp(runtimeConfigErrors));
       return;
@@ -473,16 +530,23 @@ Future<void> main() async {
       ),
     );
 
-    await _refreshSessionIfNeeded('boot');
+    if (!_debugDaySheetSmokeBootRequested) {
+      await _refreshSessionIfNeeded('boot');
 
-    await ProfileRepo(Supabase.instance.client).preloadLocalCaches();
+      await ProfileRepo(Supabase.instance.client).preloadLocalCaches();
+    }
 
     await AppWindowService.instance.ensureInitialized();
     await AppRestorationService.instance.initialize();
     await NavigationTrace.instance.load();
-    await _readBootInitialAppLinkIntent();
-    await _readBootInitialPushIntent();
-    _bootRestoredLocation = await _readBootRestoredLocation();
+    if (_debugDaySheetSmokeBootRequested) {
+      _bootExplicitIntentLocation = _kDebugDaySheetSmokeRoute;
+      _bootRestoredLocation = null;
+    } else {
+      await _readBootInitialAppLinkIntent();
+      await _readBootInitialPushIntent();
+      _bootRestoredLocation = await _readBootRestoredLocation();
+    }
     final initialLocation = _resolveInitialLocation();
     _router = _createRouter(initialLocation: initialLocation);
     traceRestoration('boot router created initialLocation=$initialLocation');
@@ -502,10 +566,12 @@ Future<void> main() async {
 
     // 🚨 Initialize notifications/push without blocking the first frame.
     // AuthGate will re-attempt on sign-in if these fail.
-    _startBackgroundWarmups();
+    if (!_debugDaySheetSmokeBootRequested) {
+      _startBackgroundWarmups();
 
-    // Web/PWA boot hardening (iOS PWA friendly)
-    _startWebBootTasks();
+      // Web/PWA boot hardening (iOS PWA friendly)
+      _startWebBootTasks();
+    }
 
     runApp(const MyApp());
     _traceRouterLocationAfterFrame('after_run_app_first_frame');
@@ -871,6 +937,10 @@ class TelemetryRouteObserver extends RouteObserver<PageRoute<dynamic>> {
 /* ───────────────────────── Router Configuration ───────────────────────── */
 
 String _resolveInitialLocation() {
+  final debugInitial = _debugInitialLocationFromDefines();
+  if (debugInitial != null) return debugInitial;
+  if (_debugDaySheetSmokeBootRequested) return _kDebugDaySheetSmokeRoute;
+
   final defaultRoute = PlatformDispatcher.instance.defaultRouteName.trim();
   final location =
       defaultRoute.isEmpty || defaultRoute == Navigator.defaultRouteName
@@ -1473,7 +1543,7 @@ GoRouter _createRouter({required String initialLocation}) => GoRouter(
     _calmRoute(path: '/', builder: (context, state) => const AuthGate()),
     if (kDebugMode)
       _calmRoute(
-        path: '/debug/day-sheet-smoke',
+        path: _kDebugDaySheetSmokeRoute,
         builder: (context, state) {
           return SessionTrackedRoute(
             location: state.uri.toString(),
@@ -2120,6 +2190,10 @@ class _MyAppState extends State<MyApp> {
 
   @override
   Widget build(BuildContext context) {
+    if (_debugDaySheetSmokeBootRequested) {
+      return _buildAuthedApp();
+    }
+
     final signedIn = supabase.auth.currentSession != null;
     if (signedIn && _passwordRecoverySession) {
       return _buildPasswordRecoveryApp();

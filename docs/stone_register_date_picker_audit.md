@@ -96,9 +96,9 @@ journal logic remain caller-owned.
 
 ### Debug Day Sheet Smoke Route
 
-- Entry point: debug builds expose `/debug/day-sheet-smoke`, routed through `CalendarPage.buildDebugDaySheetSmokeRoute()`.
+- Entry point: debug builds expose `/debug/day-sheet-smoke`, routed through `CalendarPage.buildDebugDaySheetSmokeRoute()`. The route bypasses the login shell only in debug builds, uses seeded in-memory state, and can also be launched on native with `--dart-define=H3W_DEBUG_ROUTE=/debug/day-sheet-smoke` or `--dart-define=H3W_DEBUG_DAY_SHEET_SMOKE=true`.
 - Fixture: the route bypasses auth hydration and seeds the real `CalendarPage` with a deterministic Day Sheet date, editable personal calendar, existing notes, computed scheduled flows, flow-backed notes, and reminder rules.
-- Coverage target: use this route for visual smoke of Notes/Add note, Scheduled flows, the Reminders list, and the new/edit Reminder form. The fixture includes `The Weighing`, `journal every day`, `journal every night`, a standalone smoke note, an every-day reminder, and a Kemetic decan reminder.
+- Coverage target: use this route for visual smoke of Notes/Add note, Scheduled flows, the Reminders list, and the new/edit Reminder form. The fixture includes selected-day flow occurrences, a computed/event-backed duplicate, an off-day flow, a template-only flow, standalone notes including a midnight overlap, an every-day reminder, and a Kemetic decan reminder.
 - Safety boundary: the route is guarded by `kDebugMode`; production builds do not register it. The smoke launch sets `persistAsRestoration: false` so it does not replace the user's durable Day Sheet restoration state.
 
 ### Flow Studio Start/End Preservation Contract
