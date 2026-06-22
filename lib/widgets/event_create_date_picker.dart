@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:mobile/features/calendar/calendar_page.dart' show KemeticMath;
-import 'package:mobile/features/calendar/kemetic_month_metadata.dart';
 import 'package:mobile/shared/date_picker/kemetic_picker_labels.dart';
 import 'package:mobile/shared/date_picker/stone_register_date_picker.dart';
 import 'package:mobile/shared/date_picker/stone_register_date_picker_theme.dart';
@@ -124,7 +123,7 @@ class EventCreateDatePickerAdapter
       return '${_gregorianMonthNames[date.month - 1]} ${date.day}, ${date.year}';
     }
     final k = KemeticMath.fromGregorian(normalized.date);
-    return '${getMonthById(k.kMonth).displayFull} ${k.kDay}, ${normalized.date.year}';
+    return '${kemeticPickerMonthLabel(k.kMonth)} ${k.kDay}, ${normalized.date.year}';
   }
 
   @override

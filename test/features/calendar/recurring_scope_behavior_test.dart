@@ -207,7 +207,7 @@ void main() {
       final endRepeatRow = _sourceBetween(
         calendarPage,
         '// End Repeat row',
-        '// COLOR PICKER',
+        'DaySheetColorSwatches(',
       );
       expect(endRepeatRow, contains('RecurrenceUntilDatePicker.show'));
       expect(endRepeatRow, contains('initialDate:'));
@@ -236,13 +236,19 @@ void main() {
 
       expect(reminderEditor, isNot(contains('await pickDateUniversal')));
       expect(reminderEditor, contains('RecurrenceUntilDatePicker.show'));
-      expect(reminderEditor, contains('initialDate: startLocal'));
-      expect(reminderEditor, contains("title: 'Start date'"));
+      expect(reminderEditor, contains('StoneRegisterDateField<'));
+      expect(reminderEditor, contains('day_sheet_reminder_date_picker_field'));
+      expect(reminderEditor, contains('EventCreateDatePickerValue'));
+      expect(reminderEditor, contains('EventCreateDatePickerAdapter'));
+      expect(reminderEditor, contains('DateUtils.dateOnly(startLocal)'));
+      expect(reminderEditor, contains('onChanged: (picked)'));
+      expect(reminderEditor, contains('reminderDateMode = picked.mode'));
+      expect(reminderEditor, isNot(contains('DaySheetDateStepper')));
 
       final repeatEndDate = _sourceBetween(
         reminderEditor,
         'if (repeat.kind != ReminderRepeatKind.none) ...[',
-        "const Text(\n                            'Category'",
+        'DaySheetCategoryChips(',
       );
       expect(repeatEndDate, contains('RecurrenceUntilDatePicker.show'));
       expect(repeatEndDate, contains('initialDate: endLocal ?? startLocal'));
@@ -312,7 +318,7 @@ void main() {
         final saveHandler = _sourceBetween(
           calendarPage,
           'else if (!isRepeating) {',
-          '} else {\n                                      // Repeating note',
+          '// Repeating note - create hidden flow',
         );
         final deleteFallback = _sourceBetween(
           calendarPage,

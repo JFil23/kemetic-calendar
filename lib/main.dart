@@ -1471,6 +1471,16 @@ GoRouter _createRouter({required String initialLocation}) => GoRouter(
   ),
   routes: [
     _calmRoute(path: '/', builder: (context, state) => const AuthGate()),
+    if (kDebugMode)
+      _calmRoute(
+        path: '/debug/day-sheet-smoke',
+        builder: (context, state) {
+          return SessionTrackedRoute(
+            location: state.uri.toString(),
+            child: CalendarPage.buildDebugDaySheetSmokeRoute(),
+          );
+        },
+      ),
     _calmRoute(
       path: '/inbox',
       builder: (context, state) {

@@ -72,8 +72,13 @@ void main() {
       );
 
       expect(daySheet, contains('Widget datePicker()'));
-      expect(daySheet, contains('DaySheetDatePicker.show'));
+      expect(
+        daySheet,
+        contains('StoneRegisterDateField<EventCreateDatePickerValue>'),
+      );
+      expect(daySheet, contains('EventCreateDatePickerAdapter'));
       expect(daySheet, isNot(contains('EventCreateDatePicker.show')));
+      expect(daySheet, isNot(contains('DaySheetDatePicker.show')));
     },
   );
 

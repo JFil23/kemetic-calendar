@@ -231,6 +231,24 @@ class _FlowOccurrence {
   });
 }
 
+class _DaySheetScheduledFlowRow {
+  final int? flowId;
+  final String name;
+  final Color color;
+  final bool allDay;
+  final TimeOfDay? start;
+  final TimeOfDay? end;
+
+  const _DaySheetScheduledFlowRow({
+    required this.flowId,
+    required this.name,
+    required this.color,
+    required this.allDay,
+    this.start,
+    this.end,
+  });
+}
+
 class _CandidateEvent {
   final String clientEventId;
   final String title;

@@ -93,8 +93,11 @@ import '../../services/restoration_coordinator.dart';
 import '../../services/session_resume_service.dart';
 import '../../services/navigation_trace.dart';
 import '../../core/push_intent_bus.dart';
+import '../../shared/date_picker/stone_register_date_field.dart';
+import '../../shared/date_picker/stone_register_date_picker.dart'
+    show StoneDatePickerCalendarMode;
 import '../../widgets/flow_start_date_picker.dart';
-import '../../widgets/day_sheet_date_picker.dart';
+import '../../widgets/day_sheet_components.dart';
 import '../../widgets/event_create_date_picker.dart';
 import '../../widgets/maat_flow_date_picker.dart';
 import '../../widgets/gregorian_date_picker.dart' show showGregorianDatePicker;
@@ -3742,16 +3745,27 @@ class _CalendarWarmStateStore {
 class CalendarPage extends StatefulWidget {
   final int? initialFlowIdToEdit;
   final bool openMyFlowsOnLaunch;
+  final bool debugDaySheetSmokeOnLaunch;
 
   CalendarPage({
     Key? key,
     this.initialFlowIdToEdit,
     this.openMyFlowsOnLaunch = false,
+    this.debugDaySheetSmokeOnLaunch = false,
   }) : super(key: key ?? CalendarPage.globalKey);
 
   // Global key for accessing calendar state from other pages
   static final GlobalKey<CalendarPageState> globalKey =
       GlobalKey<CalendarPageState>();
+
+  static Widget buildDebugDaySheetSmokeRoute() {
+    assert(kDebugMode);
+    return CalendarPage(
+      key: const ValueKey<String>('debug_day_sheet_smoke_calendar'),
+      debugDaySheetSmokeOnLaunch: true,
+    );
+  }
+
   static _CalendarDetachedLaunchAction? _pendingDetachedLaunchAction;
   static ({int ky, int km, int kd, EventDetailRestorationState? eventDetail})?
   _pendingDetachedSearchResult;
@@ -8566,6 +8580,7 @@ class CalendarPageState extends State<CalendarPage>
   bool _pendingReminderSyncUpdateLocalCache = false;
   int _orientationCriticalReminderGeneration = 0;
   bool _noteSheetShowReminders = false;
+  bool _debugDaySheetSmokeScheduled = false;
   late final SharedCalendarsRepo _sharedCalendarsRepo = SharedCalendarsRepo(
     Supabase.instance.client,
   );
@@ -12611,6 +12626,233 @@ class CalendarPageState extends State<CalendarPage>
     return _onboardingHighlightKeyFor(kYear, kMonth, kDay);
   }
 
+  static final DateTime _debugDaySheetSmokeGregorianDate = DateTime(
+    2026,
+    6,
+    22,
+  );
+
+  bool get _debugDaySheetSmokeEnabled =>
+      kDebugMode && widget.debugDaySheetSmokeOnLaunch;
+
+  void _configureDebugDaySheetSmokeState() {
+    assert(_debugDaySheetSmokeEnabled);
+
+    final gDay = DateUtils.dateOnly(_debugDaySheetSmokeGregorianDate);
+    final kDay = KemeticMath.fromGregorian(gDay);
+    const personalCalendarId = 'debug-day-sheet-personal';
+    const ownerId = 'debug-day-sheet-owner';
+    final calendar = SharedCalendarSummary(
+      id: personalCalendarId,
+      ownerId: ownerId,
+      name: 'Smoke Calendar',
+      colorValue: DaySheetTokens.gold.toARGB32(),
+      icon: 'calendar',
+      isPersonal: true,
+      role: SharedCalendarRole.owner,
+      status: SharedCalendarInviteStatus.accepted,
+      memberCount: 1,
+      pendingInviteCount: 0,
+      liveEventCount: 3,
+      liveFlowCount: 3,
+    );
+
+    final weighingFlow = _Flow(
+      id: 9001,
+      calendarId: personalCalendarId,
+      name: 'The Weighing',
+      color: daySheetColorPalette[0],
+      active: true,
+      rules: <FlowRule>[
+        _RuleDates(
+          dates: <DateTime>{gDay},
+          allDay: false,
+          start: const TimeOfDay(hour: 9, minute: 0),
+          end: const TimeOfDay(hour: 9, minute: 30),
+        ),
+      ],
+      start: gDay,
+      end: gDay,
+    );
+    final journalDayFlow = _Flow(
+      id: 9002,
+      calendarId: personalCalendarId,
+      name: 'journal every day',
+      color: daySheetColorPalette[2],
+      active: true,
+      rules: <FlowRule>[
+        _RuleDates(
+          dates: <DateTime>{gDay},
+          allDay: false,
+          start: const TimeOfDay(hour: 7, minute: 15),
+          end: const TimeOfDay(hour: 7, minute: 45),
+        ),
+      ],
+      start: gDay,
+      end: gDay,
+    );
+    final journalNightFlow = _Flow(
+      id: 9003,
+      calendarId: personalCalendarId,
+      name: 'journal every night',
+      color: daySheetColorPalette[4],
+      active: true,
+      rules: const <FlowRule>[],
+      start: gDay,
+      end: gDay,
+    );
+
+    _calendarSummariesById = <String, SharedCalendarSummary>{
+      personalCalendarId: calendar,
+    };
+    _personalCalendarId = personalCalendarId;
+    _calendarStateLoaded = true;
+    _hiddenCalendarIds = <String>{};
+    _manualTombstonesLoaded = true;
+    _pendingInitialHydration = false;
+
+    final dayKey = _kKey(kDay.kYear, kDay.kMonth, kDay.kDay);
+    _notes
+      ..clear()
+      ..[dayKey] = <_Note>[
+        _Note(
+          id: 'debug-day-sheet-note-offering',
+          clientEventId: 'debug:day-sheet:note:offering',
+          calendarId: personalCalendarId,
+          calendarName: calendar.name,
+          title: 'Smoke note: offering list',
+          detail: 'Bread, water, incense, and a final visual pass.',
+          location: 'Debug shrine',
+          allDay: false,
+          start: const TimeOfDay(hour: 10, minute: 0),
+          end: const TimeOfDay(hour: 10, minute: 30),
+          manualColor: daySheetColorPalette[1],
+          category: NoteCategory.spirit,
+        ),
+        _Note(
+          id: 'debug-day-sheet-note-journal-day',
+          clientEventId: 'debug:day-sheet:flow-note:journal-day',
+          calendarId: personalCalendarId,
+          calendarName: calendar.name,
+          title: 'journal every day',
+          detail: 'Flow-backed note row for the selected day.',
+          allDay: false,
+          start: const TimeOfDay(hour: 7, minute: 15),
+          end: const TimeOfDay(hour: 7, minute: 45),
+          flowId: journalDayFlow.id,
+          manualColor: daySheetColorPalette[2],
+          category: NoteCategory.mind,
+        ),
+        _Note(
+          id: 'debug-day-sheet-note-journal-night',
+          clientEventId: 'debug:day-sheet:flow-note:journal-night',
+          calendarId: personalCalendarId,
+          calendarName: calendar.name,
+          title: 'journal every night',
+          detail: 'Flow-backed note without a computed occurrence.',
+          allDay: false,
+          start: const TimeOfDay(hour: 20, minute: 30),
+          end: const TimeOfDay(hour: 21, minute: 0),
+          flowId: journalNightFlow.id,
+          manualColor: daySheetColorPalette[4],
+          category: NoteCategory.recovery,
+        ),
+      ];
+
+    _flows
+      ..clear()
+      ..addAll(<_Flow>[weighingFlow, journalDayFlow, journalNightFlow]);
+    _flowTotalEventCounts
+      ..clear()
+      ..addAll(<int, int>{9001: 1, 9002: 1, 9003: 1});
+    _flowRemainingEventCounts
+      ..clear()
+      ..addAll(<int, int>{9001: 1, 9002: 1, 9003: 1});
+    _nextFlowId = 9004;
+
+    _reminderRules
+      ..clear()
+      ..addAll(<ReminderRule>[
+        ReminderRule(
+          id: 'debug-day-sheet-daily-reminder',
+          calendarId: personalCalendarId,
+          title: 'Daily offering reminder',
+          startLocal: DateTime(gDay.year, gDay.month, gDay.day, 8),
+          allDay: false,
+          color: daySheetColorPalette[3],
+          category: NoteCategory.spirit,
+          repeat: const ReminderRepeat(
+            kind: ReminderRepeatKind.everyNDays,
+            interval: 1,
+          ),
+          alertOffsetMinutes: 10,
+        ),
+        ReminderRule(
+          id: 'debug-day-sheet-decan-reminder',
+          calendarId: personalCalendarId,
+          title: 'Decan reflection reminder',
+          startLocal: DateTime(gDay.year, gDay.month, gDay.day, 18, 30),
+          allDay: false,
+          color: daySheetColorPalette[5],
+          category: NoteCategory.mind,
+          repeat: const ReminderRepeat(
+            kind: ReminderRepeatKind.kemeticEveryNDecans,
+            interval: 1,
+          ),
+          alertOffsetMinutes: 30,
+        ),
+      ]);
+    _reminderRulesLoaded = true;
+    _remindersLoaded = true;
+    _floatingReminders = <Reminder>[];
+    _noteSheetShowReminders = false;
+
+    _lastViewKy = kDay.kYear;
+    _lastViewKm = kDay.kMonth;
+    _lastViewKd = kDay.kDay;
+    _showGregorian = false;
+    _monthExpansion = MonthExpansionLevel.details;
+    _pendingPersistentDayViewState = null;
+    _persistentDayViewRestoreAttempted = true;
+    _calendarOverlayRestoreAttempted = true;
+    _restoredCalendarAnchorTarget = null;
+    _restoredCalendarAnchorAlignment = null;
+    _restoredCalendarScrollOffset = null;
+    _restorationInteractedSinceBoot = true;
+    _restored = true;
+    _initialViewportSettled = true;
+    _dataVersion++;
+    _dayViewDataVersion.value++;
+  }
+
+  void _scheduleDebugDaySheetSmoke() {
+    if (!_debugDaySheetSmokeEnabled || _debugDaySheetSmokeScheduled) return;
+    _debugDaySheetSmokeScheduled = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final kDay = KemeticMath.fromGregorian(
+        DateUtils.dateOnly(_debugDaySheetSmokeGregorianDate),
+      );
+      _openDaySheet(
+        kDay.kYear,
+        kDay.kMonth,
+        kDay.kDay,
+        allowDateChange: true,
+        persistAsRestoration: false,
+        initialShowGregorian: false,
+        initialTitle: 'Smoke draft note',
+        initialLocation: 'Debug shrine',
+        initialDetail: 'Use this draft to inspect Add note fields.',
+        initialAllDay: false,
+        initialStartTime: const TimeOfDay(hour: 11, minute: 0),
+        initialEndTime: const TimeOfDay(hour: 11, minute: 45),
+        initialColor: daySheetColorPalette[1],
+        initialCategory: NoteCategory.spirit,
+        initialCalendarId: _personalCalendarId,
+      );
+    });
+  }
+
   @override
   void initState() {
     super.initState();
@@ -12618,6 +12860,17 @@ class CalendarPageState extends State<CalendarPage>
     final hasSharedCalendarRealDayViewIntent =
         CalendarPage._pendingSharedCalendarRealDayViewIntent != null;
     WidgetsBinding.instance.addObserver(this);
+
+    if (_debugDaySheetSmokeEnabled) {
+      _journalController = JournalController(Supabase.instance.client);
+      _journalController.onCompletionBadgesRemoved =
+          _handleJournalCompletionBadgesRemoved;
+      _scrollCtrl.addListener(_onVerticalScroll);
+      _configureDebugDaySheetSmokeState();
+      _scheduleDebugDaySheetSmoke();
+      return;
+    }
+
     // Load local reminders cache and check any due on startup.
     _reminderService.load().then((_) {
       _remindersLoaded = true;
@@ -16605,6 +16858,21 @@ class CalendarPageState extends State<CalendarPage>
     }
   }
 
+  ({String primary, String? subline}) _daySheetReminderRuleLines(
+    ReminderRule rule,
+  ) {
+    final label = _reminderRepeatLabel(rule);
+    if (label.contains(' · ')) {
+      final parts = label.split(' · ');
+      return (primary: parts.first, subline: parts.skip(1).join(' · '));
+    }
+    if (label.contains(' – ')) {
+      final parts = label.split(' – ');
+      return (primary: parts.first, subline: parts.skip(1).join(' – '));
+    }
+    return (primary: label, subline: null);
+  }
+
   bool _pruneReminderNotes(String ruleId, {DateTime? fromDate}) {
     var changed = false;
     final keysToRemove = <String>[];
@@ -17172,10 +17440,20 @@ class CalendarPageState extends State<CalendarPage>
     unawaited(_saveReminderRules());
   }
 
-  Future<bool> _openReminderEditor({ReminderRule? existing}) async {
+  Future<bool> _openReminderEditor({
+    ReminderRule? existing,
+    DateTime? initialDate,
+  }) async {
     await _loadReminderRules();
     final now = DateTime.now();
-    final defaultStart = DateTime(now.year, now.month, now.day, now.hour, 0);
+    final defaultDate = DateUtils.dateOnly(initialDate ?? now);
+    final defaultStart = DateTime(
+      defaultDate.year,
+      defaultDate.month,
+      defaultDate.day,
+      now.hour,
+      0,
+    );
     final availableCalendars =
         _calendarSummariesById.values
             .where(
@@ -17196,7 +17474,7 @@ class CalendarPageState extends State<CalendarPage>
     }
     bool allDay = existing?.allDay ?? false;
     int colorIndex = existing != null
-        ? _flowPalette.indexWhere(
+        ? daySheetColorPalette.indexWhere(
             (c) => c.toARGB32() == existing.color.toARGB32(),
           )
         : 0;
@@ -17204,6 +17482,8 @@ class CalendarPageState extends State<CalendarPage>
     String? category = existing?.category;
     ReminderRepeat repeat = existing?.repeat ?? const ReminderRepeat();
     bool active = existing?.active ?? true;
+    EventCreateDatePickerMode reminderDateMode =
+        EventCreateDatePickerMode.kemetic;
     int alertMinutesBefore = existing?.alertOffsetMinutes ?? _alertNoneMinutes;
     String? selectedCalendarId =
         existing?.calendarId ??
@@ -17220,9 +17500,9 @@ class CalendarPageState extends State<CalendarPage>
       final result = await showModalBottomSheet<bool>(
         context: context,
         isScrollControlled: true,
-        backgroundColor: Colors.black,
+        backgroundColor: Colors.transparent,
         shape: const RoundedRectangleBorder(
-          borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+          borderRadius: BorderRadius.vertical(top: Radius.circular(22)),
         ),
         builder: (ctx) {
           final media = MediaQuery.of(ctx);
@@ -17236,16 +17516,23 @@ class CalendarPageState extends State<CalendarPage>
                   ),
                 )
               : media.size.height * 0.85;
-          return SizedBox(
+          return Container(
             height: sheetHeight,
+            decoration: const BoxDecoration(
+              color: DaySheetTokens.bg,
+              borderRadius: BorderRadius.vertical(top: Radius.circular(22)),
+              border: Border(
+                top: BorderSide(color: DaySheetTokens.hair, width: 1),
+              ),
+            ),
             child: SafeArea(
               top: false,
               child: Padding(
                 padding: EdgeInsets.only(
-                  left: 16,
-                  right: 16,
-                  bottom: keyboardInset + media.padding.bottom + 16,
-                  top: 12,
+                  left: 22,
+                  right: 22,
+                  bottom: keyboardInset + media.padding.bottom + 130,
+                  top: 10,
                 ),
                 child: StatefulBuilder(
                   builder: (sheetCtx, setModalState) {
@@ -17453,54 +17740,76 @@ class CalendarPageState extends State<CalendarPage>
                         crossAxisAlignment: CrossAxisAlignment.start,
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          Container(
-                            width: 36,
-                            height: 4,
-                            margin: const EdgeInsets.only(bottom: 12),
-                            decoration: BoxDecoration(
-                              color: Colors.white24,
-                              borderRadius: BorderRadius.circular(2),
+                          Center(
+                            child: Container(
+                              width: 42,
+                              height: 5,
+                              margin: const EdgeInsets.only(bottom: 14),
+                              decoration: BoxDecoration(
+                                color: DaySheetTokens.silverLo.withValues(
+                                  alpha: 0.5,
+                                ),
+                                borderRadius: BorderRadius.circular(3),
+                              ),
                             ),
                           ),
+                          DaySheetTabBar(
+                            activeTab: DaySheetTab.reminders,
+                            accent: daySheetColorPalette[colorIndex],
+                            onSelected: (tab) {
+                              if (tab == DaySheetTab.notes &&
+                                  Navigator.of(sheetCtx).canPop()) {
+                                Navigator.of(sheetCtx).pop(false);
+                              }
+                            },
+                          ),
                           Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
-                              Text(
-                                existing == null
-                                    ? 'New Reminder'
-                                    : 'Edit Reminder',
-                                style: const TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.w700,
+                              IconButton(
+                                tooltip: 'Back',
+                                onPressed: () {
+                                  if (Navigator.of(sheetCtx).canPop()) {
+                                    Navigator.of(sheetCtx).pop(false);
+                                  }
+                                },
+                                icon: const Icon(
+                                  Icons.chevron_left,
+                                  color: DaySheetTokens.silverMid,
+                                  size: 24,
                                 ),
                               ),
-                              Switch(
+                              Expanded(
+                                child: Text(
+                                  existing == null
+                                      ? 'New reminder'
+                                      : 'Edit reminder',
+                                  style: const TextStyle(
+                                    fontFamily: DaySheetTokens.serif,
+                                    color: DaySheetTokens.silverHi,
+                                    fontSize: 24,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ),
+                              DaySheetSwitch(
                                 value: active,
-                                activeThumbColor: _gold,
+                                accent: daySheetColorPalette[colorIndex],
                                 onChanged: (v) =>
                                     setModalState(() => active = v),
                               ),
                             ],
                           ),
-                          const SizedBox(height: 8),
-                          TextField(
+                          DaySheetTextField(
                             controller: titleCtrl,
+                            hint: 'Title',
                             scrollPadding: fieldScrollPadding,
-                            decoration: const InputDecoration(
-                              labelText: 'Title',
-                              labelStyle: TextStyle(color: Colors.white70),
-                              enabledBorder: UnderlineInputBorder(
-                                borderSide: BorderSide(color: Colors.white24),
-                              ),
-                              focusedBorder: UnderlineInputBorder(
-                                borderSide: BorderSide(color: _gold),
-                              ),
-                            ),
-                            style: const TextStyle(color: Colors.white),
                           ),
-                          const SizedBox(height: 12),
-                          InkWell(
+                          const SizedBox(height: 20),
+                          DaySheetMetaRow(
+                            label: 'Calendar',
+                            value: selectedCalendarLabel,
+                            valueColor:
+                                selectedCalendar?.color ?? DaySheetTokens.gold,
                             onTap:
                                 availableCalendars.isEmpty ||
                                     !canEditSelectedCalendar
@@ -17553,48 +17862,6 @@ class CalendarPageState extends State<CalendarPage>
                                       selectedCalendarId = chosenId;
                                     });
                                   },
-                            child: Container(
-                              padding: const EdgeInsets.symmetric(
-                                vertical: 12,
-                                horizontal: 12,
-                              ),
-                              decoration: BoxDecoration(
-                                border: Border.all(color: Colors.white24),
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                              child: Row(
-                                mainAxisAlignment:
-                                    MainAxisAlignment.spaceBetween,
-                                children: [
-                                  const Text(
-                                    'Calendar',
-                                    style: TextStyle(
-                                      color: Colors.white,
-                                      fontWeight: FontWeight.w600,
-                                    ),
-                                  ),
-                                  Row(
-                                    children: [
-                                      Text(
-                                        selectedCalendarLabel,
-                                        style: TextStyle(
-                                          color:
-                                              selectedCalendar?.color ?? _gold,
-                                          fontSize: 14,
-                                          fontWeight: FontWeight.w600,
-                                        ),
-                                      ),
-                                      const SizedBox(width: 4),
-                                      const Icon(
-                                        Icons.chevron_right,
-                                        color: Colors.white54,
-                                        size: 20,
-                                      ),
-                                    ],
-                                  ),
-                                ],
-                              ),
-                            ),
                           ),
                           if (!canEditSelectedCalendar) ...[
                             const SizedBox(height: 6),
@@ -17606,123 +17873,113 @@ class CalendarPageState extends State<CalendarPage>
                               ),
                             ),
                           ],
-                          const SizedBox(height: 12),
-                          Row(
-                            children: [
-                              Expanded(
-                                child: TextButton.icon(
-                                  onPressed: () async {
-                                    final picked =
-                                        await RecurrenceUntilDatePicker.show(
-                                          context,
-                                          initialDate: startLocal,
-                                          allowPast: true,
-                                          title: 'Start date',
-                                        );
-                                    if (picked != null) {
-                                      setModalState(() {
-                                        startLocal = DateTime(
-                                          picked.year,
-                                          picked.month,
-                                          picked.day,
-                                          startLocal.hour,
-                                          startLocal.minute,
-                                        );
-                                        if (repeat.kind ==
-                                                ReminderRepeatKind.monthlyDay &&
-                                            repeat.monthDay == null) {
-                                          repeat = repeat.copyWith(
-                                            monthDay: startLocal.day,
-                                          );
-                                        }
-                                        if (endLocal != null &&
-                                            DateUtils.dateOnly(
-                                              startLocal,
-                                            ).isAfter(endLocal!)) {
-                                          endLocal = DateUtils.dateOnly(
-                                            startLocal,
-                                          );
-                                        }
-                                      });
-                                    }
-                                  },
-                                  icon: const Icon(
-                                    Icons.calendar_today,
-                                    color: _gold,
-                                  ),
-                                  label: Text(
-                                    dateLabel(startLocal),
-                                    style: const TextStyle(color: Colors.white),
-                                  ),
+                          Builder(
+                            builder: (_) {
+                              final seed = DateUtils.dateOnly(startLocal);
+                              final kSeed = KemeticMath.fromGregorian(seed);
+                              final stoneMode =
+                                  reminderDateMode ==
+                                      EventCreateDatePickerMode.gregorian
+                                  ? StoneDatePickerCalendarMode.gregorian
+                                  : StoneDatePickerCalendarMode.kemetic;
+                              return Padding(
+                                padding: const EdgeInsets.only(
+                                  top: 18,
+                                  bottom: 4,
                                 ),
-                              ),
-                              const SizedBox(width: 8),
-                              Expanded(
-                                child: TextButton.icon(
-                                  onPressed: allDay
-                                      ? null
-                                      : () async {
-                                          final picked = await showTimePicker(
-                                            context: context,
-                                            initialTime: TimeOfDay.fromDateTime(
-                                              startLocal,
-                                            ),
-                                            builder: (c, w) => Theme(
-                                              data: Theme.of(c).copyWith(
-                                                colorScheme:
-                                                    const ColorScheme.dark(
-                                                      primary: _gold,
-                                                      surface: _bg,
-                                                      onSurface: Colors.white,
-                                                    ),
-                                              ),
-                                              child:
-                                                  w ?? const SizedBox.shrink(),
-                                            ),
+                                child:
+                                    StoneRegisterDateField<
+                                      EventCreateDatePickerValue
+                                    >(
+                                      key: const ValueKey<String>(
+                                        'day_sheet_reminder_date_picker_field',
+                                      ),
+                                      value: EventCreateDatePickerValue(
+                                        date: seed,
+                                        mode: reminderDateMode,
+                                      ),
+                                      adapter: EventCreateDatePickerAdapter(
+                                        gregorianYearStart: seed.year - 200,
+                                        kemeticYearStart: kSeed.kYear - 200,
+                                      ),
+                                      mode: stoneMode,
+                                      label: 'Date',
+                                      title: 'Reminder date',
+                                      onChanged: (picked) {
+                                        setModalState(() {
+                                          reminderDateMode = picked.mode;
+                                          startLocal = DateTime(
+                                            picked.date.year,
+                                            picked.date.month,
+                                            picked.date.day,
+                                            startLocal.hour,
+                                            startLocal.minute,
                                           );
-                                          if (picked != null) {
-                                            setModalState(() {
-                                              startLocal = DateTime(
-                                                startLocal.year,
-                                                startLocal.month,
-                                                startLocal.day,
-                                                picked.hour,
-                                                picked.minute,
-                                              );
-                                            });
+                                          if (repeat.kind ==
+                                                  ReminderRepeatKind
+                                                      .monthlyDay &&
+                                              repeat.monthDay == null) {
+                                            repeat = repeat.copyWith(
+                                              monthDay: startLocal.day,
+                                            );
                                           }
-                                        },
-                                  icon: const Icon(
-                                    Icons.access_time,
-                                    color: _gold,
-                                  ),
-                                  label: Text(
-                                    allDay
-                                        ? 'All day'
-                                        : timeLabel(
-                                            TimeOfDay.fromDateTime(startLocal),
-                                          ),
-                                    style: TextStyle(
-                                      color: allDay
-                                          ? Colors.white54
-                                          : Colors.white,
+                                          if (endLocal != null &&
+                                              DateUtils.dateOnly(
+                                                startLocal,
+                                              ).isAfter(endLocal!)) {
+                                            endLocal = DateUtils.dateOnly(
+                                              startLocal,
+                                            );
+                                          }
+                                        });
+                                      },
+                                    ),
+                              );
+                            },
+                          ),
+                          const SizedBox(height: 18),
+                          DaySheetTimePill(
+                            caption: 'Time',
+                            label: allDay
+                                ? 'All day'
+                                : timeLabel(TimeOfDay.fromDateTime(startLocal)),
+                            icon: Icons.access_time,
+                            enabled: !allDay,
+                            onTap: () async {
+                              final picked = await showTimePicker(
+                                context: context,
+                                initialTime: TimeOfDay.fromDateTime(startLocal),
+                                builder: (c, w) => Theme(
+                                  data: Theme.of(c).copyWith(
+                                    colorScheme: const ColorScheme.dark(
+                                      primary: _gold,
+                                      surface: _bg,
+                                      onSurface: Colors.white,
                                     ),
                                   ),
+                                  child: w ?? const SizedBox.shrink(),
                                 ),
-                              ),
-                            ],
+                              );
+                              if (picked != null) {
+                                setModalState(() {
+                                  startLocal = DateTime(
+                                    startLocal.year,
+                                    startLocal.month,
+                                    startLocal.day,
+                                    picked.hour,
+                                    picked.minute,
+                                  );
+                                });
+                              }
+                            },
                           ),
-                          SwitchListTile(
-                            contentPadding: EdgeInsets.zero,
+                          DaySheetToggleRow(
+                            label: 'All-day',
                             value: allDay,
+                            accent: daySheetColorPalette[colorIndex],
                             onChanged: (v) => setModalState(() => allDay = v),
-                            activeThumbColor: _gold,
-                            title: const Text(
-                              'All day',
-                              style: TextStyle(color: Colors.white),
-                            ),
                           ),
-                          const SizedBox(height: 4),
+                          const SizedBox(height: 22),
                           const Text(
                             'Repeat',
                             style: TextStyle(
@@ -17896,9 +18153,9 @@ class CalendarPageState extends State<CalendarPage>
                             ),
                           ),
                           const SizedBox(height: 12),
-
-                          // Alert row
-                          InkWell(
+                          DaySheetMetaRow(
+                            label: 'Alert',
+                            value: _alertLabelFor(alertMinutesBefore),
                             onTap: () async {
                               final picked = await _pickAlertMinutes(
                                 context,
@@ -17910,46 +18167,6 @@ class CalendarPageState extends State<CalendarPage>
                                 });
                               }
                             },
-                            child: Container(
-                              padding: const EdgeInsets.symmetric(
-                                vertical: 12,
-                                horizontal: 12,
-                              ),
-                              decoration: BoxDecoration(
-                                border: Border.all(color: Colors.white24),
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                              child: Row(
-                                mainAxisAlignment:
-                                    MainAxisAlignment.spaceBetween,
-                                children: [
-                                  const Text(
-                                    'Alert',
-                                    style: TextStyle(
-                                      color: Colors.white,
-                                      fontWeight: FontWeight.w600,
-                                    ),
-                                  ),
-                                  Row(
-                                    children: [
-                                      GlossyText(
-                                        text: _alertLabelFor(
-                                          alertMinutesBefore,
-                                        ),
-                                        gradient: goldGloss,
-                                        style: const TextStyle(fontSize: 14),
-                                      ),
-                                      const SizedBox(width: 4),
-                                      const Icon(
-                                        Icons.chevron_right,
-                                        color: Colors.white54,
-                                        size: 20,
-                                      ),
-                                    ],
-                                  ),
-                                ],
-                              ),
-                            ),
                           ),
                           const SizedBox(height: 8),
                           repeatField(),
@@ -18020,128 +18237,48 @@ class CalendarPageState extends State<CalendarPage>
                                       : normalized;
                                 });
                               },
-                              child: Container(
-                                padding: const EdgeInsets.symmetric(
-                                  vertical: 12,
-                                  horizontal: 12,
-                                ),
-                                decoration: BoxDecoration(
-                                  border: Border.all(color: Colors.white24),
-                                  borderRadius: BorderRadius.circular(8),
-                                ),
-                                child: Row(
-                                  mainAxisAlignment:
-                                      MainAxisAlignment.spaceBetween,
-                                  children: [
-                                    const Text(
-                                      'End date',
-                                      style: TextStyle(
-                                        color: Colors.white,
-                                        fontWeight: FontWeight.w600,
-                                      ),
-                                    ),
-                                    Row(
-                                      children: [
-                                        Text(
-                                          endDateLabel(),
-                                          style: TextStyle(
-                                            color: endLocal == null
-                                                ? Colors.white70
-                                                : _gold,
-                                            fontSize: 14,
-                                            fontWeight: FontWeight.w600,
-                                          ),
-                                        ),
-                                        const SizedBox(width: 4),
-                                        const Icon(
-                                          Icons.chevron_right,
-                                          color: Colors.white54,
-                                          size: 20,
-                                        ),
-                                      ],
-                                    ),
-                                  ],
-                                ),
+                              child: DaySheetMetaRow(
+                                label: 'End repeat',
+                                value: endDateLabel(),
+                                valueColor: endLocal == null
+                                    ? DaySheetTokens.silverLo
+                                    : DaySheetTokens.gold,
                               ),
                             ),
-                          ],
-                          const SizedBox(height: 16),
-                          const Text(
-                            'Category',
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                          const SizedBox(height: 6),
-                          Wrap(
-                            spacing: 8,
-                            children: [
-                              for (final cat in NoteCategory.all)
-                                ChoiceChip(
-                                  label: Text(cat),
-                                  selected: category == cat,
-                                  onSelected: (_) =>
-                                      setModalState(() => category = cat),
-                                ),
-                              ChoiceChip(
-                                label: const Text('Clear'),
-                                selected: category == null,
-                                onSelected: (_) =>
-                                    setModalState(() => category = null),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 16),
-                          const Text(
-                            'Color',
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                          const SizedBox(height: 8),
-                          SizedBox(
-                            height: 36,
-                            child: ListView.builder(
-                              scrollDirection: Axis.horizontal,
-                              itemCount: _flowPalette.length,
-                              itemBuilder: (_, i) {
-                                final selected = colorIndex == i;
-                                final color = _flowPalette[i];
-                                return InkWell(
-                                  onTap: () =>
-                                      setModalState(() => colorIndex = i),
-                                  child: withMinimumTouchTarget(
-                                    context,
-                                    Container(
-                                      width: 30,
-                                      height: 30,
-                                      margin: const EdgeInsets.only(right: 8),
-                                      decoration: BoxDecoration(
-                                        shape: BoxShape.circle,
-                                        gradient: _glossFromColor(color),
-                                        border: Border.all(
-                                          color: selected
-                                              ? _gold
-                                              : Colors.white24,
-                                          width: selected ? 2 : 1,
-                                        ),
-                                      ),
+                          ] else
+                            DaySheetMetaRow(
+                              label: 'End repeat',
+                              value: 'Never',
+                              valueColor: DaySheetTokens.silverLo,
+                              onTap: () {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                    content: Text(
+                                      'Choose a repeat rule before setting an end date.',
                                     ),
+                                    duration: Duration(seconds: 2),
                                   ),
                                 );
                               },
                             ),
+                          DaySheetCategoryChips(
+                            categories: NoteCategory.all,
+                            selected: category,
+                            accent: daySheetColorPalette[colorIndex],
+                            onSelected: (value) =>
+                                setModalState(() => category = value),
+                          ),
+                          DaySheetColorSwatches(
+                            palette: daySheetColorPalette,
+                            selectedIndex: colorIndex,
+                            onSelected: (index) =>
+                                setModalState(() => colorIndex = index),
                           ),
                           const SizedBox(height: 20),
                           Align(
                             alignment: Alignment.centerRight,
-                            child: ElevatedButton(
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: _gold,
-                                foregroundColor: Colors.black,
-                              ),
+                            child: DaySheetFab.round(
+                              label: 'Save',
                               onPressed: () async {
                                 final title = titleCtrl.text.trim();
                                 if (title.isEmpty) return;
@@ -18162,7 +18299,7 @@ class CalendarPageState extends State<CalendarPage>
                                   title: title,
                                   startLocal: startLocal,
                                   allDay: allDay,
-                                  color: _flowPalette[colorIndex],
+                                  color: daySheetColorPalette[colorIndex],
                                   category: category,
                                   active: active,
                                   repeat: repeat,
@@ -18194,7 +18331,6 @@ class CalendarPageState extends State<CalendarPage>
                                 }
                                 unawaited(saveFuture);
                               },
-                              child: const Text('Save Reminder'),
                             ),
                           ),
                         ],
@@ -18386,6 +18522,94 @@ class CalendarPageState extends State<CalendarPage>
       }
     }
     return out;
+  }
+
+  List<_DaySheetScheduledFlowRow> _calendarSheetScheduledFlowsForDay(
+    int kYear,
+    int kMonth,
+    int kDay,
+    List<_Note> dayNotes,
+  ) {
+    final rows = <_DaySheetScheduledFlowRow>[];
+    final seen = <String>{};
+    final flowsById = _allFlowsById();
+
+    void addRow({
+      required int? flowId,
+      required String name,
+      required Color color,
+      required bool allDay,
+      required TimeOfDay? start,
+      required TimeOfDay? end,
+    }) {
+      final safeName = name.trim().isEmpty ? 'Flow' : name.trim();
+      final startMin = allDay || start == null
+          ? -1
+          : start.hour * 60 + start.minute;
+      final endMin = allDay || end == null ? -1 : end.hour * 60 + end.minute;
+      final key = [
+        flowId ?? 0,
+        safeName.toLowerCase(),
+        allDay,
+        startMin,
+        endMin,
+      ].join('|');
+      if (!seen.add(key)) return;
+      rows.add(
+        _DaySheetScheduledFlowRow(
+          flowId: flowId,
+          name: safeName,
+          color: color,
+          allDay: allDay,
+          start: start,
+          end: end,
+        ),
+      );
+    }
+
+    for (final occurrence in _getFlowOccurrences(kYear, kMonth, kDay)) {
+      addRow(
+        flowId: occurrence.flow.id,
+        name: occurrence.flow.name,
+        color: _displayFlowColor(occurrence.flow.name, occurrence.flow.color),
+        allDay: occurrence.allDay,
+        start: occurrence.start,
+        end: occurrence.end,
+      );
+    }
+
+    for (final note in dayNotes) {
+      final flowId = note.flowId;
+      if (flowId == null || flowId <= 0) continue;
+      final flow = flowsById[flowId];
+      if (flow?.isHidden ?? false) continue;
+      addRow(
+        flowId: flowId,
+        name: flow?.name ?? note.title,
+        color: _noteColor(note),
+        allDay: note.allDay,
+        start: note.start,
+        end: note.end,
+      );
+    }
+
+    rows.sort((a, b) {
+      final startCompare = _daySheetTimeSortMinutes(
+        allDay: a.allDay,
+        time: a.start,
+      ).compareTo(_daySheetTimeSortMinutes(allDay: b.allDay, time: b.start));
+      if (startCompare != 0) return startCompare;
+      return a.name.toLowerCase().compareTo(b.name.toLowerCase());
+    });
+    return rows;
+  }
+
+  int _daySheetTimeSortMinutes({
+    required bool allDay,
+    required TimeOfDay? time,
+  }) {
+    if (allDay || time == null) return -1;
+    return time.hour * 60 + time.minute;
   }
 
   FlowRecordSnapshot _flowRecordSnapshotFromFlow(_Flow flow) {
@@ -20994,6 +21218,19 @@ class CalendarPageState extends State<CalendarPage>
     if (start != null) return s(start);
     if (end != null) return '… – ${s(end)}';
     return '';
+  }
+
+  String _calendarSheetEventTimeRangeLabel(EventItem event) {
+    TimeOfDay? timeFromMinutes(int minutes) {
+      if (minutes < 0) return null;
+      return TimeOfDay(hour: minutes ~/ 60, minute: minutes % 60);
+    }
+
+    return _timeRangeLabel(
+      allDay: event.allDay,
+      start: event.allDay ? null : timeFromMinutes(event.startMin),
+      end: event.allDay ? null : timeFromMinutes(event.endMin),
+    );
   }
 
   /// Gregorian label for a Kemetic month/year (handles epagomenal spanning years).
@@ -26436,9 +26673,9 @@ class CalendarPageState extends State<CalendarPage>
     DateTime? endDate;
     int endCount = 10;
 
-    // Color state – index into _flowPalette
+    // Color state – index into the day sheet palette
     int selectedColorIndex = initialColor != null
-        ? _flowPalette.indexWhere(
+        ? daySheetColorPalette.indexWhere(
             (c) => c.toARGB32() == initialColor.toARGB32(),
           )
         : 0;
@@ -26461,7 +26698,7 @@ class CalendarPageState extends State<CalendarPage>
         'startMinute': startTime?.minute,
         'endHour': endTime?.hour,
         'endMinute': endTime?.minute,
-        'colorValue': _flowPalette[selectedColorIndex].toARGB32(),
+        'colorValue': daySheetColorPalette[selectedColorIndex].toARGB32(),
         'category': selectedCategory,
         'alertMinutesBefore': alertMinutesBefore,
         'calendarId': selectedCalendarId,
@@ -26524,17 +26761,9 @@ class CalendarPageState extends State<CalendarPage>
         builder: (sheetCtx) {
           final media = MediaQuery.of(sheetCtx);
 
-          final labelStyleWhite = const TextStyle(
-            color: Colors.white,
-            fontSize: 18,
-            fontWeight: FontWeight.w600,
-          );
-
-          final fieldLabel = const TextStyle(
-            fontSize: 12,
-            color: Color(0xFFBFC3C7),
-          );
           bool showReminders = _noteSheetShowReminders;
+          bool scheduledFlowsExpanded = true;
+          bool dayNotesExpanded = false;
 
           final daySheetContent = StatefulBuilder(
             builder: (sheetCtx, setSheetState) {
@@ -26549,21 +26778,18 @@ class CalendarPageState extends State<CalendarPage>
                 selMonth,
                 selDay,
               ); // safe
-              final titleGradient = showGregorianDates ? whiteGloss : goldGloss;
-              final dateTitleStyle = labelStyleWhite.copyWith(
-                fontSize: 18,
-                fontWeight: FontWeight.w500,
-                fontFamily: 'GentiumPlus',
-                fontFamilyFallback: const [
-                  'NotoSans',
-                  'Roboto',
-                  'Arial',
-                  'sans-serif',
-                ],
-              );
-
               final dayNotes = _getNotes(selYear, selMonth, selDay);
-              final dayFlows = _getFlowOccurrences(selYear, selMonth, selDay);
+              final dayEvents = _calendarSheetEventsForDay(
+                selYear,
+                selMonth,
+                selDay,
+              );
+              final dayFlowRows = _calendarSheetScheduledFlowsForDay(
+                selYear,
+                selMonth,
+                selDay,
+                dayNotes,
+              );
               final editingNote = initialEditingNote;
               final selectedCalendar = selectedCalendarId == null
                   ? null
@@ -26630,117 +26856,53 @@ class CalendarPageState extends State<CalendarPage>
                 persistDaySheetSession();
               }
 
-              Widget timeButton({
-                required String label,
-                required TimeOfDay? value,
-                required VoidCallback onTap,
-                required bool enabled,
-              }) {
-                final text = value == null ? '--:--' : _formatTimeOfDay(value);
-                return Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(label, style: fieldLabel),
-                    const SizedBox(height: 6),
-                    SizedBox(
-                      height: 40,
-                      child: OutlinedButton(
-                        style: OutlinedButton.styleFrom(
-                          foregroundColor: Colors.white,
-                          side: const BorderSide(color: _silver, width: 1),
-                        ),
-                        onPressed: enabled ? onTap : null,
-                        child: Text(text),
-                      ),
-                    ),
-                  ],
-                );
-              }
-
-              Future<void> openDaySheetDatePicker() async {
-                if (!allowDateChange) return;
-                final picked = await DaySheetDatePicker.show(
-                  context: sheetCtx,
-                  initialDate: KemeticMath.toGregorian(
-                    selYear,
-                    selMonth,
-                    selDay,
-                  ),
-                  initialMode: showGregorianDates
-                      ? DaySheetDatePickerMode.gregorian
-                      : DaySheetDatePickerMode.kemetic,
-                );
-                if (picked == null || !sheetCtx.mounted) return;
-                final selected = KemeticMath.fromGregorian(picked.date);
-                setSheetState(() {
-                  selYear = selected.kYear;
-                  selMonth = selected.kMonth;
-                  selDay = selected.kDay;
-                  showGregorianDates =
-                      picked.mode == DaySheetDatePickerMode.gregorian;
-                });
-                persistDaySheetSession();
-              }
-
               Widget datePicker() {
-                final titleWidget = Semantics(
-                  button: allowDateChange,
-                  label: allowDateChange
-                      ? 'Change day sheet date'
-                      : 'Day sheet date',
-                  child: GestureDetector(
-                    key: const ValueKey('day_sheet_date_button'),
-                    behavior: HitTestBehavior.opaque,
-                    onTap: allowDateChange ? openDaySheetDatePicker : null,
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 4),
-                      child: Center(
-                        child: Wrap(
-                          alignment: WrapAlignment.center,
-                          crossAxisAlignment: WrapCrossAlignment.center,
-                          children: [
-                            if (allowDateChange) ...[
-                              const Icon(
-                                Icons.calendar_month_outlined,
-                                color: _gold,
-                                size: 18,
-                              ),
-                              const SizedBox(width: 6),
-                            ],
-                            _GlossyMonthNameText(
-                              text: showGregorianDates
-                                  ? _gregMonthNames[titleG.month]
-                                  : _monthLabel(selMonth),
-                              style: dateTitleStyle,
-                              gradient: titleGradient,
-                            ),
-                            GlossyText(
-                              text: showGregorianDates
-                                  ? ' ${titleG.day} • ${titleG.year}'
-                                  : ' $selDay • ${titleG.year}',
-                              textAlign: TextAlign.center,
-                              style: dateTitleStyle,
-                              gradient: titleGradient,
-                              maxLines: 1,
-                              softWrap: false,
-                              overflow: TextOverflow.fade,
-                            ),
-                            if (allowDateChange) ...[
-                              const SizedBox(width: 4),
-                              const Icon(
-                                Icons.expand_more,
-                                color: Colors.white70,
-                                size: 18,
-                              ),
-                            ],
-                          ],
-                        ),
-                      ),
+                final seed = DateUtils.dateOnly(titleG);
+                final kSeed = KemeticMath.fromGregorian(seed);
+                final dateMode = showGregorianDates
+                    ? EventCreateDatePickerMode.gregorian
+                    : EventCreateDatePickerMode.kemetic;
+                final stoneMode = showGregorianDates
+                    ? StoneDatePickerCalendarMode.gregorian
+                    : StoneDatePickerCalendarMode.kemetic;
+                return Padding(
+                  padding: const EdgeInsets.only(top: 6, bottom: 4),
+                  child: StoneRegisterDateField<EventCreateDatePickerValue>(
+                    key: const ValueKey<String>('day_sheet_date_picker_field'),
+                    value: EventCreateDatePickerValue(
+                      date: seed,
+                      mode: dateMode,
                     ),
+                    adapter: EventCreateDatePickerAdapter(
+                      gregorianYearStart: seed.year - 200,
+                      kemeticYearStart: kSeed.kYear - 200,
+                    ),
+                    mode: stoneMode,
+                    label: 'Day',
+                    title: 'Day sheet date',
+                    enabled: allowDateChange,
+                    onChanged: (picked) {
+                      final selected = KemeticMath.fromGregorian(picked.date);
+                      setSheetState(() {
+                        selYear = selected.kYear;
+                        selMonth = selected.kMonth;
+                        selDay = selected.kDay;
+                        showGregorianDates =
+                            picked.mode == EventCreateDatePickerMode.gregorian;
+                      });
+                      persistDaySheetSession();
+                    },
                   ),
                 );
+              }
 
-                return titleWidget;
+              Future<bool> openReminderEditorForSelectedDay({
+                ReminderRule? existing,
+              }) {
+                return _openReminderEditor(
+                  existing: existing,
+                  initialDate: titleG,
+                );
               }
 
               final keyboardInset = keyboardInsetOf(sheetCtx);
@@ -26761,15 +26923,18 @@ class CalendarPageState extends State<CalendarPage>
               return Container(
                 height: sheetHeight,
                 decoration: const BoxDecoration(
-                  color: Color(0xFF000000), // ✅ True black background
-                  borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+                  color: DaySheetTokens.bg,
+                  borderRadius: BorderRadius.vertical(top: Radius.circular(22)),
+                  border: Border(
+                    top: BorderSide(color: DaySheetTokens.hair, width: 1),
+                  ),
                 ),
                 child: Padding(
                   padding: EdgeInsets.only(
-                    left: 16,
-                    right: 16,
+                    left: 22,
+                    right: 22,
                     top: 10,
-                    bottom: keyboardInset + 12,
+                    bottom: keyboardInset + 130,
                   ),
                   child: DefaultTextStyle(
                     style: const TextStyle(color: Colors.white),
@@ -26786,11 +26951,13 @@ class CalendarPageState extends State<CalendarPage>
                                 alignment: Alignment.center,
                                 children: [
                                   Container(
-                                    width: 36,
-                                    height: 4,
+                                    width: 42,
+                                    height: 5,
                                     decoration: BoxDecoration(
-                                      color: Colors.white24,
-                                      borderRadius: BorderRadius.circular(2),
+                                      color: DaySheetTokens.silverLo.withValues(
+                                        alpha: 0.5,
+                                      ),
+                                      borderRadius: BorderRadius.circular(3),
                                     ),
                                   ),
                                   Align(
@@ -26813,7 +26980,7 @@ class CalendarPageState extends State<CalendarPage>
                                           ),
                                       icon: const Icon(
                                         Icons.close,
-                                        color: Colors.white70,
+                                        color: DaySheetTokens.silverMid,
                                       ),
                                     ),
                                   ),
@@ -26822,48 +26989,34 @@ class CalendarPageState extends State<CalendarPage>
                             ),
                           ),
 
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              ChoiceChip(
-                                label: const Text('Notes'),
-                                selected: !showReminders,
-                                onSelected: (_) {
-                                  setSheetState(() => showReminders = false);
-                                  _noteSheetShowReminders = false;
-                                },
-                              ),
-                              const SizedBox(width: 8),
-                              ChoiceChip(
-                                label: const Text('Reminders'),
-                                selected: showReminders,
-                                onSelected: (_) {
-                                  setSheetState(() => showReminders = true);
-                                  _noteSheetShowReminders = true;
-                                  if (!_reminderRulesLoaded) {
-                                    _loadReminderRules().then((_) {
-                                      if (mounted) setState(() {});
-                                    });
-                                  }
-                                },
-                              ),
-                            ],
+                          DaySheetTabBar(
+                            activeTab: showReminders
+                                ? DaySheetTab.reminders
+                                : DaySheetTab.notes,
+                            accent: daySheetColorPalette[selectedColorIndex],
+                            onSelected: (tab) {
+                              if (tab == DaySheetTab.notes) {
+                                setSheetState(() => showReminders = false);
+                                _noteSheetShowReminders = false;
+                              } else {
+                                setSheetState(() => showReminders = true);
+                                _noteSheetShowReminders = true;
+                                if (!_reminderRulesLoaded) {
+                                  _loadReminderRules().then((_) {
+                                    if (mounted) setState(() {});
+                                  });
+                                }
+                              }
+                            },
                           ),
                           const SizedBox(height: 12),
 
                           if (showReminders) ...[
-                            Align(
-                              alignment: Alignment.centerLeft,
-                              child: const GlossyText(
-                                text: 'Reminders',
-                                style: TextStyle(
-                                  fontWeight: FontWeight.w600,
-                                  fontSize: 16,
-                                ),
-                                gradient: goldGloss,
-                              ),
+                            DaySheetSectionHeader(
+                              label: 'Reminders',
+                              count: _reminderRules.length,
+                              topMargin: 8,
                             ),
-                            const SizedBox(height: 8),
                             if (!_reminderRulesLoaded)
                               const Padding(
                                 padding: EdgeInsets.symmetric(vertical: 24),
@@ -26888,16 +27041,23 @@ class CalendarPageState extends State<CalendarPage>
                                 controller: null,
                                 physics: const NeverScrollableScrollPhysics(),
                                 itemCount: _reminderRules.length,
-                                separatorBuilder: (_, _) => const Divider(
-                                  height: 12,
-                                  color: Colors.white12,
-                                ),
+                                separatorBuilder: (_, _) =>
+                                    const SizedBox.shrink(),
                                 itemBuilder: (_, i) {
                                   final r = _reminderRules[i];
-                                  final label = _reminderRepeatLabel(r);
-                                  return InkWell(
+                                  final ruleLines = _daySheetReminderRuleLines(
+                                    r,
+                                  );
+                                  return DaySheetReminderRow(
+                                    color: r.color,
+                                    name: r.title,
+                                    enabled: r.active,
+                                    rulePrimary: ruleLines.primary,
+                                    ruleSubline: ruleLines.subline,
                                     onTap: () async {
-                                      await _openReminderEditor(existing: r);
+                                      await openReminderEditorForSelectedDay(
+                                        existing: r,
+                                      );
                                       if (!mounted) return;
                                       await _loadReminderRules();
                                       setSheetState(() {
@@ -26905,116 +27065,62 @@ class CalendarPageState extends State<CalendarPage>
                                         _noteSheetShowReminders = true;
                                       });
                                     },
-                                    child: Container(
-                                      padding: const EdgeInsets.symmetric(
-                                        vertical: 10,
-                                        horizontal: 8,
+                                    menu: PopupMenuButton<String>(
+                                      icon: const Icon(
+                                        Icons.more_vert,
+                                        color: DaySheetTokens.silverMid,
                                       ),
-                                      decoration: BoxDecoration(
-                                        color: Colors.white10,
-                                        borderRadius: BorderRadius.circular(8),
-                                      ),
-                                      child: Row(
-                                        children: [
-                                          Container(
-                                            width: 10,
-                                            height: 10,
-                                            decoration: BoxDecoration(
-                                              shape: BoxShape.circle,
-                                              color: r.color,
-                                            ),
-                                          ),
-                                          const SizedBox(width: 10),
-                                          Expanded(
-                                            child: SizedBox(
-                                              height: 20,
-                                              child: SingleChildScrollView(
-                                                scrollDirection:
-                                                    Axis.horizontal,
-                                                primary: false,
-                                                child: Text(
-                                                  r.title,
-                                                  style: TextStyle(
-                                                    color: r.active
-                                                        ? Colors.white
-                                                        : Colors.white54,
-                                                    fontWeight: FontWeight.w600,
-                                                  ),
-                                                ),
-                                              ),
-                                            ),
-                                          ),
-                                          const SizedBox(width: 8),
-                                          Text(
-                                            label,
+                                      color: DaySheetTokens.bgRaise,
+                                      onSelected: (v) async {
+                                        if (v == 'edit') {
+                                          final saved =
+                                              await openReminderEditorForSelectedDay(
+                                                existing: r,
+                                              );
+                                          if (!mounted) return;
+                                          if (saved) {
+                                            await _loadReminderRules();
+                                            setSheetState(() {
+                                              showReminders = true;
+                                              _noteSheetShowReminders = true;
+                                            });
+                                          }
+                                        } else if (v == 'end') {
+                                          await _endReminderRule(r.id);
+                                        } else if (v == 'delete') {
+                                          await _deleteReminderRule(r.id);
+                                        }
+                                        setSheetState(() {});
+                                      },
+                                      itemBuilder: (context) => const [
+                                        PopupMenuItem(
+                                          value: 'edit',
+                                          child: Text(
+                                            'Edit Reminder',
                                             style: TextStyle(
-                                              color: r.active
-                                                  ? _gold
-                                                  : Colors.white54,
-                                              fontSize: 12,
-                                              fontWeight: FontWeight.w700,
+                                              color: DaySheetTokens.silverHi,
                                             ),
                                           ),
-                                          PopupMenuButton<String>(
-                                            icon: const Icon(
-                                              Icons.more_vert,
-                                              color: Colors.white70,
+                                        ),
+                                        PopupMenuItem(
+                                          value: 'end',
+                                          child: Text(
+                                            'End Reminder',
+                                            style: TextStyle(
+                                              color: DaySheetTokens.silverHi,
                                             ),
-                                            color: const Color(0xFF1A1A1A),
-                                            onSelected: (v) async {
-                                              if (v == 'edit') {
-                                                final saved =
-                                                    await _openReminderEditor(
-                                                      existing: r,
-                                                    );
-                                                if (!mounted) return;
-                                                if (saved) {
-                                                  await _loadReminderRules();
-                                                  setSheetState(() {
-                                                    showReminders = true;
-                                                    _noteSheetShowReminders =
-                                                        true;
-                                                  });
-                                                }
-                                              } else if (v == 'end') {
-                                                await _endReminderRule(r.id);
-                                              } else if (v == 'delete') {
-                                                await _deleteReminderRule(r.id);
-                                              }
-                                              setSheetState(() {});
-                                            },
-                                            itemBuilder: (context) => const [
-                                              PopupMenuItem(
-                                                value: 'edit',
-                                                child: Text(
-                                                  'Edit Reminder',
-                                                  style: TextStyle(
-                                                    color: Colors.white,
-                                                  ),
-                                                ),
-                                              ),
-                                              PopupMenuItem(
-                                                value: 'end',
-                                                child: Text(
-                                                  'End Reminder',
-                                                  style: TextStyle(
-                                                    color: Colors.white,
-                                                  ),
-                                                ),
-                                              ),
-                                              PopupMenuItem(
-                                                value: 'delete',
-                                                child: Text(
-                                                  'Delete',
-                                                  style: TextStyle(
-                                                    color: Colors.white,
-                                                  ),
-                                                ),
-                                              ),
-                                            ],
                                           ),
-                                        ],
-                                      ),
+                                        ),
+                                        PopupMenuItem(
+                                          value: 'delete',
+                                          child: Text(
+                                            'Delete',
+                                            style: TextStyle(
+                                              color: DaySheetTokens.silverHi,
+                                            ),
+                                          ),
+                                        ),
+                                      ],
                                     ),
                                   );
                                 },
@@ -27022,8 +27128,9 @@ class CalendarPageState extends State<CalendarPage>
                             const SizedBox(height: 12),
                             Align(
                               alignment: Alignment.centerRight,
-                              child: TextButton(
-                                onPressed: () async {
+                              child: GestureDetector(
+                                behavior: HitTestBehavior.opaque,
+                                onTap: () async {
                                   final messenger = ScaffoldMessenger.of(
                                     context,
                                   );
@@ -27050,437 +27157,259 @@ class CalendarPageState extends State<CalendarPage>
                                     );
                                   }
                                 },
-                                child: const Text('Force resync reminders'),
-                              ),
-                            ),
-                            const SizedBox(height: 12),
-                            Align(
-                              alignment: Alignment.centerRight,
-                              child: ElevatedButton.icon(
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: _gold,
-                                  foregroundColor: Colors.black,
-                                ),
-                                onPressed: () async {
-                                  final saved = await _openReminderEditor();
-                                  if (!mounted) return;
-                                  if (saved) {
-                                    await _loadReminderRules();
-                                    setSheetState(() {
-                                      showReminders = true;
-                                      _noteSheetShowReminders = true;
-                                    });
-                                  }
-                                },
-                                icon: const Icon(Icons.add),
-                                label: const Text('Add reminder'),
-                              ),
-                            ),
-                          ] else ...[
-                            // Date (static or wheels)
-                            datePicker(),
-                            const SizedBox(height: 12),
-
-                            // Scheduled flows (read-only preview)
-                            if (dayFlows.isNotEmpty) ...[
-                              const Align(
-                                alignment: Alignment.centerLeft,
-                                child: GlossyText(
-                                  text: 'Scheduled flows',
-                                  style: TextStyle(
-                                    fontWeight: FontWeight.w600,
-                                    fontSize: 16,
-                                  ),
-                                  gradient: silverGloss,
-                                ),
-                              ),
-                              const SizedBox(height: 6),
-                              SizedBox(
-                                height:
-                                    160, // hard height so children get tight constraints
-                                child: ListView.separated(
-                                  primary: false,
-                                  shrinkWrap: true,
-                                  physics: const BouncingScrollPhysics(),
-                                  itemCount: dayFlows.length,
-                                  separatorBuilder: (_, _) => const Divider(
-                                    height: 12,
-                                    color: Colors.white10,
-                                  ),
-                                  itemBuilder: (_, i) {
-                                    final occ = dayFlows[i];
-                                    final timeLine = _timeRangeLabel(
-                                      allDay: occ.allDay,
-                                      start: occ.start,
-                                      end: occ.end,
-                                    );
-                                    return Padding(
-                                      padding: const EdgeInsets.symmetric(
-                                        vertical: 4,
+                                child: const Padding(
+                                  padding: EdgeInsets.only(top: 14),
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Icon(
+                                        Icons.sync,
+                                        color: DaySheetTokens.silverMid,
+                                        size: 17,
                                       ),
-                                      child: Row(
-                                        children: [
-                                          // colored dot
-                                          Container(
-                                            width: 10,
-                                            height: 10,
-                                            decoration: BoxDecoration(
-                                              shape: BoxShape.circle,
-                                              gradient: _glossFromColor(
-                                                occ.flow.color,
-                                              ),
-                                            ),
-                                          ),
-                                          const SizedBox(width: 10),
-                                          Expanded(
-                                            child: Column(
-                                              crossAxisAlignment:
-                                                  CrossAxisAlignment.start,
-                                              children: [
-                                                GlossyText(
-                                                  text: occ.flow.name,
-                                                  style: const TextStyle(
-                                                    fontSize: 14,
-                                                  ),
-                                                  gradient: silverGloss,
-                                                ),
-                                                if (timeLine.isNotEmpty)
-                                                  Padding(
-                                                    padding:
-                                                        const EdgeInsets.only(
-                                                          top: 2.0,
-                                                        ),
-                                                    child: Text(
-                                                      timeLine,
-                                                      style: const TextStyle(
-                                                        color: Colors.white70,
-                                                        fontSize: 12,
-                                                      ),
-                                                    ),
-                                                  ),
-                                              ],
-                                            ),
-                                          ),
-                                        ],
+                                      SizedBox(width: 8),
+                                      Text(
+                                        'Force resync reminders',
+                                        style: TextStyle(
+                                          fontFamily: DaySheetTokens.serif,
+                                          fontSize: 17,
+                                          color: DaySheetTokens.silverMid,
+                                        ),
                                       ),
-                                    );
-                                  },
-                                ),
-                              ),
-                              const SizedBox(height: 8),
-                              Align(
-                                alignment: Alignment.centerRight,
-                                child: TextButton.icon(
-                                  onPressed: _openFlowsViewer,
-                                  icon: const Icon(
-                                    Icons.view_timeline,
-                                    color: _silver,
-                                  ),
-                                  label: const GlossyText(
-                                    text: 'Manage flows',
-                                    style: TextStyle(fontSize: 14),
-                                    gradient: silverGloss,
+                                    ],
                                   ),
                                 ),
                               ),
-                              const Divider(height: 16, color: Colors.white12),
-                            ],
-
-                            // Existing notes
-                            if ((_dataVersion > 0) && dayNotes.isEmpty)
-                              const Padding(
-                                padding: EdgeInsets.symmetric(vertical: 8),
-                                child: GlossyText(
-                                  text: 'No notes yet',
-                                  style: TextStyle(fontSize: 14),
-                                  gradient: silverGloss,
-                                ),
-                              )
-                            else
-                              ListView.separated(
-                                primary: false,
-                                shrinkWrap: true,
-                                physics: const NeverScrollableScrollPhysics(),
-                                itemCount: dayNotes.length,
-                                separatorBuilder: (_, _) => const Divider(
-                                  height: 12,
-                                  color: Colors.white10,
-                                ),
-                                itemBuilder: (_, i) {
-                                  final n = dayNotes[i];
-                                  final timeLine = _timeRangeLabel(
-                                    allDay: n.allDay,
-                                    start: n.start,
-                                    end: n.end,
-                                  );
-                                  final location = (n.location?.isEmpty ?? true)
-                                      ? null
-                                      : n.location!;
-                                  final rawDetail = n.detail ?? '';
-                                  final cleanedDetail = _stripCidLines(
-                                    rawDetail,
-                                  );
-                                  final hasDetail = cleanedDetail.isNotEmpty;
-                                  final detailPreviewHeight =
-                                      media.textScaler.scale(12) * 1.35 * 6;
-
-                                  return SizedBox(
-                                    width: double.infinity,
-                                    child: Row(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
-                                      children: [
-                                        Expanded(
-                                          child: Semantics(
-                                            button: true,
-                                            label: 'Edit ${n.title}',
-                                            child: InkWell(
-                                              onTap: () async {
-                                                Navigator.pop(sheetCtx);
-                                                final evt = _noteToEventItem(n);
-                                                _openDayView(
-                                                  context,
-                                                  selYear,
-                                                  selMonth,
-                                                  selDay,
-                                                  focusEvent: evt,
-                                                );
-                                              },
-                                              child: Padding(
-                                                padding:
-                                                    const EdgeInsets.symmetric(
-                                                      vertical: 4,
-                                                    ),
-                                                child: Column(
-                                                  crossAxisAlignment:
-                                                      CrossAxisAlignment.start,
-                                                  children: [
-                                                    GlossyText(
-                                                      text: n.title,
-                                                      style: const TextStyle(
-                                                        fontSize: 16,
-                                                      ),
-                                                      gradient: silverGloss,
-                                                    ),
-                                                    if (timeLine.isNotEmpty ||
-                                                        location != null) ...[
-                                                      const SizedBox(height: 2),
-                                                      Text(
-                                                        [
-                                                          if (timeLine
-                                                              .isNotEmpty)
-                                                            timeLine,
-                                                          if (location != null)
-                                                            location,
-                                                        ].join(' • '),
-                                                        style: const TextStyle(
-                                                          color: Colors.white70,
-                                                          fontSize: 12,
-                                                        ),
-                                                      ),
-                                                    ],
-                                                    if (hasDetail) ...[
-                                                      const SizedBox(height: 6),
-                                                      SizedBox(
-                                                        height:
-                                                            detailPreviewHeight,
-                                                        child: SingleChildScrollView(
-                                                          primary: false,
-                                                          physics:
-                                                              const BouncingScrollPhysics(),
-                                                          child: Text(
-                                                            cleanedDetail,
-                                                            style:
-                                                                const TextStyle(
-                                                                  color: Colors
-                                                                      .white70,
-                                                                  fontSize: 12,
-                                                                  height: 1.35,
-                                                                ),
-                                                          ),
-                                                        ),
-                                                      ),
-                                                    ],
-                                                  ],
-                                                ),
-                                              ),
-                                            ),
-                                          ),
-                                        ),
-                                        IconButton(
-                                          icon: const Icon(
-                                            Icons.delete_outline,
-                                            color: _silver,
-                                          ),
-                                          onPressed: () async {
-                                            await _deleteNote(
-                                              selYear,
-                                              selMonth,
-                                              selDay,
-                                              i,
-                                            );
-
-                                            // Close the current sheet if it is open (no reopen to avoid stale context crash)
-                                            if (!sheetCtx.mounted) return;
-                                            if (Navigator.canPop(sheetCtx)) {
-                                              Navigator.pop(sheetCtx);
-                                            }
-                                          },
-                                        ),
-                                      ],
-                                    ),
-                                  );
-                                },
-                              ),
-
-                            const Divider(height: 16, color: Colors.white12),
-                            Align(
-                              alignment: Alignment.centerLeft,
-                              child: GlossyText(
-                                text: editingIndex == null
-                                    ? 'Add note'
-                                    : 'Edit note',
-                                style: TextStyle(
-                                  fontWeight: FontWeight.w600,
-                                  fontSize: 16,
-                                ),
-                                gradient: silverGloss,
-                              ),
                             ),
-                            const SizedBox(height: 8),
-
-                            // Title
-                            TextField(
-                              controller: controllerTitle,
-                              scrollPadding: fieldScrollPadding,
-                              style: const TextStyle(color: Colors.white),
-                              decoration: _darkInput('Title'),
-                            ),
-                            const SizedBox(height: 8),
-
-                            // Location
-                            TextField(
-                              controller: controllerLocation,
-                              scrollPadding: fieldScrollPadding,
-                              style: const TextStyle(color: Colors.white),
-                              decoration: _darkInput(
-                                'Location or Video Call',
-                                hint: 'e.g., Home • Zoom • https://meet…',
-                              ),
-                            ),
-                            const SizedBox(height: 8),
-
-                            // Details
-                            TextField(
-                              controller: controllerDetail,
-                              scrollPadding: fieldScrollPadding,
-                              style: const TextStyle(color: Colors.white),
-                              maxLines: 3,
-                              decoration: _darkInput('Details (optional)'),
-                            ),
-
-                            const SizedBox(height: 12),
-                            Text(
-                              'Category (optional)',
-                              style:
-                                  Theme.of(
-                                    context,
-                                  ).textTheme.bodyMedium?.copyWith(
-                                    color: Colors.white,
-                                    fontWeight: FontWeight.w600,
-                                  ) ??
-                                  const TextStyle(
-                                    color: Colors.white,
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                            ),
-                            const SizedBox(height: 8),
-                            Wrap(
-                              spacing: 8,
-                              runSpacing: 8,
+                            const SizedBox(height: 18),
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
-                                for (final cat in NoteCategory.all)
-                                  ChoiceChip(
-                                    label: Text(cat),
-                                    selected: selectedCategory == cat,
-                                    onSelected: (_) {
+                                const DaySheetCartouche(),
+                                DaySheetFab.pill(
+                                  label: 'Add reminder',
+                                  onPressed: () async {
+                                    final saved =
+                                        await openReminderEditorForSelectedDay();
+                                    if (!mounted) return;
+                                    if (saved) {
+                                      await _loadReminderRules();
                                       setSheetState(() {
-                                        selectedCategory = cat;
+                                        showReminders = true;
+                                        _noteSheetShowReminders = true;
                                       });
-                                      persistDaySheetSession();
-                                    },
-                                    selectedColor: const Color(
-                                      0xFFD4AF37,
-                                    ).withValues(alpha: 0.2),
-                                    labelStyle: TextStyle(
-                                      color: selectedCategory == cat
-                                          ? KemeticGold.base
-                                          : Colors.white,
-                                      fontWeight: FontWeight.w600,
-                                    ),
-                                    backgroundColor: const Color(0xFF1A1A1A),
-                                    side: BorderSide(
-                                      color: selectedCategory == cat
-                                          ? KemeticGold.base
-                                          : Colors.white24,
-                                    ),
-                                  ),
-                                ActionChip(
-                                  label: const Text(
-                                    'Clear',
-                                    style: TextStyle(color: Colors.white),
-                                  ),
-                                  avatar: const Icon(
-                                    Icons.close,
-                                    size: 18,
-                                    color: Colors.white70,
-                                  ),
-                                  onPressed: selectedCategory == null
-                                      ? null
-                                      : () {
-                                          setSheetState(
-                                            () => selectedCategory = null,
-                                          );
-                                          persistDaySheetSession();
-                                        },
-                                  backgroundColor: const Color(0xFF1A1A1A),
+                                    }
+                                  },
                                 ),
                               ],
                             ),
+                          ] else ...[
+                            // Date
+                            datePicker(),
+                            const SizedBox(height: 12),
 
-                            const SizedBox(height: 10),
-                            SwitchListTile(
-                              contentPadding: EdgeInsets.zero,
+                            DaySheetSectionHeader(
+                              label: 'Scheduled flows',
+                              count: dayFlowRows.length,
+                              expanded: scheduledFlowsExpanded,
+                              onTap: () {
+                                setSheetState(() {
+                                  scheduledFlowsExpanded =
+                                      !scheduledFlowsExpanded;
+                                });
+                              },
+                            ),
+                            AnimatedCrossFade(
+                              firstChild: Column(
+                                children: [
+                                  if (dayFlowRows.isEmpty)
+                                    const Padding(
+                                      padding: EdgeInsets.symmetric(
+                                        vertical: 8,
+                                      ),
+                                      child: Text(
+                                        'No scheduled flows',
+                                        style: TextStyle(
+                                          fontFamily: DaySheetTokens.ui,
+                                          fontSize: 12,
+                                          color: DaySheetTokens.silverLo,
+                                        ),
+                                      ),
+                                    ),
+                                  for (final row in dayFlowRows)
+                                    DaySheetFlowRow(
+                                      color: row.color,
+                                      name: row.name,
+                                      meta: _timeRangeLabel(
+                                        allDay: row.allDay,
+                                        start: row.start,
+                                        end: row.end,
+                                      ),
+                                    ),
+                                  Align(
+                                    alignment: Alignment.centerRight,
+                                    child: TextButton.icon(
+                                      onPressed: _openFlowsViewer,
+                                      icon: const Icon(
+                                        Icons.view_timeline,
+                                        color: DaySheetTokens.silverMid,
+                                        size: 17,
+                                      ),
+                                      label: const Text(
+                                        'Manage flows',
+                                        style: TextStyle(
+                                          fontFamily: DaySheetTokens.serif,
+                                          fontSize: 16,
+                                          color: DaySheetTokens.silverMid,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              secondChild: const SizedBox.shrink(),
+                              crossFadeState: scheduledFlowsExpanded
+                                  ? CrossFadeState.showFirst
+                                  : CrossFadeState.showSecond,
+                              duration: const Duration(milliseconds: 220),
+                            ),
+
+                            DaySheetSectionHeader(
+                              label: 'Notes on this day',
+                              count: dayEvents.length,
+                              expanded: dayNotesExpanded,
+                              onTap: () {
+                                setSheetState(() {
+                                  dayNotesExpanded = !dayNotesExpanded;
+                                });
+                              },
+                            ),
+                            AnimatedCrossFade(
+                              firstChild: Column(
+                                children: [
+                                  if (dayEvents.isEmpty)
+                                    const Padding(
+                                      padding: EdgeInsets.symmetric(
+                                        vertical: 8,
+                                      ),
+                                      child: Text(
+                                        'No notes yet',
+                                        style: TextStyle(
+                                          fontFamily: DaySheetTokens.ui,
+                                          fontSize: 12,
+                                          color: DaySheetTokens.silverLo,
+                                        ),
+                                      ),
+                                    )
+                                  else
+                                    for (final event in dayEvents)
+                                      DaySheetNoteRow(
+                                        name: event.title,
+                                        meta: _calendarSheetEventTimeRangeLabel(
+                                          event,
+                                        ),
+                                        onTap: () {
+                                          Navigator.pop(sheetCtx);
+                                          _openDayView(
+                                            context,
+                                            selYear,
+                                            selMonth,
+                                            selDay,
+                                            focusEvent: event,
+                                          );
+                                        },
+                                        onDelete: () async {
+                                          await _deleteNoteByEvent(
+                                            selYear,
+                                            selMonth,
+                                            selDay,
+                                            event,
+                                          );
+                                          if (!sheetCtx.mounted) return;
+                                          if (Navigator.canPop(sheetCtx)) {
+                                            Navigator.pop(sheetCtx);
+                                          }
+                                        },
+                                      ),
+                                ],
+                              ),
+                              secondChild: const SizedBox.shrink(),
+                              crossFadeState: dayNotesExpanded
+                                  ? CrossFadeState.showFirst
+                                  : CrossFadeState.showSecond,
+                              duration: const Duration(milliseconds: 220),
+                            ),
+
+                            DaySheetSectionHeader(
+                              label: editingIndex == null
+                                  ? 'Add note'
+                                  : 'Edit note',
+                              topMargin: 22,
+                            ),
+
+                            DaySheetTextField(
+                              controller: controllerTitle,
+                              scrollPadding: fieldScrollPadding,
+                              hint: 'Title',
+                            ),
+
+                            DaySheetTextField(
+                              controller: controllerLocation,
+                              scrollPadding: fieldScrollPadding,
+                              hint: 'Location or video call',
+                            ),
+
+                            DaySheetTextField(
+                              controller: controllerDetail,
+                              scrollPadding: fieldScrollPadding,
+                              hint: 'Details (optional)',
+                              minLines: 4,
+                              maxLines: 6,
+                            ),
+
+                            DaySheetCategoryChips(
+                              categories: NoteCategory.all,
+                              selected: selectedCategory,
+                              accent: daySheetColorPalette[selectedColorIndex],
+                              onSelected: (value) {
+                                setSheetState(() {
+                                  selectedCategory = value;
+                                });
+                                persistDaySheetSession();
+                              },
+                            ),
+
+                            DaySheetToggleRow(
+                              label: 'All-day',
                               value: allDay,
+                              accent: daySheetColorPalette[selectedColorIndex],
                               onChanged: (v) {
                                 setSheetState(() => allDay = v);
                                 persistDaySheetSession();
                               },
-                              title: const GlossyText(
-                                text: 'All-day',
-                                style: TextStyle(fontSize: 14),
-                                gradient: silverGloss,
-                              ),
-                              activeThumbColor: _gold,
                             ),
 
-                            const SizedBox(height: 6),
+                            const SizedBox(height: 18),
 
                             Row(
                               children: [
                                 Expanded(
-                                  child: timeButton(
-                                    label: 'Starts',
-                                    value: startTime,
+                                  child: DaySheetTimePill(
+                                    caption: 'Starts',
+                                    label: startTime == null
+                                        ? '--:--'
+                                        : _formatTimeOfDay(startTime!),
                                     onTap: pickStart,
                                     enabled: !allDay,
                                   ),
                                 ),
-                                const SizedBox(width: 8),
+                                const SizedBox(width: 30),
                                 Expanded(
-                                  child: timeButton(
-                                    label: 'Ends',
-                                    value: endTime,
+                                  child: DaySheetTimePill(
+                                    caption: 'Ends',
+                                    label: endTime == null
+                                        ? '--:--'
+                                        : _formatTimeOfDay(endTime!),
                                     onTap: pickEnd,
                                     enabled: !allDay,
                                   ),
@@ -28054,225 +27983,133 @@ class CalendarPageState extends State<CalendarPage>
 
                             const SizedBox(height: 12),
 
-                            // COLOR PICKER – same look as Flow Studio
-                            const GlossyText(
-                              text: 'Color',
-                              gradient: silverGloss,
-                              style: TextStyle(
-                                fontSize: 14,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                            const SizedBox(height: 8),
-                            SizedBox(
-                              height: 36,
-                              child: ListView.builder(
-                                scrollDirection: Axis.horizontal,
-                                itemCount: _flowPalette.length,
-                                itemBuilder: (_, i) {
-                                  final selected = i == selectedColorIndex;
-                                  final color = _flowPalette[i];
-
-                                  return InkWell(
-                                    onTap: () {
-                                      setSheetState(() {
-                                        selectedColorIndex = i;
-                                      });
-                                      persistDaySheetSession();
-                                    },
-                                    borderRadius: BorderRadius.circular(18),
-                                    child: Container(
-                                      width: 30,
-                                      height: 30,
-                                      margin: const EdgeInsets.only(right: 10),
-                                      decoration: BoxDecoration(
-                                        shape: BoxShape.circle,
-                                        gradient: _glossFromColor(color),
-                                        border: Border.all(
-                                          color: selected
-                                              ? _gold
-                                              : Colors.white24,
-                                          width: selected ? 2.0 : 1.0,
-                                        ),
-                                      ),
-                                    ),
-                                  );
-                                },
-                              ),
+                            DaySheetColorSwatches(
+                              palette: daySheetColorPalette,
+                              selectedIndex: selectedColorIndex,
+                              onSelected: (index) {
+                                setSheetState(() {
+                                  selectedColorIndex = index;
+                                });
+                                persistDaySheetSession();
+                              },
                             ),
 
                             const SizedBox(height: 12),
-                            Align(
-                              alignment: Alignment.centerRight,
-                              child: ElevatedButton(
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: _gold,
-                                  foregroundColor: Colors.black,
-                                ),
-                                onPressed: () async {
-                                  final t = controllerTitle.text.trim();
-                                  final loc = controllerLocation.text.trim();
-                                  final d = controllerDetail.text.trim();
-                                  String detailForSave = d;
-                                  if (initialCidMetadata.isNotEmpty) {
-                                    if (editingIndex != null &&
-                                        d == strippedInitialDetail) {
-                                      // Preserve original metadata if the user didn't change the text.
-                                      detailForSave = rawInitialDetail;
-                                    } else {
-                                      detailForSave = _appendCidMetadata(
-                                        d,
-                                        initialCidMetadata,
-                                      );
-                                    }
-                                  }
-
-                                  if (t.isEmpty) return;
-
-                                  // Validate end time is after start time
-                                  if (!allDay &&
-                                      startTime != null &&
-                                      endTime != null) {
-                                    if (_toMinutes(endTime!) <=
-                                        _toMinutes(startTime!)) {
-                                      endTime = _addMinutes(startTime!, 60);
-                                    }
-                                  }
-
-                                  final bool isRepeating =
-                                      repeatOption != NoteRepeatOption.never;
-
-                                  final selectedColor =
-                                      _flowPalette[selectedColorIndex];
-
-                                  final bucketKey = _kKey(
-                                    sourceEditingKYear,
-                                    sourceEditingKMonth,
-                                    sourceEditingKDay,
-                                  );
-                                  final editIndex = editingIndex;
-                                  final existingNote = editIndex != null
-                                      ? (_notes[bucketKey] != null &&
-                                                editIndex <
-                                                    _notes[bucketKey]!.length
-                                            ? _notes[bucketKey]![editIndex]
-                                            : null)
-                                      : null;
-                                  final existingClientEventId =
-                                      existingNote?.clientEventId ??
-                                      (existingNote != null &&
-                                              (existingNote.flowId == null ||
-                                                  existingNote.flowId == -1)
-                                          ? _buildCid(
-                                              ky: sourceEditingKYear,
-                                              km: sourceEditingKMonth,
-                                              kd: sourceEditingKDay,
-                                              title: existingNote.title,
-                                              startHour:
-                                                  existingNote.start?.hour,
-                                              startMinute:
-                                                  existingNote.start?.minute,
-                                              allDay: existingNote.allDay,
-                                              flowId: -1,
-                                              calendarScopeToken:
-                                                  _calendarScopeToken(
-                                                    existingNote.calendarId,
-                                                  ),
-                                            )
-                                          : null);
-
-                                  try {
-                                    ({String clientEventId, String eventId})?
-                                    saveResult;
-                                    var updatedExistingStandalone = false;
-                                    var handledRepeatingEdit = false;
-
-                                    if (selectedCalendar != null &&
-                                        !selectedCalendar.canEdit) {
-                                      ScaffoldMessenger.of(
-                                        context,
-                                      ).showSnackBar(
-                                        const SnackBar(
-                                          content: Text(
-                                            'You can view this calendar, but you cannot edit it.',
-                                          ),
-                                        ),
-                                      );
-                                      return;
-                                    }
-
-                                    final editingRepeatingFlow =
-                                        _repeatingNoteFlowForId(
-                                          existingNote?.flowId,
-                                        );
-                                    if (editingRepeatingFlow != null &&
-                                        existingNote != null) {
-                                      final scope =
-                                          await _showRepeatingEventScopeSheet(
-                                            context: sheetCtx,
-                                            isDelete: false,
-                                          );
-                                      if (scope == null) return;
-                                      await _applyRepeatingNoteEditScope(
-                                        originalNote: existingNote,
-                                        sourceKYear: sourceEditingKYear,
-                                        sourceKMonth: sourceEditingKMonth,
-                                        sourceKDay: sourceEditingKDay,
-                                        selYear: selYear,
-                                        selMonth: selMonth,
-                                        selDay: selDay,
-                                        title: t,
-                                        detail: detailForSave.isEmpty
-                                            ? null
-                                            : detailForSave,
-                                        location: loc.isEmpty ? null : loc,
-                                        calendarId: selectedCalendarId,
-                                        calendarName: selectedCalendarLabel,
-                                        allDay: allDay,
-                                        startTime: startTime,
-                                        endTime: endTime,
-                                        color: selectedColor,
-                                        category: selectedCategory,
-                                        alertMinutesBefore: alertMinutesBefore,
-                                        scope: scope,
-                                      );
-                                      handledRepeatingEdit = true;
-                                    } else if (!isRepeating) {
-                                      final canUpdateExisting =
-                                          existingNote?.id != null &&
-                                          ((existingNote?.flowId == null) ||
-                                              existingNote?.flowId == -1);
-                                      if (canUpdateExisting) {
-                                        updatedExistingStandalone = true;
-                                        saveResult =
-                                            await _updateSingleNoteOnly(
-                                              existingEventId:
-                                                  existingNote!.id!,
-                                              previousClientEventId:
-                                                  existingClientEventId,
-                                              selYear: selYear,
-                                              selMonth: selMonth,
-                                              selDay: selDay,
-                                              title: t,
-                                              detail: detailForSave.isEmpty
-                                                  ? null
-                                                  : detailForSave,
-                                              location: loc.isEmpty
-                                                  ? null
-                                                  : loc,
-                                              calendarId: selectedCalendarId,
-                                              calendarName:
-                                                  selectedCalendarLabel,
-                                              allDay: allDay,
-                                              startTime: startTime,
-                                              endTime: endTime,
-                                              color: selectedColor,
-                                              category: selectedCategory,
-                                              alertMinutesBefore:
-                                                  alertMinutesBefore,
-                                            );
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                const DaySheetCartouche(),
+                                DaySheetFab.round(
+                                  label: 'Save',
+                                  onPressed: () async {
+                                    final t = controllerTitle.text.trim();
+                                    final loc = controllerLocation.text.trim();
+                                    final d = controllerDetail.text.trim();
+                                    String detailForSave = d;
+                                    if (initialCidMetadata.isNotEmpty) {
+                                      if (editingIndex != null &&
+                                          d == strippedInitialDetail) {
+                                        // Preserve original metadata if the user didn't change the text.
+                                        detailForSave = rawInitialDetail;
                                       } else {
-                                        saveResult = await _saveSingleNoteOnly(
+                                        detailForSave = _appendCidMetadata(
+                                          d,
+                                          initialCidMetadata,
+                                        );
+                                      }
+                                    }
+
+                                    if (t.isEmpty) return;
+
+                                    // Validate end time is after start time
+                                    if (!allDay &&
+                                        startTime != null &&
+                                        endTime != null) {
+                                      if (_toMinutes(endTime!) <=
+                                          _toMinutes(startTime!)) {
+                                        endTime = _addMinutes(startTime!, 60);
+                                      }
+                                    }
+
+                                    final bool isRepeating =
+                                        repeatOption != NoteRepeatOption.never;
+
+                                    final selectedColor =
+                                        daySheetColorPalette[selectedColorIndex];
+
+                                    final bucketKey = _kKey(
+                                      sourceEditingKYear,
+                                      sourceEditingKMonth,
+                                      sourceEditingKDay,
+                                    );
+                                    final editIndex = editingIndex;
+                                    final existingNote = editIndex != null
+                                        ? (_notes[bucketKey] != null &&
+                                                  editIndex <
+                                                      _notes[bucketKey]!.length
+                                              ? _notes[bucketKey]![editIndex]
+                                              : null)
+                                        : null;
+                                    final existingClientEventId =
+                                        existingNote?.clientEventId ??
+                                        (existingNote != null &&
+                                                (existingNote.flowId == null ||
+                                                    existingNote.flowId == -1)
+                                            ? _buildCid(
+                                                ky: sourceEditingKYear,
+                                                km: sourceEditingKMonth,
+                                                kd: sourceEditingKDay,
+                                                title: existingNote.title,
+                                                startHour:
+                                                    existingNote.start?.hour,
+                                                startMinute:
+                                                    existingNote.start?.minute,
+                                                allDay: existingNote.allDay,
+                                                flowId: -1,
+                                                calendarScopeToken:
+                                                    _calendarScopeToken(
+                                                      existingNote.calendarId,
+                                                    ),
+                                              )
+                                            : null);
+
+                                    try {
+                                      ({String clientEventId, String eventId})?
+                                      saveResult;
+                                      var updatedExistingStandalone = false;
+                                      var handledRepeatingEdit = false;
+
+                                      if (selectedCalendar != null &&
+                                          !selectedCalendar.canEdit) {
+                                        ScaffoldMessenger.of(
+                                          context,
+                                        ).showSnackBar(
+                                          const SnackBar(
+                                            content: Text(
+                                              'You can view this calendar, but you cannot edit it.',
+                                            ),
+                                          ),
+                                        );
+                                        return;
+                                      }
+
+                                      final editingRepeatingFlow =
+                                          _repeatingNoteFlowForId(
+                                            existingNote?.flowId,
+                                          );
+                                      if (editingRepeatingFlow != null &&
+                                          existingNote != null) {
+                                        final scope =
+                                            await _showRepeatingEventScopeSheet(
+                                              context: sheetCtx,
+                                              isDelete: false,
+                                            );
+                                        if (scope == null) return;
+                                        await _applyRepeatingNoteEditScope(
+                                          originalNote: existingNote,
+                                          sourceKYear: sourceEditingKYear,
+                                          sourceKMonth: sourceEditingKMonth,
+                                          sourceKDay: sourceEditingKDay,
                                           selYear: selYear,
                                           selMonth: selMonth,
                                           selDay: selDay,
@@ -28290,54 +28127,101 @@ class CalendarPageState extends State<CalendarPage>
                                           category: selectedCategory,
                                           alertMinutesBefore:
                                               alertMinutesBefore,
+                                          scope: scope,
+                                        );
+                                        handledRepeatingEdit = true;
+                                      } else if (!isRepeating) {
+                                        final canUpdateExisting =
+                                            existingNote?.id != null &&
+                                            ((existingNote?.flowId == null) ||
+                                                existingNote?.flowId == -1);
+                                        if (canUpdateExisting) {
+                                          updatedExistingStandalone = true;
+                                          saveResult =
+                                              await _updateSingleNoteOnly(
+                                                existingEventId:
+                                                    existingNote!.id!,
+                                                previousClientEventId:
+                                                    existingClientEventId,
+                                                selYear: selYear,
+                                                selMonth: selMonth,
+                                                selDay: selDay,
+                                                title: t,
+                                                detail: detailForSave.isEmpty
+                                                    ? null
+                                                    : detailForSave,
+                                                location: loc.isEmpty
+                                                    ? null
+                                                    : loc,
+                                                calendarId: selectedCalendarId,
+                                                calendarName:
+                                                    selectedCalendarLabel,
+                                                allDay: allDay,
+                                                startTime: startTime,
+                                                endTime: endTime,
+                                                color: selectedColor,
+                                                category: selectedCategory,
+                                                alertMinutesBefore:
+                                                    alertMinutesBefore,
+                                              );
+                                        } else {
+                                          saveResult =
+                                              await _saveSingleNoteOnly(
+                                                selYear: selYear,
+                                                selMonth: selMonth,
+                                                selDay: selDay,
+                                                title: t,
+                                                detail: detailForSave.isEmpty
+                                                    ? null
+                                                    : detailForSave,
+                                                location: loc.isEmpty
+                                                    ? null
+                                                    : loc,
+                                                calendarId: selectedCalendarId,
+                                                calendarName:
+                                                    selectedCalendarLabel,
+                                                allDay: allDay,
+                                                startTime: startTime,
+                                                endTime: endTime,
+                                                color: selectedColor,
+                                                category: selectedCategory,
+                                                alertMinutesBefore:
+                                                    alertMinutesBefore,
+                                              );
+                                        }
+                                      } else {
+                                        // Repeating note - create hidden flow
+                                        await _saveRepeatingNoteAsHiddenFlow(
+                                          selYear: selYear,
+                                          selMonth: selMonth,
+                                          selDay: selDay,
+                                          title: t,
+                                          detail: detailForSave.isEmpty
+                                              ? null
+                                              : detailForSave,
+                                          location: loc.isEmpty ? null : loc,
+                                          calendarId: selectedCalendarId,
+                                          calendarName: selectedCalendarLabel,
+                                          allDay: allDay,
+                                          startTime: startTime,
+                                          endTime: endTime,
+                                          repeatOption: repeatOption,
+                                          customFrequency: customFrequency,
+                                          customInterval: customInterval,
+                                          endType: endType,
+                                          endDate: endDate,
+                                          endCount: endCount,
+                                          color: selectedColor,
+                                          category: selectedCategory,
+                                          alertMinutesBefore:
+                                              alertMinutesBefore,
                                         );
                                       }
-                                    } else {
-                                      // Repeating note - create hidden flow
-                                      await _saveRepeatingNoteAsHiddenFlow(
-                                        selYear: selYear,
-                                        selMonth: selMonth,
-                                        selDay: selDay,
-                                        title: t,
-                                        detail: detailForSave.isEmpty
-                                            ? null
-                                            : detailForSave,
-                                        location: loc.isEmpty ? null : loc,
-                                        calendarId: selectedCalendarId,
-                                        calendarName: selectedCalendarLabel,
-                                        allDay: allDay,
-                                        startTime: startTime,
-                                        endTime: endTime,
-                                        repeatOption: repeatOption,
-                                        customFrequency: customFrequency,
-                                        customInterval: customInterval,
-                                        endType: endType,
-                                        endDate: endDate,
-                                        endCount: endCount,
-                                        color: selectedColor,
-                                        category: selectedCategory,
-                                        alertMinutesBefore: alertMinutesBefore,
-                                      );
-                                    }
 
-                                    if (!handledRepeatingEdit &&
-                                        editIndex != null &&
-                                        existingNote != null) {
-                                      if (updatedExistingStandalone) {
-                                        _removeLocalNoteOnly(
-                                          sourceEditingKYear,
-                                          sourceEditingKMonth,
-                                          sourceEditingKDay,
-                                          editIndex,
-                                        );
-                                      } else {
-                                        final cidMatches =
-                                            !isRepeating &&
-                                            existingClientEventId != null &&
-                                            saveResult != null &&
-                                            existingClientEventId ==
-                                                saveResult.clientEventId;
-                                        if (cidMatches) {
+                                      if (!handledRepeatingEdit &&
+                                          editIndex != null &&
+                                          existingNote != null) {
+                                        if (updatedExistingStandalone) {
                                           _removeLocalNoteOnly(
                                             sourceEditingKYear,
                                             sourceEditingKMonth,
@@ -28345,45 +28229,61 @@ class CalendarPageState extends State<CalendarPage>
                                             editIndex,
                                           );
                                         } else {
-                                          await _deleteNote(
-                                            sourceEditingKYear,
-                                            sourceEditingKMonth,
-                                            sourceEditingKDay,
-                                            editIndex,
-                                          );
+                                          final cidMatches =
+                                              !isRepeating &&
+                                              existingClientEventId != null &&
+                                              saveResult != null &&
+                                              existingClientEventId ==
+                                                  saveResult.clientEventId;
+                                          if (cidMatches) {
+                                            _removeLocalNoteOnly(
+                                              sourceEditingKYear,
+                                              sourceEditingKMonth,
+                                              sourceEditingKDay,
+                                              editIndex,
+                                            );
+                                          } else {
+                                            await _deleteNote(
+                                              sourceEditingKYear,
+                                              sourceEditingKMonth,
+                                              sourceEditingKDay,
+                                              editIndex,
+                                            );
+                                          }
                                         }
                                       }
-                                    }
-                                  } catch (e, stackTrace) {
-                                    if (kDebugMode) {
-                                      _calendarDebugPrint(
-                                        '[SaveNote] Error saving note: $e',
-                                      );
-                                      _calendarDebugPrint(
-                                        '[SaveNote] Stack trace: $stackTrace',
-                                      );
-                                    }
-                                    if (mounted) {
-                                      ScaffoldMessenger.of(
-                                        context,
-                                      ).showSnackBar(
-                                        SnackBar(
-                                          content: Text(
-                                            'Failed to save note: $e',
+                                    } catch (e, stackTrace) {
+                                      if (kDebugMode) {
+                                        _calendarDebugPrint(
+                                          '[SaveNote] Error saving note: $e',
+                                        );
+                                        _calendarDebugPrint(
+                                          '[SaveNote] Stack trace: $stackTrace',
+                                        );
+                                      }
+                                      if (mounted) {
+                                        ScaffoldMessenger.of(
+                                          context,
+                                        ).showSnackBar(
+                                          SnackBar(
+                                            content: Text(
+                                              'Failed to save note: $e',
+                                            ),
+                                            backgroundColor: Colors.red,
+                                            duration: const Duration(
+                                              seconds: 3,
+                                            ),
                                           ),
-                                          backgroundColor: Colors.red,
-                                          duration: const Duration(seconds: 3),
-                                        ),
-                                      );
+                                        );
+                                      }
+                                      return; // Don't close sheet on error
                                     }
-                                    return; // Don't close sheet on error
-                                  }
 
-                                  if (!sheetCtx.mounted) return;
-                                  Navigator.pop(sheetCtx);
-                                },
-                                child: const Text('Save'),
-                              ),
+                                    if (!sheetCtx.mounted) return;
+                                    Navigator.pop(sheetCtx);
+                                  },
+                                ),
+                              ],
                             ),
                           ],
                         ],
@@ -28539,6 +28439,11 @@ class CalendarPageState extends State<CalendarPage>
     if (route is PageRoute && !_isSubscribed) {
       routeObserver.subscribe(this, route);
       _isSubscribed = true;
+    }
+
+    if (_debugDaySheetSmokeEnabled) {
+      _scheduleDebugDaySheetSmoke();
+      return;
     }
 
     // ✅ PRESERVE existing _initOnce logic
