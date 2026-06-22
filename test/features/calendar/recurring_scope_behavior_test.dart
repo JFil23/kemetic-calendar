@@ -219,7 +219,7 @@ void main() {
       final saveRepeatingNote = _sourceBetween(
         calendarPage,
         'Future<void> _saveRepeatingNoteAsHiddenFlow',
-        'Future<DateTime?> pickDateUniversal',
+        'Future<void> _triggerFlowSchedule',
       );
       expect(saveRepeatingNote, contains('_buildNoteRuleDates'));
       expect(saveRepeatingNote, contains('endType: endType'));
@@ -227,14 +227,17 @@ void main() {
       expect(saveRepeatingNote, contains('CalendarPageState.ruleToJson(rule)'));
     });
 
-    test('reminder repeat end date uses Stone Register wrapper only', () {
+    test('reminder date pickers use Stone Register wrappers only', () {
       final reminderEditor = _sourceBetween(
         calendarPage,
         'Future<bool> _openReminderEditor',
         'Future<void> _editReminderById',
       );
 
-      expect(reminderEditor, contains('await pickDateUniversal'));
+      expect(reminderEditor, isNot(contains('await pickDateUniversal')));
+      expect(reminderEditor, contains('RecurrenceUntilDatePicker.show'));
+      expect(reminderEditor, contains('initialDate: startLocal'));
+      expect(reminderEditor, contains("title: 'Start date'"));
 
       final repeatEndDate = _sourceBetween(
         reminderEditor,

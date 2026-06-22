@@ -13,6 +13,7 @@ class RecurrenceUntilDatePicker {
     bool allowPast = false,
     DateTime? firstDate,
     DateTime? lastDate,
+    String title = 'End repeat date',
   }) async {
     final seed = DateUtils.dateOnly(initialDate);
     final today = DateUtils.dateOnly(DateTime.now());
@@ -31,7 +32,7 @@ class RecurrenceUntilDatePicker {
         gregorianYearCount: gregorianYearCount,
       ),
       initialMode: StoneDatePickerCalendarMode.gregorian,
-      title: 'End repeat date',
+      title: title,
     );
     if (picked == null) return null;
 
