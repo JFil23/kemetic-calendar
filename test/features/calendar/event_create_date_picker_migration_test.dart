@@ -57,19 +57,19 @@ void main() {
   );
 
   test(
-    'event create migration leaves Day sheet date wheels deferred',
+    'event create migration stays isolated from Day sheet date picker',
     () async {
       final source = await File(
         'lib/features/calendar/calendar_page.dart',
       ).readAsString();
-    final daySheet = _sourceBetween(
-      source,
-      'void _openDaySheet',
-      'Future<void> _openQuickAddSheet',
-    );
+      final daySheet = _sourceBetween(
+        source,
+        'void _openDaySheet',
+        'Future<void> _openQuickAddSheet',
+      );
 
       expect(daySheet, contains('Widget datePicker()'));
-      expect(daySheet, contains('CupertinoPicker'));
+      expect(daySheet, contains('DaySheetDatePicker.show'));
       expect(daySheet, isNot(contains('EventCreateDatePicker.show')));
     },
   );

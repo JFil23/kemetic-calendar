@@ -94,6 +94,7 @@ import '../../services/session_resume_service.dart';
 import '../../services/navigation_trace.dart';
 import '../../core/push_intent_bus.dart';
 import '../../widgets/flow_start_date_picker.dart';
+import '../../widgets/day_sheet_date_picker.dart';
 import '../../widgets/event_create_date_picker.dart';
 import '../../widgets/gregorian_date_picker.dart' show showGregorianDatePicker;
 import '../../widgets/kemetic_date_picker.dart' show showKemeticDatePicker;
@@ -26344,36 +26345,10 @@ class CalendarPageState extends State<CalendarPage>
     int selYear = kYear;
     int selMonth = kMonth;
     int selDay = kDay;
-    final initialGregorianDate = KemeticMath.toGregorian(kYear, kMonth, kDay);
     bool showGregorianDates = initialShowGregorian ?? _showGregorian;
-    int gregYear = initialGregorianDate.year;
-    int gregMonth = initialGregorianDate.month;
-    int gregDay = initialGregorianDate.day;
 
     int maxDayFor(int year, int month) =>
         (month == 13) ? (KemeticMath.isLeapKemeticYear(year) ? 6 : 5) : 30;
-    int gregDayMax(int year, int month) =>
-        DateUtils.getDaysInMonth(year, month);
-
-    final int yearStart = _today.kYear - 200;
-    final int yearItem = kYear - yearStart;
-    final yearCtrl = FixedExtentScrollController(
-      initialItem: yearItem.clamp(0, 400).toInt(),
-    );
-    final monthCtrl = FixedExtentScrollController(
-      initialItem: (kMonth - 1).clamp(0, 12).toInt(),
-    );
-    final dayCtrl = FixedExtentScrollController(initialItem: (kDay - 1));
-    final int gregYearStart = initialGregorianDate.year - 200;
-    final gregYearCtrl = FixedExtentScrollController(
-      initialItem: (gregYear - gregYearStart).clamp(0, 400).toInt(),
-    );
-    final gregMonthCtrl = FixedExtentScrollController(
-      initialItem: (gregMonth - 1).clamp(0, 11).toInt(),
-    );
-    final gregDayCtrl = FixedExtentScrollController(
-      initialItem: (gregDay - 1).clamp(0, 30).toInt(),
-    );
     final sourceEditingKYear = editingSourceKYear ?? kYear;
     final sourceEditingKMonth = editingSourceKMonth ?? kMonth;
     final sourceEditingKDay = editingSourceKDay ?? kDay;
@@ -26515,80 +26490,6 @@ class CalendarPageState extends State<CalendarPage>
       controllerTitle.dispose();
       controllerLocation.dispose();
       controllerDetail.dispose();
-      yearCtrl.dispose();
-      monthCtrl.dispose();
-      dayCtrl.dispose();
-      gregYearCtrl.dispose();
-      gregMonthCtrl.dispose();
-      gregDayCtrl.dispose();
-    }
-
-    void scheduleDayPickerJump() {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (sheetClosing || sheetControllersDisposed || !dayCtrl.hasClients) {
-          return;
-        }
-        dayCtrl.jumpToItem(selDay - 1);
-      });
-    }
-
-    void scheduleGregorianDayPickerJump() {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (sheetClosing ||
-            sheetControllersDisposed ||
-            !gregDayCtrl.hasClients) {
-          return;
-        }
-        gregDayCtrl.jumpToItem(gregDay - 1);
-      });
-    }
-
-    void syncGregorianControllers() {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (sheetClosing || sheetControllersDisposed) return;
-        if (gregYearCtrl.hasClients) {
-          gregYearCtrl.jumpToItem(
-            (gregYear - gregYearStart).clamp(0, 400).toInt(),
-          );
-        }
-        if (gregMonthCtrl.hasClients) {
-          gregMonthCtrl.jumpToItem((gregMonth - 1).clamp(0, 11).toInt());
-        }
-        if (gregDayCtrl.hasClients) {
-          gregDayCtrl.jumpToItem((gregDay - 1).clamp(0, 30).toInt());
-        }
-      });
-    }
-
-    void syncKemeticControllers() {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (sheetClosing || sheetControllersDisposed) return;
-        if (yearCtrl.hasClients) {
-          yearCtrl.jumpToItem((selYear - yearStart).clamp(0, 400).toInt());
-        }
-        if (monthCtrl.hasClients) {
-          monthCtrl.jumpToItem((selMonth - 1).clamp(0, 12).toInt());
-        }
-        if (dayCtrl.hasClients) {
-          dayCtrl.jumpToItem((selDay - 1).clamp(0, 29).toInt());
-        }
-      });
-    }
-
-    void syncGregorianFromKemetic() {
-      final gregorian = KemeticMath.toGregorian(selYear, selMonth, selDay);
-      gregYear = gregorian.year;
-      gregMonth = gregorian.month;
-      gregDay = gregorian.day;
-    }
-
-    void syncKemeticFromGregorian() {
-      final kemetic = KemeticMath.fromGregorian(
-        DateUtils.dateOnly(DateTime(gregYear, gregMonth, gregDay)),
-      );
-      selYear = kemetic.kYear;
-      selMonth = kemetic.kMonth;
-      selDay = kemetic.kDay;
     }
 
     try {
@@ -26625,9 +26526,6 @@ class CalendarPageState extends State<CalendarPage>
               int dayCount = maxDayFor(selYear, selMonth);
               if (selDay > dayCount) {
                 selDay = dayCount;
-                if (allowDateChange && dayCtrl.hasClients) {
-                  scheduleDayPickerJump();
-                }
               }
 
               final titleG = KemeticMath.toGregorian(
@@ -26635,9 +26533,7 @@ class CalendarPageState extends State<CalendarPage>
                 selMonth,
                 selDay,
               ); // safe
-              syncGregorianFromKemetic();
               final titleGradient = showGregorianDates ? whiteGloss : goldGloss;
-              final wheelGradient = showGregorianDates ? blueGloss : goldGloss;
               final dateTitleStyle = labelStyleWhite.copyWith(
                 fontSize: 18,
                 fontWeight: FontWeight.w500,
@@ -26745,30 +26641,41 @@ class CalendarPageState extends State<CalendarPage>
                 );
               }
 
+              Future<void> openDaySheetDatePicker() async {
+                if (!allowDateChange) return;
+                final picked = await DaySheetDatePicker.show(
+                  context: sheetCtx,
+                  initialDate: KemeticMath.toGregorian(
+                    selYear,
+                    selMonth,
+                    selDay,
+                  ),
+                  initialMode: showGregorianDates
+                      ? DaySheetDatePickerMode.gregorian
+                      : DaySheetDatePickerMode.kemetic,
+                );
+                if (picked == null || !sheetCtx.mounted) return;
+                final selected = KemeticMath.fromGregorian(picked.date);
+                setSheetState(() {
+                  selYear = selected.kYear;
+                  selMonth = selected.kMonth;
+                  selDay = selected.kDay;
+                  showGregorianDates =
+                      picked.mode == DaySheetDatePickerMode.gregorian;
+                });
+                persistDaySheetSession();
+              }
+
               Widget datePicker() {
                 final titleWidget = Semantics(
                   button: allowDateChange,
-                  label: showGregorianDates
-                      ? 'Show Kemetic dates'
-                      : 'Show Gregorian dates',
+                  label: allowDateChange
+                      ? 'Change day sheet date'
+                      : 'Day sheet date',
                   child: GestureDetector(
-                    key: const ValueKey('day_sheet_date_toggle'),
+                    key: const ValueKey('day_sheet_date_button'),
                     behavior: HitTestBehavior.opaque,
-                    onTap: !allowDateChange
-                        ? null
-                        : () {
-                            setSheetState(() {
-                              showGregorianDates = !showGregorianDates;
-                              if (showGregorianDates) {
-                                syncGregorianFromKemetic();
-                                syncGregorianControllers();
-                              } else {
-                                syncKemeticFromGregorian();
-                                syncKemeticControllers();
-                              }
-                            });
-                            persistDaySheetSession();
-                          },
+                    onTap: allowDateChange ? openDaySheetDatePicker : null,
                     child: Padding(
                       padding: const EdgeInsets.symmetric(vertical: 4),
                       child: Center(
@@ -26801,249 +26708,7 @@ class CalendarPageState extends State<CalendarPage>
                   ),
                 );
 
-                if (!allowDateChange) {
-                  return titleWidget;
-                }
-
-                return Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    titleWidget,
-                    const SizedBox(height: 6),
-                    SizedBox(
-                      height: 128,
-                      child: showGregorianDates
-                          ? Row(
-                              children: [
-                                Expanded(
-                                  flex: 4,
-                                  child: CupertinoPicker(
-                                    scrollController: gregMonthCtrl,
-                                    itemExtent: 32,
-                                    looping: true,
-                                    backgroundColor: const Color(0x00121214),
-                                    onSelectedItemChanged: (i) {
-                                      setSheetState(() {
-                                        gregMonth = (i % 12) + 1;
-                                        final max = gregDayMax(
-                                          gregYear,
-                                          gregMonth,
-                                        );
-                                        if (gregDay > max) {
-                                          gregDay = max;
-                                          if (gregDayCtrl.hasClients) {
-                                            scheduleGregorianDayPickerJump();
-                                          }
-                                        }
-                                        syncKemeticFromGregorian();
-                                      });
-                                      persistDaySheetSession();
-                                    },
-                                    children: List<Widget>.generate(12, (i) {
-                                      final label = _gregMonthNames[i + 1];
-                                      return Center(
-                                        child: GlossyText(
-                                          text: label,
-                                          style: const TextStyle(fontSize: 14),
-                                          gradient: wheelGradient,
-                                        ),
-                                      );
-                                    }),
-                                  ),
-                                ),
-                                const SizedBox(width: 6),
-                                Expanded(
-                                  flex: 3,
-                                  child: CupertinoPicker(
-                                    scrollController: gregDayCtrl,
-                                    itemExtent: 32,
-                                    looping: true,
-                                    backgroundColor: const Color(0x00121214),
-                                    onSelectedItemChanged: (i) {
-                                      setSheetState(() {
-                                        final max = gregDayMax(
-                                          gregYear,
-                                          gregMonth,
-                                        );
-                                        gregDay = (i % max) + 1;
-                                        syncKemeticFromGregorian();
-                                      });
-                                      persistDaySheetSession();
-                                    },
-                                    children: List<Widget>.generate(
-                                      gregDayMax(gregYear, gregMonth),
-                                      (i) {
-                                        final d = i + 1;
-                                        return Center(
-                                          child: GlossyText(
-                                            text: '$d',
-                                            style: const TextStyle(
-                                              fontSize: 14,
-                                            ),
-                                            gradient: wheelGradient,
-                                          ),
-                                        );
-                                      },
-                                    ),
-                                  ),
-                                ),
-                                const SizedBox(width: 6),
-                                Expanded(
-                                  flex: 4,
-                                  child: CupertinoPicker(
-                                    scrollController: gregYearCtrl,
-                                    itemExtent: 32,
-                                    looping: false,
-                                    backgroundColor: const Color(0x00121214),
-                                    onSelectedItemChanged: (i) {
-                                      setSheetState(() {
-                                        gregYear = gregYearStart + i;
-                                        final max = gregDayMax(
-                                          gregYear,
-                                          gregMonth,
-                                        );
-                                        if (gregDay > max) {
-                                          gregDay = max;
-                                          if (gregDayCtrl.hasClients) {
-                                            scheduleGregorianDayPickerJump();
-                                          }
-                                        }
-                                        syncKemeticFromGregorian();
-                                      });
-                                      persistDaySheetSession();
-                                    },
-                                    children: List<Widget>.generate(401, (i) {
-                                      final year = gregYearStart + i;
-                                      return Center(
-                                        child: GlossyText(
-                                          text: '$year',
-                                          style: const TextStyle(fontSize: 14),
-                                          gradient: wheelGradient,
-                                        ),
-                                      );
-                                    }),
-                                  ),
-                                ),
-                              ],
-                            )
-                          : Row(
-                              children: [
-                                Expanded(
-                                  flex: 4,
-                                  child: CupertinoPicker(
-                                    scrollController: monthCtrl,
-                                    itemExtent: 32,
-                                    looping: true,
-                                    backgroundColor: const Color(0x00121214),
-                                    onSelectedItemChanged: (i) {
-                                      setSheetState(() {
-                                        selMonth = (i % 13) + 1;
-                                        final max = maxDayFor(
-                                          selYear,
-                                          selMonth,
-                                        );
-                                        if (selDay > max) {
-                                          selDay = max;
-                                          if (dayCtrl.hasClients) {
-                                            scheduleDayPickerJump();
-                                          }
-                                        }
-                                        syncGregorianFromKemetic();
-                                      });
-                                      persistDaySheetSession();
-                                    },
-                                    children: List<Widget>.generate(13, (i) {
-                                      final m = i + 1;
-                                      final label = getMonthById(m).displayFull;
-                                      return Center(
-                                        child: _GlossyMonthNameText(
-                                          text: label,
-                                          gradient: wheelGradient,
-                                          style: const TextStyle(fontSize: 14),
-                                        ),
-                                      );
-                                    }),
-                                  ),
-                                ),
-                                const SizedBox(width: 6),
-                                Expanded(
-                                  flex: 3,
-                                  child: CupertinoPicker(
-                                    scrollController: dayCtrl,
-                                    itemExtent: 32,
-                                    looping: true,
-                                    backgroundColor: const Color(0x00121214),
-                                    onSelectedItemChanged: (i) {
-                                      setSheetState(() {
-                                        final max = maxDayFor(
-                                          selYear,
-                                          selMonth,
-                                        );
-                                        selDay = (i % max) + 1;
-                                        syncGregorianFromKemetic();
-                                      });
-                                      persistDaySheetSession();
-                                    },
-                                    children: List<Widget>.generate(dayCount, (
-                                      i,
-                                    ) {
-                                      final d = i + 1;
-                                      return Center(
-                                        child: GlossyText(
-                                          text: '$d',
-                                          style: const TextStyle(fontSize: 14),
-                                          gradient: wheelGradient,
-                                        ),
-                                      );
-                                    }),
-                                  ),
-                                ),
-                                const SizedBox(width: 6),
-                                Expanded(
-                                  flex: 4,
-                                  child: CupertinoPicker(
-                                    scrollController: yearCtrl,
-                                    itemExtent: 32,
-                                    looping: false,
-                                    backgroundColor: const Color(0x00121214),
-                                    onSelectedItemChanged: (i) {
-                                      setSheetState(() {
-                                        selYear = yearStart + i;
-                                        final max = maxDayFor(
-                                          selYear,
-                                          selMonth,
-                                        );
-                                        if (selDay > max) {
-                                          selDay = max;
-                                          if (dayCtrl.hasClients) {
-                                            scheduleDayPickerJump();
-                                          }
-                                        }
-                                        syncGregorianFromKemetic();
-                                      });
-                                      persistDaySheetSession();
-                                    },
-                                    children: List<Widget>.generate(401, (i) {
-                                      final ky = yearStart + i;
-                                      final label = _gregYearLabelFor(
-                                        ky,
-                                        selMonth,
-                                      );
-                                      return Center(
-                                        child: GlossyText(
-                                          text: label,
-                                          style: const TextStyle(fontSize: 14),
-                                          gradient: wheelGradient,
-                                        ),
-                                      );
-                                    }),
-                                  ),
-                                ),
-                              ],
-                            ),
-                    ),
-                  ],
-                );
+                return titleWidget;
               }
 
               final keyboardInset = keyboardInsetOf(sheetCtx);
