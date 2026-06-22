@@ -227,14 +227,36 @@ void main() {
       expect(saveRepeatingNote, contains('CalendarPageState.ruleToJson(rule)'));
     });
 
-    test('reminder repeat end date remains on the existing helper', () {
+    test('reminder repeat end date uses Stone Register wrapper only', () {
       final reminderEditor = _sourceBetween(
         calendarPage,
         'Future<bool> _openReminderEditor',
         'Future<void> _editReminderById',
       );
+
       expect(reminderEditor, contains('await pickDateUniversal'));
-      expect(reminderEditor, isNot(contains('RecurrenceUntilDatePicker.show')));
+
+      final repeatEndDate = _sourceBetween(
+        reminderEditor,
+        'if (repeat.kind != ReminderRepeatKind.none) ...[',
+        "const Text(\n                            'Category'",
+      );
+      expect(repeatEndDate, contains('RecurrenceUntilDatePicker.show'));
+      expect(repeatEndDate, contains('initialDate: endLocal ?? startLocal'));
+      expect(repeatEndDate, contains('allowPast: true'));
+      expect(repeatEndDate, contains('normalized.isBefore(minEnd)'));
+      expect(repeatEndDate, contains('? minEnd'));
+      expect(repeatEndDate, isNot(contains('await pickDateUniversal')));
+
+      expect(
+        reminderEditor,
+        contains(
+          'endLocal:\n                                      repeat.kind',
+        ),
+      );
+      expect(reminderEditor, contains(': endLocal'));
+      expect(reminderEditor, contains('_previewReminderLocally'));
+      expect(reminderEditor, contains('_upsertReminderRule(rule)'));
     });
 
     test('shared calendar update fanout respects selected scope', () {

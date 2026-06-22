@@ -17,12 +17,18 @@ class RecurrenceUntilDatePicker {
     final seed = DateUtils.dateOnly(initialDate);
     final today = DateUtils.dateOnly(DateTime.now());
     final kemeticSeed = KemeticMath.fromGregorian(seed);
+    final gregorianYearStart = allowPast && seed.year < today.year
+        ? seed.year
+        : today.year;
+    final gregorianYearCount = today.year - gregorianYearStart + 40;
     final picked = await StoneRegisterDatePicker.show<DateTime>(
       context,
       initialValue: seed,
       adapter: RecurrenceUntilDatePickerAdapter(
         today: today,
         kemeticYearStart: kemeticSeed.kYear,
+        gregorianYearStartOverride: gregorianYearStart,
+        gregorianYearCount: gregorianYearCount,
       ),
       initialMode: StoneDatePickerCalendarMode.gregorian,
       title: 'End repeat date',
@@ -47,6 +53,7 @@ class RecurrenceUntilDatePickerAdapter
   const RecurrenceUntilDatePickerAdapter({
     required this.today,
     required this.kemeticYearStart,
+    this.gregorianYearStartOverride,
     this.gregorianYearCount = 40,
     this.kemeticYearCount = 401,
   }) : assert(gregorianYearCount > 0),
@@ -54,10 +61,12 @@ class RecurrenceUntilDatePickerAdapter
 
   final DateTime today;
   final int kemeticYearStart;
+  final int? gregorianYearStartOverride;
   final int gregorianYearCount;
   final int kemeticYearCount;
 
-  int get gregorianYearStart => DateUtils.dateOnly(today).year;
+  int get gregorianYearStart =>
+      gregorianYearStartOverride ?? DateUtils.dateOnly(today).year;
 
   static const List<String> _gregorianMonthNames = [
     'January',

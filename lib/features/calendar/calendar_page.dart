@@ -18313,11 +18313,12 @@ class CalendarPageState extends State<CalendarPage>
                                 }
                                 if (action != 'pick') return;
                                 if (!sheetCtx.mounted) return;
-                                final picked = await pickDateUniversal(
-                                  context: sheetCtx,
-                                  initialDate: endLocal ?? startLocal,
-                                  allowPast: true,
-                                );
+                                final picked =
+                                    await RecurrenceUntilDatePicker.show(
+                                      sheetCtx,
+                                      initialDate: endLocal ?? startLocal,
+                                      allowPast: true,
+                                    );
                                 if (picked == null) return;
                                 if (!sheetCtx.mounted) return;
                                 setModalState(() {

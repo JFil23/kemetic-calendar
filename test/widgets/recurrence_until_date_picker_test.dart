@@ -100,6 +100,128 @@ void main() {
     },
   );
 
+  testWidgets(
+    'reminder repeat end-date picker opens with current end date and Cancel preserves settings on small phone',
+    (tester) async {
+      _useSmallPhoneSurface(tester);
+      final initial = DateTime(DateTime.now().year - 1, 5, 15);
+      final start = DateTime(initial.year, 5, 1);
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: _ReminderRepeatEndDateHost(
+            startDate: start,
+            initialEndDate: initial,
+          ),
+        ),
+      );
+
+      expect(find.text(_reminderLabel(initial)), findsOneWidget);
+      expect(find.text('Updates: 0'), findsOneWidget);
+      expect(find.text('Repeat: weekly'), findsOneWidget);
+      expect(find.text('CTA: Save Reminder'), findsOneWidget);
+
+      await tester.tap(
+        find.byKey(const ValueKey<String>('reminder-repeat-end-button')),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('End repeat date'), findsOneWidget);
+      expect(find.text('Gregorian Calendar'), findsOneWidget);
+      expect(find.text('May'), findsWidgets);
+      expect(find.text('15'), findsWidgets);
+      expect(find.text('${initial.year}'), findsWidgets);
+      expect(tester.takeException(), isNull);
+
+      await tester.tap(find.widgetWithText(OutlinedButton, 'Cancel'));
+      await tester.pumpAndSettle();
+
+      expect(find.text(_reminderLabel(initial)), findsOneWidget);
+      expect(find.text('Updates: 0'), findsOneWidget);
+      expect(find.text('Repeat: weekly'), findsOneWidget);
+      expect(find.text('CTA: Save Reminder'), findsOneWidget);
+    },
+  );
+
+  testWidgets(
+    'reminder repeat end-date picker Done saves visible date and reopens it',
+    (tester) async {
+      _useSmallPhoneSurface(tester);
+      final start = DateTime(DateTime.now().year + 1, 6, 10);
+      final initial = DateTime(start.year, 7, 12);
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: _ReminderRepeatEndDateHost(
+            startDate: start,
+            initialEndDate: initial,
+          ),
+        ),
+      );
+
+      await tester.tap(
+        find.byKey(const ValueKey<String>('reminder-repeat-end-button')),
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(find.widgetWithText(ElevatedButton, 'Done'));
+      await tester.pumpAndSettle();
+
+      expect(find.text(_reminderLabel(initial)), findsOneWidget);
+      expect(find.text('Updates: 1'), findsOneWidget);
+      expect(find.text('Repeat: weekly'), findsOneWidget);
+      expect(find.text('CTA: Save Reminder'), findsOneWidget);
+
+      await tester.tap(
+        find.byKey(const ValueKey<String>('reminder-repeat-end-button')),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('End repeat date'), findsOneWidget);
+      expect(find.text('July'), findsWidgets);
+      expect(find.text('12'), findsWidgets);
+      expect(find.text('${initial.year}'), findsWidgets);
+    },
+  );
+
+  testWidgets(
+    'reminder repeat end-date picker keeps caller-owned start clamp',
+    (tester) async {
+      final start = DateTime(DateTime.now().year + 1, 8, 20);
+      final initial = DateTime(start.year, 8, 1);
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: _ReminderRepeatEndDateHost(
+            startDate: start,
+            initialEndDate: initial,
+          ),
+        ),
+      );
+
+      await tester.tap(
+        find.byKey(const ValueKey<String>('reminder-repeat-end-button')),
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(find.widgetWithText(ElevatedButton, 'Done'));
+      await tester.pumpAndSettle();
+
+      expect(find.text(_reminderLabel(start)), findsOneWidget);
+      expect(find.text('Updates: 1'), findsOneWidget);
+      expect(find.text('Repeat: weekly'), findsOneWidget);
+      expect(find.text('CTA: Save Reminder'), findsOneWidget);
+
+      await tester.tap(
+        find.byKey(const ValueKey<String>('reminder-repeat-end-button')),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('End repeat date'), findsOneWidget);
+      expect(find.text('August'), findsWidgets);
+      expect(find.text('20'), findsWidgets);
+      expect(find.text('${start.year}'), findsWidgets);
+    },
+  );
+
   testWidgets('recurrence until picker preserves first-date validation', (
     tester,
   ) async {
@@ -210,9 +332,71 @@ class _RecurrenceUntilHostState extends State<_RecurrenceUntilHost> {
   }
 }
 
+class _ReminderRepeatEndDateHost extends StatefulWidget {
+  const _ReminderRepeatEndDateHost({
+    required this.startDate,
+    required this.initialEndDate,
+  });
+
+  final DateTime startDate;
+  final DateTime? initialEndDate;
+
+  @override
+  State<_ReminderRepeatEndDateHost> createState() =>
+      _ReminderRepeatEndDateHostState();
+}
+
+class _ReminderRepeatEndDateHostState
+    extends State<_ReminderRepeatEndDateHost> {
+  late final DateTime _start = DateUtils.dateOnly(widget.startDate);
+  late DateTime? _end = widget.initialEndDate == null
+      ? null
+      : DateUtils.dateOnly(widget.initialEndDate!);
+  var _updates = 0;
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text('Updates: $_updates'),
+            const Text('Repeat: weekly'),
+            const Text('CTA: Save Reminder'),
+            TextButton(
+              key: const ValueKey<String>('reminder-repeat-end-button'),
+              onPressed: () async {
+                final picked = await RecurrenceUntilDatePicker.show(
+                  context,
+                  initialDate: _end ?? _start,
+                  allowPast: true,
+                );
+                if (picked == null || !mounted) return;
+                setState(() {
+                  final normalized = DateUtils.dateOnly(picked);
+                  _end = normalized.isBefore(_start) ? _start : normalized;
+                  _updates += 1;
+                });
+              },
+              child: Text(_reminderLabel(_end)),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 String _label(DateTime date) {
   final normalized = DateUtils.dateOnly(date);
   return 'Until: ${normalized.year}-${normalized.month.toString().padLeft(2, '0')}-${normalized.day.toString().padLeft(2, '0')}';
+}
+
+String _reminderLabel(DateTime? date) {
+  if (date == null) return 'End date: Never';
+  final normalized = DateUtils.dateOnly(date);
+  return 'End date: ${normalized.year}-${normalized.month.toString().padLeft(2, '0')}-${normalized.day.toString().padLeft(2, '0')}';
 }
 
 void _useSmallPhoneSurface(WidgetTester tester) {
