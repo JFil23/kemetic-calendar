@@ -146,6 +146,8 @@ enum MaatFlowResponseJournalFormatter {
   keptWordAgreement,
   wagMemory,
   khatBodyCare,
+  oracleSign,
+  wanderingRemainder,
 }
 
 extension MaatFlowResponseJournalFormatterX
@@ -178,6 +180,10 @@ extension MaatFlowResponseJournalFormatterX
         return 'wag_memory';
       case MaatFlowResponseJournalFormatter.khatBodyCare:
         return 'khat_body_care';
+      case MaatFlowResponseJournalFormatter.oracleSign:
+        return 'oracle_sign';
+      case MaatFlowResponseJournalFormatter.wanderingRemainder:
+        return 'wandering_remainder';
     }
   }
 
@@ -219,6 +225,12 @@ extension MaatFlowResponseJournalFormatterX
       case 'khat_body_care':
       case 'khat-body-care':
         return MaatFlowResponseJournalFormatter.khatBodyCare;
+      case 'oracle_sign':
+      case 'oracle-sign':
+        return MaatFlowResponseJournalFormatter.oracleSign;
+      case 'wandering_remainder':
+      case 'wandering-remainder':
+        return MaatFlowResponseJournalFormatter.wanderingRemainder;
       case 'standard':
       default:
         return MaatFlowResponseJournalFormatter.standard;
@@ -657,6 +669,10 @@ String _formatResponseBodyText(
       return '${spec.journalHeading}: I kept the table and carried ${_sentenceFragment(display)} forward.';
     case MaatFlowResponseJournalFormatter.khatBodyCare:
       return '${spec.journalHeading}: I listened to the body and answered with ${_sentenceFragment(display)}.';
+    case MaatFlowResponseJournalFormatter.oracleSign:
+      return '${spec.journalHeading}: I received one sign and will test it through grounded action.';
+    case MaatFlowResponseJournalFormatter.wanderingRemainder:
+      return '${spec.journalHeading}: I honored what was lost and noticed one thing that remains.';
     case MaatFlowResponseJournalFormatter.decanWatch:
     case MaatFlowResponseJournalFormatter.standard:
       return '${spec.journalHeading}: $display';
@@ -694,6 +710,10 @@ String _formatGroupedResponseBodyText(
       return _formatWagResponseGroup(specs, values);
     case MaatFlowResponseJournalFormatter.khatBodyCare:
       return _formatKhatResponseGroup(specs, values);
+    case MaatFlowResponseJournalFormatter.oracleSign:
+      return _formatOracleResponseGroup(specs, values);
+    case MaatFlowResponseJournalFormatter.wanderingRemainder:
+      return _formatWanderingResponseGroup(specs, values);
     case MaatFlowResponseJournalFormatter.dawnHouseRite:
     case MaatFlowResponseJournalFormatter.closingRelease:
     case MaatFlowResponseJournalFormatter.daysOutsideReceipt:
@@ -962,6 +982,72 @@ String _formatKhatResponseGroup(
   }
   if (care.isNotEmpty) {
     return '${specs.first.journalHeading}: I listened to the body and answered with $care.';
+  }
+  return '';
+}
+
+String _formatOracleResponseGroup(
+  List<MaatFlowResponseSpec> specs,
+  Map<String, MaatFlowResponseValue> values,
+) {
+  final byRole = <String, MaatFlowResponseSpec>{
+    for (final spec in specs)
+      if (spec.normalizedJournalRole != null) spec.normalizedJournalRole!: spec,
+  };
+
+  final signSpec = byRole['sign'];
+  final receivedSpec = byRole['received'];
+  final signs = signSpec == null
+      ? ''
+      : _joinNatural(
+          values[signSpec.id]?.optionIds
+                  .map((id) => signSpec.optionById(id)?._displayLabel ?? id)
+                  .where((label) => label.trim().isNotEmpty)
+                  .map((label) => label.trim().toLowerCase()) ??
+              const Iterable<String>.empty(),
+        );
+  final received = receivedSpec == null
+      ? ''
+      : _sentenceFragment(values[receivedSpec.id]?.displayText(receivedSpec));
+
+  if (signs.isNotEmpty) {
+    return '${specs.first.journalHeading}: I received one sign through $signs and will test it through grounded action.';
+  }
+  if (received.isNotEmpty) {
+    return '${specs.first.journalHeading}: I received one sign and will test it through grounded action.';
+  }
+  return '';
+}
+
+String _formatWanderingResponseGroup(
+  List<MaatFlowResponseSpec> specs,
+  Map<String, MaatFlowResponseValue> values,
+) {
+  final byRole = <String, MaatFlowResponseSpec>{
+    for (final spec in specs)
+      if (spec.normalizedJournalRole != null) spec.normalizedJournalRole!: spec,
+  };
+
+  final remainsSpec = byRole['remains'];
+  final foundSpec = byRole['found'];
+  final remains = remainsSpec == null
+      ? ''
+      : _joinNatural(
+          values[remainsSpec.id]?.optionIds
+                  .map((id) => remainsSpec.optionById(id)?._displayLabel ?? id)
+                  .where((label) => label.trim().isNotEmpty)
+                  .map((label) => label.trim().toLowerCase()) ??
+              const Iterable<String>.empty(),
+        );
+  final found = foundSpec == null
+      ? ''
+      : _sentenceFragment(values[foundSpec.id]?.displayText(foundSpec));
+
+  if (remains.isNotEmpty) {
+    return '${specs.first.journalHeading}: I honored $remains and noticed one thing that remains.';
+  }
+  if (found.isNotEmpty) {
+    return '${specs.first.journalHeading}: I honored what was lost and noticed one thing that remains.';
   }
   return '';
 }

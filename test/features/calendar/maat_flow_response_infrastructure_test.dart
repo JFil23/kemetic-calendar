@@ -135,10 +135,18 @@ void main() {
       MaatFlowResponseJournalFormatterX.fromWireName('khat-body-care'),
       MaatFlowResponseJournalFormatter.khatBodyCare,
     );
+    expect(
+      MaatFlowResponseJournalFormatterX.fromWireName('oracle-sign'),
+      MaatFlowResponseJournalFormatter.oracleSign,
+    );
+    expect(
+      MaatFlowResponseJournalFormatterX.fromWireName('wandering-remainder'),
+      MaatFlowResponseJournalFormatter.wanderingRemainder,
+    );
   });
 
-  test('default resolver exposes only Phase 2B through 3E pilot specs', () {
-    expect(kDefaultMaatFlowResponseResolver.specs, hasLength(29));
+  test('default resolver exposes only Phase 2B through 3F pilot specs', () {
+    expect(kDefaultMaatFlowResponseResolver.specs, hasLength(34));
 
     expect(
       resolveMaatFlowResponseSpecs(
@@ -246,6 +254,24 @@ void main() {
         surface: MaatFlowResponseSurface.calendarSheet,
       ).map((spec) => spec.id),
       <String>['khat-body-asked', 'khat-care-given'],
+    );
+    expect(
+      resolveMaatFlowResponseSpecs(
+        flowKey: kOracleFlowKey,
+        surface: MaatFlowResponseSurface.calendarSheet,
+      ).map((spec) => spec.id),
+      <String>[
+        'oracle-question-carried',
+        'oracle-sign-shape',
+        'oracle-received',
+      ],
+    );
+    expect(
+      resolveMaatFlowResponseSpecs(
+        flowKey: kWanderingFlowKey,
+        surface: MaatFlowResponseSurface.calendarSheet,
+      ).map((spec) => spec.id),
+      <String>['wandering-remains', 'wandering-found'],
     );
 
     for (final flowKey in const <String>[
@@ -548,6 +574,47 @@ void main() {
     });
     expect(
       khatSpecs.map((spec) => spec.offerJournalInclusionDefault).toSet(),
+      <bool>{false},
+    );
+
+    final oracleSpecs = resolveMaatFlowResponseSpecs(
+      flowKey: kOracleFlowKey,
+      surface: MaatFlowResponseSurface.calendarSheet,
+    );
+    expect(oracleSpecs.map((spec) => spec.id), <String>[
+      'oracle-question-carried',
+      'oracle-sign-shape',
+      'oracle-received',
+    ]);
+    expect(
+      oracleSpecs.map((spec) => spec.journalPolicy).toSet(),
+      <MaatFlowJournalPolicy>{MaatFlowJournalPolicy.offer},
+    );
+    expect(oracleSpecs.map((spec) => spec.privacyClass).toSet(), <String>{
+      'dream_guidance_private',
+    });
+    expect(
+      oracleSpecs.map((spec) => spec.offerJournalInclusionDefault).toSet(),
+      <bool>{false},
+    );
+
+    final wanderingSpecs = resolveMaatFlowResponseSpecs(
+      flowKey: kWanderingFlowKey,
+      surface: MaatFlowResponseSurface.calendarSheet,
+    );
+    expect(wanderingSpecs.map((spec) => spec.id), <String>[
+      'wandering-remains',
+      'wandering-found',
+    ]);
+    expect(
+      wanderingSpecs.map((spec) => spec.journalPolicy).toSet(),
+      <MaatFlowJournalPolicy>{MaatFlowJournalPolicy.offer},
+    );
+    expect(wanderingSpecs.map((spec) => spec.privacyClass).toSet(), <String>{
+      'grief_absence_private',
+    });
+    expect(
+      wanderingSpecs.map((spec) => spec.offerJournalInclusionDefault).toSet(),
       <bool>{false},
     );
   });
@@ -896,6 +963,78 @@ void main() {
       khat.single.text,
       'The Khat: I listened to the body asking for water and rest and answered with one honest act of care.',
     );
+
+    final oracleSpecs = resolveMaatFlowResponseSpecs(
+      flowKey: kOracleFlowKey,
+      surface: MaatFlowResponseSurface.calendarSheet,
+    );
+    final oracle = buildMaatFlowResponseJournalPreviews(
+      specs: oracleSpecs,
+      values: <String, MaatFlowResponseValue>{
+        'oracle-question-carried': MaatFlowResponseValue.text(
+          specId: 'oracle-question-carried',
+          text: 'What did the private dream mean?',
+        ),
+        'oracle-sign-shape': MaatFlowResponseValue.chips(
+          specId: 'oracle-sign-shape',
+          optionIds: <String>['dream', 'image'],
+        ),
+        'oracle-received': MaatFlowResponseValue.text(
+          specId: 'oracle-received',
+          text: 'raw dream image with a private name',
+          multiline: true,
+        ),
+      },
+      clientEventId: 'cid-oracle',
+    );
+    expect(oracle, hasLength(1));
+    expect(oracle.single.policy, MaatFlowJournalPolicy.offer);
+    expect(oracle.single.requiresUserChoice, isTrue);
+    expect(oracle.single.includeInJournalByDefault, isFalse);
+    expect(
+      oracle.single.sourceId,
+      'maat_response:the-oracle:cid:cid-oracle:oracle-sign',
+    );
+    expect(
+      oracle.single.text,
+      'The Oracle: I received one sign through dream and image and will test it through grounded action.',
+    );
+    expect(oracle.single.text, isNot(contains('private dream')));
+    expect(oracle.single.text, isNot(contains('private name')));
+
+    final wanderingSpecs = resolveMaatFlowResponseSpecs(
+      flowKey: kWanderingFlowKey,
+      surface: MaatFlowResponseSurface.calendarSheet,
+    );
+    final wandering = buildMaatFlowResponseJournalPreviews(
+      specs: wanderingSpecs,
+      values: <String, MaatFlowResponseValue>{
+        'wandering-remains': MaatFlowResponseValue.chips(
+          specId: 'wandering-remains',
+          optionIds: <String>['loss', 'support'],
+        ),
+        'wandering-found': MaatFlowResponseValue.text(
+          specId: 'wandering-found',
+          text: 'raw grief language and a private name',
+          multiline: true,
+        ),
+      },
+      clientEventId: 'cid-wandering',
+    );
+    expect(wandering, hasLength(1));
+    expect(wandering.single.policy, MaatFlowJournalPolicy.offer);
+    expect(wandering.single.requiresUserChoice, isTrue);
+    expect(wandering.single.includeInJournalByDefault, isFalse);
+    expect(
+      wandering.single.sourceId,
+      'maat_response:the-wandering:cid:cid-wandering:wandering-remainder',
+    );
+    expect(
+      wandering.single.text,
+      'The Wandering: I honored loss and support and noticed one thing that remains.',
+    );
+    expect(wandering.single.text, isNot(contains('raw grief')));
+    expect(wandering.single.text, isNot(contains('private name')));
   });
 
   test(
@@ -1008,7 +1147,7 @@ void main() {
     expect(JournalBadgeUtils.tokensFromDocument(removed), hasLength(1));
   });
 
-  test('Phase 3E wiring stays isolated to shared sheet panels and pilots', () {
+  test('Phase 3F wiring stays isolated to shared sheet panels and pilots', () {
     expect(
       kDefaultMaatFlowResponseResolver.specs
           .map((spec) => spec.flowKey)
@@ -1027,6 +1166,8 @@ void main() {
         kKeptWordFlowKey,
         kTheWagFlowKey,
         kKhatFlowKey,
+        kOracleFlowKey,
+        kWanderingFlowKey,
       },
     );
 

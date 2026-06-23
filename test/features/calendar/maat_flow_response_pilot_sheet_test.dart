@@ -2412,6 +2412,448 @@ void main() {
     expect(find.text('Moved'), findsWidgets);
   });
 
+  testWidgets('Oracle response renders with default-off journal offer', (
+    tester,
+  ) async {
+    await _setPhoneViewport(tester);
+
+    await tester.pumpWidget(
+      _DayViewHarness(
+        flowIndex: _oracleFlowIndex,
+        notes: <NoteData>[_oracleNote()],
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await _openDetailSheet(tester, _oracleTitle);
+
+    expect(find.byKey(kMaatFlowResponseSectionKey), findsOneWidget);
+    expect(find.text('What question did you carry?'), findsOneWidget);
+    expect(find.text('What shape did the sign take?'), findsOneWidget);
+    expect(
+      find.text('What did you receive, without forcing meaning too early?'),
+      findsOneWidget,
+    );
+    for (final optionId in const <String>['dream', 'image', 'action']) {
+      expect(
+        find.byKey(maatFlowResponseFieldKey('oracle-sign-shape:$optionId')),
+        findsOneWidget,
+      );
+    }
+
+    await _enterPilotResponse(
+      tester,
+      specId: 'oracle-question-carried',
+      text: 'What did the private dream mean?',
+    );
+    await _choosePilotOption(
+      tester,
+      specId: 'oracle-sign-shape',
+      optionId: 'dream',
+    );
+    await _choosePilotOption(
+      tester,
+      specId: 'oracle-sign-shape',
+      optionId: 'image',
+    );
+    await _enterPilotResponse(
+      tester,
+      specId: 'oracle-received',
+      text: 'raw dream image with a private name.',
+    );
+
+    expect(find.byKey(kMaatFlowResponseJournalPreviewKey), findsOneWidget);
+    expect(
+      find.text(
+        'The Oracle: I received one sign through dream and image and will test it through grounded action.',
+      ),
+      findsOneWidget,
+    );
+    expect(
+      find.descendant(
+        of: find.byKey(kMaatFlowResponseJournalPreviewKey),
+        matching: find.textContaining('private name'),
+      ),
+      findsNothing,
+    );
+    final addToggle = tester.widget<Checkbox>(find.byType(Checkbox).last);
+    expect(addToggle.value, isFalse);
+  });
+
+  testWidgets('Oracle can suppress journal response body', (tester) async {
+    await _setPhoneViewport(tester);
+    var document = _journalDocument('Oracle manual journal body.');
+    final badgeAppends = <String>[];
+    final responseWrites = <MaatJournalResponseBlock>[];
+
+    await tester.pumpWidget(
+      _DayViewHarness(
+        flowIndex: _oracleFlowIndex,
+        notes: <NoteData>[_oracleNote()],
+        onAppendToJournal: (text) async => badgeAppends.add(text),
+        onWriteJournalResponse: (block) async {
+          responseWrites.add(block);
+          document = MaatJournalResponseBlockUtils.upsert(document, block);
+        },
+        onRecordCompletion:
+            ({
+              required String clientEventId,
+              required int flowId,
+              required DateTime completedOnDate,
+              Map<String, dynamic>? metadata,
+            }) async {},
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await _openDetailSheet(tester, _oracleTitle);
+    await _choosePilotOption(
+      tester,
+      specId: 'oracle-sign-shape',
+      optionId: 'warning',
+    );
+    await _enterPilotResponse(
+      tester,
+      specId: 'oracle-received',
+      text: 'raw disturbing dream detail.',
+    );
+    await _tapStatus(tester, 'Observed');
+
+    expect(responseWrites, hasLength(1));
+    expect(responseWrites.single.text, isEmpty);
+    expect(document.toPlainText(), 'Oracle manual journal body.');
+    expect(MaatJournalResponseBlockUtils.extract(document), isEmpty);
+    expect(badgeAppends, hasLength(1));
+    expect(JournalBadgeUtils.hasBadges(badgeAppends.single), isTrue);
+  });
+
+  testWidgets('Oracle completion writes one opted-in safe response block', (
+    tester,
+  ) async {
+    await _setPhoneViewport(tester);
+    var document = _journalDocument('Oracle journal body stays.');
+
+    await tester.pumpWidget(
+      _DayViewHarness(
+        flowIndex: _oracleFlowIndex,
+        notes: <NoteData>[_oracleNote()],
+        onWriteJournalResponse: (block) async {
+          document = MaatJournalResponseBlockUtils.upsert(document, block);
+        },
+        onRecordCompletion:
+            ({
+              required String clientEventId,
+              required int flowId,
+              required DateTime completedOnDate,
+              Map<String, dynamic>? metadata,
+            }) async {},
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await _openDetailSheet(tester, _oracleTitle);
+    await _choosePilotOption(
+      tester,
+      specId: 'oracle-sign-shape',
+      optionId: 'invitation',
+    );
+    await _enterPilotResponse(
+      tester,
+      specId: 'oracle-received',
+      text: 'a private dream sentence.',
+    );
+    await _toggleOfferJournalWrite(tester);
+    await _tapStatus(tester, 'Observed');
+
+    final blocks = MaatJournalResponseBlockUtils.extract(document);
+    expect(blocks, hasLength(1));
+    expect(document.toPlainText(), contains('Oracle journal body stays.'));
+    expect(
+      blocks.single.text,
+      'The Oracle: I received one sign through invitation and will test it through grounded action.',
+    );
+    expect(blocks.single.text, isNot(contains('private dream')));
+  });
+
+  testWidgets('Oracle repeat completion updates one safe response block', (
+    tester,
+  ) async {
+    await _setPhoneViewport(tester);
+    var document = _journalDocument('Existing Oracle journal text.');
+
+    await tester.pumpWidget(
+      _DayViewHarness(
+        flowIndex: _oracleFlowIndex,
+        notes: <NoteData>[_oracleNote()],
+        onWriteJournalResponse: (block) async {
+          document = MaatJournalResponseBlockUtils.upsert(document, block);
+        },
+        onRecordCompletion:
+            ({
+              required String clientEventId,
+              required int flowId,
+              required DateTime completedOnDate,
+              Map<String, dynamic>? metadata,
+            }) async {},
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await _openDetailSheet(tester, _oracleTitle);
+    await _choosePilotOption(
+      tester,
+      specId: 'oracle-sign-shape',
+      optionId: 'dream',
+    );
+    await _enterPilotResponse(
+      tester,
+      specId: 'oracle-received',
+      text: 'first private oracle detail.',
+    );
+    await _toggleOfferJournalWrite(tester);
+    await _tapStatus(tester, 'Observed');
+
+    await _choosePilotOption(
+      tester,
+      specId: 'oracle-sign-shape',
+      optionId: 'action',
+    );
+    await _enterPilotResponse(
+      tester,
+      specId: 'oracle-received',
+      text: 'updated private oracle detail.',
+    );
+    await _tapStatus(tester, 'Observed');
+
+    final blocks = MaatJournalResponseBlockUtils.extract(document);
+    expect(blocks, hasLength(1));
+    expect(
+      blocks.single.text,
+      'The Oracle: I received one sign through dream and action and will test it through grounded action.',
+    );
+    expect(document.toPlainText(), contains('Existing Oracle journal text.'));
+    expect(document.toPlainText(), isNot(contains('first private')));
+    expect(document.toPlainText(), isNot(contains('updated private')));
+  });
+
+  testWidgets('Wandering response renders with default-off journal offer', (
+    tester,
+  ) async {
+    await _setPhoneViewport(tester);
+
+    await tester.pumpWidget(
+      _DayViewHarness(
+        flowIndex: _wanderingFlowIndex,
+        notes: <NoteData>[_wanderingNote()],
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await _openDetailSheet(tester, _wanderingTitle);
+
+    expect(find.byKey(kMaatFlowResponseSectionKey), findsOneWidget);
+    expect(find.text('What remains with you?'), findsOneWidget);
+    expect(find.text('What did you find in the wandering?'), findsOneWidget);
+    for (final optionId in const <String>['loss', 'support', 'return']) {
+      expect(
+        find.byKey(maatFlowResponseFieldKey('wandering-remains:$optionId')),
+        findsOneWidget,
+      );
+    }
+
+    await _choosePilotOption(
+      tester,
+      specId: 'wandering-remains',
+      optionId: 'loss',
+    );
+    await _choosePilotOption(
+      tester,
+      specId: 'wandering-remains',
+      optionId: 'support',
+    );
+    await _enterPilotResponse(
+      tester,
+      specId: 'wandering-found',
+      text: 'raw grief language with a private name.',
+    );
+
+    expect(find.byKey(kMaatFlowResponseJournalPreviewKey), findsOneWidget);
+    expect(
+      find.text(
+        'The Wandering: I honored loss and support and noticed one thing that remains.',
+      ),
+      findsOneWidget,
+    );
+    expect(
+      find.descendant(
+        of: find.byKey(kMaatFlowResponseJournalPreviewKey),
+        matching: find.textContaining('private name'),
+      ),
+      findsNothing,
+    );
+    final addToggle = tester.widget<Checkbox>(find.byType(Checkbox).last);
+    expect(addToggle.value, isFalse);
+  });
+
+  testWidgets('Wandering can suppress journal response body', (tester) async {
+    await _setPhoneViewport(tester);
+    var document = _journalDocument('Wandering manual journal body.');
+    final badgeAppends = <String>[];
+    final responseWrites = <MaatJournalResponseBlock>[];
+
+    await tester.pumpWidget(
+      _DayViewHarness(
+        flowIndex: _wanderingFlowIndex,
+        notes: <NoteData>[_wanderingNote()],
+        onAppendToJournal: (text) async => badgeAppends.add(text),
+        onWriteJournalResponse: (block) async {
+          responseWrites.add(block);
+          document = MaatJournalResponseBlockUtils.upsert(document, block);
+        },
+        onRecordCompletion:
+            ({
+              required String clientEventId,
+              required int flowId,
+              required DateTime completedOnDate,
+              Map<String, dynamic>? metadata,
+            }) async {},
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await _openDetailSheet(tester, _wanderingTitle);
+    await _choosePilotOption(
+      tester,
+      specId: 'wandering-remains',
+      optionId: 'memory',
+    );
+    await _enterPilotResponse(
+      tester,
+      specId: 'wandering-found',
+      text: 'raw grief detail.',
+    );
+    await _tapStatus(tester, 'Observed');
+
+    expect(responseWrites, hasLength(1));
+    expect(responseWrites.single.text, isEmpty);
+    expect(document.toPlainText(), 'Wandering manual journal body.');
+    expect(MaatJournalResponseBlockUtils.extract(document), isEmpty);
+    expect(badgeAppends, hasLength(1));
+    expect(JournalBadgeUtils.hasBadges(badgeAppends.single), isTrue);
+  });
+
+  testWidgets('Wandering completion writes one opted-in safe response block', (
+    tester,
+  ) async {
+    await _setPhoneViewport(tester);
+    var document = _journalDocument('Wandering journal body stays.');
+
+    await tester.pumpWidget(
+      _DayViewHarness(
+        flowIndex: _wanderingFlowIndex,
+        notes: <NoteData>[_wanderingNote()],
+        onWriteJournalResponse: (block) async {
+          document = MaatJournalResponseBlockUtils.upsert(document, block);
+        },
+        onRecordCompletion:
+            ({
+              required String clientEventId,
+              required int flowId,
+              required DateTime completedOnDate,
+              Map<String, dynamic>? metadata,
+            }) async {},
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await _openDetailSheet(tester, _wanderingTitle);
+    await _choosePilotOption(
+      tester,
+      specId: 'wandering-remains',
+      optionId: 'capacity',
+    );
+    await _enterPilotResponse(
+      tester,
+      specId: 'wandering-found',
+      text: 'a private grief sentence.',
+    );
+    await _toggleOfferJournalWrite(tester);
+    await _tapStatus(tester, 'Observed');
+
+    final blocks = MaatJournalResponseBlockUtils.extract(document);
+    expect(blocks, hasLength(1));
+    expect(document.toPlainText(), contains('Wandering journal body stays.'));
+    expect(
+      blocks.single.text,
+      'The Wandering: I honored capacity and noticed one thing that remains.',
+    );
+    expect(blocks.single.text, isNot(contains('private grief')));
+  });
+
+  testWidgets('Wandering repeat completion updates one safe response block', (
+    tester,
+  ) async {
+    await _setPhoneViewport(tester);
+    var document = _journalDocument('Existing Wandering journal text.');
+
+    await tester.pumpWidget(
+      _DayViewHarness(
+        flowIndex: _wanderingFlowIndex,
+        notes: <NoteData>[_wanderingNote()],
+        onWriteJournalResponse: (block) async {
+          document = MaatJournalResponseBlockUtils.upsert(document, block);
+        },
+        onRecordCompletion:
+            ({
+              required String clientEventId,
+              required int flowId,
+              required DateTime completedOnDate,
+              Map<String, dynamic>? metadata,
+            }) async {},
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await _openDetailSheet(tester, _wanderingTitle);
+    await _choosePilotOption(
+      tester,
+      specId: 'wandering-remains',
+      optionId: 'absence',
+    );
+    await _enterPilotResponse(
+      tester,
+      specId: 'wandering-found',
+      text: 'first grief detail.',
+    );
+    await _toggleOfferJournalWrite(tester);
+    await _tapStatus(tester, 'Observed');
+
+    await _choosePilotOption(
+      tester,
+      specId: 'wandering-remains',
+      optionId: 'return',
+    );
+    await _enterPilotResponse(
+      tester,
+      specId: 'wandering-found',
+      text: 'updated grief detail.',
+    );
+    await _tapStatus(tester, 'Observed');
+
+    final blocks = MaatJournalResponseBlockUtils.extract(document);
+    expect(blocks, hasLength(1));
+    expect(
+      blocks.single.text,
+      'The Wandering: I honored absence and return and noticed one thing that remains.',
+    );
+    expect(
+      document.toPlainText(),
+      contains('Existing Wandering journal text.'),
+    );
+    expect(document.toPlainText(), isNot(contains('first grief')));
+    expect(document.toPlainText(), isNot(contains('updated grief')));
+  });
+
   testWidgets('unsupported Ma_at flow remains without response fields', (
     tester,
   ) async {
@@ -2524,6 +2966,23 @@ final MaatDecanFlowDefinition _khatDefinition = maatDecanFlowDefinitionForKey(
 )!;
 final MaatDecanFlowEvent _khatEvent = _khatDefinition.events.first;
 final String _khatTitle = maatDecanFlowEventTitle(_khatDefinition, _khatEvent);
+const int _oracleFlowId = 100;
+final MaatDecanFlowDefinition _oracleDefinition = maatDecanFlowDefinitionForKey(
+  kOracleFlowKey,
+)!;
+final MaatDecanFlowEvent _oracleEvent = _oracleDefinition.events.first;
+final String _oracleTitle = maatDecanFlowEventTitle(
+  _oracleDefinition,
+  _oracleEvent,
+);
+const int _wanderingFlowId = 101;
+final MaatDecanFlowDefinition _wanderingDefinition =
+    maatDecanFlowDefinitionForKey(kWanderingFlowKey)!;
+final MaatDecanFlowEvent _wanderingEvent = _wanderingDefinition.events.first;
+final String _wanderingTitle = maatDecanFlowEventTitle(
+  _wanderingDefinition,
+  _wanderingEvent,
+);
 
 const Map<int, FlowData> _decanWatchFlowIndex = <int, FlowData>{
   _decanWatchFlowId: FlowData(
@@ -2632,6 +3091,26 @@ final Map<int, FlowData> _khatFlowIndex = <int, FlowData>{
     color: Colors.lightBlue,
     active: true,
     notes: 'maat=$kKhatFlowKey;khat_lens=neutral',
+  ),
+};
+
+final Map<int, FlowData> _oracleFlowIndex = <int, FlowData>{
+  _oracleFlowId: FlowData(
+    id: _oracleFlowId,
+    name: kOracleTitle,
+    color: Colors.indigo,
+    active: true,
+    notes: 'maat=$kOracleFlowKey;oracle_lens=neutral',
+  ),
+};
+
+final Map<int, FlowData> _wanderingFlowIndex = <int, FlowData>{
+  _wanderingFlowId: FlowData(
+    id: _wanderingFlowId,
+    name: kWanderingTitle,
+    color: Colors.blueGrey,
+    active: true,
+    notes: 'maat=$kWanderingFlowKey;wandering_lens=neutral',
   ),
 };
 
@@ -2899,6 +3378,48 @@ NoteData _khatNote({MaatDecanFlowEvent? event}) {
     behaviorPayload: <String, dynamic>{
       'flow_key': kKhatFlowKey,
       'kind': _khatDefinition.behaviorKind,
+      'event_number': target.eventNumber,
+      'flow_day': target.flowDay,
+      'requires_real_world_action': target.requiresRealWorldAction,
+    },
+  );
+}
+
+NoteData _oracleNote({MaatDecanFlowEvent? event}) {
+  final target = event ?? _oracleEvent;
+  return NoteData(
+    clientEventId: 'cid-oracle-${target.eventNumber}',
+    title: maatDecanFlowEventTitle(_oracleDefinition, target),
+    detail: maatDecanFlowDetailText(_oracleDefinition, target),
+    category: target.decanSection,
+    allDay: false,
+    start: const TimeOfDay(hour: 9, minute: 0),
+    end: const TimeOfDay(hour: 9, minute: 8),
+    flowId: _oracleFlowId,
+    behaviorPayload: <String, dynamic>{
+      'flow_key': kOracleFlowKey,
+      'kind': _oracleDefinition.behaviorKind,
+      'event_number': target.eventNumber,
+      'flow_day': target.flowDay,
+      'requires_real_world_action': target.requiresRealWorldAction,
+    },
+  );
+}
+
+NoteData _wanderingNote({MaatDecanFlowEvent? event}) {
+  final target = event ?? _wanderingEvent;
+  return NoteData(
+    clientEventId: 'cid-wandering-${target.eventNumber}',
+    title: maatDecanFlowEventTitle(_wanderingDefinition, target),
+    detail: maatDecanFlowDetailText(_wanderingDefinition, target),
+    category: target.decanSection,
+    allDay: false,
+    start: const TimeOfDay(hour: 16, minute: 0),
+    end: const TimeOfDay(hour: 16, minute: 8),
+    flowId: _wanderingFlowId,
+    behaviorPayload: <String, dynamic>{
+      'flow_key': kWanderingFlowKey,
+      'kind': _wanderingDefinition.behaviorKind,
       'event_number': target.eventNumber,
       'flow_day': target.flowDay,
       'requires_real_world_action': target.requiresRealWorldAction,
