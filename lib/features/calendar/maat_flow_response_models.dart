@@ -132,6 +132,31 @@ extension MaatFlowJournalPolicyX on MaatFlowJournalPolicy {
   }
 }
 
+enum MaatFlowResponseJournalFormatter { standard, decanWatch }
+
+extension MaatFlowResponseJournalFormatterX
+    on MaatFlowResponseJournalFormatter {
+  String get wireName {
+    switch (this) {
+      case MaatFlowResponseJournalFormatter.standard:
+        return 'standard';
+      case MaatFlowResponseJournalFormatter.decanWatch:
+        return 'decan_watch';
+    }
+  }
+
+  static MaatFlowResponseJournalFormatter fromWireName(String? raw) {
+    switch (raw?.trim().toLowerCase()) {
+      case 'decan_watch':
+      case 'decan-watch':
+        return MaatFlowResponseJournalFormatter.decanWatch;
+      case 'standard':
+      default:
+        return MaatFlowResponseJournalFormatter.standard;
+    }
+  }
+}
+
 class MaatFlowResponseOption {
   const MaatFlowResponseOption({
     required this.id,
@@ -166,6 +191,10 @@ class MaatFlowResponseSpec {
     this.requiredForObserved = false,
     this.journalPolicy = MaatFlowJournalPolicy.localOnly,
     this.journalLabel,
+    this.journalGroupId,
+    this.journalGroupLabel,
+    this.journalFormatter = MaatFlowResponseJournalFormatter.standard,
+    this.journalRole,
     this.redactedSummary,
     this.privacyClass = 'ordinary',
     this.ignoreEmptyValues = true,
@@ -187,6 +216,10 @@ class MaatFlowResponseSpec {
   final bool requiredForObserved;
   final MaatFlowJournalPolicy journalPolicy;
   final String? journalLabel;
+  final String? journalGroupId;
+  final String? journalGroupLabel;
+  final MaatFlowResponseJournalFormatter journalFormatter;
+  final String? journalRole;
   final String? redactedSummary;
   final String privacyClass;
   final bool ignoreEmptyValues;
@@ -197,9 +230,23 @@ class MaatFlowResponseSpec {
   }
 
   String get journalHeading {
+    final group = journalGroupLabel?.trim();
+    if (group != null && group.isNotEmpty) return group;
     final explicit = journalLabel?.trim();
     if (explicit != null && explicit.isNotEmpty) return explicit;
     return label.trim();
+  }
+
+  String? get normalizedJournalGroupId {
+    final group = journalGroupId?.trim();
+    if (group == null || group.isEmpty) return null;
+    return group;
+  }
+
+  String? get normalizedJournalRole {
+    final role = journalRole?.trim();
+    if (role == null || role.isEmpty) return null;
+    return role;
   }
 
   String sourceId({
@@ -380,6 +427,105 @@ MaatFlowResponseJournalPreview? buildMaatFlowResponseJournalPreview({
   );
 }
 
+List<MaatFlowResponseJournalPreview> buildMaatFlowResponseJournalPreviews({
+  required List<MaatFlowResponseSpec> specs,
+  required Map<String, MaatFlowResponseValue> values,
+  CompletionStatus completionStatus = CompletionStatus.none,
+  String? clientEventId,
+  DateTime? localDate,
+  String? eventKey,
+  String Function(MaatFlowResponseSpec spec)? sourceIdForSpec,
+  String Function(MaatFlowResponseSpec spec, String groupId)? sourceIdForGroup,
+}) {
+  if (specs.isEmpty || values.isEmpty) {
+    return const <MaatFlowResponseJournalPreview>[];
+  }
+
+  final grouped = <String, List<MaatFlowResponseSpec>>{};
+  for (final spec in specs) {
+    final groupId = spec.normalizedJournalGroupId;
+    if (groupId == null) continue;
+    grouped.putIfAbsent(groupId, () => <MaatFlowResponseSpec>[]).add(spec);
+  }
+
+  final previews = <MaatFlowResponseJournalPreview>[];
+  final seenGroups = <String>{};
+  for (final spec in specs) {
+    final groupId = spec.normalizedJournalGroupId;
+    if (groupId == null) {
+      final value = values[spec.id];
+      if (value == null) continue;
+      final preview = buildMaatFlowResponseJournalPreview(
+        spec: spec,
+        value: value,
+        completionStatus: completionStatus,
+        clientEventId: clientEventId,
+        localDate: localDate,
+        sourceId: sourceIdForSpec?.call(spec),
+      );
+      if (preview != null) previews.add(preview);
+      continue;
+    }
+
+    if (!seenGroups.add(groupId)) continue;
+    final groupSpecs = grouped[groupId] ?? const <MaatFlowResponseSpec>[];
+    final preview = _buildGroupedMaatFlowResponseJournalPreview(
+      groupId: groupId,
+      specs: groupSpecs,
+      values: values,
+      completionStatus: completionStatus,
+      clientEventId: clientEventId,
+      localDate: localDate,
+      eventKey: eventKey,
+      sourceId: sourceIdForGroup?.call(spec, groupId),
+    );
+    if (preview != null) previews.add(preview);
+  }
+  return previews;
+}
+
+MaatFlowResponseJournalPreview? _buildGroupedMaatFlowResponseJournalPreview({
+  required String groupId,
+  required List<MaatFlowResponseSpec> specs,
+  required Map<String, MaatFlowResponseValue> values,
+  required CompletionStatus completionStatus,
+  String? clientEventId,
+  DateTime? localDate,
+  String? eventKey,
+  String? sourceId,
+}) {
+  if (specs.isEmpty) return null;
+  final sourceSpec = specs.first;
+  final policy = specs
+      .map((spec) => spec.journalPolicy)
+      .firstWhere(
+        (policy) => policy.canProduceJournalBody,
+        orElse: () => sourceSpec.journalPolicy,
+      );
+  if (!policy.canProduceJournalBody) return null;
+  if (sourceSpec.suppressJournalWhenSkipped &&
+      completionStatus == CompletionStatus.skipped) {
+    return null;
+  }
+
+  final bodyText = _formatGroupedResponseBodyText(specs, values).trim();
+  if (bodyText.isEmpty) return null;
+
+  return MaatFlowResponseJournalPreview(
+    sourceId:
+        sourceId ??
+        buildMaatFlowResponseSourceId(
+          flowKey: sourceSpec.flowKey,
+          responseSpecId: groupId,
+          clientEventId: clientEventId,
+          localDate: localDate,
+          eventKey: eventKey ?? sourceSpec.eventKey,
+        ),
+    policy: policy,
+    text: bodyText,
+  );
+}
+
 String _formatResponseBodyText(
   MaatFlowResponseSpec spec,
   MaatFlowResponseValue value,
@@ -395,6 +541,87 @@ String _formatResponseBodyText(
   final display = value.displayText(spec).trim();
   if (display.isEmpty) return '';
   return '${spec.journalHeading}: $display';
+}
+
+String _formatGroupedResponseBodyText(
+  List<MaatFlowResponseSpec> specs,
+  Map<String, MaatFlowResponseValue> values,
+) {
+  if (specs.isEmpty) return '';
+  final formatter = specs.first.journalFormatter;
+  switch (formatter) {
+    case MaatFlowResponseJournalFormatter.decanWatch:
+      return _formatDecanWatchResponseGroup(specs, values);
+    case MaatFlowResponseJournalFormatter.standard:
+      final fragments = <String>[];
+      for (final spec in specs) {
+        final value = values[spec.id];
+        if (value == null || value.isEmpty) continue;
+        final display = value.displayText(spec).trim();
+        if (display.isNotEmpty) fragments.add(display);
+      }
+      if (fragments.isEmpty) return '';
+      return '${specs.first.journalHeading}: ${fragments.join(' ')}';
+  }
+}
+
+String _formatDecanWatchResponseGroup(
+  List<MaatFlowResponseSpec> specs,
+  Map<String, MaatFlowResponseValue> values,
+) {
+  final byRole = <String, MaatFlowResponseSpec>{
+    for (final spec in specs)
+      if (spec.normalizedJournalRole != null) spec.normalizedJournalRole!: spec,
+  };
+
+  final visibilitySpec = byRole['visibility'];
+  final skySpec = byRole['sky_note'];
+  final bearingSpec = byRole['bearing'];
+  final fragments = <String>[];
+
+  if (visibilitySpec != null) {
+    final value = values[visibilitySpec.id];
+    final optionId = value?.optionIds
+        .map((id) => id.trim().toLowerCase().replaceAll('-', '_'))
+        .firstWhere((id) => id.isNotEmpty, orElse: () => '');
+    switch (optionId) {
+      case 'outside':
+        fragments.add('I watched from outside.');
+        break;
+      case 'inside':
+        fragments.add('I watched from inside.');
+        break;
+      case 'clouded':
+        fragments.add('The sky was clouded.');
+        break;
+      case 'not_visible':
+        fragments.add('The decan was not visible.');
+        break;
+    }
+  }
+
+  final sky = skySpec == null
+      ? ''
+      : _sentenceFragment(values[skySpec.id]?.displayText(skySpec));
+  if (sky.isNotEmpty) {
+    fragments.add('The sky showed $sky.');
+  }
+
+  final bearing = bearingSpec == null
+      ? ''
+      : _sentenceFragment(values[bearingSpec.id]?.displayText(bearingSpec));
+  if (bearing.isNotEmpty) {
+    fragments.add('I carry $bearing into the next ten days.');
+  }
+
+  if (fragments.isEmpty) return '';
+  return '${specs.first.journalHeading}: ${fragments.join(' ')}';
+}
+
+String _sentenceFragment(String? value) {
+  final trimmed = value?.trim();
+  if (trimmed == null || trimmed.isEmpty) return '';
+  return trimmed.replaceFirst(RegExp(r'[.!?]+$'), '').trim();
 }
 
 String buildMaatFlowResponseSourceId({

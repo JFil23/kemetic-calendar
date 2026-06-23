@@ -6960,7 +6960,8 @@ class _DayViewGridState extends State<DayViewGrid> {
         ],
         if (currentEvent.flowId != null &&
             isDecanWatch &&
-            decanWatchContext != null) ...[
+            decanWatchContext != null &&
+            responseSpecs.isEmpty) ...[
           const SizedBox(height: 12),
           _DecanWatchLocalNotesPanel(
             flowId: currentEvent.flowId!,
@@ -8092,12 +8093,16 @@ class _DecanWatchDayCardPanel extends StatelessWidget {
                     size: 18,
                   ),
                   SizedBox(width: 8),
-                  Text(
-                    'Open this decan day card',
-                    style: TextStyle(
-                      color: Colors.black,
-                      fontSize: 13,
-                      fontWeight: FontWeight.w800,
+                  Flexible(
+                    child: Text(
+                      'Open this decan day card',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        color: Colors.black,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w800,
+                      ),
                     ),
                   ),
                 ],
@@ -8202,7 +8207,9 @@ class _DecanWatchLocalNotesPanelState
     _skyController.text = record.skyNote ?? '';
     _intentionController.text = record.decanIntention ?? '';
     setState(() {
-      _observedFromInside = record.observedFromInside;
+      _observedFromInside =
+          record.observedFromInside ||
+          record.responseVisibility == kDecanWatchVisibilityInside;
       _loading = false;
     });
   }
@@ -8211,6 +8218,11 @@ class _DecanWatchLocalNotesPanelState
     if (_saving) return;
     setState(() => _saving = true);
     try {
+      final existing = await _store.loadRecord(
+        flowId: widget.flowId,
+        kYear: widget.kYear,
+        globalDecanId: _globalDecanId,
+      );
       await _store.saveRecord(
         flowId: widget.flowId,
         kYear: widget.kYear,
@@ -8219,6 +8231,9 @@ class _DecanWatchLocalNotesPanelState
           skyNote: _skyController.text,
           decanIntention: _intentionController.text,
           observedFromInside: _observedFromInside,
+          visibility: _observedFromInside
+              ? kDecanWatchVisibilityInside
+              : existing.normalizedVisibility,
         ),
       );
       if (!mounted) return;
@@ -8553,6 +8568,8 @@ class _MaatFlowCompletionPanel extends StatefulWidget {
 class _MaatFlowCompletionPanelState extends State<_MaatFlowCompletionPanel> {
   final LivingTextDayOneNodeStore _livingTextDayOneNodeStore =
       const LivingTextDayOneNodeStore();
+  final DecanWatchLocalStore _decanWatchLocalStore =
+      const DecanWatchLocalStore();
   final TextEditingController _eveningThresholdReleaseCarryController =
       TextEditingController();
   OverlayEntry? _sheetFeedbackOverlay;
@@ -8567,6 +8584,7 @@ class _MaatFlowCompletionPanelState extends State<_MaatFlowCompletionPanel> {
   DailyOrientationEntry? _eveningThresholdOrientation;
   DailyOrientationEntry? _eveningThresholdPreviousOrientation;
   bool _eveningThresholdReleasePending = false;
+  int _decanWatchResponseLoadGeneration = 0;
   Map<String, MaatFlowResponseValue> _responseValues =
       const <String, MaatFlowResponseValue>{};
 
@@ -8691,9 +8709,29 @@ class _MaatFlowCompletionPanelState extends State<_MaatFlowCompletionPanel> {
       _eveningThresholdReleaseCarryController.clear();
       _eveningThresholdReleasePending = false;
       unawaited(_load());
-    } else if (oldWidget.responseSpecs != widget.responseSpecs) {
+    } else if (!_sameResponseSpecs(
+      oldWidget.responseSpecs,
+      widget.responseSpecs,
+    )) {
       _responseValues = const <String, MaatFlowResponseValue>{};
+      unawaited(_loadDecanWatchResponseValuesIfNeeded());
     }
+  }
+
+  bool _sameResponseSpecs(
+    List<MaatFlowResponseSpec> previous,
+    List<MaatFlowResponseSpec> next,
+  ) {
+    if (previous.length != next.length) return false;
+    for (var i = 0; i < previous.length; i++) {
+      if (previous[i].id != next[i].id) return false;
+      if (previous[i].flowKey != next[i].flowKey) return false;
+      if (previous[i].normalizedJournalGroupId !=
+          next[i].normalizedJournalGroupId) {
+        return false;
+      }
+    }
+    return true;
   }
 
   bool get _isEveningThresholdCompletion {
@@ -8703,6 +8741,125 @@ class _MaatFlowCompletionPanelState extends State<_MaatFlowCompletionPanel> {
   DateTime get _eventGregorianDate {
     return DateUtils.dateOnly(
       KemeticMath.toGregorian(widget.ky, widget.km, widget.kd),
+    );
+  }
+
+  bool get _usesDecanWatchResponseBridge {
+    return widget.completion.flowKey == kDecanWatchFlowKey &&
+        widget.responseSpecs.any((spec) => spec.flowKey == kDecanWatchFlowKey);
+  }
+
+  int get _decanWatchGlobalDecanId {
+    final raw = widget.event.behaviorPayload?['global_decan_id'];
+    final payloadDecanId = raw is num ? raw.toInt() : int.tryParse('$raw');
+    if (payloadDecanId != null && payloadDecanId > 0) {
+      return payloadDecanId;
+    }
+    return decanIdFromMonthAndIndex(
+      monthIndex: widget.km.clamp(1, 12).toInt(),
+      decanInMonth: decanForDay(widget.kd).clamp(1, 3).toInt(),
+    );
+  }
+
+  MaatFlowResponseValue? _textResponseValue(
+    String specId,
+    String? text, {
+    bool multiline = true,
+  }) {
+    final trimmed = text?.trim();
+    if (trimmed == null || trimmed.isEmpty) return null;
+    return MaatFlowResponseValue.text(
+      specId: specId,
+      text: trimmed,
+      multiline: multiline,
+    );
+  }
+
+  Map<String, MaatFlowResponseValue> _responseValuesFromDecanWatchRecord(
+    DecanWatchRecord record,
+  ) {
+    final values = <String, MaatFlowResponseValue>{};
+    final visibility = record.responseVisibility;
+    if (visibility != null) {
+      values[kDecanWatchResponseVisibilitySpecId] =
+          MaatFlowResponseValue.choice(
+            specId: kDecanWatchResponseVisibilitySpecId,
+            optionId: visibility,
+          );
+    }
+    final skyNote = _textResponseValue(
+      kDecanWatchResponseSkyNoteSpecId,
+      record.skyNote,
+    );
+    if (skyNote != null) {
+      values[kDecanWatchResponseSkyNoteSpecId] = skyNote;
+    }
+    final bearing = _textResponseValue(
+      kDecanWatchResponseBearingSpecId,
+      record.decanIntention,
+    );
+    if (bearing != null) {
+      values[kDecanWatchResponseBearingSpecId] = bearing;
+    }
+    return values;
+  }
+
+  String? _responseTextValue(
+    Map<String, MaatFlowResponseValue> values,
+    String specId,
+  ) {
+    final text = values[specId]?.text?.trim();
+    if (text == null || text.isEmpty) return null;
+    return text;
+  }
+
+  DecanWatchRecord _decanWatchRecordFromResponseValues(
+    Map<String, MaatFlowResponseValue> values,
+  ) {
+    final optionIds =
+        values[kDecanWatchResponseVisibilitySpecId]?.optionIds ??
+        const <String>[];
+    final visibility = normalizeDecanWatchVisibility(
+      optionIds.isEmpty ? null : optionIds.first,
+    );
+    return DecanWatchRecord(
+      skyNote: _responseTextValue(values, kDecanWatchResponseSkyNoteSpecId),
+      decanIntention: _responseTextValue(
+        values,
+        kDecanWatchResponseBearingSpecId,
+      ),
+      observedFromInside: visibility == kDecanWatchVisibilityInside,
+      visibility: visibility,
+    );
+  }
+
+  Future<void> _loadDecanWatchResponseValuesIfNeeded() async {
+    if (!_usesDecanWatchResponseBridge) return;
+    final flowId = widget.event.flowId;
+    if (flowId == null) return;
+    final generation = ++_decanWatchResponseLoadGeneration;
+    final record = await _decanWatchLocalStore.loadRecord(
+      flowId: flowId,
+      kYear: widget.ky,
+      globalDecanId: _decanWatchGlobalDecanId,
+    );
+    if (!mounted || generation != _decanWatchResponseLoadGeneration) return;
+    setState(() {
+      _responseValues = _responseValuesFromDecanWatchRecord(record);
+    });
+  }
+
+  Future<void> _persistDecanWatchResponseValues(
+    Map<String, MaatFlowResponseValue> values,
+  ) async {
+    if (!_usesDecanWatchResponseBridge) return;
+    final flowId = widget.event.flowId;
+    if (flowId == null) return;
+    await _decanWatchLocalStore.saveRecord(
+      flowId: flowId,
+      kYear: widget.ky,
+      globalDecanId: _decanWatchGlobalDecanId,
+      record: _decanWatchRecordFromResponseValues(values),
     );
   }
 
@@ -8753,6 +8910,8 @@ class _MaatFlowCompletionPanelState extends State<_MaatFlowCompletionPanel> {
   }
 
   Future<void> _load() async {
+    await _loadDecanWatchResponseValuesIfNeeded();
+
     final clientEventId = widget.event.clientEventId?.trim();
     final user = Supabase.instance.client.auth.currentUser;
     if (clientEventId == null || clientEventId.isEmpty || user == null) {
@@ -9483,32 +9642,60 @@ class _MaatFlowCompletionPanelState extends State<_MaatFlowCompletionPanel> {
     );
   }
 
+  String _responseGroupSourceId(
+    MaatFlowResponseSpec spec,
+    String groupId,
+    DateTime localDate,
+  ) {
+    return buildMaatFlowResponseSourceId(
+      flowKey: spec.flowKey,
+      responseSpecId: groupId,
+      clientEventId: widget.event.clientEventId,
+      localDate: localDate,
+      eventKey: _maatFlowResponseEventKey(widget.completion),
+    );
+  }
+
+  List<String> _responseBlockSourceIds(DateTime localDate) {
+    final sourceIds = <String>[];
+    final seenGroups = <String>{};
+    for (final spec in widget.responseSpecs) {
+      final groupId = spec.normalizedJournalGroupId;
+      if (groupId == null) {
+        sourceIds.add(_responseSourceId(spec, localDate));
+        continue;
+      }
+      if (seenGroups.add(groupId)) {
+        sourceIds.add(_responseGroupSourceId(spec, groupId, localDate));
+      }
+    }
+    return sourceIds;
+  }
+
   List<MaatFlowResponseJournalPreview> _responseJournalPreviews({
     CompletionStatus completionStatus = CompletionStatus.none,
   }) {
     final localDate = _eventGregorianDate;
-    final previews = <MaatFlowResponseJournalPreview>[];
-    for (final spec in widget.responseSpecs) {
-      final value = _responseValues[spec.id];
-      if (value == null) continue;
-      final preview = buildMaatFlowResponseJournalPreview(
-        spec: spec,
-        value: value,
-        completionStatus: completionStatus,
-        sourceId: _responseSourceId(spec, localDate),
-      );
-      if (preview != null) previews.add(preview);
-    }
-    return previews;
+    return buildMaatFlowResponseJournalPreviews(
+      specs: widget.responseSpecs,
+      values: _responseValues,
+      completionStatus: completionStatus,
+      eventKey: _maatFlowResponseEventKey(widget.completion),
+      sourceIdForSpec: (spec) => _responseSourceId(spec, localDate),
+      sourceIdForGroup: (spec, groupId) =>
+          _responseGroupSourceId(spec, groupId, localDate),
+    );
   }
 
   void _handleResponseChanged(MaatFlowResponseValue value) {
+    final nextValues = <String, MaatFlowResponseValue>{
+      ..._responseValues,
+      value.specId: value,
+    };
     setState(() {
-      _responseValues = <String, MaatFlowResponseValue>{
-        ..._responseValues,
-        value.specId: value,
-      };
+      _responseValues = nextValues;
     });
+    unawaited(_persistDecanWatchResponseValues(nextValues));
   }
 
   Future<void> _syncResponseBlocks(CompletionStatus completionStatus) async {
@@ -9516,19 +9703,18 @@ class _MaatFlowCompletionPanelState extends State<_MaatFlowCompletionPanel> {
     if (writer == null || widget.responseSpecs.isEmpty) return;
 
     final localDate = _eventGregorianDate;
-    for (final spec in widget.responseSpecs) {
-      final value = _responseValues[spec.id];
-      final sourceId = _responseSourceId(spec, localDate);
-      final preview = value == null
-          ? null
-          : buildMaatFlowResponseJournalPreview(
-              spec: spec,
-              value: value,
-              completionStatus: completionStatus,
-              sourceId: sourceId,
-            );
+    final previews = _responseJournalPreviews(
+      completionStatus: completionStatus,
+    );
+    final previewsBySourceId = <String, MaatFlowResponseJournalPreview>{
+      for (final preview in previews) preview.sourceId: preview,
+    };
+    for (final sourceId in _responseBlockSourceIds(localDate)) {
       await writer(
-        MaatJournalResponseBlock(sourceId: sourceId, text: preview?.text ?? ''),
+        MaatJournalResponseBlock(
+          sourceId: sourceId,
+          text: previewsBySourceId[sourceId]?.text ?? '',
+        ),
       );
     }
   }

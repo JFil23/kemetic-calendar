@@ -1,4 +1,5 @@
 import 'maat_flow_response_models.dart';
+import 'the_decan_watch_flow.dart';
 
 const List<MaatFlowResponseSpec> kPilotMaatFlowResponseSpecs =
     <MaatFlowResponseSpec>[
@@ -30,6 +31,63 @@ const List<MaatFlowResponseSpec> kPilotMaatFlowResponseSpecs =
         label: 'What action fits this hour?',
         journalPolicy: MaatFlowJournalPolicy.mirror,
         journalLabel: 'The Course',
+      ),
+      MaatFlowResponseSpec(
+        id: kDecanWatchResponseVisibilitySpecId,
+        flowKey: kDecanWatchFlowKey,
+        surface: MaatFlowResponseSurface.calendarSheet,
+        kind: MaatFlowResponseKind.choice,
+        label: 'Visibility',
+        options: <MaatFlowResponseOption>[
+          MaatFlowResponseOption(
+            id: kDecanWatchVisibilityOutside,
+            label: 'Outside',
+          ),
+          MaatFlowResponseOption(
+            id: kDecanWatchVisibilityInside,
+            label: 'Inside',
+          ),
+          MaatFlowResponseOption(
+            id: kDecanWatchVisibilityClouded,
+            label: 'Clouded',
+          ),
+          MaatFlowResponseOption(
+            id: kDecanWatchVisibilityNotVisible,
+            label: 'Not visible',
+          ),
+        ],
+        journalPolicy: MaatFlowJournalPolicy.mirror,
+        journalLabel: kDecanWatchTitle,
+        journalGroupId: kDecanWatchResponseJournalGroupId,
+        journalGroupLabel: kDecanWatchTitle,
+        journalFormatter: MaatFlowResponseJournalFormatter.decanWatch,
+        journalRole: 'visibility',
+      ),
+      MaatFlowResponseSpec(
+        id: kDecanWatchResponseSkyNoteSpecId,
+        flowKey: kDecanWatchFlowKey,
+        surface: MaatFlowResponseSurface.calendarSheet,
+        kind: MaatFlowResponseKind.multiline,
+        label: 'What did the sky show?',
+        journalPolicy: MaatFlowJournalPolicy.mirror,
+        journalLabel: kDecanWatchTitle,
+        journalGroupId: kDecanWatchResponseJournalGroupId,
+        journalGroupLabel: kDecanWatchTitle,
+        journalFormatter: MaatFlowResponseJournalFormatter.decanWatch,
+        journalRole: 'sky_note',
+      ),
+      MaatFlowResponseSpec(
+        id: kDecanWatchResponseBearingSpecId,
+        flowKey: kDecanWatchFlowKey,
+        surface: MaatFlowResponseSurface.calendarSheet,
+        kind: MaatFlowResponseKind.multiline,
+        label: 'What bearing do you carry into the next ten days?',
+        journalPolicy: MaatFlowJournalPolicy.mirror,
+        journalLabel: kDecanWatchTitle,
+        journalGroupId: kDecanWatchResponseJournalGroupId,
+        journalGroupLabel: kDecanWatchTitle,
+        journalFormatter: MaatFlowResponseJournalFormatter.decanWatch,
+        journalRole: 'bearing',
       ),
     ];
 

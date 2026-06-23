@@ -286,7 +286,7 @@ class _MaatFlowResponseJournalPreviewList extends StatelessWidget {
   }
 }
 
-class _MaatFlowResponseField extends StatelessWidget {
+class _MaatFlowResponseField extends StatefulWidget {
   const _MaatFlowResponseField({
     required this.spec,
     required this.value,
@@ -298,14 +298,66 @@ class _MaatFlowResponseField extends StatelessWidget {
   final ValueChanged<MaatFlowResponseValue> onChanged;
 
   @override
+  State<_MaatFlowResponseField> createState() => _MaatFlowResponseFieldState();
+}
+
+class _MaatFlowResponseFieldState extends State<_MaatFlowResponseField> {
+  TextEditingController? _textController;
+
+  bool get _usesTextController {
+    switch (widget.spec.kind) {
+      case MaatFlowResponseKind.text:
+      case MaatFlowResponseKind.multiline:
+      case MaatFlowResponseKind.statusNote:
+        return true;
+      case MaatFlowResponseKind.choice:
+      case MaatFlowResponseKind.chips:
+      case MaatFlowResponseKind.checkbox:
+        return false;
+    }
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    if (_usesTextController) {
+      _textController = TextEditingController(text: widget.value?.text ?? '');
+    }
+  }
+
+  @override
+  void didUpdateWidget(covariant _MaatFlowResponseField oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (!_usesTextController) {
+      _textController?.dispose();
+      _textController = null;
+      return;
+    }
+    final controller = _textController ??= TextEditingController();
+    final nextText = widget.value?.text ?? '';
+    if (controller.text != nextText) {
+      controller.value = TextEditingValue(
+        text: nextText,
+        selection: TextSelection.collapsed(offset: nextText.length),
+      );
+    }
+  }
+
+  @override
+  void dispose() {
+    _textController?.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final prompt = spec.prompt?.trim();
+    final prompt = widget.spec.prompt?.trim();
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,
       children: [
         Text(
-          spec.label,
+          widget.spec.label,
           style: TextStyle(
             color: Colors.white.withValues(alpha: 0.86),
             fontSize: 13,
@@ -333,13 +385,15 @@ class _MaatFlowResponseField extends StatelessWidget {
   }
 
   Widget _buildInput() {
+    final spec = widget.spec;
+    final value = widget.value;
     switch (spec.kind) {
       case MaatFlowResponseKind.text:
       case MaatFlowResponseKind.multiline:
       case MaatFlowResponseKind.statusNote:
         return TextFormField(
           key: maatFlowResponseFieldKey(spec.id),
-          initialValue: value?.text ?? '',
+          controller: _textController,
           minLines: spec.kind == MaatFlowResponseKind.text ? 1 : 2,
           maxLines: spec.kind == MaatFlowResponseKind.text ? 1 : 5,
           style: const TextStyle(color: Colors.white, fontSize: 13),
@@ -373,7 +427,7 @@ class _MaatFlowResponseField extends StatelessWidget {
                     text: text,
                     multiline: multiline,
                   );
-            onChanged(next);
+            widget.onChanged(next);
           },
         );
       case MaatFlowResponseKind.choice:
@@ -386,11 +440,11 @@ class _MaatFlowResponseField extends StatelessWidget {
                 key: maatFlowResponseFieldKey('${spec.id}:${option.id}'),
                 label: Text(option.label),
                 selected: value?.optionIds.contains(option.id) == true,
-                onSelected: (_) {
-                  onChanged(
+                onSelected: (selected) {
+                  widget.onChanged(
                     MaatFlowResponseValue.choice(
                       specId: spec.id,
-                      optionId: option.id,
+                      optionId: selected ? option.id : '',
                     ),
                   );
                 },
@@ -415,7 +469,7 @@ class _MaatFlowResponseField extends StatelessWidget {
                   } else {
                     next.remove(option.id);
                   }
-                  onChanged(
+                  widget.onChanged(
                     MaatFlowResponseValue.chips(
                       specId: spec.id,
                       optionIds: next.toList(growable: false),
@@ -430,7 +484,7 @@ class _MaatFlowResponseField extends StatelessWidget {
           key: maatFlowResponseFieldKey(spec.id),
           value: value?.checked == true,
           onChanged: (checked) {
-            onChanged(
+            widget.onChanged(
               MaatFlowResponseValue.checkbox(
                 specId: spec.id,
                 checked: checked == true,

@@ -20,6 +20,22 @@ const int kDecanWatchEditableFromHour = 18;
 const int kDecanWatchEditableToHour = 23;
 const int kDecanWatchDurationMinutes = 15;
 
+const String kDecanWatchResponseJournalGroupId = 'decan-watch-observation';
+const String kDecanWatchResponseVisibilitySpecId = 'decan-watch-visibility';
+const String kDecanWatchResponseSkyNoteSpecId = 'decan-watch-sky-note';
+const String kDecanWatchResponseBearingSpecId = 'decan-watch-bearing';
+
+const String kDecanWatchVisibilityOutside = 'outside';
+const String kDecanWatchVisibilityInside = 'inside';
+const String kDecanWatchVisibilityClouded = 'clouded';
+const String kDecanWatchVisibilityNotVisible = 'not_visible';
+const Set<String> kDecanWatchVisibilityIds = <String>{
+  kDecanWatchVisibilityOutside,
+  kDecanWatchVisibilityInside,
+  kDecanWatchVisibilityClouded,
+  kDecanWatchVisibilityNotVisible,
+};
+
 enum DecanWatchLens { neutral, ra, nut }
 
 extension DecanWatchLensX on DecanWatchLens {
@@ -97,6 +113,13 @@ DecanWatchLens? decanWatchLensFromKey(String? key) {
   for (final lens in DecanWatchLens.values) {
     if (lens.key == normalized) return lens;
   }
+  return null;
+}
+
+String? normalizeDecanWatchVisibility(String? value) {
+  final normalized = value?.trim().toLowerCase().replaceAll('-', '_');
+  if (normalized == null || normalized.isEmpty) return null;
+  if (kDecanWatchVisibilityIds.contains(normalized)) return normalized;
   return null;
 }
 

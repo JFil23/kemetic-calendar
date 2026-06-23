@@ -6,6 +6,7 @@ import 'package:mobile/core/completion_status.dart';
 import 'package:mobile/features/calendar/maat_flow_response_journal_blocks.dart';
 import 'package:mobile/features/calendar/maat_flow_response_models.dart';
 import 'package:mobile/features/calendar/maat_flow_response_resolver.dart';
+import 'package:mobile/features/calendar/the_decan_watch_flow.dart';
 import 'package:mobile/features/journal/journal_badge_utils.dart';
 import 'package:mobile/features/journal/journal_event_badge.dart';
 import 'package:mobile/features/journal/journal_v2_document_model.dart';
@@ -45,10 +46,17 @@ void main() {
       MaatFlowJournalPolicyX.fromWireName('local-only'),
       MaatFlowJournalPolicy.localOnly,
     );
+
+    expect(MaatFlowResponseJournalFormatter.standard.wireName, 'standard');
+    expect(MaatFlowResponseJournalFormatter.decanWatch.wireName, 'decan_watch');
+    expect(
+      MaatFlowResponseJournalFormatterX.fromWireName('decan-watch'),
+      MaatFlowResponseJournalFormatter.decanWatch,
+    );
   });
 
-  test('default resolver exposes only Phase 2B pilot flow specs', () {
-    expect(kDefaultMaatFlowResponseResolver.specs, hasLength(3));
+  test('default resolver exposes only Phase 2B and 2C pilot flow specs', () {
+    expect(kDefaultMaatFlowResponseResolver.specs, hasLength(6));
 
     expect(
       resolveMaatFlowResponseSpecs(
@@ -73,13 +81,23 @@ void main() {
       ).map((spec) => spec.id),
       <String>['course-hour-action'],
     );
+    expect(
+      resolveMaatFlowResponseSpecs(
+        flowKey: kDecanWatchFlowKey,
+        surface: MaatFlowResponseSurface.calendarSheet,
+      ).map((spec) => spec.id),
+      <String>[
+        kDecanWatchResponseVisibilitySpecId,
+        kDecanWatchResponseSkyNoteSpecId,
+        kDecanWatchResponseBearingSpecId,
+      ],
+    );
 
     for (final flowKey in const <String>[
       'unknown-flow',
       'dawn-house-rite',
       'evening-threshold-rite',
       'evening_threshold',
-      'the-decan-watch',
       'the-weighing',
     ]) {
       expect(
@@ -216,6 +234,61 @@ void main() {
     expect(redacted.text, isNot(contains('Raw sensitive text')));
   });
 
+  test('Decan Watch response group formats one natural journal block', () {
+    final specs = resolveMaatFlowResponseSpecs(
+      flowKey: kDecanWatchFlowKey,
+      surface: MaatFlowResponseSurface.calendarSheet,
+    );
+
+    final previews = buildMaatFlowResponseJournalPreviews(
+      specs: specs,
+      values: <String, MaatFlowResponseValue>{
+        kDecanWatchResponseVisibilitySpecId: MaatFlowResponseValue.choice(
+          specId: kDecanWatchResponseVisibilitySpecId,
+          optionId: kDecanWatchVisibilityOutside,
+        ),
+        kDecanWatchResponseSkyNoteSpecId: MaatFlowResponseValue.text(
+          specId: kDecanWatchResponseSkyNoteSpecId,
+          text: 'a clear western glow.',
+          multiline: true,
+        ),
+        kDecanWatchResponseBearingSpecId: MaatFlowResponseValue.text(
+          specId: kDecanWatchResponseBearingSpecId,
+          text: 'steadiness.',
+          multiline: true,
+        ),
+      },
+      clientEventId: 'cid-decan-watch',
+    );
+
+    expect(previews, hasLength(1));
+    expect(
+      previews.single.sourceId,
+      'maat_response:the-decan-watch:cid:cid-decan-watch:decan-watch-observation',
+    );
+    expect(
+      previews.single.text,
+      'The Decan Watch: I watched from outside. The sky showed a clear western glow. I carry steadiness into the next ten days.',
+    );
+
+    final bearingOnly = buildMaatFlowResponseJournalPreviews(
+      specs: specs,
+      values: <String, MaatFlowResponseValue>{
+        kDecanWatchResponseBearingSpecId: MaatFlowResponseValue.text(
+          specId: kDecanWatchResponseBearingSpecId,
+          text: 'patience',
+          multiline: true,
+        ),
+      },
+    );
+
+    expect(bearingOnly, hasLength(1));
+    expect(
+      bearingOnly.single.text,
+      'The Decan Watch: I carry patience into the next ten days.',
+    );
+  });
+
   test(
     'local-only, empty, and skipped responses do not produce journal body',
     () {
@@ -326,12 +399,12 @@ void main() {
     expect(JournalBadgeUtils.tokensFromDocument(removed), hasLength(1));
   });
 
-  test('Phase 2B wiring stays isolated to shared sheet panels and pilots', () {
+  test('Phase 2C wiring stays isolated to shared sheet panels and pilots', () {
     expect(
       kDefaultMaatFlowResponseResolver.specs
           .map((spec) => spec.flowKey)
           .toSet(),
-      <String>{'the-moon-return', 'the-course'},
+      <String>{'the-moon-return', 'the-course', 'the-decan-watch'},
     );
 
     final dayView = File(
