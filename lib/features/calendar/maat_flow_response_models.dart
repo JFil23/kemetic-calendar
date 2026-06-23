@@ -154,6 +154,10 @@ enum MaatFlowResponseJournalFormatter {
   livingPatternPrinciple,
   houseOfLifeKnowledge,
   hotepPeace,
+  shoreExchange,
+  livingTextLine,
+  clearingSpace,
+  hetHeruJoy,
 }
 
 extension MaatFlowResponseJournalFormatterX
@@ -202,6 +206,14 @@ extension MaatFlowResponseJournalFormatterX
         return 'house_of_life_knowledge';
       case MaatFlowResponseJournalFormatter.hotepPeace:
         return 'hotep_peace';
+      case MaatFlowResponseJournalFormatter.shoreExchange:
+        return 'shore_exchange';
+      case MaatFlowResponseJournalFormatter.livingTextLine:
+        return 'living_text_line';
+      case MaatFlowResponseJournalFormatter.clearingSpace:
+        return 'clearing_space';
+      case MaatFlowResponseJournalFormatter.hetHeruJoy:
+        return 'het_heru_joy';
     }
   }
 
@@ -267,6 +279,18 @@ extension MaatFlowResponseJournalFormatterX
       case 'hotep_peace':
       case 'hotep-peace':
         return MaatFlowResponseJournalFormatter.hotepPeace;
+      case 'shore_exchange':
+      case 'shore-exchange':
+        return MaatFlowResponseJournalFormatter.shoreExchange;
+      case 'living_text_line':
+      case 'living-text-line':
+        return MaatFlowResponseJournalFormatter.livingTextLine;
+      case 'clearing_space':
+      case 'clearing-space':
+        return MaatFlowResponseJournalFormatter.clearingSpace;
+      case 'het_heru_joy':
+      case 'het-heru-joy':
+        return MaatFlowResponseJournalFormatter.hetHeruJoy;
       case 'standard':
       default:
         return MaatFlowResponseJournalFormatter.standard;
@@ -721,6 +745,14 @@ String _formatResponseBodyText(
       return '${spec.journalHeading}: I preserved one piece of knowledge by ${_sentenceFragment(display)}.';
     case MaatFlowResponseJournalFormatter.hotepPeace:
       return '${spec.journalHeading}: I named what was given, let enough be enough, and let the heart cool.';
+    case MaatFlowResponseJournalFormatter.shoreExchange:
+      return '${spec.journalHeading}: I brought one exchange closer to honest measure.';
+    case MaatFlowResponseJournalFormatter.livingTextLine:
+      return '${spec.journalHeading}: I received ${_sentenceFragment(display)} from the text and added it back to life.';
+    case MaatFlowResponseJournalFormatter.clearingSpace:
+      return '${spec.journalHeading}: I created space before response and acted from the cleared place.';
+    case MaatFlowResponseJournalFormatter.hetHeruJoy:
+      return '${spec.journalHeading}: I cooled the hot force and made room for beauty, joy, or rest.';
     case MaatFlowResponseJournalFormatter.decanWatch:
     case MaatFlowResponseJournalFormatter.standard:
       return '${spec.journalHeading}: $display';
@@ -774,6 +806,14 @@ String _formatGroupedResponseBodyText(
       return _formatHouseOfLifeResponseGroup(specs, values);
     case MaatFlowResponseJournalFormatter.hotepPeace:
       return _formatHotepResponseGroup(specs, values);
+    case MaatFlowResponseJournalFormatter.shoreExchange:
+      return _formatShoreResponseGroup(specs, values);
+    case MaatFlowResponseJournalFormatter.livingTextLine:
+      return _formatLivingTextResponseGroup(specs, values);
+    case MaatFlowResponseJournalFormatter.clearingSpace:
+      return _formatClearingResponseGroup(specs, values);
+    case MaatFlowResponseJournalFormatter.hetHeruJoy:
+      return _formatHetHeruResponseGroup(specs, values);
     case MaatFlowResponseJournalFormatter.dawnHouseRite:
     case MaatFlowResponseJournalFormatter.closingRelease:
     case MaatFlowResponseJournalFormatter.daysOutsideReceipt:
@@ -1318,6 +1358,141 @@ String _formatHotepResponseGroup(
   }
   if (enough.isNotEmpty) {
     return '${specs.first.journalHeading}: I named what was given, let enough be enough, and let the heart cool.';
+  }
+  return '';
+}
+
+String _formatShoreResponseGroup(
+  List<MaatFlowResponseSpec> specs,
+  Map<String, MaatFlowResponseValue> values,
+) {
+  final byRole = <String, MaatFlowResponseSpec>{
+    for (final spec in specs)
+      if (spec.normalizedJournalRole != null) spec.normalizedJournalRole!: spec,
+  };
+
+  final exchangeSpec = byRole['exchange'];
+  final measuredSpec = byRole['measured'];
+  final exchange = exchangeSpec == null
+      ? ''
+      : _joinNatural(
+          values[exchangeSpec.id]?.optionIds
+                  .map((id) => exchangeSpec.optionById(id)?._displayLabel ?? id)
+                  .where((label) => label.trim().isNotEmpty)
+                  .map((label) => label.trim().toLowerCase()) ??
+              const Iterable<String>.empty(),
+        );
+  final measured = measuredSpec == null
+      ? ''
+      : _sentenceFragment(values[measuredSpec.id]?.displayText(measuredSpec));
+
+  if (exchange.isNotEmpty) {
+    return '${specs.first.journalHeading}: I brought $exchange closer to honest measure.';
+  }
+  if (measured.isNotEmpty) {
+    return '${specs.first.journalHeading}: I brought one exchange closer to honest measure.';
+  }
+  return '';
+}
+
+String _formatLivingTextResponseGroup(
+  List<MaatFlowResponseSpec> specs,
+  Map<String, MaatFlowResponseValue> values,
+) {
+  final byRole = <String, MaatFlowResponseSpec>{
+    for (final spec in specs)
+      if (spec.normalizedJournalRole != null) spec.normalizedJournalRole!: spec,
+  };
+
+  final addedSpec = byRole['added'];
+  final appliedSpec = byRole['applied'];
+  final added = addedSpec == null
+      ? ''
+      : _joinNatural(
+          values[addedSpec.id]?.optionIds
+                  .map((id) => addedSpec.optionById(id)?._displayLabel ?? id)
+                  .where((label) => label.trim().isNotEmpty)
+                  .map((label) => label.trim().toLowerCase()) ??
+              const Iterable<String>.empty(),
+        );
+  final applied = appliedSpec == null
+      ? ''
+      : _sentenceFragment(values[appliedSpec.id]?.displayText(appliedSpec));
+
+  if (added.isNotEmpty && applied.isNotEmpty) {
+    return '${specs.first.journalHeading}: I received $added from the text and added $applied back to life.';
+  }
+  if (added.isNotEmpty) {
+    return '${specs.first.journalHeading}: I received $added from the text and added it back to life.';
+  }
+  if (applied.isNotEmpty) {
+    return '${specs.first.journalHeading}: I received one line from the text and added $applied back to life.';
+  }
+  return '';
+}
+
+String _formatClearingResponseGroup(
+  List<MaatFlowResponseSpec> specs,
+  Map<String, MaatFlowResponseValue> values,
+) {
+  final byRole = <String, MaatFlowResponseSpec>{
+    for (final spec in specs)
+      if (spec.normalizedJournalRole != null) spec.normalizedJournalRole!: spec,
+  };
+
+  final clearedSpec = byRole['cleared'];
+  final waitedSpec = byRole['waited'];
+  final cleared = clearedSpec == null
+      ? ''
+      : _joinNatural(
+          values[clearedSpec.id]?.optionIds
+                  .map((id) => clearedSpec.optionById(id)?._displayLabel ?? id)
+                  .where((label) => label.trim().isNotEmpty)
+                  .map((label) => label.trim().toLowerCase()) ??
+              const Iterable<String>.empty(),
+        );
+  final waited = waitedSpec == null
+      ? ''
+      : _sentenceFragment(values[waitedSpec.id]?.displayText(waitedSpec));
+
+  if (cleared.isNotEmpty) {
+    return '${specs.first.journalHeading}: I cleared $cleared before response and acted from the cleared place.';
+  }
+  if (waited.isNotEmpty) {
+    return '${specs.first.journalHeading}: I created space before response and acted from the cleared place.';
+  }
+  return '';
+}
+
+String _formatHetHeruResponseGroup(
+  List<MaatFlowResponseSpec> specs,
+  Map<String, MaatFlowResponseValue> values,
+) {
+  final byRole = <String, MaatFlowResponseSpec>{
+    for (final spec in specs)
+      if (spec.normalizedJournalRole != null) spec.normalizedJournalRole!: spec,
+  };
+
+  final cooledSpec = byRole['cooled'];
+  final joySpec = byRole['joy'];
+  final cooled = cooledSpec == null
+      ? ''
+      : _joinNatural(
+          values[cooledSpec.id]?.optionIds
+                  .map((id) => cooledSpec.optionById(id)?._displayLabel ?? id)
+                  .where((label) => label.trim().isNotEmpty)
+                  .map((label) => label.trim().toLowerCase()) ??
+              const Iterable<String>.empty(),
+        );
+  final joy = joySpec == null
+      ? ''
+      : _sentenceFragment(values[joySpec.id]?.displayText(joySpec));
+
+  if (cooled.isNotEmpty) {
+    return '${specs.first.journalHeading}: I cooled the hot force with $cooled and made room for beauty, joy, or rest.';
+  }
+  if (joy.isNotEmpty) {
+    return '${specs.first.journalHeading}: I cooled the hot force and made room for beauty, joy, or rest.';
   }
   return '';
 }

@@ -3580,6 +3580,387 @@ void main() {
     expect(document.toPlainText(), isNot(contains('private obligation')));
   });
 
+  testWidgets('Shore response offer can suppress and update one safe block', (
+    tester,
+  ) async {
+    await _setPhoneViewport(tester);
+    var document = _journalDocument('Shore journal body.');
+    final responseWrites = <MaatJournalResponseBlock>[];
+
+    await tester.pumpWidget(
+      _DayViewHarness(
+        flowIndex: _shoreFlowIndex,
+        notes: <NoteData>[_shoreNote()],
+        onWriteJournalResponse: (block) async {
+          responseWrites.add(block);
+          document = MaatJournalResponseBlockUtils.upsert(document, block);
+        },
+        onRecordCompletion:
+            ({
+              required String clientEventId,
+              required int flowId,
+              required DateTime completedOnDate,
+              Map<String, dynamic>? metadata,
+            }) async {},
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await _openDetailSheet(tester, _shoreTitle);
+
+    expect(find.byKey(kMaatFlowResponseSectionKey), findsOneWidget);
+    expect(find.text('What exchange became honest?'), findsOneWidget);
+    expect(
+      find.text('What was given, received, or measured clearly?'),
+      findsOneWidget,
+    );
+    await _choosePilotOption(
+      tester,
+      specId: 'shore-exchange-honest',
+      optionId: 'offer',
+    );
+    await _choosePilotOption(
+      tester,
+      specId: 'shore-exchange-honest',
+      optionId: 'measure',
+    );
+    await _enterPilotResponse(
+      tester,
+      specId: 'shore-exchange-measured',
+      text: 'private invoice details.',
+    );
+    expect(
+      find.text(
+        'The Shore: I brought offer and measure closer to honest measure.',
+      ),
+      findsOneWidget,
+    );
+    expect(
+      find.descendant(
+        of: find.byKey(kMaatFlowResponseJournalPreviewKey),
+        matching: find.textContaining('private invoice'),
+      ),
+      findsNothing,
+    );
+    final addToggle = tester.widget<Checkbox>(find.byType(Checkbox).last);
+    expect(addToggle.value, isFalse);
+
+    await _tapStatus(tester, 'Observed');
+    expect(responseWrites, hasLength(1));
+    expect(responseWrites.single.text, isEmpty);
+    expect(MaatJournalResponseBlockUtils.extract(document), isEmpty);
+    expect(document.toPlainText(), 'Shore journal body.');
+
+    await _toggleOfferJournalWrite(tester);
+    await _tapStatus(tester, 'Observed');
+    var blocks = MaatJournalResponseBlockUtils.extract(document);
+    expect(blocks, hasLength(1));
+    expect(
+      blocks.single.text,
+      'The Shore: I brought offer and measure closer to honest measure.',
+    );
+
+    await _choosePilotOption(
+      tester,
+      specId: 'shore-exchange-honest',
+      optionId: 'accounted',
+    );
+    await _enterPilotResponse(
+      tester,
+      specId: 'shore-exchange-measured',
+      text: 'updated private invoice details.',
+    );
+    await _tapStatus(tester, 'Observed');
+
+    blocks = MaatJournalResponseBlockUtils.extract(document);
+    expect(blocks, hasLength(1));
+    expect(
+      blocks.single.text,
+      'The Shore: I brought offer, measure, and accounted closer to honest measure.',
+    );
+    expect(document.toPlainText(), contains('Shore journal body.'));
+    expect(document.toPlainText(), isNot(contains('private invoice')));
+  });
+
+  testWidgets('Living Text response renders and writes one response block', (
+    tester,
+  ) async {
+    await _setPhoneViewport(tester);
+    var document = _journalDocument('Living Text journal body.');
+
+    await tester.pumpWidget(
+      _DayViewHarness(
+        flowIndex: _livingTextFlowIndex,
+        notes: <NoteData>[_livingTextNote()],
+        onWriteJournalResponse: (block) async {
+          document = MaatJournalResponseBlockUtils.upsert(document, block);
+        },
+        onRecordCompletion:
+            ({
+              required String clientEventId,
+              required int flowId,
+              required DateTime completedOnDate,
+              Map<String, dynamic>? metadata,
+            }) async {},
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await _openDetailSheet(tester, _livingTextTitle);
+
+    expect(find.byKey(kMaatFlowResponseSectionKey), findsOneWidget);
+    expect(find.text('What did the text add to your life?'), findsOneWidget);
+    expect(
+      find.text('What did you read, question, connect, or apply?'),
+      findsOneWidget,
+    );
+    await _choosePilotOption(
+      tester,
+      specId: 'living-text-added',
+      optionId: 'question',
+    );
+    await _choosePilotOption(
+      tester,
+      specId: 'living-text-added',
+      optionId: 'application',
+    );
+    await _enterPilotResponse(
+      tester,
+      specId: 'living-text-applied',
+      text: 'copying a line into practice',
+    );
+    expect(
+      find.text(
+        'The Living Text: I received question and application from the text and added copying a line into practice back to life.',
+      ),
+      findsOneWidget,
+    );
+    await _tapStatus(tester, 'Observed');
+
+    await _enterPilotResponse(
+      tester,
+      specId: 'living-text-applied',
+      text: 'testing a line in action',
+    );
+    await _tapStatus(tester, 'Observed');
+
+    final blocks = MaatJournalResponseBlockUtils.extract(document);
+    expect(blocks, hasLength(1));
+    expect(
+      blocks.single.text,
+      'The Living Text: I received question and application from the text and added testing a line in action back to life.',
+    );
+    expect(document.toPlainText(), contains('Living Text journal body.'));
+    expect(
+      document.toPlainText(),
+      isNot(contains('copying a line into practice')),
+    );
+  });
+
+  testWidgets('Clearing response offer can suppress and write one safe block', (
+    tester,
+  ) async {
+    await _setPhoneViewport(tester);
+    var document = _journalDocument('Clearing journal body.');
+    final responseWrites = <MaatJournalResponseBlock>[];
+
+    await tester.pumpWidget(
+      _DayViewHarness(
+        flowIndex: _clearingFlowIndex,
+        notes: <NoteData>[_clearingNote()],
+        onWriteJournalResponse: (block) async {
+          responseWrites.add(block);
+          document = MaatJournalResponseBlockUtils.upsert(document, block);
+        },
+        onRecordCompletion:
+            ({
+              required String clientEventId,
+              required int flowId,
+              required DateTime completedOnDate,
+              Map<String, dynamic>? metadata,
+            }) async {},
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await _openDetailSheet(tester, _clearingTitle);
+
+    expect(find.byKey(kMaatFlowResponseSectionKey), findsOneWidget);
+    expect(find.text('What cleared before you acted?'), findsOneWidget);
+    expect(
+      find.text('What changed because you waited before responding?'),
+      findsOneWidget,
+    );
+    await _choosePilotOption(
+      tester,
+      specId: 'clearing-cleared',
+      optionId: 'heat',
+    );
+    await _choosePilotOption(
+      tester,
+      specId: 'clearing-cleared',
+      optionId: 'pause',
+    );
+    await _enterPilotResponse(
+      tester,
+      specId: 'clearing-waited-response',
+      text: 'private conflict details.',
+    );
+    expect(
+      find.text(
+        'The Clearing: I cleared heat and pause before response and acted from the cleared place.',
+      ),
+      findsOneWidget,
+    );
+    expect(
+      find.descendant(
+        of: find.byKey(kMaatFlowResponseJournalPreviewKey),
+        matching: find.textContaining('private conflict'),
+      ),
+      findsNothing,
+    );
+    final addToggle = tester.widget<Checkbox>(find.byType(Checkbox).last);
+    expect(addToggle.value, isFalse);
+
+    await _tapStatus(tester, 'Observed');
+    expect(responseWrites, hasLength(1));
+    expect(responseWrites.single.text, isEmpty);
+    expect(MaatJournalResponseBlockUtils.extract(document), isEmpty);
+    expect(document.toPlainText(), 'Clearing journal body.');
+
+    await _toggleOfferJournalWrite(tester);
+    await _tapStatus(tester, 'Observed');
+    var blocks = MaatJournalResponseBlockUtils.extract(document);
+    expect(blocks, hasLength(1));
+    expect(
+      blocks.single.text,
+      'The Clearing: I cleared heat and pause before response and acted from the cleared place.',
+    );
+
+    await _choosePilotOption(
+      tester,
+      specId: 'clearing-cleared',
+      optionId: 'breath',
+    );
+    await _enterPilotResponse(
+      tester,
+      specId: 'clearing-waited-response',
+      text: 'updated private conflict details.',
+    );
+    await _tapStatus(tester, 'Observed');
+
+    blocks = MaatJournalResponseBlockUtils.extract(document);
+    expect(blocks, hasLength(1));
+    expect(
+      blocks.single.text,
+      'The Clearing: I cleared heat, pause, and breath before response and acted from the cleared place.',
+    );
+    expect(document.toPlainText(), contains('Clearing journal body.'));
+    expect(document.toPlainText(), isNot(contains('private conflict')));
+  });
+
+  testWidgets('Het-Heru response offer can suppress and update one safe block', (
+    tester,
+  ) async {
+    await _setPhoneViewport(tester);
+    var document = _journalDocument('Het-Heru journal body.');
+    final responseWrites = <MaatJournalResponseBlock>[];
+
+    await tester.pumpWidget(
+      _DayViewHarness(
+        flowIndex: _hetHeruFlowIndex,
+        notes: <NoteData>[_hetHeruNote()],
+        onWriteJournalResponse: (block) async {
+          responseWrites.add(block);
+          document = MaatJournalResponseBlockUtils.upsert(document, block);
+        },
+        onRecordCompletion:
+            ({
+              required String clientEventId,
+              required int flowId,
+              required DateTime completedOnDate,
+              Map<String, dynamic>? metadata,
+            }) async {},
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await _openDetailSheet(tester, _hetHeruTitle);
+
+    expect(find.byKey(kMaatFlowResponseSectionKey), findsOneWidget);
+    expect(find.text('What cooled the hot force?'), findsOneWidget);
+    expect(
+      find.text('What brought the force back toward joy?'),
+      findsOneWidget,
+    );
+    await _choosePilotOption(
+      tester,
+      specId: 'het-heru-force-cooled',
+      optionId: 'music',
+    );
+    await _choosePilotOption(
+      tester,
+      specId: 'het-heru-force-cooled',
+      optionId: 'beauty',
+    );
+    await _enterPilotResponse(
+      tester,
+      specId: 'het-heru-joy-returned',
+      text: 'private anger details.',
+    );
+    expect(
+      find.text(
+        'Het-Heru: I cooled the hot force with music and beauty and made room for beauty, joy, or rest.',
+      ),
+      findsOneWidget,
+    );
+    expect(
+      find.descendant(
+        of: find.byKey(kMaatFlowResponseJournalPreviewKey),
+        matching: find.textContaining('private anger'),
+      ),
+      findsNothing,
+    );
+    final addToggle = tester.widget<Checkbox>(find.byType(Checkbox).last);
+    expect(addToggle.value, isFalse);
+
+    await _tapStatus(tester, 'Observed');
+    expect(responseWrites, hasLength(1));
+    expect(responseWrites.single.text, isEmpty);
+    expect(MaatJournalResponseBlockUtils.extract(document), isEmpty);
+    expect(document.toPlainText(), 'Het-Heru journal body.');
+
+    await _toggleOfferJournalWrite(tester);
+    await _tapStatus(tester, 'Observed');
+    var blocks = MaatJournalResponseBlockUtils.extract(document);
+    expect(blocks, hasLength(1));
+    expect(
+      blocks.single.text,
+      'Het-Heru: I cooled the hot force with music and beauty and made room for beauty, joy, or rest.',
+    );
+
+    await _choosePilotOption(
+      tester,
+      specId: 'het-heru-force-cooled',
+      optionId: 'food',
+    );
+    await _enterPilotResponse(
+      tester,
+      specId: 'het-heru-joy-returned',
+      text: 'updated private anger details.',
+    );
+    await _tapStatus(tester, 'Observed');
+
+    blocks = MaatJournalResponseBlockUtils.extract(document);
+    expect(blocks, hasLength(1));
+    expect(
+      blocks.single.text,
+      'Het-Heru: I cooled the hot force with music, beauty, and food and made room for beauty, joy, or rest.',
+    );
+    expect(document.toPlainText(), contains('Het-Heru journal body.'));
+    expect(document.toPlainText(), isNot(contains('private anger')));
+  });
+
   testWidgets('unsupported Ma_at flow remains without response fields', (
     tester,
   ) async {
@@ -3766,6 +4147,39 @@ final MaatDecanFlowEvent _hotepEvent = _hotepDefinition.events.first;
 final String _hotepTitle = maatDecanFlowEventTitle(
   _hotepDefinition,
   _hotepEvent,
+);
+const int _shoreFlowId = 108;
+final MaatDecanFlowDefinition _shoreDefinition = maatDecanFlowDefinitionForKey(
+  kTheShoreFlowKey,
+)!;
+final MaatDecanFlowEvent _shoreEvent = _shoreDefinition.events.first;
+final String _shoreTitle = maatDecanFlowEventTitle(
+  _shoreDefinition,
+  _shoreEvent,
+);
+const int _livingTextFlowId = 109;
+final MaatDecanFlowDefinition _livingTextDefinition =
+    maatDecanFlowDefinitionForKey(kLivingTextFlowKey)!;
+final MaatDecanFlowEvent _livingTextEvent = _livingTextDefinition.events.first;
+final String _livingTextTitle = maatDecanFlowEventTitle(
+  _livingTextDefinition,
+  _livingTextEvent,
+);
+const int _clearingFlowId = 110;
+final MaatDecanFlowDefinition _clearingDefinition =
+    maatDecanFlowDefinitionForKey(kClearingFlowKey)!;
+final MaatDecanFlowEvent _clearingEvent = _clearingDefinition.events.first;
+final String _clearingTitle = maatDecanFlowEventTitle(
+  _clearingDefinition,
+  _clearingEvent,
+);
+const int _hetHeruFlowId = 111;
+final MaatDecanFlowDefinition _hetHeruDefinition =
+    maatDecanFlowDefinitionForKey(kHetHeruFlowKey)!;
+final MaatDecanFlowEvent _hetHeruEvent = _hetHeruDefinition.events.first;
+final String _hetHeruTitle = maatDecanFlowEventTitle(
+  _hetHeruDefinition,
+  _hetHeruEvent,
 );
 
 const Map<int, FlowData> _decanWatchFlowIndex = <int, FlowData>{
@@ -3955,6 +4369,46 @@ final Map<int, FlowData> _hotepFlowIndex = <int, FlowData>{
     color: Colors.blueGrey,
     active: true,
     notes: 'maat=$kHotepFlowKey',
+  ),
+};
+
+final Map<int, FlowData> _shoreFlowIndex = <int, FlowData>{
+  _shoreFlowId: FlowData(
+    id: _shoreFlowId,
+    name: kTheShoreTitle,
+    color: Colors.brown,
+    active: true,
+    notes: 'maat=$kTheShoreFlowKey',
+  ),
+};
+
+final Map<int, FlowData> _livingTextFlowIndex = <int, FlowData>{
+  _livingTextFlowId: FlowData(
+    id: _livingTextFlowId,
+    name: kLivingTextTitle,
+    color: Colors.indigo,
+    active: true,
+    notes: 'maat=$kLivingTextFlowKey',
+  ),
+};
+
+final Map<int, FlowData> _clearingFlowIndex = <int, FlowData>{
+  _clearingFlowId: FlowData(
+    id: _clearingFlowId,
+    name: kClearingTitle,
+    color: Colors.teal,
+    active: true,
+    notes: 'maat=$kClearingFlowKey',
+  ),
+};
+
+final Map<int, FlowData> _hetHeruFlowIndex = <int, FlowData>{
+  _hetHeruFlowId: FlowData(
+    id: _hetHeruFlowId,
+    name: kHetHeruTitle,
+    color: Colors.pink,
+    active: true,
+    notes: 'maat=$kHetHeruFlowKey',
   ),
 };
 
@@ -4348,6 +4802,42 @@ NoteData _hotepNote({MaatDecanFlowEvent? event}) {
   );
 }
 
+NoteData _shoreNote({MaatDecanFlowEvent? event}) {
+  return _phase4ADecanNote(
+    definition: _shoreDefinition,
+    event: event ?? _shoreEvent,
+    flowId: _shoreFlowId,
+    clientEventPrefix: 'shore',
+  );
+}
+
+NoteData _livingTextNote({MaatDecanFlowEvent? event}) {
+  return _phase4ADecanNote(
+    definition: _livingTextDefinition,
+    event: event ?? _livingTextEvent,
+    flowId: _livingTextFlowId,
+    clientEventPrefix: 'living-text',
+  );
+}
+
+NoteData _clearingNote({MaatDecanFlowEvent? event}) {
+  return _phase4ADecanNote(
+    definition: _clearingDefinition,
+    event: event ?? _clearingEvent,
+    flowId: _clearingFlowId,
+    clientEventPrefix: 'clearing',
+  );
+}
+
+NoteData _hetHeruNote({MaatDecanFlowEvent? event}) {
+  return _phase4ADecanNote(
+    definition: _hetHeruDefinition,
+    event: event ?? _hetHeruEvent,
+    flowId: _hetHeruFlowId,
+    clientEventPrefix: 'het-heru',
+  );
+}
+
 NoteData _phase4ADecanNote({
   required MaatDecanFlowDefinition definition,
   required MaatDecanFlowEvent event,
@@ -4421,10 +4911,13 @@ Future<void> _choosePilotOption(
 }
 
 Future<void> _tapStatus(WidgetTester tester, String label) async {
-  final button = find.text(label).last;
+  FocusManager.instance.primaryFocus?.unfocus();
+  tester.testTextInput.hide();
+  await _pumpInteraction(tester);
+  final button = find.widgetWithText(OutlinedButton, label).last;
   await tester.ensureVisible(button);
   await _pumpInteraction(tester);
-  await tester.tap(button);
+  tester.widget<OutlinedButton>(button).onPressed?.call();
   await _pumpInteraction(tester);
 }
 

@@ -37,8 +37,8 @@ class _InventoryFlow {
 
 // Phase 3H inventory lock:
 // Response-enabled core/seasonal/ritual flows: 14
-// Response-enabled decan flows: 7
-// Remaining queued decan flows: 10
+// Response-enabled decan flows: 11
+// Remaining queued decan flows: 6
 // Legacy custom flow excluded from response rollout: evening_threshold
 const List<_InventoryFlow> _responseEnabledCoreFlows = <_InventoryFlow>[
   _InventoryFlow(
@@ -153,6 +153,30 @@ const List<_InventoryFlow> _responseEnabledDecanFlows = <_InventoryFlow>[
     phase: 'Phase 4A',
   ),
   _InventoryFlow(
+    key: kTheShoreFlowKey,
+    title: kTheShoreTitle,
+    category: 'response-enabled decan',
+    phase: 'Phase 4B',
+  ),
+  _InventoryFlow(
+    key: kLivingTextFlowKey,
+    title: kLivingTextTitle,
+    category: 'response-enabled decan',
+    phase: 'Phase 4B',
+  ),
+  _InventoryFlow(
+    key: kClearingFlowKey,
+    title: kClearingTitle,
+    category: 'response-enabled decan',
+    phase: 'Phase 4B',
+  ),
+  _InventoryFlow(
+    key: kHetHeruFlowKey,
+    title: kHetHeruTitle,
+    category: 'response-enabled decan',
+    phase: 'Phase 4B',
+  ),
+  _InventoryFlow(
     key: kWanderingFlowKey,
     title: kWanderingTitle,
     category: 'response-enabled decan',
@@ -208,30 +232,6 @@ const List<_InventoryFlow> _remainingPrivacySensitiveDecanFlows =
 
 const List<_InventoryFlow> _remainingLowerRiskDecanFlows = <_InventoryFlow>[
   _InventoryFlow(
-    key: kTheShoreFlowKey,
-    title: kTheShoreTitle,
-    category: 'remaining lower-risk decan',
-    phase: 'Phase 4B',
-  ),
-  _InventoryFlow(
-    key: kLivingTextFlowKey,
-    title: kLivingTextTitle,
-    category: 'remaining lower-risk decan',
-    phase: 'Phase 4B',
-  ),
-  _InventoryFlow(
-    key: kClearingFlowKey,
-    title: kClearingTitle,
-    category: 'remaining lower-risk decan',
-    phase: 'Phase 4B',
-  ),
-  _InventoryFlow(
-    key: kHetHeruFlowKey,
-    title: kHetHeruTitle,
-    category: 'remaining lower-risk decan',
-    phase: 'Phase 4B',
-  ),
-  _InventoryFlow(
     key: kLivingRecordFlowKey,
     title: kLivingRecordTitle,
     category: 'remaining lower-risk decan',
@@ -253,15 +253,15 @@ void main() {
       expect(inventoryKeys, registeredTemplateKeys);
       expect(_allInventoryFlows, hasLength(31));
       expect(_responseEnabledCoreFlows, hasLength(14));
-      expect(_responseEnabledDecanFlows, hasLength(7));
-      expect(_remainingDecanFlows, hasLength(10));
+      expect(_responseEnabledDecanFlows, hasLength(11));
+      expect(_remainingDecanFlows, hasLength(6));
       expect(_remainingPrivacySensitiveDecanFlows, hasLength(5));
-      expect(_remainingLowerRiskDecanFlows, hasLength(5));
+      expect(_remainingLowerRiskDecanFlows, hasLength(1));
       expect(_categoryCounts, <String, int>{
         'response-enabled core': 14,
-        'response-enabled decan': 7,
+        'response-enabled decan': 11,
         'remaining privacy-sensitive decan': 5,
-        'remaining lower-risk decan': 5,
+        'remaining lower-risk decan': 1,
       });
       expect(registeredTemplateKeys, isNot(contains(kEveningThresholdFlowKey)));
     });
@@ -275,7 +275,7 @@ void main() {
           .toSet();
 
       expect(resolverEnabledKeys, enabledInventoryKeys);
-      expect(resolverEnabledKeys, hasLength(21));
+      expect(resolverEnabledKeys, hasLength(25));
 
       for (final flow in _remainingDecanFlows) {
         expect(
@@ -299,12 +299,7 @@ void main() {
 
     test('remaining decan flows stay assigned to named expansion phases', () {
       expect(_phaseKeys('Phase 4A'), isEmpty);
-      expect(_phaseKeys('Phase 4B'), <String>[
-        kTheShoreFlowKey,
-        kLivingTextFlowKey,
-        kClearingFlowKey,
-        kHetHeruFlowKey,
-      ]);
+      expect(_phaseKeys('Phase 4B'), isEmpty);
       expect(_phaseKeys('Phase 4C'), <String>[
         kFairHearingFlowKey,
         kBoundaryStoneFlowKey,

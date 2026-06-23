@@ -1610,6 +1610,8 @@ void main() {
 
       await tester.tap(find.text('Living Text 4: Add Your First Reflection'));
       await tester.pumpAndSettle();
+      await tester.ensureVisible(find.text('Add your insight'));
+      await tester.pumpAndSettle();
       await tester.tap(find.text('Add your insight'));
       await tester.pumpAndSettle();
 
@@ -1639,6 +1641,8 @@ void main() {
         await tester.pumpAndSettle();
 
         await tester.tap(find.text('Living Text 4: Add Your First Reflection'));
+        await tester.pumpAndSettle();
+        await tester.ensureVisible(find.text('Add your insight'));
         await tester.pumpAndSettle();
         await tester.tap(find.text('Add your insight'));
         await tester.pumpAndSettle();
@@ -1675,6 +1679,8 @@ void main() {
           ),
           findsOneWidget,
         );
+        await tester.ensureVisible(find.text('Revise your insight'));
+        await tester.pumpAndSettle();
         await tester.tap(find.text('Revise your insight'));
         await tester.pumpAndSettle();
 

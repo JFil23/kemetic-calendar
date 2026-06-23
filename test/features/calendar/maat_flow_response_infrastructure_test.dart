@@ -102,6 +102,22 @@ void main() {
     );
     expect(MaatFlowResponseJournalFormatter.hotepPeace.wireName, 'hotep_peace');
     expect(
+      MaatFlowResponseJournalFormatter.shoreExchange.wireName,
+      'shore_exchange',
+    );
+    expect(
+      MaatFlowResponseJournalFormatter.livingTextLine.wireName,
+      'living_text_line',
+    );
+    expect(
+      MaatFlowResponseJournalFormatter.clearingSpace.wireName,
+      'clearing_space',
+    );
+    expect(
+      MaatFlowResponseJournalFormatter.hetHeruJoy.wireName,
+      'het_heru_joy',
+    );
+    expect(
       MaatFlowResponseJournalFormatterX.fromWireName('decan-watch'),
       MaatFlowResponseJournalFormatter.decanWatch,
     );
@@ -152,6 +168,22 @@ void main() {
       MaatFlowResponseJournalFormatter.hotepPeace,
     );
     expect(
+      MaatFlowResponseJournalFormatterX.fromWireName('shore-exchange'),
+      MaatFlowResponseJournalFormatter.shoreExchange,
+    );
+    expect(
+      MaatFlowResponseJournalFormatterX.fromWireName('living-text-line'),
+      MaatFlowResponseJournalFormatter.livingTextLine,
+    );
+    expect(
+      MaatFlowResponseJournalFormatterX.fromWireName('clearing-space'),
+      MaatFlowResponseJournalFormatter.clearingSpace,
+    );
+    expect(
+      MaatFlowResponseJournalFormatterX.fromWireName('het-heru-joy'),
+      MaatFlowResponseJournalFormatter.hetHeruJoy,
+    );
+    expect(
       MaatFlowResponseJournalFormatterX.fromWireName('tending-care'),
       MaatFlowResponseJournalFormatter.tendingCare,
     );
@@ -185,8 +217,8 @@ void main() {
     );
   });
 
-  test('default resolver exposes only Phase 2B through 4A pilot specs', () {
-    expect(kDefaultMaatFlowResponseResolver.specs, hasLength(46));
+  test('default resolver exposes only Phase 2B through 4B pilot specs', () {
+    expect(kDefaultMaatFlowResponseResolver.specs, hasLength(54));
 
     expect(
       resolveMaatFlowResponseSpecs(
@@ -354,6 +386,34 @@ void main() {
         surface: MaatFlowResponseSurface.calendarSheet,
       ).map((spec) => spec.id),
       <String>['hotep-cooled', 'hotep-enough-tonight'],
+    );
+    expect(
+      resolveMaatFlowResponseSpecs(
+        flowKey: kTheShoreFlowKey,
+        surface: MaatFlowResponseSurface.calendarSheet,
+      ).map((spec) => spec.id),
+      <String>['shore-exchange-honest', 'shore-exchange-measured'],
+    );
+    expect(
+      resolveMaatFlowResponseSpecs(
+        flowKey: kLivingTextFlowKey,
+        surface: MaatFlowResponseSurface.calendarSheet,
+      ).map((spec) => spec.id),
+      <String>['living-text-added', 'living-text-applied'],
+    );
+    expect(
+      resolveMaatFlowResponseSpecs(
+        flowKey: kClearingFlowKey,
+        surface: MaatFlowResponseSurface.calendarSheet,
+      ).map((spec) => spec.id),
+      <String>['clearing-cleared', 'clearing-waited-response'],
+    );
+    expect(
+      resolveMaatFlowResponseSpecs(
+        flowKey: kHetHeruFlowKey,
+        surface: MaatFlowResponseSurface.calendarSheet,
+      ).map((spec) => spec.id),
+      <String>['het-heru-force-cooled', 'het-heru-joy-returned'],
     );
 
     for (final flowKey in const <String>[
@@ -987,6 +1047,125 @@ void main() {
     expect(hotep.single.text, isNot(contains('private obligation')));
   });
 
+  test('Phase 4B decan previews keep offer summaries safe', () {
+    final shoreSpecs = resolveMaatFlowResponseSpecs(
+      flowKey: kTheShoreFlowKey,
+      surface: MaatFlowResponseSurface.calendarSheet,
+    );
+    final shore = buildMaatFlowResponseJournalPreviews(
+      specs: shoreSpecs,
+      values: <String, MaatFlowResponseValue>{
+        'shore-exchange-honest': MaatFlowResponseValue.chips(
+          specId: 'shore-exchange-honest',
+          optionIds: <String>['offer', 'measure'],
+        ),
+        'shore-exchange-measured': MaatFlowResponseValue.text(
+          specId: 'shore-exchange-measured',
+          text: 'private invoice details',
+          multiline: true,
+        ),
+      },
+      clientEventId: 'cid-shore',
+    );
+    expect(shore, hasLength(1));
+    expect(shore.single.policy, MaatFlowJournalPolicy.offer);
+    expect(shore.single.requiresUserChoice, isTrue);
+    expect(shore.single.includeInJournalByDefault, isFalse);
+    expect(
+      shore.single.sourceId,
+      'maat_response:the-shore:cid:cid-shore:shore-exchange',
+    );
+    expect(
+      shore.single.text,
+      'The Shore: I brought offer and measure closer to honest measure.',
+    );
+    expect(shore.single.text, isNot(contains('private invoice')));
+
+    final livingTextSpecs = resolveMaatFlowResponseSpecs(
+      flowKey: kLivingTextFlowKey,
+      surface: MaatFlowResponseSurface.calendarSheet,
+    );
+    final livingText = buildMaatFlowResponseJournalPreviews(
+      specs: livingTextSpecs,
+      values: <String, MaatFlowResponseValue>{
+        'living-text-added': MaatFlowResponseValue.chips(
+          specId: 'living-text-added',
+          optionIds: <String>['question', 'application'],
+        ),
+        'living-text-applied': MaatFlowResponseValue.text(
+          specId: 'living-text-applied',
+          text: 'copying a line into practice',
+          multiline: true,
+        ),
+      },
+      clientEventId: 'cid-living-text',
+    );
+    expect(livingText, hasLength(1));
+    expect(livingText.single.policy, MaatFlowJournalPolicy.mirror);
+    expect(
+      livingText.single.text,
+      'The Living Text: I received question and application from the text and added copying a line into practice back to life.',
+    );
+
+    final clearingSpecs = resolveMaatFlowResponseSpecs(
+      flowKey: kClearingFlowKey,
+      surface: MaatFlowResponseSurface.calendarSheet,
+    );
+    final clearing = buildMaatFlowResponseJournalPreviews(
+      specs: clearingSpecs,
+      values: <String, MaatFlowResponseValue>{
+        'clearing-cleared': MaatFlowResponseValue.chips(
+          specId: 'clearing-cleared',
+          optionIds: <String>['heat', 'pause'],
+        ),
+        'clearing-waited-response': MaatFlowResponseValue.text(
+          specId: 'clearing-waited-response',
+          text: 'private conflict details',
+          multiline: true,
+        ),
+      },
+      clientEventId: 'cid-clearing',
+    );
+    expect(clearing, hasLength(1));
+    expect(clearing.single.policy, MaatFlowJournalPolicy.offer);
+    expect(clearing.single.requiresUserChoice, isTrue);
+    expect(clearing.single.includeInJournalByDefault, isFalse);
+    expect(
+      clearing.single.text,
+      'The Clearing: I cleared heat and pause before response and acted from the cleared place.',
+    );
+    expect(clearing.single.text, isNot(contains('private conflict')));
+
+    final hetHeruSpecs = resolveMaatFlowResponseSpecs(
+      flowKey: kHetHeruFlowKey,
+      surface: MaatFlowResponseSurface.calendarSheet,
+    );
+    final hetHeru = buildMaatFlowResponseJournalPreviews(
+      specs: hetHeruSpecs,
+      values: <String, MaatFlowResponseValue>{
+        'het-heru-force-cooled': MaatFlowResponseValue.chips(
+          specId: 'het-heru-force-cooled',
+          optionIds: <String>['music', 'joy'],
+        ),
+        'het-heru-joy-returned': MaatFlowResponseValue.text(
+          specId: 'het-heru-joy-returned',
+          text: 'private anger details',
+          multiline: true,
+        ),
+      },
+      clientEventId: 'cid-het-heru',
+    );
+    expect(hetHeru, hasLength(1));
+    expect(hetHeru.single.policy, MaatFlowJournalPolicy.offer);
+    expect(hetHeru.single.requiresUserChoice, isTrue);
+    expect(hetHeru.single.includeInJournalByDefault, isFalse);
+    expect(
+      hetHeru.single.text,
+      'Het-Heru: I cooled the hot force with music and joy and made room for beauty, joy, or rest.',
+    );
+    expect(hetHeru.single.text, isNot(contains('private anger')));
+  });
+
   test('sensitive offer previews read naturally', () {
     final openHandSpecs = resolveMaatFlowResponseSpecs(
       flowKey: kTheOpenHandFlowKey,
@@ -1430,7 +1609,7 @@ void main() {
     expect(JournalBadgeUtils.tokensFromDocument(removed), hasLength(1));
   });
 
-  test('Phase 4A wiring stays isolated to shared sheet panels and pilots', () {
+  test('Phase 4B wiring stays isolated to shared sheet panels and pilots', () {
     expect(
       kDefaultMaatFlowResponseResolver.specs
           .map((spec) => spec.flowKey)
@@ -1457,6 +1636,10 @@ void main() {
         kLivingPatternFlowKey,
         kHouseOfLifeFlowKey,
         kHotepFlowKey,
+        kTheShoreFlowKey,
+        kLivingTextFlowKey,
+        kClearingFlowKey,
+        kHetHeruFlowKey,
       },
     );
 
