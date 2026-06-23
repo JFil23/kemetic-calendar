@@ -1,5 +1,6 @@
 import 'dawn_house_rite_flow.dart';
 import 'evening_threshold_rite_flow.dart';
+import 'maat_decan_flow.dart';
 import 'maat_flow_response_models.dart';
 import 'the_days_outside_year_flow.dart';
 import 'the_decan_watch_flow.dart';
@@ -8,6 +9,7 @@ import 'the_kept_word_flow.dart';
 import 'the_open_hand_flow.dart';
 import 'the_offering_table_flow.dart';
 import 'the_tending_flow.dart';
+import 'the_wag_flow.dart';
 
 const List<MaatFlowResponseSpec>
 kPilotMaatFlowResponseSpecs = <MaatFlowResponseSpec>[
@@ -469,6 +471,150 @@ kPilotMaatFlowResponseSpecs = <MaatFlowResponseSpec>[
     journalFormatter: MaatFlowResponseJournalFormatter.keptWordAgreement,
     journalRole: 'remembered',
     privacyClass: 'agreement_private',
+    offerJournalInclusionDefault: false,
+  ),
+  MaatFlowResponseSpec(
+    id: 'wag-remembered',
+    flowKey: kTheWagFlowKey,
+    surface: MaatFlowResponseSurface.calendarSheet,
+    kind: MaatFlowResponseKind.chips,
+    label: 'What was remembered?',
+    options: <MaatFlowResponseOption>[
+      MaatFlowResponseOption(
+        id: 'water',
+        label: 'Water',
+        journalLabel: 'water',
+      ),
+      MaatFlowResponseOption(
+        id: 'bread',
+        label: 'Bread',
+        journalLabel: 'bread',
+      ),
+      MaatFlowResponseOption(id: 'name', label: 'Name', journalLabel: 'name'),
+      MaatFlowResponseOption(
+        id: 'story',
+        label: 'Story',
+        journalLabel: 'story',
+      ),
+      MaatFlowResponseOption(id: 'gift', label: 'Gift', journalLabel: 'gift'),
+      MaatFlowResponseOption(
+        id: 'vigil',
+        label: 'Vigil',
+        journalLabel: 'vigil',
+      ),
+      MaatFlowResponseOption(
+        id: 'feast',
+        label: 'Feast',
+        journalLabel: 'feast',
+      ),
+      MaatFlowResponseOption(
+        id: 'legacy',
+        label: 'Legacy',
+        journalLabel: 'legacy',
+      ),
+      MaatFlowResponseOption(
+        id: 'table',
+        label: 'Table',
+        journalLabel: 'table',
+      ),
+      MaatFlowResponseOption(
+        id: 'return',
+        label: 'Return',
+        journalLabel: 'return',
+      ),
+    ],
+    journalPolicy: MaatFlowJournalPolicy.offer,
+    journalLabel: kTheWagTitle,
+    journalGroupId: 'wag-memory',
+    journalGroupLabel: kTheWagTitle,
+    journalFormatter: MaatFlowResponseJournalFormatter.wagMemory,
+    journalRole: 'remembered',
+    privacyClass: 'ancestor_memory_private',
+    offerJournalInclusionDefault: false,
+  ),
+  MaatFlowResponseSpec(
+    id: 'wag-carried',
+    flowKey: kTheWagFlowKey,
+    surface: MaatFlowResponseSurface.calendarSheet,
+    kind: MaatFlowResponseKind.multiline,
+    label: 'What gift, memory, or legacy did you carry?',
+    journalPolicy: MaatFlowJournalPolicy.offer,
+    journalLabel: kTheWagTitle,
+    journalGroupId: 'wag-memory',
+    journalGroupLabel: kTheWagTitle,
+    journalFormatter: MaatFlowResponseJournalFormatter.wagMemory,
+    journalRole: 'carried',
+    privacyClass: 'ancestor_memory_private',
+    offerJournalInclusionDefault: false,
+  ),
+  MaatFlowResponseSpec(
+    id: 'khat-body-asked',
+    flowKey: kKhatFlowKey,
+    surface: MaatFlowResponseSurface.calendarSheet,
+    kind: MaatFlowResponseKind.chips,
+    label: 'What did the body ask for?',
+    options: <MaatFlowResponseOption>[
+      MaatFlowResponseOption(
+        id: 'water',
+        label: 'Water',
+        journalLabel: 'water',
+      ),
+      MaatFlowResponseOption(id: 'food', label: 'Food', journalLabel: 'food'),
+      MaatFlowResponseOption(
+        id: 'washing',
+        label: 'Washing',
+        journalLabel: 'washing',
+      ),
+      MaatFlowResponseOption(id: 'rest', label: 'Rest', journalLabel: 'rest'),
+      MaatFlowResponseOption(
+        id: 'movement',
+        label: 'Movement',
+        journalLabel: 'movement',
+      ),
+      MaatFlowResponseOption(
+        id: 'stillness',
+        label: 'Stillness',
+        journalLabel: 'stillness',
+      ),
+      MaatFlowResponseOption(
+        id: 'breath',
+        label: 'Breath',
+        journalLabel: 'breath',
+      ),
+      MaatFlowResponseOption(id: 'care', label: 'Care', journalLabel: 'care'),
+      MaatFlowResponseOption(
+        id: 'sleep',
+        label: 'Sleep',
+        journalLabel: 'sleep',
+      ),
+      MaatFlowResponseOption(
+        id: 'repair',
+        label: 'Repair',
+        journalLabel: 'repair',
+      ),
+    ],
+    journalPolicy: MaatFlowJournalPolicy.offer,
+    journalLabel: kKhatTitle,
+    journalGroupId: 'khat-body-care',
+    journalGroupLabel: kKhatTitle,
+    journalFormatter: MaatFlowResponseJournalFormatter.khatBodyCare,
+    journalRole: 'asked',
+    privacyClass: 'body_care_private',
+    offerJournalInclusionDefault: false,
+  ),
+  MaatFlowResponseSpec(
+    id: 'khat-care-given',
+    flowKey: kKhatFlowKey,
+    surface: MaatFlowResponseSurface.calendarSheet,
+    kind: MaatFlowResponseKind.multiline,
+    label: 'What care did you give the body?',
+    journalPolicy: MaatFlowJournalPolicy.offer,
+    journalLabel: kKhatTitle,
+    journalGroupId: 'khat-body-care',
+    journalGroupLabel: kKhatTitle,
+    journalFormatter: MaatFlowResponseJournalFormatter.khatBodyCare,
+    journalRole: 'care',
+    privacyClass: 'body_care_private',
     offerJournalInclusionDefault: false,
   ),
 ];

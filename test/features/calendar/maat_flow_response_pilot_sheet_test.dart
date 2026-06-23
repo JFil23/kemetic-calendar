@@ -5,6 +5,7 @@ import 'package:mobile/features/calendar/calendar_page.dart' show KemeticMath;
 import 'package:mobile/features/calendar/dawn_house_rite_flow.dart';
 import 'package:mobile/features/calendar/day_view.dart';
 import 'package:mobile/features/calendar/evening_threshold_rite_flow.dart';
+import 'package:mobile/features/calendar/maat_decan_flow.dart';
 import 'package:mobile/features/calendar/maat_flow_interactive_primitives.dart';
 import 'package:mobile/features/calendar/maat_flow_response_journal_blocks.dart';
 import 'package:mobile/features/calendar/moon_return_flow.dart';
@@ -19,6 +20,8 @@ import 'package:mobile/features/calendar/the_offering_table_flow.dart';
 import 'package:mobile/features/calendar/the_open_hand_flow.dart';
 import 'package:mobile/features/calendar/the_tending_flow.dart';
 import 'package:mobile/features/calendar/the_tending_local_store.dart';
+import 'package:mobile/features/calendar/the_wag_flow.dart';
+import 'package:mobile/features/calendar/the_wag_local_store.dart';
 import 'package:mobile/features/calendar/the_weighing_flow.dart';
 import 'package:mobile/features/journal/journal_badge_utils.dart';
 import 'package:mobile/features/journal/journal_v2_document_model.dart';
@@ -1935,6 +1938,480 @@ void main() {
     expect(recorded, <CompletionStatus>[CompletionStatus.partial]);
   });
 
+  testWidgets('Wag response renders with default-off journal offer', (
+    tester,
+  ) async {
+    await _setPhoneViewport(tester);
+
+    await tester.pumpWidget(
+      _DayViewHarness(flowIndex: _wagFlowIndex, notes: <NoteData>[_wagNote()]),
+    );
+    await tester.pumpAndSettle();
+
+    await _openDetailSheet(tester, _wagTitle);
+
+    expect(find.byKey(kMaatFlowResponseSectionKey), findsOneWidget);
+    expect(find.text('What was remembered?'), findsOneWidget);
+    expect(
+      find.text('What gift, memory, or legacy did you carry?'),
+      findsOneWidget,
+    );
+    for (final optionId in const <String>['water', 'name', 'legacy']) {
+      expect(
+        find.byKey(maatFlowResponseFieldKey('wag-remembered:$optionId')),
+        findsOneWidget,
+      );
+    }
+
+    await _choosePilotOption(
+      tester,
+      specId: 'wag-remembered',
+      optionId: 'table',
+    );
+    await _choosePilotOption(
+      tester,
+      specId: 'wag-remembered',
+      optionId: 'legacy',
+    );
+    await _enterPilotResponse(
+      tester,
+      specId: 'wag-carried',
+      text: 'one remembered gift.',
+    );
+
+    expect(find.byKey(kMaatFlowResponseJournalPreviewKey), findsOneWidget);
+    expect(find.text('Journal preview'), findsOneWidget);
+    expect(
+      find.text(
+        'The Wag: I kept table and legacy at the table and carried one remembered gift forward.',
+      ),
+      findsOneWidget,
+    );
+    expect(find.text('Add to journal'), findsOneWidget);
+    final addToggle = tester.widget<Checkbox>(find.byType(Checkbox).last);
+    expect(addToggle.value, isFalse);
+  });
+
+  testWidgets('Wag can suppress journal response body', (tester) async {
+    await _setPhoneViewport(tester);
+    var document = _journalDocument('Wag manual journal body.');
+    final badgeAppends = <String>[];
+    final responseWrites = <MaatJournalResponseBlock>[];
+
+    await tester.pumpWidget(
+      _DayViewHarness(
+        flowIndex: _wagFlowIndex,
+        notes: <NoteData>[_wagNote()],
+        onAppendToJournal: (text) async => badgeAppends.add(text),
+        onWriteJournalResponse: (block) async {
+          responseWrites.add(block);
+          document = MaatJournalResponseBlockUtils.upsert(document, block);
+        },
+        onRecordCompletion:
+            ({
+              required String clientEventId,
+              required int flowId,
+              required DateTime completedOnDate,
+              Map<String, dynamic>? metadata,
+            }) async {},
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await _openDetailSheet(tester, _wagTitle);
+    await _choosePilotOption(
+      tester,
+      specId: 'wag-remembered',
+      optionId: 'name',
+    );
+    await _enterPilotResponse(
+      tester,
+      specId: 'wag-carried',
+      text: 'private ancestor name and story.',
+    );
+    await _tapStatus(tester, 'Observed');
+
+    expect(responseWrites, hasLength(1));
+    expect(responseWrites.single.text, isEmpty);
+    expect(document.toPlainText(), 'Wag manual journal body.');
+    expect(MaatJournalResponseBlockUtils.extract(document), isEmpty);
+    expect(badgeAppends, hasLength(1));
+    expect(JournalBadgeUtils.hasBadges(badgeAppends.single), isTrue);
+  });
+
+  testWidgets('Wag completion writes one opted-in response block', (
+    tester,
+  ) async {
+    await _setPhoneViewport(tester);
+    var document = _journalDocument('Wag journal body stays.');
+
+    await tester.pumpWidget(
+      _DayViewHarness(
+        flowIndex: _wagFlowIndex,
+        notes: <NoteData>[_wagNote()],
+        onWriteJournalResponse: (block) async {
+          document = MaatJournalResponseBlockUtils.upsert(document, block);
+        },
+        onRecordCompletion:
+            ({
+              required String clientEventId,
+              required int flowId,
+              required DateTime completedOnDate,
+              Map<String, dynamic>? metadata,
+            }) async {},
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await _openDetailSheet(tester, _wagTitle);
+    await _choosePilotOption(
+      tester,
+      specId: 'wag-remembered',
+      optionId: 'gift',
+    );
+    await _enterPilotResponse(
+      tester,
+      specId: 'wag-carried',
+      text: 'one remembered gift.',
+    );
+    await _toggleOfferJournalWrite(tester);
+    await _tapStatus(tester, 'Observed');
+
+    final blocks = MaatJournalResponseBlockUtils.extract(document);
+    expect(blocks, hasLength(1));
+    expect(document.toPlainText(), contains('Wag journal body stays.'));
+    expect(
+      blocks.single.text,
+      'The Wag: I kept gift at the table and carried one remembered gift forward.',
+    );
+  });
+
+  testWidgets('Wag repeat completion updates one opted-in response block', (
+    tester,
+  ) async {
+    await _setPhoneViewport(tester);
+    var document = _journalDocument('Existing Wag journal text.');
+
+    await tester.pumpWidget(
+      _DayViewHarness(
+        flowIndex: _wagFlowIndex,
+        notes: <NoteData>[_wagNote()],
+        onWriteJournalResponse: (block) async {
+          document = MaatJournalResponseBlockUtils.upsert(document, block);
+        },
+        onRecordCompletion:
+            ({
+              required String clientEventId,
+              required int flowId,
+              required DateTime completedOnDate,
+              Map<String, dynamic>? metadata,
+            }) async {},
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await _openDetailSheet(tester, _wagTitle);
+    await _choosePilotOption(
+      tester,
+      specId: 'wag-remembered',
+      optionId: 'story',
+    );
+    await _enterPilotResponse(
+      tester,
+      specId: 'wag-carried',
+      text: 'the first remembered story.',
+    );
+    await _toggleOfferJournalWrite(tester);
+    await _tapStatus(tester, 'Observed');
+
+    await _enterPilotResponse(
+      tester,
+      specId: 'wag-carried',
+      text: 'the updated remembered story.',
+    );
+    await _tapStatus(tester, 'Observed');
+
+    final blocks = MaatJournalResponseBlockUtils.extract(document);
+    expect(blocks, hasLength(1));
+    expect(
+      blocks.single.text,
+      'The Wag: I kept story at the table and carried the updated remembered story forward.',
+    );
+    expect(document.toPlainText(), contains('Existing Wag journal text.'));
+    expect(document.toPlainText().split('The Wag:').length - 1, 1);
+  });
+
+  testWidgets('Wag local values hydrate and clearing remains local', (
+    tester,
+  ) async {
+    await _setPhoneViewport(tester);
+    final prefs = await SharedPreferences.getInstance();
+    final store = TheWagLocalStore(prefs: prefs);
+    await store.savePromptText(
+      _wagFlowId,
+      WagLocalPromptKind.ancestorNames,
+      'Ancestor One\nPractice ancestor - elder',
+    );
+    await store.saveWagFocusName(_wagFlowId, 'Family table');
+    await store.saveNextWagDateIso(_wagFlowId, '2027-07-26');
+
+    await tester.pumpWidget(
+      _DayViewHarness(flowIndex: _wagFlowIndex, notes: <NoteData>[_wagNote()]),
+    );
+    await tester.pumpAndSettle();
+
+    await _openDetailSheet(tester, _wagTitle);
+    await _pumpUntil(
+      tester,
+      () => find.textContaining('Ancestor One').evaluate().isNotEmpty,
+    );
+    expect(find.text('Ancestor names'), findsOneWidget);
+    expect(find.textContaining('Ancestor One'), findsOneWidget);
+    expect(find.textContaining('Practice ancestor - elder'), findsOneWidget);
+    expect(await store.loadAncestorNames(_wagFlowId), hasLength(2));
+    expect(await store.loadWagFocusName(_wagFlowId), 'Family table');
+    expect(await store.loadNextWagDateIso(_wagFlowId), '2027-07-26');
+
+    final clear = find.widgetWithText(OutlinedButton, 'Clear').last;
+    await tester.ensureVisible(clear);
+    await tester.tap(clear);
+    await _pumpInteraction(tester);
+
+    expect(
+      prefs.getString('the_wag_${_wagFlowId}_prompt_ancestor_names'),
+      isNull,
+    );
+    expect(prefs.getString('the_wag_${_wagFlowId}_ancestor_names'), isNull);
+    expect(await store.loadWagFocusName(_wagFlowId), 'Family table');
+    expect(await store.loadNextWagDateIso(_wagFlowId), '2027-07-26');
+  });
+
+  testWidgets('Khat response renders with default-off journal offer', (
+    tester,
+  ) async {
+    await _setPhoneViewport(tester);
+
+    await tester.pumpWidget(
+      _DayViewHarness(
+        flowIndex: _khatFlowIndex,
+        notes: <NoteData>[_khatNote()],
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await _openDetailSheet(tester, _khatTitle);
+
+    expect(find.byKey(kMaatFlowResponseSectionKey), findsOneWidget);
+    expect(find.text('What did the body ask for?'), findsOneWidget);
+    expect(find.text('What care did you give the body?'), findsOneWidget);
+    for (final optionId in const <String>['water', 'rest', 'sleep']) {
+      expect(
+        find.byKey(maatFlowResponseFieldKey('khat-body-asked:$optionId')),
+        findsOneWidget,
+      );
+    }
+
+    await _choosePilotOption(
+      tester,
+      specId: 'khat-body-asked',
+      optionId: 'water',
+    );
+    await _choosePilotOption(
+      tester,
+      specId: 'khat-body-asked',
+      optionId: 'rest',
+    );
+    await _enterPilotResponse(
+      tester,
+      specId: 'khat-care-given',
+      text: 'one honest act of care.',
+    );
+
+    expect(find.byKey(kMaatFlowResponseJournalPreviewKey), findsOneWidget);
+    expect(
+      find.text(
+        'The Khat: I listened to the body asking for water and rest and answered with one honest act of care.',
+      ),
+      findsOneWidget,
+    );
+    final addToggle = tester.widget<Checkbox>(find.byType(Checkbox).last);
+    expect(addToggle.value, isFalse);
+  });
+
+  testWidgets('Khat can suppress journal response body', (tester) async {
+    await _setPhoneViewport(tester);
+    var document = _journalDocument('Khat manual journal body.');
+    final badgeAppends = <String>[];
+    final responseWrites = <MaatJournalResponseBlock>[];
+
+    await tester.pumpWidget(
+      _DayViewHarness(
+        flowIndex: _khatFlowIndex,
+        notes: <NoteData>[_khatNote()],
+        onAppendToJournal: (text) async => badgeAppends.add(text),
+        onWriteJournalResponse: (block) async {
+          responseWrites.add(block);
+          document = MaatJournalResponseBlockUtils.upsert(document, block);
+        },
+        onRecordCompletion:
+            ({
+              required String clientEventId,
+              required int flowId,
+              required DateTime completedOnDate,
+              Map<String, dynamic>? metadata,
+            }) async {},
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await _openDetailSheet(tester, _khatTitle);
+    await _choosePilotOption(
+      tester,
+      specId: 'khat-body-asked',
+      optionId: 'sleep',
+    );
+    await _enterPilotResponse(
+      tester,
+      specId: 'khat-care-given',
+      text: 'private body detail.',
+    );
+    await _tapStatus(tester, 'Observed');
+
+    expect(responseWrites, hasLength(1));
+    expect(responseWrites.single.text, isEmpty);
+    expect(document.toPlainText(), 'Khat manual journal body.');
+    expect(MaatJournalResponseBlockUtils.extract(document), isEmpty);
+    expect(badgeAppends, hasLength(1));
+    expect(JournalBadgeUtils.hasBadges(badgeAppends.single), isTrue);
+  });
+
+  testWidgets('Khat completion writes one opted-in response block', (
+    tester,
+  ) async {
+    await _setPhoneViewport(tester);
+    var document = _journalDocument('Khat journal body stays.');
+
+    await tester.pumpWidget(
+      _DayViewHarness(
+        flowIndex: _khatFlowIndex,
+        notes: <NoteData>[_khatNote()],
+        onWriteJournalResponse: (block) async {
+          document = MaatJournalResponseBlockUtils.upsert(document, block);
+        },
+        onRecordCompletion:
+            ({
+              required String clientEventId,
+              required int flowId,
+              required DateTime completedOnDate,
+              Map<String, dynamic>? metadata,
+            }) async {},
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await _openDetailSheet(tester, _khatTitle);
+    await _choosePilotOption(
+      tester,
+      specId: 'khat-body-asked',
+      optionId: 'breath',
+    );
+    await _enterPilotResponse(
+      tester,
+      specId: 'khat-care-given',
+      text: 'five slow breaths.',
+    );
+    await _toggleOfferJournalWrite(tester);
+    await _tapStatus(tester, 'Observed');
+
+    final blocks = MaatJournalResponseBlockUtils.extract(document);
+    expect(blocks, hasLength(1));
+    expect(document.toPlainText(), contains('Khat journal body stays.'));
+    expect(
+      blocks.single.text,
+      'The Khat: I listened to the body asking for breath and answered with five slow breaths.',
+    );
+  });
+
+  testWidgets('Khat repeat completion updates one opted-in response block', (
+    tester,
+  ) async {
+    await _setPhoneViewport(tester);
+    var document = _journalDocument('Existing Khat journal text.');
+
+    await tester.pumpWidget(
+      _DayViewHarness(
+        flowIndex: _khatFlowIndex,
+        notes: <NoteData>[_khatNote()],
+        onWriteJournalResponse: (block) async {
+          document = MaatJournalResponseBlockUtils.upsert(document, block);
+        },
+        onRecordCompletion:
+            ({
+              required String clientEventId,
+              required int flowId,
+              required DateTime completedOnDate,
+              Map<String, dynamic>? metadata,
+            }) async {},
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await _openDetailSheet(tester, _khatTitle);
+    await _choosePilotOption(
+      tester,
+      specId: 'khat-body-asked',
+      optionId: 'care',
+    );
+    await _enterPilotResponse(
+      tester,
+      specId: 'khat-care-given',
+      text: 'the first body-care note.',
+    );
+    await _toggleOfferJournalWrite(tester);
+    await _tapStatus(tester, 'Observed');
+
+    await _enterPilotResponse(
+      tester,
+      specId: 'khat-care-given',
+      text: 'the updated body-care note.',
+    );
+    await _tapStatus(tester, 'Observed');
+
+    final blocks = MaatJournalResponseBlockUtils.extract(document);
+    expect(blocks, hasLength(1));
+    expect(
+      blocks.single.text,
+      'The Khat: I listened to the body asking for care and answered with the updated body-care note.',
+    );
+    expect(document.toPlainText(), contains('Existing Khat journal text.'));
+    expect(document.toPlainText().split('The Khat:').length - 1, 1);
+  });
+
+  testWidgets('Khat existing special completion status remains intact', (
+    tester,
+  ) async {
+    await _setPhoneViewport(tester);
+    final moveEvent = _khatDefinition.events.singleWhere(
+      (event) => event.extraCompletionStatusLabels.containsKey('moved'),
+    );
+
+    await tester.pumpWidget(
+      _DayViewHarness(
+        flowIndex: _khatFlowIndex,
+        notes: <NoteData>[_khatNote(event: moveEvent)],
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await _openDetailSheet(
+      tester,
+      maatDecanFlowEventTitle(_khatDefinition, moveEvent),
+    );
+
+    expect(find.byKey(kMaatFlowResponseSectionKey), findsOneWidget);
+    expect(find.text('Moved'), findsWidgets);
+  });
+
   testWidgets('unsupported Ma_at flow remains without response fields', (
     tester,
   ) async {
@@ -2038,6 +2515,15 @@ final KeptWordEvent _keptWordConversationEvent = kKeptWordEvents.singleWhere(
 final String _keptWordConversationTitle = keptWordEventTitle(
   _keptWordConversationEvent,
 );
+const int _wagFlowId = 98;
+final WagEvent _wagEvent = kWagEvents.first;
+final String _wagTitle = wagEventTitle(_wagEvent);
+const int _khatFlowId = 99;
+final MaatDecanFlowDefinition _khatDefinition = maatDecanFlowDefinitionForKey(
+  kKhatFlowKey,
+)!;
+final MaatDecanFlowEvent _khatEvent = _khatDefinition.events.first;
+final String _khatTitle = maatDecanFlowEventTitle(_khatDefinition, _khatEvent);
 
 const Map<int, FlowData> _decanWatchFlowIndex = <int, FlowData>{
   _decanWatchFlowId: FlowData(
@@ -2126,6 +2612,26 @@ const Map<int, FlowData> _keptWordFlowIndex = <int, FlowData>{
     color: Colors.brown,
     active: true,
     notes: 'maat=$kKeptWordFlowKey;kept_word_lens=neutral',
+  ),
+};
+
+const Map<int, FlowData> _wagFlowIndex = <int, FlowData>{
+  _wagFlowId: FlowData(
+    id: _wagFlowId,
+    name: kTheWagTitle,
+    color: Colors.deepOrange,
+    active: true,
+    notes: 'maat=$kTheWagFlowKey;wag_lens=neutral',
+  ),
+};
+
+final Map<int, FlowData> _khatFlowIndex = <int, FlowData>{
+  _khatFlowId: FlowData(
+    id: _khatFlowId,
+    name: kKhatTitle,
+    color: Colors.lightBlue,
+    active: true,
+    notes: 'maat=$kKhatFlowKey;khat_lens=neutral',
   ),
 };
 
@@ -2355,6 +2861,47 @@ NoteData _keptWordNote({KeptWordEvent? event}) {
       'flow_day': target.flowDay,
       'local_prompt': target.localPrompt.key,
       'requires_conversation': target.requiresConversation,
+    },
+  );
+}
+
+NoteData _wagNote({WagEvent? event}) {
+  final target = event ?? _wagEvent;
+  return NoteData(
+    clientEventId: 'cid-wag-${target.eventNumber}',
+    title: wagEventTitle(target),
+    detail: wagDetailText(target, lens: WagLens.neutral),
+    category: target.decanSection,
+    allDay: false,
+    start: const TimeOfDay(hour: 7, minute: 0),
+    end: const TimeOfDay(hour: 7, minute: 10),
+    flowId: _wagFlowId,
+    behaviorPayload: <String, dynamic>{
+      'flow_key': kTheWagFlowKey,
+      'kind': 'maat_wag_event',
+      'event_number': target.eventNumber,
+      'local_prompt': target.localPrompt.key,
+    },
+  );
+}
+
+NoteData _khatNote({MaatDecanFlowEvent? event}) {
+  final target = event ?? _khatEvent;
+  return NoteData(
+    clientEventId: 'cid-khat-${target.eventNumber}',
+    title: maatDecanFlowEventTitle(_khatDefinition, target),
+    detail: maatDecanFlowDetailText(_khatDefinition, target),
+    category: target.decanSection,
+    allDay: false,
+    start: const TimeOfDay(hour: 8, minute: 0),
+    end: const TimeOfDay(hour: 8, minute: 8),
+    flowId: _khatFlowId,
+    behaviorPayload: <String, dynamic>{
+      'flow_key': kKhatFlowKey,
+      'kind': _khatDefinition.behaviorKind,
+      'event_number': target.eventNumber,
+      'flow_day': target.flowDay,
+      'requires_real_world_action': target.requiresRealWorldAction,
     },
   );
 }

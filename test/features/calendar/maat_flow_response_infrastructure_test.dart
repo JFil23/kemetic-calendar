@@ -5,6 +5,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:mobile/core/completion_status.dart';
 import 'package:mobile/features/calendar/dawn_house_rite_flow.dart';
 import 'package:mobile/features/calendar/evening_threshold_rite_flow.dart';
+import 'package:mobile/features/calendar/maat_decan_flow.dart';
 import 'package:mobile/features/calendar/maat_flow_response_journal_blocks.dart';
 import 'package:mobile/features/calendar/maat_flow_response_models.dart';
 import 'package:mobile/features/calendar/maat_flow_response_resolver.dart';
@@ -15,6 +16,7 @@ import 'package:mobile/features/calendar/the_kept_word_flow.dart';
 import 'package:mobile/features/calendar/the_open_hand_flow.dart';
 import 'package:mobile/features/calendar/the_offering_table_flow.dart';
 import 'package:mobile/features/calendar/the_tending_flow.dart';
+import 'package:mobile/features/calendar/the_wag_flow.dart';
 import 'package:mobile/features/journal/journal_badge_utils.dart';
 import 'package:mobile/features/journal/journal_event_badge.dart';
 import 'package:mobile/features/journal/journal_v2_document_model.dart';
@@ -125,10 +127,18 @@ void main() {
       MaatFlowResponseJournalFormatterX.fromWireName('kept-word-agreement'),
       MaatFlowResponseJournalFormatter.keptWordAgreement,
     );
+    expect(
+      MaatFlowResponseJournalFormatterX.fromWireName('wag-memory'),
+      MaatFlowResponseJournalFormatter.wagMemory,
+    );
+    expect(
+      MaatFlowResponseJournalFormatterX.fromWireName('khat-body-care'),
+      MaatFlowResponseJournalFormatter.khatBodyCare,
+    );
   });
 
-  test('default resolver exposes only Phase 2B through 3D pilot specs', () {
-    expect(kDefaultMaatFlowResponseResolver.specs, hasLength(25));
+  test('default resolver exposes only Phase 2B through 3E pilot specs', () {
+    expect(kDefaultMaatFlowResponseResolver.specs, hasLength(29));
 
     expect(
       resolveMaatFlowResponseSpecs(
@@ -222,6 +232,20 @@ void main() {
         surface: MaatFlowResponseSurface.calendarSheet,
       ).map((spec) => spec.id),
       <String>['djed-stood-upright', 'djed-restored'],
+    );
+    expect(
+      resolveMaatFlowResponseSpecs(
+        flowKey: kTheWagFlowKey,
+        surface: MaatFlowResponseSurface.calendarSheet,
+      ).map((spec) => spec.id),
+      <String>['wag-remembered', 'wag-carried'],
+    );
+    expect(
+      resolveMaatFlowResponseSpecs(
+        flowKey: kKhatFlowKey,
+        surface: MaatFlowResponseSurface.calendarSheet,
+      ).map((spec) => spec.id),
+      <String>['khat-body-asked', 'khat-care-given'],
     );
 
     for (final flowKey in const <String>[
@@ -486,6 +510,46 @@ void main() {
       keptWordSpecs.map((spec) => spec.offerJournalInclusionDefault).toSet(),
       <bool>{false},
     );
+
+    final wagSpecs = resolveMaatFlowResponseSpecs(
+      flowKey: kTheWagFlowKey,
+      surface: MaatFlowResponseSurface.calendarSheet,
+    );
+    expect(wagSpecs.map((spec) => spec.id), <String>[
+      'wag-remembered',
+      'wag-carried',
+    ]);
+    expect(
+      wagSpecs.map((spec) => spec.journalPolicy).toSet(),
+      <MaatFlowJournalPolicy>{MaatFlowJournalPolicy.offer},
+    );
+    expect(wagSpecs.map((spec) => spec.privacyClass).toSet(), <String>{
+      'ancestor_memory_private',
+    });
+    expect(
+      wagSpecs.map((spec) => spec.offerJournalInclusionDefault).toSet(),
+      <bool>{false},
+    );
+
+    final khatSpecs = resolveMaatFlowResponseSpecs(
+      flowKey: kKhatFlowKey,
+      surface: MaatFlowResponseSurface.calendarSheet,
+    );
+    expect(khatSpecs.map((spec) => spec.id), <String>[
+      'khat-body-asked',
+      'khat-care-given',
+    ]);
+    expect(
+      khatSpecs.map((spec) => spec.journalPolicy).toSet(),
+      <MaatFlowJournalPolicy>{MaatFlowJournalPolicy.offer},
+    );
+    expect(khatSpecs.map((spec) => spec.privacyClass).toSet(), <String>{
+      'body_care_private',
+    });
+    expect(
+      khatSpecs.map((spec) => spec.offerJournalInclusionDefault).toSet(),
+      <bool>{false},
+    );
   });
 
   test('Dawn House and Closing journal formatters read naturally', () {
@@ -607,7 +671,7 @@ void main() {
     );
   });
 
-  test('Open Hand, Djed, Tending, and Kept Word offer previews read naturally', () {
+  test('sensitive offer previews read naturally', () {
     final openHandSpecs = resolveMaatFlowResponseSpecs(
       flowKey: kTheOpenHandFlowKey,
       surface: MaatFlowResponseSurface.calendarSheet,
@@ -771,6 +835,67 @@ void main() {
       keptWord.single.text,
       'The Kept Word: I brought one agreement back into clearer order; the word is renegotiated, and I remember the repaired conversation belongs in memory.',
     );
+
+    final wagSpecs = resolveMaatFlowResponseSpecs(
+      flowKey: kTheWagFlowKey,
+      surface: MaatFlowResponseSurface.calendarSheet,
+    );
+    final wag = buildMaatFlowResponseJournalPreviews(
+      specs: wagSpecs,
+      values: <String, MaatFlowResponseValue>{
+        'wag-remembered': MaatFlowResponseValue.chips(
+          specId: 'wag-remembered',
+          optionIds: <String>['table', 'legacy'],
+        ),
+        'wag-carried': MaatFlowResponseValue.text(
+          specId: 'wag-carried',
+          text: 'one remembered gift',
+          multiline: true,
+        ),
+      },
+      clientEventId: 'cid-wag',
+    );
+    expect(wag, hasLength(1));
+    expect(wag.single.policy, MaatFlowJournalPolicy.offer);
+    expect(wag.single.requiresUserChoice, isTrue);
+    expect(wag.single.includeInJournalByDefault, isFalse);
+    expect(wag.single.sourceId, 'maat_response:the-wag:cid:cid-wag:wag-memory');
+    expect(
+      wag.single.text,
+      'The Wag: I kept table and legacy at the table and carried one remembered gift forward.',
+    );
+
+    final khatSpecs = resolveMaatFlowResponseSpecs(
+      flowKey: kKhatFlowKey,
+      surface: MaatFlowResponseSurface.calendarSheet,
+    );
+    final khat = buildMaatFlowResponseJournalPreviews(
+      specs: khatSpecs,
+      values: <String, MaatFlowResponseValue>{
+        'khat-body-asked': MaatFlowResponseValue.chips(
+          specId: 'khat-body-asked',
+          optionIds: <String>['water', 'rest'],
+        ),
+        'khat-care-given': MaatFlowResponseValue.text(
+          specId: 'khat-care-given',
+          text: 'one honest act of care',
+          multiline: true,
+        ),
+      },
+      clientEventId: 'cid-khat',
+    );
+    expect(khat, hasLength(1));
+    expect(khat.single.policy, MaatFlowJournalPolicy.offer);
+    expect(khat.single.requiresUserChoice, isTrue);
+    expect(khat.single.includeInJournalByDefault, isFalse);
+    expect(
+      khat.single.sourceId,
+      'maat_response:the-khat:cid:cid-khat:khat-body-care',
+    );
+    expect(
+      khat.single.text,
+      'The Khat: I listened to the body asking for water and rest and answered with one honest act of care.',
+    );
   });
 
   test(
@@ -883,7 +1008,7 @@ void main() {
     expect(JournalBadgeUtils.tokensFromDocument(removed), hasLength(1));
   });
 
-  test('Phase 3D wiring stays isolated to shared sheet panels and pilots', () {
+  test('Phase 3E wiring stays isolated to shared sheet panels and pilots', () {
     expect(
       kDefaultMaatFlowResponseResolver.specs
           .map((spec) => spec.flowKey)
@@ -900,6 +1025,8 @@ void main() {
         kTheDjedFlowKey,
         kTheTendingFlowKey,
         kKeptWordFlowKey,
+        kTheWagFlowKey,
+        kKhatFlowKey,
       },
     );
 

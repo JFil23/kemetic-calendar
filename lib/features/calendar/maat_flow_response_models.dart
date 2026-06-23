@@ -144,6 +144,8 @@ enum MaatFlowResponseJournalFormatter {
   djedRestoration,
   tendingCare,
   keptWordAgreement,
+  wagMemory,
+  khatBodyCare,
 }
 
 extension MaatFlowResponseJournalFormatterX
@@ -172,6 +174,10 @@ extension MaatFlowResponseJournalFormatterX
         return 'tending_care';
       case MaatFlowResponseJournalFormatter.keptWordAgreement:
         return 'kept_word_agreement';
+      case MaatFlowResponseJournalFormatter.wagMemory:
+        return 'wag_memory';
+      case MaatFlowResponseJournalFormatter.khatBodyCare:
+        return 'khat_body_care';
     }
   }
 
@@ -207,6 +213,12 @@ extension MaatFlowResponseJournalFormatterX
       case 'kept_word_agreement':
       case 'kept-word-agreement':
         return MaatFlowResponseJournalFormatter.keptWordAgreement;
+      case 'wag_memory':
+      case 'wag-memory':
+        return MaatFlowResponseJournalFormatter.wagMemory;
+      case 'khat_body_care':
+      case 'khat-body-care':
+        return MaatFlowResponseJournalFormatter.khatBodyCare;
       case 'standard':
       default:
         return MaatFlowResponseJournalFormatter.standard;
@@ -641,6 +653,10 @@ String _formatResponseBodyText(
       return '${spec.journalHeading}: I made care specific through ${_sentenceFragment(display)}.';
     case MaatFlowResponseJournalFormatter.keptWordAgreement:
       return '${spec.journalHeading}: I brought one agreement back into clearer order: ${_sentenceFragment(display)}.';
+    case MaatFlowResponseJournalFormatter.wagMemory:
+      return '${spec.journalHeading}: I kept the table and carried ${_sentenceFragment(display)} forward.';
+    case MaatFlowResponseJournalFormatter.khatBodyCare:
+      return '${spec.journalHeading}: I listened to the body and answered with ${_sentenceFragment(display)}.';
     case MaatFlowResponseJournalFormatter.decanWatch:
     case MaatFlowResponseJournalFormatter.standard:
       return '${spec.journalHeading}: $display';
@@ -674,6 +690,10 @@ String _formatGroupedResponseBodyText(
       return _formatTendingResponseGroup(specs, values);
     case MaatFlowResponseJournalFormatter.keptWordAgreement:
       return _formatKeptWordResponseGroup(specs, values);
+    case MaatFlowResponseJournalFormatter.wagMemory:
+      return _formatWagResponseGroup(specs, values);
+    case MaatFlowResponseJournalFormatter.khatBodyCare:
+      return _formatKhatResponseGroup(specs, values);
     case MaatFlowResponseJournalFormatter.dawnHouseRite:
     case MaatFlowResponseJournalFormatter.closingRelease:
     case MaatFlowResponseJournalFormatter.daysOutsideReceipt:
@@ -868,6 +888,80 @@ String _formatKeptWordResponseGroup(
   }
   if (remembered.isNotEmpty) {
     return '${specs.first.journalHeading}: I brought one agreement back into clearer order: $remembered.';
+  }
+  return '';
+}
+
+String _formatWagResponseGroup(
+  List<MaatFlowResponseSpec> specs,
+  Map<String, MaatFlowResponseValue> values,
+) {
+  final byRole = <String, MaatFlowResponseSpec>{
+    for (final spec in specs)
+      if (spec.normalizedJournalRole != null) spec.normalizedJournalRole!: spec,
+  };
+
+  final rememberedSpec = byRole['remembered'];
+  final carriedSpec = byRole['carried'];
+  final remembered = rememberedSpec == null
+      ? ''
+      : _joinNatural(
+          values[rememberedSpec.id]?.optionIds
+                  .map(
+                    (id) => rememberedSpec.optionById(id)?._displayLabel ?? id,
+                  )
+                  .where((label) => label.trim().isNotEmpty)
+                  .map((label) => label.trim().toLowerCase()) ??
+              const Iterable<String>.empty(),
+        );
+  final carried = carriedSpec == null
+      ? ''
+      : _sentenceFragment(values[carriedSpec.id]?.displayText(carriedSpec));
+
+  if (remembered.isNotEmpty && carried.isNotEmpty) {
+    return '${specs.first.journalHeading}: I kept $remembered at the table and carried $carried forward.';
+  }
+  if (remembered.isNotEmpty) {
+    return '${specs.first.journalHeading}: I kept $remembered at the table and carried one remembered gift forward.';
+  }
+  if (carried.isNotEmpty) {
+    return '${specs.first.journalHeading}: I kept the table and carried $carried forward.';
+  }
+  return '';
+}
+
+String _formatKhatResponseGroup(
+  List<MaatFlowResponseSpec> specs,
+  Map<String, MaatFlowResponseValue> values,
+) {
+  final byRole = <String, MaatFlowResponseSpec>{
+    for (final spec in specs)
+      if (spec.normalizedJournalRole != null) spec.normalizedJournalRole!: spec,
+  };
+
+  final askedSpec = byRole['asked'];
+  final careSpec = byRole['care'];
+  final asked = askedSpec == null
+      ? ''
+      : _joinNatural(
+          values[askedSpec.id]?.optionIds
+                  .map((id) => askedSpec.optionById(id)?._displayLabel ?? id)
+                  .where((label) => label.trim().isNotEmpty)
+                  .map((label) => label.trim().toLowerCase()) ??
+              const Iterable<String>.empty(),
+        );
+  final care = careSpec == null
+      ? ''
+      : _sentenceFragment(values[careSpec.id]?.displayText(careSpec));
+
+  if (asked.isNotEmpty && care.isNotEmpty) {
+    return '${specs.first.journalHeading}: I listened to the body asking for $asked and answered with $care.';
+  }
+  if (asked.isNotEmpty) {
+    return '${specs.first.journalHeading}: I listened to the body asking for $asked and answered with one act of care.';
+  }
+  if (care.isNotEmpty) {
+    return '${specs.first.journalHeading}: I listened to the body and answered with $care.';
   }
   return '';
 }
