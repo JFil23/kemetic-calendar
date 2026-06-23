@@ -3233,6 +3233,353 @@ void main() {
     expect(document.toPlainText(), isNot(contains('updated private')));
   });
 
+  testWidgets('First Arrangement response renders and previews journal text', (
+    tester,
+  ) async {
+    await _setPhoneViewport(tester);
+
+    await tester.pumpWidget(
+      _DayViewHarness(
+        flowIndex: _firstArrangementFlowIndex,
+        notes: <NoteData>[_firstArrangementNote()],
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await _openDetailSheet(tester, _firstArrangementTitle);
+
+    expect(find.byKey(kMaatFlowResponseSectionKey), findsOneWidget);
+    expect(find.text('What did you put in order?'), findsOneWidget);
+    expect(find.text('What changed in the space?'), findsOneWidget);
+    for (final optionId in const <String>['cleared', 'made_visible']) {
+      expect(
+        find.byKey(
+          maatFlowResponseFieldKey('first-arrangement-ordered:$optionId'),
+        ),
+        findsOneWidget,
+      );
+    }
+
+    await _choosePilotOption(
+      tester,
+      specId: 'first-arrangement-ordered',
+      optionId: 'cleared',
+    );
+    await _choosePilotOption(
+      tester,
+      specId: 'first-arrangement-ordered',
+      optionId: 'made_visible',
+    );
+    await _enterPilotResponse(
+      tester,
+      specId: 'first-arrangement-space-changed',
+      text: 'the entry shelf',
+    );
+
+    expect(find.byKey(kMaatFlowResponseJournalPreviewKey), findsOneWidget);
+    expect(
+      find.text(
+        'The First Arrangement: I put cleared and made visible into order and made the entry shelf visible.',
+      ),
+      findsOneWidget,
+    );
+  });
+
+  testWidgets('First Arrangement repeat completion updates one response block', (
+    tester,
+  ) async {
+    await _setPhoneViewport(tester);
+    var document = _journalDocument('First Arrangement journal text.');
+
+    await tester.pumpWidget(
+      _DayViewHarness(
+        flowIndex: _firstArrangementFlowIndex,
+        notes: <NoteData>[_firstArrangementNote()],
+        onWriteJournalResponse: (block) async {
+          document = MaatJournalResponseBlockUtils.upsert(document, block);
+        },
+        onRecordCompletion:
+            ({
+              required String clientEventId,
+              required int flowId,
+              required DateTime completedOnDate,
+              Map<String, dynamic>? metadata,
+            }) async {},
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await _openDetailSheet(tester, _firstArrangementTitle);
+    await _choosePilotOption(
+      tester,
+      specId: 'first-arrangement-ordered',
+      optionId: 'arranged',
+    );
+    await _enterPilotResponse(
+      tester,
+      specId: 'first-arrangement-space-changed',
+      text: 'the desk surface',
+    );
+    await _tapStatus(tester, 'Observed');
+
+    await _choosePilotOption(
+      tester,
+      specId: 'first-arrangement-ordered',
+      optionId: 'returned',
+    );
+    await _enterPilotResponse(
+      tester,
+      specId: 'first-arrangement-space-changed',
+      text: 'the desk and tray',
+    );
+    await _tapStatus(tester, 'Observed');
+
+    final blocks = MaatJournalResponseBlockUtils.extract(document);
+    expect(blocks, hasLength(1));
+    expect(
+      blocks.single.text,
+      'The First Arrangement: I put arranged and returned into order and made the desk and tray visible.',
+    );
+    expect(document.toPlainText(), contains('First Arrangement journal text.'));
+    expect(document.toPlainText(), isNot(contains('the desk surface')));
+  });
+
+  testWidgets('Living Pattern response renders and writes one response block', (
+    tester,
+  ) async {
+    await _setPhoneViewport(tester);
+    var document = _journalDocument('Living Pattern journal body.');
+
+    await tester.pumpWidget(
+      _DayViewHarness(
+        flowIndex: _livingPatternFlowIndex,
+        notes: <NoteData>[_livingPatternNote()],
+        onWriteJournalResponse: (block) async {
+          document = MaatJournalResponseBlockUtils.upsert(document, block);
+        },
+        onRecordCompletion:
+            ({
+              required String clientEventId,
+              required int flowId,
+              required DateTime completedOnDate,
+              Map<String, dynamic>? metadata,
+            }) async {},
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await _openDetailSheet(tester, _livingPatternTitle);
+
+    expect(find.byKey(kMaatFlowResponseSectionKey), findsOneWidget);
+    expect(find.text('What pattern did you observe?'), findsOneWidget);
+    expect(find.text('What principle did the pattern teach?'), findsOneWidget);
+    await _choosePilotOption(
+      tester,
+      specId: 'living-pattern-observed',
+      optionId: 'growth',
+    );
+    await _choosePilotOption(
+      tester,
+      specId: 'living-pattern-observed',
+      optionId: 'return',
+    );
+    await _enterPilotResponse(
+      tester,
+      specId: 'living-pattern-principle',
+      text: 'patient timing',
+    );
+
+    expect(
+      find.text(
+        'The Living Pattern: I observed growth and return and carried patient timing into action.',
+      ),
+      findsOneWidget,
+    );
+    await _tapStatus(tester, 'Observed');
+
+    await _choosePilotOption(
+      tester,
+      specId: 'living-pattern-observed',
+      optionId: 'cycle',
+    );
+    await _enterPilotResponse(
+      tester,
+      specId: 'living-pattern-principle',
+      text: 'cyclical attention',
+    );
+    await _tapStatus(tester, 'Observed');
+
+    final blocks = MaatJournalResponseBlockUtils.extract(document);
+    expect(blocks, hasLength(1));
+    expect(
+      blocks.single.text,
+      'The Living Pattern: I observed growth, return, and cycle and carried cyclical attention into action.',
+    );
+    expect(document.toPlainText(), contains('Living Pattern journal body.'));
+    expect(document.toPlainText(), isNot(contains('patient timing')));
+  });
+
+  testWidgets('House of Life response renders and writes one response block', (
+    tester,
+  ) async {
+    await _setPhoneViewport(tester);
+    var document = _journalDocument('House of Life journal body.');
+
+    await tester.pumpWidget(
+      _DayViewHarness(
+        flowIndex: _houseOfLifeFlowIndex,
+        notes: <NoteData>[_houseOfLifeNote()],
+        onWriteJournalResponse: (block) async {
+          document = MaatJournalResponseBlockUtils.upsert(document, block);
+        },
+        onRecordCompletion:
+            ({
+              required String clientEventId,
+              required int flowId,
+              required DateTime completedOnDate,
+              Map<String, dynamic>? metadata,
+            }) async {},
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await _openDetailSheet(tester, _houseOfLifeTitle);
+
+    expect(find.byKey(kMaatFlowResponseSectionKey), findsOneWidget);
+    expect(find.text('What knowledge became clearer?'), findsOneWidget);
+    expect(
+      find.text('What did you learn, write, recite, or transmit?'),
+      findsOneWidget,
+    );
+    await _choosePilotOption(
+      tester,
+      specId: 'house-of-life-clearer',
+      optionId: 'question',
+    );
+    await _choosePilotOption(
+      tester,
+      specId: 'house-of-life-clearer',
+      optionId: 'source',
+    );
+    await _enterPilotResponse(
+      tester,
+      specId: 'house-of-life-learned',
+      text: 'copying the source note',
+    );
+    await _tapStatus(tester, 'Observed');
+
+    await _choosePilotOption(
+      tester,
+      specId: 'house-of-life-clearer',
+      optionId: 'application',
+    );
+    await _enterPilotResponse(
+      tester,
+      specId: 'house-of-life-learned',
+      text: 'transmitting the useful note',
+    );
+    await _tapStatus(tester, 'Observed');
+
+    final blocks = MaatJournalResponseBlockUtils.extract(document);
+    expect(blocks, hasLength(1));
+    expect(
+      blocks.single.text,
+      'The House of Life: I made question, source, and application clearer and preserved transmitting the useful note.',
+    );
+    expect(document.toPlainText(), contains('House of Life journal body.'));
+    expect(document.toPlainText(), isNot(contains('copying the source note')));
+  });
+
+  testWidgets('Hotep response offer can suppress and update one safe block', (
+    tester,
+  ) async {
+    await _setPhoneViewport(tester);
+    var document = _journalDocument('Hotep journal body.');
+    final responseWrites = <MaatJournalResponseBlock>[];
+
+    await tester.pumpWidget(
+      _DayViewHarness(
+        flowIndex: _hotepFlowIndex,
+        notes: <NoteData>[_hotepNote()],
+        onWriteJournalResponse: (block) async {
+          responseWrites.add(block);
+          document = MaatJournalResponseBlockUtils.upsert(document, block);
+        },
+        onRecordCompletion:
+            ({
+              required String clientEventId,
+              required int flowId,
+              required DateTime completedOnDate,
+              Map<String, dynamic>? metadata,
+            }) async {},
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await _openDetailSheet(tester, _hotepTitle);
+
+    expect(find.byKey(kMaatFlowResponseSectionKey), findsOneWidget);
+    expect(find.text('What cooled into peace?'), findsOneWidget);
+    expect(find.text('What did you let be enough tonight?'), findsOneWidget);
+    await _choosePilotOption(tester, specId: 'hotep-cooled', optionId: 'given');
+    await _enterPilotResponse(
+      tester,
+      specId: 'hotep-enough-tonight',
+      text: 'private obligation detail.',
+    );
+    expect(
+      find.text(
+        'Hotep: I named given, let enough be enough, and let the heart cool.',
+      ),
+      findsOneWidget,
+    );
+    expect(
+      find.descendant(
+        of: find.byKey(kMaatFlowResponseJournalPreviewKey),
+        matching: find.textContaining('private obligation'),
+      ),
+      findsNothing,
+    );
+    final addToggle = tester.widget<Checkbox>(find.byType(Checkbox).last);
+    expect(addToggle.value, isFalse);
+
+    await _tapStatus(tester, 'Observed');
+    expect(responseWrites, hasLength(1));
+    expect(responseWrites.single.text, isEmpty);
+    expect(MaatJournalResponseBlockUtils.extract(document), isEmpty);
+    expect(document.toPlainText(), 'Hotep journal body.');
+
+    await _toggleOfferJournalWrite(tester);
+    await _tapStatus(tester, 'Observed');
+    var blocks = MaatJournalResponseBlockUtils.extract(document);
+    expect(blocks, hasLength(1));
+    expect(
+      blocks.single.text,
+      'Hotep: I named given, let enough be enough, and let the heart cool.',
+    );
+
+    await _choosePilotOption(
+      tester,
+      specId: 'hotep-cooled',
+      optionId: 'settled',
+    );
+    await _enterPilotResponse(
+      tester,
+      specId: 'hotep-enough-tonight',
+      text: 'updated private obligation detail.',
+    );
+    await _tapStatus(tester, 'Observed');
+
+    blocks = MaatJournalResponseBlockUtils.extract(document);
+    expect(blocks, hasLength(1));
+    expect(
+      blocks.single.text,
+      'Hotep: I named given and settled, let enough be enough, and let the heart cool.',
+    );
+    expect(document.toPlainText(), contains('Hotep journal body.'));
+    expect(document.toPlainText(), isNot(contains('private obligation')));
+  });
+
   testWidgets('unsupported Ma_at flow remains without response fields', (
     tester,
   ) async {
@@ -3384,6 +3731,42 @@ const TrackSkyEvent _trackSkyEvent = TrackSkyEvent(
 const int _weighingFlowId = 103;
 final TheWeighingEvent _weighingEvent = kTheWeighingEvents.first;
 final String _weighingTitle = theWeighingEventTitle(_weighingEvent);
+const int _firstArrangementFlowId = 104;
+final MaatDecanFlowDefinition _firstArrangementDefinition =
+    maatDecanFlowDefinitionForKey(kFirstArrangementFlowKey)!;
+final MaatDecanFlowEvent _firstArrangementEvent =
+    _firstArrangementDefinition.events.first;
+final String _firstArrangementTitle = maatDecanFlowEventTitle(
+  _firstArrangementDefinition,
+  _firstArrangementEvent,
+);
+const int _livingPatternFlowId = 105;
+final MaatDecanFlowDefinition _livingPatternDefinition =
+    maatDecanFlowDefinitionForKey(kLivingPatternFlowKey)!;
+final MaatDecanFlowEvent _livingPatternEvent =
+    _livingPatternDefinition.events.first;
+final String _livingPatternTitle = maatDecanFlowEventTitle(
+  _livingPatternDefinition,
+  _livingPatternEvent,
+);
+const int _houseOfLifeFlowId = 106;
+final MaatDecanFlowDefinition _houseOfLifeDefinition =
+    maatDecanFlowDefinitionForKey(kHouseOfLifeFlowKey)!;
+final MaatDecanFlowEvent _houseOfLifeEvent =
+    _houseOfLifeDefinition.events.first;
+final String _houseOfLifeTitle = maatDecanFlowEventTitle(
+  _houseOfLifeDefinition,
+  _houseOfLifeEvent,
+);
+const int _hotepFlowId = 107;
+final MaatDecanFlowDefinition _hotepDefinition = maatDecanFlowDefinitionForKey(
+  kHotepFlowKey,
+)!;
+final MaatDecanFlowEvent _hotepEvent = _hotepDefinition.events.first;
+final String _hotepTitle = maatDecanFlowEventTitle(
+  _hotepDefinition,
+  _hotepEvent,
+);
 
 const Map<int, FlowData> _decanWatchFlowIndex = <int, FlowData>{
   _decanWatchFlowId: FlowData(
@@ -3532,6 +3915,46 @@ const Map<int, FlowData> _weighingFlowIndex = <int, FlowData>{
     color: Colors.amber,
     active: true,
     notes: 'maat=$kTheWeighingFlowKey;weighing_lens=neutral',
+  ),
+};
+
+final Map<int, FlowData> _firstArrangementFlowIndex = <int, FlowData>{
+  _firstArrangementFlowId: FlowData(
+    id: _firstArrangementFlowId,
+    name: kFirstArrangementTitle,
+    color: Colors.green,
+    active: true,
+    notes: 'maat=$kFirstArrangementFlowKey',
+  ),
+};
+
+final Map<int, FlowData> _livingPatternFlowIndex = <int, FlowData>{
+  _livingPatternFlowId: FlowData(
+    id: _livingPatternFlowId,
+    name: kLivingPatternTitle,
+    color: Colors.teal,
+    active: true,
+    notes: 'maat=$kLivingPatternFlowKey',
+  ),
+};
+
+final Map<int, FlowData> _houseOfLifeFlowIndex = <int, FlowData>{
+  _houseOfLifeFlowId: FlowData(
+    id: _houseOfLifeFlowId,
+    name: kHouseOfLifeTitle,
+    color: Colors.indigo,
+    active: true,
+    notes: 'maat=$kHouseOfLifeFlowKey',
+  ),
+};
+
+final Map<int, FlowData> _hotepFlowIndex = <int, FlowData>{
+  _hotepFlowId: FlowData(
+    id: _hotepFlowId,
+    name: kHotepTitle,
+    color: Colors.blueGrey,
+    active: true,
+    notes: 'maat=$kHotepFlowKey',
   ),
 };
 
@@ -3886,6 +4309,67 @@ NoteData _weighingNote({TheWeighingEvent? event}) {
       schedule: schedule,
       lens: TheWeighingLens.neutral,
     ),
+  );
+}
+
+NoteData _firstArrangementNote({MaatDecanFlowEvent? event}) {
+  return _phase4ADecanNote(
+    definition: _firstArrangementDefinition,
+    event: event ?? _firstArrangementEvent,
+    flowId: _firstArrangementFlowId,
+    clientEventPrefix: 'first-arrangement',
+  );
+}
+
+NoteData _livingPatternNote({MaatDecanFlowEvent? event}) {
+  return _phase4ADecanNote(
+    definition: _livingPatternDefinition,
+    event: event ?? _livingPatternEvent,
+    flowId: _livingPatternFlowId,
+    clientEventPrefix: 'living-pattern',
+  );
+}
+
+NoteData _houseOfLifeNote({MaatDecanFlowEvent? event}) {
+  return _phase4ADecanNote(
+    definition: _houseOfLifeDefinition,
+    event: event ?? _houseOfLifeEvent,
+    flowId: _houseOfLifeFlowId,
+    clientEventPrefix: 'house-of-life',
+  );
+}
+
+NoteData _hotepNote({MaatDecanFlowEvent? event}) {
+  return _phase4ADecanNote(
+    definition: _hotepDefinition,
+    event: event ?? _hotepEvent,
+    flowId: _hotepFlowId,
+    clientEventPrefix: 'hotep',
+  );
+}
+
+NoteData _phase4ADecanNote({
+  required MaatDecanFlowDefinition definition,
+  required MaatDecanFlowEvent event,
+  required int flowId,
+  required String clientEventPrefix,
+}) {
+  return NoteData(
+    clientEventId: 'cid-$clientEventPrefix-${event.eventNumber}',
+    title: maatDecanFlowEventTitle(definition, event),
+    detail: maatDecanFlowDetailText(definition, event),
+    category: event.decanSection,
+    allDay: false,
+    start: const TimeOfDay(hour: 10, minute: 0),
+    end: const TimeOfDay(hour: 10, minute: 8),
+    flowId: flowId,
+    behaviorPayload: <String, dynamic>{
+      'flow_key': definition.key,
+      'kind': definition.behaviorKind,
+      'event_number': event.eventNumber,
+      'flow_day': event.flowDay,
+      'requires_real_world_action': event.requiresRealWorldAction,
+    },
   );
 }
 

@@ -89,6 +89,19 @@ void main() {
       'djed_restoration',
     );
     expect(
+      MaatFlowResponseJournalFormatter.firstArrangementOrder.wireName,
+      'first_arrangement_order',
+    );
+    expect(
+      MaatFlowResponseJournalFormatter.livingPatternPrinciple.wireName,
+      'living_pattern_principle',
+    );
+    expect(
+      MaatFlowResponseJournalFormatter.houseOfLifeKnowledge.wireName,
+      'house_of_life_knowledge',
+    );
+    expect(MaatFlowResponseJournalFormatter.hotepPeace.wireName, 'hotep_peace');
+    expect(
       MaatFlowResponseJournalFormatterX.fromWireName('decan-watch'),
       MaatFlowResponseJournalFormatter.decanWatch,
     );
@@ -119,6 +132,24 @@ void main() {
     expect(
       MaatFlowResponseJournalFormatterX.fromWireName('djed-restoration'),
       MaatFlowResponseJournalFormatter.djedRestoration,
+    );
+    expect(
+      MaatFlowResponseJournalFormatterX.fromWireName('first-arrangement-order'),
+      MaatFlowResponseJournalFormatter.firstArrangementOrder,
+    );
+    expect(
+      MaatFlowResponseJournalFormatterX.fromWireName(
+        'living-pattern-principle',
+      ),
+      MaatFlowResponseJournalFormatter.livingPatternPrinciple,
+    );
+    expect(
+      MaatFlowResponseJournalFormatterX.fromWireName('house-of-life-knowledge'),
+      MaatFlowResponseJournalFormatter.houseOfLifeKnowledge,
+    );
+    expect(
+      MaatFlowResponseJournalFormatterX.fromWireName('hotep-peace'),
+      MaatFlowResponseJournalFormatter.hotepPeace,
     );
     expect(
       MaatFlowResponseJournalFormatterX.fromWireName('tending-care'),
@@ -154,8 +185,8 @@ void main() {
     );
   });
 
-  test('default resolver exposes only Phase 2B through 3G pilot specs', () {
-    expect(kDefaultMaatFlowResponseResolver.specs, hasLength(38));
+  test('default resolver exposes only Phase 2B through 4A pilot specs', () {
+    expect(kDefaultMaatFlowResponseResolver.specs, hasLength(46));
 
     expect(
       resolveMaatFlowResponseSpecs(
@@ -295,6 +326,34 @@ void main() {
         surface: MaatFlowResponseSurface.calendarSheet,
       ).map((spec) => spec.id),
       <String>['weighing-scale-revealed', 'weighing-record-witnessed'],
+    );
+    expect(
+      resolveMaatFlowResponseSpecs(
+        flowKey: kFirstArrangementFlowKey,
+        surface: MaatFlowResponseSurface.calendarSheet,
+      ).map((spec) => spec.id),
+      <String>['first-arrangement-ordered', 'first-arrangement-space-changed'],
+    );
+    expect(
+      resolveMaatFlowResponseSpecs(
+        flowKey: kLivingPatternFlowKey,
+        surface: MaatFlowResponseSurface.calendarSheet,
+      ).map((spec) => spec.id),
+      <String>['living-pattern-observed', 'living-pattern-principle'],
+    );
+    expect(
+      resolveMaatFlowResponseSpecs(
+        flowKey: kHouseOfLifeFlowKey,
+        surface: MaatFlowResponseSurface.calendarSheet,
+      ).map((spec) => spec.id),
+      <String>['house-of-life-clearer', 'house-of-life-learned'],
+    );
+    expect(
+      resolveMaatFlowResponseSpecs(
+        flowKey: kHotepFlowKey,
+        surface: MaatFlowResponseSurface.calendarSheet,
+      ).map((spec) => spec.id),
+      <String>['hotep-cooled', 'hotep-enough-tonight'],
     );
 
     for (final flowKey in const <String>[
@@ -811,6 +870,123 @@ void main() {
     );
   });
 
+  test('Phase 4A decan previews read naturally', () {
+    final firstArrangementSpecs = resolveMaatFlowResponseSpecs(
+      flowKey: kFirstArrangementFlowKey,
+      surface: MaatFlowResponseSurface.calendarSheet,
+    );
+    final firstArrangement = buildMaatFlowResponseJournalPreviews(
+      specs: firstArrangementSpecs,
+      values: <String, MaatFlowResponseValue>{
+        'first-arrangement-ordered': MaatFlowResponseValue.chips(
+          specId: 'first-arrangement-ordered',
+          optionIds: <String>['cleared', 'made_visible'],
+        ),
+        'first-arrangement-space-changed': MaatFlowResponseValue.text(
+          specId: 'first-arrangement-space-changed',
+          text: 'the entry shelf',
+          multiline: true,
+        ),
+      },
+      clientEventId: 'cid-first-arrangement',
+    );
+    expect(firstArrangement, hasLength(1));
+    expect(firstArrangement.single.policy, MaatFlowJournalPolicy.mirror);
+    expect(
+      firstArrangement.single.sourceId,
+      'maat_response:the-first-arrangement:cid:cid-first-arrangement:first-arrangement-order',
+    );
+    expect(
+      firstArrangement.single.text,
+      'The First Arrangement: I put cleared and made visible into order and made the entry shelf visible.',
+    );
+
+    final livingPatternSpecs = resolveMaatFlowResponseSpecs(
+      flowKey: kLivingPatternFlowKey,
+      surface: MaatFlowResponseSurface.calendarSheet,
+    );
+    final livingPattern = buildMaatFlowResponseJournalPreviews(
+      specs: livingPatternSpecs,
+      values: <String, MaatFlowResponseValue>{
+        'living-pattern-observed': MaatFlowResponseValue.chips(
+          specId: 'living-pattern-observed',
+          optionIds: <String>['growth', 'return'],
+        ),
+        'living-pattern-principle': MaatFlowResponseValue.text(
+          specId: 'living-pattern-principle',
+          text: 'patient timing',
+          multiline: true,
+        ),
+      },
+      clientEventId: 'cid-living-pattern',
+    );
+    expect(livingPattern, hasLength(1));
+    expect(livingPattern.single.policy, MaatFlowJournalPolicy.mirror);
+    expect(
+      livingPattern.single.text,
+      'The Living Pattern: I observed growth and return and carried patient timing into action.',
+    );
+
+    final houseOfLifeSpecs = resolveMaatFlowResponseSpecs(
+      flowKey: kHouseOfLifeFlowKey,
+      surface: MaatFlowResponseSurface.calendarSheet,
+    );
+    final houseOfLife = buildMaatFlowResponseJournalPreviews(
+      specs: houseOfLifeSpecs,
+      values: <String, MaatFlowResponseValue>{
+        'house-of-life-clearer': MaatFlowResponseValue.chips(
+          specId: 'house-of-life-clearer',
+          optionIds: <String>['question', 'source'],
+        ),
+        'house-of-life-learned': MaatFlowResponseValue.text(
+          specId: 'house-of-life-learned',
+          text: 'copying the source note',
+          multiline: true,
+        ),
+      },
+      clientEventId: 'cid-house-of-life',
+    );
+    expect(houseOfLife, hasLength(1));
+    expect(houseOfLife.single.policy, MaatFlowJournalPolicy.mirror);
+    expect(
+      houseOfLife.single.text,
+      'The House of Life: I made question and source clearer and preserved copying the source note.',
+    );
+
+    final hotepSpecs = resolveMaatFlowResponseSpecs(
+      flowKey: kHotepFlowKey,
+      surface: MaatFlowResponseSurface.calendarSheet,
+    );
+    final hotep = buildMaatFlowResponseJournalPreviews(
+      specs: hotepSpecs,
+      values: <String, MaatFlowResponseValue>{
+        'hotep-cooled': MaatFlowResponseValue.chips(
+          specId: 'hotep-cooled',
+          optionIds: <String>['given', 'settled'],
+        ),
+        'hotep-enough-tonight': MaatFlowResponseValue.text(
+          specId: 'hotep-enough-tonight',
+          text: 'private obligation details',
+          multiline: true,
+        ),
+      },
+      clientEventId: 'cid-hotep',
+    );
+    expect(hotep, hasLength(1));
+    expect(hotep.single.policy, MaatFlowJournalPolicy.offer);
+    expect(hotep.single.requiresUserChoice, isTrue);
+    expect(hotep.single.includeInJournalByDefault, isFalse);
+    expect(
+      hotep.single.sourceId,
+      'maat_response:hotep:cid:cid-hotep:hotep-peace',
+    );
+    expect(
+      hotep.single.text,
+      'Hotep: I named given and settled, let enough be enough, and let the heart cool.',
+    );
+    expect(hotep.single.text, isNot(contains('private obligation')));
+  });
+
   test('sensitive offer previews read naturally', () {
     final openHandSpecs = resolveMaatFlowResponseSpecs(
       flowKey: kTheOpenHandFlowKey,
@@ -1254,7 +1430,7 @@ void main() {
     expect(JournalBadgeUtils.tokensFromDocument(removed), hasLength(1));
   });
 
-  test('Phase 3G wiring stays isolated to shared sheet panels and pilots', () {
+  test('Phase 4A wiring stays isolated to shared sheet panels and pilots', () {
     expect(
       kDefaultMaatFlowResponseResolver.specs
           .map((spec) => spec.flowKey)
@@ -1277,6 +1453,10 @@ void main() {
         kWanderingFlowKey,
         'track-the-sky',
         kTheWeighingFlowKey,
+        kFirstArrangementFlowKey,
+        kLivingPatternFlowKey,
+        kHouseOfLifeFlowKey,
+        kHotepFlowKey,
       },
     );
 
