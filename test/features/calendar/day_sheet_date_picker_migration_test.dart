@@ -136,6 +136,168 @@ void main() {
     expect(notesSection, contains('_deleteNoteByEvent('));
   });
 
+  test('Day sheet reminders are scoped to the selected sheet day', () async {
+    final source = await File(
+      'lib/features/calendar/calendar_page.dart',
+    ).readAsString();
+    final daySheet = _sourceBetween(
+      source,
+      'void _openDaySheet',
+      'Future<void> _openQuickAddSheet',
+    );
+    final builder = _sourceBetween(
+      daySheet,
+      'builder: (sheetCtx, setSheetState)',
+      'final keyboardInset = keyboardInsetOf(sheetCtx);',
+    );
+    final remindersSection = _sourceBetween(
+      daySheet,
+      "label: 'Reminders'",
+      "label: 'Add reminder'",
+    );
+    final sharedPickerPlacement = _sourceBetween(
+      daySheet,
+      'DaySheetTabBar(',
+      'if (showReminders) ...[',
+    );
+    final helper = _sourceBetween(
+      source,
+      'List<ReminderRule> _calendarSheetReminderRulesForDay',
+      '({String primary, String? subline}) _daySheetReminderRuleLines',
+    );
+
+    expect(
+      builder,
+      contains('final dayReminderRules = _calendarSheetReminderRulesForDay('),
+    );
+    expect(builder, contains('selYear'));
+    expect(builder, contains('selMonth'));
+    expect(builder, contains('selDay'));
+    expect(sharedPickerPlacement, contains('datePicker()'));
+    expect(remindersSection, contains('count: dayReminderRules.length'));
+    expect(remindersSection, contains('if (dayReminderRules.isEmpty)'));
+    expect(remindersSection, contains('itemCount: dayReminderRules.length'));
+    expect(remindersSection, contains('final r = dayReminderRules[i]'));
+    expect(remindersSection, isNot(contains('count: _reminderRules.length')));
+    expect(
+      remindersSection,
+      isNot(contains('itemCount: _reminderRules.length')),
+    );
+
+    expect(helper, contains('KemeticMath.toGregorian(kYear, kMonth, kDay)'));
+    expect(helper, contains('_generateReminderOccurrences(rule, day, day)'));
+    expect(helper, contains('!_endedReminderIds.contains(rule.id)'));
+    expect(helper, contains('rules.sort'));
+  });
+
+  test('Day sheet picker state is the single list scope source', () async {
+    final source = await File(
+      'lib/features/calendar/calendar_page.dart',
+    ).readAsString();
+    final daySheet = _sourceBetween(
+      source,
+      'void _openDaySheet',
+      'Future<void> _openQuickAddSheet',
+    );
+    final builder = _sourceBetween(
+      daySheet,
+      'builder: (sheetCtx, setSheetState)',
+      'final keyboardInset = keyboardInsetOf(sheetCtx);',
+    );
+    final selectedDaySources = _sourceBetween(
+      builder,
+      'final titleG = KemeticMath.toGregorian(',
+      'final editingNote = initialEditingNote;',
+    );
+    final picker = _sourceBetween(
+      builder,
+      'Widget datePicker()',
+      'Future<bool> openReminderEditorForSelectedDay',
+    );
+    final reminderEditor = _sourceBetween(
+      daySheet,
+      'Future<bool> openReminderEditorForSelectedDay',
+      'final keyboardInset = keyboardInsetOf(sheetCtx);',
+    );
+
+    expect(selectedDaySources, contains('selYear'));
+    expect(selectedDaySources, contains('selMonth'));
+    expect(selectedDaySources, contains('selDay'));
+    expect(
+      selectedDaySources,
+      contains('final dayNotes = _calendarSheetNoteCandidatesForDay('),
+    );
+    expect(
+      selectedDaySources,
+      contains('final dayEvents = _calendarSheetEventsForDay('),
+    );
+    expect(
+      selectedDaySources,
+      contains('final dayFlowRows = _calendarSheetScheduledFlowsForDay('),
+    );
+    expect(
+      selectedDaySources,
+      contains('final dayReminderRules = _calendarSheetReminderRulesForDay('),
+    );
+    expect(selectedDaySources, isNot(contains('_getNotes(')));
+    expect(selectedDaySources, isNot(contains('_getFlowOccurrences(')));
+
+    expect(picker, contains('final seed = DateUtils.dateOnly(titleG)'));
+    expect(picker, contains('value: EventCreateDatePickerValue('));
+    expect(picker, contains('date: seed'));
+    expect(picker, contains('onChanged: (picked)'));
+    expect(picker, contains('selYear = selected.kYear'));
+    expect(picker, contains('selMonth = selected.kMonth'));
+    expect(picker, contains('selDay = selected.kDay'));
+    expect(picker, contains('persistDaySheetSession()'));
+
+    expect(reminderEditor, contains('initialDate: titleG'));
+    expect(builder, isNot(contains('DateTime.now')));
+    expect(builder, isNot(contains('_today')));
+    expect(builder, isNot(contains('_currentKy')));
+    expect(builder, isNot(contains('_currentKm')));
+    expect(builder, isNot(contains('_currentKd')));
+    expect(builder, isNot(contains('_reminderRules.length')));
+    expect(builder, isNot(contains('_reminderRules[i]')));
+  });
+
+  test(
+    'Day View header plus passes the current Day View date to Day sheet',
+    () async {
+      final dayViewSource = await File(
+        'lib/features/calendar/day_view.dart',
+      ).readAsString();
+      final calendarSource = await File(
+        'lib/features/calendar/calendar_page.dart',
+      ).readAsString();
+      final headerWiring = _sourceBetween(
+        dayViewSource,
+        'onOpenQuickAdd: (btnCtx) async {',
+        'onOpenSearch:',
+      );
+      final routeWiring = _sourceBetween(
+        calendarSource,
+        'builder: (context) => DayViewPage(',
+        'onCreateTimedEvent: _handleCreateTimedEvent',
+      );
+
+      expect(headerWiring, contains('if (widget.onAddNote != null)'));
+      expect(headerWiring, contains('widget.onAddNote!('));
+      expect(headerWiring, contains('_currentKy'));
+      expect(headerWiring, contains('_currentKm'));
+      expect(headerWiring, contains('_currentKd'));
+      expect(
+        headerWiring.indexOf('widget.onAddNote!('),
+        lessThan(
+          headerWiring.indexOf('final openQuickAdd = widget.onOpenQuickAdd'),
+        ),
+      );
+      expect(routeWiring, contains('onAddNote: (ky, km, kd) =>'));
+      expect(routeWiring, contains('_openDaySheet(ky, km, kd'));
+      expect(routeWiring, contains('allowDateChange: true'));
+    },
+  );
+
   test(
     'scheduled flow rows merge computed flows with flow-backed events',
     () async {
@@ -259,6 +421,18 @@ void main() {
       mainSource,
       contains(
         'if (_debugDaySheetSmokeBootRequested) {\n      return _buildAuthedApp();',
+      ),
+    );
+    expect(
+      mainSource,
+      contains('if (kDebugMode && _debugDaySheetSmokeBootRequested) return;'),
+    );
+    expect(
+      mainSource.indexOf(
+        'if (kDebugMode && _debugDaySheetSmokeBootRequested) return;',
+      ),
+      lessThan(
+        mainSource.indexOf("unawaited(Events.trackIfAuthed('screen_view'"),
       ),
     );
 

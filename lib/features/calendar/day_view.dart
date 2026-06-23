@@ -3394,13 +3394,18 @@ class _DayViewPageState extends State<DayViewPage> {
                       onToggleDateDisplay: _toggleDateDisplay,
                       onClose: _closeDayView,
                       onJumpToToday: _jumpToToday,
-                      onOpenQuickAdd:
-                          widget.onOpenQuickAdd ??
-                          (btnCtx) async {
-                            await CalendarPage.openQuickAddFromAnyContext(
-                              btnCtx,
-                            );
-                          },
+                      onOpenQuickAdd: (btnCtx) async {
+                        if (widget.onAddNote != null) {
+                          widget.onAddNote!(_currentKy, _currentKm, _currentKd);
+                          return;
+                        }
+                        final openQuickAdd = widget.onOpenQuickAdd;
+                        if (openQuickAdd != null) {
+                          await openQuickAdd(btnCtx);
+                          return;
+                        }
+                        await CalendarPage.openQuickAddFromAnyContext(btnCtx);
+                      },
                       onOpenSearch:
                           widget.onOpenSearch ??
                           (btnCtx) async {

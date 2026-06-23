@@ -17000,6 +17000,40 @@ class CalendarPageState extends State<CalendarPage>
     }
   }
 
+  List<ReminderRule> _calendarSheetReminderRulesForDay(
+    int kYear,
+    int kMonth,
+    int kDay,
+  ) {
+    final day = DateUtils.dateOnly(
+      KemeticMath.toGregorian(kYear, kMonth, kDay),
+    );
+    final rules = _dedupeReminderRules(_reminderRules)
+        .where((rule) => !_endedReminderIds.contains(rule.id))
+        .where((rule) {
+          final occurrences = _generateReminderOccurrences(rule, day, day);
+          return occurrences.any((occurrence) {
+            final normalized = DateUtils.dateOnly(occurrence);
+            return normalized.year == day.year &&
+                normalized.month == day.month &&
+                normalized.day == day.day;
+          });
+        })
+        .toList();
+    rules.sort((a, b) {
+      final aMinutes = a.allDay
+          ? -1
+          : a.startLocal.hour * 60 + a.startLocal.minute;
+      final bMinutes = b.allDay
+          ? -1
+          : b.startLocal.hour * 60 + b.startLocal.minute;
+      final timeCompare = aMinutes.compareTo(bMinutes);
+      if (timeCompare != 0) return timeCompare;
+      return a.title.toLowerCase().compareTo(b.title.toLowerCase());
+    });
+    return rules;
+  }
+
   ({String primary, String? subline}) _daySheetReminderRuleLines(
     ReminderRule rule,
   ) {
@@ -27082,6 +27116,11 @@ class CalendarPageState extends State<CalendarPage>
                 selDay,
                 dayNotes,
               );
+              final dayReminderRules = _calendarSheetReminderRulesForDay(
+                selYear,
+                selMonth,
+                selDay,
+              );
               final editingNote = initialEditingNote;
               final selectedCalendar = selectedCalendarId == null
                   ? null
@@ -27302,11 +27341,13 @@ class CalendarPageState extends State<CalendarPage>
                             },
                           ),
                           const SizedBox(height: 12),
+                          datePicker(),
+                          const SizedBox(height: 12),
 
                           if (showReminders) ...[
                             DaySheetSectionHeader(
                               label: 'Reminders',
-                              count: _reminderRules.length,
+                              count: dayReminderRules.length,
                               topMargin: 8,
                             ),
                             if (!_reminderRulesLoaded)
@@ -27318,11 +27359,11 @@ class CalendarPageState extends State<CalendarPage>
                                   ),
                                 ),
                               )
-                            else if (_reminderRules.isEmpty)
+                            else if (dayReminderRules.isEmpty)
                               const Padding(
                                 padding: EdgeInsets.symmetric(vertical: 12),
                                 child: Text(
-                                  'No reminders yet',
+                                  'No reminders on this day',
                                   style: TextStyle(color: Colors.white70),
                                 ),
                               )
@@ -27332,11 +27373,11 @@ class CalendarPageState extends State<CalendarPage>
                                 shrinkWrap: true,
                                 controller: null,
                                 physics: const NeverScrollableScrollPhysics(),
-                                itemCount: _reminderRules.length,
+                                itemCount: dayReminderRules.length,
                                 separatorBuilder: (_, _) =>
                                     const SizedBox.shrink(),
                                 itemBuilder: (_, i) {
-                                  final r = _reminderRules[i];
+                                  final r = dayReminderRules[i];
                                   final ruleLines = _daySheetReminderRuleLines(
                                     r,
                                   );
@@ -27496,10 +27537,6 @@ class CalendarPageState extends State<CalendarPage>
                               ],
                             ),
                           ] else ...[
-                            // Date
-                            datePicker(),
-                            const SizedBox(height: 12),
-
                             DaySheetSectionHeader(
                               label: 'Scheduled flows',
                               count: dayFlowRows.length,

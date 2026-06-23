@@ -911,6 +911,7 @@ class _FloatingMenuRouteObserver extends NavigatorObserver {
 
 class TelemetryRouteObserver extends RouteObserver<PageRoute<dynamic>> {
   void _send(PageRoute<dynamic>? route) {
+    if (kDebugMode && _debugDaySheetSmokeBootRequested) return;
     final name = route?.settings.name ?? '/';
     unawaited(Events.trackIfAuthed('screen_view', {'route': name}));
   }

@@ -1216,6 +1216,72 @@ void main() {
     });
 
     testWidgets(
+      'header new-note action opens Day sheet for current Day View date',
+      (tester) async {
+        await _setPhoneViewport(tester);
+        final openedDates = <({int ky, int km, int kd})>[];
+        var openedQuickAdd = false;
+
+        await tester.pumpWidget(
+          MaterialApp(
+            home: DayViewPage(
+              initialKy: 6268,
+              initialKm: 2,
+              initialKd: 5,
+              showGregorian: false,
+              notesForDay: (_, _, _) => const <NoteData>[],
+              flowIndex: const {},
+              getMonthName: _gregorianMonthName,
+              onOpenQuickAdd: (_) async {
+                openedQuickAdd = true;
+              },
+              onAddNote: (ky, km, kd) {
+                openedDates.add((ky: ky, km: km, kd: kd));
+              },
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        await tester.tap(find.byTooltip('New note'));
+        await tester.pumpAndSettle();
+
+        expect(openedQuickAdd, isFalse);
+        expect(openedDates, [(ky: 6268, km: 2, kd: 5)]);
+
+        await tester.pumpWidget(
+          MaterialApp(
+            home: DayViewPage(
+              initialKy: 6268,
+              initialKm: 2,
+              initialKd: 6,
+              showGregorian: false,
+              notesForDay: (_, _, _) => const <NoteData>[],
+              flowIndex: const {},
+              getMonthName: _gregorianMonthName,
+              onOpenQuickAdd: (_) async {
+                openedQuickAdd = true;
+              },
+              onAddNote: (ky, km, kd) {
+                openedDates.add((ky: ky, km: km, kd: kd));
+              },
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        await tester.tap(find.byTooltip('New note'));
+        await tester.pumpAndSettle();
+
+        expect(openedQuickAdd, isFalse);
+        expect(openedDates, [
+          (ky: 6268, km: 2, kd: 5),
+          (ky: 6268, km: 2, kd: 6),
+        ]);
+      },
+    );
+
+    testWidgets(
       'tap consumes echoed detail restoration state without opening a second sheet',
       (tester) async {
         await _setPhoneViewport(tester);
