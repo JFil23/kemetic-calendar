@@ -1,5 +1,7 @@
 import 'package:mobile/features/journal/journal_v2_document_model.dart';
 
+import 'maat_flow_response_models.dart';
+
 const String kMaatJournalResponseBlockIdPrefix = 'maat_response:';
 
 class MaatJournalResponseBlock {
@@ -18,6 +20,49 @@ class MaatJournalResponseBlock {
 
 typedef MaatJournalResponseBlockWriter =
     Future<void> Function(MaatJournalResponseBlock block);
+
+List<MaatJournalResponseBlock> buildMaatJournalResponseBlocksForPolicy({
+  required Iterable<String> sourceIds,
+  required Iterable<MaatFlowResponseJournalPreview> previews,
+  required DateTime localDate,
+  Set<String> includedOfferSourceIds = const <String>{},
+}) {
+  final previewsBySourceId = <String, MaatFlowResponseJournalPreview>{
+    for (final preview in previews) preview.sourceId: preview,
+  };
+  return sourceIds
+      .map((sourceId) {
+        final preview = previewsBySourceId[sourceId];
+        final text = _journalTextForPolicy(
+          preview,
+          includedOfferSourceIds: includedOfferSourceIds,
+        );
+        return MaatJournalResponseBlock(
+          sourceId: sourceId,
+          text: text,
+          localDate: localDate,
+        );
+      })
+      .toList(growable: false);
+}
+
+String _journalTextForPolicy(
+  MaatFlowResponseJournalPreview? preview, {
+  required Set<String> includedOfferSourceIds,
+}) {
+  if (preview == null) return '';
+  switch (preview.policy) {
+    case MaatFlowJournalPolicy.mirror:
+    case MaatFlowJournalPolicy.redactedSummary:
+      return preview.text;
+    case MaatFlowJournalPolicy.offer:
+      return includedOfferSourceIds.contains(preview.sourceId)
+          ? preview.text
+          : '';
+    case MaatFlowJournalPolicy.localOnly:
+      return '';
+  }
+}
 
 String maatJournalResponseBlockId(String sourceId) {
   return '$kMaatJournalResponseBlockIdPrefix${Uri.encodeComponent(sourceId.trim())}';

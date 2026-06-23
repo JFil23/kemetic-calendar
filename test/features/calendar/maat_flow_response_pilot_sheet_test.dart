@@ -1109,6 +1109,53 @@ void main() {
     expect(JournalBadgeUtils.hasBadges(badgeAppends.single), isTrue);
   });
 
+  testWidgets('Open Hand offer can suppress journal response body', (
+    tester,
+  ) async {
+    await _setPhoneViewport(tester);
+    var document = _journalDocument('Open Hand manual journal body.');
+    final badgeAppends = <String>[];
+    final responseWrites = <MaatJournalResponseBlock>[];
+
+    await tester.pumpWidget(
+      _DayViewHarness(
+        flowIndex: _openHandFlowIndex,
+        notes: <NoteData>[_openHandNote()],
+        onAppendToJournal: (text) async => badgeAppends.add(text),
+        onWriteJournalResponse: (block) async {
+          responseWrites.add(block);
+          document = MaatJournalResponseBlockUtils.upsert(document, block);
+        },
+        onRecordCompletion:
+            ({
+              required String clientEventId,
+              required int flowId,
+              required DateTime completedOnDate,
+              Map<String, dynamic>? metadata,
+            }) async {},
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await _openDetailSheet(tester, _openHandTitle);
+    await _choosePilotOption(
+      tester,
+      specId: 'open-hand-given',
+      optionId: 'attention',
+    );
+
+    expect(find.text('Add to journal'), findsOneWidget);
+    await _toggleOfferJournalWrite(tester);
+    await _tapStatus(tester, 'Observed');
+
+    expect(responseWrites, hasLength(1));
+    expect(responseWrites.single.text, isEmpty);
+    expect(document.toPlainText(), 'Open Hand manual journal body.');
+    expect(MaatJournalResponseBlockUtils.extract(document), isEmpty);
+    expect(badgeAppends, hasLength(1));
+    expect(JournalBadgeUtils.hasBadges(badgeAppends.single), isTrue);
+  });
+
   testWidgets('Open Hand repeat completion updates one response block', (
     tester,
   ) async {
@@ -1723,6 +1770,14 @@ Future<void> _tapStatus(WidgetTester tester, String label) async {
   await tester.ensureVisible(button);
   await _pumpInteraction(tester);
   await tester.tap(button);
+  await _pumpInteraction(tester);
+}
+
+Future<void> _toggleOfferJournalWrite(WidgetTester tester) async {
+  final toggle = find.text('Add to journal').last;
+  await tester.ensureVisible(toggle);
+  await _pumpInteraction(tester);
+  await tester.tap(toggle);
   await _pumpInteraction(tester);
 }
 

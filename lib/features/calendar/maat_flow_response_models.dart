@@ -553,6 +553,24 @@ MaatFlowResponseJournalPreview? _buildGroupedMaatFlowResponseJournalPreview({
     return null;
   }
 
+  if (policy == MaatFlowJournalPolicy.redactedSummary) {
+    final redactedText = _formatRedactedResponseBodyText(sourceSpec).trim();
+    if (redactedText.isEmpty) return null;
+    return MaatFlowResponseJournalPreview(
+      sourceId:
+          sourceId ??
+          buildMaatFlowResponseSourceId(
+            flowKey: sourceSpec.flowKey,
+            responseSpecId: groupId,
+            clientEventId: clientEventId,
+            localDate: localDate,
+            eventKey: eventKey ?? sourceSpec.eventKey,
+          ),
+      policy: policy,
+      text: redactedText,
+    );
+  }
+
   final bodyText = _formatGroupedResponseBodyText(specs, values).trim();
   if (bodyText.isEmpty) return null;
 
@@ -576,11 +594,7 @@ String _formatResponseBodyText(
   MaatFlowResponseValue value,
 ) {
   if (spec.journalPolicy == MaatFlowJournalPolicy.redactedSummary) {
-    final summary = spec.redactedSummary?.trim();
-    if (summary != null && summary.isNotEmpty) {
-      return '${spec.journalHeading}: $summary';
-    }
-    return '${spec.journalHeading}: Response recorded.';
+    return _formatRedactedResponseBodyText(spec);
   }
 
   final display = value.displayText(spec).trim();
@@ -604,6 +618,14 @@ String _formatResponseBodyText(
     case MaatFlowResponseJournalFormatter.standard:
       return '${spec.journalHeading}: $display';
   }
+}
+
+String _formatRedactedResponseBodyText(MaatFlowResponseSpec spec) {
+  final summary = spec.redactedSummary?.trim();
+  if (summary != null && summary.isNotEmpty) {
+    return '${spec.journalHeading}: $summary';
+  }
+  return '${spec.journalHeading}: Response recorded.';
 }
 
 String _formatGroupedResponseBodyText(

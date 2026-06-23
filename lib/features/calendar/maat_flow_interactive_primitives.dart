@@ -163,12 +163,18 @@ class MaatFlowResponseSection extends StatefulWidget {
     required this.specs,
     this.values = const <String, MaatFlowResponseValue>{},
     this.journalPreviews = const <MaatFlowResponseJournalPreview>[],
+    this.isJournalPreviewIncluded,
+    this.onJournalPreviewInclusionChanged,
     this.onChanged,
   });
 
   final List<MaatFlowResponseSpec> specs;
   final Map<String, MaatFlowResponseValue> values;
   final List<MaatFlowResponseJournalPreview> journalPreviews;
+  final bool Function(MaatFlowResponseJournalPreview preview)?
+  isJournalPreviewIncluded;
+  final void Function(MaatFlowResponseJournalPreview preview, bool included)?
+  onJournalPreviewInclusionChanged;
   final ValueChanged<MaatFlowResponseValue>? onChanged;
 
   @override
@@ -229,6 +235,9 @@ class _MaatFlowResponseSectionState extends State<MaatFlowResponseSection> {
             const SizedBox(height: 12),
             _MaatFlowResponseJournalPreviewList(
               previews: widget.journalPreviews,
+              isPreviewIncluded: widget.isJournalPreviewIncluded,
+              onPreviewInclusionChanged:
+                  widget.onJournalPreviewInclusionChanged,
             ),
           ],
         ],
@@ -238,9 +247,17 @@ class _MaatFlowResponseSectionState extends State<MaatFlowResponseSection> {
 }
 
 class _MaatFlowResponseJournalPreviewList extends StatelessWidget {
-  const _MaatFlowResponseJournalPreviewList({required this.previews});
+  const _MaatFlowResponseJournalPreviewList({
+    required this.previews,
+    this.isPreviewIncluded,
+    this.onPreviewInclusionChanged,
+  });
 
   final List<MaatFlowResponseJournalPreview> previews;
+  final bool Function(MaatFlowResponseJournalPreview preview)?
+  isPreviewIncluded;
+  final void Function(MaatFlowResponseJournalPreview preview, bool included)?
+  onPreviewInclusionChanged;
 
   @override
   Widget build(BuildContext context) {
@@ -278,8 +295,56 @@ class _MaatFlowResponseJournalPreviewList extends StatelessWidget {
                 letterSpacing: 0,
               ),
             ),
+            if (preview.requiresUserChoice &&
+                onPreviewInclusionChanged != null) ...[
+              const SizedBox(height: 8),
+              _MaatFlowResponseJournalOfferToggle(
+                included: isPreviewIncluded?.call(preview) ?? false,
+                onChanged: (included) =>
+                    onPreviewInclusionChanged?.call(preview, included),
+              ),
+            ],
             if (preview != previews.last) const SizedBox(height: 4),
           ],
+        ],
+      ),
+    );
+  }
+}
+
+class _MaatFlowResponseJournalOfferToggle extends StatelessWidget {
+  const _MaatFlowResponseJournalOfferToggle({
+    required this.included,
+    required this.onChanged,
+  });
+
+  final bool included;
+  final ValueChanged<bool> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      borderRadius: BorderRadius.circular(8),
+      onTap: () => onChanged(!included),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Checkbox(
+            value: included,
+            onChanged: (value) => onChanged(value == true),
+            visualDensity: VisualDensity.compact,
+            materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+          ),
+          const SizedBox(width: 4),
+          Text(
+            'Add to journal',
+            style: TextStyle(
+              color: Colors.white.withValues(alpha: 0.72),
+              fontSize: 12,
+              fontWeight: FontWeight.w700,
+              letterSpacing: 0,
+            ),
+          ),
         ],
       ),
     );

@@ -8607,6 +8607,7 @@ class _MaatFlowCompletionPanelState extends State<_MaatFlowCompletionPanel> {
   int _decanWatchResponseLoadGeneration = 0;
   Map<String, MaatFlowResponseValue> _responseValues =
       const <String, MaatFlowResponseValue>{};
+  final Set<String> _suppressedOfferResponseSourceIds = <String>{};
   bool _responseDirty = false;
 
   @override
@@ -9734,18 +9735,47 @@ class _MaatFlowCompletionPanelState extends State<_MaatFlowCompletionPanel> {
     final previews = _responseJournalPreviews(
       completionStatus: completionStatus,
     );
-    final previewsBySourceId = <String, MaatFlowResponseJournalPreview>{
-      for (final preview in previews) preview.sourceId: preview,
-    };
-    for (final sourceId in _responseBlockSourceIds(localDate)) {
-      await writer(
-        MaatJournalResponseBlock(
-          sourceId: sourceId,
-          text: previewsBySourceId[sourceId]?.text ?? '',
-          localDate: localDate,
-        ),
-      );
+    final blocks = buildMaatJournalResponseBlocksForPolicy(
+      sourceIds: _responseBlockSourceIds(localDate),
+      previews: previews,
+      localDate: localDate,
+      includedOfferSourceIds: _includedOfferResponseSourceIds(previews),
+    );
+    for (final block in blocks) {
+      await writer(block);
     }
+  }
+
+  Set<String> _includedOfferResponseSourceIds(
+    List<MaatFlowResponseJournalPreview> previews,
+  ) {
+    return previews
+        .where(
+          (preview) =>
+              preview.policy == MaatFlowJournalPolicy.offer &&
+              !_suppressedOfferResponseSourceIds.contains(preview.sourceId),
+        )
+        .map((preview) => preview.sourceId)
+        .toSet();
+  }
+
+  bool _isJournalPreviewIncluded(MaatFlowResponseJournalPreview preview) {
+    if (preview.policy != MaatFlowJournalPolicy.offer) return true;
+    return !_suppressedOfferResponseSourceIds.contains(preview.sourceId);
+  }
+
+  void _setJournalPreviewIncluded(
+    MaatFlowResponseJournalPreview preview,
+    bool included,
+  ) {
+    if (preview.policy != MaatFlowJournalPolicy.offer) return;
+    setState(() {
+      if (included) {
+        _suppressedOfferResponseSourceIds.remove(preview.sourceId);
+      } else {
+        _suppressedOfferResponseSourceIds.add(preview.sourceId);
+      }
+    });
   }
 
   Widget? _buildResponseSection() {
@@ -9759,6 +9789,8 @@ class _MaatFlowCompletionPanelState extends State<_MaatFlowCompletionPanel> {
       journalPreviews: _responseJournalPreviews(
         completionStatus: CompletionStatusX.fromWireName(_status),
       ),
+      isJournalPreviewIncluded: _isJournalPreviewIncluded,
+      onJournalPreviewInclusionChanged: _setJournalPreviewIncluded,
       onChanged: _handleResponseChanged,
     );
   }
