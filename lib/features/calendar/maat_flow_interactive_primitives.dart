@@ -12,6 +12,9 @@ const int kFlowEnrollmentInputMaxCharacters = 280;
 const Key kMaatFlowResponseSectionKey = ValueKey<String>(
   'maat-flow-response-section',
 );
+const Key kMaatFlowResponseJournalPreviewKey = ValueKey<String>(
+  'maat-flow-response-journal-preview',
+);
 
 Key maatFlowResponseFieldKey(String specId) {
   return ValueKey<String>('maat-flow-response-field:${specId.trim()}');
@@ -159,11 +162,13 @@ class MaatFlowResponseSection extends StatefulWidget {
     super.key,
     required this.specs,
     this.values = const <String, MaatFlowResponseValue>{},
+    this.journalPreviews = const <MaatFlowResponseJournalPreview>[],
     this.onChanged,
   });
 
   final List<MaatFlowResponseSpec> specs;
   final Map<String, MaatFlowResponseValue> values;
+  final List<MaatFlowResponseJournalPreview> journalPreviews;
   final ValueChanged<MaatFlowResponseValue>? onChanged;
 
   @override
@@ -219,6 +224,61 @@ class _MaatFlowResponseSectionState extends State<MaatFlowResponseSection> {
               onChanged: _setValue,
             ),
             if (spec != widget.specs.last) const SizedBox(height: 10),
+          ],
+          if (widget.journalPreviews.isNotEmpty) ...[
+            const SizedBox(height: 12),
+            _MaatFlowResponseJournalPreviewList(
+              previews: widget.journalPreviews,
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _MaatFlowResponseJournalPreviewList extends StatelessWidget {
+  const _MaatFlowResponseJournalPreviewList({required this.previews});
+
+  final List<MaatFlowResponseJournalPreview> previews;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      key: kMaatFlowResponseJournalPreviewKey,
+      width: double.infinity,
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        color: Colors.black.withValues(alpha: 0.16),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.10)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            'Journal preview',
+            style: TextStyle(
+              color: Colors.white.withValues(alpha: 0.52),
+              fontSize: 11,
+              fontWeight: FontWeight.w700,
+              letterSpacing: 0,
+            ),
+          ),
+          const SizedBox(height: 5),
+          for (final preview in previews) ...[
+            Text(
+              preview.text,
+              style: TextStyle(
+                color: Colors.white.withValues(alpha: 0.82),
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+                height: 1.25,
+                letterSpacing: 0,
+              ),
+            ),
+            if (preview != previews.last) const SizedBox(height: 4),
           ],
         ],
       ),

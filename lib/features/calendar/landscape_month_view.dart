@@ -22,6 +22,7 @@ import 'day_view.dart'; // For NoteData, FlowData
 import 'calendar_page.dart' show CalendarPage, EndFlowActionResult, KemeticMath;
 import 'calendar_completion.dart';
 import 'calendar_reflection_context.dart';
+import 'maat_flow_response_journal_blocks.dart';
 import 'package:mobile/features/calendar/kemetic_time_constants.dart';
 import 'dart:math' as math;
 import 'package:mobile/shared/glossy_text.dart';
@@ -639,6 +640,7 @@ class LandscapeMonthView extends StatelessWidget {
   onMoveEventTime;
   final Future<void> Function(EventItem evt)? onShareNote;
   final Future<void> Function(String text)? onAppendToJournal;
+  final MaatJournalResponseBlockWriter? onWriteJournalResponse;
   final Future<void> Function(int flowId)? onSaveFlow;
   final Future<void> Function({
     required String clientEventId,
@@ -680,6 +682,7 @@ class LandscapeMonthView extends StatelessWidget {
     this.onMoveEventTime,
     this.onShareNote,
     this.onAppendToJournal,
+    this.onWriteJournalResponse,
     this.onSaveFlow,
     this.onRecordCompletion,
     this.onUnrecordCompletion,
@@ -716,6 +719,7 @@ class LandscapeMonthView extends StatelessWidget {
       onMoveEventTime: onMoveEventTime,
       onShareNote: onShareNote,
       onAppendToJournal: onAppendToJournal,
+      onWriteJournalResponse: onWriteJournalResponse,
       onSaveFlow: onSaveFlow,
       onRecordCompletion: onRecordCompletion,
       onUnrecordCompletion: onUnrecordCompletion,
@@ -767,6 +771,7 @@ class LandscapeMonthPager extends StatefulWidget {
   onMoveEventTime;
   final Future<void> Function(EventItem evt)? onShareNote;
   final Future<void> Function(String text)? onAppendToJournal;
+  final MaatJournalResponseBlockWriter? onWriteJournalResponse;
   final Future<void> Function(int flowId)? onSaveFlow;
   final Future<void> Function({
     required String clientEventId,
@@ -808,6 +813,7 @@ class LandscapeMonthPager extends StatefulWidget {
     this.onMoveEventTime,
     this.onShareNote,
     this.onAppendToJournal,
+    this.onWriteJournalResponse,
     this.onSaveFlow,
     this.onRecordCompletion,
     this.onUnrecordCompletion,
@@ -1264,6 +1270,7 @@ class _LandscapeMonthPagerState extends State<LandscapeMonthPager> {
           onMoveEventTime: widget.onMoveEventTime,
           onShareNote: widget.onShareNote,
           onAppendToJournal: widget.onAppendToJournal,
+          onWriteJournalResponse: widget.onWriteJournalResponse,
           onSaveFlow: widget.onSaveFlow,
           onRecordCompletion: widget.onRecordCompletion,
           onUnrecordCompletion: widget.onUnrecordCompletion,
@@ -1315,6 +1322,7 @@ class LandscapeMonthGridBody extends StatefulWidget {
   onMoveEventTime;
   final Future<void> Function(EventItem evt)? onShareNote;
   final Future<void> Function(String text)? onAppendToJournal;
+  final MaatJournalResponseBlockWriter? onWriteJournalResponse;
   final Future<void> Function(int flowId)? onSaveFlow;
   final Future<void> Function({
     required String clientEventId,
@@ -1352,6 +1360,7 @@ class LandscapeMonthGridBody extends StatefulWidget {
     this.onMoveEventTime,
     this.onShareNote,
     this.onAppendToJournal,
+    this.onWriteJournalResponse,
     this.onSaveFlow,
     this.onRecordCompletion,
     this.onUnrecordCompletion,
@@ -3037,6 +3046,7 @@ class _LandscapeMonthGridBodyState extends State<LandscapeMonthGridBody> {
               onRecordCompletion: widget.onRecordCompletion,
               onUnrecordCompletion: widget.onUnrecordCompletion,
               onRemoveCompletionBadge: widget.onRemoveCompletionBadge,
+              onWriteJournalResponse: widget.onWriteJournalResponse,
               onCompletionContinuity: (status) => _appendCompletionContinuity(
                 target,
                 status,

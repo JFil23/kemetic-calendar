@@ -27,6 +27,7 @@ import 'landscape_month_view.dart';
 import 'maat_flow_identity.dart';
 import 'maat_flow_interactive_primitives.dart';
 import 'maat_flow_palette.dart';
+import 'maat_flow_response_journal_blocks.dart';
 import 'maat_flow_response_models.dart';
 import 'maat_flow_response_resolver.dart';
 import 'maat_flow_visual_tokens.dart';
@@ -904,6 +905,7 @@ class _MaatFlowCompletionContext {
     this.eventNumber,
     this.dayNumber,
     this.flowDay,
+    this.responseEventKey,
     this.sharePromptOnComplete = false,
     this.shareButtonLabel = 'Share what went well',
     this.extraStatusLabels = const <String, String>{},
@@ -919,6 +921,7 @@ class _MaatFlowCompletionContext {
   final int? eventNumber;
   final int? dayNumber;
   final int? flowDay;
+  final String? responseEventKey;
   final List<String> graphNodeSlugs;
   final bool sharePromptOnComplete;
   final String shareButtonLabel;
@@ -1253,12 +1256,16 @@ _MaatFlowCompletionContext? _maatFlowCompletionContextForEvent(
   }
 
   if (_isMoonReturnFlowName(flowName)) {
-    final kind = moonReturnKindForEvent(title: event.title);
+    final kind = moonReturnKindForEvent(
+      title: event.title,
+      behaviorPayload: event.behaviorPayload,
+    );
     return _MaatFlowCompletionContext(
       flowKey: kMoonReturnFlowKey,
       flowTitle: kMoonReturnTitle,
       eventTitle: event.title,
       eventCategory: event.category,
+      responseEventKey: kind?.key,
       sharePromptOnComplete: kind == MoonReturnEventKind.wholeEye,
       shareButtonLabel: 'Share what filled',
       showPartly: false,
@@ -1475,7 +1482,10 @@ _MaatFlowCompletionContext? _maatFlowCompletionContextForEvent(
   }
 
   if (_isTheCourseFlowName(flowName)) {
-    final courseEvent = courseEventForEvent(title: event.title);
+    final courseEvent = courseEventForEvent(
+      title: event.title,
+      behaviorPayload: event.behaviorPayload,
+    );
     if (courseEvent == null) return null;
     return _MaatFlowCompletionContext(
       flowKey: kTheCourseFlowKey,
@@ -1501,6 +1511,8 @@ bool hasDayViewMaatFlowCompletionContext(EventItem event, FlowData? flow) {
 }
 
 String? _maatFlowResponseEventKey(_MaatFlowCompletionContext completion) {
+  final explicit = completion.responseEventKey?.trim();
+  if (explicit != null && explicit.isNotEmpty) return explicit;
   final eventNumber = completion.eventNumber;
   if (eventNumber != null) return 'event-$eventNumber';
   final flowDay = completion.flowDay;
@@ -1526,6 +1538,7 @@ Widget? buildDayViewMaatFlowCompletionPanel({
   onRecordCompletion,
   Future<void> Function(String clientEventId)? onUnrecordCompletion,
   Future<void> Function(String badgeId)? onRemoveCompletionBadge,
+  MaatJournalResponseBlockWriter? onWriteJournalResponse,
   Future<void> Function(CompletionStatus status)? onCompletionContinuity,
   ValueChanged<CompletionStatus>? onUserCompletionFeedback,
   VoidCallback? onAddReflection,
@@ -1554,6 +1567,7 @@ Widget? buildDayViewMaatFlowCompletionPanel({
     onRecordCompletion: onRecordCompletion,
     onUnrecordCompletion: onUnrecordCompletion,
     onRemoveCompletionBadge: onRemoveCompletionBadge,
+    onWriteJournalResponse: onWriteJournalResponse,
     onCompletionContinuity: onCompletionContinuity,
     onUserCompletionFeedback: onUserCompletionFeedback,
     onAddReflection: onAddReflection,
@@ -2711,6 +2725,7 @@ class DayViewPage extends StatefulWidget {
   /// If null, the End Flow button is hidden.
   final void Function(int flowId)? onEndFlow;
   final Future<void> Function(String text)? onAppendToJournal;
+  final MaatJournalResponseBlockWriter? onWriteJournalResponse;
   final Future<void> Function(int flowId)? onSaveFlow;
   final Future<Set<String>> Function({int? flowId, DateTime? completedOnDate})?
   loadCompletedClientEventIds;
@@ -2772,6 +2787,7 @@ class DayViewPage extends StatefulWidget {
     this.onCreateTimedEvent, // NEW
     this.onEndFlow,
     this.onAppendToJournal,
+    this.onWriteJournalResponse,
     this.onSaveFlow,
     this.loadCompletedClientEventIds,
     this.onRecordCompletion,
@@ -3361,6 +3377,7 @@ class _DayViewPageState extends State<DayViewPage> {
                     onShareReminder: widget.onShareReminder,
                     onEndFlow: widget.onEndFlow,
                     onAppendToJournal: widget.onAppendToJournal,
+                    onWriteJournalResponse: widget.onWriteJournalResponse,
                     onSaveFlow: widget.onSaveFlow,
                     initialEventDetailRestorationState:
                         _activeEventDetailRestoration,
@@ -3530,6 +3547,8 @@ class _DayViewPageState extends State<DayViewPage> {
                             onEndFlow:
                                 widget.onEndFlow, // Pass End Flow callback down
                             onAppendToJournal: widget.onAppendToJournal,
+                            onWriteJournalResponse:
+                                widget.onWriteJournalResponse,
                             onSaveFlow: widget.onSaveFlow,
                             loadCompletedClientEventIds:
                                 widget.loadCompletedClientEventIds,
@@ -3646,6 +3665,7 @@ class DayViewGrid extends StatefulWidget {
   onCreateTimedEvent;
   final void Function(int flowId)? onEndFlow;
   final Future<void> Function(String text)? onAppendToJournal;
+  final MaatJournalResponseBlockWriter? onWriteJournalResponse;
   final Future<void> Function(int flowId)? onSaveFlow;
   final Future<Set<String>> Function({int? flowId, DateTime? completedOnDate})?
   loadCompletedClientEventIds;
@@ -3710,6 +3730,7 @@ class DayViewGrid extends StatefulWidget {
     this.onCreateTimedEvent, // NEW
     this.onEndFlow,
     this.onAppendToJournal,
+    this.onWriteJournalResponse,
     this.onSaveFlow,
     this.loadCompletedClientEventIds,
     this.onRecordCompletion,
@@ -6972,6 +6993,7 @@ class _DayViewGridState extends State<DayViewGrid> {
               onRecordCompletion: widget.onRecordCompletion,
               onUnrecordCompletion: widget.onUnrecordCompletion,
               onRemoveCompletionBadge: widget.onRemoveCompletionBadge,
+              onWriteJournalResponse: widget.onWriteJournalResponse,
               onCompletionContinuity: (status) => _appendCompletionContinuity(
                 target,
                 status,
@@ -7883,12 +7905,16 @@ class _TheCourseDayCardPanel extends StatelessWidget {
                     size: 18,
                   ),
                   SizedBox(width: 8),
-                  Text(
-                    'Open today\'s day card',
-                    style: TextStyle(
-                      color: Colors.black,
-                      fontSize: 13,
-                      fontWeight: FontWeight.w800,
+                  Flexible(
+                    child: Text(
+                      'Open today\'s day card',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        color: Colors.black,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w800,
+                      ),
                     ),
                   ),
                 ],
@@ -8486,6 +8512,7 @@ class _MaatFlowCompletionPanel extends StatefulWidget {
     required this.onRecordCompletion,
     this.onUnrecordCompletion,
     this.onRemoveCompletionBadge,
+    this.onWriteJournalResponse,
     this.onCompletionContinuity,
     this.onUserCompletionFeedback,
     this.onAddReflection,
@@ -8510,6 +8537,7 @@ class _MaatFlowCompletionPanel extends StatefulWidget {
   onRecordCompletion;
   final Future<void> Function(String clientEventId)? onUnrecordCompletion;
   final Future<void> Function(String badgeId)? onRemoveCompletionBadge;
+  final MaatJournalResponseBlockWriter? onWriteJournalResponse;
   final Future<void> Function(CompletionStatus status)? onCompletionContinuity;
   final ValueChanged<CompletionStatus>? onUserCompletionFeedback;
   final VoidCallback? onAddReflection;
@@ -8539,6 +8567,8 @@ class _MaatFlowCompletionPanelState extends State<_MaatFlowCompletionPanel> {
   DailyOrientationEntry? _eveningThresholdOrientation;
   DailyOrientationEntry? _eveningThresholdPreviousOrientation;
   bool _eveningThresholdReleasePending = false;
+  Map<String, MaatFlowResponseValue> _responseValues =
+      const <String, MaatFlowResponseValue>{};
 
   @override
   void initState() {
@@ -8652,13 +8682,17 @@ class _MaatFlowCompletionPanelState extends State<_MaatFlowCompletionPanel> {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.event.clientEventId != widget.event.clientEventId) {
       _cancelCompletionFeedback();
+      _responseValues = const <String, MaatFlowResponseValue>{};
       _eveningThresholdReleaseCarryController.clear();
       _eveningThresholdReleasePending = false;
       unawaited(_load());
     } else if (oldWidget.reloadSignal != widget.reloadSignal) {
+      _responseValues = const <String, MaatFlowResponseValue>{};
       _eveningThresholdReleaseCarryController.clear();
       _eveningThresholdReleasePending = false;
       unawaited(_load());
+    } else if (oldWidget.responseSpecs != widget.responseSpecs) {
+      _responseValues = const <String, MaatFlowResponseValue>{};
     }
   }
 
@@ -9046,6 +9080,13 @@ class _MaatFlowCompletionPanelState extends State<_MaatFlowCompletionPanel> {
         identity: completionIdentity,
         status: completionStatus,
       );
+      if (completionStatus.createsJournalContinuity) {
+        try {
+          await _syncResponseBlocks(completionStatus);
+        } on Object {
+          // Keep completion persistence independent from journal response sync.
+        }
+      }
       if (completionStatus.createsJournalContinuity &&
           completionContinuity != null) {
         await completionContinuity(completionStatus);
@@ -9101,6 +9142,11 @@ class _MaatFlowCompletionPanelState extends State<_MaatFlowCompletionPanel> {
             sourceType: CompletionSourceType.maatFlow,
           ),
         );
+      }
+      try {
+        await _syncResponseBlocks(CompletionStatus.skipped);
+      } on Object {
+        // Keep clear persistence independent from journal response sync.
       }
       if (!mounted) return;
       setState(() {
@@ -9429,9 +9475,77 @@ class _MaatFlowCompletionPanelState extends State<_MaatFlowCompletionPanel> {
     return const <Widget>[];
   }
 
+  String _responseSourceId(MaatFlowResponseSpec spec, DateTime localDate) {
+    return spec.sourceId(
+      clientEventId: widget.event.clientEventId,
+      localDate: localDate,
+      eventKeyOverride: _maatFlowResponseEventKey(widget.completion),
+    );
+  }
+
+  List<MaatFlowResponseJournalPreview> _responseJournalPreviews({
+    CompletionStatus completionStatus = CompletionStatus.none,
+  }) {
+    final localDate = _eventGregorianDate;
+    final previews = <MaatFlowResponseJournalPreview>[];
+    for (final spec in widget.responseSpecs) {
+      final value = _responseValues[spec.id];
+      if (value == null) continue;
+      final preview = buildMaatFlowResponseJournalPreview(
+        spec: spec,
+        value: value,
+        completionStatus: completionStatus,
+        sourceId: _responseSourceId(spec, localDate),
+      );
+      if (preview != null) previews.add(preview);
+    }
+    return previews;
+  }
+
+  void _handleResponseChanged(MaatFlowResponseValue value) {
+    setState(() {
+      _responseValues = <String, MaatFlowResponseValue>{
+        ..._responseValues,
+        value.specId: value,
+      };
+    });
+  }
+
+  Future<void> _syncResponseBlocks(CompletionStatus completionStatus) async {
+    final writer = widget.onWriteJournalResponse;
+    if (writer == null || widget.responseSpecs.isEmpty) return;
+
+    final localDate = _eventGregorianDate;
+    for (final spec in widget.responseSpecs) {
+      final value = _responseValues[spec.id];
+      final sourceId = _responseSourceId(spec, localDate);
+      final preview = value == null
+          ? null
+          : buildMaatFlowResponseJournalPreview(
+              spec: spec,
+              value: value,
+              completionStatus: completionStatus,
+              sourceId: sourceId,
+            );
+      await writer(
+        MaatJournalResponseBlock(sourceId: sourceId, text: preview?.text ?? ''),
+      );
+    }
+  }
+
   Widget? _buildResponseSection() {
     if (widget.responseSpecs.isEmpty) return null;
-    return MaatFlowResponseSection(specs: widget.responseSpecs);
+    return MaatFlowResponseSection(
+      key: ValueKey<String>(
+        'maat-response-section:${widget.event.clientEventId ?? widget.identity}',
+      ),
+      specs: widget.responseSpecs,
+      values: _responseValues,
+      journalPreviews: _responseJournalPreviews(
+        completionStatus: CompletionStatusX.fromWireName(_status),
+      ),
+      onChanged: _handleResponseChanged,
+    );
   }
 
   @override

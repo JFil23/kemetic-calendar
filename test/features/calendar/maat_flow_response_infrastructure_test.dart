@@ -47,17 +47,40 @@ void main() {
     );
   });
 
-  test('default resolver is a no-op for unsupported and real flow keys', () {
-    expect(kDefaultMaatFlowResponseResolver.specs, isEmpty);
+  test('default resolver exposes only Phase 2B pilot flow specs', () {
+    expect(kDefaultMaatFlowResponseResolver.specs, hasLength(3));
+
+    expect(
+      resolveMaatFlowResponseSpecs(
+        flowKey: 'the-moon-return',
+        surface: MaatFlowResponseSurface.calendarSheet,
+        eventKey: 'new',
+      ).map((spec) => spec.id),
+      <String>['moon-return-set-down'],
+    );
+    expect(
+      resolveMaatFlowResponseSpecs(
+        flowKey: 'the-moon-return',
+        surface: MaatFlowResponseSurface.calendarSheet,
+        eventKey: 'full',
+      ).map((spec) => spec.id),
+      <String>['moon-return-filled'],
+    );
+    expect(
+      resolveMaatFlowResponseSpecs(
+        flowKey: 'the-course',
+        surface: MaatFlowResponseSurface.calendarSheet,
+      ).map((spec) => spec.id),
+      <String>['course-hour-action'],
+    );
 
     for (final flowKey in const <String>[
       'unknown-flow',
-      'the-moon-return',
       'dawn-house-rite',
       'evening-threshold-rite',
       'evening_threshold',
-      'the-course',
       'the-decan-watch',
+      'the-weighing',
     ]) {
       expect(
         resolveMaatFlowResponseSpecs(
@@ -303,15 +326,21 @@ void main() {
     expect(JournalBadgeUtils.tokensFromDocument(removed), hasLength(1));
   });
 
-  test('Phase 2A wiring stays no-op and isolated to shared sheet panels', () {
-    expect(kDefaultMaatFlowResponseResolver.specs, isEmpty);
+  test('Phase 2B wiring stays isolated to shared sheet panels and pilots', () {
+    expect(
+      kDefaultMaatFlowResponseResolver.specs
+          .map((spec) => spec.flowKey)
+          .toSet(),
+      <String>{'the-moon-return', 'the-course'},
+    );
 
     final dayView = File(
       'lib/features/calendar/day_view.dart',
     ).readAsStringSync();
     expect(dayView, contains('resolveMaatFlowResponseSpecs('));
     expect(dayView, contains('MaatFlowResponseSurface.calendarSheet'));
-    expect(dayView, contains('MaatFlowResponseSection(specs:'));
+    expect(dayView, contains('MaatFlowResponseSection('));
+    expect(dayView, contains('journalPreviews: _responseJournalPreviews('));
     expect(dayView, contains('responseSpecs: responseSpecs'));
 
     final completion = File(
@@ -323,18 +352,21 @@ void main() {
       'lib/features/calendar/calendar_grid_widgets.dart',
     ).readAsStringSync();
     expect(portraitGrid, contains('buildDayViewMaatFlowCompletionPanel('));
-    expect(portraitGrid, isNot(contains('maat_flow_response_')));
+    expect(portraitGrid, contains('onWriteJournalResponse'));
+    expect(portraitGrid, isNot(contains('resolveMaatFlowResponseSpecs(')));
 
     final landscape = File(
       'lib/features/calendar/landscape_month_view.dart',
     ).readAsStringSync();
     expect(landscape, contains('buildDayViewMaatFlowCompletionPanel('));
-    expect(landscape, isNot(contains('maat_flow_response_')));
+    expect(landscape, contains('onWriteJournalResponse'));
+    expect(landscape, isNot(contains('resolveMaatFlowResponseSpecs(')));
 
     for (final path in const <String>[
       'lib/features/calendar/calendar_maat_flows.dart',
       'lib/features/calendar/evening_threshold_flow.dart',
       'lib/features/calendar/evening_threshold_rite_flow.dart',
+      'lib/features/calendar/the_decan_watch_local_store.dart',
     ]) {
       final source = File(path).readAsStringSync();
       expect(source, isNot(contains('maat_flow_response_')), reason: path);

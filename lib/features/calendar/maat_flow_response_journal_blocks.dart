@@ -12,6 +12,9 @@ class MaatJournalResponseBlock {
   String get blockId => maatJournalResponseBlockId(sourceId);
 }
 
+typedef MaatJournalResponseBlockWriter =
+    Future<void> Function(MaatJournalResponseBlock block);
+
 String maatJournalResponseBlockId(String sourceId) {
   return '$kMaatJournalResponseBlockIdPrefix${Uri.encodeComponent(sourceId.trim())}';
 }

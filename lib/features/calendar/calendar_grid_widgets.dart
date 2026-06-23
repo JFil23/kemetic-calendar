@@ -2220,6 +2220,10 @@ class _DayChip extends StatelessWidget {
               await currentState!._journalController.removeBadge(badgeId);
             }
           },
+          onWriteJournalResponse: (block) async {
+            await CalendarPage.globalKey.currentState
+                ?._writeMaatJournalResponseBlockAndRefresh(block);
+          },
         ),
       ).whenComplete(releaseSheet);
     } catch (_) {
@@ -2251,6 +2255,7 @@ class _MainCalendarEventDetailSheet extends StatefulWidget {
     this.onRecordCompletion,
     this.onUnrecordCompletion,
     this.onRemoveCompletionBadge,
+    this.onWriteJournalResponse,
   });
 
   final BuildContext hostContext;
@@ -2289,6 +2294,7 @@ class _MainCalendarEventDetailSheet extends StatefulWidget {
   onRecordCompletion;
   final Future<void> Function(String clientEventId)? onUnrecordCompletion;
   final Future<void> Function(String badgeId)? onRemoveCompletionBadge;
+  final MaatJournalResponseBlockWriter? onWriteJournalResponse;
 
   @override
   State<_MainCalendarEventDetailSheet> createState() =>
@@ -2932,6 +2938,7 @@ class _MainCalendarEventDetailSheetState
               onRecordCompletion: widget.onRecordCompletion,
               onUnrecordCompletion: widget.onUnrecordCompletion,
               onRemoveCompletionBadge: widget.onRemoveCompletionBadge,
+              onWriteJournalResponse: widget.onWriteJournalResponse,
               onCompletionContinuity: (status) => _appendCompletionContinuity(
                 target,
                 status,

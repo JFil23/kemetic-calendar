@@ -114,6 +114,7 @@ import 'decan_reflection_badge.dart';
 import 'event_filing_service.dart';
 import 'maat_flow_palette.dart';
 import 'maat_flow_visual_tokens.dart';
+import 'maat_flow_response_journal_blocks.dart';
 import 'maat_flow_identity.dart';
 import 'track_sky_flow.dart';
 import 'dawn_house_rite_flow.dart';
@@ -8362,6 +8363,22 @@ class CalendarPageState extends State<CalendarPage>
     _notifyDayViewDataChanged();
   }
 
+  Future<void> _writeMaatJournalResponseBlockAndRefresh(
+    MaatJournalResponseBlock block,
+  ) async {
+    if (block.sourceId.trim().isEmpty) return;
+    if (!await _ensureJournalControllerReady()) return;
+    final currentDocument =
+        _journalController.currentDocument ??
+        JournalDocument.fromPlainText(_journalController.currentDraft);
+    final nextDocument = MaatJournalResponseBlockUtils.upsert(
+      currentDocument,
+      block,
+    );
+    await _journalController.updateDocument(nextDocument);
+    _notifyDayViewDataChanged();
+  }
+
   void _publishWarmStateSnapshot() {
     _CalendarWarmStateStore.save(
       userId: _activeWarmStartUserId(),
@@ -9637,6 +9654,7 @@ class CalendarPageState extends State<CalendarPage>
           onShareReminder: (event) async => _shareNoteSimple(event),
           onEndFlow: (id) => unawaited(_endFlow(id).then<void>((_) {})),
           onAppendToJournal: _appendToJournalAndRefresh,
+          onWriteJournalResponse: _writeMaatJournalResponseBlockAndRefresh,
           dataVersion: _dayViewDataVersion,
           onRecordCompletion:
               ({
@@ -13942,6 +13960,7 @@ class CalendarPageState extends State<CalendarPage>
       onEndReminder: (id) => _endReminderRule(id),
       onShareReminder: (evt) => _shareNoteSimple(evt),
       onAppendToJournal: _appendToJournalAndRefresh,
+      onWriteJournalResponse: _writeMaatJournalResponseBlockAndRefresh,
       onSaveFlow: _saveFlowById,
       loadCompletedClientEventIds: _loadCompletedClientEventIds,
       onRecordCompletion:
@@ -26302,6 +26321,7 @@ class CalendarPageState extends State<CalendarPage>
           onEndReminder: (id) => _endReminderRule(id),
           onShareReminder: (evt) => _shareNoteSimple(evt),
           onAppendToJournal: _appendToJournalAndRefresh,
+          onWriteJournalResponse: _writeMaatJournalResponseBlockAndRefresh,
           showDayCardRevealCoachmarkForOnboarding:
               shouldShowDayCardRevealCoachmark,
           onDayCardRevealCoachmarkCompleted: shouldShowDayCardRevealCoachmark
@@ -31721,6 +31741,7 @@ class CalendarPageState extends State<CalendarPage>
             await _shareNoteSimple(evt);
           },
           onAppendToJournal: _appendToJournalAndRefresh,
+          onWriteJournalResponse: _writeMaatJournalResponseBlockAndRefresh,
           onEndFlow: (id) => _endFlow(id),
           onSaveFlow: _saveFlowById,
           onRecordCompletion:

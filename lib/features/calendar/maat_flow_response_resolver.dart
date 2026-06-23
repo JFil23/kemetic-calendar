@@ -1,5 +1,38 @@
 import 'maat_flow_response_models.dart';
 
+const List<MaatFlowResponseSpec> kPilotMaatFlowResponseSpecs =
+    <MaatFlowResponseSpec>[
+      MaatFlowResponseSpec(
+        id: 'moon-return-set-down',
+        flowKey: 'the-moon-return',
+        eventKey: 'new',
+        surface: MaatFlowResponseSurface.calendarSheet,
+        kind: MaatFlowResponseKind.text,
+        label: 'What do you set down?',
+        journalPolicy: MaatFlowJournalPolicy.mirror,
+        journalLabel: 'Moon Return',
+      ),
+      MaatFlowResponseSpec(
+        id: 'moon-return-filled',
+        flowKey: 'the-moon-return',
+        eventKey: 'full',
+        surface: MaatFlowResponseSurface.calendarSheet,
+        kind: MaatFlowResponseKind.text,
+        label: 'What has filled?',
+        journalPolicy: MaatFlowJournalPolicy.mirror,
+        journalLabel: 'Moon Return',
+      ),
+      MaatFlowResponseSpec(
+        id: 'course-hour-action',
+        flowKey: 'the-course',
+        surface: MaatFlowResponseSurface.calendarSheet,
+        kind: MaatFlowResponseKind.text,
+        label: 'What action fits this hour?',
+        journalPolicy: MaatFlowJournalPolicy.mirror,
+        journalLabel: 'The Course',
+      ),
+    ];
+
 class MaatFlowResponseResolver {
   const MaatFlowResponseResolver({this.specs = const <MaatFlowResponseSpec>[]});
 
@@ -49,7 +82,7 @@ class MaatFlowResponseResolver {
 }
 
 const MaatFlowResponseResolver kDefaultMaatFlowResponseResolver =
-    MaatFlowResponseResolver();
+    MaatFlowResponseResolver(specs: kPilotMaatFlowResponseSpecs);
 
 List<MaatFlowResponseSpec> resolveMaatFlowResponseSpecs({
   required String flowKey,
