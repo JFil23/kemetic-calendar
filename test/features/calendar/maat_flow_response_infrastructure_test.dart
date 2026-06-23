@@ -3,6 +3,8 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mobile/core/completion_status.dart';
+import 'package:mobile/features/calendar/dawn_house_rite_flow.dart';
+import 'package:mobile/features/calendar/evening_threshold_rite_flow.dart';
 import 'package:mobile/features/calendar/maat_flow_response_journal_blocks.dart';
 import 'package:mobile/features/calendar/maat_flow_response_models.dart';
 import 'package:mobile/features/calendar/maat_flow_response_resolver.dart';
@@ -50,13 +52,29 @@ void main() {
     expect(MaatFlowResponseJournalFormatter.standard.wireName, 'standard');
     expect(MaatFlowResponseJournalFormatter.decanWatch.wireName, 'decan_watch');
     expect(
+      MaatFlowResponseJournalFormatter.dawnHouseRite.wireName,
+      'dawn_house_rite',
+    );
+    expect(
+      MaatFlowResponseJournalFormatter.closingRelease.wireName,
+      'closing_release',
+    );
+    expect(
       MaatFlowResponseJournalFormatterX.fromWireName('decan-watch'),
       MaatFlowResponseJournalFormatter.decanWatch,
     );
+    expect(
+      MaatFlowResponseJournalFormatterX.fromWireName('dawn-house-rite'),
+      MaatFlowResponseJournalFormatter.dawnHouseRite,
+    );
+    expect(
+      MaatFlowResponseJournalFormatterX.fromWireName('closing-release'),
+      MaatFlowResponseJournalFormatter.closingRelease,
+    );
   });
 
-  test('default resolver exposes only Phase 2B and 2C pilot flow specs', () {
-    expect(kDefaultMaatFlowResponseResolver.specs, hasLength(6));
+  test('default resolver exposes only Phase 2B through 2D pilot specs', () {
+    expect(kDefaultMaatFlowResponseResolver.specs, hasLength(8));
 
     expect(
       resolveMaatFlowResponseSpecs(
@@ -92,11 +110,23 @@ void main() {
         kDecanWatchResponseBearingSpecId,
       ],
     );
+    expect(
+      resolveMaatFlowResponseSpecs(
+        flowKey: kDawnHouseRiteFlowKey,
+        surface: MaatFlowResponseSurface.calendarSheet,
+      ).map((spec) => spec.id),
+      <String>['dawn-house-order-act'],
+    );
+    expect(
+      resolveMaatFlowResponseSpecs(
+        flowKey: kEveningThresholdRiteFlowKey,
+        surface: MaatFlowResponseSurface.calendarSheet,
+      ).map((spec) => spec.id),
+      <String>['closing-release-tonight'],
+    );
 
     for (final flowKey in const <String>[
       'unknown-flow',
-      'dawn-house-rite',
-      'evening-threshold-rite',
       'evening_threshold',
       'the-weighing',
     ]) {
@@ -289,6 +319,43 @@ void main() {
     );
   });
 
+  test('Dawn House and Closing journal formatters read naturally', () {
+    final dawnSpec = resolveMaatFlowResponseSpecs(
+      flowKey: kDawnHouseRiteFlowKey,
+      surface: MaatFlowResponseSurface.calendarSheet,
+    ).single;
+    final dawn = buildMaatFlowResponseJournalPreview(
+      spec: dawnSpec,
+      value: MaatFlowResponseValue.text(
+        specId: dawnSpec.id,
+        text: 'clearing the table before the day began.',
+      ),
+    );
+
+    expect(
+      dawn!.text,
+      'Dawn House Rite: I brought order by clearing the table before the day began.',
+    );
+
+    final closingSpec = resolveMaatFlowResponseSpecs(
+      flowKey: kEveningThresholdRiteFlowKey,
+      surface: MaatFlowResponseSurface.calendarSheet,
+    ).single;
+    final closing = buildMaatFlowResponseJournalPreview(
+      spec: closingSpec,
+      value: MaatFlowResponseValue.text(
+        specId: closingSpec.id,
+        text: 'the unfinished worry and leave it for tomorrow\'s light.',
+        multiline: true,
+      ),
+    );
+
+    expect(
+      closing!.text,
+      'The Closing: I release the unfinished worry and leave it for tomorrow\'s light.',
+    );
+  });
+
   test(
     'local-only, empty, and skipped responses do not produce journal body',
     () {
@@ -399,12 +466,18 @@ void main() {
     expect(JournalBadgeUtils.tokensFromDocument(removed), hasLength(1));
   });
 
-  test('Phase 2C wiring stays isolated to shared sheet panels and pilots', () {
+  test('Phase 2D wiring stays isolated to shared sheet panels and pilots', () {
     expect(
       kDefaultMaatFlowResponseResolver.specs
           .map((spec) => spec.flowKey)
           .toSet(),
-      <String>{'the-moon-return', 'the-course', 'the-decan-watch'},
+      <String>{
+        'the-moon-return',
+        'the-course',
+        'the-decan-watch',
+        kDawnHouseRiteFlowKey,
+        kEveningThresholdRiteFlowKey,
+      },
     );
 
     final dayView = File(

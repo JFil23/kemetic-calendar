@@ -1,3 +1,5 @@
+import 'dawn_house_rite_flow.dart';
+import 'evening_threshold_rite_flow.dart';
 import 'maat_flow_response_models.dart';
 import 'the_decan_watch_flow.dart';
 
@@ -88,6 +90,26 @@ const List<MaatFlowResponseSpec> kPilotMaatFlowResponseSpecs =
         journalGroupLabel: kDecanWatchTitle,
         journalFormatter: MaatFlowResponseJournalFormatter.decanWatch,
         journalRole: 'bearing',
+      ),
+      MaatFlowResponseSpec(
+        id: 'dawn-house-order-act',
+        flowKey: kDawnHouseRiteFlowKey,
+        surface: MaatFlowResponseSurface.calendarSheet,
+        kind: MaatFlowResponseKind.text,
+        label: 'One act of order today',
+        journalPolicy: MaatFlowJournalPolicy.mirror,
+        journalLabel: kDawnHouseRiteTitle,
+        journalFormatter: MaatFlowResponseJournalFormatter.dawnHouseRite,
+      ),
+      MaatFlowResponseSpec(
+        id: 'closing-release-tonight',
+        flowKey: kEveningThresholdRiteFlowKey,
+        surface: MaatFlowResponseSurface.calendarSheet,
+        kind: MaatFlowResponseKind.multiline,
+        label: 'What do you release tonight?',
+        journalPolicy: MaatFlowJournalPolicy.mirror,
+        journalLabel: kEveningThresholdRiteTitle,
+        journalFormatter: MaatFlowResponseJournalFormatter.closingRelease,
       ),
     ];
 

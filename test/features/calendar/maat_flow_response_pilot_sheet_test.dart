@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mobile/core/completion_status.dart';
+import 'package:mobile/features/calendar/dawn_house_rite_flow.dart';
 import 'package:mobile/features/calendar/day_view.dart';
+import 'package:mobile/features/calendar/evening_threshold_rite_flow.dart';
 import 'package:mobile/features/calendar/maat_flow_interactive_primitives.dart';
 import 'package:mobile/features/calendar/maat_flow_response_journal_blocks.dart';
 import 'package:mobile/features/calendar/moon_return_flow.dart';
@@ -490,6 +492,190 @@ void main() {
     );
   });
 
+  testWidgets('Dawn House Rite response renders and previews journal text', (
+    tester,
+  ) async {
+    await _setPhoneViewport(tester);
+
+    await tester.pumpWidget(
+      _DayViewHarness(
+        flowIndex: _dawnHouseRiteFlowIndex,
+        notes: <NoteData>[_dawnHouseRiteNote()],
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await _openDetailSheet(tester, _dawnHouseRiteTitle);
+
+    expect(find.byKey(kMaatFlowResponseSectionKey), findsOneWidget);
+    expect(find.text('One act of order today'), findsOneWidget);
+
+    await _enterPilotResponse(
+      tester,
+      specId: 'dawn-house-order-act',
+      text: 'clearing the table before the day began.',
+    );
+
+    expect(find.byKey(kMaatFlowResponseJournalPreviewKey), findsOneWidget);
+    expect(
+      find.text(
+        'Dawn House Rite: I brought order by clearing the table before the day began.',
+      ),
+      findsOneWidget,
+    );
+  });
+
+  testWidgets('Dawn House Rite completion writes response body beside badges', (
+    tester,
+  ) async {
+    await _setPhoneViewport(tester);
+    var document = _journalDocument('Dawn journal body stays.');
+    final badgeAppends = <String>[];
+
+    await tester.pumpWidget(
+      _DayViewHarness(
+        flowIndex: _dawnHouseRiteFlowIndex,
+        notes: <NoteData>[_dawnHouseRiteNote()],
+        onAppendToJournal: (text) async => badgeAppends.add(text),
+        onWriteJournalResponse: (block) async {
+          document = MaatJournalResponseBlockUtils.upsert(document, block);
+        },
+        onRecordCompletion:
+            ({
+              required String clientEventId,
+              required int flowId,
+              required DateTime completedOnDate,
+              Map<String, dynamic>? metadata,
+            }) async {},
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await _openDetailSheet(tester, _dawnHouseRiteTitle);
+    await _enterPilotResponse(
+      tester,
+      specId: 'dawn-house-order-act',
+      text: 'sweeping the entry.',
+    );
+    await _tapStatus(tester, 'Observed');
+
+    expect(document.toPlainText(), contains('Dawn journal body stays.'));
+    expect(
+      document.toPlainText(),
+      contains('Dawn House Rite: I brought order by sweeping the entry.'),
+    );
+    expect(MaatJournalResponseBlockUtils.extract(document), hasLength(1));
+    expect(JournalBadgeUtils.hasBadges(document.toPlainText()), isFalse);
+    expect(badgeAppends, hasLength(1));
+    expect(JournalBadgeUtils.hasBadges(badgeAppends.single), isTrue);
+  });
+
+  testWidgets('Dawn House Rite repeat completion updates one response block', (
+    tester,
+  ) async {
+    await _setPhoneViewport(tester);
+    var document = _journalDocument('Existing Dawn journal text.');
+
+    await tester.pumpWidget(
+      _DayViewHarness(
+        flowIndex: _dawnHouseRiteFlowIndex,
+        notes: <NoteData>[_dawnHouseRiteNote()],
+        onAppendToJournal: (_) async {},
+        onWriteJournalResponse: (block) async {
+          document = MaatJournalResponseBlockUtils.upsert(document, block);
+        },
+        onRecordCompletion:
+            ({
+              required String clientEventId,
+              required int flowId,
+              required DateTime completedOnDate,
+              Map<String, dynamic>? metadata,
+            }) async {},
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await _openDetailSheet(tester, _dawnHouseRiteTitle);
+    await _enterPilotResponse(
+      tester,
+      specId: 'dawn-house-order-act',
+      text: 'first ordered act.',
+    );
+    await _tapStatus(tester, 'Observed');
+
+    await _enterPilotResponse(
+      tester,
+      specId: 'dawn-house-order-act',
+      text: 'clearing the sink.',
+    );
+    await _tapStatus(tester, 'Observed');
+    await _tapStatus(tester, 'Observed');
+
+    final responseBlocks = MaatJournalResponseBlockUtils.extract(document);
+    expect(responseBlocks, hasLength(1));
+    expect(
+      responseBlocks.single.text,
+      'Dawn House Rite: I brought order by clearing the sink.',
+    );
+    expect(document.toPlainText(), contains('Existing Dawn journal text.'));
+    expect(document.toPlainText(), isNot(contains('first ordered act')));
+  });
+
+  testWidgets('Evening Threshold Rite response renders and writes', (
+    tester,
+  ) async {
+    await _setPhoneViewport(tester);
+    var document = _journalDocument('Closing journal body stays.');
+
+    await tester.pumpWidget(
+      _DayViewHarness(
+        flowIndex: _eveningThresholdRiteFlowIndex,
+        notes: <NoteData>[_eveningThresholdRiteNote()],
+        onAppendToJournal: (_) async {},
+        onWriteJournalResponse: (block) async {
+          document = MaatJournalResponseBlockUtils.upsert(document, block);
+        },
+        onRecordCompletion:
+            ({
+              required String clientEventId,
+              required int flowId,
+              required DateTime completedOnDate,
+              Map<String, dynamic>? metadata,
+            }) async {},
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await _openDetailSheet(tester, _eveningThresholdRiteTitle);
+
+    expect(find.byKey(kMaatFlowResponseSectionKey), findsOneWidget);
+    expect(find.text('What do you release tonight?'), findsOneWidget);
+
+    await _enterPilotResponse(
+      tester,
+      specId: 'closing-release-tonight',
+      text: 'the unfinished worry and leave it for tomorrow\'s light.',
+    );
+    expect(
+      find.text(
+        'The Closing: I release the unfinished worry and leave it for tomorrow\'s light.',
+      ),
+      findsOneWidget,
+    );
+
+    await _tapStatus(tester, 'Observed');
+
+    expect(document.toPlainText(), contains('Closing journal body stays.'));
+    expect(
+      document.toPlainText(),
+      contains(
+        'The Closing: I release the unfinished worry and leave it for tomorrow\'s light.',
+      ),
+    );
+    expect(MaatJournalResponseBlockUtils.extract(document), hasLength(1));
+    expect(JournalBadgeUtils.hasBadges(document.toPlainText()), isFalse);
+  });
+
   testWidgets('unsupported Ma_at flow remains without response fields', (
     tester,
   ) async {
@@ -558,6 +744,14 @@ const Map<int, FlowData> _courseFlowIndex = <int, FlowData>{
 final String _courseTitle = 'Course 1: ${kTheCourseEvents.first.title}';
 const int _decanWatchFlowId = 88;
 const String _decanWatchTitle = 'Decan Watch: First Decan';
+const int _dawnHouseRiteFlowId = 89;
+final String _dawnHouseRiteTitle = dawnHouseRiteEventTitle(
+  kDawnHouseRiteDays.first,
+);
+const int _eveningThresholdRiteFlowId = 91;
+final String _eveningThresholdRiteTitle = eveningThresholdRiteEventTitle(
+  kEveningThresholdRiteDays.first,
+);
 
 const Map<int, FlowData> _decanWatchFlowIndex = <int, FlowData>{
   _decanWatchFlowId: FlowData(
@@ -566,6 +760,26 @@ const Map<int, FlowData> _decanWatchFlowIndex = <int, FlowData>{
     color: Colors.indigo,
     active: true,
     notes: 'maat=$kDecanWatchFlowKey',
+  ),
+};
+
+const Map<int, FlowData> _dawnHouseRiteFlowIndex = <int, FlowData>{
+  _dawnHouseRiteFlowId: FlowData(
+    id: _dawnHouseRiteFlowId,
+    name: kDawnHouseRiteTitle,
+    color: Colors.orange,
+    active: true,
+    notes: 'maat=$kDawnHouseRiteFlowKey',
+  ),
+};
+
+const Map<int, FlowData> _eveningThresholdRiteFlowIndex = <int, FlowData>{
+  _eveningThresholdRiteFlowId: FlowData(
+    id: _eveningThresholdRiteFlowId,
+    name: kEveningThresholdRiteTitle,
+    color: Colors.deepPurple,
+    active: true,
+    notes: 'maat=$kEveningThresholdRiteFlowKey',
   ),
 };
 
@@ -619,6 +833,52 @@ NoteData _decanWatchNote() {
       'flow_key': kDecanWatchFlowKey,
       'kind': 'maat_decan_watch',
       'global_decan_id': 1,
+    },
+  );
+}
+
+NoteData _dawnHouseRiteNote() {
+  final day = kDawnHouseRiteDays.first;
+  return NoteData(
+    clientEventId: 'cid-dawn-house-rite-1',
+    title: _dawnHouseRiteTitle,
+    detail: dawnHouseRiteDetailText(
+      day,
+      discreet: false,
+      lens: DawnHouseRiteLens.neutral,
+    ),
+    category: day.section,
+    allDay: false,
+    start: const TimeOfDay(hour: 6, minute: 0),
+    end: const TimeOfDay(hour: 6, minute: 3),
+    flowId: _dawnHouseRiteFlowId,
+    behaviorPayload: <String, dynamic>{
+      'flow_key': kDawnHouseRiteFlowKey,
+      'kind': 'maat_dawn_house_rite_day',
+      'day': day.dayNumber,
+    },
+  );
+}
+
+NoteData _eveningThresholdRiteNote() {
+  final day = kEveningThresholdRiteDays.first;
+  return NoteData(
+    clientEventId: 'cid-evening-threshold-rite-1',
+    title: _eveningThresholdRiteTitle,
+    detail: eveningThresholdRiteDetailText(
+      day,
+      discreet: false,
+      lens: EveningThresholdRiteLens.neutral,
+    ),
+    category: day.section,
+    allDay: false,
+    start: const TimeOfDay(hour: 19, minute: 20),
+    end: const TimeOfDay(hour: 19, minute: 23),
+    flowId: _eveningThresholdRiteFlowId,
+    behaviorPayload: <String, dynamic>{
+      'flow_key': kEveningThresholdRiteFlowKey,
+      'kind': 'maat_evening_threshold_rite_day',
+      'day': day.dayNumber,
     },
   );
 }

@@ -132,7 +132,12 @@ extension MaatFlowJournalPolicyX on MaatFlowJournalPolicy {
   }
 }
 
-enum MaatFlowResponseJournalFormatter { standard, decanWatch }
+enum MaatFlowResponseJournalFormatter {
+  standard,
+  decanWatch,
+  dawnHouseRite,
+  closingRelease,
+}
 
 extension MaatFlowResponseJournalFormatterX
     on MaatFlowResponseJournalFormatter {
@@ -142,6 +147,10 @@ extension MaatFlowResponseJournalFormatterX
         return 'standard';
       case MaatFlowResponseJournalFormatter.decanWatch:
         return 'decan_watch';
+      case MaatFlowResponseJournalFormatter.dawnHouseRite:
+        return 'dawn_house_rite';
+      case MaatFlowResponseJournalFormatter.closingRelease:
+        return 'closing_release';
     }
   }
 
@@ -150,6 +159,12 @@ extension MaatFlowResponseJournalFormatterX
       case 'decan_watch':
       case 'decan-watch':
         return MaatFlowResponseJournalFormatter.decanWatch;
+      case 'dawn_house_rite':
+      case 'dawn-house-rite':
+        return MaatFlowResponseJournalFormatter.dawnHouseRite;
+      case 'closing_release':
+      case 'closing-release':
+        return MaatFlowResponseJournalFormatter.closingRelease;
       case 'standard':
       default:
         return MaatFlowResponseJournalFormatter.standard;
@@ -540,7 +555,15 @@ String _formatResponseBodyText(
 
   final display = value.displayText(spec).trim();
   if (display.isEmpty) return '';
-  return '${spec.journalHeading}: $display';
+  switch (spec.journalFormatter) {
+    case MaatFlowResponseJournalFormatter.dawnHouseRite:
+      return '${spec.journalHeading}: I brought order by ${_sentenceFragment(display)}.';
+    case MaatFlowResponseJournalFormatter.closingRelease:
+      return '${spec.journalHeading}: I release ${_sentenceFragment(display)}.';
+    case MaatFlowResponseJournalFormatter.decanWatch:
+    case MaatFlowResponseJournalFormatter.standard:
+      return '${spec.journalHeading}: $display';
+  }
 }
 
 String _formatGroupedResponseBodyText(
@@ -552,6 +575,8 @@ String _formatGroupedResponseBodyText(
   switch (formatter) {
     case MaatFlowResponseJournalFormatter.decanWatch:
       return _formatDecanWatchResponseGroup(specs, values);
+    case MaatFlowResponseJournalFormatter.dawnHouseRite:
+    case MaatFlowResponseJournalFormatter.closingRelease:
     case MaatFlowResponseJournalFormatter.standard:
       final fragments = <String>[];
       for (final spec in specs) {
