@@ -10,6 +10,10 @@ import 'the_open_hand_flow.dart';
 import 'the_offering_table_flow.dart';
 import 'the_tending_flow.dart';
 import 'the_wag_flow.dart';
+import 'the_weighing_flow.dart';
+
+const String _trackSkyFlowKey = 'track-the-sky';
+const String _trackSkyTitle = 'Follow the Sky';
 
 const List<MaatFlowResponseSpec>
 kPilotMaatFlowResponseSpecs = <MaatFlowResponseSpec>[
@@ -780,6 +784,150 @@ kPilotMaatFlowResponseSpecs = <MaatFlowResponseSpec>[
     journalFormatter: MaatFlowResponseJournalFormatter.wanderingRemainder,
     journalRole: 'found',
     privacyClass: 'grief_absence_private',
+    offerJournalInclusionDefault: false,
+  ),
+  MaatFlowResponseSpec(
+    id: 'follow-sky-shown',
+    flowKey: _trackSkyFlowKey,
+    surface: MaatFlowResponseSurface.calendarSheet,
+    kind: MaatFlowResponseKind.chips,
+    label: 'What did the sky show?',
+    options: <MaatFlowResponseOption>[
+      MaatFlowResponseOption(
+        id: 'clear',
+        label: 'Clear',
+        journalLabel: 'clear',
+      ),
+      MaatFlowResponseOption(
+        id: 'clouded',
+        label: 'Clouded',
+        journalLabel: 'clouded',
+      ),
+      MaatFlowResponseOption(
+        id: 'inside',
+        label: 'Inside',
+        journalLabel: 'inside',
+      ),
+      MaatFlowResponseOption(id: 'moon', label: 'Moon', journalLabel: 'moon'),
+      MaatFlowResponseOption(
+        id: 'planet',
+        label: 'Planet',
+        journalLabel: 'planet',
+      ),
+      MaatFlowResponseOption(id: 'star', label: 'Star', journalLabel: 'star'),
+      MaatFlowResponseOption(
+        id: 'meteor',
+        label: 'Meteor',
+        journalLabel: 'meteor',
+      ),
+      MaatFlowResponseOption(
+        id: 'horizon',
+        label: 'Horizon',
+        journalLabel: 'horizon',
+      ),
+      MaatFlowResponseOption(
+        id: 'color',
+        label: 'Color',
+        journalLabel: 'color',
+      ),
+      MaatFlowResponseOption(
+        id: 'change',
+        label: 'Change',
+        journalLabel: 'change',
+      ),
+    ],
+    journalPolicy: MaatFlowJournalPolicy.mirror,
+    journalLabel: _trackSkyTitle,
+    journalGroupId: 'follow-sky-witness',
+    journalGroupLabel: _trackSkyTitle,
+    journalFormatter: MaatFlowResponseJournalFormatter.followSkyWitness,
+    journalRole: 'shown',
+  ),
+  MaatFlowResponseSpec(
+    id: 'follow-sky-changed',
+    flowKey: _trackSkyFlowKey,
+    surface: MaatFlowResponseSurface.calendarSheet,
+    kind: MaatFlowResponseKind.multiline,
+    label: 'What changed above you?',
+    journalPolicy: MaatFlowJournalPolicy.mirror,
+    journalLabel: _trackSkyTitle,
+    journalGroupId: 'follow-sky-witness',
+    journalGroupLabel: _trackSkyTitle,
+    journalFormatter: MaatFlowResponseJournalFormatter.followSkyWitness,
+    journalRole: 'changed',
+  ),
+  MaatFlowResponseSpec(
+    id: 'weighing-scale-revealed',
+    flowKey: kTheWeighingFlowKey,
+    surface: MaatFlowResponseSurface.calendarSheet,
+    kind: MaatFlowResponseKind.chips,
+    label: 'What did the scale reveal?',
+    options: <MaatFlowResponseOption>[
+      MaatFlowResponseOption(
+        id: 'material',
+        label: 'Material',
+        journalLabel: 'material',
+      ),
+      MaatFlowResponseOption(
+        id: 'speech',
+        label: 'Speech',
+        journalLabel: 'speech',
+      ),
+      MaatFlowResponseOption(
+        id: 'conduct',
+        label: 'Conduct',
+        journalLabel: 'conduct',
+      ),
+      MaatFlowResponseOption(
+        id: 'record',
+        label: 'Record',
+        journalLabel: 'record',
+      ),
+      MaatFlowResponseOption(
+        id: 'correction',
+        label: 'Correction',
+        journalLabel: 'correction',
+      ),
+      MaatFlowResponseOption(id: 'debt', label: 'Debt', journalLabel: 'debt'),
+      MaatFlowResponseOption(
+        id: 'repair',
+        label: 'Repair',
+        journalLabel: 'repair',
+      ),
+      MaatFlowResponseOption(
+        id: 'truth',
+        label: 'Truth',
+        journalLabel: 'truth',
+      ),
+      MaatFlowResponseOption(id: 'gap', label: 'Gap', journalLabel: 'gap'),
+      MaatFlowResponseOption(
+        id: 'balance',
+        label: 'Balance',
+        journalLabel: 'balance',
+      ),
+    ],
+    journalPolicy: MaatFlowJournalPolicy.offer,
+    journalLabel: kTheWeighingTitle,
+    journalGroupId: 'weighing-record',
+    journalGroupLabel: kTheWeighingTitle,
+    journalFormatter: MaatFlowResponseJournalFormatter.weighingRecord,
+    journalRole: 'revealed',
+    privacyClass: 'record_accounting_private',
+    offerJournalInclusionDefault: false,
+  ),
+  MaatFlowResponseSpec(
+    id: 'weighing-record-witnessed',
+    flowKey: kTheWeighingFlowKey,
+    surface: MaatFlowResponseSurface.calendarSheet,
+    kind: MaatFlowResponseKind.multiline,
+    label: 'What record, number, or correction needs to be witnessed?',
+    journalPolicy: MaatFlowJournalPolicy.offer,
+    journalLabel: kTheWeighingTitle,
+    journalGroupId: 'weighing-record',
+    journalGroupLabel: kTheWeighingTitle,
+    journalFormatter: MaatFlowResponseJournalFormatter.weighingRecord,
+    journalRole: 'witnessed',
+    privacyClass: 'record_accounting_private',
     offerJournalInclusionDefault: false,
   ),
 ];

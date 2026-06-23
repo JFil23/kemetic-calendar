@@ -148,6 +148,8 @@ enum MaatFlowResponseJournalFormatter {
   khatBodyCare,
   oracleSign,
   wanderingRemainder,
+  followSkyWitness,
+  weighingRecord,
 }
 
 extension MaatFlowResponseJournalFormatterX
@@ -184,6 +186,10 @@ extension MaatFlowResponseJournalFormatterX
         return 'oracle_sign';
       case MaatFlowResponseJournalFormatter.wanderingRemainder:
         return 'wandering_remainder';
+      case MaatFlowResponseJournalFormatter.followSkyWitness:
+        return 'follow_sky_witness';
+      case MaatFlowResponseJournalFormatter.weighingRecord:
+        return 'weighing_record';
     }
   }
 
@@ -231,6 +237,12 @@ extension MaatFlowResponseJournalFormatterX
       case 'wandering_remainder':
       case 'wandering-remainder':
         return MaatFlowResponseJournalFormatter.wanderingRemainder;
+      case 'follow_sky_witness':
+      case 'follow-sky-witness':
+        return MaatFlowResponseJournalFormatter.followSkyWitness;
+      case 'weighing_record':
+      case 'weighing-record':
+        return MaatFlowResponseJournalFormatter.weighingRecord;
       case 'standard':
       default:
         return MaatFlowResponseJournalFormatter.standard;
@@ -673,6 +685,10 @@ String _formatResponseBodyText(
       return '${spec.journalHeading}: I received one sign and will test it through grounded action.';
     case MaatFlowResponseJournalFormatter.wanderingRemainder:
       return '${spec.journalHeading}: I honored what was lost and noticed one thing that remains.';
+    case MaatFlowResponseJournalFormatter.followSkyWitness:
+      return '${spec.journalHeading}: I noticed ${_sentenceFragment(display)} and kept one line of witness.';
+    case MaatFlowResponseJournalFormatter.weighingRecord:
+      return '${spec.journalHeading}: I placed one record on the scale and named one correction.';
     case MaatFlowResponseJournalFormatter.decanWatch:
     case MaatFlowResponseJournalFormatter.standard:
       return '${spec.journalHeading}: $display';
@@ -714,6 +730,10 @@ String _formatGroupedResponseBodyText(
       return _formatOracleResponseGroup(specs, values);
     case MaatFlowResponseJournalFormatter.wanderingRemainder:
       return _formatWanderingResponseGroup(specs, values);
+    case MaatFlowResponseJournalFormatter.followSkyWitness:
+      return _formatFollowSkyResponseGroup(specs, values);
+    case MaatFlowResponseJournalFormatter.weighingRecord:
+      return _formatWeighingResponseGroup(specs, values);
     case MaatFlowResponseJournalFormatter.dawnHouseRite:
     case MaatFlowResponseJournalFormatter.closingRelease:
     case MaatFlowResponseJournalFormatter.daysOutsideReceipt:
@@ -1048,6 +1068,75 @@ String _formatWanderingResponseGroup(
   }
   if (found.isNotEmpty) {
     return '${specs.first.journalHeading}: I honored what was lost and noticed one thing that remains.';
+  }
+  return '';
+}
+
+String _formatFollowSkyResponseGroup(
+  List<MaatFlowResponseSpec> specs,
+  Map<String, MaatFlowResponseValue> values,
+) {
+  final byRole = <String, MaatFlowResponseSpec>{
+    for (final spec in specs)
+      if (spec.normalizedJournalRole != null) spec.normalizedJournalRole!: spec,
+  };
+
+  final shownSpec = byRole['shown'];
+  final changedSpec = byRole['changed'];
+  final shown = shownSpec == null
+      ? ''
+      : _joinNatural(
+          values[shownSpec.id]?.optionIds
+                  .map((id) => shownSpec.optionById(id)?._displayLabel ?? id)
+                  .where((label) => label.trim().isNotEmpty)
+                  .map((label) => label.trim().toLowerCase()) ??
+              const Iterable<String>.empty(),
+        );
+  final changed = changedSpec == null
+      ? ''
+      : _sentenceFragment(values[changedSpec.id]?.displayText(changedSpec));
+
+  if (shown.isNotEmpty && changed.isNotEmpty) {
+    return '${specs.first.journalHeading}: I noticed $shown and kept $changed.';
+  }
+  if (shown.isNotEmpty) {
+    return '${specs.first.journalHeading}: I noticed $shown and kept one line of witness.';
+  }
+  if (changed.isNotEmpty) {
+    return '${specs.first.journalHeading}: I noticed the sky change and kept $changed.';
+  }
+  return '';
+}
+
+String _formatWeighingResponseGroup(
+  List<MaatFlowResponseSpec> specs,
+  Map<String, MaatFlowResponseValue> values,
+) {
+  final byRole = <String, MaatFlowResponseSpec>{
+    for (final spec in specs)
+      if (spec.normalizedJournalRole != null) spec.normalizedJournalRole!: spec,
+  };
+
+  final revealedSpec = byRole['revealed'];
+  final witnessedSpec = byRole['witnessed'];
+  final revealed = revealedSpec == null
+      ? ''
+      : _joinNatural(
+          values[revealedSpec.id]?.optionIds
+                  .map((id) => revealedSpec.optionById(id)?._displayLabel ?? id)
+                  .where((label) => label.trim().isNotEmpty)
+                  .map((label) => label.trim().toLowerCase()) ??
+              const Iterable<String>.empty(),
+        );
+  final witnessed = witnessedSpec == null
+      ? ''
+      : _sentenceFragment(values[witnessedSpec.id]?.displayText(witnessedSpec));
+
+  if (revealed.isNotEmpty) {
+    return '${specs.first.journalHeading}: I placed $revealed on the scale and named one correction.';
+  }
+  if (witnessed.isNotEmpty) {
+    return '${specs.first.journalHeading}: I placed one record on the scale and named one correction.';
   }
   return '';
 }

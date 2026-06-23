@@ -23,6 +23,7 @@ import 'package:mobile/features/calendar/the_tending_local_store.dart';
 import 'package:mobile/features/calendar/the_wag_flow.dart';
 import 'package:mobile/features/calendar/the_wag_local_store.dart';
 import 'package:mobile/features/calendar/the_weighing_flow.dart';
+import 'package:mobile/features/calendar/track_sky_flow.dart';
 import 'package:mobile/features/journal/journal_badge_utils.dart';
 import 'package:mobile/features/journal/journal_v2_document_model.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -2854,36 +2855,415 @@ void main() {
     expect(document.toPlainText(), isNot(contains('updated grief')));
   });
 
+  testWidgets('Follow the Sky response renders and previews journal text', (
+    tester,
+  ) async {
+    await _setPhoneViewport(tester);
+
+    await tester.pumpWidget(
+      _DayViewHarness(
+        flowIndex: _trackSkyFlowIndex,
+        notes: <NoteData>[_trackSkyNote()],
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await _openDetailSheet(tester, _trackSkyEventTitle);
+
+    expect(find.byKey(kMaatFlowResponseSectionKey), findsOneWidget);
+    expect(find.text('What did the sky show?'), findsOneWidget);
+    expect(find.text('What changed above you?'), findsOneWidget);
+    for (final optionId in const <String>['clear', 'horizon', 'change']) {
+      expect(
+        find.byKey(maatFlowResponseFieldKey('follow-sky-shown:$optionId')),
+        findsOneWidget,
+      );
+    }
+
+    await _choosePilotOption(
+      tester,
+      specId: 'follow-sky-shown',
+      optionId: 'horizon',
+    );
+    await _choosePilotOption(
+      tester,
+      specId: 'follow-sky-shown',
+      optionId: 'change',
+    );
+    await _enterPilotResponse(
+      tester,
+      specId: 'follow-sky-changed',
+      text: 'the western horizon change',
+    );
+
+    expect(find.byKey(kMaatFlowResponseJournalPreviewKey), findsOneWidget);
+    expect(
+      find.text(
+        'Follow the Sky: I noticed horizon and change and kept the western horizon change.',
+      ),
+      findsOneWidget,
+    );
+  });
+
+  testWidgets('Follow the Sky completion writes one response block', (
+    tester,
+  ) async {
+    await _setPhoneViewport(tester);
+    var document = _journalDocument('Sky journal body stays.');
+
+    await tester.pumpWidget(
+      _DayViewHarness(
+        flowIndex: _trackSkyFlowIndex,
+        notes: <NoteData>[_trackSkyNote()],
+        onWriteJournalResponse: (block) async {
+          document = MaatJournalResponseBlockUtils.upsert(document, block);
+        },
+        onRecordCompletion:
+            ({
+              required String clientEventId,
+              required int flowId,
+              required DateTime completedOnDate,
+              Map<String, dynamic>? metadata,
+            }) async {},
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await _openDetailSheet(tester, _trackSkyEventTitle);
+    await _choosePilotOption(
+      tester,
+      specId: 'follow-sky-shown',
+      optionId: 'horizon',
+    );
+    await _enterPilotResponse(
+      tester,
+      specId: 'follow-sky-changed',
+      text: 'the low color change.',
+    );
+    await _tapStatus(tester, 'Observed');
+
+    final blocks = MaatJournalResponseBlockUtils.extract(document);
+    expect(blocks, hasLength(1));
+    expect(document.toPlainText(), contains('Sky journal body stays.'));
+    expect(
+      blocks.single.text,
+      'Follow the Sky: I noticed horizon and kept the low color change.',
+    );
+  });
+
+  testWidgets('Follow the Sky repeat completion updates one response block', (
+    tester,
+  ) async {
+    await _setPhoneViewport(tester);
+    var document = _journalDocument('Existing sky journal text.');
+
+    await tester.pumpWidget(
+      _DayViewHarness(
+        flowIndex: _trackSkyFlowIndex,
+        notes: <NoteData>[_trackSkyNote()],
+        onWriteJournalResponse: (block) async {
+          document = MaatJournalResponseBlockUtils.upsert(document, block);
+        },
+        onRecordCompletion:
+            ({
+              required String clientEventId,
+              required int flowId,
+              required DateTime completedOnDate,
+              Map<String, dynamic>? metadata,
+            }) async {},
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await _openDetailSheet(tester, _trackSkyEventTitle);
+    await _choosePilotOption(
+      tester,
+      specId: 'follow-sky-shown',
+      optionId: 'moon',
+    );
+    await _enterPilotResponse(
+      tester,
+      specId: 'follow-sky-changed',
+      text: 'first sky line.',
+    );
+    await _tapStatus(tester, 'Observed');
+
+    await _choosePilotOption(
+      tester,
+      specId: 'follow-sky-shown',
+      optionId: 'planet',
+    );
+    await _enterPilotResponse(
+      tester,
+      specId: 'follow-sky-changed',
+      text: 'updated sky line.',
+    );
+    await _tapStatus(tester, 'Observed');
+
+    final blocks = MaatJournalResponseBlockUtils.extract(document);
+    expect(blocks, hasLength(1));
+    expect(
+      blocks.single.text,
+      'Follow the Sky: I noticed moon and planet and kept updated sky line.',
+    );
+    expect(document.toPlainText(), contains('Existing sky journal text.'));
+    expect(document.toPlainText(), isNot(contains('first sky line')));
+  });
+
+  testWidgets('The Weighing response renders with default-off journal offer', (
+    tester,
+  ) async {
+    await _setPhoneViewport(tester);
+
+    await tester.pumpWidget(
+      _DayViewHarness(
+        flowIndex: _weighingFlowIndex,
+        notes: <NoteData>[_weighingNote()],
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await _openDetailSheet(tester, _weighingTitle);
+
+    expect(find.byKey(kMaatFlowResponseSectionKey), findsOneWidget);
+    expect(find.text('What did the scale reveal?'), findsOneWidget);
+    expect(
+      find.text('What record, number, or correction needs to be witnessed?'),
+      findsOneWidget,
+    );
+    for (final optionId in const <String>['record', 'correction', 'truth']) {
+      expect(
+        find.byKey(
+          maatFlowResponseFieldKey('weighing-scale-revealed:$optionId'),
+        ),
+        findsOneWidget,
+      );
+    }
+
+    await _choosePilotOption(
+      tester,
+      specId: 'weighing-scale-revealed',
+      optionId: 'record',
+    );
+    await _choosePilotOption(
+      tester,
+      specId: 'weighing-scale-revealed',
+      optionId: 'correction',
+    );
+    await _enterPilotResponse(
+      tester,
+      specId: 'weighing-record-witnessed',
+      text: 'private money number and conflict detail.',
+    );
+
+    expect(find.byKey(kMaatFlowResponseJournalPreviewKey), findsOneWidget);
+    expect(
+      find.text(
+        'The Weighing: I placed record and correction on the scale and named one correction.',
+      ),
+      findsOneWidget,
+    );
+    expect(
+      find.descendant(
+        of: find.byKey(kMaatFlowResponseJournalPreviewKey),
+        matching: find.textContaining('money number'),
+      ),
+      findsNothing,
+    );
+    final addToggle = tester.widget<Checkbox>(find.byType(Checkbox).last);
+    expect(addToggle.value, isFalse);
+  });
+
+  testWidgets('The Weighing can suppress journal response body', (
+    tester,
+  ) async {
+    await _setPhoneViewport(tester);
+    var document = _journalDocument('Weighing manual journal body.');
+    final badgeAppends = <String>[];
+    final responseWrites = <MaatJournalResponseBlock>[];
+
+    await tester.pumpWidget(
+      _DayViewHarness(
+        flowIndex: _weighingFlowIndex,
+        notes: <NoteData>[_weighingNote()],
+        onAppendToJournal: (text) async => badgeAppends.add(text),
+        onWriteJournalResponse: (block) async {
+          responseWrites.add(block);
+          document = MaatJournalResponseBlockUtils.upsert(document, block);
+        },
+        onRecordCompletion:
+            ({
+              required String clientEventId,
+              required int flowId,
+              required DateTime completedOnDate,
+              Map<String, dynamic>? metadata,
+            }) async {},
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await _openDetailSheet(tester, _weighingTitle);
+    await _choosePilotOption(
+      tester,
+      specId: 'weighing-scale-revealed',
+      optionId: 'debt',
+    );
+    await _enterPilotResponse(
+      tester,
+      specId: 'weighing-record-witnessed',
+      text: 'private amount owed.',
+    );
+    await _tapStatus(tester, 'Observed');
+
+    expect(responseWrites, hasLength(1));
+    expect(responseWrites.single.text, isEmpty);
+    expect(document.toPlainText(), 'Weighing manual journal body.');
+    expect(MaatJournalResponseBlockUtils.extract(document), isEmpty);
+    expect(badgeAppends, hasLength(1));
+    expect(JournalBadgeUtils.hasBadges(badgeAppends.single), isTrue);
+  });
+
+  testWidgets(
+    'The Weighing completion writes one opted-in safe response block',
+    (tester) async {
+      await _setPhoneViewport(tester);
+      var document = _journalDocument('Weighing journal body stays.');
+
+      await tester.pumpWidget(
+        _DayViewHarness(
+          flowIndex: _weighingFlowIndex,
+          notes: <NoteData>[_weighingNote()],
+          onWriteJournalResponse: (block) async {
+            document = MaatJournalResponseBlockUtils.upsert(document, block);
+          },
+          onRecordCompletion:
+              ({
+                required String clientEventId,
+                required int flowId,
+                required DateTime completedOnDate,
+                Map<String, dynamic>? metadata,
+              }) async {},
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      await _openDetailSheet(tester, _weighingTitle);
+      await _choosePilotOption(
+        tester,
+        specId: 'weighing-scale-revealed',
+        optionId: 'truth',
+      );
+      await _enterPilotResponse(
+        tester,
+        specId: 'weighing-record-witnessed',
+        text: 'private ledger sentence.',
+      );
+      await _toggleOfferJournalWrite(tester);
+      await _tapStatus(tester, 'Partly');
+
+      final blocks = MaatJournalResponseBlockUtils.extract(document);
+      expect(blocks, hasLength(1));
+      expect(document.toPlainText(), contains('Weighing journal body stays.'));
+      expect(
+        blocks.single.text,
+        'The Weighing: I placed truth on the scale and named one correction.',
+      );
+      expect(blocks.single.text, isNot(contains('private ledger')));
+    },
+  );
+
+  testWidgets('The Weighing repeat completion updates one safe response block', (
+    tester,
+  ) async {
+    await _setPhoneViewport(tester);
+    var document = _journalDocument('Existing Weighing journal text.');
+
+    await tester.pumpWidget(
+      _DayViewHarness(
+        flowIndex: _weighingFlowIndex,
+        notes: <NoteData>[_weighingNote()],
+        onWriteJournalResponse: (block) async {
+          document = MaatJournalResponseBlockUtils.upsert(document, block);
+        },
+        onRecordCompletion:
+            ({
+              required String clientEventId,
+              required int flowId,
+              required DateTime completedOnDate,
+              Map<String, dynamic>? metadata,
+            }) async {},
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await _openDetailSheet(tester, _weighingTitle);
+    await _choosePilotOption(
+      tester,
+      specId: 'weighing-scale-revealed',
+      optionId: 'record',
+    );
+    await _enterPilotResponse(
+      tester,
+      specId: 'weighing-record-witnessed',
+      text: 'first private ledger detail.',
+    );
+    await _toggleOfferJournalWrite(tester);
+    await _tapStatus(tester, 'Observed');
+
+    await _choosePilotOption(
+      tester,
+      specId: 'weighing-scale-revealed',
+      optionId: 'correction',
+    );
+    await _enterPilotResponse(
+      tester,
+      specId: 'weighing-record-witnessed',
+      text: 'updated private ledger detail.',
+    );
+    await _tapStatus(tester, 'Observed');
+
+    final blocks = MaatJournalResponseBlockUtils.extract(document);
+    expect(blocks, hasLength(1));
+    expect(
+      blocks.single.text,
+      'The Weighing: I placed record and correction on the scale and named one correction.',
+    );
+    expect(document.toPlainText(), contains('Existing Weighing journal text.'));
+    expect(document.toPlainText(), isNot(contains('first private')));
+    expect(document.toPlainText(), isNot(contains('updated private')));
+  });
+
   testWidgets('unsupported Ma_at flow remains without response fields', (
     tester,
   ) async {
     await _setPhoneViewport(tester);
-    final event = kTheWeighingEvents.singleWhere(
-      (event) => event.eventNumber == 9,
-    );
-    final title = theWeighingEventTitle(event);
+    const title = 'Unsupported Ma\'at practice';
 
     await tester.pumpWidget(
       _DayViewHarness(
         flowIndex: const <int, FlowData>{
           90: FlowData(
             id: 90,
-            name: kTheWeighingTitle,
+            name: 'Unsupported Ma\'at',
             color: Colors.amber,
             active: true,
-            notes: 'weighing_lens=neutral',
+            notes: 'maat=unsupported-maat-flow',
           ),
         },
         notes: <NoteData>[
-          NoteData(
-            clientEventId: 'cid-the-weighing-9',
+          const NoteData(
+            clientEventId: 'cid-unsupported-maat',
             title: title,
-            detail: theWeighingDetailText(event, lens: TheWeighingLens.neutral),
-            category: event.decanSection,
+            detail: 'Unsupported Ma\'at detail.',
+            category: 'Unsupported Ma\'at',
             allDay: false,
-            start: const TimeOfDay(hour: 10, minute: 0),
-            end: const TimeOfDay(hour: 10, minute: 10),
+            start: TimeOfDay(hour: 10, minute: 0),
+            end: TimeOfDay(hour: 10, minute: 10),
             flowId: 90,
+            behaviorPayload: <String, dynamic>{
+              'flow_key': 'unsupported-maat-flow',
+              'kind': 'unsupported_maat_flow',
+            },
           ),
         ],
       ),
@@ -2983,6 +3363,27 @@ final String _wanderingTitle = maatDecanFlowEventTitle(
   _wanderingDefinition,
   _wanderingEvent,
 );
+const int _trackSkyFlowId = 102;
+const String _trackSkyEventTitle = 'Western Horizon Watch';
+const TrackSkyEvent _trackSkyEvent = TrackSkyEvent(
+  category: 'Planetary Events',
+  title: _trackSkyEventTitle,
+  exactLabel: 'June 23, 2026, 8:00 PM PDT',
+  scientificBreakdown: 'A bright horizon event.',
+  whatToSee: 'A steady light near the western horizon.',
+  bestViewing: 'Step outside after sunset and look west.',
+  significance: 'Witness the sky without forcing a conclusion.',
+  notes: 'Future.',
+  schedule: TrackSkyEventSchedule(
+    dateIso: '2026-06-23',
+    startTime24: '20:00',
+    endTime24: '21:00',
+    allDay: false,
+  ),
+);
+const int _weighingFlowId = 103;
+final TheWeighingEvent _weighingEvent = kTheWeighingEvents.first;
+final String _weighingTitle = theWeighingEventTitle(_weighingEvent);
 
 const Map<int, FlowData> _decanWatchFlowIndex = <int, FlowData>{
   _decanWatchFlowId: FlowData(
@@ -3111,6 +3512,26 @@ final Map<int, FlowData> _wanderingFlowIndex = <int, FlowData>{
     color: Colors.blueGrey,
     active: true,
     notes: 'maat=$kWanderingFlowKey;wandering_lens=neutral',
+  ),
+};
+
+const Map<int, FlowData> _trackSkyFlowIndex = <int, FlowData>{
+  _trackSkyFlowId: FlowData(
+    id: _trackSkyFlowId,
+    name: 'Follow the Sky',
+    color: Colors.lightBlue,
+    active: true,
+    notes: 'maat=track-the-sky',
+  ),
+};
+
+const Map<int, FlowData> _weighingFlowIndex = <int, FlowData>{
+  _weighingFlowId: FlowData(
+    id: _weighingFlowId,
+    name: kTheWeighingTitle,
+    color: Colors.amber,
+    active: true,
+    notes: 'maat=$kTheWeighingFlowKey;weighing_lens=neutral',
   ),
 };
 
@@ -3424,6 +3845,47 @@ NoteData _wanderingNote({MaatDecanFlowEvent? event}) {
       'flow_day': target.flowDay,
       'requires_real_world_action': target.requiresRealWorldAction,
     },
+  );
+}
+
+NoteData _trackSkyNote() {
+  return NoteData(
+    clientEventId: 'cid-track-sky-1',
+    title: _trackSkyEventTitle,
+    detail: _trackSkyEvent.detailText,
+    category: _trackSkyEvent.category,
+    allDay: false,
+    start: const TimeOfDay(hour: 10, minute: 0),
+    end: const TimeOfDay(hour: 10, minute: 10),
+    flowId: _trackSkyFlowId,
+    behaviorPayload: const <String, dynamic>{
+      'flow_key': 'track-the-sky',
+      'kind': 'track_sky_event',
+    },
+  );
+}
+
+NoteData _weighingNote({TheWeighingEvent? event}) {
+  final target = event ?? _weighingEvent;
+  final schedule = theWeighingScheduleForDate(
+    target,
+    DateTime(2026, 6, 23),
+    TrackSkyTimeZone.pacific,
+  );
+  return NoteData(
+    clientEventId: 'cid-weighing-${target.eventNumber}',
+    title: theWeighingEventTitle(target),
+    detail: theWeighingDetailText(target, lens: TheWeighingLens.neutral),
+    category: target.decanSection,
+    allDay: false,
+    start: const TimeOfDay(hour: 10, minute: 0),
+    end: const TimeOfDay(hour: 10, minute: 10),
+    flowId: _weighingFlowId,
+    behaviorPayload: theWeighingBehaviorPayload(
+      event: target,
+      schedule: schedule,
+      lens: TheWeighingLens.neutral,
+    ),
   );
 }
 

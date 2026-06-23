@@ -17,6 +17,7 @@ import 'package:mobile/features/calendar/the_open_hand_flow.dart';
 import 'package:mobile/features/calendar/the_offering_table_flow.dart';
 import 'package:mobile/features/calendar/the_tending_flow.dart';
 import 'package:mobile/features/calendar/the_wag_flow.dart';
+import 'package:mobile/features/calendar/the_weighing_flow.dart';
 import 'package:mobile/features/journal/journal_badge_utils.dart';
 import 'package:mobile/features/journal/journal_event_badge.dart';
 import 'package:mobile/features/journal/journal_v2_document_model.dart';
@@ -143,10 +144,18 @@ void main() {
       MaatFlowResponseJournalFormatterX.fromWireName('wandering-remainder'),
       MaatFlowResponseJournalFormatter.wanderingRemainder,
     );
+    expect(
+      MaatFlowResponseJournalFormatterX.fromWireName('follow-sky-witness'),
+      MaatFlowResponseJournalFormatter.followSkyWitness,
+    );
+    expect(
+      MaatFlowResponseJournalFormatterX.fromWireName('weighing-record'),
+      MaatFlowResponseJournalFormatter.weighingRecord,
+    );
   });
 
-  test('default resolver exposes only Phase 2B through 3F pilot specs', () {
-    expect(kDefaultMaatFlowResponseResolver.specs, hasLength(34));
+  test('default resolver exposes only Phase 2B through 3G pilot specs', () {
+    expect(kDefaultMaatFlowResponseResolver.specs, hasLength(38));
 
     expect(
       resolveMaatFlowResponseSpecs(
@@ -273,11 +282,25 @@ void main() {
       ).map((spec) => spec.id),
       <String>['wandering-remains', 'wandering-found'],
     );
+    expect(
+      resolveMaatFlowResponseSpecs(
+        flowKey: 'track-the-sky',
+        surface: MaatFlowResponseSurface.calendarSheet,
+      ).map((spec) => spec.id),
+      <String>['follow-sky-shown', 'follow-sky-changed'],
+    );
+    expect(
+      resolveMaatFlowResponseSpecs(
+        flowKey: kTheWeighingFlowKey,
+        surface: MaatFlowResponseSurface.calendarSheet,
+      ).map((spec) => spec.id),
+      <String>['weighing-scale-revealed', 'weighing-record-witnessed'],
+    );
 
     for (final flowKey in const <String>[
       'unknown-flow',
       'evening_threshold',
-      'the-weighing',
+      'unsupported-maat-flow',
     ]) {
       expect(
         resolveMaatFlowResponseSpecs(
@@ -617,6 +640,26 @@ void main() {
       wanderingSpecs.map((spec) => spec.offerJournalInclusionDefault).toSet(),
       <bool>{false},
     );
+
+    final weighingSpecs = resolveMaatFlowResponseSpecs(
+      flowKey: kTheWeighingFlowKey,
+      surface: MaatFlowResponseSurface.calendarSheet,
+    );
+    expect(weighingSpecs.map((spec) => spec.id), <String>[
+      'weighing-scale-revealed',
+      'weighing-record-witnessed',
+    ]);
+    expect(
+      weighingSpecs.map((spec) => spec.journalPolicy).toSet(),
+      <MaatFlowJournalPolicy>{MaatFlowJournalPolicy.offer},
+    );
+    expect(weighingSpecs.map((spec) => spec.privacyClass).toSet(), <String>{
+      'record_accounting_private',
+    });
+    expect(
+      weighingSpecs.map((spec) => spec.offerJournalInclusionDefault).toSet(),
+      <bool>{false},
+    );
   });
 
   test('Dawn House and Closing journal formatters read naturally', () {
@@ -735,6 +778,36 @@ void main() {
     expect(
       wep!.text,
       'Wep Ronpet: I open the year with steadiness, clean speech, and finished work.',
+    );
+
+    final skySpecs = resolveMaatFlowResponseSpecs(
+      flowKey: 'track-the-sky',
+      surface: MaatFlowResponseSurface.calendarSheet,
+    );
+    final sky = buildMaatFlowResponseJournalPreviews(
+      specs: skySpecs,
+      values: <String, MaatFlowResponseValue>{
+        'follow-sky-shown': MaatFlowResponseValue.chips(
+          specId: 'follow-sky-shown',
+          optionIds: <String>['horizon', 'change'],
+        ),
+        'follow-sky-changed': MaatFlowResponseValue.text(
+          specId: 'follow-sky-changed',
+          text: 'the western horizon change',
+          multiline: true,
+        ),
+      },
+      clientEventId: 'cid-follow-sky',
+    );
+    expect(sky, hasLength(1));
+    expect(sky.single.policy, MaatFlowJournalPolicy.mirror);
+    expect(
+      sky.single.sourceId,
+      'maat_response:track-the-sky:cid:cid-follow-sky:follow-sky-witness',
+    );
+    expect(
+      sky.single.text,
+      'Follow the Sky: I noticed horizon and change and kept the western horizon change.',
     );
   });
 
@@ -1035,6 +1108,40 @@ void main() {
     );
     expect(wandering.single.text, isNot(contains('raw grief')));
     expect(wandering.single.text, isNot(contains('private name')));
+
+    final weighingSpecs = resolveMaatFlowResponseSpecs(
+      flowKey: kTheWeighingFlowKey,
+      surface: MaatFlowResponseSurface.calendarSheet,
+    );
+    final weighing = buildMaatFlowResponseJournalPreviews(
+      specs: weighingSpecs,
+      values: <String, MaatFlowResponseValue>{
+        'weighing-scale-revealed': MaatFlowResponseValue.chips(
+          specId: 'weighing-scale-revealed',
+          optionIds: <String>['record', 'correction'],
+        ),
+        'weighing-record-witnessed': MaatFlowResponseValue.text(
+          specId: 'weighing-record-witnessed',
+          text: 'private ledger number and conflict detail',
+          multiline: true,
+        ),
+      },
+      clientEventId: 'cid-weighing',
+    );
+    expect(weighing, hasLength(1));
+    expect(weighing.single.policy, MaatFlowJournalPolicy.offer);
+    expect(weighing.single.requiresUserChoice, isTrue);
+    expect(weighing.single.includeInJournalByDefault, isFalse);
+    expect(
+      weighing.single.sourceId,
+      'maat_response:the-weighing:cid:cid-weighing:weighing-record',
+    );
+    expect(
+      weighing.single.text,
+      'The Weighing: I placed record and correction on the scale and named one correction.',
+    );
+    expect(weighing.single.text, isNot(contains('ledger number')));
+    expect(weighing.single.text, isNot(contains('conflict detail')));
   });
 
   test(
@@ -1147,7 +1254,7 @@ void main() {
     expect(JournalBadgeUtils.tokensFromDocument(removed), hasLength(1));
   });
 
-  test('Phase 3F wiring stays isolated to shared sheet panels and pilots', () {
+  test('Phase 3G wiring stays isolated to shared sheet panels and pilots', () {
     expect(
       kDefaultMaatFlowResponseResolver.specs
           .map((spec) => spec.flowKey)
@@ -1168,6 +1275,8 @@ void main() {
         kKhatFlowKey,
         kOracleFlowKey,
         kWanderingFlowKey,
+        'track-the-sky',
+        kTheWeighingFlowKey,
       },
     );
 

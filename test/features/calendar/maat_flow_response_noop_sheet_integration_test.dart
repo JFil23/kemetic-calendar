@@ -4,9 +4,12 @@ import 'package:mobile/core/completion_status.dart';
 import 'package:mobile/features/calendar/day_view.dart';
 import 'package:mobile/features/calendar/landscape_month_view.dart';
 import 'package:mobile/features/calendar/maat_flow_interactive_primitives.dart';
-import 'package:mobile/features/calendar/the_weighing_flow.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+
+const int _unsupportedMaatFlowId = 90;
+const String _unsupportedMaatFlowTitle = 'Unsupported Ma\'at practice';
+const String _unsupportedMaatFlowKey = 'unsupported-maat-flow';
 
 Future<void> _ensureSupabaseInitialized() async {
   try {
@@ -39,24 +42,20 @@ void main() {
     'Day View unsupported Ma_at flow keeps completion picker without response UI',
     (tester) async {
       await _setPhoneViewport(tester);
-      final event = kTheWeighingEvents.singleWhere(
-        (event) => event.eventNumber == 9,
-      );
-      final title = theWeighingEventTitle(event);
       final recorded = <_CompletionWrite>[];
 
       await tester.pumpWidget(
         _DayViewHarness(
           flowIndex: const <int, FlowData>{
-            90: FlowData(
-              id: 90,
-              name: kTheWeighingTitle,
+            _unsupportedMaatFlowId: FlowData(
+              id: _unsupportedMaatFlowId,
+              name: 'Unsupported Ma\'at',
               color: Colors.amber,
               active: true,
-              notes: 'weighing_lens=neutral',
+              notes: 'maat=$_unsupportedMaatFlowKey',
             ),
           },
-          notes: <NoteData>[_weighingNote(event: event, title: title)],
+          notes: <NoteData>[_unsupportedMaatNote()],
           onRecordCompletion:
               ({
                 required String clientEventId,
@@ -78,7 +77,7 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      await _openDetailSheet(tester, title);
+      await _openDetailSheet(tester, _unsupportedMaatFlowTitle);
 
       expect(find.byKey(kMaatFlowResponseSectionKey), findsNothing);
       expect(find.text('Observed'), findsWidgets);
@@ -91,8 +90,8 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(recorded, hasLength(1));
-      expect(recorded.single.clientEventId, 'cid-the-weighing-9');
-      expect(recorded.single.flowId, 90);
+      expect(recorded.single.clientEventId, 'cid-unsupported-maat');
+      expect(recorded.single.flowId, _unsupportedMaatFlowId);
       expect(recorded.single.status, CompletionStatus.observed);
     },
   );
@@ -101,26 +100,21 @@ void main() {
     'Landscape month Ma_at sheet keeps existing completion behavior without response UI',
     (tester) async {
       await _setLandscapeViewport(tester);
-      final event = kTheWeighingEvents.singleWhere(
-        (event) => event.eventNumber == 9,
-      );
-      final title = theWeighingEventTitle(event);
       final recorded = <CompletionStatus>[];
 
       await tester.pumpWidget(
         _LandscapeHarness(
           flowIndex: const <int, FlowData>{
-            90: FlowData(
-              id: 90,
-              name: kTheWeighingTitle,
+            _unsupportedMaatFlowId: FlowData(
+              id: _unsupportedMaatFlowId,
+              name: 'Unsupported Ma\'at',
               color: Colors.amber,
               active: true,
-              notes: 'weighing_lens=neutral',
+              notes: 'maat=$_unsupportedMaatFlowKey',
             ),
           },
-          notesForDay: (ky, km, kd) => kd == 1
-              ? <NoteData>[_weighingNote(event: event, title: title)]
-              : const <NoteData>[],
+          notesForDay: (ky, km, kd) =>
+              kd == 1 ? <NoteData>[_unsupportedMaatNote()] : const <NoteData>[],
           onRecordCompletion:
               ({
                 required String clientEventId,
@@ -138,7 +132,7 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      await _openDetailSheet(tester, title);
+      await _openDetailSheet(tester, _unsupportedMaatFlowTitle);
 
       expect(find.byKey(kMaatFlowResponseSectionKey), findsNothing);
       expect(find.text('Observed'), findsWidgets);
@@ -231,19 +225,20 @@ class _CompletionWrite {
   final CompletionStatus status;
 }
 
-NoteData _weighingNote({
-  required TheWeighingEvent event,
-  required String title,
-}) {
-  return NoteData(
-    clientEventId: 'cid-the-weighing-9',
-    title: title,
-    detail: theWeighingDetailText(event, lens: TheWeighingLens.neutral),
-    category: event.decanSection,
+NoteData _unsupportedMaatNote() {
+  return const NoteData(
+    clientEventId: 'cid-unsupported-maat',
+    title: _unsupportedMaatFlowTitle,
+    detail: 'Unsupported Ma\'at detail.',
+    category: 'Unsupported Ma\'at',
     allDay: false,
-    start: const TimeOfDay(hour: 10, minute: 0),
-    end: const TimeOfDay(hour: 10, minute: 10),
-    flowId: 90,
+    start: TimeOfDay(hour: 10, minute: 0),
+    end: TimeOfDay(hour: 10, minute: 10),
+    flowId: _unsupportedMaatFlowId,
+    behaviorPayload: <String, dynamic>{
+      'flow_key': _unsupportedMaatFlowKey,
+      'kind': 'unsupported_maat_flow',
+    },
   );
 }
 
