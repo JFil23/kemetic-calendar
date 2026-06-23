@@ -7,9 +7,11 @@ import 'package:mobile/features/calendar/evening_threshold_rite_flow.dart';
 import 'package:mobile/features/calendar/maat_flow_interactive_primitives.dart';
 import 'package:mobile/features/calendar/maat_flow_response_journal_blocks.dart';
 import 'package:mobile/features/calendar/moon_return_flow.dart';
+import 'package:mobile/features/calendar/the_days_outside_year_flow.dart';
 import 'package:mobile/features/calendar/the_course_flow.dart';
 import 'package:mobile/features/calendar/the_decan_watch_flow.dart';
 import 'package:mobile/features/calendar/the_decan_watch_local_store.dart';
+import 'package:mobile/features/calendar/the_offering_table_flow.dart';
 import 'package:mobile/features/calendar/the_weighing_flow.dart';
 import 'package:mobile/features/journal/journal_badge_utils.dart';
 import 'package:mobile/features/journal/journal_v2_document_model.dart';
@@ -676,6 +678,316 @@ void main() {
     expect(JournalBadgeUtils.hasBadges(document.toPlainText()), isFalse);
   });
 
+  testWidgets('Offering Table response renders and previews journal text', (
+    tester,
+  ) async {
+    await _setPhoneViewport(tester);
+
+    await tester.pumpWidget(
+      _DayViewHarness(
+        flowIndex: _offeringTableFlowIndex,
+        notes: <NoteData>[_offeringTableNote()],
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await _openDetailSheet(tester, _offeringTableTitle);
+
+    expect(find.byKey(kMaatFlowResponseSectionKey), findsOneWidget);
+    expect(find.text('What was fed?'), findsOneWidget);
+    expect(find.text('What did you provide today?'), findsOneWidget);
+    for (final optionId in const <String>['water', 'rest', 'care']) {
+      expect(
+        find.byKey(maatFlowResponseFieldKey('offering-table-fed:$optionId')),
+        findsOneWidget,
+      );
+    }
+
+    await _choosePilotOption(
+      tester,
+      specId: 'offering-table-fed',
+      optionId: 'rest',
+    );
+    expect(
+      find.text('The Offering Table: I provided rest today.'),
+      findsOneWidget,
+    );
+
+    await _enterPilotResponse(
+      tester,
+      specId: 'offering-table-provided',
+      text: 'closing the laptop early and letting the house settle.',
+    );
+
+    expect(find.byKey(kMaatFlowResponseJournalPreviewKey), findsOneWidget);
+    expect(
+      find.text(
+        'The Offering Table: I fed rest by closing the laptop early and letting the house settle.',
+      ),
+      findsOneWidget,
+    );
+  });
+
+  testWidgets('Offering Table completion writes response body beside badges', (
+    tester,
+  ) async {
+    await _setPhoneViewport(tester);
+    var document = _journalDocument('Offering journal body stays.');
+    final badgeAppends = <String>[];
+
+    await tester.pumpWidget(
+      _DayViewHarness(
+        flowIndex: _offeringTableFlowIndex,
+        notes: <NoteData>[_offeringTableNote()],
+        onAppendToJournal: (text) async => badgeAppends.add(text),
+        onWriteJournalResponse: (block) async {
+          document = MaatJournalResponseBlockUtils.upsert(document, block);
+        },
+        onRecordCompletion:
+            ({
+              required String clientEventId,
+              required int flowId,
+              required DateTime completedOnDate,
+              Map<String, dynamic>? metadata,
+            }) async {},
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await _openDetailSheet(tester, _offeringTableTitle);
+    await _choosePilotOption(
+      tester,
+      specId: 'offering-table-fed',
+      optionId: 'water',
+    );
+    await _choosePilotOption(
+      tester,
+      specId: 'offering-table-fed',
+      optionId: 'care',
+    );
+    await _tapStatus(tester, 'Observed');
+
+    expect(document.toPlainText(), contains('Offering journal body stays.'));
+    expect(
+      document.toPlainText(),
+      contains('The Offering Table: I provided water and care today.'),
+    );
+    expect(MaatJournalResponseBlockUtils.extract(document), hasLength(1));
+    expect(JournalBadgeUtils.hasBadges(document.toPlainText()), isFalse);
+    expect(badgeAppends, hasLength(1));
+    expect(JournalBadgeUtils.hasBadges(badgeAppends.single), isTrue);
+  });
+
+  testWidgets('Offering Table repeat completion updates one response block', (
+    tester,
+  ) async {
+    await _setPhoneViewport(tester);
+    var document = _journalDocument('Existing Offering journal text.');
+
+    await tester.pumpWidget(
+      _DayViewHarness(
+        flowIndex: _offeringTableFlowIndex,
+        notes: <NoteData>[_offeringTableNote()],
+        onAppendToJournal: (_) async {},
+        onWriteJournalResponse: (block) async {
+          document = MaatJournalResponseBlockUtils.upsert(document, block);
+        },
+        onRecordCompletion:
+            ({
+              required String clientEventId,
+              required int flowId,
+              required DateTime completedOnDate,
+              Map<String, dynamic>? metadata,
+            }) async {},
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await _openDetailSheet(tester, _offeringTableTitle);
+    await _choosePilotOption(
+      tester,
+      specId: 'offering-table-fed',
+      optionId: 'rest',
+    );
+    await _enterPilotResponse(
+      tester,
+      specId: 'offering-table-provided',
+      text: 'first provision.',
+    );
+    await _tapStatus(tester, 'Observed');
+
+    await _enterPilotResponse(
+      tester,
+      specId: 'offering-table-provided',
+      text: 'closing the kitchen before night.',
+    );
+    await _tapStatus(tester, 'Observed');
+    await _tapStatus(tester, 'Observed');
+
+    final responseBlocks = MaatJournalResponseBlockUtils.extract(document);
+    expect(responseBlocks, hasLength(1));
+    expect(
+      responseBlocks.single.text,
+      'The Offering Table: I fed rest by closing the kitchen before night.',
+    );
+    expect(document.toPlainText(), contains('Existing Offering journal text.'));
+    expect(document.toPlainText(), isNot(contains('first provision')));
+  });
+
+  testWidgets('Days Outside response renders and writes receipt block', (
+    tester,
+  ) async {
+    await _setPhoneViewport(tester);
+    var document = _journalDocument('Days Outside journal body stays.');
+    final badgeAppends = <String>[];
+
+    await tester.pumpWidget(
+      _DayViewHarness(
+        flowIndex: _daysOutsideFlowIndex,
+        notes: <NoteData>[_daysOutsideNote()],
+        onAppendToJournal: (text) async => badgeAppends.add(text),
+        onWriteJournalResponse: (block) async {
+          document = MaatJournalResponseBlockUtils.upsert(document, block);
+        },
+        onRecordCompletion:
+            ({
+              required String clientEventId,
+              required int flowId,
+              required DateTime completedOnDate,
+              Map<String, dynamic>? metadata,
+            }) async {},
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await _openDetailSheet(tester, _daysOutsideTitle);
+
+    expect(find.byKey(kMaatFlowResponseSectionKey), findsOneWidget);
+    expect(
+      find.text('What receipt do you carry from this threshold?'),
+      findsOneWidget,
+    );
+
+    await _enterPilotResponse(
+      tester,
+      specId: 'days-outside-receipt',
+      text: 'I survived the old year with more clarity than I entered it.',
+    );
+    expect(
+      find.text(
+        'The Days Outside the Year: I carry the receipt that I survived the old year with more clarity than I entered it.',
+      ),
+      findsOneWidget,
+    );
+
+    await _tapStatus(tester, 'Observed');
+
+    expect(
+      document.toPlainText(),
+      contains('Days Outside journal body stays.'),
+    );
+    expect(
+      document.toPlainText(),
+      contains(
+        'The Days Outside the Year: I carry the receipt that I survived the old year with more clarity than I entered it.',
+      ),
+    );
+    expect(MaatJournalResponseBlockUtils.extract(document), hasLength(1));
+    expect(JournalBadgeUtils.hasBadges(document.toPlainText()), isFalse);
+    expect(badgeAppends, hasLength(1));
+    expect(JournalBadgeUtils.hasBadges(badgeAppends.single), isTrue);
+  });
+
+  testWidgets('Days Outside repeat completion updates one response block', (
+    tester,
+  ) async {
+    await _setPhoneViewport(tester);
+    var document = _journalDocument('Existing Days Outside journal text.');
+
+    await tester.pumpWidget(
+      _DayViewHarness(
+        flowIndex: _daysOutsideFlowIndex,
+        notes: <NoteData>[_daysOutsideNote()],
+        onAppendToJournal: (_) async {},
+        onWriteJournalResponse: (block) async {
+          document = MaatJournalResponseBlockUtils.upsert(document, block);
+        },
+        onRecordCompletion:
+            ({
+              required String clientEventId,
+              required int flowId,
+              required DateTime completedOnDate,
+              Map<String, dynamic>? metadata,
+            }) async {},
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await _openDetailSheet(tester, _daysOutsideTitle);
+    await _enterPilotResponse(
+      tester,
+      specId: 'days-outside-receipt',
+      text: 'first threshold receipt.',
+    );
+    await _tapStatus(tester, 'Observed');
+
+    await _enterPilotResponse(
+      tester,
+      specId: 'days-outside-receipt',
+      text: 'I carried one clear receipt across the threshold.',
+    );
+    await _tapStatus(tester, 'Observed');
+    await _tapStatus(tester, 'Observed');
+
+    final responseBlocks = MaatJournalResponseBlockUtils.extract(document);
+    expect(responseBlocks, hasLength(1));
+    expect(
+      responseBlocks.single.text,
+      'The Days Outside the Year: I carry the receipt that I carried one clear receipt across the threshold.',
+    );
+    expect(
+      document.toPlainText(),
+      contains('Existing Days Outside journal text.'),
+    );
+    expect(document.toPlainText(), isNot(contains('first threshold receipt')));
+  });
+
+  testWidgets('Wep Ronpet response uses opening prompt and journal text', (
+    tester,
+  ) async {
+    await _setPhoneViewport(tester);
+
+    await tester.pumpWidget(
+      _DayViewHarness(
+        flowIndex: _daysOutsideFlowIndex,
+        notes: <NoteData>[_daysOutsideNote(event: _wepRonpetEvent)],
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await _openDetailSheet(tester, _wepRonpetTitle);
+
+    expect(find.byKey(kMaatFlowResponseSectionKey), findsOneWidget);
+    expect(find.text('What intention opens the year?'), findsOneWidget);
+    expect(
+      find.text('What receipt do you carry from this threshold?'),
+      findsNothing,
+    );
+
+    await _enterPilotResponse(
+      tester,
+      specId: 'wep-ronpet-year-intention',
+      text: 'steadiness, clean speech, and finished work.',
+    );
+
+    expect(
+      find.text(
+        'Wep Ronpet: I open the year with steadiness, clean speech, and finished work.',
+      ),
+      findsOneWidget,
+    );
+  });
+
   testWidgets('unsupported Ma_at flow remains without response fields', (
     tester,
   ) async {
@@ -752,6 +1064,15 @@ const int _eveningThresholdRiteFlowId = 91;
 final String _eveningThresholdRiteTitle = eveningThresholdRiteEventTitle(
   kEveningThresholdRiteDays.first,
 );
+const int _offeringTableFlowId = 92;
+final String _offeringTableTitle = offeringTableEventTitle(
+  kOfferingTableDays.first,
+);
+const int _daysOutsideFlowId = 93;
+final DaysOutsideEvent _daysOutsideEvent = kDaysOutsideEvents[1];
+final DaysOutsideEvent _wepRonpetEvent = kDaysOutsideEvents.last;
+final String _daysOutsideTitle = daysOutsideEventTitle(_daysOutsideEvent);
+final String _wepRonpetTitle = daysOutsideEventTitle(_wepRonpetEvent);
 
 const Map<int, FlowData> _decanWatchFlowIndex = <int, FlowData>{
   _decanWatchFlowId: FlowData(
@@ -780,6 +1101,26 @@ const Map<int, FlowData> _eveningThresholdRiteFlowIndex = <int, FlowData>{
     color: Colors.deepPurple,
     active: true,
     notes: 'maat=$kEveningThresholdRiteFlowKey',
+  ),
+};
+
+const Map<int, FlowData> _offeringTableFlowIndex = <int, FlowData>{
+  _offeringTableFlowId: FlowData(
+    id: _offeringTableFlowId,
+    name: kOfferingTableTitle,
+    color: Colors.brown,
+    active: true,
+    notes: 'maat=$kOfferingTableFlowKey',
+  ),
+};
+
+const Map<int, FlowData> _daysOutsideFlowIndex = <int, FlowData>{
+  _daysOutsideFlowId: FlowData(
+    id: _daysOutsideFlowId,
+    name: kDaysOutsideTheYearTitle,
+    color: Colors.blueGrey,
+    active: true,
+    notes: 'maat=$kDaysOutsideTheYearFlowKey',
   ),
 };
 
@@ -879,6 +1220,53 @@ NoteData _eveningThresholdRiteNote() {
       'flow_key': kEveningThresholdRiteFlowKey,
       'kind': 'maat_evening_threshold_rite_day',
       'day': day.dayNumber,
+    },
+  );
+}
+
+NoteData _offeringTableNote() {
+  final day = kOfferingTableDays.first;
+  return NoteData(
+    clientEventId: 'cid-offering-table-1',
+    title: _offeringTableTitle,
+    detail: offeringTableDetailText(
+      day,
+      lens: OfferingTableLens.neutral,
+      noCupMode: false,
+    ),
+    category: day.section,
+    allDay: false,
+    start: const TimeOfDay(hour: 7, minute: 30),
+    end: const TimeOfDay(hour: 7, minute: 33),
+    flowId: _offeringTableFlowId,
+    behaviorPayload: <String, dynamic>{
+      'flow_key': kOfferingTableFlowKey,
+      'kind': 'maat_offering_table_day',
+      'day': day.dayNumber,
+    },
+  );
+}
+
+NoteData _daysOutsideNote({DaysOutsideEvent? event}) {
+  final target = event ?? _daysOutsideEvent;
+  return NoteData(
+    clientEventId: 'cid-days-outside-${target.eventNumber}',
+    title: daysOutsideEventTitle(target),
+    detail: daysOutsideDetailText(
+      target,
+      closingKYear: 1,
+      variant: DaysOutsideCopyVariant.standard,
+    ),
+    category: target.qualityLabel,
+    allDay: false,
+    start: const TimeOfDay(hour: 6, minute: 0),
+    end: const TimeOfDay(hour: 6, minute: 8),
+    flowId: _daysOutsideFlowId,
+    behaviorPayload: <String, dynamic>{
+      'flow_key': kDaysOutsideTheYearFlowKey,
+      'kind': 'maat_days_outside_year',
+      'event_number': target.eventNumber,
+      'event_kind': target.kind.key,
     },
   );
 }

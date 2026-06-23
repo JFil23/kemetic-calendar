@@ -137,6 +137,9 @@ enum MaatFlowResponseJournalFormatter {
   decanWatch,
   dawnHouseRite,
   closingRelease,
+  offeringTable,
+  daysOutsideReceipt,
+  wepRonpetOpening,
 }
 
 extension MaatFlowResponseJournalFormatterX
@@ -151,6 +154,12 @@ extension MaatFlowResponseJournalFormatterX
         return 'dawn_house_rite';
       case MaatFlowResponseJournalFormatter.closingRelease:
         return 'closing_release';
+      case MaatFlowResponseJournalFormatter.offeringTable:
+        return 'offering_table';
+      case MaatFlowResponseJournalFormatter.daysOutsideReceipt:
+        return 'days_outside_receipt';
+      case MaatFlowResponseJournalFormatter.wepRonpetOpening:
+        return 'wep_ronpet_opening';
     }
   }
 
@@ -165,6 +174,15 @@ extension MaatFlowResponseJournalFormatterX
       case 'closing_release':
       case 'closing-release':
         return MaatFlowResponseJournalFormatter.closingRelease;
+      case 'offering_table':
+      case 'offering-table':
+        return MaatFlowResponseJournalFormatter.offeringTable;
+      case 'days_outside_receipt':
+      case 'days-outside-receipt':
+        return MaatFlowResponseJournalFormatter.daysOutsideReceipt;
+      case 'wep_ronpet_opening':
+      case 'wep-ronpet-opening':
+        return MaatFlowResponseJournalFormatter.wepRonpetOpening;
       case 'standard':
       default:
         return MaatFlowResponseJournalFormatter.standard;
@@ -560,6 +578,12 @@ String _formatResponseBodyText(
       return '${spec.journalHeading}: I brought order by ${_sentenceFragment(display)}.';
     case MaatFlowResponseJournalFormatter.closingRelease:
       return '${spec.journalHeading}: I release ${_sentenceFragment(display)}.';
+    case MaatFlowResponseJournalFormatter.offeringTable:
+      return '${spec.journalHeading}: I provided ${_sentenceFragment(display)}.';
+    case MaatFlowResponseJournalFormatter.daysOutsideReceipt:
+      return '${spec.journalHeading}: I carry the receipt that ${_sentenceFragment(display)}.';
+    case MaatFlowResponseJournalFormatter.wepRonpetOpening:
+      return '${spec.journalHeading}: I open the year with ${_sentenceFragment(display)}.';
     case MaatFlowResponseJournalFormatter.decanWatch:
     case MaatFlowResponseJournalFormatter.standard:
       return '${spec.journalHeading}: $display';
@@ -575,8 +599,12 @@ String _formatGroupedResponseBodyText(
   switch (formatter) {
     case MaatFlowResponseJournalFormatter.decanWatch:
       return _formatDecanWatchResponseGroup(specs, values);
+    case MaatFlowResponseJournalFormatter.offeringTable:
+      return _formatOfferingTableResponseGroup(specs, values);
     case MaatFlowResponseJournalFormatter.dawnHouseRite:
     case MaatFlowResponseJournalFormatter.closingRelease:
+    case MaatFlowResponseJournalFormatter.daysOutsideReceipt:
+    case MaatFlowResponseJournalFormatter.wepRonpetOpening:
     case MaatFlowResponseJournalFormatter.standard:
       final fragments = <String>[];
       for (final spec in specs) {
@@ -588,6 +616,42 @@ String _formatGroupedResponseBodyText(
       if (fragments.isEmpty) return '';
       return '${specs.first.journalHeading}: ${fragments.join(' ')}';
   }
+}
+
+String _formatOfferingTableResponseGroup(
+  List<MaatFlowResponseSpec> specs,
+  Map<String, MaatFlowResponseValue> values,
+) {
+  final byRole = <String, MaatFlowResponseSpec>{
+    for (final spec in specs)
+      if (spec.normalizedJournalRole != null) spec.normalizedJournalRole!: spec,
+  };
+
+  final fedSpec = byRole['fed'];
+  final providedSpec = byRole['provided'];
+  final fed = fedSpec == null
+      ? ''
+      : _joinNatural(
+          values[fedSpec.id]?.optionIds
+                  .map((id) => fedSpec.optionById(id)?._displayLabel ?? id)
+                  .where((label) => label.trim().isNotEmpty)
+                  .map((label) => label.trim().toLowerCase()) ??
+              const Iterable<String>.empty(),
+        );
+  final provided = providedSpec == null
+      ? ''
+      : _sentenceFragment(values[providedSpec.id]?.displayText(providedSpec));
+
+  if (fed.isNotEmpty && provided.isNotEmpty) {
+    return '${specs.first.journalHeading}: I fed $fed by $provided.';
+  }
+  if (fed.isNotEmpty) {
+    return '${specs.first.journalHeading}: I provided $fed today.';
+  }
+  if (provided.isNotEmpty) {
+    return '${specs.first.journalHeading}: I provided $provided.';
+  }
+  return '';
 }
 
 String _formatDecanWatchResponseGroup(
@@ -647,6 +711,23 @@ String _sentenceFragment(String? value) {
   final trimmed = value?.trim();
   if (trimmed == null || trimmed.isEmpty) return '';
   return trimmed.replaceFirst(RegExp(r'[.!?]+$'), '').trim();
+}
+
+String _joinNatural(Iterable<String> values) {
+  final parts = values
+      .map((value) => value.trim())
+      .where((value) => value.isNotEmpty)
+      .toList(growable: false);
+  switch (parts.length) {
+    case 0:
+      return '';
+    case 1:
+      return parts.single;
+    case 2:
+      return '${parts.first} and ${parts.last}';
+    default:
+      return '${parts.sublist(0, parts.length - 1).join(', ')}, and ${parts.last}';
+  }
 }
 
 String buildMaatFlowResponseSourceId({

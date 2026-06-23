@@ -8,7 +8,9 @@ import 'package:mobile/features/calendar/evening_threshold_rite_flow.dart';
 import 'package:mobile/features/calendar/maat_flow_response_journal_blocks.dart';
 import 'package:mobile/features/calendar/maat_flow_response_models.dart';
 import 'package:mobile/features/calendar/maat_flow_response_resolver.dart';
+import 'package:mobile/features/calendar/the_days_outside_year_flow.dart';
 import 'package:mobile/features/calendar/the_decan_watch_flow.dart';
+import 'package:mobile/features/calendar/the_offering_table_flow.dart';
 import 'package:mobile/features/journal/journal_badge_utils.dart';
 import 'package:mobile/features/journal/journal_event_badge.dart';
 import 'package:mobile/features/journal/journal_v2_document_model.dart';
@@ -60,6 +62,18 @@ void main() {
       'closing_release',
     );
     expect(
+      MaatFlowResponseJournalFormatter.offeringTable.wireName,
+      'offering_table',
+    );
+    expect(
+      MaatFlowResponseJournalFormatter.daysOutsideReceipt.wireName,
+      'days_outside_receipt',
+    );
+    expect(
+      MaatFlowResponseJournalFormatter.wepRonpetOpening.wireName,
+      'wep_ronpet_opening',
+    );
+    expect(
       MaatFlowResponseJournalFormatterX.fromWireName('decan-watch'),
       MaatFlowResponseJournalFormatter.decanWatch,
     );
@@ -71,10 +85,22 @@ void main() {
       MaatFlowResponseJournalFormatterX.fromWireName('closing-release'),
       MaatFlowResponseJournalFormatter.closingRelease,
     );
+    expect(
+      MaatFlowResponseJournalFormatterX.fromWireName('offering-table'),
+      MaatFlowResponseJournalFormatter.offeringTable,
+    );
+    expect(
+      MaatFlowResponseJournalFormatterX.fromWireName('days-outside-receipt'),
+      MaatFlowResponseJournalFormatter.daysOutsideReceipt,
+    );
+    expect(
+      MaatFlowResponseJournalFormatterX.fromWireName('wep-ronpet-opening'),
+      MaatFlowResponseJournalFormatter.wepRonpetOpening,
+    );
   });
 
-  test('default resolver exposes only Phase 2B through 2D pilot specs', () {
-    expect(kDefaultMaatFlowResponseResolver.specs, hasLength(8));
+  test('default resolver exposes only Phase 2B through 3A pilot specs', () {
+    expect(kDefaultMaatFlowResponseResolver.specs, hasLength(17));
 
     expect(
       resolveMaatFlowResponseSpecs(
@@ -123,6 +149,37 @@ void main() {
         surface: MaatFlowResponseSurface.calendarSheet,
       ).map((spec) => spec.id),
       <String>['closing-release-tonight'],
+    );
+    expect(
+      resolveMaatFlowResponseSpecs(
+        flowKey: kOfferingTableFlowKey,
+        surface: MaatFlowResponseSurface.calendarSheet,
+      ).map((spec) => spec.id),
+      <String>['offering-table-fed', 'offering-table-provided'],
+    );
+    expect(
+      resolveMaatFlowResponseSpecs(
+        flowKey: kDaysOutsideTheYearFlowKey,
+        surface: MaatFlowResponseSurface.calendarSheet,
+        eventKey: 'event-1',
+      ).map((spec) => spec.id),
+      <String>['days-outside-receipt'],
+    );
+    expect(
+      resolveMaatFlowResponseSpecs(
+        flowKey: kDaysOutsideTheYearFlowKey,
+        surface: MaatFlowResponseSurface.calendarSheet,
+        eventKey: 'event-6',
+      ).map((spec) => spec.id),
+      <String>['wep-ronpet-year-intention'],
+    );
+    expect(
+      resolveMaatFlowResponseSpecs(
+        flowKey: kDaysOutsideTheYearFlowKey,
+        surface: MaatFlowResponseSurface.calendarSheet,
+        eventKey: 'event-7',
+      ),
+      isEmpty,
     );
 
     for (final flowKey in const <String>[
@@ -356,6 +413,88 @@ void main() {
     );
   });
 
+  test('Offering Table and Days Outside formatters read naturally', () {
+    final offeringSpecs = resolveMaatFlowResponseSpecs(
+      flowKey: kOfferingTableFlowKey,
+      surface: MaatFlowResponseSurface.calendarSheet,
+    );
+    final offering = buildMaatFlowResponseJournalPreviews(
+      specs: offeringSpecs,
+      values: <String, MaatFlowResponseValue>{
+        'offering-table-fed': MaatFlowResponseValue.chips(
+          specId: 'offering-table-fed',
+          optionIds: <String>['rest'],
+        ),
+        'offering-table-provided': MaatFlowResponseValue.text(
+          specId: 'offering-table-provided',
+          text: 'closing the laptop early and letting the house settle.',
+          multiline: true,
+        ),
+      },
+      clientEventId: 'cid-offering',
+    );
+
+    expect(offering, hasLength(1));
+    expect(
+      offering.single.sourceId,
+      'maat_response:the-offering-table:cid:cid-offering:offering-table-provision',
+    );
+    expect(
+      offering.single.text,
+      'The Offering Table: I fed rest by closing the laptop early and letting the house settle.',
+    );
+
+    final offeringChipsOnly = buildMaatFlowResponseJournalPreviews(
+      specs: offeringSpecs,
+      values: <String, MaatFlowResponseValue>{
+        'offering-table-fed': MaatFlowResponseValue.chips(
+          specId: 'offering-table-fed',
+          optionIds: <String>['water', 'care'],
+        ),
+      },
+    );
+    expect(
+      offeringChipsOnly.single.text,
+      'The Offering Table: I provided water and care today.',
+    );
+
+    final daysSpec = resolveMaatFlowResponseSpecs(
+      flowKey: kDaysOutsideTheYearFlowKey,
+      surface: MaatFlowResponseSurface.calendarSheet,
+      eventKey: 'event-1',
+    ).single;
+    final days = buildMaatFlowResponseJournalPreview(
+      spec: daysSpec,
+      value: MaatFlowResponseValue.text(
+        specId: daysSpec.id,
+        text: 'I survived the old year with more clarity than I entered it.',
+        multiline: true,
+      ),
+    );
+    expect(
+      days!.text,
+      'The Days Outside the Year: I carry the receipt that I survived the old year with more clarity than I entered it.',
+    );
+
+    final wepSpec = resolveMaatFlowResponseSpecs(
+      flowKey: kDaysOutsideTheYearFlowKey,
+      surface: MaatFlowResponseSurface.calendarSheet,
+      eventKey: 'event-6',
+    ).single;
+    final wep = buildMaatFlowResponseJournalPreview(
+      spec: wepSpec,
+      value: MaatFlowResponseValue.text(
+        specId: wepSpec.id,
+        text: 'steadiness, clean speech, and finished work.',
+        multiline: true,
+      ),
+    );
+    expect(
+      wep!.text,
+      'Wep Ronpet: I open the year with steadiness, clean speech, and finished work.',
+    );
+  });
+
   test(
     'local-only, empty, and skipped responses do not produce journal body',
     () {
@@ -466,7 +605,7 @@ void main() {
     expect(JournalBadgeUtils.tokensFromDocument(removed), hasLength(1));
   });
 
-  test('Phase 2D wiring stays isolated to shared sheet panels and pilots', () {
+  test('Phase 3A wiring stays isolated to shared sheet panels and pilots', () {
     expect(
       kDefaultMaatFlowResponseResolver.specs
           .map((spec) => spec.flowKey)
@@ -477,6 +616,8 @@ void main() {
         'the-decan-watch',
         kDawnHouseRiteFlowKey,
         kEveningThresholdRiteFlowKey,
+        kOfferingTableFlowKey,
+        kDaysOutsideTheYearFlowKey,
       },
     );
 
