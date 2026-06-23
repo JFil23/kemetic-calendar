@@ -6776,6 +6776,96 @@ class _DayViewGridState extends State<DayViewGrid> {
       externalAction,
     );
     final completionPickerStyle = _dayViewCompletionPickerStyle(visual);
+    final hasMaatCompletionPanel =
+        completionContext != null &&
+        currentEvent.clientEventId?.trim().isNotEmpty == true &&
+        currentEvent.flowId != null;
+
+    Widget buildMaatCompletionPanel() {
+      return Builder(
+        builder: (feedbackContext) => _MaatFlowCompletionPanel(
+          event: currentEvent,
+          identity: _completionIdentityForEvent(currentEvent),
+          completion: completionContext!,
+          responseSpecs: responseSpecs,
+          ky: target.ky,
+          km: target.km,
+          kd: target.kd,
+          onRecordCompletion: widget.onRecordCompletion,
+          onUnrecordCompletion: widget.onUnrecordCompletion,
+          onRemoveCompletionBadge: widget.onRemoveCompletionBadge,
+          onWriteJournalResponse: widget.onWriteJournalResponse,
+          onCompletionContinuity: (status) => _appendCompletionContinuity(
+            target,
+            status,
+            sourceType: CompletionSourceType.maatFlow,
+            triggerHaptic: false,
+          ),
+          onUserCompletionFeedback: enableRitualCompletionFeedback
+              ? (status) =>
+                    playDayViewRitualCompletionFeedback(feedbackContext, status)
+              : null,
+          onAddReflection: null,
+          reloadSignal: completionReloadSignal,
+          pickerStyle: completionPickerStyle,
+          observedButtonKey:
+              includeOnboardingKeys && _isOnboardingTargetEvent(currentEvent)
+              ? widget.onboardingObservedKey
+              : null,
+        ),
+      );
+    }
+
+    Widget buildCalendarCompletionPanel() {
+      return Builder(
+        builder: (feedbackContext) => CalendarEventCompletionPanel(
+          identity: _completionIdentityForEvent(currentEvent),
+          sourceType: _completionSourceTypeForEvent(
+            currentEvent,
+            flow,
+            completionContext,
+          ),
+          loadStatus: currentEvent.flowId == null
+              ? null
+              : () => _loadCalendarCompletionStatus(target),
+          onRecordStatus: (status) => _recordCalendarCompletion(
+            target,
+            status,
+            sourceType: _completionSourceTypeForEvent(
+              currentEvent,
+              flow,
+              completionContext,
+            ),
+            flow: flow,
+          ),
+          onClearStatus: () => _clearCalendarCompletion(
+            target,
+            sourceType: _completionSourceTypeForEvent(
+              currentEvent,
+              flow,
+              completionContext,
+            ),
+          ),
+          onCreateContinuity: (status) => _appendCompletionContinuity(
+            target,
+            status,
+            sourceType: _completionSourceTypeForEvent(
+              currentEvent,
+              flow,
+              completionContext,
+            ),
+            triggerHaptic: !enableRitualCompletionFeedback,
+          ),
+          onUserCompletionFeedback: enableRitualCompletionFeedback
+              ? (status) =>
+                    playDayViewRitualCompletionFeedback(feedbackContext, status)
+              : null,
+          onReflect: null,
+          reloadSignal: completionReloadSignal,
+          pickerStyle: completionPickerStyle,
+        ),
+      );
+    }
 
     final body = Column(
       mainAxisSize: MainAxisSize.min,
@@ -6895,7 +6985,18 @@ class _DayViewGridState extends State<DayViewGrid> {
                 );
               }
 
-              if (rendersMaatFlowSections) return detailContent;
+              if (rendersMaatFlowSections) {
+                if (responseSpecs.isNotEmpty) {
+                  return ConstrainedBox(
+                    constraints: const BoxConstraints(maxHeight: 180),
+                    child: SingleChildScrollView(
+                      physics: const BouncingScrollPhysics(),
+                      child: detailContent,
+                    ),
+                  );
+                }
+                return detailContent;
+              }
 
               return Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -6907,6 +7008,10 @@ class _DayViewGridState extends State<DayViewGrid> {
               );
             },
           ),
+        ],
+        if (hasMaatCompletionPanel && responseSpecs.isNotEmpty) ...[
+          const SizedBox(height: 10),
+          buildMaatCompletionPanel(),
         ],
         if (currentEvent.flowId != null &&
             tendingEvent != null &&
@@ -6978,97 +7083,12 @@ class _DayViewGridState extends State<DayViewGrid> {
             kYear: target.ky,
           ),
         ],
-        if (completionContext != null &&
-            currentEvent.clientEventId?.trim().isNotEmpty == true &&
-            currentEvent.flowId != null) ...[
+        if (hasMaatCompletionPanel && responseSpecs.isEmpty) ...[
           const SizedBox(height: 10),
-          Builder(
-            builder: (feedbackContext) => _MaatFlowCompletionPanel(
-              event: currentEvent,
-              identity: _completionIdentityForEvent(currentEvent),
-              completion: completionContext,
-              responseSpecs: responseSpecs,
-              ky: target.ky,
-              km: target.km,
-              kd: target.kd,
-              onRecordCompletion: widget.onRecordCompletion,
-              onUnrecordCompletion: widget.onUnrecordCompletion,
-              onRemoveCompletionBadge: widget.onRemoveCompletionBadge,
-              onWriteJournalResponse: widget.onWriteJournalResponse,
-              onCompletionContinuity: (status) => _appendCompletionContinuity(
-                target,
-                status,
-                sourceType: CompletionSourceType.maatFlow,
-                triggerHaptic: false,
-              ),
-              onUserCompletionFeedback: enableRitualCompletionFeedback
-                  ? (status) => playDayViewRitualCompletionFeedback(
-                      feedbackContext,
-                      status,
-                    )
-                  : null,
-              onAddReflection: null,
-              reloadSignal: completionReloadSignal,
-              pickerStyle: completionPickerStyle,
-              observedButtonKey:
-                  includeOnboardingKeys &&
-                      _isOnboardingTargetEvent(currentEvent)
-                  ? widget.onboardingObservedKey
-                  : null,
-            ),
-          ),
-        ] else ...[
+          buildMaatCompletionPanel(),
+        ] else if (!hasMaatCompletionPanel) ...[
           const SizedBox(height: 10),
-          Builder(
-            builder: (feedbackContext) => CalendarEventCompletionPanel(
-              identity: _completionIdentityForEvent(currentEvent),
-              sourceType: _completionSourceTypeForEvent(
-                currentEvent,
-                flow,
-                completionContext,
-              ),
-              loadStatus: currentEvent.flowId == null
-                  ? null
-                  : () => _loadCalendarCompletionStatus(target),
-              onRecordStatus: (status) => _recordCalendarCompletion(
-                target,
-                status,
-                sourceType: _completionSourceTypeForEvent(
-                  currentEvent,
-                  flow,
-                  completionContext,
-                ),
-                flow: flow,
-              ),
-              onClearStatus: () => _clearCalendarCompletion(
-                target,
-                sourceType: _completionSourceTypeForEvent(
-                  currentEvent,
-                  flow,
-                  completionContext,
-                ),
-              ),
-              onCreateContinuity: (status) => _appendCompletionContinuity(
-                target,
-                status,
-                sourceType: _completionSourceTypeForEvent(
-                  currentEvent,
-                  flow,
-                  completionContext,
-                ),
-                triggerHaptic: !enableRitualCompletionFeedback,
-              ),
-              onUserCompletionFeedback: enableRitualCompletionFeedback
-                  ? (status) => playDayViewRitualCompletionFeedback(
-                      feedbackContext,
-                      status,
-                    )
-                  : null,
-              onReflect: null,
-              reloadSignal: completionReloadSignal,
-              pickerStyle: completionPickerStyle,
-            ),
-          ),
+          buildCalendarCompletionPanel(),
         ],
         if (libraryCta != null) ...[
           const SizedBox(height: 12),
@@ -8587,6 +8607,7 @@ class _MaatFlowCompletionPanelState extends State<_MaatFlowCompletionPanel> {
   int _decanWatchResponseLoadGeneration = 0;
   Map<String, MaatFlowResponseValue> _responseValues =
       const <String, MaatFlowResponseValue>{};
+  bool _responseDirty = false;
 
   @override
   void initState() {
@@ -8701,11 +8722,13 @@ class _MaatFlowCompletionPanelState extends State<_MaatFlowCompletionPanel> {
     if (oldWidget.event.clientEventId != widget.event.clientEventId) {
       _cancelCompletionFeedback();
       _responseValues = const <String, MaatFlowResponseValue>{};
+      _responseDirty = false;
       _eveningThresholdReleaseCarryController.clear();
       _eveningThresholdReleasePending = false;
       unawaited(_load());
     } else if (oldWidget.reloadSignal != widget.reloadSignal) {
       _responseValues = const <String, MaatFlowResponseValue>{};
+      _responseDirty = false;
       _eveningThresholdReleaseCarryController.clear();
       _eveningThresholdReleasePending = false;
       unawaited(_load());
@@ -8714,6 +8737,7 @@ class _MaatFlowCompletionPanelState extends State<_MaatFlowCompletionPanel> {
       widget.responseSpecs,
     )) {
       _responseValues = const <String, MaatFlowResponseValue>{};
+      _responseDirty = false;
       unawaited(_loadDecanWatchResponseValuesIfNeeded());
     }
   }
@@ -8846,6 +8870,7 @@ class _MaatFlowCompletionPanelState extends State<_MaatFlowCompletionPanel> {
     if (!mounted || generation != _decanWatchResponseLoadGeneration) return;
     setState(() {
       _responseValues = _responseValuesFromDecanWatchRecord(record);
+      _responseDirty = false;
     });
   }
 
@@ -9254,6 +9279,7 @@ class _MaatFlowCompletionPanelState extends State<_MaatFlowCompletionPanel> {
       setState(() {
         _status = status;
         _saving = false;
+        _responseDirty = false;
         _eveningThresholdReleasePending = false;
       });
       if (status == 'release') {
@@ -9311,6 +9337,7 @@ class _MaatFlowCompletionPanelState extends State<_MaatFlowCompletionPanel> {
       setState(() {
         _status = null;
         _saving = false;
+        _responseDirty = false;
         _eveningThresholdReleasePending = false;
       });
       _eveningThresholdReleaseCarryController.clear();
@@ -9694,6 +9721,7 @@ class _MaatFlowCompletionPanelState extends State<_MaatFlowCompletionPanel> {
     };
     setState(() {
       _responseValues = nextValues;
+      _responseDirty = true;
     });
     unawaited(_persistDecanWatchResponseValues(nextValues));
   }
@@ -9714,6 +9742,7 @@ class _MaatFlowCompletionPanelState extends State<_MaatFlowCompletionPanel> {
         MaatJournalResponseBlock(
           sourceId: sourceId,
           text: previewsBySourceId[sourceId]?.text ?? '',
+          localDate: localDate,
         ),
       );
     }
@@ -9808,7 +9837,11 @@ class _MaatFlowCompletionPanelState extends State<_MaatFlowCompletionPanel> {
           style: widget.pickerStyle,
           onChanged: (status) {
             if (status == standardStatus) {
-              unawaited(_clear());
+              if (widget.responseSpecs.isNotEmpty && _responseDirty) {
+                unawaited(_record(status.maatStatusName));
+              } else {
+                unawaited(_clear());
+              }
             } else {
               unawaited(_record(status.maatStatusName));
             }

@@ -6,10 +6,12 @@ import 'package:go_router/go_router.dart';
 import 'package:mobile/core/completion_status.dart';
 import 'package:mobile/data/journal_repo.dart';
 import 'package:mobile/features/calendar/calendar_reflection_context.dart';
+import 'package:mobile/features/calendar/maat_flow_response_journal_blocks.dart';
 import 'package:mobile/features/journal/journal_badge_utils.dart';
 import 'package:mobile/features/journal/journal_controller.dart';
 import 'package:mobile/features/journal/journal_overlay.dart';
 import 'package:mobile/features/journal/journal_skin_tokens.dart';
+import 'package:mobile/features/journal/journal_v2_document_model.dart';
 import 'package:mobile/features/journal/journal_v2_toolbar.dart';
 import 'package:mobile/main.dart' as app;
 import 'package:mobile/services/session_resume_service.dart';
@@ -40,20 +42,23 @@ void main() {
     SharedPreferences.setMockInitialValues({});
   });
 
-  test('journal skin date typography falls back for transliteration glyphs', () {
-    expect(
-      JournalSkinTokens.dateTitleStyle.fontFamilyFallback,
-      contains('GentiumPlus'),
-    );
-    expect(
-      JournalSkinTokens.dateGlossStyle.fontFamilyFallback,
-      contains('GentiumPlus'),
-    );
-    expect(
-      JournalSkinTokens.entryBodyStyle.fontFamilyFallback,
-      contains('GentiumPlus'),
-    );
-  });
+  test(
+    'journal skin date typography falls back for transliteration glyphs',
+    () {
+      expect(
+        JournalSkinTokens.dateTitleStyle.fontFamilyFallback,
+        contains('GentiumPlus'),
+      );
+      expect(
+        JournalSkinTokens.dateGlossStyle.fontFamilyFallback,
+        contains('GentiumPlus'),
+      );
+      expect(
+        JournalSkinTokens.entryBodyStyle.fontFamilyFallback,
+        contains('GentiumPlus'),
+      );
+    },
+  );
 
   testWidgets('badge section and toolbar stay visible while keyboard is open', (
     tester,
@@ -170,6 +175,71 @@ void main() {
 
     expect(controller.currentDraft, 'Today I can write.');
     expect(field.focusNode?.hasFocus, isTrue);
+
+    await controller.forceSave();
+  });
+
+  testWidgets('Ma’at response body blocks render without replacing badges', (
+    tester,
+  ) async {
+    tester.view.devicePixelRatio = 1.0;
+    tester.view.physicalSize = const Size(390, 844);
+    addTearDown(() async {
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+    });
+
+    final controller = JournalController.withRepo(
+      _NoopJournalRepo(),
+      currentUserId: () => 'user-a',
+    );
+    addTearDown(controller.dispose);
+
+    const responseSourceId =
+        'maat_response:the-offering-table:cid:event-1:offering-table-provision';
+    const responseText =
+        'The Offering Table: I fed rest by closing the laptop early.';
+    final responseBlockId = maatJournalResponseBlockId(responseSourceId);
+    await controller.updateDocument(
+      JournalDocument(
+        version: kJournalDocVersion,
+        blocks: <JournalBlock>[
+          const ParagraphBlock(
+            id: 'user-body',
+            ops: <TextOp>[TextOp(insert: '\n')],
+          ),
+          ParagraphBlock(
+            id: responseBlockId,
+            ops: const <TextOp>[TextOp(insert: responseText)],
+          ),
+        ],
+      ),
+    );
+
+    await tester.pumpWidget(
+      _JournalHarness(controller: controller, bottomInset: 0),
+    );
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+
+    expect(find.byKey(kJournalMaatResponseBodyBlocksKey), findsOneWidget);
+    expect(find.text(responseText), findsOneWidget);
+    expect(find.text('Badges'), findsOneWidget);
+
+    final fieldFinder = find.byType(TextField);
+    expect(fieldFinder, findsOneWidget);
+    await tester.enterText(fieldFinder, 'User journal text.');
+    await tester.pump();
+
+    final document = controller.currentDocument!;
+    expect(document.toPlainText(), contains('User journal text.'));
+    expect(document.toPlainText(), contains(responseText));
+    expect(document.blocks.map((block) => block.id), contains(responseBlockId));
+    expect(MaatJournalResponseBlockUtils.extract(document), hasLength(1));
+    expect(
+      MaatJournalResponseBlockUtils.extract(document).single.text,
+      responseText,
+    );
 
     await controller.forceSave();
   });

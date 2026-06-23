@@ -3,11 +3,15 @@ import 'package:mobile/features/journal/journal_v2_document_model.dart';
 const String kMaatJournalResponseBlockIdPrefix = 'maat_response:';
 
 class MaatJournalResponseBlock {
-  const MaatJournalResponseBlock({required this.sourceId, required this.text})
-    : assert(sourceId.length > 0);
+  const MaatJournalResponseBlock({
+    required this.sourceId,
+    required this.text,
+    this.localDate,
+  }) : assert(sourceId.length > 0);
 
   final String sourceId;
   final String text;
+  final DateTime? localDate;
 
   String get blockId => maatJournalResponseBlockId(sourceId);
 }

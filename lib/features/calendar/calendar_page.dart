@@ -8368,6 +8368,10 @@ class CalendarPageState extends State<CalendarPage>
   ) async {
     if (block.sourceId.trim().isEmpty) return;
     if (!await _ensureJournalControllerReady()) return;
+    final localDate = block.localDate;
+    if (localDate != null) {
+      await _journalController.loadDate(DateUtils.dateOnly(localDate));
+    }
     final currentDocument =
         _journalController.currentDocument ??
         JournalDocument.fromPlainText(_journalController.currentDraft);

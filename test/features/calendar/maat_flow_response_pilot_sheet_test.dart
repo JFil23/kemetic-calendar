@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mobile/core/completion_status.dart';
+import 'package:mobile/features/calendar/calendar_page.dart' show KemeticMath;
 import 'package:mobile/features/calendar/dawn_house_rite_flow.dart';
 import 'package:mobile/features/calendar/day_view.dart';
 import 'package:mobile/features/calendar/evening_threshold_rite_flow.dart';
@@ -162,7 +163,6 @@ void main() {
       specId: 'moon-return-set-down',
       text: 'Updated response.',
     );
-    await _tapStatus(tester, 'Observed');
     await _tapStatus(tester, 'Observed');
 
     final responseBlocks = MaatJournalResponseBlockUtils.extract(document);
@@ -432,7 +432,6 @@ void main() {
       text: 'updated bearing',
     );
     await _tapStatus(tester, 'Observed');
-    await _tapStatus(tester, 'Observed');
 
     final responseBlocks = MaatJournalResponseBlockUtils.extract(document);
     expect(responseBlocks, hasLength(1));
@@ -611,7 +610,6 @@ void main() {
       text: 'clearing the sink.',
     );
     await _tapStatus(tester, 'Observed');
-    await _tapStatus(tester, 'Observed');
 
     final responseBlocks = MaatJournalResponseBlockUtils.extract(document);
     expect(responseBlocks, hasLength(1));
@@ -734,6 +732,10 @@ void main() {
     await _setPhoneViewport(tester);
     var document = _journalDocument('Offering journal body stays.');
     final badgeAppends = <String>[];
+    final responseWrites = <MaatJournalResponseBlock>[];
+    final expectedEventDate = DateUtils.dateOnly(
+      KemeticMath.toGregorian(1, 1, 1),
+    );
 
     await tester.pumpWidget(
       _DayViewHarness(
@@ -741,6 +743,7 @@ void main() {
         notes: <NoteData>[_offeringTableNote()],
         onAppendToJournal: (text) async => badgeAppends.add(text),
         onWriteJournalResponse: (block) async {
+          responseWrites.add(block);
           document = MaatJournalResponseBlockUtils.upsert(document, block);
         },
         onRecordCompletion:
@@ -773,6 +776,11 @@ void main() {
       contains('The Offering Table: I provided water and care today.'),
     );
     expect(MaatJournalResponseBlockUtils.extract(document), hasLength(1));
+    expect(responseWrites, hasLength(1));
+    expect(
+      DateUtils.dateOnly(responseWrites.single.localDate!),
+      expectedEventDate,
+    );
     expect(JournalBadgeUtils.hasBadges(document.toPlainText()), isFalse);
     expect(badgeAppends, hasLength(1));
     expect(JournalBadgeUtils.hasBadges(badgeAppends.single), isTrue);
@@ -822,7 +830,6 @@ void main() {
       text: 'closing the kitchen before night.',
     );
     await _tapStatus(tester, 'Observed');
-    await _tapStatus(tester, 'Observed');
 
     final responseBlocks = MaatJournalResponseBlockUtils.extract(document);
     expect(responseBlocks, hasLength(1));
@@ -840,6 +847,10 @@ void main() {
     await _setPhoneViewport(tester);
     var document = _journalDocument('Days Outside journal body stays.');
     final badgeAppends = <String>[];
+    final responseWrites = <MaatJournalResponseBlock>[];
+    final expectedEventDate = DateUtils.dateOnly(
+      KemeticMath.toGregorian(1, 1, 1),
+    );
 
     await tester.pumpWidget(
       _DayViewHarness(
@@ -847,6 +858,7 @@ void main() {
         notes: <NoteData>[_daysOutsideNote()],
         onAppendToJournal: (text) async => badgeAppends.add(text),
         onWriteJournalResponse: (block) async {
+          responseWrites.add(block);
           document = MaatJournalResponseBlockUtils.upsert(document, block);
         },
         onRecordCompletion:
@@ -893,6 +905,11 @@ void main() {
       ),
     );
     expect(MaatJournalResponseBlockUtils.extract(document), hasLength(1));
+    expect(responseWrites, hasLength(1));
+    expect(
+      DateUtils.dateOnly(responseWrites.single.localDate!),
+      expectedEventDate,
+    );
     expect(JournalBadgeUtils.hasBadges(document.toPlainText()), isFalse);
     expect(badgeAppends, hasLength(1));
     expect(JournalBadgeUtils.hasBadges(badgeAppends.single), isTrue);
@@ -936,7 +953,6 @@ void main() {
       specId: 'days-outside-receipt',
       text: 'I carried one clear receipt across the threshold.',
     );
-    await _tapStatus(tester, 'Observed');
     await _tapStatus(tester, 'Observed');
 
     final responseBlocks = MaatJournalResponseBlockUtils.extract(document);
