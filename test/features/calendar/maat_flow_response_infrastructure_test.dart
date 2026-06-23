@@ -303,20 +303,42 @@ void main() {
     expect(JournalBadgeUtils.tokensFromDocument(removed), hasLength(1));
   });
 
-  test(
-    'Phase 1 response infrastructure is not wired into live surfaces yet',
-    () {
-      for (final path in const <String>[
-        'lib/features/calendar/day_view.dart',
-        'lib/features/calendar/calendar_grid_widgets.dart',
-        'lib/features/calendar/landscape_month_view.dart',
-        'lib/features/calendar/calendar_maat_flows.dart',
-        'lib/features/calendar/evening_threshold_flow.dart',
-        'lib/features/calendar/evening_threshold_rite_flow.dart',
-      ]) {
-        final source = File(path).readAsStringSync();
-        expect(source, isNot(contains('maat_flow_response_')), reason: path);
-      }
-    },
-  );
+  test('Phase 2A wiring stays no-op and isolated to shared sheet panels', () {
+    expect(kDefaultMaatFlowResponseResolver.specs, isEmpty);
+
+    final dayView = File(
+      'lib/features/calendar/day_view.dart',
+    ).readAsStringSync();
+    expect(dayView, contains('resolveMaatFlowResponseSpecs('));
+    expect(dayView, contains('MaatFlowResponseSurface.calendarSheet'));
+    expect(dayView, contains('MaatFlowResponseSection(specs:'));
+    expect(dayView, contains('responseSpecs: responseSpecs'));
+
+    final completion = File(
+      'lib/features/calendar/calendar_completion.dart',
+    ).readAsStringSync();
+    expect(completion, contains('final Widget? leadingContent;'));
+
+    final portraitGrid = File(
+      'lib/features/calendar/calendar_grid_widgets.dart',
+    ).readAsStringSync();
+    expect(portraitGrid, contains('buildDayViewMaatFlowCompletionPanel('));
+    expect(portraitGrid, isNot(contains('maat_flow_response_')));
+
+    final landscape = File(
+      'lib/features/calendar/landscape_month_view.dart',
+    ).readAsStringSync();
+    expect(landscape, contains('buildDayViewMaatFlowCompletionPanel('));
+    expect(landscape, isNot(contains('maat_flow_response_')));
+
+    for (final path in const <String>[
+      'lib/features/calendar/calendar_maat_flows.dart',
+      'lib/features/calendar/evening_threshold_flow.dart',
+      'lib/features/calendar/evening_threshold_rite_flow.dart',
+    ]) {
+      final source = File(path).readAsStringSync();
+      expect(source, isNot(contains('maat_flow_response_')), reason: path);
+      expect(source, isNot(contains('MaatFlowResponse')), reason: path);
+    }
+  });
 }

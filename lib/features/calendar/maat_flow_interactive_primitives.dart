@@ -6,8 +6,16 @@ import 'package:flutter/services.dart';
 import 'package:mobile/core/completion_status.dart';
 
 import 'calendar_completion.dart';
+import 'maat_flow_response_models.dart';
 
 const int kFlowEnrollmentInputMaxCharacters = 280;
+const Key kMaatFlowResponseSectionKey = ValueKey<String>(
+  'maat-flow-response-section',
+);
+
+Key maatFlowResponseFieldKey(String specId) {
+  return ValueKey<String>('maat-flow-response-field:${specId.trim()}');
+}
 
 class FlowEnrollmentInputField extends StatelessWidget {
   const FlowEnrollmentInputField({
@@ -143,6 +151,243 @@ class FlowCarryBanner extends StatelessWidget {
         ],
       ),
     );
+  }
+}
+
+class MaatFlowResponseSection extends StatefulWidget {
+  const MaatFlowResponseSection({
+    super.key,
+    required this.specs,
+    this.values = const <String, MaatFlowResponseValue>{},
+    this.onChanged,
+  });
+
+  final List<MaatFlowResponseSpec> specs;
+  final Map<String, MaatFlowResponseValue> values;
+  final ValueChanged<MaatFlowResponseValue>? onChanged;
+
+  @override
+  State<MaatFlowResponseSection> createState() =>
+      _MaatFlowResponseSectionState();
+}
+
+class _MaatFlowResponseSectionState extends State<MaatFlowResponseSection> {
+  late Map<String, MaatFlowResponseValue> _values;
+
+  @override
+  void initState() {
+    super.initState();
+    _values = Map<String, MaatFlowResponseValue>.from(widget.values);
+  }
+
+  @override
+  void didUpdateWidget(covariant MaatFlowResponseSection oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.values != widget.values) {
+      _values = Map<String, MaatFlowResponseValue>.from(widget.values);
+    }
+  }
+
+  void _setValue(MaatFlowResponseValue value) {
+    setState(() {
+      _values[value.specId] = value;
+    });
+    widget.onChanged?.call(value);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (widget.specs.isEmpty) return const SizedBox.shrink();
+
+    return Container(
+      key: kMaatFlowResponseSectionKey,
+      width: double.infinity,
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        color: Colors.black.withValues(alpha: 0.18),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.12)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          for (final spec in widget.specs) ...[
+            _MaatFlowResponseField(
+              spec: spec,
+              value: _values[spec.id],
+              onChanged: _setValue,
+            ),
+            if (spec != widget.specs.last) const SizedBox(height: 10),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _MaatFlowResponseField extends StatelessWidget {
+  const _MaatFlowResponseField({
+    required this.spec,
+    required this.value,
+    required this.onChanged,
+  });
+
+  final MaatFlowResponseSpec spec;
+  final MaatFlowResponseValue? value;
+  final ValueChanged<MaatFlowResponseValue> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    final prompt = spec.prompt?.trim();
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Text(
+          spec.label,
+          style: TextStyle(
+            color: Colors.white.withValues(alpha: 0.86),
+            fontSize: 13,
+            fontWeight: FontWeight.w700,
+            letterSpacing: 0,
+          ),
+        ),
+        if (prompt != null && prompt.isNotEmpty) ...[
+          const SizedBox(height: 3),
+          Text(
+            prompt,
+            style: TextStyle(
+              color: Colors.white.withValues(alpha: 0.56),
+              fontSize: 12,
+              fontWeight: FontWeight.w500,
+              height: 1.25,
+              letterSpacing: 0,
+            ),
+          ),
+        ],
+        const SizedBox(height: 6),
+        _buildInput(),
+      ],
+    );
+  }
+
+  Widget _buildInput() {
+    switch (spec.kind) {
+      case MaatFlowResponseKind.text:
+      case MaatFlowResponseKind.multiline:
+      case MaatFlowResponseKind.statusNote:
+        return TextFormField(
+          key: maatFlowResponseFieldKey(spec.id),
+          initialValue: value?.text ?? '',
+          minLines: spec.kind == MaatFlowResponseKind.text ? 1 : 2,
+          maxLines: spec.kind == MaatFlowResponseKind.text ? 1 : 5,
+          style: const TextStyle(color: Colors.white, fontSize: 13),
+          textCapitalization: TextCapitalization.sentences,
+          decoration: InputDecoration(
+            hintText: spec.placeholder,
+            hintStyle: TextStyle(color: Colors.white.withValues(alpha: 0.34)),
+            filled: true,
+            fillColor: Colors.black.withValues(alpha: 0.18),
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: 10,
+              vertical: 9,
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(8),
+              borderSide: BorderSide(
+                color: Colors.white.withValues(alpha: 0.14),
+              ),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(8),
+              borderSide: const BorderSide(color: Color(0xFFFFD486)),
+            ),
+          ),
+          onChanged: (text) {
+            final multiline = spec.kind != MaatFlowResponseKind.text;
+            final next = spec.kind == MaatFlowResponseKind.statusNote
+                ? MaatFlowResponseValue.statusNote(specId: spec.id, text: text)
+                : MaatFlowResponseValue.text(
+                    specId: spec.id,
+                    text: text,
+                    multiline: multiline,
+                  );
+            onChanged(next);
+          },
+        );
+      case MaatFlowResponseKind.choice:
+        return Wrap(
+          spacing: 8,
+          runSpacing: 6,
+          children: [
+            for (final option in spec.options)
+              ChoiceChip(
+                key: maatFlowResponseFieldKey('${spec.id}:${option.id}'),
+                label: Text(option.label),
+                selected: value?.optionIds.contains(option.id) == true,
+                onSelected: (_) {
+                  onChanged(
+                    MaatFlowResponseValue.choice(
+                      specId: spec.id,
+                      optionId: option.id,
+                    ),
+                  );
+                },
+              ),
+          ],
+        );
+      case MaatFlowResponseKind.chips:
+        final selected = value?.optionIds.toSet() ?? const <String>{};
+        return Wrap(
+          spacing: 8,
+          runSpacing: 6,
+          children: [
+            for (final option in spec.options)
+              FilterChip(
+                key: maatFlowResponseFieldKey('${spec.id}:${option.id}'),
+                label: Text(option.label),
+                selected: selected.contains(option.id),
+                onSelected: (checked) {
+                  final next = <String>{...selected};
+                  if (checked) {
+                    next.add(option.id);
+                  } else {
+                    next.remove(option.id);
+                  }
+                  onChanged(
+                    MaatFlowResponseValue.chips(
+                      specId: spec.id,
+                      optionIds: next.toList(growable: false),
+                    ),
+                  );
+                },
+              ),
+          ],
+        );
+      case MaatFlowResponseKind.checkbox:
+        return CheckboxListTile(
+          key: maatFlowResponseFieldKey(spec.id),
+          value: value?.checked == true,
+          onChanged: (checked) {
+            onChanged(
+              MaatFlowResponseValue.checkbox(
+                specId: spec.id,
+                checked: checked == true,
+              ),
+            );
+          },
+          title: Text(
+            spec.placeholder?.trim().isNotEmpty == true
+                ? spec.placeholder!.trim()
+                : spec.label,
+            style: const TextStyle(color: Colors.white, fontSize: 13),
+          ),
+          controlAffinity: ListTileControlAffinity.leading,
+          contentPadding: EdgeInsets.zero,
+          dense: true,
+        );
+    }
   }
 }
 

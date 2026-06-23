@@ -240,6 +240,7 @@ class CalendarCompletionPicker extends StatelessWidget {
     this.showPartial = true,
     this.onReflect,
     this.observedButtonKey,
+    this.leadingContent,
     this.style,
   });
 
@@ -250,6 +251,7 @@ class CalendarCompletionPicker extends StatelessWidget {
   final bool showPartial;
   final VoidCallback? onReflect;
   final Key? observedButtonKey;
+  final Widget? leadingContent;
   final CalendarCompletionPickerStyle? style;
 
   @override
@@ -280,6 +282,10 @@ class CalendarCompletionPicker extends StatelessWidget {
             ),
           ),
           SizedBox(height: pickerStyle.labelGap),
+          if (leadingContent != null) ...[
+            leadingContent!,
+            SizedBox(height: pickerStyle.labelGap),
+          ],
           Row(
             children: [
               _CompletionStatusButton(

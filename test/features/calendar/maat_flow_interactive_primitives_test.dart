@@ -6,6 +6,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mobile/core/completion_status.dart';
 import 'package:mobile/features/calendar/maat_flow_interactive_primitives.dart';
+import 'package:mobile/features/calendar/maat_flow_response_models.dart';
 
 void main() {
   testWidgets('enrollment input enforces the 280 character limit', (
@@ -290,6 +291,70 @@ void main() {
     expect(changed, <String>['name']);
   });
 
+  testWidgets('response section renders nothing for empty specs', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      _wrap(const MaatFlowResponseSection(specs: <MaatFlowResponseSpec>[])),
+    );
+
+    expect(find.byKey(kMaatFlowResponseSectionKey), findsNothing);
+    expect(find.byType(TextFormField), findsNothing);
+  });
+
+  testWidgets('response section supports fixture text and choice specs', (
+    tester,
+  ) async {
+    final changes = <MaatFlowResponseValue>[];
+
+    await tester.pumpWidget(
+      _wrap(
+        MaatFlowResponseSection(
+          specs: const <MaatFlowResponseSpec>[
+            MaatFlowResponseSpec(
+              id: 'note',
+              flowKey: 'fixture-flow',
+              surface: MaatFlowResponseSurface.calendarSheet,
+              kind: MaatFlowResponseKind.multiline,
+              label: 'Note',
+              placeholder: 'Write one line',
+            ),
+            MaatFlowResponseSpec(
+              id: 'state',
+              flowKey: 'fixture-flow',
+              surface: MaatFlowResponseSurface.calendarSheet,
+              kind: MaatFlowResponseKind.choice,
+              label: 'State',
+              options: <MaatFlowResponseOption>[
+                MaatFlowResponseOption(id: 'inside', label: 'Inside'),
+                MaatFlowResponseOption(id: 'outside', label: 'Outside'),
+              ],
+            ),
+          ],
+          onChanged: changes.add,
+        ),
+      ),
+    );
+
+    expect(find.byKey(kMaatFlowResponseSectionKey), findsOneWidget);
+    expect(find.text('Note'), findsOneWidget);
+    expect(find.text('State'), findsOneWidget);
+
+    await tester.enterText(
+      find.byKey(maatFlowResponseFieldKey('note')),
+      'A clear response.',
+    );
+    await tester.pump();
+    await tester.tap(find.byKey(maatFlowResponseFieldKey('state:inside')));
+    await tester.pump();
+
+    expect(changes, hasLength(2));
+    expect(changes.first.specId, 'note');
+    expect(changes.first.text, 'A clear response.');
+    expect(changes.last.specId, 'state');
+    expect(changes.last.optionIds, <String>['inside']);
+  });
+
   test('interactive primitives avoid obvious sensitive-output hooks', () {
     final source = File(
       'lib/features/calendar/maat_flow_interactive_primitives.dart',
@@ -314,32 +379,34 @@ void main() {
     }
   });
 
-  test('interactive primitives import without circular feature dependencies', () {
-    final source = File(
-      'lib/features/calendar/maat_flow_interactive_primitives.dart',
-    ).readAsStringSync();
-    final imports = RegExp(
-      r"^import '([^']+)';",
-      multiLine: true,
-    ).allMatches(source).map((match) => match.group(1)!).toList();
+  test(
+    'interactive primitives import without circular feature dependencies',
+    () {
+      final source = File(
+        'lib/features/calendar/maat_flow_interactive_primitives.dart',
+      ).readAsStringSync();
+      final imports = RegExp(
+        r"^import '([^']+)';",
+        multiLine: true,
+      ).allMatches(source).map((match) => match.group(1)!).toList();
 
-    expect(imports, contains('package:flutter/material.dart'));
-    expect(imports, contains('package:flutter/services.dart'));
-    expect(imports, contains('package:mobile/core/completion_status.dart'));
-    expect(imports, contains('calendar_completion.dart'));
-    expect(imports, isNot(contains('calendar_page.dart')));
-    expect(imports, isNot(contains('day_view.dart')));
-    expect(imports, isNot(contains('calendar_maat_flows.dart')));
-  });
+      expect(imports, contains('package:flutter/material.dart'));
+      expect(imports, contains('package:flutter/services.dart'));
+      expect(imports, contains('package:mobile/core/completion_status.dart'));
+      expect(imports, contains('calendar_completion.dart'));
+      expect(imports, contains('maat_flow_response_models.dart'));
+      expect(imports, isNot(contains('calendar_page.dart')));
+      expect(imports, isNot(contains('day_view.dart')));
+      expect(imports, isNot(contains('calendar_maat_flows.dart')));
+    },
+  );
 }
 
 Widget _wrap(Widget child) {
   return MaterialApp(
     home: Scaffold(
       backgroundColor: const Color(0xFF101010),
-      body: Center(
-        child: SizedBox(width: 360, child: child),
-      ),
+      body: Center(child: SizedBox(width: 360, child: child)),
     ),
   );
 }

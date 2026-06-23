@@ -25,7 +25,10 @@ import 'calendar_reflection_context.dart';
 import 'day_view_chrome.dart';
 import 'landscape_month_view.dart';
 import 'maat_flow_identity.dart';
+import 'maat_flow_interactive_primitives.dart';
 import 'maat_flow_palette.dart';
+import 'maat_flow_response_models.dart';
+import 'maat_flow_response_resolver.dart';
 import 'maat_flow_visual_tokens.dart';
 import 'track_sky_flow.dart';
 import 'dawn_house_rite_flow.dart';
@@ -1497,6 +1500,16 @@ bool hasDayViewMaatFlowCompletionContext(EventItem event, FlowData? flow) {
   return _maatFlowCompletionContextForEvent(event, flow) != null;
 }
 
+String? _maatFlowResponseEventKey(_MaatFlowCompletionContext completion) {
+  final eventNumber = completion.eventNumber;
+  if (eventNumber != null) return 'event-$eventNumber';
+  final flowDay = completion.flowDay;
+  if (flowDay != null) return 'day-$flowDay';
+  final dayNumber = completion.dayNumber;
+  if (dayNumber != null) return 'day-$dayNumber';
+  return null;
+}
+
 Widget? buildDayViewMaatFlowCompletionPanel({
   required EventItem event,
   required FlowData? flow,
@@ -1525,10 +1538,16 @@ Widget? buildDayViewMaatFlowCompletionPanel({
       event.flowId == null) {
     return null;
   }
+  final responseSpecs = resolveMaatFlowResponseSpecs(
+    flowKey: completion.flowKey,
+    surface: MaatFlowResponseSurface.calendarSheet,
+    eventKey: _maatFlowResponseEventKey(completion),
+  );
   return _MaatFlowCompletionPanel(
     event: event,
     identity: identity,
     completion: completion,
+    responseSpecs: responseSpecs,
     ky: ky,
     km: km,
     kd: kd,
@@ -6703,6 +6722,13 @@ class _DayViewGridState extends State<DayViewGrid> {
       currentEvent,
       flow,
     );
+    final responseSpecs = completionContext == null
+        ? const <MaatFlowResponseSpec>[]
+        : resolveMaatFlowResponseSpecs(
+            flowKey: completionContext.flowKey,
+            surface: MaatFlowResponseSurface.calendarSheet,
+            eventKey: _maatFlowResponseEventKey(completionContext),
+          );
     final libraryCta = _maatLibraryCtaPayloadForEvent(currentEvent);
     final enableRitualCompletionFeedback =
         currentEvent.flowId != null && !isNutrition;
@@ -6939,6 +6965,7 @@ class _DayViewGridState extends State<DayViewGrid> {
               event: currentEvent,
               identity: _completionIdentityForEvent(currentEvent),
               completion: completionContext,
+              responseSpecs: responseSpecs,
               ky: target.ky,
               km: target.km,
               kd: target.kd,
@@ -8452,6 +8479,7 @@ class _MaatFlowCompletionPanel extends StatefulWidget {
     required this.event,
     required this.identity,
     required this.completion,
+    required this.responseSpecs,
     required this.ky,
     required this.km,
     required this.kd,
@@ -8469,6 +8497,7 @@ class _MaatFlowCompletionPanel extends StatefulWidget {
   final EventItem event;
   final String identity;
   final _MaatFlowCompletionContext completion;
+  final List<MaatFlowResponseSpec> responseSpecs;
   final int ky;
   final int km;
   final int kd;
@@ -9400,6 +9429,11 @@ class _MaatFlowCompletionPanelState extends State<_MaatFlowCompletionPanel> {
     return const <Widget>[];
   }
 
+  Widget? _buildResponseSection() {
+    if (widget.responseSpecs.isEmpty) return null;
+    return MaatFlowResponseSection(specs: widget.responseSpecs);
+  }
+
   @override
   Widget build(BuildContext context) {
     final standardStatus = CompletionStatusX.fromWireName(_status);
@@ -9410,6 +9444,7 @@ class _MaatFlowCompletionPanelState extends State<_MaatFlowCompletionPanel> {
             _status == 'raised');
     final style = widget.pickerStyle ?? const CalendarCompletionPickerStyle();
     final eveningThresholdContext = _buildEveningThresholdContextWidgets();
+    final responseSection = _buildResponseSection();
 
     if (widget.completion.customStatusesOnly) {
       final customButtons = widget.completion.customStatusLabels.entries
@@ -9438,6 +9473,10 @@ class _MaatFlowCompletionPanelState extends State<_MaatFlowCompletionPanel> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             ...eveningThresholdContext,
+            if (responseSection != null) ...[
+              responseSection,
+              SizedBox(height: style.labelGap),
+            ],
             Text(
               style.label,
               style: TextStyle(
@@ -9464,6 +9503,7 @@ class _MaatFlowCompletionPanelState extends State<_MaatFlowCompletionPanel> {
           loading: _loading,
           showPartial: widget.completion.showPartly,
           observedButtonKey: widget.observedButtonKey,
+          leadingContent: responseSection,
           onReflect: widget.onAddReflection,
           style: widget.pickerStyle,
           onChanged: (status) {
