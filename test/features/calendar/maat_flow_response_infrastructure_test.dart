@@ -10,6 +10,8 @@ import 'package:mobile/features/calendar/maat_flow_response_models.dart';
 import 'package:mobile/features/calendar/maat_flow_response_resolver.dart';
 import 'package:mobile/features/calendar/the_days_outside_year_flow.dart';
 import 'package:mobile/features/calendar/the_decan_watch_flow.dart';
+import 'package:mobile/features/calendar/the_djed_flow.dart';
+import 'package:mobile/features/calendar/the_open_hand_flow.dart';
 import 'package:mobile/features/calendar/the_offering_table_flow.dart';
 import 'package:mobile/features/journal/journal_badge_utils.dart';
 import 'package:mobile/features/journal/journal_event_badge.dart';
@@ -74,6 +76,14 @@ void main() {
       'wep_ronpet_opening',
     );
     expect(
+      MaatFlowResponseJournalFormatter.openHandProvision.wireName,
+      'open_hand_provision',
+    );
+    expect(
+      MaatFlowResponseJournalFormatter.djedRestoration.wireName,
+      'djed_restoration',
+    );
+    expect(
       MaatFlowResponseJournalFormatterX.fromWireName('decan-watch'),
       MaatFlowResponseJournalFormatter.decanWatch,
     );
@@ -97,10 +107,18 @@ void main() {
       MaatFlowResponseJournalFormatterX.fromWireName('wep-ronpet-opening'),
       MaatFlowResponseJournalFormatter.wepRonpetOpening,
     );
+    expect(
+      MaatFlowResponseJournalFormatterX.fromWireName('open-hand-provision'),
+      MaatFlowResponseJournalFormatter.openHandProvision,
+    );
+    expect(
+      MaatFlowResponseJournalFormatterX.fromWireName('djed-restoration'),
+      MaatFlowResponseJournalFormatter.djedRestoration,
+    );
   });
 
-  test('default resolver exposes only Phase 2B through 3A pilot specs', () {
-    expect(kDefaultMaatFlowResponseResolver.specs, hasLength(17));
+  test('default resolver exposes only Phase 2B through 3B pilot specs', () {
+    expect(kDefaultMaatFlowResponseResolver.specs, hasLength(21));
 
     expect(
       resolveMaatFlowResponseSpecs(
@@ -180,6 +198,20 @@ void main() {
         eventKey: 'event-7',
       ),
       isEmpty,
+    );
+    expect(
+      resolveMaatFlowResponseSpecs(
+        flowKey: kTheOpenHandFlowKey,
+        surface: MaatFlowResponseSurface.calendarSheet,
+      ).map((spec) => spec.id),
+      <String>['open-hand-given', 'open-hand-moved'],
+    );
+    expect(
+      resolveMaatFlowResponseSpecs(
+        flowKey: kTheDjedFlowKey,
+        surface: MaatFlowResponseSurface.calendarSheet,
+      ).map((spec) => spec.id),
+      <String>['djed-stood-upright', 'djed-restored'],
     );
 
     for (final flowKey in const <String>[
@@ -376,6 +408,32 @@ void main() {
     );
   });
 
+  test('Open Hand and Djed use offer policy and privacy classes', () {
+    final openHandSpecs = resolveMaatFlowResponseSpecs(
+      flowKey: kTheOpenHandFlowKey,
+      surface: MaatFlowResponseSurface.calendarSheet,
+    );
+    expect(
+      openHandSpecs.map((spec) => spec.journalPolicy).toSet(),
+      <MaatFlowJournalPolicy>{MaatFlowJournalPolicy.offer},
+    );
+    expect(openHandSpecs.map((spec) => spec.privacyClass).toSet(), <String>{
+      'outward_provision',
+    });
+
+    final djedSpecs = resolveMaatFlowResponseSpecs(
+      flowKey: kTheDjedFlowKey,
+      surface: MaatFlowResponseSurface.calendarSheet,
+    );
+    expect(
+      djedSpecs.map((spec) => spec.journalPolicy).toSet(),
+      <MaatFlowJournalPolicy>{MaatFlowJournalPolicy.offer},
+    );
+    expect(djedSpecs.map((spec) => spec.privacyClass).toSet(), <String>{
+      'sensitive_structure',
+    });
+  });
+
   test('Dawn House and Closing journal formatters read naturally', () {
     final dawnSpec = resolveMaatFlowResponseSpecs(
       flowKey: kDawnHouseRiteFlowKey,
@@ -495,6 +553,107 @@ void main() {
     );
   });
 
+  test('Open Hand and Djed offer previews read naturally', () {
+    final openHandSpecs = resolveMaatFlowResponseSpecs(
+      flowKey: kTheOpenHandFlowKey,
+      surface: MaatFlowResponseSurface.calendarSheet,
+    );
+    final openHand = buildMaatFlowResponseJournalPreviews(
+      specs: openHandSpecs,
+      values: <String, MaatFlowResponseValue>{
+        'open-hand-given': MaatFlowResponseValue.chips(
+          specId: 'open-hand-given',
+          optionIds: <String>['time', 'attention'],
+        ),
+        'open-hand-moved': MaatFlowResponseValue.text(
+          specId: 'open-hand-moved',
+          text: 'where need was visible.',
+          multiline: true,
+        ),
+      },
+      clientEventId: 'cid-open-hand',
+    );
+
+    expect(openHand, hasLength(1));
+    expect(openHand.single.policy, MaatFlowJournalPolicy.offer);
+    expect(openHand.single.writesByDefault, isFalse);
+    expect(openHand.single.requiresUserChoice, isTrue);
+    expect(
+      openHand.single.sourceId,
+      'maat_response:the-open-hand:cid:cid-open-hand:open-hand-provision',
+    );
+    expect(
+      openHand.single.text,
+      'The Open Hand: I gave time and attention where need was visible.',
+    );
+
+    final openHandChipsOnly = buildMaatFlowResponseJournalPreviews(
+      specs: openHandSpecs,
+      values: <String, MaatFlowResponseValue>{
+        'open-hand-given': MaatFlowResponseValue.chips(
+          specId: 'open-hand-given',
+          optionIds: <String>['labor'],
+        ),
+      },
+    );
+    expect(
+      openHandChipsOnly.single.text,
+      'The Open Hand: I gave labor where need was visible.',
+    );
+
+    final djedSpecs = resolveMaatFlowResponseSpecs(
+      flowKey: kTheDjedFlowKey,
+      surface: MaatFlowResponseSurface.calendarSheet,
+    );
+    final djed = buildMaatFlowResponseJournalPreviews(
+      specs: djedSpecs,
+      values: <String, MaatFlowResponseValue>{
+        'djed-stood-upright': MaatFlowResponseValue.chips(
+          specId: 'djed-stood-upright',
+          optionIds: <String>['body', 'boundary'],
+        ),
+        'djed-restored': MaatFlowResponseValue.text(
+          specId: 'djed-restored',
+          text: 'setting a load-bearing practice back in place.',
+          multiline: true,
+        ),
+      },
+      clientEventId: 'cid-djed',
+    );
+
+    expect(djed, hasLength(1));
+    expect(djed.single.policy, MaatFlowJournalPolicy.offer);
+    expect(djed.single.writesByDefault, isFalse);
+    expect(djed.single.requiresUserChoice, isTrue);
+    expect(
+      djed.single.sourceId,
+      'maat_response:the-djed:cid:cid-djed:djed-restoration',
+    );
+    expect(
+      djed.single.text,
+      'The Djed: I restored body and boundary by setting a load-bearing practice back in place and stood it upright again.',
+    );
+
+    final djedNounPhrase = buildMaatFlowResponseJournalPreviews(
+      specs: djedSpecs,
+      values: <String, MaatFlowResponseValue>{
+        'djed-stood-upright': MaatFlowResponseValue.chips(
+          specId: 'djed-stood-upright',
+          optionIds: <String>['practice'],
+        ),
+        'djed-restored': MaatFlowResponseValue.text(
+          specId: 'djed-restored',
+          text: 'one load-bearing part of my life.',
+          multiline: true,
+        ),
+      },
+    );
+    expect(
+      djedNounPhrase.single.text,
+      'The Djed: I restored practice by restoring one load-bearing part of my life and stood it upright again.',
+    );
+  });
+
   test(
     'local-only, empty, and skipped responses do not produce journal body',
     () {
@@ -605,7 +764,7 @@ void main() {
     expect(JournalBadgeUtils.tokensFromDocument(removed), hasLength(1));
   });
 
-  test('Phase 3A wiring stays isolated to shared sheet panels and pilots', () {
+  test('Phase 3B wiring stays isolated to shared sheet panels and pilots', () {
     expect(
       kDefaultMaatFlowResponseResolver.specs
           .map((spec) => spec.flowKey)
@@ -618,6 +777,8 @@ void main() {
         kEveningThresholdRiteFlowKey,
         kOfferingTableFlowKey,
         kDaysOutsideTheYearFlowKey,
+        kTheOpenHandFlowKey,
+        kTheDjedFlowKey,
       },
     );
 

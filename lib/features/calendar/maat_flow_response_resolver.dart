@@ -3,6 +3,8 @@ import 'evening_threshold_rite_flow.dart';
 import 'maat_flow_response_models.dart';
 import 'the_days_outside_year_flow.dart';
 import 'the_decan_watch_flow.dart';
+import 'the_djed_flow.dart';
+import 'the_open_hand_flow.dart';
 import 'the_offering_table_flow.dart';
 
 const List<MaatFlowResponseSpec>
@@ -233,6 +235,122 @@ kPilotMaatFlowResponseSpecs = <MaatFlowResponseSpec>[
     journalPolicy: MaatFlowJournalPolicy.mirror,
     journalLabel: 'Wep Ronpet',
     journalFormatter: MaatFlowResponseJournalFormatter.wepRonpetOpening,
+  ),
+  MaatFlowResponseSpec(
+    id: 'open-hand-given',
+    flowKey: kTheOpenHandFlowKey,
+    surface: MaatFlowResponseSurface.calendarSheet,
+    kind: MaatFlowResponseKind.chips,
+    label: 'What was given?',
+    options: <MaatFlowResponseOption>[
+      MaatFlowResponseOption(id: 'time', label: 'Time', journalLabel: 'time'),
+      MaatFlowResponseOption(id: 'food', label: 'Food', journalLabel: 'food'),
+      MaatFlowResponseOption(
+        id: 'money',
+        label: 'Money',
+        journalLabel: 'money',
+      ),
+      MaatFlowResponseOption(
+        id: 'skill',
+        label: 'Skill',
+        journalLabel: 'skill',
+      ),
+      MaatFlowResponseOption(
+        id: 'attention',
+        label: 'Attention',
+        journalLabel: 'attention',
+      ),
+      MaatFlowResponseOption(
+        id: 'labor',
+        label: 'Labor',
+        journalLabel: 'labor',
+      ),
+      MaatFlowResponseOption(
+        id: 'protection',
+        label: 'Protection',
+        journalLabel: 'protection',
+      ),
+      MaatFlowResponseOption(
+        id: 'connection',
+        label: 'Connection',
+        journalLabel: 'connection',
+      ),
+    ],
+    journalPolicy: MaatFlowJournalPolicy.offer,
+    journalLabel: kTheOpenHandTitle,
+    journalGroupId: 'open-hand-provision',
+    journalGroupLabel: kTheOpenHandTitle,
+    journalFormatter: MaatFlowResponseJournalFormatter.openHandProvision,
+    journalRole: 'given',
+    privacyClass: 'outward_provision',
+  ),
+  MaatFlowResponseSpec(
+    id: 'open-hand-moved',
+    flowKey: kTheOpenHandFlowKey,
+    surface: MaatFlowResponseSurface.calendarSheet,
+    kind: MaatFlowResponseKind.multiline,
+    label: 'What moved through your hand?',
+    journalPolicy: MaatFlowJournalPolicy.offer,
+    journalLabel: kTheOpenHandTitle,
+    journalGroupId: 'open-hand-provision',
+    journalGroupLabel: kTheOpenHandTitle,
+    journalFormatter: MaatFlowResponseJournalFormatter.openHandProvision,
+    journalRole: 'moved',
+    privacyClass: 'outward_provision',
+  ),
+  MaatFlowResponseSpec(
+    id: 'djed-stood-upright',
+    flowKey: kTheDjedFlowKey,
+    surface: MaatFlowResponseSurface.calendarSheet,
+    kind: MaatFlowResponseKind.chips,
+    label: 'What needed to stand upright?',
+    options: <MaatFlowResponseOption>[
+      MaatFlowResponseOption(id: 'body', label: 'Body', journalLabel: 'body'),
+      MaatFlowResponseOption(
+        id: 'house',
+        label: 'House',
+        journalLabel: 'house',
+      ),
+      MaatFlowResponseOption(id: 'work', label: 'Work', journalLabel: 'work'),
+      MaatFlowResponseOption(id: 'word', label: 'Word', journalLabel: 'word'),
+      MaatFlowResponseOption(
+        id: 'family',
+        label: 'Family',
+        journalLabel: 'family',
+      ),
+      MaatFlowResponseOption(
+        id: 'boundary',
+        label: 'Boundary',
+        journalLabel: 'boundary',
+      ),
+      MaatFlowResponseOption(
+        id: 'practice',
+        label: 'Practice',
+        journalLabel: 'practice',
+      ),
+      MaatFlowResponseOption(id: 'rest', label: 'Rest', journalLabel: 'rest'),
+    ],
+    journalPolicy: MaatFlowJournalPolicy.offer,
+    journalLabel: kTheDjedTitle,
+    journalGroupId: 'djed-restoration',
+    journalGroupLabel: kTheDjedTitle,
+    journalFormatter: MaatFlowResponseJournalFormatter.djedRestoration,
+    journalRole: 'stood',
+    privacyClass: 'sensitive_structure',
+  ),
+  MaatFlowResponseSpec(
+    id: 'djed-restored',
+    flowKey: kTheDjedFlowKey,
+    surface: MaatFlowResponseSurface.calendarSheet,
+    kind: MaatFlowResponseKind.multiline,
+    label: 'What did you raise or restore?',
+    journalPolicy: MaatFlowJournalPolicy.offer,
+    journalLabel: kTheDjedTitle,
+    journalGroupId: 'djed-restoration',
+    journalGroupLabel: kTheDjedTitle,
+    journalFormatter: MaatFlowResponseJournalFormatter.djedRestoration,
+    journalRole: 'restored',
+    privacyClass: 'sensitive_structure',
   ),
 ];
 

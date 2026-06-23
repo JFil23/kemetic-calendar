@@ -140,6 +140,8 @@ enum MaatFlowResponseJournalFormatter {
   offeringTable,
   daysOutsideReceipt,
   wepRonpetOpening,
+  openHandProvision,
+  djedRestoration,
 }
 
 extension MaatFlowResponseJournalFormatterX
@@ -160,6 +162,10 @@ extension MaatFlowResponseJournalFormatterX
         return 'days_outside_receipt';
       case MaatFlowResponseJournalFormatter.wepRonpetOpening:
         return 'wep_ronpet_opening';
+      case MaatFlowResponseJournalFormatter.openHandProvision:
+        return 'open_hand_provision';
+      case MaatFlowResponseJournalFormatter.djedRestoration:
+        return 'djed_restoration';
     }
   }
 
@@ -183,6 +189,12 @@ extension MaatFlowResponseJournalFormatterX
       case 'wep_ronpet_opening':
       case 'wep-ronpet-opening':
         return MaatFlowResponseJournalFormatter.wepRonpetOpening;
+      case 'open_hand_provision':
+      case 'open-hand-provision':
+        return MaatFlowResponseJournalFormatter.openHandProvision;
+      case 'djed_restoration':
+      case 'djed-restoration':
+        return MaatFlowResponseJournalFormatter.djedRestoration;
       case 'standard':
       default:
         return MaatFlowResponseJournalFormatter.standard;
@@ -584,6 +596,10 @@ String _formatResponseBodyText(
       return '${spec.journalHeading}: I carry the receipt that ${_sentenceFragment(display)}.';
     case MaatFlowResponseJournalFormatter.wepRonpetOpening:
       return '${spec.journalHeading}: I open the year with ${_sentenceFragment(display)}.';
+    case MaatFlowResponseJournalFormatter.openHandProvision:
+      return '${spec.journalHeading}: I gave ${_sentenceFragment(display)}.';
+    case MaatFlowResponseJournalFormatter.djedRestoration:
+      return '${spec.journalHeading}: I restored ${_sentenceFragment(display)} and stood it upright again.';
     case MaatFlowResponseJournalFormatter.decanWatch:
     case MaatFlowResponseJournalFormatter.standard:
       return '${spec.journalHeading}: $display';
@@ -601,6 +617,10 @@ String _formatGroupedResponseBodyText(
       return _formatDecanWatchResponseGroup(specs, values);
     case MaatFlowResponseJournalFormatter.offeringTable:
       return _formatOfferingTableResponseGroup(specs, values);
+    case MaatFlowResponseJournalFormatter.openHandProvision:
+      return _formatOpenHandResponseGroup(specs, values);
+    case MaatFlowResponseJournalFormatter.djedRestoration:
+      return _formatDjedResponseGroup(specs, values);
     case MaatFlowResponseJournalFormatter.dawnHouseRite:
     case MaatFlowResponseJournalFormatter.closingRelease:
     case MaatFlowResponseJournalFormatter.daysOutsideReceipt:
@@ -650,6 +670,78 @@ String _formatOfferingTableResponseGroup(
   }
   if (provided.isNotEmpty) {
     return '${specs.first.journalHeading}: I provided $provided.';
+  }
+  return '';
+}
+
+String _formatOpenHandResponseGroup(
+  List<MaatFlowResponseSpec> specs,
+  Map<String, MaatFlowResponseValue> values,
+) {
+  final byRole = <String, MaatFlowResponseSpec>{
+    for (final spec in specs)
+      if (spec.normalizedJournalRole != null) spec.normalizedJournalRole!: spec,
+  };
+
+  final givenSpec = byRole['given'];
+  final movedSpec = byRole['moved'];
+  final given = givenSpec == null
+      ? ''
+      : _joinNatural(
+          values[givenSpec.id]?.optionIds
+                  .map((id) => givenSpec.optionById(id)?._displayLabel ?? id)
+                  .where((label) => label.trim().isNotEmpty)
+                  .map((label) => label.trim().toLowerCase()) ??
+              const Iterable<String>.empty(),
+        );
+  final moved = movedSpec == null
+      ? ''
+      : _sentenceFragment(values[movedSpec.id]?.displayText(movedSpec));
+
+  if (given.isNotEmpty && moved.isNotEmpty) {
+    return '${specs.first.journalHeading}: I gave $given ${_provisionPhrase(moved)}.';
+  }
+  if (given.isNotEmpty) {
+    return '${specs.first.journalHeading}: I gave $given where need was visible.';
+  }
+  if (moved.isNotEmpty) {
+    return '${specs.first.journalHeading}: I gave $moved.';
+  }
+  return '';
+}
+
+String _formatDjedResponseGroup(
+  List<MaatFlowResponseSpec> specs,
+  Map<String, MaatFlowResponseValue> values,
+) {
+  final byRole = <String, MaatFlowResponseSpec>{
+    for (final spec in specs)
+      if (spec.normalizedJournalRole != null) spec.normalizedJournalRole!: spec,
+  };
+
+  final stoodSpec = byRole['stood'];
+  final restoredSpec = byRole['restored'];
+  final stood = stoodSpec == null
+      ? ''
+      : _joinNatural(
+          values[stoodSpec.id]?.optionIds
+                  .map((id) => stoodSpec.optionById(id)?._displayLabel ?? id)
+                  .where((label) => label.trim().isNotEmpty)
+                  .map((label) => label.trim().toLowerCase()) ??
+              const Iterable<String>.empty(),
+        );
+  final restored = restoredSpec == null
+      ? ''
+      : _sentenceFragment(values[restoredSpec.id]?.displayText(restoredSpec));
+
+  if (stood.isNotEmpty && restored.isNotEmpty) {
+    return '${specs.first.journalHeading}: I restored $stood by ${_restorationActionPhrase(restored)} and stood it upright again.';
+  }
+  if (stood.isNotEmpty) {
+    return '${specs.first.journalHeading}: I restored $stood and stood it upright again.';
+  }
+  if (restored.isNotEmpty) {
+    return '${specs.first.journalHeading}: I restored $restored and stood it upright again.';
   }
   return '';
 }
@@ -711,6 +803,47 @@ String _sentenceFragment(String? value) {
   final trimmed = value?.trim();
   if (trimmed == null || trimmed.isEmpty) return '';
   return trimmed.replaceFirst(RegExp(r'[.!?]+$'), '').trim();
+}
+
+String _provisionPhrase(String value) {
+  final trimmed = _sentenceFragment(value);
+  if (trimmed.isEmpty) return '';
+  final lower = trimmed.toLowerCase();
+  const directStarts = <String>[
+    'where ',
+    'when ',
+    'to ',
+    'for ',
+    'as ',
+    'after ',
+    'before ',
+    'without ',
+    'because ',
+    'while ',
+    'through ',
+  ];
+  if (directStarts.any((prefix) => lower.startsWith(prefix))) return trimmed;
+  return 'by $trimmed';
+}
+
+String _restorationActionPhrase(String value) {
+  final trimmed = _sentenceFragment(value);
+  if (trimmed.isEmpty) return '';
+  final lower = trimmed.toLowerCase();
+  const actionStarts = <String>[
+    'restoring ',
+    'raising ',
+    'repairing ',
+    'setting ',
+    'returning ',
+    'rebuilding ',
+    'restarting ',
+    'standing ',
+    'making ',
+    'holding ',
+  ];
+  if (actionStarts.any((prefix) => lower.startsWith(prefix))) return trimmed;
+  return 'restoring $trimmed';
 }
 
 String _joinNatural(Iterable<String> values) {

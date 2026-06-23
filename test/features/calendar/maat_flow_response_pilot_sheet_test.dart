@@ -12,7 +12,9 @@ import 'package:mobile/features/calendar/the_days_outside_year_flow.dart';
 import 'package:mobile/features/calendar/the_course_flow.dart';
 import 'package:mobile/features/calendar/the_decan_watch_flow.dart';
 import 'package:mobile/features/calendar/the_decan_watch_local_store.dart';
+import 'package:mobile/features/calendar/the_djed_flow.dart';
 import 'package:mobile/features/calendar/the_offering_table_flow.dart';
+import 'package:mobile/features/calendar/the_open_hand_flow.dart';
 import 'package:mobile/features/calendar/the_weighing_flow.dart';
 import 'package:mobile/features/journal/journal_badge_utils.dart';
 import 'package:mobile/features/journal/journal_v2_document_model.dart';
@@ -1004,6 +1006,322 @@ void main() {
     );
   });
 
+  testWidgets('Open Hand response renders and previews offered journal text', (
+    tester,
+  ) async {
+    await _setPhoneViewport(tester);
+
+    await tester.pumpWidget(
+      _DayViewHarness(
+        flowIndex: _openHandFlowIndex,
+        notes: <NoteData>[_openHandNote()],
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await _openDetailSheet(tester, _openHandTitle);
+
+    expect(find.byKey(kMaatFlowResponseSectionKey), findsOneWidget);
+    expect(find.text('What was given?'), findsOneWidget);
+    expect(find.text('What moved through your hand?'), findsOneWidget);
+    for (final optionId in const <String>['time', 'attention', 'labor']) {
+      expect(
+        find.byKey(maatFlowResponseFieldKey('open-hand-given:$optionId')),
+        findsOneWidget,
+      );
+    }
+
+    await _choosePilotOption(
+      tester,
+      specId: 'open-hand-given',
+      optionId: 'time',
+    );
+    await _choosePilotOption(
+      tester,
+      specId: 'open-hand-given',
+      optionId: 'attention',
+    );
+    await _enterPilotResponse(
+      tester,
+      specId: 'open-hand-moved',
+      text: 'where need was visible.',
+    );
+
+    expect(find.byKey(kMaatFlowResponseJournalPreviewKey), findsOneWidget);
+    expect(find.text('Journal preview'), findsOneWidget);
+    expect(
+      find.text(
+        'The Open Hand: I gave time and attention where need was visible.',
+      ),
+      findsOneWidget,
+    );
+  });
+
+  testWidgets('Open Hand completion writes one offered response block', (
+    tester,
+  ) async {
+    await _setPhoneViewport(tester);
+    var document = _journalDocument('Open Hand journal body stays.');
+    final badgeAppends = <String>[];
+
+    await tester.pumpWidget(
+      _DayViewHarness(
+        flowIndex: _openHandFlowIndex,
+        notes: <NoteData>[_openHandNote()],
+        onAppendToJournal: (text) async => badgeAppends.add(text),
+        onWriteJournalResponse: (block) async {
+          document = MaatJournalResponseBlockUtils.upsert(document, block);
+        },
+        onRecordCompletion:
+            ({
+              required String clientEventId,
+              required int flowId,
+              required DateTime completedOnDate,
+              Map<String, dynamic>? metadata,
+            }) async {},
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await _openDetailSheet(tester, _openHandTitle);
+    await _choosePilotOption(
+      tester,
+      specId: 'open-hand-given',
+      optionId: 'food',
+    );
+    await _choosePilotOption(
+      tester,
+      specId: 'open-hand-given',
+      optionId: 'connection',
+    );
+    await _tapStatus(tester, 'Observed');
+
+    expect(document.toPlainText(), contains('Open Hand journal body stays.'));
+    expect(
+      document.toPlainText(),
+      contains(
+        'The Open Hand: I gave food and connection where need was visible.',
+      ),
+    );
+    expect(MaatJournalResponseBlockUtils.extract(document), hasLength(1));
+    expect(JournalBadgeUtils.hasBadges(document.toPlainText()), isFalse);
+    expect(badgeAppends, hasLength(1));
+    expect(JournalBadgeUtils.hasBadges(badgeAppends.single), isTrue);
+  });
+
+  testWidgets('Open Hand repeat completion updates one response block', (
+    tester,
+  ) async {
+    await _setPhoneViewport(tester);
+    var document = _journalDocument('Existing Open Hand journal text.');
+
+    await tester.pumpWidget(
+      _DayViewHarness(
+        flowIndex: _openHandFlowIndex,
+        notes: <NoteData>[_openHandNote()],
+        onAppendToJournal: (_) async {},
+        onWriteJournalResponse: (block) async {
+          document = MaatJournalResponseBlockUtils.upsert(document, block);
+        },
+        onRecordCompletion:
+            ({
+              required String clientEventId,
+              required int flowId,
+              required DateTime completedOnDate,
+              Map<String, dynamic>? metadata,
+            }) async {},
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await _openDetailSheet(tester, _openHandTitle);
+    await _choosePilotOption(
+      tester,
+      specId: 'open-hand-given',
+      optionId: 'labor',
+    );
+    await _enterPilotResponse(
+      tester,
+      specId: 'open-hand-moved',
+      text: 'first offered detail.',
+    );
+    await _tapStatus(tester, 'Observed');
+
+    await _enterPilotResponse(
+      tester,
+      specId: 'open-hand-moved',
+      text: 'through one concrete act of help.',
+    );
+    await _tapStatus(tester, 'Observed');
+
+    final responseBlocks = MaatJournalResponseBlockUtils.extract(document);
+    expect(responseBlocks, hasLength(1));
+    expect(
+      responseBlocks.single.text,
+      'The Open Hand: I gave labor through one concrete act of help.',
+    );
+    expect(
+      document.toPlainText(),
+      contains('Existing Open Hand journal text.'),
+    );
+    expect(document.toPlainText(), isNot(contains('first offered detail')));
+  });
+
+  testWidgets('Djed response renders and previews offered journal text', (
+    tester,
+  ) async {
+    await _setPhoneViewport(tester);
+
+    await tester.pumpWidget(
+      _DayViewHarness(
+        flowIndex: _djedFlowIndex,
+        notes: <NoteData>[_djedNote()],
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await _openDetailSheet(tester, _djedTitle);
+
+    expect(find.byKey(kMaatFlowResponseSectionKey), findsOneWidget);
+    expect(find.text('What needed to stand upright?'), findsOneWidget);
+    expect(find.text('What did you raise or restore?'), findsOneWidget);
+    for (final optionId in const <String>['body', 'boundary', 'practice']) {
+      expect(
+        find.byKey(maatFlowResponseFieldKey('djed-stood-upright:$optionId')),
+        findsOneWidget,
+      );
+    }
+
+    await _choosePilotOption(
+      tester,
+      specId: 'djed-stood-upright',
+      optionId: 'body',
+    );
+    await _choosePilotOption(
+      tester,
+      specId: 'djed-stood-upright',
+      optionId: 'boundary',
+    );
+    await _enterPilotResponse(
+      tester,
+      specId: 'djed-restored',
+      text: 'setting a load-bearing practice back in place.',
+    );
+
+    expect(find.byKey(kMaatFlowResponseJournalPreviewKey), findsOneWidget);
+    expect(find.text('Journal preview'), findsOneWidget);
+    expect(
+      find.text(
+        'The Djed: I restored body and boundary by setting a load-bearing practice back in place and stood it upright again.',
+      ),
+      findsOneWidget,
+    );
+  });
+
+  testWidgets('Djed completion writes one offered response block', (
+    tester,
+  ) async {
+    await _setPhoneViewport(tester);
+    var document = _journalDocument('Djed journal body stays.');
+
+    await tester.pumpWidget(
+      _DayViewHarness(
+        flowIndex: _djedFlowIndex,
+        notes: <NoteData>[_djedNote()],
+        onAppendToJournal: (_) async {},
+        onWriteJournalResponse: (block) async {
+          document = MaatJournalResponseBlockUtils.upsert(document, block);
+        },
+        onRecordCompletion:
+            ({
+              required String clientEventId,
+              required int flowId,
+              required DateTime completedOnDate,
+              Map<String, dynamic>? metadata,
+            }) async {},
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await _openDetailSheet(tester, _djedTitle);
+    await _choosePilotOption(
+      tester,
+      specId: 'djed-stood-upright',
+      optionId: 'practice',
+    );
+    await _enterPilotResponse(
+      tester,
+      specId: 'djed-restored',
+      text: 'one load-bearing part of my life.',
+    );
+    await _tapStatus(tester, 'Partly');
+
+    expect(document.toPlainText(), contains('Djed journal body stays.'));
+    expect(
+      document.toPlainText(),
+      contains(
+        'The Djed: I restored practice by restoring one load-bearing part of my life and stood it upright again.',
+      ),
+    );
+    expect(MaatJournalResponseBlockUtils.extract(document), hasLength(1));
+    expect(JournalBadgeUtils.hasBadges(document.toPlainText()), isFalse);
+  });
+
+  testWidgets('Djed repeat completion updates one response block', (
+    tester,
+  ) async {
+    await _setPhoneViewport(tester);
+    var document = _journalDocument('Existing Djed journal text.');
+
+    await tester.pumpWidget(
+      _DayViewHarness(
+        flowIndex: _djedFlowIndex,
+        notes: <NoteData>[_djedNote()],
+        onAppendToJournal: (_) async {},
+        onWriteJournalResponse: (block) async {
+          document = MaatJournalResponseBlockUtils.upsert(document, block);
+        },
+        onRecordCompletion:
+            ({
+              required String clientEventId,
+              required int flowId,
+              required DateTime completedOnDate,
+              Map<String, dynamic>? metadata,
+            }) async {},
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await _openDetailSheet(tester, _djedTitle);
+    await _choosePilotOption(
+      tester,
+      specId: 'djed-stood-upright',
+      optionId: 'rest',
+    );
+    await _enterPilotResponse(
+      tester,
+      specId: 'djed-restored',
+      text: 'first private detail.',
+    );
+    await _tapStatus(tester, 'Observed');
+
+    await _enterPilotResponse(
+      tester,
+      specId: 'djed-restored',
+      text: 'an evening practice.',
+    );
+    await _tapStatus(tester, 'Observed');
+
+    final responseBlocks = MaatJournalResponseBlockUtils.extract(document);
+    expect(responseBlocks, hasLength(1));
+    expect(
+      responseBlocks.single.text,
+      'The Djed: I restored rest by restoring an evening practice and stood it upright again.',
+    );
+    expect(document.toPlainText(), contains('Existing Djed journal text.'));
+    expect(document.toPlainText(), isNot(contains('first private detail')));
+  });
+
   testWidgets('unsupported Ma_at flow remains without response fields', (
     tester,
   ) async {
@@ -1089,6 +1407,12 @@ final DaysOutsideEvent _daysOutsideEvent = kDaysOutsideEvents[1];
 final DaysOutsideEvent _wepRonpetEvent = kDaysOutsideEvents.last;
 final String _daysOutsideTitle = daysOutsideEventTitle(_daysOutsideEvent);
 final String _wepRonpetTitle = daysOutsideEventTitle(_wepRonpetEvent);
+const int _openHandFlowId = 94;
+final OpenHandEvent _openHandEvent = kOpenHandEvents.first;
+final String _openHandTitle = openHandEventTitle(_openHandEvent);
+const int _djedFlowId = 95;
+final DjedEvent _djedEvent = kDjedEvents.first;
+final String _djedTitle = djedEventTitle(_djedEvent);
 
 const Map<int, FlowData> _decanWatchFlowIndex = <int, FlowData>{
   _decanWatchFlowId: FlowData(
@@ -1137,6 +1461,26 @@ const Map<int, FlowData> _daysOutsideFlowIndex = <int, FlowData>{
     color: Colors.blueGrey,
     active: true,
     notes: 'maat=$kDaysOutsideTheYearFlowKey',
+  ),
+};
+
+const Map<int, FlowData> _openHandFlowIndex = <int, FlowData>{
+  _openHandFlowId: FlowData(
+    id: _openHandFlowId,
+    name: kTheOpenHandTitle,
+    color: Colors.orange,
+    active: true,
+    notes: 'maat=$kTheOpenHandFlowKey',
+  ),
+};
+
+const Map<int, FlowData> _djedFlowIndex = <int, FlowData>{
+  _djedFlowId: FlowData(
+    id: _djedFlowId,
+    name: kTheDjedTitle,
+    color: Colors.green,
+    active: true,
+    notes: 'maat=$kTheDjedFlowKey',
   ),
 };
 
@@ -1283,6 +1627,46 @@ NoteData _daysOutsideNote({DaysOutsideEvent? event}) {
       'kind': 'maat_days_outside_year',
       'event_number': target.eventNumber,
       'event_kind': target.kind.key,
+    },
+  );
+}
+
+NoteData _openHandNote() {
+  final event = _openHandEvent;
+  return NoteData(
+    clientEventId: 'cid-open-hand-${event.eventNumber}',
+    title: _openHandTitle,
+    detail: openHandDetailText(event, lens: OpenHandLens.neutral),
+    category: event.decanSection,
+    allDay: false,
+    start: const TimeOfDay(hour: 11, minute: 0),
+    end: const TimeOfDay(hour: 11, minute: 8),
+    flowId: _openHandFlowId,
+    behaviorPayload: <String, dynamic>{
+      'flow_key': kTheOpenHandFlowKey,
+      'kind': 'maat_open_hand_event',
+      'event_number': event.eventNumber,
+      'flow_day': event.flowDay,
+    },
+  );
+}
+
+NoteData _djedNote() {
+  final event = _djedEvent;
+  return NoteData(
+    clientEventId: 'cid-djed-${event.eventNumber}',
+    title: _djedTitle,
+    detail: djedDetailText(event, lens: DjedLens.neutral),
+    category: event.decanSection,
+    allDay: false,
+    start: const TimeOfDay(hour: 11, minute: 0),
+    end: const TimeOfDay(hour: 11, minute: 10),
+    flowId: _djedFlowId,
+    behaviorPayload: <String, dynamic>{
+      'flow_key': kTheDjedFlowKey,
+      'kind': 'maat_djed_event',
+      'event_number': event.eventNumber,
+      'flow_day': event.flowDay,
     },
   );
 }
