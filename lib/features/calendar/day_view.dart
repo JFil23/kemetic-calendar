@@ -8608,6 +8608,7 @@ class _MaatFlowCompletionPanelState extends State<_MaatFlowCompletionPanel> {
   Map<String, MaatFlowResponseValue> _responseValues =
       const <String, MaatFlowResponseValue>{};
   final Set<String> _suppressedOfferResponseSourceIds = <String>{};
+  final Set<String> _includedOfferResponseSourceIds = <String>{};
   bool _responseDirty = false;
 
   @override
@@ -8723,12 +8724,16 @@ class _MaatFlowCompletionPanelState extends State<_MaatFlowCompletionPanel> {
     if (oldWidget.event.clientEventId != widget.event.clientEventId) {
       _cancelCompletionFeedback();
       _responseValues = const <String, MaatFlowResponseValue>{};
+      _suppressedOfferResponseSourceIds.clear();
+      _includedOfferResponseSourceIds.clear();
       _responseDirty = false;
       _eveningThresholdReleaseCarryController.clear();
       _eveningThresholdReleasePending = false;
       unawaited(_load());
     } else if (oldWidget.reloadSignal != widget.reloadSignal) {
       _responseValues = const <String, MaatFlowResponseValue>{};
+      _suppressedOfferResponseSourceIds.clear();
+      _includedOfferResponseSourceIds.clear();
       _responseDirty = false;
       _eveningThresholdReleaseCarryController.clear();
       _eveningThresholdReleasePending = false;
@@ -8738,6 +8743,8 @@ class _MaatFlowCompletionPanelState extends State<_MaatFlowCompletionPanel> {
       widget.responseSpecs,
     )) {
       _responseValues = const <String, MaatFlowResponseValue>{};
+      _suppressedOfferResponseSourceIds.clear();
+      _includedOfferResponseSourceIds.clear();
       _responseDirty = false;
       unawaited(_loadDecanWatchResponseValuesIfNeeded());
     }
@@ -9739,21 +9746,21 @@ class _MaatFlowCompletionPanelState extends State<_MaatFlowCompletionPanel> {
       sourceIds: _responseBlockSourceIds(localDate),
       previews: previews,
       localDate: localDate,
-      includedOfferSourceIds: _includedOfferResponseSourceIds(previews),
+      includedOfferSourceIds: _journalIncludedOfferSourceIds(previews),
     );
     for (final block in blocks) {
       await writer(block);
     }
   }
 
-  Set<String> _includedOfferResponseSourceIds(
+  Set<String> _journalIncludedOfferSourceIds(
     List<MaatFlowResponseJournalPreview> previews,
   ) {
     return previews
         .where(
           (preview) =>
               preview.policy == MaatFlowJournalPolicy.offer &&
-              !_suppressedOfferResponseSourceIds.contains(preview.sourceId),
+              _isJournalPreviewIncluded(preview),
         )
         .map((preview) => preview.sourceId)
         .toSet();
@@ -9761,7 +9768,10 @@ class _MaatFlowCompletionPanelState extends State<_MaatFlowCompletionPanel> {
 
   bool _isJournalPreviewIncluded(MaatFlowResponseJournalPreview preview) {
     if (preview.policy != MaatFlowJournalPolicy.offer) return true;
-    return !_suppressedOfferResponseSourceIds.contains(preview.sourceId);
+    if (preview.includeInJournalByDefault) {
+      return !_suppressedOfferResponseSourceIds.contains(preview.sourceId);
+    }
+    return _includedOfferResponseSourceIds.contains(preview.sourceId);
   }
 
   void _setJournalPreviewIncluded(
@@ -9772,9 +9782,12 @@ class _MaatFlowCompletionPanelState extends State<_MaatFlowCompletionPanel> {
     setState(() {
       if (included) {
         _suppressedOfferResponseSourceIds.remove(preview.sourceId);
+        _includedOfferResponseSourceIds.add(preview.sourceId);
       } else {
         _suppressedOfferResponseSourceIds.add(preview.sourceId);
+        _includedOfferResponseSourceIds.remove(preview.sourceId);
       }
+      _responseDirty = true;
     });
   }
 

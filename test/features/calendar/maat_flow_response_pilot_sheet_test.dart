@@ -13,8 +13,12 @@ import 'package:mobile/features/calendar/the_course_flow.dart';
 import 'package:mobile/features/calendar/the_decan_watch_flow.dart';
 import 'package:mobile/features/calendar/the_decan_watch_local_store.dart';
 import 'package:mobile/features/calendar/the_djed_flow.dart';
+import 'package:mobile/features/calendar/the_kept_word_flow.dart';
+import 'package:mobile/features/calendar/the_kept_word_local_store.dart';
 import 'package:mobile/features/calendar/the_offering_table_flow.dart';
 import 'package:mobile/features/calendar/the_open_hand_flow.dart';
+import 'package:mobile/features/calendar/the_tending_flow.dart';
+import 'package:mobile/features/calendar/the_tending_local_store.dart';
 import 'package:mobile/features/calendar/the_weighing_flow.dart';
 import 'package:mobile/features/journal/journal_badge_utils.dart';
 import 'package:mobile/features/journal/journal_v2_document_model.dart';
@@ -1369,6 +1373,568 @@ void main() {
     expect(document.toPlainText(), isNot(contains('first private detail')));
   });
 
+  testWidgets('Tending response renders with default-off journal offer', (
+    tester,
+  ) async {
+    await _setPhoneViewport(tester);
+
+    await tester.pumpWidget(
+      _DayViewHarness(
+        flowIndex: _tendingFlowIndex,
+        notes: <NoteData>[_tendingNote()],
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await _openDetailSheet(tester, _tendingTitle);
+
+    expect(find.byKey(kMaatFlowResponseSectionKey), findsOneWidget);
+    expect(find.text('What care became specific?'), findsOneWidget);
+    expect(find.text('What tending act did you complete?'), findsOneWidget);
+    for (final optionId in const <String>['seen', 'repaired', 'returned']) {
+      expect(
+        find.byKey(maatFlowResponseFieldKey('tending-care-specific:$optionId')),
+        findsOneWidget,
+      );
+    }
+
+    await _choosePilotOption(
+      tester,
+      specId: 'tending-care-specific',
+      optionId: 'seen',
+    );
+    await _choosePilotOption(
+      tester,
+      specId: 'tending-care-specific',
+      optionId: 'repaired',
+    );
+    await _enterPilotResponse(
+      tester,
+      specId: 'tending-act-completed',
+      text: 'calling before the day closed.',
+    );
+
+    expect(find.byKey(kMaatFlowResponseJournalPreviewKey), findsOneWidget);
+    expect(find.text('Journal preview'), findsOneWidget);
+    expect(
+      find.text(
+        'The Tending: I made care specific through seen and repaired and completed calling before the day closed.',
+      ),
+      findsOneWidget,
+    );
+    expect(find.text('Add to journal'), findsOneWidget);
+    final addToggle = tester.widget<Checkbox>(find.byType(Checkbox).last);
+    expect(addToggle.value, isFalse);
+  });
+
+  testWidgets('Tending can suppress journal response body', (tester) async {
+    await _setPhoneViewport(tester);
+    var document = _journalDocument('Tending manual journal body.');
+    final badgeAppends = <String>[];
+    final responseWrites = <MaatJournalResponseBlock>[];
+
+    await tester.pumpWidget(
+      _DayViewHarness(
+        flowIndex: _tendingFlowIndex,
+        notes: <NoteData>[_tendingNote()],
+        onAppendToJournal: (text) async => badgeAppends.add(text),
+        onWriteJournalResponse: (block) async {
+          responseWrites.add(block);
+          document = MaatJournalResponseBlockUtils.upsert(document, block);
+        },
+        onRecordCompletion:
+            ({
+              required String clientEventId,
+              required int flowId,
+              required DateTime completedOnDate,
+              Map<String, dynamic>? metadata,
+            }) async {},
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await _openDetailSheet(tester, _tendingTitle);
+    await _choosePilotOption(
+      tester,
+      specId: 'tending-care-specific',
+      optionId: 'fed',
+    );
+    await _enterPilotResponse(
+      tester,
+      specId: 'tending-act-completed',
+      text: 'checking on Alex and the appointment.',
+    );
+    await _tapStatus(tester, 'Observed');
+
+    expect(responseWrites, hasLength(1));
+    expect(responseWrites.single.text, isEmpty);
+    expect(document.toPlainText(), 'Tending manual journal body.');
+    expect(MaatJournalResponseBlockUtils.extract(document), isEmpty);
+    expect(badgeAppends, hasLength(1));
+    expect(JournalBadgeUtils.hasBadges(badgeAppends.single), isTrue);
+  });
+
+  testWidgets('Tending completion writes one opted-in response block', (
+    tester,
+  ) async {
+    await _setPhoneViewport(tester);
+    var document = _journalDocument('Tending journal body stays.');
+
+    await tester.pumpWidget(
+      _DayViewHarness(
+        flowIndex: _tendingFlowIndex,
+        notes: <NoteData>[_tendingNote()],
+        onAppendToJournal: (_) async {},
+        onWriteJournalResponse: (block) async {
+          document = MaatJournalResponseBlockUtils.upsert(document, block);
+        },
+        onRecordCompletion:
+            ({
+              required String clientEventId,
+              required int flowId,
+              required DateTime completedOnDate,
+              Map<String, dynamic>? metadata,
+            }) async {},
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await _openDetailSheet(tester, _tendingTitle);
+    await _choosePilotOption(
+      tester,
+      specId: 'tending-care-specific',
+      optionId: 'protected',
+    );
+    await _enterPilotResponse(
+      tester,
+      specId: 'tending-act-completed',
+      text: 'one concrete tending act.',
+    );
+    await _toggleOfferJournalWrite(tester);
+    await _tapStatus(tester, 'Observed');
+
+    expect(document.toPlainText(), contains('Tending journal body stays.'));
+    expect(
+      document.toPlainText(),
+      contains(
+        'The Tending: I made care specific through protected and completed one concrete tending act.',
+      ),
+    );
+    expect(MaatJournalResponseBlockUtils.extract(document), hasLength(1));
+    expect(JournalBadgeUtils.hasBadges(document.toPlainText()), isFalse);
+  });
+
+  testWidgets('Tending repeat completion updates one opted-in response block', (
+    tester,
+  ) async {
+    await _setPhoneViewport(tester);
+    var document = _journalDocument('Existing Tending journal text.');
+
+    await tester.pumpWidget(
+      _DayViewHarness(
+        flowIndex: _tendingFlowIndex,
+        notes: <NoteData>[_tendingNote()],
+        onAppendToJournal: (_) async {},
+        onWriteJournalResponse: (block) async {
+          document = MaatJournalResponseBlockUtils.upsert(document, block);
+        },
+        onRecordCompletion:
+            ({
+              required String clientEventId,
+              required int flowId,
+              required DateTime completedOnDate,
+              Map<String, dynamic>? metadata,
+            }) async {},
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await _openDetailSheet(tester, _tendingTitle);
+    await _choosePilotOption(
+      tester,
+      specId: 'tending-care-specific',
+      optionId: 'cleaned',
+    );
+    await _enterPilotResponse(
+      tester,
+      specId: 'tending-act-completed',
+      text: 'first care detail.',
+    );
+    await _toggleOfferJournalWrite(tester);
+    await _tapStatus(tester, 'Observed');
+
+    await _enterPilotResponse(
+      tester,
+      specId: 'tending-act-completed',
+      text: 'clearing one practical obstacle.',
+    );
+    await _tapStatus(tester, 'Observed');
+
+    final responseBlocks = MaatJournalResponseBlockUtils.extract(document);
+    expect(responseBlocks, hasLength(1));
+    expect(
+      responseBlocks.single.text,
+      'The Tending: I made care specific through cleaned and completed clearing one practical obstacle.',
+    );
+    expect(document.toPlainText(), contains('Existing Tending journal text.'));
+    expect(document.toPlainText(), isNot(contains('first care detail')));
+  });
+
+  testWidgets('Tending local values hydrate and clearing remains local', (
+    tester,
+  ) async {
+    await _setPhoneViewport(tester);
+    final prefs = await SharedPreferences.getInstance();
+    final store = TheTendingLocalStore(prefs: prefs);
+    await store.savePromptText(
+      _tendingFlowId,
+      TheTendingLocalPromptKind.careInventory,
+      'Name One - medicine',
+    );
+
+    await tester.pumpWidget(
+      _DayViewHarness(
+        flowIndex: _tendingFlowIndex,
+        notes: <NoteData>[_tendingNote()],
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await _openDetailSheet(tester, _tendingTitle);
+    await _pumpUntil(
+      tester,
+      () => find.text('Name One - medicine').evaluate().isNotEmpty,
+    );
+
+    expect(find.text('Care inventory'), findsOneWidget);
+    expect(find.text('Name One - medicine'), findsOneWidget);
+    expect(
+      prefs.getString('tending_${_tendingFlowId}_prompt_care_inventory'),
+      'Name One - medicine',
+    );
+
+    final clear = find.widgetWithText(OutlinedButton, 'Clear').last;
+    await tester.ensureVisible(clear);
+    await tester.tap(clear);
+    await _pumpInteraction(tester);
+
+    expect(
+      prefs.getString('tending_${_tendingFlowId}_prompt_care_inventory'),
+      isNull,
+    );
+    final retainedCareList = await store.loadCareList(_tendingFlowId);
+    expect(retainedCareList, hasLength(1));
+    expect(retainedCareList.single.name, 'Name One');
+    expect(retainedCareList.single.perceivedNeed, 'medicine');
+  });
+
+  testWidgets('Kept Word response renders with default-off journal offer', (
+    tester,
+  ) async {
+    await _setPhoneViewport(tester);
+
+    await tester.pumpWidget(
+      _DayViewHarness(
+        flowIndex: _keptWordFlowIndex,
+        notes: <NoteData>[_keptWordNote()],
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await _openDetailSheet(tester, _keptWordTitle);
+
+    expect(find.byKey(kMaatFlowResponseSectionKey), findsOneWidget);
+    expect(find.text('What happened with the word?'), findsOneWidget);
+    expect(
+      find.text('What word, repair, or conversation needs to be remembered?'),
+      findsOneWidget,
+    );
+    for (final optionId in const <String>[
+      'kept',
+      'renegotiated',
+      'still_in_process',
+    ]) {
+      expect(
+        find.byKey(maatFlowResponseFieldKey('kept-word-status:$optionId')),
+        findsOneWidget,
+      );
+    }
+
+    await _choosePilotOption(
+      tester,
+      specId: 'kept-word-status',
+      optionId: 'renegotiated',
+    );
+    await _enterPilotResponse(
+      tester,
+      specId: 'kept-word-remembered',
+      text: 'the repaired conversation belongs in memory.',
+    );
+
+    expect(find.byKey(kMaatFlowResponseJournalPreviewKey), findsOneWidget);
+    expect(find.text('Journal preview'), findsOneWidget);
+    expect(
+      find.text(
+        'The Kept Word: I brought one agreement back into clearer order; the word is renegotiated, and I remember the repaired conversation belongs in memory.',
+      ),
+      findsOneWidget,
+    );
+    expect(find.text('Add to journal'), findsOneWidget);
+    final addToggle = tester.widget<Checkbox>(find.byType(Checkbox).last);
+    expect(addToggle.value, isFalse);
+  });
+
+  testWidgets('Kept Word can suppress journal response body', (tester) async {
+    await _setPhoneViewport(tester);
+    var document = _journalDocument('Kept Word manual journal body.');
+    final badgeAppends = <String>[];
+    final responseWrites = <MaatJournalResponseBlock>[];
+
+    await tester.pumpWidget(
+      _DayViewHarness(
+        flowIndex: _keptWordFlowIndex,
+        notes: <NoteData>[_keptWordNote()],
+        onAppendToJournal: (text) async => badgeAppends.add(text),
+        onWriteJournalResponse: (block) async {
+          responseWrites.add(block);
+          document = MaatJournalResponseBlockUtils.upsert(document, block);
+        },
+        onRecordCompletion:
+            ({
+              required String clientEventId,
+              required int flowId,
+              required DateTime completedOnDate,
+              Map<String, dynamic>? metadata,
+            }) async {},
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await _openDetailSheet(tester, _keptWordTitle);
+    await _choosePilotOption(
+      tester,
+      specId: 'kept-word-status',
+      optionId: 'repaired',
+    );
+    await _enterPilotResponse(
+      tester,
+      specId: 'kept-word-remembered',
+      text: 'private relationship detail.',
+    );
+    await _tapStatus(tester, 'Observed');
+
+    expect(responseWrites, hasLength(1));
+    expect(responseWrites.single.text, isEmpty);
+    expect(document.toPlainText(), 'Kept Word manual journal body.');
+    expect(MaatJournalResponseBlockUtils.extract(document), isEmpty);
+    expect(badgeAppends, hasLength(1));
+    expect(JournalBadgeUtils.hasBadges(badgeAppends.single), isTrue);
+  });
+
+  testWidgets('Kept Word completion writes one opted-in response block', (
+    tester,
+  ) async {
+    await _setPhoneViewport(tester);
+    var document = _journalDocument('Kept Word journal body stays.');
+
+    await tester.pumpWidget(
+      _DayViewHarness(
+        flowIndex: _keptWordFlowIndex,
+        notes: <NoteData>[_keptWordNote()],
+        onAppendToJournal: (_) async {},
+        onWriteJournalResponse: (block) async {
+          document = MaatJournalResponseBlockUtils.upsert(document, block);
+        },
+        onRecordCompletion:
+            ({
+              required String clientEventId,
+              required int flowId,
+              required DateTime completedOnDate,
+              Map<String, dynamic>? metadata,
+            }) async {},
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await _openDetailSheet(tester, _keptWordTitle);
+    await _choosePilotOption(
+      tester,
+      specId: 'kept-word-status',
+      optionId: 'kept',
+    );
+    await _enterPilotResponse(
+      tester,
+      specId: 'kept-word-remembered',
+      text: 'the repair stayed plain and accountable.',
+    );
+    await _toggleOfferJournalWrite(tester);
+    await _tapStatus(tester, 'Observed');
+
+    expect(document.toPlainText(), contains('Kept Word journal body stays.'));
+    expect(
+      document.toPlainText(),
+      contains(
+        'The Kept Word: I brought one agreement back into clearer order; the word is kept, and I remember the repair stayed plain and accountable.',
+      ),
+    );
+    expect(MaatJournalResponseBlockUtils.extract(document), hasLength(1));
+    expect(JournalBadgeUtils.hasBadges(document.toPlainText()), isFalse);
+  });
+
+  testWidgets('Kept Word repeat completion updates one opted-in response block', (
+    tester,
+  ) async {
+    await _setPhoneViewport(tester);
+    var document = _journalDocument('Existing Kept Word journal text.');
+
+    await tester.pumpWidget(
+      _DayViewHarness(
+        flowIndex: _keptWordFlowIndex,
+        notes: <NoteData>[_keptWordNote()],
+        onAppendToJournal: (_) async {},
+        onWriteJournalResponse: (block) async {
+          document = MaatJournalResponseBlockUtils.upsert(document, block);
+        },
+        onRecordCompletion:
+            ({
+              required String clientEventId,
+              required int flowId,
+              required DateTime completedOnDate,
+              Map<String, dynamic>? metadata,
+            }) async {},
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await _openDetailSheet(tester, _keptWordTitle);
+    await _choosePilotOption(
+      tester,
+      specId: 'kept-word-status',
+      optionId: 'still_in_process',
+    );
+    await _enterPilotResponse(
+      tester,
+      specId: 'kept-word-remembered',
+      text: 'first agreement detail.',
+    );
+    await _toggleOfferJournalWrite(tester);
+    await _tapStatus(tester, 'Observed');
+
+    await _enterPilotResponse(
+      tester,
+      specId: 'kept-word-remembered',
+      text: 'the next repair step is named.',
+    );
+    await _tapStatus(tester, 'Observed');
+
+    final responseBlocks = MaatJournalResponseBlockUtils.extract(document);
+    expect(responseBlocks, hasLength(1));
+    expect(
+      responseBlocks.single.text,
+      'The Kept Word: I brought one agreement back into clearer order; the word is still in process, and I remember the next repair step is named.',
+    );
+    expect(
+      document.toPlainText(),
+      contains('Existing Kept Word journal text.'),
+    );
+    expect(document.toPlainText(), isNot(contains('first agreement detail')));
+  });
+
+  testWidgets('Kept Word local values hydrate and clearing remains local', (
+    tester,
+  ) async {
+    await _setPhoneViewport(tester);
+    final prefs = await SharedPreferences.getInstance();
+    final store = TheKeptWordLocalStore(prefs: prefs);
+    await store.savePromptText(
+      _keptWordFlowId,
+      KeptWordLocalPromptKind.agreementInventory,
+      'Name One - dishes - broken',
+    );
+
+    await tester.pumpWidget(
+      _DayViewHarness(
+        flowIndex: _keptWordFlowIndex,
+        notes: <NoteData>[_keptWordNote()],
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await _openDetailSheet(tester, _keptWordTitle);
+    await _pumpUntil(
+      tester,
+      () => find.text('Name One - dishes - broken').evaluate().isNotEmpty,
+    );
+
+    expect(find.text('Agreement inventory'), findsOneWidget);
+    expect(find.text('Name One - dishes - broken'), findsOneWidget);
+    expect(
+      prefs.getString(
+        'kept_word_${_keptWordFlowId}_prompt_agreement_inventory',
+      ),
+      'Name One - dishes - broken',
+    );
+
+    final clear = find.widgetWithText(OutlinedButton, 'Clear').last;
+    await tester.ensureVisible(clear);
+    await tester.tap(clear);
+    await _pumpInteraction(tester);
+
+    expect(
+      prefs.getString(
+        'kept_word_${_keptWordFlowId}_prompt_agreement_inventory',
+      ),
+      isNull,
+    );
+    expect(await store.loadAgreementInventory(_keptWordFlowId), isEmpty);
+  });
+
+  testWidgets('Kept Word conversation gate remains intact', (tester) async {
+    await _setPhoneViewport(tester);
+    final recorded = <CompletionStatus>[];
+
+    await tester.pumpWidget(
+      _DayViewHarness(
+        flowIndex: _keptWordFlowIndex,
+        notes: <NoteData>[_keptWordNote(event: _keptWordConversationEvent)],
+        onAppendToJournal: (_) async {},
+        onRecordCompletion:
+            ({
+              required String clientEventId,
+              required int flowId,
+              required DateTime completedOnDate,
+              Map<String, dynamic>? metadata,
+            }) async {
+              recorded.add(
+                CompletionStatusX.fromWireName(
+                  metadata?['completion_status']?.toString(),
+                ),
+              );
+            },
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await _openDetailSheet(tester, _keptWordConversationTitle);
+    await _choosePilotOption(
+      tester,
+      specId: 'kept-word-status',
+      optionId: 'still_in_process',
+    );
+    await _tapStatus(tester, 'Observed');
+
+    expect(recorded, isEmpty);
+    expect(
+      find.text(
+        'Mark the conversation complete locally, or choose Conversation pending.',
+      ),
+      findsOneWidget,
+    );
+
+    await _tapStatus(tester, 'Conversation pending');
+    expect(recorded, <CompletionStatus>[CompletionStatus.partial]);
+  });
+
   testWidgets('unsupported Ma_at flow remains without response fields', (
     tester,
   ) async {
@@ -1460,6 +2026,18 @@ final String _openHandTitle = openHandEventTitle(_openHandEvent);
 const int _djedFlowId = 95;
 final DjedEvent _djedEvent = kDjedEvents.first;
 final String _djedTitle = djedEventTitle(_djedEvent);
+const int _tendingFlowId = 96;
+final TheTendingEvent _tendingEvent = kTheTendingEvents.first;
+final String _tendingTitle = theTendingEventTitle(_tendingEvent);
+const int _keptWordFlowId = 97;
+final KeptWordEvent _keptWordEvent = kKeptWordEvents.first;
+final String _keptWordTitle = keptWordEventTitle(_keptWordEvent);
+final KeptWordEvent _keptWordConversationEvent = kKeptWordEvents.singleWhere(
+  (event) => event.eventNumber == 5,
+);
+final String _keptWordConversationTitle = keptWordEventTitle(
+  _keptWordConversationEvent,
+);
 
 const Map<int, FlowData> _decanWatchFlowIndex = <int, FlowData>{
   _decanWatchFlowId: FlowData(
@@ -1528,6 +2106,26 @@ const Map<int, FlowData> _djedFlowIndex = <int, FlowData>{
     color: Colors.green,
     active: true,
     notes: 'maat=$kTheDjedFlowKey',
+  ),
+};
+
+const Map<int, FlowData> _tendingFlowIndex = <int, FlowData>{
+  _tendingFlowId: FlowData(
+    id: _tendingFlowId,
+    name: kTheTendingTitle,
+    color: Colors.purple,
+    active: true,
+    notes: 'maat=$kTheTendingFlowKey;tending_lens=neutral',
+  ),
+};
+
+const Map<int, FlowData> _keptWordFlowIndex = <int, FlowData>{
+  _keptWordFlowId: FlowData(
+    id: _keptWordFlowId,
+    name: kKeptWordTitle,
+    color: Colors.brown,
+    active: true,
+    notes: 'maat=$kKeptWordFlowKey;kept_word_lens=neutral',
   ),
 };
 
@@ -1714,6 +2312,49 @@ NoteData _djedNote() {
       'kind': 'maat_djed_event',
       'event_number': event.eventNumber,
       'flow_day': event.flowDay,
+    },
+  );
+}
+
+NoteData _tendingNote({TheTendingEvent? event}) {
+  final target = event ?? _tendingEvent;
+  return NoteData(
+    clientEventId: 'cid-tending-${target.eventNumber}',
+    title: theTendingEventTitle(target),
+    detail: theTendingDetailText(target, lens: TheTendingLens.neutral),
+    category: target.decanSection,
+    allDay: false,
+    start: const TimeOfDay(hour: 11, minute: 0),
+    end: const TimeOfDay(hour: 11, minute: 10),
+    flowId: _tendingFlowId,
+    behaviorPayload: <String, dynamic>{
+      'flow_key': kTheTendingFlowKey,
+      'kind': 'maat_the_tending_event',
+      'event_number': target.eventNumber,
+      'flow_day': target.flowDay,
+      'local_prompt': target.localPrompt.key,
+    },
+  );
+}
+
+NoteData _keptWordNote({KeptWordEvent? event}) {
+  final target = event ?? _keptWordEvent;
+  return NoteData(
+    clientEventId: 'cid-kept-word-${target.eventNumber}',
+    title: keptWordEventTitle(target),
+    detail: keptWordDetailText(target, lens: KeptWordLens.neutral),
+    category: target.decanSection,
+    allDay: false,
+    start: const TimeOfDay(hour: 11, minute: 0),
+    end: const TimeOfDay(hour: 11, minute: 10),
+    flowId: _keptWordFlowId,
+    behaviorPayload: <String, dynamic>{
+      'flow_key': kKeptWordFlowKey,
+      'kind': 'maat_kept_word_event',
+      'event_number': target.eventNumber,
+      'flow_day': target.flowDay,
+      'local_prompt': target.localPrompt.key,
+      'requires_conversation': target.requiresConversation,
     },
   );
 }

@@ -142,6 +142,8 @@ enum MaatFlowResponseJournalFormatter {
   wepRonpetOpening,
   openHandProvision,
   djedRestoration,
+  tendingCare,
+  keptWordAgreement,
 }
 
 extension MaatFlowResponseJournalFormatterX
@@ -166,6 +168,10 @@ extension MaatFlowResponseJournalFormatterX
         return 'open_hand_provision';
       case MaatFlowResponseJournalFormatter.djedRestoration:
         return 'djed_restoration';
+      case MaatFlowResponseJournalFormatter.tendingCare:
+        return 'tending_care';
+      case MaatFlowResponseJournalFormatter.keptWordAgreement:
+        return 'kept_word_agreement';
     }
   }
 
@@ -195,6 +201,12 @@ extension MaatFlowResponseJournalFormatterX
       case 'djed_restoration':
       case 'djed-restoration':
         return MaatFlowResponseJournalFormatter.djedRestoration;
+      case 'tending_care':
+      case 'tending-care':
+        return MaatFlowResponseJournalFormatter.tendingCare;
+      case 'kept_word_agreement':
+      case 'kept-word-agreement':
+        return MaatFlowResponseJournalFormatter.keptWordAgreement;
       case 'standard':
       default:
         return MaatFlowResponseJournalFormatter.standard;
@@ -242,6 +254,7 @@ class MaatFlowResponseSpec {
     this.journalRole,
     this.redactedSummary,
     this.privacyClass = 'ordinary',
+    this.offerJournalInclusionDefault = true,
     this.ignoreEmptyValues = true,
     this.suppressJournalWhenSkipped = true,
   }) : assert(id.length > 0),
@@ -267,6 +280,7 @@ class MaatFlowResponseSpec {
   final String? journalRole;
   final String? redactedSummary;
   final String privacyClass;
+  final bool offerJournalInclusionDefault;
   final bool ignoreEmptyValues;
   final bool suppressJournalWhenSkipped;
 
@@ -435,11 +449,13 @@ class MaatFlowResponseJournalPreview {
     required this.sourceId,
     required this.policy,
     required this.text,
+    required this.includeInJournalByDefault,
   });
 
   final String sourceId;
   final MaatFlowJournalPolicy policy;
   final String text;
+  final bool includeInJournalByDefault;
 
   bool get writesByDefault => policy.mirrorsByDefault;
   bool get requiresUserChoice => policy == MaatFlowJournalPolicy.offer;
@@ -469,6 +485,9 @@ MaatFlowResponseJournalPreview? buildMaatFlowResponseJournalPreview({
         spec.sourceId(clientEventId: clientEventId, localDate: localDate),
     policy: spec.journalPolicy,
     text: bodyText,
+    includeInJournalByDefault: spec.journalPolicy == MaatFlowJournalPolicy.offer
+        ? spec.offerJournalInclusionDefault
+        : spec.journalPolicy.mirrorsByDefault,
   );
 }
 
@@ -568,6 +587,7 @@ MaatFlowResponseJournalPreview? _buildGroupedMaatFlowResponseJournalPreview({
           ),
       policy: policy,
       text: redactedText,
+      includeInJournalByDefault: policy.mirrorsByDefault,
     );
   }
 
@@ -586,6 +606,9 @@ MaatFlowResponseJournalPreview? _buildGroupedMaatFlowResponseJournalPreview({
         ),
     policy: policy,
     text: bodyText,
+    includeInJournalByDefault: policy == MaatFlowJournalPolicy.offer
+        ? sourceSpec.offerJournalInclusionDefault
+        : policy.mirrorsByDefault,
   );
 }
 
@@ -614,6 +637,10 @@ String _formatResponseBodyText(
       return '${spec.journalHeading}: I gave ${_sentenceFragment(display)}.';
     case MaatFlowResponseJournalFormatter.djedRestoration:
       return '${spec.journalHeading}: I restored ${_sentenceFragment(display)} and stood it upright again.';
+    case MaatFlowResponseJournalFormatter.tendingCare:
+      return '${spec.journalHeading}: I made care specific through ${_sentenceFragment(display)}.';
+    case MaatFlowResponseJournalFormatter.keptWordAgreement:
+      return '${spec.journalHeading}: I brought one agreement back into clearer order: ${_sentenceFragment(display)}.';
     case MaatFlowResponseJournalFormatter.decanWatch:
     case MaatFlowResponseJournalFormatter.standard:
       return '${spec.journalHeading}: $display';
@@ -643,6 +670,10 @@ String _formatGroupedResponseBodyText(
       return _formatOpenHandResponseGroup(specs, values);
     case MaatFlowResponseJournalFormatter.djedRestoration:
       return _formatDjedResponseGroup(specs, values);
+    case MaatFlowResponseJournalFormatter.tendingCare:
+      return _formatTendingResponseGroup(specs, values);
+    case MaatFlowResponseJournalFormatter.keptWordAgreement:
+      return _formatKeptWordResponseGroup(specs, values);
     case MaatFlowResponseJournalFormatter.dawnHouseRite:
     case MaatFlowResponseJournalFormatter.closingRelease:
     case MaatFlowResponseJournalFormatter.daysOutsideReceipt:
@@ -764,6 +795,87 @@ String _formatDjedResponseGroup(
   }
   if (restored.isNotEmpty) {
     return '${specs.first.journalHeading}: I restored $restored and stood it upright again.';
+  }
+  return '';
+}
+
+String _formatTendingResponseGroup(
+  List<MaatFlowResponseSpec> specs,
+  Map<String, MaatFlowResponseValue> values,
+) {
+  final byRole = <String, MaatFlowResponseSpec>{
+    for (final spec in specs)
+      if (spec.normalizedJournalRole != null) spec.normalizedJournalRole!: spec,
+  };
+
+  final careSpec = byRole['care'];
+  final actSpec = byRole['act'];
+  final care = careSpec == null
+      ? ''
+      : _joinNatural(
+          values[careSpec.id]?.optionIds
+                  .map((id) => careSpec.optionById(id)?._displayLabel ?? id)
+                  .where((label) => label.trim().isNotEmpty)
+                  .map((label) => label.trim().toLowerCase()) ??
+              const Iterable<String>.empty(),
+        );
+  final act = actSpec == null
+      ? ''
+      : _sentenceFragment(values[actSpec.id]?.displayText(actSpec));
+
+  if (care.isNotEmpty && act.isNotEmpty) {
+    return '${specs.first.journalHeading}: I made care specific through $care and completed $act.';
+  }
+  if (care.isNotEmpty) {
+    return '${specs.first.journalHeading}: I made care specific through $care today.';
+  }
+  if (act.isNotEmpty) {
+    return '${specs.first.journalHeading}: I made care specific today and completed $act.';
+  }
+  return '';
+}
+
+String _formatKeptWordResponseGroup(
+  List<MaatFlowResponseSpec> specs,
+  Map<String, MaatFlowResponseValue> values,
+) {
+  final byRole = <String, MaatFlowResponseSpec>{
+    for (final spec in specs)
+      if (spec.normalizedJournalRole != null) spec.normalizedJournalRole!: spec,
+  };
+
+  final statusSpec = byRole['status'];
+  final rememberedSpec = byRole['remembered'];
+  final status = statusSpec == null
+      ? ''
+      : _firstNonEmpty(
+          values[statusSpec.id]?.optionIds.map(
+                (id) => statusSpec.optionById(id)?._displayLabel ?? id,
+              ) ??
+              const Iterable<String>.empty(),
+        ).toLowerCase();
+  final remembered = rememberedSpec == null
+      ? ''
+      : _sentenceFragment(
+          values[rememberedSpec.id]?.displayText(rememberedSpec),
+        );
+
+  if (status.isNotEmpty && remembered.isNotEmpty) {
+    return '${specs.first.journalHeading}: I brought one agreement back into clearer order; the word is $status, and I remember $remembered.';
+  }
+  if (status.isNotEmpty) {
+    return '${specs.first.journalHeading}: I brought one agreement back into clearer order; the word is $status.';
+  }
+  if (remembered.isNotEmpty) {
+    return '${specs.first.journalHeading}: I brought one agreement back into clearer order: $remembered.';
+  }
+  return '';
+}
+
+String _firstNonEmpty(Iterable<String> values) {
+  for (final value in values) {
+    final trimmed = value.trim();
+    if (trimmed.isNotEmpty) return trimmed;
   }
   return '';
 }

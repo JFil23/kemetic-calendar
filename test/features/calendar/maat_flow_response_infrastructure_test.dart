@@ -11,8 +11,10 @@ import 'package:mobile/features/calendar/maat_flow_response_resolver.dart';
 import 'package:mobile/features/calendar/the_days_outside_year_flow.dart';
 import 'package:mobile/features/calendar/the_decan_watch_flow.dart';
 import 'package:mobile/features/calendar/the_djed_flow.dart';
+import 'package:mobile/features/calendar/the_kept_word_flow.dart';
 import 'package:mobile/features/calendar/the_open_hand_flow.dart';
 import 'package:mobile/features/calendar/the_offering_table_flow.dart';
+import 'package:mobile/features/calendar/the_tending_flow.dart';
 import 'package:mobile/features/journal/journal_badge_utils.dart';
 import 'package:mobile/features/journal/journal_event_badge.dart';
 import 'package:mobile/features/journal/journal_v2_document_model.dart';
@@ -115,10 +117,18 @@ void main() {
       MaatFlowResponseJournalFormatterX.fromWireName('djed-restoration'),
       MaatFlowResponseJournalFormatter.djedRestoration,
     );
+    expect(
+      MaatFlowResponseJournalFormatterX.fromWireName('tending-care'),
+      MaatFlowResponseJournalFormatter.tendingCare,
+    );
+    expect(
+      MaatFlowResponseJournalFormatterX.fromWireName('kept-word-agreement'),
+      MaatFlowResponseJournalFormatter.keptWordAgreement,
+    );
   });
 
-  test('default resolver exposes only Phase 2B through 3B pilot specs', () {
-    expect(kDefaultMaatFlowResponseResolver.specs, hasLength(21));
+  test('default resolver exposes only Phase 2B through 3D pilot specs', () {
+    expect(kDefaultMaatFlowResponseResolver.specs, hasLength(25));
 
     expect(
       resolveMaatFlowResponseSpecs(
@@ -408,7 +418,7 @@ void main() {
     );
   });
 
-  test('Open Hand and Djed use offer policy and privacy classes', () {
+  test('sensitive action flows use offer policy and privacy classes', () {
     final openHandSpecs = resolveMaatFlowResponseSpecs(
       flowKey: kTheOpenHandFlowKey,
       surface: MaatFlowResponseSurface.calendarSheet,
@@ -432,6 +442,50 @@ void main() {
     expect(djedSpecs.map((spec) => spec.privacyClass).toSet(), <String>{
       'sensitive_structure',
     });
+    expect(
+      djedSpecs.map((spec) => spec.offerJournalInclusionDefault).toSet(),
+      <bool>{true},
+    );
+
+    final tendingSpecs = resolveMaatFlowResponseSpecs(
+      flowKey: kTheTendingFlowKey,
+      surface: MaatFlowResponseSurface.calendarSheet,
+    );
+    expect(tendingSpecs.map((spec) => spec.id), <String>[
+      'tending-care-specific',
+      'tending-act-completed',
+    ]);
+    expect(
+      tendingSpecs.map((spec) => spec.journalPolicy).toSet(),
+      <MaatFlowJournalPolicy>{MaatFlowJournalPolicy.offer},
+    );
+    expect(tendingSpecs.map((spec) => spec.privacyClass).toSet(), <String>{
+      'care_private',
+    });
+    expect(
+      tendingSpecs.map((spec) => spec.offerJournalInclusionDefault).toSet(),
+      <bool>{false},
+    );
+
+    final keptWordSpecs = resolveMaatFlowResponseSpecs(
+      flowKey: kKeptWordFlowKey,
+      surface: MaatFlowResponseSurface.calendarSheet,
+    );
+    expect(keptWordSpecs.map((spec) => spec.id), <String>[
+      'kept-word-status',
+      'kept-word-remembered',
+    ]);
+    expect(
+      keptWordSpecs.map((spec) => spec.journalPolicy).toSet(),
+      <MaatFlowJournalPolicy>{MaatFlowJournalPolicy.offer},
+    );
+    expect(keptWordSpecs.map((spec) => spec.privacyClass).toSet(), <String>{
+      'agreement_private',
+    });
+    expect(
+      keptWordSpecs.map((spec) => spec.offerJournalInclusionDefault).toSet(),
+      <bool>{false},
+    );
   });
 
   test('Dawn House and Closing journal formatters read naturally', () {
@@ -553,7 +607,7 @@ void main() {
     );
   });
 
-  test('Open Hand and Djed offer previews read naturally', () {
+  test('Open Hand, Djed, Tending, and Kept Word offer previews read naturally', () {
     final openHandSpecs = resolveMaatFlowResponseSpecs(
       flowKey: kTheOpenHandFlowKey,
       surface: MaatFlowResponseSurface.calendarSheet,
@@ -633,6 +687,7 @@ void main() {
       djed.single.text,
       'The Djed: I restored body and boundary by setting a load-bearing practice back in place and stood it upright again.',
     );
+    expect(djed.single.includeInJournalByDefault, isTrue);
 
     final djedNounPhrase = buildMaatFlowResponseJournalPreviews(
       specs: djedSpecs,
@@ -651,6 +706,70 @@ void main() {
     expect(
       djedNounPhrase.single.text,
       'The Djed: I restored practice by restoring one load-bearing part of my life and stood it upright again.',
+    );
+
+    final tendingSpecs = resolveMaatFlowResponseSpecs(
+      flowKey: kTheTendingFlowKey,
+      surface: MaatFlowResponseSurface.calendarSheet,
+    );
+    final tending = buildMaatFlowResponseJournalPreviews(
+      specs: tendingSpecs,
+      values: <String, MaatFlowResponseValue>{
+        'tending-care-specific': MaatFlowResponseValue.chips(
+          specId: 'tending-care-specific',
+          optionIds: <String>['seen', 'repaired'],
+        ),
+        'tending-act-completed': MaatFlowResponseValue.text(
+          specId: 'tending-act-completed',
+          text: 'calling before the day closed.',
+          multiline: true,
+        ),
+      },
+      clientEventId: 'cid-tending',
+    );
+    expect(tending, hasLength(1));
+    expect(tending.single.policy, MaatFlowJournalPolicy.offer);
+    expect(tending.single.requiresUserChoice, isTrue);
+    expect(tending.single.includeInJournalByDefault, isFalse);
+    expect(
+      tending.single.sourceId,
+      'maat_response:the-tending:cid:cid-tending:tending-care',
+    );
+    expect(
+      tending.single.text,
+      'The Tending: I made care specific through seen and repaired and completed calling before the day closed.',
+    );
+
+    final keptWordSpecs = resolveMaatFlowResponseSpecs(
+      flowKey: kKeptWordFlowKey,
+      surface: MaatFlowResponseSurface.calendarSheet,
+    );
+    final keptWord = buildMaatFlowResponseJournalPreviews(
+      specs: keptWordSpecs,
+      values: <String, MaatFlowResponseValue>{
+        'kept-word-status': MaatFlowResponseValue.choice(
+          specId: 'kept-word-status',
+          optionId: 'renegotiated',
+        ),
+        'kept-word-remembered': MaatFlowResponseValue.text(
+          specId: 'kept-word-remembered',
+          text: 'the repaired conversation belongs in memory.',
+          multiline: true,
+        ),
+      },
+      clientEventId: 'cid-kept-word',
+    );
+    expect(keptWord, hasLength(1));
+    expect(keptWord.single.policy, MaatFlowJournalPolicy.offer);
+    expect(keptWord.single.requiresUserChoice, isTrue);
+    expect(keptWord.single.includeInJournalByDefault, isFalse);
+    expect(
+      keptWord.single.sourceId,
+      'maat_response:the-kept-word:cid:cid-kept-word:kept-word-agreement',
+    );
+    expect(
+      keptWord.single.text,
+      'The Kept Word: I brought one agreement back into clearer order; the word is renegotiated, and I remember the repaired conversation belongs in memory.',
     );
   });
 
@@ -764,7 +883,7 @@ void main() {
     expect(JournalBadgeUtils.tokensFromDocument(removed), hasLength(1));
   });
 
-  test('Phase 3B wiring stays isolated to shared sheet panels and pilots', () {
+  test('Phase 3D wiring stays isolated to shared sheet panels and pilots', () {
     expect(
       kDefaultMaatFlowResponseResolver.specs
           .map((spec) => spec.flowKey)
@@ -779,6 +898,8 @@ void main() {
         kDaysOutsideTheYearFlowKey,
         kTheOpenHandFlowKey,
         kTheDjedFlowKey,
+        kTheTendingFlowKey,
+        kKeptWordFlowKey,
       },
     );
 

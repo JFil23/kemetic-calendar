@@ -4,8 +4,10 @@ import 'maat_flow_response_models.dart';
 import 'the_days_outside_year_flow.dart';
 import 'the_decan_watch_flow.dart';
 import 'the_djed_flow.dart';
+import 'the_kept_word_flow.dart';
 import 'the_open_hand_flow.dart';
 import 'the_offering_table_flow.dart';
+import 'the_tending_flow.dart';
 
 const List<MaatFlowResponseSpec>
 kPilotMaatFlowResponseSpecs = <MaatFlowResponseSpec>[
@@ -351,6 +353,123 @@ kPilotMaatFlowResponseSpecs = <MaatFlowResponseSpec>[
     journalFormatter: MaatFlowResponseJournalFormatter.djedRestoration,
     journalRole: 'restored',
     privacyClass: 'sensitive_structure',
+  ),
+  MaatFlowResponseSpec(
+    id: 'tending-care-specific',
+    flowKey: kTheTendingFlowKey,
+    surface: MaatFlowResponseSurface.calendarSheet,
+    kind: MaatFlowResponseKind.chips,
+    label: 'What care became specific?',
+    options: <MaatFlowResponseOption>[
+      MaatFlowResponseOption(id: 'seen', label: 'Seen', journalLabel: 'seen'),
+      MaatFlowResponseOption(id: 'fed', label: 'Fed', journalLabel: 'fed'),
+      MaatFlowResponseOption(
+        id: 'called',
+        label: 'Called',
+        journalLabel: 'called',
+      ),
+      MaatFlowResponseOption(
+        id: 'protected',
+        label: 'Protected',
+        journalLabel: 'protected',
+      ),
+      MaatFlowResponseOption(
+        id: 'cleaned',
+        label: 'Cleaned',
+        journalLabel: 'cleaned',
+      ),
+      MaatFlowResponseOption(
+        id: 'repaired',
+        label: 'Repaired',
+        journalLabel: 'repaired',
+      ),
+      MaatFlowResponseOption(
+        id: 'rested',
+        label: 'Rested',
+        journalLabel: 'rested',
+      ),
+      MaatFlowResponseOption(
+        id: 'returned',
+        label: 'Returned',
+        journalLabel: 'returned',
+      ),
+    ],
+    journalPolicy: MaatFlowJournalPolicy.offer,
+    journalLabel: kTheTendingTitle,
+    journalGroupId: 'tending-care',
+    journalGroupLabel: kTheTendingTitle,
+    journalFormatter: MaatFlowResponseJournalFormatter.tendingCare,
+    journalRole: 'care',
+    privacyClass: 'care_private',
+    offerJournalInclusionDefault: false,
+  ),
+  MaatFlowResponseSpec(
+    id: 'tending-act-completed',
+    flowKey: kTheTendingFlowKey,
+    surface: MaatFlowResponseSurface.calendarSheet,
+    kind: MaatFlowResponseKind.multiline,
+    label: 'What tending act did you complete?',
+    journalPolicy: MaatFlowJournalPolicy.offer,
+    journalLabel: kTheTendingTitle,
+    journalGroupId: 'tending-care',
+    journalGroupLabel: kTheTendingTitle,
+    journalFormatter: MaatFlowResponseJournalFormatter.tendingCare,
+    journalRole: 'act',
+    privacyClass: 'care_private',
+    offerJournalInclusionDefault: false,
+  ),
+  MaatFlowResponseSpec(
+    id: 'kept-word-status',
+    flowKey: kKeptWordFlowKey,
+    surface: MaatFlowResponseSurface.calendarSheet,
+    kind: MaatFlowResponseKind.choice,
+    label: 'What happened with the word?',
+    options: <MaatFlowResponseOption>[
+      MaatFlowResponseOption(id: 'kept', label: 'Kept', journalLabel: 'kept'),
+      MaatFlowResponseOption(
+        id: 'repaired',
+        label: 'Repaired',
+        journalLabel: 'repaired',
+      ),
+      MaatFlowResponseOption(
+        id: 'renegotiated',
+        label: 'Renegotiated',
+        journalLabel: 'renegotiated',
+      ),
+      MaatFlowResponseOption(
+        id: 'released',
+        label: 'Released',
+        journalLabel: 'released',
+      ),
+      MaatFlowResponseOption(
+        id: 'still_in_process',
+        label: 'Still in process',
+        journalLabel: 'still in process',
+      ),
+    ],
+    journalPolicy: MaatFlowJournalPolicy.offer,
+    journalLabel: kKeptWordTitle,
+    journalGroupId: 'kept-word-agreement',
+    journalGroupLabel: kKeptWordTitle,
+    journalFormatter: MaatFlowResponseJournalFormatter.keptWordAgreement,
+    journalRole: 'status',
+    privacyClass: 'agreement_private',
+    offerJournalInclusionDefault: false,
+  ),
+  MaatFlowResponseSpec(
+    id: 'kept-word-remembered',
+    flowKey: kKeptWordFlowKey,
+    surface: MaatFlowResponseSurface.calendarSheet,
+    kind: MaatFlowResponseKind.multiline,
+    label: 'What word, repair, or conversation needs to be remembered?',
+    journalPolicy: MaatFlowJournalPolicy.offer,
+    journalLabel: kKeptWordTitle,
+    journalGroupId: 'kept-word-agreement',
+    journalGroupLabel: kKeptWordTitle,
+    journalFormatter: MaatFlowResponseJournalFormatter.keptWordAgreement,
+    journalRole: 'remembered',
+    privacyClass: 'agreement_private',
+    offerJournalInclusionDefault: false,
   ),
 ];
 
