@@ -5,6 +5,11 @@ const Key kMaatFlowInitialPromptSectionKey = ValueKey<String>(
   'maat_flow_initial_prompt_section',
 );
 
+@visibleForTesting
+const Key kMaatFlowPracticeDisclaimerFooterKey = ValueKey<String>(
+  'maat_flow_practice_disclaimer_footer',
+);
+
 class MaatFlowGlyph extends StatelessWidget {
   const MaatFlowGlyph({required this.glyph, this.size = 34, super.key});
 
@@ -47,6 +52,28 @@ class _MaatFlowPrivacyFooter extends StatelessWidget {
       padding: EdgeInsets.only(top: 8, bottom: 8),
       child: Text(
         'Privacy note: private reflections and names are never included in notification previews.',
+        style: TextStyle(
+          color: Colors.white38,
+          fontFamily: MaatFlowListTokens.fontFamily,
+          fontFamilyFallback: MaatFlowListTokens.fontFallback,
+          fontSize: 11.5,
+          height: 1.35,
+        ),
+      ),
+    );
+  }
+}
+
+class _MaatFlowPracticeDisclaimerFooter extends StatelessWidget {
+  const _MaatFlowPracticeDisclaimerFooter();
+
+  @override
+  Widget build(BuildContext context) {
+    return const Padding(
+      key: kMaatFlowPracticeDisclaimerFooterKey,
+      padding: EdgeInsets.only(top: 10, bottom: 8),
+      child: Text(
+        'This is a reflective practice, not medical, psychological, or professional advice. Adapt anything that does not suit you, and seek qualified help for health or crisis concerns.',
         style: TextStyle(
           color: Colors.white38,
           fontFamily: MaatFlowListTokens.fontFamily,
@@ -4388,16 +4415,14 @@ class _MaatFlowTemplateDetailPageState
     BuildContext context, {
     required List<Widget> children,
     required Widget joinButton,
+    bool appendInitialPrompt = true,
   }) {
-    final initialPromptSpec = resolveMaatFlowInitialPromptSpec(
-      flowKey: widget.template.key,
-    );
-    final detailChildren = initialPromptSpec == null
+    final initialPromptSlot = appendInitialPrompt
+        ? _buildCurrentInitialPromptSlot()
+        : null;
+    final detailChildren = initialPromptSlot == null
         ? children
-        : <Widget>[
-            ...children,
-            _buildMaatFlowInitialPromptSlot(initialPromptSpec),
-          ];
+        : <Widget>[...children, initialPromptSlot];
     final media = MediaQuery.of(context);
     const ctaHeight = 52.0;
     final embedded = widget.embeddedInOnboarding;
@@ -4460,14 +4485,28 @@ class _MaatFlowTemplateDetailPageState
     );
   }
 
-  Widget _buildMaatFlowInitialPromptSlot(MaatFlowInitialPromptSpec spec) {
+  Widget? _buildCurrentInitialPromptSlot({
+    bool includeLeadingSeparator = true,
+  }) {
+    final spec = resolveMaatFlowInitialPromptSpec(flowKey: widget.template.key);
+    if (spec == null) return null;
+    return _buildMaatFlowInitialPromptSlot(
+      spec,
+      includeLeadingSeparator: includeLeadingSeparator,
+    );
+  }
+
+  Widget _buildMaatFlowInitialPromptSlot(
+    MaatFlowInitialPromptSpec spec, {
+    bool includeLeadingSeparator = true,
+  }) {
     assert(spec.isRenderable);
     final subtitle = spec.subtitle.trim();
     return Column(
       key: kMaatFlowInitialPromptSectionKey,
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        const _MaatFlowDetailSeparator(),
+        if (includeLeadingSeparator) const _MaatFlowDetailSeparator(),
         MaatFlowSurface(
           palette: _palette,
           borderRadius: BorderRadius.circular(8),
@@ -4528,6 +4567,7 @@ class _MaatFlowTemplateDetailPageState
     required String tagline,
     required List<Widget> configurationControls,
     Widget? extraOverviewNote,
+    Widget? initialPromptSlot,
   }) {
     final palette = _palette;
     return [
@@ -4547,6 +4587,10 @@ class _MaatFlowTemplateDetailPageState
       if (extraOverviewNote != null) ...[
         const SizedBox(height: 12),
         extraOverviewNote,
+      ],
+      if (initialPromptSlot != null) ...[
+        const SizedBox(height: 16),
+        initialPromptSlot,
       ],
       const SizedBox(height: 20),
       _buildAtAGlanceChips(content.chips),
@@ -5181,7 +5225,7 @@ class _MaatFlowTemplateDetailPageState
       case _MaatFlowTemplateKind.dawnHouseRite:
         return const _MaatFlowDetailContent(
           orientingSentence:
-              'At dawn, three acts: water placed, light acknowledged, one right thing done before the day begins.',
+              'Morning intention and purification ritual. Commit one purifying act and speak one mantra before the day begins.',
           chips: ['Daily practice', 'Dawn timing', '10 minutes or less'],
           arcBlocks: [
             _MaatFlowArcBlock(
@@ -5785,13 +5829,93 @@ class _MaatFlowTemplateDetailPageState
     );
   }
 
+  void _showMaatFlowInfoBubble({required String title, required String text}) {
+    final palette = _palette;
+    showGeneralDialog<void>(
+      context: context,
+      barrierDismissible: true,
+      barrierLabel: 'Dismiss $title information',
+      barrierColor: Colors.transparent,
+      transitionDuration: const Duration(milliseconds: 120),
+      pageBuilder: (dialogContext, _, _) {
+        return GestureDetector(
+          behavior: HitTestBehavior.opaque,
+          onTap: () => Navigator.of(dialogContext).maybePop(),
+          child: SafeArea(
+            child: Align(
+              alignment: Alignment.topCenter,
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(18, 118, 18, 0),
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 420),
+                  child: GestureDetector(
+                    behavior: HitTestBehavior.opaque,
+                    onTap: () {},
+                    child: MaatFlowSurface(
+                      palette: palette,
+                      padding: const EdgeInsets.fromLTRB(16, 14, 16, 15),
+                      borderRadius: BorderRadius.circular(14),
+                      showCrown: true,
+                      showTopGlow: true,
+                      washOpacity: 0.12,
+                      border: Border.all(
+                        color: palette.accent.withValues(alpha: 0.42),
+                        width: MaatFlowListTokens.cardBorderWidth,
+                      ),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            title,
+                            style: const TextStyle(
+                              color: MaatFlowPalette.gold,
+                              fontFamily: MaatFlowListTokens.fontFamily,
+                              fontFamilyFallback:
+                                  MaatFlowListTokens.fontFallback,
+                              fontSize: 15,
+                              fontWeight: FontWeight.w700,
+                              height: 1.15,
+                              decoration: TextDecoration.none,
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            text,
+                            style: const TextStyle(
+                              color: MaatFlowPalette.silverHi,
+                              fontFamily: MaatFlowListTokens.fontFamily,
+                              fontFamilyFallback:
+                                  MaatFlowListTokens.fontFallback,
+                              fontSize: 13,
+                              fontWeight: FontWeight.w500,
+                              height: 1.38,
+                              decoration: TextDecoration.none,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
   Widget _buildMaatFlowSwitchSurface({
     required bool value,
     required ValueChanged<bool> onChanged,
     required String title,
-    required String subtitle,
+    String? subtitle,
+    String? infoText,
+    String? infoTooltip,
   }) {
     final palette = _palette;
+    final cleanSubtitle = subtitle?.trim() ?? '';
     return MaatFlowSurface(
       palette: palette,
       borderRadius: BorderRadius.circular(14),
@@ -5805,25 +5929,59 @@ class _MaatFlowTemplateDetailPageState
       child: SwitchListTile.adaptive(
         value: value,
         activeThumbColor: MaatFlowPalette.gold,
-        title: Text(
-          title,
-          style: const TextStyle(
-            color: MaatFlowPalette.gold,
-            fontFamily: MaatFlowListTokens.fontFamily,
-            fontFamilyFallback: MaatFlowListTokens.fontFallback,
-            fontWeight: FontWeight.w600,
-          ),
+        title: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Flexible(
+              child: Text(
+                title,
+                style: const TextStyle(
+                  color: MaatFlowPalette.gold,
+                  fontFamily: MaatFlowListTokens.fontFamily,
+                  fontFamilyFallback: MaatFlowListTokens.fontFallback,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+            if (infoText != null && infoText.trim().isNotEmpty) ...[
+              const SizedBox(width: 8),
+              Semantics(
+                button: true,
+                label: infoTooltip ?? 'About $title',
+                child: IconButton(
+                  tooltip: infoTooltip ?? 'About $title',
+                  icon: Icon(
+                    Icons.info_outline,
+                    color: palette.accent.withValues(alpha: 0.90),
+                    size: 19,
+                  ),
+                  visualDensity: VisualDensity.compact,
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(
+                    minWidth: 30,
+                    minHeight: 30,
+                  ),
+                  onPressed: () => _showMaatFlowInfoBubble(
+                    title: title,
+                    text: infoText.trim(),
+                  ),
+                ),
+              ),
+            ],
+          ],
         ),
-        subtitle: Text(
-          subtitle,
-          style: const TextStyle(
-            color: MaatFlowPalette.silverMid,
-            fontFamily: MaatFlowListTokens.fontFamily,
-            fontFamilyFallback: MaatFlowListTokens.fontFallback,
-            fontSize: 12,
-            height: 1.3,
-          ),
-        ),
+        subtitle: cleanSubtitle.isEmpty
+            ? null
+            : Text(
+                cleanSubtitle,
+                style: const TextStyle(
+                  color: MaatFlowPalette.silverMid,
+                  fontFamily: MaatFlowListTokens.fontFamily,
+                  fontFamilyFallback: MaatFlowListTokens.fontFallback,
+                  fontSize: 12,
+                  height: 1.3,
+                ),
+              ),
         onChanged: onChanged,
       ),
     );
@@ -6059,25 +6217,19 @@ class _MaatFlowTemplateDetailPageState
       selectedStart,
       _previewTrackSkyTimeZone,
     );
-    final lastSchedule = dawnHouseRiteScheduleForDate(
-      selectedStart.add(Duration(days: kDawnHouseRiteDays.length - 1)),
-      _previewTrackSkyTimeZone,
-    );
     final firstTime = l10n.formatTimeOfDay(
       TimeOfDay(
         hour: firstSchedule.startLocal.hour,
         minute: firstSchedule.startLocal.minute,
       ),
     );
-    final lastTime = l10n.formatTimeOfDay(
-      TimeOfDay(
-        hour: lastSchedule.startLocal.hour,
-        minute: lastSchedule.startLocal.minute,
-      ),
+    final initialPromptSlot = _buildCurrentInitialPromptSlot(
+      includeLeadingSeparator: false,
     );
 
     return _buildMaatFlowDetailScaffold(
       context,
+      appendInitialPrompt: false,
       joinButton: _buildTemplateStickyJoinButton(
         text: _dawnJoinInFlight ? 'Joining…' : 'Join Flow',
         onPressed: _dawnJoinInFlight
@@ -6088,28 +6240,20 @@ class _MaatFlowTemplateDetailPageState
         ..._buildMaatFlowOverviewZones(
           content: _detailContentForTemplate(overrideChips: null),
           tagline: widget.template.subtitle,
+          initialPromptSlot: initialPromptSlot,
           configurationControls: [
-            const _MaatFlowDetailSectionLabel('TIMEZONE'),
-            _buildTimezoneSelector(),
-            const SizedBox(height: 14),
-            Text(
-              'Estimated from ${firstSchedule.referenceLocation.name} for ${_previewTrackSkyTimeZone.label}. First dawn: ${_dateLabel(context, selectedStart)} at $firstTime. Final dawn: ${_dateLabel(context, lastSchedule.startLocal)} at $lastTime.',
-              style: const TextStyle(
-                color: MaatFlowPalette.silverMid,
-                fontFamily: MaatFlowListTokens.fontFamily,
-                fontFamilyFallback: MaatFlowListTokens.fontFallback,
-                fontSize: 14,
-                fontStyle: FontStyle.italic,
-                height: 1.35,
-              ),
+            _buildStartDateRow(
+              context,
+              selectedStart,
+              label:
+                  'Start: ${_dateLabel(context, selectedStart)} at $firstTime',
             ),
-            const SizedBox(height: 18),
-            _buildStartDateRow(context, selectedStart),
             const SizedBox(height: 12),
             _buildMaatFlowSwitchSurface(
               value: _dawnDiscreetMode,
               title: 'Discreet mode',
-              subtitle:
+              infoTooltip: 'About Discreet mode',
+              infoText:
                   'Changes wording only. Turn this on when the rite needs to look ordinary in public or shared space; event text avoids visible ritual terms such as altar, shrine, offering, incense, flame, deity names, and ma’at.',
               onChanged: (value) {
                 setState(() {
@@ -6160,6 +6304,7 @@ class _MaatFlowTemplateDetailPageState
         ...kDawnHouseRiteDays.map(
           (day) => _buildDawnHouseRiteDayTile(context, day),
         ),
+        const _MaatFlowPracticeDisclaimerFooter(),
       ],
     );
   }
