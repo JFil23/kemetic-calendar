@@ -13,6 +13,7 @@ class StoneRegisterDateField<T> extends StatelessWidget {
     this.allowModeSwitch = true,
     this.title = 'Pick a date',
     this.enabled = true,
+    this.showCalendarIcon = true,
   });
 
   final T value;
@@ -23,6 +24,7 @@ class StoneRegisterDateField<T> extends StatelessWidget {
   final bool allowModeSwitch;
   final String title;
   final bool enabled;
+  final bool showCalendarIcon;
 
   @override
   Widget build(BuildContext context) {
@@ -73,11 +75,12 @@ class StoneRegisterDateField<T> extends StatelessWidget {
                   ],
                 ),
               ),
-              const Icon(
-                Icons.calendar_month_outlined,
-                color: StoneRegisterDatePickerTheme.silverMid,
-                size: 20,
-              ),
+              if (showCalendarIcon)
+                const Icon(
+                  Icons.calendar_month_outlined,
+                  color: StoneRegisterDatePickerTheme.silverMid,
+                  size: 20,
+                ),
             ],
           ),
         ),

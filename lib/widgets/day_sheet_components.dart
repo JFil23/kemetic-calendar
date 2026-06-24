@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 
 enum DaySheetTab { notes, reminders }
@@ -787,21 +789,284 @@ class DaySheetColorSwatches extends StatelessWidget {
   }
 }
 
+class DaySheetSpectrumColorPicker extends StatelessWidget {
+  const DaySheetSpectrumColorPicker({
+    super.key,
+    required this.selectedColor,
+    required this.onChanged,
+  });
+
+  final Color selectedColor;
+  final ValueChanged<Color> onChanged;
+
+  static Color colorFromHue(double hueDegrees) {
+    return HSLColor.fromAHSL(1.0, hueDegrees % 360.0, 0.72, 0.48).toColor();
+  }
+
+  static double hueForColor(Color color) => HSLColor.fromColor(color).hue;
+
+  static String hexForColor(Color color) {
+    final rgb = color.toARGB32() & 0x00FFFFFF;
+    return '#${rgb.toRadixString(16).padLeft(6, '0')}';
+  }
+
+  static String colorNameForHue(double hue) {
+    final normalized = hue % 360.0;
+    if (normalized < 12 || normalized >= 345) return 'CRIMSON';
+    if (normalized < 28) return 'VERMILION';
+    if (normalized < 45) return 'EMBER';
+    if (normalized < 62) return 'AMBER';
+    if (normalized < 82) return 'GOLD';
+    if (normalized < 115) return 'GREEN';
+    if (normalized < 150) return 'JADE';
+    if (normalized < 180) return 'TEAL';
+    if (normalized < 205) return 'CYAN';
+    if (normalized < 230) return 'SKY';
+    if (normalized < 255) return 'INDIGO';
+    if (normalized < 285) return 'VIOLET';
+    if (normalized < 320) return 'MAGENTA';
+    return 'ROSE';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final hue = hueForColor(selectedColor);
+    final hsl = HSLColor.fromColor(selectedColor);
+    final softenedAccent = hsl
+        .withSaturation(math.min(hsl.saturation * 0.62, 0.56))
+        .withLightness(0.54)
+        .toColor();
+    return Padding(
+      padding: const EdgeInsets.only(top: 24),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Center(child: DaySheetEyebrow('Color', center: true)),
+          const SizedBox(height: 14),
+          _DaySheetSpectrumBar(
+            hue: hue,
+            selectedColor: selectedColor,
+            onHueChanged: (value) => onChanged(colorFromHue(value)),
+          ),
+          const SizedBox(height: 14),
+          Container(
+            height: 48,
+            padding: const EdgeInsets.symmetric(horizontal: 14),
+            decoration: BoxDecoration(
+              color: const Color(0xFF050403),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: softenedAccent.withValues(alpha: 0.16)),
+            ),
+            child: Row(
+              children: [
+                Container(
+                  key: const ValueKey('day-sheet-color-preview-dot'),
+                  width: 26,
+                  height: 26,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: selectedColor,
+                    boxShadow: [
+                      BoxShadow(
+                        color: selectedColor.withValues(alpha: 0.18),
+                        blurRadius: 8,
+                        spreadRadius: 1,
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 14),
+                Text(
+                  hexForColor(selectedColor),
+                  key: const ValueKey('day-sheet-color-hex'),
+                  style: TextStyle(
+                    color: selectedColor,
+                    fontSize: 14,
+                    fontStyle: FontStyle.italic,
+                    fontFamily: 'GentiumPlus',
+                  ),
+                ),
+                const Spacer(),
+                Text(
+                  colorNameForHue(hue),
+                  key: const ValueKey('day-sheet-color-name'),
+                  style: TextStyle(
+                    color: selectedColor.withValues(alpha: 0.82),
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: 4,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _DaySheetSpectrumBar extends StatelessWidget {
+  const _DaySheetSpectrumBar({
+    required this.hue,
+    required this.selectedColor,
+    required this.onHueChanged,
+  });
+
+  final double hue;
+  final Color selectedColor;
+  final ValueChanged<double> onHueChanged;
+
+  void _updateHue(Offset localPosition, double width) {
+    final t = (localPosition.dx / width).clamp(0.0, 1.0);
+    onHueChanged(t * 360.0);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    const barHeight = 28.0;
+    const thumbSize = 34.0;
+    const hitHeight = 44.0;
+    final gradientColors = <Color>[
+      for (final hue in const [
+        0.0,
+        28.0,
+        56.0,
+        105.0,
+        165.0,
+        210.0,
+        245.0,
+        280.0,
+        320.0,
+        360.0,
+      ])
+        DaySheetSpectrumColorPicker.colorFromHue(hue),
+    ];
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final width = math.max(1.0, constraints.maxWidth);
+        final left = ((hue % 360.0) / 360.0) * width;
+        final minThumbLeft = -thumbSize * 0.16;
+        final maxThumbLeft = math.max(minThumbLeft, width - thumbSize * 0.84);
+        return Semantics(
+          label: 'day-sheet-spectrum',
+          slider: true,
+          value: hue.round().toString(),
+          child: GestureDetector(
+            key: const ValueKey('day-sheet-spectrum'),
+            behavior: HitTestBehavior.opaque,
+            onTapDown: (details) => _updateHue(details.localPosition, width),
+            onHorizontalDragStart: (details) =>
+                _updateHue(details.localPosition, width),
+            onHorizontalDragUpdate: (details) =>
+                _updateHue(details.localPosition, width),
+            child: SizedBox(
+              height: hitHeight,
+              child: Stack(
+                clipBehavior: Clip.none,
+                alignment: Alignment.centerLeft,
+                children: [
+                  Positioned.fill(
+                    top: (hitHeight - barHeight) / 2,
+                    bottom: (hitHeight - barHeight) / 2,
+                    child: DecoratedBox(
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(25),
+                        gradient: LinearGradient(colors: gradientColors),
+                        border: Border.all(
+                          color: const Color(
+                            0xFF4A3312,
+                          ).withValues(alpha: 0.45),
+                        ),
+                        boxShadow: const [
+                          BoxShadow(
+                            color: Color(0x99000000),
+                            blurRadius: 8,
+                            offset: Offset(0, 3),
+                          ),
+                        ],
+                      ),
+                      child: DecoratedBox(
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(25),
+                          gradient: const LinearGradient(
+                            begin: Alignment.topCenter,
+                            end: Alignment.bottomCenter,
+                            colors: [
+                              Color(0x22FFFFFF),
+                              Color(0x00000000),
+                              Color(0x33000000),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                  Positioned(
+                    left: (left - thumbSize / 2).clamp(
+                      minThumbLeft,
+                      maxThumbLeft,
+                    ),
+                    child: Container(
+                      key: const ValueKey('day-sheet-spectrum-thumb'),
+                      width: thumbSize,
+                      height: thumbSize,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: const Color(0xFFF4EBDD),
+                        boxShadow: [
+                          BoxShadow(
+                            color: selectedColor.withValues(alpha: 0.32),
+                            blurRadius: 12,
+                            spreadRadius: 1,
+                          ),
+                          const BoxShadow(
+                            color: Color(0xAA000000),
+                            blurRadius: 8,
+                            offset: Offset(0, 3),
+                          ),
+                        ],
+                      ),
+                      padding: const EdgeInsets.all(4),
+                      child: DecoratedBox(
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: selectedColor,
+                          border: Border.all(
+                            color: Colors.white.withValues(alpha: 0.18),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+}
+
 class DaySheetFlowRow extends StatelessWidget {
   const DaySheetFlowRow({
     super.key,
     required this.color,
     required this.name,
     required this.meta,
+    this.onTap,
   });
 
   final Color color;
   final String name;
   final String meta;
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
-    return Container(
+    final row = Container(
       padding: const EdgeInsets.symmetric(vertical: 12),
       decoration: const BoxDecoration(
         border: Border(bottom: BorderSide(color: DaySheetTokens.hair)),
@@ -843,6 +1108,13 @@ class DaySheetFlowRow extends StatelessWidget {
         ],
       ),
     );
+    final tap = onTap;
+    if (tap == null) return row;
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: tap,
+      child: row,
+    );
   }
 }
 
@@ -851,12 +1123,14 @@ class DaySheetNoteRow extends StatelessWidget {
     super.key,
     required this.name,
     required this.meta,
+    this.color,
     required this.onTap,
     required this.onDelete,
   });
 
   final String name;
   final String meta;
+  final Color? color;
   final VoidCallback onTap;
   final VoidCallback onDelete;
 
@@ -870,6 +1144,13 @@ class DaySheetNoteRow extends StatelessWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          if (color != null) ...[
+            Padding(
+              padding: const EdgeInsets.only(top: 8),
+              child: _Dot(color: color!),
+            ),
+            const SizedBox(width: 12),
+          ],
           Expanded(
             child: GestureDetector(
               behavior: HitTestBehavior.opaque,
@@ -1108,6 +1389,66 @@ class DaySheetFab extends StatelessWidget {
                 ),
               ),
             ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class DaySheetSaveButton extends StatelessWidget {
+  const DaySheetSaveButton({
+    super.key,
+    required this.label,
+    required this.accent,
+    required this.onPressed,
+  });
+
+  final String label;
+  final Color accent;
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    final hsl = HSLColor.fromColor(accent);
+    final softenedAccent = hsl
+        .withSaturation(math.min(hsl.saturation * 0.62, 0.56))
+        .withLightness(0.54)
+        .toColor();
+    const base = Color(0xFF050403);
+    final background = Color.alphaBlend(
+      softenedAccent.withValues(alpha: 0.13),
+      base,
+    );
+    final border = softenedAccent.withValues(alpha: 0.34);
+    final foreground = Color.lerp(
+      softenedAccent,
+      const Color(0xFFE8D6A8),
+      0.18,
+    )!;
+
+    return SizedBox(
+      width: 66,
+      height: 36,
+      child: TextButton(
+        key: const ValueKey('day-sheet-save-cta'),
+        onPressed: onPressed,
+        style: TextButton.styleFrom(
+          foregroundColor: foreground,
+          side: BorderSide(color: border),
+          backgroundColor: background,
+          minimumSize: const Size(66, 36),
+          padding: EdgeInsets.zero,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+          ),
+        ),
+        child: Text(
+          label,
+          style: const TextStyle(
+            fontSize: 17,
+            fontWeight: FontWeight.w700,
+            fontFamily: 'GentiumPlus',
           ),
         ),
       ),

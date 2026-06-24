@@ -155,6 +155,8 @@ CalendarEventVisualStyle _dayViewVisualForEvent(
     behaviorPayload: event.behaviorPayload,
     isReminder: isReminder,
     isNutrition: isNutrition,
+    preserveEventColorForReminder:
+        isReminder && (event.manualColor != null || flow != null),
   );
 }
 
@@ -2675,6 +2677,8 @@ class DayViewPage extends StatefulWidget {
   final int? focusFlowId; // highlight a flow's events
   final String? focusTitle; // highlight by title when flow id missing
   final EventDetailRestorationState? initialEventDetailRestorationState;
+  final ValueListenable<DayViewSheetEventTarget?>? eventDetailRequestListenable;
+  final VoidCallback? onEventDetailRequestHandled;
   final void Function(int?)? onManageFlows; // NEW: Callback to open My Flows
   final Future<void> Function(BuildContext context)? onOpenQuickAdd;
   final Future<void> Function(BuildContext context)? onOpenSearch;
@@ -2769,6 +2773,8 @@ class DayViewPage extends StatefulWidget {
     this.focusFlowId,
     this.focusTitle,
     this.initialEventDetailRestorationState,
+    this.eventDetailRequestListenable,
+    this.onEventDetailRequestHandled,
     this.onManageFlows, // NEW
     this.onOpenQuickAdd,
     this.onOpenSearch,
@@ -2844,6 +2850,7 @@ class _DayViewPageState extends State<DayViewPage> {
   bool _showDayCardRevealCoachmark = false;
   bool _hasResolvedDayCardRevealCoachmarkOnboarding = false;
   EventDetailRestorationState? _activeEventDetailRestoration;
+  String? _lastEventDetailRequestKey;
   final GlobalKey _dayCardRevealTargetKey = GlobalKey(
     debugLabel: 'day_view_date_reveal_target',
   );
@@ -2869,11 +2876,28 @@ class _DayViewPageState extends State<DayViewPage> {
       _centerMiniCalendarOnDay(_currentKd, animated: false, force: true);
     });
     _scheduleDayCardRevealCoachmarkCheck();
+    widget.eventDetailRequestListenable?.addListener(_handleEventDetailRequest);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _handleEventDetailRequest();
+    });
   }
 
   @override
   void didUpdateWidget(covariant DayViewPage old) {
     super.didUpdateWidget(old);
+    if (old.eventDetailRequestListenable !=
+        widget.eventDetailRequestListenable) {
+      old.eventDetailRequestListenable?.removeListener(
+        _handleEventDetailRequest,
+      );
+      _lastEventDetailRequestKey = null;
+      widget.eventDetailRequestListenable?.addListener(
+        _handleEventDetailRequest,
+      );
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _handleEventDetailRequest();
+      });
+    }
     if (!old.showDayCardRevealCoachmarkForOnboarding &&
         widget.showDayCardRevealCoachmarkForOnboarding) {
       _scheduleDayCardRevealCoachmarkCheck();
@@ -2912,6 +2936,9 @@ class _DayViewPageState extends State<DayViewPage> {
   @override
   void dispose() {
     _reportRestorationState(immediate: true);
+    widget.eventDetailRequestListenable?.removeListener(
+      _handleEventDetailRequest,
+    );
     _restorationDebounce?.cancel();
     _pageController.dispose();
     _miniCalendarScrollController.dispose(); // 🔧 Don't forget to dispose
@@ -3063,6 +3090,63 @@ class _DayViewPageState extends State<DayViewPage> {
 
   bool _shouldPreserveEventDetailRestorationOnClose() {
     return widget.shouldPreserveEventDetailRestorationOnClose?.call() ?? false;
+  }
+
+  String _eventDetailRequestKey(DayViewSheetEventTarget target) {
+    final detail = eventDetailRestorationStateForTarget(
+      target,
+      parentSurface: 'day_sheet',
+    );
+    if (detail != null) {
+      return '${detail.kYear}:${detail.kMonth}:${detail.kDay}:'
+          '${detail.identityType}:${detail.identityValue}';
+    }
+    return '${target.ky}:${target.km}:${target.kd}:'
+        '${_eventIdentityKey(target.event)}';
+  }
+
+  void _handleEventDetailRequest() {
+    final target = widget.eventDetailRequestListenable?.value;
+    if (target == null) {
+      _lastEventDetailRequestKey = null;
+      return;
+    }
+
+    final key = _eventDetailRequestKey(target);
+    if (_lastEventDetailRequestKey == key) return;
+    _lastEventDetailRequestKey = key;
+
+    unawaited(_openRequestedEventDetail(target));
+  }
+
+  Future<void> _openRequestedEventDetail(DayViewSheetEventTarget target) async {
+    if (!mounted) return;
+    if (target.ky != _currentKy ||
+        target.km != _currentKm ||
+        target.kd != _currentKd) {
+      await _animateToKemeticDate(target.ky, target.km, target.kd);
+    }
+    if (!mounted) return;
+
+    final detail = eventDetailRestorationStateForTarget(
+      target,
+      parentSurface: 'day_sheet',
+    );
+    if (detail == null) {
+      widget.onEventDetailRequestHandled?.call();
+      return;
+    }
+
+    final targetOffset =
+        (target.event.startMin * _kDayViewPixelsPerMinute) - 120;
+    setState(() {
+      _savedScrollOffset = targetOffset.clamp(0.0, double.infinity).toDouble();
+      _activeEventDetailRestoration = detail;
+      _gridInstance++;
+      _autoCenterMiniCalendar = true;
+    });
+    _reportRestorationState(immediate: true);
+    widget.onEventDetailRequestHandled?.call();
   }
 
   Future<void> _jumpToToday() async {

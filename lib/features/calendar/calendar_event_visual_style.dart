@@ -294,6 +294,7 @@ CalendarEventVisualStyle resolveCalendarEventVisualStyle({
   Map<String, dynamic>? behaviorPayload,
   bool isReminder = false,
   bool isNutrition = false,
+  bool preserveEventColorForReminder = false,
 }) {
   final graphic = _graphicStyleForEvent(
     flowName: flowName,
@@ -304,7 +305,7 @@ CalendarEventVisualStyle resolveCalendarEventVisualStyle({
   if (graphic != null) return _graphicVisualStyle(graphic);
 
   final rawSource = _readableFlowColor(
-    isReminder
+    isReminder && !preserveEventColorForReminder
         ? const Color(0xFF5CAA5F)
         : isNutrition
         ? const Color(0xFF57A9D6)

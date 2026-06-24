@@ -49,6 +49,7 @@ typedef StandaloneEventRow = ({
   DateTime? endsAtUtc,
   int? flowLocalId,
   String? category,
+  bool isReminder,
 });
 
 bool _isUuid(String? v) {
@@ -134,6 +135,7 @@ StandaloneEventRow _standaloneRowFromBirthdayOccurrence(
         : DateTime.parse(row['ends_at'] as String),
     flowLocalId: (row['flow_local_id'] as num?)?.toInt(),
     category: row['category'] as String?,
+    isReminder: false,
   );
 }
 
@@ -1380,27 +1382,7 @@ class UserEventsRepo {
 
   /// Fetch standalone (non-flow) events within a UTC window.
   /// endUtc is treated as an exclusive upper bound.
-  Future<
-    List<
-      ({
-        String? id,
-        String? clientEventId,
-        String? calendarId,
-        String? calendarName,
-        int? calendarColor,
-        bool calendarIsPersonal,
-        String title,
-        String? detail,
-        String? location,
-        bool allDay,
-        DateTime startsAtUtc,
-        DateTime? endsAtUtc,
-        int? flowLocalId,
-        String? category,
-      })
-    >
-  >
-  getStandaloneEventsForDateRange({
+  Future<List<StandaloneEventRow>> getStandaloneEventsForDateRange({
     required DateTime startUtc,
     required DateTime endUtc,
     int limit = 10000,
@@ -1463,26 +1445,10 @@ class UserEventsRepo {
                   : DateTime.parse(row['ends_at'] as String),
               flowLocalId: canonicalFiledFlowIdForEventRow(row),
               category: row['category'] as String?,
+              isReminder: _normalizedFilingItemKind(row) == 'reminder',
             );
           })
-          .whereType<
-            ({
-              String? id,
-              String? clientEventId,
-              String? calendarId,
-              String? calendarName,
-              int? calendarColor,
-              bool calendarIsPersonal,
-              String title,
-              String? detail,
-              String? location,
-              bool allDay,
-              DateTime startsAtUtc,
-              DateTime? endsAtUtc,
-              int? flowLocalId,
-              String? category,
-            })
-          >()
+          .whereType<StandaloneEventRow>()
           .toList();
 
       final birthdayOccurrences = await BirthdayCalendarRepo(
@@ -1515,25 +1481,7 @@ class UserEventsRepo {
   /// Returns merged unique rows (by id then client_event_id) plus debug counts.
   Future<
     ({
-      List<
-        ({
-          String? id,
-          String? clientEventId,
-          String? calendarId,
-          String? calendarName,
-          int? calendarColor,
-          bool calendarIsPersonal,
-          String title,
-          String? detail,
-          String? location,
-          bool allDay,
-          DateTime startsAtUtc,
-          DateTime? endsAtUtc,
-          int? flowLocalId,
-          String? category,
-        })
-      >
-      events,
+      List<StandaloneEventRow> events,
       List<String> ghostEventIds,
       int pageCount,
       int rawCount,
@@ -1548,25 +1496,7 @@ class UserEventsRepo {
     final user = _client.auth.currentUser;
     if (user == null) {
       return (
-        events:
-            <
-              ({
-                String? id,
-                String? clientEventId,
-                String? calendarId,
-                String? calendarName,
-                int? calendarColor,
-                bool calendarIsPersonal,
-                String title,
-                String? detail,
-                String? location,
-                bool allDay,
-                DateTime startsAtUtc,
-                DateTime? endsAtUtc,
-                int? flowLocalId,
-                String? category,
-              })
-            >[],
+        events: const <StandaloneEventRow>[],
         ghostEventIds: const <String>[],
         pageCount: 0,
         rawCount: 0,
@@ -1613,25 +1543,7 @@ class UserEventsRepo {
         '(${startUtc.toUtc().toIso8601String()} → ${endUtc.toUtc().toIso8601String()})',
       );
       return (
-        events:
-            <
-              ({
-                String? id,
-                String? clientEventId,
-                String? calendarId,
-                String? calendarName,
-                int? calendarColor,
-                bool calendarIsPersonal,
-                String title,
-                String? detail,
-                String? location,
-                bool allDay,
-                DateTime startsAtUtc,
-                DateTime? endsAtUtc,
-                int? flowLocalId,
-                String? category,
-              })
-            >[],
+        events: const <StandaloneEventRow>[],
         ghostEventIds: const <String>[],
         pageCount: pageCount,
         rawCount: pages.length,
@@ -1639,25 +1551,7 @@ class UserEventsRepo {
     } catch (e) {
       _log('getStandaloneEventsForDateRangeAll ✗ $e');
       return (
-        events:
-            <
-              ({
-                String? id,
-                String? clientEventId,
-                String? calendarId,
-                String? calendarName,
-                int? calendarColor,
-                bool calendarIsPersonal,
-                String title,
-                String? detail,
-                String? location,
-                bool allDay,
-                DateTime startsAtUtc,
-                DateTime? endsAtUtc,
-                int? flowLocalId,
-                String? category,
-              })
-            >[],
+        events: const <StandaloneEventRow>[],
         ghostEventIds: const <String>[],
         pageCount: pageCount,
         rawCount: pages.length,
@@ -1666,25 +1560,7 @@ class UserEventsRepo {
 
     final seenIds = <String>{};
     final seenCids = <String>{};
-    final List<
-      ({
-        String? id,
-        String? clientEventId,
-        String? calendarId,
-        String? calendarName,
-        int? calendarColor,
-        bool calendarIsPersonal,
-        String title,
-        String? detail,
-        String? location,
-        bool allDay,
-        DateTime startsAtUtc,
-        DateTime? endsAtUtc,
-        int? flowLocalId,
-        String? category,
-      })
-    >
-    events = [];
+    final List<StandaloneEventRow> events = [];
     final ghostEventIds = <String>[];
 
     for (final row in pages) {
@@ -1732,6 +1608,7 @@ class UserEventsRepo {
             : DateTime.parse(row['ends_at'] as String),
         flowLocalId: canonicalFiledFlowIdForEventRow(row),
         category: row['category'] as String?,
+        isReminder: _normalizedFilingItemKind(row) == 'reminder',
       ));
     }
 

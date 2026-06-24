@@ -207,7 +207,7 @@ void main() {
       final endRepeatRow = _sourceBetween(
         calendarPage,
         '// End Repeat row',
-        'DaySheetColorSwatches(',
+        'DaySheetSpectrumColorPicker(',
       );
       expect(endRepeatRow, contains('RecurrenceUntilDatePicker.show'));
       expect(endRepeatRow, contains('initialDate:'));

@@ -218,26 +218,6 @@ class _MyFlowsFilingSnapshot {
 
 typedef _MaatFlowCompletionStatus = ({double progress, String label});
 
-/// One resolved instance of a flow on a day.
-class _FlowOccurrence {
-  final _Flow flow;
-  final bool allDay;
-  final TimeOfDay? start;
-  final TimeOfDay? end;
-  final DateTime startsAtLocal;
-  final DateTime endsAtLocal;
-  final String? reminderId;
-  const _FlowOccurrence({
-    required this.flow,
-    required this.allDay,
-    required this.startsAtLocal,
-    required this.endsAtLocal,
-    this.start,
-    this.end,
-    this.reminderId,
-  });
-}
-
 class _DaySheetScheduledFlowRow {
   final int? flowId;
   final String name;
@@ -251,6 +231,7 @@ class _DaySheetScheduledFlowRow {
   final String? eventId;
   final String? clientEventId;
   final String? reminderId;
+  final int occurrenceCount;
 
   const _DaySheetScheduledFlowRow({
     required this.flowId,
@@ -265,7 +246,26 @@ class _DaySheetScheduledFlowRow {
     this.eventId,
     this.clientEventId,
     this.reminderId,
+    this.occurrenceCount = 1,
   });
+
+  _DaySheetScheduledFlowRow copyWith({int? occurrenceCount}) {
+    return _DaySheetScheduledFlowRow(
+      flowId: flowId,
+      name: name,
+      color: color,
+      allDay: allDay,
+      start: start,
+      end: end,
+      startsAtLocal: startsAtLocal,
+      endsAtLocal: endsAtLocal,
+      sourceType: sourceType,
+      eventId: eventId,
+      clientEventId: clientEventId,
+      reminderId: reminderId,
+      occurrenceCount: occurrenceCount ?? this.occurrenceCount,
+    );
+  }
 }
 
 class _CandidateEvent {

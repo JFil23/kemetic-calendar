@@ -189,5 +189,123 @@ void main() {
       expect(rows.map((row) => row.sourceType), ['note', 'computed_flow']);
       expect(rows.length, 2);
     });
+
+    test('real-day fixture keeps 12 notes and 7 flow parents', () {
+      final rows = scoped(selected, [
+        item(
+          'What crosses with you?',
+          sourceType: 'day_view_event',
+          flowId: 101,
+          clientEventId: 'threshold-morning',
+          start: selected.add(const Duration(hours: 7)),
+          end: selected.add(const Duration(hours: 7, minutes: 1)),
+        ),
+        item(
+          'journal every day',
+          sourceType: 'reminder',
+          flowId: 201,
+          reminderId: 'journal-day',
+          start: selected.add(const Duration(hours: 8)),
+          end: selected.add(const Duration(hours: 8, minutes: 30)),
+        ),
+        item(
+          'Practice mixed tense',
+          sourceType: 'day_view_event',
+          flowId: 102,
+          clientEventId: 'spanish-morning',
+          start: selected.add(const Duration(hours: 9)),
+          end: selected.add(const Duration(hours: 10)),
+        ),
+        item(
+          'Advanced Circuit Concepts',
+          sourceType: 'day_view_event',
+          flowId: 103,
+          clientEventId: 'circuit-morning',
+          start: selected.add(const Duration(hours: 9)),
+          end: selected.add(const Duration(hours: 10)),
+        ),
+        item(
+          'Full Chord Practice',
+          sourceType: 'day_view_event',
+          flowId: 104,
+          clientEventId: 'guitar-morning',
+          start: selected.add(const Duration(hours: 9)),
+          end: selected.add(const Duration(hours: 10)),
+        ),
+        item(
+          'Boundary Stone 2',
+          sourceType: 'day_view_event',
+          flowId: 105,
+          clientEventId: 'boundary-stone',
+          start: selected.add(const Duration(hours: 11)),
+          end: selected.add(const Duration(hours: 11, minutes: 5)),
+        ),
+        item(
+          'Why Security Needs One-Way Functions',
+          sourceType: 'day_view_event',
+          flowId: 106,
+          clientEventId: 'math-30',
+          start: selected.add(const Duration(hours: 12)),
+          end: selected.add(const Duration(hours: 13)),
+        ),
+        item(
+          'The Hidden Constant',
+          sourceType: 'day_view_event',
+          flowId: 107,
+          clientEventId: 'math-90',
+          start: selected.add(const Duration(hours: 12)),
+          end: selected.add(const Duration(hours: 13)),
+        ),
+        item(
+          'How did it land?',
+          sourceType: 'day_view_event',
+          flowId: 101,
+          clientEventId: 'threshold-evening',
+          start: selected.add(const Duration(hours: 19)),
+          end: selected.add(const Duration(hours: 19, minutes: 1)),
+        ),
+        item(
+          'Evening Reflection',
+          sourceType: 'day_view_event',
+          flowId: 103,
+          clientEventId: 'circuit-evening',
+          start: selected.add(const Duration(hours: 20)),
+          end: selected.add(const Duration(hours: 20, minutes: 30)),
+        ),
+        item(
+          'Mixed Tense Review',
+          sourceType: 'day_view_event',
+          flowId: 102,
+          clientEventId: 'spanish-evening',
+          start: selected.add(const Duration(hours: 20)),
+          end: selected.add(const Duration(hours: 20, minutes: 30)),
+        ),
+        item(
+          'journal every night',
+          sourceType: 'reminder',
+          flowId: 202,
+          reminderId: 'journal-night',
+          start: selected.add(const Duration(hours: 21, minutes: 30)),
+          end: selected.add(const Duration(hours: 22)),
+        ),
+      ]);
+
+      expect(rows, hasLength(12));
+      expect(
+        rows
+            .where((row) => row.sourceType == 'reminder')
+            .map((row) => row.title),
+        ['journal every day', 'journal every night'],
+      );
+      expect(rows.where((row) => row.flowId == 101), hasLength(2));
+      expect(rows.where((row) => row.flowId == 102), hasLength(2));
+      expect(rows.where((row) => row.flowId == 103), hasLength(2));
+
+      final flowParents = rows
+          .where((row) => row.sourceType != 'reminder')
+          .map((row) => row.flowId)
+          .toSet();
+      expect(flowParents, hasLength(7));
+    });
   });
 }

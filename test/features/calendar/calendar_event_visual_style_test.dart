@@ -24,6 +24,28 @@ void main() {
       expect(_hueDistance(block.source, detail.source), lessThan(3));
     });
 
+    test('reminder visuals preserve explicit event colors when requested', () {
+      const magenta = Color(0xFFE85DFF);
+      const reminderFallback = Color(0xFF5CAA5F);
+
+      final generic = resolveCalendarEventVisualStyle(
+        eventColor: magenta,
+        eventTitle: 'journal every night',
+        isReminder: true,
+      );
+      final sharedCalendarReminder = resolveCalendarEventVisualStyle(
+        eventColor: magenta,
+        eventTitle: 'Family Salon',
+        isReminder: true,
+        preserveEventColorForReminder: true,
+      );
+      final detail = sharedCalendarReminder.asDetailSurface();
+
+      expect(_hueDistance(generic.source, reminderFallback), lessThan(3));
+      expect(_hueDistance(sharedCalendarReminder.source, magenta), lessThan(3));
+      expect(_hueDistance(detail.source, magenta), lessThan(3));
+    });
+
     test('detail surfaces keep representative event palettes in lockstep', () {
       final cases = <_PaletteCase>[
         _PaletteCase(

@@ -46,6 +46,7 @@ void main() {
     expect(picker, contains('DateUtils.dateOnly(titleG)'));
     expect(picker, contains('EventCreateDatePickerAdapter'));
     expect(picker, contains('enabled: allowDateChange'));
+    expect(picker, contains('showCalendarIcon: false'));
     expect(picker, contains('StoneDatePickerCalendarMode.gregorian'));
     expect(picker, contains('onChanged: (picked)'));
     expect(picker, contains('KemeticMath.fromGregorian(picked.date)'));
@@ -106,23 +107,25 @@ void main() {
       "label: editingIndex == null",
     );
 
-    expect(
-      builder,
-      contains('final dayNotes = _calendarSheetNoteCandidatesForDay('),
-    );
     expect(builder, contains('final dayEvents = _calendarSheetEventsForDay('));
     expect(
       builder,
       contains('final dayFlowRows = _calendarSheetScheduledFlowsForDay('),
     );
+    expect(builder, isNot(contains('final dayNotes = ')));
     expect(builder, contains('selYear'));
     expect(builder, contains('selMonth'));
     expect(builder, contains('selDay'));
 
-    expect(daySheet, contains('bool scheduledFlowsExpanded = true'));
+    expect(daySheet, contains('bool scheduledFlowsExpanded = false'));
     expect(scheduledSection, contains('count: dayFlowRows.length'));
     expect(scheduledSection, contains('if (dayFlowRows.isEmpty)'));
     expect(scheduledSection, contains("for (final row in dayFlowRows)"));
+    expect(scheduledSection, contains('onTap: row.flowId == null'));
+    expect(scheduledSection, contains('_openDaySheetFlowDetail('));
+    expect(scheduledSection, isNot(contains('Navigator.pop(sheetCtx)')));
+    expect(scheduledSection, isNot(contains('_pushFlowStudioEditor')));
+    expect(scheduledSection, isNot(contains('_getMyFlowsCallback()')));
     expect(
       scheduledSection.indexOf("for (final row in dayFlowRows)"),
       lessThan(scheduledSection.indexOf("'Manage flows'")),
@@ -132,7 +135,26 @@ void main() {
     expect(notesSection, contains('count: dayEvents.length'));
     expect(notesSection, contains('if (dayEvents.isEmpty)'));
     expect(notesSection, contains("for (final event in dayEvents)"));
-    expect(notesSection, contains('focusEvent: event'));
+    expect(notesSection, contains('color: event.color'));
+    expect(notesSection, contains('_openDaySheetEventDetailInHostDayView('));
+    expect(notesSection, isNot(contains('_openDayView(')));
+    expect(notesSection, isNot(contains('Navigator.push')));
+    expect(notesSection, isNot(contains('context.push')));
+    final noteTapHelper = _sourceBetween(
+      source,
+      'void _openDaySheetEventDetailInHostDayView',
+      '/* ───── Day Sheet ───── */',
+    );
+    expect(noteTapHelper, contains('eventDetailRestorationStateForTarget'));
+    expect(noteTapHelper, contains("parentSurface: 'day_sheet'"));
+    expect(
+      noteTapHelper,
+      contains('_dayViewEventDetailRequest.value = target'),
+    );
+    expect(
+      noteTapHelper,
+      contains("debugOpenSource: 'day_sheet_note_tap_fallback'"),
+    );
     expect(notesSection, contains('_deleteNoteByEvent('));
   });
 
@@ -170,6 +192,7 @@ void main() {
       builder,
       contains('final dayReminderRules = _calendarSheetReminderRulesForDay('),
     );
+    expect(builder, contains('dayEvents,'));
     expect(builder, contains('selYear'));
     expect(builder, contains('selMonth'));
     expect(builder, contains('selDay'));
@@ -178,6 +201,8 @@ void main() {
     expect(remindersSection, contains('if (dayReminderRules.isEmpty)'));
     expect(remindersSection, contains('itemCount: dayReminderRules.length'));
     expect(remindersSection, contains('final r = dayReminderRules[i]'));
+    expect(remindersSection, isNot(contains('Force resync reminders')));
+    expect(remindersSection, isNot(contains('DaySheetCartouche')));
     expect(remindersSection, isNot(contains('count: _reminderRules.length')));
     expect(
       remindersSection,
@@ -185,8 +210,13 @@ void main() {
     );
 
     expect(helper, contains('KemeticMath.toGregorian(kYear, kMonth, kDay)'));
+    expect(helper, contains('List<EventItem> dayEvents'));
     expect(helper, contains('_generateReminderOccurrences(rule, day, day)'));
-    expect(helper, contains('!_endedReminderIds.contains(rule.id)'));
+    expect(helper, contains('_endedReminderIds.contains(rule.id)'));
+    expect(helper, contains('for (final event in dayEvents)'));
+    expect(helper, contains('if (!event.isReminder) continue'));
+    expect(helper, contains('_calendarSheetReminderRuleFromVisibleEvent'));
+    expect(helper, contains('_calendarSheetReminderFallbackKeyForEvent'));
     expect(helper, contains('rules.sort'));
   });
 
@@ -225,10 +255,6 @@ void main() {
     expect(selectedDaySources, contains('selDay'));
     expect(
       selectedDaySources,
-      contains('final dayNotes = _calendarSheetNoteCandidatesForDay('),
-    );
-    expect(
-      selectedDaySources,
       contains('final dayEvents = _calendarSheetEventsForDay('),
     );
     expect(
@@ -236,15 +262,28 @@ void main() {
       contains('final dayFlowRows = _calendarSheetScheduledFlowsForDay('),
     );
     expect(
+      selectedDaySources.indexOf(
+        'final dayEvents = _calendarSheetEventsForDay(',
+      ),
+      lessThan(
+        selectedDaySources.indexOf(
+          'final dayFlowRows = _calendarSheetScheduledFlowsForDay(',
+        ),
+      ),
+    );
+    expect(selectedDaySources, contains('dayEvents,'));
+    expect(
       selectedDaySources,
       contains('final dayReminderRules = _calendarSheetReminderRulesForDay('),
     );
+    expect(selectedDaySources, contains('dayEvents,'));
     expect(selectedDaySources, isNot(contains('_getNotes(')));
     expect(selectedDaySources, isNot(contains('_getFlowOccurrences(')));
 
     expect(picker, contains('final seed = DateUtils.dateOnly(titleG)'));
     expect(picker, contains('value: EventCreateDatePickerValue('));
     expect(picker, contains('date: seed'));
+    expect(picker, contains('showCalendarIcon: false'));
     expect(picker, contains('onChanged: (picked)'));
     expect(picker, contains('selYear = selected.kYear'));
     expect(picker, contains('selMonth = selected.kMonth'));
@@ -259,6 +298,176 @@ void main() {
     expect(builder, isNot(contains('_currentKd')));
     expect(builder, isNot(contains('_reminderRules.length')));
     expect(builder, isNot(contains('_reminderRules[i]')));
+  });
+
+  test('Day sheet forms use Flow Studio color and save chrome', () async {
+    final source = await File(
+      'lib/features/calendar/calendar_page.dart',
+    ).readAsString();
+    final daySheet = _sourceBetween(
+      source,
+      'void _openDaySheet',
+      'Future<void> _openQuickAddSheet',
+    );
+    final addNoteColorAndSave = _sourceBetween(
+      daySheet,
+      'DaySheetSpectrumColorPicker(',
+      'final bucketKey = _kKey(',
+    );
+    final addNoteForm = _sourceBetween(
+      daySheet,
+      "label: editingIndex == null",
+      'DaySheetSpectrumColorPicker(',
+    );
+    final reminderEditor = _sourceBetween(
+      source,
+      'Future<bool> _openReminderEditor',
+      'Future<void> _editReminderById',
+    );
+
+    expect(daySheet, contains('Color selectedColor ='));
+    expect(addNoteForm, contains("text: 'Calendar'"));
+    expect(addNoteForm, contains("text: 'Alert'"));
+    expect(addNoteForm, contains("text: 'Invitees'"));
+    expect(addNoteForm, contains('// Repeat row'));
+    expect(addNoteForm, contains("text: 'Repeat'"));
+    expect(addNoteForm, contains('// End Repeat row'));
+    expect(addNoteForm, contains("text: 'End Repeat'"));
+    expect(addNoteForm, contains('RecurrenceUntilDatePicker.show'));
+    expect(addNoteColorAndSave, contains('selectedColor: selectedColor'));
+    expect(addNoteColorAndSave, contains('DaySheetSaveButton('));
+    expect(addNoteColorAndSave, contains('accent: selectedColor'));
+    expect(daySheet, contains('color: selectedColor'));
+    expect(daySheet, isNot(contains('DaySheetColorSwatches(')));
+    expect(daySheet, isNot(contains('DaySheetFab.round(')));
+    expect(daySheet, isNot(contains('DaySheetCartouche')));
+
+    expect(reminderEditor, contains('Color selectedColor ='));
+    expect(reminderEditor, contains('showCalendarIcon: false'));
+    expect(reminderEditor, isNot(contains('DaySheetTabBar(')));
+    expect(reminderEditor, isNot(contains('DaySheetTab.notes')));
+    expect(reminderEditor, contains("'New reminder'"));
+    expect(reminderEditor, contains("'Edit reminder'"));
+    expect(reminderEditor, contains('DaySheetSpectrumColorPicker('));
+    expect(reminderEditor, contains('selectedColor: selectedColor'));
+    expect(reminderEditor, contains('DaySheetSaveButton('));
+    expect(reminderEditor, contains('accent: selectedColor'));
+    expect(reminderEditor, contains('color: selectedColor'));
+    expect(reminderEditor, isNot(contains('DaySheetColorSwatches(')));
+    expect(reminderEditor, isNot(contains('DaySheetFab.round(')));
+  });
+
+  test('Day sheet flow detail stays stacked over the sheet', () async {
+    final source = await File(
+      'lib/features/calendar/calendar_page.dart',
+    ).readAsString();
+    final daySheet = _sourceBetween(
+      source,
+      'void _openDaySheet',
+      'Future<void> _openQuickAddSheet',
+    );
+    final scheduledSection = _sourceBetween(
+      daySheet,
+      "label: 'Scheduled flows'",
+      "label: 'Notes on this day'",
+    );
+    final flowDetail = _sourceBetween(
+      source,
+      'void _openDaySheetFlowDetail',
+      'Future<void> _openQuickAddSheet',
+    );
+
+    expect(scheduledSection, contains('_openDaySheetFlowDetail(flowId)'));
+    expect(scheduledSection, isNot(contains('Navigator.pop(sheetCtx)')));
+    expect(scheduledSection, isNot(contains('context.go')));
+    expect(scheduledSection, isNot(contains('GoRouter')));
+    expect(flowDetail, contains('_openFlowStudioSheet('));
+    expect(flowDetail, contains('_FlowPreviewPage('));
+    expect(flowDetail, contains("'source': 'day_sheet_flow_detail'"));
+    expect(flowDetail, contains('showCloseButton: true'));
+    expect(flowDetail, contains('_debugDaySheetSmokeEnabled'));
+    expect(flowDetail, contains('_daySheetFlowDetailEventsByFlow(sequence)'));
+    expect(flowDetail, contains('initialEventsByFlow:'));
+    expect(flowDetail, contains('_flowEventRowFromDaySheetNote'));
+  });
+
+  test(
+    'Day sheet reminders include visible shared-calendar reminders',
+    () async {
+      final source = await File(
+        'lib/features/calendar/calendar_page.dart',
+      ).readAsString();
+      final helper = _sourceBetween(
+        source,
+        'List<ReminderRule> _calendarSheetReminderRulesForDay',
+        '({String primary, String? subline}) _daySheetReminderRuleLines',
+      );
+      final fixture = _sourceBetween(
+        source,
+        'void _configureDebugDaySheetSmokeState()',
+        'void _scheduleDebugDaySheetSmoke()',
+      );
+
+      expect(helper, contains('List<EventItem> dayEvents'));
+      expect(helper, contains('for (final event in dayEvents)'));
+      expect(helper, contains('if (!event.isReminder) continue'));
+      expect(helper, contains('_calendarSheetReminderRuleFromVisibleEvent('));
+      expect(helper, contains('calendarId: event.calendarId'));
+      expect(helper, contains('event.manualColor ?? event.color'));
+      expect(helper, contains('_calendarSheetReminderEventDedupKey'));
+      expect(helper, contains('_calendarSheetReminderFallbackKeyForEvent'));
+
+      expect(fixture, contains("name: 'Family Calendar'"));
+      expect(fixture, contains('SharedCalendarRole.viewer'));
+      expect(fixture, contains('const familySalonColor = Color(0xFFE85DFF)'));
+      expect(fixture, contains("title: 'Family Salon'"));
+      expect(fixture, contains('calendarId: sharedCalendarId'));
+      expect(fixture, contains('manualColor: familySalonColor'));
+      expect(fixture, contains('isReminder: true'));
+    },
+  );
+
+  test(
+    'filing-backed shared reminder rows keep reminder identity through hydration',
+    () async {
+      final calendarSource = await File(
+        'lib/features/calendar/calendar_page.dart',
+      ).readAsString();
+      final repoSource = await File(
+        'lib/data/user_events_repo.dart',
+      ).readAsString();
+      final hydrateBlock = _sourceBetween(
+        calendarSource,
+        'final isReminderBackboneEvent =',
+        'final positiveFiledFlowId =',
+      );
+
+      expect(repoSource, contains('bool isReminder,'));
+      expect(
+        repoSource,
+        contains("isReminder: _normalizedFilingItemKind(row) == 'reminder'"),
+      );
+      expect(hydrateBlock, contains('evt.isReminder ||'));
+      expect(hydrateBlock, contains("cid.startsWith('reminder:')"));
+      expect(hydrateBlock, contains('bool isReminderEvent ='));
+    },
+  );
+
+  test('Day View preserves explicit shared reminder colors', () async {
+    final dayViewSource = await File(
+      'lib/features/calendar/day_view.dart',
+    ).readAsString();
+    final visualHelper = _sourceBetween(
+      dayViewSource,
+      'CalendarEventVisualStyle _dayViewVisualForEvent',
+      'CalendarEventVisualStyle _dayViewMatteDetailVisual',
+    );
+
+    expect(visualHelper, contains('preserveEventColorForReminder:'));
+    expect(
+      visualHelper,
+      contains('isReminder && (event.manualColor != null || flow != null)'),
+    );
   });
 
   test(
@@ -299,7 +508,7 @@ void main() {
   );
 
   test(
-    'scheduled flow rows merge computed flows with flow-backed events',
+    'scheduled flow rows are parent flows derived from Day View events',
     () async {
       final source = await File(
         'lib/features/calendar/calendar_page.dart',
@@ -310,39 +519,46 @@ void main() {
         'FlowRecordSnapshot _flowRecordSnapshotFromFlow',
       );
 
-      expect(helper, contains('final window = _calendarSheetDayWindow'));
-      expect(helper, contains('for (final occurrence in _getFlowOccurrences'));
-      expect(helper, contains('for (final entry in dayNotes)'));
-      expect(helper, contains('final flowId = note.flowId'));
-      expect(helper, contains('_calendarSheetNoteBelongsInScheduledFlows'));
-      expect(helper, contains('filterAndDedupeDaySheetCandidates'));
-      expect(helper, contains("sourceType: 'event_backed_flow'"));
+      expect(helper, contains('List<EventItem> dayEvents'));
+      expect(helper, contains('for (final event in dayEvents)'));
+      expect(helper, contains('_calendarSheetEventRepresentsScheduledFlow'));
+      expect(helper, contains('_calendarSheetScheduledFlowKeyForEvent'));
+      expect(helper, contains('rowIndexByParentKey'));
+      expect(helper, contains('occurrenceCount: existing.occurrenceCount + 1'));
+      expect(helper, contains("sourceType: 'day_view_flow'"));
       expect(helper, contains('startsAtLocal: range.start'));
       expect(helper, contains('endsAtLocal: range.end'));
-      expect(helper, contains('name: flow.name'));
-      expect(helper, contains('color: _noteColor(note)'));
+      expect(helper, contains('final safeName = flow.name.trim().isEmpty'));
+      expect(helper, contains("name: safeName.isEmpty ? 'Flow' : safeName"));
+      expect(helper, contains('_displayFlowColor(flow.name, flow.color)'));
       expect(helper, contains('rows.sort'));
+      expect(helper, isNot(contains('_getFlowOccurrences')));
+      expect(helper, isNot(contains('filterAndDedupeDaySheetCandidates')));
     },
   );
 
-  test('Notes on this day uses selected-day note occurrences only', () async {
-    final source = await File(
-      'lib/features/calendar/calendar_page.dart',
-    ).readAsString();
-    final helper = _sourceBetween(
-      source,
-      'List<EventItem> _calendarSheetEventsForDay',
-      'DayViewSheetEventTarget? _resolveCalendarAdjacentEventTarget',
-    );
+  test(
+    'Notes on this day preserves selected-day Day View event blocks',
+    () async {
+      final source = await File(
+        'lib/features/calendar/calendar_page.dart',
+      ).readAsString();
+      final helper = _sourceBetween(
+        source,
+        'List<EventItem> _calendarSheetEventsForDay',
+        'DayViewSheetEventTarget? _resolveCalendarAdjacentEventTarget',
+      );
 
-    expect(helper, contains('final window = _calendarSheetDayWindow'));
-    expect(helper, contains('_calendarSheetNoteCandidatesForDay'));
-    expect(helper, contains('_calendarSheetNoteBelongsInNotes'));
-    expect(helper, contains('filterAndDedupeDaySheetCandidates'));
-    expect(helper, contains("sourceType: 'note'"));
-    expect(helper, contains('_calendarSheetEventItemFromNote'));
-    expect(helper, isNot(contains('_getNotes(ky, km, kd)')));
-  });
+      expect(helper, contains('final window = _calendarSheetDayWindow'));
+      expect(helper, contains('_calendarSheetNoteCandidatesForDay'));
+      expect(helper, contains('filterAndDedupeDaySheetCandidates'));
+      expect(helper, contains("'day_view_event'"));
+      expect(helper, contains("'reminder'"));
+      expect(helper, contains('_calendarSheetEventItemFromNote'));
+      expect(helper, isNot(contains('_calendarSheetNoteBelongsInNotes')));
+      expect(helper, isNot(contains('_getNotes(ky, km, kd)')));
+    },
+  );
 
   test(
     'new reminders opened from Day sheet seed from the selected day',

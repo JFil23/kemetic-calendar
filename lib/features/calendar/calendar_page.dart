@@ -8313,6 +8313,8 @@ class CalendarPageState extends State<CalendarPage>
 
   int _dataVersion = 0;
   final ValueNotifier<int> _dayViewDataVersion = ValueNotifier<int>(0);
+  final ValueNotifier<DayViewSheetEventTarget?> _dayViewEventDetailRequest =
+      ValueNotifier<DayViewSheetEventTarget?>(null);
   Timer? _warmStartCacheDebounceTimer;
   String? _warmStartCacheRestoredForUserId;
   bool _warmStartSnapshotVisible = false;
@@ -12667,6 +12669,7 @@ class CalendarPageState extends State<CalendarPage>
     final nextKDay = KemeticMath.fromGregorian(nextGDay);
     const personalCalendarId = 'debug-day-sheet-personal';
     const ownerId = 'debug-day-sheet-owner';
+    const familySalonColor = Color(0xFFE85DFF);
     final calendar = SharedCalendarSummary(
       id: personalCalendarId,
       ownerId: ownerId,
@@ -12680,6 +12683,21 @@ class CalendarPageState extends State<CalendarPage>
       pendingInviteCount: 0,
       liveEventCount: 6,
       liveFlowCount: 5,
+    );
+    const sharedCalendarId = 'debug-day-sheet-shared-family';
+    final sharedCalendar = SharedCalendarSummary(
+      id: sharedCalendarId,
+      ownerId: 'debug-day-sheet-family-owner',
+      name: 'Family Calendar',
+      colorValue: familySalonColor.toARGB32(),
+      icon: 'family',
+      isPersonal: false,
+      role: SharedCalendarRole.viewer,
+      status: SharedCalendarInviteStatus.accepted,
+      memberCount: 3,
+      pendingInviteCount: 0,
+      liveEventCount: 1,
+      liveFlowCount: 0,
     );
 
     final weighingFlow = _Flow(
@@ -12756,6 +12774,7 @@ class CalendarPageState extends State<CalendarPage>
 
     _calendarSummariesById = <String, SharedCalendarSummary>{
       personalCalendarId: calendar,
+      sharedCalendarId: sharedCalendar,
     };
     _personalCalendarId = personalCalendarId;
     _calendarStateLoaded = true;
@@ -12837,6 +12856,20 @@ class CalendarPageState extends State<CalendarPage>
           end: const TimeOfDay(hour: 0, minute: 30),
           manualColor: daySheetColorPalette[8],
           category: NoteCategory.body,
+        ),
+        _Note(
+          id: 'debug-day-sheet-reminder-family-salon',
+          clientEventId: 'debug:day-sheet:shared-reminder:family-salon',
+          calendarId: sharedCalendarId,
+          calendarName: sharedCalendar.name,
+          title: 'Family Salon',
+          detail: 'Shared-calendar reminder event with no local rule.',
+          allDay: false,
+          start: const TimeOfDay(hour: 16, minute: 0),
+          end: const TimeOfDay(hour: 16, minute: 30),
+          manualColor: familySalonColor,
+          category: NoteCategory.home,
+          isReminder: true,
         ),
       ]
       ..[nextDayKey] = <_Note>[
@@ -13922,6 +13955,12 @@ class CalendarPageState extends State<CalendarPage>
       focusStartMin: focusEvent?.startMin,
       focusFlowId: focusEvent?.flowId,
       focusTitle: focusEvent?.title,
+      eventDetailRequestListenable: _dayViewEventDetailRequest,
+      onEventDetailRequestHandled: () {
+        if (_dayViewEventDetailRequest.value != null) {
+          _dayViewEventDetailRequest.value = null;
+        }
+      },
       onClose: () {},
       onManageFlows: (flowId) => _getMyFlowsCallback()(flowId),
       onOpenQuickAdd: (_) => _openQuickAddSheet(),
@@ -16154,6 +16193,7 @@ class CalendarPageState extends State<CalendarPage>
     }
     _scrollCtrl.dispose();
     _dayViewDataVersion.dispose();
+    _dayViewEventDetailRequest.dispose();
     GuidedOnboardingController.instance.setExternalOverlaySuppressed(false);
     super.dispose();
   }
@@ -17027,22 +17067,57 @@ class CalendarPageState extends State<CalendarPage>
     int kYear,
     int kMonth,
     int kDay,
+    List<EventItem> dayEvents,
   ) {
     final day = DateUtils.dateOnly(
       KemeticMath.toGregorian(kYear, kMonth, kDay),
     );
-    final rules = _dedupeReminderRules(_reminderRules)
-        .where((rule) => !_endedReminderIds.contains(rule.id))
-        .where((rule) {
-          final occurrences = _generateReminderOccurrences(rule, day, day);
-          return occurrences.any((occurrence) {
-            final normalized = DateUtils.dateOnly(occurrence);
-            return normalized.year == day.year &&
-                normalized.month == day.month &&
-                normalized.day == day.day;
-          });
-        })
-        .toList();
+    final rulesByKey = <String, ReminderRule>{};
+    final fallbackKeys = <String>{};
+
+    for (final rule in _dedupeReminderRules(_reminderRules)) {
+      if (_endedReminderIds.contains(rule.id)) continue;
+      final occurrences = _generateReminderOccurrences(rule, day, day);
+      final occursOnDay = occurrences.any((occurrence) {
+        final normalized = DateUtils.dateOnly(occurrence);
+        return normalized.year == day.year &&
+            normalized.month == day.month &&
+            normalized.day == day.day;
+      });
+      if (!occursOnDay) continue;
+
+      rulesByKey.putIfAbsent(
+        _calendarSheetReminderRuleDedupKey(rule),
+        () => rule,
+      );
+      fallbackKeys.add(_calendarSheetReminderFallbackKeyForRule(rule));
+    }
+
+    for (final event in dayEvents) {
+      if (!event.isReminder) continue;
+      final range = _calendarSheetLocalRangeForEvent(
+        kYear,
+        kMonth,
+        kDay,
+        event,
+      );
+      final fallbackKey = _calendarSheetReminderFallbackKeyForEvent(
+        event,
+        range.start,
+      );
+      if (fallbackKeys.contains(fallbackKey)) continue;
+      final eventKey = _calendarSheetReminderEventDedupKey(event, range.start);
+      if (rulesByKey.containsKey(eventKey)) continue;
+      final rule = _calendarSheetReminderRuleFromVisibleEvent(
+        event,
+        range.start,
+      );
+      if (rule == null) continue;
+      rulesByKey[eventKey] = rule;
+      fallbackKeys.add(fallbackKey);
+    }
+
+    final rules = rulesByKey.values.toList();
     rules.sort((a, b) {
       final aMinutes = a.allDay
           ? -1
@@ -17055,6 +17130,147 @@ class CalendarPageState extends State<CalendarPage>
       return a.title.toLowerCase().compareTo(b.title.toLowerCase());
     });
     return rules;
+  }
+
+  static const String _kCalendarSheetVisibleReminderRulePrefix =
+      'visible-day-reminder:';
+
+  bool _isCalendarSheetVisibleReminderRule(ReminderRule rule) =>
+      rule.id.startsWith(_kCalendarSheetVisibleReminderRulePrefix);
+
+  String _calendarSheetReminderRuleDedupKey(ReminderRule rule) {
+    final id = rule.id.trim();
+    if (id.isNotEmpty &&
+        !id.startsWith(_kCalendarSheetVisibleReminderRulePrefix)) {
+      return 'rid:$id';
+    }
+    return _calendarSheetReminderFallbackKeyForRule(rule);
+  }
+
+  String _calendarSheetReminderEventDedupKey(
+    EventItem event,
+    DateTime startLocal,
+  ) {
+    final reminderId = event.reminderId?.trim();
+    if (reminderId != null && reminderId.isNotEmpty) {
+      return 'rid:$reminderId';
+    }
+
+    final clientEventId = event.clientEventId?.trim();
+    if (clientEventId != null && clientEventId.isNotEmpty) {
+      return 'cid:$clientEventId';
+    }
+
+    final eventId = event.id?.trim();
+    if (eventId != null && eventId.isNotEmpty) {
+      return 'event:$eventId';
+    }
+
+    return _calendarSheetReminderFallbackKeyForEvent(event, startLocal);
+  }
+
+  String _calendarSheetReminderFallbackKey({
+    required String? calendarId,
+    required String title,
+    required bool allDay,
+    required DateTime startLocal,
+  }) {
+    final normalizedCalendar = (calendarId ?? '').trim().toLowerCase();
+    final normalizedTitle = title.trim().toLowerCase();
+    final minute = allDay ? -1 : startLocal.hour * 60 + startLocal.minute;
+    return 'fallback:$normalizedCalendar|$normalizedTitle|$allDay|$minute';
+  }
+
+  String _calendarSheetReminderFallbackKeyForRule(ReminderRule rule) {
+    return _calendarSheetReminderFallbackKey(
+      calendarId: rule.calendarId,
+      title: rule.title,
+      allDay: rule.allDay,
+      startLocal: rule.startLocal,
+    );
+  }
+
+  String _calendarSheetReminderFallbackKeyForEvent(
+    EventItem event,
+    DateTime startLocal,
+  ) {
+    return _calendarSheetReminderFallbackKey(
+      calendarId: event.calendarId,
+      title: event.title,
+      allDay: event.allDay,
+      startLocal: startLocal,
+    );
+  }
+
+  ReminderRepeat _calendarSheetReminderRepeatFromVisibleEvent(EventItem event) {
+    final payload = event.behaviorPayload;
+    final payloadRepeat = payload == null
+        ? null
+        : (payload['repeat'] ?? payload['reminder_repeat']);
+    if (payloadRepeat is Map) {
+      return ReminderRepeat.fromJson(Map<String, dynamic>.from(payloadRepeat));
+    }
+
+    final rawDetail = event.detail;
+    if (rawDetail == null || rawDetail.isEmpty) {
+      return const ReminderRepeat();
+    }
+    const marker = 'repeat=';
+    final start = rawDetail.indexOf(marker);
+    if (start < 0) return const ReminderRepeat();
+    final valueStart = start + marker.length;
+    final valueEnd = rawDetail.indexOf(';', valueStart);
+    if (valueEnd <= valueStart) return const ReminderRepeat();
+    try {
+      final decoded = jsonDecode(rawDetail.substring(valueStart, valueEnd));
+      if (decoded is Map) {
+        return ReminderRepeat.fromJson(Map<String, dynamic>.from(decoded));
+      }
+    } catch (_) {
+      return const ReminderRepeat();
+    }
+    return const ReminderRepeat();
+  }
+
+  String _calendarSheetVisibleReminderRuleId(EventItem event) {
+    final reminderId = event.reminderId?.trim();
+    if (reminderId != null && reminderId.isNotEmpty) return reminderId;
+
+    final clientEventId = event.clientEventId?.trim();
+    if (clientEventId != null && clientEventId.isNotEmpty) {
+      return '$_kCalendarSheetVisibleReminderRulePrefix'
+          'cid:${Uri.encodeComponent(clientEventId)}';
+    }
+
+    final eventId = event.id?.trim();
+    if (eventId != null && eventId.isNotEmpty) {
+      return '$_kCalendarSheetVisibleReminderRulePrefix'
+          'event:${Uri.encodeComponent(eventId)}';
+    }
+
+    return '$_kCalendarSheetVisibleReminderRulePrefix'
+        'fallback:${Uri.encodeComponent(_calendarSheetEventIdentityKey(event))}';
+  }
+
+  ReminderRule? _calendarSheetReminderRuleFromVisibleEvent(
+    EventItem event,
+    DateTime startLocal,
+  ) {
+    if (!event.isReminder) return null;
+    final title = event.title.trim();
+    final decodedDetail = _decodeDetailMetadata(event.detail);
+    return ReminderRule(
+      id: _calendarSheetVisibleReminderRuleId(event),
+      calendarId: event.calendarId,
+      title: title.isEmpty ? 'Reminder' : title,
+      startLocal: startLocal,
+      allDay: event.allDay,
+      color: event.manualColor ?? event.color,
+      category: event.category,
+      active: true,
+      repeat: _calendarSheetReminderRepeatFromVisibleEvent(event),
+      alertOffsetMinutes: decodedDetail.alertMinutes ?? _alertNoneMinutes,
+    );
   }
 
   ({String primary, String? subline}) _daySheetReminderRuleLines(
@@ -17534,12 +17750,6 @@ class CalendarPageState extends State<CalendarPage>
     return baseEnd.isAfter(startAlignedEnd) ? baseEnd : startAlignedEnd;
   }
 
-  Future<void> _forceResyncReminders() async {
-    await _loadReminderRules();
-    // Force refresh flows to include reminder-backed flows; no direct reminder:* writes.
-    await _loadFromDisk();
-  }
-
   Future<void> _previewReminderLocally(
     ReminderRule rule,
     DateTime today,
@@ -17672,12 +17882,7 @@ class CalendarPageState extends State<CalendarPage>
       endLocal = DateUtils.dateOnly(endLocal);
     }
     bool allDay = existing?.allDay ?? false;
-    int colorIndex = existing != null
-        ? daySheetColorPalette.indexWhere(
-            (c) => c.toARGB32() == existing.color.toARGB32(),
-          )
-        : 0;
-    if (colorIndex < 0) colorIndex = 0;
+    Color selectedColor = existing?.color ?? daySheetColorPalette.first;
     String? category = existing?.category;
     ReminderRepeat repeat = existing?.repeat ?? const ReminderRepeat();
     bool active = existing?.active ?? true;
@@ -17730,7 +17935,7 @@ class CalendarPageState extends State<CalendarPage>
                 padding: EdgeInsets.only(
                   left: 22,
                   right: 22,
-                  bottom: keyboardInset + media.padding.bottom + 130,
+                  bottom: media.padding.bottom + 12,
                   top: 10,
                 ),
                 child: StatefulBuilder(
@@ -17935,6 +18140,9 @@ class CalendarPageState extends State<CalendarPage>
                     }
 
                     return SingleChildScrollView(
+                      padding: EdgeInsets.only(
+                        bottom: keyboardInset + media.padding.bottom + 180,
+                      ),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         mainAxisSize: MainAxisSize.min,
@@ -17951,16 +18159,6 @@ class CalendarPageState extends State<CalendarPage>
                                 borderRadius: BorderRadius.circular(3),
                               ),
                             ),
-                          ),
-                          DaySheetTabBar(
-                            activeTab: DaySheetTab.reminders,
-                            accent: daySheetColorPalette[colorIndex],
-                            onSelected: (tab) {
-                              if (tab == DaySheetTab.notes &&
-                                  Navigator.of(sheetCtx).canPop()) {
-                                Navigator.of(sheetCtx).pop(false);
-                              }
-                            },
                           ),
                           Row(
                             children: [
@@ -17992,7 +18190,7 @@ class CalendarPageState extends State<CalendarPage>
                               ),
                               DaySheetSwitch(
                                 value: active,
-                                accent: daySheetColorPalette[colorIndex],
+                                accent: selectedColor,
                                 onChanged: (v) =>
                                     setModalState(() => active = v),
                               ),
@@ -18104,6 +18302,7 @@ class CalendarPageState extends State<CalendarPage>
                                       mode: stoneMode,
                                       label: 'Date',
                                       title: 'Reminder date',
+                                      showCalendarIcon: false,
                                       onChanged: (picked) {
                                         setModalState(() {
                                           reminderDateMode = picked.mode;
@@ -18175,7 +18374,7 @@ class CalendarPageState extends State<CalendarPage>
                           DaySheetToggleRow(
                             label: 'All-day',
                             value: allDay,
-                            accent: daySheetColorPalette[colorIndex],
+                            accent: selectedColor,
                             onChanged: (v) => setModalState(() => allDay = v),
                           ),
                           const SizedBox(height: 22),
@@ -18463,21 +18662,21 @@ class CalendarPageState extends State<CalendarPage>
                           DaySheetCategoryChips(
                             categories: NoteCategory.all,
                             selected: category,
-                            accent: daySheetColorPalette[colorIndex],
+                            accent: selectedColor,
                             onSelected: (value) =>
                                 setModalState(() => category = value),
                           ),
-                          DaySheetColorSwatches(
-                            palette: daySheetColorPalette,
-                            selectedIndex: colorIndex,
-                            onSelected: (index) =>
-                                setModalState(() => colorIndex = index),
+                          DaySheetSpectrumColorPicker(
+                            selectedColor: selectedColor,
+                            onChanged: (color) =>
+                                setModalState(() => selectedColor = color),
                           ),
                           const SizedBox(height: 20),
                           Align(
                             alignment: Alignment.centerRight,
-                            child: DaySheetFab.round(
+                            child: DaySheetSaveButton(
                               label: 'Save',
+                              accent: selectedColor,
                               onPressed: () async {
                                 final title = titleCtrl.text.trim();
                                 if (title.isEmpty) return;
@@ -18498,7 +18697,7 @@ class CalendarPageState extends State<CalendarPage>
                                   title: title,
                                   startLocal: startLocal,
                                   allDay: allDay,
-                                  color: daySheetColorPalette[colorIndex],
+                                  color: selectedColor,
                                   category: category,
                                   active: active,
                                   repeat: repeat,
@@ -18729,27 +18928,6 @@ class CalendarPageState extends State<CalendarPage>
     ];
   }
 
-  bool _calendarSheetNoteBelongsInNotes(_Note note, Map<int, _Flow> flowsById) {
-    if (note.isReminder) return false;
-    final flowId = note.flowId;
-    if (flowId == null || flowId <= 0) return true;
-    final flow = flowsById[flowId];
-    if (flow == null) return false;
-    return flow.isHidden || hasRepeatingNoteFlowMetadata(flow.notes);
-  }
-
-  bool _calendarSheetNoteBelongsInScheduledFlows(
-    _Note note,
-    Map<int, _Flow> flowsById,
-  ) {
-    if (note.isReminder) return false;
-    final flowId = note.flowId;
-    if (flowId == null || flowId <= 0) return false;
-    final flow = flowsById[flowId];
-    if (flow == null) return false;
-    return !flow.isHidden && !hasRepeatingNoteFlowMetadata(flow.notes);
-  }
-
   ReminderRule? _reminderRuleFromFlow(_Flow f) {
     if (f.notes == null || f.notes!.trim().isEmpty) return null;
     try {
@@ -18765,178 +18943,104 @@ class CalendarPageState extends State<CalendarPage>
     }
   }
 
-  /// Flow occurrences that apply to a given Kemetic date (computed on demand).
-  List<_FlowOccurrence> _getFlowOccurrences(int kYear, int kMonth, int kDay) {
-    final g = KemeticMath.toGregorian(kYear, kMonth, kDay);
-    final dayWindow = daySheetWindowFor(g);
-    final gDate = dayWindow.start;
-    final out = <_FlowOccurrence>[];
-    for (final f in _flows) {
-      if (!f.active) continue;
-      if (f.isHidden) continue; // repeating notes should NOT appear as flows
-      final start = f.start != null ? DateUtils.dateOnly(f.start!) : null;
-      final end = f.end != null ? DateUtils.dateOnly(f.end!) : null;
-      if (start != null && gDate.isBefore(start)) continue;
-      if (end != null && gDate.isAfter(end)) continue;
-      if (f.isReminder) {
-        final rr = _reminderRuleFromFlow(f);
-        if (rr == null) continue;
-        final occs = _generateReminderOccurrences(rr, gDate, gDate);
-        if (occs.isNotEmpty) {
-          final startTod = rr.allDay
-              ? null
-              : TimeOfDay(
-                  hour: rr.startLocal.hour,
-                  minute: rr.startLocal.minute,
-                );
-          final startsAt = rr.allDay
-              ? gDate
-              : DateTime(
-                  gDate.year,
-                  gDate.month,
-                  gDate.day,
-                  rr.startLocal.hour,
-                  rr.startLocal.minute,
-                );
-          final endsAt = rr.allDay
-              ? gDate.add(const Duration(days: 1))
-              : startsAt.add(const Duration(minutes: 30));
-          final endTod = rr.allDay ? null : TimeOfDay.fromDateTime(endsAt);
-          out.add(
-            _FlowOccurrence(
-              flow: f,
-              allDay: rr.allDay,
-              startsAtLocal: startsAt,
-              endsAtLocal: endsAt,
-              start: startTod,
-              end: endTod,
-              reminderId: rr.id,
-            ),
-          );
-        }
-      } else {
-        for (final r in f.rules) {
-          if (r.matches(ky: kYear, km: kMonth, kd: kDay, g: g)) {
-            final range = _calendarSheetLocalRangeForTimes(
-              dayStart: gDate,
-              allDay: r.allDay,
-              start: r.start,
-              end: r.end,
-            );
-            out.add(
-              _FlowOccurrence(
-                flow: f,
-                allDay: r.allDay,
-                startsAtLocal: range.start,
-                endsAtLocal: range.end,
-                start: r.start,
-                end: r.end,
-              ),
-            );
-          }
-        }
-      }
+  TimeOfDay _calendarSheetTimeFromMinute(int minute) {
+    final normalized = minute.remainder(24 * 60);
+    final safeMinute = normalized < 0 ? normalized + 24 * 60 : normalized;
+    return TimeOfDay(hour: safeMinute ~/ 60, minute: safeMinute % 60);
+  }
+
+  ({DateTime start, DateTime end}) _calendarSheetLocalRangeForEvent(
+    int kYear,
+    int kMonth,
+    int kDay,
+    EventItem event,
+  ) {
+    final dayStart = _calendarSheetDayWindow(kYear, kMonth, kDay).start;
+    if (event.allDay) {
+      return (start: dayStart, end: dayStart.add(const Duration(days: 1)));
     }
-    return out;
+
+    final startsAt = dayStart.add(Duration(minutes: event.startMin));
+    final rawEndsAt = dayStart.add(Duration(minutes: event.endMin));
+    return (start: startsAt, end: daySheetEndAfterStart(startsAt, rawEndsAt));
+  }
+
+  bool _calendarSheetEventRepresentsScheduledFlow(
+    EventItem event,
+    Map<int, _Flow> flowsById,
+  ) {
+    if (event.isReminder) return false;
+    final flowId = event.flowId;
+    if (flowId == null || flowId <= 0) return false;
+    final flow = flowsById[flowId];
+    if (flow == null || flow.isReminder) return false;
+    return !flow.isHidden && !hasRepeatingNoteFlowMetadata(flow.notes);
+  }
+
+  String _calendarSheetScheduledFlowKeyForEvent(EventItem event) {
+    final flowId = event.flowId;
+    if (flowId != null && flowId > 0) return 'flow:$flowId';
+
+    final title = event.title.trim().toLowerCase();
+    final sourceType = event.behaviorPayload?['source_type']?.toString() ?? '';
+    return 'fallback:$sourceType:$title';
   }
 
   List<_DaySheetScheduledFlowRow> _calendarSheetScheduledFlowsForDay(
     int kYear,
     int kMonth,
     int kDay,
-    List<_DaySheetNoteOccurrence> dayNotes,
+    List<EventItem> dayEvents,
   ) {
-    final window = _calendarSheetDayWindow(kYear, kMonth, kDay);
-    final candidates = <_DaySheetScheduledFlowRow>[];
     final flowsById = _allFlowsById();
+    final rows = <_DaySheetScheduledFlowRow>[];
+    final rowIndexByParentKey = <String, int>{};
 
-    void addRow({
-      required int? flowId,
-      required String name,
-      required Color color,
-      required bool allDay,
-      required TimeOfDay? start,
-      required TimeOfDay? end,
-      required DateTime startsAtLocal,
-      required DateTime endsAtLocal,
-      required String sourceType,
-      String? eventId,
-      String? clientEventId,
-      String? reminderId,
-    }) {
-      final safeName = name.trim().isEmpty ? 'Flow' : name.trim();
-      candidates.add(
+    for (final event in dayEvents) {
+      if (!_calendarSheetEventRepresentsScheduledFlow(event, flowsById)) {
+        continue;
+      }
+      final parentKey = _calendarSheetScheduledFlowKeyForEvent(event);
+      final existingIndex = rowIndexByParentKey[parentKey];
+      if (existingIndex != null) {
+        final existing = rows[existingIndex];
+        rows[existingIndex] = existing.copyWith(
+          occurrenceCount: existing.occurrenceCount + 1,
+        );
+        continue;
+      }
+
+      final flowId = event.flowId!;
+      final flow = flowsById[flowId]!;
+      final range = _calendarSheetLocalRangeForEvent(
+        kYear,
+        kMonth,
+        kDay,
+        event,
+      );
+      final safeName = flow.name.trim().isEmpty
+          ? event.title.trim()
+          : flow.name.trim();
+      rowIndexByParentKey[parentKey] = rows.length;
+      rows.add(
         _DaySheetScheduledFlowRow(
           flowId: flowId,
-          name: safeName,
-          color: color,
-          allDay: allDay,
-          start: start,
-          end: end,
-          startsAtLocal: startsAtLocal,
-          endsAtLocal: endsAtLocal,
-          sourceType: sourceType,
-          eventId: eventId,
-          clientEventId: clientEventId,
-          reminderId: reminderId,
+          name: safeName.isEmpty ? 'Flow' : safeName,
+          color: _displayFlowColor(flow.name, flow.color),
+          allDay: event.allDay,
+          start: event.allDay
+              ? null
+              : _calendarSheetTimeFromMinute(event.startMin),
+          end: event.allDay ? null : _calendarSheetTimeFromMinute(event.endMin),
+          startsAtLocal: range.start,
+          endsAtLocal: range.end,
+          sourceType: 'day_view_flow',
+          eventId: event.id,
+          clientEventId: event.clientEventId,
+          reminderId: event.reminderId,
         ),
       );
     }
-
-    for (final occurrence in _getFlowOccurrences(kYear, kMonth, kDay)) {
-      addRow(
-        flowId: occurrence.flow.id,
-        name: occurrence.flow.name,
-        color: _displayFlowColor(occurrence.flow.name, occurrence.flow.color),
-        allDay: occurrence.allDay,
-        start: occurrence.start,
-        end: occurrence.end,
-        startsAtLocal: occurrence.startsAtLocal,
-        endsAtLocal: occurrence.endsAtLocal,
-        sourceType: occurrence.flow.isReminder ? 'reminder' : 'computed_flow',
-        reminderId: occurrence.reminderId,
-      );
-    }
-
-    for (final entry in dayNotes) {
-      final note = entry.note;
-      final flowId = note.flowId;
-      if (!_calendarSheetNoteBelongsInScheduledFlows(note, flowsById)) {
-        continue;
-      }
-      final flow = flowsById[flowId!]!;
-      final range = _calendarSheetLocalRangeForNote(note, entry.bucketStart);
-      addRow(
-        flowId: flowId,
-        name: flow.name,
-        color: _noteColor(note),
-        allDay: note.allDay,
-        start: note.start,
-        end: note.end,
-        startsAtLocal: range.start,
-        endsAtLocal: range.end,
-        sourceType: 'event_backed_flow',
-        eventId: note.id,
-        clientEventId: note.clientEventId,
-        reminderId: note.reminderId,
-      );
-    }
-
-    final rows = filterAndDedupeDaySheetCandidates(
-      candidates,
-      window: window,
-      candidateOf: (row) => DaySheetListCandidate(
-        title: row.name,
-        sourceType: row.sourceType,
-        allDay: row.allDay,
-        startsAtLocal: row.startsAtLocal,
-        endsAtLocal: row.endsAtLocal,
-        eventId: row.eventId,
-        clientEventId: row.clientEventId,
-        flowId: row.flowId,
-        reminderId: row.reminderId,
-      ),
-    );
 
     rows.sort((a, b) {
       final startCompare = _daySheetTimeSortMinutes(
@@ -18947,6 +19051,11 @@ class CalendarPageState extends State<CalendarPage>
       return a.name.toLowerCase().compareTo(b.name.toLowerCase());
     });
     return rows;
+  }
+
+  String _calendarSheetScheduledFlowRowMeta(_DaySheetScheduledFlowRow row) {
+    if (row.occurrenceCount > 1) return '${row.occurrenceCount} times today';
+    return _timeRangeLabel(allDay: row.allDay, start: row.start, end: row.end);
   }
 
   int _daySheetTimeSortMinutes({
@@ -22484,6 +22593,7 @@ class CalendarPageState extends State<CalendarPage>
     },
     List<Route<dynamic>> Function(NavigatorState navigator)?
     initialRoutesBuilder,
+    bool showCloseButton = false,
   }) async {
     NavigationTrace.instance.record(
       'flow studio sheet helper entered',
@@ -22536,7 +22646,48 @@ class CalendarPageState extends State<CalendarPage>
         isDismissible: isTablet ? false : true,
         enableDrag: isTablet ? false : true,
         builder: (outerCtx) {
+          void closeOuterSheet() {
+            final navigator = Navigator.of(outerCtx);
+            if (navigator.canPop()) {
+              navigator.pop();
+            }
+          }
+
+          Widget flowStudioNavigator({GlobalKey<NavigatorState>? key}) {
+            return Navigator(
+              key: key,
+              onGenerateInitialRoutes: (nav, initial) {
+                final routes = initialRoutesBuilder?.call(nav);
+                if (routes != null) return routes;
+                return [MaterialPageRoute(builder: (ctx) => rootBuilder(ctx))];
+              },
+            );
+          }
+
+          Widget maybeHandleSheetBack(
+            Widget child, {
+            required GlobalKey<NavigatorState>? navigatorKey,
+          }) {
+            if (!showCloseButton || navigatorKey == null) return child;
+            return PopScope(
+              canPop: false,
+              onPopInvokedWithResult: (didPop, _) {
+                if (didPop) return;
+                final innerNavigator = navigatorKey.currentState;
+                if (innerNavigator != null && innerNavigator.canPop()) {
+                  unawaited(innerNavigator.maybePop());
+                  return;
+                }
+                closeOuterSheet();
+              },
+              child: child,
+            );
+          }
+
           if (isTablet) {
+            final navigatorKey = showCloseButton
+                ? GlobalKey<NavigatorState>()
+                : null;
             return SafeArea(
               child: FractionallySizedBox(
                 heightFactor: 0.9,
@@ -22556,16 +22707,9 @@ class CalendarPageState extends State<CalendarPage>
                           ),
                         ),
                         Expanded(
-                          child: Navigator(
-                            onGenerateInitialRoutes: (nav, initial) {
-                              final routes = initialRoutesBuilder?.call(nav);
-                              if (routes != null) return routes;
-                              return [
-                                MaterialPageRoute(
-                                  builder: (ctx) => rootBuilder(ctx),
-                                ),
-                              ];
-                            },
+                          child: maybeHandleSheetBack(
+                            flowStudioNavigator(key: navigatorKey),
+                            navigatorKey: navigatorKey,
                           ),
                         ),
                       ],
@@ -22576,6 +22720,9 @@ class CalendarPageState extends State<CalendarPage>
             );
           }
 
+          final navigatorKey = showCloseButton
+              ? GlobalKey<NavigatorState>()
+              : null;
           return DraggableScrollableSheet(
             initialChildSize: 0.8,
             minChildSize: 0.4,
@@ -22592,27 +22739,38 @@ class CalendarPageState extends State<CalendarPage>
                   color: Colors.black,
                   child: Column(
                     children: [
-                      const SizedBox(height: 10),
-                      Container(
-                        width: 36,
-                        height: 4,
-                        decoration: BoxDecoration(
-                          color: Colors.white24,
-                          borderRadius: BorderRadius.circular(2),
+                      SizedBox(
+                        height: showCloseButton ? 52 : 22,
+                        child: Stack(
+                          alignment: Alignment.center,
+                          children: [
+                            Container(
+                              width: 36,
+                              height: 4,
+                              decoration: BoxDecoration(
+                                color: Colors.white24,
+                                borderRadius: BorderRadius.circular(2),
+                              ),
+                            ),
+                            if (showCloseButton)
+                              Align(
+                                alignment: Alignment.centerRight,
+                                child: IconButton(
+                                  tooltip: 'Close',
+                                  icon: const Icon(
+                                    Icons.close,
+                                    color: DaySheetTokens.silverMid,
+                                  ),
+                                  onPressed: closeOuterSheet,
+                                ),
+                              ),
+                          ],
                         ),
                       ),
-                      const SizedBox(height: 8),
                       Expanded(
-                        child: Navigator(
-                          onGenerateInitialRoutes: (nav, initial) {
-                            final routes = initialRoutesBuilder?.call(nav);
-                            if (routes != null) return routes;
-                            return [
-                              MaterialPageRoute(
-                                builder: (ctx) => rootBuilder(ctx),
-                              ),
-                            ];
-                          },
+                        child: maybeHandleSheetBack(
+                          flowStudioNavigator(key: navigatorKey),
+                          navigatorKey: navigatorKey,
                         ),
                       ),
                     ],
@@ -23086,6 +23244,196 @@ class CalendarPageState extends State<CalendarPage>
           onAppendToJournal: _appendToJournalAndRefresh,
         );
       },
+    );
+  }
+
+  void _openDaySheetFlowDetail(int flowId) {
+    _openFlowStudioSheet(
+      continuityState: <String, dynamic>{
+        'mode': _kFlowStudioModeMyFlows,
+        'initialFlowId': flowId,
+        'source': 'day_sheet_flow_detail',
+      },
+      showCloseButton: true,
+      rootBuilder: (innerCtx) {
+        final snapshot = _cachedMyFlowsFilingSnapshot();
+        final snapshotFlows = snapshot?.flows ?? const <_Flow>[];
+        final sourceFlows = snapshotFlows.isNotEmpty ? snapshotFlows : _flows;
+        final activeIds =
+            snapshot?.activeFlowIds ??
+            <int>{
+              for (final flow in _flows)
+                if (flow.active && !flow.isHidden && !flow.isReminder) flow.id,
+            };
+        final activeItems =
+            sourceFlows.where((flow) => activeIds.contains(flow.id)).toList()
+              ..sort(
+                (a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()),
+              );
+        final fallbackIndex = sourceFlows.indexWhere(
+          (flow) => flow.id == flowId,
+        );
+        final activeIndex = activeItems.indexWhere((flow) => flow.id == flowId);
+        final flow = activeIndex >= 0
+            ? activeItems[activeIndex]
+            : (fallbackIndex >= 0 ? sourceFlows[fallbackIndex] : null);
+
+        if (flow == null) {
+          return const Scaffold(
+            backgroundColor: MaatFlowListTokens.pageBg,
+            body: Center(
+              child: Text(
+                'Flow unavailable',
+                style: TextStyle(color: DaySheetTokens.silverHi),
+              ),
+            ),
+          );
+        }
+
+        final sequence = activeItems.any((item) => item.id == flowId)
+            ? activeItems
+            : <_Flow>[flow];
+        final initialIndex = sequence.indexWhere((item) => item.id == flowId);
+        final metricsByFlow = snapshot == null
+            ? const <int, _FlowPreviewMetrics>{}
+            : <int, _FlowPreviewMetrics>{
+                for (final item in sequence)
+                  item.id: _FlowPreviewMetrics.fromSnapshot(
+                    flow: item,
+                    snapshot: snapshot,
+                  ),
+              };
+        final initialEventsByFlow = _debugDaySheetSmokeEnabled
+            ? _daySheetFlowDetailEventsByFlow(sequence)
+            : null;
+
+        return _FlowPreviewPage(
+          flow: flow,
+          flowSequence: sequence,
+          initialIndex: initialIndex < 0 ? 0 : initialIndex,
+          mode: _FlowPreviewMode.active,
+          metricsByFlow: metricsByFlow,
+          initialEventsByFlow: initialEventsByFlow?.isEmpty == true
+              ? null
+              : initialEventsByFlow,
+          getDecanLabel: (km, di) =>
+              (DecanMetadata.decanNames[km] ?? const ['I', 'II', 'III'])[di],
+          fmt: (d) => d == null
+              ? '--'
+              : '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}',
+          onEdit: (flow) {
+            unawaited(() async {
+              final edited = await _pushFlowStudioEditor(
+                Navigator.of(innerCtx),
+                editFlowId: flow.id,
+                returnState: const <String, dynamic>{
+                  'mode': _kFlowStudioModeMyFlows,
+                },
+              );
+              await _saveCalendarOverlayState(
+                _kCalendarOverlayKindFlowStudio,
+                const <String, dynamic>{'mode': _kFlowStudioModeMyFlows},
+              );
+              if (edited != null) await _persistFlowStudioResult(edited);
+              await _loadFromDisk();
+            }());
+          },
+          onAppendToJournal: _appendToJournalAndRefresh,
+          onEndMaatFlow: (flow) {
+            unawaited(_endFlow(flow.id));
+            Navigator.of(innerCtx).maybePop();
+          },
+        );
+      },
+    );
+  }
+
+  Map<int, List<FlowEventRow>> _daySheetFlowDetailEventsByFlow(
+    Iterable<_Flow> flows,
+  ) {
+    final targetIds = <int>{
+      for (final flow in flows)
+        if (flow.id > 0) flow.id,
+    };
+    if (targetIds.isEmpty) return const <int, List<FlowEventRow>>{};
+
+    final eventsByFlow = <int, List<FlowEventRow>>{};
+    for (final entry in _notes.entries) {
+      final dayStart = _gregorianDayStartFromKey(entry.key);
+      if (dayStart == null) continue;
+      for (final note in entry.value) {
+        final flowId = note.flowId;
+        if (flowId == null || !targetIds.contains(flowId)) continue;
+        eventsByFlow
+            .putIfAbsent(flowId, () => <FlowEventRow>[])
+            .add(_flowEventRowFromDaySheetNote(note, dayStart));
+      }
+    }
+
+    for (final entry in eventsByFlow.entries) {
+      entry.value.sort((a, b) => a.startsAtUtc.compareTo(b.startsAtUtc));
+    }
+    return eventsByFlow;
+  }
+
+  DateTime? _gregorianDayStartFromKey(String key) {
+    final parts = key.split('-');
+    if (parts.length != 3) return null;
+    final kYear = int.tryParse(parts[0]);
+    final kMonth = int.tryParse(parts[1]);
+    final kDay = int.tryParse(parts[2]);
+    if (kYear == null || kMonth == null || kDay == null) return null;
+    try {
+      return DateUtils.dateOnly(KemeticMath.toGregorian(kYear, kMonth, kDay));
+    } catch (_) {
+      return null;
+    }
+  }
+
+  FlowEventRow _flowEventRowFromDaySheetNote(_Note note, DateTime dayStart) {
+    final start = note.allDay
+        ? dayStart
+        : DateTime(
+            dayStart.year,
+            dayStart.month,
+            dayStart.day,
+            note.start?.hour ?? 9,
+            note.start?.minute ?? 0,
+          );
+    DateTime? end;
+    if (!note.allDay) {
+      final rawEnd = note.end == null
+          ? start.add(const Duration(minutes: 30))
+          : DateTime(
+              dayStart.year,
+              dayStart.month,
+              dayStart.day,
+              note.end!.hour,
+              note.end!.minute,
+            );
+      end = rawEnd.isAfter(start)
+          ? rawEnd
+          : rawEnd.add(const Duration(days: 1));
+    }
+    final calendar = _calendarSummary(note.calendarId);
+
+    return (
+      id: note.id,
+      clientEventId: note.clientEventId,
+      calendarId: note.calendarId,
+      calendarName: note.calendarName ?? calendar?.name,
+      calendarColor: (note.manualColor ?? calendar?.color)?.toARGB32(),
+      calendarIsPersonal: calendar?.isPersonal ?? true,
+      title: note.title,
+      detail: note.detail,
+      location: note.location,
+      allDay: note.allDay,
+      startsAtUtc: start.toUtc(),
+      endsAtUtc: end?.toUtc(),
+      flowLocalId: note.flowId,
+      category: note.category,
+      actionId: note.actionId,
+      behaviorPayload: note.behaviorPayload,
     );
   }
 
@@ -26282,6 +26630,12 @@ class CalendarPageState extends State<CalendarPage>
           focusTitle: resolvedFocusEvent?.title,
           initialEventDetailRestorationState:
               initialEventDetailRestorationState,
+          eventDetailRequestListenable: _dayViewEventDetailRequest,
+          onEventDetailRequestHandled: () {
+            if (_dayViewEventDetailRequest.value != null) {
+              _dayViewEventDetailRequest.value = null;
+            }
+          },
           onClose: () => Navigator.of(context).pop(),
           onUserClose: persistUserClosedDayView,
           onManageFlows: (flowId) => _getMyFlowsCallback()(flowId),
@@ -26446,6 +26800,54 @@ class CalendarPageState extends State<CalendarPage>
     if (isFirstFlowOnboardingDay) {
       _showFirstFlowDayEventCoachmark();
     }
+  }
+
+  void _openDaySheetEventDetailInHostDayView({
+    required BuildContext sheetCtx,
+    required int kYear,
+    required int kMonth,
+    required int kDay,
+    required EventItem event,
+  }) {
+    final target = DayViewSheetEventTarget(
+      ky: kYear,
+      km: kMonth,
+      kd: kDay,
+      event: event,
+    );
+    final detail = eventDetailRestorationStateForTarget(
+      target,
+      parentSurface: 'day_sheet',
+    );
+    final hasActiveDayView = _activeDayViewRestorationState?.isOpen ?? false;
+
+    if (Navigator.canPop(sheetCtx)) {
+      Navigator.of(sheetCtx).pop();
+    }
+
+    if (hasActiveDayView) {
+      if (detail == null) {
+        if (kDebugMode) {
+          _calendarDebugPrint(
+            '[day_sheet_note_tap] skipped host Day View detail request '
+            'because event has no stable identity: ${event.title}',
+          );
+        }
+        return;
+      }
+      _dayViewEventDetailRequest.value = target;
+      return;
+    }
+
+    _openDayView(
+      context,
+      kYear,
+      kMonth,
+      kDay,
+      focusEvent: event,
+      initialEventDetailRestorationState: detail,
+      debugOpenSource: 'day_sheet_note_tap_fallback',
+    );
   }
 
   /* ───── Day Sheet ───── */
@@ -27019,13 +27421,7 @@ class CalendarPageState extends State<CalendarPage>
     DateTime? endDate;
     int endCount = 10;
 
-    // Color state – index into the day sheet palette
-    int selectedColorIndex = initialColor != null
-        ? daySheetColorPalette.indexWhere(
-            (c) => c.toARGB32() == initialColor.toARGB32(),
-          )
-        : 0;
-    if (selectedColorIndex < 0) selectedColorIndex = 0;
+    Color selectedColor = initialColor ?? daySheetColorPalette.first;
     bool sheetClosing = false;
     bool sheetControllersDisposed = false;
 
@@ -27044,7 +27440,7 @@ class CalendarPageState extends State<CalendarPage>
         'startMinute': startTime?.minute,
         'endHour': endTime?.hour,
         'endMinute': endTime?.minute,
-        'colorValue': daySheetColorPalette[selectedColorIndex].toARGB32(),
+        'colorValue': selectedColor.toARGB32(),
         'category': selectedCategory,
         'alertMinutesBefore': alertMinutesBefore,
         'calendarId': selectedCalendarId,
@@ -27108,7 +27504,7 @@ class CalendarPageState extends State<CalendarPage>
           final media = MediaQuery.of(sheetCtx);
 
           bool showReminders = _noteSheetShowReminders;
-          bool scheduledFlowsExpanded = true;
+          bool scheduledFlowsExpanded = false;
           bool dayNotesExpanded = false;
 
           final daySheetContent = StatefulBuilder(
@@ -27124,11 +27520,6 @@ class CalendarPageState extends State<CalendarPage>
                 selMonth,
                 selDay,
               ); // safe
-              final dayNotes = _calendarSheetNoteCandidatesForDay(
-                selYear,
-                selMonth,
-                selDay,
-              );
               final dayEvents = _calendarSheetEventsForDay(
                 selYear,
                 selMonth,
@@ -27138,12 +27529,13 @@ class CalendarPageState extends State<CalendarPage>
                 selYear,
                 selMonth,
                 selDay,
-                dayNotes,
+                dayEvents,
               );
               final dayReminderRules = _calendarSheetReminderRulesForDay(
                 selYear,
                 selMonth,
                 selDay,
+                dayEvents,
               );
               final editingNote = initialEditingNote;
               final selectedCalendar = selectedCalendarId == null
@@ -27236,6 +27628,7 @@ class CalendarPageState extends State<CalendarPage>
                     label: 'Day',
                     title: 'Day sheet date',
                     enabled: allowDateChange,
+                    showCalendarIcon: false,
                     onChanged: (picked) {
                       final selected = KemeticMath.fromGregorian(picked.date);
                       setSheetState(() {
@@ -27289,11 +27682,14 @@ class CalendarPageState extends State<CalendarPage>
                     left: 22,
                     right: 22,
                     top: 10,
-                    bottom: keyboardInset + 130,
+                    bottom: media.padding.bottom + 12,
                   ),
                   child: DefaultTextStyle(
                     style: const TextStyle(color: Colors.white),
                     child: SingleChildScrollView(
+                      padding: EdgeInsets.only(
+                        bottom: keyboardInset + media.padding.bottom + 180,
+                      ),
                       child: Column(
                         mainAxisSize: MainAxisSize.min,
                         children: [
@@ -27348,7 +27744,7 @@ class CalendarPageState extends State<CalendarPage>
                             activeTab: showReminders
                                 ? DaySheetTab.reminders
                                 : DaySheetTab.notes,
-                            accent: daySheetColorPalette[selectedColorIndex],
+                            accent: selectedColor,
                             onSelected: (tab) {
                               if (tab == DaySheetTab.notes) {
                                 setSheetState(() => showReminders = false);
@@ -27405,6 +27801,8 @@ class CalendarPageState extends State<CalendarPage>
                                   final ruleLines = _daySheetReminderRuleLines(
                                     r,
                                   );
+                                  final canManageReminderRule =
+                                      !_isCalendarSheetVisibleReminderRule(r);
                                   return DaySheetReminderRow(
                                     color: r.color,
                                     name: r.title,
@@ -27442,15 +27840,17 @@ class CalendarPageState extends State<CalendarPage>
                                               _noteSheetShowReminders = true;
                                             });
                                           }
-                                        } else if (v == 'end') {
+                                        } else if (v == 'end' &&
+                                            canManageReminderRule) {
                                           await _endReminderRule(r.id);
-                                        } else if (v == 'delete') {
+                                        } else if (v == 'delete' &&
+                                            canManageReminderRule) {
                                           await _deleteReminderRule(r.id);
                                         }
                                         setSheetState(() {});
                                       },
-                                      itemBuilder: (context) => const [
-                                        PopupMenuItem(
+                                      itemBuilder: (context) => [
+                                        const PopupMenuItem(
                                           value: 'edit',
                                           child: Text(
                                             'Edit Reminder',
@@ -27459,106 +27859,49 @@ class CalendarPageState extends State<CalendarPage>
                                             ),
                                           ),
                                         ),
-                                        PopupMenuItem(
-                                          value: 'end',
-                                          child: Text(
-                                            'End Reminder',
-                                            style: TextStyle(
-                                              color: DaySheetTokens.silverHi,
+                                        if (canManageReminderRule) ...const [
+                                          PopupMenuItem(
+                                            value: 'end',
+                                            child: Text(
+                                              'End Reminder',
+                                              style: TextStyle(
+                                                color: DaySheetTokens.silverHi,
+                                              ),
                                             ),
                                           ),
-                                        ),
-                                        PopupMenuItem(
-                                          value: 'delete',
-                                          child: Text(
-                                            'Delete',
-                                            style: TextStyle(
-                                              color: DaySheetTokens.silverHi,
+                                          PopupMenuItem(
+                                            value: 'delete',
+                                            child: Text(
+                                              'Delete',
+                                              style: TextStyle(
+                                                color: DaySheetTokens.silverHi,
+                                              ),
                                             ),
                                           ),
-                                        ),
+                                        ],
                                       ],
                                     ),
                                   );
                                 },
                               ),
-                            const SizedBox(height: 12),
+                            const SizedBox(height: 18),
                             Align(
                               alignment: Alignment.centerRight,
-                              child: GestureDetector(
-                                behavior: HitTestBehavior.opaque,
-                                onTap: () async {
-                                  final messenger = ScaffoldMessenger.of(
-                                    context,
-                                  );
-                                  messenger.showSnackBar(
-                                    const SnackBar(
-                                      content: Text('Resyncing reminders...'),
-                                      duration: Duration(seconds: 1),
-                                    ),
-                                  );
-                                  try {
-                                    await _forceResyncReminders();
-                                    messenger.showSnackBar(
-                                      const SnackBar(
-                                        content: Text('Reminders resynced'),
-                                        duration: Duration(seconds: 1),
-                                      ),
-                                    );
-                                  } catch (e) {
-                                    messenger.showSnackBar(
-                                      SnackBar(
-                                        content: Text('Resync failed: $e'),
-                                        duration: const Duration(seconds: 2),
-                                      ),
-                                    );
+                              child: DaySheetFab.pill(
+                                label: 'Add reminder',
+                                onPressed: () async {
+                                  final saved =
+                                      await openReminderEditorForSelectedDay();
+                                  if (!mounted) return;
+                                  if (saved) {
+                                    await _loadReminderRules();
+                                    setSheetState(() {
+                                      showReminders = true;
+                                      _noteSheetShowReminders = true;
+                                    });
                                   }
                                 },
-                                child: const Padding(
-                                  padding: EdgeInsets.only(top: 14),
-                                  child: Row(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      Icon(
-                                        Icons.sync,
-                                        color: DaySheetTokens.silverMid,
-                                        size: 17,
-                                      ),
-                                      SizedBox(width: 8),
-                                      Text(
-                                        'Force resync reminders',
-                                        style: TextStyle(
-                                          fontFamily: DaySheetTokens.serif,
-                                          fontSize: 17,
-                                          color: DaySheetTokens.silverMid,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
                               ),
-                            ),
-                            const SizedBox(height: 18),
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                const DaySheetCartouche(),
-                                DaySheetFab.pill(
-                                  label: 'Add reminder',
-                                  onPressed: () async {
-                                    final saved =
-                                        await openReminderEditorForSelectedDay();
-                                    if (!mounted) return;
-                                    if (saved) {
-                                      await _loadReminderRules();
-                                      setSheetState(() {
-                                        showReminders = true;
-                                        _noteSheetShowReminders = true;
-                                      });
-                                    }
-                                  },
-                                ),
-                              ],
                             ),
                           ] else ...[
                             DaySheetSectionHeader(
@@ -27593,11 +27936,16 @@ class CalendarPageState extends State<CalendarPage>
                                     DaySheetFlowRow(
                                       color: row.color,
                                       name: row.name,
-                                      meta: _timeRangeLabel(
-                                        allDay: row.allDay,
-                                        start: row.start,
-                                        end: row.end,
+                                      meta: _calendarSheetScheduledFlowRowMeta(
+                                        row,
                                       ),
+                                      onTap: row.flowId == null
+                                          ? null
+                                          : () {
+                                              final flowId = row.flowId;
+                                              if (flowId == null) return;
+                                              _openDaySheetFlowDetail(flowId);
+                                            },
                                     ),
                                   Align(
                                     alignment: Alignment.centerRight,
@@ -27661,14 +28009,14 @@ class CalendarPageState extends State<CalendarPage>
                                         meta: _calendarSheetEventTimeRangeLabel(
                                           event,
                                         ),
+                                        color: event.color,
                                         onTap: () {
-                                          Navigator.pop(sheetCtx);
-                                          _openDayView(
-                                            context,
-                                            selYear,
-                                            selMonth,
-                                            selDay,
-                                            focusEvent: event,
+                                          _openDaySheetEventDetailInHostDayView(
+                                            sheetCtx: sheetCtx,
+                                            kYear: selYear,
+                                            kMonth: selMonth,
+                                            kDay: selDay,
+                                            event: event,
                                           );
                                         },
                                         onDelete: () async {
@@ -27723,7 +28071,7 @@ class CalendarPageState extends State<CalendarPage>
                             DaySheetCategoryChips(
                               categories: NoteCategory.all,
                               selected: selectedCategory,
-                              accent: daySheetColorPalette[selectedColorIndex],
+                              accent: selectedColor,
                               onSelected: (value) {
                                 setSheetState(() {
                                   selectedCategory = value;
@@ -27735,7 +28083,7 @@ class CalendarPageState extends State<CalendarPage>
                             DaySheetToggleRow(
                               label: 'All-day',
                               value: allDay,
-                              accent: daySheetColorPalette[selectedColorIndex],
+                              accent: selectedColor,
                               onChanged: (v) {
                                 setSheetState(() => allDay = v);
                                 persistDaySheetSession();
@@ -28336,215 +28684,183 @@ class CalendarPageState extends State<CalendarPage>
 
                             const SizedBox(height: 12),
 
-                            DaySheetColorSwatches(
-                              palette: daySheetColorPalette,
-                              selectedIndex: selectedColorIndex,
-                              onSelected: (index) {
+                            DaySheetSpectrumColorPicker(
+                              selectedColor: selectedColor,
+                              onChanged: (color) {
                                 setSheetState(() {
-                                  selectedColorIndex = index;
+                                  selectedColor = color;
                                 });
                                 persistDaySheetSession();
                               },
                             ),
 
                             const SizedBox(height: 12),
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                const DaySheetCartouche(),
-                                DaySheetFab.round(
-                                  label: 'Save',
-                                  onPressed: () async {
-                                    final t = controllerTitle.text.trim();
-                                    final loc = controllerLocation.text.trim();
-                                    final d = controllerDetail.text.trim();
-                                    String detailForSave = d;
-                                    if (initialCidMetadata.isNotEmpty) {
-                                      if (editingIndex != null &&
-                                          d == strippedInitialDetail) {
-                                        // Preserve original metadata if the user didn't change the text.
-                                        detailForSave = rawInitialDetail;
-                                      } else {
-                                        detailForSave = _appendCidMetadata(
-                                          d,
-                                          initialCidMetadata,
-                                        );
-                                      }
+                            Align(
+                              alignment: Alignment.centerRight,
+                              child: DaySheetSaveButton(
+                                label: 'Save',
+                                accent: selectedColor,
+                                onPressed: () async {
+                                  final t = controllerTitle.text.trim();
+                                  final loc = controllerLocation.text.trim();
+                                  final d = controllerDetail.text.trim();
+                                  String detailForSave = d;
+                                  if (initialCidMetadata.isNotEmpty) {
+                                    if (editingIndex != null &&
+                                        d == strippedInitialDetail) {
+                                      // Preserve original metadata if the user didn't change the text.
+                                      detailForSave = rawInitialDetail;
+                                    } else {
+                                      detailForSave = _appendCidMetadata(
+                                        d,
+                                        initialCidMetadata,
+                                      );
                                     }
+                                  }
 
-                                    if (t.isEmpty) return;
+                                  if (t.isEmpty) return;
 
-                                    // Validate end time is after start time
-                                    if (!allDay &&
-                                        startTime != null &&
-                                        endTime != null) {
-                                      if (_toMinutes(endTime!) <=
-                                          _toMinutes(startTime!)) {
-                                        endTime = _addMinutes(startTime!, 60);
-                                      }
+                                  // Validate end time is after start time
+                                  if (!allDay &&
+                                      startTime != null &&
+                                      endTime != null) {
+                                    if (_toMinutes(endTime!) <=
+                                        _toMinutes(startTime!)) {
+                                      endTime = _addMinutes(startTime!, 60);
                                     }
+                                  }
 
-                                    final bool isRepeating =
-                                        repeatOption != NoteRepeatOption.never;
+                                  final bool isRepeating =
+                                      repeatOption != NoteRepeatOption.never;
 
-                                    final selectedColor =
-                                        daySheetColorPalette[selectedColorIndex];
+                                  final bucketKey = _kKey(
+                                    sourceEditingKYear,
+                                    sourceEditingKMonth,
+                                    sourceEditingKDay,
+                                  );
+                                  final editIndex = editingIndex;
+                                  final existingNote = editIndex != null
+                                      ? (_notes[bucketKey] != null &&
+                                                editIndex <
+                                                    _notes[bucketKey]!.length
+                                            ? _notes[bucketKey]![editIndex]
+                                            : null)
+                                      : null;
+                                  final existingClientEventId =
+                                      existingNote?.clientEventId ??
+                                      (existingNote != null &&
+                                              (existingNote.flowId == null ||
+                                                  existingNote.flowId == -1)
+                                          ? _buildCid(
+                                              ky: sourceEditingKYear,
+                                              km: sourceEditingKMonth,
+                                              kd: sourceEditingKDay,
+                                              title: existingNote.title,
+                                              startHour:
+                                                  existingNote.start?.hour,
+                                              startMinute:
+                                                  existingNote.start?.minute,
+                                              allDay: existingNote.allDay,
+                                              flowId: -1,
+                                              calendarScopeToken:
+                                                  _calendarScopeToken(
+                                                    existingNote.calendarId,
+                                                  ),
+                                            )
+                                          : null);
 
-                                    final bucketKey = _kKey(
-                                      sourceEditingKYear,
-                                      sourceEditingKMonth,
-                                      sourceEditingKDay,
-                                    );
-                                    final editIndex = editingIndex;
-                                    final existingNote = editIndex != null
-                                        ? (_notes[bucketKey] != null &&
-                                                  editIndex <
-                                                      _notes[bucketKey]!.length
-                                              ? _notes[bucketKey]![editIndex]
-                                              : null)
-                                        : null;
-                                    final existingClientEventId =
-                                        existingNote?.clientEventId ??
-                                        (existingNote != null &&
-                                                (existingNote.flowId == null ||
-                                                    existingNote.flowId == -1)
-                                            ? _buildCid(
-                                                ky: sourceEditingKYear,
-                                                km: sourceEditingKMonth,
-                                                kd: sourceEditingKDay,
-                                                title: existingNote.title,
-                                                startHour:
-                                                    existingNote.start?.hour,
-                                                startMinute:
-                                                    existingNote.start?.minute,
-                                                allDay: existingNote.allDay,
-                                                flowId: -1,
-                                                calendarScopeToken:
-                                                    _calendarScopeToken(
-                                                      existingNote.calendarId,
-                                                    ),
-                                              )
-                                            : null);
+                                  try {
+                                    ({String clientEventId, String eventId})?
+                                    saveResult;
+                                    var updatedExistingStandalone = false;
+                                    var handledRepeatingEdit = false;
 
-                                    try {
-                                      ({String clientEventId, String eventId})?
-                                      saveResult;
-                                      var updatedExistingStandalone = false;
-                                      var handledRepeatingEdit = false;
-
-                                      if (selectedCalendar != null &&
-                                          !selectedCalendar.canEdit) {
-                                        ScaffoldMessenger.of(
-                                          context,
-                                        ).showSnackBar(
-                                          const SnackBar(
-                                            content: Text(
-                                              'You can view this calendar, but you cannot edit it.',
-                                            ),
+                                    if (selectedCalendar != null &&
+                                        !selectedCalendar.canEdit) {
+                                      ScaffoldMessenger.of(
+                                        context,
+                                      ).showSnackBar(
+                                        const SnackBar(
+                                          content: Text(
+                                            'You can view this calendar, but you cannot edit it.',
                                           ),
-                                        );
-                                        return;
-                                      }
+                                        ),
+                                      );
+                                      return;
+                                    }
 
-                                      final editingRepeatingFlow =
-                                          _repeatingNoteFlowForId(
-                                            existingNote?.flowId,
+                                    final editingRepeatingFlow =
+                                        _repeatingNoteFlowForId(
+                                          existingNote?.flowId,
+                                        );
+                                    if (editingRepeatingFlow != null &&
+                                        existingNote != null) {
+                                      final scope =
+                                          await _showRepeatingEventScopeSheet(
+                                            context: sheetCtx,
+                                            isDelete: false,
                                           );
-                                      if (editingRepeatingFlow != null &&
-                                          existingNote != null) {
-                                        final scope =
-                                            await _showRepeatingEventScopeSheet(
-                                              context: sheetCtx,
-                                              isDelete: false,
+                                      if (scope == null) return;
+                                      await _applyRepeatingNoteEditScope(
+                                        originalNote: existingNote,
+                                        sourceKYear: sourceEditingKYear,
+                                        sourceKMonth: sourceEditingKMonth,
+                                        sourceKDay: sourceEditingKDay,
+                                        selYear: selYear,
+                                        selMonth: selMonth,
+                                        selDay: selDay,
+                                        title: t,
+                                        detail: detailForSave.isEmpty
+                                            ? null
+                                            : detailForSave,
+                                        location: loc.isEmpty ? null : loc,
+                                        calendarId: selectedCalendarId,
+                                        calendarName: selectedCalendarLabel,
+                                        allDay: allDay,
+                                        startTime: startTime,
+                                        endTime: endTime,
+                                        color: selectedColor,
+                                        category: selectedCategory,
+                                        alertMinutesBefore: alertMinutesBefore,
+                                        scope: scope,
+                                      );
+                                      handledRepeatingEdit = true;
+                                    } else if (!isRepeating) {
+                                      final canUpdateExisting =
+                                          existingNote?.id != null &&
+                                          ((existingNote?.flowId == null) ||
+                                              existingNote?.flowId == -1);
+                                      if (canUpdateExisting) {
+                                        updatedExistingStandalone = true;
+                                        saveResult =
+                                            await _updateSingleNoteOnly(
+                                              existingEventId:
+                                                  existingNote!.id!,
+                                              previousClientEventId:
+                                                  existingClientEventId,
+                                              selYear: selYear,
+                                              selMonth: selMonth,
+                                              selDay: selDay,
+                                              title: t,
+                                              detail: detailForSave.isEmpty
+                                                  ? null
+                                                  : detailForSave,
+                                              location: loc.isEmpty
+                                                  ? null
+                                                  : loc,
+                                              calendarId: selectedCalendarId,
+                                              calendarName:
+                                                  selectedCalendarLabel,
+                                              allDay: allDay,
+                                              startTime: startTime,
+                                              endTime: endTime,
+                                              color: selectedColor,
+                                              category: selectedCategory,
+                                              alertMinutesBefore:
+                                                  alertMinutesBefore,
                                             );
-                                        if (scope == null) return;
-                                        await _applyRepeatingNoteEditScope(
-                                          originalNote: existingNote,
-                                          sourceKYear: sourceEditingKYear,
-                                          sourceKMonth: sourceEditingKMonth,
-                                          sourceKDay: sourceEditingKDay,
-                                          selYear: selYear,
-                                          selMonth: selMonth,
-                                          selDay: selDay,
-                                          title: t,
-                                          detail: detailForSave.isEmpty
-                                              ? null
-                                              : detailForSave,
-                                          location: loc.isEmpty ? null : loc,
-                                          calendarId: selectedCalendarId,
-                                          calendarName: selectedCalendarLabel,
-                                          allDay: allDay,
-                                          startTime: startTime,
-                                          endTime: endTime,
-                                          color: selectedColor,
-                                          category: selectedCategory,
-                                          alertMinutesBefore:
-                                              alertMinutesBefore,
-                                          scope: scope,
-                                        );
-                                        handledRepeatingEdit = true;
-                                      } else if (!isRepeating) {
-                                        final canUpdateExisting =
-                                            existingNote?.id != null &&
-                                            ((existingNote?.flowId == null) ||
-                                                existingNote?.flowId == -1);
-                                        if (canUpdateExisting) {
-                                          updatedExistingStandalone = true;
-                                          saveResult =
-                                              await _updateSingleNoteOnly(
-                                                existingEventId:
-                                                    existingNote!.id!,
-                                                previousClientEventId:
-                                                    existingClientEventId,
-                                                selYear: selYear,
-                                                selMonth: selMonth,
-                                                selDay: selDay,
-                                                title: t,
-                                                detail: detailForSave.isEmpty
-                                                    ? null
-                                                    : detailForSave,
-                                                location: loc.isEmpty
-                                                    ? null
-                                                    : loc,
-                                                calendarId: selectedCalendarId,
-                                                calendarName:
-                                                    selectedCalendarLabel,
-                                                allDay: allDay,
-                                                startTime: startTime,
-                                                endTime: endTime,
-                                                color: selectedColor,
-                                                category: selectedCategory,
-                                                alertMinutesBefore:
-                                                    alertMinutesBefore,
-                                              );
-                                        } else {
-                                          saveResult =
-                                              await _saveSingleNoteOnly(
-                                                selYear: selYear,
-                                                selMonth: selMonth,
-                                                selDay: selDay,
-                                                title: t,
-                                                detail: detailForSave.isEmpty
-                                                    ? null
-                                                    : detailForSave,
-                                                location: loc.isEmpty
-                                                    ? null
-                                                    : loc,
-                                                calendarId: selectedCalendarId,
-                                                calendarName:
-                                                    selectedCalendarLabel,
-                                                allDay: allDay,
-                                                startTime: startTime,
-                                                endTime: endTime,
-                                                color: selectedColor,
-                                                category: selectedCategory,
-                                                alertMinutesBefore:
-                                                    alertMinutesBefore,
-                                              );
-                                        }
                                       } else {
-                                        // Repeating note - create hidden flow
-                                        await _saveRepeatingNoteAsHiddenFlow(
+                                        saveResult = await _saveSingleNoteOnly(
                                           selYear: selYear,
                                           selMonth: selMonth,
                                           selDay: selDay,
@@ -28558,23 +28874,58 @@ class CalendarPageState extends State<CalendarPage>
                                           allDay: allDay,
                                           startTime: startTime,
                                           endTime: endTime,
-                                          repeatOption: repeatOption,
-                                          customFrequency: customFrequency,
-                                          customInterval: customInterval,
-                                          endType: endType,
-                                          endDate: endDate,
-                                          endCount: endCount,
                                           color: selectedColor,
                                           category: selectedCategory,
                                           alertMinutesBefore:
                                               alertMinutesBefore,
                                         );
                                       }
+                                    } else {
+                                      // Repeating note - create hidden flow
+                                      await _saveRepeatingNoteAsHiddenFlow(
+                                        selYear: selYear,
+                                        selMonth: selMonth,
+                                        selDay: selDay,
+                                        title: t,
+                                        detail: detailForSave.isEmpty
+                                            ? null
+                                            : detailForSave,
+                                        location: loc.isEmpty ? null : loc,
+                                        calendarId: selectedCalendarId,
+                                        calendarName: selectedCalendarLabel,
+                                        allDay: allDay,
+                                        startTime: startTime,
+                                        endTime: endTime,
+                                        repeatOption: repeatOption,
+                                        customFrequency: customFrequency,
+                                        customInterval: customInterval,
+                                        endType: endType,
+                                        endDate: endDate,
+                                        endCount: endCount,
+                                        color: selectedColor,
+                                        category: selectedCategory,
+                                        alertMinutesBefore: alertMinutesBefore,
+                                      );
+                                    }
 
-                                      if (!handledRepeatingEdit &&
-                                          editIndex != null &&
-                                          existingNote != null) {
-                                        if (updatedExistingStandalone) {
+                                    if (!handledRepeatingEdit &&
+                                        editIndex != null &&
+                                        existingNote != null) {
+                                      if (updatedExistingStandalone) {
+                                        _removeLocalNoteOnly(
+                                          sourceEditingKYear,
+                                          sourceEditingKMonth,
+                                          sourceEditingKDay,
+                                          editIndex,
+                                        );
+                                      } else {
+                                        final cidMatches =
+                                            !isRepeating &&
+                                            existingClientEventId != null &&
+                                            saveResult != null &&
+                                            existingClientEventId ==
+                                                saveResult.clientEventId;
+                                        if (cidMatches) {
                                           _removeLocalNoteOnly(
                                             sourceEditingKYear,
                                             sourceEditingKMonth,
@@ -28582,61 +28933,44 @@ class CalendarPageState extends State<CalendarPage>
                                             editIndex,
                                           );
                                         } else {
-                                          final cidMatches =
-                                              !isRepeating &&
-                                              existingClientEventId != null &&
-                                              saveResult != null &&
-                                              existingClientEventId ==
-                                                  saveResult.clientEventId;
-                                          if (cidMatches) {
-                                            _removeLocalNoteOnly(
-                                              sourceEditingKYear,
-                                              sourceEditingKMonth,
-                                              sourceEditingKDay,
-                                              editIndex,
-                                            );
-                                          } else {
-                                            await _deleteNote(
-                                              sourceEditingKYear,
-                                              sourceEditingKMonth,
-                                              sourceEditingKDay,
-                                              editIndex,
-                                            );
-                                          }
+                                          await _deleteNote(
+                                            sourceEditingKYear,
+                                            sourceEditingKMonth,
+                                            sourceEditingKDay,
+                                            editIndex,
+                                          );
                                         }
                                       }
-                                    } catch (e, stackTrace) {
-                                      if (kDebugMode) {
-                                        _calendarDebugPrint(
-                                          '[SaveNote] Error saving note: $e',
-                                        );
-                                        _calendarDebugPrint(
-                                          '[SaveNote] Stack trace: $stackTrace',
-                                        );
-                                      }
-                                      if (mounted) {
-                                        ScaffoldMessenger.of(
-                                          context,
-                                        ).showSnackBar(
-                                          SnackBar(
-                                            content: Text(
-                                              'Failed to save note: $e',
-                                            ),
-                                            backgroundColor: Colors.red,
-                                            duration: const Duration(
-                                              seconds: 3,
-                                            ),
-                                          ),
-                                        );
-                                      }
-                                      return; // Don't close sheet on error
                                     }
+                                  } catch (e, stackTrace) {
+                                    if (kDebugMode) {
+                                      _calendarDebugPrint(
+                                        '[SaveNote] Error saving note: $e',
+                                      );
+                                      _calendarDebugPrint(
+                                        '[SaveNote] Stack trace: $stackTrace',
+                                      );
+                                    }
+                                    if (mounted) {
+                                      ScaffoldMessenger.of(
+                                        context,
+                                      ).showSnackBar(
+                                        SnackBar(
+                                          content: Text(
+                                            'Failed to save note: $e',
+                                          ),
+                                          backgroundColor: Colors.red,
+                                          duration: const Duration(seconds: 3),
+                                        ),
+                                      );
+                                    }
+                                    return; // Don't close sheet on error
+                                  }
 
-                                    if (!sheetCtx.mounted) return;
-                                    Navigator.pop(sheetCtx);
-                                  },
-                                ),
-                              ],
+                                  if (!sheetCtx.mounted) return;
+                                  Navigator.pop(sheetCtx);
+                                },
+                              ),
                             ),
                           ],
                         ],
@@ -29744,7 +30078,9 @@ class CalendarPageState extends State<CalendarPage>
             );
 
             final isReminderBackboneEvent =
-                cid.startsWith('reminder:') || cid.startsWith('nutrition:');
+                evt.isReminder ||
+                cid.startsWith('reminder:') ||
+                cid.startsWith('nutrition:');
 
             // Filing-backed reminder rows may carry their canonical reminder
             // flow id for color/identity. Keep them in the standalone calendar
@@ -29765,7 +30101,8 @@ class CalendarPageState extends State<CalendarPage>
             }
 
             // ✅ Nutrition: treat as reminder if a matching rule exists
-            bool isReminderEvent = cid.startsWith('reminder:');
+            bool isReminderEvent =
+                evt.isReminder || cid.startsWith('reminder:');
             String? reminderRuleId = _reminderRuleIdFromCid(cid);
             if (cid.startsWith('nutrition:')) {
               final parts = cid.split(':');
@@ -33067,16 +33404,13 @@ class CalendarPageState extends State<CalendarPage>
 
   List<EventItem> _calendarSheetEventsForDay(int ky, int km, int kd) {
     final window = _calendarSheetDayWindow(ky, km, kd);
-    final flowsById = _allFlowsById();
     final noteOccurrences = filterAndDedupeDaySheetCandidates(
-      _calendarSheetNoteCandidatesForDay(ky, km, kd).where(
-        (entry) => _calendarSheetNoteBelongsInNotes(entry.note, flowsById),
-      ),
+      _calendarSheetNoteCandidatesForDay(ky, km, kd),
       window: window,
       candidateOf: (entry) => _calendarSheetNoteCandidate(
         entry.note,
         entry.bucketStart,
-        sourceType: 'note',
+        sourceType: entry.note.isReminder ? 'reminder' : 'day_view_event',
       ),
     );
     final notes = [for (final entry in noteOccurrences) entry.note];

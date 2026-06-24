@@ -1282,6 +1282,122 @@ void main() {
     );
 
     testWidgets(
+      'Day Sheet event request opens detail on the existing Day View without a page push',
+      (tester) async {
+        await _setPhoneViewport(tester);
+        final request = ValueNotifier<DayViewSheetEventTarget?>(null);
+        addTearDown(request.dispose);
+        final observer = _PagePushCountingNavigatorObserver();
+        final note = _timedNote(
+          id: 'sheet-note-1',
+          clientEventId: 'sheet-note-client-1',
+          title: 'Sheet Note Target',
+          startHour: 10,
+          startMinute: 0,
+          endHour: 11,
+          endMinute: 0,
+        );
+
+        await tester.pumpWidget(
+          MaterialApp(
+            navigatorObservers: [observer],
+            home: DayViewPage(
+              initialKy: 1,
+              initialKm: 1,
+              initialKd: 1,
+              showGregorian: false,
+              notesForDay: (_, _, _) => [note],
+              flowIndex: const {},
+              getMonthName: _gregorianMonthName,
+              eventDetailRequestListenable: request,
+              onEventDetailRequestHandled: () {
+                request.value = null;
+              },
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+        observer.reset();
+
+        request.value = DayViewSheetEventTarget(
+          ky: 1,
+          km: 1,
+          kd: 1,
+          event: _eventFromNote(note),
+        );
+        await tester.pumpAndSettle();
+
+        expect(observer.pagePushCount, 0);
+        expect(request.value, isNull);
+        expect(find.byType(BottomSheet), findsOneWidget);
+        expect(find.text('Sheet Note Target'), findsWidgets);
+      },
+    );
+
+    testWidgets(
+      'Day Sheet event request changes the existing Day View date without a page push',
+      (tester) async {
+        await _setPhoneViewport(tester);
+        final request = ValueNotifier<DayViewSheetEventTarget?>(null);
+        addTearDown(request.dispose);
+        final observer = _PagePushCountingNavigatorObserver();
+        final dayOneNote = _timedNote(
+          id: 'sheet-note-day-1',
+          clientEventId: 'sheet-note-client-day-1',
+          title: 'Day One Note',
+          startHour: 8,
+          startMinute: 0,
+          endHour: 9,
+          endMinute: 0,
+        );
+        final dayTwoNote = _timedNote(
+          id: 'sheet-note-day-2',
+          clientEventId: 'sheet-note-client-day-2',
+          title: 'Day Two Note',
+          startHour: 14,
+          startMinute: 0,
+          endHour: 15,
+          endMinute: 0,
+        );
+
+        await tester.pumpWidget(
+          MaterialApp(
+            navigatorObservers: [observer],
+            home: DayViewPage(
+              initialKy: 1,
+              initialKm: 1,
+              initialKd: 1,
+              showGregorian: false,
+              notesForDay: (ky, km, kd) =>
+                  kd == 2 ? [dayTwoNote] : [dayOneNote],
+              flowIndex: const {},
+              getMonthName: _gregorianMonthName,
+              eventDetailRequestListenable: request,
+              onEventDetailRequestHandled: () {
+                request.value = null;
+              },
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+        observer.reset();
+
+        request.value = DayViewSheetEventTarget(
+          ky: 1,
+          km: 1,
+          kd: 2,
+          event: _eventFromNote(dayTwoNote),
+        );
+        await tester.pumpAndSettle();
+
+        expect(observer.pagePushCount, 0);
+        expect(request.value, isNull);
+        expect(find.byType(BottomSheet), findsOneWidget);
+        expect(find.text('Day Two Note'), findsWidgets);
+      },
+    );
+
+    testWidgets(
       'tap consumes echoed detail restoration state without opening a second sheet',
       (tester) async {
         await _setPhoneViewport(tester);
@@ -2343,6 +2459,22 @@ NoteData _livingTextNote({
       },
     },
   );
+}
+
+class _PagePushCountingNavigatorObserver extends NavigatorObserver {
+  int pagePushCount = 0;
+
+  void reset() {
+    pagePushCount = 0;
+  }
+
+  @override
+  void didPush(Route<dynamic> route, Route<dynamic>? previousRoute) {
+    super.didPush(route, previousRoute);
+    if (previousRoute != null && route is MaterialPageRoute<dynamic>) {
+      pagePushCount++;
+    }
+  }
 }
 
 NoteData _timedReminderNote({
