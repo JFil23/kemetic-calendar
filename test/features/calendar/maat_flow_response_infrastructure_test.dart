@@ -118,6 +118,18 @@ void main() {
       'het_heru_joy',
     );
     expect(
+      MaatFlowResponseJournalFormatter.fairHearingMeasure.wireName,
+      'fair_hearing_measure',
+    );
+    expect(
+      MaatFlowResponseJournalFormatter.boundaryStoneRestoration.wireName,
+      'boundary_stone_restoration',
+    );
+    expect(
+      MaatFlowResponseJournalFormatter.openMouthWord.wireName,
+      'open_mouth_word',
+    );
+    expect(
       MaatFlowResponseJournalFormatterX.fromWireName('decan-watch'),
       MaatFlowResponseJournalFormatter.decanWatch,
     );
@@ -184,6 +196,20 @@ void main() {
       MaatFlowResponseJournalFormatter.hetHeruJoy,
     );
     expect(
+      MaatFlowResponseJournalFormatterX.fromWireName('fair-hearing-measure'),
+      MaatFlowResponseJournalFormatter.fairHearingMeasure,
+    );
+    expect(
+      MaatFlowResponseJournalFormatterX.fromWireName(
+        'boundary-stone-restoration',
+      ),
+      MaatFlowResponseJournalFormatter.boundaryStoneRestoration,
+    );
+    expect(
+      MaatFlowResponseJournalFormatterX.fromWireName('open-mouth-word'),
+      MaatFlowResponseJournalFormatter.openMouthWord,
+    );
+    expect(
       MaatFlowResponseJournalFormatterX.fromWireName('tending-care'),
       MaatFlowResponseJournalFormatter.tendingCare,
     );
@@ -217,8 +243,8 @@ void main() {
     );
   });
 
-  test('default resolver exposes only Phase 2B through 4B pilot specs', () {
-    expect(kDefaultMaatFlowResponseResolver.specs, hasLength(54));
+  test('default resolver exposes only Phase 2B through 4C pilot specs', () {
+    expect(kDefaultMaatFlowResponseResolver.specs, hasLength(60));
 
     expect(
       resolveMaatFlowResponseSpecs(
@@ -414,6 +440,27 @@ void main() {
         surface: MaatFlowResponseSurface.calendarSheet,
       ).map((spec) => spec.id),
       <String>['het-heru-force-cooled', 'het-heru-joy-returned'],
+    );
+    expect(
+      resolveMaatFlowResponseSpecs(
+        flowKey: kFairHearingFlowKey,
+        surface: MaatFlowResponseSurface.calendarSheet,
+      ).map((spec) => spec.id),
+      <String>['fair-hearing-heard-before-deciding', 'fair-hearing-remembered'],
+    );
+    expect(
+      resolveMaatFlowResponseSpecs(
+        flowKey: kBoundaryStoneFlowKey,
+        surface: MaatFlowResponseSurface.calendarSheet,
+      ).map((spec) => spec.id),
+      <String>['boundary-stone-marker-restored', 'boundary-stone-restored'],
+    );
+    expect(
+      resolveMaatFlowResponseSpecs(
+        flowKey: kOpenMouthFlowKey,
+        surface: MaatFlowResponseSurface.calendarSheet,
+      ).map((spec) => spec.id),
+      <String>['open-mouth-word-disciplined', 'open-mouth-governed'],
     );
 
     for (final flowKey in const <String>[
@@ -1047,7 +1094,7 @@ void main() {
     expect(hotep.single.text, isNot(contains('private obligation')));
   });
 
-  test('Phase 4B decan previews keep offer summaries safe', () {
+  test('Phase 4B and 4C decan previews keep offer summaries safe', () {
     final shoreSpecs = resolveMaatFlowResponseSpecs(
       flowKey: kTheShoreFlowKey,
       surface: MaatFlowResponseSurface.calendarSheet,
@@ -1164,6 +1211,93 @@ void main() {
       'Het-Heru: I cooled the hot force with music and joy and made room for beauty, joy, or rest.',
     );
     expect(hetHeru.single.text, isNot(contains('private anger')));
+
+    final fairHearingSpecs = resolveMaatFlowResponseSpecs(
+      flowKey: kFairHearingFlowKey,
+      surface: MaatFlowResponseSurface.calendarSheet,
+    );
+    final fairHearing = buildMaatFlowResponseJournalPreviews(
+      specs: fairHearingSpecs,
+      values: <String, MaatFlowResponseValue>{
+        'fair-hearing-heard-before-deciding': MaatFlowResponseValue.chips(
+          specId: 'fair-hearing-heard-before-deciding',
+          optionIds: <String>['heard_fully', 'same_measure'],
+        ),
+        'fair-hearing-remembered': MaatFlowResponseValue.text(
+          specId: 'fair-hearing-remembered',
+          text: 'private decision details',
+          multiline: true,
+        ),
+      },
+      clientEventId: 'cid-fair-hearing',
+    );
+    expect(fairHearing, hasLength(1));
+    expect(fairHearing.single.policy, MaatFlowJournalPolicy.offer);
+    expect(fairHearing.single.requiresUserChoice, isTrue);
+    expect(fairHearing.single.includeInJournalByDefault, isFalse);
+    expect(
+      fairHearing.single.text,
+      'The Fair Hearing: I listened before deciding, marked heard fully and same measure, and kept the measure even.',
+    );
+    expect(fairHearing.single.text, isNot(contains('private decision')));
+
+    final boundaryStoneSpecs = resolveMaatFlowResponseSpecs(
+      flowKey: kBoundaryStoneFlowKey,
+      surface: MaatFlowResponseSurface.calendarSheet,
+    );
+    final boundaryStone = buildMaatFlowResponseJournalPreviews(
+      specs: boundaryStoneSpecs,
+      values: <String, MaatFlowResponseValue>{
+        'boundary-stone-marker-restored': MaatFlowResponseValue.chips(
+          specId: 'boundary-stone-marker-restored',
+          optionIds: <String>['labor', 'ownership'],
+        ),
+        'boundary-stone-restored': MaatFlowResponseValue.text(
+          specId: 'boundary-stone-restored',
+          text: 'private resource dispute',
+          multiline: true,
+        ),
+      },
+      clientEventId: 'cid-boundary-stone',
+    );
+    expect(boundaryStone, hasLength(1));
+    expect(boundaryStone.single.policy, MaatFlowJournalPolicy.offer);
+    expect(boundaryStone.single.requiresUserChoice, isTrue);
+    expect(boundaryStone.single.includeInJournalByDefault, isFalse);
+    expect(
+      boundaryStone.single.text,
+      'The Boundary Stone: I restored labor and ownership to its rightful place.',
+    );
+    expect(boundaryStone.single.text, isNot(contains('private resource')));
+
+    final openMouthSpecs = resolveMaatFlowResponseSpecs(
+      flowKey: kOpenMouthFlowKey,
+      surface: MaatFlowResponseSurface.calendarSheet,
+    );
+    final openMouth = buildMaatFlowResponseJournalPreviews(
+      specs: openMouthSpecs,
+      values: <String, MaatFlowResponseValue>{
+        'open-mouth-word-disciplined': MaatFlowResponseValue.chips(
+          specId: 'open-mouth-word-disciplined',
+          optionIds: <String>['silence', 'repair'],
+        ),
+        'open-mouth-governed': MaatFlowResponseValue.text(
+          specId: 'open-mouth-governed',
+          text: 'private conflict language',
+          multiline: true,
+        ),
+      },
+      clientEventId: 'cid-open-mouth',
+    );
+    expect(openMouth, hasLength(1));
+    expect(openMouth.single.policy, MaatFlowJournalPolicy.offer);
+    expect(openMouth.single.requiresUserChoice, isTrue);
+    expect(openMouth.single.includeInJournalByDefault, isFalse);
+    expect(
+      openMouth.single.text,
+      'The Open Mouth: I governed silence and repair and let speech serve Ma\'at.',
+    );
+    expect(openMouth.single.text, isNot(contains('private conflict')));
   });
 
   test('sensitive offer previews read naturally', () {
@@ -1609,7 +1743,7 @@ void main() {
     expect(JournalBadgeUtils.tokensFromDocument(removed), hasLength(1));
   });
 
-  test('Phase 4B wiring stays isolated to shared sheet panels and pilots', () {
+  test('Phase 4C wiring stays isolated to shared sheet panels and pilots', () {
     expect(
       kDefaultMaatFlowResponseResolver.specs
           .map((spec) => spec.flowKey)
@@ -1640,6 +1774,9 @@ void main() {
         kLivingTextFlowKey,
         kClearingFlowKey,
         kHetHeruFlowKey,
+        kFairHearingFlowKey,
+        kBoundaryStoneFlowKey,
+        kOpenMouthFlowKey,
       },
     );
 

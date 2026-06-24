@@ -3961,6 +3961,318 @@ void main() {
     expect(document.toPlainText(), isNot(contains('private anger')));
   });
 
+  testWidgets('Fair Hearing response offer can suppress and update one safe block', (
+    tester,
+  ) async {
+    await _setPhoneViewport(tester);
+    var document = _journalDocument('Fair Hearing journal body.');
+    final responseWrites = <MaatJournalResponseBlock>[];
+
+    await tester.pumpWidget(
+      _DayViewHarness(
+        flowIndex: _fairHearingFlowIndex,
+        notes: <NoteData>[_fairHearingNote()],
+        onWriteJournalResponse: (block) async {
+          responseWrites.add(block);
+          document = MaatJournalResponseBlockUtils.upsert(document, block);
+        },
+        onRecordCompletion:
+            ({
+              required String clientEventId,
+              required int flowId,
+              required DateTime completedOnDate,
+              Map<String, dynamic>? metadata,
+            }) async {},
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await _openDetailSheet(tester, _fairHearingTitle);
+
+    expect(find.byKey(kMaatFlowResponseSectionKey), findsOneWidget);
+    expect(find.text('What did you hear before deciding?'), findsOneWidget);
+    expect(
+      find.text(
+        'What decision, measure, or unheard side needs to be remembered?',
+      ),
+      findsOneWidget,
+    );
+    await _choosePilotOption(
+      tester,
+      specId: 'fair-hearing-heard-before-deciding',
+      optionId: 'heard_fully',
+    );
+    await _choosePilotOption(
+      tester,
+      specId: 'fair-hearing-heard-before-deciding',
+      optionId: 'same_measure',
+    );
+    await _enterPilotResponse(
+      tester,
+      specId: 'fair-hearing-remembered',
+      text: 'private decision details.',
+    );
+    expect(
+      find.text(
+        'The Fair Hearing: I listened before deciding, marked heard fully and same measure, and kept the measure even.',
+      ),
+      findsOneWidget,
+    );
+    expect(
+      find.descendant(
+        of: find.byKey(kMaatFlowResponseJournalPreviewKey),
+        matching: find.textContaining('private decision'),
+      ),
+      findsNothing,
+    );
+    final addToggle = tester.widget<Checkbox>(find.byType(Checkbox).last);
+    expect(addToggle.value, isFalse);
+
+    await _tapStatus(tester, 'Observed');
+    expect(responseWrites, hasLength(1));
+    expect(responseWrites.single.text, isEmpty);
+    expect(MaatJournalResponseBlockUtils.extract(document), isEmpty);
+    expect(document.toPlainText(), 'Fair Hearing journal body.');
+
+    await _toggleOfferJournalWrite(tester);
+    await _tapStatus(tester, 'Observed');
+    var blocks = MaatJournalResponseBlockUtils.extract(document);
+    expect(blocks, hasLength(1));
+    expect(
+      blocks.single.text,
+      'The Fair Hearing: I listened before deciding, marked heard fully and same measure, and kept the measure even.',
+    );
+
+    await _choosePilotOption(
+      tester,
+      specId: 'fair-hearing-heard-before-deciding',
+      optionId: 'repaired',
+    );
+    await _enterPilotResponse(
+      tester,
+      specId: 'fair-hearing-remembered',
+      text: 'updated private decision details.',
+    );
+    await _tapStatus(tester, 'Observed');
+
+    blocks = MaatJournalResponseBlockUtils.extract(document);
+    expect(blocks, hasLength(1));
+    expect(
+      blocks.single.text,
+      'The Fair Hearing: I listened before deciding, marked heard fully, same measure, and repaired, and kept the measure even.',
+    );
+    expect(document.toPlainText(), contains('Fair Hearing journal body.'));
+    expect(document.toPlainText(), isNot(contains('private decision')));
+  });
+
+  testWidgets(
+    'Boundary Stone response offer can suppress and update one safe block',
+    (tester) async {
+      await _setPhoneViewport(tester);
+      var document = _journalDocument('Boundary Stone journal body.');
+      final responseWrites = <MaatJournalResponseBlock>[];
+
+      await tester.pumpWidget(
+        _DayViewHarness(
+          flowIndex: _boundaryStoneFlowIndex,
+          notes: <NoteData>[_boundaryStoneNote()],
+          onWriteJournalResponse: (block) async {
+            responseWrites.add(block);
+            document = MaatJournalResponseBlockUtils.upsert(document, block);
+          },
+          onRecordCompletion:
+              ({
+                required String clientEventId,
+                required int flowId,
+                required DateTime completedOnDate,
+                Map<String, dynamic>? metadata,
+              }) async {},
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      await _openDetailSheet(tester, _boundaryStoneTitle);
+
+      expect(find.byKey(kMaatFlowResponseSectionKey), findsOneWidget);
+      expect(
+        find.text('What boundary marker needed restoring?'),
+        findsOneWidget,
+      );
+      expect(
+        find.text('What moved, and what did you restore?'),
+        findsOneWidget,
+      );
+      await _choosePilotOption(
+        tester,
+        specId: 'boundary-stone-marker-restored',
+        optionId: 'labor',
+      );
+      await _choosePilotOption(
+        tester,
+        specId: 'boundary-stone-marker-restored',
+        optionId: 'ownership',
+      );
+      await _enterPilotResponse(
+        tester,
+        specId: 'boundary-stone-restored',
+        text: 'private resource dispute.',
+      );
+      expect(
+        find.text(
+          'The Boundary Stone: I restored labor and ownership to its rightful place.',
+        ),
+        findsOneWidget,
+      );
+      expect(
+        find.descendant(
+          of: find.byKey(kMaatFlowResponseJournalPreviewKey),
+          matching: find.textContaining('private resource'),
+        ),
+        findsNothing,
+      );
+      final addToggle = tester.widget<Checkbox>(find.byType(Checkbox).last);
+      expect(addToggle.value, isFalse);
+
+      await _tapStatus(tester, 'Observed');
+      expect(responseWrites, hasLength(1));
+      expect(responseWrites.single.text, isEmpty);
+      expect(MaatJournalResponseBlockUtils.extract(document), isEmpty);
+      expect(document.toPlainText(), 'Boundary Stone journal body.');
+
+      await _toggleOfferJournalWrite(tester);
+      await _tapStatus(tester, 'Observed');
+      var blocks = MaatJournalResponseBlockUtils.extract(document);
+      expect(blocks, hasLength(1));
+      expect(
+        blocks.single.text,
+        'The Boundary Stone: I restored labor and ownership to its rightful place.',
+      );
+
+      await _choosePilotOption(
+        tester,
+        specId: 'boundary-stone-marker-restored',
+        optionId: 'returned',
+      );
+      await _enterPilotResponse(
+        tester,
+        specId: 'boundary-stone-restored',
+        text: 'updated private resource dispute.',
+      );
+      await _tapStatus(tester, 'Observed');
+
+      blocks = MaatJournalResponseBlockUtils.extract(document);
+      expect(blocks, hasLength(1));
+      expect(
+        blocks.single.text,
+        'The Boundary Stone: I restored labor, ownership, and returned to its rightful place.',
+      );
+      expect(document.toPlainText(), contains('Boundary Stone journal body.'));
+      expect(document.toPlainText(), isNot(contains('private resource')));
+    },
+  );
+
+  testWidgets('Open Mouth response offer can suppress and update one safe block', (
+    tester,
+  ) async {
+    await _setPhoneViewport(tester);
+    var document = _journalDocument('Open Mouth journal body.');
+    final responseWrites = <MaatJournalResponseBlock>[];
+
+    await tester.pumpWidget(
+      _DayViewHarness(
+        flowIndex: _openMouthFlowIndex,
+        notes: <NoteData>[_openMouthNote()],
+        onWriteJournalResponse: (block) async {
+          responseWrites.add(block);
+          document = MaatJournalResponseBlockUtils.upsert(document, block);
+        },
+        onRecordCompletion:
+            ({
+              required String clientEventId,
+              required int flowId,
+              required DateTime completedOnDate,
+              Map<String, dynamic>? metadata,
+            }) async {},
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await _openDetailSheet(tester, _openMouthTitle);
+
+    expect(find.byKey(kMaatFlowResponseSectionKey), findsOneWidget);
+    expect(find.text('What word needed discipline?'), findsOneWidget);
+    expect(
+      find.text('What needed to be spoken, withheld, repaired, or governed?'),
+      findsOneWidget,
+    );
+    await _choosePilotOption(
+      tester,
+      specId: 'open-mouth-word-disciplined',
+      optionId: 'silence',
+    );
+    await _choosePilotOption(
+      tester,
+      specId: 'open-mouth-word-disciplined',
+      optionId: 'repair',
+    );
+    await _enterPilotResponse(
+      tester,
+      specId: 'open-mouth-governed',
+      text: 'private conflict language.',
+    );
+    expect(
+      find.text(
+        'The Open Mouth: I governed silence and repair and let speech serve Ma\'at.',
+      ),
+      findsOneWidget,
+    );
+    expect(
+      find.descendant(
+        of: find.byKey(kMaatFlowResponseJournalPreviewKey),
+        matching: find.textContaining('private conflict'),
+      ),
+      findsNothing,
+    );
+    final addToggle = tester.widget<Checkbox>(find.byType(Checkbox).last);
+    expect(addToggle.value, isFalse);
+
+    await _tapStatus(tester, 'Observed');
+    expect(responseWrites, hasLength(1));
+    expect(responseWrites.single.text, isEmpty);
+    expect(MaatJournalResponseBlockUtils.extract(document), isEmpty);
+    expect(document.toPlainText(), 'Open Mouth journal body.');
+
+    await _toggleOfferJournalWrite(tester);
+    await _tapStatus(tester, 'Observed');
+    var blocks = MaatJournalResponseBlockUtils.extract(document);
+    expect(blocks, hasLength(1));
+    expect(
+      blocks.single.text,
+      'The Open Mouth: I governed silence and repair and let speech serve Ma\'at.',
+    );
+
+    await _choosePilotOption(
+      tester,
+      specId: 'open-mouth-word-disciplined',
+      optionId: 'truth',
+    );
+    await _enterPilotResponse(
+      tester,
+      specId: 'open-mouth-governed',
+      text: 'updated private conflict language.',
+    );
+    await _tapStatus(tester, 'Observed');
+
+    blocks = MaatJournalResponseBlockUtils.extract(document);
+    expect(blocks, hasLength(1));
+      expect(
+        blocks.single.text,
+        'The Open Mouth: I governed silence, repair, and truth and let speech serve Ma\'at.',
+      );
+    expect(document.toPlainText(), contains('Open Mouth journal body.'));
+    expect(document.toPlainText(), isNot(contains('private conflict')));
+  });
+
   testWidgets('unsupported Ma_at flow remains without response fields', (
     tester,
   ) async {
@@ -4180,6 +4492,32 @@ final MaatDecanFlowEvent _hetHeruEvent = _hetHeruDefinition.events.first;
 final String _hetHeruTitle = maatDecanFlowEventTitle(
   _hetHeruDefinition,
   _hetHeruEvent,
+);
+const int _fairHearingFlowId = 112;
+final MaatDecanFlowDefinition _fairHearingDefinition =
+    maatDecanFlowDefinitionForKey(kFairHearingFlowKey)!;
+final MaatDecanFlowEvent _fairHearingEvent =
+    _fairHearingDefinition.events.first;
+final String _fairHearingTitle = maatDecanFlowEventTitle(
+  _fairHearingDefinition,
+  _fairHearingEvent,
+);
+const int _boundaryStoneFlowId = 113;
+final MaatDecanFlowDefinition _boundaryStoneDefinition =
+    maatDecanFlowDefinitionForKey(kBoundaryStoneFlowKey)!;
+final MaatDecanFlowEvent _boundaryStoneEvent =
+    _boundaryStoneDefinition.events.first;
+final String _boundaryStoneTitle = maatDecanFlowEventTitle(
+  _boundaryStoneDefinition,
+  _boundaryStoneEvent,
+);
+const int _openMouthFlowId = 114;
+final MaatDecanFlowDefinition _openMouthDefinition =
+    maatDecanFlowDefinitionForKey(kOpenMouthFlowKey)!;
+final MaatDecanFlowEvent _openMouthEvent = _openMouthDefinition.events.first;
+final String _openMouthTitle = maatDecanFlowEventTitle(
+  _openMouthDefinition,
+  _openMouthEvent,
 );
 
 const Map<int, FlowData> _decanWatchFlowIndex = <int, FlowData>{
@@ -4409,6 +4747,36 @@ final Map<int, FlowData> _hetHeruFlowIndex = <int, FlowData>{
     color: Colors.pink,
     active: true,
     notes: 'maat=$kHetHeruFlowKey',
+  ),
+};
+
+final Map<int, FlowData> _fairHearingFlowIndex = <int, FlowData>{
+  _fairHearingFlowId: FlowData(
+    id: _fairHearingFlowId,
+    name: kFairHearingTitle,
+    color: Colors.deepPurple,
+    active: true,
+    notes: 'maat=$kFairHearingFlowKey',
+  ),
+};
+
+final Map<int, FlowData> _boundaryStoneFlowIndex = <int, FlowData>{
+  _boundaryStoneFlowId: FlowData(
+    id: _boundaryStoneFlowId,
+    name: kBoundaryStoneTitle,
+    color: Colors.brown,
+    active: true,
+    notes: 'maat=$kBoundaryStoneFlowKey',
+  ),
+};
+
+final Map<int, FlowData> _openMouthFlowIndex = <int, FlowData>{
+  _openMouthFlowId: FlowData(
+    id: _openMouthFlowId,
+    name: kOpenMouthTitle,
+    color: Colors.orange,
+    active: true,
+    notes: 'maat=$kOpenMouthFlowKey',
   ),
 };
 
@@ -4835,6 +5203,33 @@ NoteData _hetHeruNote({MaatDecanFlowEvent? event}) {
     event: event ?? _hetHeruEvent,
     flowId: _hetHeruFlowId,
     clientEventPrefix: 'het-heru',
+  );
+}
+
+NoteData _fairHearingNote({MaatDecanFlowEvent? event}) {
+  return _phase4ADecanNote(
+    definition: _fairHearingDefinition,
+    event: event ?? _fairHearingEvent,
+    flowId: _fairHearingFlowId,
+    clientEventPrefix: 'fair-hearing',
+  );
+}
+
+NoteData _boundaryStoneNote({MaatDecanFlowEvent? event}) {
+  return _phase4ADecanNote(
+    definition: _boundaryStoneDefinition,
+    event: event ?? _boundaryStoneEvent,
+    flowId: _boundaryStoneFlowId,
+    clientEventPrefix: 'boundary-stone',
+  );
+}
+
+NoteData _openMouthNote({MaatDecanFlowEvent? event}) {
+  return _phase4ADecanNote(
+    definition: _openMouthDefinition,
+    event: event ?? _openMouthEvent,
+    flowId: _openMouthFlowId,
+    clientEventPrefix: 'open-mouth',
   );
 }
 

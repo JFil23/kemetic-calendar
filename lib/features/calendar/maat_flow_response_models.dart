@@ -158,6 +158,9 @@ enum MaatFlowResponseJournalFormatter {
   livingTextLine,
   clearingSpace,
   hetHeruJoy,
+  fairHearingMeasure,
+  boundaryStoneRestoration,
+  openMouthWord,
 }
 
 extension MaatFlowResponseJournalFormatterX
@@ -214,6 +217,12 @@ extension MaatFlowResponseJournalFormatterX
         return 'clearing_space';
       case MaatFlowResponseJournalFormatter.hetHeruJoy:
         return 'het_heru_joy';
+      case MaatFlowResponseJournalFormatter.fairHearingMeasure:
+        return 'fair_hearing_measure';
+      case MaatFlowResponseJournalFormatter.boundaryStoneRestoration:
+        return 'boundary_stone_restoration';
+      case MaatFlowResponseJournalFormatter.openMouthWord:
+        return 'open_mouth_word';
     }
   }
 
@@ -291,6 +300,15 @@ extension MaatFlowResponseJournalFormatterX
       case 'het_heru_joy':
       case 'het-heru-joy':
         return MaatFlowResponseJournalFormatter.hetHeruJoy;
+      case 'fair_hearing_measure':
+      case 'fair-hearing-measure':
+        return MaatFlowResponseJournalFormatter.fairHearingMeasure;
+      case 'boundary_stone_restoration':
+      case 'boundary-stone-restoration':
+        return MaatFlowResponseJournalFormatter.boundaryStoneRestoration;
+      case 'open_mouth_word':
+      case 'open-mouth-word':
+        return MaatFlowResponseJournalFormatter.openMouthWord;
       case 'standard':
       default:
         return MaatFlowResponseJournalFormatter.standard;
@@ -753,6 +771,12 @@ String _formatResponseBodyText(
       return '${spec.journalHeading}: I created space before response and acted from the cleared place.';
     case MaatFlowResponseJournalFormatter.hetHeruJoy:
       return '${spec.journalHeading}: I cooled the hot force and made room for beauty, joy, or rest.';
+    case MaatFlowResponseJournalFormatter.fairHearingMeasure:
+      return '${spec.journalHeading}: I listened before deciding and kept the measure even.';
+    case MaatFlowResponseJournalFormatter.boundaryStoneRestoration:
+      return '${spec.journalHeading}: I restored one marker to its rightful place.';
+    case MaatFlowResponseJournalFormatter.openMouthWord:
+      return '${spec.journalHeading}: I governed the word and let speech serve Ma\'at.';
     case MaatFlowResponseJournalFormatter.decanWatch:
     case MaatFlowResponseJournalFormatter.standard:
       return '${spec.journalHeading}: $display';
@@ -814,6 +838,12 @@ String _formatGroupedResponseBodyText(
       return _formatClearingResponseGroup(specs, values);
     case MaatFlowResponseJournalFormatter.hetHeruJoy:
       return _formatHetHeruResponseGroup(specs, values);
+    case MaatFlowResponseJournalFormatter.fairHearingMeasure:
+      return _formatFairHearingResponseGroup(specs, values);
+    case MaatFlowResponseJournalFormatter.boundaryStoneRestoration:
+      return _formatBoundaryStoneResponseGroup(specs, values);
+    case MaatFlowResponseJournalFormatter.openMouthWord:
+      return _formatOpenMouthResponseGroup(specs, values);
     case MaatFlowResponseJournalFormatter.dawnHouseRite:
     case MaatFlowResponseJournalFormatter.closingRelease:
     case MaatFlowResponseJournalFormatter.daysOutsideReceipt:
@@ -1493,6 +1523,107 @@ String _formatHetHeruResponseGroup(
   }
   if (joy.isNotEmpty) {
     return '${specs.first.journalHeading}: I cooled the hot force and made room for beauty, joy, or rest.';
+  }
+  return '';
+}
+
+String _formatFairHearingResponseGroup(
+  List<MaatFlowResponseSpec> specs,
+  Map<String, MaatFlowResponseValue> values,
+) {
+  final byRole = <String, MaatFlowResponseSpec>{
+    for (final spec in specs)
+      if (spec.normalizedJournalRole != null) spec.normalizedJournalRole!: spec,
+  };
+
+  final heardSpec = byRole['heard'];
+  final rememberedSpec = byRole['remembered'];
+  final heard = heardSpec == null
+      ? ''
+      : _joinNatural(
+          values[heardSpec.id]?.optionIds
+                  .map((id) => heardSpec.optionById(id)?._displayLabel ?? id)
+                  .where((label) => label.trim().isNotEmpty)
+                  .map((label) => label.trim().toLowerCase()) ??
+              const Iterable<String>.empty(),
+        );
+  final remembered = rememberedSpec == null
+      ? ''
+      : _sentenceFragment(
+          values[rememberedSpec.id]?.displayText(rememberedSpec),
+        );
+
+  if (heard.isNotEmpty) {
+    return '${specs.first.journalHeading}: I listened before deciding, marked $heard, and kept the measure even.';
+  }
+  if (remembered.isNotEmpty) {
+    return '${specs.first.journalHeading}: I listened before deciding and kept the measure even.';
+  }
+  return '';
+}
+
+String _formatBoundaryStoneResponseGroup(
+  List<MaatFlowResponseSpec> specs,
+  Map<String, MaatFlowResponseValue> values,
+) {
+  final byRole = <String, MaatFlowResponseSpec>{
+    for (final spec in specs)
+      if (spec.normalizedJournalRole != null) spec.normalizedJournalRole!: spec,
+  };
+
+  final markerSpec = byRole['marker'];
+  final restoredSpec = byRole['restored'];
+  final marker = markerSpec == null
+      ? ''
+      : _joinNatural(
+          values[markerSpec.id]?.optionIds
+                  .map((id) => markerSpec.optionById(id)?._displayLabel ?? id)
+                  .where((label) => label.trim().isNotEmpty)
+                  .map((label) => label.trim().toLowerCase()) ??
+              const Iterable<String>.empty(),
+        );
+  final restored = restoredSpec == null
+      ? ''
+      : _sentenceFragment(values[restoredSpec.id]?.displayText(restoredSpec));
+
+  if (marker.isNotEmpty) {
+    return '${specs.first.journalHeading}: I restored $marker to its rightful place.';
+  }
+  if (restored.isNotEmpty) {
+    return '${specs.first.journalHeading}: I restored one marker to its rightful place.';
+  }
+  return '';
+}
+
+String _formatOpenMouthResponseGroup(
+  List<MaatFlowResponseSpec> specs,
+  Map<String, MaatFlowResponseValue> values,
+) {
+  final byRole = <String, MaatFlowResponseSpec>{
+    for (final spec in specs)
+      if (spec.normalizedJournalRole != null) spec.normalizedJournalRole!: spec,
+  };
+
+  final wordSpec = byRole['word'];
+  final governedSpec = byRole['governed'];
+  final word = wordSpec == null
+      ? ''
+      : _joinNatural(
+          values[wordSpec.id]?.optionIds
+                  .map((id) => wordSpec.optionById(id)?._displayLabel ?? id)
+                  .where((label) => label.trim().isNotEmpty)
+                  .map((label) => label.trim().toLowerCase()) ??
+              const Iterable<String>.empty(),
+        );
+  final governed = governedSpec == null
+      ? ''
+      : _sentenceFragment(values[governedSpec.id]?.displayText(governedSpec));
+
+  if (word.isNotEmpty) {
+    return '${specs.first.journalHeading}: I governed $word and let speech serve Ma\'at.';
+  }
+  if (governed.isNotEmpty) {
+    return '${specs.first.journalHeading}: I governed the word and let speech serve Ma\'at.';
   }
   return '';
 }
