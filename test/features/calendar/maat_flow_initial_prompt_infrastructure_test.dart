@@ -4,130 +4,137 @@ import 'package:mobile/features/calendar/maat_flow_response_resolver.dart';
 
 void main() {
   test('default initial prompt resolver exposes the prompt-enabled flows', () {
-    expect(kInitialMaatFlowPromptSpecs, hasLength(16));
+    expect(kInitialMaatFlowPromptSpecs, hasLength(31));
 
-    final moonReturn = resolveMaatFlowInitialPromptSpec(
-      flowKey: 'the-moon-return',
-    );
-    expect(moonReturn, isNotNull);
-    expect(moonReturn!.fields.single.label, 'What do you set down?');
+    final expectedLabelsByFlow = <String, List<String>>{
+      'the-moon-return': <String>['What do you set down?'],
+      'the-course': <String>['What action fits this hour?'],
+      'dawn-house-rite': <String>['What order do you bring into the day?'],
+      'evening-threshold-rite': <String>['What do you release tonight?'],
+      'the-offering-table': <String>[
+        'What was fed?',
+        'What did you provide today?',
+      ],
+      'the-decan-watch': <String>[
+        'Visibility',
+        'What did the sky show?',
+        'What bearing do you carry into the next ten days?',
+      ],
+      'the-first-arrangement': <String>[
+        'What space will you put in order?',
+        'What changed in the space?',
+      ],
+      'the-living-pattern': <String>[
+        'What pattern are you watching?',
+        'What principle did the pattern teach?',
+      ],
+      'the-house-of-life': <String>[
+        'What knowledge are you preserving?',
+        'What did you learn, write, recite, or transmit?',
+      ],
+      'hotep': <String>[
+        'What can be enough tonight?',
+        'What did you let be enough tonight?',
+      ],
+      'the-open-hand': <String>[
+        'What need are you willing to meet?',
+        'What moved through your hand?',
+      ],
+      'the-djed': <String>[
+        'What must stand upright?',
+        'What did you raise or restore?',
+      ],
+      'the-tending': <String>[
+        'What care needs to become specific?',
+        'What tending act did you complete?',
+      ],
+      'the-kept-word': <String>[
+        'What word or agreement needs attention?',
+        'What word, repair, or conversation needs to be remembered?',
+      ],
+      'the-wag': <String>[
+        'What gift, memory, or legacy will you carry?',
+        'What gift, memory, or legacy did you carry?',
+      ],
+      'the-khat': <String>[
+        'What is the body asking for?',
+        'What care did you give the body?',
+      ],
+      'track-the-sky': <String>[
+        'What change are you watching above?',
+        'What changed above you?',
+      ],
+      'the-weighing': <String>[
+        'What needs to be placed on the scale?',
+        'What record, number, or correction needs to be witnessed?',
+      ],
+      'the-days-outside-the-year': <String>['What threshold are you crossing?'],
+      'the-fair-hearing': <String>[
+        'What must be heard before deciding?',
+        'What decision, measure, or unheard side needs to be remembered?',
+      ],
+      'the-boundary-stone': <String>[
+        'What marker needs restoring?',
+        'What moved, and what did you restore?',
+      ],
+      'the-open-mouth': <String>[
+        'What word needs discipline?',
+        'What needed to be spoken, withheld, repaired, or governed?',
+      ],
+      'the-shore': <String>[
+        'What exchange needs honest measure?',
+        'What was given, received, or measured clearly?',
+      ],
+      'the-living-text': <String>[
+        'What line is asking to live through you?',
+        'What did you read, question, connect, or apply?',
+      ],
+      'the-clearing': <String>[
+        'What heat needs space before response?',
+        'What changed because you waited before responding?',
+      ],
+      'het-heru': <String>[
+        'What hot force needs cooling?',
+        'What brought the force back toward joy?',
+      ],
+      'the-autobiography': <String>[
+        'What part of your record needs naming?',
+        'What capacity, work, gift, or claim needs to be remembered?',
+      ],
+      'the-true-name': <String>[
+        'What false account is ready to lose power?',
+        'What accurate account did the record support?',
+      ],
+      'the-living-record': <String>[
+        'What record will you make living?',
+        'What did you record, apply, or carry into the physical world?',
+      ],
+      'the-oracle': <String>[
+        'What question are you carrying?',
+        'What shape did the sign take?',
+        'What did you receive, without forcing meaning too early?',
+      ],
+      'the-wandering': <String>[
+        'What remains with you?',
+        'What did you find in the wandering?',
+      ],
+    };
 
-    final course = resolveMaatFlowInitialPromptSpec(flowKey: 'the-course');
-    expect(course, isNotNull);
-    expect(course!.fields.single.label, 'What action fits this hour?');
+    for (final entry in expectedLabelsByFlow.entries) {
+      final prompt = resolveMaatFlowInitialPromptSpec(flowKey: entry.key);
+      expect(prompt, isNotNull, reason: entry.key);
+      expect(
+        prompt!.fields.map((field) => field.label),
+        entry.value,
+        reason: entry.key,
+      );
+    }
 
-    final dawnHouse = resolveMaatFlowInitialPromptSpec(
-      flowKey: 'dawn-house-rite',
-    );
-    expect(dawnHouse, isNotNull);
     expect(
-      dawnHouse!.fields.single.label,
-      'What order do you bring into the day?',
+      resolveMaatFlowInitialPromptSpec(flowKey: 'evening_threshold'),
+      isNull,
     );
-
-    final closing = resolveMaatFlowInitialPromptSpec(
-      flowKey: 'evening-threshold-rite',
-    );
-    expect(closing, isNotNull);
-    expect(closing!.fields.single.label, 'What do you release tonight?');
-
-    final offering = resolveMaatFlowInitialPromptSpec(
-      flowKey: 'the-offering-table',
-    );
-    expect(offering, isNotNull);
-    expect(offering!.fields.map((field) => field.label), <String>[
-      'What was fed?',
-      'What did you provide today?',
-    ]);
-
-    final decanWatch = resolveMaatFlowInitialPromptSpec(
-      flowKey: 'the-decan-watch',
-    );
-    expect(decanWatch, isNotNull);
-    expect(decanWatch!.fields.map((field) => field.label), <String>[
-      'Visibility',
-      'What did the sky show?',
-      'What bearing do you carry into the next ten days?',
-    ]);
-
-    final firstArrangement = resolveMaatFlowInitialPromptSpec(
-      flowKey: 'the-first-arrangement',
-    );
-    expect(firstArrangement, isNotNull);
-    expect(firstArrangement!.fields.map((field) => field.label), <String>[
-      'What space will you put in order?',
-      'What changed in the space?',
-    ]);
-
-    final livingPattern = resolveMaatFlowInitialPromptSpec(
-      flowKey: 'the-living-pattern',
-    );
-    expect(livingPattern, isNotNull);
-    expect(livingPattern!.fields.map((field) => field.label), <String>[
-      'What pattern are you watching?',
-      'What principle did the pattern teach?',
-    ]);
-
-    final houseOfLife = resolveMaatFlowInitialPromptSpec(
-      flowKey: 'the-house-of-life',
-    );
-    expect(houseOfLife, isNotNull);
-    expect(houseOfLife!.fields.map((field) => field.label), <String>[
-      'What knowledge are you preserving?',
-      'What did you learn, write, recite, or transmit?',
-    ]);
-
-    final hotep = resolveMaatFlowInitialPromptSpec(flowKey: 'hotep');
-    expect(hotep, isNotNull);
-    expect(hotep!.fields.map((field) => field.label), <String>[
-      'What can be enough tonight?',
-      'What did you let be enough tonight?',
-    ]);
-
-    final openHand = resolveMaatFlowInitialPromptSpec(flowKey: 'the-open-hand');
-    expect(openHand, isNotNull);
-    expect(openHand!.fields.map((field) => field.label), <String>[
-      'What need are you willing to meet?',
-      'What moved through your hand?',
-    ]);
-
-    final djed = resolveMaatFlowInitialPromptSpec(flowKey: 'the-djed');
-    expect(djed, isNotNull);
-    expect(djed!.fields.map((field) => field.label), <String>[
-      'What must stand upright?',
-      'What did you raise or restore?',
-    ]);
-
-    final tending = resolveMaatFlowInitialPromptSpec(flowKey: 'the-tending');
-    expect(tending, isNotNull);
-    expect(tending!.fields.map((field) => field.label), <String>[
-      'What care needs to become specific?',
-      'What tending act did you complete?',
-    ]);
-
-    final keptWord = resolveMaatFlowInitialPromptSpec(flowKey: 'the-kept-word');
-    expect(keptWord, isNotNull);
-    expect(keptWord!.fields.map((field) => field.label), <String>[
-      'What word or agreement needs attention?',
-      'What word, repair, or conversation needs to be remembered?',
-    ]);
-
-    final wag = resolveMaatFlowInitialPromptSpec(flowKey: 'the-wag');
-    expect(wag, isNotNull);
-    expect(wag!.fields.map((field) => field.label), <String>[
-      'What gift, memory, or legacy will you carry?',
-      'What gift, memory, or legacy did you carry?',
-    ]);
-
-    final khat = resolveMaatFlowInitialPromptSpec(flowKey: 'the-khat');
-    expect(khat, isNotNull);
-    expect(khat!.fields.map((field) => field.label), <String>[
-      'What is the body asking for?',
-      'What care did you give the body?',
-    ]);
-
-    expect(resolveMaatFlowInitialPromptSpec(flowKey: 'the-true-name'), isNull);
-    expect(resolveMaatFlowInitialPromptSpec(flowKey: 'the-weighing'), isNull);
+    expect(resolveMaatFlowInitialPromptSpec(flowKey: 'not-a-flow'), isNull);
   });
 
   test('initial prompt spec reuses response field specs', () {

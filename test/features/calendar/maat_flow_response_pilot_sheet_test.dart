@@ -6730,6 +6730,913 @@ List<_PromptHydrationSmokeCase> _initialPromptHydrationSmokeCases() {
           'The Khat: I listened to the body asking for water and rest and answered with the updated body-care note.',
       staleText: 'one honest act of care',
     ),
+    _PromptHydrationSmokeCase(
+      name: 'Follow the Sky',
+      flowKey: 'track-the-sky',
+      flowIndex: _trackSkyFlowIndex,
+      eventTitle: _trackSkyEventTitle,
+      notes: () => <NoteData>[_trackSkyNote()],
+      seedInitialPrompt: (tester) async {
+        await _choosePilotOption(
+          tester,
+          specId: 'follow-sky-shown',
+          optionId: 'horizon',
+        );
+        await _choosePilotOption(
+          tester,
+          specId: 'follow-sky-shown',
+          optionId: 'change',
+        );
+        await _enterPilotResponse(
+          tester,
+          specId: 'follow-sky-changed',
+          text: 'the western horizon change',
+        );
+      },
+      expectSheetHydrated: (tester) async {
+        await _expectResponseChipSelected(
+          tester,
+          specId: 'follow-sky-shown',
+          optionId: 'horizon',
+        );
+        await _expectResponseChipSelected(
+          tester,
+          specId: 'follow-sky-shown',
+          optionId: 'change',
+        );
+        await _expectResponseText(
+          tester,
+          specId: 'follow-sky-changed',
+          text: 'the western horizon change',
+        );
+      },
+      updateSheet: (tester) async {
+        await _choosePilotOption(
+          tester,
+          specId: 'follow-sky-shown',
+          optionId: 'horizon',
+        );
+        await _choosePilotOption(
+          tester,
+          specId: 'follow-sky-shown',
+          optionId: 'change',
+        );
+        await _choosePilotOption(
+          tester,
+          specId: 'follow-sky-shown',
+          optionId: 'moon',
+        );
+        await _choosePilotOption(
+          tester,
+          specId: 'follow-sky-shown',
+          optionId: 'planet',
+        );
+        await _enterPilotResponse(
+          tester,
+          specId: 'follow-sky-changed',
+          text: 'updated sky line',
+        );
+      },
+      expectedBlock:
+          'Follow the Sky: I noticed horizon and change and kept the western horizon change.',
+      updatedBlock:
+          'Follow the Sky: I noticed moon and planet and kept updated sky line.',
+      staleText: 'the western horizon change',
+    ),
+    _PromptHydrationSmokeCase(
+      name: 'The Weighing',
+      flowKey: kTheWeighingFlowKey,
+      flowIndex: _weighingFlowIndex,
+      eventTitle: _weighingTitle,
+      notes: () => <NoteData>[_weighingNote()],
+      offerDefaultOff: true,
+      seedInitialPrompt: (tester) async {
+        await _choosePilotOption(
+          tester,
+          specId: 'weighing-scale-revealed',
+          optionId: 'record',
+        );
+        await _choosePilotOption(
+          tester,
+          specId: 'weighing-scale-revealed',
+          optionId: 'correction',
+        );
+        await _enterPilotResponse(
+          tester,
+          specId: 'weighing-record-witnessed',
+          text: 'private ledger detail.',
+        );
+      },
+      expectSheetHydrated: (tester) async {
+        await _expectResponseChipSelected(
+          tester,
+          specId: 'weighing-scale-revealed',
+          optionId: 'record',
+        );
+        await _expectResponseChipSelected(
+          tester,
+          specId: 'weighing-scale-revealed',
+          optionId: 'correction',
+        );
+        await _expectResponseText(
+          tester,
+          specId: 'weighing-record-witnessed',
+          text: 'private ledger detail.',
+        );
+      },
+      updateSheet: (tester) async {
+        await _choosePilotOption(
+          tester,
+          specId: 'weighing-scale-revealed',
+          optionId: 'record',
+        );
+        await _choosePilotOption(
+          tester,
+          specId: 'weighing-scale-revealed',
+          optionId: 'correction',
+        );
+        await _choosePilotOption(
+          tester,
+          specId: 'weighing-scale-revealed',
+          optionId: 'truth',
+        );
+        await _enterPilotResponse(
+          tester,
+          specId: 'weighing-record-witnessed',
+          text: 'updated correction detail.',
+        );
+      },
+      expectedBlock:
+          'The Weighing: I placed record and correction on the scale and named one correction.',
+      updatedBlock:
+          'The Weighing: I placed truth on the scale and named one correction.',
+      staleText: 'private ledger detail',
+    ),
+    _PromptHydrationSmokeCase(
+      name: 'The Days Outside the Year',
+      flowKey: kDaysOutsideTheYearFlowKey,
+      flowIndex: _daysOutsideFlowIndex,
+      eventTitle: _daysOutsideTitle,
+      notes: () => <NoteData>[_daysOutsideNote()],
+      seedInitialPrompt: (tester) async {
+        await _enterPilotResponse(
+          tester,
+          specId: 'days-outside-receipt',
+          text: 'I survived the old year with more clarity than I entered it.',
+        );
+      },
+      expectSheetHydrated: (tester) async {
+        await _expectResponseText(
+          tester,
+          specId: 'days-outside-receipt',
+          text: 'I survived the old year with more clarity than I entered it.',
+        );
+      },
+      updateSheet: (tester) async {
+        await _enterPilotResponse(
+          tester,
+          specId: 'days-outside-receipt',
+          text: 'I carried one clear receipt across the threshold.',
+        );
+      },
+      expectedBlock:
+          'The Days Outside the Year: I carry the receipt that I survived the old year with more clarity than I entered it.',
+      updatedBlock:
+          'The Days Outside the Year: I carry the receipt that I carried one clear receipt across the threshold.',
+      staleText: 'I survived the old year',
+    ),
+    _PromptHydrationSmokeCase(
+      name: 'The Fair Hearing',
+      flowKey: kFairHearingFlowKey,
+      flowIndex: _fairHearingFlowIndex,
+      eventTitle: _fairHearingTitle,
+      notes: () => <NoteData>[_fairHearingNote()],
+      offerDefaultOff: true,
+      seedInitialPrompt: (tester) async {
+        await _choosePilotOption(
+          tester,
+          specId: 'fair-hearing-heard-before-deciding',
+          optionId: 'heard_fully',
+        );
+        await _choosePilotOption(
+          tester,
+          specId: 'fair-hearing-heard-before-deciding',
+          optionId: 'same_measure',
+        );
+        await _enterPilotResponse(
+          tester,
+          specId: 'fair-hearing-remembered',
+          text: 'private decision detail.',
+        );
+      },
+      expectSheetHydrated: (tester) async {
+        await _expectResponseChipSelected(
+          tester,
+          specId: 'fair-hearing-heard-before-deciding',
+          optionId: 'heard_fully',
+        );
+        await _expectResponseChipSelected(
+          tester,
+          specId: 'fair-hearing-heard-before-deciding',
+          optionId: 'same_measure',
+        );
+        await _expectResponseText(
+          tester,
+          specId: 'fair-hearing-remembered',
+          text: 'private decision detail.',
+        );
+      },
+      updateSheet: (tester) async {
+        await _choosePilotOption(
+          tester,
+          specId: 'fair-hearing-heard-before-deciding',
+          optionId: 'repaired',
+        );
+        await _enterPilotResponse(
+          tester,
+          specId: 'fair-hearing-remembered',
+          text: 'updated private decision detail.',
+        );
+      },
+      expectedBlock:
+          'The Fair Hearing: I listened before deciding, marked heard fully and same measure, and kept the measure even.',
+      updatedBlock:
+          'The Fair Hearing: I listened before deciding, marked heard fully, same measure, and repaired, and kept the measure even.',
+      staleText: 'private decision',
+    ),
+    _PromptHydrationSmokeCase(
+      name: 'The Boundary Stone',
+      flowKey: kBoundaryStoneFlowKey,
+      flowIndex: _boundaryStoneFlowIndex,
+      eventTitle: _boundaryStoneTitle,
+      notes: () => <NoteData>[_boundaryStoneNote()],
+      offerDefaultOff: true,
+      seedInitialPrompt: (tester) async {
+        await _choosePilotOption(
+          tester,
+          specId: 'boundary-stone-marker-restored',
+          optionId: 'labor',
+        );
+        await _choosePilotOption(
+          tester,
+          specId: 'boundary-stone-marker-restored',
+          optionId: 'ownership',
+        );
+        await _enterPilotResponse(
+          tester,
+          specId: 'boundary-stone-restored',
+          text: 'private boundary detail.',
+        );
+      },
+      expectSheetHydrated: (tester) async {
+        await _expectResponseChipSelected(
+          tester,
+          specId: 'boundary-stone-marker-restored',
+          optionId: 'labor',
+        );
+        await _expectResponseChipSelected(
+          tester,
+          specId: 'boundary-stone-marker-restored',
+          optionId: 'ownership',
+        );
+        await _expectResponseText(
+          tester,
+          specId: 'boundary-stone-restored',
+          text: 'private boundary detail.',
+        );
+      },
+      updateSheet: (tester) async {
+        await _choosePilotOption(
+          tester,
+          specId: 'boundary-stone-marker-restored',
+          optionId: 'returned',
+        );
+        await _enterPilotResponse(
+          tester,
+          specId: 'boundary-stone-restored',
+          text: 'updated boundary detail.',
+        );
+      },
+      expectedBlock:
+          'The Boundary Stone: I restored labor and ownership to its rightful place.',
+      updatedBlock:
+          'The Boundary Stone: I restored labor, ownership, and returned to its rightful place.',
+      staleText: 'private boundary',
+    ),
+    _PromptHydrationSmokeCase(
+      name: 'The Open Mouth',
+      flowKey: kOpenMouthFlowKey,
+      flowIndex: _openMouthFlowIndex,
+      eventTitle: _openMouthTitle,
+      notes: () => <NoteData>[_openMouthNote()],
+      offerDefaultOff: true,
+      seedInitialPrompt: (tester) async {
+        await _choosePilotOption(
+          tester,
+          specId: 'open-mouth-word-disciplined',
+          optionId: 'silence',
+        );
+        await _choosePilotOption(
+          tester,
+          specId: 'open-mouth-word-disciplined',
+          optionId: 'repair',
+        );
+        await _enterPilotResponse(
+          tester,
+          specId: 'open-mouth-governed',
+          text: 'private speech detail.',
+        );
+      },
+      expectSheetHydrated: (tester) async {
+        await _expectResponseChipSelected(
+          tester,
+          specId: 'open-mouth-word-disciplined',
+          optionId: 'silence',
+        );
+        await _expectResponseChipSelected(
+          tester,
+          specId: 'open-mouth-word-disciplined',
+          optionId: 'repair',
+        );
+        await _expectResponseText(
+          tester,
+          specId: 'open-mouth-governed',
+          text: 'private speech detail.',
+        );
+      },
+      updateSheet: (tester) async {
+        await _choosePilotOption(
+          tester,
+          specId: 'open-mouth-word-disciplined',
+          optionId: 'truth',
+        );
+        await _enterPilotResponse(
+          tester,
+          specId: 'open-mouth-governed',
+          text: 'updated speech detail.',
+        );
+      },
+      expectedBlock:
+          'The Open Mouth: I governed silence and repair and let speech serve Ma\'at.',
+      updatedBlock:
+          'The Open Mouth: I governed silence, repair, and truth and let speech serve Ma\'at.',
+      staleText: 'private speech',
+    ),
+    _PromptHydrationSmokeCase(
+      name: 'The Shore',
+      flowKey: kTheShoreFlowKey,
+      flowIndex: _shoreFlowIndex,
+      eventTitle: _shoreTitle,
+      notes: () => <NoteData>[_shoreNote()],
+      offerDefaultOff: true,
+      seedInitialPrompt: (tester) async {
+        await _choosePilotOption(
+          tester,
+          specId: 'shore-exchange-honest',
+          optionId: 'offer',
+        );
+        await _choosePilotOption(
+          tester,
+          specId: 'shore-exchange-honest',
+          optionId: 'measure',
+        );
+        await _enterPilotResponse(
+          tester,
+          specId: 'shore-exchange-measured',
+          text: 'private exchange detail.',
+        );
+      },
+      expectSheetHydrated: (tester) async {
+        await _expectResponseChipSelected(
+          tester,
+          specId: 'shore-exchange-honest',
+          optionId: 'offer',
+        );
+        await _expectResponseChipSelected(
+          tester,
+          specId: 'shore-exchange-honest',
+          optionId: 'measure',
+        );
+        await _expectResponseText(
+          tester,
+          specId: 'shore-exchange-measured',
+          text: 'private exchange detail.',
+        );
+      },
+      updateSheet: (tester) async {
+        await _choosePilotOption(
+          tester,
+          specId: 'shore-exchange-honest',
+          optionId: 'accounted',
+        );
+        await _enterPilotResponse(
+          tester,
+          specId: 'shore-exchange-measured',
+          text: 'updated exchange detail.',
+        );
+      },
+      expectedBlock:
+          'The Shore: I brought offer and measure closer to honest measure.',
+      updatedBlock:
+          'The Shore: I brought offer, measure, and accounted closer to honest measure.',
+      staleText: 'private exchange',
+    ),
+    _PromptHydrationSmokeCase(
+      name: 'The Living Text',
+      flowKey: kLivingTextFlowKey,
+      flowIndex: _livingTextFlowIndex,
+      eventTitle: _livingTextTitle,
+      notes: () => <NoteData>[_livingTextNote()],
+      seedInitialPrompt: (tester) async {
+        await _choosePilotOption(
+          tester,
+          specId: 'living-text-added',
+          optionId: 'question',
+        );
+        await _choosePilotOption(
+          tester,
+          specId: 'living-text-added',
+          optionId: 'application',
+        );
+        await _enterPilotResponse(
+          tester,
+          specId: 'living-text-applied',
+          text: 'copying a line into practice',
+        );
+      },
+      expectSheetHydrated: (tester) async {
+        await _expectResponseChipSelected(
+          tester,
+          specId: 'living-text-added',
+          optionId: 'question',
+        );
+        await _expectResponseChipSelected(
+          tester,
+          specId: 'living-text-added',
+          optionId: 'application',
+        );
+        await _expectResponseText(
+          tester,
+          specId: 'living-text-applied',
+          text: 'copying a line into practice',
+        );
+      },
+      updateSheet: (tester) async {
+        await _enterPilotResponse(
+          tester,
+          specId: 'living-text-applied',
+          text: 'testing a line in action',
+        );
+      },
+      expectedBlock:
+          'The Living Text: I received question and application from the text and added copying a line into practice back to life.',
+      updatedBlock:
+          'The Living Text: I received question and application from the text and added testing a line in action back to life.',
+      staleText: 'copying a line into practice',
+    ),
+    _PromptHydrationSmokeCase(
+      name: 'The Clearing',
+      flowKey: kClearingFlowKey,
+      flowIndex: _clearingFlowIndex,
+      eventTitle: _clearingTitle,
+      notes: () => <NoteData>[_clearingNote()],
+      offerDefaultOff: true,
+      seedInitialPrompt: (tester) async {
+        await _choosePilotOption(
+          tester,
+          specId: 'clearing-cleared',
+          optionId: 'heat',
+        );
+        await _choosePilotOption(
+          tester,
+          specId: 'clearing-cleared',
+          optionId: 'pause',
+        );
+        await _enterPilotResponse(
+          tester,
+          specId: 'clearing-waited-response',
+          text: 'private heated response detail.',
+        );
+      },
+      expectSheetHydrated: (tester) async {
+        await _expectResponseChipSelected(
+          tester,
+          specId: 'clearing-cleared',
+          optionId: 'heat',
+        );
+        await _expectResponseChipSelected(
+          tester,
+          specId: 'clearing-cleared',
+          optionId: 'pause',
+        );
+        await _expectResponseText(
+          tester,
+          specId: 'clearing-waited-response',
+          text: 'private heated response detail.',
+        );
+      },
+      updateSheet: (tester) async {
+        await _choosePilotOption(
+          tester,
+          specId: 'clearing-cleared',
+          optionId: 'breath',
+        );
+        await _enterPilotResponse(
+          tester,
+          specId: 'clearing-waited-response',
+          text: 'updated cleared response.',
+        );
+      },
+      expectedBlock:
+          'The Clearing: I cleared heat and pause before response and acted from the cleared place.',
+      updatedBlock:
+          'The Clearing: I cleared heat, pause, and breath before response and acted from the cleared place.',
+      staleText: 'private heated',
+    ),
+    _PromptHydrationSmokeCase(
+      name: 'Het-Heru',
+      flowKey: kHetHeruFlowKey,
+      flowIndex: _hetHeruFlowIndex,
+      eventTitle: _hetHeruTitle,
+      notes: () => <NoteData>[_hetHeruNote()],
+      offerDefaultOff: true,
+      seedInitialPrompt: (tester) async {
+        await _choosePilotOption(
+          tester,
+          specId: 'het-heru-force-cooled',
+          optionId: 'music',
+        );
+        await _choosePilotOption(
+          tester,
+          specId: 'het-heru-force-cooled',
+          optionId: 'beauty',
+        );
+        await _enterPilotResponse(
+          tester,
+          specId: 'het-heru-joy-returned',
+          text: 'private hot-force detail.',
+        );
+      },
+      expectSheetHydrated: (tester) async {
+        await _expectResponseChipSelected(
+          tester,
+          specId: 'het-heru-force-cooled',
+          optionId: 'music',
+        );
+        await _expectResponseChipSelected(
+          tester,
+          specId: 'het-heru-force-cooled',
+          optionId: 'beauty',
+        );
+        await _expectResponseText(
+          tester,
+          specId: 'het-heru-joy-returned',
+          text: 'private hot-force detail.',
+        );
+      },
+      updateSheet: (tester) async {
+        await _choosePilotOption(
+          tester,
+          specId: 'het-heru-force-cooled',
+          optionId: 'food',
+        );
+        await _enterPilotResponse(
+          tester,
+          specId: 'het-heru-joy-returned',
+          text: 'updated joy return.',
+        );
+      },
+      expectedBlock:
+          'Het-Heru: I cooled the hot force with music and beauty and made room for beauty, joy, or rest.',
+      updatedBlock:
+          'Het-Heru: I cooled the hot force with music, beauty, and food and made room for beauty, joy, or rest.',
+      staleText: 'private hot-force',
+    ),
+    _PromptHydrationSmokeCase(
+      name: 'The Autobiography',
+      flowKey: kTheAutobiographyFlowKey,
+      flowIndex: _autobiographyFlowIndex,
+      eventTitle: _autobiographyTitle,
+      notes: () => <NoteData>[_autobiographyNote()],
+      offerDefaultOff: true,
+      seedInitialPrompt: (tester) async {
+        await _choosePilotOption(
+          tester,
+          specId: 'autobiography-record-clearer',
+          optionId: 'capacity',
+        );
+        await _choosePilotOption(
+          tester,
+          specId: 'autobiography-record-clearer',
+          optionId: 'evidence',
+        );
+        await _enterPilotResponse(
+          tester,
+          specId: 'autobiography-remembered',
+          text: 'private identity record detail.',
+        );
+      },
+      expectSheetHydrated: (tester) async {
+        await _expectResponseChipSelected(
+          tester,
+          specId: 'autobiography-record-clearer',
+          optionId: 'capacity',
+        );
+        await _expectResponseChipSelected(
+          tester,
+          specId: 'autobiography-record-clearer',
+          optionId: 'evidence',
+        );
+        await _expectResponseText(
+          tester,
+          specId: 'autobiography-remembered',
+          text: 'private identity record detail.',
+        );
+      },
+      updateSheet: (tester) async {
+        await _choosePilotOption(
+          tester,
+          specId: 'autobiography-record-clearer',
+          optionId: 'named',
+        );
+        await _enterPilotResponse(
+          tester,
+          specId: 'autobiography-remembered',
+          text: 'updated record evidence.',
+        );
+      },
+      expectedBlock:
+          'The Autobiography: I named capacity and evidence in my record with clearer evidence.',
+      updatedBlock:
+          'The Autobiography: I named capacity, evidence, and named in my record with clearer evidence.',
+      staleText: 'private identity',
+    ),
+    _PromptHydrationSmokeCase(
+      name: 'The True Name',
+      flowKey: kTrueNameFlowKey,
+      flowIndex: _trueNameFlowIndex,
+      eventTitle: _trueNameTitle,
+      notes: () => <NoteData>[_trueNameNote()],
+      offerDefaultOff: true,
+      seedInitialPrompt: (tester) async {
+        await _choosePilotOption(
+          tester,
+          specId: 'true-name-account-lost-power',
+          optionId: 'false_account',
+        );
+        await _choosePilotOption(
+          tester,
+          specId: 'true-name-account-lost-power',
+          optionId: 'accurate_account',
+        );
+        await _enterPilotResponse(
+          tester,
+          specId: 'true-name-accurate-account',
+          text: 'private raw identity claim.',
+        );
+      },
+      expectSheetHydrated: (tester) async {
+        await _expectResponseChipSelected(
+          tester,
+          specId: 'true-name-account-lost-power',
+          optionId: 'false_account',
+        );
+        await _expectResponseChipSelected(
+          tester,
+          specId: 'true-name-account-lost-power',
+          optionId: 'accurate_account',
+        );
+        await _expectResponseText(
+          tester,
+          specId: 'true-name-accurate-account',
+          text: 'private raw identity claim.',
+        );
+      },
+      updateSheet: (tester) async {
+        await _choosePilotOption(
+          tester,
+          specId: 'true-name-account-lost-power',
+          optionId: 'true_name',
+        );
+        await _enterPilotResponse(
+          tester,
+          specId: 'true-name-accurate-account',
+          text: 'updated accurate account.',
+        );
+      },
+      expectedBlock:
+          'The True Name: I measured false account and accurate account against the record and stood closer to the accurate name.',
+      updatedBlock:
+          'The True Name: I measured false account, accurate account, and true name against the record and stood closer to the accurate name.',
+      staleText: 'private raw',
+    ),
+    _PromptHydrationSmokeCase(
+      name: 'The Living Record',
+      flowKey: kLivingRecordFlowKey,
+      flowIndex: _livingRecordFlowIndex,
+      eventTitle: _livingRecordTitle,
+      notes: () => <NoteData>[_livingRecordNote()],
+      offerDefaultOff: true,
+      seedInitialPrompt: (tester) async {
+        await _choosePilotOption(
+          tester,
+          specId: 'living-record-made-living',
+          optionId: 'day_card',
+        );
+        await _choosePilotOption(
+          tester,
+          specId: 'living-record-made-living',
+          optionId: 'journal',
+        );
+        await _enterPilotResponse(
+          tester,
+          specId: 'living-record-carried-forward',
+          text: 'private cross-app record.',
+        );
+      },
+      expectSheetHydrated: (tester) async {
+        await _expectResponseChipSelected(
+          tester,
+          specId: 'living-record-made-living',
+          optionId: 'day_card',
+        );
+        await _expectResponseChipSelected(
+          tester,
+          specId: 'living-record-made-living',
+          optionId: 'journal',
+        );
+        await _expectResponseText(
+          tester,
+          specId: 'living-record-carried-forward',
+          text: 'private cross-app record.',
+        );
+      },
+      updateSheet: (tester) async {
+        await _choosePilotOption(
+          tester,
+          specId: 'living-record-made-living',
+          optionId: 'closed',
+        );
+        await _enterPilotResponse(
+          tester,
+          specId: 'living-record-carried-forward',
+          text: 'a closed record carried forward.',
+        );
+      },
+      expectedBlock:
+          'The Living Record: I turned day card and journal into a record that can be carried forward.',
+      updatedBlock:
+          'The Living Record: I turned day card, journal, and closed into a record that can be carried forward.',
+      staleText: 'private cross-app',
+    ),
+    _PromptHydrationSmokeCase(
+      name: 'The Oracle',
+      flowKey: kOracleFlowKey,
+      flowIndex: _oracleFlowIndex,
+      eventTitle: _oracleTitle,
+      notes: () => <NoteData>[_oracleNote()],
+      offerDefaultOff: true,
+      seedInitialPrompt: (tester) async {
+        await _enterPilotResponse(
+          tester,
+          specId: 'oracle-question-carried',
+          text: 'What should stay grounded?',
+        );
+        await _choosePilotOption(
+          tester,
+          specId: 'oracle-sign-shape',
+          optionId: 'dream',
+        );
+        await _choosePilotOption(
+          tester,
+          specId: 'oracle-sign-shape',
+          optionId: 'image',
+        );
+        await _enterPilotResponse(
+          tester,
+          specId: 'oracle-received',
+          text: 'private dream detail.',
+        );
+      },
+      expectSheetHydrated: (tester) async {
+        await _expectResponseText(
+          tester,
+          specId: 'oracle-question-carried',
+          text: 'What should stay grounded?',
+        );
+        await _expectResponseChipSelected(
+          tester,
+          specId: 'oracle-sign-shape',
+          optionId: 'dream',
+        );
+        await _expectResponseChipSelected(
+          tester,
+          specId: 'oracle-sign-shape',
+          optionId: 'image',
+        );
+        await _expectResponseText(
+          tester,
+          specId: 'oracle-received',
+          text: 'private dream detail.',
+        );
+      },
+      updateSheet: (tester) async {
+        await _choosePilotOption(
+          tester,
+          specId: 'oracle-sign-shape',
+          optionId: 'image',
+        );
+        await _choosePilotOption(
+          tester,
+          specId: 'oracle-sign-shape',
+          optionId: 'action',
+        );
+        await _enterPilotResponse(
+          tester,
+          specId: 'oracle-received',
+          text: 'updated private sign detail.',
+        );
+      },
+      expectedBlock:
+          'The Oracle: I received one sign through dream and image and will test it through grounded action.',
+      updatedBlock:
+          'The Oracle: I received one sign through dream and action and will test it through grounded action.',
+      staleText: 'private dream',
+    ),
+    _PromptHydrationSmokeCase(
+      name: 'The Wandering',
+      flowKey: kWanderingFlowKey,
+      flowIndex: _wanderingFlowIndex,
+      eventTitle: _wanderingTitle,
+      notes: () => <NoteData>[_wanderingNote()],
+      offerDefaultOff: true,
+      seedInitialPrompt: (tester) async {
+        await _choosePilotOption(
+          tester,
+          specId: 'wandering-remains',
+          optionId: 'loss',
+        );
+        await _choosePilotOption(
+          tester,
+          specId: 'wandering-remains',
+          optionId: 'support',
+        );
+        await _enterPilotResponse(
+          tester,
+          specId: 'wandering-found',
+          text: 'private grief detail.',
+        );
+      },
+      expectSheetHydrated: (tester) async {
+        await _expectResponseChipSelected(
+          tester,
+          specId: 'wandering-remains',
+          optionId: 'loss',
+        );
+        await _expectResponseChipSelected(
+          tester,
+          specId: 'wandering-remains',
+          optionId: 'support',
+        );
+        await _expectResponseText(
+          tester,
+          specId: 'wandering-found',
+          text: 'private grief detail.',
+        );
+      },
+      updateSheet: (tester) async {
+        await _choosePilotOption(
+          tester,
+          specId: 'wandering-remains',
+          optionId: 'loss',
+        );
+        await _choosePilotOption(
+          tester,
+          specId: 'wandering-remains',
+          optionId: 'support',
+        );
+        await _choosePilotOption(
+          tester,
+          specId: 'wandering-remains',
+          optionId: 'absence',
+        );
+        await _choosePilotOption(
+          tester,
+          specId: 'wandering-remains',
+          optionId: 'return',
+        );
+        await _enterPilotResponse(
+          tester,
+          specId: 'wandering-found',
+          text: 'updated grief detail.',
+        );
+      },
+      expectedBlock:
+          'The Wandering: I honored loss and support and noticed one thing that remains.',
+      updatedBlock:
+          'The Wandering: I honored absence and return and noticed one thing that remains.',
+      staleText: 'private grief',
+    ),
   ];
 }
 

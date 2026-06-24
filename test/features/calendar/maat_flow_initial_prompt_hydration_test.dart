@@ -11,6 +11,7 @@ import 'package:mobile/features/calendar/maat_flow_response_models.dart';
 import 'package:mobile/features/calendar/maat_flow_response_resolver.dart';
 import 'package:mobile/features/calendar/moon_return_flow.dart';
 import 'package:mobile/features/calendar/the_course_flow.dart';
+import 'package:mobile/features/calendar/the_days_outside_year_flow.dart';
 import 'package:mobile/features/calendar/the_decan_watch_flow.dart';
 import 'package:mobile/features/calendar/the_djed_flow.dart';
 import 'package:mobile/features/calendar/the_kept_word_flow.dart';
@@ -18,6 +19,7 @@ import 'package:mobile/features/calendar/the_open_hand_flow.dart';
 import 'package:mobile/features/calendar/the_offering_table_flow.dart';
 import 'package:mobile/features/calendar/the_tending_flow.dart';
 import 'package:mobile/features/calendar/the_wag_flow.dart';
+import 'package:mobile/features/calendar/the_weighing_flow.dart';
 
 void main() {
   test(
@@ -464,6 +466,279 @@ void main() {
     );
   });
 
+  test('Follow the Sky prompt shares sky witness drafts with Day Sheet', () {
+    _expectChipTextDraftSharing(
+      flowKey: 'track-the-sky',
+      chipSpecId: 'follow-sky-shown',
+      initialOptions: <String>['horizon', 'change'],
+      updatedOptions: <String>['moon', 'planet'],
+      textSpecId: 'follow-sky-changed',
+      initialText: 'western horizon change',
+      updatedText: 'updated sky line',
+    );
+  });
+
+  test('Weighing prompt shares default-off scale drafts with Day Sheet', () {
+    _expectChipTextDraftSharing(
+      flowKey: kTheWeighingFlowKey,
+      chipSpecId: 'weighing-scale-revealed',
+      initialOptions: <String>['record', 'correction'],
+      updatedOptions: <String>['truth'],
+      textSpecId: 'weighing-record-witnessed',
+      initialText: 'private ledger detail',
+      updatedText: 'updated correction detail',
+      expectedDefaultOff: true,
+    );
+  });
+
+  test(
+    'Days Outside prompt shares threshold receipt drafts with Day Sheet',
+    () {
+      _expectTextDraftSharing(
+        flowKey: kDaysOutsideTheYearFlowKey,
+        specId: 'days-outside-receipt',
+        initialText: 'I survived the old year with clarity.',
+        updatedText: 'I carried one clear receipt across the threshold.',
+        eventKey: 'event-1',
+      );
+    },
+  );
+
+  test(
+    'Fair Hearing prompt shares default-off measure drafts with Day Sheet',
+    () {
+      _expectChipTextDraftSharing(
+        flowKey: kFairHearingFlowKey,
+        chipSpecId: 'fair-hearing-heard-before-deciding',
+        initialOptions: <String>['heard_fully', 'same_measure'],
+        updatedOptions: <String>['heard_fully', 'same_measure', 'repaired'],
+        textSpecId: 'fair-hearing-remembered',
+        initialText: 'private decision detail',
+        updatedText: 'updated private decision detail',
+        expectedDefaultOff: true,
+      );
+    },
+  );
+
+  test(
+    'Boundary Stone prompt shares default-off restoration drafts with Day Sheet',
+    () {
+      _expectChipTextDraftSharing(
+        flowKey: kBoundaryStoneFlowKey,
+        chipSpecId: 'boundary-stone-marker-restored',
+        initialOptions: <String>['labor', 'ownership'],
+        updatedOptions: <String>['labor', 'ownership', 'returned'],
+        textSpecId: 'boundary-stone-restored',
+        initialText: 'private boundary detail',
+        updatedText: 'updated boundary detail',
+        expectedDefaultOff: true,
+      );
+    },
+  );
+
+  test('Open Mouth prompt shares default-off speech drafts with Day Sheet', () {
+    _expectChipTextDraftSharing(
+      flowKey: kOpenMouthFlowKey,
+      chipSpecId: 'open-mouth-word-disciplined',
+      initialOptions: <String>['silence', 'repair'],
+      updatedOptions: <String>['silence', 'repair', 'truth'],
+      textSpecId: 'open-mouth-governed',
+      initialText: 'private speech detail',
+      updatedText: 'updated speech detail',
+      expectedDefaultOff: true,
+    );
+  });
+
+  test('Shore prompt shares default-off exchange drafts with Day Sheet', () {
+    _expectChipTextDraftSharing(
+      flowKey: kTheShoreFlowKey,
+      chipSpecId: 'shore-exchange-honest',
+      initialOptions: <String>['offer', 'measure'],
+      updatedOptions: <String>['offer', 'measure', 'accounted'],
+      textSpecId: 'shore-exchange-measured',
+      initialText: 'private exchange detail',
+      updatedText: 'updated exchange measure',
+      expectedDefaultOff: true,
+    );
+  });
+
+  test('Living Text prompt shares reading drafts with Day Sheet', () {
+    _expectChipTextDraftSharing(
+      flowKey: kLivingTextFlowKey,
+      chipSpecId: 'living-text-added',
+      initialOptions: <String>['question', 'application'],
+      updatedOptions: <String>['question', 'application'],
+      textSpecId: 'living-text-applied',
+      initialText: 'copying a line into practice',
+      updatedText: 'testing a line in action',
+    );
+  });
+
+  test('Clearing prompt shares default-off response drafts with Day Sheet', () {
+    _expectChipTextDraftSharing(
+      flowKey: kClearingFlowKey,
+      chipSpecId: 'clearing-cleared',
+      initialOptions: <String>['heat', 'pause'],
+      updatedOptions: <String>['heat', 'pause', 'breath'],
+      textSpecId: 'clearing-waited-response',
+      initialText: 'private heated response detail',
+      updatedText: 'updated cleared response',
+      expectedDefaultOff: true,
+    );
+  });
+
+  test('Het-Heru prompt shares default-off cooling drafts with Day Sheet', () {
+    _expectChipTextDraftSharing(
+      flowKey: kHetHeruFlowKey,
+      chipSpecId: 'het-heru-force-cooled',
+      initialOptions: <String>['music', 'beauty'],
+      updatedOptions: <String>['music', 'beauty', 'food'],
+      textSpecId: 'het-heru-joy-returned',
+      initialText: 'private hot-force detail',
+      updatedText: 'updated joy return',
+      expectedDefaultOff: true,
+    );
+  });
+
+  test(
+    'Autobiography prompt shares default-off record drafts with Day Sheet',
+    () {
+      _expectChipTextDraftSharing(
+        flowKey: kTheAutobiographyFlowKey,
+        chipSpecId: 'autobiography-record-clearer',
+        initialOptions: <String>['capacity', 'evidence'],
+        updatedOptions: <String>['capacity', 'evidence', 'named'],
+        textSpecId: 'autobiography-remembered',
+        initialText: 'private identity record detail',
+        updatedText: 'updated record evidence',
+        expectedDefaultOff: true,
+      );
+    },
+  );
+
+  test('True Name prompt shares strict default-off drafts with Day Sheet', () {
+    _expectChipTextDraftSharing(
+      flowKey: kTrueNameFlowKey,
+      chipSpecId: 'true-name-account-lost-power',
+      initialOptions: <String>['false_account', 'accurate_account'],
+      updatedOptions: <String>[
+        'false_account',
+        'accurate_account',
+        'true_name',
+      ],
+      textSpecId: 'true-name-accurate-account',
+      initialText: 'private raw identity claim',
+      updatedText: 'updated accurate account',
+      expectedDefaultOff: true,
+    );
+  });
+
+  test(
+    'Living Record prompt shares default-off record drafts with Day Sheet',
+    () {
+      _expectChipTextDraftSharing(
+        flowKey: kLivingRecordFlowKey,
+        chipSpecId: 'living-record-made-living',
+        initialOptions: <String>['day_card', 'journal'],
+        updatedOptions: <String>['day_card', 'journal', 'closed'],
+        textSpecId: 'living-record-carried-forward',
+        initialText: 'a line carried into the planner',
+        updatedText: 'a closed record carried forward',
+        expectedDefaultOff: true,
+      );
+    },
+  );
+
+  test(
+    'Oracle prompt shares strict default-off sign drafts with Day Sheet',
+    () {
+      final store = MaatFlowResponseDraftStore();
+      final prompt = _prompt(kOracleFlowKey);
+      final sheet = _sheet(kOracleFlowKey);
+
+      expect(
+        sheet.every((spec) => spec.offerJournalInclusionDefault == false),
+        isTrue,
+      );
+
+      store.rememberValue(
+        flowKey: prompt.flowKey,
+        value: MaatFlowResponseValue.text(
+          specId: 'oracle-question-carried',
+          text: 'What should stay grounded?',
+        ),
+      );
+      store.rememberValue(
+        flowKey: prompt.flowKey,
+        value: MaatFlowResponseValue.chips(
+          specId: 'oracle-sign-shape',
+          optionIds: <String>['dream', 'image'],
+        ),
+      );
+      store.rememberValue(
+        flowKey: prompt.flowKey,
+        value: MaatFlowResponseValue.text(
+          specId: 'oracle-received',
+          text: 'private dream detail',
+          multiline: true,
+        ),
+      );
+
+      final sheetValues = store.valuesForSpecs(sheet);
+      expect(
+        sheetValues['oracle-question-carried']?.text,
+        'What should stay grounded?',
+      );
+      expect(sheetValues['oracle-sign-shape']?.optionIds, <String>[
+        'dream',
+        'image',
+      ]);
+      expect(sheetValues['oracle-received']?.text, 'private dream detail');
+
+      store.rememberValue(
+        flowKey: sheet.first.flowKey,
+        value: MaatFlowResponseValue.chips(
+          specId: 'oracle-sign-shape',
+          optionIds: <String>['dream', 'action'],
+        ),
+      );
+      store.rememberValue(
+        flowKey: sheet.first.flowKey,
+        value: MaatFlowResponseValue.text(
+          specId: 'oracle-received',
+          text: 'updated private sign detail',
+          multiline: true,
+        ),
+      );
+
+      final promptValues = store.valuesForSpecs(prompt.fields);
+      expect(promptValues['oracle-sign-shape']?.optionIds, <String>[
+        'dream',
+        'action',
+      ]);
+      expect(
+        promptValues['oracle-received']?.text,
+        'updated private sign detail',
+      );
+    },
+  );
+
+  test(
+    'Wandering prompt shares strict default-off grief drafts with Day Sheet',
+    () {
+      _expectChipTextDraftSharing(
+        flowKey: kWanderingFlowKey,
+        chipSpecId: 'wandering-remains',
+        initialOptions: <String>['loss', 'support'],
+        updatedOptions: <String>['absence', 'return'],
+        textSpecId: 'wandering-found',
+        initialText: 'private grief detail',
+        updatedText: 'updated grief detail',
+        expectedDefaultOff: true,
+      );
+    },
+  );
+
   test(
     'Decan Watch prompt shares visibility, sky note, and bearing drafts',
     () {
@@ -603,11 +878,11 @@ MaatFlowInitialPromptSpec _prompt(String flowKey) {
   return spec!;
 }
 
-List<MaatFlowResponseSpec> _sheet(String flowKey) {
+List<MaatFlowResponseSpec> _sheet(String flowKey, {String? eventKey}) {
   final specs = resolveMaatFlowResponseSpecs(
     flowKey: flowKey,
     surface: MaatFlowResponseSurface.calendarSheet,
-    eventKey: flowKey == kMoonReturnFlowKey ? 'new' : null,
+    eventKey: eventKey ?? (flowKey == kMoonReturnFlowKey ? 'new' : null),
   );
   expect(specs, isNotEmpty);
   return specs;
@@ -678,6 +953,40 @@ void _expectChipTextDraftSharing({
   final promptValues = store.valuesForSpecs(prompt.fields);
   expect(promptValues[chipSpecId]?.optionIds, updatedOptions);
   expect(promptValues[textSpecId]?.text, updatedText);
+}
+
+void _expectTextDraftSharing({
+  required String flowKey,
+  required String specId,
+  required String initialText,
+  required String updatedText,
+  String? eventKey,
+}) {
+  final store = MaatFlowResponseDraftStore();
+  final prompt = _prompt(flowKey);
+  final sheet = _sheet(flowKey, eventKey: eventKey);
+
+  store.rememberValue(
+    flowKey: prompt.flowKey,
+    value: MaatFlowResponseValue.text(
+      specId: specId,
+      text: initialText,
+      multiline: true,
+    ),
+  );
+
+  expect(store.valuesForSpecs(sheet)[specId]?.text, initialText);
+
+  store.rememberValue(
+    flowKey: sheet.first.flowKey,
+    value: MaatFlowResponseValue.text(
+      specId: specId,
+      text: updatedText,
+      multiline: true,
+    ),
+  );
+
+  expect(store.valuesForSpecs(prompt.fields)[specId]?.text, updatedText);
 }
 
 void _expectChoiceTextDraftSharing({

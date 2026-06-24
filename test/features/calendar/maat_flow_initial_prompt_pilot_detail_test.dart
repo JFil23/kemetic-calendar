@@ -27,6 +27,21 @@ void main() {
       ('the-kept-word', 'What word or agreement needs attention?'),
       ('the-wag', 'What gift, memory, or legacy will you carry?'),
       ('the-khat', 'What is the body asking for?'),
+      ('track-the-sky', 'What change are you watching above?'),
+      ('the-weighing', 'What needs to be placed on the scale?'),
+      ('the-days-outside-the-year', 'What threshold are you crossing?'),
+      ('the-fair-hearing', 'What must be heard before deciding?'),
+      ('the-boundary-stone', 'What marker needs restoring?'),
+      ('the-open-mouth', 'What word needs discipline?'),
+      ('the-shore', 'What exchange needs honest measure?'),
+      ('the-living-text', 'What line is asking to live through you?'),
+      ('the-clearing', 'What heat needs space before response?'),
+      ('het-heru', 'What hot force needs cooling?'),
+      ('the-autobiography', 'What part of your record needs naming?'),
+      ('the-true-name', 'What false account is ready to lose power?'),
+      ('the-living-record', 'What record will you make living?'),
+      ('the-oracle', 'What question are you carrying?'),
+      ('the-wandering', 'What remains with you?'),
     ]) {
       await _pumpTemplateDetail(tester, entry.$1);
 
@@ -54,12 +69,29 @@ void main() {
 
     await _pumpTemplateDetail(tester, 'the-khat');
     expect(find.text('What care did you give the body?'), findsOneWidget);
+
+    await _pumpTemplateDetail(tester, 'the-weighing');
+    expect(
+      find.text('What record, number, or correction needs to be witnessed?'),
+      findsOneWidget,
+    );
+
+    await _pumpTemplateDetail(tester, 'the-oracle');
+    expect(find.text('What shape did the sign take?'), findsOneWidget);
+
+    await _pumpTemplateDetail(tester, 'the-living-record');
+    expect(
+      find.text(
+        'What did you record, apply, or carry into the physical world?',
+      ),
+      findsOneWidget,
+    );
   });
 
   testWidgets('initial prompt remains absent for unsupported Ma’at details', (
     tester,
   ) async {
-    await _pumpTemplateDetail(tester, 'the-weighing');
+    await _pumpTemplateDetail(tester, 'evening_threshold');
 
     expect(find.byKey(kMaatFlowInitialPromptSectionKey), findsNothing);
     expect(find.text('Begin reflection'), findsNothing);
