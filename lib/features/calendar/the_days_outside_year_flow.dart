@@ -6,7 +6,7 @@ const String kDaysOutsideTheYearTagline =
 const String kDaysOutsideTheYearConfidenceLabel =
     'Draws on the five epagomenal days and their deity births in the Kemetic sacred calendar.';
 const String kDaysOutsideTheYearOverview =
-    'Close the old Kemetic year, receive the five births of Ausar, Heru Wer, Set, Aset, and Nebet-Het across the epagomenal days, then open Wep Ronpet carrying one year intention. The Days Outside the Year is annual, fixed to the calendar, and not replayed later.';
+    'The Days Outside the Year is an annual threshold flow fixed to the Kemetic calendar. It closes the old year, receives the five outside days, and opens Wep Ronpet with one clear intention for what begins.';
 
 enum DaysOutsideEventKind {
   yearClosing,

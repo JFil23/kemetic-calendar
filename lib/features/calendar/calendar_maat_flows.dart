@@ -4584,13 +4584,13 @@ class _MaatFlowTemplateDetailPageState
           height: 1.52,
         ),
       ),
-      if (extraOverviewNote != null) ...[
-        const SizedBox(height: 12),
-        extraOverviewNote,
-      ],
       if (initialPromptSlot != null) ...[
         const SizedBox(height: 16),
         initialPromptSlot,
+      ],
+      if (extraOverviewNote != null) ...[
+        const SizedBox(height: 12),
+        extraOverviewNote,
       ],
       const SizedBox(height: 20),
       _buildAtAGlanceChips(content.chips),
@@ -5198,7 +5198,7 @@ class _MaatFlowTemplateDetailPageState
       case _MaatFlowTemplateKind.trackSky:
         return const _MaatFlowDetailContent(
           orientingSentence:
-              'Each major sky event lands on your calendar with exact timing and a prompt to step outside and observe.',
+              'Sky observation flow. Track visible sky events and keep one clear line of witness when the sky changes.',
           chips: [
             'Through final event',
             'Seasonal events',
@@ -5294,7 +5294,7 @@ class _MaatFlowTemplateDetailPageState
       case _MaatFlowTemplateKind.theWeighing:
         return const _MaatFlowDetailContent(
           orientingSentence:
-              'Three times per decan, you put what is real on a scale - material, spoken, and conduct - so the gap between your life and your story cannot widen.',
+              'Reckoning practice. Put one material, spoken, or conduct record on the scale and name one correction.',
           chips: ['30 days', '3 sittings per decan', 'Written record'],
           arcBlocks: [
             _MaatFlowArcBlock(
@@ -5317,7 +5317,7 @@ class _MaatFlowTemplateDetailPageState
       case _MaatFlowTemplateKind.offeringTable:
         return const _MaatFlowDetailContent(
           orientingSentence:
-              'Water first, then food, then rest, then care - provision in the order that keeps a body and a household functional.',
+              'Provision ritual. Begin with water, then feed what needs food, rest, or care.',
           chips: ['Daily practice', 'Any time of day', 'Physical acts'],
           arcBlocks: [
             _MaatFlowArcBlock(
@@ -5340,7 +5340,7 @@ class _MaatFlowTemplateDetailPageState
       case _MaatFlowTemplateKind.theTending:
         return const _MaatFlowDetailContent(
           orientingSentence:
-              'Each decan, find who needs you and do the labor - not symbolically, not eventually, but in a form they can actually use.',
+              'Specific care practice. Name who or what needs tending and complete one concrete act of care.',
           chips: ['Each decan', 'One person or place', 'Concrete labor'],
           arcBlocks: [
             _MaatFlowArcBlock(
@@ -5363,7 +5363,7 @@ class _MaatFlowTemplateDetailPageState
       case _MaatFlowTemplateKind.keptWord:
         return const _MaatFlowDetailContent(
           orientingSentence:
-              'Name what you broke or bent in the last decan - spoken or unspoken - and restore right order where you can.',
+              'Agreement practice. Name one word, repair, or conversation that needs clearer order.',
           chips: ['Each decan', 'Spoken record', 'Honest accounting'],
           arcBlocks: [
             _MaatFlowArcBlock(
@@ -5386,7 +5386,7 @@ class _MaatFlowTemplateDetailPageState
       case _MaatFlowTemplateKind.theCourse:
         return const _MaatFlowDetailContent(
           orientingSentence:
-              'Three times per decan, locate yourself in the solar day, the ten-day decan, and the active Kemetic season - then do one time-appropriate act.',
+              'Time-orientation practice. Locate yourself in the day, decan, and season, then choose one fitting action.',
           chips: [
             '30 days · 9 sittings',
             '3 times per decan',
@@ -5413,7 +5413,7 @@ class _MaatFlowTemplateDetailPageState
       case _MaatFlowTemplateKind.moonReturn:
         return const _MaatFlowDetailContent(
           orientingSentence:
-              'Start at the new moon, watch the return of light, and keep a short record of what is seen, missed, and completed.',
+              'Lunar release and return practice. Set something down at the new moon and notice what fills at the full.',
           chips: [
             'New moon window',
             'Lunar observations',
@@ -5440,7 +5440,7 @@ class _MaatFlowTemplateDetailPageState
       case _MaatFlowTemplateKind.theWag:
         return const _MaatFlowDetailContent(
           orientingSentence:
-              'A Month 1 ancestor flow: vigil, procession, feast, and return, anchored to Wep Ronpet and the Wag cycle.',
+              'Ancestor remembrance cycle. Keep the table, carry a gift or memory, and return with what remains.',
           chips: ['Annual window', 'Month 1 events', 'Ancestor rite'],
           arcBlocks: [
             _MaatFlowArcBlock(
@@ -5463,7 +5463,7 @@ class _MaatFlowTemplateDetailPageState
       case _MaatFlowTemplateKind.decanWatch:
         return const _MaatFlowDetailContent(
           orientingSentence:
-              'At each decan opening, watch the night honestly: outside when possible, threshold or inside when needed.',
+              'Night-sky boundary practice. Watch the decan opening honestly and carry one bearing into the next ten days.',
           chips: ['Decan openings', 'Night watch', 'Outdoor or threshold'],
           arcBlocks: [
             _MaatFlowArcBlock(
@@ -5486,7 +5486,7 @@ class _MaatFlowTemplateDetailPageState
       case _MaatFlowTemplateKind.daysOutsideTheYear:
         return const _MaatFlowDetailContent(
           orientingSentence:
-              'Close the old year, pass through the five outside days, and open Wep Ronpet without forcing the threshold.',
+              'Year-threshold practice. Close the old year, receive the outside days, and open Wep Ronpet cleanly.',
           chips: ['Year-closing window', 'Seven events', 'Wep Ronpet opening'],
           arcBlocks: [
             _MaatFlowArcBlock(
@@ -5509,7 +5509,7 @@ class _MaatFlowTemplateDetailPageState
       case _MaatFlowTemplateKind.theOpenHand:
         return const _MaatFlowDetailContent(
           orientingSentence:
-              'Provision becomes concrete: food, water, protection, access, time, or skill placed where it can actually be used.',
+              'Outward provision practice. Meet one visible need with time, care, skill, resource, or protection.',
           chips: ['9 sittings', 'Provision acts', 'Act first'],
           arcBlocks: [
             _MaatFlowArcBlock(
@@ -5532,7 +5532,7 @@ class _MaatFlowTemplateDetailPageState
       case _MaatFlowTemplateKind.theDjed:
         return const _MaatFlowDetailContent(
           orientingSentence:
-              'Name the unstable structure, engage what threatens it, and complete the raising with a concrete stabilizing act.',
+              'Stability practice. Name what must stand upright and restore one load-bearing part of life.',
           chips: ['9 sittings', 'Stability work', 'Stand and raise'],
           arcBlocks: [
             _MaatFlowArcBlock(
@@ -6093,8 +6093,13 @@ class _MaatFlowTemplateDetailPageState
   }
 
   Widget _buildTrackSkyScaffold(BuildContext context) {
+    final initialPromptSlot = _buildCurrentInitialPromptSlot(
+      includeLeadingSeparator: false,
+    );
+
     return _buildMaatFlowDetailScaffold(
       context,
+      appendInitialPrompt: false,
       joinButton: _buildTemplateStickyJoinButton(
         onPressed: _openTrackSkyJoinSheet,
       ),
@@ -6102,10 +6107,8 @@ class _MaatFlowTemplateDetailPageState
         ..._buildMaatFlowOverviewZones(
           content: _detailContentForTemplate(overrideChips: null),
           tagline: widget.template.subtitle,
+          initialPromptSlot: initialPromptSlot,
           configurationControls: [
-            const _MaatFlowDetailSectionLabel('PREVIEW TIMEZONE'),
-            _buildTimezoneSelector(),
-            const SizedBox(height: 14),
             FutureBuilder<TrackSkyFlowData>(
               future: _trackSkyFuture,
               builder: (context, snapshot) {
@@ -6166,12 +6169,12 @@ class _MaatFlowTemplateDetailPageState
                   children: [
                     _buildMaatFlowDetailText(
                       upcoming.isEmpty
-                          ? 'No upcoming sky events remain in ${_previewTrackSkyTimeZone.label}.'
-                          : 'Previewing ${upcoming.length} upcoming events in ${_previewTrackSkyTimeZone.label}${firstDate == null || lastDate == null ? '' : ' • $firstDate -> $lastDate'}.',
+                          ? 'No upcoming sky events remain.'
+                          : 'Previewing ${upcoming.length} upcoming events${firstDate == null || lastDate == null ? '' : ' • $firstDate -> $lastDate'}.',
                     ),
                     const SizedBox(height: 8),
                     _buildMaatFlowDetailText(
-                      'Only events with a usable viewing window are included when you join. You can confirm timezone and alert settings from the Join Flow button.',
+                      'Only events with a usable viewing window are included. You can confirm alert settings from the Join Flow button.',
                       color: MaatFlowPalette.silverLo,
                       fontSize: 13,
                     ),
@@ -6189,6 +6192,7 @@ class _MaatFlowTemplateDetailPageState
             ),
           ],
         ),
+        const _MaatFlowPracticeDisclaimerFooter(),
       ],
     );
   }
@@ -6629,15 +6633,9 @@ class _MaatFlowTemplateDetailPageState
     final selectedStart =
         _picked ?? defaultTheWeighingStartDate(_previewTrackSkyTimeZone);
     final firstEvent = kTheWeighingEvents.first;
-    final lastEvent = kTheWeighingEvents.last;
     final firstSchedule = theWeighingScheduleForDate(
       firstEvent,
       selectedStart,
-      _previewTrackSkyTimeZone,
-    );
-    final lastSchedule = theWeighingScheduleForDate(
-      lastEvent,
-      selectedStart.add(Duration(days: lastEvent.flowDay - 1)),
       _previewTrackSkyTimeZone,
     );
     final firstTime = l10n.formatTimeOfDay(
@@ -6646,15 +6644,13 @@ class _MaatFlowTemplateDetailPageState
         minute: firstSchedule.startLocal.minute,
       ),
     );
-    final lastTime = l10n.formatTimeOfDay(
-      TimeOfDay(
-        hour: lastSchedule.startLocal.hour,
-        minute: lastSchedule.startLocal.minute,
-      ),
+    final initialPromptSlot = _buildCurrentInitialPromptSlot(
+      includeLeadingSeparator: false,
     );
 
     return _buildMaatFlowDetailScaffold(
       context,
+      appendInitialPrompt: false,
       joinButton: _buildTemplateStickyJoinButton(
         text: _theWeighingJoinInFlight ? 'Joining…' : 'Join Flow',
         leading: _MaatFlowGlyphTile(
@@ -6669,23 +6665,14 @@ class _MaatFlowTemplateDetailPageState
         ..._buildMaatFlowOverviewZones(
           content: _detailContentForTemplate(overrideChips: null),
           tagline: kTheWeighingTagline,
+          initialPromptSlot: initialPromptSlot,
           configurationControls: [
-            const _MaatFlowDetailSectionLabel('TIMEZONE'),
-            _buildTimezoneSelector(),
-            const SizedBox(height: 14),
-            Text(
-              'First sitting: ${_dateLabel(context, selectedStart)} at $firstTime. Final: ${_dateLabel(context, lastSchedule.startLocal)} at $lastTime.',
-              style: const TextStyle(
-                color: MaatFlowPalette.silverMid,
-                fontFamily: MaatFlowListTokens.fontFamily,
-                fontFamilyFallback: MaatFlowListTokens.fontFallback,
-                fontSize: 16,
-                fontStyle: FontStyle.italic,
-                height: 1.32,
-              ),
+            _buildStartDateRow(
+              context,
+              selectedStart,
+              label:
+                  'Start: ${_dateLabel(context, selectedStart)} at $firstTime',
             ),
-            const SizedBox(height: 18),
-            _buildStartDateRow(context, selectedStart),
             const SizedBox(height: 28),
             const _MaatFlowDetailSectionLabel('LENS'),
             _buildDetailChoiceChips<TheWeighingLens>(
@@ -6717,6 +6704,7 @@ class _MaatFlowTemplateDetailPageState
         ...kTheWeighingEvents.map(
           (event) => _buildTheWeighingEventTile(context, event),
         ),
+        const _MaatFlowPrivacyFooter(),
       ],
     );
   }
@@ -6738,15 +6726,9 @@ class _MaatFlowTemplateDetailPageState
     final selectedStart =
         _picked ?? defaultTheTendingStartDate(_previewTrackSkyTimeZone);
     final firstEvent = kTheTendingEvents.first;
-    final lastEvent = kTheTendingEvents.last;
     final firstSchedule = theTendingScheduleForDate(
       firstEvent,
       selectedStart,
-      _previewTrackSkyTimeZone,
-    );
-    final lastSchedule = theTendingScheduleForDate(
-      lastEvent,
-      selectedStart.add(Duration(days: lastEvent.flowDay - 1)),
       _previewTrackSkyTimeZone,
     );
     final firstTime = l10n.formatTimeOfDay(
@@ -6755,15 +6737,13 @@ class _MaatFlowTemplateDetailPageState
         minute: firstSchedule.startLocal.minute,
       ),
     );
-    final lastTime = l10n.formatTimeOfDay(
-      TimeOfDay(
-        hour: lastSchedule.startLocal.hour,
-        minute: lastSchedule.startLocal.minute,
-      ),
+    final initialPromptSlot = _buildCurrentInitialPromptSlot(
+      includeLeadingSeparator: false,
     );
 
     return _buildMaatFlowDetailScaffold(
       context,
+      appendInitialPrompt: false,
       joinButton: _buildTemplateStickyJoinButton(
         text: _theTendingJoinInFlight ? 'Joining…' : 'Join Flow',
         onPressed: _theTendingJoinInFlight
@@ -6774,24 +6754,15 @@ class _MaatFlowTemplateDetailPageState
         ..._buildMaatFlowOverviewZones(
           content: _detailContentForTemplate(overrideChips: null),
           tagline: kTheTendingTagline,
+          initialPromptSlot: initialPromptSlot,
           extraOverviewNote: _buildMaatFlowNotice(kTheTendingEnrollmentCopy),
           configurationControls: [
-            const _MaatFlowDetailSectionLabel('TIMEZONE'),
-            _buildTimezoneSelector(),
-            const SizedBox(height: 14),
-            Text(
-              'First sitting: ${_dateLabel(context, selectedStart)} at $firstTime. Final sitting: ${_dateLabel(context, lastSchedule.startLocal)} at $lastTime. Midday checks default to 11:00 local.',
-              style: const TextStyle(
-                color: MaatFlowPalette.silverMid,
-                fontFamily: MaatFlowListTokens.fontFamily,
-                fontFamilyFallback: MaatFlowListTokens.fontFallback,
-                fontSize: 14,
-                fontStyle: FontStyle.italic,
-                height: 1.35,
-              ),
+            _buildStartDateRow(
+              context,
+              selectedStart,
+              label:
+                  'Start: ${_dateLabel(context, selectedStart)} at $firstTime',
             ),
-            const SizedBox(height: 18),
-            _buildStartDateRow(context, selectedStart),
             const SizedBox(height: 28),
             const _MaatFlowDetailSectionLabel('LENS'),
             const Text(
@@ -6855,15 +6826,9 @@ class _MaatFlowTemplateDetailPageState
     final selectedStart =
         _picked ?? defaultKeptWordStartDate(_previewTrackSkyTimeZone);
     final firstEvent = kKeptWordEvents.first;
-    final lastEvent = kKeptWordEvents.last;
     final firstSchedule = keptWordScheduleForDate(
       firstEvent,
       selectedStart,
-      _previewTrackSkyTimeZone,
-    );
-    final lastSchedule = keptWordScheduleForDate(
-      lastEvent,
-      selectedStart.add(Duration(days: lastEvent.flowDay - 1)),
       _previewTrackSkyTimeZone,
     );
     final firstTime = l10n.formatTimeOfDay(
@@ -6872,15 +6837,13 @@ class _MaatFlowTemplateDetailPageState
         minute: firstSchedule.startLocal.minute,
       ),
     );
-    final lastTime = l10n.formatTimeOfDay(
-      TimeOfDay(
-        hour: lastSchedule.startLocal.hour,
-        minute: lastSchedule.startLocal.minute,
-      ),
+    final initialPromptSlot = _buildCurrentInitialPromptSlot(
+      includeLeadingSeparator: false,
     );
 
     return _buildMaatFlowDetailScaffold(
       context,
+      appendInitialPrompt: false,
       joinButton: _buildTemplateStickyJoinButton(
         text: _keptWordJoinInFlight ? 'Joining…' : 'Join Flow',
         onPressed: _keptWordJoinInFlight
@@ -6891,34 +6854,15 @@ class _MaatFlowTemplateDetailPageState
         ..._buildMaatFlowOverviewZones(
           content: _detailContentForTemplate(overrideChips: null),
           tagline: kKeptWordTagline,
-          extraOverviewNote: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              _buildMaatFlowNotice(kKeptWordEnrollmentCopy),
-              const SizedBox(height: 10),
-              _buildMaatFlowNotice(
-                'Bring to Process: Events 4-6 involve another person. If the conversation cannot be had safely, pause the flow locally rather than forcing contact.',
-                borderColor: MaatFlowPalette.gold.withValues(alpha: 0.38),
-              ),
-            ],
-          ),
+          initialPromptSlot: initialPromptSlot,
+          extraOverviewNote: _buildMaatFlowNotice(kKeptWordEnrollmentCopy),
           configurationControls: [
-            const _MaatFlowDetailSectionLabel('TIMEZONE'),
-            _buildTimezoneSelector(),
-            const SizedBox(height: 14),
-            Text(
-              'First sitting: ${_dateLabel(context, selectedStart)} at $firstTime. Final sitting: ${_dateLabel(context, lastSchedule.startLocal)} at $lastTime. Midday checks default to 11:00 local.',
-              style: const TextStyle(
-                color: MaatFlowPalette.silverMid,
-                fontFamily: MaatFlowListTokens.fontFamily,
-                fontFamilyFallback: MaatFlowListTokens.fontFallback,
-                fontSize: 14,
-                fontStyle: FontStyle.italic,
-                height: 1.35,
-              ),
+            _buildStartDateRow(
+              context,
+              selectedStart,
+              label:
+                  'Start: ${_dateLabel(context, selectedStart)} at $firstTime',
             ),
-            const SizedBox(height: 18),
-            _buildStartDateRow(context, selectedStart),
             const SizedBox(height: 28),
             const _MaatFlowDetailSectionLabel('LENS'),
             const Text(
@@ -6962,6 +6906,11 @@ class _MaatFlowTemplateDetailPageState
         ...kKeptWordEvents.map(
           (event) => _buildKeptWordEventTile(context, event),
         ),
+        _buildMaatFlowNotice(
+          'Bring to Process: Events 4-6 involve another person. If the conversation cannot be had safely, pause the flow locally rather than forcing contact.',
+          borderColor: MaatFlowPalette.gold.withValues(alpha: 0.38),
+        ),
+        const SizedBox(height: 10),
         const _MaatFlowPrivacyFooter(),
       ],
     );
@@ -7086,9 +7035,13 @@ class _MaatFlowTemplateDetailPageState
     }
     final selectedStart = DateUtils.dateOnly(window.opensAtLocal);
     final nextFeast = wagNextFeastGregorian(window.kYear);
+    final initialPromptSlot = _buildCurrentInitialPromptSlot(
+      includeLeadingSeparator: false,
+    );
 
     return _buildMaatFlowDetailScaffold(
       context,
+      appendInitialPrompt: false,
       joinButton: _buildTemplateStickyJoinButton(
         text: _wagJoinInFlight ? 'Joining…' : 'Add Flow',
         onPressed: _wagJoinInFlight ? null : () => _joinWagFlow(selectedStart),
@@ -7097,19 +7050,13 @@ class _MaatFlowTemplateDetailPageState
         ..._buildMaatFlowOverviewZones(
           content: _detailContentForTemplate(overrideChips: null),
           tagline: kTheWagTagline,
+          initialPromptSlot: initialPromptSlot,
           extraOverviewNote: _buildMaatFlowNotice(
             'Selected Wep Ronpet start for ${window.opensAtLocal.year}: ${_dateLabel(context, window.opensAtLocal)}. Add it now and the Month 1 events will prompt when the year opens.',
             borderColor: MaatFlowPalette.gold.withValues(alpha: 0.38),
           ),
           configurationControls: [
-            const _MaatFlowDetailSectionLabel('TIMEZONE'),
-            _buildTimezoneSelector(),
-            const SizedBox(height: 18),
             _buildWindowStartRow(context, window.opensAtLocal),
-            const SizedBox(height: 8),
-            _buildMaatFlowDetailText(
-              'Wag feast this cycle: ${_dateLabel(context, wagEventGregorian(window.kYear, 18))}. Next year: ${_dateLabel(context, nextFeast)}.',
-            ),
             const SizedBox(height: 28),
             const _MaatFlowDetailSectionLabel('LENS'),
             const Text(
@@ -7143,6 +7090,12 @@ class _MaatFlowTemplateDetailPageState
         ...kWagEvents.map(
           (event) => _buildWagEventTile(context, event, window.kYear),
         ),
+        _buildMaatFlowDetailText(
+          'Wag feast this cycle: ${_dateLabel(context, wagEventGregorian(window.kYear, 18))}. Next year: ${_dateLabel(context, nextFeast)}.',
+          color: MaatFlowPalette.silverLo,
+          fontSize: 13,
+        ),
+        const SizedBox(height: 10),
         const _MaatFlowPrivacyFooter(),
       ],
     );
@@ -7203,9 +7156,13 @@ class _MaatFlowTemplateDetailPageState
         count: 2,
       ),
     ];
+    final initialPromptSlot = _buildCurrentInitialPromptSlot(
+      includeLeadingSeparator: false,
+    );
 
     return _buildMaatFlowDetailScaffold(
       context,
+      appendInitialPrompt: false,
       joinButton: _buildTemplateStickyJoinButton(
         text: _decanWatchJoinInFlight ? 'Joining…' : 'Add Flow',
         onPressed: _decanWatchJoinInFlight
@@ -7216,31 +7173,12 @@ class _MaatFlowTemplateDetailPageState
         ..._buildMaatFlowOverviewZones(
           content: _detailContentForTemplate(overrideChips: null),
           tagline: kDecanWatchTagline,
-          extraOverviewNote: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              _buildMaatFlowNotice(
-                'Selected decan opening: ${_dateLabel(context, window.opensAtLocal)}, when ${window.openingOccurrence.decanName} begins. Add it now and the first watch will prompt on that opening.',
-                borderColor: MaatFlowPalette.gold.withValues(alpha: 0.38),
-              ),
-              const SizedBox(height: 10),
-              _buildMaatFlowNotice(
-                'Outdoor is the default. If weather, safety, access, or mobility prevents that, use the inside/threshold completion state and keep the record honest.',
-              ),
-              const SizedBox(height: 10),
-              _buildMaatFlowNotice(
-                'The Course orients you by day. The Decan Watch orients you by night. Many keep both.',
-              ),
-            ],
+          initialPromptSlot: initialPromptSlot,
+          extraOverviewNote: _buildMaatFlowNotice(
+            'Selected decan opening: ${_dateLabel(context, window.opensAtLocal)}, when ${window.openingOccurrence.decanName} begins. Add it now and the first watch will prompt on that opening.',
+            borderColor: MaatFlowPalette.gold.withValues(alpha: 0.38),
           ),
           configurationControls: [
-            const _MaatFlowDetailSectionLabel('TIMEZONE'),
-            _buildTimezoneSelector(),
-            const SizedBox(height: 14),
-            _buildMaatFlowDetailText(
-              'Default watch time is 9:00 PM local. Editing is clamped to 6:00 PM-midnight.',
-            ),
-            const SizedBox(height: 18),
             _buildWindowStartRow(context, window.opensAtLocal),
             const SizedBox(height: 28),
             const _MaatFlowDetailSectionLabel('LENS'),
@@ -7277,6 +7215,20 @@ class _MaatFlowTemplateDetailPageState
         ...preview.map(
           (occurrence) => _buildDecanWatchOccurrenceTile(context, occurrence),
         ),
+        _buildMaatFlowDetailText(
+          'Default watch time is 9:00 PM local. Editing is clamped to 6:00 PM-midnight.',
+          color: MaatFlowPalette.silverLo,
+          fontSize: 13,
+        ),
+        const SizedBox(height: 10),
+        _buildMaatFlowNotice(
+          'Outdoor is the default. If weather, safety, access, or mobility prevents that, use the inside/threshold completion state and keep the record honest.',
+        ),
+        const SizedBox(height: 10),
+        _buildMaatFlowNotice(
+          'The Course orients you by day. The Decan Watch orients you by night. Many keep both.',
+        ),
+        const SizedBox(height: 10),
         const _MaatFlowPrivacyFooter(),
       ],
     );
@@ -7457,9 +7409,13 @@ class _MaatFlowTemplateDetailPageState
       );
     }
     final flowStart = DateUtils.dateOnly(window.opensAtLocal);
+    final initialPromptSlot = _buildCurrentInitialPromptSlot(
+      includeLeadingSeparator: false,
+    );
 
     return _buildMaatFlowDetailScaffold(
       context,
+      appendInitialPrompt: false,
       joinButton: _buildTemplateStickyJoinButton(
         text: _openHandJoinInFlight ? 'Joining…' : 'Add Flow',
         onPressed: _openHandJoinInFlight
@@ -7470,27 +7426,12 @@ class _MaatFlowTemplateDetailPageState
         ..._buildMaatFlowOverviewZones(
           content: _detailContentForTemplate(overrideChips: null),
           tagline: kTheOpenHandTagline,
-          extraOverviewNote: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              _buildMaatFlowNotice(
-                'Selected decan opening: ${_dateLabel(context, window.opensAtLocal)}, when ${window.openingOccurrence.decanName} begins. Add it now and the nine sittings will prompt from that start date.',
-                borderColor: MaatFlowPalette.gold.withValues(alpha: 0.38),
-              ),
-              const SizedBox(height: 10),
-              _buildMaatFlowNotice(
-                'Bread means food. Water means the immediate resource in front of you. Clothing means dignity and protection. Boat means access, transport, introduction, or skill. Time is provision too.',
-              ),
-            ],
+          initialPromptSlot: initialPromptSlot,
+          extraOverviewNote: _buildMaatFlowNotice(
+            'Selected decan opening: ${_dateLabel(context, window.opensAtLocal)}, when ${window.openingOccurrence.decanName} begins. Add it now and the nine sittings will prompt from that start date.',
+            borderColor: MaatFlowPalette.gold.withValues(alpha: 0.38),
           ),
           configurationControls: [
-            const _MaatFlowDetailSectionLabel('TIMEZONE'),
-            _buildTimezoneSelector(),
-            const SizedBox(height: 14),
-            _buildMaatFlowDetailText(
-              'Openings are dawn + 30 minutes; midpoints default to 11:00 local; closes are sunset + 30 minutes.',
-            ),
-            const SizedBox(height: 18),
             _buildWindowStartRow(context, window.opensAtLocal),
             const SizedBox(height: 18),
             const _MaatFlowDetailSectionLabel('LENS'),
@@ -7519,6 +7460,16 @@ class _MaatFlowTemplateDetailPageState
         ...kOpenHandEvents.map(
           (event) => _buildOpenHandEventTile(context, event, flowStart),
         ),
+        _buildMaatFlowDetailText(
+          'Openings are dawn + 30 minutes; midpoints default to 11:00 local; closes are sunset + 30 minutes.',
+          color: MaatFlowPalette.silverLo,
+          fontSize: 13,
+        ),
+        const SizedBox(height: 10),
+        _buildMaatFlowNotice(
+          'Bread means food. Water means the immediate resource in front of you. Clothing means dignity and protection. Boat means access, transport, introduction, or skill. Time is provision too.',
+        ),
+        const SizedBox(height: 10),
         const _MaatFlowPrivacyFooter(),
       ],
     );
@@ -7586,9 +7537,13 @@ class _MaatFlowTemplateDetailPageState
       return _buildEnrollmentUnavailableScaffold(context, debugLabel: 'djed');
     }
     final flowStart = DateUtils.dateOnly(window.opensAtLocal);
+    final initialPromptSlot = _buildCurrentInitialPromptSlot(
+      includeLeadingSeparator: false,
+    );
 
     return _buildMaatFlowDetailScaffold(
       context,
+      appendInitialPrompt: false,
       joinButton: _buildTemplateStickyJoinButton(
         text: _djedJoinInFlight ? 'Joining…' : 'Add Flow',
         onPressed: _djedJoinInFlight ? null : () => _joinDjedFlow(flowStart),
@@ -7597,32 +7552,12 @@ class _MaatFlowTemplateDetailPageState
         ..._buildMaatFlowOverviewZones(
           content: _detailContentForTemplate(overrideChips: null),
           tagline: kTheDjedTagline,
-          extraOverviewNote: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              _buildMaatFlowNotice(
-                'Selected decan opening: ${_dateLabel(context, window.opensAtLocal)}, when ${window.openingOccurrence.decanName} begins. Add it now and the Djed sittings will prompt from that start date.',
-                borderColor: MaatFlowPalette.gold.withValues(alpha: 0.38),
-              ),
-              const SizedBox(height: 10),
-              _buildMaatFlowNotice(
-                'Name the spine, engage the structural threat directly, then raise the Djed. The mock battle means a concrete stabilizing act, not harmful confrontation.',
-              ),
-              const SizedBox(height: 10),
-              _buildMaatFlowNotice(
-                'Event 9 requires standing room for about 30 seconds. Name the spine, address the wobble, and complete the raising before marking it done.',
-                borderColor: const Color(0xFF9BD0A5).withValues(alpha: 0.5),
-              ),
-            ],
+          initialPromptSlot: initialPromptSlot,
+          extraOverviewNote: _buildMaatFlowNotice(
+            'Selected decan opening: ${_dateLabel(context, window.opensAtLocal)}, when ${window.openingOccurrence.decanName} begins. Add it now and the Djed sittings will prompt from that start date.',
+            borderColor: MaatFlowPalette.gold.withValues(alpha: 0.38),
           ),
           configurationControls: [
-            const _MaatFlowDetailSectionLabel('TIMEZONE'),
-            _buildTimezoneSelector(),
-            const SizedBox(height: 14),
-            _buildMaatFlowDetailText(
-              'Openings are dawn + 30 minutes; midpoints default to 11:00 local; the second decan closes at sunset + 30 minutes. Event 3 and Event 9 are dawn events by specification.',
-            ),
-            const SizedBox(height: 18),
             _buildWindowStartRow(context, window.opensAtLocal),
             const SizedBox(height: 18),
             const _MaatFlowDetailSectionLabel('LENS'),
@@ -7651,6 +7586,21 @@ class _MaatFlowTemplateDetailPageState
         ...kDjedEvents.map(
           (event) => _buildDjedEventTile(context, event, flowStart),
         ),
+        _buildMaatFlowDetailText(
+          'Openings are dawn + 30 minutes; midpoints default to 11:00 local; the second decan closes at sunset + 30 minutes. Event 3 and Event 9 are dawn events by specification.',
+          color: MaatFlowPalette.silverLo,
+          fontSize: 13,
+        ),
+        const SizedBox(height: 10),
+        _buildMaatFlowNotice(
+          'Name the spine, engage the structural threat directly, then raise the Djed. The mock battle means a concrete stabilizing act, not harmful confrontation.',
+        ),
+        const SizedBox(height: 10),
+        _buildMaatFlowNotice(
+          'Event 9 requires standing room for about 30 seconds. Name the spine, address the wobble, and complete the raising before marking it done.',
+          borderColor: const Color(0xFF9BD0A5).withValues(alpha: 0.5),
+        ),
+        const SizedBox(height: 10),
         const _MaatFlowPrivacyFooter(),
       ],
     );
@@ -7746,9 +7696,13 @@ class _MaatFlowTemplateDetailPageState
       kDay: 1,
     );
     final wep = daysOutsideFlowEndGregorian(window.closingKYear);
+    final initialPromptSlot = _buildCurrentInitialPromptSlot(
+      includeLeadingSeparator: false,
+    );
 
     return _buildMaatFlowDetailScaffold(
       context,
+      appendInitialPrompt: false,
       joinButton: _buildTemplateStickyJoinButton(
         text: _daysOutsideYearJoinInFlight ? 'Joining…' : 'Add Flow',
         onPressed: _daysOutsideYearJoinInFlight
@@ -7759,40 +7713,13 @@ class _MaatFlowTemplateDetailPageState
         ..._buildMaatFlowOverviewZones(
           content: _detailContentForTemplate(overrideChips: null),
           tagline: kDaysOutsideTheYearTagline,
-          extraOverviewNote: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              _buildMaatFlowNotice(
-                'Selected year-closing start for ${window.opensAtLocal.year}: ${_dateLabel(context, window.opensAtLocal)}. Add it now and the threshold events will prompt when the year closes.',
-                borderColor: MaatFlowPalette.gold.withValues(alpha: 0.38),
-              ),
-              const SizedBox(height: 10),
-              _buildMaatFlowNotice(
-                'Enrollment opens on M12 D28. Event 0 is M12 D30 at dusk, the five births are M13 D1-D5 at dawn, and Wep Ronpet is M1 D1 of the next Kemetic year. Leap-year M13 D6 has no event.',
-              ),
-              const SizedBox(height: 10),
-              _buildMaatFlowDetailText(
-                'Year close: ${_dateLabel(context, yearClose)} · First outside day: ${_dateLabel(context, epi1)} · Wep Ronpet: ${_dateLabel(context, wep)}',
-                color: MaatFlowPalette.silverLo,
-                fontSize: 13,
-              ),
-              const SizedBox(height: 10),
-              _buildMaatFlowNotice(
-                'The Days Outside the Year opens the year; The Wag tends the ancestors through Month 1. Many keep both.',
-              ),
-            ],
+          initialPromptSlot: initialPromptSlot,
+          extraOverviewNote: _buildMaatFlowNotice(
+            'Selected year-closing start for ${window.opensAtLocal.year}: ${_dateLabel(context, window.opensAtLocal)}. Add it now and the threshold events will prompt when the year closes.',
+            borderColor: MaatFlowPalette.gold.withValues(alpha: 0.38),
           ),
           configurationControls: [
-            const _MaatFlowDetailSectionLabel('TIMEZONE'),
-            _buildTimezoneSelector(),
-            const SizedBox(height: 18),
             _buildWindowStartRow(context, window.opensAtLocal),
-            const SizedBox(height: 10),
-            _buildMaatFlowDetailText(
-              'This is a window-only picker. Arbitrary Kemetic dates are rejected on join.',
-              color: MaatFlowPalette.silverLo,
-              fontSize: 13,
-            ),
           ],
         ),
         const _MaatFlowDetailSeparator(),
@@ -7804,13 +7731,32 @@ class _MaatFlowTemplateDetailPageState
             window.closingKYear,
           ),
         ),
+        _buildMaatFlowNotice(
+          'Enrollment opens on M12 D28. Event 0 is M12 D30 at dusk, the five births are M13 D1-D5 at dawn, and Wep Ronpet is M1 D1 of the next Kemetic year. Leap-year M13 D6 has no event.',
+        ),
+        const SizedBox(height: 10),
+        _buildMaatFlowDetailText(
+          'Year close: ${_dateLabel(context, yearClose)} · First outside day: ${_dateLabel(context, epi1)} · Wep Ronpet: ${_dateLabel(context, wep)}',
+          color: MaatFlowPalette.silverLo,
+          fontSize: 13,
+        ),
+        const SizedBox(height: 10),
+        _buildMaatFlowNotice(
+          'The Days Outside the Year opens the year; The Wag tends the ancestors through Month 1. Many keep both.',
+        ),
+        const SizedBox(height: 10),
+        _buildMaatFlowDetailText(
+          'This is a window-only picker. Arbitrary Kemetic dates are rejected on join.',
+          color: MaatFlowPalette.silverLo,
+          fontSize: 13,
+        ),
+        const SizedBox(height: 10),
         const _MaatFlowPrivacyFooter(),
       ],
     );
   }
 
   Widget _buildMoonReturnScaffold(BuildContext context) {
-    final l10n = MaterialLocalizations.of(context);
     final MoonReturnEnrollmentWindow? window =
         _resolveMoonReturnPreviewWindow();
     if (window == null) {
@@ -7822,20 +7768,13 @@ class _MaatFlowTemplateDetailPageState
     final selectedStart = DateUtils.dateOnly(window.opensAtLocal);
     final occurrences = moonReturnOccurrencesForWindow(window: window);
     final preview = occurrences.take(4).toList(growable: false);
-    final emptyEyeCandidates = occurrences
-        .where((occurrence) => occurrence.kind == MoonReturnEventKind.emptyEye)
-        .toList(growable: false);
-    final emptyEye = emptyEyeCandidates.isEmpty
-        ? null
-        : emptyEyeCandidates.first;
-    String timeLabel(DateTime value) {
-      return l10n.formatTimeOfDay(
-        TimeOfDay(hour: value.hour, minute: value.minute),
-      );
-    }
+    final initialPromptSlot = _buildCurrentInitialPromptSlot(
+      includeLeadingSeparator: false,
+    );
 
     return _buildMaatFlowDetailScaffold(
       context,
+      appendInitialPrompt: false,
       joinButton: _buildTemplateStickyJoinButton(
         text: _moonReturnJoinInFlight ? 'Joining…' : 'Add Flow',
         onPressed: _moonReturnJoinInFlight
@@ -7846,6 +7785,7 @@ class _MaatFlowTemplateDetailPageState
         ..._buildMaatFlowOverviewZones(
           content: _detailContentForTemplate(overrideChips: null),
           tagline: kMoonReturnTagline,
+          initialPromptSlot: initialPromptSlot,
           extraOverviewNote: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
@@ -7866,16 +7806,7 @@ class _MaatFlowTemplateDetailPageState
             ],
           ),
           configurationControls: [
-            const _MaatFlowDetailSectionLabel('TIMEZONE'),
-            _buildTimezoneSelector(),
-            const SizedBox(height: 18),
             _buildWindowStartRow(context, window.opensAtLocal),
-            if (emptyEye != null) ...[
-              const SizedBox(height: 10),
-              _buildMaatFlowDetailText(
-                'First Empty Eye: ${_dateLabel(context, emptyEye.startLocal)} at ${timeLabel(emptyEye.startLocal)}. Future events sync for about twelve months.',
-              ),
-            ],
             const SizedBox(height: 18),
             const _MaatFlowDetailSectionLabel('LENS'),
             _buildMaatFlowDetailText(
@@ -7917,33 +7848,26 @@ class _MaatFlowTemplateDetailPageState
     final selectedStart =
         _picked ?? defaultTheCourseStartDate(_previewTrackSkyTimeZone);
     final firstEvent = kTheCourseEvents.first;
-    final duskEvent = kTheCourseEvents[1];
-    final lastEvent = kTheCourseEvents.last;
     final firstSchedule = courseScheduleForDate(
       firstEvent,
       selectedStart,
       _previewTrackSkyTimeZone,
     );
-    final duskSchedule = courseScheduleForDate(
-      duskEvent,
-      selectedStart.add(Duration(days: duskEvent.flowDay - 1)),
-      _previewTrackSkyTimeZone,
+    final firstTime = l10n.formatTimeOfDay(
+      TimeOfDay(
+        hour: firstSchedule.startLocal.hour,
+        minute: firstSchedule.startLocal.minute,
+      ),
     );
-    final lastSchedule = courseScheduleForDate(
-      lastEvent,
-      selectedStart.add(Duration(days: lastEvent.flowDay - 1)),
-      _previewTrackSkyTimeZone,
-    );
-    String timeLabel(DateTime value) {
-      return l10n.formatTimeOfDay(
-        TimeOfDay(hour: value.hour, minute: value.minute),
-      );
-    }
 
     final currentContext = courseContextForGregorianDate(DateTime.now());
+    final initialPromptSlot = _buildCurrentInitialPromptSlot(
+      includeLeadingSeparator: false,
+    );
 
     return _buildMaatFlowDetailScaffold(
       context,
+      appendInitialPrompt: false,
       joinButton: _buildTemplateStickyJoinButton(
         text: _courseJoinInFlight ? 'Joining…' : 'Join Flow',
         onPressed: _courseJoinInFlight
@@ -7954,6 +7878,7 @@ class _MaatFlowTemplateDetailPageState
         ..._buildMaatFlowOverviewZones(
           content: _detailContentForTemplate(overrideChips: null),
           tagline: kTheCourseTagline,
+          initialPromptSlot: initialPromptSlot,
           extraOverviewNote: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
@@ -7966,22 +7891,12 @@ class _MaatFlowTemplateDetailPageState
             ],
           ),
           configurationControls: [
-            const _MaatFlowDetailSectionLabel('TIMEZONE'),
-            _buildTimezoneSelector(),
-            const SizedBox(height: 14),
-            Text(
-              'First sitting: ${_dateLabel(context, selectedStart)} at ${timeLabel(firstSchedule.startLocal)}. Event 2 is dusk on ${_dateLabel(context, duskSchedule.startLocal)} at ${timeLabel(duskSchedule.startLocal)}. Final sitting: ${_dateLabel(context, lastSchedule.startLocal)} at ${timeLabel(lastSchedule.startLocal)}. Midday sittings default to 11:00 local.',
-              style: const TextStyle(
-                color: MaatFlowPalette.silverMid,
-                fontFamily: MaatFlowListTokens.fontFamily,
-                fontFamilyFallback: MaatFlowListTokens.fontFallback,
-                fontSize: 14,
-                fontStyle: FontStyle.italic,
-                height: 1.35,
-              ),
+            _buildStartDateRow(
+              context,
+              selectedStart,
+              label:
+                  'Start: ${_dateLabel(context, selectedStart)} at $firstTime',
             ),
-            const SizedBox(height: 18),
-            _buildStartDateRow(context, selectedStart),
             const SizedBox(height: 28),
             const _MaatFlowDetailSectionLabel('LENS'),
             const Text(
@@ -8025,6 +7940,7 @@ class _MaatFlowTemplateDetailPageState
         ...kTheCourseEvents.map(
           (event) => _buildCourseEventTile(context, event, selectedStart),
         ),
+        const _MaatFlowPracticeDisclaimerFooter(),
       ],
     );
   }
@@ -8050,15 +7966,9 @@ class _MaatFlowTemplateDetailPageState
     final selectedStart =
         _picked ?? defaultOfferingTableStartDate(_previewTrackSkyTimeZone);
     final firstDay = kOfferingTableDays.first;
-    final lastDay = kOfferingTableDays.last;
     final firstSchedule = offeringTableScheduleForDate(
       firstDay,
       selectedStart,
-      _previewTrackSkyTimeZone,
-    );
-    final lastSchedule = offeringTableScheduleForDate(
-      lastDay,
-      selectedStart.add(Duration(days: lastDay.dayNumber - 1)),
       _previewTrackSkyTimeZone,
     );
     final firstTime = l10n.formatTimeOfDay(
@@ -8067,15 +7977,13 @@ class _MaatFlowTemplateDetailPageState
         minute: firstSchedule.startLocal.minute,
       ),
     );
-    final lastTime = l10n.formatTimeOfDay(
-      TimeOfDay(
-        hour: lastSchedule.startLocal.hour,
-        minute: lastSchedule.startLocal.minute,
-      ),
+    final initialPromptSlot = _buildCurrentInitialPromptSlot(
+      includeLeadingSeparator: false,
     );
 
     return _buildMaatFlowDetailScaffold(
       context,
+      appendInitialPrompt: false,
       joinButton: _buildTemplateStickyJoinButton(
         text: _offeringJoinInFlight ? 'Joining…' : 'Join Flow',
         onPressed: _offeringJoinInFlight
@@ -8086,24 +7994,15 @@ class _MaatFlowTemplateDetailPageState
         ..._buildMaatFlowOverviewZones(
           content: _detailContentForTemplate(overrideChips: null),
           tagline: kOfferingTableTagline,
+          initialPromptSlot: initialPromptSlot,
           extraOverviewNote: _buildMaatFlowNotice(kOfferingTableEnrollmentCopy),
           configurationControls: [
-            const _MaatFlowDetailSectionLabel('TIMEZONE'),
-            _buildTimezoneSelector(),
-            const SizedBox(height: 14),
-            Text(
-              'First sitting: ${_dateLabel(context, selectedStart)} at $firstTime. Final sitting: ${_dateLabel(context, lastSchedule.startLocal)} at $lastTime. Daily sitting defaults to 7:30 local and clamps to dawn if needed.',
-              style: const TextStyle(
-                color: MaatFlowPalette.silverMid,
-                fontFamily: MaatFlowListTokens.fontFamily,
-                fontFamilyFallback: MaatFlowListTokens.fontFallback,
-                fontSize: 14,
-                fontStyle: FontStyle.italic,
-                height: 1.35,
-              ),
+            _buildStartDateRow(
+              context,
+              selectedStart,
+              label:
+                  'Start: ${_dateLabel(context, selectedStart)} at $firstTime',
             ),
-            const SizedBox(height: 18),
-            _buildStartDateRow(context, selectedStart),
             const SizedBox(height: 28),
             const _MaatFlowDetailSectionLabel('LENS'),
             const Text(
@@ -8178,6 +8077,7 @@ class _MaatFlowTemplateDetailPageState
               .where((day) => day.section == section)
               .map((day) => _buildOfferingTableDayTile(context, day)),
         ],
+        const _MaatFlowPracticeDisclaimerFooter(),
       ],
     );
   }

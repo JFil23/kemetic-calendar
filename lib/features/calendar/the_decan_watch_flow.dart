@@ -8,7 +8,7 @@ const String kDecanWatchGlyph = '𓇼';
 const String kDecanWatchTagline =
     'The sky has been counting. Stand under it and add your count.';
 const String kDecanWatchOverview =
-    'At each decan boundary, go outside, look up, note one line about the sky, read the day card, and name one bearing for the next ten days. The Decan Watch is an ongoing night-sky rhythm, not a drift-repair flow.';
+    'The Decan Watch meets each ten-day boundary through honest sky witness. Outside, inside, clear, or clouded, the user records what the night allowed and names one bearing for the next ten days.';
 const String kDecanWatchConfidenceLabel =
     'Draws on ten-day decan observation and Kemetic astronomical practice.';
 const String kDecanWatchRequiredLine =

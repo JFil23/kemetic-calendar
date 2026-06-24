@@ -331,6 +331,242 @@ void main() {
     expect(find.byKey(kMaatFlowPracticeDisclaimerFooterKey), findsWidgets);
   });
 
+  testWidgets('core Ma’at details use the simplified high-entry layout', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(430, 1800);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    const bannedPlaceName =
+        'Egy'
+        'pt';
+    for (final detail in const <_CoreDetailLayoutCase>[
+      _CoreDetailLayoutCase(
+        key: 'track-the-sky',
+        prompt: 'What change are you watching above?',
+        shortDescription:
+            'Sky observation flow. Track visible sky events and keep one clear line of witness when the sky changes.',
+        fullDescriptionSnippet:
+            'Follow the Sky places major visible sky events',
+      ),
+      _CoreDetailLayoutCase(
+        key: 'the-weighing',
+        prompt: 'What needs to be placed on the scale?',
+        shortDescription:
+            'Reckoning practice. Put one material, spoken, or conduct record on the scale and name one correction.',
+        fullDescriptionSnippet:
+            'The Weighing is a thirty-day Ma’at reckoning flow',
+      ),
+      _CoreDetailLayoutCase(
+        key: 'the-offering-table',
+        prompt: 'What was fed?',
+        shortDescription:
+            'Provision ritual. Begin with water, then feed what needs food, rest, or care.',
+        fullDescriptionSnippet:
+            'The Offering Table is a thirty-day provision flow',
+      ),
+      _CoreDetailLayoutCase(
+        key: 'the-tending',
+        prompt: 'What care needs to become specific?',
+        shortDescription:
+            'Specific care practice. Name who or what needs tending and complete one concrete act of care.',
+        fullDescriptionSnippet: 'The Tending is a thirty-day care flow',
+      ),
+      _CoreDetailLayoutCase(
+        key: 'the-kept-word',
+        prompt: 'What word or agreement needs attention?',
+        shortDescription:
+            'Agreement practice. Name one word, repair, or conversation that needs clearer order.',
+        fullDescriptionSnippet: 'The Kept Word is a thirty-day agreement flow',
+      ),
+      _CoreDetailLayoutCase(
+        key: 'the-course',
+        prompt: 'What action fits this hour?',
+        shortDescription:
+            'Time-orientation practice. Locate yourself in the day, decan, and season, then choose one fitting action.',
+        fullDescriptionSnippet:
+            'The Course is a thirty-day time-orientation flow',
+      ),
+      _CoreDetailLayoutCase(
+        key: 'the-moon-return',
+        prompt: 'What do you set down?',
+        shortDescription:
+            'Lunar release and return practice. Set something down at the new moon and notice what fills at the full.',
+        fullDescriptionSnippet:
+            'The Moon Return follows the lunar rhythm of emptying and fullness',
+      ),
+      _CoreDetailLayoutCase(
+        key: 'the-wag',
+        prompt: 'What gift, memory, or legacy will you carry?',
+        shortDescription:
+            'Ancestor remembrance cycle. Keep the table, carry a gift or memory, and return with what remains.',
+        fullDescriptionSnippet: 'The Wag is an annual Kemetic ancestor flow',
+      ),
+      _CoreDetailLayoutCase(
+        key: 'the-decan-watch',
+        prompt: 'What did the sky show?',
+        shortDescription:
+            'Night-sky boundary practice. Watch the decan opening honestly and carry one bearing into the next ten days.',
+        fullDescriptionSnippet: 'The Decan Watch meets each ten-day boundary',
+      ),
+      _CoreDetailLayoutCase(
+        key: 'the-days-outside-the-year',
+        prompt: 'What threshold are you crossing?',
+        shortDescription:
+            'Year-threshold practice. Close the old year, receive the outside days, and open Wep Ronpet cleanly.',
+        fullDescriptionSnippet:
+            'The Days Outside the Year is an annual threshold flow',
+      ),
+      _CoreDetailLayoutCase(
+        key: 'the-open-hand',
+        prompt: 'What need are you willing to meet?',
+        shortDescription:
+            'Outward provision practice. Meet one visible need with time, care, skill, resource, or protection.',
+        fullDescriptionSnippet:
+            'The Open Hand is a thirty-day outward provision flow',
+      ),
+      _CoreDetailLayoutCase(
+        key: 'the-djed',
+        prompt: 'What must stand upright?',
+        shortDescription:
+            'Stability practice. Name what must stand upright and restore one load-bearing part of life.',
+        fullDescriptionSnippet: 'The Djed is a thirty-day stability flow',
+      ),
+    ]) {
+      await tester.pumpWidget(const SizedBox.shrink());
+      await tester.pump();
+      await _pumpTemplateDetail(tester, detail.key);
+
+      expect(find.text(detail.shortDescription), findsOneWidget);
+      expect(find.text(detail.prompt), findsOneWidget);
+      expect(find.text('TIMEZONE'), findsNothing, reason: detail.key);
+      expect(find.text('PREVIEW TIMEZONE'), findsNothing, reason: detail.key);
+      expect(find.textContaining('Estimated from'), findsNothing);
+      expect(find.textContaining('Choose your U.S. timezone'), findsNothing);
+
+      final promptTop = tester
+          .getTopLeft(find.byKey(kMaatFlowInitialPromptSectionKey))
+          .dy;
+      final arcTop = tester.getTopLeft(find.text('THREE-DECAN ARC')).dy;
+      expect(promptTop, lessThan(arcTop), reason: detail.key);
+
+      expect(
+        tester
+            .widget<AnimatedCrossFade>(find.byType(AnimatedCrossFade))
+            .crossFadeState,
+        CrossFadeState.showFirst,
+        reason: detail.key,
+      );
+
+      await tester.ensureVisible(find.text('FULL DESCRIPTION'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('FULL DESCRIPTION'));
+      await tester.pumpAndSettle();
+
+      expect(
+        find.textContaining(detail.fullDescriptionSnippet),
+        findsOneWidget,
+      );
+      expect(find.textContaining(bannedPlaceName), findsNothing);
+    }
+  });
+
+  test('core Ma’at detail footer notes stay below outlines', () {
+    final detailSource = File(
+      'lib/features/calendar/calendar_maat_flows.dart',
+    ).readAsStringSync();
+
+    for (final order in const <_CoreFooterOrderCase>[
+      _CoreFooterOrderCase(
+        start: 'Widget _buildTrackSkyScaffold',
+        end: 'Widget _buildDawnHouseRiteDayTile',
+        outlineMarker: '_buildMaatFlowOverviewZones',
+        footerMarker: '_MaatFlowPracticeDisclaimerFooter',
+      ),
+      _CoreFooterOrderCase(
+        start: 'Widget _buildTheWeighingScaffold',
+        end: 'Widget _buildTheTendingEventTile',
+        outlineMarker: 'kTheWeighingEvents.map',
+        footerMarker: '_MaatFlowPrivacyFooter',
+      ),
+      _CoreFooterOrderCase(
+        start: 'Widget _buildTheTendingScaffold',
+        end: 'Widget _buildKeptWordEventTile',
+        outlineMarker: 'kTheTendingEvents.map',
+        footerMarker: '_MaatFlowPrivacyFooter',
+      ),
+      _CoreFooterOrderCase(
+        start: 'Widget _buildKeptWordScaffold',
+        end: 'Widget _buildCourseEventTile',
+        outlineMarker: 'kKeptWordEvents.map',
+        footerMarker: '_MaatFlowPrivacyFooter',
+      ),
+      _CoreFooterOrderCase(
+        start: 'Widget _buildWagScaffold',
+        end: 'Widget _buildDecanWatchScaffold',
+        outlineMarker: 'kWagEvents.map',
+        footerMarker: '_MaatFlowPrivacyFooter',
+      ),
+      _CoreFooterOrderCase(
+        start: 'Widget _buildDecanWatchScaffold',
+        end: 'Widget _buildOpenHandEventTile',
+        outlineMarker: 'preview.map',
+        footerMarker: '_MaatFlowPrivacyFooter',
+      ),
+      _CoreFooterOrderCase(
+        start: 'Widget _buildOpenHandScaffold',
+        end: 'DjedEnrollmentWindow? _resolveDjedPreviewWindow',
+        outlineMarker: 'kOpenHandEvents.map',
+        footerMarker: '_MaatFlowPrivacyFooter',
+      ),
+      _CoreFooterOrderCase(
+        start: 'Widget _buildDjedScaffold',
+        end:
+            'DaysOutsideYearEnrollmentWindow? _resolveDaysOutsideYearPreviewWindow',
+        outlineMarker: 'kDjedEvents.map',
+        footerMarker: '_MaatFlowPrivacyFooter',
+      ),
+      _CoreFooterOrderCase(
+        start: 'Widget _buildDaysOutsideYearScaffold',
+        end: 'Widget _buildMoonReturnScaffold',
+        outlineMarker: 'kDaysOutsideEvents.map',
+        footerMarker: '_MaatFlowPrivacyFooter',
+      ),
+      _CoreFooterOrderCase(
+        start: 'Widget _buildMoonReturnScaffold',
+        end: 'Widget _buildCourseScaffold',
+        outlineMarker: 'preview.map',
+        footerMarker: '_MaatFlowPrivacyFooter',
+      ),
+      _CoreFooterOrderCase(
+        start: 'Widget _buildCourseScaffold',
+        end: 'Widget _buildOfferingTableDayTile',
+        outlineMarker: 'kTheCourseEvents.map',
+        footerMarker: '_MaatFlowPracticeDisclaimerFooter',
+      ),
+      _CoreFooterOrderCase(
+        start: 'Widget _buildOfferingTableScaffold',
+        end: 'Widget _buildSequenceScaffold',
+        outlineMarker: 'kOfferingTableDays',
+        footerMarker: '_MaatFlowPracticeDisclaimerFooter',
+      ),
+    ]) {
+      final scaffold = _sourceBetween(
+        detailSource,
+        start: order.start,
+        end: order.end,
+      );
+      final outlineIndex = scaffold.indexOf(order.outlineMarker);
+      final footerIndex = scaffold.indexOf(order.footerMarker);
+
+      expect(outlineIndex, isNonNegative, reason: order.start);
+      expect(footerIndex, isNonNegative, reason: order.start);
+      expect(footerIndex, greaterThan(outlineIndex), reason: order.start);
+    }
+  });
+
   testWidgets('legacy Evening Threshold remains separate from Closing layout', (
     tester,
   ) async {
@@ -459,6 +695,34 @@ void main() {
     expect(changeHandler, isNot(contains('onWriteJournalResponse')));
     expect(journalSource, isNot(contains('MaatFlowInitialPrompt')));
   });
+}
+
+class _CoreDetailLayoutCase {
+  const _CoreDetailLayoutCase({
+    required this.key,
+    required this.prompt,
+    required this.shortDescription,
+    required this.fullDescriptionSnippet,
+  });
+
+  final String key;
+  final String prompt;
+  final String shortDescription;
+  final String fullDescriptionSnippet;
+}
+
+class _CoreFooterOrderCase {
+  const _CoreFooterOrderCase({
+    required this.start,
+    required this.end,
+    required this.outlineMarker,
+    required this.footerMarker,
+  });
+
+  final String start;
+  final String end;
+  final String outlineMarker;
+  final String footerMarker;
 }
 
 Future<void> _pumpTemplateDetail(

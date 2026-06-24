@@ -12,7 +12,7 @@ Universal Tips (apply to every event):
 * Dark-sky spots: Use Joshua Tree, Anza-Borrego, eastern Sierra/high desert, Oregon/Washington dark-sky areas, or any rural site away from coastal city light domes.
 * Naked eye for 90% of these; binoculars add magic for planets/moon details.
 * Safety: Eclipse glasses ONLY for solar events.
-* Kemetic note: Ancient Egyptians tracked these for the 365-day calendar, Nile floods, and festivals tied to Sirius, equinox balance, and lunar cycles.
+* Kemetic note: Ancient Kemetic observers tracked these for the 365-day calendar, Nile floods, and festivals tied to Sirius, equinox balance, and lunar cycles.
 
 **Timezone accuracy note:** Exact astronomical instants are converted to PT. Visibility, rise/set, altitude, and horizon direction still depend on your exact city, especially for eclipses and low-horizon planets.
 
@@ -47,7 +47,7 @@ Universal Lunar Tips (apply to every event):
 * Use Stellarium or SkySafari (set to PT) for exact rise/set and altitude.
 * Dark skies best (Joshua Tree or Anza-Borrego for max brightness/color). Binoculars reveal subtle red tones in eclipses or surface details.
 * No equipment needed for any of these — just clear eastern/western horizon.
-* Kemetic note: Ancient Egyptians used full moons and eclipses for festival timing, ritual offerings, and tracking seasonal Nile cycles (lunar calendar synced with solar/Sirius events).
+* Kemetic note: Ancient Kemetic observers used full moons and eclipses for festival timing, ritual offerings, and tracking seasonal Nile cycles (lunar calendar synced with solar/Sirius events).
 
 | Event | Exact PT Date & Time | Scientific Breakdown | What You'll See & How to Track | Best Viewing Practices for PT | Rarity / Significance / Kemetic Tie | Notes |
 |---|---:|---|---|---|---|---|
@@ -84,7 +84,7 @@ Universal Meteor Tips (apply to every event):
 * Lie flat on a reclining chair or blanket, face the radiant direction, and let your eyes dark-adapt for 20–30 minutes (no phone screens or white flashlights — use red light only).
 * Dark skies are everything in PT: light pollution cuts rates dramatically. Drive 45–90 minutes to Joshua Tree, Anza-Borrego, or high desert spots for 5–10× more meteors. Binoculars optional for faint trains.
 * Track your personal “hourly rate” by counting every 15 minutes — fun way to compare to the predicted zenithal hourly rate (ZHR).
-* Kemetic note: Ancient Egyptians were master sky observers but focused more on fixed stars/planets than fleeting meteors. Falling stars were sometimes interpreted as divine messages or “tears of the gods,” adding to their ritual sky-watching tradition alongside Sirius and lunar cycles.
+* Kemetic note: Ancient Kemetic observers were master sky observers but focused more on fixed stars/planets than fleeting meteors. Falling stars were sometimes interpreted as divine messages or “tears of the gods,” adding to their ritual sky-watching tradition alongside Sirius and lunar cycles.
 
 | Event | Exact PT Date & Time | Scientific Breakdown | What You'll See & How to Track | Best Viewing Practices for PT | Rarity / Significance / Kemetic Tie | Notes |
 |---|---:|---|---|---|---|---|
@@ -109,8 +109,8 @@ Here’s the exact same depth and style as the Solar, Lunar, and Meteor grids �
 Universal Planetary Tips (apply to every event):
 * Naked eye for the brightest planets (they outshine stars); binoculars or a small telescope reveal moons, rings, or cloud bands.
 * Best in dark skies: Use Joshua Tree, Anza-Borrego, eastern Sierra/high desert, Oregon/Washington dark-sky areas, or any rural site away from coastal city light domes.
-* Track nightly motion — planets “wander” against the fixed stars over days/weeks (the reason ancient Egyptians called them “wandering stars”). Use Stellarium or SkySafari (set to PT) for exact rise/set and altitude.
-* Kemetic note: Ancient Egyptians tracked planets as gods (e.g., Jupiter as Horus, Venus as a form of Isis/Hathor) for omens, temple alignments, and calendar syncing. They recorded positions on papyri and used them alongside Sirius and the Moon for festival timing.
+* Track nightly motion — planets “wander” against the fixed stars over days/weeks (the reason ancient Kemetic observers called them “wandering stars”). Use Stellarium or SkySafari (set to PT) for exact rise/set and altitude.
+* Kemetic note: Ancient Kemetic observers tracked planets as gods (e.g., Jupiter as Horus, Venus as a form of Isis/Hathor) for omens, temple alignments, and calendar syncing. They recorded positions on papyri and used them alongside Sirius and the Moon for festival timing.
 
 | Event | Exact PT Date & Time | Scientific Breakdown | What You'll See & How to Track | Best Viewing Practices for PT | Rarity / Significance / Kemetic Tie | Notes |
 |---|---:|---|---|---|---|---|
@@ -144,7 +144,7 @@ These planetary events were the “wandering stars” that guided ancient sky-wa
 10. **Extension added:** Feb 6, 2027 solar eclipse non-visible in PT; Jan 22 and Feb 20, 2027 full moons; Quadrantids; Venus/Jupiter/Mars/Mercury 2027 planetary highlights; Mar 20, 2027 spring equinox.
 
 
-**Source note:** Built from the corrected Pacific master chart, then converted by U.S. timezone and adapted for non-city-specific visibility. Eclipse visibility remains location-specific.
+**Source note:** Built from the corrected Pacific master chart, then converted by regional timezone and adapted for non-city-specific visibility. Eclipse visibility remains location-specific.
 ''',
       TrackSkyTimeZone.mountain: r'''
 # 2026–March 20, 2027 Sky Events Grid for U.S. Mountain Time (MT)
@@ -156,7 +156,7 @@ Universal Tips (apply to every event):
 * Dark-sky spots: Use high desert and mountain dark-sky areas — examples include rural Utah, Colorado plateau sites, Wyoming/Montana open sky, northern Arizona, New Mexico, and other high-elevation locations away from city light.
 * Naked eye for 90% of these; binoculars add magic for planets/moon details.
 * Safety: Eclipse glasses ONLY for solar events.
-* Kemetic note: Ancient Egyptians tracked these for the 365-day calendar, Nile floods, and festivals tied to Sirius, equinox balance, and lunar cycles.
+* Kemetic note: Ancient Kemetic observers tracked these for the 365-day calendar, Nile floods, and festivals tied to Sirius, equinox balance, and lunar cycles.
 
 **Timezone accuracy note:** Exact astronomical instants are converted to MT. Visibility, rise/set, altitude, and horizon direction still depend on your exact city, especially for eclipses and low-horizon planets.
 
@@ -191,7 +191,7 @@ Universal Lunar Tips (apply to every event):
 * Use Stellarium or SkySafari (set to MT) for exact rise/set and altitude.
 * Dark skies best (Joshua Tree or Anza-Borrego for max brightness/color). Binoculars reveal subtle red tones in eclipses or surface details.
 * No equipment needed for any of these — just clear eastern/western horizon.
-* Kemetic note: Ancient Egyptians used full moons and eclipses for festival timing, ritual offerings, and tracking seasonal Nile cycles (lunar calendar synced with solar/Sirius events).
+* Kemetic note: Ancient Kemetic observers used full moons and eclipses for festival timing, ritual offerings, and tracking seasonal Nile cycles (lunar calendar synced with solar/Sirius events).
 
 | Event | Exact MT Date & Time | Scientific Breakdown | What You'll See & How to Track | Best Viewing Practices for MT | Rarity / Significance / Kemetic Tie | Notes |
 |---|---:|---|---|---|---|---|
@@ -228,7 +228,7 @@ Universal Meteor Tips (apply to every event):
 * Lie flat on a reclining chair or blanket, face the radiant direction, and let your eyes dark-adapt for 20–30 minutes (no phone screens or white flashlights — use red light only).
 * Dark skies are everything in MT: light pollution cuts rates dramatically. Drive 45–90 minutes to Joshua Tree, Anza-Borrego, or high desert spots for 5–10× more meteors. Binoculars optional for faint trains.
 * Track your personal “hourly rate” by counting every 15 minutes — fun way to compare to the predicted zenithal hourly rate (ZHR).
-* Kemetic note: Ancient Egyptians were master sky observers but focused more on fixed stars/planets than fleeting meteors. Falling stars were sometimes interpreted as divine messages or “tears of the gods,” adding to their ritual sky-watching tradition alongside Sirius and lunar cycles.
+* Kemetic note: Ancient Kemetic observers were master sky observers but focused more on fixed stars/planets than fleeting meteors. Falling stars were sometimes interpreted as divine messages or “tears of the gods,” adding to their ritual sky-watching tradition alongside Sirius and lunar cycles.
 
 | Event | Exact MT Date & Time | Scientific Breakdown | What You'll See & How to Track | Best Viewing Practices for MT | Rarity / Significance / Kemetic Tie | Notes |
 |---|---:|---|---|---|---|---|
@@ -253,8 +253,8 @@ Here’s the exact same depth and style as the Solar, Lunar, and Meteor grids �
 Universal Planetary Tips (apply to every event):
 * Naked eye for the brightest planets (they outshine stars); binoculars or a small telescope reveal moons, rings, or cloud bands.
 * Best in dark skies: Use high desert and mountain dark-sky areas — examples include rural Utah, Colorado plateau sites, Wyoming/Montana open sky, northern Arizona, New Mexico, and other high-elevation locations away from city light.
-* Track nightly motion — planets “wander” against the fixed stars over days/weeks (the reason ancient Egyptians called them “wandering stars”). Use Stellarium or SkySafari (set to MT) for exact rise/set and altitude.
-* Kemetic note: Ancient Egyptians tracked planets as gods (e.g., Jupiter as Horus, Venus as a form of Isis/Hathor) for omens, temple alignments, and calendar syncing. They recorded positions on papyri and used them alongside Sirius and the Moon for festival timing.
+* Track nightly motion — planets “wander” against the fixed stars over days/weeks (the reason ancient Kemetic observers called them “wandering stars”). Use Stellarium or SkySafari (set to MT) for exact rise/set and altitude.
+* Kemetic note: Ancient Kemetic observers tracked planets as gods (e.g., Jupiter as Horus, Venus as a form of Isis/Hathor) for omens, temple alignments, and calendar syncing. They recorded positions on papyri and used them alongside Sirius and the Moon for festival timing.
 
 | Event | Exact MT Date & Time | Scientific Breakdown | What You'll See & How to Track | Best Viewing Practices for MT | Rarity / Significance / Kemetic Tie | Notes |
 |---|---:|---|---|---|---|---|
@@ -288,7 +288,7 @@ These planetary events were the “wandering stars” that guided ancient sky-wa
 10. **Extension added:** Feb 6, 2027 solar eclipse non-visible in MT; Jan 22 and Feb 20, 2027 full moons; Quadrantids; Venus/Jupiter/Mars/Mercury 2027 planetary highlights; Mar 20, 2027 spring equinox.
 
 
-**Source note:** Built from the corrected Pacific master chart, then converted by U.S. timezone and adapted for non-city-specific visibility. Eclipse visibility remains location-specific.
+**Source note:** Built from the corrected Pacific master chart, then converted by regional timezone and adapted for non-city-specific visibility. Eclipse visibility remains location-specific.
 ''',
       TrackSkyTimeZone.central: r'''
 # 2026–March 20, 2027 Sky Events Grid for U.S. Central Time (CT)
@@ -300,7 +300,7 @@ Universal Tips (apply to every event):
 * Dark-sky spots: Use rural horizons far from city light domes — examples include Big Bend/West Texas, Ozarks dark-sky areas, Great Plains sites, lake-country rural parks, or any open dark site away from major metros.
 * Naked eye for 90% of these; binoculars add magic for planets/moon details.
 * Safety: Eclipse glasses ONLY for solar events.
-* Kemetic note: Ancient Egyptians tracked these for the 365-day calendar, Nile floods, and festivals tied to Sirius, equinox balance, and lunar cycles.
+* Kemetic note: Ancient Kemetic observers tracked these for the 365-day calendar, Nile floods, and festivals tied to Sirius, equinox balance, and lunar cycles.
 
 **Timezone accuracy note:** Exact astronomical instants are converted to CT. Visibility, rise/set, altitude, and horizon direction still depend on your exact city, especially for eclipses and low-horizon planets.
 
@@ -335,7 +335,7 @@ Universal Lunar Tips (apply to every event):
 * Use Stellarium or SkySafari (set to CT) for exact rise/set and altitude.
 * Dark skies best (Joshua Tree or Anza-Borrego for max brightness/color). Binoculars reveal subtle red tones in eclipses or surface details.
 * No equipment needed for any of these — just clear eastern/western horizon.
-* Kemetic note: Ancient Egyptians used full moons and eclipses for festival timing, ritual offerings, and tracking seasonal Nile cycles (lunar calendar synced with solar/Sirius events).
+* Kemetic note: Ancient Kemetic observers used full moons and eclipses for festival timing, ritual offerings, and tracking seasonal Nile cycles (lunar calendar synced with solar/Sirius events).
 
 | Event | Exact CT Date & Time | Scientific Breakdown | What You'll See & How to Track | Best Viewing Practices for CT | Rarity / Significance / Kemetic Tie | Notes |
 |---|---:|---|---|---|---|---|
@@ -372,7 +372,7 @@ Universal Meteor Tips (apply to every event):
 * Lie flat on a reclining chair or blanket, face the radiant direction, and let your eyes dark-adapt for 20–30 minutes (no phone screens or white flashlights — use red light only).
 * Dark skies are everything in CT: light pollution cuts rates dramatically. Drive 45–90 minutes to Joshua Tree, Anza-Borrego, or high desert spots for 5–10× more meteors. Binoculars optional for faint trains.
 * Track your personal “hourly rate” by counting every 15 minutes — fun way to compare to the predicted zenithal hourly rate (ZHR).
-* Kemetic note: Ancient Egyptians were master sky observers but focused more on fixed stars/planets than fleeting meteors. Falling stars were sometimes interpreted as divine messages or “tears of the gods,” adding to their ritual sky-watching tradition alongside Sirius and lunar cycles.
+* Kemetic note: Ancient Kemetic observers were master sky observers but focused more on fixed stars/planets than fleeting meteors. Falling stars were sometimes interpreted as divine messages or “tears of the gods,” adding to their ritual sky-watching tradition alongside Sirius and lunar cycles.
 
 | Event | Exact CT Date & Time | Scientific Breakdown | What You'll See & How to Track | Best Viewing Practices for CT | Rarity / Significance / Kemetic Tie | Notes |
 |---|---:|---|---|---|---|---|
@@ -397,8 +397,8 @@ Here’s the exact same depth and style as the Solar, Lunar, and Meteor grids �
 Universal Planetary Tips (apply to every event):
 * Naked eye for the brightest planets (they outshine stars); binoculars or a small telescope reveal moons, rings, or cloud bands.
 * Best in dark skies: Use rural horizons far from city light domes — examples include Big Bend/West Texas, Ozarks dark-sky areas, Great Plains sites, lake-country rural parks, or any open dark site away from major metros.
-* Track nightly motion — planets “wander” against the fixed stars over days/weeks (the reason ancient Egyptians called them “wandering stars”). Use Stellarium or SkySafari (set to CT) for exact rise/set and altitude.
-* Kemetic note: Ancient Egyptians tracked planets as gods (e.g., Jupiter as Horus, Venus as a form of Isis/Hathor) for omens, temple alignments, and calendar syncing. They recorded positions on papyri and used them alongside Sirius and the Moon for festival timing.
+* Track nightly motion — planets “wander” against the fixed stars over days/weeks (the reason ancient Kemetic observers called them “wandering stars”). Use Stellarium or SkySafari (set to CT) for exact rise/set and altitude.
+* Kemetic note: Ancient Kemetic observers tracked planets as gods (e.g., Jupiter as Horus, Venus as a form of Isis/Hathor) for omens, temple alignments, and calendar syncing. They recorded positions on papyri and used them alongside Sirius and the Moon for festival timing.
 
 | Event | Exact CT Date & Time | Scientific Breakdown | What You'll See & How to Track | Best Viewing Practices for CT | Rarity / Significance / Kemetic Tie | Notes |
 |---|---:|---|---|---|---|---|
@@ -432,7 +432,7 @@ These planetary events were the “wandering stars” that guided ancient sky-wa
 10. **Extension added:** Feb 6, 2027 solar eclipse non-visible in CT; Jan 22 and Feb 20, 2027 full moons; Quadrantids; Venus/Jupiter/Mars/Mercury 2027 planetary highlights; Mar 20, 2027 spring equinox.
 
 
-**Source note:** Built from the corrected Pacific master chart, then converted by U.S. timezone and adapted for non-city-specific visibility. Eclipse visibility remains location-specific.
+**Source note:** Built from the corrected Pacific master chart, then converted by regional timezone and adapted for non-city-specific visibility. Eclipse visibility remains location-specific.
 ''',
       TrackSkyTimeZone.eastern: r'''
 # 2026–March 20, 2027 Sky Events Grid for U.S. Eastern Time (ET)
@@ -444,7 +444,7 @@ Universal Tips (apply to every event):
 * Dark-sky spots: Use local dark-sky parks and rural horizons — examples include Cherry Springs, the Adirondacks/Catskills, Shenandoah/Blue Ridge areas, Maine coastal dark-sky areas, or any rural site away from major city light domes.
 * Naked eye for 90% of these; binoculars add magic for planets/moon details.
 * Safety: Eclipse glasses ONLY for solar events.
-* Kemetic note: Ancient Egyptians tracked these for the 365-day calendar, Nile floods, and festivals tied to Sirius, equinox balance, and lunar cycles.
+* Kemetic note: Ancient Kemetic observers tracked these for the 365-day calendar, Nile floods, and festivals tied to Sirius, equinox balance, and lunar cycles.
 
 **Timezone accuracy note:** Exact astronomical instants are converted to ET. Visibility, rise/set, altitude, and horizon direction still depend on your exact city, especially for eclipses and low-horizon planets.
 
@@ -479,7 +479,7 @@ Universal Lunar Tips (apply to every event):
 * Use Stellarium or SkySafari (set to ET) for exact rise/set and altitude.
 * Dark skies best (Joshua Tree or Anza-Borrego for max brightness/color). Binoculars reveal subtle red tones in eclipses or surface details.
 * No equipment needed for any of these — just clear eastern/western horizon.
-* Kemetic note: Ancient Egyptians used full moons and eclipses for festival timing, ritual offerings, and tracking seasonal Nile cycles (lunar calendar synced with solar/Sirius events).
+* Kemetic note: Ancient Kemetic observers used full moons and eclipses for festival timing, ritual offerings, and tracking seasonal Nile cycles (lunar calendar synced with solar/Sirius events).
 
 | Event | Exact ET Date & Time | Scientific Breakdown | What You'll See & How to Track | Best Viewing Practices for ET | Rarity / Significance / Kemetic Tie | Notes |
 |---|---:|---|---|---|---|---|
@@ -516,7 +516,7 @@ Universal Meteor Tips (apply to every event):
 * Lie flat on a reclining chair or blanket, face the radiant direction, and let your eyes dark-adapt for 20–30 minutes (no phone screens or white flashlights — use red light only).
 * Dark skies are everything in ET: light pollution cuts rates dramatically. Drive 45–90 minutes to Joshua Tree, Anza-Borrego, or high desert spots for 5–10× more meteors. Binoculars optional for faint trains.
 * Track your personal “hourly rate” by counting every 15 minutes — fun way to compare to the predicted zenithal hourly rate (ZHR).
-* Kemetic note: Ancient Egyptians were master sky observers but focused more on fixed stars/planets than fleeting meteors. Falling stars were sometimes interpreted as divine messages or “tears of the gods,” adding to their ritual sky-watching tradition alongside Sirius and lunar cycles.
+* Kemetic note: Ancient Kemetic observers were master sky observers but focused more on fixed stars/planets than fleeting meteors. Falling stars were sometimes interpreted as divine messages or “tears of the gods,” adding to their ritual sky-watching tradition alongside Sirius and lunar cycles.
 
 | Event | Exact ET Date & Time | Scientific Breakdown | What You'll See & How to Track | Best Viewing Practices for ET | Rarity / Significance / Kemetic Tie | Notes |
 |---|---:|---|---|---|---|---|
@@ -541,8 +541,8 @@ Here’s the exact same depth and style as the Solar, Lunar, and Meteor grids �
 Universal Planetary Tips (apply to every event):
 * Naked eye for the brightest planets (they outshine stars); binoculars or a small telescope reveal moons, rings, or cloud bands.
 * Best in dark skies: Use local dark-sky parks and rural horizons — examples include Cherry Springs, the Adirondacks/Catskills, Shenandoah/Blue Ridge areas, Maine coastal dark-sky areas, or any rural site away from major city light domes.
-* Track nightly motion — planets “wander” against the fixed stars over days/weeks (the reason ancient Egyptians called them “wandering stars”). Use Stellarium or SkySafari (set to ET) for exact rise/set and altitude.
-* Kemetic note: Ancient Egyptians tracked planets as gods (e.g., Jupiter as Horus, Venus as a form of Isis/Hathor) for omens, temple alignments, and calendar syncing. They recorded positions on papyri and used them alongside Sirius and the Moon for festival timing.
+* Track nightly motion — planets “wander” against the fixed stars over days/weeks (the reason ancient Kemetic observers called them “wandering stars”). Use Stellarium or SkySafari (set to ET) for exact rise/set and altitude.
+* Kemetic note: Ancient Kemetic observers tracked planets as gods (e.g., Jupiter as Horus, Venus as a form of Isis/Hathor) for omens, temple alignments, and calendar syncing. They recorded positions on papyri and used them alongside Sirius and the Moon for festival timing.
 
 | Event | Exact ET Date & Time | Scientific Breakdown | What You'll See & How to Track | Best Viewing Practices for ET | Rarity / Significance / Kemetic Tie | Notes |
 |---|---:|---|---|---|---|---|
@@ -576,6 +576,6 @@ These planetary events were the “wandering stars” that guided ancient sky-wa
 10. **Extension added:** Feb 6, 2027 solar eclipse non-visible in ET; Jan 22 and Feb 20, 2027 full moons; Quadrantids; Venus/Jupiter/Mars/Mercury 2027 planetary highlights; Mar 20, 2027 spring equinox.
 
 
-**Source note:** Built from the corrected Pacific master chart, then converted by U.S. timezone and adapted for non-city-specific visibility. Eclipse visibility remains location-specific.
+**Source note:** Built from the corrected Pacific master chart, then converted by regional timezone and adapted for non-city-specific visibility. Eclipse visibility remains location-specific.
 ''',
     };

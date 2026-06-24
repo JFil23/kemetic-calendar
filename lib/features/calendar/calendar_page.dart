@@ -3113,7 +3113,7 @@ final List<_MaatFlowTemplate> _kMaatFlowTemplates = [
     key: 'track-the-sky',
     title: 'Follow the sky',
     overview:
-        'A Ma\'at flow for skywatching in season. Choose your U.S. timezone and the remaining equinoxes, lunar events, meteor peaks, and planetary highlights through March 20, 2027 will be placed on your calendar with clear guidance on when to step outside, where to look, and what change to keep.',
+        'Follow the Sky places major visible sky events on the calendar with simple witness prompts. Step outside when you can, notice what changed above you, and keep one clear line of observation in Kemetic time.',
     subtitle: 'Sky · Track the year\'s astronomical events in Kemetic time',
     glyph: '𓇯',
     glyphMeaning: 'Sky and heavens',

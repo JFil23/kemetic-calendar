@@ -16,9 +16,7 @@ const int kTheWeighingEveningFallbackMinutes =
     kEveningThresholdDefaultFallbackMinutes + 20;
 
 const String kTheWeighingOverview =
-    'Three times per decan, put material, spoken, and conduct records on a scale so the gap between reality and self-story cannot widen into Isfet. '
-    'The Weighing is a low-burden thirty-day Ma\'at flow with nine sittings: Material Ledger, Spoken Record, and Record You Leave. '
-    'It is not a budgeting app, guilt loop, confession, therapy, priestly simulation, or altar requirement; it is a practice of honest witness.';
+    'The Weighing is a thirty-day Ma’at reckoning flow with nine sittings across material records, spoken records, and conduct. It asks the user to place one real thing on the scale, name one gap, and choose one correction without turning the practice into shame, confession, or self-punishment.';
 
 enum TheWeighingTimingSlot { openMorning, checkMidday, sealEvening }
 
