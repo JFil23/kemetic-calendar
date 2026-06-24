@@ -194,7 +194,7 @@ void main() {
     }
   });
 
-  testWidgets('arc sits between description and prompt with room', (
+  testWidgets('full description sits above arc and prompt with room', (
     tester,
   ) async {
     tester.view.physicalSize = const Size(430, 1600);
@@ -211,6 +211,12 @@ void main() {
           ),
         )
         .dy;
+    final fullDescriptionTop = tester
+        .getTopLeft(find.text('FULL DESCRIPTION'))
+        .dy;
+    final fullDescriptionBottom = tester
+        .getBottomLeft(find.text('FULL DESCRIPTION'))
+        .dy;
     final arcTop = tester.getTopLeft(find.text('THREE-DECAN ARC')).dy;
     final arcBottom = tester
         .getBottomLeft(find.textContaining('Fuel and recovery'))
@@ -219,51 +225,62 @@ void main() {
         .getTopLeft(find.byKey(kMaatFlowInitialPromptSectionKey))
         .dy;
 
-    expect(arcTop, greaterThan(descriptionBottom));
-    expect(arcTop - descriptionBottom, greaterThanOrEqualTo(20));
+    expect(fullDescriptionTop, greaterThan(descriptionBottom));
+    expect(fullDescriptionTop - descriptionBottom, greaterThanOrEqualTo(20));
+    expect(arcTop, greaterThan(fullDescriptionBottom));
+    expect(arcTop - fullDescriptionBottom, greaterThanOrEqualTo(20));
     expect(promptTop, greaterThan(arcBottom));
     expect(promptTop - arcBottom, greaterThanOrEqualTo(20));
   });
 
-  test('arc moves above prompt and old lower slot collapses', () {
-    final detailSource = File(
-      'lib/features/calendar/calendar_maat_flows.dart',
-    ).readAsStringSync();
-    final overviewBuilder = _sourceBetween(
-      detailSource,
-      start: 'List<Widget> _buildMaatFlowOverviewZones',
-      end: 'Widget _buildMaatFlowDetailHero',
-    );
+  test(
+    'full description stays above arc and old lower slot stays reserved',
+    () {
+      final detailSource = File(
+        'lib/features/calendar/calendar_maat_flows.dart',
+      ).readAsStringSync();
+      final overviewBuilder = _sourceBetween(
+        detailSource,
+        start: 'List<Widget> _buildMaatFlowOverviewZones',
+        end: 'Widget _buildMaatFlowDetailHero',
+      );
 
-    final fullDescriptionIndex = overviewBuilder.indexOf(
-      '_buildFullDescriptionToggle(widget.template.overview)',
-    );
-    final arcIndex = overviewBuilder.indexOf(
-      "const _MaatFlowDetailSectionLabel('THREE-DECAN ARC')",
-    );
-    final promptIndex = overviewBuilder.indexOf('initialPromptSlot,', arcIndex);
-    final controlsIndex = overviewBuilder.indexOf('...configurationControls,');
-    final reservedSlotIndex = overviewBuilder.indexOf(
-      'const SizedBox(height: _fullDescriptionFormerSlotHeight)',
-    );
-
-    expect(fullDescriptionIndex, isNonNegative);
-    expect(arcIndex, isNonNegative);
-    expect(promptIndex, isNonNegative);
-    expect(controlsIndex, isNonNegative);
-    expect(reservedSlotIndex, isNonNegative);
-    expect(
-      overviewBuilder.indexOf(
+      final fullDescriptionIndex = overviewBuilder.indexOf(
+        '_buildFullDescriptionToggle(widget.template.overview)',
+      );
+      final arcIndex = overviewBuilder.indexOf(
         "const _MaatFlowDetailSectionLabel('THREE-DECAN ARC')",
-        arcIndex + 1,
-      ),
-      isNegative,
-    );
-    expect(arcIndex, lessThan(promptIndex));
-    expect(promptIndex, lessThan(fullDescriptionIndex));
-    expect(fullDescriptionIndex, lessThan(controlsIndex));
-    expect(reservedSlotIndex, greaterThan(controlsIndex));
-  });
+      );
+      final promptIndex = overviewBuilder.indexOf(
+        'initialPromptSlot,',
+        arcIndex,
+      );
+      final controlsIndex = overviewBuilder.indexOf(
+        '...configurationControls,',
+      );
+      final reservedSlotIndex = overviewBuilder.indexOf(
+        'const SizedBox(height: _fullDescriptionFormerSlotHeight)',
+      );
+
+      expect(fullDescriptionIndex, isNonNegative);
+      expect(arcIndex, isNonNegative);
+      expect(promptIndex, isNonNegative);
+      expect(controlsIndex, isNonNegative);
+      expect(reservedSlotIndex, isNonNegative);
+      expect(
+        overviewBuilder.indexOf(
+          "const _MaatFlowDetailSectionLabel('THREE-DECAN ARC')",
+          arcIndex + 1,
+        ),
+        isNegative,
+      );
+      expect(fullDescriptionIndex, lessThan(arcIndex));
+      expect(arcIndex, lessThan(promptIndex));
+      expect(promptIndex, lessThan(controlsIndex));
+      expect(fullDescriptionIndex, lessThan(controlsIndex));
+      expect(reservedSlotIndex, greaterThan(controlsIndex));
+    },
+  );
 
   testWidgets('Dawn House discreet explainer opens from info bubble only', (
     tester,
