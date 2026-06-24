@@ -6328,18 +6328,6 @@ class _MaatFlowTemplateDetailPageState
             ),
             const SizedBox(height: 28),
             const _MaatFlowDetailSectionLabel('LENS'),
-            const Text(
-              'A lens adds a short emphasis to each day’s guidance. It does not change the dawn times, duration, or thirty-day sequence.',
-              style: TextStyle(
-                color: MaatFlowPalette.silverLo,
-                fontFamily: MaatFlowListTokens.fontFamily,
-                fontFamilyFallback: MaatFlowListTokens.fontFallback,
-                fontSize: 13,
-                fontStyle: FontStyle.italic,
-                height: 1.35,
-              ),
-            ),
-            const SizedBox(height: 10),
             _buildDetailChoiceChips<DawnHouseRiteLens>(
               values: DawnHouseRiteLens.values,
               selectedValue: _dawnLens,
@@ -6631,18 +6619,6 @@ class _MaatFlowTemplateDetailPageState
             ),
             const SizedBox(height: 28),
             const _MaatFlowDetailSectionLabel('LENS'),
-            const Text(
-              'A lens adds a short emphasis to each evening’s guidance. It does not change the sunset timing, duration, fallback time, or thirty-day sequence.',
-              style: TextStyle(
-                color: MaatFlowPalette.silverLo,
-                fontFamily: MaatFlowListTokens.fontFamily,
-                fontFamilyFallback: MaatFlowListTokens.fontFallback,
-                fontSize: 13,
-                fontStyle: FontStyle.italic,
-                height: 1.35,
-              ),
-            ),
-            const SizedBox(height: 10),
             _buildDetailChoiceChips<EveningThresholdRiteLens>(
               values: EveningThresholdRiteLens.values,
               selectedValue: _eveningLens,
@@ -6826,18 +6802,6 @@ class _MaatFlowTemplateDetailPageState
             ),
             const SizedBox(height: 28),
             const _MaatFlowDetailSectionLabel('LENS'),
-            const Text(
-              'A lens adds one short framing line. It does not change the nine sittings, timing, or completion states.',
-              style: TextStyle(
-                color: MaatFlowPalette.silverLo,
-                fontFamily: MaatFlowListTokens.fontFamily,
-                fontFamilyFallback: MaatFlowListTokens.fontFallback,
-                fontSize: 13,
-                fontStyle: FontStyle.italic,
-                height: 1.35,
-              ),
-            ),
-            const SizedBox(height: 10),
             _buildDetailChoiceChips<TheTendingLens>(
               values: TheTendingLens.values,
               selectedValue: _theTendingLens,
@@ -6926,18 +6890,6 @@ class _MaatFlowTemplateDetailPageState
             ),
             const SizedBox(height: 28),
             const _MaatFlowDetailSectionLabel('LENS'),
-            const Text(
-              'A lens adds one short framing line. It does not change the nine sittings, timing, or completion states.',
-              style: TextStyle(
-                color: MaatFlowPalette.silverLo,
-                fontFamily: MaatFlowListTokens.fontFamily,
-                fontFamilyFallback: MaatFlowListTokens.fontFallback,
-                fontSize: 13,
-                fontStyle: FontStyle.italic,
-                height: 1.35,
-              ),
-            ),
-            const SizedBox(height: 10),
             _buildDetailChoiceChips<KeptWordLens>(
               values: KeptWordLens.values,
               selectedValue: _keptWordLens,
@@ -7120,18 +7072,6 @@ class _MaatFlowTemplateDetailPageState
             _buildWindowStartRow(context, window.opensAtLocal),
             const SizedBox(height: 28),
             const _MaatFlowDetailSectionLabel('LENS'),
-            const Text(
-              'A lens adds one short framing line. It does not change the annual dates or completion states.',
-              style: TextStyle(
-                color: MaatFlowPalette.silverLo,
-                fontFamily: MaatFlowListTokens.fontFamily,
-                fontFamilyFallback: MaatFlowListTokens.fontFallback,
-                fontSize: 13,
-                fontStyle: FontStyle.italic,
-                height: 1.35,
-              ),
-            ),
-            const SizedBox(height: 10),
             _buildDetailChoiceChips<WagLens>(
               values: WagLens.values,
               selectedValue: _wagLens,
@@ -7243,18 +7183,6 @@ class _MaatFlowTemplateDetailPageState
             _buildWindowStartRow(context, window.opensAtLocal),
             const SizedBox(height: 28),
             const _MaatFlowDetailSectionLabel('LENS'),
-            const Text(
-              'A lens adds one short framing line. It does not change the decan boundary, outdoor requirement, or completion states.',
-              style: TextStyle(
-                color: MaatFlowPalette.silverLo,
-                fontFamily: MaatFlowListTokens.fontFamily,
-                fontFamilyFallback: MaatFlowListTokens.fontFallback,
-                fontSize: 13,
-                fontStyle: FontStyle.italic,
-                height: 1.35,
-              ),
-            ),
-            const SizedBox(height: 10),
             _buildDetailChoiceChips<DecanWatchLens>(
               values: DecanWatchLens.values,
               selectedValue: _decanWatchLens,
@@ -7875,12 +7803,6 @@ class _MaatFlowTemplateDetailPageState
             _buildWindowStartRow(context, window.opensAtLocal),
             const SizedBox(height: 18),
             const _MaatFlowDetailSectionLabel('LENS'),
-            _buildMaatFlowDetailText(
-              'A lens adds one short framing line. It does not change the lunar timing or observed/skipped completion.',
-              color: MaatFlowPalette.silverLo,
-              fontSize: 13,
-            ),
-            const SizedBox(height: 10),
             _buildDetailChoiceChips<MoonReturnLens>(
               values: MoonReturnLens.values,
               selectedValue: _moonReturnLens,
@@ -7965,18 +7887,6 @@ class _MaatFlowTemplateDetailPageState
             ),
             const SizedBox(height: 28),
             const _MaatFlowDetailSectionLabel('LENS'),
-            const Text(
-              'A lens adds one short framing line. It does not change day-card use, timing, or completion states.',
-              style: TextStyle(
-                color: MaatFlowPalette.silverLo,
-                fontFamily: MaatFlowListTokens.fontFamily,
-                fontFamilyFallback: MaatFlowListTokens.fontFallback,
-                fontSize: 13,
-                fontStyle: FontStyle.italic,
-                height: 1.35,
-              ),
-            ),
-            const SizedBox(height: 10),
             _buildDetailChoiceChips<CourseLens>(
               values: CourseLens.values,
               selectedValue: _courseLens,
@@ -8071,18 +7981,6 @@ class _MaatFlowTemplateDetailPageState
             ),
             const SizedBox(height: 28),
             const _MaatFlowDetailSectionLabel('LENS'),
-            const Text(
-              'A lens adds one short framing line. It does not change the thirty sittings, timing, or completion states.',
-              style: TextStyle(
-                color: MaatFlowPalette.silverLo,
-                fontFamily: MaatFlowListTokens.fontFamily,
-                fontFamilyFallback: MaatFlowListTokens.fontFallback,
-                fontSize: 13,
-                fontStyle: FontStyle.italic,
-                height: 1.35,
-              ),
-            ),
-            const SizedBox(height: 10),
             _buildDetailChoiceChips<OfferingTableLens>(
               values: OfferingTableLens.values,
               selectedValue: _offeringTableLens,

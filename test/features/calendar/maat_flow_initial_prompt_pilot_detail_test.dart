@@ -303,6 +303,45 @@ void main() {
     expect(infoGlyph, contains('width: 1.15'));
   });
 
+  test('lens pickers omit static explainer copy above chips', () {
+    final source = File(
+      'lib/features/calendar/calendar_maat_flows.dart',
+    ).readAsStringSync();
+
+    expect(
+      source.split("const _MaatFlowDetailSectionLabel('LENS')").length - 1,
+      12,
+    );
+    expect(source, isNot(contains('A lens adds')));
+    expect(source, isNot(contains('It does not change')));
+
+    for (final marker in const <String>[
+      '_buildDetailChoiceChips<DawnHouseRiteLens>',
+      '_buildDetailChoiceChips<EveningThresholdRiteLens>',
+      '_buildDetailChoiceChips<TheWeighingLens>',
+      '_buildDetailChoiceChips<TheTendingLens>',
+      '_buildDetailChoiceChips<KeptWordLens>',
+      '_buildDetailChoiceChips<WagLens>',
+      '_buildDetailChoiceChips<DecanWatchLens>',
+      '_buildDetailChoiceChips<OpenHandLens>',
+      '_buildDetailChoiceChips<DjedLens>',
+      '_buildDetailChoiceChips<MoonReturnLens>',
+      '_buildDetailChoiceChips<CourseLens>',
+      '_buildDetailChoiceChips<OfferingTableLens>',
+    ]) {
+      final index = source.indexOf(marker);
+      expect(index, isNonNegative, reason: marker);
+      final previousLensLabel = source.lastIndexOf(
+        "const _MaatFlowDetailSectionLabel('LENS')",
+        index,
+      );
+      expect(previousLensLabel, isNonNegative, reason: marker);
+      final copyBetween = source.substring(previousLensLabel, index);
+      expect(copyBetween, isNot(contains('_buildMaatFlowDetailText(')));
+      expect(copyBetween, isNot(contains('const Text(')));
+    }
+  });
+
   testWidgets(
     'The Closing full description is collapsed, shorter, and Kemetic',
     (tester) async {
