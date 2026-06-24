@@ -194,6 +194,62 @@ void main() {
     }
   });
 
+  testWidgets('full description sits between prompt and arc with room', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(430, 1600);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    await _pumpTemplateDetail(tester, 'the-offering-table');
+
+    final promptBottom = tester
+        .getBottomLeft(find.byKey(kMaatFlowInitialPromptSectionKey))
+        .dy;
+    final fullDescriptionTop = tester
+        .getTopLeft(find.text('FULL DESCRIPTION'))
+        .dy;
+    final fullDescriptionBottom = tester
+        .getBottomLeft(find.text('FULL DESCRIPTION'))
+        .dy;
+    final arcTop = tester.getTopLeft(find.text('THREE-DECAN ARC')).dy;
+
+    expect(fullDescriptionTop, greaterThan(promptBottom));
+    expect(fullDescriptionTop - promptBottom, greaterThanOrEqualTo(20));
+    expect(arcTop, greaterThan(fullDescriptionBottom));
+    expect(arcTop - fullDescriptionBottom, greaterThanOrEqualTo(20));
+  });
+
+  test('full description lower slot remains reserved after move', () {
+    final detailSource = File(
+      'lib/features/calendar/calendar_maat_flows.dart',
+    ).readAsStringSync();
+    final overviewBuilder = _sourceBetween(
+      detailSource,
+      start: 'List<Widget> _buildMaatFlowOverviewZones',
+      end: 'Widget _buildMaatFlowDetailHero',
+    );
+
+    final fullDescriptionIndex = overviewBuilder.indexOf(
+      '_buildFullDescriptionToggle(widget.template.overview)',
+    );
+    final arcIndex = overviewBuilder.indexOf(
+      "const _MaatFlowDetailSectionLabel('THREE-DECAN ARC')",
+    );
+    final controlsIndex = overviewBuilder.indexOf('...configurationControls,');
+    final reservedSlotIndex = overviewBuilder.indexOf(
+      'const SizedBox(height: _fullDescriptionFormerSlotHeight)',
+    );
+
+    expect(fullDescriptionIndex, isNonNegative);
+    expect(arcIndex, isNonNegative);
+    expect(controlsIndex, isNonNegative);
+    expect(reservedSlotIndex, isNonNegative);
+    expect(fullDescriptionIndex, lessThan(arcIndex));
+    expect(reservedSlotIndex, greaterThan(controlsIndex));
+  });
+
   testWidgets('Dawn House discreet explainer opens from info bubble only', (
     tester,
   ) async {

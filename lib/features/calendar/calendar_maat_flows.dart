@@ -1997,6 +1997,8 @@ class _MaatFlowArcChevron extends StatelessWidget {
 
 class _MaatFlowTemplateDetailPageState
     extends State<_MaatFlowTemplateDetailPage> {
+  static const double _fullDescriptionFormerSlotHeight = 66;
+
   late TrackSkyTimeZone _previewTrackSkyTimeZone;
   Future<TrackSkyFlowData>? _trackSkyFuture;
   bool _dawnDiscreetMode = false;
@@ -4587,18 +4589,21 @@ class _MaatFlowTemplateDetailPageState
       if (initialPromptSlot != null) ...[
         const SizedBox(height: 60),
         initialPromptSlot,
+        const SizedBox(height: 24),
       ],
       if (extraOverviewNote != null) ...[
         const SizedBox(height: 12),
         extraOverviewNote,
+        const SizedBox(height: 24),
       ],
+      _buildFullDescriptionToggle(widget.template.overview),
+      const SizedBox(height: 24),
       const _MaatFlowDetailSeparator(),
       const _MaatFlowDetailSectionLabel('THREE-DECAN ARC'),
       _buildMaatFlowArc(content.arcBlocks, palette: palette),
       const _MaatFlowDetailSeparator(),
       ...configurationControls,
-      const SizedBox(height: 22),
-      _buildFullDescriptionToggle(widget.template.overview),
+      const SizedBox(height: _fullDescriptionFormerSlotHeight),
     ];
   }
 
