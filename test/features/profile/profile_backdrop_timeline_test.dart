@@ -89,13 +89,13 @@ void main() {
     ).readAsStringSync();
     final tileSource = _methodSource(
       profileSource,
-      'Widget _buildFeedFlowTile(ProfileFeedItem item)',
-      'Widget _buildFeedInsightTile(ProfileFeedItem item)',
+      'Widget _buildFeedFlowTile(',
+      'Widget _buildFeedInsightTile(',
     );
     final expandedSource = _methodSource(
       profileSource,
-      'Widget _buildExpandedFlowDetailCard(FlowPost post)',
-      'Widget _buildExpandedInsightDetailCard(InsightPost post)',
+      'Widget _buildExpandedFlowDetailCard(',
+      'Widget _buildExpandedInsightDetailCard(',
     );
 
     expect(tileSource, contains('onTap: () => _expandFeedItem(item)'));

@@ -4,7 +4,9 @@ import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
+import 'package:mobile/core/daily_reflection_question.dart';
 import 'package:mobile/core/touch_targets.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../core/navigation_fallback.dart';
@@ -41,6 +43,7 @@ const Color _profileGregorianBlue = Color(0xFF4DA3FF);
 const Color _profileGregorianBlueLight = Color(0xFFBFE0FF);
 const int _profileFeedPageSize = 18;
 const double _profileFeedColumnGap = 12;
+const double _profileFeedTabsHeaderExtent = 64;
 const Set<String> _profileFeedKeywordStopWords = <String>{
   'a',
   'about',
@@ -142,6 +145,8 @@ const Gradient _profileGoldGradient = LinearGradient(
 const String _profileSerifFont = 'CormorantGaramond';
 const List<String> _profileSerifFallback = ['GentiumPlus', 'Georgia', 'serif'];
 
+enum _SocialFeedTab { todaysCommons, forYou }
+
 class ProfilePage extends StatefulWidget {
   final String userId;
   final bool isMyProfile;
@@ -188,6 +193,7 @@ class _ProfilePageState extends State<ProfilePage>
   bool _feedLoadingMore = false;
   bool _feedHasMore = true;
   String? _feedErrorMessage;
+  _SocialFeedTab _selectedFeedTab = _SocialFeedTab.todaysCommons;
   bool _showGregorianFeedDates = false;
   ProfileFeedItem? _expandedFeedItem;
   bool _feedCloseInFlight = false;
@@ -312,12 +318,16 @@ class _ProfilePageState extends State<ProfilePage>
     _pendingFeedScrollOffset = (state['feedScrollOffset'] as num?)?.toDouble();
     _pendingExpandedFeedIdentity = (state['expandedFeedItem'] as String?)
         ?.trim();
+    final rawFeedTab = (state['selectedFeedTab'] as String?)?.trim();
     final activePostIndex = (state['activePostIndex'] as num?)?.toInt();
     final activeInsightIndex = (state['activeInsightPostIndex'] as num?)
         ?.toInt();
 
     setState(() {
       _feedRevealed = feedRevealed;
+      _selectedFeedTab = rawFeedTab == _SocialFeedTab.forYou.name
+          ? _SocialFeedTab.forYou
+          : _SocialFeedTab.todaysCommons;
       _showGregorianFeedDates = state['showGregorianFeedDates'] == true;
       if (activePostIndex != null && activePostIndex >= 0) {
         _activePostIndex = activePostIndex;
@@ -336,7 +346,9 @@ class _ProfilePageState extends State<ProfilePage>
   }
 
   void _handleFeedScroll() {
-    _maybeLoadMoreFeed();
+    if (_selectedFeedTab == _SocialFeedTab.forYou) {
+      _maybeLoadMoreFeed();
+    }
     _scheduleContinuitySave();
   }
 
@@ -363,6 +375,7 @@ class _ProfilePageState extends State<ProfilePage>
           'userId': widget.userId,
           'isMyProfile': _isViewingOwnProfile,
           'feedRevealed': _feedRevealed,
+          'selectedFeedTab': _selectedFeedTab.name,
           'showGregorianFeedDates': _showGregorianFeedDates,
           'activePostIndex': _activePostIndex,
           'activeInsightPostIndex': _activeInsightPostIndex,
@@ -764,7 +777,7 @@ class _ProfilePageState extends State<ProfilePage>
     if (!_feedRevealed) {
       _maybeRevealFeedFromViewport();
     }
-    if (_feedRevealed) {
+    if (_feedRevealed && _selectedFeedTab == _SocialFeedTab.forYou) {
       _maybeLoadMoreFeed();
     }
     _scheduleContinuitySave();
@@ -795,7 +808,9 @@ class _ProfilePageState extends State<ProfilePage>
     unawaited(_markProfileCommunityHelperSeen());
     _scheduleContinuitySave();
     unawaited(_feedBloomController.forward(from: 0));
-    await _loadFeedPage(reset: true);
+    if (_feedItems.isEmpty && !_feedLoading) {
+      await _loadFeedPage(reset: true);
+    }
   }
 
   Future<void> _closeFeed() async {
@@ -952,6 +967,7 @@ class _ProfilePageState extends State<ProfilePage>
   }
 
   void _maybeLoadMoreFeed() {
+    if (_selectedFeedTab != _SocialFeedTab.forYou) return;
     if (!_feedRevealed || _feedLoading || _feedLoadingMore || !_feedHasMore) {
       return;
     }
@@ -995,6 +1011,17 @@ class _ProfilePageState extends State<ProfilePage>
         ),
       );
     }
+  }
+
+  Future<void> _openCommonsDiscoverItem(ProfileFeedItem item) async {
+    if (!_feedRevealed) return;
+    if (_selectedFeedTab != _SocialFeedTab.forYou) {
+      setState(() => _selectedFeedTab = _SocialFeedTab.forYou);
+      _scheduleContinuitySave();
+      await Future<void>.delayed(Duration.zero);
+      if (!mounted) return;
+    }
+    await _expandFeedItem(item);
   }
 
   void _collapseExpandedFeedItem() {
@@ -1490,17 +1517,28 @@ class _ProfilePageState extends State<ProfilePage>
             : _buildProfile(),
       ),
     );
+    final appBarBackground = _feedRevealed
+        ? const Color(0xFF000000)
+        : showBackdrop
+        ? Colors.transparent
+        : const Color(0xFF000000);
+    final appBarSystemOverlayStyle = _feedRevealed
+        ? SystemUiOverlayStyle.light.copyWith(
+            statusBarColor: const Color(0xFF000000),
+          )
+        : SystemUiOverlayStyle.light.copyWith(
+            statusBarColor: Colors.transparent,
+          );
 
     return Scaffold(
       backgroundColor: const Color(0xFF000000),
-      extendBodyBehindAppBar: showBackdrop,
+      extendBodyBehindAppBar: showBackdrop && !_feedRevealed,
       appBar: AppBar(
-        backgroundColor: showBackdrop
-            ? Colors.transparent
-            : const Color(0xFF000000),
+        backgroundColor: appBarBackground,
         elevation: 0,
         scrolledUnderElevation: 0,
         surfaceTintColor: Colors.transparent,
+        systemOverlayStyle: appBarSystemOverlayStyle,
         centerTitle: false,
         automaticallyImplyLeading: false,
         leading: IconButton(
@@ -1849,25 +1887,32 @@ class _ProfilePageState extends State<ProfilePage>
   }
 
   Widget _buildFeedMode() {
-    final topInset = MediaQuery.paddingOf(context).top + kToolbarHeight;
     const bottomPadding = 32.0;
 
     return NotificationListener<ScrollNotification>(
       onNotification: _handleFeedScrollNotification,
-      child: SingleChildScrollView(
+      child: CustomScrollView(
         controller: _feedScrollController,
         physics: const AlwaysScrollableScrollPhysics(
           parent: BouncingScrollPhysics(),
         ),
-        padding: EdgeInsets.fromLTRB(20, topInset + 18, 20, bottomPadding),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            _buildFeedHeader(),
-            const SizedBox(height: 18),
-            _buildFeedBloomPanel(),
-          ],
-        ),
+        slivers: [
+          SliverPadding(
+            padding: const EdgeInsets.fromLTRB(20, 24, 20, 0),
+            sliver: SliverToBoxAdapter(child: _buildFeedHeader()),
+          ),
+          SliverPersistentHeader(
+            pinned: true,
+            delegate: _ProfileFeedTabsHeaderDelegate(
+              extent: _profileFeedTabsHeaderExtent,
+              child: _buildPinnedSocialFeedTabs(),
+            ),
+          ),
+          SliverPadding(
+            padding: const EdgeInsets.fromLTRB(20, 18, 20, bottomPadding),
+            sliver: SliverToBoxAdapter(child: _buildFeedBloomPanel()),
+          ),
+        ],
       ),
     );
   }
@@ -2849,6 +2894,7 @@ class _ProfilePageState extends State<ProfilePage>
   }
 
   Widget _buildFeedHeader() {
+    final isCommons = _selectedFeedTab == _SocialFeedTab.todaysCommons;
     return AnimatedBuilder(
       animation: _feedBloomController,
       builder: (context, child) {
@@ -2866,12 +2912,14 @@ class _ProfilePageState extends State<ProfilePage>
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           _profileGoldTextWidget(
-            'Community Feed',
+            isCommons ? "Today's Commons" : 'For You',
             style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
           ),
           const SizedBox(height: 4),
           Text(
-            'Flows and insights from the people you follow, plus the wider field.',
+            isCommons
+                ? 'What practitioners are restoring today.'
+                : 'Flows and insights chosen for your rhythm.',
             style: TextStyle(
               color: Colors.white.withValues(alpha: 0.62),
               fontSize: 13,
@@ -2899,6 +2947,108 @@ class _ProfilePageState extends State<ProfilePage>
             ],
           ),
         ],
+      ),
+    );
+  }
+
+  Future<void> _selectFeedTab(_SocialFeedTab tab) async {
+    if (_selectedFeedTab == tab) return;
+    unawaited(AppHaptics.lightImpact(reason: 'profile_social_feed_tab'));
+    setState(() {
+      _selectedFeedTab = tab;
+      if (tab == _SocialFeedTab.todaysCommons) {
+        _expandedFeedItem = null;
+      }
+    });
+    _scheduleContinuitySave();
+    if (_feedItems.isEmpty && !_feedLoading) {
+      await _loadFeedPage(reset: true);
+    }
+  }
+
+  Widget _buildSocialFeedTabs() {
+    return Row(
+      children: [
+        Expanded(
+          child: _buildSocialFeedTabButton(
+            tab: _SocialFeedTab.todaysCommons,
+            label: "TODAY'S COMMONS",
+          ),
+        ),
+        const SizedBox(width: 18),
+        Expanded(
+          child: _buildSocialFeedTabButton(
+            tab: _SocialFeedTab.forYou,
+            label: 'FOR YOU',
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildPinnedSocialFeedTabs() {
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [
+            Colors.black.withValues(alpha: 0.34),
+            Colors.black.withValues(alpha: 0.16),
+          ],
+        ),
+        border: Border(
+          bottom: BorderSide(color: _profileGoldMid.withValues(alpha: 0.10)),
+        ),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 20),
+        child: Align(
+          alignment: Alignment.center,
+          child: _buildSocialFeedTabs(),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSocialFeedTabButton({
+    required _SocialFeedTab tab,
+    required String label,
+  }) {
+    final selected = _selectedFeedTab == tab;
+    final color = selected
+        ? _profileGoldText
+        : Colors.white.withValues(alpha: 0.52);
+    return InkWell(
+      borderRadius: BorderRadius.circular(8),
+      onTap: () => unawaited(_selectFeedTab(tab)),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 8),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              label,
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                color: color,
+                fontSize: 11,
+                fontWeight: FontWeight.w800,
+                letterSpacing: 1.6,
+              ),
+            ),
+            const SizedBox(height: 8),
+            AnimatedContainer(
+              duration: const Duration(milliseconds: 180),
+              height: 1.5,
+              width: selected ? 96 : 0,
+              decoration: BoxDecoration(
+                color: _profileGoldText.withValues(alpha: selected ? 0.9 : 0),
+                borderRadius: BorderRadius.circular(99),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -2961,13 +3111,13 @@ class _ProfilePageState extends State<ProfilePage>
         Container(
           padding: const EdgeInsets.fromLTRB(14, 16, 14, 12),
           decoration: BoxDecoration(
-            color: Colors.black.withValues(alpha: 0.26),
+            color: Colors.black.withValues(alpha: 0.18),
             borderRadius: BorderRadius.circular(26),
-            border: Border.all(color: _profileGoldMid.withValues(alpha: 0.26)),
+            border: Border.all(color: _profileGoldMid.withValues(alpha: 0.22)),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withValues(alpha: 0.34),
-                blurRadius: 24,
+                color: Colors.black.withValues(alpha: 0.24),
+                blurRadius: 22,
                 spreadRadius: 1,
                 offset: const Offset(0, 14),
               ),
@@ -2976,129 +3126,20 @@ class _ProfilePageState extends State<ProfilePage>
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              if (_feedLoading && _feedItems.isEmpty)
-                const Padding(
-                  padding: EdgeInsets.symmetric(vertical: 40),
-                  child: Center(
-                    child: CircularProgressIndicator(
-                      valueColor: AlwaysStoppedAnimation<Color>(
-                        _profileGoldMid,
+              AnimatedSwitcher(
+                duration: const Duration(milliseconds: 240),
+                switchInCurve: Curves.easeOutCubic,
+                switchOutCurve: Curves.easeInCubic,
+                child: _selectedFeedTab == _SocialFeedTab.todaysCommons
+                    ? KeyedSubtree(
+                        key: const ValueKey('todays_commons'),
+                        child: _buildTodaysCommonsView(),
+                      )
+                    : KeyedSubtree(
+                        key: const ValueKey('for_you_feed'),
+                        child: _buildForYouFeedView(),
                       ),
-                    ),
-                  ),
-                )
-              else if (_feedErrorMessage != null && _feedItems.isEmpty)
-                Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 28),
-                  child: Column(
-                    children: [
-                      Icon(
-                        Icons.error_outline_rounded,
-                        color: _profileGoldText.withValues(alpha: 0.72),
-                        size: 28,
-                      ),
-                      const SizedBox(height: 10),
-                      const Text(
-                        'Community Feed could not load',
-                        textAlign: TextAlign.center,
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 15,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                      const SizedBox(height: 6),
-                      Text(
-                        _feedErrorMessage!,
-                        textAlign: TextAlign.center,
-                        style: TextStyle(
-                          color: Colors.white.withValues(alpha: 0.58),
-                          fontSize: 13,
-                        ),
-                      ),
-                      const SizedBox(height: 14),
-                      OutlinedButton.icon(
-                        onPressed: _feedLoading
-                            ? null
-                            : () => unawaited(_loadFeedPage(reset: true)),
-                        icon: const Icon(Icons.refresh_rounded, size: 18),
-                        label: const Text('Try again'),
-                        style: OutlinedButton.styleFrom(
-                          foregroundColor: _profileGoldText,
-                          side: BorderSide(
-                            color: _profileGoldText.withValues(alpha: 0.74),
-                          ),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(999),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                )
-              else if (_feedItems.isEmpty)
-                Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 28),
-                  child: Column(
-                    children: [
-                      Icon(
-                        Icons.auto_awesome_motion_rounded,
-                        color: _profileGoldText.withValues(alpha: 0.72),
-                        size: 28,
-                      ),
-                      const SizedBox(height: 10),
-                      const Text(
-                        'No feed posts available yet',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 15,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                      const SizedBox(height: 6),
-                      Text(
-                        'As more flows and insights get posted, they will surface here.',
-                        textAlign: TextAlign.center,
-                        style: TextStyle(
-                          color: Colors.white.withValues(alpha: 0.58),
-                          fontSize: 13,
-                        ),
-                      ),
-                    ],
-                  ),
-                )
-              else
-                AnimatedSwitcher(
-                  duration: const Duration(milliseconds: 280),
-                  switchInCurve: Curves.easeOutCubic,
-                  switchOutCurve: Curves.easeInCubic,
-                  child: _expandedFeedItem == null
-                      ? KeyedSubtree(
-                          key: const ValueKey('feed_grid'),
-                          child: _buildFeedGrid(_feedItems),
-                        )
-                      : KeyedSubtree(
-                          key: ValueKey(
-                            'feed_expanded_${_feedItemIdentity(_expandedFeedItem!)}',
-                          ),
-                          child: _buildExpandedFeedView(_expandedFeedItem!),
-                        ),
-                ),
-              if (_feedLoadingMore) ...[
-                const SizedBox(height: 12),
-                const Center(
-                  child: SizedBox(
-                    width: 20,
-                    height: 20,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2.2,
-                      valueColor: AlwaysStoppedAnimation<Color>(
-                        _profileGoldMid,
-                      ),
-                    ),
-                  ),
-                ),
-              ],
+              ),
             ],
           ),
         ),
@@ -3124,6 +3165,929 @@ class _ProfilePageState extends State<ProfilePage>
       },
       child: panelChild,
     );
+  }
+
+  Widget _buildForYouFeedView() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        if (_feedLoading && _feedItems.isEmpty)
+          const Padding(
+            padding: EdgeInsets.symmetric(vertical: 40),
+            child: Center(
+              child: CircularProgressIndicator(
+                valueColor: AlwaysStoppedAnimation<Color>(_profileGoldMid),
+              ),
+            ),
+          )
+        else if (_feedErrorMessage != null && _feedItems.isEmpty)
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 28),
+            child: Column(
+              children: [
+                Icon(
+                  Icons.error_outline_rounded,
+                  color: _profileGoldText.withValues(alpha: 0.72),
+                  size: 28,
+                ),
+                const SizedBox(height: 10),
+                const Text(
+                  'For You could not load',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 15,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  _feedErrorMessage!,
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    color: Colors.white.withValues(alpha: 0.58),
+                    fontSize: 13,
+                  ),
+                ),
+                const SizedBox(height: 14),
+                OutlinedButton.icon(
+                  onPressed: _feedLoading
+                      ? null
+                      : () => unawaited(_loadFeedPage(reset: true)),
+                  icon: const Icon(Icons.refresh_rounded, size: 18),
+                  label: const Text('Try again'),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: _profileGoldText,
+                    side: BorderSide(
+                      color: _profileGoldText.withValues(alpha: 0.74),
+                    ),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(999),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          )
+        else if (_feedItems.isEmpty)
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 28),
+            child: Column(
+              children: [
+                Icon(
+                  Icons.auto_awesome_motion_rounded,
+                  color: _profileGoldText.withValues(alpha: 0.72),
+                  size: 28,
+                ),
+                const SizedBox(height: 10),
+                const Text(
+                  'No recommendations yet',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 15,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  'As more flows and insights get posted, they will surface here.',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    color: Colors.white.withValues(alpha: 0.58),
+                    fontSize: 13,
+                  ),
+                ),
+              ],
+            ),
+          )
+        else
+          AnimatedSwitcher(
+            duration: const Duration(milliseconds: 280),
+            switchInCurve: Curves.easeOutCubic,
+            switchOutCurve: Curves.easeInCubic,
+            child: _expandedFeedItem == null
+                ? KeyedSubtree(
+                    key: const ValueKey('for_you_grid'),
+                    child: _buildFeedGrid(_feedItems),
+                  )
+                : KeyedSubtree(
+                    key: ValueKey(
+                      'for_you_expanded_${_feedItemIdentity(_expandedFeedItem!)}',
+                    ),
+                    child: _buildExpandedFeedView(_expandedFeedItem!),
+                  ),
+          ),
+        if (_feedLoadingMore) ...[
+          const SizedBox(height: 12),
+          const Center(
+            child: SizedBox(
+              width: 20,
+              height: 20,
+              child: CircularProgressIndicator(
+                strokeWidth: 2.2,
+                valueColor: AlwaysStoppedAnimation<Color>(_profileGoldMid),
+              ),
+            ),
+          ),
+        ],
+      ],
+    );
+  }
+
+  Widget _buildTodaysCommonsView() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        _buildCommonsMasthead(),
+        _buildCommonsRhythmSection(),
+        _buildCommonsQuestionSection(),
+        _buildCommonsReflectionSection(),
+        _buildCommonsPracticeTogetherSection(),
+        _buildCommonsDiscoverSection(),
+        _buildCommonsEndBoundary(),
+      ],
+    );
+  }
+
+  String _plural(int count, String singular, [String? plural]) {
+    return count == 1 ? singular : plural ?? '${singular}s';
+  }
+
+  String _withoutWrappingQuotes(String value) {
+    var text = value.trim();
+    while (text.length >= 2) {
+      final first = text.characters.first;
+      final last = text.characters.last;
+      final wrapped =
+          (first == '"' && last == '"') ||
+          (first == "'" && last == "'") ||
+          (first == '“' && last == '”') ||
+          (first == '‘' && last == '’');
+      if (!wrapped) break;
+      text = text.substring(first.length, text.length - last.length).trim();
+    }
+    return text;
+  }
+
+  String _compactInsightText(String value, {int maxLength = 150}) {
+    final normalized = value.replaceAll(RegExp(r'\s+'), ' ').trim();
+    if (normalized.length <= maxLength) return normalized;
+    return '${normalized.substring(0, maxLength).trimRight()}...';
+  }
+
+  List<InsightPost> _commonsInsightFragments() {
+    final byId = <String, InsightPost>{};
+    for (final post in _insightPosts) {
+      if (post.bodyText.trim().isNotEmpty) {
+        byId[post.id] = post;
+      }
+    }
+    for (final item in _feedItems) {
+      if (item.kind != ProfileFeedItemKind.insight) continue;
+      final post = item.insightPost!;
+      if (post.bodyText.trim().isNotEmpty) {
+        byId.putIfAbsent(post.id, () => post);
+      }
+    }
+    final posts = byId.values.toList()
+      ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
+    return posts.take(3).toList(growable: false);
+  }
+
+  List<ProfileFeedItem> _commonsDiscoverItems() {
+    return _feedItems.take(3).toList(growable: false);
+  }
+
+  void _openJournalForCommonsQuestion() {
+    context.go('/journal');
+  }
+
+  void _openFlowsForCommons() {
+    context.go('/flows');
+  }
+
+  void _openCalendarsForCommons() {
+    context.go('/calendars');
+  }
+
+  Widget _buildCommonsRhythmSection() {
+    final profile = _profile;
+    final activeFlows = profile?.activeFlowsCount;
+    final flowEvents = profile?.totalFlowEventsCount;
+    final postedFlows = _posts.length;
+    final postedInsights = _insightPosts.length;
+    final ownerPrefix = _isViewingOwnProfile ? 'You have' : 'This profile has';
+
+    if (profile == null || _postsLoading || _insightPostsLoading) {
+      return _buildCommonsSection(
+        numeral: 'I',
+        title: "Today's Rhythm",
+        note: 'Community rollups are unavailable, so this uses profile data.',
+        children: [
+          _buildCommonsPulseRow(
+            count: '...',
+            text: 'your rhythm is loading from real profile data',
+            quiet: true,
+          ),
+        ],
+      );
+    }
+
+    return _buildCommonsSection(
+      numeral: 'I',
+      title: "Today's Rhythm",
+      note: 'Community rollups are unavailable, so this shows profile rhythm.',
+      children: [
+        _buildCommonsPulseRow(
+          count: (activeFlows ?? 0).toString(),
+          text:
+              '$ownerPrefix ${_plural(activeFlows ?? 0, 'active flow')} filed.',
+        ),
+        _buildCommonsPulseRow(
+          count: (flowEvents ?? 0).toString(),
+          text:
+              '${_plural(flowEvents ?? 0, 'flow event')} are on ${_isViewingOwnProfile ? 'your' : 'this'} path.',
+        ),
+        _buildCommonsPulseRow(
+          count: postedFlows.toString(),
+          text:
+              '${_plural(postedFlows, 'posted flow')} visible on this profile.',
+          quiet: postedFlows == 0,
+        ),
+        _buildCommonsPulseRow(
+          count: postedInsights.toString(),
+          text:
+              '${_plural(postedInsights, 'posted insight')} visible on this profile.',
+          quiet: postedInsights == 0,
+        ),
+      ],
+    );
+  }
+
+  Widget _buildCommonsMasthead() {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(8, 4, 8, 8),
+      child: Column(
+        children: [
+          Text(
+            '𓇳 𓏤 𓆄',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              color: _profileGoldText.withValues(alpha: 0.62),
+              fontSize: 16,
+              letterSpacing: 5,
+              height: 1.1,
+            ),
+          ),
+          const SizedBox(height: 12),
+          Text(
+            _formatPostDate(DateTime.now(), compact: true).toUpperCase(),
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              color: Colors.white.withValues(alpha: 0.42),
+              fontSize: 10,
+              fontWeight: FontWeight.w700,
+              letterSpacing: 1.8,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildCommonsSection({
+    required String numeral,
+    required String title,
+    String? note,
+    required List<Widget> children,
+  }) {
+    return Padding(
+      padding: const EdgeInsets.only(top: 28),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              SizedBox(
+                width: 24,
+                child: Text(
+                  numeral,
+                  style: TextStyle(
+                    color: _profileGoldText.withValues(alpha: 0.68),
+                    fontFamily: _profileSerifFont,
+                    fontFamilyFallback: _profileSerifFallback,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                    letterSpacing: 0.8,
+                  ),
+                ),
+              ),
+              Text(
+                title.toUpperCase(),
+                style: const TextStyle(
+                  color: _profileGoldText,
+                  fontSize: 11,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: 1.8,
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Container(
+                  height: 1,
+                  color: _profileGoldMid.withValues(alpha: 0.18),
+                ),
+              ),
+            ],
+          ),
+          if (note != null && note.trim().isNotEmpty) ...[
+            const SizedBox(height: 8),
+            Padding(
+              padding: const EdgeInsets.only(left: 28),
+              child: Text(
+                note,
+                style: TextStyle(
+                  color: Colors.white.withValues(alpha: 0.58),
+                  fontFamily: _profileSerifFont,
+                  fontFamilyFallback: _profileSerifFallback,
+                  fontStyle: FontStyle.italic,
+                  fontSize: 15,
+                  height: 1.32,
+                ),
+              ),
+            ),
+          ],
+          const SizedBox(height: 14),
+          ...children,
+        ],
+      ),
+    );
+  }
+
+  Widget _buildCommonsCard({
+    required Widget child,
+    EdgeInsetsGeometry padding = const EdgeInsets.all(16),
+    Color? borderColor,
+  }) {
+    return Container(
+      padding: padding,
+      decoration: BoxDecoration(
+        color: const Color(0xFF15110A).withValues(alpha: 0.66),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: borderColor ?? _profileGoldMid.withValues(alpha: 0.24),
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.16),
+            blurRadius: 16,
+            offset: const Offset(0, 10),
+          ),
+        ],
+      ),
+      child: child,
+    );
+  }
+
+  Widget _buildCommonsPulseRow({
+    required String count,
+    required String text,
+    bool quiet = false,
+  }) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 15),
+      decoration: BoxDecoration(
+        color: const Color(0xFF15110A).withValues(alpha: 0.62),
+        border: Border(
+          bottom: BorderSide(color: Colors.white.withValues(alpha: 0.08)),
+        ),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          SizedBox(
+            width: 62,
+            child: Text(
+              count,
+              textAlign: TextAlign.right,
+              style: TextStyle(
+                color: quiet
+                    ? Colors.white.withValues(alpha: 0.58)
+                    : _profileGoldText,
+                fontFamily: _profileSerifFont,
+                fontFamilyFallback: _profileSerifFallback,
+                fontSize: quiet ? 18 : 30,
+                fontWeight: quiet ? FontWeight.w500 : FontWeight.w700,
+                fontStyle: quiet ? FontStyle.italic : FontStyle.normal,
+                height: 1,
+              ),
+            ),
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Text(
+              text,
+              style: TextStyle(
+                color: Colors.white.withValues(alpha: 0.82),
+                fontFamily: _profileSerifFont,
+                fontFamilyFallback: _profileSerifFallback,
+                fontSize: 18,
+                height: 1.25,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildCommonsQuestionSection() {
+    final dailyQuestion = dailyReflectionQuestionForDate(DateTime.now());
+    final question = _withoutWrappingQuotes(dailyQuestion?.question ?? '');
+    final hasQuestion = question.isNotEmpty;
+    return _buildCommonsSection(
+      numeral: 'II',
+      title: 'Question of the Day',
+      children: [
+        _buildCommonsCard(
+          padding: const EdgeInsets.all(18),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Text(
+                hasQuestion
+                    ? 'FROM TODAY\'S DAILY REFLECTION'
+                    : 'DAILY REFLECTION',
+                style: TextStyle(
+                  color: _profileGoldText.withValues(alpha: 0.72),
+                  fontSize: 10,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: 1.7,
+                ),
+              ),
+              const SizedBox(height: 9),
+              Text(
+                hasQuestion
+                    ? question
+                    : 'No daily reflection question is available today.',
+                style: TextStyle(
+                  color: Colors.white.withValues(alpha: 0.9),
+                  fontFamily: _profileSerifFont,
+                  fontFamilyFallback: _profileSerifFallback,
+                  fontSize: 24,
+                  fontWeight: FontWeight.w600,
+                  height: 1.18,
+                ),
+              ),
+              const SizedBox(height: 16),
+              Container(
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(
+                  color: Colors.black.withValues(alpha: 0.16),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: _profileGoldMid.withValues(alpha: 0.20),
+                  ),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Text(
+                      'Answering in the commons is not enabled yet. For now, carry this privately in your journal.',
+                      style: TextStyle(
+                        color: Colors.white.withValues(alpha: 0.62),
+                        fontFamily: _profileSerifFont,
+                        fontFamilyFallback: _profileSerifFallback,
+                        fontStyle: FontStyle.italic,
+                        fontSize: 16,
+                        height: 1.28,
+                      ),
+                    ),
+                    const SizedBox(height: 14),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: [
+                        _buildCommonsCompactButton(
+                          'Answer privately',
+                          primary: true,
+                          onPressed: _openJournalForCommonsQuestion,
+                        ),
+                        _buildCommonsCompactButton(
+                          'Share publicly later',
+                          onPressed: () => _showCommonsActionSnack(
+                            'Public commons answers are not enabled yet.',
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildCommonsReflectionSection() {
+    final fragments = _commonsInsightFragments();
+    return _buildCommonsSection(
+      numeral: 'III',
+      title: 'Reflection Stream',
+      note: 'Fragments shared with consent. No counts, no acclaim.',
+      children: fragments.isEmpty
+          ? [
+              _buildCommonsEmptyState(
+                'No fragments have been shared today.',
+                'Private reflections stay private unless someone chooses to share a fragment.',
+              ),
+            ]
+          : [
+              for (var i = 0; i < fragments.length; i++) ...[
+                if (i > 0) const SizedBox(height: 12),
+                _buildCommonsFragment(fragments[i]),
+              ],
+            ],
+    );
+  }
+
+  Widget _buildCommonsFragment(InsightPost post) {
+    return _buildCommonsCard(
+      padding: const EdgeInsets.all(17),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Text(
+            '"${_compactInsightText(post.bodyText)}"',
+            style: TextStyle(
+              color: Colors.white.withValues(alpha: 0.86),
+              fontFamily: _profileSerifFont,
+              fontFamilyFallback: _profileSerifFallback,
+              fontStyle: FontStyle.italic,
+              fontSize: 19,
+              height: 1.34,
+            ),
+          ),
+          const SizedBox(height: 13),
+          Row(
+            children: [
+              Expanded(
+                child: Text.rich(
+                  TextSpan(
+                    text: '${post.authorLabel} · ',
+                    children: [
+                      TextSpan(
+                        text: post.nodeTitle,
+                        style: TextStyle(
+                          color: Colors.white.withValues(alpha: 0.62),
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ],
+                  ),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    color: Colors.white.withValues(alpha: 0.42),
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 10),
+              _buildCommonsCompactButton(
+                'Open',
+                onPressed: () => _openInsightPost(post),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildCommonsEmptyState(String title, String body) {
+    return _buildCommonsCard(
+      padding: const EdgeInsets.all(17),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Text(
+            title,
+            style: TextStyle(
+              color: Colors.white.withValues(alpha: 0.86),
+              fontFamily: _profileSerifFont,
+              fontFamilyFallback: _profileSerifFallback,
+              fontSize: 18,
+              fontWeight: FontWeight.w700,
+              height: 1.2,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            body,
+            style: TextStyle(
+              color: Colors.white.withValues(alpha: 0.58),
+              fontFamily: _profileSerifFont,
+              fontFamilyFallback: _profileSerifFallback,
+              fontStyle: FontStyle.italic,
+              fontSize: 15,
+              height: 1.32,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildCommonsPracticeTogetherSection() {
+    return _buildCommonsSection(
+      numeral: 'IV',
+      title: 'Practice Together',
+      children: [
+        _buildCommonsCard(
+          borderColor: _profileGoldMid.withValues(alpha: 0.28),
+          padding: EdgeInsets.zero,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(17, 17, 17, 8),
+                child: Text(
+                  'Add a Ma\'at flow to a shared calendar to keep it with others.',
+                  style: TextStyle(
+                    color: Colors.white.withValues(alpha: 0.84),
+                    fontFamily: _profileSerifFont,
+                    fontFamilyFallback: _profileSerifFallback,
+                    fontSize: 21,
+                    height: 1.25,
+                  ),
+                ),
+              ),
+              Container(
+                margin: const EdgeInsets.fromLTRB(14, 12, 14, 0),
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(
+                  color: Colors.black.withValues(alpha: 0.16),
+                  borderRadius: BorderRadius.circular(13),
+                  border: Border.all(
+                    color: _profileGoldMid.withValues(alpha: 0.18),
+                  ),
+                ),
+                child: Text(
+                  'Shared progress rooms are not active yet. Choose a real flow and shared calendar first; member status will appear here only after that backend is wired.',
+                  style: TextStyle(
+                    color: Colors.white.withValues(alpha: 0.62),
+                    fontFamily: _profileSerifFont,
+                    fontFamilyFallback: _profileSerifFallback,
+                    fontStyle: FontStyle.italic,
+                    fontSize: 15,
+                    height: 1.3,
+                  ),
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(14, 14, 14, 0),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: _buildCommonsCompactButton(
+                        'Choose flow',
+                        primary: true,
+                        onPressed: _openFlowsForCommons,
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: _buildCommonsCompactButton(
+                        'Choose calendar',
+                        onPressed: _openCalendarsForCommons,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(14, 10, 14, 16),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: _buildCommonsGhostButton(
+                        icon: Icons.add_rounded,
+                        label: 'Start shared flow',
+                        onPressed: () => _showCommonsActionSnack(
+                          'Start shared flow will activate after shared practice rooms are wired.',
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildCommonsDiscoverSection() {
+    final items = _commonsDiscoverItems();
+    return _buildCommonsSection(
+      numeral: 'V',
+      title: 'Discover Practices',
+      note: 'Finite real items from the same For You feed page.',
+      children: _feedLoading && _feedItems.isEmpty
+          ? [
+              _buildCommonsEmptyState(
+                'Discover practices are loading.',
+                'Today\'s Commons uses the same real feed data as For You.',
+              ),
+            ]
+          : items.isEmpty
+          ? [
+              _buildCommonsEmptyState(
+                'No discoverable practices yet.',
+                _feedErrorMessage ??
+                    'Follow practitioners or return after more public posts are available.',
+              ),
+            ]
+          : [
+              for (var i = 0; i < items.length; i++) ...[
+                if (i > 0) const SizedBox(height: 18),
+                _buildCommonsDiscoverExpandedBlock(items[i]),
+              ],
+            ],
+    );
+  }
+
+  Widget _buildCommonsDiscoverExpandedBlock(ProfileFeedItem item) {
+    // Commons Discover intentionally embeds the expanded For You block so
+    // decoded payloads, engagement, comments, and ownership actions stay shared.
+    return _buildExpandedFeedDetailCard(
+      item,
+      embeddedInScrollView: true,
+      onOpenInForYou: () => unawaited(_openCommonsDiscoverItem(item)),
+    );
+  }
+
+  Widget _buildCommonsEndBoundary() {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(18, 54, 18, 16),
+      child: Column(
+        children: [
+          Container(
+            width: 46,
+            height: 46,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              border: Border.all(
+                color: _profileGoldMid.withValues(alpha: 0.58),
+              ),
+            ),
+            child: Container(
+              width: 20,
+              height: 20,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: _profileGoldText.withValues(alpha: 0.9),
+              ),
+            ),
+          ),
+          const SizedBox(height: 22),
+          Text(
+            "You have seen today's commons.",
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              color: Colors.white.withValues(alpha: 0.88),
+              fontFamily: _profileSerifFont,
+              fontFamilyFallback: _profileSerifFallback,
+              fontSize: 25,
+              fontWeight: FontWeight.w600,
+              height: 1.24,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Return to practice.',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              color: _profileGoldText.withValues(alpha: 0.72),
+              fontFamily: _profileSerifFont,
+              fontFamilyFallback: _profileSerifFallback,
+              fontStyle: FontStyle.italic,
+              fontSize: 18,
+            ),
+          ),
+          const SizedBox(height: 24),
+          OutlinedButton(
+            onPressed: () => CalendarPage.openMainCalendarAtToday(context),
+            style: OutlinedButton.styleFrom(
+              foregroundColor: _profileGoldText,
+              side: BorderSide(color: _profileGoldText.withValues(alpha: 0.62)),
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 13),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+            ),
+            child: const Text(
+              'BACK TO MY DAY',
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w800,
+                letterSpacing: 1.2,
+              ),
+            ),
+          ),
+          const SizedBox(height: 26),
+          Text(
+            'THE COMMONS RENEWS AT DAWN',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              color: Colors.white.withValues(alpha: 0.36),
+              fontSize: 10,
+              fontWeight: FontWeight.w800,
+              letterSpacing: 1.8,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildCommonsCompactButton(
+    String label, {
+    bool primary = false,
+    required VoidCallback onPressed,
+  }) {
+    return OutlinedButton(
+      onPressed: onPressed,
+      style: OutlinedButton.styleFrom(
+        foregroundColor: primary
+            ? _profileGoldText
+            : Colors.white.withValues(alpha: 0.78),
+        backgroundColor: primary
+            ? _profileGoldMid.withValues(alpha: 0.12)
+            : Colors.transparent,
+        side: BorderSide(
+          color: primary
+              ? _profileGoldText.withValues(alpha: 0.48)
+              : _profileGoldMid.withValues(alpha: 0.2),
+        ),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        minimumSize: const Size(0, 36),
+        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+      ),
+      child: Text(
+        label,
+        textAlign: TextAlign.center,
+        style: const TextStyle(
+          fontSize: 12,
+          fontWeight: FontWeight.w800,
+          letterSpacing: 0.2,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildCommonsGhostButton({
+    required IconData icon,
+    required String label,
+    required VoidCallback onPressed,
+  }) {
+    return OutlinedButton.icon(
+      onPressed: onPressed,
+      icon: Icon(
+        icon,
+        size: 16,
+        color: _profileGoldText.withValues(alpha: 0.72),
+      ),
+      label: Text(
+        label,
+        textAlign: TextAlign.center,
+        maxLines: 2,
+        overflow: TextOverflow.ellipsis,
+      ),
+      style: OutlinedButton.styleFrom(
+        foregroundColor: Colors.white.withValues(alpha: 0.78),
+        side: BorderSide(color: _profileGoldMid.withValues(alpha: 0.2)),
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 12),
+        minimumSize: const Size(0, 42),
+        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(11)),
+        textStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
+      ),
+    );
+  }
+
+  void _showCommonsActionSnack(String message) {
+    ScaffoldMessenger.maybeOf(
+      context,
+    )?.showSnackBar(SnackBar(content: Text(message)));
   }
 
   Widget _buildFeedGrid(List<ProfileFeedItem> items) {
@@ -3197,7 +4161,7 @@ class _ProfilePageState extends State<ProfilePage>
       maxLines: 6,
       textDirection: direction,
     )..layout(maxWidth: math.max(0, cardWidth - 28));
-    return 214 + titlePainter.size.height;
+    return 264 + titlePainter.size.height;
   }
 
   double _estimateInsightFeedTileHeight(InsightPost post, double cardWidth) {
@@ -3376,6 +4340,10 @@ class _ProfilePageState extends State<ProfilePage>
               ),
             ),
             Padding(
+              padding: const EdgeInsets.fromLTRB(12, 0, 12, 8),
+              child: _buildForYouFlowTileActions(post, accent),
+            ),
+            Padding(
               padding: const EdgeInsets.fromLTRB(8, 0, 8, 4),
               child: FlowPostEngagementRow(
                 key: ValueKey('feed_${post.id}'),
@@ -3385,6 +4353,81 @@ class _ProfilePageState extends State<ProfilePage>
               ),
             ),
           ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildForYouFlowTileActions(FlowPost post, Color accent) {
+    return Row(
+      children: [
+        Expanded(
+          child: _buildForYouTileAction(
+            label: _ownsPost(post) ? 'Open' : 'Save',
+            accent: accent,
+            primary: true,
+            onPressed: _ownsPost(post)
+                ? () => _openFeedFlowPost(post)
+                : () => unawaited(_savePost(post)),
+          ),
+        ),
+        const SizedBox(width: 6),
+        Expanded(
+          child: _buildForYouTileAction(
+            label: 'Begin',
+            accent: accent,
+            onPressed: () => _showCommonsActionSnack(
+              'Begin Alone will activate a saved flow in a later phase.',
+            ),
+          ),
+        ),
+        const SizedBox(width: 6),
+        Expanded(
+          child: _buildForYouTileAction(
+            label: 'Together',
+            accent: accent,
+            onPressed: () => _showCommonsActionSnack(
+              'Practice Together will connect this flow to a shared calendar in a later phase.',
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildForYouTileAction({
+    required String label,
+    required Color accent,
+    required VoidCallback onPressed,
+    bool primary = false,
+  }) {
+    return OutlinedButton(
+      onPressed: onPressed,
+      style: OutlinedButton.styleFrom(
+        foregroundColor: primary
+            ? _profileGoldText
+            : Colors.white.withValues(alpha: 0.72),
+        backgroundColor: primary
+            ? accent.withValues(alpha: 0.12)
+            : Colors.transparent,
+        side: BorderSide(
+          color: primary
+              ? _profileGoldText.withValues(alpha: 0.42)
+              : _profileGoldMid.withValues(alpha: 0.18),
+        ),
+        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
+        minimumSize: const Size(0, 32),
+        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(9)),
+      ),
+      child: Text(
+        label,
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+        style: const TextStyle(
+          fontSize: 10,
+          fontWeight: FontWeight.w800,
+          letterSpacing: 0,
         ),
       ),
     );
@@ -3652,16 +4695,32 @@ class _ProfilePageState extends State<ProfilePage>
     return detailHeight.clamp(360.0, 556.0).toDouble();
   }
 
-  Widget _buildExpandedFeedDetailCard(ProfileFeedItem item) {
+  Widget _buildExpandedFeedDetailCard(
+    ProfileFeedItem item, {
+    bool embeddedInScrollView = false,
+    VoidCallback? onOpenInForYou,
+  }) {
     switch (item.kind) {
       case ProfileFeedItemKind.flow:
-        return _buildExpandedFlowDetailCard(item.flowPost!);
+        return _buildExpandedFlowDetailCard(
+          item.flowPost!,
+          embeddedInScrollView: embeddedInScrollView,
+          onOpenInForYou: onOpenInForYou,
+        );
       case ProfileFeedItemKind.insight:
-        return _buildExpandedInsightDetailCard(item.insightPost!);
+        return _buildExpandedInsightDetailCard(
+          item.insightPost!,
+          embeddedInScrollView: embeddedInScrollView,
+          onOpenInForYou: onOpenInForYou,
+        );
     }
   }
 
-  Widget _buildExpandedFlowDetailCard(FlowPost post) {
+  Widget _buildExpandedFlowDetailCard(
+    FlowPost post, {
+    bool embeddedInScrollView = false,
+    VoidCallback? onOpenInForYou,
+  }) {
     final accent = Color(0xFF000000 | (post.color & 0x00FFFFFF));
     final title = cleanFlowTitle(post.name);
     final meta = notesDecode(post.notes);
@@ -3673,7 +4732,13 @@ class _ProfilePageState extends State<ProfilePage>
     final events = _flowPayloadEvents(post);
 
     return _buildExpandedFeedCardShell(
-      key: ValueKey('expanded_flow_${post.id}'),
+      key: ValueKey(
+        embeddedInScrollView
+            ? 'commons_expanded_flow_${post.id}'
+            : 'expanded_flow_${post.id}',
+      ),
+      embeddedInScrollView: embeddedInScrollView,
+      onOpenInForYou: onOpenInForYou,
       topChip: Container(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
         decoration: BoxDecoration(
@@ -3829,16 +4894,36 @@ class _ProfilePageState extends State<ProfilePage>
                         ),
                       ),
                     )
-                  : TextButton.icon(
-                      onPressed: () => _savePost(post),
-                      icon: _profileGoldIcon(Icons.bookmark_add_outlined),
-                      label: _profileGoldTextWidget(
-                        'Save Flow',
-                        style: const TextStyle(
-                          fontSize: 15,
-                          fontWeight: FontWeight.w700,
+                  : Wrap(
+                      alignment: WrapAlignment.end,
+                      spacing: 8,
+                      runSpacing: 4,
+                      children: [
+                        TextButton.icon(
+                          onPressed: () => _savePost(post),
+                          icon: _profileGoldIcon(Icons.bookmark_add_outlined),
+                          label: _profileGoldTextWidget(
+                            'Save Flow',
+                            style: const TextStyle(
+                              fontSize: 15,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
                         ),
-                      ),
+                        TextButton.icon(
+                          onPressed: () => _showCommonsActionSnack(
+                            'Practice Together will connect this flow to a shared calendar in a later phase.',
+                          ),
+                          icon: _profileGoldIcon(Icons.groups_2_outlined),
+                          label: _profileGoldTextWidget(
+                            'Practice Together',
+                            style: const TextStyle(
+                              fontSize: 15,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
             ),
           ],
@@ -3847,12 +4932,22 @@ class _ProfilePageState extends State<ProfilePage>
     );
   }
 
-  Widget _buildExpandedInsightDetailCard(InsightPost post) {
+  Widget _buildExpandedInsightDetailCard(
+    InsightPost post, {
+    bool embeddedInScrollView = false,
+    VoidCallback? onOpenInForYou,
+  }) {
     final handle = post.authorHandle?.trim();
     final displayName = post.authorDisplayName?.trim();
 
     return _buildExpandedFeedCardShell(
-      key: ValueKey('expanded_insight_${post.id}'),
+      key: ValueKey(
+        embeddedInScrollView
+            ? 'commons_expanded_insight_${post.id}'
+            : 'expanded_insight_${post.id}',
+      ),
+      embeddedInScrollView: embeddedInScrollView,
+      onOpenInForYou: onOpenInForYou,
       topChip: Container(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
         decoration: BoxDecoration(
@@ -3970,7 +5065,20 @@ class _ProfilePageState extends State<ProfilePage>
     required Widget topChip,
     required Widget body,
     Widget? footer,
+    bool embeddedInScrollView = false,
+    VoidCallback? onOpenInForYou,
   }) {
+    final bodyContent = embeddedInScrollView
+        ? Padding(
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 18),
+            child: body,
+          )
+        : SingleChildScrollView(
+            physics: const BouncingScrollPhysics(),
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 18),
+            child: body,
+          );
+
     return Container(
       key: key,
       decoration: BoxDecoration(
@@ -3996,33 +5104,35 @@ class _ProfilePageState extends State<ProfilePage>
                 children: [
                   Expanded(child: topChip),
                   const SizedBox(width: 12),
-                  Material(
-                    color: Colors.black.withValues(alpha: 0.36),
-                    borderRadius: BorderRadius.circular(999),
-                    child: InkWell(
+                  if (!embeddedInScrollView || onOpenInForYou != null)
+                    Material(
+                      color: Colors.black.withValues(alpha: 0.36),
                       borderRadius: BorderRadius.circular(999),
-                      onTap: _collapseExpandedFeedItem,
-                      child: Padding(
-                        padding: const EdgeInsets.all(8),
-                        child: Icon(
-                          Icons.close_rounded,
-                          color: Colors.white.withValues(alpha: 0.88),
-                          size: 18,
+                      child: InkWell(
+                        borderRadius: BorderRadius.circular(999),
+                        onTap: embeddedInScrollView
+                            ? onOpenInForYou
+                            : _collapseExpandedFeedItem,
+                        child: Padding(
+                          padding: const EdgeInsets.all(8),
+                          child: Icon(
+                            embeddedInScrollView
+                                ? Icons.north_east_rounded
+                                : Icons.close_rounded,
+                            color: Colors.white.withValues(alpha: 0.88),
+                            size: 18,
+                          ),
                         ),
                       ),
                     ),
-                  ),
                 ],
               ),
             ),
             const SizedBox(height: 12),
-            Expanded(
-              child: SingleChildScrollView(
-                physics: const BouncingScrollPhysics(),
-                padding: const EdgeInsets.fromLTRB(16, 0, 16, 18),
-                child: body,
-              ),
-            ),
+            if (embeddedInScrollView)
+              bodyContent
+            else
+              Expanded(child: bodyContent),
             if (footer != null) ...[
               Divider(color: Colors.white.withValues(alpha: 0.08), height: 1),
               footer,
@@ -4775,6 +5885,16 @@ class _ProfilePageState extends State<ProfilePage>
     );
   }
 
+  void _openFeedFlowPost(FlowPost post) {
+    unawaited(
+      openDetailRoute<void>(
+        context,
+        '/flow-post/${Uri.encodeComponent(post.id)}',
+        extra: post,
+      ),
+    );
+  }
+
   void _openPostPicker() {
     unawaited(openDetailRoute<void>(context, '/profile/flow-post-picker'));
   }
@@ -4838,6 +5958,36 @@ class _ProfilePageState extends State<ProfilePage>
     if (_feedRevealed) {
       await _loadFeedPage(reset: true);
     }
+  }
+}
+
+class _ProfileFeedTabsHeaderDelegate extends SliverPersistentHeaderDelegate {
+  const _ProfileFeedTabsHeaderDelegate({
+    required this.extent,
+    required this.child,
+  });
+
+  final double extent;
+  final Widget child;
+
+  @override
+  double get minExtent => extent;
+
+  @override
+  double get maxExtent => extent;
+
+  @override
+  Widget build(
+    BuildContext context,
+    double shrinkOffset,
+    bool overlapsContent,
+  ) {
+    return SizedBox.expand(child: child);
+  }
+
+  @override
+  bool shouldRebuild(covariant _ProfileFeedTabsHeaderDelegate oldDelegate) {
+    return extent != oldDelegate.extent || child != oldDelegate.child;
   }
 }
 
