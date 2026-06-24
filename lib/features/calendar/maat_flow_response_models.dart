@@ -451,6 +451,27 @@ class MaatFlowResponseSpec {
   }
 }
 
+class MaatFlowInitialPromptSpec {
+  const MaatFlowInitialPromptSpec({
+    required this.flowKey,
+    required this.title,
+    this.subtitle = '',
+    this.enabled = true,
+    this.requiredBeforeJoin = false,
+    this.fields = const <MaatFlowResponseSpec>[],
+  }) : assert(flowKey.length > 0),
+       assert(title.length > 0);
+
+  final String flowKey;
+  final bool enabled;
+  final bool requiredBeforeJoin;
+  final String title;
+  final String subtitle;
+  final List<MaatFlowResponseSpec> fields;
+
+  bool get isRenderable => enabled && fields.isNotEmpty;
+}
+
 class MaatFlowResponseValue {
   const MaatFlowResponseValue({
     required this.specId,

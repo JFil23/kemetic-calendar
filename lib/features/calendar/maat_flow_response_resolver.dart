@@ -1943,8 +1943,38 @@ class MaatFlowResponseResolver {
   }
 }
 
+class MaatFlowInitialPromptResolver {
+  const MaatFlowInitialPromptResolver({
+    this.specs = const <MaatFlowInitialPromptSpec>[],
+  });
+
+  final List<MaatFlowInitialPromptSpec> specs;
+
+  MaatFlowInitialPromptSpec? resolve({required String flowKey}) {
+    final normalizedFlowKey = flowKey.trim();
+    if (normalizedFlowKey.isEmpty || specs.isEmpty) return null;
+
+    for (final spec in specs) {
+      if (spec.flowKey == normalizedFlowKey && spec.isRenderable) {
+        return spec;
+      }
+    }
+    return null;
+  }
+
+  bool supports({required String flowKey}) {
+    return resolve(flowKey: flowKey) != null;
+  }
+}
+
 const MaatFlowResponseResolver kDefaultMaatFlowResponseResolver =
     MaatFlowResponseResolver(specs: kPilotMaatFlowResponseSpecs);
+
+const List<MaatFlowInitialPromptSpec> kInitialMaatFlowPromptSpecs =
+    <MaatFlowInitialPromptSpec>[];
+
+const MaatFlowInitialPromptResolver kDefaultMaatFlowInitialPromptResolver =
+    MaatFlowInitialPromptResolver(specs: kInitialMaatFlowPromptSpecs);
 
 List<MaatFlowResponseSpec> resolveMaatFlowResponseSpecs({
   required String flowKey,
@@ -1959,6 +1989,14 @@ List<MaatFlowResponseSpec> resolveMaatFlowResponseSpecs({
     eventKey: eventKey,
     sittingKey: sittingKey,
   );
+}
+
+MaatFlowInitialPromptSpec? resolveMaatFlowInitialPromptSpec({
+  required String flowKey,
+  MaatFlowInitialPromptResolver resolver =
+      kDefaultMaatFlowInitialPromptResolver,
+}) {
+  return resolver.resolve(flowKey: flowKey);
 }
 
 bool _optionalKeyMatches(String? specKey, String? requestedKey) {

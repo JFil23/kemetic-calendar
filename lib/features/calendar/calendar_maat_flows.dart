@@ -1,5 +1,10 @@
 part of 'calendar_page.dart';
 
+@visibleForTesting
+const Key kMaatFlowInitialPromptSectionKey = ValueKey<String>(
+  'maat_flow_initial_prompt_section',
+);
+
 class MaatFlowGlyph extends StatelessWidget {
   const MaatFlowGlyph({required this.glyph, this.size = 34, super.key});
 
@@ -4370,6 +4375,15 @@ class _MaatFlowTemplateDetailPageState
     required List<Widget> children,
     required Widget joinButton,
   }) {
+    final initialPromptSpec = resolveMaatFlowInitialPromptSpec(
+      flowKey: widget.template.key,
+    );
+    final detailChildren = initialPromptSpec == null
+        ? children
+        : <Widget>[
+            ...children,
+            _buildMaatFlowInitialPromptSlot(initialPromptSpec),
+          ];
     final media = MediaQuery.of(context);
     const ctaHeight = 52.0;
     final embedded = widget.embeddedInOnboarding;
@@ -4397,7 +4411,7 @@ class _MaatFlowTemplateDetailPageState
                 constraints: const BoxConstraints(maxWidth: 720),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: children,
+                  children: detailChildren,
                 ),
               ),
             ),
@@ -4430,6 +4444,11 @@ class _MaatFlowTemplateDetailPageState
         ),
       ),
     );
+  }
+
+  Widget _buildMaatFlowInitialPromptSlot(MaatFlowInitialPromptSpec spec) {
+    assert(spec.isRenderable);
+    return const SizedBox.shrink(key: kMaatFlowInitialPromptSectionKey);
   }
 
   List<Widget> _buildMaatFlowOverviewZones({
