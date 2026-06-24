@@ -141,7 +141,7 @@ void main() {
     final arcTop = tester.getTopLeft(find.text('THREE-DECAN ARC')).dy;
     final startTop = tester.getTopLeft(find.textContaining('Start:')).dy;
 
-    expect(promptTop, lessThan(arcTop));
+    expect(arcTop, lessThan(promptTop));
     expect(promptTop, lessThan(startTop));
   });
 
@@ -194,7 +194,7 @@ void main() {
     }
   });
 
-  testWidgets('full description sits between prompt and arc with room', (
+  testWidgets('arc sits between description and prompt with room', (
     tester,
   ) async {
     tester.view.physicalSize = const Size(430, 1600);
@@ -204,24 +204,28 @@ void main() {
 
     await _pumpTemplateDetail(tester, 'the-offering-table');
 
-    final promptBottom = tester
-        .getBottomLeft(find.byKey(kMaatFlowInitialPromptSectionKey))
-        .dy;
-    final fullDescriptionTop = tester
-        .getTopLeft(find.text('FULL DESCRIPTION'))
-        .dy;
-    final fullDescriptionBottom = tester
-        .getBottomLeft(find.text('FULL DESCRIPTION'))
+    final descriptionBottom = tester
+        .getBottomLeft(
+          find.text(
+            'Provision ritual. Begin with water, then feed what needs food, rest, or care.',
+          ),
+        )
         .dy;
     final arcTop = tester.getTopLeft(find.text('THREE-DECAN ARC')).dy;
+    final arcBottom = tester
+        .getBottomLeft(find.textContaining('Fuel and recovery'))
+        .dy;
+    final promptTop = tester
+        .getTopLeft(find.byKey(kMaatFlowInitialPromptSectionKey))
+        .dy;
 
-    expect(fullDescriptionTop, greaterThan(promptBottom));
-    expect(fullDescriptionTop - promptBottom, greaterThanOrEqualTo(20));
-    expect(arcTop, greaterThan(fullDescriptionBottom));
-    expect(arcTop - fullDescriptionBottom, greaterThanOrEqualTo(20));
+    expect(arcTop, greaterThan(descriptionBottom));
+    expect(arcTop - descriptionBottom, greaterThanOrEqualTo(20));
+    expect(promptTop, greaterThan(arcBottom));
+    expect(promptTop - arcBottom, greaterThanOrEqualTo(20));
   });
 
-  test('full description lower slot remains reserved after move', () {
+  test('arc moves above prompt and old lower slot collapses', () {
     final detailSource = File(
       'lib/features/calendar/calendar_maat_flows.dart',
     ).readAsStringSync();
@@ -237,6 +241,7 @@ void main() {
     final arcIndex = overviewBuilder.indexOf(
       "const _MaatFlowDetailSectionLabel('THREE-DECAN ARC')",
     );
+    final promptIndex = overviewBuilder.indexOf('initialPromptSlot,', arcIndex);
     final controlsIndex = overviewBuilder.indexOf('...configurationControls,');
     final reservedSlotIndex = overviewBuilder.indexOf(
       'const SizedBox(height: _fullDescriptionFormerSlotHeight)',
@@ -244,9 +249,19 @@ void main() {
 
     expect(fullDescriptionIndex, isNonNegative);
     expect(arcIndex, isNonNegative);
+    expect(promptIndex, isNonNegative);
     expect(controlsIndex, isNonNegative);
     expect(reservedSlotIndex, isNonNegative);
-    expect(fullDescriptionIndex, lessThan(arcIndex));
+    expect(
+      overviewBuilder.indexOf(
+        "const _MaatFlowDetailSectionLabel('THREE-DECAN ARC')",
+        arcIndex + 1,
+      ),
+      isNegative,
+    );
+    expect(arcIndex, lessThan(promptIndex));
+    expect(promptIndex, lessThan(fullDescriptionIndex));
+    expect(fullDescriptionIndex, lessThan(controlsIndex));
     expect(reservedSlotIndex, greaterThan(controlsIndex));
   });
 
@@ -359,7 +374,7 @@ void main() {
       final arcTop = tester.getTopLeft(find.text('THREE-DECAN ARC')).dy;
       final startTop = tester.getTopLeft(find.textContaining('Start:')).dy;
 
-      expect(promptTop, lessThan(arcTop));
+      expect(arcTop, lessThan(promptTop));
       expect(promptTop, lessThan(startTop));
     },
   );
@@ -649,7 +664,7 @@ void main() {
           .getTopLeft(find.byKey(kMaatFlowInitialPromptSectionKey))
           .dy;
       final arcTop = tester.getTopLeft(find.text('THREE-DECAN ARC')).dy;
-      expect(promptTop, lessThan(arcTop), reason: detail.key);
+      expect(arcTop, lessThan(promptTop), reason: detail.key);
 
       expect(
         tester
@@ -819,7 +834,7 @@ void main() {
           .getTopLeft(find.byKey(kMaatFlowInitialPromptSectionKey))
           .dy;
       final arcTop = tester.getTopLeft(find.text('THREE-DECAN ARC')).dy;
-      expect(promptTop, lessThan(arcTop), reason: detail.key);
+      expect(arcTop, lessThan(promptTop), reason: detail.key);
 
       expect(
         tester
