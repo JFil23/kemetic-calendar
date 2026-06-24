@@ -5555,8 +5555,9 @@ class _MaatFlowTemplateDetailPageState
       case _MaatFlowTemplateKind.maatDecan:
         final definition = maatDecanFlowDefinitionForKey(widget.template.key);
         return _MaatFlowDetailContent(
-          orientingSentence:
-              definition?.routingSummary ?? widget.template.overview,
+          orientingSentence: definition == null
+              ? widget.template.overview
+              : _maatDecanDetailShortDescription(definition),
           chips: const ['9 sittings', 'Decan window', 'One act per sitting'],
           arcBlocks: const [
             _MaatFlowArcBlock(
@@ -5598,6 +5599,47 @@ class _MaatFlowTemplateDetailPageState
             ),
           ],
         );
+    }
+  }
+
+  String _maatDecanDetailShortDescription(MaatDecanFlowDefinition definition) {
+    switch (definition.key) {
+      case kFairHearingFlowKey:
+        return 'Fairness practice. Hear fully before deciding, keep the measure even, and pronounce what is clear.';
+      case kFirstArrangementFlowKey:
+        return 'Space-order practice. Choose one physical space, see what belongs, and put it back into order.';
+      case kLivingPatternFlowKey:
+        return 'Observation practice. Watch one natural pattern patiently and carry its principle into action.';
+      case kHouseOfLifeFlowKey:
+        return 'Knowledge practice. Learn accurately, preserve one useful note, and transmit it with care.';
+      case kBoundaryStoneFlowKey:
+        return 'Boundary practice. Name what moved, restore one marker, and return measure to its place.';
+      case kHotepFlowKey:
+        return 'Evening peace practice. Name what was given, release what is enough, and cool the heart before sleep.';
+      case kOpenMouthFlowKey:
+        return 'Speech practice. Govern one word, repair what needs repair, and let speech serve Ma’at.';
+      case kLivingRecordFlowKey:
+        return 'Record practice. Turn one decan into a living record across calendar, journal, and body.';
+      case kHetHeruFlowKey:
+        return 'Cooling practice. Meet the hot force with beauty, joy, rest, or feast until it returns.';
+      case kTheShoreFlowKey:
+        return 'Exchange practice. Bring one gift, labor, or return closer to honest measure.';
+      case kTheAutobiographyFlowKey:
+        return 'Life-record practice. Name one capacity, work, gift, or claim with clearer evidence.';
+      case kTrueNameFlowKey:
+        return 'Private naming practice. Measure a false account against the record and stand closer to the accurate name.';
+      case kLivingTextFlowKey:
+        return 'Library practice. Let one line become question, insight, application, or living mark.';
+      case kClearingFlowKey:
+        return 'Temperance practice. Make space before response and act from the cleared place.';
+      case kWanderingFlowKey:
+        return 'Grief accompaniment. Honor what was lost and notice one thing that remains.';
+      case kKhatFlowKey:
+        return 'Body-care practice. Listen to what the body asks and answer with one concrete act of care.';
+      case kOracleFlowKey:
+        return 'Dream-question practice. Carry one question, receive without forcing meaning, and test through grounded action.';
+      default:
+        return definition.routingSummary;
     }
   }
 
@@ -7350,6 +7392,9 @@ class _MaatFlowTemplateDetailPageState
       );
     }
     final flowStart = DateUtils.dateOnly(window.opensAtLocal);
+    final initialPromptSlot = _buildCurrentInitialPromptSlot(
+      includeLeadingSeparator: false,
+    );
 
     return _buildMaatFlowDetailScaffold(
       context,
@@ -7359,31 +7404,15 @@ class _MaatFlowTemplateDetailPageState
             ? null
             : () => _joinMaatDecanFlow(flowStart, definition),
       ),
+      appendInitialPrompt: false,
       children: [
         ..._buildMaatFlowOverviewZones(
           content: _detailContentForTemplate(overrideChips: null),
           tagline: definition.tagline,
-          extraOverviewNote: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              _buildMaatFlowNotice(
-                'Selected decan opening: ${_dateLabel(context, window.opensAtLocal)}, when ${window.openingOccurrence.decanName} begins. Add it now and the nine sittings will prompt from that start date.',
-                borderColor: MaatFlowPalette.gold.withValues(alpha: 0.38),
-              ),
-              const SizedBox(height: 10),
-              _buildMaatFlowNotice(definition.routingSummary),
-            ],
-          ),
           configurationControls: [
-            const _MaatFlowDetailSectionLabel('TIMEZONE'),
-            _buildTimezoneSelector(),
-            const SizedBox(height: 14),
-            _buildMaatFlowDetailText(
-              'Morning sittings use dawn + 30 minutes, any-time sittings default to 11:00 local, and evening sittings use sunset + 30 minutes.',
-            ),
-            const SizedBox(height: 18),
             _buildWindowStartRow(context, window.opensAtLocal),
           ],
+          initialPromptSlot: initialPromptSlot,
         ),
         const _MaatFlowDetailSeparator(),
         const _MaatFlowDetailSectionLabel('NINE SITTINGS'),
@@ -7395,6 +7424,24 @@ class _MaatFlowTemplateDetailPageState
             flowStart,
           ),
         ),
+        const SizedBox(height: 10),
+        _buildMaatFlowNotice(
+          'Selected decan opening: ${_dateLabel(context, window.opensAtLocal)}, when ${window.openingOccurrence.decanName} begins. Add it now and the nine sittings will prompt from that start date.',
+          borderColor: MaatFlowPalette.gold.withValues(alpha: 0.38),
+        ),
+        const SizedBox(height: 10),
+        _buildMaatFlowDetailText(
+          'Morning sittings use dawn + 30 minutes, any-time sittings default to 11:00 local, and evening sittings use sunset + 30 minutes.',
+        ),
+        const SizedBox(height: 10),
+        _buildMaatFlowNotice(definition.routingSummary),
+        if (definition.safetyNote != null) ...[
+          const SizedBox(height: 10),
+          _buildMaatFlowNotice(
+            definition.safetyNote!,
+            borderColor: MaatFlowPalette.gold.withValues(alpha: 0.34),
+          ),
+        ],
         const _MaatFlowPrivacyFooter(),
       ],
     );

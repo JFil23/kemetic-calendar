@@ -473,6 +473,176 @@ void main() {
     }
   });
 
+  testWidgets('decan Ma’at details use the simplified high-entry layout', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(430, 2100);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    const bannedPlaceName =
+        'Egy'
+        'pt';
+    for (final detail in const <_CoreDetailLayoutCase>[
+      _CoreDetailLayoutCase(
+        key: 'the-fair-hearing',
+        prompt: 'What must be heard before deciding?',
+        shortDescription:
+            'Fairness practice. Hear fully before deciding, keep the measure even, and pronounce what is clear.',
+        fullDescriptionSnippet: 'A 30-day practice of fair judgment',
+      ),
+      _CoreDetailLayoutCase(
+        key: 'the-first-arrangement',
+        prompt: 'What space will you put in order?',
+        shortDescription:
+            'Space-order practice. Choose one physical space, see what belongs, and put it back into order.',
+        fullDescriptionSnippet: 'A 30-day space-order practice',
+      ),
+      _CoreDetailLayoutCase(
+        key: 'the-living-pattern',
+        prompt: 'What pattern are you watching?',
+        shortDescription:
+            'Observation practice. Watch one natural pattern patiently and carry its principle into action.',
+        fullDescriptionSnippet: 'A 30-day observation practice',
+      ),
+      _CoreDetailLayoutCase(
+        key: 'the-house-of-life',
+        prompt: 'What knowledge are you preserving?',
+        shortDescription:
+            'Knowledge practice. Learn accurately, preserve one useful note, and transmit it with care.',
+        fullDescriptionSnippet: 'A 30-day scribal practice',
+      ),
+      _CoreDetailLayoutCase(
+        key: 'the-boundary-stone',
+        prompt: 'What marker needs restoring?',
+        shortDescription:
+            'Boundary practice. Name what moved, restore one marker, and return measure to its place.',
+        fullDescriptionSnippet: 'A 30-day boundary practice',
+      ),
+      _CoreDetailLayoutCase(
+        key: 'hotep',
+        prompt: 'What can be enough tonight?',
+        shortDescription:
+            'Evening peace practice. Name what was given, release what is enough, and cool the heart before sleep.',
+        fullDescriptionSnippet: 'A 30-day evening peace practice',
+      ),
+      _CoreDetailLayoutCase(
+        key: 'the-open-mouth',
+        prompt: 'What word needs discipline?',
+        shortDescription:
+            'Speech practice. Govern one word, repair what needs repair, and let speech serve Ma’at.',
+        fullDescriptionSnippet: 'A 30-day speech practice',
+      ),
+      _CoreDetailLayoutCase(
+        key: 'the-living-record',
+        prompt: 'What record will you make living?',
+        shortDescription:
+            'Record practice. Turn one decan into a living record across calendar, journal, and body.',
+        fullDescriptionSnippet: 'A 30-day record practice',
+      ),
+      _CoreDetailLayoutCase(
+        key: 'het-heru',
+        prompt: 'What hot force needs cooling?',
+        shortDescription:
+            'Cooling practice. Meet the hot force with beauty, joy, rest, or feast until it returns.',
+        fullDescriptionSnippet: 'A 30-day cooling practice',
+      ),
+      _CoreDetailLayoutCase(
+        key: 'the-shore',
+        prompt: 'What exchange needs honest measure?',
+        shortDescription:
+            'Exchange practice. Bring one gift, labor, or return closer to honest measure.',
+        fullDescriptionSnippet: 'A 30-day exchange practice',
+      ),
+      _CoreDetailLayoutCase(
+        key: 'the-autobiography',
+        prompt: 'What part of your record needs naming?',
+        shortDescription:
+            'Life-record practice. Name one capacity, work, gift, or claim with clearer evidence.',
+        fullDescriptionSnippet: 'A 30-day life-record practice',
+      ),
+      _CoreDetailLayoutCase(
+        key: 'the-true-name',
+        prompt: 'What false account is ready to lose power?',
+        shortDescription:
+            'Private naming practice. Measure a false account against the record and stand closer to the accurate name.',
+        fullDescriptionSnippet: 'A 30-day private naming practice',
+      ),
+      _CoreDetailLayoutCase(
+        key: 'the-living-text',
+        prompt: 'What line is asking to live through you?',
+        shortDescription:
+            'Library practice. Let one line become question, insight, application, or living mark.',
+        fullDescriptionSnippet: 'A 30-day Library practice',
+      ),
+      _CoreDetailLayoutCase(
+        key: 'the-clearing',
+        prompt: 'What heat needs space before response?',
+        shortDescription:
+            'Temperance practice. Make space before response and act from the cleared place.',
+        fullDescriptionSnippet: 'A 30-day temperance practice',
+      ),
+      _CoreDetailLayoutCase(
+        key: 'the-wandering',
+        prompt: 'What remains with you?',
+        shortDescription:
+            'Grief accompaniment. Honor what was lost and notice one thing that remains.',
+        fullDescriptionSnippet: 'A 30-day evening grief accompaniment',
+      ),
+      _CoreDetailLayoutCase(
+        key: 'the-khat',
+        prompt: 'What is the body asking for?',
+        shortDescription:
+            'Body-care practice. Listen to what the body asks and answer with one concrete act of care.',
+        fullDescriptionSnippet: 'A 30-day body-care practice',
+      ),
+      _CoreDetailLayoutCase(
+        key: 'the-oracle',
+        prompt: 'What question are you carrying?',
+        shortDescription:
+            'Dream-question practice. Carry one question, receive without forcing meaning, and test through grounded action.',
+        fullDescriptionSnippet: 'A 30-day dream-question practice',
+      ),
+    ]) {
+      await tester.pumpWidget(const SizedBox.shrink());
+      await tester.pump();
+      await _pumpTemplateDetail(tester, detail.key);
+
+      expect(find.text(detail.shortDescription), findsOneWidget);
+      expect(find.text(detail.prompt), findsOneWidget);
+      expect(find.text('TIMEZONE'), findsNothing, reason: detail.key);
+      expect(find.text('PREVIEW TIMEZONE'), findsNothing, reason: detail.key);
+      expect(find.textContaining('Estimated from'), findsNothing);
+      expect(find.textContaining('Choose your U.S. timezone'), findsNothing);
+
+      final promptTop = tester
+          .getTopLeft(find.byKey(kMaatFlowInitialPromptSectionKey))
+          .dy;
+      final arcTop = tester.getTopLeft(find.text('THREE-DECAN ARC')).dy;
+      expect(promptTop, lessThan(arcTop), reason: detail.key);
+
+      expect(
+        tester
+            .widget<AnimatedCrossFade>(find.byType(AnimatedCrossFade))
+            .crossFadeState,
+        CrossFadeState.showFirst,
+        reason: detail.key,
+      );
+
+      await tester.ensureVisible(find.text('FULL DESCRIPTION'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('FULL DESCRIPTION'));
+      await tester.pumpAndSettle();
+
+      expect(
+        find.textContaining(detail.fullDescriptionSnippet),
+        findsOneWidget,
+      );
+      expect(find.textContaining(bannedPlaceName), findsNothing);
+    }
+  });
+
   test('core Ma’at detail footer notes stay below outlines', () {
     final detailSource = File(
       'lib/features/calendar/calendar_maat_flows.dart',
@@ -565,6 +735,33 @@ void main() {
       expect(footerIndex, isNonNegative, reason: order.start);
       expect(footerIndex, greaterThan(outlineIndex), reason: order.start);
     }
+  });
+
+  test('decan Ma’at detail footer notes stay below nine sittings', () {
+    final detailSource = File(
+      'lib/features/calendar/calendar_maat_flows.dart',
+    ).readAsStringSync();
+    final scaffold = _sourceBetween(
+      detailSource,
+      start: 'Widget _buildMaatDecanFlowScaffold',
+      end: 'Widget _buildOpenHandScaffold',
+    );
+
+    final outlineIndex = scaffold.indexOf('definition.events.map');
+    final selectedWindowIndex = scaffold.indexOf('Selected decan opening');
+    final timingIndex = scaffold.indexOf('Morning sittings use dawn');
+    final routingIndex = scaffold.indexOf(
+      '_buildMaatFlowNotice(definition.routingSummary)',
+    );
+    final safetyIndex = scaffold.indexOf('definition.safetyNote');
+    final footerIndex = scaffold.indexOf('_MaatFlowPrivacyFooter');
+
+    expect(outlineIndex, isNonNegative);
+    expect(selectedWindowIndex, greaterThan(outlineIndex));
+    expect(timingIndex, greaterThan(outlineIndex));
+    expect(routingIndex, greaterThan(outlineIndex));
+    expect(safetyIndex, greaterThan(outlineIndex));
+    expect(footerIndex, greaterThan(outlineIndex));
   });
 
   testWidgets('legacy Evening Threshold remains separate from Closing layout', (
