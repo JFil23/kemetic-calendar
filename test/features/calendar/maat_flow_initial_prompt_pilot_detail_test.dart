@@ -279,6 +279,30 @@ void main() {
     expect(find.textContaining(explainer), findsNothing);
   });
 
+  test('all discreet mode rows expose the lightweight info affordance', () {
+    final source = File(
+      'lib/features/calendar/calendar_maat_flows.dart',
+    ).readAsStringSync();
+    final switchSurface = _sourceBetween(
+      source,
+      start: 'Widget _buildMaatFlowSwitchSurface',
+      end: 'Widget _buildMaatFlowInfoGlyph',
+    );
+    final infoGlyph = _sourceBetween(
+      source,
+      start: 'Widget _buildMaatFlowInfoGlyph',
+      end: 'Widget _buildMaatFlowDetailSection',
+    );
+
+    expect(source.split("title: 'Discreet mode'").length - 1, 2);
+    expect(source.split("infoTooltip: 'About Discreet mode'").length - 1, 2);
+    expect(switchSurface, contains('_buildMaatFlowInfoGlyph'));
+    expect(switchSurface, isNot(contains('Icons.info_outline')));
+    expect(infoGlyph, contains("Text(\n            'i'"));
+    expect(infoGlyph, contains('fontWeight: FontWeight.w400'));
+    expect(infoGlyph, contains('width: 1.15'));
+  });
+
   testWidgets(
     'The Closing full description is collapsed, shorter, and Kemetic',
     (tester) async {

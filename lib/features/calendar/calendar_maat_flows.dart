@@ -5987,10 +5987,8 @@ class _MaatFlowTemplateDetailPageState
                 label: infoTooltip ?? 'About $title',
                 child: IconButton(
                   tooltip: infoTooltip ?? 'About $title',
-                  icon: Icon(
-                    Icons.info_outline,
+                  icon: _buildMaatFlowInfoGlyph(
                     color: palette.accent.withValues(alpha: 0.90),
-                    size: 19,
                   ),
                   visualDensity: VisualDensity.compact,
                   padding: EdgeInsets.zero,
@@ -6020,6 +6018,32 @@ class _MaatFlowTemplateDetailPageState
                 ),
               ),
         onChanged: onChanged,
+      ),
+    );
+  }
+
+  Widget _buildMaatFlowInfoGlyph({required Color color}) {
+    return SizedBox.square(
+      dimension: 18,
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          border: Border.all(color: color, width: 1.15),
+        ),
+        child: Center(
+          child: Text(
+            'i',
+            style: TextStyle(
+              color: color,
+              fontFamily: MaatFlowListTokens.fontFamily,
+              fontFamilyFallback: MaatFlowListTokens.fontFallback,
+              fontSize: 12,
+              fontWeight: FontWeight.w400,
+              height: 1,
+              decoration: TextDecoration.none,
+            ),
+          ),
+        ),
       ),
     );
   }
