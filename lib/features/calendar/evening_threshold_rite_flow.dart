@@ -12,10 +12,9 @@ const int kEveningThresholdRiteDurationMinutes = 3;
 const int kEveningThresholdDefaultFallbackMinutes = 20 * 60;
 
 const String kEveningThresholdRiteOverview =
-    'The Evening Threshold Rite is a thirty-day sunset flow rooted in the Egyptian pattern of evening as a passage from visible action into hidden renewal. '
-    'The report grounds this flow in the Evening Barge and the wider solar journey: as the sun leaves the seen world, the day’s work is closed, cooled, ordered, and released before the hidden hours begin. '
-    'Each evening, the user pauses at sunset + 20 minutes, closes one open loop, clears one small disorder, offers gratitude or water, dims or extinguishes one light, and speaks a short line of release. '
-    'Across three ten-day movements—closing the visible day, settling the house, and entering hidden renewal—the rite turns evening into a daily act of ma’at: finishing what can be finished, releasing what must wait, and preparing the self and home for restoration.';
+    'The Closing is a thirty-day evening flow rooted in the Kemetic pattern of sunset as passage. '
+    'As visible action gives way to hidden renewal, the user closes one open loop, settles one small disorder, offers gratitude or water, dims one light, and speaks a short line of release. '
+    'Across three ten-day movements, the rite turns evening into a daily act of Ma’at: finish what can be finished, release what must wait, and prepare the self and home for restoration.';
 
 enum EveningThresholdRiteLens {
   neutral,

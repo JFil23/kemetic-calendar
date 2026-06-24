@@ -5271,7 +5271,7 @@ class _MaatFlowTemplateDetailPageState
       case _MaatFlowTemplateKind.eveningThresholdRite:
         return const _MaatFlowDetailContent(
           orientingSentence:
-              'Before night begins, close what was open, name what moved, and step across the threshold with intention.',
+              'Evening release ritual. Close one loop, settle the house, and leave the day at the threshold.',
           chips: ['Daily practice', 'Sunset timing', '10 minutes or less'],
           arcBlocks: [
             _MaatFlowArcBlock(
@@ -6479,30 +6479,23 @@ class _MaatFlowTemplateDetailPageState
       _previewTrackSkyTimeZone,
       fallbackMinutesAfterMidnight: _eveningFallbackMinutes,
     );
-    final lastSchedule = eveningThresholdScheduleForDate(
-      selectedStart.add(Duration(days: kEveningThresholdRiteDays.length - 1)),
-      _previewTrackSkyTimeZone,
-      fallbackMinutesAfterMidnight: _eveningFallbackMinutes,
-    );
     final firstTime = l10n.formatTimeOfDay(
       TimeOfDay(
         hour: firstSchedule.startLocal.hour,
         minute: firstSchedule.startLocal.minute,
       ),
     );
-    final lastTime = l10n.formatTimeOfDay(
-      TimeOfDay(
-        hour: lastSchedule.startLocal.hour,
-        minute: lastSchedule.startLocal.minute,
-      ),
-    );
     final fallbackTime = l10n.formatTimeOfDay(
       _timeOfDayFromMinutes(_eveningFallbackMinutes),
     );
     final palette = _palette;
+    final initialPromptSlot = _buildCurrentInitialPromptSlot(
+      includeLeadingSeparator: false,
+    );
 
     return _buildMaatFlowDetailScaffold(
       context,
+      appendInitialPrompt: false,
       joinButton: _buildTemplateStickyJoinButton(
         text: _eveningJoinInFlight ? 'Joining…' : 'Join Flow',
         onPressed: _eveningJoinInFlight
@@ -6513,80 +6506,57 @@ class _MaatFlowTemplateDetailPageState
         ..._buildMaatFlowOverviewZones(
           content: _detailContentForTemplate(overrideChips: null),
           tagline: widget.template.subtitle,
+          initialPromptSlot: initialPromptSlot,
           configurationControls: [
-            const _MaatFlowDetailSectionLabel('TIMEZONE'),
-            _buildTimezoneSelector(),
-            const SizedBox(height: 14),
-            Text(
-              'Estimated from ${firstSchedule.referenceLocation.name} for ${_previewTrackSkyTimeZone.label}. First evening: ${_dateLabel(context, selectedStart)} at $firstTime. Final evening: ${_dateLabel(context, lastSchedule.startLocal)} at $lastTime.',
-              style: const TextStyle(
-                color: MaatFlowPalette.silverMid,
-                fontFamily: MaatFlowListTokens.fontFamily,
-                fontFamilyFallback: MaatFlowListTokens.fontFallback,
-                fontSize: 14,
-                fontStyle: FontStyle.italic,
-                height: 1.35,
-              ),
+            _buildStartDateRow(
+              context,
+              selectedStart,
+              label:
+                  'Start: ${_dateLabel(context, selectedStart)} at $firstTime',
             ),
-            const SizedBox(height: 8),
-            Text(
-              'The default schedule is sunset + 20 minutes. If sunset data is unavailable, the app uses your fallback evening time: $fallbackTime.',
-              style: const TextStyle(
-                color: MaatFlowPalette.silverLo,
-                fontFamily: MaatFlowListTokens.fontFamily,
-                fontFamilyFallback: MaatFlowListTokens.fontFallback,
-                fontSize: 13,
-                fontStyle: FontStyle.italic,
-                height: 1.35,
-              ),
-            ),
-            const SizedBox(height: 18),
-            Row(
-              children: [
-                Expanded(child: _buildStartDateRow(context, selectedStart)),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: OutlinedButton(
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: MaatFlowPalette.silverMid,
-                      side: BorderSide(
-                        color: palette.accent.withValues(alpha: 0.22),
-                        width: MaatFlowListTokens.cardBorderWidth,
-                      ),
-                      backgroundColor: MaatFlowPalette.joinedBase,
-                      alignment: Alignment.centerLeft,
-                      minimumSize: const Size.fromHeight(60),
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 20,
-                        vertical: 16,
-                      ),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(13),
-                      ),
-                      textStyle: const TextStyle(
-                        fontFamily: MaatFlowListTokens.fontFamily,
-                        fontFamilyFallback: MaatFlowListTokens.fontFallback,
-                        fontSize: 18,
-                        fontWeight: FontWeight.w400,
-                        fontStyle: FontStyle.italic,
-                        height: 1.1,
-                      ),
-                    ),
-                    onPressed: _pickEveningFallbackTime,
-                    child: Text(
-                      'Fallback: $fallbackTime',
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                    ),
+            const SizedBox(height: 12),
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton(
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: MaatFlowPalette.silverMid,
+                  side: BorderSide(
+                    color: palette.accent.withValues(alpha: 0.22),
+                    width: MaatFlowListTokens.cardBorderWidth,
+                  ),
+                  backgroundColor: MaatFlowPalette.joinedBase,
+                  alignment: Alignment.centerLeft,
+                  minimumSize: const Size.fromHeight(60),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 20,
+                    vertical: 16,
+                  ),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(13),
+                  ),
+                  textStyle: const TextStyle(
+                    fontFamily: MaatFlowListTokens.fontFamily,
+                    fontFamilyFallback: MaatFlowListTokens.fontFallback,
+                    fontSize: 18,
+                    fontWeight: FontWeight.w400,
+                    fontStyle: FontStyle.italic,
+                    height: 1.1,
                   ),
                 ),
-              ],
+                onPressed: _pickEveningFallbackTime,
+                child: Text(
+                  'Fallback: $fallbackTime',
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
             ),
             const SizedBox(height: 12),
             _buildMaatFlowSwitchSurface(
               value: _eveningDiscreetMode,
               title: 'Discreet mode',
-              subtitle:
+              infoTooltip: 'About Discreet mode',
+              infoText:
                   'Changes wording only. Turn this on when the rite needs to look ordinary in public or shared space; event text avoids visible ritual terms such as altar, offering, incense, flame, and spoken recitation.',
               onChanged: (value) {
                 setState(() {
@@ -6637,6 +6607,7 @@ class _MaatFlowTemplateDetailPageState
         ...kEveningThresholdRiteDays.map(
           (day) => _buildEveningThresholdRiteDayTile(context, day),
         ),
+        const _MaatFlowPracticeDisclaimerFooter(),
       ],
     );
   }

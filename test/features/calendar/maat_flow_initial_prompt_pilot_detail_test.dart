@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mobile/features/calendar/calendar_page.dart';
 import 'package:mobile/features/calendar/dawn_house_rite_flow.dart';
+import 'package:mobile/features/calendar/evening_threshold_rite_flow.dart';
 
 void main() {
   tearDown(resetMaatFlowJoinedStateForTesting);
@@ -210,6 +211,140 @@ void main() {
     await _pumpTemplateDetail(tester, 'dawn-house-rite');
 
     expect(find.byKey(kMaatFlowPracticeDisclaimerFooterKey), findsWidgets);
+  });
+
+  testWidgets(
+    'The Closing detail puts entry field high and removes timezone UI',
+    (tester) async {
+      tester.view.physicalSize = const Size(430, 1400);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      await _pumpTemplateDetail(tester, 'evening-threshold-rite');
+
+      expect(
+        find.text(
+          'Evening release ritual. Close one loop, settle the house, and leave the day at the threshold.',
+        ),
+        findsOneWidget,
+      );
+      expect(find.text('What do you release tonight?'), findsOneWidget);
+      expect(find.text('TIMEZONE'), findsNothing);
+      expect(find.textContaining('Estimated from'), findsNothing);
+
+      final promptTop = tester
+          .getTopLeft(find.byKey(kMaatFlowInitialPromptSectionKey))
+          .dy;
+      final arcTop = tester.getTopLeft(find.text('THREE-DECAN ARC')).dy;
+      final startTop = tester.getTopLeft(find.textContaining('Start:')).dy;
+
+      expect(promptTop, lessThan(arcTop));
+      expect(promptTop, lessThan(startTop));
+    },
+  );
+
+  testWidgets('The Closing discreet explainer opens from info bubble only', (
+    tester,
+  ) async {
+    await _pumpTemplateDetail(tester, 'evening-threshold-rite');
+
+    const explainer =
+        'Changes wording only. Turn this on when the rite needs to look ordinary in public or shared space';
+    expect(find.textContaining(explainer), findsNothing);
+
+    await tester.ensureVisible(find.byTooltip('About Discreet mode'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byTooltip('About Discreet mode'));
+    await tester.pumpAndSettle();
+    expect(find.textContaining(explainer), findsOneWidget);
+
+    await tester.tapAt(const Offset(4, 4));
+    await tester.pumpAndSettle();
+    expect(find.textContaining(explainer), findsNothing);
+  });
+
+  testWidgets(
+    'The Closing full description is collapsed, shorter, and Kemetic',
+    (tester) async {
+      const bannedPlaceName =
+          'Egy'
+          'pt';
+      expect(kEveningThresholdRiteOverview, contains('Kemetic'));
+      expect(kEveningThresholdRiteOverview, isNot(contains(bannedPlaceName)));
+      expect(kEveningThresholdRiteOverview.length, lessThan(520));
+
+      await _pumpTemplateDetail(tester, 'evening-threshold-rite');
+
+      expect(
+        tester
+            .widget<AnimatedCrossFade>(find.byType(AnimatedCrossFade))
+            .crossFadeState,
+        CrossFadeState.showFirst,
+      );
+
+      await tester.ensureVisible(find.text('FULL DESCRIPTION'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('FULL DESCRIPTION'));
+      await tester.pumpAndSettle();
+
+      expect(
+        tester
+            .widget<AnimatedCrossFade>(find.byType(AnimatedCrossFade))
+            .crossFadeState,
+        CrossFadeState.showSecond,
+      );
+      expect(
+        find.textContaining(
+          'The Closing is a thirty-day evening flow rooted in the Kemetic',
+        ),
+        findsOneWidget,
+      );
+      expect(find.textContaining(bannedPlaceName), findsNothing);
+    },
+  );
+
+  test('The Closing practice warning stays after the outline', () {
+    final detailSource = File(
+      'lib/features/calendar/calendar_maat_flows.dart',
+    ).readAsStringSync();
+    final closingScaffold = _sourceBetween(
+      detailSource,
+      start: 'Widget _buildEveningThresholdRiteScaffold',
+      end: 'Widget _buildTheWeighingEventTile',
+    );
+    final outlineIndex = closingScaffold.indexOf(
+      'kEveningThresholdRiteDays.map',
+    );
+    final warningIndex = closingScaffold.indexOf(
+      '_MaatFlowPracticeDisclaimerFooter',
+    );
+
+    expect(outlineIndex, isNonNegative);
+    expect(warningIndex, isNonNegative);
+    expect(warningIndex, greaterThan(outlineIndex));
+  });
+
+  testWidgets('The Closing practice warning text renders', (tester) async {
+    await _pumpTemplateDetail(tester, 'evening-threshold-rite');
+
+    expect(find.byKey(kMaatFlowPracticeDisclaimerFooterKey), findsWidgets);
+  });
+
+  testWidgets('legacy Evening Threshold remains separate from Closing layout', (
+    tester,
+  ) async {
+    await _pumpTemplateDetail(tester, 'evening_threshold');
+
+    expect(find.byKey(kMaatFlowInitialPromptSectionKey), findsNothing);
+    expect(find.text('What do you release tonight?'), findsNothing);
+    expect(
+      find.text(
+        'Evening release ritual. Close one loop, settle the house, and leave the day at the threshold.',
+      ),
+      findsNothing,
+    );
+    expect(find.text('Join Flow'), findsOneWidget);
   });
 
   testWidgets('initial prompt survives rebuild and orientation change', (
