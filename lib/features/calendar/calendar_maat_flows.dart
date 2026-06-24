@@ -5,10 +5,6 @@ const Key kMaatFlowInitialPromptSectionKey = ValueKey<String>(
   'maat_flow_initial_prompt_section',
 );
 
-final Map<String, Map<String, MaatFlowResponseValue>>
-_maatFlowInitialPromptDraftValuesByFlowKey =
-    <String, Map<String, MaatFlowResponseValue>>{};
-
 class MaatFlowGlyph extends StatelessWidget {
   const MaatFlowGlyph({required this.glyph, this.size = 34, super.key});
 
@@ -221,7 +217,7 @@ Widget buildMaatFlowTemplateDetailPreviewForTesting({
 @visibleForTesting
 void resetMaatFlowJoinedStateForTesting() {
   CalendarPage._clearRememberedJoinedMaatFlowTemplates();
-  _maatFlowInitialPromptDraftValuesByFlowKey.clear();
+  kMaatFlowResponseDraftStore.clearForTesting();
 }
 
 @visibleForTesting
@@ -2124,27 +2120,14 @@ class _MaatFlowTemplateDetailPageState
   Map<String, MaatFlowResponseValue> _initialPromptDraftValuesForFlow(
     String flowKey,
   ) {
-    final stored = _maatFlowInitialPromptDraftValuesByFlowKey[flowKey];
-    if (stored == null || stored.isEmpty) {
-      return const <String, MaatFlowResponseValue>{};
-    }
-    return Map<String, MaatFlowResponseValue>.unmodifiable(stored);
+    return kMaatFlowResponseDraftStore.valuesForFlow(flowKey);
   }
 
   void _rememberInitialPromptValue(MaatFlowResponseValue value) {
-    final flowKey = widget.template.key;
-    final draftValues = _maatFlowInitialPromptDraftValuesByFlowKey.putIfAbsent(
-      flowKey,
-      () => <String, MaatFlowResponseValue>{},
+    kMaatFlowResponseDraftStore.rememberValue(
+      flowKey: widget.template.key,
+      value: value,
     );
-    if (value.isEmpty) {
-      draftValues.remove(value.specId);
-    } else {
-      draftValues[value.specId] = value;
-    }
-    if (draftValues.isEmpty) {
-      _maatFlowInitialPromptDraftValuesByFlowKey.remove(flowKey);
-    }
   }
 
   T? _tryEnrollmentWindow<T>(String debugLabel, T Function() resolve) {

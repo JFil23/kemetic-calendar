@@ -7,6 +7,7 @@ import 'package:mobile/features/calendar/day_view.dart';
 import 'package:mobile/features/calendar/evening_threshold_rite_flow.dart';
 import 'package:mobile/features/calendar/maat_decan_flow.dart';
 import 'package:mobile/features/calendar/maat_flow_interactive_primitives.dart';
+import 'package:mobile/features/calendar/maat_flow_response_draft_store.dart';
 import 'package:mobile/features/calendar/maat_flow_response_journal_blocks.dart';
 import 'package:mobile/features/calendar/moon_return_flow.dart';
 import 'package:mobile/features/calendar/the_days_outside_year_flow.dart';
@@ -51,10 +52,14 @@ void main() {
 
   setUp(() {
     SharedPreferences.setMockInitialValues(<String, Object>{});
+    kMaatFlowResponseDraftStore.clearForTesting();
     CalendarEventDetailSheetCoordinator.debugResetForTests();
   });
 
-  tearDown(CalendarEventDetailSheetCoordinator.debugResetForTests);
+  tearDown(() {
+    kMaatFlowResponseDraftStore.clearForTesting();
+    CalendarEventDetailSheetCoordinator.debugResetForTests();
+  });
 
   testWidgets('Moon Return response renders and previews journal text', (
     tester,

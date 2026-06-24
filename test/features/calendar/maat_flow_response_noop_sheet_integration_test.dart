@@ -4,6 +4,7 @@ import 'package:mobile/core/completion_status.dart';
 import 'package:mobile/features/calendar/day_view.dart';
 import 'package:mobile/features/calendar/landscape_month_view.dart';
 import 'package:mobile/features/calendar/maat_flow_interactive_primitives.dart';
+import 'package:mobile/features/calendar/maat_flow_response_draft_store.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -33,10 +34,14 @@ void main() {
 
   setUp(() {
     SharedPreferences.setMockInitialValues(<String, Object>{});
+    kMaatFlowResponseDraftStore.clearForTesting();
     CalendarEventDetailSheetCoordinator.debugResetForTests();
   });
 
-  tearDown(CalendarEventDetailSheetCoordinator.debugResetForTests);
+  tearDown(() {
+    kMaatFlowResponseDraftStore.clearForTesting();
+    CalendarEventDetailSheetCoordinator.debugResetForTests();
+  });
 
   testWidgets(
     'Day View unsupported Ma_at flow keeps completion picker without response UI',

@@ -2054,6 +2054,14 @@ kInitialMaatFlowPromptSpecs = <MaatFlowInitialPromptSpec>[
         ],
         journalPolicy: MaatFlowJournalPolicy.localOnly,
       ),
+      MaatFlowResponseSpec(
+        id: 'offering-table-provided',
+        flowKey: kOfferingTableFlowKey,
+        surface: MaatFlowResponseSurface.initialDetail,
+        kind: MaatFlowResponseKind.multiline,
+        label: 'What did you provide today?',
+        journalPolicy: MaatFlowJournalPolicy.localOnly,
+      ),
     ],
   ),
   MaatFlowInitialPromptSpec(

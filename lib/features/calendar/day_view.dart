@@ -27,6 +27,7 @@ import 'landscape_month_view.dart';
 import 'maat_flow_identity.dart';
 import 'maat_flow_interactive_primitives.dart';
 import 'maat_flow_palette.dart';
+import 'maat_flow_response_draft_store.dart';
 import 'maat_flow_response_journal_blocks.dart';
 import 'maat_flow_response_models.dart';
 import 'maat_flow_response_resolver.dart';
@@ -8830,7 +8831,11 @@ class _MaatFlowCompletionPanelState extends State<_MaatFlowCompletionPanel> {
       _suppressedOfferResponseSourceIds.clear();
       _includedOfferResponseSourceIds.clear();
       _responseDirty = false;
-      unawaited(_loadDecanWatchResponseValuesIfNeeded());
+      if (_usesDecanWatchResponseBridge) {
+        unawaited(_loadDecanWatchResponseValuesIfNeeded());
+      } else {
+        _hydrateInitialPromptDraftValuesIfNeeded();
+      }
     }
   }
 
@@ -8863,6 +8868,43 @@ class _MaatFlowCompletionPanelState extends State<_MaatFlowCompletionPanel> {
   bool get _usesDecanWatchResponseBridge {
     return widget.completion.flowKey == kDecanWatchFlowKey &&
         widget.responseSpecs.any((spec) => spec.flowKey == kDecanWatchFlowKey);
+  }
+
+  bool get _usesSharedInitialPromptDrafts {
+    return resolveMaatFlowInitialPromptSpec(
+          flowKey: widget.completion.flowKey,
+        ) !=
+        null;
+  }
+
+  Map<String, MaatFlowResponseValue> _mergeInitialPromptDraftValues(
+    Map<String, MaatFlowResponseValue> baseValues,
+  ) {
+    if (!_usesSharedInitialPromptDrafts || widget.responseSpecs.isEmpty) {
+      return baseValues;
+    }
+    return kMaatFlowResponseDraftStore.mergeValuesForSpecs(
+      specs: widget.responseSpecs,
+      baseValues: baseValues,
+    );
+  }
+
+  void _hydrateInitialPromptDraftValuesIfNeeded() {
+    if (!_usesSharedInitialPromptDrafts || widget.responseSpecs.isEmpty) return;
+    final nextValues = _mergeInitialPromptDraftValues(_responseValues);
+    if (nextValues.isEmpty || nextValues == _responseValues) return;
+    setState(() {
+      _responseValues = nextValues;
+      _responseDirty = false;
+    });
+  }
+
+  void _rememberInitialPromptDraftValue(MaatFlowResponseValue value) {
+    if (!_usesSharedInitialPromptDrafts) return;
+    kMaatFlowResponseDraftStore.rememberValue(
+      flowKey: widget.completion.flowKey,
+      value: value,
+    );
   }
 
   int get _decanWatchGlobalDecanId {
@@ -8960,8 +9002,17 @@ class _MaatFlowCompletionPanelState extends State<_MaatFlowCompletionPanel> {
       globalDecanId: _decanWatchGlobalDecanId,
     );
     if (!mounted || generation != _decanWatchResponseLoadGeneration) return;
+    final nextValues = _mergeInitialPromptDraftValues(
+      _responseValuesFromDecanWatchRecord(record),
+    );
+    if (nextValues.isNotEmpty) {
+      kMaatFlowResponseDraftStore.rememberValues(
+        flowKey: widget.completion.flowKey,
+        values: nextValues,
+      );
+    }
     setState(() {
-      _responseValues = _responseValuesFromDecanWatchRecord(record);
+      _responseValues = nextValues;
       _responseDirty = false;
     });
   }
@@ -9028,6 +9079,10 @@ class _MaatFlowCompletionPanelState extends State<_MaatFlowCompletionPanel> {
 
   Future<void> _load() async {
     await _loadDecanWatchResponseValuesIfNeeded();
+    if (!mounted) return;
+    if (!_usesDecanWatchResponseBridge) {
+      _hydrateInitialPromptDraftValuesIfNeeded();
+    }
 
     final clientEventId = widget.event.clientEventId?.trim();
     final user = Supabase.instance.client.auth.currentUser;
@@ -9815,6 +9870,7 @@ class _MaatFlowCompletionPanelState extends State<_MaatFlowCompletionPanel> {
       _responseValues = nextValues;
       _responseDirty = true;
     });
+    _rememberInitialPromptDraftValue(value);
     unawaited(_persistDecanWatchResponseValues(nextValues));
   }
 

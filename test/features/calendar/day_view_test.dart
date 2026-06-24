@@ -12,6 +12,7 @@ import 'package:mobile/features/calendar/day_view.dart';
 import 'package:mobile/features/calendar/landscape_month_view.dart';
 import 'package:mobile/features/calendar/living_text_day_one_node_store.dart';
 import 'package:mobile/features/calendar/maat_decan_flow.dart';
+import 'package:mobile/features/calendar/maat_flow_response_draft_store.dart';
 import 'package:mobile/features/calendar/maat_flow_palette.dart';
 import 'package:mobile/features/calendar/the_weighing_flow.dart';
 import 'package:mobile/features/journal/journal_badge_utils.dart';
@@ -43,9 +44,13 @@ void main() {
 
   setUp(() {
     SharedPreferences.setMockInitialValues(<String, Object>{});
+    kMaatFlowResponseDraftStore.clearForTesting();
     CalendarEventDetailSheetCoordinator.debugResetForTests();
   });
-  tearDown(CalendarEventDetailSheetCoordinator.debugResetForTests);
+  tearDown(() {
+    kMaatFlowResponseDraftStore.clearForTesting();
+    CalendarEventDetailSheetCoordinator.debugResetForTests();
+  });
 
   group('DayViewGrid overlapping event gestures', () {
     testWidgets(

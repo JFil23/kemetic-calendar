@@ -20,7 +20,10 @@ void main() {
       flowKey: 'the-offering-table',
     );
     expect(offering, isNotNull);
-    expect(offering!.fields.single.label, 'What was fed?');
+    expect(offering!.fields.map((field) => field.label), <String>[
+      'What was fed?',
+      'What did you provide today?',
+    ]);
 
     final decanWatch = resolveMaatFlowInitialPromptSpec(
       flowKey: 'the-decan-watch',

@@ -27,6 +27,9 @@ void main() {
       expect(find.text(entry.$2), findsOneWidget, reason: entry.$1);
       expect(find.byType(ElevatedButton), findsWidgets, reason: entry.$1);
     }
+
+    await _pumpTemplateDetail(tester, 'the-offering-table');
+    expect(find.text('What did you provide today?'), findsOneWidget);
   });
 
   testWidgets('initial prompt remains absent for non-pilot Ma’at details', (
@@ -112,7 +115,7 @@ void main() {
     },
   );
 
-  test('initial prompt wiring does not touch Day View or journal paths', () {
+  test('initial prompt draft wiring stays separate from journal writes', () {
     final detailSource = File(
       'lib/features/calendar/calendar_maat_flows.dart',
     ).readAsStringSync();
@@ -125,6 +128,13 @@ void main() {
     expect(scaffold, contains('resolveMaatFlowInitialPromptSpec'));
     expect(scaffold, contains('flowKey: widget.template.key'));
     expect(scaffold, contains('initialPromptSpec == null'));
+    expect(scaffold, contains('_buildMaatFlowInitialPromptSlot'));
+    expect(detailSource, contains('kMaatFlowResponseDraftStore.rememberValue'));
+    expect(scaffold, isNot(contains('onWriteJournalResponse')));
+    expect(
+      scaffold,
+      isNot(contains('buildMaatJournalResponseBlocksForPolicy')),
+    );
 
     final dayViewSource = File(
       'lib/features/calendar/day_view.dart',
@@ -132,8 +142,15 @@ void main() {
     final journalSource = File(
       'lib/features/journal/journal_controller.dart',
     ).readAsStringSync();
+    final changeHandler = _sourceBetween(
+      dayViewSource,
+      start: 'void _handleResponseChanged',
+      end: 'Future<void> _syncResponseBlocks',
+    );
 
-    expect(dayViewSource, isNot(contains('MaatFlowInitialPrompt')));
+    expect(changeHandler, contains('_rememberInitialPromptDraftValue(value)'));
+    expect(changeHandler, isNot(contains('_syncResponseBlocks')));
+    expect(changeHandler, isNot(contains('onWriteJournalResponse')));
     expect(journalSource, isNot(contains('MaatFlowInitialPrompt')));
   });
 }
