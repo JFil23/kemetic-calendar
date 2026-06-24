@@ -161,6 +161,9 @@ enum MaatFlowResponseJournalFormatter {
   fairHearingMeasure,
   boundaryStoneRestoration,
   openMouthWord,
+  autobiographyRecord,
+  trueNameAccount,
+  livingRecordCarried,
 }
 
 extension MaatFlowResponseJournalFormatterX
@@ -223,6 +226,12 @@ extension MaatFlowResponseJournalFormatterX
         return 'boundary_stone_restoration';
       case MaatFlowResponseJournalFormatter.openMouthWord:
         return 'open_mouth_word';
+      case MaatFlowResponseJournalFormatter.autobiographyRecord:
+        return 'autobiography_record';
+      case MaatFlowResponseJournalFormatter.trueNameAccount:
+        return 'true_name_account';
+      case MaatFlowResponseJournalFormatter.livingRecordCarried:
+        return 'living_record_carried';
     }
   }
 
@@ -309,6 +318,15 @@ extension MaatFlowResponseJournalFormatterX
       case 'open_mouth_word':
       case 'open-mouth-word':
         return MaatFlowResponseJournalFormatter.openMouthWord;
+      case 'autobiography_record':
+      case 'autobiography-record':
+        return MaatFlowResponseJournalFormatter.autobiographyRecord;
+      case 'true_name_account':
+      case 'true-name-account':
+        return MaatFlowResponseJournalFormatter.trueNameAccount;
+      case 'living_record_carried':
+      case 'living-record-carried':
+        return MaatFlowResponseJournalFormatter.livingRecordCarried;
       case 'standard':
       default:
         return MaatFlowResponseJournalFormatter.standard;
@@ -777,6 +795,12 @@ String _formatResponseBodyText(
       return '${spec.journalHeading}: I restored one marker to its rightful place.';
     case MaatFlowResponseJournalFormatter.openMouthWord:
       return '${spec.journalHeading}: I governed the word and let speech serve Ma\'at.';
+    case MaatFlowResponseJournalFormatter.autobiographyRecord:
+      return '${spec.journalHeading}: I named one part of my record with clearer evidence.';
+    case MaatFlowResponseJournalFormatter.trueNameAccount:
+      return '${spec.journalHeading}: I measured a false account against the record and stood closer to the accurate name.';
+    case MaatFlowResponseJournalFormatter.livingRecordCarried:
+      return '${spec.journalHeading}: I turned one part of the decan into a record that can be carried forward.';
     case MaatFlowResponseJournalFormatter.decanWatch:
     case MaatFlowResponseJournalFormatter.standard:
       return '${spec.journalHeading}: $display';
@@ -844,6 +868,12 @@ String _formatGroupedResponseBodyText(
       return _formatBoundaryStoneResponseGroup(specs, values);
     case MaatFlowResponseJournalFormatter.openMouthWord:
       return _formatOpenMouthResponseGroup(specs, values);
+    case MaatFlowResponseJournalFormatter.autobiographyRecord:
+      return _formatAutobiographyResponseGroup(specs, values);
+    case MaatFlowResponseJournalFormatter.trueNameAccount:
+      return _formatTrueNameResponseGroup(specs, values);
+    case MaatFlowResponseJournalFormatter.livingRecordCarried:
+      return _formatLivingRecordResponseGroup(specs, values);
     case MaatFlowResponseJournalFormatter.dawnHouseRite:
     case MaatFlowResponseJournalFormatter.closingRelease:
     case MaatFlowResponseJournalFormatter.daysOutsideReceipt:
@@ -1624,6 +1654,107 @@ String _formatOpenMouthResponseGroup(
   }
   if (governed.isNotEmpty) {
     return '${specs.first.journalHeading}: I governed the word and let speech serve Ma\'at.';
+  }
+  return '';
+}
+
+String _formatAutobiographyResponseGroup(
+  List<MaatFlowResponseSpec> specs,
+  Map<String, MaatFlowResponseValue> values,
+) {
+  final byRole = <String, MaatFlowResponseSpec>{
+    for (final spec in specs)
+      if (spec.normalizedJournalRole != null) spec.normalizedJournalRole!: spec,
+  };
+
+  final recordSpec = byRole['record'];
+  final rememberedSpec = byRole['remembered'];
+  final record = recordSpec == null
+      ? ''
+      : _joinNatural(
+          values[recordSpec.id]?.optionIds
+                  .map((id) => recordSpec.optionById(id)?._displayLabel ?? id)
+                  .where((label) => label.trim().isNotEmpty)
+                  .map((label) => label.trim().toLowerCase()) ??
+              const Iterable<String>.empty(),
+        );
+  final remembered = rememberedSpec == null
+      ? ''
+      : _sentenceFragment(
+          values[rememberedSpec.id]?.displayText(rememberedSpec),
+        );
+
+  if (record.isNotEmpty) {
+    return '${specs.first.journalHeading}: I named $record in my record with clearer evidence.';
+  }
+  if (remembered.isNotEmpty) {
+    return '${specs.first.journalHeading}: I named one part of my record with clearer evidence.';
+  }
+  return '';
+}
+
+String _formatTrueNameResponseGroup(
+  List<MaatFlowResponseSpec> specs,
+  Map<String, MaatFlowResponseValue> values,
+) {
+  final byRole = <String, MaatFlowResponseSpec>{
+    for (final spec in specs)
+      if (spec.normalizedJournalRole != null) spec.normalizedJournalRole!: spec,
+  };
+
+  final accountSpec = byRole['account'];
+  final supportedSpec = byRole['supported'];
+  final account = accountSpec == null
+      ? ''
+      : _joinNatural(
+          values[accountSpec.id]?.optionIds
+                  .map((id) => accountSpec.optionById(id)?._displayLabel ?? id)
+                  .where((label) => label.trim().isNotEmpty)
+                  .map((label) => label.trim().toLowerCase()) ??
+              const Iterable<String>.empty(),
+        );
+  final supported = supportedSpec == null
+      ? ''
+      : _sentenceFragment(values[supportedSpec.id]?.displayText(supportedSpec));
+
+  if (account.isNotEmpty) {
+    return '${specs.first.journalHeading}: I measured $account against the record and stood closer to the accurate name.';
+  }
+  if (supported.isNotEmpty) {
+    return '${specs.first.journalHeading}: I measured a false account against the record and stood closer to the accurate name.';
+  }
+  return '';
+}
+
+String _formatLivingRecordResponseGroup(
+  List<MaatFlowResponseSpec> specs,
+  Map<String, MaatFlowResponseValue> values,
+) {
+  final byRole = <String, MaatFlowResponseSpec>{
+    for (final spec in specs)
+      if (spec.normalizedJournalRole != null) spec.normalizedJournalRole!: spec,
+  };
+
+  final recordSpec = byRole['record'];
+  final carriedSpec = byRole['carried'];
+  final record = recordSpec == null
+      ? ''
+      : _joinNatural(
+          values[recordSpec.id]?.optionIds
+                  .map((id) => recordSpec.optionById(id)?._displayLabel ?? id)
+                  .where((label) => label.trim().isNotEmpty)
+                  .map((label) => label.trim().toLowerCase()) ??
+              const Iterable<String>.empty(),
+        );
+  final carried = carriedSpec == null
+      ? ''
+      : _sentenceFragment(values[carriedSpec.id]?.displayText(carriedSpec));
+
+  if (record.isNotEmpty) {
+    return '${specs.first.journalHeading}: I turned $record into a record that can be carried forward.';
+  }
+  if (carried.isNotEmpty) {
+    return '${specs.first.journalHeading}: I turned one part of the decan into a record that can be carried forward.';
   }
   return '';
 }

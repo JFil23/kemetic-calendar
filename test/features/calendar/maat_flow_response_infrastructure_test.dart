@@ -130,6 +130,18 @@ void main() {
       'open_mouth_word',
     );
     expect(
+      MaatFlowResponseJournalFormatter.autobiographyRecord.wireName,
+      'autobiography_record',
+    );
+    expect(
+      MaatFlowResponseJournalFormatter.trueNameAccount.wireName,
+      'true_name_account',
+    );
+    expect(
+      MaatFlowResponseJournalFormatter.livingRecordCarried.wireName,
+      'living_record_carried',
+    );
+    expect(
       MaatFlowResponseJournalFormatterX.fromWireName('decan-watch'),
       MaatFlowResponseJournalFormatter.decanWatch,
     );
@@ -210,6 +222,18 @@ void main() {
       MaatFlowResponseJournalFormatter.openMouthWord,
     );
     expect(
+      MaatFlowResponseJournalFormatterX.fromWireName('autobiography-record'),
+      MaatFlowResponseJournalFormatter.autobiographyRecord,
+    );
+    expect(
+      MaatFlowResponseJournalFormatterX.fromWireName('true-name-account'),
+      MaatFlowResponseJournalFormatter.trueNameAccount,
+    );
+    expect(
+      MaatFlowResponseJournalFormatterX.fromWireName('living-record-carried'),
+      MaatFlowResponseJournalFormatter.livingRecordCarried,
+    );
+    expect(
       MaatFlowResponseJournalFormatterX.fromWireName('tending-care'),
       MaatFlowResponseJournalFormatter.tendingCare,
     );
@@ -243,8 +267,8 @@ void main() {
     );
   });
 
-  test('default resolver exposes only Phase 2B through 4C pilot specs', () {
-    expect(kDefaultMaatFlowResponseResolver.specs, hasLength(60));
+  test('default resolver exposes all 31 Ma_at response sheet specs', () {
+    expect(kDefaultMaatFlowResponseResolver.specs, hasLength(66));
 
     expect(
       resolveMaatFlowResponseSpecs(
@@ -461,6 +485,27 @@ void main() {
         surface: MaatFlowResponseSurface.calendarSheet,
       ).map((spec) => spec.id),
       <String>['open-mouth-word-disciplined', 'open-mouth-governed'],
+    );
+    expect(
+      resolveMaatFlowResponseSpecs(
+        flowKey: kTheAutobiographyFlowKey,
+        surface: MaatFlowResponseSurface.calendarSheet,
+      ).map((spec) => spec.id),
+      <String>['autobiography-record-clearer', 'autobiography-remembered'],
+    );
+    expect(
+      resolveMaatFlowResponseSpecs(
+        flowKey: kTrueNameFlowKey,
+        surface: MaatFlowResponseSurface.calendarSheet,
+      ).map((spec) => spec.id),
+      <String>['true-name-account-lost-power', 'true-name-accurate-account'],
+    );
+    expect(
+      resolveMaatFlowResponseSpecs(
+        flowKey: kLivingRecordFlowKey,
+        surface: MaatFlowResponseSurface.calendarSheet,
+      ).map((spec) => spec.id),
+      <String>['living-record-made-living', 'living-record-carried-forward'],
     );
 
     for (final flowKey in const <String>[
@@ -1094,7 +1139,7 @@ void main() {
     expect(hotep.single.text, isNot(contains('private obligation')));
   });
 
-  test('Phase 4B and 4C decan previews keep offer summaries safe', () {
+  test('Phase 4B through 4D decan previews keep offer summaries safe', () {
     final shoreSpecs = resolveMaatFlowResponseSpecs(
       flowKey: kTheShoreFlowKey,
       surface: MaatFlowResponseSurface.calendarSheet,
@@ -1298,6 +1343,95 @@ void main() {
       'The Open Mouth: I governed silence and repair and let speech serve Ma\'at.',
     );
     expect(openMouth.single.text, isNot(contains('private conflict')));
+
+    final autobiographySpecs = resolveMaatFlowResponseSpecs(
+      flowKey: kTheAutobiographyFlowKey,
+      surface: MaatFlowResponseSurface.calendarSheet,
+    );
+    final autobiography = buildMaatFlowResponseJournalPreviews(
+      specs: autobiographySpecs,
+      values: <String, MaatFlowResponseValue>{
+        'autobiography-record-clearer': MaatFlowResponseValue.chips(
+          specId: 'autobiography-record-clearer',
+          optionIds: <String>['capacity', 'evidence'],
+        ),
+        'autobiography-remembered': MaatFlowResponseValue.text(
+          specId: 'autobiography-remembered',
+          text: 'private identity claim and shame details',
+          multiline: true,
+        ),
+      },
+      clientEventId: 'cid-autobiography',
+    );
+    expect(autobiography, hasLength(1));
+    expect(autobiography.single.policy, MaatFlowJournalPolicy.offer);
+    expect(autobiography.single.requiresUserChoice, isTrue);
+    expect(autobiography.single.includeInJournalByDefault, isFalse);
+    expect(
+      autobiography.single.text,
+      'The Autobiography: I named capacity and evidence in my record with clearer evidence.',
+    );
+    expect(autobiography.single.text, isNot(contains('identity claim')));
+    expect(autobiography.single.text, isNot(contains('shame')));
+
+    final trueNameSpecs = resolveMaatFlowResponseSpecs(
+      flowKey: kTrueNameFlowKey,
+      surface: MaatFlowResponseSurface.calendarSheet,
+    );
+    final trueName = buildMaatFlowResponseJournalPreviews(
+      specs: trueNameSpecs,
+      values: <String, MaatFlowResponseValue>{
+        'true-name-account-lost-power': MaatFlowResponseValue.chips(
+          specId: 'true-name-account-lost-power',
+          optionIds: <String>['false_account', 'accurate_account'],
+        ),
+        'true-name-accurate-account': MaatFlowResponseValue.text(
+          specId: 'true-name-accurate-account',
+          text: 'private name and false story',
+          multiline: true,
+        ),
+      },
+      clientEventId: 'cid-true-name',
+    );
+    expect(trueName, hasLength(1));
+    expect(trueName.single.policy, MaatFlowJournalPolicy.offer);
+    expect(trueName.single.requiresUserChoice, isTrue);
+    expect(trueName.single.includeInJournalByDefault, isFalse);
+    expect(
+      trueName.single.text,
+      'The True Name: I measured false account and accurate account against the record and stood closer to the accurate name.',
+    );
+    expect(trueName.single.text, isNot(contains('private name')));
+    expect(trueName.single.text, isNot(contains('false story')));
+
+    final livingRecordSpecs = resolveMaatFlowResponseSpecs(
+      flowKey: kLivingRecordFlowKey,
+      surface: MaatFlowResponseSurface.calendarSheet,
+    );
+    final livingRecord = buildMaatFlowResponseJournalPreviews(
+      specs: livingRecordSpecs,
+      values: <String, MaatFlowResponseValue>{
+        'living-record-made-living': MaatFlowResponseValue.chips(
+          specId: 'living-record-made-living',
+          optionIds: <String>['day_card', 'journal'],
+        ),
+        'living-record-carried-forward': MaatFlowResponseValue.text(
+          specId: 'living-record-carried-forward',
+          text: 'private cross-app record details',
+          multiline: true,
+        ),
+      },
+      clientEventId: 'cid-living-record',
+    );
+    expect(livingRecord, hasLength(1));
+    expect(livingRecord.single.policy, MaatFlowJournalPolicy.offer);
+    expect(livingRecord.single.requiresUserChoice, isTrue);
+    expect(livingRecord.single.includeInJournalByDefault, isFalse);
+    expect(
+      livingRecord.single.text,
+      'The Living Record: I turned day card and journal into a record that can be carried forward.',
+    );
+    expect(livingRecord.single.text, isNot(contains('private cross-app')));
   });
 
   test('sensitive offer previews read naturally', () {
@@ -1743,7 +1877,7 @@ void main() {
     expect(JournalBadgeUtils.tokensFromDocument(removed), hasLength(1));
   });
 
-  test('Phase 4C wiring stays isolated to shared sheet panels and pilots', () {
+  test('Phase 4D wiring stays isolated to shared sheet panels and pilots', () {
     expect(
       kDefaultMaatFlowResponseResolver.specs
           .map((spec) => spec.flowKey)
@@ -1777,6 +1911,9 @@ void main() {
         kFairHearingFlowKey,
         kBoundaryStoneFlowKey,
         kOpenMouthFlowKey,
+        kTheAutobiographyFlowKey,
+        kTrueNameFlowKey,
+        kLivingRecordFlowKey,
       },
     );
 

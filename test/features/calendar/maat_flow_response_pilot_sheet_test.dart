@@ -4265,12 +4265,326 @@ void main() {
 
     blocks = MaatJournalResponseBlockUtils.extract(document);
     expect(blocks, hasLength(1));
-      expect(
-        blocks.single.text,
-        'The Open Mouth: I governed silence, repair, and truth and let speech serve Ma\'at.',
-      );
+    expect(
+      blocks.single.text,
+      'The Open Mouth: I governed silence, repair, and truth and let speech serve Ma\'at.',
+    );
     expect(document.toPlainText(), contains('Open Mouth journal body.'));
     expect(document.toPlainText(), isNot(contains('private conflict')));
+  });
+
+  testWidgets('Autobiography response offer can suppress and update one safe block', (
+    tester,
+  ) async {
+    await _setPhoneViewport(tester);
+    var document = _journalDocument('Autobiography journal body.');
+    final responseWrites = <MaatJournalResponseBlock>[];
+
+    await tester.pumpWidget(
+      _DayViewHarness(
+        flowIndex: _autobiographyFlowIndex,
+        notes: <NoteData>[_autobiographyNote()],
+        onWriteJournalResponse: (block) async {
+          responseWrites.add(block);
+          document = MaatJournalResponseBlockUtils.upsert(document, block);
+        },
+        onRecordCompletion:
+            ({
+              required String clientEventId,
+              required int flowId,
+              required DateTime completedOnDate,
+              Map<String, dynamic>? metadata,
+            }) async {},
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await _openDetailSheet(tester, _autobiographyTitle);
+
+    expect(find.byKey(kMaatFlowResponseSectionKey), findsOneWidget);
+    expect(
+      find.text('What part of your record became clearer?'),
+      findsOneWidget,
+    );
+    expect(
+      find.text('What capacity, work, gift, or claim needs to be remembered?'),
+      findsOneWidget,
+    );
+    await _choosePilotOption(
+      tester,
+      specId: 'autobiography-record-clearer',
+      optionId: 'capacity',
+    );
+    await _choosePilotOption(
+      tester,
+      specId: 'autobiography-record-clearer',
+      optionId: 'evidence',
+    );
+    await _enterPilotResponse(
+      tester,
+      specId: 'autobiography-remembered',
+      text: 'private identity claim and shame details.',
+    );
+    expect(
+      find.text(
+        'The Autobiography: I named capacity and evidence in my record with clearer evidence.',
+      ),
+      findsOneWidget,
+    );
+    expect(
+      find.descendant(
+        of: find.byKey(kMaatFlowResponseJournalPreviewKey),
+        matching: find.textContaining('private identity'),
+      ),
+      findsNothing,
+    );
+    final addToggle = tester.widget<Checkbox>(find.byType(Checkbox).last);
+    expect(addToggle.value, isFalse);
+
+    await _tapStatus(tester, 'Observed');
+    expect(responseWrites, hasLength(1));
+    expect(responseWrites.single.text, isEmpty);
+    expect(MaatJournalResponseBlockUtils.extract(document), isEmpty);
+    expect(document.toPlainText(), 'Autobiography journal body.');
+
+    await _toggleOfferJournalWrite(tester);
+    await _tapStatus(tester, 'Observed');
+    var blocks = MaatJournalResponseBlockUtils.extract(document);
+    expect(blocks, hasLength(1));
+    expect(
+      blocks.single.text,
+      'The Autobiography: I named capacity and evidence in my record with clearer evidence.',
+    );
+
+    await _choosePilotOption(
+      tester,
+      specId: 'autobiography-record-clearer',
+      optionId: 'named',
+    );
+    await _enterPilotResponse(
+      tester,
+      specId: 'autobiography-remembered',
+      text: 'updated private identity claim.',
+    );
+    await _tapStatus(tester, 'Observed');
+
+    blocks = MaatJournalResponseBlockUtils.extract(document);
+    expect(blocks, hasLength(1));
+    expect(
+      blocks.single.text,
+      'The Autobiography: I named capacity, evidence, and named in my record with clearer evidence.',
+    );
+    expect(document.toPlainText(), contains('Autobiography journal body.'));
+    expect(document.toPlainText(), isNot(contains('private identity')));
+    expect(document.toPlainText(), isNot(contains('shame')));
+  });
+
+  testWidgets('True Name response offer can suppress and update one safe block', (
+    tester,
+  ) async {
+    await _setPhoneViewport(tester);
+    var document = _journalDocument('True Name journal body.');
+    final responseWrites = <MaatJournalResponseBlock>[];
+
+    await tester.pumpWidget(
+      _DayViewHarness(
+        flowIndex: _trueNameFlowIndex,
+        notes: <NoteData>[_trueNameNote()],
+        onWriteJournalResponse: (block) async {
+          responseWrites.add(block);
+          document = MaatJournalResponseBlockUtils.upsert(document, block);
+        },
+        onRecordCompletion:
+            ({
+              required String clientEventId,
+              required int flowId,
+              required DateTime completedOnDate,
+              Map<String, dynamic>? metadata,
+            }) async {},
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await _openDetailSheet(tester, _trueNameTitle);
+
+    expect(find.byKey(kMaatFlowResponseSectionKey), findsOneWidget);
+    expect(find.text('What false account lost power?'), findsOneWidget);
+    expect(
+      find.text('What accurate account did the record support?'),
+      findsOneWidget,
+    );
+    await _choosePilotOption(
+      tester,
+      specId: 'true-name-account-lost-power',
+      optionId: 'false_account',
+    );
+    await _choosePilotOption(
+      tester,
+      specId: 'true-name-account-lost-power',
+      optionId: 'accurate_account',
+    );
+    await _enterPilotResponse(
+      tester,
+      specId: 'true-name-accurate-account',
+      text: 'private name and false story.',
+    );
+    expect(
+      find.text(
+        'The True Name: I measured false account and accurate account against the record and stood closer to the accurate name.',
+      ),
+      findsOneWidget,
+    );
+    expect(
+      find.descendant(
+        of: find.byKey(kMaatFlowResponseJournalPreviewKey),
+        matching: find.textContaining('private name'),
+      ),
+      findsNothing,
+    );
+    final addToggle = tester.widget<Checkbox>(find.byType(Checkbox).last);
+    expect(addToggle.value, isFalse);
+
+    await _tapStatus(tester, 'Observed');
+    expect(responseWrites, hasLength(1));
+    expect(responseWrites.single.text, isEmpty);
+    expect(MaatJournalResponseBlockUtils.extract(document), isEmpty);
+    expect(document.toPlainText(), 'True Name journal body.');
+
+    await _toggleOfferJournalWrite(tester);
+    await _tapStatus(tester, 'Observed');
+    var blocks = MaatJournalResponseBlockUtils.extract(document);
+    expect(blocks, hasLength(1));
+    expect(
+      blocks.single.text,
+      'The True Name: I measured false account and accurate account against the record and stood closer to the accurate name.',
+    );
+
+    await _choosePilotOption(
+      tester,
+      specId: 'true-name-account-lost-power',
+      optionId: 'true_name',
+    );
+    await _enterPilotResponse(
+      tester,
+      specId: 'true-name-accurate-account',
+      text: 'updated raw true name detail.',
+    );
+    await _tapStatus(tester, 'Observed');
+
+    blocks = MaatJournalResponseBlockUtils.extract(document);
+    expect(blocks, hasLength(1));
+    expect(
+      blocks.single.text,
+      'The True Name: I measured false account, accurate account, and true name against the record and stood closer to the accurate name.',
+    );
+    expect(document.toPlainText(), contains('True Name journal body.'));
+    expect(document.toPlainText(), isNot(contains('private name')));
+    expect(document.toPlainText(), isNot(contains('false story')));
+    expect(document.toPlainText(), isNot(contains('raw true name')));
+  });
+
+  testWidgets('Living Record response offer can suppress and update one safe block', (
+    tester,
+  ) async {
+    await _setPhoneViewport(tester);
+    var document = _journalDocument('Living Record journal body.');
+    final responseWrites = <MaatJournalResponseBlock>[];
+
+    await tester.pumpWidget(
+      _DayViewHarness(
+        flowIndex: _livingRecordFlowIndex,
+        notes: <NoteData>[_livingRecordNote()],
+        onWriteJournalResponse: (block) async {
+          responseWrites.add(block);
+          document = MaatJournalResponseBlockUtils.upsert(document, block);
+        },
+        onRecordCompletion:
+            ({
+              required String clientEventId,
+              required int flowId,
+              required DateTime completedOnDate,
+              Map<String, dynamic>? metadata,
+            }) async {},
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await _openDetailSheet(tester, _livingRecordTitle);
+
+    expect(find.byKey(kMaatFlowResponseSectionKey), findsOneWidget);
+    expect(find.text('What record did you make living?'), findsOneWidget);
+    expect(
+      find.text(
+        'What did you record, apply, or carry into the physical world?',
+      ),
+      findsOneWidget,
+    );
+    await _choosePilotOption(
+      tester,
+      specId: 'living-record-made-living',
+      optionId: 'day_card',
+    );
+    await _choosePilotOption(
+      tester,
+      specId: 'living-record-made-living',
+      optionId: 'journal',
+    );
+    await _enterPilotResponse(
+      tester,
+      specId: 'living-record-carried-forward',
+      text: 'private cross-app record details.',
+    );
+    expect(
+      find.text(
+        'The Living Record: I turned day card and journal into a record that can be carried forward.',
+      ),
+      findsOneWidget,
+    );
+    expect(
+      find.descendant(
+        of: find.byKey(kMaatFlowResponseJournalPreviewKey),
+        matching: find.textContaining('private cross-app'),
+      ),
+      findsNothing,
+    );
+    final addToggle = tester.widget<Checkbox>(find.byType(Checkbox).last);
+    expect(addToggle.value, isFalse);
+
+    await _tapStatus(tester, 'Observed');
+    expect(responseWrites, hasLength(1));
+    expect(responseWrites.single.text, isEmpty);
+    expect(MaatJournalResponseBlockUtils.extract(document), isEmpty);
+    expect(document.toPlainText(), 'Living Record journal body.');
+
+    await _toggleOfferJournalWrite(tester);
+    await _tapStatus(tester, 'Observed');
+    var blocks = MaatJournalResponseBlockUtils.extract(document);
+    expect(blocks, hasLength(1));
+    expect(
+      blocks.single.text,
+      'The Living Record: I turned day card and journal into a record that can be carried forward.',
+    );
+
+    await _choosePilotOption(
+      tester,
+      specId: 'living-record-made-living',
+      optionId: 'closed',
+    );
+    await _enterPilotResponse(
+      tester,
+      specId: 'living-record-carried-forward',
+      text: 'updated private cross-app record details.',
+    );
+    await _tapStatus(tester, 'Observed');
+
+    blocks = MaatJournalResponseBlockUtils.extract(document);
+    expect(blocks, hasLength(1));
+    expect(
+      blocks.single.text,
+      'The Living Record: I turned day card, journal, and closed into a record that can be carried forward.',
+    );
+    expect(document.toPlainText(), contains('Living Record journal body.'));
+    expect(document.toPlainText(), isNot(contains('private cross-app')));
   });
 
   testWidgets('unsupported Ma_at flow remains without response fields', (
@@ -4518,6 +4832,32 @@ final MaatDecanFlowEvent _openMouthEvent = _openMouthDefinition.events.first;
 final String _openMouthTitle = maatDecanFlowEventTitle(
   _openMouthDefinition,
   _openMouthEvent,
+);
+const int _autobiographyFlowId = 115;
+final MaatDecanFlowDefinition _autobiographyDefinition =
+    maatDecanFlowDefinitionForKey(kTheAutobiographyFlowKey)!;
+final MaatDecanFlowEvent _autobiographyEvent =
+    _autobiographyDefinition.events.first;
+final String _autobiographyTitle = maatDecanFlowEventTitle(
+  _autobiographyDefinition,
+  _autobiographyEvent,
+);
+const int _trueNameFlowId = 116;
+final MaatDecanFlowDefinition _trueNameDefinition =
+    maatDecanFlowDefinitionForKey(kTrueNameFlowKey)!;
+final MaatDecanFlowEvent _trueNameEvent = _trueNameDefinition.events.first;
+final String _trueNameTitle = maatDecanFlowEventTitle(
+  _trueNameDefinition,
+  _trueNameEvent,
+);
+const int _livingRecordFlowId = 117;
+final MaatDecanFlowDefinition _livingRecordDefinition =
+    maatDecanFlowDefinitionForKey(kLivingRecordFlowKey)!;
+final MaatDecanFlowEvent _livingRecordEvent =
+    _livingRecordDefinition.events.first;
+final String _livingRecordTitle = maatDecanFlowEventTitle(
+  _livingRecordDefinition,
+  _livingRecordEvent,
 );
 
 const Map<int, FlowData> _decanWatchFlowIndex = <int, FlowData>{
@@ -4777,6 +5117,36 @@ final Map<int, FlowData> _openMouthFlowIndex = <int, FlowData>{
     color: Colors.orange,
     active: true,
     notes: 'maat=$kOpenMouthFlowKey',
+  ),
+};
+
+final Map<int, FlowData> _autobiographyFlowIndex = <int, FlowData>{
+  _autobiographyFlowId: FlowData(
+    id: _autobiographyFlowId,
+    name: kTheAutobiographyTitle,
+    color: Colors.deepPurple,
+    active: true,
+    notes: 'maat=$kTheAutobiographyFlowKey',
+  ),
+};
+
+final Map<int, FlowData> _trueNameFlowIndex = <int, FlowData>{
+  _trueNameFlowId: FlowData(
+    id: _trueNameFlowId,
+    name: kTrueNameTitle,
+    color: Colors.indigo,
+    active: true,
+    notes: 'maat=$kTrueNameFlowKey',
+  ),
+};
+
+final Map<int, FlowData> _livingRecordFlowIndex = <int, FlowData>{
+  _livingRecordFlowId: FlowData(
+    id: _livingRecordFlowId,
+    name: kLivingRecordTitle,
+    color: Colors.teal,
+    active: true,
+    notes: 'maat=$kLivingRecordFlowKey',
   ),
 };
 
@@ -5230,6 +5600,33 @@ NoteData _openMouthNote({MaatDecanFlowEvent? event}) {
     event: event ?? _openMouthEvent,
     flowId: _openMouthFlowId,
     clientEventPrefix: 'open-mouth',
+  );
+}
+
+NoteData _autobiographyNote({MaatDecanFlowEvent? event}) {
+  return _phase4ADecanNote(
+    definition: _autobiographyDefinition,
+    event: event ?? _autobiographyEvent,
+    flowId: _autobiographyFlowId,
+    clientEventPrefix: 'autobiography',
+  );
+}
+
+NoteData _trueNameNote({MaatDecanFlowEvent? event}) {
+  return _phase4ADecanNote(
+    definition: _trueNameDefinition,
+    event: event ?? _trueNameEvent,
+    flowId: _trueNameFlowId,
+    clientEventPrefix: 'true-name',
+  );
+}
+
+NoteData _livingRecordNote({MaatDecanFlowEvent? event}) {
+  return _phase4ADecanNote(
+    definition: _livingRecordDefinition,
+    event: event ?? _livingRecordEvent,
+    flowId: _livingRecordFlowId,
+    clientEventPrefix: 'living-record',
   );
 }
 

@@ -37,8 +37,8 @@ class _InventoryFlow {
 
 // Phase 3H inventory lock:
 // Response-enabled core/seasonal/ritual flows: 14
-// Response-enabled decan flows: 14
-// Remaining queued decan flows: 3
+// Response-enabled decan flows: 17
+// Remaining queued decan flows: 0
 // Legacy custom flow excluded from response rollout: evening_threshold
 const List<_InventoryFlow> _responseEnabledCoreFlows = <_InventoryFlow>[
   _InventoryFlow(
@@ -212,32 +212,30 @@ const List<_InventoryFlow> _responseEnabledDecanFlows = <_InventoryFlow>[
     category: 'response-enabled decan',
     phase: 'Phase 4C',
   ),
-];
-
-const List<_InventoryFlow> _remainingPrivacySensitiveDecanFlows =
-    <_InventoryFlow>[
-      _InventoryFlow(
-        key: kTheAutobiographyFlowKey,
-        title: kTheAutobiographyTitle,
-        category: 'remaining privacy-sensitive decan',
-        phase: 'Phase 4D',
-      ),
-      _InventoryFlow(
-        key: kTrueNameFlowKey,
-        title: kTrueNameTitle,
-        category: 'remaining privacy-sensitive decan',
-        phase: 'Phase 4D',
-      ),
-    ];
-
-const List<_InventoryFlow> _remainingLowerRiskDecanFlows = <_InventoryFlow>[
+  _InventoryFlow(
+    key: kTheAutobiographyFlowKey,
+    title: kTheAutobiographyTitle,
+    category: 'response-enabled decan',
+    phase: 'Phase 4D',
+  ),
+  _InventoryFlow(
+    key: kTrueNameFlowKey,
+    title: kTrueNameTitle,
+    category: 'response-enabled decan',
+    phase: 'Phase 4D',
+  ),
   _InventoryFlow(
     key: kLivingRecordFlowKey,
     title: kLivingRecordTitle,
-    category: 'remaining lower-risk decan',
+    category: 'response-enabled decan',
     phase: 'Phase 4D',
   ),
 ];
+
+const List<_InventoryFlow> _remainingPrivacySensitiveDecanFlows =
+    <_InventoryFlow>[];
+
+const List<_InventoryFlow> _remainingLowerRiskDecanFlows = <_InventoryFlow>[];
 
 void main() {
   group('Maat response flow inventory', () {
@@ -253,15 +251,13 @@ void main() {
       expect(inventoryKeys, registeredTemplateKeys);
       expect(_allInventoryFlows, hasLength(31));
       expect(_responseEnabledCoreFlows, hasLength(14));
-      expect(_responseEnabledDecanFlows, hasLength(14));
-      expect(_remainingDecanFlows, hasLength(3));
-      expect(_remainingPrivacySensitiveDecanFlows, hasLength(2));
-      expect(_remainingLowerRiskDecanFlows, hasLength(1));
+      expect(_responseEnabledDecanFlows, hasLength(17));
+      expect(_remainingDecanFlows, isEmpty);
+      expect(_remainingPrivacySensitiveDecanFlows, isEmpty);
+      expect(_remainingLowerRiskDecanFlows, isEmpty);
       expect(_categoryCounts, <String, int>{
         'response-enabled core': 14,
-        'response-enabled decan': 14,
-        'remaining privacy-sensitive decan': 2,
-        'remaining lower-risk decan': 1,
+        'response-enabled decan': 17,
       });
       expect(registeredTemplateKeys, isNot(contains(kEveningThresholdFlowKey)));
     });
@@ -275,7 +271,7 @@ void main() {
           .toSet();
 
       expect(resolverEnabledKeys, enabledInventoryKeys);
-      expect(resolverEnabledKeys, hasLength(28));
+      expect(resolverEnabledKeys, hasLength(31));
 
       for (final flow in _remainingDecanFlows) {
         expect(
@@ -301,11 +297,7 @@ void main() {
       expect(_phaseKeys('Phase 4A'), isEmpty);
       expect(_phaseKeys('Phase 4B'), isEmpty);
       expect(_phaseKeys('Phase 4C'), isEmpty);
-      expect(_phaseKeys('Phase 4D'), <String>[
-        kTheAutobiographyFlowKey,
-        kTrueNameFlowKey,
-        kLivingRecordFlowKey,
-      ]);
+      expect(_phaseKeys('Phase 4D'), isEmpty);
     });
   });
 }
