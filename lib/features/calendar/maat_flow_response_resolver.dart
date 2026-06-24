@@ -2005,6 +2005,36 @@ kInitialMaatFlowPromptSpecs = <MaatFlowInitialPromptSpec>[
     ],
   ),
   MaatFlowInitialPromptSpec(
+    flowKey: kDawnHouseRiteFlowKey,
+    title: 'Begin reflection',
+    subtitle: "Take a moment to begin today's practice. You can finish later.",
+    fields: <MaatFlowResponseSpec>[
+      MaatFlowResponseSpec(
+        id: 'dawn-house-order-act',
+        flowKey: kDawnHouseRiteFlowKey,
+        surface: MaatFlowResponseSurface.initialDetail,
+        kind: MaatFlowResponseKind.text,
+        label: 'What order do you bring into the day?',
+        journalPolicy: MaatFlowJournalPolicy.localOnly,
+      ),
+    ],
+  ),
+  MaatFlowInitialPromptSpec(
+    flowKey: kEveningThresholdRiteFlowKey,
+    title: 'Begin reflection',
+    subtitle: "Take a moment to begin today's practice. You can finish later.",
+    fields: <MaatFlowResponseSpec>[
+      MaatFlowResponseSpec(
+        id: 'closing-release-tonight',
+        flowKey: kEveningThresholdRiteFlowKey,
+        surface: MaatFlowResponseSurface.initialDetail,
+        kind: MaatFlowResponseKind.multiline,
+        label: 'What do you release tonight?',
+        journalPolicy: MaatFlowJournalPolicy.localOnly,
+      ),
+    ],
+  ),
+  MaatFlowInitialPromptSpec(
     flowKey: kOfferingTableFlowKey,
     title: 'Begin reflection',
     subtitle: "Take a moment to begin today's practice. You can finish later.",
@@ -2060,6 +2090,271 @@ kInitialMaatFlowPromptSpecs = <MaatFlowInitialPromptSpec>[
         surface: MaatFlowResponseSurface.initialDetail,
         kind: MaatFlowResponseKind.multiline,
         label: 'What did you provide today?',
+        journalPolicy: MaatFlowJournalPolicy.localOnly,
+      ),
+    ],
+  ),
+  MaatFlowInitialPromptSpec(
+    flowKey: kFirstArrangementFlowKey,
+    title: 'Begin reflection',
+    subtitle: "Take a moment to begin today's practice. You can finish later.",
+    fields: <MaatFlowResponseSpec>[
+      MaatFlowResponseSpec(
+        id: 'first-arrangement-ordered',
+        flowKey: kFirstArrangementFlowKey,
+        surface: MaatFlowResponseSurface.initialDetail,
+        kind: MaatFlowResponseKind.chips,
+        label: 'What space will you put in order?',
+        options: <MaatFlowResponseOption>[
+          MaatFlowResponseOption(
+            id: 'cleared',
+            label: 'Cleared',
+            journalLabel: 'cleared',
+          ),
+          MaatFlowResponseOption(
+            id: 'arranged',
+            label: 'Arranged',
+            journalLabel: 'arranged',
+          ),
+          MaatFlowResponseOption(
+            id: 'removed',
+            label: 'Removed',
+            journalLabel: 'removed',
+          ),
+          MaatFlowResponseOption(
+            id: 'cleaned',
+            label: 'Cleaned',
+            journalLabel: 'cleaned',
+          ),
+          MaatFlowResponseOption(
+            id: 'placed',
+            label: 'Placed',
+            journalLabel: 'placed',
+          ),
+          MaatFlowResponseOption(
+            id: 'maintained',
+            label: 'Maintained',
+            journalLabel: 'maintained',
+          ),
+          MaatFlowResponseOption(
+            id: 'returned',
+            label: 'Returned',
+            journalLabel: 'returned',
+          ),
+          MaatFlowResponseOption(
+            id: 'made_visible',
+            label: 'Made visible',
+            journalLabel: 'made visible',
+          ),
+        ],
+        journalPolicy: MaatFlowJournalPolicy.localOnly,
+      ),
+      MaatFlowResponseSpec(
+        id: 'first-arrangement-space-changed',
+        flowKey: kFirstArrangementFlowKey,
+        surface: MaatFlowResponseSurface.initialDetail,
+        kind: MaatFlowResponseKind.multiline,
+        label: 'What changed in the space?',
+        journalPolicy: MaatFlowJournalPolicy.localOnly,
+      ),
+    ],
+  ),
+  MaatFlowInitialPromptSpec(
+    flowKey: kLivingPatternFlowKey,
+    title: 'Begin reflection',
+    subtitle: "Take a moment to begin today's practice. You can finish later.",
+    fields: <MaatFlowResponseSpec>[
+      MaatFlowResponseSpec(
+        id: 'living-pattern-observed',
+        flowKey: kLivingPatternFlowKey,
+        surface: MaatFlowResponseSurface.initialDetail,
+        kind: MaatFlowResponseKind.chips,
+        label: 'What pattern are you watching?',
+        options: <MaatFlowResponseOption>[
+          MaatFlowResponseOption(
+            id: 'growth',
+            label: 'Growth',
+            journalLabel: 'growth',
+          ),
+          MaatFlowResponseOption(
+            id: 'return',
+            label: 'Return',
+            journalLabel: 'return',
+          ),
+          MaatFlowResponseOption(
+            id: 'boundary',
+            label: 'Boundary',
+            journalLabel: 'boundary',
+          ),
+          MaatFlowResponseOption(
+            id: 'timing',
+            label: 'Timing',
+            journalLabel: 'timing',
+          ),
+          MaatFlowResponseOption(
+            id: 'flow',
+            label: 'Flow',
+            journalLabel: 'flow',
+          ),
+          MaatFlowResponseOption(
+            id: 'rest',
+            label: 'Rest',
+            journalLabel: 'rest',
+          ),
+          MaatFlowResponseOption(
+            id: 'pressure',
+            label: 'Pressure',
+            journalLabel: 'pressure',
+          ),
+          MaatFlowResponseOption(
+            id: 'adaptation',
+            label: 'Adaptation',
+            journalLabel: 'adaptation',
+          ),
+          MaatFlowResponseOption(
+            id: 'cycle',
+            label: 'Cycle',
+            journalLabel: 'cycle',
+          ),
+        ],
+        journalPolicy: MaatFlowJournalPolicy.localOnly,
+      ),
+      MaatFlowResponseSpec(
+        id: 'living-pattern-principle',
+        flowKey: kLivingPatternFlowKey,
+        surface: MaatFlowResponseSurface.initialDetail,
+        kind: MaatFlowResponseKind.multiline,
+        label: 'What principle did the pattern teach?',
+        journalPolicy: MaatFlowJournalPolicy.localOnly,
+      ),
+    ],
+  ),
+  MaatFlowInitialPromptSpec(
+    flowKey: kHouseOfLifeFlowKey,
+    title: 'Begin reflection',
+    subtitle: "Take a moment to begin today's practice. You can finish later.",
+    fields: <MaatFlowResponseSpec>[
+      MaatFlowResponseSpec(
+        id: 'house-of-life-clearer',
+        flowKey: kHouseOfLifeFlowKey,
+        surface: MaatFlowResponseSurface.initialDetail,
+        kind: MaatFlowResponseKind.chips,
+        label: 'What knowledge are you preserving?',
+        options: <MaatFlowResponseOption>[
+          MaatFlowResponseOption(
+            id: 'question',
+            label: 'Question',
+            journalLabel: 'question',
+          ),
+          MaatFlowResponseOption(
+            id: 'source',
+            label: 'Source',
+            journalLabel: 'source',
+          ),
+          MaatFlowResponseOption(
+            id: 'note',
+            label: 'Note',
+            journalLabel: 'note',
+          ),
+          MaatFlowResponseOption(
+            id: 'practice',
+            label: 'Practice',
+            journalLabel: 'practice',
+          ),
+          MaatFlowResponseOption(
+            id: 'teacher',
+            label: 'Teacher',
+            journalLabel: 'teacher',
+          ),
+          MaatFlowResponseOption(
+            id: 'transmission',
+            label: 'Transmission',
+            journalLabel: 'transmission',
+          ),
+          MaatFlowResponseOption(
+            id: 'correction',
+            label: 'Correction',
+            journalLabel: 'correction',
+          ),
+          MaatFlowResponseOption(
+            id: 'application',
+            label: 'Application',
+            journalLabel: 'application',
+          ),
+        ],
+        journalPolicy: MaatFlowJournalPolicy.localOnly,
+      ),
+      MaatFlowResponseSpec(
+        id: 'house-of-life-learned',
+        flowKey: kHouseOfLifeFlowKey,
+        surface: MaatFlowResponseSurface.initialDetail,
+        kind: MaatFlowResponseKind.multiline,
+        label: 'What did you learn, write, recite, or transmit?',
+        journalPolicy: MaatFlowJournalPolicy.localOnly,
+      ),
+    ],
+  ),
+  MaatFlowInitialPromptSpec(
+    flowKey: kHotepFlowKey,
+    title: 'Begin reflection',
+    subtitle: "Take a moment to begin today's practice. You can finish later.",
+    fields: <MaatFlowResponseSpec>[
+      MaatFlowResponseSpec(
+        id: 'hotep-cooled',
+        flowKey: kHotepFlowKey,
+        surface: MaatFlowResponseSurface.initialDetail,
+        kind: MaatFlowResponseKind.chips,
+        label: 'What can be enough tonight?',
+        options: <MaatFlowResponseOption>[
+          MaatFlowResponseOption(
+            id: 'given',
+            label: 'Given',
+            journalLabel: 'given',
+          ),
+          MaatFlowResponseOption(
+            id: 'enough',
+            label: 'Enough',
+            journalLabel: 'enough',
+          ),
+          MaatFlowResponseOption(
+            id: 'released',
+            label: 'Released',
+            journalLabel: 'released',
+          ),
+          MaatFlowResponseOption(
+            id: 'cooled',
+            label: 'Cooled',
+            journalLabel: 'cooled',
+          ),
+          MaatFlowResponseOption(
+            id: 'completed',
+            label: 'Completed',
+            journalLabel: 'completed',
+          ),
+          MaatFlowResponseOption(
+            id: 'rested',
+            label: 'Rested',
+            journalLabel: 'rested',
+          ),
+          MaatFlowResponseOption(
+            id: 'received',
+            label: 'Received',
+            journalLabel: 'received',
+          ),
+          MaatFlowResponseOption(
+            id: 'settled',
+            label: 'Settled',
+            journalLabel: 'settled',
+          ),
+        ],
+        journalPolicy: MaatFlowJournalPolicy.localOnly,
+      ),
+      MaatFlowResponseSpec(
+        id: 'hotep-enough-tonight',
+        flowKey: kHotepFlowKey,
+        surface: MaatFlowResponseSurface.initialDetail,
+        kind: MaatFlowResponseKind.multiline,
+        label: 'What did you let be enough tonight?',
         journalPolicy: MaatFlowJournalPolicy.localOnly,
       ),
     ],

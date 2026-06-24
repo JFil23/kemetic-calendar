@@ -2,6 +2,9 @@ import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mobile/core/completion_status.dart';
+import 'package:mobile/features/calendar/dawn_house_rite_flow.dart';
+import 'package:mobile/features/calendar/evening_threshold_rite_flow.dart';
+import 'package:mobile/features/calendar/maat_decan_flow.dart';
 import 'package:mobile/features/calendar/maat_flow_response_draft_store.dart';
 import 'package:mobile/features/calendar/maat_flow_response_journal_blocks.dart';
 import 'package:mobile/features/calendar/maat_flow_response_models.dart';
@@ -77,6 +80,69 @@ void main() {
     );
   });
 
+  test(
+    'Dawn House Rite initial prompt draft hydrates Day Sheet response specs',
+    () {
+      final store = MaatFlowResponseDraftStore();
+      final prompt = _prompt(kDawnHouseRiteFlowKey);
+      final sheet = _sheet(kDawnHouseRiteFlowKey);
+
+      store.rememberValue(
+        flowKey: prompt.flowKey,
+        value: MaatFlowResponseValue.text(
+          specId: 'dawn-house-order-act',
+          text: 'clear the table before sunrise',
+        ),
+      );
+
+      expect(
+        _textValue(store.valuesForSpecs(sheet)),
+        'clear the table before sunrise',
+      );
+
+      store.rememberValue(
+        flowKey: sheet.single.flowKey,
+        value: MaatFlowResponseValue.text(
+          specId: 'dawn-house-order-act',
+          text: 'wash the cup and return the cloth',
+        ),
+      );
+
+      expect(
+        _textValue(store.valuesForSpecs(prompt.fields)),
+        'wash the cup and return the cloth',
+      );
+    },
+  );
+
+  test('Closing initial prompt draft hydrates Day Sheet response specs', () {
+    final store = MaatFlowResponseDraftStore();
+    final prompt = _prompt(kEveningThresholdRiteFlowKey);
+    final sheet = _sheet(kEveningThresholdRiteFlowKey);
+
+    store.rememberValue(
+      flowKey: prompt.flowKey,
+      value: MaatFlowResponseValue.text(
+        specId: 'closing-release-tonight',
+        text: 'the unfinished worry',
+        multiline: true,
+      ),
+    );
+
+    expect(_textValue(store.valuesForSpecs(sheet)), 'the unfinished worry');
+
+    store.rememberValue(
+      flowKey: sheet.single.flowKey,
+      value: MaatFlowResponseValue.text(
+        specId: 'closing-release-tonight',
+        text: 'the old loop',
+        multiline: true,
+      ),
+    );
+
+    expect(_textValue(store.valuesForSpecs(prompt.fields)), 'the old loop');
+  });
+
   test('Offering Table prompt shares chip and text drafts with Day Sheet', () {
     final store = MaatFlowResponseDraftStore();
     final prompt = _prompt(kOfferingTableFlowKey);
@@ -120,6 +186,197 @@ void main() {
     expect(
       store.valuesForSpecs(prompt.fields)['offering-table-provided']?.text,
       'water, care, and rest',
+    );
+  });
+
+  test(
+    'First Arrangement prompt shares chip and text drafts with Day Sheet',
+    () {
+      final store = MaatFlowResponseDraftStore();
+      final prompt = _prompt(kFirstArrangementFlowKey);
+      final sheet = _sheet(kFirstArrangementFlowKey);
+
+      store.rememberValue(
+        flowKey: prompt.flowKey,
+        value: MaatFlowResponseValue.chips(
+          specId: 'first-arrangement-ordered',
+          optionIds: <String>['cleared', 'made_visible'],
+        ),
+      );
+      store.rememberValue(
+        flowKey: prompt.flowKey,
+        value: MaatFlowResponseValue.text(
+          specId: 'first-arrangement-space-changed',
+          text: 'the entry shelf',
+          multiline: true,
+        ),
+      );
+
+      final sheetValues = store.valuesForSpecs(sheet);
+      expect(sheetValues['first-arrangement-ordered']?.optionIds, <String>[
+        'cleared',
+        'made_visible',
+      ]);
+      expect(
+        sheetValues['first-arrangement-space-changed']?.text,
+        'the entry shelf',
+      );
+
+      store.rememberValue(
+        flowKey: sheet.first.flowKey,
+        value: MaatFlowResponseValue.text(
+          specId: 'first-arrangement-space-changed',
+          text: 'the desk and tray',
+          multiline: true,
+        ),
+      );
+
+      expect(
+        store
+            .valuesForSpecs(prompt.fields)['first-arrangement-space-changed']
+            ?.text,
+        'the desk and tray',
+      );
+    },
+  );
+
+  test('Living Pattern prompt shares chip and text drafts with Day Sheet', () {
+    final store = MaatFlowResponseDraftStore();
+    final prompt = _prompt(kLivingPatternFlowKey);
+    final sheet = _sheet(kLivingPatternFlowKey);
+
+    store.rememberValue(
+      flowKey: prompt.flowKey,
+      value: MaatFlowResponseValue.chips(
+        specId: 'living-pattern-observed',
+        optionIds: <String>['growth', 'return'],
+      ),
+    );
+    store.rememberValue(
+      flowKey: prompt.flowKey,
+      value: MaatFlowResponseValue.text(
+        specId: 'living-pattern-principle',
+        text: 'patient timing',
+        multiline: true,
+      ),
+    );
+
+    final sheetValues = store.valuesForSpecs(sheet);
+    expect(sheetValues['living-pattern-observed']?.optionIds, <String>[
+      'growth',
+      'return',
+    ]);
+    expect(sheetValues['living-pattern-principle']?.text, 'patient timing');
+
+    store.rememberValue(
+      flowKey: sheet.first.flowKey,
+      value: MaatFlowResponseValue.text(
+        specId: 'living-pattern-principle',
+        text: 'cyclical attention',
+        multiline: true,
+      ),
+    );
+
+    expect(
+      store.valuesForSpecs(prompt.fields)['living-pattern-principle']?.text,
+      'cyclical attention',
+    );
+  });
+
+  test('House of Life prompt shares chip and text drafts with Day Sheet', () {
+    final store = MaatFlowResponseDraftStore();
+    final prompt = _prompt(kHouseOfLifeFlowKey);
+    final sheet = _sheet(kHouseOfLifeFlowKey);
+
+    store.rememberValue(
+      flowKey: prompt.flowKey,
+      value: MaatFlowResponseValue.chips(
+        specId: 'house-of-life-clearer',
+        optionIds: <String>['question', 'source'],
+      ),
+    );
+    store.rememberValue(
+      flowKey: prompt.flowKey,
+      value: MaatFlowResponseValue.text(
+        specId: 'house-of-life-learned',
+        text: 'copying the source note',
+        multiline: true,
+      ),
+    );
+
+    final sheetValues = store.valuesForSpecs(sheet);
+    expect(sheetValues['house-of-life-clearer']?.optionIds, <String>[
+      'question',
+      'source',
+    ]);
+    expect(
+      sheetValues['house-of-life-learned']?.text,
+      'copying the source note',
+    );
+
+    store.rememberValue(
+      flowKey: sheet.first.flowKey,
+      value: MaatFlowResponseValue.text(
+        specId: 'house-of-life-learned',
+        text: 'transmitting the useful note',
+        multiline: true,
+      ),
+    );
+
+    expect(
+      store.valuesForSpecs(prompt.fields)['house-of-life-learned']?.text,
+      'transmitting the useful note',
+    );
+  });
+
+  test('Hotep prompt shares offer-safe drafts with Day Sheet', () {
+    final store = MaatFlowResponseDraftStore();
+    final prompt = _prompt(kHotepFlowKey);
+    final sheet = _sheet(kHotepFlowKey);
+
+    expect(
+      sheet.every((spec) => spec.offerJournalInclusionDefault == false),
+      isTrue,
+    );
+
+    store.rememberValue(
+      flowKey: prompt.flowKey,
+      value: MaatFlowResponseValue.chips(
+        specId: 'hotep-cooled',
+        optionIds: <String>['given', 'settled'],
+      ),
+    );
+    store.rememberValue(
+      flowKey: prompt.flowKey,
+      value: MaatFlowResponseValue.text(
+        specId: 'hotep-enough-tonight',
+        text: 'private obligation detail.',
+        multiline: true,
+      ),
+    );
+
+    final sheetValues = store.valuesForSpecs(sheet);
+    expect(sheetValues['hotep-cooled']?.optionIds, <String>[
+      'given',
+      'settled',
+    ]);
+    expect(
+      sheetValues['hotep-enough-tonight']?.text,
+      'private obligation detail.',
+    );
+
+    store.rememberValue(
+      flowKey: sheet.first.flowKey,
+      value: MaatFlowResponseValue.text(
+        specId: 'hotep-enough-tonight',
+        text: 'updated private obligation detail.',
+        multiline: true,
+      ),
+    );
+
+    expect(
+      store.valuesForSpecs(prompt.fields)['hotep-enough-tonight']?.text,
+      'updated private obligation detail.',
     );
   });
 

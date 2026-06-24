@@ -3,8 +3,8 @@ import 'package:mobile/features/calendar/maat_flow_response_models.dart';
 import 'package:mobile/features/calendar/maat_flow_response_resolver.dart';
 
 void main() {
-  test('default initial prompt resolver exposes exactly four pilot flows', () {
-    expect(kInitialMaatFlowPromptSpecs, hasLength(4));
+  test('default initial prompt resolver exposes the prompt-enabled flows', () {
+    expect(kInitialMaatFlowPromptSpecs, hasLength(10));
 
     final moonReturn = resolveMaatFlowInitialPromptSpec(
       flowKey: 'the-moon-return',
@@ -15,6 +15,21 @@ void main() {
     final course = resolveMaatFlowInitialPromptSpec(flowKey: 'the-course');
     expect(course, isNotNull);
     expect(course!.fields.single.label, 'What action fits this hour?');
+
+    final dawnHouse = resolveMaatFlowInitialPromptSpec(
+      flowKey: 'dawn-house-rite',
+    );
+    expect(dawnHouse, isNotNull);
+    expect(
+      dawnHouse!.fields.single.label,
+      'What order do you bring into the day?',
+    );
+
+    final closing = resolveMaatFlowInitialPromptSpec(
+      flowKey: 'evening-threshold-rite',
+    );
+    expect(closing, isNotNull);
+    expect(closing!.fields.single.label, 'What do you release tonight?');
 
     final offering = resolveMaatFlowInitialPromptSpec(
       flowKey: 'the-offering-table',
@@ -33,6 +48,40 @@ void main() {
       'Visibility',
       'What did the sky show?',
       'What bearing do you carry into the next ten days?',
+    ]);
+
+    final firstArrangement = resolveMaatFlowInitialPromptSpec(
+      flowKey: 'the-first-arrangement',
+    );
+    expect(firstArrangement, isNotNull);
+    expect(firstArrangement!.fields.map((field) => field.label), <String>[
+      'What space will you put in order?',
+      'What changed in the space?',
+    ]);
+
+    final livingPattern = resolveMaatFlowInitialPromptSpec(
+      flowKey: 'the-living-pattern',
+    );
+    expect(livingPattern, isNotNull);
+    expect(livingPattern!.fields.map((field) => field.label), <String>[
+      'What pattern are you watching?',
+      'What principle did the pattern teach?',
+    ]);
+
+    final houseOfLife = resolveMaatFlowInitialPromptSpec(
+      flowKey: 'the-house-of-life',
+    );
+    expect(houseOfLife, isNotNull);
+    expect(houseOfLife!.fields.map((field) => field.label), <String>[
+      'What knowledge are you preserving?',
+      'What did you learn, write, recite, or transmit?',
+    ]);
+
+    final hotep = resolveMaatFlowInitialPromptSpec(flowKey: 'hotep');
+    expect(hotep, isNotNull);
+    expect(hotep!.fields.map((field) => field.label), <String>[
+      'What can be enough tonight?',
+      'What did you let be enough tonight?',
     ]);
 
     expect(resolveMaatFlowInitialPromptSpec(flowKey: 'the-true-name'), isNull);
@@ -60,7 +109,7 @@ void main() {
     expect(prompt.fields.single.surface, MaatFlowResponseSurface.initialDetail);
   });
 
-  test('pilot fields are local-only initial-detail specs', () {
+  test('enabled initial prompt fields are local-only initial-detail specs', () {
     for (final prompt in kInitialMaatFlowPromptSpecs) {
       for (final field in prompt.fields) {
         expect(field.surface, MaatFlowResponseSurface.initialDetail);

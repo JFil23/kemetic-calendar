@@ -7,14 +7,20 @@ import 'package:mobile/features/calendar/calendar_page.dart';
 void main() {
   tearDown(resetMaatFlowJoinedStateForTesting);
 
-  testWidgets('pilot initial prompts render in template details', (
+  testWidgets('enabled initial prompts render in template details', (
     tester,
   ) async {
     for (final entry in const <(String, String)>[
       ('the-moon-return', 'What do you set down?'),
       ('the-course', 'What action fits this hour?'),
+      ('dawn-house-rite', 'What order do you bring into the day?'),
+      ('evening-threshold-rite', 'What do you release tonight?'),
       ('the-offering-table', 'What was fed?'),
       ('the-decan-watch', 'What did the sky show?'),
+      ('the-first-arrangement', 'What space will you put in order?'),
+      ('the-living-pattern', 'What pattern are you watching?'),
+      ('the-house-of-life', 'What knowledge are you preserving?'),
+      ('hotep', 'What can be enough tonight?'),
     ]) {
       await _pumpTemplateDetail(tester, entry.$1);
 
@@ -30,9 +36,12 @@ void main() {
 
     await _pumpTemplateDetail(tester, 'the-offering-table');
     expect(find.text('What did you provide today?'), findsOneWidget);
+
+    await _pumpTemplateDetail(tester, 'hotep');
+    expect(find.text('What did you let be enough tonight?'), findsOneWidget);
   });
 
-  testWidgets('initial prompt remains absent for non-pilot Ma’at details', (
+  testWidgets('initial prompt remains absent for unsupported Ma’at details', (
     tester,
   ) async {
     await _pumpTemplateDetail(tester, 'the-weighing');

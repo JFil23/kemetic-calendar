@@ -4865,6 +4865,87 @@ void main() {
     },
   );
 
+  for (final smokeCase in _phase6B4PromptSmokeCases()) {
+    testWidgets(
+      'Smoke harness: ${smokeCase.name} initial prompt hydrates Day Sheet and journals once',
+      (tester) async {
+        await _setPhoneViewport(tester);
+
+        var document = _journalDocument(
+          '${smokeCase.name} journal body stays.',
+        );
+        final responseWrites = <MaatJournalResponseBlock>[];
+
+        await _pumpInitialPromptDetail(tester, smokeCase.flowKey);
+        expect(
+          find.byKey(kMaatFlowInitialPromptSectionKey),
+          findsOneWidget,
+          reason: smokeCase.name,
+        );
+        await smokeCase.seedInitialPrompt(tester);
+
+        await tester.pumpWidget(
+          _DayViewHarness(
+            flowIndex: smokeCase.flowIndex,
+            notes: smokeCase.notes(),
+            onWriteJournalResponse: (block) async {
+              responseWrites.add(block);
+              document = MaatJournalResponseBlockUtils.upsert(document, block);
+            },
+            onRecordCompletion:
+                ({
+                  required String clientEventId,
+                  required int flowId,
+                  required DateTime completedOnDate,
+                  Map<String, dynamic>? metadata,
+                }) async {},
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        await _openDetailSheet(tester, smokeCase.eventTitle);
+        await smokeCase.expectSheetHydrated(tester);
+        expect(
+          MaatJournalResponseBlockUtils.extract(document),
+          isEmpty,
+          reason: smokeCase.name,
+        );
+
+        await _tapStatus(tester, 'Observed');
+        if (smokeCase.offerDefaultOff) {
+          expect(responseWrites, hasLength(1), reason: smokeCase.name);
+          expect(responseWrites.single.text, isEmpty, reason: smokeCase.name);
+          expect(
+            MaatJournalResponseBlockUtils.extract(document),
+            isEmpty,
+            reason: smokeCase.name,
+          );
+          await _toggleOfferJournalWrite(tester);
+          await _tapStatus(tester, 'Observed');
+        }
+
+        var blocks = MaatJournalResponseBlockUtils.extract(document);
+        expect(blocks, hasLength(1), reason: smokeCase.name);
+        expect(blocks.single.text, smokeCase.expectedBlock);
+
+        await smokeCase.updateSheet(tester);
+        await _tapStatus(tester, 'Observed');
+
+        blocks = MaatJournalResponseBlockUtils.extract(document);
+        expect(blocks, hasLength(1), reason: smokeCase.name);
+        expect(blocks.single.text, smokeCase.updatedBlock);
+        expect(
+          document.toPlainText(),
+          contains('${smokeCase.name} journal body stays.'),
+          reason: smokeCase.name,
+        );
+        if (smokeCase.staleText != null) {
+          expect(document.toPlainText(), isNot(contains(smokeCase.staleText)));
+        }
+      },
+    );
+  }
+
   testWidgets('Smoke harness: normal event remains without response UI', (
     tester,
   ) async {
@@ -6067,6 +6148,317 @@ Future<void> _pumpInitialPromptDetail(
     ),
   );
   await _pumpInteraction(tester);
+}
+
+List<_PromptHydrationSmokeCase> _phase6B4PromptSmokeCases() {
+  return <_PromptHydrationSmokeCase>[
+    _PromptHydrationSmokeCase(
+      name: 'Dawn House Rite',
+      flowKey: kDawnHouseRiteFlowKey,
+      flowIndex: _dawnHouseRiteFlowIndex,
+      eventTitle: _dawnHouseRiteTitle,
+      notes: () => <NoteData>[_dawnHouseRiteNote()],
+      seedInitialPrompt: (tester) async {
+        await _enterPilotResponse(
+          tester,
+          specId: 'dawn-house-order-act',
+          text: 'clearing the table before sunrise.',
+        );
+      },
+      expectSheetHydrated: (tester) async {
+        await _expectResponseText(
+          tester,
+          specId: 'dawn-house-order-act',
+          text: 'clearing the table before sunrise.',
+        );
+      },
+      updateSheet: (tester) async {
+        await _enterPilotResponse(
+          tester,
+          specId: 'dawn-house-order-act',
+          text: 'washing the cup.',
+        );
+      },
+      expectedBlock:
+          'Dawn House Rite: I brought order by clearing the table before sunrise.',
+      updatedBlock: 'Dawn House Rite: I brought order by washing the cup.',
+      staleText: 'clearing the table before sunrise',
+    ),
+    _PromptHydrationSmokeCase(
+      name: 'The Closing',
+      flowKey: kEveningThresholdRiteFlowKey,
+      flowIndex: _eveningThresholdRiteFlowIndex,
+      eventTitle: _eveningThresholdRiteTitle,
+      notes: () => <NoteData>[_eveningThresholdRiteNote()],
+      seedInitialPrompt: (tester) async {
+        await _enterPilotResponse(
+          tester,
+          specId: 'closing-release-tonight',
+          text: 'the unfinished worry.',
+        );
+      },
+      expectSheetHydrated: (tester) async {
+        await _expectResponseText(
+          tester,
+          specId: 'closing-release-tonight',
+          text: 'the unfinished worry.',
+        );
+      },
+      updateSheet: (tester) async {
+        await _enterPilotResponse(
+          tester,
+          specId: 'closing-release-tonight',
+          text: 'the old loop.',
+        );
+      },
+      expectedBlock: 'The Closing: I release the unfinished worry.',
+      updatedBlock: 'The Closing: I release the old loop.',
+      staleText: 'the unfinished worry',
+    ),
+    _PromptHydrationSmokeCase(
+      name: 'The First Arrangement',
+      flowKey: kFirstArrangementFlowKey,
+      flowIndex: _firstArrangementFlowIndex,
+      eventTitle: _firstArrangementTitle,
+      notes: () => <NoteData>[_firstArrangementNote()],
+      seedInitialPrompt: (tester) async {
+        await _choosePilotOption(
+          tester,
+          specId: 'first-arrangement-ordered',
+          optionId: 'cleared',
+        );
+        await _enterPilotResponse(
+          tester,
+          specId: 'first-arrangement-space-changed',
+          text: 'the entry shelf',
+        );
+      },
+      expectSheetHydrated: (tester) async {
+        await _expectResponseChipSelected(
+          tester,
+          specId: 'first-arrangement-ordered',
+          optionId: 'cleared',
+        );
+        await _expectResponseText(
+          tester,
+          specId: 'first-arrangement-space-changed',
+          text: 'the entry shelf',
+        );
+      },
+      updateSheet: (tester) async {
+        await _choosePilotOption(
+          tester,
+          specId: 'first-arrangement-ordered',
+          optionId: 'made_visible',
+        );
+        await _enterPilotResponse(
+          tester,
+          specId: 'first-arrangement-space-changed',
+          text: 'the desk and tray',
+        );
+      },
+      expectedBlock:
+          'The First Arrangement: I put cleared into order and made the entry shelf visible.',
+      updatedBlock:
+          'The First Arrangement: I put cleared and made visible into order and made the desk and tray visible.',
+      staleText: 'the entry shelf',
+    ),
+    _PromptHydrationSmokeCase(
+      name: 'The Living Pattern',
+      flowKey: kLivingPatternFlowKey,
+      flowIndex: _livingPatternFlowIndex,
+      eventTitle: _livingPatternTitle,
+      notes: () => <NoteData>[_livingPatternNote()],
+      seedInitialPrompt: (tester) async {
+        await _choosePilotOption(
+          tester,
+          specId: 'living-pattern-observed',
+          optionId: 'growth',
+        );
+        await _enterPilotResponse(
+          tester,
+          specId: 'living-pattern-principle',
+          text: 'patient timing',
+        );
+      },
+      expectSheetHydrated: (tester) async {
+        await _expectResponseChipSelected(
+          tester,
+          specId: 'living-pattern-observed',
+          optionId: 'growth',
+        );
+        await _expectResponseText(
+          tester,
+          specId: 'living-pattern-principle',
+          text: 'patient timing',
+        );
+      },
+      updateSheet: (tester) async {
+        await _choosePilotOption(
+          tester,
+          specId: 'living-pattern-observed',
+          optionId: 'return',
+        );
+        await _enterPilotResponse(
+          tester,
+          specId: 'living-pattern-principle',
+          text: 'steady return',
+        );
+      },
+      expectedBlock:
+          'The Living Pattern: I observed growth and carried patient timing into action.',
+      updatedBlock:
+          'The Living Pattern: I observed growth and return and carried steady return into action.',
+      staleText: 'patient timing',
+    ),
+    _PromptHydrationSmokeCase(
+      name: 'The House of Life',
+      flowKey: kHouseOfLifeFlowKey,
+      flowIndex: _houseOfLifeFlowIndex,
+      eventTitle: _houseOfLifeTitle,
+      notes: () => <NoteData>[_houseOfLifeNote()],
+      seedInitialPrompt: (tester) async {
+        await _choosePilotOption(
+          tester,
+          specId: 'house-of-life-clearer',
+          optionId: 'question',
+        );
+        await _enterPilotResponse(
+          tester,
+          specId: 'house-of-life-learned',
+          text: 'copying the source note',
+        );
+      },
+      expectSheetHydrated: (tester) async {
+        await _expectResponseChipSelected(
+          tester,
+          specId: 'house-of-life-clearer',
+          optionId: 'question',
+        );
+        await _expectResponseText(
+          tester,
+          specId: 'house-of-life-learned',
+          text: 'copying the source note',
+        );
+      },
+      updateSheet: (tester) async {
+        await _choosePilotOption(
+          tester,
+          specId: 'house-of-life-clearer',
+          optionId: 'source',
+        );
+        await _enterPilotResponse(
+          tester,
+          specId: 'house-of-life-learned',
+          text: 'transmitting the useful note',
+        );
+      },
+      expectedBlock:
+          'The House of Life: I made question clearer and preserved copying the source note.',
+      updatedBlock:
+          'The House of Life: I made question and source clearer and preserved transmitting the useful note.',
+      staleText: 'copying the source note',
+    ),
+    _PromptHydrationSmokeCase(
+      name: 'Hotep',
+      flowKey: kHotepFlowKey,
+      flowIndex: _hotepFlowIndex,
+      eventTitle: _hotepTitle,
+      notes: () => <NoteData>[_hotepNote()],
+      offerDefaultOff: true,
+      seedInitialPrompt: (tester) async {
+        await _choosePilotOption(
+          tester,
+          specId: 'hotep-cooled',
+          optionId: 'given',
+        );
+        await _enterPilotResponse(
+          tester,
+          specId: 'hotep-enough-tonight',
+          text: 'private obligation detail.',
+        );
+      },
+      expectSheetHydrated: (tester) async {
+        await _expectResponseChipSelected(
+          tester,
+          specId: 'hotep-cooled',
+          optionId: 'given',
+        );
+        await _expectResponseText(
+          tester,
+          specId: 'hotep-enough-tonight',
+          text: 'private obligation detail.',
+        );
+      },
+      updateSheet: (tester) async {
+        await _choosePilotOption(
+          tester,
+          specId: 'hotep-cooled',
+          optionId: 'settled',
+        );
+        await _enterPilotResponse(
+          tester,
+          specId: 'hotep-enough-tonight',
+          text: 'updated private obligation detail.',
+        );
+      },
+      expectedBlock:
+          'Hotep: I named given, let enough be enough, and let the heart cool.',
+      updatedBlock:
+          'Hotep: I named given and settled, let enough be enough, and let the heart cool.',
+      staleText: 'private obligation detail',
+    ),
+  ];
+}
+
+Future<void> _expectResponseText(
+  WidgetTester tester, {
+  required String specId,
+  required String text,
+}) async {
+  final field = find.byKey(maatFlowResponseFieldKey(specId));
+  await tester.ensureVisible(field);
+  expect(tester.widget<TextFormField>(field).controller?.text, text);
+}
+
+Future<void> _expectResponseChipSelected(
+  WidgetTester tester, {
+  required String specId,
+  required String optionId,
+}) async {
+  final chip = find.byKey(maatFlowResponseFieldKey('$specId:$optionId'));
+  await tester.ensureVisible(chip);
+  expect(tester.widget<FilterChip>(chip).selected, isTrue);
+}
+
+class _PromptHydrationSmokeCase {
+  const _PromptHydrationSmokeCase({
+    required this.name,
+    required this.flowKey,
+    required this.flowIndex,
+    required this.eventTitle,
+    required this.notes,
+    required this.seedInitialPrompt,
+    required this.expectSheetHydrated,
+    required this.updateSheet,
+    required this.expectedBlock,
+    required this.updatedBlock,
+    this.offerDefaultOff = false,
+    this.staleText,
+  });
+
+  final String name;
+  final String flowKey;
+  final Map<int, FlowData> flowIndex;
+  final String eventTitle;
+  final List<NoteData> Function() notes;
+  final Future<void> Function(WidgetTester tester) seedInitialPrompt;
+  final Future<void> Function(WidgetTester tester) expectSheetHydrated;
+  final Future<void> Function(WidgetTester tester) updateSheet;
+  final String expectedBlock;
+  final String updatedBlock;
+  final bool offerDefaultOff;
+  final String? staleText;
 }
 
 class _DayViewHarness extends StatelessWidget {
