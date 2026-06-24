@@ -2222,8 +2222,11 @@ class _MaatFlowTemplateDetailPageState
 
   Widget _buildDateModeTitle({
     required String title,
+    Color? color,
     double fontSize = 20,
     FontWeight fontWeight = FontWeight.w600,
+    double? letterSpacing,
+    double? height,
     int maxLines = 1,
     TextAlign textAlign = TextAlign.start,
   }) {
@@ -2241,10 +2244,13 @@ class _MaatFlowTemplateDetailPageState
             maxLines: maxLines,
             overflow: TextOverflow.ellipsis,
             style: TextStyle(
+              color: color,
               fontFamily: MaatFlowListTokens.fontFamily,
               fontFamilyFallback: MaatFlowListTokens.fontFallback,
               fontSize: fontSize,
               fontWeight: fontWeight,
+              letterSpacing: letterSpacing,
+              height: height,
             ),
             gradient: _useKemetic ? goldGloss : whiteGloss,
           ),
@@ -4402,12 +4408,6 @@ class _MaatFlowTemplateDetailPageState
               onPressed: () => Navigator.of(context).maybePop(),
             )
           : const SizedBox.shrink(),
-      title: _buildDateModeTitle(
-        title: widget.template.title,
-        fontSize: 25,
-        fontWeight: FontWeight.w500,
-        textAlign: TextAlign.center,
-      ),
     );
   }
 
@@ -4634,19 +4634,14 @@ class _MaatFlowTemplateDetailPageState
                 crossAxisAlignment: CrossAxisAlignment.start,
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Text(
-                    widget.template.title,
+                  _buildDateModeTitle(
+                    title: widget.template.title,
+                    color: MaatFlowPalette.gold,
+                    fontSize: 30,
+                    fontWeight: FontWeight.w600,
+                    letterSpacing: 0.1,
+                    height: 1.05,
                     maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      color: MaatFlowPalette.gold,
-                      fontFamily: MaatFlowListTokens.fontFamily,
-                      fontFamilyFallback: MaatFlowListTokens.fontFallback,
-                      fontSize: 30,
-                      fontWeight: FontWeight.w600,
-                      letterSpacing: 0.1,
-                      height: 1.05,
-                    ),
                   ),
                   const SizedBox(height: 10),
                   Text(

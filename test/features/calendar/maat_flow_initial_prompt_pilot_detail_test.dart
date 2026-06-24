@@ -90,6 +90,21 @@ void main() {
     );
   });
 
+  testWidgets('Ma’at detail pages show the flow name only once', (
+    tester,
+  ) async {
+    for (final entry in const <(String, String)>[
+      ('track-the-sky', 'Follow the sky'),
+      ('dawn-house-rite', 'Dawn House Rite'),
+      ('the-true-name', 'The True Name'),
+    ]) {
+      await _pumpTemplateDetail(tester, entry.$1);
+
+      expect(find.byTooltip('Back'), findsOneWidget, reason: entry.$1);
+      expect(find.text(entry.$2), findsOneWidget, reason: entry.$1);
+    }
+  });
+
   testWidgets('initial prompt remains absent for unsupported Ma’at details', (
     tester,
   ) async {
@@ -461,9 +476,9 @@ void main() {
       );
 
       await tester.ensureVisible(find.text('FULL DESCRIPTION'));
-      await tester.pumpAndSettle();
+      await tester.pump(const Duration(milliseconds: 400));
       await tester.tap(find.text('FULL DESCRIPTION'));
-      await tester.pumpAndSettle();
+      await tester.pump(const Duration(milliseconds: 400));
 
       expect(
         find.textContaining(detail.fullDescriptionSnippet),
@@ -631,9 +646,9 @@ void main() {
       );
 
       await tester.ensureVisible(find.text('FULL DESCRIPTION'));
-      await tester.pumpAndSettle();
+      await tester.pump(const Duration(milliseconds: 400));
       await tester.tap(find.text('FULL DESCRIPTION'));
-      await tester.pumpAndSettle();
+      await tester.pump(const Duration(milliseconds: 400));
 
       expect(
         find.textContaining(detail.fullDescriptionSnippet),
