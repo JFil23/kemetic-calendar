@@ -1,7 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mobile/core/completion_status.dart';
-import 'package:mobile/features/calendar/calendar_page.dart' show KemeticMath;
+import 'package:mobile/features/calendar/calendar_page.dart'
+    show
+        KemeticMath,
+        buildMaatFlowTemplateDetailPreviewForTesting,
+        kMaatFlowInitialPromptSectionKey;
 import 'package:mobile/features/calendar/dawn_house_rite_flow.dart';
 import 'package:mobile/features/calendar/day_view.dart';
 import 'package:mobile/features/calendar/evening_threshold_rite_flow.dart';
@@ -4592,6 +4596,307 @@ void main() {
     expect(document.toPlainText(), isNot(contains('private cross-app')));
   });
 
+  testWidgets(
+    'Smoke harness: Moon Return prompt draft hydrates Day Sheet and journals once',
+    (tester) async {
+      await _setPhoneViewport(tester);
+      var document = _journalDocument('Moon Return journal body stays.');
+      final badgeAppends = <String>[];
+      final recorded = <CompletionStatus>[];
+
+      await _pumpInitialPromptDetail(tester, kMoonReturnFlowKey);
+      expect(find.byKey(kMaatFlowInitialPromptSectionKey), findsOneWidget);
+      await _enterPilotResponse(
+        tester,
+        specId: 'moon-return-set-down',
+        text: 'I set down resentment.',
+      );
+
+      await tester.pumpWidget(const SizedBox.shrink());
+      await tester.pump();
+      await _pumpInitialPromptDetail(tester, kMoonReturnFlowKey);
+      final promptField = find.byKey(
+        maatFlowResponseFieldKey('moon-return-set-down'),
+      );
+      await tester.ensureVisible(promptField);
+      expect(
+        tester.widget<TextFormField>(promptField).controller?.text,
+        'I set down resentment.',
+      );
+
+      await tester.pumpWidget(
+        _DayViewHarness(
+          flowIndex: _moonReturnFlowIndex,
+          notes: <NoteData>[
+            _moonReturnNote(kind: MoonReturnEventKind.emptyEye),
+          ],
+          onAppendToJournal: (text) async => badgeAppends.add(text),
+          onWriteJournalResponse: (block) async {
+            document = MaatJournalResponseBlockUtils.upsert(document, block);
+          },
+          onRecordCompletion:
+              ({
+                required String clientEventId,
+                required int flowId,
+                required DateTime completedOnDate,
+                Map<String, dynamic>? metadata,
+              }) async {
+                recorded.add(
+                  CompletionStatusX.fromWireName(
+                    metadata?['completion_status']?.toString(),
+                  ),
+                );
+              },
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      await _openDetailSheet(tester, MoonReturnEventKind.emptyEye.title);
+      final sheetField = find.byKey(
+        maatFlowResponseFieldKey('moon-return-set-down'),
+      );
+      await tester.ensureVisible(sheetField);
+      expect(
+        tester.widget<TextFormField>(sheetField).controller?.text,
+        'I set down resentment.',
+      );
+      expect(MaatJournalResponseBlockUtils.extract(document), isEmpty);
+      expect(document.toPlainText(), isNot(contains('resentment')));
+
+      await _tapStatus(tester, 'Observed');
+
+      var blocks = MaatJournalResponseBlockUtils.extract(document);
+      expect(blocks, hasLength(1));
+      expect(blocks.single.text, 'Moon Return: I set down resentment.');
+      expect(recorded, <CompletionStatus>[CompletionStatus.observed]);
+      expect(badgeAppends, hasLength(1));
+      expect(JournalBadgeUtils.hasBadges(badgeAppends.single), isTrue);
+
+      await _enterPilotResponse(
+        tester,
+        specId: 'moon-return-set-down',
+        text: 'I set down the old argument.',
+      );
+      await _tapStatus(tester, 'Observed');
+
+      blocks = MaatJournalResponseBlockUtils.extract(document);
+      expect(blocks, hasLength(1));
+      expect(blocks.single.text, 'Moon Return: I set down the old argument.');
+      expect(document.toPlainText(), isNot(contains('resentment')));
+    },
+  );
+
+  testWidgets(
+    'Smoke harness: Offering Table prompt chips and text hydrate Day Sheet',
+    (tester) async {
+      await _setPhoneViewport(tester);
+      var document = _journalDocument('Offering journal body stays.');
+      final badgeAppends = <String>[];
+
+      await _pumpInitialPromptDetail(tester, kOfferingTableFlowKey);
+      expect(find.byKey(kMaatFlowInitialPromptSectionKey), findsOneWidget);
+      await _choosePilotOption(
+        tester,
+        specId: 'offering-table-fed',
+        optionId: 'water',
+      );
+      await _choosePilotOption(
+        tester,
+        specId: 'offering-table-fed',
+        optionId: 'care',
+      );
+      await _enterPilotResponse(
+        tester,
+        specId: 'offering-table-provided',
+        text: 'a clean cup and an answered message',
+      );
+
+      await tester.pumpWidget(
+        _DayViewHarness(
+          flowIndex: _offeringTableFlowIndex,
+          notes: <NoteData>[_offeringTableNote()],
+          onAppendToJournal: (text) async => badgeAppends.add(text),
+          onWriteJournalResponse: (block) async {
+            document = MaatJournalResponseBlockUtils.upsert(document, block);
+          },
+          onRecordCompletion:
+              ({
+                required String clientEventId,
+                required int flowId,
+                required DateTime completedOnDate,
+                Map<String, dynamic>? metadata,
+              }) async {},
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      await _openDetailSheet(tester, _offeringTableTitle);
+      expect(
+        tester
+            .widget<TextFormField>(
+              find.byKey(maatFlowResponseFieldKey('offering-table-provided')),
+            )
+            .controller
+            ?.text,
+        'a clean cup and an answered message',
+      );
+      expect(find.textContaining('water and care'), findsWidgets);
+      expect(
+        find.textContaining('a clean cup and an answered message'),
+        findsWidgets,
+      );
+      expect(MaatJournalResponseBlockUtils.extract(document), isEmpty);
+
+      await _tapStatus(tester, 'Observed');
+
+      final blocks = MaatJournalResponseBlockUtils.extract(document);
+      expect(blocks, hasLength(1));
+      expect(blocks.single.text, contains('The Offering Table:'));
+      expect(blocks.single.text, contains('water and care'));
+      expect(
+        blocks.single.text,
+        contains('a clean cup and an answered message'),
+      );
+      expect(document.toPlainText(), contains('Offering journal body stays.'));
+      expect(badgeAppends, hasLength(1));
+      expect(JournalBadgeUtils.hasBadges(badgeAppends.single), isTrue);
+    },
+  );
+
+  testWidgets(
+    'Smoke harness: Decan Watch prompt hydrates Day Sheet edits and updates one block',
+    (tester) async {
+      await _setPhoneViewport(tester);
+      var document = _journalDocument('Decan Watch journal body stays.');
+      final badgeAppends = <String>[];
+
+      await _pumpInitialPromptDetail(tester, kDecanWatchFlowKey);
+      expect(find.byKey(kMaatFlowInitialPromptSectionKey), findsOneWidget);
+      await _choosePilotOption(
+        tester,
+        specId: kDecanWatchResponseVisibilitySpecId,
+        optionId: kDecanWatchVisibilityOutside,
+      );
+      await _enterPilotResponse(
+        tester,
+        specId: kDecanWatchResponseSkyNoteSpecId,
+        text: 'a clear western glow',
+      );
+      await _enterPilotResponse(
+        tester,
+        specId: kDecanWatchResponseBearingSpecId,
+        text: 'steadiness',
+      );
+
+      await tester.pumpWidget(
+        _DayViewHarness(
+          flowIndex: _decanWatchFlowIndex,
+          notes: <NoteData>[_decanWatchNote()],
+          onAppendToJournal: (text) async => badgeAppends.add(text),
+          onWriteJournalResponse: (block) async {
+            document = MaatJournalResponseBlockUtils.upsert(document, block);
+          },
+          onRecordCompletion:
+              ({
+                required String clientEventId,
+                required int flowId,
+                required DateTime completedOnDate,
+                Map<String, dynamic>? metadata,
+              }) async {},
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      await _openDetailSheet(tester, _decanWatchTitle);
+      expect(find.textContaining('outside'), findsWidgets);
+      expect(
+        tester
+            .widget<TextFormField>(
+              find.byKey(
+                maatFlowResponseFieldKey(kDecanWatchResponseSkyNoteSpecId),
+              ),
+            )
+            .controller
+            ?.text,
+        'a clear western glow',
+      );
+      expect(
+        tester
+            .widget<TextFormField>(
+              find.byKey(
+                maatFlowResponseFieldKey(kDecanWatchResponseBearingSpecId),
+              ),
+            )
+            .controller
+            ?.text,
+        'steadiness',
+      );
+      expect(MaatJournalResponseBlockUtils.extract(document), isEmpty);
+
+      await _enterPilotResponse(
+        tester,
+        specId: kDecanWatchResponseSkyNoteSpecId,
+        text: 'clouds opening in the west',
+      );
+      await _tapStatus(tester, 'Observed');
+
+      var blocks = MaatJournalResponseBlockUtils.extract(document);
+      expect(blocks, hasLength(1));
+      expect(blocks.single.text, contains('I watched from outside.'));
+      expect(blocks.single.text, contains('clouds opening in the west'));
+      expect(blocks.single.text, contains('steadiness'));
+
+      await _enterPilotResponse(
+        tester,
+        specId: kDecanWatchResponseBearingSpecId,
+        text: 'patience',
+      );
+      await _tapStatus(tester, 'Observed');
+
+      blocks = MaatJournalResponseBlockUtils.extract(document);
+      expect(blocks, hasLength(1));
+      expect(blocks.single.text, contains('patience'));
+      expect(blocks.single.text, isNot(contains('steadiness')));
+      expect(
+        document.toPlainText(),
+        contains('Decan Watch journal body stays.'),
+      );
+      expect(badgeAppends, hasLength(2));
+    },
+  );
+
+  testWidgets('Smoke harness: normal event remains without response UI', (
+    tester,
+  ) async {
+    await _setPhoneViewport(tester);
+    const title = 'Ordinary calendar appointment';
+
+    await tester.pumpWidget(
+      const _DayViewHarness(
+        flowIndex: <int, FlowData>{},
+        notes: <NoteData>[
+          NoteData(
+            clientEventId: 'cid-normal-event',
+            title: title,
+            detail: 'Ordinary detail.',
+            category: 'Personal',
+            allDay: false,
+            start: TimeOfDay(hour: 11, minute: 0),
+            end: TimeOfDay(hour: 11, minute: 30),
+          ),
+        ],
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await _openDetailSheet(tester, title);
+
+    expect(find.byKey(kMaatFlowResponseSectionKey), findsNothing);
+    expect(find.text('Observed'), findsWidgets);
+    expect(find.text('Partly'), findsWidgets);
+    expect(find.text('Skipped'), findsWidgets);
+  });
+
   testWidgets('unsupported Ma_at flow remains without response fields', (
     tester,
   ) async {
@@ -5747,6 +6052,21 @@ Future<void> _setPhoneViewport(WidgetTester tester) async {
     tester.view.resetPhysicalSize();
     tester.view.resetDevicePixelRatio();
   });
+}
+
+Future<void> _pumpInitialPromptDetail(
+  WidgetTester tester,
+  String templateKey,
+) async {
+  await tester.pumpWidget(
+    MaterialApp(
+      debugShowCheckedModeBanner: false,
+      home: buildMaatFlowTemplateDetailPreviewForTesting(
+        templateKey: templateKey,
+      ),
+    ),
+  );
+  await _pumpInteraction(tester);
 }
 
 class _DayViewHarness extends StatelessWidget {
