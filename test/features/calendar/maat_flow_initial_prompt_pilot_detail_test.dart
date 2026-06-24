@@ -145,6 +145,51 @@ void main() {
     expect(promptTop, lessThan(startTop));
   });
 
+  testWidgets('overview badges sit between description and prompt', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(430, 1400);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    for (final detail in const <_BadgePlacementCase>[
+      _BadgePlacementCase(
+        key: 'the-offering-table',
+        description:
+            'Provision ritual. Begin with water, then feed what needs food, rest, or care.',
+        badge: 'Daily practice',
+      ),
+      _BadgePlacementCase(
+        key: 'the-course',
+        description:
+            'Time-orientation practice. Locate yourself in the day, decan, and season, then choose one fitting action.',
+        badge: '30 days · 9 sittings',
+      ),
+      _BadgePlacementCase(
+        key: 'the-tending',
+        description:
+            'Specific care practice. Name who or what needs tending and complete one concrete act of care.',
+        badge: 'Each decan',
+      ),
+    ]) {
+      await tester.pumpWidget(const SizedBox.shrink());
+      await tester.pump();
+      await _pumpTemplateDetail(tester, detail.key);
+
+      final descriptionTop = tester
+          .getTopLeft(find.text(detail.description))
+          .dy;
+      final badgeTop = tester.getTopLeft(find.text(detail.badge)).dy;
+      final promptTop = tester
+          .getTopLeft(find.byKey(kMaatFlowInitialPromptSectionKey))
+          .dy;
+
+      expect(descriptionTop, lessThan(badgeTop), reason: detail.key);
+      expect(badgeTop, lessThan(promptTop), reason: detail.key);
+    }
+  });
+
   testWidgets('Dawn House discreet explainer opens from info bubble only', (
     tester,
   ) async {
@@ -1000,6 +1045,18 @@ class _CoreDetailLayoutCase {
   final String prompt;
   final String shortDescription;
   final String fullDescriptionSnippet;
+}
+
+class _BadgePlacementCase {
+  const _BadgePlacementCase({
+    required this.key,
+    required this.description,
+    required this.badge,
+  });
+
+  final String key;
+  final String description;
+  final String badge;
 }
 
 class _CoreFooterOrderCase {
