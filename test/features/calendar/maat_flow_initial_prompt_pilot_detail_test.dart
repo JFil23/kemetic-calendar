@@ -21,6 +21,12 @@ void main() {
       ('the-living-pattern', 'What pattern are you watching?'),
       ('the-house-of-life', 'What knowledge are you preserving?'),
       ('hotep', 'What can be enough tonight?'),
+      ('the-open-hand', 'What need are you willing to meet?'),
+      ('the-djed', 'What must stand upright?'),
+      ('the-tending', 'What care needs to become specific?'),
+      ('the-kept-word', 'What word or agreement needs attention?'),
+      ('the-wag', 'What gift, memory, or legacy will you carry?'),
+      ('the-khat', 'What is the body asking for?'),
     ]) {
       await _pumpTemplateDetail(tester, entry.$1);
 
@@ -39,6 +45,15 @@ void main() {
 
     await _pumpTemplateDetail(tester, 'hotep');
     expect(find.text('What did you let be enough tonight?'), findsOneWidget);
+
+    await _pumpTemplateDetail(tester, 'the-kept-word');
+    expect(
+      find.text('What word, repair, or conversation needs to be remembered?'),
+      findsOneWidget,
+    );
+
+    await _pumpTemplateDetail(tester, 'the-khat');
+    expect(find.text('What care did you give the body?'), findsOneWidget);
   });
 
   testWidgets('initial prompt remains absent for unsupported Ma’at details', (

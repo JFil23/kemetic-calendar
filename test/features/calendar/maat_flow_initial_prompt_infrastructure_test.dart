@@ -4,7 +4,7 @@ import 'package:mobile/features/calendar/maat_flow_response_resolver.dart';
 
 void main() {
   test('default initial prompt resolver exposes the prompt-enabled flows', () {
-    expect(kInitialMaatFlowPromptSpecs, hasLength(10));
+    expect(kInitialMaatFlowPromptSpecs, hasLength(16));
 
     final moonReturn = resolveMaatFlowInitialPromptSpec(
       flowKey: 'the-moon-return',
@@ -82,6 +82,48 @@ void main() {
     expect(hotep!.fields.map((field) => field.label), <String>[
       'What can be enough tonight?',
       'What did you let be enough tonight?',
+    ]);
+
+    final openHand = resolveMaatFlowInitialPromptSpec(flowKey: 'the-open-hand');
+    expect(openHand, isNotNull);
+    expect(openHand!.fields.map((field) => field.label), <String>[
+      'What need are you willing to meet?',
+      'What moved through your hand?',
+    ]);
+
+    final djed = resolveMaatFlowInitialPromptSpec(flowKey: 'the-djed');
+    expect(djed, isNotNull);
+    expect(djed!.fields.map((field) => field.label), <String>[
+      'What must stand upright?',
+      'What did you raise or restore?',
+    ]);
+
+    final tending = resolveMaatFlowInitialPromptSpec(flowKey: 'the-tending');
+    expect(tending, isNotNull);
+    expect(tending!.fields.map((field) => field.label), <String>[
+      'What care needs to become specific?',
+      'What tending act did you complete?',
+    ]);
+
+    final keptWord = resolveMaatFlowInitialPromptSpec(flowKey: 'the-kept-word');
+    expect(keptWord, isNotNull);
+    expect(keptWord!.fields.map((field) => field.label), <String>[
+      'What word or agreement needs attention?',
+      'What word, repair, or conversation needs to be remembered?',
+    ]);
+
+    final wag = resolveMaatFlowInitialPromptSpec(flowKey: 'the-wag');
+    expect(wag, isNotNull);
+    expect(wag!.fields.map((field) => field.label), <String>[
+      'What gift, memory, or legacy will you carry?',
+      'What gift, memory, or legacy did you carry?',
+    ]);
+
+    final khat = resolveMaatFlowInitialPromptSpec(flowKey: 'the-khat');
+    expect(khat, isNotNull);
+    expect(khat!.fields.map((field) => field.label), <String>[
+      'What is the body asking for?',
+      'What care did you give the body?',
     ]);
 
     expect(resolveMaatFlowInitialPromptSpec(flowKey: 'the-true-name'), isNull);

@@ -12,7 +12,12 @@ import 'package:mobile/features/calendar/maat_flow_response_resolver.dart';
 import 'package:mobile/features/calendar/moon_return_flow.dart';
 import 'package:mobile/features/calendar/the_course_flow.dart';
 import 'package:mobile/features/calendar/the_decan_watch_flow.dart';
+import 'package:mobile/features/calendar/the_djed_flow.dart';
+import 'package:mobile/features/calendar/the_kept_word_flow.dart';
+import 'package:mobile/features/calendar/the_open_hand_flow.dart';
 import 'package:mobile/features/calendar/the_offering_table_flow.dart';
+import 'package:mobile/features/calendar/the_tending_flow.dart';
+import 'package:mobile/features/calendar/the_wag_flow.dart';
 
 void main() {
   test(
@@ -380,6 +385,85 @@ void main() {
     );
   });
 
+  test('Open Hand prompt shares offered provision drafts with Day Sheet', () {
+    _expectChipTextDraftSharing(
+      flowKey: kTheOpenHandFlowKey,
+      chipSpecId: 'open-hand-given',
+      initialOptions: <String>['time', 'attention'],
+      updatedOptions: <String>['time', 'attention', 'labor'],
+      textSpecId: 'open-hand-moved',
+      initialText: 'where need was visible',
+      updatedText: 'one concrete act of help',
+    );
+  });
+
+  test('Djed prompt shares offered restoration drafts with Day Sheet', () {
+    _expectChipTextDraftSharing(
+      flowKey: kTheDjedFlowKey,
+      chipSpecId: 'djed-stood-upright',
+      initialOptions: <String>['practice'],
+      updatedOptions: <String>['practice', 'rest'],
+      textSpecId: 'djed-restored',
+      initialText: 'an evening practice',
+      updatedText: 'one restored load-bearing habit',
+    );
+  });
+
+  test('Tending prompt shares default-off care drafts with Day Sheet', () {
+    _expectChipTextDraftSharing(
+      flowKey: kTheTendingFlowKey,
+      chipSpecId: 'tending-care-specific',
+      initialOptions: <String>['seen', 'repaired'],
+      updatedOptions: <String>['seen', 'repaired', 'cleaned'],
+      textSpecId: 'tending-act-completed',
+      initialText: 'calling before the day closed',
+      updatedText: 'clearing one practical obstacle',
+      expectedDefaultOff: true,
+    );
+  });
+
+  test(
+    'Kept Word prompt shares default-off agreement drafts with Day Sheet',
+    () {
+      _expectChoiceTextDraftSharing(
+        flowKey: kKeptWordFlowKey,
+        choiceSpecId: 'kept-word-status',
+        initialOption: 'renegotiated',
+        updatedOption: 'still_in_process',
+        textSpecId: 'kept-word-remembered',
+        initialText: 'the repaired conversation belongs in memory',
+        updatedText: 'the next repair step is named',
+        expectedDefaultOff: true,
+      );
+    },
+  );
+
+  test('Wag prompt shares default-off memory drafts with Day Sheet', () {
+    _expectChipTextDraftSharing(
+      flowKey: kTheWagFlowKey,
+      chipSpecId: 'wag-remembered',
+      initialOptions: <String>['table', 'legacy'],
+      updatedOptions: <String>['story'],
+      textSpecId: 'wag-carried',
+      initialText: 'one remembered gift',
+      updatedText: 'the updated remembered story',
+      expectedDefaultOff: true,
+    );
+  });
+
+  test('Khat prompt shares default-off body-care drafts with Day Sheet', () {
+    _expectChipTextDraftSharing(
+      flowKey: kKhatFlowKey,
+      chipSpecId: 'khat-body-asked',
+      initialOptions: <String>['water', 'rest'],
+      updatedOptions: <String>['care'],
+      textSpecId: 'khat-care-given',
+      initialText: 'five slow breaths',
+      updatedText: 'the updated body-care note',
+      expectedDefaultOff: true,
+    );
+  });
+
   test(
     'Decan Watch prompt shares visibility, sky note, and bearing drafts',
     () {
@@ -532,6 +616,130 @@ List<MaatFlowResponseSpec> _sheet(String flowKey) {
 String? _textValue(Map<String, MaatFlowResponseValue> values) {
   expect(values, hasLength(1));
   return values.values.single.text;
+}
+
+void _expectChipTextDraftSharing({
+  required String flowKey,
+  required String chipSpecId,
+  required List<String> initialOptions,
+  required List<String> updatedOptions,
+  required String textSpecId,
+  required String initialText,
+  required String updatedText,
+  bool expectedDefaultOff = false,
+}) {
+  final store = MaatFlowResponseDraftStore();
+  final prompt = _prompt(flowKey);
+  final sheet = _sheet(flowKey);
+
+  if (expectedDefaultOff) {
+    expect(
+      sheet.every((spec) => spec.offerJournalInclusionDefault == false),
+      isTrue,
+    );
+  }
+
+  store.rememberValue(
+    flowKey: prompt.flowKey,
+    value: MaatFlowResponseValue.chips(
+      specId: chipSpecId,
+      optionIds: initialOptions,
+    ),
+  );
+  store.rememberValue(
+    flowKey: prompt.flowKey,
+    value: MaatFlowResponseValue.text(
+      specId: textSpecId,
+      text: initialText,
+      multiline: true,
+    ),
+  );
+
+  final sheetValues = store.valuesForSpecs(sheet);
+  expect(sheetValues[chipSpecId]?.optionIds, initialOptions);
+  expect(sheetValues[textSpecId]?.text, initialText);
+
+  store.rememberValue(
+    flowKey: sheet.first.flowKey,
+    value: MaatFlowResponseValue.chips(
+      specId: chipSpecId,
+      optionIds: updatedOptions,
+    ),
+  );
+  store.rememberValue(
+    flowKey: sheet.first.flowKey,
+    value: MaatFlowResponseValue.text(
+      specId: textSpecId,
+      text: updatedText,
+      multiline: true,
+    ),
+  );
+
+  final promptValues = store.valuesForSpecs(prompt.fields);
+  expect(promptValues[chipSpecId]?.optionIds, updatedOptions);
+  expect(promptValues[textSpecId]?.text, updatedText);
+}
+
+void _expectChoiceTextDraftSharing({
+  required String flowKey,
+  required String choiceSpecId,
+  required String initialOption,
+  required String updatedOption,
+  required String textSpecId,
+  required String initialText,
+  required String updatedText,
+  bool expectedDefaultOff = false,
+}) {
+  final store = MaatFlowResponseDraftStore();
+  final prompt = _prompt(flowKey);
+  final sheet = _sheet(flowKey);
+
+  if (expectedDefaultOff) {
+    expect(
+      sheet.every((spec) => spec.offerJournalInclusionDefault == false),
+      isTrue,
+    );
+  }
+
+  store.rememberValue(
+    flowKey: prompt.flowKey,
+    value: MaatFlowResponseValue.choice(
+      specId: choiceSpecId,
+      optionId: initialOption,
+    ),
+  );
+  store.rememberValue(
+    flowKey: prompt.flowKey,
+    value: MaatFlowResponseValue.text(
+      specId: textSpecId,
+      text: initialText,
+      multiline: true,
+    ),
+  );
+
+  final sheetValues = store.valuesForSpecs(sheet);
+  expect(sheetValues[choiceSpecId]?.optionIds, <String>[initialOption]);
+  expect(sheetValues[textSpecId]?.text, initialText);
+
+  store.rememberValue(
+    flowKey: sheet.first.flowKey,
+    value: MaatFlowResponseValue.choice(
+      specId: choiceSpecId,
+      optionId: updatedOption,
+    ),
+  );
+  store.rememberValue(
+    flowKey: sheet.first.flowKey,
+    value: MaatFlowResponseValue.text(
+      specId: textSpecId,
+      text: updatedText,
+      multiline: true,
+    ),
+  );
+
+  final promptValues = store.valuesForSpecs(prompt.fields);
+  expect(promptValues[choiceSpecId]?.optionIds, <String>[updatedOption]);
+  expect(promptValues[textSpecId]?.text, updatedText);
 }
 
 String _sourceBetween(

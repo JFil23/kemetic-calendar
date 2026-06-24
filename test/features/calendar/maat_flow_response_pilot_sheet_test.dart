@@ -4865,7 +4865,7 @@ void main() {
     },
   );
 
-  for (final smokeCase in _phase6B4PromptSmokeCases()) {
+  for (final smokeCase in _initialPromptHydrationSmokeCases()) {
     testWidgets(
       'Smoke harness: ${smokeCase.name} initial prompt hydrates Day Sheet and journals once',
       (tester) async {
@@ -6150,7 +6150,7 @@ Future<void> _pumpInitialPromptDetail(
   await _pumpInteraction(tester);
 }
 
-List<_PromptHydrationSmokeCase> _phase6B4PromptSmokeCases() {
+List<_PromptHydrationSmokeCase> _initialPromptHydrationSmokeCases() {
   return <_PromptHydrationSmokeCase>[
     _PromptHydrationSmokeCase(
       name: 'Dawn House Rite',
@@ -6408,6 +6408,328 @@ List<_PromptHydrationSmokeCase> _phase6B4PromptSmokeCases() {
           'Hotep: I named given and settled, let enough be enough, and let the heart cool.',
       staleText: 'private obligation detail',
     ),
+    _PromptHydrationSmokeCase(
+      name: 'The Open Hand',
+      flowKey: kTheOpenHandFlowKey,
+      flowIndex: _openHandFlowIndex,
+      eventTitle: _openHandTitle,
+      notes: () => <NoteData>[_openHandNote()],
+      seedInitialPrompt: (tester) async {
+        await _choosePilotOption(
+          tester,
+          specId: 'open-hand-given',
+          optionId: 'time',
+        );
+        await _choosePilotOption(
+          tester,
+          specId: 'open-hand-given',
+          optionId: 'attention',
+        );
+        await _enterPilotResponse(
+          tester,
+          specId: 'open-hand-moved',
+          text: 'where need was visible.',
+        );
+      },
+      expectSheetHydrated: (tester) async {
+        await _expectResponseChipSelected(
+          tester,
+          specId: 'open-hand-given',
+          optionId: 'time',
+        );
+        await _expectResponseChipSelected(
+          tester,
+          specId: 'open-hand-given',
+          optionId: 'attention',
+        );
+        await _expectResponseText(
+          tester,
+          specId: 'open-hand-moved',
+          text: 'where need was visible.',
+        );
+      },
+      updateSheet: (tester) async {
+        await _choosePilotOption(
+          tester,
+          specId: 'open-hand-given',
+          optionId: 'labor',
+        );
+        await _enterPilotResponse(
+          tester,
+          specId: 'open-hand-moved',
+          text: 'through one concrete act of help.',
+        );
+      },
+      expectedBlock:
+          'The Open Hand: I gave time and attention where need was visible.',
+      updatedBlock:
+          'The Open Hand: I gave time, attention, and labor through one concrete act of help.',
+      staleText: 'where need was visible',
+    ),
+    _PromptHydrationSmokeCase(
+      name: 'The Djed',
+      flowKey: kTheDjedFlowKey,
+      flowIndex: _djedFlowIndex,
+      eventTitle: _djedTitle,
+      notes: () => <NoteData>[_djedNote()],
+      seedInitialPrompt: (tester) async {
+        await _choosePilotOption(
+          tester,
+          specId: 'djed-stood-upright',
+          optionId: 'practice',
+        );
+        await _enterPilotResponse(
+          tester,
+          specId: 'djed-restored',
+          text: 'an evening practice.',
+        );
+      },
+      expectSheetHydrated: (tester) async {
+        await _expectResponseChipSelected(
+          tester,
+          specId: 'djed-stood-upright',
+          optionId: 'practice',
+        );
+        await _expectResponseText(
+          tester,
+          specId: 'djed-restored',
+          text: 'an evening practice.',
+        );
+      },
+      updateSheet: (tester) async {
+        await _choosePilotOption(
+          tester,
+          specId: 'djed-stood-upright',
+          optionId: 'rest',
+        );
+        await _enterPilotResponse(
+          tester,
+          specId: 'djed-restored',
+          text: 'one load-bearing habit.',
+        );
+      },
+      expectedBlock:
+          'The Djed: I restored practice by restoring an evening practice and stood it upright again.',
+      updatedBlock:
+          'The Djed: I restored practice and rest by restoring one load-bearing habit and stood it upright again.',
+      staleText: 'an evening practice',
+    ),
+    _PromptHydrationSmokeCase(
+      name: 'The Tending',
+      flowKey: kTheTendingFlowKey,
+      flowIndex: _tendingFlowIndex,
+      eventTitle: _tendingTitle,
+      notes: () => <NoteData>[_tendingNote()],
+      offerDefaultOff: true,
+      seedInitialPrompt: (tester) async {
+        await _choosePilotOption(
+          tester,
+          specId: 'tending-care-specific',
+          optionId: 'seen',
+        );
+        await _choosePilotOption(
+          tester,
+          specId: 'tending-care-specific',
+          optionId: 'repaired',
+        );
+        await _enterPilotResponse(
+          tester,
+          specId: 'tending-act-completed',
+          text: 'calling before the day closed.',
+        );
+      },
+      expectSheetHydrated: (tester) async {
+        await _expectResponseChipSelected(
+          tester,
+          specId: 'tending-care-specific',
+          optionId: 'seen',
+        );
+        await _expectResponseChipSelected(
+          tester,
+          specId: 'tending-care-specific',
+          optionId: 'repaired',
+        );
+        await _expectResponseText(
+          tester,
+          specId: 'tending-act-completed',
+          text: 'calling before the day closed.',
+        );
+      },
+      updateSheet: (tester) async {
+        await _choosePilotOption(
+          tester,
+          specId: 'tending-care-specific',
+          optionId: 'cleaned',
+        );
+        await _enterPilotResponse(
+          tester,
+          specId: 'tending-act-completed',
+          text: 'clearing one practical obstacle.',
+        );
+      },
+      expectedBlock:
+          'The Tending: I made care specific through seen and repaired and completed calling before the day closed.',
+      updatedBlock:
+          'The Tending: I made care specific through seen, repaired, and cleaned and completed clearing one practical obstacle.',
+      staleText: 'calling before the day closed',
+    ),
+    _PromptHydrationSmokeCase(
+      name: 'The Kept Word',
+      flowKey: kKeptWordFlowKey,
+      flowIndex: _keptWordFlowIndex,
+      eventTitle: _keptWordTitle,
+      notes: () => <NoteData>[_keptWordNote()],
+      offerDefaultOff: true,
+      seedInitialPrompt: (tester) async {
+        await _choosePilotOption(
+          tester,
+          specId: 'kept-word-status',
+          optionId: 'renegotiated',
+        );
+        await _enterPilotResponse(
+          tester,
+          specId: 'kept-word-remembered',
+          text: 'the repaired conversation belongs in memory.',
+        );
+      },
+      expectSheetHydrated: (tester) async {
+        await _expectResponseChipSelected(
+          tester,
+          specId: 'kept-word-status',
+          optionId: 'renegotiated',
+        );
+        await _expectResponseText(
+          tester,
+          specId: 'kept-word-remembered',
+          text: 'the repaired conversation belongs in memory.',
+        );
+      },
+      updateSheet: (tester) async {
+        await _choosePilotOption(
+          tester,
+          specId: 'kept-word-status',
+          optionId: 'still_in_process',
+        );
+        await _enterPilotResponse(
+          tester,
+          specId: 'kept-word-remembered',
+          text: 'the next repair step is named.',
+        );
+      },
+      expectedBlock:
+          'The Kept Word: I brought one agreement back into clearer order; the word is renegotiated, and I remember the repaired conversation belongs in memory.',
+      updatedBlock:
+          'The Kept Word: I brought one agreement back into clearer order; the word is still in process, and I remember the next repair step is named.',
+      staleText: 'the repaired conversation belongs in memory',
+    ),
+    _PromptHydrationSmokeCase(
+      name: 'The Wag',
+      flowKey: kTheWagFlowKey,
+      flowIndex: _wagFlowIndex,
+      eventTitle: _wagTitle,
+      notes: () => <NoteData>[_wagNote()],
+      offerDefaultOff: true,
+      seedInitialPrompt: (tester) async {
+        await _choosePilotOption(
+          tester,
+          specId: 'wag-remembered',
+          optionId: 'table',
+        );
+        await _choosePilotOption(
+          tester,
+          specId: 'wag-remembered',
+          optionId: 'legacy',
+        );
+        await _enterPilotResponse(
+          tester,
+          specId: 'wag-carried',
+          text: 'one remembered gift.',
+        );
+      },
+      expectSheetHydrated: (tester) async {
+        await _expectResponseChipSelected(
+          tester,
+          specId: 'wag-remembered',
+          optionId: 'table',
+        );
+        await _expectResponseChipSelected(
+          tester,
+          specId: 'wag-remembered',
+          optionId: 'legacy',
+        );
+        await _expectResponseText(
+          tester,
+          specId: 'wag-carried',
+          text: 'one remembered gift.',
+        );
+      },
+      updateSheet: (tester) async {
+        await _enterPilotResponse(
+          tester,
+          specId: 'wag-carried',
+          text: 'the updated remembered story.',
+        );
+      },
+      expectedBlock:
+          'The Wag: I kept table and legacy at the table and carried one remembered gift forward.',
+      updatedBlock:
+          'The Wag: I kept table and legacy at the table and carried the updated remembered story forward.',
+      staleText: 'one remembered gift',
+    ),
+    _PromptHydrationSmokeCase(
+      name: 'The Khat',
+      flowKey: kKhatFlowKey,
+      flowIndex: _khatFlowIndex,
+      eventTitle: _khatTitle,
+      notes: () => <NoteData>[_khatNote()],
+      offerDefaultOff: true,
+      seedInitialPrompt: (tester) async {
+        await _choosePilotOption(
+          tester,
+          specId: 'khat-body-asked',
+          optionId: 'water',
+        );
+        await _choosePilotOption(
+          tester,
+          specId: 'khat-body-asked',
+          optionId: 'rest',
+        );
+        await _enterPilotResponse(
+          tester,
+          specId: 'khat-care-given',
+          text: 'one honest act of care.',
+        );
+      },
+      expectSheetHydrated: (tester) async {
+        await _expectResponseChipSelected(
+          tester,
+          specId: 'khat-body-asked',
+          optionId: 'water',
+        );
+        await _expectResponseChipSelected(
+          tester,
+          specId: 'khat-body-asked',
+          optionId: 'rest',
+        );
+        await _expectResponseText(
+          tester,
+          specId: 'khat-care-given',
+          text: 'one honest act of care.',
+        );
+      },
+      updateSheet: (tester) async {
+        await _enterPilotResponse(
+          tester,
+          specId: 'khat-care-given',
+          text: 'the updated body-care note.',
+        );
+      },
+      expectedBlock:
+          'The Khat: I listened to the body asking for water and rest and answered with one honest act of care.',
+      updatedBlock:
+          'The Khat: I listened to the body asking for water and rest and answered with the updated body-care note.',
+      staleText: 'one honest act of care',
+    ),
   ];
 }
 
@@ -6428,7 +6750,14 @@ Future<void> _expectResponseChipSelected(
 }) async {
   final chip = find.byKey(maatFlowResponseFieldKey('$specId:$optionId'));
   await tester.ensureVisible(chip);
-  expect(tester.widget<FilterChip>(chip).selected, isTrue);
+  final widget = tester.widget<Widget>(chip);
+  if (widget is FilterChip) {
+    expect(widget.selected, isTrue);
+  } else if (widget is ChoiceChip) {
+    expect(widget.selected, isTrue);
+  } else {
+    fail('Expected chip widget for $specId:$optionId, found $widget');
+  }
 }
 
 class _PromptHydrationSmokeCase {
