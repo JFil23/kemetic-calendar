@@ -3,22 +3,37 @@ import 'package:mobile/features/calendar/maat_flow_response_models.dart';
 import 'package:mobile/features/calendar/maat_flow_response_resolver.dart';
 
 void main() {
-  test('default initial prompt resolver has no enabled specs', () {
-    expect(kInitialMaatFlowPromptSpecs, isEmpty);
+  test('default initial prompt resolver exposes exactly four pilot flows', () {
+    expect(kInitialMaatFlowPromptSpecs, hasLength(4));
 
-    for (final flowKey in const <String>[
-      'the-moon-return',
-      'the-course',
-      'the-offering-table',
-      'the-decan-watch',
-      'the-true-name',
-    ]) {
-      expect(resolveMaatFlowInitialPromptSpec(flowKey: flowKey), isNull);
-      expect(
-        kDefaultMaatFlowInitialPromptResolver.supports(flowKey: flowKey),
-        isFalse,
-      );
-    }
+    final moonReturn = resolveMaatFlowInitialPromptSpec(
+      flowKey: 'the-moon-return',
+    );
+    expect(moonReturn, isNotNull);
+    expect(moonReturn!.fields.single.label, 'What do you set down?');
+
+    final course = resolveMaatFlowInitialPromptSpec(flowKey: 'the-course');
+    expect(course, isNotNull);
+    expect(course!.fields.single.label, 'What action fits this hour?');
+
+    final offering = resolveMaatFlowInitialPromptSpec(
+      flowKey: 'the-offering-table',
+    );
+    expect(offering, isNotNull);
+    expect(offering!.fields.single.label, 'What was fed?');
+
+    final decanWatch = resolveMaatFlowInitialPromptSpec(
+      flowKey: 'the-decan-watch',
+    );
+    expect(decanWatch, isNotNull);
+    expect(decanWatch!.fields.map((field) => field.label), <String>[
+      'Visibility',
+      'What did the sky show?',
+      'What bearing do you carry into the next ten days?',
+    ]);
+
+    expect(resolveMaatFlowInitialPromptSpec(flowKey: 'the-true-name'), isNull);
+    expect(resolveMaatFlowInitialPromptSpec(flowKey: 'the-weighing'), isNull);
   });
 
   test('initial prompt spec reuses response field specs', () {
@@ -37,26 +52,27 @@ void main() {
       fields: <MaatFlowResponseSpec>[field],
     );
 
-    expect(prompt.enabled, isTrue);
-    expect(prompt.requiredBeforeJoin, isFalse);
     expect(prompt.isRenderable, isTrue);
     expect(prompt.fields.single, same(field));
     expect(prompt.fields.single.surface, MaatFlowResponseSurface.initialDetail);
   });
 
-  test('initial prompt resolver ignores disabled and fieldless specs', () {
+  test('pilot fields are local-only initial-detail specs', () {
+    for (final prompt in kInitialMaatFlowPromptSpecs) {
+      for (final field in prompt.fields) {
+        expect(field.surface, MaatFlowResponseSurface.initialDetail);
+        expect(field.journalPolicy, MaatFlowJournalPolicy.localOnly);
+      }
+    }
+  });
+
+  test('initial prompt resolver ignores fieldless specs', () {
     const field = MaatFlowResponseSpec(
       id: 'course-initial-action',
       flowKey: 'the-course',
       surface: MaatFlowResponseSurface.initialDetail,
       kind: MaatFlowResponseKind.text,
       label: 'What action fits this hour?',
-    );
-    const disabled = MaatFlowInitialPromptSpec(
-      flowKey: 'the-moon-return',
-      title: 'Disabled prompt',
-      enabled: false,
-      fields: <MaatFlowResponseSpec>[field],
     );
     const fieldless = MaatFlowInitialPromptSpec(
       flowKey: 'the-course',
@@ -68,10 +84,9 @@ void main() {
       fields: <MaatFlowResponseSpec>[field],
     );
     const resolver = MaatFlowInitialPromptResolver(
-      specs: <MaatFlowInitialPromptSpec>[disabled, fieldless, active],
+      specs: <MaatFlowInitialPromptSpec>[fieldless, active],
     );
 
-    expect(resolver.resolve(flowKey: 'the-moon-return'), isNull);
     expect(resolver.resolve(flowKey: 'unknown-flow'), isNull);
     expect(resolver.resolve(flowKey: ' '), isNull);
     expect(resolver.resolve(flowKey: 'the-course'), same(active));

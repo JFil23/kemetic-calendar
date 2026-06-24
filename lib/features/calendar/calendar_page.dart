@@ -114,6 +114,7 @@ import 'decan_reflection_badge.dart';
 import 'event_filing_service.dart';
 import 'maat_flow_palette.dart';
 import 'maat_flow_visual_tokens.dart';
+import 'maat_flow_interactive_primitives.dart';
 import 'maat_flow_response_journal_blocks.dart';
 import 'maat_flow_response_models.dart';
 import 'maat_flow_response_resolver.dart';

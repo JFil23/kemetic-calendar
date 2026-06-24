@@ -1945,8 +1945,15 @@ void main() {
     expect(landscape, contains('onWriteJournalResponse'));
     expect(landscape, isNot(contains('resolveMaatFlowResponseSpecs(')));
 
-    for (final path in const <String>[
+    final detail = File(
       'lib/features/calendar/calendar_maat_flows.dart',
+    ).readAsStringSync();
+    expect(detail, contains('resolveMaatFlowInitialPromptSpec('));
+    expect(detail, contains('MaatFlowResponseSection('));
+    expect(detail, isNot(contains('onWriteJournalResponse')));
+    expect(detail, isNot(contains('buildMaatJournalResponseBlocksForPolicy')));
+
+    for (final path in const <String>[
       'lib/features/calendar/evening_threshold_flow.dart',
       'lib/features/calendar/evening_threshold_rite_flow.dart',
       'lib/features/calendar/the_decan_watch_local_store.dart',

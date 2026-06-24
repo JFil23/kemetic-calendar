@@ -2,6 +2,8 @@ import 'dawn_house_rite_flow.dart';
 import 'evening_threshold_rite_flow.dart';
 import 'maat_decan_flow.dart';
 import 'maat_flow_response_models.dart';
+import 'moon_return_flow.dart';
+import 'the_course_flow.dart';
 import 'the_days_outside_year_flow.dart';
 import 'the_decan_watch_flow.dart';
 import 'the_djed_flow.dart';
@@ -1970,8 +1972,140 @@ class MaatFlowInitialPromptResolver {
 const MaatFlowResponseResolver kDefaultMaatFlowResponseResolver =
     MaatFlowResponseResolver(specs: kPilotMaatFlowResponseSpecs);
 
-const List<MaatFlowInitialPromptSpec> kInitialMaatFlowPromptSpecs =
-    <MaatFlowInitialPromptSpec>[];
+const List<MaatFlowInitialPromptSpec>
+kInitialMaatFlowPromptSpecs = <MaatFlowInitialPromptSpec>[
+  MaatFlowInitialPromptSpec(
+    flowKey: kMoonReturnFlowKey,
+    title: 'Begin reflection',
+    subtitle: "Take a moment to begin today's practice. You can finish later.",
+    fields: <MaatFlowResponseSpec>[
+      MaatFlowResponseSpec(
+        id: 'moon-return-set-down',
+        flowKey: kMoonReturnFlowKey,
+        surface: MaatFlowResponseSurface.initialDetail,
+        kind: MaatFlowResponseKind.text,
+        label: 'What do you set down?',
+        journalPolicy: MaatFlowJournalPolicy.localOnly,
+      ),
+    ],
+  ),
+  MaatFlowInitialPromptSpec(
+    flowKey: kTheCourseFlowKey,
+    title: 'Begin reflection',
+    subtitle: "Take a moment to begin today's practice. You can finish later.",
+    fields: <MaatFlowResponseSpec>[
+      MaatFlowResponseSpec(
+        id: 'course-hour-action',
+        flowKey: kTheCourseFlowKey,
+        surface: MaatFlowResponseSurface.initialDetail,
+        kind: MaatFlowResponseKind.text,
+        label: 'What action fits this hour?',
+        journalPolicy: MaatFlowJournalPolicy.localOnly,
+      ),
+    ],
+  ),
+  MaatFlowInitialPromptSpec(
+    flowKey: kOfferingTableFlowKey,
+    title: 'Begin reflection',
+    subtitle: "Take a moment to begin today's practice. You can finish later.",
+    fields: <MaatFlowResponseSpec>[
+      MaatFlowResponseSpec(
+        id: 'offering-table-fed',
+        flowKey: kOfferingTableFlowKey,
+        surface: MaatFlowResponseSurface.initialDetail,
+        kind: MaatFlowResponseKind.chips,
+        label: 'What was fed?',
+        options: <MaatFlowResponseOption>[
+          MaatFlowResponseOption(
+            id: 'water',
+            label: 'Water',
+            journalLabel: 'water',
+          ),
+          MaatFlowResponseOption(
+            id: 'food',
+            label: 'Food',
+            journalLabel: 'food',
+          ),
+          MaatFlowResponseOption(
+            id: 'rest',
+            label: 'Rest',
+            journalLabel: 'rest',
+          ),
+          MaatFlowResponseOption(
+            id: 'care',
+            label: 'Care',
+            journalLabel: 'care',
+          ),
+          MaatFlowResponseOption(
+            id: 'household',
+            label: 'Household',
+            journalLabel: 'household',
+          ),
+          MaatFlowResponseOption(
+            id: 'land',
+            label: 'Land',
+            journalLabel: 'land',
+          ),
+          MaatFlowResponseOption(
+            id: 'return',
+            label: 'Return',
+            journalLabel: 'return',
+          ),
+        ],
+        journalPolicy: MaatFlowJournalPolicy.localOnly,
+      ),
+    ],
+  ),
+  MaatFlowInitialPromptSpec(
+    flowKey: kDecanWatchFlowKey,
+    title: 'Begin reflection',
+    subtitle: "Take a moment to begin today's practice. You can finish later.",
+    fields: <MaatFlowResponseSpec>[
+      MaatFlowResponseSpec(
+        id: kDecanWatchResponseVisibilitySpecId,
+        flowKey: kDecanWatchFlowKey,
+        surface: MaatFlowResponseSurface.initialDetail,
+        kind: MaatFlowResponseKind.choice,
+        label: 'Visibility',
+        options: <MaatFlowResponseOption>[
+          MaatFlowResponseOption(
+            id: kDecanWatchVisibilityOutside,
+            label: 'Outside',
+          ),
+          MaatFlowResponseOption(
+            id: kDecanWatchVisibilityInside,
+            label: 'Inside',
+          ),
+          MaatFlowResponseOption(
+            id: kDecanWatchVisibilityClouded,
+            label: 'Clouded',
+          ),
+          MaatFlowResponseOption(
+            id: kDecanWatchVisibilityNotVisible,
+            label: 'Not visible',
+          ),
+        ],
+        journalPolicy: MaatFlowJournalPolicy.localOnly,
+      ),
+      MaatFlowResponseSpec(
+        id: kDecanWatchResponseSkyNoteSpecId,
+        flowKey: kDecanWatchFlowKey,
+        surface: MaatFlowResponseSurface.initialDetail,
+        kind: MaatFlowResponseKind.multiline,
+        label: 'What did the sky show?',
+        journalPolicy: MaatFlowJournalPolicy.localOnly,
+      ),
+      MaatFlowResponseSpec(
+        id: kDecanWatchResponseBearingSpecId,
+        flowKey: kDecanWatchFlowKey,
+        surface: MaatFlowResponseSurface.initialDetail,
+        kind: MaatFlowResponseKind.multiline,
+        label: 'What bearing do you carry into the next ten days?',
+        journalPolicy: MaatFlowJournalPolicy.localOnly,
+      ),
+    ],
+  ),
+];
 
 const MaatFlowInitialPromptResolver kDefaultMaatFlowInitialPromptResolver =
     MaatFlowInitialPromptResolver(specs: kInitialMaatFlowPromptSpecs);

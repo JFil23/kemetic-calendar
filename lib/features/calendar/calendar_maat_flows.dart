@@ -5,6 +5,10 @@ const Key kMaatFlowInitialPromptSectionKey = ValueKey<String>(
   'maat_flow_initial_prompt_section',
 );
 
+final Map<String, Map<String, MaatFlowResponseValue>>
+_maatFlowInitialPromptDraftValuesByFlowKey =
+    <String, Map<String, MaatFlowResponseValue>>{};
+
 class MaatFlowGlyph extends StatelessWidget {
   const MaatFlowGlyph({required this.glyph, this.size = 34, super.key});
 
@@ -217,6 +221,7 @@ Widget buildMaatFlowTemplateDetailPreviewForTesting({
 @visibleForTesting
 void resetMaatFlowJoinedStateForTesting() {
   CalendarPage._clearRememberedJoinedMaatFlowTemplates();
+  _maatFlowInitialPromptDraftValuesByFlowKey.clear();
 }
 
 @visibleForTesting
@@ -2114,6 +2119,32 @@ class _MaatFlowTemplateDetailPageState
 
   String _startDateButtonLabel(BuildContext context, DateTime date) {
     return 'Start: ${_dateLabel(context, date)}';
+  }
+
+  Map<String, MaatFlowResponseValue> _initialPromptDraftValuesForFlow(
+    String flowKey,
+  ) {
+    final stored = _maatFlowInitialPromptDraftValuesByFlowKey[flowKey];
+    if (stored == null || stored.isEmpty) {
+      return const <String, MaatFlowResponseValue>{};
+    }
+    return Map<String, MaatFlowResponseValue>.unmodifiable(stored);
+  }
+
+  void _rememberInitialPromptValue(MaatFlowResponseValue value) {
+    final flowKey = widget.template.key;
+    final draftValues = _maatFlowInitialPromptDraftValuesByFlowKey.putIfAbsent(
+      flowKey,
+      () => <String, MaatFlowResponseValue>{},
+    );
+    if (value.isEmpty) {
+      draftValues.remove(value.specId);
+    } else {
+      draftValues[value.specId] = value;
+    }
+    if (draftValues.isEmpty) {
+      _maatFlowInitialPromptDraftValuesByFlowKey.remove(flowKey);
+    }
   }
 
   T? _tryEnrollmentWindow<T>(String debugLabel, T Function() resolve) {
@@ -4448,7 +4479,65 @@ class _MaatFlowTemplateDetailPageState
 
   Widget _buildMaatFlowInitialPromptSlot(MaatFlowInitialPromptSpec spec) {
     assert(spec.isRenderable);
-    return const SizedBox.shrink(key: kMaatFlowInitialPromptSectionKey);
+    final subtitle = spec.subtitle.trim();
+    return Column(
+      key: kMaatFlowInitialPromptSectionKey,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        const _MaatFlowDetailSeparator(),
+        MaatFlowSurface(
+          palette: _palette,
+          borderRadius: BorderRadius.circular(8),
+          showCrown: true,
+          showTopGlow: true,
+          washOpacity: 0.08,
+          border: Border.all(
+            color: _palette.accent.withValues(alpha: 0.26),
+            width: MaatFlowListTokens.cardBorderWidth,
+          ),
+          padding: const EdgeInsets.all(14),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                spec.title,
+                style: TextStyle(
+                  color: _palette.accent,
+                  fontFamily: MaatFlowListTokens.fontFamily,
+                  fontFamilyFallback: MaatFlowListTokens.fontFallback,
+                  fontSize: 17,
+                  fontWeight: FontWeight.w700,
+                  height: 1.15,
+                  letterSpacing: 0,
+                ),
+              ),
+              if (subtitle.isNotEmpty) ...[
+                const SizedBox(height: 7),
+                Text(
+                  subtitle,
+                  style: const TextStyle(
+                    color: MaatFlowPalette.silverMid,
+                    fontFamily: MaatFlowListTokens.fontFamily,
+                    fontFamilyFallback: MaatFlowListTokens.fontFallback,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w500,
+                    height: 1.35,
+                    letterSpacing: 0,
+                  ),
+                ),
+              ],
+              const SizedBox(height: 12),
+              MaatFlowResponseSection(
+                specs: spec.fields,
+                values: _initialPromptDraftValuesForFlow(spec.flowKey),
+                onChanged: _rememberInitialPromptValue,
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
   }
 
   List<Widget> _buildMaatFlowOverviewZones({
