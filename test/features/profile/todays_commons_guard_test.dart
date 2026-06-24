@@ -44,20 +44,28 @@ void main() {
 
     expect(discoverSource, contains('_buildCommonsDiscoverExpandedBlock'));
     expect(discoverSource, contains('_buildExpandedFeedDetailCard'));
-    expect(discoverSource, contains('embeddedInScrollView: true'));
+    expect(
+      discoverSource,
+      contains('height: _expandedFeedDetailHeight(context)'),
+    );
+    expect(discoverSource, contains('embeddedInCommonsDiscover: true'));
+    expect(discoverSource, isNot(contains('embeddedInScrollView: true')));
     expect(
       discoverSource,
       contains(
-        'Commons Discover intentionally embeds the expanded For You block',
+        'Commons Discover intentionally embeds the bounded expanded For You block',
       ),
     );
     expect(source, contains('_openCommonsDiscoverItem'));
     expect(source, contains('_selectedFeedTab = _SocialFeedTab.forYou'));
-    expect(expandedShellSource, contains('embeddedInScrollView'));
+    expect(expandedShellSource, contains('embeddedInCommonsDiscover'));
+    expect(expandedShellSource, contains('SingleChildScrollView('));
+    expect(expandedShellSource, contains('Expanded(child: bodyContent)'));
     expect(expandedShellSource, contains('Icons.north_east_rounded'));
     expect(source, isNot(contains('_buildCommonsDiscoverCard')));
     expect(source, isNot(contains('_buildCommonsDiscoverFlow')));
     expect(source, isNot(contains('_FeedTileMode')));
+    expect(source, isNot(contains('embeddedInScrollView')));
   });
 
   test('Discover Practices uses the loaded For You feed source', () {

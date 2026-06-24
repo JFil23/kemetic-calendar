@@ -3924,12 +3924,16 @@ class _ProfilePageState extends State<ProfilePage>
   }
 
   Widget _buildCommonsDiscoverExpandedBlock(ProfileFeedItem item) {
-    // Commons Discover intentionally embeds the expanded For You block so
-    // decoded payloads, engagement, comments, and ownership actions stay shared.
-    return _buildExpandedFeedDetailCard(
-      item,
-      embeddedInScrollView: true,
-      onOpenInForYou: () => unawaited(_openCommonsDiscoverItem(item)),
+    // Commons Discover intentionally embeds the bounded expanded For You block
+    // so decoded payloads, internal detail scrolling, engagement, comments, and
+    // ownership actions stay shared.
+    return SizedBox(
+      height: _expandedFeedDetailHeight(context),
+      child: _buildExpandedFeedDetailCard(
+        item,
+        embeddedInCommonsDiscover: true,
+        onOpenInForYou: () => unawaited(_openCommonsDiscoverItem(item)),
+      ),
     );
   }
 
@@ -4697,20 +4701,20 @@ class _ProfilePageState extends State<ProfilePage>
 
   Widget _buildExpandedFeedDetailCard(
     ProfileFeedItem item, {
-    bool embeddedInScrollView = false,
+    bool embeddedInCommonsDiscover = false,
     VoidCallback? onOpenInForYou,
   }) {
     switch (item.kind) {
       case ProfileFeedItemKind.flow:
         return _buildExpandedFlowDetailCard(
           item.flowPost!,
-          embeddedInScrollView: embeddedInScrollView,
+          embeddedInCommonsDiscover: embeddedInCommonsDiscover,
           onOpenInForYou: onOpenInForYou,
         );
       case ProfileFeedItemKind.insight:
         return _buildExpandedInsightDetailCard(
           item.insightPost!,
-          embeddedInScrollView: embeddedInScrollView,
+          embeddedInCommonsDiscover: embeddedInCommonsDiscover,
           onOpenInForYou: onOpenInForYou,
         );
     }
@@ -4718,7 +4722,7 @@ class _ProfilePageState extends State<ProfilePage>
 
   Widget _buildExpandedFlowDetailCard(
     FlowPost post, {
-    bool embeddedInScrollView = false,
+    bool embeddedInCommonsDiscover = false,
     VoidCallback? onOpenInForYou,
   }) {
     final accent = Color(0xFF000000 | (post.color & 0x00FFFFFF));
@@ -4733,11 +4737,11 @@ class _ProfilePageState extends State<ProfilePage>
 
     return _buildExpandedFeedCardShell(
       key: ValueKey(
-        embeddedInScrollView
+        embeddedInCommonsDiscover
             ? 'commons_expanded_flow_${post.id}'
             : 'expanded_flow_${post.id}',
       ),
-      embeddedInScrollView: embeddedInScrollView,
+      embeddedInCommonsDiscover: embeddedInCommonsDiscover,
       onOpenInForYou: onOpenInForYou,
       topChip: Container(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
@@ -4934,7 +4938,7 @@ class _ProfilePageState extends State<ProfilePage>
 
   Widget _buildExpandedInsightDetailCard(
     InsightPost post, {
-    bool embeddedInScrollView = false,
+    bool embeddedInCommonsDiscover = false,
     VoidCallback? onOpenInForYou,
   }) {
     final handle = post.authorHandle?.trim();
@@ -4942,11 +4946,11 @@ class _ProfilePageState extends State<ProfilePage>
 
     return _buildExpandedFeedCardShell(
       key: ValueKey(
-        embeddedInScrollView
+        embeddedInCommonsDiscover
             ? 'commons_expanded_insight_${post.id}'
             : 'expanded_insight_${post.id}',
       ),
-      embeddedInScrollView: embeddedInScrollView,
+      embeddedInCommonsDiscover: embeddedInCommonsDiscover,
       onOpenInForYou: onOpenInForYou,
       topChip: Container(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
@@ -5065,19 +5069,14 @@ class _ProfilePageState extends State<ProfilePage>
     required Widget topChip,
     required Widget body,
     Widget? footer,
-    bool embeddedInScrollView = false,
+    bool embeddedInCommonsDiscover = false,
     VoidCallback? onOpenInForYou,
   }) {
-    final bodyContent = embeddedInScrollView
-        ? Padding(
-            padding: const EdgeInsets.fromLTRB(16, 0, 16, 18),
-            child: body,
-          )
-        : SingleChildScrollView(
-            physics: const BouncingScrollPhysics(),
-            padding: const EdgeInsets.fromLTRB(16, 0, 16, 18),
-            child: body,
-          );
+    final bodyContent = SingleChildScrollView(
+      physics: const BouncingScrollPhysics(),
+      padding: const EdgeInsets.fromLTRB(16, 0, 16, 18),
+      child: body,
+    );
 
     return Container(
       key: key,
@@ -5104,19 +5103,19 @@ class _ProfilePageState extends State<ProfilePage>
                 children: [
                   Expanded(child: topChip),
                   const SizedBox(width: 12),
-                  if (!embeddedInScrollView || onOpenInForYou != null)
+                  if (!embeddedInCommonsDiscover || onOpenInForYou != null)
                     Material(
                       color: Colors.black.withValues(alpha: 0.36),
                       borderRadius: BorderRadius.circular(999),
                       child: InkWell(
                         borderRadius: BorderRadius.circular(999),
-                        onTap: embeddedInScrollView
+                        onTap: embeddedInCommonsDiscover
                             ? onOpenInForYou
                             : _collapseExpandedFeedItem,
                         child: Padding(
                           padding: const EdgeInsets.all(8),
                           child: Icon(
-                            embeddedInScrollView
+                            embeddedInCommonsDiscover
                                 ? Icons.north_east_rounded
                                 : Icons.close_rounded,
                             color: Colors.white.withValues(alpha: 0.88),
@@ -5129,10 +5128,7 @@ class _ProfilePageState extends State<ProfilePage>
               ),
             ),
             const SizedBox(height: 12),
-            if (embeddedInScrollView)
-              bodyContent
-            else
-              Expanded(child: bodyContent),
+            Expanded(child: bodyContent),
             if (footer != null) ...[
               Divider(color: Colors.white.withValues(alpha: 0.08), height: 1),
               footer,
