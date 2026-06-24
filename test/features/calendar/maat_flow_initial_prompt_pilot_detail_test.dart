@@ -342,6 +342,22 @@ void main() {
     }
   });
 
+  test('prompt overview omits extra notice cards below response fields', () {
+    final source = File(
+      'lib/features/calendar/calendar_maat_flows.dart',
+    ).readAsStringSync();
+
+    expect(source.split('extraOverviewNote:').length - 1, 1);
+    expect(source, contains('No enrollment window is available right now'));
+    expect(source, isNot(contains('Required:')));
+    expect(source, isNot(contains('Selected Wep Ronpet start')));
+    expect(source, isNot(contains('Selected new-moon start')));
+    expect(source, isNot(contains('Selected year-closing start')));
+    expect(source, isNot(contains('The flow continues from here')));
+    expect(source, isNot(contains('needs a conversation with another person')));
+    expect(source, isNot(contains('Everything else is optional')));
+  });
+
   testWidgets(
     'The Closing full description is collapsed, shorter, and Kemetic',
     (tester) async {

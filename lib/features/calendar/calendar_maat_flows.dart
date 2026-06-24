@@ -6792,7 +6792,6 @@ class _MaatFlowTemplateDetailPageState
           content: _detailContentForTemplate(overrideChips: null),
           tagline: kTheTendingTagline,
           initialPromptSlot: initialPromptSlot,
-          extraOverviewNote: _buildMaatFlowNotice(kTheTendingEnrollmentCopy),
           configurationControls: [
             _buildStartDateRow(
               context,
@@ -6880,7 +6879,6 @@ class _MaatFlowTemplateDetailPageState
           content: _detailContentForTemplate(overrideChips: null),
           tagline: kKeptWordTagline,
           initialPromptSlot: initialPromptSlot,
-          extraOverviewNote: _buildMaatFlowNotice(kKeptWordEnrollmentCopy),
           configurationControls: [
             _buildStartDateRow(
               context,
@@ -7064,10 +7062,6 @@ class _MaatFlowTemplateDetailPageState
           content: _detailContentForTemplate(overrideChips: null),
           tagline: kTheWagTagline,
           initialPromptSlot: initialPromptSlot,
-          extraOverviewNote: _buildMaatFlowNotice(
-            'Selected Wep Ronpet start for ${window.opensAtLocal.year}: ${_dateLabel(context, window.opensAtLocal)}. Add it now and the Month 1 events will prompt when the year opens.',
-            borderColor: MaatFlowPalette.gold.withValues(alpha: 0.38),
-          ),
           configurationControls: [
             _buildWindowStartRow(context, window.opensAtLocal),
             const SizedBox(height: 28),
@@ -7175,10 +7169,6 @@ class _MaatFlowTemplateDetailPageState
           content: _detailContentForTemplate(overrideChips: null),
           tagline: kDecanWatchTagline,
           initialPromptSlot: initialPromptSlot,
-          extraOverviewNote: _buildMaatFlowNotice(
-            'Selected decan opening: ${_dateLabel(context, window.opensAtLocal)}, when ${window.openingOccurrence.decanName} begins. Add it now and the first watch will prompt on that opening.',
-            borderColor: MaatFlowPalette.gold.withValues(alpha: 0.38),
-          ),
           configurationControls: [
             _buildWindowStartRow(context, window.opensAtLocal),
             const SizedBox(height: 28),
@@ -7421,10 +7411,6 @@ class _MaatFlowTemplateDetailPageState
           content: _detailContentForTemplate(overrideChips: null),
           tagline: kTheOpenHandTagline,
           initialPromptSlot: initialPromptSlot,
-          extraOverviewNote: _buildMaatFlowNotice(
-            'Selected decan opening: ${_dateLabel(context, window.opensAtLocal)}, when ${window.openingOccurrence.decanName} begins. Add it now and the nine sittings will prompt from that start date.',
-            borderColor: MaatFlowPalette.gold.withValues(alpha: 0.38),
-          ),
           configurationControls: [
             _buildWindowStartRow(context, window.opensAtLocal),
             const SizedBox(height: 18),
@@ -7547,10 +7533,6 @@ class _MaatFlowTemplateDetailPageState
           content: _detailContentForTemplate(overrideChips: null),
           tagline: kTheDjedTagline,
           initialPromptSlot: initialPromptSlot,
-          extraOverviewNote: _buildMaatFlowNotice(
-            'Selected decan opening: ${_dateLabel(context, window.opensAtLocal)}, when ${window.openingOccurrence.decanName} begins. Add it now and the Djed sittings will prompt from that start date.',
-            borderColor: MaatFlowPalette.gold.withValues(alpha: 0.38),
-          ),
           configurationControls: [
             _buildWindowStartRow(context, window.opensAtLocal),
             const SizedBox(height: 18),
@@ -7708,10 +7690,6 @@ class _MaatFlowTemplateDetailPageState
           content: _detailContentForTemplate(overrideChips: null),
           tagline: kDaysOutsideTheYearTagline,
           initialPromptSlot: initialPromptSlot,
-          extraOverviewNote: _buildMaatFlowNotice(
-            'Selected year-closing start for ${window.opensAtLocal.year}: ${_dateLabel(context, window.opensAtLocal)}. Add it now and the threshold events will prompt when the year closes.',
-            borderColor: MaatFlowPalette.gold.withValues(alpha: 0.38),
-          ),
           configurationControls: [
             _buildWindowStartRow(context, window.opensAtLocal),
           ],
@@ -7780,25 +7758,6 @@ class _MaatFlowTemplateDetailPageState
           content: _detailContentForTemplate(overrideChips: null),
           tagline: kMoonReturnTagline,
           initialPromptSlot: initialPromptSlot,
-          extraOverviewNote: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              _buildMaatFlowNotice(
-                'Selected new-moon start: ${_dateLabel(context, window.opensAtLocal)}. Add it now and the first Empty Eye will prompt at the appointed dusk.',
-                borderColor: MaatFlowPalette.gold.withValues(alpha: 0.38),
-              ),
-              if (window.enrollProminence !=
-                  MoonReturnCopyVariant.standard) ...[
-                const SizedBox(height: 10),
-                _buildMaatFlowNotice(
-                  window.enrollProminence == MoonReturnCopyVariant.wepRonpetNew
-                      ? 'Highest threshold: total solar eclipse with Wep Ronpet year-opening copy.'
-                      : 'Elevated threshold: solar eclipse new moon enrollment.',
-                  borderColor: const Color(0xFF8FA8FF),
-                ),
-              ],
-            ],
-          ),
           configurationControls: [
             _buildWindowStartRow(context, window.opensAtLocal),
             const SizedBox(height: 18),
@@ -7848,7 +7807,6 @@ class _MaatFlowTemplateDetailPageState
       ),
     );
 
-    final currentContext = courseContextForGregorianDate(DateTime.now());
     final initialPromptSlot = _buildCurrentInitialPromptSlot(
       includeLeadingSeparator: false,
     );
@@ -7867,17 +7825,6 @@ class _MaatFlowTemplateDetailPageState
           content: _detailContentForTemplate(overrideChips: null),
           tagline: kTheCourseTagline,
           initialPromptSlot: initialPromptSlot,
-          extraOverviewNote: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              _buildMaatFlowNotice(kTheCourseEnrollmentCopy),
-              const SizedBox(height: 10),
-              _buildMaatFlowNotice(
-                'You are in ${currentContext.decanName}, ${currentContext.kemeticDateLabel} of ${currentContext.seasonLabel}. The flow continues from here.',
-                borderColor: widget.template.color.withValues(alpha: 0.50),
-              ),
-            ],
-          ),
           configurationControls: [
             _buildStartDateRow(
               context,
@@ -7971,7 +7918,6 @@ class _MaatFlowTemplateDetailPageState
           content: _detailContentForTemplate(overrideChips: null),
           tagline: kOfferingTableTagline,
           initialPromptSlot: initialPromptSlot,
-          extraOverviewNote: _buildMaatFlowNotice(kOfferingTableEnrollmentCopy),
           configurationControls: [
             _buildStartDateRow(
               context,
