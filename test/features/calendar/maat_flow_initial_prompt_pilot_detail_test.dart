@@ -90,21 +90,6 @@ void main() {
     );
   });
 
-  testWidgets('Ma’at detail pages show the flow name only once', (
-    tester,
-  ) async {
-    for (final entry in const <(String, String)>[
-      ('track-the-sky', 'Follow the sky'),
-      ('dawn-house-rite', 'Dawn House Rite'),
-      ('the-true-name', 'The True Name'),
-    ]) {
-      await _pumpTemplateDetail(tester, entry.$1);
-
-      expect(find.byTooltip('Back'), findsOneWidget, reason: entry.$1);
-      expect(find.text(entry.$2), findsOneWidget, reason: entry.$1);
-    }
-  });
-
   testWidgets('initial prompt remains absent for unsupported Ma’at details', (
     tester,
   ) async {
@@ -141,146 +126,9 @@ void main() {
     final arcTop = tester.getTopLeft(find.text('THREE-DECAN ARC')).dy;
     final startTop = tester.getTopLeft(find.textContaining('Start:')).dy;
 
-    expect(arcTop, lessThan(promptTop));
+    expect(promptTop, lessThan(arcTop));
     expect(promptTop, lessThan(startTop));
   });
-
-  testWidgets('overview badge row is removed without collapsing prompt spacing', (
-    tester,
-  ) async {
-    tester.view.physicalSize = const Size(430, 1400);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(tester.view.resetPhysicalSize);
-    addTearDown(tester.view.resetDevicePixelRatio);
-
-    for (final detail in const <_RemovedBadgeSpacingCase>[
-      _RemovedBadgeSpacingCase(
-        key: 'the-offering-table',
-        description:
-            'Provision ritual. Begin with water, then feed what needs food, rest, or care.',
-        badge: 'Daily practice',
-      ),
-      _RemovedBadgeSpacingCase(
-        key: 'the-course',
-        description:
-            'Time-orientation practice. Locate yourself in the day, decan, and season, then choose one fitting action.',
-        badge: '30 days · 9 sittings',
-      ),
-      _RemovedBadgeSpacingCase(
-        key: 'the-tending',
-        description:
-            'Specific care practice. Name who or what needs tending and complete one concrete act of care.',
-        badge: 'Each decan',
-      ),
-    ]) {
-      await tester.pumpWidget(const SizedBox.shrink());
-      await tester.pump();
-      await _pumpTemplateDetail(tester, detail.key);
-
-      expect(find.text(detail.badge), findsNothing, reason: detail.key);
-
-      final descriptionBottom = tester
-          .getBottomLeft(find.text(detail.description))
-          .dy;
-      final promptTop = tester
-          .getTopLeft(find.byKey(kMaatFlowInitialPromptSectionKey))
-          .dy;
-
-      expect(
-        promptTop - descriptionBottom,
-        greaterThanOrEqualTo(54),
-        reason: detail.key,
-      );
-    }
-  });
-
-  testWidgets('full description sits above arc and prompt with room', (
-    tester,
-  ) async {
-    tester.view.physicalSize = const Size(430, 1600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(tester.view.resetPhysicalSize);
-    addTearDown(tester.view.resetDevicePixelRatio);
-
-    await _pumpTemplateDetail(tester, 'the-offering-table');
-
-    final descriptionBottom = tester
-        .getBottomLeft(
-          find.text(
-            'Provision ritual. Begin with water, then feed what needs food, rest, or care.',
-          ),
-        )
-        .dy;
-    final fullDescriptionTop = tester
-        .getTopLeft(find.text('FULL DESCRIPTION'))
-        .dy;
-    final fullDescriptionBottom = tester
-        .getBottomLeft(find.text('FULL DESCRIPTION'))
-        .dy;
-    final arcTop = tester.getTopLeft(find.text('THREE-DECAN ARC')).dy;
-    final arcBottom = tester
-        .getBottomLeft(find.textContaining('Fuel and recovery'))
-        .dy;
-    final promptTop = tester
-        .getTopLeft(find.byKey(kMaatFlowInitialPromptSectionKey))
-        .dy;
-
-    expect(fullDescriptionTop, greaterThan(descriptionBottom));
-    expect(fullDescriptionTop - descriptionBottom, greaterThanOrEqualTo(20));
-    expect(arcTop, greaterThan(fullDescriptionBottom));
-    expect(arcTop - fullDescriptionBottom, greaterThanOrEqualTo(20));
-    expect(promptTop, greaterThan(arcBottom));
-    expect(promptTop - arcBottom, greaterThanOrEqualTo(20));
-  });
-
-  test(
-    'full description stays above arc and old lower slot stays reserved',
-    () {
-      final detailSource = File(
-        'lib/features/calendar/calendar_maat_flows.dart',
-      ).readAsStringSync();
-      final overviewBuilder = _sourceBetween(
-        detailSource,
-        start: 'List<Widget> _buildMaatFlowOverviewZones',
-        end: 'Widget _buildMaatFlowDetailHero',
-      );
-
-      final fullDescriptionIndex = overviewBuilder.indexOf(
-        '_buildFullDescriptionToggle(widget.template.overview)',
-      );
-      final arcIndex = overviewBuilder.indexOf(
-        "const _MaatFlowDetailSectionLabel('THREE-DECAN ARC')",
-      );
-      final promptIndex = overviewBuilder.indexOf(
-        'initialPromptSlot,',
-        arcIndex,
-      );
-      final controlsIndex = overviewBuilder.indexOf(
-        '...configurationControls,',
-      );
-      final reservedSlotIndex = overviewBuilder.indexOf(
-        'const SizedBox(height: _fullDescriptionFormerSlotHeight)',
-      );
-
-      expect(fullDescriptionIndex, isNonNegative);
-      expect(arcIndex, isNonNegative);
-      expect(promptIndex, isNonNegative);
-      expect(controlsIndex, isNonNegative);
-      expect(reservedSlotIndex, isNonNegative);
-      expect(
-        overviewBuilder.indexOf(
-          "const _MaatFlowDetailSectionLabel('THREE-DECAN ARC')",
-          arcIndex + 1,
-        ),
-        isNegative,
-      );
-      expect(fullDescriptionIndex, lessThan(arcIndex));
-      expect(arcIndex, lessThan(promptIndex));
-      expect(promptIndex, lessThan(controlsIndex));
-      expect(fullDescriptionIndex, lessThan(controlsIndex));
-      expect(reservedSlotIndex, greaterThan(controlsIndex));
-    },
-  );
 
   testWidgets('Dawn House discreet explainer opens from info bubble only', (
     tester,
@@ -391,7 +239,7 @@ void main() {
       final arcTop = tester.getTopLeft(find.text('THREE-DECAN ARC')).dy;
       final startTop = tester.getTopLeft(find.textContaining('Start:')).dy;
 
-      expect(arcTop, lessThan(promptTop));
+      expect(promptTop, lessThan(arcTop));
       expect(promptTop, lessThan(startTop));
     },
   );
@@ -438,61 +286,6 @@ void main() {
     expect(infoGlyph, contains("Text(\n            'i'"));
     expect(infoGlyph, contains('fontWeight: FontWeight.w400'));
     expect(infoGlyph, contains('width: 1.15'));
-  });
-
-  test('lens pickers omit static explainer copy above chips', () {
-    final source = File(
-      'lib/features/calendar/calendar_maat_flows.dart',
-    ).readAsStringSync();
-
-    expect(
-      source.split("const _MaatFlowDetailSectionLabel('LENS')").length - 1,
-      12,
-    );
-    expect(source, isNot(contains('A lens adds')));
-    expect(source, isNot(contains('It does not change')));
-
-    for (final marker in const <String>[
-      '_buildDetailChoiceChips<DawnHouseRiteLens>',
-      '_buildDetailChoiceChips<EveningThresholdRiteLens>',
-      '_buildDetailChoiceChips<TheWeighingLens>',
-      '_buildDetailChoiceChips<TheTendingLens>',
-      '_buildDetailChoiceChips<KeptWordLens>',
-      '_buildDetailChoiceChips<WagLens>',
-      '_buildDetailChoiceChips<DecanWatchLens>',
-      '_buildDetailChoiceChips<OpenHandLens>',
-      '_buildDetailChoiceChips<DjedLens>',
-      '_buildDetailChoiceChips<MoonReturnLens>',
-      '_buildDetailChoiceChips<CourseLens>',
-      '_buildDetailChoiceChips<OfferingTableLens>',
-    ]) {
-      final index = source.indexOf(marker);
-      expect(index, isNonNegative, reason: marker);
-      final previousLensLabel = source.lastIndexOf(
-        "const _MaatFlowDetailSectionLabel('LENS')",
-        index,
-      );
-      expect(previousLensLabel, isNonNegative, reason: marker);
-      final copyBetween = source.substring(previousLensLabel, index);
-      expect(copyBetween, isNot(contains('_buildMaatFlowDetailText(')));
-      expect(copyBetween, isNot(contains('const Text(')));
-    }
-  });
-
-  test('prompt overview omits extra notice cards below response fields', () {
-    final source = File(
-      'lib/features/calendar/calendar_maat_flows.dart',
-    ).readAsStringSync();
-
-    expect(source.split('extraOverviewNote:').length - 1, 1);
-    expect(source, contains('No enrollment window is available right now'));
-    expect(source, isNot(contains('Required:')));
-    expect(source, isNot(contains('Selected Wep Ronpet start')));
-    expect(source, isNot(contains('Selected new-moon start')));
-    expect(source, isNot(contains('Selected year-closing start')));
-    expect(source, isNot(contains('The flow continues from here')));
-    expect(source, isNot(contains('needs a conversation with another person')));
-    expect(source, isNot(contains('Everything else is optional')));
   });
 
   testWidgets(
@@ -681,7 +474,7 @@ void main() {
           .getTopLeft(find.byKey(kMaatFlowInitialPromptSectionKey))
           .dy;
       final arcTop = tester.getTopLeft(find.text('THREE-DECAN ARC')).dy;
-      expect(arcTop, lessThan(promptTop), reason: detail.key);
+      expect(promptTop, lessThan(arcTop), reason: detail.key);
 
       expect(
         tester
@@ -692,9 +485,9 @@ void main() {
       );
 
       await tester.ensureVisible(find.text('FULL DESCRIPTION'));
-      await tester.pump(const Duration(milliseconds: 400));
+      await tester.pumpAndSettle();
       await tester.tap(find.text('FULL DESCRIPTION'));
-      await tester.pump(const Duration(milliseconds: 400));
+      await tester.pumpAndSettle();
 
       expect(
         find.textContaining(detail.fullDescriptionSnippet),
@@ -851,7 +644,7 @@ void main() {
           .getTopLeft(find.byKey(kMaatFlowInitialPromptSectionKey))
           .dy;
       final arcTop = tester.getTopLeft(find.text('THREE-DECAN ARC')).dy;
-      expect(arcTop, lessThan(promptTop), reason: detail.key);
+      expect(promptTop, lessThan(arcTop), reason: detail.key);
 
       expect(
         tester
@@ -862,9 +655,9 @@ void main() {
       );
 
       await tester.ensureVisible(find.text('FULL DESCRIPTION'));
-      await tester.pump(const Duration(milliseconds: 400));
+      await tester.pumpAndSettle();
       await tester.tap(find.text('FULL DESCRIPTION'));
-      await tester.pump(const Duration(milliseconds: 400));
+      await tester.pumpAndSettle();
 
       expect(
         find.textContaining(detail.fullDescriptionSnippet),
@@ -1137,18 +930,6 @@ class _CoreDetailLayoutCase {
   final String prompt;
   final String shortDescription;
   final String fullDescriptionSnippet;
-}
-
-class _RemovedBadgeSpacingCase {
-  const _RemovedBadgeSpacingCase({
-    required this.key,
-    required this.description,
-    required this.badge,
-  });
-
-  final String key;
-  final String description;
-  final String badge;
 }
 
 class _CoreFooterOrderCase {

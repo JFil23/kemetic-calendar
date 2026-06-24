@@ -1997,8 +1997,6 @@ class _MaatFlowArcChevron extends StatelessWidget {
 
 class _MaatFlowTemplateDetailPageState
     extends State<_MaatFlowTemplateDetailPage> {
-  static const double _fullDescriptionFormerSlotHeight = 66;
-
   late TrackSkyTimeZone _previewTrackSkyTimeZone;
   Future<TrackSkyFlowData>? _trackSkyFuture;
   bool _dawnDiscreetMode = false;
@@ -2224,11 +2222,8 @@ class _MaatFlowTemplateDetailPageState
 
   Widget _buildDateModeTitle({
     required String title,
-    Color? color,
     double fontSize = 20,
     FontWeight fontWeight = FontWeight.w600,
-    double? letterSpacing,
-    double? height,
     int maxLines = 1,
     TextAlign textAlign = TextAlign.start,
   }) {
@@ -2246,13 +2241,10 @@ class _MaatFlowTemplateDetailPageState
             maxLines: maxLines,
             overflow: TextOverflow.ellipsis,
             style: TextStyle(
-              color: color,
               fontFamily: MaatFlowListTokens.fontFamily,
               fontFamilyFallback: MaatFlowListTokens.fontFallback,
               fontSize: fontSize,
               fontWeight: fontWeight,
-              letterSpacing: letterSpacing,
-              height: height,
             ),
             gradient: _useKemetic ? goldGloss : whiteGloss,
           ),
@@ -4410,6 +4402,12 @@ class _MaatFlowTemplateDetailPageState
               onPressed: () => Navigator.of(context).maybePop(),
             )
           : const SizedBox.shrink(),
+      title: _buildDateModeTitle(
+        title: widget.template.title,
+        fontSize: 25,
+        fontWeight: FontWeight.w500,
+        textAlign: TextAlign.center,
+      ),
     );
   }
 
@@ -4586,25 +4584,23 @@ class _MaatFlowTemplateDetailPageState
           height: 1.52,
         ),
       ),
-      const SizedBox(height: 24),
-      _buildFullDescriptionToggle(widget.template.overview),
-      const SizedBox(height: 24),
-      const _MaatFlowDetailSeparator(),
-      const _MaatFlowDetailSectionLabel('THREE-DECAN ARC'),
-      _buildMaatFlowArc(content.arcBlocks, palette: palette),
       if (initialPromptSlot != null) ...[
-        const SizedBox(height: 24),
+        const SizedBox(height: 16),
         initialPromptSlot,
-        const SizedBox(height: 24),
       ],
       if (extraOverviewNote != null) ...[
         const SizedBox(height: 12),
         extraOverviewNote,
-        const SizedBox(height: 24),
       ],
+      const SizedBox(height: 20),
+      _buildAtAGlanceChips(content.chips),
+      const _MaatFlowDetailSeparator(),
+      const _MaatFlowDetailSectionLabel('THREE-DECAN ARC'),
+      _buildMaatFlowArc(content.arcBlocks, palette: palette),
       const _MaatFlowDetailSeparator(),
       ...configurationControls,
-      const SizedBox(height: _fullDescriptionFormerSlotHeight),
+      const SizedBox(height: 22),
+      _buildFullDescriptionToggle(widget.template.overview),
     ];
   }
 
@@ -4638,14 +4634,19 @@ class _MaatFlowTemplateDetailPageState
                 crossAxisAlignment: CrossAxisAlignment.start,
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  _buildDateModeTitle(
-                    title: widget.template.title,
-                    color: MaatFlowPalette.gold,
-                    fontSize: 30,
-                    fontWeight: FontWeight.w600,
-                    letterSpacing: 0.1,
-                    height: 1.05,
+                  Text(
+                    widget.template.title,
                     maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      color: MaatFlowPalette.gold,
+                      fontFamily: MaatFlowListTokens.fontFamily,
+                      fontFamilyFallback: MaatFlowListTokens.fontFallback,
+                      fontSize: 30,
+                      fontWeight: FontWeight.w600,
+                      letterSpacing: 0.1,
+                      height: 1.05,
+                    ),
                   ),
                   const SizedBox(height: 10),
                   Text(
@@ -4667,6 +4668,68 @@ class _MaatFlowTemplateDetailPageState
           ],
         );
       },
+    );
+  }
+
+  Widget _buildAtAGlanceChips(List<String> chips) {
+    final palette = _palette;
+    return FittedBox(
+      fit: BoxFit.scaleDown,
+      alignment: Alignment.centerLeft,
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          for (var i = 0; i < chips.length; i++) ...[
+            if (i > 0) const SizedBox(width: 6),
+            Semantics(
+              label: chips[i],
+              child: ExcludeSemantics(
+                child: MaatFlowSurface(
+                  palette: palette,
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 7,
+                  ),
+                  borderRadius: BorderRadius.circular(20),
+                  showCrown: true,
+                  showTopGlow: true,
+                  washOpacity: 0.10,
+                  border: Border.all(
+                    color: palette.accent.withValues(alpha: 0.28),
+                    width: MaatFlowListTokens.cardBorderWidth,
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Container(
+                        width: 5,
+                        height: 5,
+                        decoration: BoxDecoration(
+                          color: palette.accent.withValues(alpha: 0.75),
+                          shape: BoxShape.circle,
+                        ),
+                      ),
+                      const SizedBox(width: 6),
+                      Text(
+                        chips[i],
+                        maxLines: 1,
+                        overflow: TextOverflow.visible,
+                        style: TextStyle(
+                          color: palette.accent.withValues(alpha: 0.75),
+                          fontFamily: MaatFlowListTokens.fontFamily,
+                          fontFamilyFallback: MaatFlowListTokens.fontFallback,
+                          fontSize: 14,
+                          height: 1,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ],
+      ),
     );
   }
 
@@ -6270,6 +6333,18 @@ class _MaatFlowTemplateDetailPageState
             ),
             const SizedBox(height: 28),
             const _MaatFlowDetailSectionLabel('LENS'),
+            const Text(
+              'A lens adds a short emphasis to each day’s guidance. It does not change the dawn times, duration, or thirty-day sequence.',
+              style: TextStyle(
+                color: MaatFlowPalette.silverLo,
+                fontFamily: MaatFlowListTokens.fontFamily,
+                fontFamilyFallback: MaatFlowListTokens.fontFallback,
+                fontSize: 13,
+                fontStyle: FontStyle.italic,
+                height: 1.35,
+              ),
+            ),
+            const SizedBox(height: 10),
             _buildDetailChoiceChips<DawnHouseRiteLens>(
               values: DawnHouseRiteLens.values,
               selectedValue: _dawnLens,
@@ -6561,6 +6636,18 @@ class _MaatFlowTemplateDetailPageState
             ),
             const SizedBox(height: 28),
             const _MaatFlowDetailSectionLabel('LENS'),
+            const Text(
+              'A lens adds a short emphasis to each evening’s guidance. It does not change the sunset timing, duration, fallback time, or thirty-day sequence.',
+              style: TextStyle(
+                color: MaatFlowPalette.silverLo,
+                fontFamily: MaatFlowListTokens.fontFamily,
+                fontFamilyFallback: MaatFlowListTokens.fontFallback,
+                fontSize: 13,
+                fontStyle: FontStyle.italic,
+                height: 1.35,
+              ),
+            ),
+            const SizedBox(height: 10),
             _buildDetailChoiceChips<EveningThresholdRiteLens>(
               values: EveningThresholdRiteLens.values,
               selectedValue: _eveningLens,
@@ -6734,6 +6821,7 @@ class _MaatFlowTemplateDetailPageState
           content: _detailContentForTemplate(overrideChips: null),
           tagline: kTheTendingTagline,
           initialPromptSlot: initialPromptSlot,
+          extraOverviewNote: _buildMaatFlowNotice(kTheTendingEnrollmentCopy),
           configurationControls: [
             _buildStartDateRow(
               context,
@@ -6743,6 +6831,18 @@ class _MaatFlowTemplateDetailPageState
             ),
             const SizedBox(height: 28),
             const _MaatFlowDetailSectionLabel('LENS'),
+            const Text(
+              'A lens adds one short framing line. It does not change the nine sittings, timing, or completion states.',
+              style: TextStyle(
+                color: MaatFlowPalette.silverLo,
+                fontFamily: MaatFlowListTokens.fontFamily,
+                fontFamilyFallback: MaatFlowListTokens.fontFallback,
+                fontSize: 13,
+                fontStyle: FontStyle.italic,
+                height: 1.35,
+              ),
+            ),
+            const SizedBox(height: 10),
             _buildDetailChoiceChips<TheTendingLens>(
               values: TheTendingLens.values,
               selectedValue: _theTendingLens,
@@ -6821,6 +6921,7 @@ class _MaatFlowTemplateDetailPageState
           content: _detailContentForTemplate(overrideChips: null),
           tagline: kKeptWordTagline,
           initialPromptSlot: initialPromptSlot,
+          extraOverviewNote: _buildMaatFlowNotice(kKeptWordEnrollmentCopy),
           configurationControls: [
             _buildStartDateRow(
               context,
@@ -6830,6 +6931,18 @@ class _MaatFlowTemplateDetailPageState
             ),
             const SizedBox(height: 28),
             const _MaatFlowDetailSectionLabel('LENS'),
+            const Text(
+              'A lens adds one short framing line. It does not change the nine sittings, timing, or completion states.',
+              style: TextStyle(
+                color: MaatFlowPalette.silverLo,
+                fontFamily: MaatFlowListTokens.fontFamily,
+                fontFamilyFallback: MaatFlowListTokens.fontFallback,
+                fontSize: 13,
+                fontStyle: FontStyle.italic,
+                height: 1.35,
+              ),
+            ),
+            const SizedBox(height: 10),
             _buildDetailChoiceChips<KeptWordLens>(
               values: KeptWordLens.values,
               selectedValue: _keptWordLens,
@@ -7004,10 +7117,26 @@ class _MaatFlowTemplateDetailPageState
           content: _detailContentForTemplate(overrideChips: null),
           tagline: kTheWagTagline,
           initialPromptSlot: initialPromptSlot,
+          extraOverviewNote: _buildMaatFlowNotice(
+            'Selected Wep Ronpet start for ${window.opensAtLocal.year}: ${_dateLabel(context, window.opensAtLocal)}. Add it now and the Month 1 events will prompt when the year opens.',
+            borderColor: MaatFlowPalette.gold.withValues(alpha: 0.38),
+          ),
           configurationControls: [
             _buildWindowStartRow(context, window.opensAtLocal),
             const SizedBox(height: 28),
             const _MaatFlowDetailSectionLabel('LENS'),
+            const Text(
+              'A lens adds one short framing line. It does not change the annual dates or completion states.',
+              style: TextStyle(
+                color: MaatFlowPalette.silverLo,
+                fontFamily: MaatFlowListTokens.fontFamily,
+                fontFamilyFallback: MaatFlowListTokens.fontFallback,
+                fontSize: 13,
+                fontStyle: FontStyle.italic,
+                height: 1.35,
+              ),
+            ),
+            const SizedBox(height: 10),
             _buildDetailChoiceChips<WagLens>(
               values: WagLens.values,
               selectedValue: _wagLens,
@@ -7111,10 +7240,26 @@ class _MaatFlowTemplateDetailPageState
           content: _detailContentForTemplate(overrideChips: null),
           tagline: kDecanWatchTagline,
           initialPromptSlot: initialPromptSlot,
+          extraOverviewNote: _buildMaatFlowNotice(
+            'Selected decan opening: ${_dateLabel(context, window.opensAtLocal)}, when ${window.openingOccurrence.decanName} begins. Add it now and the first watch will prompt on that opening.',
+            borderColor: MaatFlowPalette.gold.withValues(alpha: 0.38),
+          ),
           configurationControls: [
             _buildWindowStartRow(context, window.opensAtLocal),
             const SizedBox(height: 28),
             const _MaatFlowDetailSectionLabel('LENS'),
+            const Text(
+              'A lens adds one short framing line. It does not change the decan boundary, outdoor requirement, or completion states.',
+              style: TextStyle(
+                color: MaatFlowPalette.silverLo,
+                fontFamily: MaatFlowListTokens.fontFamily,
+                fontFamilyFallback: MaatFlowListTokens.fontFallback,
+                fontSize: 13,
+                fontStyle: FontStyle.italic,
+                height: 1.35,
+              ),
+            ),
+            const SizedBox(height: 10),
             _buildDetailChoiceChips<DecanWatchLens>(
               values: DecanWatchLens.values,
               selectedValue: _decanWatchLens,
@@ -7353,6 +7498,10 @@ class _MaatFlowTemplateDetailPageState
           content: _detailContentForTemplate(overrideChips: null),
           tagline: kTheOpenHandTagline,
           initialPromptSlot: initialPromptSlot,
+          extraOverviewNote: _buildMaatFlowNotice(
+            'Selected decan opening: ${_dateLabel(context, window.opensAtLocal)}, when ${window.openingOccurrence.decanName} begins. Add it now and the nine sittings will prompt from that start date.',
+            borderColor: MaatFlowPalette.gold.withValues(alpha: 0.38),
+          ),
           configurationControls: [
             _buildWindowStartRow(context, window.opensAtLocal),
             const SizedBox(height: 18),
@@ -7475,6 +7624,10 @@ class _MaatFlowTemplateDetailPageState
           content: _detailContentForTemplate(overrideChips: null),
           tagline: kTheDjedTagline,
           initialPromptSlot: initialPromptSlot,
+          extraOverviewNote: _buildMaatFlowNotice(
+            'Selected decan opening: ${_dateLabel(context, window.opensAtLocal)}, when ${window.openingOccurrence.decanName} begins. Add it now and the Djed sittings will prompt from that start date.',
+            borderColor: MaatFlowPalette.gold.withValues(alpha: 0.38),
+          ),
           configurationControls: [
             _buildWindowStartRow(context, window.opensAtLocal),
             const SizedBox(height: 18),
@@ -7632,6 +7785,10 @@ class _MaatFlowTemplateDetailPageState
           content: _detailContentForTemplate(overrideChips: null),
           tagline: kDaysOutsideTheYearTagline,
           initialPromptSlot: initialPromptSlot,
+          extraOverviewNote: _buildMaatFlowNotice(
+            'Selected year-closing start for ${window.opensAtLocal.year}: ${_dateLabel(context, window.opensAtLocal)}. Add it now and the threshold events will prompt when the year closes.',
+            borderColor: MaatFlowPalette.gold.withValues(alpha: 0.38),
+          ),
           configurationControls: [
             _buildWindowStartRow(context, window.opensAtLocal),
           ],
@@ -7700,10 +7857,35 @@ class _MaatFlowTemplateDetailPageState
           content: _detailContentForTemplate(overrideChips: null),
           tagline: kMoonReturnTagline,
           initialPromptSlot: initialPromptSlot,
+          extraOverviewNote: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              _buildMaatFlowNotice(
+                'Selected new-moon start: ${_dateLabel(context, window.opensAtLocal)}. Add it now and the first Empty Eye will prompt at the appointed dusk.',
+                borderColor: MaatFlowPalette.gold.withValues(alpha: 0.38),
+              ),
+              if (window.enrollProminence !=
+                  MoonReturnCopyVariant.standard) ...[
+                const SizedBox(height: 10),
+                _buildMaatFlowNotice(
+                  window.enrollProminence == MoonReturnCopyVariant.wepRonpetNew
+                      ? 'Highest threshold: total solar eclipse with Wep Ronpet year-opening copy.'
+                      : 'Elevated threshold: solar eclipse new moon enrollment.',
+                  borderColor: const Color(0xFF8FA8FF),
+                ),
+              ],
+            ],
+          ),
           configurationControls: [
             _buildWindowStartRow(context, window.opensAtLocal),
             const SizedBox(height: 18),
             const _MaatFlowDetailSectionLabel('LENS'),
+            _buildMaatFlowDetailText(
+              'A lens adds one short framing line. It does not change the lunar timing or observed/skipped completion.',
+              color: MaatFlowPalette.silverLo,
+              fontSize: 13,
+            ),
+            const SizedBox(height: 10),
             _buildDetailChoiceChips<MoonReturnLens>(
               values: MoonReturnLens.values,
               selectedValue: _moonReturnLens,
@@ -7749,6 +7931,7 @@ class _MaatFlowTemplateDetailPageState
       ),
     );
 
+    final currentContext = courseContextForGregorianDate(DateTime.now());
     final initialPromptSlot = _buildCurrentInitialPromptSlot(
       includeLeadingSeparator: false,
     );
@@ -7767,6 +7950,17 @@ class _MaatFlowTemplateDetailPageState
           content: _detailContentForTemplate(overrideChips: null),
           tagline: kTheCourseTagline,
           initialPromptSlot: initialPromptSlot,
+          extraOverviewNote: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              _buildMaatFlowNotice(kTheCourseEnrollmentCopy),
+              const SizedBox(height: 10),
+              _buildMaatFlowNotice(
+                'You are in ${currentContext.decanName}, ${currentContext.kemeticDateLabel} of ${currentContext.seasonLabel}. The flow continues from here.',
+                borderColor: widget.template.color.withValues(alpha: 0.50),
+              ),
+            ],
+          ),
           configurationControls: [
             _buildStartDateRow(
               context,
@@ -7776,6 +7970,18 @@ class _MaatFlowTemplateDetailPageState
             ),
             const SizedBox(height: 28),
             const _MaatFlowDetailSectionLabel('LENS'),
+            const Text(
+              'A lens adds one short framing line. It does not change day-card use, timing, or completion states.',
+              style: TextStyle(
+                color: MaatFlowPalette.silverLo,
+                fontFamily: MaatFlowListTokens.fontFamily,
+                fontFamilyFallback: MaatFlowListTokens.fontFallback,
+                fontSize: 13,
+                fontStyle: FontStyle.italic,
+                height: 1.35,
+              ),
+            ),
+            const SizedBox(height: 10),
             _buildDetailChoiceChips<CourseLens>(
               values: CourseLens.values,
               selectedValue: _courseLens,
@@ -7860,6 +8066,7 @@ class _MaatFlowTemplateDetailPageState
           content: _detailContentForTemplate(overrideChips: null),
           tagline: kOfferingTableTagline,
           initialPromptSlot: initialPromptSlot,
+          extraOverviewNote: _buildMaatFlowNotice(kOfferingTableEnrollmentCopy),
           configurationControls: [
             _buildStartDateRow(
               context,
@@ -7869,6 +8076,18 @@ class _MaatFlowTemplateDetailPageState
             ),
             const SizedBox(height: 28),
             const _MaatFlowDetailSectionLabel('LENS'),
+            const Text(
+              'A lens adds one short framing line. It does not change the thirty sittings, timing, or completion states.',
+              style: TextStyle(
+                color: MaatFlowPalette.silverLo,
+                fontFamily: MaatFlowListTokens.fontFamily,
+                fontFamilyFallback: MaatFlowListTokens.fontFallback,
+                fontSize: 13,
+                fontStyle: FontStyle.italic,
+                height: 1.35,
+              ),
+            ),
+            const SizedBox(height: 10),
             _buildDetailChoiceChips<OfferingTableLens>(
               values: OfferingTableLens.values,
               selectedValue: _offeringTableLens,
