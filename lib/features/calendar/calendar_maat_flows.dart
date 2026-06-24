@@ -4584,10 +4584,8 @@ class _MaatFlowTemplateDetailPageState
           height: 1.52,
         ),
       ),
-      const SizedBox(height: 14),
-      _buildAtAGlanceChips(content.chips),
       if (initialPromptSlot != null) ...[
-        const SizedBox(height: 18),
+        const SizedBox(height: 60),
         initialPromptSlot,
       ],
       if (extraOverviewNote != null) ...[
@@ -4663,68 +4661,6 @@ class _MaatFlowTemplateDetailPageState
           ],
         );
       },
-    );
-  }
-
-  Widget _buildAtAGlanceChips(List<String> chips) {
-    final palette = _palette;
-    return FittedBox(
-      fit: BoxFit.scaleDown,
-      alignment: Alignment.centerLeft,
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          for (var i = 0; i < chips.length; i++) ...[
-            if (i > 0) const SizedBox(width: 6),
-            Semantics(
-              label: chips[i],
-              child: ExcludeSemantics(
-                child: MaatFlowSurface(
-                  palette: palette,
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 8,
-                    vertical: 7,
-                  ),
-                  borderRadius: BorderRadius.circular(20),
-                  showCrown: true,
-                  showTopGlow: true,
-                  washOpacity: 0.10,
-                  border: Border.all(
-                    color: palette.accent.withValues(alpha: 0.28),
-                    width: MaatFlowListTokens.cardBorderWidth,
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Container(
-                        width: 5,
-                        height: 5,
-                        decoration: BoxDecoration(
-                          color: palette.accent.withValues(alpha: 0.75),
-                          shape: BoxShape.circle,
-                        ),
-                      ),
-                      const SizedBox(width: 6),
-                      Text(
-                        chips[i],
-                        maxLines: 1,
-                        overflow: TextOverflow.visible,
-                        style: TextStyle(
-                          color: palette.accent.withValues(alpha: 0.75),
-                          fontFamily: MaatFlowListTokens.fontFamily,
-                          fontFamilyFallback: MaatFlowListTokens.fontFallback,
-                          fontSize: 14,
-                          height: 1,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-          ],
-        ],
-      ),
     );
   }
 

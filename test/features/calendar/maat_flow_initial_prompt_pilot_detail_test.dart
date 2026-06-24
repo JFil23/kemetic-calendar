@@ -145,7 +145,7 @@ void main() {
     expect(promptTop, lessThan(startTop));
   });
 
-  testWidgets('overview badges sit between description and prompt', (
+  testWidgets('overview badge row is removed without collapsing prompt spacing', (
     tester,
   ) async {
     tester.view.physicalSize = const Size(430, 1400);
@@ -153,20 +153,20 @@ void main() {
     addTearDown(tester.view.resetPhysicalSize);
     addTearDown(tester.view.resetDevicePixelRatio);
 
-    for (final detail in const <_BadgePlacementCase>[
-      _BadgePlacementCase(
+    for (final detail in const <_RemovedBadgeSpacingCase>[
+      _RemovedBadgeSpacingCase(
         key: 'the-offering-table',
         description:
             'Provision ritual. Begin with water, then feed what needs food, rest, or care.',
         badge: 'Daily practice',
       ),
-      _BadgePlacementCase(
+      _RemovedBadgeSpacingCase(
         key: 'the-course',
         description:
             'Time-orientation practice. Locate yourself in the day, decan, and season, then choose one fitting action.',
         badge: '30 days · 9 sittings',
       ),
-      _BadgePlacementCase(
+      _RemovedBadgeSpacingCase(
         key: 'the-tending',
         description:
             'Specific care practice. Name who or what needs tending and complete one concrete act of care.',
@@ -177,16 +177,20 @@ void main() {
       await tester.pump();
       await _pumpTemplateDetail(tester, detail.key);
 
-      final descriptionTop = tester
-          .getTopLeft(find.text(detail.description))
+      expect(find.text(detail.badge), findsNothing, reason: detail.key);
+
+      final descriptionBottom = tester
+          .getBottomLeft(find.text(detail.description))
           .dy;
-      final badgeTop = tester.getTopLeft(find.text(detail.badge)).dy;
       final promptTop = tester
           .getTopLeft(find.byKey(kMaatFlowInitialPromptSectionKey))
           .dy;
 
-      expect(descriptionTop, lessThan(badgeTop), reason: detail.key);
-      expect(badgeTop, lessThan(promptTop), reason: detail.key);
+      expect(
+        promptTop - descriptionBottom,
+        greaterThanOrEqualTo(54),
+        reason: detail.key,
+      );
     }
   });
 
@@ -1047,8 +1051,8 @@ class _CoreDetailLayoutCase {
   final String fullDescriptionSnippet;
 }
 
-class _BadgePlacementCase {
-  const _BadgePlacementCase({
+class _RemovedBadgeSpacingCase {
+  const _RemovedBadgeSpacingCase({
     required this.key,
     required this.description,
     required this.badge,
