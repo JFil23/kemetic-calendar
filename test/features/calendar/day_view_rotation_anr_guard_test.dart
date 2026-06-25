@@ -62,7 +62,10 @@ void main() {
         'void _showNotificationScheduleWarning',
       );
 
-      expect(schedulingPath, contains('Notify.scheduleAlertWithPersistenceResult'));
+      expect(
+        schedulingPath,
+        contains('Notify.scheduleAlertWithPersistenceResult'),
+      );
       expect(schedulingPath, contains('_reminderService.addOrUpdate'));
     });
 
@@ -124,7 +127,19 @@ void main() {
       expect(landscapeBranch, contains('final useGrid ='));
       expect(
         landscapeBranch,
-        contains('final shouldBuildLandscapeGrid = useGrid && routeIsCurrent;'),
+        contains(
+          'final routeShouldRemainRendered =\n'
+          '        routeIsCurrent ||\n'
+          '        CalendarPage._hasCalendarOwnedTransientOverlayOpenOrOpening;',
+        ),
+      );
+      expect(
+        landscapeBranch,
+        contains(
+          'final shouldBuildLandscapeGrid = useGrid && routeShouldRemainRendered;',
+        ),
+        reason:
+            'Calendar-owned sheets keep the route painted behind them; unrelated covered routes still shrink below.',
       );
       expect(gridBranch, contains('LandscapeMonthView('));
       expect(gridBranch, isNot(contains('if (useGrid) {')));
@@ -133,7 +148,7 @@ void main() {
     test('covered Calendar route skips heavy calendar body builds', () {
       final coveredRouteBranch = _sourceBetween(
         calendarSource,
-        'if (!routeIsCurrent) {',
+        'if (!routeShouldRemainRendered) {',
         'if (shouldBuildLandscapeGrid) {',
       );
 
@@ -177,11 +192,7 @@ void main() {
         'class _LandscapeMonthGridBodyState extends State<LandscapeMonthGridBody>',
         'Widget _buildDayHeader(int day, double colW)',
       );
-      final eventLoop = _sourceBetween(
-        gridBodyState,
-        '// Event blocks',
-        '],',
-      );
+      final eventLoop = _sourceBetween(gridBodyState, '// Event blocks', '],');
 
       expect(gridBodyState, contains('_visibleEventStartDay'));
       expect(gridBodyState, contains('_visibleEventEndDay'));

@@ -288,10 +288,10 @@ void main() {
           "value == 'end_note'",
           "value == 'share'",
         );
-        final gridDelete = _sourceBetween(
+        final gridDetailCaller = _sourceBetween(
           gridWidgets,
-          "value == 'end_note'",
-          "value == 'share'",
+          'builder: (_) => CalendarEventDetailSheet(',
+          'onShareNote: onShareNote,',
         );
         final searchOpen = _sourceBetween(
           calendarPage,
@@ -300,7 +300,8 @@ void main() {
         );
 
         expect(dayViewDelete, contains('Navigator.pop(sheetContext)'));
-        expect(gridDelete, contains('Navigator.pop(sheetContext)'));
+        expect(dayViewDelete, contains('widget.onDeleteNote!'));
+        expect(gridDetailCaller, contains('onDeleteNote: onDeleteNote'));
         expect(
           searchOpen,
           contains('_eventDetailRestorationStateForSearchNote'),

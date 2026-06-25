@@ -1925,6 +1925,8 @@ void main() {
     expect(dayView, contains('MaatFlowResponseSection('));
     expect(dayView, contains('journalPreviews: _responseJournalPreviews('));
     expect(dayView, contains('responseSpecs: responseSpecs'));
+    expect(dayView, contains('class _CalendarEventDetailSheetState'));
+    expect(dayView, contains('_MaatFlowCompletionPanel('));
 
     final completion = File(
       'lib/features/calendar/calendar_completion.dart',
@@ -1934,14 +1936,14 @@ void main() {
     final portraitGrid = File(
       'lib/features/calendar/calendar_grid_widgets.dart',
     ).readAsStringSync();
-    expect(portraitGrid, contains('buildDayViewMaatFlowCompletionPanel('));
+    expect(portraitGrid, contains('CalendarEventDetailSheet('));
     expect(portraitGrid, contains('onWriteJournalResponse'));
     expect(portraitGrid, isNot(contains('resolveMaatFlowResponseSpecs(')));
 
     final landscape = File(
       'lib/features/calendar/landscape_month_view.dart',
     ).readAsStringSync();
-    expect(landscape, contains('buildDayViewMaatFlowCompletionPanel('));
+    expect(landscape, contains('CalendarEventDetailSheet('));
     expect(landscape, contains('onWriteJournalResponse'));
     expect(landscape, isNot(contains('resolveMaatFlowResponseSpecs(')));
 

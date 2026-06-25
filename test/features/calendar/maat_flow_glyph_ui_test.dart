@@ -275,7 +275,7 @@ void main() {
       ),
       reason: 'Footer privacy copy should be low-emphasis.',
     );
-    expect(_countOccurrences(source, 'const _MaatFlowPrivacyFooter(),'), 9);
+    expect(_countOccurrences(source, 'const _MaatFlowPrivacyFooter(),'), 10);
     _expectFooterAfter(source, '...kTheTendingEvents.map(');
     _expectFooterAfter(source, '...kKeptWordEvents.map(');
     _expectFooterAfter(source, '...kWagEvents.map(');
@@ -284,6 +284,10 @@ void main() {
     _expectFooterAfter(source, '...kOpenHandEvents.map(');
     _expectFooterAfter(source, '...kDjedEvents.map(');
     _expectFooterAfter(source, '...kDaysOutsideEvents.map(');
+    _expectFooterAfter(
+      source,
+      '(occurrence) => _buildMoonReturnOccurrenceTile(context, occurrence)',
+    );
   });
 
   test('all Ma’at Flow detail branches use the shared detail scaffold', () {
@@ -337,11 +341,6 @@ void main() {
       'List<Widget> _buildMaatFlowOverviewZones',
       'Widget _buildMaatFlowDetailHero',
     );
-    final timezoneSelector = _sourceBetween(
-      source,
-      'Widget _buildTimezoneSelector()',
-      'Widget _buildStartDateRow',
-    );
     final startDateRow = _sourceBetween(
       source,
       'Widget _buildStartDateRow',
@@ -361,13 +360,18 @@ void main() {
     expect(scaffold, contains('_buildMaatFlowDetailScaffold'));
     expect(scaffold, contains('joinButton: _buildTemplateStickyJoinButton'));
     expect(scaffold, contains('_joinTheWeighingFlow(selectedStart)'));
-    expect(scaffold, contains('_buildTimezoneSelector()'));
-    expect(scaffold, contains('_buildStartDateRow(context, selectedStart)'));
+    expect(scaffold, contains('_buildStartDateRow('));
+    expect(scaffold, contains('selectedStart'));
+    expect(
+      scaffold,
+      contains(
+        "'Start: \${_dateLabel(context, selectedStart)} at \$firstTime'",
+      ),
+    );
     expect(scaffold, contains('_buildDetailChoiceChips<TheWeighingLens>'));
     expect(scaffold, contains('_theWeighingLens = lens'));
     expect(scaffold, contains('_buildTheWeighingEventTile(context, event)'));
     expect(overviewZones, contains('_buildFullDescriptionToggle'));
-    expect(timezoneSelector, contains('_setTrackSkyPreviewTimeZone(timezone)'));
     expect(startDateRow, contains('onPressed: _pickDate'));
     expect(descriptionToggle, contains('_descriptionExpanded ='));
     expect(sittingTile, contains('ExpansionTile'));

@@ -15,8 +15,11 @@ void main() {
     final picker = _sourceBetween(
       daySheet,
       'Widget datePicker()',
-      'final keyboardInset = keyboardInsetOf(sheetCtx);',
+      'Future<bool> openReminderEditorForSelectedDay',
     );
+    final daySheetFrame = await File(
+      'lib/widgets/day_sheet_components.dart',
+    ).readAsString();
 
     expect(
       source,
@@ -59,6 +62,13 @@ void main() {
     expect(picker, isNot(contains('DaySheetDatePicker.show')));
     expect(picker, isNot(contains('CupertinoPicker')));
     expect(picker, isNot(contains('FixedExtentScrollController')));
+
+    expect(daySheet, contains('return DaySheetKeyboardSafeFrame('));
+    expect(daySheetFrame, contains('class DaySheetKeyboardSafeFrame'));
+    expect(daySheetFrame, contains('final viewInsetsBottom'));
+    expect(daySheetFrame, contains('MediaQuery.viewInsetsOf(context).bottom'));
+    expect(daySheetFrame, contains('keyboardInsetOf(context)'));
+    expect(daySheetFrame, contains('SingleChildScrollView('));
   });
 
   test('allowDateChange continues to gate Day sheet date mutation', () async {
@@ -73,7 +83,7 @@ void main() {
     final picker = _sourceBetween(
       daySheet,
       'Widget datePicker()',
-      'final keyboardInset = keyboardInsetOf(sheetCtx);',
+      'Future<bool> openReminderEditorForSelectedDay',
     );
 
     expect(picker, contains('enabled: allowDateChange'));
@@ -94,7 +104,7 @@ void main() {
     final builder = _sourceBetween(
       daySheet,
       'builder: (sheetCtx, setSheetState)',
-      'final keyboardInset = keyboardInsetOf(sheetCtx);',
+      'return DaySheetKeyboardSafeFrame(',
     );
     final scheduledSection = _sourceBetween(
       daySheet,
@@ -170,7 +180,7 @@ void main() {
     final builder = _sourceBetween(
       daySheet,
       'builder: (sheetCtx, setSheetState)',
-      'final keyboardInset = keyboardInsetOf(sheetCtx);',
+      'return DaySheetKeyboardSafeFrame(',
     );
     final remindersSection = _sourceBetween(
       daySheet,
@@ -232,7 +242,7 @@ void main() {
     final builder = _sourceBetween(
       daySheet,
       'builder: (sheetCtx, setSheetState)',
-      'final keyboardInset = keyboardInsetOf(sheetCtx);',
+      'return DaySheetKeyboardSafeFrame(',
     );
     final selectedDaySources = _sourceBetween(
       builder,
@@ -247,7 +257,7 @@ void main() {
     final reminderEditor = _sourceBetween(
       daySheet,
       'Future<bool> openReminderEditorForSelectedDay',
-      'final keyboardInset = keyboardInsetOf(sheetCtx);',
+      'const fieldScrollPadding = keyboardManagedTextFieldScrollPadding;',
     );
 
     expect(selectedDaySources, contains('selYear'));
@@ -291,6 +301,7 @@ void main() {
     expect(picker, contains('persistDaySheetSession()'));
 
     expect(reminderEditor, contains('initialDate: titleG'));
+    expect(daySheet, contains('return DaySheetKeyboardSafeFrame('));
     expect(builder, isNot(contains('DateTime.now')));
     expect(builder, isNot(contains('_today')));
     expect(builder, isNot(contains('_currentKy')));

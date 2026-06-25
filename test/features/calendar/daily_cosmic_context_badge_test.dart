@@ -521,12 +521,46 @@ void main() {
       'Widget build(BuildContext context) {',
       '\n  }\n}',
     );
-
-    expect(build, contains('if (signedIn && _passwordRecoverySession)'));
-    expect(
-      build.indexOf('_buildPasswordRecoveryApp()'),
-      lessThan(build.indexOf('_buildAuthedApp()')),
+    final normalRuntimeStart = build.indexOf(
+      'final signedIn = supabase.auth.currentSession != null;',
     );
+    expect(
+      normalRuntimeStart,
+      isNonNegative,
+      reason: 'Missing normal runtime signed-in branch.',
+    );
+    final normalRuntimeBuild = build.substring(normalRuntimeStart);
+    final recoveryApp = _sourceBetween(
+      myAppState,
+      'Widget _buildPasswordRecoveryApp()',
+      'Widget _buildAuthedApp()',
+    );
+    final authedApp = _sourceBetween(
+      myAppState,
+      'Widget _buildAuthedApp()',
+      '@override\n  Widget build(BuildContext context)',
+    );
+
+    expect(
+      build,
+      contains('if (_debugDaySheetSmokeBootRequested)'),
+      reason:
+          'The debug Day Sheet smoke route is allowed to boot authed chrome before normal runtime routing.',
+    );
+    expect(
+      normalRuntimeBuild,
+      contains('if (signedIn && _passwordRecoverySession)'),
+    );
+    expect(
+      normalRuntimeBuild.indexOf('_buildPasswordRecoveryApp()'),
+      lessThan(normalRuntimeBuild.indexOf('_buildAuthedApp()')),
+      reason:
+          'In normal runtime, a signed-in password recovery session must bypass the authed chrome shell.',
+    );
+    expect(recoveryApp, contains('home: PasswordRecoveryScreen('));
+    expect(recoveryApp, isNot(contains('_AppChrome(')));
+    expect(recoveryApp, isNot(contains('MaterialApp.router')));
+    expect(authedApp, contains('_AppChrome('));
   });
 
   test(
