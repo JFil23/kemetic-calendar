@@ -4301,7 +4301,9 @@ class CalendarPage extends StatefulWidget {
         _detachedFlowStudioSheetOpenOrOpening ||
         _detachedQuickAddSheetOpenOrOpening ||
         (mountedState?._sharedCalendarsSheetOpenOrOpening ?? false) ||
-        (mountedState?._flowStudioSheetOpenOrOpening ?? false);
+        (mountedState?._flowStudioSheetOpenOrOpening ?? false) ||
+        (mountedState?._daySheetOpenOrOpening ?? false) ||
+        (mountedState?._quickAddSheetOpenOrOpening ?? false);
   }
 
   static Future<void> dismissAppOwnedTransientOverlaysForRouteChange(
