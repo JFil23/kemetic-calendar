@@ -3070,11 +3070,29 @@ enum _MaatFlowTemplateKind {
   maatDecan,
 }
 
+enum _MaatFlowLibraryCategory { dailyRhythm, innerWork, livingInMaat }
+
+extension _MaatFlowLibraryCategoryLabel on _MaatFlowLibraryCategory {
+  String get label => switch (this) {
+    _MaatFlowLibraryCategory.dailyRhythm => 'DAILY RHYTHM',
+    _MaatFlowLibraryCategory.innerWork => 'INNER WORK',
+    _MaatFlowLibraryCategory.livingInMaat => "LIVING IN MA'AT",
+  };
+}
+
+const List<_MaatFlowLibraryCategory> _kMaatFlowLibraryCategories =
+    <_MaatFlowLibraryCategory>[
+      _MaatFlowLibraryCategory.dailyRhythm,
+      _MaatFlowLibraryCategory.innerWork,
+      _MaatFlowLibraryCategory.livingInMaat,
+    ];
+
 class _MaatFlowTemplate {
   final String key; // stable identifier (e.g., "wealth-economy")
   final String title; // flow title
   final String overview; // overview / description
   final String subtitle; // category and short list description
+  final _MaatFlowLibraryCategory libraryCategory;
   final String glyph;
   final String glyphMeaning;
   final String glyphSourceWord;
@@ -3087,6 +3105,7 @@ class _MaatFlowTemplate {
     required this.title,
     required this.overview,
     required this.subtitle,
+    required this.libraryCategory,
     required this.glyph,
     required this.glyphMeaning,
     required this.glyphSourceWord,
@@ -3120,6 +3139,7 @@ final List<_MaatFlowTemplate> _kMaatFlowTemplates = [
     overview:
         'Follow the Sky places major visible sky events on the calendar with simple witness prompts. Step outside when you can, notice what changed above you, and keep one clear line of observation in Kemetic time.',
     subtitle: 'Sky · Track the year\'s astronomical events in Kemetic time',
+    libraryCategory: _MaatFlowLibraryCategory.dailyRhythm,
     glyph: '𓇯',
     glyphMeaning: 'Sky and heavens',
     glyphSourceWord: 'pt',
@@ -3132,6 +3152,7 @@ final List<_MaatFlowTemplate> _kMaatFlowTemplates = [
     title: kDawnHouseRiteTitle,
     overview: kDawnHouseRiteOverview,
     subtitle: 'Daily · Water, light, and one right act at dawn',
+    libraryCategory: _MaatFlowLibraryCategory.dailyRhythm,
     glyph: '𓉐',
     glyphMeaning: 'House',
     glyphSourceWord: 'pr',
@@ -3144,6 +3165,7 @@ final List<_MaatFlowTemplate> _kMaatFlowTemplates = [
     title: kEveningThresholdTitle,
     overview: kEveningThresholdOverview,
     subtitle: kEveningThresholdSubtitle,
+    libraryCategory: _MaatFlowLibraryCategory.dailyRhythm,
     glyph: kEveningThresholdGlyph,
     glyphMeaning: 'Sun at the threshold with the heart weighed',
     glyphSourceWord: 'akhet / ib',
@@ -3156,6 +3178,7 @@ final List<_MaatFlowTemplate> _kMaatFlowTemplates = [
     title: kEveningThresholdRiteTitle,
     overview: kEveningThresholdRiteOverview,
     subtitle: 'Daily · Close the visible day before the night begins',
+    libraryCategory: _MaatFlowLibraryCategory.dailyRhythm,
     glyph: '𓊌',
     glyphMeaning: 'Boundary or threshold',
     glyphSourceWord: 'ist',
@@ -3168,6 +3191,7 @@ final List<_MaatFlowTemplate> _kMaatFlowTemplates = [
     title: kTheWeighingTitle,
     overview: kTheWeighingOverview,
     subtitle: 'Reckoning · Put material and spoken records on the scale',
+    libraryCategory: _MaatFlowLibraryCategory.innerWork,
     glyph: kTheWeighingGlyph,
     glyphMeaning: 'Balance and weighing',
     glyphSourceWord: 'iwsw',
@@ -3180,6 +3204,7 @@ final List<_MaatFlowTemplate> _kMaatFlowTemplates = [
     title: kOfferingTableTitle,
     overview: kOfferingTableOverview,
     subtitle: 'Provision · Water first, then food, rest, and care',
+    libraryCategory: _MaatFlowLibraryCategory.dailyRhythm,
     glyph: kOfferingTableGlyph,
     glyphMeaning: 'Offering table',
     glyphSourceWord: 'hotep',
@@ -3192,6 +3217,7 @@ final List<_MaatFlowTemplate> _kMaatFlowTemplates = [
     title: kTheTendingTitle,
     overview: kTheTendingOverview,
     subtitle: 'Care · Find who needs you and do the labor',
+    libraryCategory: _MaatFlowLibraryCategory.livingInMaat,
     glyph: kTheTendingGlyph,
     glyphMeaning: 'Field and tending',
     glyphSourceWord: 'sekhet',
@@ -3204,6 +3230,7 @@ final List<_MaatFlowTemplate> _kMaatFlowTemplates = [
     title: kKeptWordTitle,
     overview: kKeptWordOverview,
     subtitle: 'Speech · Name broken agreements and restore right order',
+    libraryCategory: _MaatFlowLibraryCategory.livingInMaat,
     glyph: kKeptWordGlyph,
     glyphMeaning: 'Mouth and speech',
     glyphSourceWord: 'r',
@@ -3216,6 +3243,7 @@ final List<_MaatFlowTemplate> _kMaatFlowTemplates = [
     title: kTheCourseTitle,
     overview: kTheCourseOverview,
     subtitle: 'Time · Locate yourself in the day, decan, and season',
+    libraryCategory: _MaatFlowLibraryCategory.dailyRhythm,
     glyph: kTheCourseGlyph,
     glyphMeaning: 'Road, path, and course',
     glyphSourceWord: 'wat',
@@ -3228,6 +3256,7 @@ final List<_MaatFlowTemplate> _kMaatFlowTemplates = [
     title: kMoonReturnTitle,
     overview: kMoonReturnOverview,
     subtitle: 'Sky · The Eye empties at the new moon and fills at the full',
+    libraryCategory: _MaatFlowLibraryCategory.dailyRhythm,
     glyph: kMoonReturnGlyph,
     glyphMeaning: 'Moon',
     glyphSourceWord: 'iah',
@@ -3240,6 +3269,7 @@ final List<_MaatFlowTemplate> _kMaatFlowTemplates = [
     title: kTheWagTitle,
     overview: kTheWagOverview,
     subtitle: 'Ancestors · Name the dead, set the table, hold the feast',
+    libraryCategory: _MaatFlowLibraryCategory.dailyRhythm,
     glyph: kTheWagGlyph,
     glyphMeaning: 'Bark and procession',
     glyphSourceWord: 'wia',
@@ -3252,6 +3282,7 @@ final List<_MaatFlowTemplate> _kMaatFlowTemplates = [
     title: kDecanWatchTitle,
     overview: kDecanWatchOverview,
     subtitle: 'Sky · Stand under the sky at each ten-day boundary',
+    libraryCategory: _MaatFlowLibraryCategory.dailyRhythm,
     glyph: kDecanWatchGlyph,
     glyphMeaning: 'Star',
     glyphSourceWord: 'sbA',
@@ -3264,6 +3295,7 @@ final List<_MaatFlowTemplate> _kMaatFlowTemplates = [
     title: kDaysOutsideTheYearTitle,
     overview: kDaysOutsideTheYearOverview,
     subtitle: 'Threshold · Five births before the year opens',
+    libraryCategory: _MaatFlowLibraryCategory.dailyRhythm,
     glyph: kDaysOutsideTheYearGlyph,
     glyphMeaning: 'Year',
     glyphSourceWord: 'rnpt',
@@ -3276,6 +3308,7 @@ final List<_MaatFlowTemplate> _kMaatFlowTemplates = [
     title: kTheOpenHandTitle,
     overview: kOpenHandOverview,
     subtitle: 'Giving · See need and give beyond the circle of obligation',
+    libraryCategory: _MaatFlowLibraryCategory.livingInMaat,
     glyph: kTheOpenHandGlyph,
     glyphMeaning: 'Hand',
     glyphSourceWord: 'd',
@@ -3288,6 +3321,7 @@ final List<_MaatFlowTemplate> _kMaatFlowTemplates = [
     title: kTheDjedTitle,
     overview: kDjedOverview,
     subtitle: 'Stability · Name the spine and raise the Djed',
+    libraryCategory: _MaatFlowLibraryCategory.livingInMaat,
     glyph: kTheDjedGlyph,
     glyphMeaning: 'Djed pillar',
     glyphSourceWord: 'djed',
@@ -3300,6 +3334,7 @@ final List<_MaatFlowTemplate> _kMaatFlowTemplates = [
     title: kFairHearingTitle,
     overview: kFairHearingOverview,
     subtitle: 'Judgment · Hear fully before deciding, pronounce clearly',
+    libraryCategory: _MaatFlowLibraryCategory.livingInMaat,
     glyph: kFairHearingGlyph,
     glyphMeaning: 'Ear and hearing',
     glyphSourceWord: 'sDm',
@@ -3312,6 +3347,7 @@ final List<_MaatFlowTemplate> _kMaatFlowTemplates = [
     title: kHouseOfLifeTitle,
     overview: kHouseOfLifeOverview,
     subtitle: 'Knowledge · Write, recite, seek those who know more, transmit',
+    libraryCategory: _MaatFlowLibraryCategory.livingInMaat,
     glyph: kHouseOfLifeGlyph,
     glyphMeaning: 'House and life',
     glyphSourceWord: 'pr-anx',
@@ -3324,6 +3360,7 @@ final List<_MaatFlowTemplate> _kMaatFlowTemplates = [
     title: kBoundaryStoneTitle,
     overview: kBoundaryStoneOverview,
     subtitle: 'Restraint · Map what is yours and restore the stones that moved',
+    libraryCategory: _MaatFlowLibraryCategory.livingInMaat,
     glyph: kBoundaryStoneGlyph,
     glyphMeaning: 'Boundary-stone and landmark',
     glyphSourceWord: 'ist',
@@ -3336,6 +3373,7 @@ final List<_MaatFlowTemplate> _kMaatFlowTemplates = [
     title: kHotepTitle,
     overview: kHotepOverview,
     subtitle: 'Rest · The offering was given. Cool the heart before sleep.',
+    libraryCategory: _MaatFlowLibraryCategory.innerWork,
     glyph: kHotepGlyph,
     glyphMeaning: 'Offering table',
     glyphSourceWord: 'Htp',
@@ -3348,6 +3386,7 @@ final List<_MaatFlowTemplate> _kMaatFlowTemplates = [
     title: kOpenMouthTitle,
     overview: kOpenMouthOverview,
     subtitle: 'Speech · Govern what the mouth creates before it leaves',
+    libraryCategory: _MaatFlowLibraryCategory.livingInMaat,
     glyph: kOpenMouthGlyph,
     glyphMeaning: 'Mouth and speech',
     glyphSourceWord: 'r',
@@ -3360,6 +3399,7 @@ final List<_MaatFlowTemplate> _kMaatFlowTemplates = [
     title: kLivingRecordTitle,
     overview: kLivingRecordOverview,
     subtitle: 'Practice · Build the full decan record across ḥꜣw',
+    libraryCategory: _MaatFlowLibraryCategory.livingInMaat,
     glyph: kLivingRecordGlyph,
     glyphMeaning: 'Scribe palette and record',
     glyphSourceWord: 'sS',
@@ -3373,6 +3413,7 @@ final List<_MaatFlowTemplate> _kMaatFlowTemplates = [
     overview: kHetHeruOverview,
     subtitle:
         'Joy · Name the Sekhmet. Find the red beer. Wake as the golden one.',
+    libraryCategory: _MaatFlowLibraryCategory.innerWork,
     glyph: kHetHeruGlyph,
     glyphMeaning: 'Het-Heru enclosure',
     glyphSourceWord: 'Hwt-Hrw',
@@ -3385,6 +3426,7 @@ final List<_MaatFlowTemplate> _kMaatFlowTemplates = [
     title: kTheShoreTitle,
     overview: kTheShoreOverview,
     subtitle: 'Exchange · Bring what you have and weigh it honestly',
+    libraryCategory: _MaatFlowLibraryCategory.livingInMaat,
     glyph: kTheShoreGlyph,
     glyphMeaning: 'Shore and water edge',
     glyphSourceWord: 'idbw',
@@ -3397,6 +3439,7 @@ final List<_MaatFlowTemplate> _kMaatFlowTemplates = [
     title: kTheAutobiographyTitle,
     overview: kTheAutobiographyOverview,
     subtitle: 'Legacy · Survey the years and write the honest account',
+    libraryCategory: _MaatFlowLibraryCategory.innerWork,
     glyph: kTheAutobiographyGlyph,
     glyphMeaning: 'Record and person',
     glyphSourceWord: 'sS / z',
@@ -3409,6 +3452,7 @@ final List<_MaatFlowTemplate> _kMaatFlowTemplates = [
     title: kFirstArrangementTitle,
     overview: kFirstArrangementOverview,
     subtitle: 'Space · See what is there and order it from the first occasion',
+    libraryCategory: _MaatFlowLibraryCategory.livingInMaat,
     glyph: kFirstArrangementGlyph,
     glyphMeaning: 'Ordered land or ground',
     glyphSourceWord: 'tA',
@@ -3421,6 +3465,7 @@ final List<_MaatFlowTemplate> _kMaatFlowTemplates = [
     title: kLivingPatternTitle,
     overview: kLivingPatternOverview,
     subtitle: 'Nature · Observe one subject until a real pattern appears',
+    libraryCategory: _MaatFlowLibraryCategory.livingInMaat,
     glyph: kLivingPatternGlyph,
     glyphMeaning: 'Patterned natural form',
     glyphSourceWord: 'xpr',
@@ -3434,6 +3479,7 @@ final List<_MaatFlowTemplate> _kMaatFlowTemplates = [
     overview: kTrueNameOverview,
     subtitle:
         'Identity · Find the false account and speak what the scale shows',
+    libraryCategory: _MaatFlowLibraryCategory.innerWork,
     glyph: kTrueNameGlyph,
     glyphMeaning: 'Spoken name',
     glyphSourceWord: 'rn',
@@ -3446,6 +3492,7 @@ final List<_MaatFlowTemplate> _kMaatFlowTemplates = [
     title: kLivingTextTitle,
     overview: kLivingTextOverview,
     subtitle: 'Library · Read carefully, add your insights, leave a mark',
+    libraryCategory: _MaatFlowLibraryCategory.livingInMaat,
     glyph: kLivingTextGlyph,
     glyphMeaning: 'Text and life',
     glyphSourceWord: 'sS anx',
@@ -3459,6 +3506,7 @@ final List<_MaatFlowTemplate> _kMaatFlowTemplates = [
     overview: kClearingOverview,
     subtitle:
         'Stillness · Find the heat-driven pattern. Create space before response.',
+    libraryCategory: _MaatFlowLibraryCategory.innerWork,
     glyph: kClearingGlyph,
     glyphMeaning: 'Water and cleansing',
     glyphSourceWord: 'n',
@@ -3472,6 +3520,7 @@ final List<_MaatFlowTemplate> _kMaatFlowTemplates = [
     overview: kWanderingOverview,
     subtitle:
         'Grief · Name the loss, search for what remains, stand when ready',
+    libraryCategory: _MaatFlowLibraryCategory.innerWork,
     glyph: kWanderingGlyph,
     glyphMeaning: 'Walking legs and movement',
     glyphSourceWord: 'iw',
@@ -3484,6 +3533,7 @@ final List<_MaatFlowTemplate> _kMaatFlowTemplates = [
     title: kKhatTitle,
     overview: kKhatOverview,
     subtitle: 'Body · Listen to the body, provide what it needs, raise it',
+    libraryCategory: _MaatFlowLibraryCategory.innerWork,
     glyph: kKhatGlyph,
     glyphMeaning: 'Corpse or mummy-form body',
     glyphSourceWord: 'xAt',
@@ -3497,6 +3547,7 @@ final List<_MaatFlowTemplate> _kMaatFlowTemplates = [
     overview: kOracleOverview,
     subtitle:
         'Dreams · Prepare the question, receive what the night sends, act',
+    libraryCategory: _MaatFlowLibraryCategory.innerWork,
     glyph: kOracleGlyph,
     glyphMeaning: 'Hearing and receiving an answer',
     glyphSourceWord: 'sDm',

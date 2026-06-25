@@ -10,6 +10,21 @@ const Key kMaatFlowPracticeDisclaimerFooterKey = ValueKey<String>(
   'maat_flow_practice_disclaimer_footer',
 );
 
+@visibleForTesting
+const Key kMaatFlowCategoryDailyRhythmTabKey = ValueKey<String>(
+  'maat_flow_category_daily_rhythm_tab',
+);
+
+@visibleForTesting
+const Key kMaatFlowCategoryInnerWorkTabKey = ValueKey<String>(
+  'maat_flow_category_inner_work_tab',
+);
+
+@visibleForTesting
+const Key kMaatFlowCategoryLivingInMaatTabKey = ValueKey<String>(
+  'maat_flow_category_living_in_maat_tab',
+);
+
 class MaatFlowGlyph extends StatelessWidget {
   const MaatFlowGlyph({required this.glyph, this.size = 34, super.key});
 
@@ -278,6 +293,7 @@ class _MaatFlowsListPageState extends State<_MaatFlowsListPage> {
     debugLabel: 'flow_studio_maat_add_flow_helper',
   );
   final Set<String> _locallyJoinedTemplateKeys = <String>{};
+  _MaatFlowLibraryCategory? _selectedWaitingCategory;
   bool _helperPrompted = false;
 
   @override
@@ -394,6 +410,14 @@ class _MaatFlowsListPageState extends State<_MaatFlowsListPage> {
     });
   }
 
+  void _toggleWaitingCategory(_MaatFlowLibraryCategory category) {
+    setState(() {
+      _selectedWaitingCategory = _selectedWaitingCategory == category
+          ? null
+          : category;
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     final entries = <_MaatFlowListEntry>[
@@ -421,6 +445,15 @@ class _MaatFlowsListPageState extends State<_MaatFlowsListPage> {
     final waiting = entries
         .where((entry) => !entry.status.joined)
         .toList(growable: false);
+    final filteredWaiting = _selectedWaitingCategory == null
+        ? waiting
+        : waiting
+              .where(
+                (entry) =>
+                    entry.template.libraryCategory == _selectedWaitingCategory,
+              )
+              .toList(growable: false);
+    final hasWaitingSection = waiting.isNotEmpty;
 
     return Scaffold(
       backgroundColor: MaatFlowListTokens.pageBg,
@@ -499,13 +532,27 @@ class _MaatFlowsListPageState extends State<_MaatFlowsListPage> {
                 MaatFlowListTokens.cardHorizontalMargin,
                 AppBottomInsets.contentBottomPadding(context),
               ),
-              itemCount: _visualItemCount(joined, waiting),
+              itemCount: _visualItemCount(
+                joined,
+                filteredWaiting,
+                hasWaitingSection: hasWaitingSection,
+              ),
               separatorBuilder: (_, _) => const SizedBox(height: 0),
               itemBuilder: (ctx, i) {
-                final item = _visualItemAt(i, joined, waiting);
+                final item = _visualItemAt(
+                  i,
+                  joined,
+                  filteredWaiting,
+                  hasWaitingSection: hasWaitingSection,
+                );
                 switch (item) {
                   case _MaatFlowSectionVisual(:final label):
                     return _MaatFlowSectionLabel(label: label);
+                  case _MaatFlowCategoryTabsVisual():
+                    return _MaatFlowCategoryTabs(
+                      selected: _selectedWaitingCategory,
+                      onSelected: _toggleWaitingCategory,
+                    );
                   case _MaatFlowCardVisual(:final entry):
                     return Padding(
                       padding: EdgeInsets.only(
@@ -542,20 +589,22 @@ class _MaatFlowsListPageState extends State<_MaatFlowsListPage> {
 
   int _visualItemCount(
     List<_MaatFlowListEntry> joined,
-    List<_MaatFlowListEntry> waiting,
-  ) {
+    List<_MaatFlowListEntry> waiting, {
+    required bool hasWaitingSection,
+  }) {
     var count = 0;
     if (joined.isNotEmpty) count += 1 + joined.length;
-    if (joined.isNotEmpty && waiting.isNotEmpty) count += 1;
-    if (waiting.isNotEmpty) count += 1 + waiting.length;
+    if (joined.isNotEmpty && hasWaitingSection) count += 1;
+    if (hasWaitingSection) count += 2 + waiting.length;
     return count;
   }
 
   _MaatFlowListVisual _visualItemAt(
     int index,
     List<_MaatFlowListEntry> joined,
-    List<_MaatFlowListEntry> waiting,
-  ) {
+    List<_MaatFlowListEntry> waiting, {
+    required bool hasWaitingSection,
+  }) {
     var cursor = 0;
     if (joined.isNotEmpty) {
       if (index == cursor) {
@@ -568,14 +617,16 @@ class _MaatFlowsListPageState extends State<_MaatFlowsListPage> {
       }
       cursor = joinedEnd;
     }
-    if (joined.isNotEmpty && waiting.isNotEmpty) {
+    if (joined.isNotEmpty && hasWaitingSection) {
       if (index == cursor) return const _MaatFlowDividerVisual();
       cursor += 1;
     }
-    if (waiting.isNotEmpty) {
+    if (hasWaitingSection) {
       if (index == cursor) {
         return const _MaatFlowSectionVisual('NOT YET JOINED');
       }
+      cursor += 1;
+      if (index == cursor) return const _MaatFlowCategoryTabsVisual();
       cursor += 1;
       return _MaatFlowCardVisual(waiting[index - cursor]);
     }
@@ -654,6 +705,10 @@ class _MaatFlowSectionVisual extends _MaatFlowListVisual {
   final String label;
 }
 
+class _MaatFlowCategoryTabsVisual extends _MaatFlowListVisual {
+  const _MaatFlowCategoryTabsVisual();
+}
+
 class _MaatFlowCardVisual extends _MaatFlowListVisual {
   const _MaatFlowCardVisual(this.entry);
 
@@ -687,6 +742,115 @@ class _MaatFlowSectionLabel extends StatelessWidget {
       ),
     );
   }
+}
+
+class _MaatFlowCategoryTabs extends StatelessWidget {
+  const _MaatFlowCategoryTabs({
+    required this.selected,
+    required this.onSelected,
+  });
+
+  final _MaatFlowLibraryCategory? selected;
+  final ValueChanged<_MaatFlowLibraryCategory> onSelected;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(4, 0, 4, 16),
+      child: Row(
+        children: [
+          for (final category in _kMaatFlowLibraryCategories)
+            Expanded(
+              child: _MaatFlowCategoryTab(
+                key: _maatFlowCategoryTabKey(category),
+                category: category,
+                selected: selected == category,
+                onTap: () => onSelected(category),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+class _MaatFlowCategoryTab extends StatelessWidget {
+  const _MaatFlowCategoryTab({
+    required this.category,
+    required this.selected,
+    required this.onTap,
+    super.key,
+  });
+
+  final _MaatFlowLibraryCategory category;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final textColor = selected
+        ? MaatFlowListTokens.gold
+        : MaatFlowListTokens.sectionLabel.withValues(alpha: 0.9);
+
+    return Semantics(
+      button: true,
+      selected: selected,
+      label: '${category.label} category',
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: onTap,
+        child: SizedBox(
+          height: 34,
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 4),
+                  child: Center(
+                    child: FittedBox(
+                      fit: BoxFit.scaleDown,
+                      child: Text(
+                        category.label,
+                        maxLines: 1,
+                        style: TextStyle(
+                          color: textColor,
+                          fontFamily: MaatFlowListTokens.fontFamily,
+                          fontFamilyFallback: MaatFlowListTokens.fontFallback,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w400,
+                          letterSpacing: 2.0,
+                          height: 1,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+              AnimatedContainer(
+                duration: const Duration(milliseconds: 140),
+                curve: Curves.easeOutCubic,
+                height: 1,
+                margin: const EdgeInsets.symmetric(horizontal: 7),
+                color: selected
+                    ? MaatFlowListTokens.gold.withValues(alpha: 0.65)
+                    : Colors.transparent,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+Key _maatFlowCategoryTabKey(_MaatFlowLibraryCategory category) {
+  return switch (category) {
+    _MaatFlowLibraryCategory.dailyRhythm => kMaatFlowCategoryDailyRhythmTabKey,
+    _MaatFlowLibraryCategory.innerWork => kMaatFlowCategoryInnerWorkTabKey,
+    _MaatFlowLibraryCategory.livingInMaat =>
+      kMaatFlowCategoryLivingInMaatTabKey,
+  };
 }
 
 class _MaatFlowCard extends StatelessWidget {

@@ -12,6 +12,10 @@ void main() {
   test('Today Commons uses sticky tabs and real data hooks', () {
     expect(source, contains('SliverPersistentHeader'));
     expect(source, contains('_SocialFeedTab.todaysCommons'));
+    expect(source, contains("label: 'COMMONS'"));
+    expect(source, contains("isCommons ? 'Commons' : 'For You'"));
+    expect(source, isNot(contains("TODAY'S COMMONS")));
+    expect(source, isNot(contains("Today's Commons")));
     expect(source, contains('dailyReflectionQuestionForDate'));
     expect(source, contains("Today's Rhythm"));
     expect(source, contains('_commonsInsightFragments'));
@@ -34,7 +38,7 @@ void main() {
     final discoverSource = _methodSource(
       source,
       'Widget _buildCommonsDiscoverSection()',
-      'Widget _buildCommonsEndBoundary()',
+      'Widget _buildCommonsCompactButton(',
     );
     final expandedShellSource = _methodSource(
       source,
@@ -108,6 +112,10 @@ void main() {
 
   test('prototype social claims are not present', () {
     const removedPrototypeCopy = <String>[
+      'You have seen today\'s commons.',
+      'Return to practice.',
+      'BACK TO MY DAY',
+      'THE COMMONS RENEWS AT DAWN',
       '42 practitioners completed',
       '18 began The Closing',
       '7 reached their first full decan',

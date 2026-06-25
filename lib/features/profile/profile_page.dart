@@ -2913,13 +2913,13 @@ class _ProfilePageState extends State<ProfilePage>
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           _profileGoldTextWidget(
-            isCommons ? "Today's Commons" : 'For You',
+            isCommons ? 'Commons' : 'For You',
             style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
           ),
           const SizedBox(height: 4),
           Text(
             isCommons
-                ? 'What practitioners are restoring today.'
+                ? 'What practitioners are restoring across the rhythm.'
                 : 'Flows and insights chosen for your rhythm.',
             style: TextStyle(
               color: Colors.white.withValues(alpha: 0.62),
@@ -2973,7 +2973,7 @@ class _ProfilePageState extends State<ProfilePage>
         Expanded(
           child: _buildSocialFeedTabButton(
             tab: _SocialFeedTab.todaysCommons,
-            label: "TODAY'S COMMONS",
+            label: 'COMMONS',
           ),
         ),
         const SizedBox(width: 18),
@@ -3305,7 +3305,6 @@ class _ProfilePageState extends State<ProfilePage>
         _buildCommonsReflectionSection(),
         _buildCommonsPracticeTogetherSection(),
         _buildCommonsDiscoverSection(),
-        _buildCommonsEndBoundary(),
       ],
     );
   }
@@ -3919,7 +3918,7 @@ class _ProfilePageState extends State<ProfilePage>
           ? [
               _buildCommonsEmptyState(
                 'Discover practices are loading.',
-                'Today\'s Commons uses the same real feed data as For You.',
+                'Commons uses the same real feed data as For You.',
               ),
             ]
           : items.isEmpty
@@ -3949,91 +3948,6 @@ class _ProfilePageState extends State<ProfilePage>
         item,
         embeddedInCommonsDiscover: true,
         onOpenInForYou: () => unawaited(_openCommonsDiscoverItem(item)),
-      ),
-    );
-  }
-
-  Widget _buildCommonsEndBoundary() {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(18, 54, 18, 16),
-      child: Column(
-        children: [
-          Container(
-            width: 46,
-            height: 46,
-            alignment: Alignment.center,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              border: Border.all(
-                color: _profileGoldMid.withValues(alpha: 0.58),
-              ),
-            ),
-            child: Container(
-              width: 20,
-              height: 20,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: _profileGoldText.withValues(alpha: 0.9),
-              ),
-            ),
-          ),
-          const SizedBox(height: 22),
-          Text(
-            "You have seen today's commons.",
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              color: Colors.white.withValues(alpha: 0.88),
-              fontFamily: _profileSerifFont,
-              fontFamilyFallback: _profileSerifFallback,
-              fontSize: 25,
-              fontWeight: FontWeight.w600,
-              height: 1.24,
-            ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            'Return to practice.',
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              color: _profileGoldText.withValues(alpha: 0.72),
-              fontFamily: _profileSerifFont,
-              fontFamilyFallback: _profileSerifFallback,
-              fontStyle: FontStyle.italic,
-              fontSize: 18,
-            ),
-          ),
-          const SizedBox(height: 24),
-          OutlinedButton(
-            onPressed: () => CalendarPage.openMainCalendarAtToday(context),
-            style: OutlinedButton.styleFrom(
-              foregroundColor: _profileGoldText,
-              side: BorderSide(color: _profileGoldText.withValues(alpha: 0.62)),
-              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 13),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-            ),
-            child: const Text(
-              'BACK TO MY DAY',
-              style: TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.w800,
-                letterSpacing: 1.2,
-              ),
-            ),
-          ),
-          const SizedBox(height: 26),
-          Text(
-            'THE COMMONS RENEWS AT DAWN',
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              color: Colors.white.withValues(alpha: 0.36),
-              fontSize: 10,
-              fontWeight: FontWeight.w800,
-              letterSpacing: 1.8,
-            ),
-          ),
-        ],
       ),
     );
   }
