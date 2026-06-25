@@ -2149,6 +2149,131 @@ class FlowJoinService {
     );
   }
 
+  Future<FlowJoinResult> joinReadingHouseHeadless({
+    required String templateKey,
+    required String templateTitle,
+    required String templateOverview,
+    required Color templateColor,
+    required String? personalCalendarId,
+    required TrackSkyTimeZone timezone,
+    DateTime? startDate,
+    ReadingHousePlan plan = const ReadingHousePlan(),
+    int alertOffsetMinutes = kEventFilingNoAlertMinutes,
+  }) async {
+    final sittings = kReadingHouseSittings;
+    if (sittings.isEmpty) {
+      return const FlowJoinResult.failure(FlowJoinFailureCode.noOccurrences);
+    }
+
+    final firstGregorian = DateUtils.dateOnly(
+      startDate ?? defaultReadingHouseStartDate(timezone),
+    );
+    final occurrences = <ReadingHouseOccurrenceSchedule>[
+      for (final sitting in sittings)
+        readingHouseScheduleForDate(
+          sitting,
+          firstGregorian.add(Duration(days: sitting.flowDay - 1)),
+          timezone,
+        ),
+    ];
+    if (occurrences.isEmpty) {
+      return const FlowJoinResult.failure(FlowJoinFailureCode.noOccurrences);
+    }
+
+    final dates = <DateTime>{
+      for (final occurrence in occurrences)
+        DateUtils.dateOnly(occurrence.startLocal),
+    };
+    if (dates.isEmpty) {
+      return const FlowJoinResult.failure(FlowJoinFailureCode.noOccurrences);
+    }
+
+    final orderedDates = dates.toList()..sort();
+    final notes = [
+      'mode=gregorian',
+      'split=1',
+      if (templateOverview.trim().isNotEmpty)
+        'ov=${Uri.encodeComponent(templateOverview.trim())}',
+      'maat=$templateKey',
+      'reading_house_tz=${timezone.key}',
+      ...readingHouseFlowNoteTokens(plan),
+      'reading_house_hour=$kReadingHouseDefaultHour',
+      'reading_house_minute=$kReadingHouseDefaultMinute',
+    ].join(';');
+
+    final flowId = await _upsertFlowRow(
+      id: null,
+      name: templateTitle,
+      color: templateColor.toARGB32(),
+      active: true,
+      calendarId: personalCalendarId,
+      startDate: orderedDates.first,
+      endDate: orderedDates.last,
+      notes: notes,
+      rules: jsonEncode(
+        <FlowRule>[
+          _RuleDates(dates: dates),
+        ].map(CalendarPageState.ruleToJson).toList(),
+      ),
+      originType: 'template',
+    );
+
+    final clientEventIds = <String>[];
+    for (var i = 0; i < sittings.length; i++) {
+      final sitting = sittings[i];
+      final occurrence = occurrences[i];
+      final k = KemeticMath.fromGregorian(
+        DateUtils.dateOnly(occurrence.startLocal),
+      );
+      final title = readingHouseSittingTitle(sitting);
+      final clientEventId = EventCidUtil.buildClientEventId(
+        ky: k.kYear,
+        km: k.kMonth,
+        kd: k.kDay,
+        title: title,
+        startHour: occurrence.startLocal.hour,
+        startMinute: occurrence.startLocal.minute,
+        allDay: false,
+        flowId: flowId,
+      );
+      final detail = readingHouseDetailText(sitting, plan: plan);
+      await _upsertEventRow(
+        clientEventId: clientEventId,
+        title: title,
+        startsAtUtc: occurrence.startUtc,
+        detail: detail,
+        allDay: false,
+        endsAtUtc: occurrence.endUtc,
+        calendarId: personalCalendarId,
+        flowLocalId: flowId,
+        category: 'Study',
+        actionId: readingHouseActionId(sitting),
+        behaviorPayload: readingHouseBehaviorPayload(
+          sitting: sitting,
+          schedule: occurrence,
+          plan: plan,
+        ),
+        caller: 'reading_house_join_headless',
+      );
+      clientEventIds.add(clientEventId);
+      if (alertOffsetMinutes != kEventFilingNoAlertMinutes) {
+        await _fileHeadlessJoinDelivery(
+          debugLabel: 'readingHouseHeadless',
+          clientEventId: clientEventId,
+          startsAtLocal: occurrence.startLocal,
+          alertOffsetMinutes: alertOffsetMinutes,
+          title: title,
+          body: detail,
+        );
+      }
+    }
+
+    return _completeHeadlessJoin(
+      flowId: flowId,
+      clientEventIds: clientEventIds,
+    );
+  }
+
   Future<FlowJoinResult> joinKeptWordHeadless({
     required String templateKey,
     required String templateTitle,

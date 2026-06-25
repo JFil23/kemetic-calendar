@@ -10,6 +10,7 @@ import 'the_djed_flow.dart';
 import 'the_kept_word_flow.dart';
 import 'the_open_hand_flow.dart';
 import 'the_offering_table_flow.dart';
+import 'the_reading_house_flow.dart';
 import 'the_tending_flow.dart';
 import 'the_wag_flow.dart';
 import 'the_weighing_flow.dart';
@@ -88,6 +89,26 @@ kPilotMaatFlowResponseSpecs = <MaatFlowResponseSpec>[
     journalGroupLabel: kDecanWatchTitle,
     journalFormatter: MaatFlowResponseJournalFormatter.decanWatch,
     journalRole: 'sky_note',
+  ),
+  MaatFlowResponseSpec(
+    id: 'reading-house-private-reflection',
+    flowKey: kReadingHouseFlowKey,
+    surface: MaatFlowResponseSurface.calendarSheet,
+    kind: MaatFlowResponseKind.multiline,
+    label: 'Private reflection',
+    journalPolicy: MaatFlowJournalPolicy.localOnly,
+  ),
+  MaatFlowResponseSpec(
+    id: 'reading-house-position',
+    flowKey: kReadingHouseFlowKey,
+    surface: MaatFlowResponseSurface.calendarSheet,
+    kind: MaatFlowResponseKind.choice,
+    label: 'Reading position',
+    options: <MaatFlowResponseOption>[
+      MaatFlowResponseOption(id: 'carrying', label: 'Carrying'),
+      MaatFlowResponseOption(id: 'not_yet', label: 'Not yet'),
+    ],
+    journalPolicy: MaatFlowJournalPolicy.localOnly,
   ),
   MaatFlowResponseSpec(
     id: kDecanWatchResponseBearingSpecId,
@@ -2090,6 +2111,56 @@ kInitialMaatFlowPromptSpecs = <MaatFlowInitialPromptSpec>[
         surface: MaatFlowResponseSurface.initialDetail,
         kind: MaatFlowResponseKind.multiline,
         label: 'What did you provide today?',
+        journalPolicy: MaatFlowJournalPolicy.localOnly,
+      ),
+    ],
+  ),
+  MaatFlowInitialPromptSpec(
+    flowKey: kReadingHouseFlowKey,
+    title: 'Set the reading',
+    subtitle:
+        'Name the book, optional edition, and question. This creates private sittings; company surfaces come later.',
+    fields: <MaatFlowResponseSpec>[
+      MaatFlowResponseSpec(
+        id: kReadingHouseBookTitlePromptId,
+        flowKey: kReadingHouseFlowKey,
+        surface: MaatFlowResponseSurface.initialDetail,
+        kind: MaatFlowResponseKind.text,
+        label: 'Book',
+        journalPolicy: MaatFlowJournalPolicy.localOnly,
+      ),
+      MaatFlowResponseSpec(
+        id: kReadingHouseEditionNotePromptId,
+        flowKey: kReadingHouseFlowKey,
+        surface: MaatFlowResponseSurface.initialDetail,
+        kind: MaatFlowResponseKind.text,
+        label: 'Edition note',
+        journalPolicy: MaatFlowJournalPolicy.localOnly,
+      ),
+      MaatFlowResponseSpec(
+        id: kReadingHouseQuestionPromptId,
+        flowKey: kReadingHouseFlowKey,
+        surface: MaatFlowResponseSurface.initialDetail,
+        kind: MaatFlowResponseKind.multiline,
+        label: 'House question',
+        journalPolicy: MaatFlowJournalPolicy.localOnly,
+      ),
+      MaatFlowResponseSpec(
+        id: kReadingHouseModePromptId,
+        flowKey: kReadingHouseFlowKey,
+        surface: MaatFlowResponseSurface.initialDetail,
+        kind: MaatFlowResponseKind.choice,
+        label: 'Mode',
+        options: <MaatFlowResponseOption>[
+          MaatFlowResponseOption(
+            id: kReadingHouseDefaultMode,
+            label: 'Company later',
+          ),
+          MaatFlowResponseOption(
+            id: kReadingHouseSoloMode,
+            label: 'Solo study',
+          ),
+        ],
         journalPolicy: MaatFlowJournalPolicy.localOnly,
       ),
     ],

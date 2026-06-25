@@ -55,6 +55,7 @@ import 'the_open_hand_flow.dart';
 import 'the_open_hand_local_store.dart';
 import 'the_djed_flow.dart';
 import 'the_djed_local_store.dart';
+import 'the_reading_house_flow.dart';
 import 'maat_decan_flow.dart';
 import 'living_text_day_one_node_store.dart';
 import 'decan_id.dart';
@@ -929,6 +930,10 @@ bool _isDjedFlowName(String? name) {
   return name?.trim().toLowerCase() == kTheDjedTitle.toLowerCase();
 }
 
+bool _isReadingHouseFlowName(String? name) {
+  return name?.trim().toLowerCase() == kReadingHouseTitle.toLowerCase();
+}
+
 class _MaatFlowCompletionContext {
   const _MaatFlowCompletionContext({
     required this.flowKey,
@@ -1164,6 +1169,8 @@ List<String> _maatGraphNodeSlugsForFlow({
       return const <String>['maat', 'hapy', 'nile'];
     case kTheDjedFlowKey:
       return const <String>['maat', 'djed', 'ausar', 'ptah'];
+    case kReadingHouseFlowKey:
+      return const <String>['maat', 'djehuty', 'house_of_life', 'ren'];
     case kFairHearingFlowKey:
       return const <String>['maat', 'djehuty', 'anpu', 'heru'];
     case kHouseOfLifeFlowKey:
@@ -1405,6 +1412,28 @@ _MaatFlowCompletionContext? _maatFlowCompletionContextForEvent(
           : const <String, String>{},
       graphNodeSlugs: _maatGraphNodeSlugsForFlow(
         flowKey: kTheDjedFlowKey,
+        eventCategory: event.category,
+      ),
+    );
+  }
+
+  if (_isReadingHouseFlowName(flowName)) {
+    final readingSitting = readingHouseSittingForEvent(
+      title: event.title,
+      behaviorPayload: event.behaviorPayload,
+    );
+    if (readingSitting == null) return null;
+    return _MaatFlowCompletionContext(
+      flowKey: kReadingHouseFlowKey,
+      flowTitle: kReadingHouseTitle,
+      eventTitle: event.title,
+      eventCategory: event.category,
+      eventNumber: readingSitting.eventNumber,
+      flowDay: readingSitting.flowDay,
+      sharePromptOnComplete: readingSitting.sharePromptOnComplete,
+      shareButtonLabel: 'Share a fragment',
+      graphNodeSlugs: _maatGraphNodeSlugsForFlow(
+        flowKey: kReadingHouseFlowKey,
         eventCategory: event.category,
       ),
     );

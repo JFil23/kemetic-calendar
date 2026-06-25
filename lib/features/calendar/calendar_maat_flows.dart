@@ -2209,6 +2209,8 @@ class _MaatFlowTemplateDetailPageState
   DjedLens _djedLens = DjedLens.neutral;
   bool _djedStartDateTouched = false;
   bool _djedJoinInFlight = false;
+  bool _readingHouseStartDateTouched = false;
+  bool _readingHouseJoinInFlight = false;
   bool _maatDecanStartDateTouched = false;
   bool _maatDecanJoinInFlight = false;
   bool _descriptionExpanded = false;
@@ -2267,6 +2269,8 @@ class _MaatFlowTemplateDetailPageState
       _picked = defaultTheOpenHandStartDate(_previewTrackSkyTimeZone);
     } else if (widget.template.kind == _MaatFlowTemplateKind.theDjed) {
       _picked = defaultTheDjedStartDate(_previewTrackSkyTimeZone);
+    } else if (widget.template.kind == _MaatFlowTemplateKind.readingHouse) {
+      _picked = defaultReadingHouseStartDate(_previewTrackSkyTimeZone);
     } else if (widget.template.kind == _MaatFlowTemplateKind.maatDecan) {
       _picked = defaultTheDecanWatchStartDate(_previewTrackSkyTimeZone);
     }
@@ -2479,6 +2483,8 @@ class _MaatFlowTemplateDetailPageState
       _keptWordStartDateTouched = true;
     } else if (widget.template.kind == _MaatFlowTemplateKind.theCourse) {
       _courseStartDateTouched = true;
+    } else if (widget.template.kind == _MaatFlowTemplateKind.readingHouse) {
+      _readingHouseStartDateTouched = true;
     }
   }
 
@@ -3333,6 +3339,9 @@ class _MaatFlowTemplateDetailPageState
       } else if (widget.template.kind == _MaatFlowTemplateKind.theDjed &&
           !_djedStartDateTouched) {
         _picked = defaultTheDjedStartDate(timezone);
+      } else if (widget.template.kind == _MaatFlowTemplateKind.readingHouse &&
+          !_readingHouseStartDateTouched) {
+        _picked = defaultReadingHouseStartDate(timezone);
       } else if (widget.template.kind == _MaatFlowTemplateKind.maatDecan &&
           !_maatDecanStartDateTouched) {
         _picked = defaultTheDecanWatchStartDate(timezone);
@@ -4037,6 +4046,46 @@ class _MaatFlowTemplateDetailPageState
     }
     setState(() {
       _djedJoinInFlight = false;
+    });
+  }
+
+  Future<void> _joinReadingHouseFlow(DateTime selectedStart) async {
+    if (_readingHouseJoinInFlight) return;
+    setState(() {
+      _readingHouseJoinInFlight = true;
+    });
+
+    final int id;
+    try {
+      id = await widget.addInstance(
+        template: widget.template,
+        startDate: selectedStart,
+        trackSkyTimeZone: _previewTrackSkyTimeZone,
+      );
+    } catch (e, st) {
+      if (kDebugMode) {
+        _calendarDebugPrint('[readingHouse] join failed: $e');
+        _calendarDebugPrint('$st');
+      }
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Could not join The Reading House. Please retry.'),
+        ),
+      );
+      setState(() {
+        _readingHouseJoinInFlight = false;
+      });
+      return;
+    }
+
+    if (!mounted) return;
+    if (id > 0) {
+      await _completeJoin(id);
+      return;
+    }
+    setState(() {
+      _readingHouseJoinInFlight = false;
     });
   }
 
@@ -5713,6 +5762,29 @@ class _MaatFlowTemplateDetailPageState
               range: 'Third',
               title: 'Raise',
               act: 'Stand the structure back up',
+            ),
+          ],
+        );
+      case _MaatFlowTemplateKind.readingHouse:
+        return const _MaatFlowDetailContent(
+          orientingSentence:
+              'Private-study foundation. Set one book and three starter sittings; company surfaces are saved as intent, not live discussion.',
+          chips: ['Phase 1A', 'Private-first', '3 generated sittings'],
+          arcBlocks: [
+            _MaatFlowArcBlock(
+              range: 'Plan',
+              title: 'Set the Reading',
+              act: 'Name the book, edition, and question',
+            ),
+            _MaatFlowArcBlock(
+              range: 'Sittings',
+              title: 'Read in Measure',
+              act: 'Use generated portions; authoring tools come later',
+            ),
+            _MaatFlowArcBlock(
+              range: 'House',
+              title: 'Hold for Later',
+              act: 'Keep fragments private until sharing exists',
             ),
           ],
         );
@@ -7841,6 +7913,100 @@ class _MaatFlowTemplateDetailPageState
     );
   }
 
+  Widget _buildReadingHouseSittingTile(
+    BuildContext context,
+    ReadingHouseSitting sitting,
+    DateTime firstStart,
+  ) {
+    final schedule = readingHouseScheduleForDate(
+      sitting,
+      firstStart.add(Duration(days: sitting.flowDay - 1)),
+      _previewTrackSkyTimeZone,
+    );
+    final l10n = MaterialLocalizations.of(context);
+    final time = l10n.formatTimeOfDay(
+      TimeOfDay(
+        hour: schedule.startLocal.hour,
+        minute: schedule.startLocal.minute,
+      ),
+    );
+    final plan = readingHousePlanFromDraftValues(
+      kMaatFlowResponseDraftStore.valuesForFlow(kReadingHouseFlowKey),
+    );
+    return _buildExpandableFlowEventTile(
+      title: readingHouseSittingTitle(sitting),
+      subtitle:
+          '${readingHouseTimingLabel(sitting)} · ${_dateLabel(context, schedule.startLocal)} at $time',
+      detailText: readingHouseDetailText(sitting, plan: plan),
+      borderColor: sitting.sharePromptOnComplete
+          ? _palette.accent.withValues(alpha: 0.42)
+          : Colors.white12,
+    );
+  }
+
+  Widget _buildReadingHouseScaffold(BuildContext context) {
+    final l10n = MaterialLocalizations.of(context);
+    final selectedStart =
+        _picked ?? defaultReadingHouseStartDate(_previewTrackSkyTimeZone);
+    final firstSchedule = readingHouseScheduleForDate(
+      kReadingHouseSittings.first,
+      selectedStart,
+      _previewTrackSkyTimeZone,
+    );
+    final firstTime = l10n.formatTimeOfDay(
+      TimeOfDay(
+        hour: firstSchedule.startLocal.hour,
+        minute: firstSchedule.startLocal.minute,
+      ),
+    );
+    final initialPromptSlot = _buildCurrentInitialPromptSlot(
+      includeLeadingSeparator: false,
+    );
+
+    return _buildMaatFlowDetailScaffold(
+      context,
+      appendInitialPrompt: false,
+      joinButton: _buildTemplateStickyJoinButton(
+        text: _readingHouseJoinInFlight ? 'Joining…' : 'Add Flow',
+        onPressed: _readingHouseJoinInFlight
+            ? null
+            : () => _joinReadingHouseFlow(selectedStart),
+      ),
+      children: [
+        ..._buildMaatFlowOverviewZones(
+          content: _detailContentForTemplate(overrideChips: null),
+          tagline: kReadingHouseTagline,
+          initialPromptSlot: initialPromptSlot,
+          extraOverviewNote: _buildMaatFlowNotice(
+            kReadingHouseEnrollmentCopy,
+            borderColor: _palette.accent.withValues(alpha: 0.38),
+          ),
+          configurationControls: [
+            _buildStartDateRow(
+              context,
+              selectedStart,
+              label:
+                  'First sitting: ${_dateLabel(context, selectedStart)} at $firstTime',
+            ),
+          ],
+        ),
+        const _MaatFlowDetailSeparator(),
+        const _MaatFlowDetailSectionLabel('STARTER SITTINGS'),
+        ...kReadingHouseSittings.map(
+          (sitting) =>
+              _buildReadingHouseSittingTile(context, sitting, selectedStart),
+        ),
+        const SizedBox(height: 10),
+        _buildMaatFlowNotice(
+          'Phase 1A creates a draft house and private calendar sittings. Invite links, shared fragments, one-level replies, house chat, and moderation stay out of this surface.',
+          borderColor: _palette.accent.withValues(alpha: 0.30),
+        ),
+        const SizedBox(height: 10),
+        const _MaatFlowPrivacyFooter(),
+      ],
+    );
+  }
+
   DaysOutsideYearEnrollmentWindow? _resolveDaysOutsideYearPreviewWindow() {
     return _tryEnrollmentWindow('daysOutsideYear', () {
       final picked = _picked;
@@ -8441,6 +8607,9 @@ class _MaatFlowTemplateDetailPageState
     }
     if (widget.template.kind == _MaatFlowTemplateKind.theDjed) {
       return _buildDjedScaffold(context);
+    }
+    if (widget.template.kind == _MaatFlowTemplateKind.readingHouse) {
+      return _buildReadingHouseScaffold(context);
     }
     if (widget.template.kind == _MaatFlowTemplateKind.maatDecan) {
       return _buildMaatDecanFlowScaffold(context);

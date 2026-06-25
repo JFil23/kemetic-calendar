@@ -14,6 +14,7 @@ enum MaatFlowKind {
   daysOutsideTheYear,
   theOpenHand,
   theDjed,
+  readingHouse,
   fairHearing,
   houseOfLife,
   boundaryStone,
@@ -66,6 +67,8 @@ extension MaatFlowKindIdentity on MaatFlowKind {
         return 'the-open-hand';
       case MaatFlowKind.theDjed:
         return 'the-djed';
+      case MaatFlowKind.readingHouse:
+        return 'the-reading-house';
       case MaatFlowKind.fairHearing:
         return 'the-fair-hearing';
       case MaatFlowKind.houseOfLife:
@@ -169,6 +172,7 @@ const Map<String, MaatFlowKind> _flowKeyKinds = <String, MaatFlowKind>{
   'the-days-outside-the-year': MaatFlowKind.daysOutsideTheYear,
   'the-open-hand': MaatFlowKind.theOpenHand,
   'the-djed': MaatFlowKind.theDjed,
+  'the-reading-house': MaatFlowKind.readingHouse,
   'the-fair-hearing': MaatFlowKind.fairHearing,
   'the-house-of-life': MaatFlowKind.houseOfLife,
   'the-boundary-stone': MaatFlowKind.boundaryStone,
@@ -202,6 +206,7 @@ const Map<String, MaatFlowKind> _behaviorKindKinds = <String, MaatFlowKind>{
   'maat_days_outside_year': MaatFlowKind.daysOutsideTheYear,
   'maat_open_hand_event': MaatFlowKind.theOpenHand,
   'maat_djed_event': MaatFlowKind.theDjed,
+  'maat_reading_house_sitting': MaatFlowKind.readingHouse,
   'maat_fair_hearing_event': MaatFlowKind.fairHearing,
   'maat_house_of_life_event': MaatFlowKind.houseOfLife,
   'maat_boundary_stone_event': MaatFlowKind.boundaryStone,
@@ -239,6 +244,7 @@ const Map<String, MaatFlowKind> _actionIdPrefixKinds = <String, MaatFlowKind>{
   'the-days-outside-year-event-': MaatFlowKind.daysOutsideTheYear,
   'the-open-hand-event-': MaatFlowKind.theOpenHand,
   'the-djed-event-': MaatFlowKind.theDjed,
+  'the-reading-house-sitting-': MaatFlowKind.readingHouse,
   'the-fair-hearing-event-': MaatFlowKind.fairHearing,
   'the-house-of-life-event-': MaatFlowKind.houseOfLife,
   'the-boundary-stone-event-': MaatFlowKind.boundaryStone,
@@ -278,6 +284,9 @@ const Map<String, MaatFlowKind> _flowNameKinds = <String, MaatFlowKind>{
   'the days outside the year': MaatFlowKind.daysOutsideTheYear,
   'the open hand': MaatFlowKind.theOpenHand,
   'the djed': MaatFlowKind.theDjed,
+  'the reading house': MaatFlowKind.readingHouse,
+  'book club flow': MaatFlowKind.readingHouse,
+  'hosted book flow': MaatFlowKind.readingHouse,
   'the fair hearing': MaatFlowKind.fairHearing,
   'the house of life': MaatFlowKind.houseOfLife,
   'the boundary stone': MaatFlowKind.boundaryStone,

@@ -143,6 +143,7 @@ import 'the_open_hand_flow.dart';
 import 'the_open_hand_enrollment.dart';
 import 'the_djed_flow.dart';
 import 'the_djed_enrollment.dart';
+import 'the_reading_house_flow.dart';
 import 'maat_decan_flow.dart';
 import '../settings/settings_prefs.dart';
 import '../calendars/shared_calendars_sheet.dart';
@@ -3067,6 +3068,7 @@ enum _MaatFlowTemplateKind {
   daysOutsideTheYear,
   theOpenHand,
   theDjed,
+  readingHouse,
   maatDecan,
 }
 
@@ -3328,6 +3330,19 @@ final List<_MaatFlowTemplate> _kMaatFlowTemplates = [
     glyphType: 'ideogram',
     color: const Color(0xFF6E8A72),
     kind: _MaatFlowTemplateKind.theDjed,
+  ),
+  _MaatFlowTemplate(
+    key: kReadingHouseFlowKey,
+    title: kReadingHouseTitle,
+    overview: kReadingHouseOverview,
+    subtitle: 'Private study · Book-club foundation',
+    libraryCategory: _MaatFlowLibraryCategory.livingInMaat,
+    glyph: kReadingHouseGlyph,
+    glyphMeaning: 'House',
+    glyphSourceWord: 'pr',
+    glyphType: 'ideogram',
+    color: const Color(0xFF4FA58D),
+    kind: _MaatFlowTemplateKind.readingHouse,
   ),
   _MaatFlowTemplate(
     key: kFairHearingFlowKey,
@@ -6560,6 +6575,23 @@ class CalendarPage extends StatefulWidget {
         startDate: startDate,
         lens: djedLens ?? DjedLens.neutral,
         alertOffsetMinutes: 0,
+      );
+      return result.flowIdOrNegativeOne;
+    }
+
+    if (template.kind == _MaatFlowTemplateKind.readingHouse) {
+      final result = await FlowJoinService().joinReadingHouseHeadless(
+        templateKey: template.key,
+        templateTitle: template.title,
+        templateOverview: template.overview,
+        templateColor: template.color,
+        personalCalendarId: personalCalendarId,
+        timezone: trackSkyTimeZone ?? detectTrackSkyTimeZone(),
+        startDate: startDate,
+        plan: readingHousePlanFromDraftValues(
+          kMaatFlowResponseDraftStore.valuesForFlow(template.key),
+        ),
+        alertOffsetMinutes: kEventFilingNoAlertMinutes,
       );
       return result.flowIdOrNegativeOne;
     }
@@ -24974,6 +25006,179 @@ class CalendarPageState extends State<CalendarPage>
       return serverFlowId;
     }
 
+    if (template.kind == _MaatFlowTemplateKind.readingHouse) {
+      final timezone = trackSkyTimeZone ?? detectTrackSkyTimeZone();
+      final plan = readingHousePlanFromDraftValues(
+        kMaatFlowResponseDraftStore.valuesForFlow(template.key),
+      );
+      final firstG = DateUtils.dateOnly(
+        startDate ?? defaultReadingHouseStartDate(timezone),
+      );
+      final occurrences = <ReadingHouseOccurrenceSchedule>[
+        for (final sitting in kReadingHouseSittings)
+          readingHouseScheduleForDate(
+            sitting,
+            firstG.add(Duration(days: sitting.flowDay - 1)),
+            timezone,
+          ),
+      ];
+      final dates = <DateTime>{
+        for (final occurrence in occurrences)
+          DateUtils.dateOnly(occurrence.startLocal),
+      };
+      final orderedDates = dates.toList()..sort();
+
+      final flow = _Flow(
+        id: -1,
+        calendarId: _personalCalendarId,
+        name: template.title,
+        color: template.color,
+        active: true,
+        rules: [_RuleDates(dates: dates)],
+        start: orderedDates.first,
+        end: orderedDates.last,
+        notes: [
+          'mode=gregorian',
+          'split=1',
+          if (template.overview.trim().isNotEmpty)
+            'ov=${Uri.encodeComponent(template.overview.trim())}',
+          'maat=${template.key}',
+          'reading_house_tz=${timezone.key}',
+          ...readingHouseFlowNoteTokens(plan),
+          'reading_house_hour=$kReadingHouseDefaultHour',
+          'reading_house_minute=$kReadingHouseDefaultMinute',
+        ].join(';'),
+      );
+
+      final serverFlowId = await _saveNewFlow(flow);
+      if (serverFlowId == null) {
+        if (kDebugMode) {
+          _calendarDebugPrint('[readingHouse] Aborting - flow insert failed');
+        }
+        return -1;
+      }
+
+      final repo = UserEventsRepo(Supabase.instance.client);
+      try {
+        for (var i = 0; i < kReadingHouseSittings.length; i++) {
+          final sitting = kReadingHouseSittings[i];
+          final occurrence = occurrences[i];
+          final kyKmKd = KemeticMath.fromGregorian(
+            DateUtils.dateOnly(occurrence.startLocal),
+          );
+          final startTod = TimeOfDay(
+            hour: occurrence.startLocal.hour,
+            minute: occurrence.startLocal.minute,
+          );
+          final endTod = TimeOfDay(
+            hour: occurrence.endLocal.hour,
+            minute: occurrence.endLocal.minute,
+          );
+          final title = readingHouseSittingTitle(sitting);
+          final detail = readingHouseDetailText(sitting, plan: plan);
+          final behaviorPayload = readingHouseBehaviorPayload(
+            sitting: sitting,
+            schedule: occurrence,
+            plan: plan,
+          );
+          final clientEventId = _buildCid(
+            ky: kyKmKd.kYear,
+            km: kyKmKd.kMonth,
+            kd: kyKmKd.kDay,
+            title: title,
+            startHour: startTod.hour,
+            startMinute: startTod.minute,
+            allDay: false,
+            flowId: serverFlowId,
+          );
+          final note = _Note(
+            clientEventId: clientEventId,
+            calendarId: _personalCalendarId,
+            title: title,
+            detail: detail,
+            allDay: false,
+            start: startTod,
+            end: endTod,
+            flowId: serverFlowId,
+            category: 'Study',
+            alertOffsetMinutes: _alertNoneMinutes,
+            actionId: readingHouseActionId(sitting),
+            behaviorPayload: behaviorPayload,
+          );
+
+          _addNote(
+            kyKmKd.kYear,
+            kyKmKd.kMonth,
+            kyKmKd.kDay,
+            title,
+            detail,
+            clientEventId: clientEventId,
+            calendarId: _personalCalendarId,
+            allDay: false,
+            start: startTod,
+            end: endTod,
+            flowId: serverFlowId,
+            category: 'Study',
+            alertOffsetMinutes: _alertNoneMinutes,
+            actionId: readingHouseActionId(sitting),
+            behaviorPayload: behaviorPayload,
+          );
+
+          await repo.upsertByClientId(
+            clientEventId: clientEventId,
+            title: title,
+            startsAtUtc: occurrence.startUtc,
+            detail: detail,
+            calendarId: _personalCalendarId,
+            allDay: false,
+            endsAtUtc: occurrence.endUtc,
+            category: 'Study',
+            flowLocalId: serverFlowId,
+            actionId: readingHouseActionId(sitting),
+            behaviorPayload: behaviorPayload,
+            caller: 'reading_house_join',
+          );
+
+          await _scheduleAlertForEvent(
+            note: note,
+            ky: kyKmKd.kYear,
+            km: kyKmKd.kMonth,
+            kd: kyKmKd.kDay,
+            clientEventId: clientEventId,
+          );
+        }
+      } catch (e, st) {
+        if (kDebugMode) {
+          _calendarDebugPrint('[readingHouse] event creation failed: $e');
+          _calendarDebugPrint('$st');
+        }
+        _flows.removeWhere((flow) => flow.id == serverFlowId);
+        final emptyKeys = <String>[];
+        _notes.forEach((key, notes) {
+          notes.removeWhere((note) => note.flowId == serverFlowId);
+          if (notes.isEmpty) emptyKeys.add(key);
+        });
+        for (final key in emptyKeys) {
+          _notes.remove(key);
+        }
+        if (mounted) {
+          setState(() {});
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Could not create The Reading House.'),
+            ),
+          );
+        }
+        try {
+          await repo.deleteFlow(serverFlowId);
+        } catch (_) {}
+        return -1;
+      }
+
+      setState(() {});
+      return serverFlowId;
+    }
+
     if (template.kind == _MaatFlowTemplateKind.decanWatch) {
       final timezone = trackSkyTimeZone ?? detectTrackSkyTimeZone();
       final window = _resolveMountedDecanWatchJoinWindow(
@@ -29390,6 +29595,19 @@ class CalendarPageState extends State<CalendarPage>
     );
   }
 
+  String? _canonicalReadingHouseDetailForLoadedEvent({
+    required _Flow? flow,
+    required FlowEventRow event,
+  }) {
+    return canonicalReadingHouseDetailTextForEvent(
+      flowName: flow?.name,
+      flowNotes: flow?.notes,
+      title: event.title,
+      actionId: event.actionId,
+      behaviorPayload: event.behaviorPayload,
+    );
+  }
+
   void _repairDawnHouseRiteLoadedDetail({
     required UserEventsRepo repo,
     required FlowEventRow event,
@@ -29862,6 +30080,11 @@ class CalendarPageState extends State<CalendarPage>
               flow: owningFlow,
               event: evt,
             );
+            final canonicalReadingHouseDetail =
+                _canonicalReadingHouseDetailForLoadedEvent(
+                  flow: owningFlow,
+                  event: evt,
+                );
             final canonicalDetail =
                 canonicalDawnDetail ??
                 canonicalTheWeighingDetail ??
@@ -29871,7 +30094,8 @@ class CalendarPageState extends State<CalendarPage>
                 canonicalCourseDetail ??
                 canonicalWagDetail ??
                 canonicalOpenHandDetail ??
-                canonicalDjedDetail;
+                canonicalDjedDetail ??
+                canonicalReadingHouseDetail;
             final cleanedDetail = canonicalDetail ?? storedCleanDetail;
             if (canonicalDetail != null &&
                 canonicalDetail != storedCleanDetail) {

@@ -78,6 +78,15 @@ class MaatFlowPalette {
         Color(0xFF5D5241),
       ],
     ),
+    'the-reading-house': MaatFlowPalette(
+      accent: Color(0xFF4FA58D),
+      glowColor: Color(0xFFA8E6D1),
+      iconGradientStops: [
+        Color(0xFF07130F),
+        Color(0xFF12362D),
+        Color(0xFF4FA58D),
+      ],
+    ),
   };
 }
 

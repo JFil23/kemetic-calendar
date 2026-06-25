@@ -10,6 +10,7 @@ import 'package:mobile/features/calendar/the_djed_flow.dart';
 import 'package:mobile/features/calendar/the_kept_word_flow.dart';
 import 'package:mobile/features/calendar/the_offering_table_flow.dart';
 import 'package:mobile/features/calendar/the_open_hand_flow.dart';
+import 'package:mobile/features/calendar/the_reading_house_flow.dart';
 import 'package:mobile/features/calendar/the_tending_flow.dart';
 import 'package:mobile/features/calendar/the_wag_flow.dart';
 import 'package:mobile/features/calendar/the_weighing_flow.dart';
@@ -142,6 +143,14 @@ void main() {
         ),
         MaatFlowKind.oracle,
       );
+      expect(
+        resolveMaatFlowKind(
+          behaviorPayload: const <String, dynamic>{
+            'kind': 'maat_reading_house_sitting',
+          },
+        ),
+        MaatFlowKind.readingHouse,
+      );
     });
 
     test(
@@ -188,6 +197,10 @@ void main() {
       expect(
         resolveMaatFlowKind(actionId: 'the-djed-event-02'),
         MaatFlowKind.theDjed,
+      );
+      expect(
+        resolveMaatFlowKind(actionId: 'the-reading-house-sitting-02'),
+        MaatFlowKind.readingHouse,
       );
       expect(
         resolveMaatFlowKind(actionId: 'the-fair-hearing-event-02'),
@@ -327,6 +340,14 @@ void main() {
       );
       expect(resolveMaatFlowKind(flowName: kKhatTitle), MaatFlowKind.khat);
       expect(resolveMaatFlowKind(flowName: kOracleTitle), MaatFlowKind.oracle);
+      expect(
+        resolveMaatFlowKind(flowName: kReadingHouseTitle),
+        MaatFlowKind.readingHouse,
+      );
+      expect(
+        resolveMaatFlowKind(flowName: 'book club flow'),
+        MaatFlowKind.readingHouse,
+      );
       expect(resolveMaatFlowKind(flowName: 'The Moon Returned'), isNull);
     });
   });
@@ -351,6 +372,14 @@ void main() {
         isTrue,
       );
       expect(isDjedFlowReference(actionId: 'the-djed-event-01'), isTrue);
+      expect(
+        isReadingHouseFlowReference(
+          behaviorPayload: const <String, dynamic>{
+            'kind': 'maat_reading_house_sitting',
+          },
+        ),
+        isTrue,
+      );
     });
 
     test('preserve non-enrollment flow helpers', () {
