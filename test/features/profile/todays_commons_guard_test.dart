@@ -100,7 +100,10 @@ void main() {
     expect(source, contains('No fragments have been shared today.'));
     expect(source, contains('No discoverable practices yet.'));
     expect(source, contains('Public commons answers are not enabled yet.'));
-    expect(source, contains('Shared progress rooms are not active yet.'));
+    expect(
+      source,
+      contains('Entries stay private unless intentionally shared.'),
+    );
   });
 
   test('prototype social claims are not present', () {

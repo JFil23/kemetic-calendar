@@ -65,10 +65,12 @@ import '../../widgets/kemetic_day_info.dart';
 import 'package:mobile/core/day_key.dart';
 import 'package:mobile/telemetry/telemetry.dart';
 import '../../data/user_events_repo.dart';
+import '../../data/shared_practice_models.dart';
 import '../../services/app_haptics.dart';
 import '../../services/app_restoration_service.dart';
 import '../../utils/external_link_utils.dart';
 import '../../utils/flow_filter_engine.dart';
+import '../shared_practice/shared_practice_completion_sheet.dart';
 
 const double _kMinEventBlockHeight = 56.0;
 const double _kTimelineLabelWidth = 60.0;
@@ -2236,6 +2238,85 @@ class FlowData {
     this.isHidden = false,
     this.isReminder = false,
   });
+}
+
+class _SharedPracticeDetailModule extends StatelessWidget {
+  const _SharedPracticeDetailModule({
+    required this.roomId,
+    required this.calendarName,
+    required this.flowTitle,
+  });
+
+  final String roomId;
+  final String? calendarName;
+  final String flowTitle;
+
+  @override
+  Widget build(BuildContext context) {
+    final calendar = calendarName?.trim();
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: const Color(0x1FD4AE43),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: const Color(0x55D4AE43)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(Icons.groups_2_outlined, color: _dayGold, size: 17),
+              const SizedBox(width: 8),
+              const Text(
+                'SHARED PRACTICE',
+                style: TextStyle(
+                  color: _dayGold,
+                  fontSize: 11,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: 1.5,
+                ),
+              ),
+              const Spacer(),
+              TextButton(
+                onPressed: () {
+                  context.push(
+                    '/shared-practice/${Uri.encodeComponent(roomId)}',
+                  );
+                },
+                style: TextButton.styleFrom(
+                  foregroundColor: _dayGold,
+                  padding: const EdgeInsets.symmetric(horizontal: 6),
+                  minimumSize: const Size(0, 34),
+                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                ),
+                child: const Text(
+                  'Open',
+                  style: TextStyle(fontWeight: FontWeight.w800),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          Text(
+            calendar == null || calendar.isEmpty
+                ? flowTitle
+                : '$flowTitle with $calendar',
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+              color: Colors.white.withValues(alpha: 0.86),
+              fontFamily: _dayViewSerifFamily,
+              fontFamilyFallback: _dayViewSerifFallback,
+              fontSize: 16,
+              height: 1.22,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 }
 
 class EventItem {
@@ -6865,6 +6946,9 @@ class _DayViewGridState extends State<DayViewGrid> {
         completionContext != null &&
         currentEvent.clientEventId?.trim().isNotEmpty == true &&
         currentEvent.flowId != null;
+    final sharedPracticeRoomId = sharedPracticeRoomIdFromBehaviorPayload(
+      currentEvent.behaviorPayload,
+    );
 
     Widget buildMaatCompletionPanel() {
       return Builder(
@@ -7092,6 +7176,14 @@ class _DayViewGridState extends State<DayViewGrid> {
                 ],
               );
             },
+          ),
+        ],
+        if (sharedPracticeRoomId != null) ...[
+          const SizedBox(height: 12),
+          _SharedPracticeDetailModule(
+            roomId: sharedPracticeRoomId,
+            calendarName: currentEvent.calendarName,
+            flowTitle: flow?.name ?? currentEvent.title,
           ),
         ],
         if (hasMaatCompletionPanel && responseSpecs.isNotEmpty) ...[
@@ -9392,7 +9484,29 @@ class _MaatFlowCompletionPanelState extends State<_MaatFlowCompletionPanel> {
       final completionIdentity = widget.identity;
       final completionContinuity = widget.onCompletionContinuity;
       final callback = widget.onRecordCompletion;
-      if (callback != null) {
+      final sharedPracticeRoomId = sharedPracticeRoomIdFromBehaviorPayload(
+        widget.event.behaviorPayload,
+      );
+      if (sharedPracticeRoomId != null) {
+        if (!mounted) return;
+        final saved = await showSharedPracticeCompletionSheet(
+          context: context,
+          roomId: sharedPracticeRoomId,
+          calendarName: widget.event.calendarName ?? 'shared calendar',
+          clientEventId: clientEventId,
+          flowId: flowId,
+          completedOn: completedOnDate,
+          initialStatus: completionStatus,
+          stepTitle: widget.event.title,
+          completionMetadata: metadata,
+        );
+        if (!saved) {
+          _cancelCompletionFeedback();
+          if (!mounted) return;
+          setState(() => _saving = false);
+          return;
+        }
+      } else if (callback != null) {
         await callback(
           clientEventId: clientEventId,
           flowId: flowId,

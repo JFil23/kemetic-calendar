@@ -74,6 +74,7 @@ import 'features/profile/insight_post_picker_page.dart';
 import 'features/profile/profile_page.dart';
 import 'features/profile/profile_search_page.dart';
 import 'features/reflections/decan_reflection_archive_page.dart';
+import 'features/shared_practice/shared_practice_room_page.dart';
 import 'features/rhythm/pages/commitment_tracker_page.dart';
 import 'features/rhythm/pages/rhythm_editors.dart';
 import 'features/rhythm/pages/todays_alignment_page.dart';
@@ -1616,6 +1617,22 @@ GoRouter _createRouter({required String initialLocation}) => GoRouter(
         return SessionTrackedRoute(
           location: state.uri.toString(),
           child: SharedFlowRoutePage(flowId: flowId),
+        );
+      },
+    ),
+    _calmRoute(
+      path: '/shared-practice/:roomId',
+      builder: (context, state) {
+        final roomId = Uri.decodeComponent(state.pathParameters['roomId']!);
+        if (roomId.trim().isEmpty) {
+          return const _RouteMissingScaffold(
+            message: 'This shared practice room is no longer available.',
+            fallbackLocation: '/profile/me',
+          );
+        }
+        return SessionTrackedRoute(
+          location: state.uri.toString(),
+          child: SharedPracticeRoomPage(roomId: roomId),
         );
       },
     ),

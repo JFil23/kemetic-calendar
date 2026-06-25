@@ -28,6 +28,7 @@ import '../calendar/calendar_page.dart';
 import '../calendar/kemetic_month_metadata.dart' show getMonthById;
 import 'package:mobile/features/onboarding/guided_onboarding_overlay.dart';
 import '../onboarding/onboarding_progress.dart';
+import '../shared_practice/shared_practice_calendar_chooser_sheet.dart';
 import 'flow_post_engagement_row.dart';
 import 'package:mobile/shared/glossy_text.dart';
 import '../../widgets/kemetic_app_bar_action.dart';
@@ -3370,6 +3371,23 @@ class _ProfilePageState extends State<ProfilePage>
     context.go('/calendars');
   }
 
+  Future<void> _openPracticeTogetherForFlowPost(FlowPost post) async {
+    final sourceFlowId = post.sourceFlowId;
+    if (sourceFlowId == null || sourceFlowId <= 0) {
+      _showCommonsActionSnack('This flow cannot be practiced together yet.');
+      return;
+    }
+    final title = cleanFlowTitle(post.name);
+    final roomId = await showSharedPracticeCalendarChooser(
+      context: context,
+      sourceFlowId: sourceFlowId,
+      flowTitle: title.isEmpty ? 'Ma\'at Flow' : title,
+      stepCount: _flowPayloadEvents(post).length,
+    );
+    if (!mounted || roomId == null || roomId.trim().isEmpty) return;
+    context.push('/shared-practice/${Uri.encodeComponent(roomId.trim())}');
+  }
+
   Widget _buildCommonsRhythmSection() {
     final profile = _profile;
     final activeFlows = profile?.activeFlowsCount;
@@ -3838,7 +3856,7 @@ class _ProfilePageState extends State<ProfilePage>
                   ),
                 ),
                 child: Text(
-                  'Shared progress rooms are not active yet. Choose a real flow and shared calendar first; member status will appear here only after that backend is wired.',
+                  'Choose Practice Together on a real flow, then pick a shared calendar. Entries stay private unless intentionally shared.',
                   style: TextStyle(
                     color: Colors.white.withValues(alpha: 0.62),
                     fontFamily: _profileSerifFont,
@@ -3878,9 +3896,7 @@ class _ProfilePageState extends State<ProfilePage>
                       child: _buildCommonsGhostButton(
                         icon: Icons.add_rounded,
                         label: 'Start shared flow',
-                        onPressed: () => _showCommonsActionSnack(
-                          'Start shared flow will activate after shared practice rooms are wired.',
-                        ),
+                        onPressed: _openFlowsForCommons,
                       ),
                     ),
                   ],
@@ -4390,9 +4406,7 @@ class _ProfilePageState extends State<ProfilePage>
           child: _buildForYouTileAction(
             label: 'Together',
             accent: accent,
-            onPressed: () => _showCommonsActionSnack(
-              'Practice Together will connect this flow to a shared calendar in a later phase.',
-            ),
+            onPressed: () => unawaited(_openPracticeTogetherForFlowPost(post)),
           ),
         ),
       ],
@@ -4883,20 +4897,39 @@ class _ProfilePageState extends State<ProfilePage>
             Align(
               alignment: Alignment.centerRight,
               child: _ownsPost(post)
-                  ? TextButton.icon(
-                      onPressed: () => _removePost(post.id),
-                      icon: const Icon(
-                        Icons.remove_circle_outline,
-                        color: Colors.redAccent,
-                        size: 18,
-                      ),
-                      label: const Text(
-                        'Remove',
-                        style: TextStyle(
-                          color: Colors.redAccent,
-                          fontWeight: FontWeight.w700,
+                  ? Wrap(
+                      alignment: WrapAlignment.end,
+                      spacing: 8,
+                      runSpacing: 4,
+                      children: [
+                        TextButton.icon(
+                          onPressed: () =>
+                              unawaited(_openPracticeTogetherForFlowPost(post)),
+                          icon: _profileGoldIcon(Icons.groups_2_outlined),
+                          label: _profileGoldTextWidget(
+                            'Practice Together',
+                            style: const TextStyle(
+                              fontSize: 15,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
                         ),
-                      ),
+                        TextButton.icon(
+                          onPressed: () => _removePost(post.id),
+                          icon: const Icon(
+                            Icons.remove_circle_outline,
+                            color: Colors.redAccent,
+                            size: 18,
+                          ),
+                          label: const Text(
+                            'Remove',
+                            style: TextStyle(
+                              color: Colors.redAccent,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ),
+                      ],
                     )
                   : Wrap(
                       alignment: WrapAlignment.end,
@@ -4915,9 +4948,8 @@ class _ProfilePageState extends State<ProfilePage>
                           ),
                         ),
                         TextButton.icon(
-                          onPressed: () => _showCommonsActionSnack(
-                            'Practice Together will connect this flow to a shared calendar in a later phase.',
-                          ),
+                          onPressed: () =>
+                              unawaited(_openPracticeTogetherForFlowPost(post)),
                           icon: _profileGoldIcon(Icons.groups_2_outlined),
                           label: _profileGoldTextWidget(
                             'Practice Together',
