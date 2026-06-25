@@ -46,8 +46,10 @@ void main() {
       expect(dayView, contains('class _MaatFlowCompletionPanel'));
       expect(dayView, contains('CalendarCompletionPicker('));
       expect(dayView, contains('CalendarEventCompletionPanel('));
-      expect(monthGrid, contains('CalendarEventCompletionPanel('));
-      expect(landscape, contains('CalendarEventCompletionPanel('));
+      expect(monthGrid, contains('CalendarEventDetailSheet('));
+      expect(landscape, contains('CalendarEventDetailSheet('));
+      expect(monthGrid, isNot(contains('CalendarEventCompletionPanel(')));
+      expect(landscape, isNot(contains('CalendarEventCompletionPanel(')));
 
       expect(dayView, contains('CompletionSourceType.maatFlow'));
       expect(dayView, contains('CompletionSourceType.userFlow'));
@@ -428,51 +430,52 @@ void main() {
         ).readAsStringSync(),
       };
 
-      for (final entry in sources.entries) {
-        final source = entry.value;
-        final firstPanel = source.indexOf('CalendarEventCompletionPanel(');
-        expect(firstPanel, isNonNegative, reason: entry.key);
-        final sheetStart = source.lastIndexOf(
-          'Widget _buildEventDetailSheetPage',
-          firstPanel,
-        );
-        final sheetEnd = source.indexOf(
-          'Widget _buildEventDetailTopActionRow',
-          firstPanel,
-        );
-        expect(sheetStart, isNonNegative, reason: entry.key);
-        expect(sheetEnd, isNonNegative, reason: entry.key);
-        final sheet = source.substring(sheetStart, sheetEnd);
+      final dayView = sources['day_view.dart']!;
+      final firstPanel = dayView.indexOf('CalendarEventCompletionPanel(');
+      expect(firstPanel, isNonNegative, reason: 'day_view.dart');
+      final sheetStart = dayView.lastIndexOf(
+        'Widget _buildEventDetailSheetPage',
+        firstPanel,
+      );
+      final sheetEnd = dayView.indexOf(
+        'Widget _buildEventDetailTopActionRow',
+        firstPanel,
+      );
+      expect(sheetStart, isNonNegative, reason: 'day_view.dart');
+      expect(sheetEnd, isNonNegative, reason: 'day_view.dart');
+      final sheet = dayView.substring(sheetStart, sheetEnd);
 
-        expect(sheet, contains('onClearStatus:'), reason: entry.key);
-        expect(sheet, contains('_clearCalendarCompletion('), reason: entry.key);
-        expect(sheet, contains('onCreateContinuity:'), reason: entry.key);
-        expect(sheet, contains('triggerHaptic:'), reason: entry.key);
-        expect(sheet, contains('onUserCompletionFeedback:'), reason: entry.key);
-        expect(
-          sheet,
-          contains('playDayViewRitualCompletionFeedback('),
-          reason: entry.key,
-        );
-        expect(sheet, contains('reloadSignal:'), reason: entry.key);
-        expect(
-          sheet,
-          contains('DayViewRitualCompletionFeedbackCard'),
-          reason: entry.key,
-        );
-      }
+      expect(sheet, contains('onClearStatus:'), reason: 'day_view.dart');
+      expect(
+        sheet,
+        contains('_clearCalendarCompletion('),
+        reason: 'day_view.dart',
+      );
+      expect(sheet, contains('onCreateContinuity:'), reason: 'day_view.dart');
+      expect(sheet, contains('triggerHaptic:'), reason: 'day_view.dart');
+      expect(
+        sheet,
+        contains('onUserCompletionFeedback:'),
+        reason: 'day_view.dart',
+      );
+      expect(
+        sheet,
+        contains('playDayViewRitualCompletionFeedback('),
+        reason: 'day_view.dart',
+      );
+      expect(sheet, contains('reloadSignal:'), reason: 'day_view.dart');
+      expect(
+        sheet,
+        contains('DayViewRitualCompletionFeedbackCard'),
+        reason: 'day_view.dart',
+      );
 
       for (final entry in sources.entries.where(
         (entry) => entry.key != 'day_view.dart',
       )) {
         expect(
           entry.value,
-          contains('buildDayViewMaatFlowCompletionPanel('),
-          reason: entry.key,
-        );
-        expect(
-          entry.value,
-          contains('hasDayViewMaatFlowCompletionContext(event, flow)'),
+          contains('CalendarEventDetailSheet('),
           reason: entry.key,
         );
       }
@@ -483,6 +486,9 @@ void main() {
     'month and landscape detail sheets wire clear persistence and badge removal',
     () {
       final sources = {
+        'day_view.dart': File(
+          'lib/features/calendar/day_view.dart',
+        ).readAsStringSync(),
         'calendar_page.dart': File(
           'lib/features/calendar/calendar_page.dart',
         ).readAsStringSync(),
@@ -506,46 +512,57 @@ void main() {
         sources['calendar_grid_widgets.dart']!,
         contains('onUnrecordCompletion: state?._unrecordEventCompletion'),
       );
-      for (final entry in sources.entries.where(
-        (entry) => entry.key != 'calendar_page.dart',
-      )) {
-        expect(entry.value, contains('_removeCompletionContinuity('));
-        expect(entry.value, contains('widget.onRemoveCompletionBadge'));
-        expect(entry.value, contains('calendarCompletionBadgeId('));
-        expect(entry.value, contains('await _removeCompletionContinuity('));
-      }
+      expect(
+        sources['calendar_grid_widgets.dart']!,
+        contains('onRemoveCompletionBadge: (badgeId) async'),
+      );
+      expect(
+        sources['landscape_month_view.dart']!,
+        contains('onUnrecordCompletion: widget.onUnrecordCompletion'),
+      );
+      expect(
+        sources['landscape_month_view.dart']!,
+        contains('onRemoveCompletionBadge: widget.onRemoveCompletionBadge'),
+      );
+      expect(
+        sources['day_view.dart']!,
+        contains('_removeCompletionContinuity('),
+      );
+      expect(
+        sources['day_view.dart']!,
+        contains('widget.onRemoveCompletionBadge'),
+      );
+      expect(sources['day_view.dart']!, contains('calendarCompletionBadgeId('));
+      expect(
+        sources['day_view.dart']!,
+        contains('await _removeCompletionContinuity('),
+      );
     },
   );
 
   test(
     'detail top action is Add reflection while End Flow stays overflow-only',
     () {
-      final sources = {
-        'day_view.dart': File(
-          'lib/features/calendar/day_view.dart',
-        ).readAsStringSync(),
-        'calendar_grid_widgets.dart': File(
-          'lib/features/calendar/calendar_grid_widgets.dart',
-        ).readAsStringSync(),
-        'landscape_month_view.dart': File(
-          'lib/features/calendar/landscape_month_view.dart',
-        ).readAsStringSync(),
-      };
-
-      for (final entry in sources.entries) {
-        final topStart = entry.value.indexOf('_buildEventDetailTopActionRow');
-        final topEnd = entry.value.indexOf(
-          '_buildEventDetailPrimaryAction',
-          topStart,
-        );
-        expect(topStart, isNonNegative, reason: entry.key);
-        expect(topEnd, isNonNegative, reason: entry.key);
-        final topRow = entry.value.substring(topStart, topEnd);
-        expect(topRow, contains('_buildAddReflectionButton('));
-        expect(entry.value, contains("label: const Text('Add reflection')"));
-        expect(topRow, isNot(contains("label: const Text('End Flow')")));
-        expect(entry.value, contains("value: 'end_flow'"));
-      }
+      final dayView = File(
+        'lib/features/calendar/day_view.dart',
+      ).readAsStringSync();
+      final monthGrid = File(
+        'lib/features/calendar/calendar_grid_widgets.dart',
+      ).readAsStringSync();
+      final landscape = File(
+        'lib/features/calendar/landscape_month_view.dart',
+      ).readAsStringSync();
+      final topRow = _sourceBetween(
+        dayView,
+        'Widget _buildEventDetailTopActionRow',
+        'Widget _buildEventDetailInlineError',
+      );
+      expect(topRow, contains('_buildAddReflectionButton('));
+      expect(dayView, contains("label: const Text('Add reflection')"));
+      expect(topRow, isNot(contains("label: const Text('End Flow')")));
+      expect(dayView, contains("value: 'end_flow'"));
+      expect(monthGrid, contains('CalendarEventDetailSheet('));
+      expect(landscape, contains('CalendarEventDetailSheet('));
     },
   );
 
@@ -587,46 +604,35 @@ void main() {
   });
 
   test('End Flow detail sheets await success before closing', () {
-    final sources = {
-      'day_view.dart': File(
-        'lib/features/calendar/day_view.dart',
-      ).readAsStringSync(),
-      'calendar_grid_widgets.dart': File(
-        'lib/features/calendar/calendar_grid_widgets.dart',
-      ).readAsStringSync(),
-      'landscape_month_view.dart': File(
-        'lib/features/calendar/landscape_month_view.dart',
-      ).readAsStringSync(),
-    };
+    final dayView = File(
+      'lib/features/calendar/day_view.dart',
+    ).readAsStringSync();
+    final monthGrid = File(
+      'lib/features/calendar/calendar_grid_widgets.dart',
+    ).readAsStringSync();
+    final landscape = File(
+      'lib/features/calendar/landscape_month_view.dart',
+    ).readAsStringSync();
+    final handler = _sourceBetween(
+      dayView,
+      "if (value == 'end_flow') {",
+      "} else if (value == 'end_reminder')",
+    );
+    final awaitIndex = handler.indexOf(
+      'await CalendarPage.endFlowFromEventTarget(target)',
+    );
+    final popIndex = handler.indexOf('Navigator.pop(sheetContext)');
 
-    for (final entry in sources.entries) {
-      final handler = _sourceBetween(
-        entry.value,
-        "if (value == 'end_flow') {",
-        "} else if (value == 'end_reminder')",
-      );
-      final awaitIndex = handler.indexOf(
-        'await CalendarPage.endFlowFromEventTarget(target)',
-      );
-      final popIndex = handler.indexOf('Navigator.pop(sheetContext)');
-
-      expect(awaitIndex, isNonNegative, reason: entry.key);
-      expect(popIndex, isNonNegative, reason: entry.key);
-      expect(awaitIndex, lessThan(popIndex), reason: entry.key);
-      expect(
-        handler,
-        contains('result == EndFlowActionResult.success'),
-        reason: entry.key,
-      );
-      expect(
-        handler,
-        contains('result == EndFlowActionResult.notHandled'),
-        reason: entry.key,
-      );
-      expect(handler, contains('_beginEndFlowAction'), reason: entry.key);
-      expect(handler, contains('_finishEndFlowAction'), reason: entry.key);
-      expect(handler, isNot(contains('routedThroughCalendarPage')));
-    }
+    expect(awaitIndex, isNonNegative);
+    expect(popIndex, isNonNegative);
+    expect(awaitIndex, lessThan(popIndex));
+    expect(handler, contains('result == EndFlowActionResult.success'));
+    expect(handler, contains('result == EndFlowActionResult.notHandled'));
+    expect(handler, contains('_beginEndFlowAction'));
+    expect(handler, contains('_finishEndFlowAction'));
+    expect(handler, isNot(contains('routedThroughCalendarPage')));
+    expect(monthGrid, contains('CalendarEventDetailSheet('));
+    expect(landscape, contains('CalendarEventDetailSheet('));
   });
 
   test('Day detail sheet keeps failed End Flow feedback inside the sheet', () {
@@ -640,11 +646,11 @@ void main() {
     );
 
     expect(handler, contains('result == EndFlowActionResult.failed'));
-    expect(handler, contains('onEndFlowErrorChanged('));
+    expect(handler, contains('_setEndFlowError('));
     expect(dayView, contains("'Could not end this flow right now.\\n'"));
     expect(dayView, contains("'Check your connection and try again.'"));
     expect(dayView, contains('_buildEventDetailInlineError('));
-    expect(dayView, contains('ValueListenableBuilder<String?>'));
+    expect(dayView, contains('AnimatedSize('));
   });
 
   test(
@@ -653,25 +659,9 @@ void main() {
       final monthGrid = File(
         'lib/features/calendar/calendar_grid_widgets.dart',
       ).readAsStringSync();
-      final handler = _sourceBetween(
-        monthGrid,
-        "if (value == 'end_flow') {",
-        "} else if (value == 'end_reminder')",
-      );
-      final failedBranch = _sourceBetween(
-        handler,
-        'result == EndFlowActionResult.failed',
-        'result == EndFlowActionResult.notHandled',
-      );
-
-      expect(handler, contains('result == EndFlowActionResult.failed'));
-      expect(handler, contains('_setEndFlowError('));
-      expect(monthGrid, contains("'Could not end this flow right now.\\n'"));
-      expect(monthGrid, contains("'Check your connection and try again.'"));
-      expect(monthGrid, contains('_buildEventDetailInlineError('));
-      expect(monthGrid, contains('String? _endFlowError;'));
-      expect(monthGrid, contains('AnimatedSize('));
-      expect(failedBranch, isNot(contains('Navigator.pop(sheetContext);')));
+      expect(monthGrid, contains('CalendarEventDetailSheet('));
+      expect(monthGrid, isNot(contains('_buildEventDetailInlineError(')));
+      expect(monthGrid, isNot(contains('String? _endFlowError;')));
     },
   );
 
@@ -681,29 +671,13 @@ void main() {
       final landscape = File(
         'lib/features/calendar/landscape_month_view.dart',
       ).readAsStringSync();
-      final handler = _sourceBetween(
-        landscape,
-        "if (value == 'end_flow') {",
-        "} else if (value == 'end_reminder')",
-      );
-      final failedBranch = _sourceBetween(
-        handler,
-        'result == EndFlowActionResult.failed',
-        'result == EndFlowActionResult.notHandled',
-      );
-
-      expect(handler, contains('result == EndFlowActionResult.failed'));
-      expect(handler, contains('onEndFlowErrorChanged('));
-      expect(landscape, contains("'Could not end this flow right now.\\n'"));
-      expect(landscape, contains("'Check your connection and try again.'"));
-      expect(landscape, contains('_buildEventDetailInlineError('));
-      expect(landscape, contains('ValueNotifier<String?>(null)'));
-      expect(landscape, contains('ValueListenableBuilder<String?>'));
-      expect(failedBranch, isNot(contains('Navigator.pop(sheetContext);')));
+      expect(landscape, contains('CalendarEventDetailSheet('));
+      expect(landscape, isNot(contains('_buildEventDetailInlineError(')));
+      expect(landscape, isNot(contains('ValueNotifier<String?>(null)')));
     },
   );
 
-  test('Day detail sheet guards late measurement callbacks after release', () {
+  test('detail sheet openers release coordinator after sheet closes', () {
     final dayView = File(
       'lib/features/calendar/day_view.dart',
     ).readAsStringSync();
@@ -712,13 +686,8 @@ void main() {
     ).readAsStringSync();
     final showDetail = _sourceBetween(
       dayView,
-      'void _showEventDetail(',
-      'String _formatTimeRange',
-    );
-    final updateMeasuredHeight = _sourceBetween(
-      showDetail,
-      'void updateMeasuredHeight',
-      'void resetSheetPageController',
+      '  // Show event detail sheet\n  void _showEventDetail(',
+      '\n}\n\nclass _TheCourseDayCardPanel',
     );
     final releaseSheet = _sourceBetween(
       showDetail,
@@ -727,50 +696,25 @@ void main() {
     );
 
     expect(showDetail, contains('var sheetReleased = false;'));
-    expect(
-      updateMeasuredHeight,
-      contains('if (sheetReleased || !mounted) return;'),
-    );
     expect(releaseSheet, contains('if (sheetReleased) return;'));
     expect(releaseSheet, contains('sheetReleased = true;'));
-    expect(showDetail, contains('endFlowError.dispose();'));
-
-    final measureSize = _sourceBetween(
-      dayView,
-      'class _MeasureSizeRenderObject extends RenderProxyBox',
-      '// Day View - 24-hour timeline',
-    );
-    expect(measureSize, contains('if (!attached) return;'));
+    expect(showDetail, contains('.whenComplete(releaseSheet)'));
 
     final landscapeShowDetail = _sourceBetween(
       landscape,
       'void _showEventDetail(',
-      'String _formatTimeRange',
-    );
-    final landscapeUpdateMeasuredHeight = _sourceBetween(
-      landscapeShowDetail,
-      'void updateMeasuredHeight',
-      'void resetSheetPageController',
+      'Map<EventItem, int> _assignColumns',
     );
     final landscapeReleaseSheet = _sourceBetween(
       landscapeShowDetail,
       'void releaseSheet()',
       'try {',
     );
-    final landscapeMeasureSize = _sourceBetween(
-      landscape,
-      'class _MeasureSizeRenderObject extends RenderProxyBox',
-      'onChange(newSize);\n    });',
-    );
 
     expect(landscapeShowDetail, contains('var sheetReleased = false;'));
-    expect(
-      landscapeUpdateMeasuredHeight,
-      contains('if (sheetReleased || !mounted) return;'),
-    );
     expect(landscapeReleaseSheet, contains('if (sheetReleased) return;'));
     expect(landscapeReleaseSheet, contains('sheetReleased = true;'));
-    expect(landscapeMeasureSize, contains('if (!attached) return;'));
+    expect(landscapeShowDetail, contains('.whenComplete(releaseSheet)'));
   });
 
   test(
@@ -867,44 +811,36 @@ void main() {
       'lib/features/calendar/landscape_month_view.dart',
     ).readAsStringSync();
 
+    final reflectionOpener = _sourceBetween(
+      dayView,
+      'Future<void> _openReflectionForTarget',
+      'Future<CompletionStatus> _loadCalendarCompletionStatus',
+    );
+    expect(reflectionOpener, contains('extra: reflectionContext'));
+    expect(monthGrid, contains('CalendarEventDetailSheet('));
+    expect(landscape, contains('CalendarEventDetailSheet('));
+
     for (final source in [dayView, monthGrid, landscape]) {
-      expect(source, contains('extra: reflectionContext'));
       expect(source, isNot(contains("go('/journal?")));
       expect(source, isNot(contains('go("/journal?')));
     }
   });
 
   test('Add reflection opens without recording completion or continuity', () {
-    final sources = {
-      'day_view.dart': File(
-        'lib/features/calendar/day_view.dart',
-      ).readAsStringSync(),
-      'calendar_grid_widgets.dart': File(
-        'lib/features/calendar/calendar_grid_widgets.dart',
-      ).readAsStringSync(),
-      'landscape_month_view.dart': File(
-        'lib/features/calendar/landscape_month_view.dart',
-      ).readAsStringSync(),
-    };
-
-    for (final entry in sources.entries) {
-      final start = entry.value.indexOf(
-        'Future<void> _openReflectionForTarget',
-      );
-      final end = entry.value.indexOf(
-        'Future<CompletionStatus> _loadCalendarCompletionStatus',
-        start,
-      );
-      expect(start, isNonNegative, reason: entry.key);
-      expect(end, isNonNegative, reason: entry.key);
-      final body = entry.value.substring(start, end);
-      expect(body, contains('.load(identity)'), reason: entry.key);
-      expect(body, contains('extra: reflectionContext'), reason: entry.key);
-      expect(body, isNot(contains('.save(')), reason: entry.key);
-      expect(body, isNot(contains('onCreateContinuity')), reason: entry.key);
-      expect(body, isNot(contains('appendToJournal')), reason: entry.key);
-      expect(body, isNot(contains('appendToToday')), reason: entry.key);
-    }
+    final dayView = File(
+      'lib/features/calendar/day_view.dart',
+    ).readAsStringSync();
+    final body = _sourceBetween(
+      dayView,
+      'Future<void> _openReflectionForTarget',
+      'Future<CompletionStatus> _loadCalendarCompletionStatus',
+    );
+    expect(body, contains('.load(identity)'));
+    expect(body, contains('extra: reflectionContext'));
+    expect(body, isNot(contains('.save(')));
+    expect(body, isNot(contains('onCreateContinuity')));
+    expect(body, isNot(contains('appendToJournal')));
+    expect(body, isNot(contains('appendToToday')));
   });
 
   test('observed, partial, and skipped create completion continuity', () {

@@ -8,26 +8,16 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
-import 'package:flutter/gestures.dart'; // For DragStartBehavior
-import 'package:flutter/rendering.dart';
-import 'package:go_router/go_router.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:url_launcher/url_launcher.dart';
-import 'package:mobile/core/completion_status.dart';
-import 'package:mobile/core/touch_targets.dart';
-import '../../data/user_events_repo.dart';
 import '../../services/app_haptics.dart';
 import '../../services/app_restoration_service.dart';
 import 'day_view.dart'; // For NoteData, FlowData
-import 'calendar_page.dart' show CalendarPage, EndFlowActionResult, KemeticMath;
-import 'calendar_completion.dart';
-import 'calendar_reflection_context.dart';
+import 'calendar_page.dart' show KemeticMath;
 import 'maat_flow_response_journal_blocks.dart';
 import 'package:mobile/features/calendar/kemetic_time_constants.dart';
 import 'dart:math' as math;
 import 'package:mobile/shared/glossy_text.dart';
 import 'package:mobile/widgets/month_name_text.dart';
-import 'package:mobile/utils/flow_filter_engine.dart';
 
 // ========================================
 // SHARED CONSTANTS FOR LANDSCAPE VIEW
@@ -48,27 +38,6 @@ const Gradient _trackSkyFlowGoldGloss = LinearGradient(
   stops: [0.0, 0.34, 0.66, 1.0],
 );
 const double kLandscapeHeaderHeight = 58.0; // Day number header height
-const TextStyle _landscapeActionTextStyle = TextStyle(
-  fontSize: 17,
-  fontWeight: FontWeight.w600,
-  fontFamily: 'GentiumPlus',
-  fontFamilyFallback: ['NotoSans', 'Roboto', 'Arial', 'sans-serif'],
-);
-
-class _ConstantIntListenable implements ValueListenable<int> {
-  const _ConstantIntListenable(this.value);
-
-  @override
-  final int value;
-
-  @override
-  void addListener(VoidCallback listener) {}
-
-  @override
-  void removeListener(VoidCallback listener) {}
-}
-
-const _kLandscapeZeroListenable = _ConstantIntListenable(0);
 
 void _logLandscape(String message) {
   if (kDebugMode) {
@@ -1397,38 +1366,17 @@ class _LandscapeMonthGridBodyState extends State<LandscapeMonthGridBody> {
   late ScrollController _vGutter;
   late ScrollController _vGrid;
   final GlobalKey _gridKey = GlobalKey();
+  bool _syncingH = false;
+  bool _syncingV = false;
+  bool _visibleEventRangeUpdateScheduled = false;
+  int _visibleEventStartDay = 1;
+  int _visibleEventEndDay = 30;
 
   // 🔍 NEW: Debug tracking
   final int _buttonTapCount = 0;
   bool _isDisposed = false;
   String? _initialEventDetailRestoreKey;
   bool _initialEventDetailRestoreInFlight = false;
-  final Set<int> _endingFlowIds = <int>{};
-  int _visibleEventStartDay = 1;
-  int _visibleEventEndDay = 6;
-  bool _visibleEventRangeUpdateScheduled = false;
-
-  bool _syncingH = false;
-  bool _syncingV = false;
-
-  bool _beginEndFlowAction(int flowId) {
-    if (_endingFlowIds.contains(flowId)) return false;
-    setState(() {
-      _endingFlowIds.add(flowId);
-    });
-    return true;
-  }
-
-  void _finishEndFlowAction(int flowId) {
-    if (!_endingFlowIds.contains(flowId)) return;
-    if (!mounted) {
-      _endingFlowIds.remove(flowId);
-      return;
-    }
-    setState(() {
-      _endingFlowIds.remove(flowId);
-    });
-  }
 
   @override
   void initState() {
@@ -1573,8 +1521,7 @@ class _LandscapeMonthGridBodyState extends State<LandscapeMonthGridBody> {
       firstVisibleDay + visibleDayCount + _visibleEventDayBuffer,
     );
 
-    if (nextStart == _visibleEventStartDay &&
-        nextEnd == _visibleEventEndDay) {
+    if (nextStart == _visibleEventStartDay && nextEnd == _visibleEventEndDay) {
       return;
     }
     setState(() {
@@ -2041,21 +1988,6 @@ class _LandscapeMonthGridBodyState extends State<LandscapeMonthGridBody> {
 
   FlowData? _chromeFlowForId(int? flowId) => widget.flowIndex[flowId];
 
-  bool _isRepeatingNoteFlowId(int? flowId) {
-    final flow = _chromeFlowForId(flowId);
-    return flow != null &&
-        (hasRepeatingNoteFlowMetadata(flow.notes) ||
-            (flow.isHidden && !flow.isReminder));
-  }
-
-  bool _isActionableFlowId(int? flowId) {
-    if (flowId == null) return false;
-    if (widget.activeLedgerFlowIds.contains(flowId)) return true;
-    final flow = _chromeFlowForId(flowId);
-    if (flow == null) return false;
-    return flow.active && !hasRepeatingNoteFlowMetadata(flow.notes);
-  }
-
   String _sheetEventIdentityKey(EventItem event) {
     final id = event.id?.trim();
     if (id != null && id.isNotEmpty) return 'id:$id';
@@ -2080,224 +2012,6 @@ class _LandscapeMonthGridBodyState extends State<LandscapeMonthGridBody> {
       event.allDay,
       event.isReminder,
     ].join('|');
-  }
-
-  CompletionSourceType _completionSourceTypeForEvent(
-    EventItem event,
-    FlowData? flow,
-  ) {
-    if (hasDayViewMaatFlowCompletionContext(event, flow)) {
-      return CompletionSourceType.maatFlow;
-    }
-    if (event.isReminder) return CompletionSourceType.reminder;
-    final category = event.category?.trim().toLowerCase() ?? '';
-    if (category.contains('itinerary') || category.contains('travel')) {
-      return CompletionSourceType.itinerary;
-    }
-    if (flow != null && !_isRepeatingNoteFlowId(event.flowId)) {
-      return CompletionSourceType.userFlow;
-    }
-    if (event.flowId != null || event.clientEventId != null) {
-      return CompletionSourceType.calendarEvent;
-    }
-    return CompletionSourceType.note;
-  }
-
-  String _completionIdentityForEvent(EventItem event) {
-    return calendarCompletionIdentity(
-      eventId: event.id,
-      clientEventId: event.clientEventId,
-      reminderId: event.reminderId,
-      fallback: _sheetEventIdentityKey(event),
-    );
-  }
-
-  Future<void> _appendCompletionContinuity(
-    DayViewSheetEventTarget target,
-    CompletionStatus status, {
-    required CompletionSourceType sourceType,
-    bool triggerHaptic = true,
-  }) async {
-    final cb = widget.onAppendToJournal;
-    if (cb == null) return;
-    final event = target.event;
-    final g = KemeticMath.toGregorian(target.ky, target.km, target.kd);
-    final dayStart = DateTime(g.year, g.month, g.day);
-    final detail = _cleanEventDetail(event.detail);
-    final token = buildCalendarCompletionBadgeToken(
-      identity: _completionIdentityForEvent(event),
-      sourceType: sourceType,
-      completionStatus: status,
-      eventId: event.clientEventId ?? event.id ?? event.reminderId,
-      title: event.title,
-      start: dayStart.add(Duration(minutes: event.startMin)),
-      end: dayStart.add(Duration(minutes: event.endMin)),
-      color: event.color,
-      description: detail,
-    );
-    try {
-      await cb('$token ');
-      if (triggerHaptic) {
-        unawaited(AppHaptics.productiveAction());
-      }
-    } catch (_) {
-      // Keep completion persistence independent from journal badge sync errors.
-    }
-  }
-
-  Future<void> _removeCompletionContinuity(
-    DayViewSheetEventTarget target, {
-    required CompletionSourceType sourceType,
-  }) async {
-    final cb = widget.onRemoveCompletionBadge;
-    if (cb == null) return;
-    await cb(
-      calendarCompletionBadgeId(
-        identity: _completionIdentityForEvent(target.event),
-        sourceType: sourceType,
-      ),
-    );
-  }
-
-  CalendarReflectionContext _reflectionContextForTarget(
-    DayViewSheetEventTarget target, {
-    required CompletionSourceType sourceType,
-    CompletionStatus completionStatus = CompletionStatus.none,
-  }) {
-    final event = target.event;
-    final g = KemeticMath.toGregorian(target.ky, target.km, target.kd);
-    final dayStart = DateTime(g.year, g.month, g.day);
-    return CalendarReflectionContext(
-      sourceType: sourceType,
-      sourceId: _completionIdentityForEvent(event),
-      title: event.title,
-      calendarDate: dayStart,
-      occurrenceId: event.clientEventId ?? event.id ?? event.reminderId,
-      eventId: event.clientEventId ?? event.id ?? event.reminderId,
-      flowId: event.flowId,
-      start: dayStart.add(Duration(minutes: event.startMin)),
-      end: dayStart.add(Duration(minutes: event.endMin)),
-      color: event.color,
-      completionStatus: completionStatus,
-      reflectionPrompt: resolveCalendarReflectionPrompt(
-        sourceType: sourceType,
-        title: event.title,
-        detail: event.detail,
-        behaviorPayload: event.behaviorPayload,
-      ),
-    );
-  }
-
-  Future<void> _openReflectionForTarget({
-    required BuildContext routeContext,
-    required BuildContext sheetContext,
-    required DayViewSheetEventTarget target,
-    required CompletionSourceType sourceType,
-  }) async {
-    final identity = _completionIdentityForEvent(target.event);
-    Navigator.pop(sheetContext);
-    final record = await const CalendarCompletionLocalStore().load(identity);
-    if (!routeContext.mounted) return;
-    final reflectionContext = _reflectionContextForTarget(
-      target,
-      sourceType: sourceType,
-      completionStatus: record.completionStatus,
-    );
-    routeContext.go(
-      reflectionContext.journalRouteLocation,
-      extra: reflectionContext,
-    );
-  }
-
-  Future<CompletionStatus> _loadCalendarCompletionStatus(
-    DayViewSheetEventTarget target,
-  ) async {
-    final clientEventId = target.event.clientEventId?.trim();
-    final flowId = target.event.flowId;
-    final user = Supabase.instance.client.auth.currentUser;
-    if (clientEventId == null ||
-        clientEventId.isEmpty ||
-        flowId == null ||
-        user == null) {
-      return CompletionStatus.none;
-    }
-    final row = await Supabase.instance.client
-        .from('user_event_completions')
-        .select('metadata')
-        .eq('user_id', user.id)
-        .eq('client_event_id', clientEventId)
-        .maybeSingle();
-    if (row == null) return CompletionStatus.none;
-    final metadata = row['metadata'];
-    if (metadata is Map) {
-      final normalized = CompletionStatusX.fromWireName(
-        metadata['completion_status']?.toString() ??
-            metadata['status']?.toString(),
-      );
-      if (normalized != CompletionStatus.none) return normalized;
-    }
-    return CompletionStatus.observed;
-  }
-
-  Future<void> _recordCalendarCompletion(
-    DayViewSheetEventTarget target,
-    CompletionStatus status, {
-    required CompletionSourceType sourceType,
-    required FlowData? flow,
-  }) async {
-    if (status == CompletionStatus.none) {
-      await _clearCalendarCompletion(target, sourceType: sourceType);
-      return;
-    }
-    final clientEventId = target.event.clientEventId?.trim();
-    final flowId = target.event.flowId;
-    if (clientEventId == null || clientEventId.isEmpty || flowId == null) {
-      return;
-    }
-    final completedOnDate = DateUtils.dateOnly(
-      KemeticMath.toGregorian(target.ky, target.km, target.kd),
-    );
-    final metadata = calendarCompletionMetadata(
-      completionStatus: status,
-      sourceType: sourceType,
-      completedOnDate: completedOnDate,
-      flowTitle: flow?.name,
-      eventTitle: target.event.title,
-    );
-    final callback = widget.onRecordCompletion;
-    if (callback != null) {
-      await callback(
-        clientEventId: clientEventId,
-        flowId: flowId,
-        completedOnDate: completedOnDate,
-        metadata: metadata,
-      );
-    } else {
-      await UserEventsRepo(Supabase.instance.client).recordEventCompletion(
-        clientEventId: clientEventId,
-        flowId: flowId,
-        completedOnDate: completedOnDate,
-        metadata: metadata,
-      );
-    }
-  }
-
-  Future<void> _clearCalendarCompletion(
-    DayViewSheetEventTarget target, {
-    required CompletionSourceType sourceType,
-  }) async {
-    final clientEventId = target.event.clientEventId?.trim();
-    if (clientEventId != null && clientEventId.isNotEmpty) {
-      final callback = widget.onUnrecordCompletion;
-      if (callback != null) {
-        await callback(clientEventId);
-      } else {
-        await UserEventsRepo(
-          Supabase.instance.client,
-        ).unrecordEventCompletion(clientEventId);
-      }
-    }
-    await _removeCompletionContinuity(target, sourceType: sourceType);
   }
 
   bool _eventsShareStableIdentity(EventItem a, EventItem b) {
@@ -2415,12 +2129,9 @@ class _LandscapeMonthGridBodyState extends State<LandscapeMonthGridBody> {
     final rawNotes = widget.notesForDay(widget.kYear, widget.kMonth, day);
 
     if (kDebugMode && rawNotes.isNotEmpty) {
-      final flowIds = rawNotes
-          .map((note) => note.flowId)
-          .whereType<int>()
-          .toSet()
-          .toList()
-        ..sort();
+      final flowIds =
+          rawNotes.map((note) => note.flowId).whereType<int>().toSet().toList()
+            ..sort();
       _logLandscape('📅 [LANDSCAPE] Building events for day $day');
       _logLandscape('   Year: ${widget.kYear}, Month: ${widget.kMonth}');
       _logLandscape('   Raw notes: ${rawNotes.length}');
@@ -2792,689 +2503,6 @@ class _LandscapeMonthGridBodyState extends State<LandscapeMonthGridBody> {
     );
   }
 
-  String _detailSheetTargetKey(DayViewSheetEventTarget target) =>
-      '${target.ky}:${target.km}:${target.kd}:${_sheetEventIdentityKey(target.event)}';
-
-  ({List<DayViewSheetEventTarget> pages, int currentIndex})
-  _detailSheetPagesForTarget(DayViewSheetEventTarget target) {
-    final previous = _resolveAdjacentEventTarget(
-      ky: target.ky,
-      km: target.km,
-      kd: target.kd,
-      event: target.event,
-      forward: false,
-    );
-    final next = _resolveAdjacentEventTarget(
-      ky: target.ky,
-      km: target.km,
-      kd: target.kd,
-      event: target.event,
-      forward: true,
-    );
-
-    final pages = <DayViewSheetEventTarget>[
-      if (previous != null) previous,
-      target,
-      if (next != null) next,
-    ];
-    return (pages: pages, currentIndex: previous != null ? 1 : 0);
-  }
-
-  ButtonStyle _endButtonStyle(BuildContext context) {
-    return withExpandedTouchTargets(
-      context,
-      OutlinedButton.styleFrom(
-        side: const BorderSide(color: _gold),
-        foregroundColor: _gold,
-        padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 7),
-        minimumSize: const Size(0, 35),
-        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-        visualDensity: const VisualDensity(horizontal: -1, vertical: -1),
-      ),
-    );
-  }
-
-  Widget _buildAddReflectionButton({
-    required BuildContext routeContext,
-    required BuildContext sheetContext,
-    required DayViewSheetEventTarget target,
-    required CompletionSourceType sourceType,
-  }) {
-    return OutlinedButton.icon(
-      style: _endButtonStyle(sheetContext),
-      onPressed: () => unawaited(
-        _openReflectionForTarget(
-          routeContext: routeContext,
-          sheetContext: sheetContext,
-          target: target,
-          sourceType: sourceType,
-        ),
-      ),
-      icon: KemeticGold.icon(Icons.edit_note_rounded),
-      label: const Text('Add reflection'),
-    );
-  }
-
-  String _cleanEventDetail(String? rawDetail) {
-    if (rawDetail == null || rawDetail.isEmpty) return '';
-
-    var displayDetail = rawDetail.trim();
-    if (displayDetail.startsWith('flowLocalId=')) {
-      final semi = displayDetail.indexOf(';');
-      if (semi > 0 && semi < displayDetail.length - 1) {
-        displayDetail = displayDetail.substring(semi + 1).trim();
-      } else {
-        return '';
-      }
-    }
-
-    displayDetail = _stripCidLines(displayDetail);
-    if (displayDetail.isEmpty || _looksLikeCidDetail(displayDetail)) {
-      return '';
-    }
-
-    return displayDetail;
-  }
-
-  Widget _buildEventDetailSheetPage({
-    required DayViewSheetEventTarget target,
-    bool scrollable = true,
-    Object? completionReloadSignal,
-  }) {
-    final currentEvent = target.event;
-    final flow = _chromeFlowForId(currentEvent.flowId);
-    final isReminder = currentEvent.isReminder;
-    final detail = _cleanEventDetail(currentEvent.detail);
-    final isNutrition = detail.contains('Source:');
-    final isTrackSky = _isLandscapeTrackSkyFlowName(flow?.name);
-    final trackSkySpec = isTrackSky
-        ? _landscapeTrackSkySpecForEvent(currentEvent)
-        : null;
-    final sourceType = _completionSourceTypeForEvent(currentEvent, flow);
-    final enableRitualCompletionFeedback =
-        currentEvent.flowId != null && !isNutrition;
-
-    Widget? metaChip;
-    if (flow != null) {
-      metaChip = Container(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-        decoration: BoxDecoration(
-          gradient: isTrackSky ? trackSkySpec!.background : null,
-          color: isTrackSky ? null : flow.color.withValues(alpha: 0.16),
-          borderRadius: BorderRadius.circular(8),
-          border: isTrackSky
-              ? Border.all(
-                  color: trackSkySpec!.borderColor.withValues(alpha: 0.78),
-                )
-              : null,
-          boxShadow: isTrackSky
-              ? [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.24),
-                    blurRadius: 8,
-                    offset: const Offset(0, 3),
-                  ),
-                  BoxShadow(
-                    color: trackSkySpec!.glowColor.withValues(alpha: 0.24),
-                    blurRadius: 12,
-                    spreadRadius: -4,
-                  ),
-                ]
-              : null,
-        ),
-        child: Text(
-          flow.name,
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-          style: TextStyle(
-            fontSize: 12,
-            color: isTrackSky ? trackSkySpec!.titleColor : flow.color,
-            fontWeight: isTrackSky ? FontWeight.w700 : FontWeight.w600,
-            shadows: isTrackSky
-                ? [
-                    Shadow(
-                      color: Colors.black.withValues(alpha: 0.42),
-                      offset: const Offset(0, 1),
-                      blurRadius: 2,
-                    ),
-                  ]
-                : null,
-          ),
-        ),
-      );
-    } else if (isReminder) {
-      metaChip = Container(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-        decoration: BoxDecoration(
-          color: KemeticGold.base.withValues(alpha: 0.16),
-          borderRadius: BorderRadius.circular(8),
-        ),
-        child: KemeticGold.text(
-          'Reminder',
-          style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
-        ),
-      );
-    } else if (isNutrition) {
-      metaChip = Container(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-        decoration: BoxDecoration(
-          color: KemeticGold.base.withValues(alpha: 0.16),
-          borderRadius: BorderRadius.circular(8),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            KemeticGold.icon(Icons.local_drink, size: 14),
-            const SizedBox(width: 4),
-            KemeticGold.text(
-              'Nutrition',
-              style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500),
-            ),
-          ],
-        ),
-      );
-    }
-
-    final body = Column(
-      mainAxisSize: MainAxisSize.min,
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        if (metaChip != null) metaChip,
-        if (metaChip != null) const SizedBox(height: 12),
-        KemeticGold.text(
-          currentEvent.title,
-          maxLines: 3,
-          overflow: TextOverflow.ellipsis,
-          style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
-        ),
-        const SizedBox(height: 14),
-        Row(
-          children: [
-            const Icon(Icons.access_time, size: 16, color: Color(0xFF808080)),
-            const SizedBox(width: 8),
-            Text(
-              _formatTimeRange(currentEvent.startMin, currentEvent.endMin),
-              style: const TextStyle(color: Color(0xFF808080)),
-            ),
-          ],
-        ),
-        if (currentEvent.location != null &&
-            currentEvent.location!.trim().isNotEmpty) ...[
-          const SizedBox(height: 8),
-          InkWell(
-            onTap: () => _launchLocation(currentEvent.location!.trim()),
-            child: Row(
-              children: [
-                const Icon(
-                  Icons.location_on,
-                  size: 16,
-                  color: Color(0xFF808080),
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    currentEvent.location!.trim(),
-                    style: const TextStyle(
-                      color: Color(0xFF808080),
-                      decoration: TextDecoration.underline,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-        if (detail.isNotEmpty) ...[
-          const SizedBox(height: 16),
-          RichText(
-            text: TextSpan(
-              style: const TextStyle(fontSize: 14, color: Colors.white),
-              children: _buildTextSpans(detail),
-            ),
-          ),
-        ],
-        const SizedBox(height: 16),
-        Builder(
-          builder: (feedbackContext) {
-            final maatPanel = buildDayViewMaatFlowCompletionPanel(
-              event: currentEvent,
-              flow: flow,
-              identity: _completionIdentityForEvent(currentEvent),
-              ky: target.ky,
-              km: target.km,
-              kd: target.kd,
-              onRecordCompletion: widget.onRecordCompletion,
-              onUnrecordCompletion: widget.onUnrecordCompletion,
-              onRemoveCompletionBadge: widget.onRemoveCompletionBadge,
-              onWriteJournalResponse: widget.onWriteJournalResponse,
-              onCompletionContinuity: (status) => _appendCompletionContinuity(
-                target,
-                status,
-                sourceType: CompletionSourceType.maatFlow,
-                triggerHaptic: false,
-              ),
-              onUserCompletionFeedback: enableRitualCompletionFeedback
-                  ? (status) => playDayViewRitualCompletionFeedback(
-                      feedbackContext,
-                      status,
-                    )
-                  : null,
-              onAddReflection: null,
-              reloadSignal: completionReloadSignal,
-            );
-            if (maatPanel != null) return maatPanel;
-
-            return CalendarEventCompletionPanel(
-              identity: _completionIdentityForEvent(currentEvent),
-              sourceType: sourceType,
-              loadStatus: currentEvent.flowId == null
-                  ? null
-                  : () => _loadCalendarCompletionStatus(target),
-              onRecordStatus: (status) => _recordCalendarCompletion(
-                target,
-                status,
-                sourceType: sourceType,
-                flow: flow,
-              ),
-              onClearStatus: () =>
-                  _clearCalendarCompletion(target, sourceType: sourceType),
-              onCreateContinuity: (status) => _appendCompletionContinuity(
-                target,
-                status,
-                sourceType: sourceType,
-                triggerHaptic: !enableRitualCompletionFeedback,
-              ),
-              onUserCompletionFeedback: enableRitualCompletionFeedback
-                  ? (status) => playDayViewRitualCompletionFeedback(
-                      feedbackContext,
-                      status,
-                    )
-                  : null,
-              onReflect: null,
-              reloadSignal: completionReloadSignal,
-            );
-          },
-        ),
-      ],
-    );
-
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      child: DayViewRitualCompletionFeedbackCard(
-        enabled: enableRitualCompletionFeedback,
-        child: scrollable
-            ? SingleChildScrollView(
-                physics: const BouncingScrollPhysics(),
-                child: body,
-              )
-            : body,
-      ),
-    );
-  }
-
-  Widget _buildEventDetailTopActionRow({
-    required BuildContext sheetContext,
-    required DayViewSheetEventTarget target,
-    required ValueChanged<String?> onEndFlowErrorChanged,
-  }) {
-    final currentEvent = target.event;
-    final flow = _chromeFlowForId(currentEvent.flowId);
-    final sourceType = _completionSourceTypeForEvent(currentEvent, flow);
-
-    return Row(
-      children: [
-        const Spacer(),
-        _buildAddReflectionButton(
-          routeContext: context,
-          sheetContext: sheetContext,
-          target: target,
-          sourceType: sourceType,
-        ),
-        const SizedBox(width: 8),
-        _buildEventDetailOverflowButton(
-          sheetContext: sheetContext,
-          target: target,
-          onEndFlowErrorChanged: onEndFlowErrorChanged,
-        ),
-      ],
-    );
-  }
-
-  Widget _buildEventDetailPrimaryAction({
-    required BuildContext rootContext,
-    required BuildContext sheetContext,
-    required DayViewSheetEventTarget target,
-  }) {
-    return TextButton.icon(
-      onPressed: () async {
-        Navigator.pop(sheetContext);
-        final handled = await CalendarPage.makeTodoFromEventTarget(target);
-        if (!handled && rootContext.mounted) {
-          ScaffoldMessenger.of(
-            rootContext,
-          ).showSnackBar(const SnackBar(content: Text('Could not add to-do.')));
-        }
-      },
-      icon: KemeticGold.icon(Icons.playlist_add_check),
-      label: KemeticGold.text(
-        'Make to-do',
-        style: _landscapeActionTextStyle.copyWith(fontSize: 15),
-      ),
-    );
-  }
-
-  Widget _buildEventDetailInlineError(String message) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-      decoration: BoxDecoration(
-        color: const Color(0xFF4A1414).withValues(alpha: 0.88),
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(
-          color: const Color(0xFFE57373).withValues(alpha: 0.45),
-        ),
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Icon(Icons.error_outline, color: Color(0xFFFFB4AB), size: 18),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Text(
-              message,
-              style: const TextStyle(
-                color: Color(0xFFFFDAD6),
-                fontSize: 13,
-                height: 1.25,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildEventDetailOverflowButton({
-    required BuildContext sheetContext,
-    required DayViewSheetEventTarget target,
-    required ValueChanged<String?> onEndFlowErrorChanged,
-  }) {
-    final currentEvent = target.event;
-    final flow = _chromeFlowForId(currentEvent.flowId);
-    final actionableFlow = _isActionableFlowId(currentEvent.flowId);
-    final isReminder = currentEvent.isReminder;
-    final isEndingFlow =
-        currentEvent.flowId != null &&
-        _endingFlowIds.contains(currentEvent.flowId);
-
-    return PopupMenuButton<String>(
-      icon: KemeticGold.icon(Icons.more_vert),
-      tooltip: 'Event options',
-      color: const Color(0xFF000000),
-      onSelected: (value) async {
-        if (value == 'end_flow') {
-          final flowId = currentEvent.flowId;
-          final onEndFlow = widget.onEndFlow;
-          if (flowId != null && onEndFlow != null) {
-            if (!_beginEndFlowAction(flowId)) return;
-            onEndFlowErrorChanged(null);
-            try {
-              final result = await CalendarPage.endFlowFromEventTarget(target);
-              if (result == EndFlowActionResult.success) {
-                if (sheetContext.mounted) Navigator.pop(sheetContext);
-              } else if (result == EndFlowActionResult.failed) {
-                onEndFlowErrorChanged(
-                  'Could not end this flow right now.\n'
-                  'Check your connection and try again.',
-                );
-              } else if (result == EndFlowActionResult.notHandled) {
-                onEndFlow(flowId);
-                if (sheetContext.mounted) Navigator.pop(sheetContext);
-              }
-            } finally {
-              _finishEndFlowAction(flowId);
-            }
-          }
-        } else if (value == 'end_reminder') {
-          Navigator.pop(sheetContext);
-          final reminderId = currentEvent.reminderId;
-          final onEndReminder = widget.onEndReminder;
-          if (reminderId != null && onEndReminder != null) {
-            await onEndReminder(reminderId);
-          }
-        } else if (value == 'end_note') {
-          Navigator.pop(sheetContext);
-          if (widget.onDeleteNote != null) {
-            await widget.onDeleteNote!(
-              target.ky,
-              target.km,
-              target.kd,
-              currentEvent,
-            );
-          }
-        } else if (value == 'share') {
-          Navigator.pop(sheetContext);
-          if (flow != null && !isReminder) {
-            await CalendarPage.shareFlowFromEvent(currentEvent);
-          } else if (isReminder && widget.onShareReminder != null) {
-            await widget.onShareReminder!(currentEvent);
-          } else if (widget.onShareNote != null) {
-            await widget.onShareNote!(currentEvent);
-          }
-        } else if (value == 'edit' && flow != null && actionableFlow) {
-          await Navigator.of(sheetContext).maybePop();
-          widget.onManageFlows?.call(flow.id);
-        } else if (value == 'save' &&
-            flow != null &&
-            actionableFlow &&
-            widget.onSaveFlow != null) {
-          Navigator.pop(sheetContext);
-          await widget.onSaveFlow!(flow.id);
-        } else if (value == 'edit_reminder' &&
-            isReminder &&
-            widget.onEditReminder != null &&
-            currentEvent.reminderId != null) {
-          Navigator.pop(sheetContext);
-          await widget.onEditReminder!(currentEvent.reminderId!);
-        } else if (value == 'edit_note' &&
-            (flow == null || _isRepeatingNoteFlowId(currentEvent.flowId)) &&
-            !isReminder &&
-            widget.onEditNote != null) {
-          Navigator.pop(sheetContext);
-          await widget.onEditNote!(
-            target.ky,
-            target.km,
-            target.kd,
-            currentEvent,
-          );
-        }
-      },
-      itemBuilder: (context) => [
-        if (flow != null ||
-            (isReminder && widget.onShareReminder != null) ||
-            (flow == null && !isReminder && widget.onShareNote != null))
-          PopupMenuItem(
-            value: 'share',
-            child: Row(
-              children: [
-                KemeticGold.icon(Icons.share_outlined),
-                const SizedBox(width: 12),
-                Text(
-                  flow != null
-                      ? 'Share Flow'
-                      : isReminder
-                      ? 'Share Reminder'
-                      : 'Share Note',
-                  style: const TextStyle(color: Colors.white),
-                ),
-              ],
-            ),
-          ),
-        if (flow != null &&
-            actionableFlow &&
-            !isReminder &&
-            widget.onSaveFlow != null)
-          PopupMenuItem(
-            value: 'save',
-            child: Row(
-              children: [
-                KemeticGold.icon(Icons.bookmark_add),
-                const SizedBox(width: 12),
-                const Text('Save Flow', style: TextStyle(color: Colors.white)),
-              ],
-            ),
-          ),
-        if (flow != null &&
-            actionableFlow &&
-            !isReminder &&
-            widget.onManageFlows != null)
-          PopupMenuItem(
-            value: 'edit',
-            child: Row(
-              children: [
-                KemeticGold.icon(Icons.edit),
-                const SizedBox(width: 12),
-                const Text('Edit Flow', style: TextStyle(color: Colors.white)),
-              ],
-            ),
-          ),
-        if (flow != null &&
-            actionableFlow &&
-            !isReminder &&
-            widget.onEndFlow != null)
-          PopupMenuItem(
-            value: 'end_flow',
-            enabled: !isEndingFlow,
-            child: Row(
-              children: [
-                KemeticGold.icon(
-                  isEndingFlow ? Icons.hourglass_top : Icons.stop_circle,
-                ),
-                const SizedBox(width: 12),
-                Text(
-                  isEndingFlow ? 'Ending Flow...' : 'End Flow',
-                  style: const TextStyle(color: Colors.white),
-                ),
-              ],
-            ),
-          ),
-        if (isReminder &&
-            widget.onEditReminder != null &&
-            currentEvent.reminderId != null)
-          PopupMenuItem(
-            value: 'edit_reminder',
-            child: Row(
-              children: [
-                KemeticGold.icon(Icons.edit),
-                const SizedBox(width: 12),
-                const Text(
-                  'Edit Reminder',
-                  style: TextStyle(color: Colors.white),
-                ),
-              ],
-            ),
-          ),
-        if (isReminder &&
-            widget.onEndReminder != null &&
-            currentEvent.reminderId != null)
-          PopupMenuItem(
-            value: 'end_reminder',
-            child: Row(
-              children: [
-                KemeticGold.icon(Icons.stop_circle),
-                const SizedBox(width: 12),
-                const Text(
-                  'End Reminder',
-                  style: TextStyle(color: Colors.white),
-                ),
-              ],
-            ),
-          ),
-        if ((flow == null || _isRepeatingNoteFlowId(currentEvent.flowId)) &&
-            !isReminder &&
-            widget.onEditNote != null)
-          PopupMenuItem(
-            value: 'edit_note',
-            child: Row(
-              children: [
-                KemeticGold.icon(Icons.edit),
-                const SizedBox(width: 12),
-                const Text('Edit Note', style: TextStyle(color: Colors.white)),
-              ],
-            ),
-          ),
-        if ((flow == null || _isRepeatingNoteFlowId(currentEvent.flowId)) &&
-            !isReminder &&
-            widget.onDeleteNote != null)
-          PopupMenuItem(
-            value: 'end_note',
-            child: Row(
-              children: [
-                KemeticGold.icon(Icons.delete_outline),
-                const SizedBox(width: 12),
-                const Text('End Note', style: TextStyle(color: Colors.white)),
-              ],
-            ),
-          ),
-      ],
-    );
-  }
-
-  Widget _buildEventDetailBottomActionRow({
-    required BuildContext rootContext,
-    required BuildContext sheetContext,
-    required DayViewSheetEventTarget target,
-    required ValueChanged<DayViewSheetEventTarget> onTargetChanged,
-  }) {
-    final calendarLabel = CalendarPage.detailSheetCalendarButtonLabel(
-      target.event,
-    );
-    final calendarEnabled = CalendarPage.canChangeDetailSheetCalendar(
-      target.event,
-    );
-
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: [
-        _buildEventDetailPrimaryAction(
-          rootContext: rootContext,
-          sheetContext: sheetContext,
-          target: target,
-        ),
-        TextButton(
-          onPressed: calendarEnabled
-              ? () async {
-                  final updatedTarget =
-                      await CalendarPage.showDetailSheetCalendarPicker(
-                        context: sheetContext,
-                        target: target,
-                        onOptimisticTargetChanged: (optimisticTarget) {
-                          if (sheetContext.mounted) {
-                            onTargetChanged(optimisticTarget);
-                          }
-                        },
-                      );
-                  if (!sheetContext.mounted || updatedTarget == null) return;
-                  onTargetChanged(updatedTarget);
-                }
-              : null,
-          child: calendarEnabled
-              ? KemeticGold.text(
-                  calendarLabel,
-                  style: _landscapeActionTextStyle.copyWith(fontSize: 15),
-                )
-              : Text(
-                  calendarLabel,
-                  style: _landscapeActionTextStyle.copyWith(
-                    fontSize: 15,
-                    color: Colors.white24,
-                  ),
-                ),
-        ),
-      ],
-    );
-  }
-
   void _showEventDetail(
     EventItem event,
     int day, {
@@ -3484,232 +2512,64 @@ class _LandscapeMonthGridBodyState extends State<LandscapeMonthGridBody> {
       return;
     }
     final rootContext = context;
-    final sheetDataListenable = widget.dataVersion ?? _kLandscapeZeroListenable;
-    final currentTarget = ValueNotifier<DayViewSheetEventTarget>(
-      initialTarget ??
-          DayViewSheetEventTarget(
-            ky: widget.kYear,
-            km: widget.kMonth,
-            kd: day,
-            event: event,
-          ),
-    );
-    _publishEventDetailRestorationTarget(currentTarget.value);
-    final measuredHeights = ValueNotifier<Map<String, double>>({});
-    final endFlowError = ValueNotifier<String?>(null);
-    final initialPages = _detailSheetPagesForTarget(currentTarget.value);
-    PageController sheetPageController = PageController(
-      initialPage: initialPages.currentIndex,
-    );
+    final sheetTarget =
+        initialTarget ??
+        DayViewSheetEventTarget(
+          ky: widget.kYear,
+          km: widget.kMonth,
+          kd: day,
+          event: event,
+        );
+    _publishEventDetailRestorationTarget(sheetTarget);
     var sheetReleased = false;
-
-    void updateMeasuredHeight(String key, double height) {
-      if (sheetReleased || !mounted) return;
-      final normalized = height.ceilToDouble();
-      if (normalized <= 0) return;
-      final previous = measuredHeights.value[key];
-      if (previous != null && (previous - normalized).abs() < 1) return;
-      measuredHeights.value = Map<String, double>.from(measuredHeights.value)
-        ..[key] = normalized;
-    }
-
-    void resetSheetPageController(int initialPage) {
-      if (sheetReleased) return;
-      final previous = sheetPageController;
-      sheetPageController = PageController(initialPage: initialPage);
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        previous.dispose();
-      });
-    }
+    var activeTarget = sheetTarget;
 
     void moveToTarget(DayViewSheetEventTarget nextTarget) {
-      if (sheetReleased || !mounted) return;
-      final previousTarget = currentTarget.value;
-      currentTarget.value = nextTarget;
-      endFlowError.value = null;
+      if (!mounted) return;
+      final previousTarget = activeTarget;
+      activeTarget = nextTarget;
       _publishEventDetailRestorationTarget(nextTarget);
       if (nextTarget.kd != previousTarget.kd) {
         _scrollToDay(nextTarget.kd);
       }
-      unawaited(AppHaptics.selection());
     }
 
     void releaseSheet() {
       if (sheetReleased) return;
       sheetReleased = true;
-      currentTarget.dispose();
-      measuredHeights.dispose();
-      endFlowError.dispose();
-      sheetPageController.dispose();
       _clearEventDetailRestorationIfAllowed();
       CalendarEventDetailSheetCoordinator.markClosed();
-    }
-
-    void setEndFlowError(String? message) {
-      if (sheetReleased || !mounted) return;
-      if (endFlowError.value == message) return;
-      endFlowError.value = message;
     }
 
     try {
       showModalBottomSheet(
         context: context,
-        backgroundColor: _bg,
+        backgroundColor: Colors.transparent,
         isScrollControlled: true,
-        builder: (sheetContext) {
-          return ValueListenableBuilder<int>(
-            valueListenable: sheetDataListenable,
-            builder: (context, dataRevision, _) {
-              return ValueListenableBuilder<DayViewSheetEventTarget>(
-                valueListenable: currentTarget,
-                builder: (context, rawTarget, _) {
-                  final target = _resolveCurrentEventTarget(rawTarget);
-                  final pages = _detailSheetPagesForTarget(target);
-                  final currentKey = _detailSheetTargetKey(target);
-                  final pageViewKey = ValueKey<String>(
-                    '$currentKey:${pages.currentIndex}:${pages.pages.length}',
-                  );
-
-                  return ValueListenableBuilder<Map<String, double>>(
-                    valueListenable: measuredHeights,
-                    builder: (context, heights, _) {
-                      final maxSheetHeight = math.min(
-                        MediaQuery.sizeOf(context).height * 0.72,
-                        560.0,
-                      );
-                      final sheetHeight = (heights[currentKey] ?? 200.0)
-                          .clamp(0.0, math.max(180.0, maxSheetHeight - 112.0))
-                          .toDouble();
-
-                      return SafeArea(
-                        top: false,
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Offstage(
-                              child: Column(
-                                children: [
-                                  for (final pageTarget in pages.pages)
-                                    _MeasureSize(
-                                      key: ValueKey<String>(
-                                        _detailSheetTargetKey(pageTarget),
-                                      ),
-                                      onChange: (size) {
-                                        updateMeasuredHeight(
-                                          _detailSheetTargetKey(pageTarget),
-                                          size.height,
-                                        );
-                                      },
-                                      child: SizedBox(
-                                        width: MediaQuery.sizeOf(context).width,
-                                        child: _buildEventDetailSheetPage(
-                                          target: pageTarget,
-                                          scrollable: false,
-                                          completionReloadSignal: dataRevision,
-                                        ),
-                                      ),
-                                    ),
-                                ],
-                              ),
-                            ),
-                            Padding(
-                              padding: const EdgeInsets.fromLTRB(
-                                12,
-                                12,
-                                12,
-                                18,
-                              ),
-                              child: Column(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  _buildEventDetailTopActionRow(
-                                    sheetContext: sheetContext,
-                                    target: target,
-                                    onEndFlowErrorChanged: setEndFlowError,
-                                  ),
-                                  ValueListenableBuilder<String?>(
-                                    valueListenable: endFlowError,
-                                    builder: (context, message, _) {
-                                      return AnimatedSize(
-                                        duration: const Duration(
-                                          milliseconds: 180,
-                                        ),
-                                        curve: Curves.easeOutCubic,
-                                        alignment: Alignment.topCenter,
-                                        child: message == null
-                                            ? const SizedBox.shrink()
-                                            : Padding(
-                                                padding:
-                                                    const EdgeInsets.fromLTRB(
-                                                      12,
-                                                      8,
-                                                      12,
-                                                      0,
-                                                    ),
-                                                child:
-                                                    _buildEventDetailInlineError(
-                                                      message,
-                                                    ),
-                                              ),
-                                      );
-                                    },
-                                  ),
-                                  const SizedBox(height: 10),
-                                  AnimatedSize(
-                                    duration: const Duration(milliseconds: 180),
-                                    curve: Curves.easeOutCubic,
-                                    alignment: Alignment.bottomCenter,
-                                    child: SizedBox(
-                                      height: sheetHeight,
-                                      child: PageView.builder(
-                                        key: pageViewKey,
-                                        controller: sheetPageController,
-                                        physics: const BouncingScrollPhysics(),
-                                        itemCount: pages.pages.length,
-                                        onPageChanged: (index) {
-                                          if (index == pages.currentIndex) {
-                                            return;
-                                          }
-                                          final nextTarget = pages.pages[index];
-                                          final nextPages =
-                                              _detailSheetPagesForTarget(
-                                                nextTarget,
-                                              );
-                                          resetSheetPageController(
-                                            nextPages.currentIndex,
-                                          );
-                                          moveToTarget(nextTarget);
-                                        },
-                                        itemBuilder: (context, index) {
-                                          return _buildEventDetailSheetPage(
-                                            target: pages.pages[index],
-                                            completionReloadSignal:
-                                                dataRevision,
-                                          );
-                                        },
-                                      ),
-                                    ),
-                                  ),
-                                  const SizedBox(height: 10),
-                                  _buildEventDetailBottomActionRow(
-                                    rootContext: rootContext,
-                                    sheetContext: sheetContext,
-                                    target: target,
-                                    onTargetChanged: moveToTarget,
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ],
-                        ),
-                      );
-                    },
-                  );
-                },
-              );
-            },
-          );
-        },
+        builder: (sheetContext) => CalendarEventDetailSheet(
+          hostContext: rootContext,
+          initialTarget: sheetTarget,
+          flowResolver: _chromeFlowForId,
+          activeLedgerFlowIds: widget.activeLedgerFlowIds,
+          resolveCurrentEventTarget: _resolveCurrentEventTarget,
+          resolveAdjacentEventTarget: _resolveAdjacentEventTarget,
+          onTargetChanged: moveToTarget,
+          onManageFlows: widget.onManageFlows,
+          onEditNote: widget.onEditNote,
+          onDeleteNote: widget.onDeleteNote,
+          onShareNote: widget.onShareNote,
+          onEditReminder: widget.onEditReminder,
+          onEndReminder: widget.onEndReminder,
+          onShareReminder: widget.onShareReminder,
+          onEndFlow: widget.onEndFlow,
+          onAppendToJournal: widget.onAppendToJournal,
+          onWriteJournalResponse: widget.onWriteJournalResponse,
+          onSaveFlow: widget.onSaveFlow,
+          dataVersion: widget.dataVersion,
+          onRecordCompletion: widget.onRecordCompletion,
+          onUnrecordCompletion: widget.onUnrecordCompletion,
+          onRemoveCompletionBadge: widget.onRemoveCompletionBadge,
+        ),
       ).whenComplete(releaseSheet);
     } catch (_) {
       releaseSheet();
@@ -3747,35 +2607,6 @@ class _LandscapeMonthGridBodyState extends State<LandscapeMonthGridBody> {
     if (hour < 12) return '$hour AM';
     if (hour == 12) return '12 PM';
     return '${hour - 12} PM';
-  }
-
-  String _stripCidLines(String detail) {
-    final lines = detail.split(RegExp(r'\r?\n'));
-    final cidRegex = RegExp(
-      r'^(kemet_cid:)?ky=\d+-km=\d+-kd=\d+\|s=\d+\|t=[^|]+\|f=[^|]+$',
-    );
-    final kept = lines.where((line) {
-      final trimmed = line.trim();
-      if (trimmed.isEmpty) return false;
-      if (trimmed.startsWith('flowLocalId=')) return false;
-      final norm = trimmed.replaceAll(RegExp(r'\s+'), '');
-      if (cidRegex.hasMatch(norm)) return false;
-      if (norm.toLowerCase().startsWith('kemet_cid:reminder:')) return false;
-      if (norm.toLowerCase().startsWith('reminder:')) return false;
-      return true;
-    }).toList();
-    return kept.join('\n').trim();
-  }
-
-  bool _looksLikeCidDetail(String text) {
-    final trimmed = text.trim().replaceAll(RegExp(r'\s+'), '');
-    final withPrefix = trimmed.startsWith('kemet_cid:')
-        ? trimmed.substring('kemet_cid:'.length)
-        : trimmed;
-    final cidPattern = RegExp(
-      r'^ky=\d+-km=\d+-kd=\d+\|s=\d+\|t=[^|]+\|f=[^|]+$',
-    );
-    return cidPattern.hasMatch(withPrefix);
   }
 
   /// Detect whether a string looks like a URL, email, or phone number.
@@ -3882,95 +2713,5 @@ class _LandscapeMonthGridBodyState extends State<LandscapeMonthGridBody> {
     if (await canLaunchUrl(uri)) {
       await launchUrl(uri, mode: LaunchMode.externalApplication);
     }
-  }
-
-  /// Turn a block of text into TextSpans with clickable URLs.
-  List<TextSpan> _buildTextSpans(String text) {
-    final spans = <TextSpan>[];
-    final regex = RegExp(r'(https?://\S+)', multiLine: true);
-    int start = 0;
-
-    for (final match in regex.allMatches(text)) {
-      if (match.start > start) {
-        spans.add(TextSpan(text: text.substring(start, match.start)));
-      }
-      final url = match.group(0)!;
-      spans.add(
-        TextSpan(
-          text: url,
-          style: const TextStyle(
-            decoration: TextDecoration.underline,
-            color: Color(0xFF4DA3FF),
-          ),
-          recognizer: TapGestureRecognizer()
-            ..onTap = () async {
-              final uri = Uri.parse(url);
-              if (await canLaunchUrl(uri)) {
-                await launchUrl(uri, mode: LaunchMode.externalApplication);
-              }
-            },
-        ),
-      );
-      start = match.end;
-    }
-
-    if (start < text.length) {
-      spans.add(TextSpan(text: text.substring(start)));
-    }
-
-    return spans;
-  }
-
-  String _formatTimeRange(int startMin, int endMin) {
-    final startHour = startMin ~/ 60;
-    final startMinute = startMin % 60;
-    final endHour = endMin ~/ 60;
-    final endMinute = endMin % 60;
-
-    String formatTime(int h, int m) {
-      final period = h >= 12 ? 'PM' : 'AM';
-      final hour12 = h == 0 ? 12 : (h > 12 ? h - 12 : h);
-      return '$hour12:${m.toString().padLeft(2, '0')} $period';
-    }
-
-    return '${formatTime(startHour, startMinute)} – ${formatTime(endHour, endMinute)}';
-  }
-}
-
-class _MeasureSize extends SingleChildRenderObjectWidget {
-  const _MeasureSize({super.key, required this.onChange, required super.child});
-
-  final ValueChanged<Size> onChange;
-
-  @override
-  RenderObject createRenderObject(BuildContext context) {
-    return _MeasureSizeRenderObject(onChange);
-  }
-
-  @override
-  void updateRenderObject(
-    BuildContext context,
-    covariant _MeasureSizeRenderObject renderObject,
-  ) {
-    renderObject.onChange = onChange;
-  }
-}
-
-class _MeasureSizeRenderObject extends RenderProxyBox {
-  _MeasureSizeRenderObject(this.onChange);
-
-  ValueChanged<Size> onChange;
-  Size? _oldSize;
-
-  @override
-  void performLayout() {
-    super.performLayout();
-    final newSize = child?.size;
-    if (newSize == null || newSize == _oldSize) return;
-    _oldSize = newSize;
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!attached) return;
-      onChange(newSize);
-    });
   }
 }

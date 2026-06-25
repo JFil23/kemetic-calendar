@@ -2401,6 +2401,2051 @@ class CalendarEventDetailSheetCoordinator {
   }
 }
 
+class CalendarEventDetailSheet extends StatefulWidget {
+  const CalendarEventDetailSheet({
+    super.key,
+    required this.hostContext,
+    required this.initialTarget,
+    this.flowResolver,
+    this.activeLedgerFlowIds = const <int>{},
+    this.resolveCurrentEventTarget,
+    this.resolveAdjacentEventTarget,
+    this.onTargetChanged,
+    this.onNavigateToDay,
+    this.onManageFlows,
+    this.onEditNote,
+    this.onDeleteNote,
+    this.onShareNote,
+    this.onEditReminder,
+    this.onEndReminder,
+    this.onShareReminder,
+    this.onEndFlow,
+    this.onAppendToJournal,
+    this.onWriteJournalResponse,
+    this.onSaveFlow,
+    this.dataVersion,
+    this.onRecordCompletion,
+    this.onUnrecordCompletion,
+    this.onRemoveCompletionBadge,
+    this.onboardingEventClientEventId,
+    this.onboardingObservedKey,
+    this.onboardingJournalKey,
+    this.onOnboardingObservedJournalNext,
+    this.onboardingClosingBannerBuilder,
+  });
+
+  final BuildContext hostContext;
+  final DayViewSheetEventTarget initialTarget;
+  final FlowData? Function(int? flowId)? flowResolver;
+  final Set<int> activeLedgerFlowIds;
+  final DayViewSheetEventTarget Function(DayViewSheetEventTarget target)?
+  resolveCurrentEventTarget;
+  final DayViewSheetEventTarget? Function({
+    required int ky,
+    required int km,
+    required int kd,
+    required EventItem event,
+    required bool forward,
+  })?
+  resolveAdjacentEventTarget;
+  final ValueChanged<DayViewSheetEventTarget>? onTargetChanged;
+  final Future<void> Function(int ky, int km, int kd)? onNavigateToDay;
+  final void Function(int? flowId)? onManageFlows;
+  final Future<void> Function(int ky, int km, int kd, EventItem event)?
+  onEditNote;
+  final Future<void> Function(int ky, int km, int kd, EventItem event)?
+  onDeleteNote;
+  final Future<void> Function(EventItem event)? onShareNote;
+  final Future<void> Function(String reminderId)? onEditReminder;
+  final Future<void> Function(String reminderId)? onEndReminder;
+  final Future<void> Function(EventItem event)? onShareReminder;
+  final void Function(int flowId)? onEndFlow;
+  final Future<void> Function(String text)? onAppendToJournal;
+  final MaatJournalResponseBlockWriter? onWriteJournalResponse;
+  final Future<void> Function(int flowId)? onSaveFlow;
+  final ValueListenable<int>? dataVersion;
+  final Future<void> Function({
+    required String clientEventId,
+    required int flowId,
+    required DateTime completedOnDate,
+    Map<String, dynamic>? metadata,
+  })?
+  onRecordCompletion;
+  final Future<void> Function(String clientEventId)? onUnrecordCompletion;
+  final Future<void> Function(String badgeId)? onRemoveCompletionBadge;
+  final String? onboardingEventClientEventId;
+  final GlobalKey? onboardingObservedKey;
+  final GlobalKey? onboardingJournalKey;
+  final VoidCallback? onOnboardingObservedJournalNext;
+  final WidgetBuilder? onboardingClosingBannerBuilder;
+
+  @override
+  State<CalendarEventDetailSheet> createState() =>
+      _CalendarEventDetailSheetState();
+}
+
+class _CalendarEventDetailSheetState extends State<CalendarEventDetailSheet> {
+  late DayViewSheetEventTarget _currentTarget;
+  late PageController _pageController;
+  final Map<TrackSkyTimeZone, TrackSkyFlowData> _trackSkyDataByTimeZone =
+      <TrackSkyTimeZone, TrackSkyFlowData>{};
+  final Set<TrackSkyTimeZone> _trackSkyLoadingTimeZones = <TrackSkyTimeZone>{};
+  final Set<int> _endingFlowIds = <int>{};
+  Map<String, double> _measuredHeights = <String, double>{};
+  String? _endFlowError;
+  bool _onboardingDetailPromptScheduled = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _currentTarget =
+        widget.resolveCurrentEventTarget?.call(widget.initialTarget) ??
+        widget.initialTarget;
+    final initialPages = _detailSheetPagesForTarget(_currentTarget);
+    _pageController = PageController(initialPage: initialPages.currentIndex);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      widget.onTargetChanged?.call(_currentTarget);
+    });
+    _primeTrackSkyFlowDataForEvent(_currentTarget.event);
+  }
+
+  @override
+  void dispose() {
+    final activeCoachmark = GuidedOnboardingController.instance.target;
+    final journalKey = widget.onboardingJournalKey;
+    if (activeCoachmark?.key == widget.onboardingObservedKey ||
+        (journalKey != null &&
+            (activeCoachmark?.secondaryKeys.contains(journalKey) ?? false))) {
+      GuidedOnboardingController.instance.clear();
+    }
+    _pageController.dispose();
+    super.dispose();
+  }
+
+  bool _isOnboardingTargetEvent(EventItem event) {
+    final targetClientEventId = widget.onboardingEventClientEventId?.trim();
+    if (targetClientEventId != null && targetClientEventId.isNotEmpty) {
+      return event.clientEventId == targetClientEventId;
+    }
+    return false;
+  }
+
+  FlowData? _chromeFlowForId(int? flowId) => widget.flowResolver?.call(flowId);
+
+  bool _isRepeatingNoteFlowId(int? flowId) {
+    final flow = _chromeFlowForId(flowId);
+    return flow != null &&
+        (hasRepeatingNoteFlowMetadata(flow.notes) ||
+            (flow.isHidden && !flow.isReminder));
+  }
+
+  bool _isActionableFlowId(int? flowId) {
+    if (flowId == null) return false;
+    if (widget.activeLedgerFlowIds.contains(flowId)) return true;
+    final flow = _chromeFlowForId(flowId);
+    if (flow == null) return false;
+    return flow.active && !hasRepeatingNoteFlowMetadata(flow.notes);
+  }
+
+  bool _beginEndFlowAction(int flowId) {
+    if (_endingFlowIds.contains(flowId)) return false;
+    setState(() {
+      _endingFlowIds.add(flowId);
+    });
+    return true;
+  }
+
+  void _finishEndFlowAction(int flowId) {
+    if (!_endingFlowIds.contains(flowId)) return;
+    if (!mounted) {
+      _endingFlowIds.remove(flowId);
+      return;
+    }
+    setState(() {
+      _endingFlowIds.remove(flowId);
+    });
+  }
+
+  ButtonStyle _endButtonStyle(BuildContext context) {
+    return withExpandedTouchTargets(
+      context,
+      OutlinedButton.styleFrom(
+        side: BorderSide(color: _dayGold.withValues(alpha: 0.42), width: 0.7),
+        backgroundColor: _dayGold.withValues(alpha: 0.06),
+        foregroundColor: _dayGold,
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+        minimumSize: const Size(0, 40),
+        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+        visualDensity: const VisualDensity(horizontal: -1, vertical: -1),
+        shape: const StadiumBorder(),
+      ),
+    );
+  }
+
+  String _detailSheetTargetKey(DayViewSheetEventTarget target) =>
+      '${target.ky}:${target.km}:${target.kd}:${_eventIdentityKey(target.event)}';
+
+  ({List<DayViewSheetEventTarget> pages, int currentIndex})
+  _detailSheetPagesForTarget(DayViewSheetEventTarget target) {
+    final previous = widget.resolveAdjacentEventTarget?.call(
+      ky: target.ky,
+      km: target.km,
+      kd: target.kd,
+      event: target.event,
+      forward: false,
+    );
+    final next = widget.resolveAdjacentEventTarget?.call(
+      ky: target.ky,
+      km: target.km,
+      kd: target.kd,
+      event: target.event,
+      forward: true,
+    );
+
+    final pages = <DayViewSheetEventTarget>[
+      if (previous != null) previous,
+      target,
+      if (next != null) next,
+    ];
+    return (pages: pages, currentIndex: previous != null ? 1 : 0);
+  }
+
+  void _updateMeasuredHeight(String key, double height) {
+    if (!mounted) return;
+    final normalized = height.ceilToDouble();
+    if (normalized <= 0) return;
+    final previous = _measuredHeights[key];
+    if (previous != null && (previous - normalized).abs() < 1) return;
+    setState(() {
+      _measuredHeights = Map<String, double>.from(_measuredHeights)
+        ..[key] = normalized;
+    });
+  }
+
+  void _resetPageController(int initialPage) {
+    final previous = _pageController;
+    _pageController = PageController(initialPage: initialPage);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      previous.dispose();
+    });
+  }
+
+  void _moveToTarget(DayViewSheetEventTarget nextTarget) {
+    if (!mounted) return;
+    final previousTarget = _currentTarget;
+    setState(() {
+      _currentTarget = nextTarget;
+      _endFlowError = null;
+    });
+    widget.onTargetChanged?.call(nextTarget);
+    _primeTrackSkyFlowDataForEvent(nextTarget.event);
+    if (widget.onNavigateToDay != null &&
+        (nextTarget.ky != previousTarget.ky ||
+            nextTarget.km != previousTarget.km ||
+            nextTarget.kd != previousTarget.kd)) {
+      unawaited(
+        widget.onNavigateToDay!(nextTarget.ky, nextTarget.km, nextTarget.kd),
+      );
+    }
+    unawaited(AppHaptics.selection());
+  }
+
+  void _setEndFlowError(String? message) {
+    if (_endFlowError == message) return;
+    if (!mounted) {
+      _endFlowError = message;
+      return;
+    }
+    setState(() {
+      _endFlowError = message;
+    });
+  }
+
+  TrackSkyTimeZone? _trackSkyTimeZoneForFlow(FlowData? flow) {
+    final raw = flow?.notes;
+    if (raw == null || raw.isEmpty) return null;
+    for (final token in raw.split(';')) {
+      final trimmed = token.trim();
+      if (!trimmed.startsWith('sky_tz=')) continue;
+      switch (trimmed.substring('sky_tz='.length)) {
+        case 'pacific':
+          return TrackSkyTimeZone.pacific;
+        case 'mountain':
+          return TrackSkyTimeZone.mountain;
+        case 'central':
+          return TrackSkyTimeZone.central;
+        case 'eastern':
+          return TrackSkyTimeZone.eastern;
+      }
+    }
+    return null;
+  }
+
+  void _primeTrackSkyFlowDataForEvent(EventItem event) {
+    final flow = _chromeFlowForId(event.flowId);
+    if (!_isTrackSkyFlowName(flow?.name)) return;
+    final timezone = _trackSkyTimeZoneForFlow(flow);
+    if (timezone == null ||
+        _trackSkyDataByTimeZone.containsKey(timezone) ||
+        _trackSkyLoadingTimeZones.contains(timezone)) {
+      return;
+    }
+    _trackSkyLoadingTimeZones.add(timezone);
+    unawaited(() async {
+      try {
+        final data = await loadTrackSkyFlowData(timezone);
+        if (!mounted) return;
+        setState(() {
+          _trackSkyDataByTimeZone[timezone] = data;
+        });
+      } catch (_) {
+      } finally {
+        _trackSkyLoadingTimeZones.remove(timezone);
+      }
+    }());
+  }
+
+  TrackSkyEvent? _resolveTrackSkyEvent(
+    EventItem event, {
+    required int ky,
+    required int km,
+    required int kd,
+  }) {
+    final flow = _chromeFlowForId(event.flowId);
+    if (!_isTrackSkyFlowName(flow?.name)) return null;
+    final timezone = _trackSkyTimeZoneForFlow(flow);
+    if (timezone == null) return null;
+    final data = _trackSkyDataByTimeZone[timezone];
+    if (data == null) {
+      _primeTrackSkyFlowDataForEvent(event);
+      return null;
+    }
+
+    final targetDate = DateUtils.dateOnly(KemeticMath.toGregorian(ky, km, kd));
+    final normalizedTitle = event.title.trim().toLowerCase();
+    final exactMatches = data.events.where((candidate) {
+      if (candidate.title.trim().toLowerCase() != normalizedTitle) return false;
+      final candidateDate = DateUtils.dateOnly(
+        trackSkyEventStartLocal(candidate, timezone),
+      );
+      if (!DateUtils.isSameDay(candidateDate, targetDate)) return false;
+      if (event.allDay != candidate.schedule.allDay) return false;
+      if (event.allDay) return true;
+      final candidateStart = trackSkyEventStartLocal(candidate, timezone);
+      final candidateStartMin =
+          candidateStart.hour * 60 + candidateStart.minute;
+      return candidateStartMin == event.startMin;
+    }).toList();
+    if (exactMatches.isNotEmpty) return exactMatches.first;
+
+    final dayMatches = data.events.where((candidate) {
+      if (candidate.title.trim().toLowerCase() != normalizedTitle) return false;
+      final candidateDate = DateUtils.dateOnly(
+        trackSkyEventStartLocal(candidate, timezone),
+      );
+      return DateUtils.isSameDay(candidateDate, targetDate);
+    }).toList();
+    if (dayMatches.isNotEmpty) return dayMatches.first;
+
+    return null;
+  }
+
+  String _trackSkyDisplayDetail(
+    EventItem event, {
+    required int ky,
+    required int km,
+    required int kd,
+  }) {
+    final resolved = _resolveTrackSkyEvent(event, ky: ky, km: km, kd: kd);
+    if (resolved != null) {
+      return resolved.detailSummary;
+    }
+
+    final raw = event.detail;
+    if (raw == null || raw.isEmpty) return '';
+    String displayDetail = raw;
+    if (displayDetail.startsWith('flowLocalId=')) {
+      final semi = displayDetail.indexOf(';');
+      if (semi > 0 && semi < displayDetail.length - 1) {
+        displayDetail = displayDetail.substring(semi + 1).trim();
+      } else {
+        return '';
+      }
+    }
+    displayDetail = kemeticizeTrackSkyText(
+      normalizeTrackSkyDetailText(_stripCidLines(displayDetail)),
+      anchorDate: KemeticMath.toGregorian(ky, km, kd),
+    );
+    displayDetail = buildTrackSkyNarrativeSummary(
+      title: event.title,
+      category: event.category,
+      fallbackGuidance: displayDetail,
+    );
+    if (displayDetail.isEmpty || _looksLikeCidDetail(displayDetail)) {
+      return '';
+    }
+    return displayDetail;
+  }
+
+  bool _looksLikeCidDetail(String text) {
+    final trimmed = text.trim().replaceAll(RegExp(r'\s+'), '');
+    final withPrefix = trimmed.startsWith('kemet_cid:')
+        ? trimmed.substring('kemet_cid:'.length)
+        : trimmed;
+    final cidPattern = RegExp(
+      r'^ky=\d+-km=\d+-kd=\d+\|s=\d+\|t=[^|]+\|f=[^|]+$',
+    );
+    return cidPattern.hasMatch(withPrefix);
+  }
+
+  String _stripCidLines(String detail) {
+    final lines = detail.split(RegExp(r'\r?\n'));
+    final cidRegex = RegExp(
+      r'^(kemet_cid:)?ky=\d+-km=\d+-kd=\d+\|s=\d+\|t=[^|]+\|f=[^|]+$',
+    );
+    final kept = lines.where((line) {
+      final trimmed = line.trim();
+      if (trimmed.isEmpty) return false;
+      if (trimmed.startsWith('flowLocalId=')) return false;
+      final norm = trimmed.replaceAll(RegExp(r'\s+'), '');
+      if (cidRegex.hasMatch(norm)) return false;
+      if (norm.toLowerCase().startsWith('kemet_cid:reminder:')) return false;
+      if (norm.toLowerCase().startsWith('reminder:')) return false;
+      return true;
+    }).toList();
+    return kept.join('\n').trim();
+  }
+
+  String _normalizeMaatDetailSectionLabel(String value) {
+    return value
+        .trim()
+        .toLowerCase()
+        .replaceAll(RegExp(r'[\s:]+'), ' ')
+        .replaceAll(RegExp(r'\s+'), ' ')
+        .trim();
+  }
+
+  String _stripDuplicateMaatSectionHeading({
+    required String heading,
+    required String body,
+  }) {
+    final lines = body.trim().split(RegExp(r'\r?\n'));
+    if (lines.isEmpty) return body.trim();
+    final firstLine = lines.first.trim();
+    final normalizedHeading = _normalizeMaatDetailSectionLabel(heading);
+    if (normalizedHeading.isEmpty ||
+        _normalizeMaatDetailSectionLabel(firstLine) != normalizedHeading) {
+      return body.trim();
+    }
+    return lines.skip(1).join('\n').trim();
+  }
+
+  List<({String heading, String body})> _maatFlowDetailSections(String detail) {
+    final cleaned = _stripCidLines(detail).trim();
+    if (cleaned.isEmpty) return const <({String heading, String body})>[];
+
+    final sections = <({String heading, String body})>[];
+    final headingPattern = RegExp(
+      r"^(Purpose|Action|Water|Words|Quiet line|Ma'at act|Order act|Evening act|Steps|Provision|Optional|Drink|Privacy|Source|Lens|Cycle|Complete|Completion|Material Ledger|Spoken Record|Record You Leave|Current ḥꜣw Context|Day Card|Season Instruction|Confidence|Variant|Outdoor)\s*:?\s*(.*)$",
+      caseSensitive: false,
+    );
+    final buffer = <String>[];
+    String? activeHeading;
+
+    void flush() {
+      final heading = activeHeading?.trim() ?? '';
+      final body = buffer.join('\n').trim();
+      final lowerHeading = heading.toLowerCase();
+      buffer.clear();
+      activeHeading = null;
+      if (body.isEmpty ||
+          lowerHeading == 'cycle' ||
+          lowerHeading == 'completion') {
+        return;
+      }
+      final displayBody = _stripDuplicateMaatSectionHeading(
+        heading: heading,
+        body: body,
+      );
+      if (displayBody.isEmpty) return;
+      sections.add((heading: heading, body: displayBody));
+    }
+
+    for (final rawLine in cleaned.split(RegExp(r'\r?\n'))) {
+      final line = rawLine.trim();
+      if (line.isEmpty) continue;
+      final match = headingPattern.firstMatch(line);
+      if (match != null) {
+        flush();
+        final heading = match.group(1)!.trim();
+        final lowerHeading = heading.toLowerCase();
+        if (lowerHeading == 'cycle' || lowerHeading == 'completion') {
+          activeHeading = null;
+          continue;
+        }
+        activeHeading = heading;
+        final inlineBody = match.group(2)?.trim();
+        if (inlineBody != null && inlineBody.isNotEmpty) {
+          buffer.add(inlineBody);
+        }
+        continue;
+      }
+
+      if (activeHeading == null) {
+        sections.add((heading: '', body: line));
+      } else {
+        buffer.add(line);
+      }
+    }
+    flush();
+
+    return sections;
+  }
+
+  Widget _buildMaatFlowDetailText(
+    String detail, {
+    CalendarEventVisualStyle? visual,
+  }) {
+    final sections = _maatFlowDetailSections(detail);
+    if (sections.isEmpty) return const SizedBox.shrink();
+    final hasStructuredSections = sections.any(
+      (section) => section.heading.isNotEmpty,
+    );
+    final displaySections = hasStructuredSections
+        ? sections
+        : <({String heading, String body})>[
+            (
+              heading: 'Purpose',
+              body: sections.map((section) => section.body).join('\n').trim(),
+            ),
+          ];
+
+    const headingStyle = TextStyle(
+      color: MaatFlowPalette.interiorLabel,
+      fontFamily: MaatFlowListTokens.fontFamily,
+      fontFamilyFallback: MaatFlowListTokens.fontFallback,
+      fontSize: 10,
+      fontWeight: FontWeight.w600,
+      letterSpacing: 1.6,
+      height: 1,
+    );
+    final bodyStyle = _detailBodyStyle(visual: visual);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        for (final section in displaySections) ...[
+          if (section.heading.isNotEmpty)
+            Text(section.heading.toUpperCase(), style: headingStyle),
+          if (section.heading.isNotEmpty) const SizedBox(height: 8),
+          if (section.heading.toLowerCase() == 'words' ||
+              section.heading.toLowerCase() == 'quiet line')
+            Text(
+              section.body,
+              style: bodyStyle.copyWith(
+                color: _dayViewSilver.withValues(alpha: 0.94),
+                fontStyle: FontStyle.italic,
+              ),
+            )
+          else
+            Text(section.body, style: bodyStyle),
+          if (section != displaySections.last) const SizedBox(height: 12),
+        ],
+      ],
+    );
+  }
+
+  TextStyle _detailCategoryStyle(CalendarEventVisualStyle visual) => TextStyle(
+    color: visual.category,
+    fontSize: 10,
+    fontWeight: FontWeight.w600,
+    letterSpacing: 2.0,
+    height: 1.15,
+    fontFamilyFallback: _dayViewSansFallback,
+  );
+
+  TextStyle _detailTitleStyle(CalendarEventVisualStyle visual) => TextStyle(
+    color: visual.title,
+    fontSize: 21,
+    fontWeight: FontWeight.w500,
+    height: 1.16,
+    fontFamily: _dayViewSerifFamily,
+    fontFamilyFallback: _dayViewSerifFallback,
+  );
+
+  TextStyle _detailBodyStyle({
+    CalendarEventVisualStyle? visual,
+    bool italic = false,
+  }) => TextStyle(
+    color: visual?.bodyText ?? _dayViewWarmStone.withValues(alpha: 0.9),
+    fontSize: 14,
+    fontWeight: FontWeight.w400,
+    height: 1.58,
+    fontStyle: italic ? FontStyle.italic : FontStyle.normal,
+    fontFamily: _dayViewSerifFamily,
+    fontFamilyFallback: _dayViewSerifFallback,
+  );
+
+  Widget _buildDetailSectionLabel(
+    String label, {
+    CalendarEventVisualStyle? visual,
+  }) {
+    return Text(
+      label.toUpperCase(),
+      style: TextStyle(
+        color:
+            visual?.sectionLabelText ??
+            _dayViewBronzeLabel.withValues(alpha: 0.56),
+        fontSize: 9,
+        fontWeight: FontWeight.w600,
+        height: 1.15,
+        letterSpacing: 2.0,
+        fontFamilyFallback: _dayViewSansFallback,
+      ),
+    );
+  }
+
+  Widget _buildDetailTimeLine(String text, CalendarEventVisualStyle visual) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(
+          Icons.access_time_rounded,
+          size: 13,
+          color: visual.metaText.withValues(alpha: 0.78),
+        ),
+        const SizedBox(width: 6),
+        Text(
+          text,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: TextStyle(
+            color: visual.metaText,
+            fontSize: 13,
+            fontWeight: FontWeight.w400,
+            height: 1.25,
+            fontStyle: FontStyle.italic,
+            fontFamily: _dayViewSerifFamily,
+            fontFamilyFallback: _dayViewSerifFallback,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildDetailFlowNameLine(
+    String text,
+    CalendarEventVisualStyle visual,
+  ) {
+    return Text(
+      text,
+      maxLines: 1,
+      overflow: TextOverflow.ellipsis,
+      style: TextStyle(
+        color: visual.supportText,
+        fontSize: 13,
+        fontWeight: FontWeight.w400,
+        height: 1.25,
+        fontStyle: FontStyle.italic,
+        fontFamily: _dayViewSerifFamily,
+        fontFamilyFallback: _dayViewSerifFallback,
+      ),
+    );
+  }
+
+  Widget _buildDetailExternalActionButton(
+    _DayViewExternalAction action,
+    CalendarEventVisualStyle visual,
+  ) {
+    return InkWell(
+      borderRadius: BorderRadius.circular(999),
+      onTap: () async {
+        final handled = await launchExternalTarget(
+          action.target,
+          fallbackToMaps: action.fallbackToMaps,
+        );
+        if (!handled && widget.hostContext.mounted) {
+          ScaffoldMessenger.of(widget.hostContext).showSnackBar(
+            const SnackBar(content: Text('Could not open this link.')),
+          );
+        }
+      },
+      child: Container(
+        height: 38,
+        padding: const EdgeInsets.symmetric(horizontal: 16),
+        decoration: BoxDecoration(
+          color: visual.actionButtonFill,
+          borderRadius: BorderRadius.circular(19),
+          border: Border.all(color: visual.actionButtonBorder, width: 0.5),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 18,
+              height: 18,
+              decoration: BoxDecoration(
+                color: visual.actionIconFill,
+                shape: BoxShape.circle,
+              ),
+              child: Icon(action.icon, size: 10, color: visual.actionIconGlyph),
+            ),
+            const SizedBox(width: 8),
+            Text(
+              action.label,
+              style: TextStyle(
+                color: visual.actionButtonText,
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+                fontFamily: _dayViewSerifFamily,
+                fontFamilyFallback: _dayViewSerifFallback,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _quickAddToJournal(
+    EventItem event, {
+    required int ky,
+    required int km,
+    required int kd,
+    CompletionStatus completionStatus = CompletionStatus.observed,
+    CompletionSourceType sourceType = CompletionSourceType.calendarEvent,
+    bool triggerHaptic = true,
+  }) async {
+    final cb = widget.onAppendToJournal;
+    if (cb == null) return;
+
+    final token = _buildBadgeToken(
+      event,
+      ky: ky,
+      km: km,
+      kd: kd,
+      completionStatus: completionStatus,
+      sourceType: sourceType,
+    );
+    try {
+      await cb('$token ');
+      if (triggerHaptic) {
+        unawaited(AppHaptics.productiveAction());
+      }
+    } catch (_) {}
+  }
+
+  Future<void> _appendCompletionContinuity(
+    DayViewSheetEventTarget target,
+    CompletionStatus status, {
+    required CompletionSourceType sourceType,
+    bool triggerHaptic = true,
+  }) async {
+    await _quickAddToJournal(
+      target.event,
+      ky: target.ky,
+      km: target.km,
+      kd: target.kd,
+      completionStatus: status,
+      sourceType: sourceType,
+      triggerHaptic: triggerHaptic,
+    );
+  }
+
+  Future<void> _removeCompletionContinuity(
+    DayViewSheetEventTarget target, {
+    required CompletionSourceType sourceType,
+  }) async {
+    final cb = widget.onRemoveCompletionBadge;
+    if (cb == null) return;
+    await cb(_completionBadgeIdForEvent(target.event, sourceType: sourceType));
+  }
+
+  CompletionSourceType _completionSourceTypeForEvent(
+    EventItem event,
+    FlowData? flow,
+    _MaatFlowCompletionContext? completionContext,
+  ) {
+    if (completionContext != null) return CompletionSourceType.maatFlow;
+    if (event.isReminder) return CompletionSourceType.reminder;
+    final category = event.category?.trim().toLowerCase() ?? '';
+    if (category.contains('itinerary') || category.contains('travel')) {
+      return CompletionSourceType.itinerary;
+    }
+    if (flow != null && !_isRepeatingNoteFlowId(event.flowId)) {
+      return CompletionSourceType.userFlow;
+    }
+    if (event.flowId != null || event.clientEventId != null) {
+      return CompletionSourceType.calendarEvent;
+    }
+    return CompletionSourceType.note;
+  }
+
+  String _completionIdentityForEvent(EventItem event) {
+    return calendarCompletionIdentity(
+      eventId: event.id,
+      clientEventId: event.clientEventId,
+      reminderId: event.reminderId,
+      fallback: _eventIdentityKey(event),
+    );
+  }
+
+  String _completionBadgeIdForEvent(
+    EventItem event, {
+    required CompletionSourceType sourceType,
+  }) {
+    return calendarCompletionBadgeId(
+      identity: _completionIdentityForEvent(event),
+      sourceType: sourceType,
+    );
+  }
+
+  String _buildBadgeToken(
+    EventItem event, {
+    required int ky,
+    required int km,
+    required int kd,
+    CompletionStatus completionStatus = CompletionStatus.observed,
+    CompletionSourceType sourceType = CompletionSourceType.calendarEvent,
+  }) {
+    final g = KemeticMath.toGregorian(ky, km, kd);
+    final dayStart = DateTime(g.year, g.month, g.day);
+    final start = dayStart.add(Duration(minutes: event.startMin));
+    final end = dayStart.add(Duration(minutes: event.endMin));
+    final rawDesc = event.detail?.trim() ?? '';
+    final cleanedDesc = rawDesc.isEmpty ? null : _stripCidLines(rawDesc);
+    final descForToken = (cleanedDesc == null || cleanedDesc.isEmpty)
+        ? null
+        : cleanedDesc;
+    return buildCalendarCompletionBadgeToken(
+      identity: _completionIdentityForEvent(event),
+      sourceType: sourceType,
+      completionStatus: completionStatus,
+      eventId: event.clientEventId ?? event.id ?? event.reminderId,
+      title: event.title.isEmpty ? 'Scheduled block' : event.title,
+      start: start,
+      end: end,
+      color: event.color,
+      description: descForToken,
+    );
+  }
+
+  CalendarReflectionContext _reflectionContextForTarget(
+    DayViewSheetEventTarget target, {
+    required CompletionSourceType sourceType,
+    CompletionStatus completionStatus = CompletionStatus.none,
+  }) {
+    final event = target.event;
+    final g = KemeticMath.toGregorian(target.ky, target.km, target.kd);
+    final dayStart = DateTime(g.year, g.month, g.day);
+    return CalendarReflectionContext(
+      sourceType: sourceType,
+      sourceId: _completionIdentityForEvent(event),
+      title: event.title,
+      calendarDate: dayStart,
+      occurrenceId: event.clientEventId ?? event.id ?? event.reminderId,
+      eventId: event.clientEventId ?? event.id ?? event.reminderId,
+      flowId: event.flowId,
+      start: dayStart.add(Duration(minutes: event.startMin)),
+      end: dayStart.add(Duration(minutes: event.endMin)),
+      color: event.color,
+      completionStatus: completionStatus,
+      reflectionPrompt: resolveCalendarReflectionPrompt(
+        sourceType: sourceType,
+        title: event.title,
+        detail: event.detail,
+        behaviorPayload: event.behaviorPayload,
+      ),
+    );
+  }
+
+  Future<void> _openReflectionForTarget({
+    required BuildContext routeContext,
+    required BuildContext sheetContext,
+    required DayViewSheetEventTarget target,
+    required CompletionSourceType sourceType,
+  }) async {
+    final identity = _completionIdentityForEvent(target.event);
+    Navigator.pop(sheetContext);
+    final record = await const CalendarCompletionLocalStore().load(identity);
+    if (!routeContext.mounted) return;
+    final reflectionContext = _reflectionContextForTarget(
+      target,
+      sourceType: sourceType,
+      completionStatus: record.completionStatus,
+    );
+    routeContext.go(
+      reflectionContext.journalRouteLocation,
+      extra: reflectionContext,
+    );
+  }
+
+  Future<CompletionStatus> _loadCalendarCompletionStatus(
+    DayViewSheetEventTarget target,
+  ) async {
+    final clientEventId = target.event.clientEventId?.trim();
+    final flowId = target.event.flowId;
+    final user = Supabase.instance.client.auth.currentUser;
+    if (clientEventId == null ||
+        clientEventId.isEmpty ||
+        flowId == null ||
+        user == null) {
+      return CompletionStatus.none;
+    }
+
+    final row = await Supabase.instance.client
+        .from('user_event_completions')
+        .select('metadata')
+        .eq('user_id', user.id)
+        .eq('client_event_id', clientEventId)
+        .maybeSingle();
+    if (row == null) return CompletionStatus.none;
+    final metadata = row['metadata'];
+    if (metadata is Map) {
+      final normalized = CompletionStatusX.fromWireName(
+        metadata['completion_status']?.toString() ??
+            metadata['status']?.toString(),
+      );
+      if (normalized != CompletionStatus.none) return normalized;
+    }
+    return CompletionStatus.observed;
+  }
+
+  Future<void> _recordCalendarCompletion(
+    DayViewSheetEventTarget target,
+    CompletionStatus status, {
+    required CompletionSourceType sourceType,
+    required FlowData? flow,
+  }) async {
+    if (status == CompletionStatus.none) {
+      await _clearCalendarCompletion(target, sourceType: sourceType);
+      return;
+    }
+    final clientEventId = target.event.clientEventId?.trim();
+    final flowId = target.event.flowId;
+    if (clientEventId == null || clientEventId.isEmpty || flowId == null) {
+      return;
+    }
+    final completedOnDate = DateUtils.dateOnly(
+      KemeticMath.toGregorian(target.ky, target.km, target.kd),
+    );
+    final metadata = calendarCompletionMetadata(
+      completionStatus: status,
+      sourceType: sourceType,
+      completedOnDate: completedOnDate,
+      flowTitle: flow?.name,
+      eventTitle: target.event.title,
+    );
+    final callback = widget.onRecordCompletion;
+    if (callback != null) {
+      await callback(
+        clientEventId: clientEventId,
+        flowId: flowId,
+        completedOnDate: completedOnDate,
+        metadata: metadata,
+      );
+    } else {
+      await UserEventsRepo(Supabase.instance.client).recordEventCompletion(
+        clientEventId: clientEventId,
+        flowId: flowId,
+        completedOnDate: completedOnDate,
+        metadata: metadata,
+      );
+    }
+  }
+
+  Future<void> _clearCalendarCompletion(
+    DayViewSheetEventTarget target, {
+    required CompletionSourceType sourceType,
+  }) async {
+    final clientEventId = target.event.clientEventId?.trim();
+    if (clientEventId != null && clientEventId.isNotEmpty) {
+      final callback = widget.onUnrecordCompletion;
+      if (callback != null) {
+        await callback(clientEventId);
+      } else {
+        await UserEventsRepo(
+          Supabase.instance.client,
+        ).unrecordEventCompletion(clientEventId);
+      }
+    }
+    await _removeCompletionContinuity(target, sourceType: sourceType);
+  }
+
+  Widget _buildAddReflectionButton({
+    required BuildContext routeContext,
+    required BuildContext sheetContext,
+    required DayViewSheetEventTarget target,
+    required CompletionSourceType sourceType,
+  }) {
+    return OutlinedButton.icon(
+      style: _endButtonStyle(sheetContext),
+      onPressed: () => unawaited(
+        _openReflectionForTarget(
+          routeContext: routeContext,
+          sheetContext: sheetContext,
+          target: target,
+          sourceType: sourceType,
+        ),
+      ),
+      icon: KemeticGold.icon(Icons.edit_note_rounded),
+      label: const Text('Add reflection'),
+    );
+  }
+
+  Widget _buildEventDetailSheetPage({
+    required DayViewSheetEventTarget target,
+    bool scrollable = true,
+    bool includeOnboardingKeys = true,
+    Object? completionReloadSignal,
+  }) {
+    final currentEvent = target.event;
+    final flow = _chromeFlowForId(currentEvent.flowId);
+    final bool isReminder = currentEvent.isReminder;
+    final bool isNutrition =
+        currentEvent.detail != null && currentEvent.detail!.contains('Source:');
+    final bool isTrackSky = _isTrackSkyFlowName(flow?.name);
+    final bool isTheTending = _isTheTendingFlowName(flow?.name);
+    final bool isKeptWord = _isKeptWordFlowName(flow?.name);
+    final bool isTheCourse = _isTheCourseFlowName(flow?.name);
+    final bool isTheWag = _isTheWagFlowName(flow?.name);
+    final bool isDecanWatch = _isDecanWatchFlowName(flow?.name);
+    final bool isDaysOutsideYear = _isDaysOutsideYearFlowName(flow?.name);
+    final bool isOpenHand = _isOpenHandFlowName(flow?.name);
+    final bool isDjed = _isDjedFlowName(flow?.name);
+    final tendingEvent = isTheTending
+        ? theTendingEventForEvent(title: currentEvent.title)
+        : null;
+    final keptWordEvent = isKeptWord
+        ? keptWordEventForEvent(title: currentEvent.title)
+        : null;
+    final courseEvent = isTheCourse
+        ? courseEventForEvent(title: currentEvent.title)
+        : null;
+    final wagEvent = isTheWag
+        ? wagEventForEvent(title: currentEvent.title)
+        : null;
+    final daysOutsideEvent = isDaysOutsideYear
+        ? daysOutsideEventForEvent(title: currentEvent.title)
+        : null;
+    final openHandEvent = isOpenHand
+        ? openHandEventForEvent(title: currentEvent.title)
+        : null;
+    final djedEvent = isDjed
+        ? djedEventForEvent(title: currentEvent.title)
+        : null;
+    final courseContext = courseEvent == null
+        ? null
+        : courseContextForKemeticDate(
+            kYear: target.ky,
+            kMonth: target.km,
+            kDay: target.kd,
+          );
+    final decanWatchContext = isDecanWatch
+        ? courseContextForKemeticDate(
+            kYear: target.ky,
+            kMonth: target.km,
+            kDay: target.kd,
+          )
+        : null;
+    final completionContext = _maatFlowCompletionContextForEvent(
+      currentEvent,
+      flow,
+    );
+    final responseSpecs = completionContext == null
+        ? const <MaatFlowResponseSpec>[]
+        : resolveMaatFlowResponseSpecs(
+            flowKey: completionContext.flowKey,
+            surface: MaatFlowResponseSurface.calendarSheet,
+            eventKey: _maatFlowResponseEventKey(completionContext),
+          );
+    final libraryCta = _maatLibraryCtaPayloadForEvent(currentEvent);
+    final enableRitualCompletionFeedback =
+        currentEvent.flowId != null && !isNutrition;
+
+    final visual = _dayViewMatteDetailVisual(
+      _dayViewVisualForEvent(
+        currentEvent,
+        flow,
+        isReminder: isReminder,
+        isNutrition: isNutrition,
+      ),
+    );
+    final isMaatFlow = completionContext != null;
+    final detailCategoryLabel = _dayViewFlowLabel(
+      currentEvent,
+      flow,
+      isMaatFlow: isMaatFlow,
+      isReminder: isReminder,
+      isNutrition: isNutrition,
+    );
+    final externalAction = _dayViewExternalActionForEvent(currentEvent);
+    final showDetailLocation = _dayViewShouldShowDetailLocation(
+      currentEvent,
+      externalAction,
+    );
+    final completionPickerStyle = _dayViewCompletionPickerStyle(visual);
+    final hasMaatCompletionPanel =
+        completionContext != null &&
+        currentEvent.clientEventId?.trim().isNotEmpty == true &&
+        currentEvent.flowId != null;
+    final sharedPracticeRoomId = sharedPracticeRoomIdFromBehaviorPayload(
+      currentEvent.behaviorPayload,
+    );
+
+    Widget buildMaatCompletionPanel() {
+      return Builder(
+        builder: (feedbackContext) => _MaatFlowCompletionPanel(
+          event: currentEvent,
+          identity: _completionIdentityForEvent(currentEvent),
+          completion: completionContext!,
+          responseSpecs: responseSpecs,
+          ky: target.ky,
+          km: target.km,
+          kd: target.kd,
+          onRecordCompletion: widget.onRecordCompletion,
+          onUnrecordCompletion: widget.onUnrecordCompletion,
+          onRemoveCompletionBadge: widget.onRemoveCompletionBadge,
+          onWriteJournalResponse: widget.onWriteJournalResponse,
+          onCompletionContinuity: (status) => _appendCompletionContinuity(
+            target,
+            status,
+            sourceType: CompletionSourceType.maatFlow,
+            triggerHaptic: false,
+          ),
+          onUserCompletionFeedback: enableRitualCompletionFeedback
+              ? (status) =>
+                    playDayViewRitualCompletionFeedback(feedbackContext, status)
+              : null,
+          onAddReflection: null,
+          reloadSignal: completionReloadSignal,
+          pickerStyle: completionPickerStyle,
+          observedButtonKey:
+              includeOnboardingKeys && _isOnboardingTargetEvent(currentEvent)
+              ? widget.onboardingObservedKey
+              : null,
+        ),
+      );
+    }
+
+    Widget buildCalendarCompletionPanel() {
+      return Builder(
+        builder: (feedbackContext) => CalendarEventCompletionPanel(
+          identity: _completionIdentityForEvent(currentEvent),
+          sourceType: _completionSourceTypeForEvent(
+            currentEvent,
+            flow,
+            completionContext,
+          ),
+          loadStatus: currentEvent.flowId == null
+              ? null
+              : () => _loadCalendarCompletionStatus(target),
+          onRecordStatus: (status) => _recordCalendarCompletion(
+            target,
+            status,
+            sourceType: _completionSourceTypeForEvent(
+              currentEvent,
+              flow,
+              completionContext,
+            ),
+            flow: flow,
+          ),
+          onClearStatus: () => _clearCalendarCompletion(
+            target,
+            sourceType: _completionSourceTypeForEvent(
+              currentEvent,
+              flow,
+              completionContext,
+            ),
+          ),
+          onCreateContinuity: (status) => _appendCompletionContinuity(
+            target,
+            status,
+            sourceType: _completionSourceTypeForEvent(
+              currentEvent,
+              flow,
+              completionContext,
+            ),
+            triggerHaptic: !enableRitualCompletionFeedback,
+          ),
+          onUserCompletionFeedback: enableRitualCompletionFeedback
+              ? (status) =>
+                    playDayViewRitualCompletionFeedback(feedbackContext, status)
+              : null,
+          onReflect: null,
+          reloadSignal: completionReloadSignal,
+          pickerStyle: completionPickerStyle,
+        ),
+      );
+    }
+
+    final body = Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(detailCategoryLabel, style: _detailCategoryStyle(visual)),
+        const SizedBox(height: 8),
+        Text(
+          currentEvent.title.trim().isEmpty
+              ? 'Scheduled block'
+              : currentEvent.title,
+          maxLines: 3,
+          overflow: TextOverflow.ellipsis,
+          style: _detailTitleStyle(visual),
+        ),
+        const SizedBox(height: 8),
+        _buildDetailTimeLine(
+          _formatTimeRange(currentEvent.startMin, currentEvent.endMin),
+          visual,
+        ),
+        if (flow != null) ...[
+          const SizedBox(height: 4),
+          _buildDetailFlowNameLine(flow.name, visual),
+        ],
+        if (showDetailLocation) ...[
+          const SizedBox(height: 8),
+          InkWell(
+            onTap: () =>
+                unawaited(launchExternalTarget(currentEvent.location!.trim())),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Icon(
+                  Icons.location_on_outlined,
+                  size: 16,
+                  color: visual.metaText,
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    currentEvent.location!,
+                    style: TextStyle(
+                      color: visual.metaText,
+                      decoration: TextDecoration.underline,
+                      fontSize: 12,
+                      height: 1.35,
+                      fontFamily: _dayViewSerifFamily,
+                      fontFamilyFallback: _dayViewSerifFallback,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+        if (externalAction != null) ...[
+          const SizedBox(height: 10),
+          _buildDetailExternalActionButton(externalAction, visual),
+        ],
+        if ((isTrackSky &&
+                _trackSkyDisplayDetail(
+                  currentEvent,
+                  ky: target.ky,
+                  km: target.km,
+                  kd: target.kd,
+                ).isNotEmpty) ||
+            (currentEvent.detail != null &&
+                currentEvent.detail!.isNotEmpty)) ...[
+          const SizedBox(height: 12),
+          Builder(
+            builder: (context) {
+              final rawDisplayDetail = isTrackSky
+                  ? _trackSkyDisplayDetail(
+                      currentEvent,
+                      ky: target.ky,
+                      km: target.km,
+                      kd: target.kd,
+                    )
+                  : isTheCourse && courseEvent != null
+                  ? courseDetailText(
+                      courseEvent,
+                      lens: courseLensFromNotes(flow?.notes),
+                      context: courseContext,
+                    )
+                  : () {
+                      var rawDetail = currentEvent.detail!;
+                      if (rawDetail.startsWith('flowLocalId=')) {
+                        final semi = rawDetail.indexOf(';');
+                        if (semi > 0 && semi < rawDetail.length - 1) {
+                          rawDetail = rawDetail.substring(semi + 1).trim();
+                        } else {
+                          return '';
+                        }
+                      }
+                      return _stripCidLines(rawDetail);
+                    }();
+              final displayDetail = _dayViewStripStandaloneExternalTargetLines(
+                rawDisplayDetail,
+                externalAction,
+              );
+              if (displayDetail.isEmpty || _looksLikeCidDetail(displayDetail)) {
+                return const SizedBox.shrink();
+              }
+
+              final rendersMaatFlowSections = isMaatFlow;
+              Widget detailContent;
+              if (rendersMaatFlowSections) {
+                detailContent = _buildMaatFlowDetailText(
+                  displayDetail,
+                  visual: visual,
+                );
+              } else {
+                detailContent = RichText(
+                  text: TextSpan(
+                    style: _detailBodyStyle(visual: visual),
+                    children: _buildTextSpans(displayDetail),
+                  ),
+                );
+              }
+
+              if (rendersMaatFlowSections) {
+                if (responseSpecs.isNotEmpty) {
+                  return ConstrainedBox(
+                    constraints: const BoxConstraints(maxHeight: 180),
+                    child: SingleChildScrollView(
+                      physics: const BouncingScrollPhysics(),
+                      child: detailContent,
+                    ),
+                  );
+                }
+                return detailContent;
+              }
+
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _buildDetailSectionLabel('Purpose', visual: visual),
+                  const SizedBox(height: 6),
+                  detailContent,
+                ],
+              );
+            },
+          ),
+        ],
+        if (sharedPracticeRoomId != null) ...[
+          const SizedBox(height: 12),
+          _SharedPracticeDetailModule(
+            roomId: sharedPracticeRoomId,
+            calendarName: currentEvent.calendarName,
+            flowTitle: flow?.name ?? currentEvent.title,
+          ),
+        ],
+        if (hasMaatCompletionPanel && responseSpecs.isNotEmpty) ...[
+          const SizedBox(height: 10),
+          buildMaatCompletionPanel(),
+        ],
+        if (currentEvent.flowId != null &&
+            tendingEvent != null &&
+            tendingEvent.localPrompt != TheTendingLocalPromptKind.none) ...[
+          const SizedBox(height: 12),
+          _TheTendingLocalNotesPanel(
+            flowId: currentEvent.flowId!,
+            event: tendingEvent,
+          ),
+        ],
+        if (currentEvent.flowId != null &&
+            keptWordEvent != null &&
+            keptWordEvent.localPrompt != KeptWordLocalPromptKind.none) ...[
+          const SizedBox(height: 12),
+          _KeptWordLocalNotesPanel(
+            flowId: currentEvent.flowId!,
+            event: keptWordEvent,
+          ),
+        ],
+        if (currentEvent.flowId != null &&
+            wagEvent != null &&
+            wagEvent.localPrompt != WagLocalPromptKind.none) ...[
+          const SizedBox(height: 12),
+          _TheWagLocalNotesPanel(flowId: currentEvent.flowId!, event: wagEvent),
+        ],
+        if (currentEvent.flowId != null && daysOutsideEvent != null) ...[
+          const SizedBox(height: 12),
+          _DaysOutsideYearLocalNotesPanel(
+            flowId: currentEvent.flowId!,
+            event: daysOutsideEvent,
+          ),
+        ],
+        if (currentEvent.flowId != null && openHandEvent != null) ...[
+          const SizedBox(height: 12),
+          _OpenHandLocalNotesPanel(
+            flowId: currentEvent.flowId!,
+            event: openHandEvent,
+          ),
+        ],
+        if (currentEvent.flowId != null && djedEvent != null) ...[
+          const SizedBox(height: 12),
+          _DjedLocalNotesPanel(flowId: currentEvent.flowId!, event: djedEvent),
+        ],
+        if (courseEvent != null && courseContext != null) ...[
+          const SizedBox(height: 12),
+          _TheCourseDayCardPanel(event: courseEvent, context: courseContext),
+        ],
+        if (isDecanWatch && decanWatchContext != null) ...[
+          const SizedBox(height: 12),
+          _DecanWatchDayCardPanel(context: decanWatchContext),
+        ],
+        if (currentEvent.flowId != null &&
+            isDecanWatch &&
+            decanWatchContext != null &&
+            responseSpecs.isEmpty) ...[
+          const SizedBox(height: 12),
+          _DecanWatchLocalNotesPanel(
+            flowId: currentEvent.flowId!,
+            kYear: target.ky,
+            kMonth: target.km,
+            kDay: target.kd,
+            decanName: decanWatchContext.decanName,
+          ),
+        ],
+        if (currentEvent.flowId != null && isDecanWatch) ...[
+          const SizedBox(height: 12),
+          _DecanWatchMilestonePanel(
+            flowId: currentEvent.flowId!,
+            kYear: target.ky,
+          ),
+        ],
+        if (hasMaatCompletionPanel && responseSpecs.isEmpty) ...[
+          const SizedBox(height: 10),
+          buildMaatCompletionPanel(),
+        ] else if (!hasMaatCompletionPanel) ...[
+          const SizedBox(height: 10),
+          buildCalendarCompletionPanel(),
+        ],
+        if (libraryCta != null) ...[
+          const SizedBox(height: 12),
+          _MaatFlowLibraryCtaPanel(event: currentEvent, cta: libraryCta),
+        ],
+      ],
+    );
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 2),
+      child: DayViewRitualCompletionFeedbackCard._withVisual(
+        enabled: enableRitualCompletionFeedback,
+        visual: visual,
+        child: scrollable
+            ? SingleChildScrollView(
+                physics: const BouncingScrollPhysics(),
+                child: body,
+              )
+            : body,
+      ),
+    );
+  }
+
+  Widget _buildEventDetailTopActionRow({
+    required BuildContext rootContext,
+    required BuildContext sheetContext,
+    required DayViewSheetEventTarget target,
+  }) {
+    final currentEvent = target.event;
+    final flow = _chromeFlowForId(currentEvent.flowId);
+    final completionContext = _maatFlowCompletionContextForEvent(
+      currentEvent,
+      flow,
+    );
+    final sourceType = _completionSourceTypeForEvent(
+      currentEvent,
+      flow,
+      completionContext,
+    );
+
+    return Row(
+      children: [
+        const Spacer(),
+        _buildAddReflectionButton(
+          routeContext: rootContext,
+          sheetContext: sheetContext,
+          target: target,
+          sourceType: sourceType,
+        ),
+        const SizedBox(width: 8),
+        _buildEventDetailOverflowButton(
+          rootContext: rootContext,
+          sheetContext: sheetContext,
+          target: target,
+        ),
+      ],
+    );
+  }
+
+  Widget _buildEventDetailInlineError(String message) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        color: const Color(0xFF4A1414).withValues(alpha: 0.88),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(
+          color: const Color(0xFFE57373).withValues(alpha: 0.45),
+        ),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Icon(Icons.error_outline, color: Color(0xFFFFB4AB), size: 18),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              message,
+              style: const TextStyle(
+                color: Color(0xFFFFDAD6),
+                fontSize: 13,
+                height: 1.25,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildEventDetailPrimaryAction({
+    required BuildContext rootContext,
+    required BuildContext sheetContext,
+    required DayViewSheetEventTarget target,
+  }) {
+    return TextButton.icon(
+      onPressed: () async {
+        Navigator.pop(sheetContext);
+        final handled = await CalendarPage.makeTodoFromEventTarget(target);
+        if (!handled && rootContext.mounted) {
+          ScaffoldMessenger.of(
+            rootContext,
+          ).showSnackBar(const SnackBar(content: Text('Could not add to-do.')));
+        }
+      },
+      icon: KemeticGold.icon(Icons.playlist_add_check),
+      label: KemeticGold.text(
+        'Make to-do',
+        style: _goldHeaderStyle.copyWith(fontSize: 15),
+      ),
+    );
+  }
+
+  Widget _buildEventDetailOverflowButton({
+    required BuildContext rootContext,
+    required BuildContext sheetContext,
+    required DayViewSheetEventTarget target,
+  }) {
+    final currentEvent = target.event;
+    final flow = _chromeFlowForId(currentEvent.flowId);
+    final actionableFlow = _isActionableFlowId(currentEvent.flowId);
+    final isReminder = currentEvent.isReminder;
+    final isEndingFlow =
+        currentEvent.flowId != null &&
+        _endingFlowIds.contains(currentEvent.flowId);
+
+    return PopupMenuButton<String>(
+      icon: KemeticGold.icon(Icons.more_vert),
+      tooltip: 'Event options',
+      color: _dayViewBase,
+      onSelected: (value) async {
+        if (value == 'end_flow') {
+          final flowId = currentEvent.flowId;
+          final onEndFlow = widget.onEndFlow;
+          if (flowId != null && onEndFlow != null) {
+            if (!_beginEndFlowAction(flowId)) return;
+            _setEndFlowError(null);
+            try {
+              final result = await CalendarPage.endFlowFromEventTarget(target);
+              if (result == EndFlowActionResult.success) {
+                if (sheetContext.mounted) Navigator.pop(sheetContext);
+              } else if (result == EndFlowActionResult.failed) {
+                _setEndFlowError(
+                  'Could not end this flow right now.\n'
+                  'Check your connection and try again.',
+                );
+              } else if (result == EndFlowActionResult.notHandled) {
+                onEndFlow(flowId);
+                if (sheetContext.mounted) Navigator.pop(sheetContext);
+              }
+            } finally {
+              _finishEndFlowAction(flowId);
+            }
+          }
+        } else if (value == 'end_reminder') {
+          Navigator.pop(sheetContext);
+          final reminderId = currentEvent.reminderId;
+          final onEndReminder = widget.onEndReminder;
+          if (reminderId != null && onEndReminder != null) {
+            await onEndReminder(reminderId);
+          }
+        } else if (value == 'end_note') {
+          Navigator.pop(sheetContext);
+          if (widget.onDeleteNote != null) {
+            await widget.onDeleteNote!(
+              target.ky,
+              target.km,
+              target.kd,
+              currentEvent,
+            );
+          }
+        } else if (value == 'share') {
+          Navigator.pop(sheetContext);
+          if (flow != null && !isReminder) {
+            await CalendarPage.shareFlowFromEvent(currentEvent);
+          } else if (isReminder && widget.onShareReminder != null) {
+            await widget.onShareReminder!(currentEvent);
+          } else if (widget.onShareNote != null) {
+            await widget.onShareNote!(currentEvent);
+          }
+        } else if (value == 'edit' && flow != null && actionableFlow) {
+          await Navigator.of(sheetContext).maybePop();
+          widget.onManageFlows?.call(flow.id);
+        } else if (value == 'save' && flow != null && actionableFlow) {
+          Navigator.pop(sheetContext);
+          if (widget.onSaveFlow != null) {
+            await widget.onSaveFlow!(flow.id);
+          } else {
+            try {
+              await UserEventsRepo(
+                Supabase.instance.client,
+              ).setFlowSaved(flowId: flow.id, isSaved: true);
+              if (rootContext.mounted) {
+                ScaffoldMessenger.of(rootContext).showSnackBar(
+                  const SnackBar(
+                    content: Text('Saved to Saved Flows'),
+                    duration: Duration(seconds: 2),
+                  ),
+                );
+              }
+            } catch (e) {
+              if (rootContext.mounted) {
+                ScaffoldMessenger.of(rootContext).showSnackBar(
+                  SnackBar(content: Text('Unable to save flow: $e')),
+                );
+              }
+            }
+          }
+        } else if (value == 'edit_reminder' &&
+            isReminder &&
+            widget.onEditReminder != null &&
+            currentEvent.reminderId != null) {
+          Navigator.pop(sheetContext);
+          await widget.onEditReminder!(currentEvent.reminderId!);
+        } else if (value == 'edit_note' &&
+            (flow == null || _isRepeatingNoteFlowId(currentEvent.flowId)) &&
+            !isReminder &&
+            widget.onEditNote != null) {
+          Navigator.pop(sheetContext);
+          await widget.onEditNote!(
+            target.ky,
+            target.km,
+            target.kd,
+            currentEvent,
+          );
+        }
+      },
+      itemBuilder: (context) => [
+        if (flow != null ||
+            (isReminder && widget.onShareReminder != null) ||
+            (flow == null && !isReminder && widget.onShareNote != null))
+          PopupMenuItem(
+            value: 'share',
+            child: Row(
+              children: [
+                KemeticGold.icon(Icons.share_outlined),
+                const SizedBox(width: 12),
+                Text(
+                  flow != null
+                      ? 'Share Flow'
+                      : isReminder
+                      ? 'Share Reminder'
+                      : 'Share Note',
+                  style: const TextStyle(color: Colors.white),
+                ),
+              ],
+            ),
+          ),
+        if (flow != null && actionableFlow && !isReminder)
+          PopupMenuItem(
+            value: 'save',
+            child: Row(
+              children: [
+                KemeticGold.icon(Icons.bookmark_add),
+                const SizedBox(width: 12),
+                const Text('Save Flow', style: TextStyle(color: Colors.white)),
+              ],
+            ),
+          ),
+        if (flow != null && actionableFlow && !isReminder)
+          PopupMenuItem(
+            value: 'edit',
+            child: Row(
+              children: [
+                KemeticGold.icon(Icons.edit),
+                const SizedBox(width: 12),
+                const Text('Edit Flow', style: TextStyle(color: Colors.white)),
+              ],
+            ),
+          ),
+        if (flow != null &&
+            actionableFlow &&
+            !isReminder &&
+            widget.onEndFlow != null)
+          PopupMenuItem(
+            value: 'end_flow',
+            enabled: !isEndingFlow,
+            child: Row(
+              children: [
+                KemeticGold.icon(
+                  isEndingFlow ? Icons.hourglass_top : Icons.stop_circle,
+                ),
+                const SizedBox(width: 12),
+                Text(
+                  isEndingFlow ? 'Ending Flow...' : 'End Flow',
+                  style: const TextStyle(color: Colors.white),
+                ),
+              ],
+            ),
+          ),
+        if (isReminder &&
+            widget.onEditReminder != null &&
+            currentEvent.reminderId != null)
+          PopupMenuItem(
+            value: 'edit_reminder',
+            child: Row(
+              children: [
+                KemeticGold.icon(Icons.edit),
+                const SizedBox(width: 12),
+                const Text(
+                  'Edit Reminder',
+                  style: TextStyle(color: Colors.white),
+                ),
+              ],
+            ),
+          ),
+        if (isReminder &&
+            widget.onEndReminder != null &&
+            currentEvent.reminderId != null)
+          PopupMenuItem(
+            value: 'end_reminder',
+            child: Row(
+              children: [
+                KemeticGold.icon(Icons.stop_circle),
+                const SizedBox(width: 12),
+                const Text(
+                  'End Reminder',
+                  style: TextStyle(color: Colors.white),
+                ),
+              ],
+            ),
+          ),
+        if ((flow == null || _isRepeatingNoteFlowId(currentEvent.flowId)) &&
+            !isReminder &&
+            widget.onEditNote != null)
+          PopupMenuItem(
+            value: 'edit_note',
+            child: Row(
+              children: [
+                KemeticGold.icon(Icons.edit),
+                const SizedBox(width: 12),
+                const Text('Edit Note', style: TextStyle(color: Colors.white)),
+              ],
+            ),
+          ),
+        if ((flow == null || _isRepeatingNoteFlowId(currentEvent.flowId)) &&
+            !isReminder &&
+            widget.onDeleteNote != null)
+          PopupMenuItem(
+            value: 'end_note',
+            child: Row(
+              children: [
+                KemeticGold.icon(Icons.delete_outline),
+                const SizedBox(width: 12),
+                const Text('End Note', style: TextStyle(color: Colors.white)),
+              ],
+            ),
+          ),
+      ],
+    );
+  }
+
+  Widget _buildEventDetailBottomActionRow({
+    required BuildContext rootContext,
+    required BuildContext sheetContext,
+    required DayViewSheetEventTarget target,
+  }) {
+    final calendarLabel = CalendarPage.detailSheetCalendarButtonLabel(
+      target.event,
+    );
+    final calendarEnabled = CalendarPage.canChangeDetailSheetCalendar(
+      target.event,
+    );
+
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        _buildEventDetailPrimaryAction(
+          rootContext: rootContext,
+          sheetContext: sheetContext,
+          target: target,
+        ),
+        TextButton(
+          onPressed: calendarEnabled
+              ? () async {
+                  final updatedTarget =
+                      await CalendarPage.showDetailSheetCalendarPicker(
+                        context: sheetContext,
+                        target: target,
+                        onOptimisticTargetChanged: (optimisticTarget) {
+                          if (sheetContext.mounted) {
+                            _moveToTarget(optimisticTarget);
+                          }
+                        },
+                      );
+                  if (!sheetContext.mounted || updatedTarget == null) return;
+                  _moveToTarget(updatedTarget);
+                }
+              : null,
+          child: calendarEnabled
+              ? KemeticGold.text(
+                  calendarLabel,
+                  style: _goldHeaderStyle.copyWith(fontSize: 15),
+                )
+              : Text(
+                  calendarLabel,
+                  style: _goldHeaderStyle.copyWith(
+                    fontSize: 15,
+                    color: Colors.white24,
+                  ),
+                ),
+        ),
+      ],
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final dataVersion = widget.dataVersion;
+    if (dataVersion == null) {
+      return _buildSheet(context, 0);
+    }
+    return ValueListenableBuilder<int>(
+      valueListenable: dataVersion,
+      builder: (context, dataRevision, _) => _buildSheet(context, dataRevision),
+    );
+  }
+
+  Widget _buildSheet(BuildContext context, Object? completionReloadSignal) {
+    final rawTarget = _currentTarget;
+    final target =
+        widget.resolveCurrentEventTarget?.call(rawTarget) ?? rawTarget;
+    final pages = _detailSheetPagesForTarget(target);
+    final currentKey = _detailSheetTargetKey(target);
+    final pageViewKey = ValueKey<String>(
+      '$currentKey:${pages.currentIndex}:${pages.pages.length}',
+    );
+
+    if (!_onboardingDetailPromptScheduled &&
+        _isOnboardingTargetEvent(target.event) &&
+        widget.onboardingObservedKey != null) {
+      _onboardingDetailPromptScheduled = true;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        Future<void>.delayed(const Duration(milliseconds: 320), () {
+          if (!mounted) return;
+          GuidedOnboardingController.instance.show(
+            CoachmarkTarget(
+              key: widget.onboardingObservedKey,
+              secondaryKeys: [
+                if (widget.onboardingJournalKey != null)
+                  widget.onboardingJournalKey!,
+              ],
+              title: 'Mark what you lived.',
+              body:
+                  'Tap Observed when you complete the event. Add a journal note when you want to remember what happened, what changed, or what you noticed.',
+              placement: CoachmarkPlacement.above,
+              allowBackgroundInteraction: true,
+              showNextButton: true,
+              onNext: () {
+                GuidedOnboardingController.instance.clear();
+                if (context.mounted) {
+                  Navigator.of(context).maybePop();
+                }
+                widget.onOnboardingObservedJournalNext?.call();
+              },
+            ),
+          );
+        });
+      });
+    }
+
+    final hasOnboardingClosingBanner =
+        _isOnboardingTargetEvent(target.event) &&
+        widget.onboardingClosingBannerBuilder != null;
+    final maxSheetHeight = math.min(
+      MediaQuery.sizeOf(context).height * 0.68,
+      520.0,
+    );
+    final reservedChromeHeight = hasOnboardingClosingBanner ? 250.0 : 120.0;
+    final sheetHeight = (_measuredHeights[currentKey] ?? 200.0)
+        .clamp(0.0, math.max(180.0, maxSheetHeight - reservedChromeHeight))
+        .toDouble();
+
+    final content = Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        if (hasOnboardingClosingBanner) ...[
+          widget.onboardingClosingBannerBuilder!(context),
+          const SizedBox(height: 2),
+        ],
+        Offstage(
+          child: Column(
+            children: [
+              for (final pageTarget in pages.pages)
+                _MeasureSize(
+                  key: ValueKey<String>(_detailSheetTargetKey(pageTarget)),
+                  onChange: (size) {
+                    _updateMeasuredHeight(
+                      _detailSheetTargetKey(pageTarget),
+                      size.height,
+                    );
+                  },
+                  child: SizedBox(
+                    width: MediaQuery.sizeOf(context).width,
+                    child: _buildEventDetailSheetPage(
+                      target: pageTarget,
+                      scrollable: false,
+                      includeOnboardingKeys: false,
+                      completionReloadSignal: completionReloadSignal,
+                    ),
+                  ),
+                ),
+            ],
+          ),
+        ),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(10, 8, 10, 10),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              _buildEventDetailTopActionRow(
+                rootContext: widget.hostContext,
+                sheetContext: context,
+                target: target,
+              ),
+              AnimatedSize(
+                duration: const Duration(milliseconds: 180),
+                curve: Curves.easeOutCubic,
+                alignment: Alignment.topCenter,
+                child: _endFlowError == null
+                    ? const SizedBox.shrink()
+                    : Padding(
+                        padding: const EdgeInsets.fromLTRB(12, 8, 12, 0),
+                        child: _buildEventDetailInlineError(_endFlowError!),
+                      ),
+              ),
+              const SizedBox(height: 8),
+              AnimatedSize(
+                duration: const Duration(milliseconds: 180),
+                curve: Curves.easeOutCubic,
+                alignment: Alignment.bottomCenter,
+                child: SizedBox(
+                  height: sheetHeight,
+                  child: PageView.builder(
+                    key: pageViewKey,
+                    controller: _pageController,
+                    physics: const BouncingScrollPhysics(),
+                    itemCount: pages.pages.length,
+                    onPageChanged: (index) {
+                      if (index == pages.currentIndex) return;
+                      final nextTarget = pages.pages[index];
+                      final nextPages = _detailSheetPagesForTarget(nextTarget);
+                      _resetPageController(nextPages.currentIndex);
+                      _moveToTarget(nextTarget);
+                    },
+                    itemBuilder: (context, index) {
+                      return _buildEventDetailSheetPage(
+                        target: pages.pages[index],
+                        completionReloadSignal: completionReloadSignal,
+                      );
+                    },
+                  ),
+                ),
+              ),
+              const SizedBox(height: 8),
+              SizedBox(
+                height: 46,
+                child: _buildEventDetailBottomActionRow(
+                  rootContext: widget.hostContext,
+                  sheetContext: context,
+                  target: target,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+
+    return SafeArea(
+      top: false,
+      child: hasOnboardingClosingBanner
+          ? ConstrainedBox(
+              constraints: BoxConstraints(
+                maxHeight: MediaQuery.sizeOf(context).height * 0.94,
+              ),
+              child: SingleChildScrollView(child: content),
+            )
+          : content,
+    );
+  }
+
+  String _formatTimeRange(int startMin, int endMin) {
+    final startHour = startMin ~/ 60;
+    final startMinute = startMin % 60;
+    final endHour = endMin ~/ 60;
+    final endMinute = endMin % 60;
+
+    String formatTime(int h, int m) {
+      final period = h >= 12 ? 'PM' : 'AM';
+      final hour12 = h == 0 ? 12 : (h > 12 ? h - 12 : h);
+      return '$hour12:${m.toString().padLeft(2, '0')} $period';
+    }
+
+    if (startMin == endMin) return formatTime(startHour, startMinute);
+    return '${formatTime(startHour, startMinute)} – ${formatTime(endHour, endMinute)}';
+  }
+
+  List<TextSpan> _buildTextSpans(String text) {
+    final spans = <TextSpan>[];
+    final regex = externalLinkPattern;
+    int start = 0;
+
+    for (final match in regex.allMatches(text)) {
+      if (match.start > start) {
+        spans.add(TextSpan(text: text.substring(start, match.start)));
+      }
+      final raw = match.group(0)!;
+      final url = normalizeExternalLinkToken(raw);
+      if (url.isEmpty) {
+        start = match.end;
+        continue;
+      }
+      spans.add(
+        TextSpan(
+          text: url,
+          style: const TextStyle(
+            decoration: TextDecoration.underline,
+            color: Color(0xFF4DA3FF),
+          ),
+          recognizer: TapGestureRecognizer()
+            ..onTap = () => unawaited(launchExternalTarget(url)),
+        ),
+      );
+      start = match.end;
+    }
+
+    if (start < text.length) {
+      spans.add(TextSpan(text: text.substring(start)));
+    }
+
+    return spans;
+  }
+}
+
 EventDetailRestorationState? eventDetailRestorationStateForTarget(
   DayViewSheetEventTarget target, {
   String? parentSurface,
@@ -3945,27 +5990,7 @@ class _DayViewGridState extends State<DayViewGrid> {
   int? _lastDragSnappedMinute; // backup of last snapped minute during drag
   String? _initialEventDetailRestoreKey;
   bool _initialEventDetailRestoreInFlight = false;
-  final Set<int> _endingFlowIds = <int>{};
   int? get _focusStartMin => widget.focusStartMin;
-
-  bool _beginEndFlowAction(int flowId) {
-    if (_endingFlowIds.contains(flowId)) return false;
-    setState(() {
-      _endingFlowIds.add(flowId);
-    });
-    return true;
-  }
-
-  void _finishEndFlowAction(int flowId) {
-    if (!_endingFlowIds.contains(flowId)) return;
-    if (!mounted) {
-      _endingFlowIds.remove(flowId);
-      return;
-    }
-    setState(() {
-      _endingFlowIds.remove(flowId);
-    });
-  }
 
   bool _isOnboardingTargetEvent(EventItem event) {
     final targetClientEventId = widget.onboardingEventClientEventId?.trim();
@@ -3975,59 +6000,7 @@ class _DayViewGridState extends State<DayViewGrid> {
     return false;
   }
 
-  ButtonStyle _endButtonStyle(BuildContext context) {
-    return withExpandedTouchTargets(
-      context,
-      OutlinedButton.styleFrom(
-        side: BorderSide(color: _dayGold.withValues(alpha: 0.42), width: 0.7),
-        backgroundColor: _dayGold.withValues(alpha: 0.06),
-        foregroundColor: _dayGold,
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-        minimumSize: const Size(0, 40),
-        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-        visualDensity: const VisualDensity(horizontal: -1, vertical: -1),
-        shape: const StadiumBorder(),
-      ),
-    );
-  }
-
   FlowData? _chromeFlowForId(int? flowId) => widget.flowIndex[flowId];
-
-  bool _isRepeatingNoteFlowId(int? flowId) {
-    final flow = _chromeFlowForId(flowId);
-    return flow != null &&
-        (hasRepeatingNoteFlowMetadata(flow.notes) ||
-            (flow.isHidden && !flow.isReminder));
-  }
-
-  bool _isActionableFlowId(int? flowId) {
-    if (flowId == null) return false;
-    if (widget.activeLedgerFlowIds.contains(flowId)) return true;
-    final flow = _chromeFlowForId(flowId);
-    if (flow == null) return false;
-    return flow.active && !hasRepeatingNoteFlowMetadata(flow.notes);
-  }
-
-  Widget _buildAddReflectionButton({
-    required BuildContext routeContext,
-    required BuildContext sheetContext,
-    required DayViewSheetEventTarget target,
-    required CompletionSourceType sourceType,
-  }) {
-    return OutlinedButton.icon(
-      style: _endButtonStyle(sheetContext),
-      onPressed: () => unawaited(
-        _openReflectionForTarget(
-          routeContext: routeContext,
-          sheetContext: sheetContext,
-          target: target,
-          sourceType: sourceType,
-        ),
-      ),
-      icon: KemeticGold.icon(Icons.edit_note_rounded),
-      label: const Text('Add reflection'),
-    );
-  }
 
   @override
   void initState() {
@@ -4315,189 +6288,6 @@ class _DayViewGridState extends State<DayViewGrid> {
   }
 
   /// Launch URL/email/phone, or treat as address and open in Maps.
-  Future<void> _launchLocation(String raw) async {
-    await launchExternalTarget(raw);
-  }
-
-  /// Turn a block of text into TextSpans with clickable URLs.
-  List<TextSpan> _buildTextSpans(String text) {
-    final spans = <TextSpan>[];
-    final regex = externalLinkPattern;
-    int start = 0;
-
-    for (final match in regex.allMatches(text)) {
-      if (match.start > start) {
-        spans.add(TextSpan(text: text.substring(start, match.start)));
-      }
-      final raw = match.group(0)!;
-      final url = normalizeExternalLinkToken(raw);
-      if (url.isEmpty) {
-        start = match.end;
-        continue;
-      }
-      spans.add(
-        TextSpan(
-          text: url,
-          style: const TextStyle(
-            decoration: TextDecoration.underline,
-            color: Color(0xFF4DA3FF),
-          ),
-          recognizer: TapGestureRecognizer()
-            ..onTap = () async {
-              await launchExternalTarget(url, fallbackToMaps: false);
-            },
-        ),
-      );
-      if (raw.length > url.length) {
-        spans.add(TextSpan(text: raw.substring(url.length)));
-      }
-      start = match.end;
-    }
-
-    if (start < text.length) {
-      spans.add(TextSpan(text: text.substring(start)));
-    }
-
-    return spans;
-  }
-
-  String _normalizeMaatDetailSectionLabel(String value) {
-    return value
-        .trim()
-        .replaceAll(RegExp(r'[:：]+$'), '')
-        .replaceAll(RegExp(r'\s+'), ' ')
-        .toLowerCase();
-  }
-
-  String _stripDuplicateMaatSectionHeading({
-    required String heading,
-    required String body,
-  }) {
-    final lines = body.split(RegExp(r'\r?\n'));
-    if (lines.isEmpty) return body.trim();
-    final normalizedHeading = _normalizeMaatDetailSectionLabel(heading);
-    final firstLine = lines.first.trim();
-    if (normalizedHeading.isEmpty ||
-        _normalizeMaatDetailSectionLabel(firstLine) != normalizedHeading) {
-      return body.trim();
-    }
-    return lines.skip(1).join('\n').trim();
-  }
-
-  List<({String heading, String body})> _maatFlowDetailSections(String detail) {
-    final cleaned = _stripCidLines(detail).trim();
-    if (cleaned.isEmpty) return const <({String heading, String body})>[];
-
-    final sections = <({String heading, String body})>[];
-    final headingPattern = RegExp(
-      r"^(Purpose|Action|Water|Words|Quiet line|Ma'at act|Order act|Evening act|Steps|Provision|Optional|Drink|Privacy|Source|Lens|Cycle|Complete|Completion|Material Ledger|Spoken Record|Record You Leave|Current ḥꜣw Context|Day Card|Season Instruction|Confidence|Variant|Outdoor)\s*:?\s*(.*)$",
-      caseSensitive: false,
-    );
-    final buffer = <String>[];
-    String? activeHeading;
-
-    void flush() {
-      final heading = activeHeading?.trim() ?? '';
-      final body = buffer.join('\n').trim();
-      final lowerHeading = heading.toLowerCase();
-      buffer.clear();
-      activeHeading = null;
-      if (body.isEmpty ||
-          lowerHeading == 'cycle' ||
-          lowerHeading == 'completion') {
-        return;
-      }
-      final displayBody = _stripDuplicateMaatSectionHeading(
-        heading: heading,
-        body: body,
-      );
-      if (displayBody.isEmpty) return;
-      sections.add((heading: heading, body: displayBody));
-    }
-
-    for (final rawLine in cleaned.split(RegExp(r'\r?\n'))) {
-      final line = rawLine.trim();
-      if (line.isEmpty) continue;
-      final match = headingPattern.firstMatch(line);
-      if (match != null) {
-        flush();
-        final heading = match.group(1)!.trim();
-        final lowerHeading = heading.toLowerCase();
-        if (lowerHeading == 'cycle' || lowerHeading == 'completion') {
-          activeHeading = null;
-          continue;
-        }
-        activeHeading = heading;
-        final inlineBody = match.group(2)?.trim();
-        if (inlineBody != null && inlineBody.isNotEmpty) {
-          buffer.add(inlineBody);
-        }
-        continue;
-      }
-
-      if (activeHeading == null) {
-        sections.add((heading: '', body: line));
-      } else {
-        buffer.add(line);
-      }
-    }
-    flush();
-
-    return sections;
-  }
-
-  Widget _buildMaatFlowDetailText(
-    String detail, {
-    CalendarEventVisualStyle? visual,
-  }) {
-    final sections = _maatFlowDetailSections(detail);
-    if (sections.isEmpty) return const SizedBox.shrink();
-    final hasStructuredSections = sections.any(
-      (section) => section.heading.isNotEmpty,
-    );
-    final displaySections = hasStructuredSections
-        ? sections
-        : <({String heading, String body})>[
-            (
-              heading: 'Purpose',
-              body: sections.map((section) => section.body).join('\n').trim(),
-            ),
-          ];
-
-    const headingStyle = TextStyle(
-      color: MaatFlowPalette.interiorLabel,
-      fontFamily: MaatFlowListTokens.fontFamily,
-      fontFamilyFallback: MaatFlowListTokens.fontFallback,
-      fontSize: 10,
-      fontWeight: FontWeight.w600,
-      letterSpacing: 1.6,
-      height: 1,
-    );
-    final bodyStyle = _detailBodyStyle(visual: visual);
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        for (final section in displaySections) ...[
-          if (section.heading.isNotEmpty)
-            Text(section.heading.toUpperCase(), style: headingStyle),
-          if (section.heading.isNotEmpty) const SizedBox(height: 8),
-          if (section.heading.toLowerCase() == 'words' ||
-              section.heading.toLowerCase() == 'quiet line')
-            Text(
-              section.body,
-              style: bodyStyle.copyWith(
-                color: _dayViewSilver.withValues(alpha: 0.94),
-                fontStyle: FontStyle.italic,
-              ),
-            )
-          else
-            Text(section.body, style: bodyStyle),
-          if (section != displaySections.last) const SizedBox(height: 12),
-        ],
-      ],
-    );
-  }
 
   void _scrollToSavedOrCurrentTime() {
     if (!_scrollController.hasClients || _hasScrolledToInitial) return;
@@ -6403,1279 +8193,6 @@ class _DayViewGridState extends State<DayViewGrid> {
     return '${hour - 12} PM';
   }
 
-  CompletionSourceType _completionSourceTypeForEvent(
-    EventItem event,
-    FlowData? flow,
-    _MaatFlowCompletionContext? completionContext,
-  ) {
-    if (completionContext != null) return CompletionSourceType.maatFlow;
-    if (event.isReminder) return CompletionSourceType.reminder;
-    final category = event.category?.trim().toLowerCase() ?? '';
-    if (category.contains('itinerary') || category.contains('travel')) {
-      return CompletionSourceType.itinerary;
-    }
-    if (flow != null && !_isRepeatingNoteFlowId(event.flowId)) {
-      return CompletionSourceType.userFlow;
-    }
-    if (event.flowId != null || event.clientEventId != null) {
-      return CompletionSourceType.calendarEvent;
-    }
-    return CompletionSourceType.note;
-  }
-
-  String _completionIdentityForEvent(EventItem event) {
-    return calendarCompletionIdentity(
-      eventId: event.id,
-      clientEventId: event.clientEventId,
-      reminderId: event.reminderId,
-      fallback: _eventIdentityKey(event),
-    );
-  }
-
-  String _completionBadgeIdForEvent(
-    EventItem event, {
-    required CompletionSourceType sourceType,
-  }) {
-    return calendarCompletionBadgeId(
-      identity: _completionIdentityForEvent(event),
-      sourceType: sourceType,
-    );
-  }
-
-  String _buildBadgeToken(
-    EventItem event, {
-    required int ky,
-    required int km,
-    required int kd,
-    CompletionStatus completionStatus = CompletionStatus.observed,
-    CompletionSourceType sourceType = CompletionSourceType.calendarEvent,
-  }) {
-    final g = KemeticMath.toGregorian(ky, km, kd);
-    final dayStart = DateTime(g.year, g.month, g.day);
-    final start = dayStart.add(Duration(minutes: event.startMin));
-    final end = dayStart.add(Duration(minutes: event.endMin));
-    final rawDesc = event.detail?.trim() ?? '';
-    final cleanedDesc = rawDesc.isEmpty ? null : _stripCidLines(rawDesc);
-    final descForToken = (cleanedDesc == null || cleanedDesc.isEmpty)
-        ? null
-        : cleanedDesc;
-    return buildCalendarCompletionBadgeToken(
-      identity: _completionIdentityForEvent(event),
-      sourceType: sourceType,
-      completionStatus: completionStatus,
-      eventId: event.clientEventId ?? event.id ?? event.reminderId,
-      title: event.title.isEmpty ? 'Scheduled block' : event.title,
-      start: start,
-      end: end,
-      color: event.color,
-      description: descForToken,
-    );
-  }
-
-  Future<void> _quickAddToJournal(
-    EventItem event, {
-    required int ky,
-    required int km,
-    required int kd,
-    CompletionStatus completionStatus = CompletionStatus.observed,
-    CompletionSourceType sourceType = CompletionSourceType.calendarEvent,
-    bool triggerHaptic = true,
-  }) async {
-    final cb = widget.onAppendToJournal;
-    if (cb == null) return;
-
-    final token = _buildBadgeToken(
-      event,
-      ky: ky,
-      km: km,
-      kd: kd,
-      completionStatus: completionStatus,
-      sourceType: sourceType,
-    );
-    try {
-      await cb('$token ');
-      if (triggerHaptic) {
-        unawaited(AppHaptics.productiveAction());
-      }
-    } catch (_) {
-      // ignore errors silently to avoid blocking UI
-    }
-  }
-
-  Future<void> _appendCompletionContinuity(
-    DayViewSheetEventTarget target,
-    CompletionStatus status, {
-    required CompletionSourceType sourceType,
-    bool triggerHaptic = true,
-  }) async {
-    await _quickAddToJournal(
-      target.event,
-      ky: target.ky,
-      km: target.km,
-      kd: target.kd,
-      completionStatus: status,
-      sourceType: sourceType,
-      triggerHaptic: triggerHaptic,
-    );
-  }
-
-  Future<void> _removeCompletionContinuity(
-    DayViewSheetEventTarget target, {
-    required CompletionSourceType sourceType,
-  }) async {
-    final cb = widget.onRemoveCompletionBadge;
-    if (cb == null) return;
-    await cb(_completionBadgeIdForEvent(target.event, sourceType: sourceType));
-  }
-
-  CalendarReflectionContext _reflectionContextForTarget(
-    DayViewSheetEventTarget target, {
-    required CompletionSourceType sourceType,
-    CompletionStatus completionStatus = CompletionStatus.none,
-  }) {
-    final event = target.event;
-    final g = KemeticMath.toGregorian(target.ky, target.km, target.kd);
-    final dayStart = DateTime(g.year, g.month, g.day);
-    return CalendarReflectionContext(
-      sourceType: sourceType,
-      sourceId: _completionIdentityForEvent(event),
-      title: event.title,
-      calendarDate: dayStart,
-      occurrenceId: event.clientEventId ?? event.id ?? event.reminderId,
-      eventId: event.clientEventId ?? event.id ?? event.reminderId,
-      flowId: event.flowId,
-      start: dayStart.add(Duration(minutes: event.startMin)),
-      end: dayStart.add(Duration(minutes: event.endMin)),
-      color: event.color,
-      completionStatus: completionStatus,
-      reflectionPrompt: resolveCalendarReflectionPrompt(
-        sourceType: sourceType,
-        title: event.title,
-        detail: event.detail,
-        behaviorPayload: event.behaviorPayload,
-      ),
-    );
-  }
-
-  Future<void> _openReflectionForTarget({
-    required BuildContext routeContext,
-    required BuildContext sheetContext,
-    required DayViewSheetEventTarget target,
-    required CompletionSourceType sourceType,
-  }) async {
-    final identity = _completionIdentityForEvent(target.event);
-    Navigator.pop(sheetContext);
-    final record = await const CalendarCompletionLocalStore().load(identity);
-    if (!routeContext.mounted) return;
-    final reflectionContext = _reflectionContextForTarget(
-      target,
-      sourceType: sourceType,
-      completionStatus: record.completionStatus,
-    );
-    routeContext.go(
-      reflectionContext.journalRouteLocation,
-      extra: reflectionContext,
-    );
-  }
-
-  Future<CompletionStatus> _loadCalendarCompletionStatus(
-    DayViewSheetEventTarget target,
-  ) async {
-    final clientEventId = target.event.clientEventId?.trim();
-    final flowId = target.event.flowId;
-    final user = Supabase.instance.client.auth.currentUser;
-    if (clientEventId == null ||
-        clientEventId.isEmpty ||
-        flowId == null ||
-        user == null) {
-      return CompletionStatus.none;
-    }
-
-    final row = await Supabase.instance.client
-        .from('user_event_completions')
-        .select('metadata')
-        .eq('user_id', user.id)
-        .eq('client_event_id', clientEventId)
-        .maybeSingle();
-    if (row == null) return CompletionStatus.none;
-    final metadata = row['metadata'];
-    if (metadata is Map) {
-      final normalized = CompletionStatusX.fromWireName(
-        metadata['completion_status']?.toString() ??
-            metadata['status']?.toString(),
-      );
-      if (normalized != CompletionStatus.none) return normalized;
-    }
-    return CompletionStatus.observed;
-  }
-
-  Future<void> _recordCalendarCompletion(
-    DayViewSheetEventTarget target,
-    CompletionStatus status, {
-    required CompletionSourceType sourceType,
-    required FlowData? flow,
-  }) async {
-    if (status == CompletionStatus.none) {
-      await _clearCalendarCompletion(target, sourceType: sourceType);
-      return;
-    }
-    final clientEventId = target.event.clientEventId?.trim();
-    final flowId = target.event.flowId;
-    if (clientEventId == null || clientEventId.isEmpty || flowId == null) {
-      return;
-    }
-    final completedOnDate = DateUtils.dateOnly(
-      KemeticMath.toGregorian(target.ky, target.km, target.kd),
-    );
-    final metadata = calendarCompletionMetadata(
-      completionStatus: status,
-      sourceType: sourceType,
-      completedOnDate: completedOnDate,
-      flowTitle: flow?.name,
-      eventTitle: target.event.title,
-    );
-    final callback = widget.onRecordCompletion;
-    if (callback != null) {
-      await callback(
-        clientEventId: clientEventId,
-        flowId: flowId,
-        completedOnDate: completedOnDate,
-        metadata: metadata,
-      );
-    } else {
-      await UserEventsRepo(Supabase.instance.client).recordEventCompletion(
-        clientEventId: clientEventId,
-        flowId: flowId,
-        completedOnDate: completedOnDate,
-        metadata: metadata,
-      );
-    }
-  }
-
-  Future<void> _clearCalendarCompletion(
-    DayViewSheetEventTarget target, {
-    required CompletionSourceType sourceType,
-  }) async {
-    final clientEventId = target.event.clientEventId?.trim();
-    if (clientEventId != null && clientEventId.isNotEmpty) {
-      final callback = widget.onUnrecordCompletion;
-      if (callback != null) {
-        await callback(clientEventId);
-      } else {
-        await UserEventsRepo(
-          Supabase.instance.client,
-        ).unrecordEventCompletion(clientEventId);
-      }
-    }
-    await _removeCompletionContinuity(target, sourceType: sourceType);
-  }
-
-  String _detailSheetTargetKey(DayViewSheetEventTarget target) =>
-      '${target.ky}:${target.km}:${target.kd}:${_eventIdentityKey(target.event)}';
-
-  ({List<DayViewSheetEventTarget> pages, int currentIndex})
-  _detailSheetPagesForTarget(DayViewSheetEventTarget target) {
-    final previous = widget.resolveAdjacentEvent?.call(
-      ky: target.ky,
-      km: target.km,
-      kd: target.kd,
-      event: target.event,
-      forward: false,
-    );
-    final next = widget.resolveAdjacentEvent?.call(
-      ky: target.ky,
-      km: target.km,
-      kd: target.kd,
-      event: target.event,
-      forward: true,
-    );
-
-    final pages = <DayViewSheetEventTarget>[
-      if (previous != null) previous,
-      target,
-      if (next != null) next,
-    ];
-    return (pages: pages, currentIndex: previous != null ? 1 : 0);
-  }
-
-  TextStyle _detailCategoryStyle(CalendarEventVisualStyle visual) => TextStyle(
-    color: visual.category,
-    fontSize: 10,
-    fontWeight: FontWeight.w600,
-    letterSpacing: 2.0,
-    height: 1.15,
-    fontFamilyFallback: _dayViewSansFallback,
-  );
-
-  TextStyle _detailTitleStyle(CalendarEventVisualStyle visual) => TextStyle(
-    color: visual.title,
-    fontSize: 21,
-    fontWeight: FontWeight.w500,
-    height: 1.16,
-    fontFamily: _dayViewSerifFamily,
-    fontFamilyFallback: _dayViewSerifFallback,
-  );
-
-  TextStyle _detailBodyStyle({
-    CalendarEventVisualStyle? visual,
-    bool italic = false,
-  }) => TextStyle(
-    color: visual?.bodyText ?? _dayViewWarmStone.withValues(alpha: 0.9),
-    fontSize: 14,
-    fontWeight: FontWeight.w400,
-    height: 1.58,
-    fontStyle: italic ? FontStyle.italic : FontStyle.normal,
-    fontFamily: _dayViewSerifFamily,
-    fontFamilyFallback: _dayViewSerifFallback,
-  );
-
-  Widget _buildDetailSectionLabel(
-    String label, {
-    CalendarEventVisualStyle? visual,
-  }) {
-    return Text(
-      label.toUpperCase(),
-      style: TextStyle(
-        color:
-            visual?.sectionLabelText ??
-            _dayViewBronzeLabel.withValues(alpha: 0.56),
-        fontSize: 9,
-        fontWeight: FontWeight.w600,
-        height: 1.15,
-        letterSpacing: 2.0,
-        fontFamilyFallback: _dayViewSansFallback,
-      ),
-    );
-  }
-
-  Widget _buildDetailTimeLine(String text, CalendarEventVisualStyle visual) {
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Icon(
-          Icons.access_time_rounded,
-          size: 13,
-          color: visual.metaText.withValues(alpha: 0.78),
-        ),
-        const SizedBox(width: 6),
-        Text(
-          text,
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-          style: TextStyle(
-            color: visual.metaText,
-            fontSize: 13,
-            fontWeight: FontWeight.w400,
-            height: 1.25,
-            fontStyle: FontStyle.italic,
-            fontFamily: _dayViewSerifFamily,
-            fontFamilyFallback: _dayViewSerifFallback,
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildDetailFlowNameLine(
-    String text,
-    CalendarEventVisualStyle visual,
-  ) {
-    return Text(
-      text,
-      maxLines: 1,
-      overflow: TextOverflow.ellipsis,
-      style: TextStyle(
-        color: visual.supportText,
-        fontSize: 13,
-        fontWeight: FontWeight.w400,
-        height: 1.25,
-        fontStyle: FontStyle.italic,
-        fontFamily: _dayViewSerifFamily,
-        fontFamilyFallback: _dayViewSerifFallback,
-      ),
-    );
-  }
-
-  Widget _buildDetailExternalActionButton(
-    _DayViewExternalAction action,
-    CalendarEventVisualStyle visual,
-  ) {
-    return InkWell(
-      borderRadius: BorderRadius.circular(999),
-      onTap: () async {
-        final handled = await launchExternalTarget(
-          action.target,
-          fallbackToMaps: action.fallbackToMaps,
-        );
-        if (!handled && mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Could not open this link.')),
-          );
-        }
-      },
-      child: Container(
-        height: 38,
-        padding: const EdgeInsets.symmetric(horizontal: 16),
-        decoration: BoxDecoration(
-          color: visual.actionButtonFill,
-          borderRadius: BorderRadius.circular(19),
-          border: Border.all(color: visual.actionButtonBorder, width: 0.5),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              width: 18,
-              height: 18,
-              decoration: BoxDecoration(
-                color: visual.actionIconFill,
-                shape: BoxShape.circle,
-              ),
-              child: Icon(action.icon, size: 10, color: visual.actionIconGlyph),
-            ),
-            const SizedBox(width: 8),
-            Text(
-              action.label,
-              style: TextStyle(
-                color: visual.actionButtonText,
-                fontSize: 13,
-                fontWeight: FontWeight.w600,
-                fontFamily: _dayViewSerifFamily,
-                fontFamilyFallback: _dayViewSerifFallback,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildEventDetailSheetPage({
-    required DayViewSheetEventTarget target,
-    bool scrollable = true,
-    bool includeOnboardingKeys = true,
-    Object? completionReloadSignal,
-  }) {
-    final currentEvent = target.event;
-    final flow = _chromeFlowForId(currentEvent.flowId);
-    final bool isReminder = currentEvent.isReminder;
-    final bool isNutrition =
-        currentEvent.detail != null && currentEvent.detail!.contains('Source:');
-    final bool isTrackSky = _isTrackSkyFlowName(flow?.name);
-    final bool isTheTending = _isTheTendingFlowName(flow?.name);
-    final bool isKeptWord = _isKeptWordFlowName(flow?.name);
-    final bool isTheCourse = _isTheCourseFlowName(flow?.name);
-    final bool isTheWag = _isTheWagFlowName(flow?.name);
-    final bool isDecanWatch = _isDecanWatchFlowName(flow?.name);
-    final bool isDaysOutsideYear = _isDaysOutsideYearFlowName(flow?.name);
-    final bool isOpenHand = _isOpenHandFlowName(flow?.name);
-    final bool isDjed = _isDjedFlowName(flow?.name);
-    final tendingEvent = isTheTending
-        ? theTendingEventForEvent(title: currentEvent.title)
-        : null;
-    final keptWordEvent = isKeptWord
-        ? keptWordEventForEvent(title: currentEvent.title)
-        : null;
-    final courseEvent = isTheCourse
-        ? courseEventForEvent(title: currentEvent.title)
-        : null;
-    final wagEvent = isTheWag
-        ? wagEventForEvent(title: currentEvent.title)
-        : null;
-    final daysOutsideEvent = isDaysOutsideYear
-        ? daysOutsideEventForEvent(title: currentEvent.title)
-        : null;
-    final openHandEvent = isOpenHand
-        ? openHandEventForEvent(title: currentEvent.title)
-        : null;
-    final djedEvent = isDjed
-        ? djedEventForEvent(title: currentEvent.title)
-        : null;
-    final courseContext = courseEvent == null
-        ? null
-        : courseContextForKemeticDate(
-            kYear: target.ky,
-            kMonth: target.km,
-            kDay: target.kd,
-          );
-    final decanWatchContext = isDecanWatch
-        ? courseContextForKemeticDate(
-            kYear: target.ky,
-            kMonth: target.km,
-            kDay: target.kd,
-          )
-        : null;
-    final completionContext = _maatFlowCompletionContextForEvent(
-      currentEvent,
-      flow,
-    );
-    final responseSpecs = completionContext == null
-        ? const <MaatFlowResponseSpec>[]
-        : resolveMaatFlowResponseSpecs(
-            flowKey: completionContext.flowKey,
-            surface: MaatFlowResponseSurface.calendarSheet,
-            eventKey: _maatFlowResponseEventKey(completionContext),
-          );
-    final libraryCta = _maatLibraryCtaPayloadForEvent(currentEvent);
-    final enableRitualCompletionFeedback =
-        currentEvent.flowId != null && !isNutrition;
-
-    final visual = _dayViewMatteDetailVisual(
-      _dayViewVisualForEvent(
-        currentEvent,
-        flow,
-        isReminder: isReminder,
-        isNutrition: isNutrition,
-      ),
-    );
-    final isMaatFlow = completionContext != null;
-    final detailCategoryLabel = _dayViewFlowLabel(
-      currentEvent,
-      flow,
-      isMaatFlow: isMaatFlow,
-      isReminder: isReminder,
-      isNutrition: isNutrition,
-    );
-    final externalAction = _dayViewExternalActionForEvent(currentEvent);
-    final showDetailLocation = _dayViewShouldShowDetailLocation(
-      currentEvent,
-      externalAction,
-    );
-    final completionPickerStyle = _dayViewCompletionPickerStyle(visual);
-    final hasMaatCompletionPanel =
-        completionContext != null &&
-        currentEvent.clientEventId?.trim().isNotEmpty == true &&
-        currentEvent.flowId != null;
-    final sharedPracticeRoomId = sharedPracticeRoomIdFromBehaviorPayload(
-      currentEvent.behaviorPayload,
-    );
-
-    Widget buildMaatCompletionPanel() {
-      return Builder(
-        builder: (feedbackContext) => _MaatFlowCompletionPanel(
-          event: currentEvent,
-          identity: _completionIdentityForEvent(currentEvent),
-          completion: completionContext!,
-          responseSpecs: responseSpecs,
-          ky: target.ky,
-          km: target.km,
-          kd: target.kd,
-          onRecordCompletion: widget.onRecordCompletion,
-          onUnrecordCompletion: widget.onUnrecordCompletion,
-          onRemoveCompletionBadge: widget.onRemoveCompletionBadge,
-          onWriteJournalResponse: widget.onWriteJournalResponse,
-          onCompletionContinuity: (status) => _appendCompletionContinuity(
-            target,
-            status,
-            sourceType: CompletionSourceType.maatFlow,
-            triggerHaptic: false,
-          ),
-          onUserCompletionFeedback: enableRitualCompletionFeedback
-              ? (status) =>
-                    playDayViewRitualCompletionFeedback(feedbackContext, status)
-              : null,
-          onAddReflection: null,
-          reloadSignal: completionReloadSignal,
-          pickerStyle: completionPickerStyle,
-          observedButtonKey:
-              includeOnboardingKeys && _isOnboardingTargetEvent(currentEvent)
-              ? widget.onboardingObservedKey
-              : null,
-        ),
-      );
-    }
-
-    Widget buildCalendarCompletionPanel() {
-      return Builder(
-        builder: (feedbackContext) => CalendarEventCompletionPanel(
-          identity: _completionIdentityForEvent(currentEvent),
-          sourceType: _completionSourceTypeForEvent(
-            currentEvent,
-            flow,
-            completionContext,
-          ),
-          loadStatus: currentEvent.flowId == null
-              ? null
-              : () => _loadCalendarCompletionStatus(target),
-          onRecordStatus: (status) => _recordCalendarCompletion(
-            target,
-            status,
-            sourceType: _completionSourceTypeForEvent(
-              currentEvent,
-              flow,
-              completionContext,
-            ),
-            flow: flow,
-          ),
-          onClearStatus: () => _clearCalendarCompletion(
-            target,
-            sourceType: _completionSourceTypeForEvent(
-              currentEvent,
-              flow,
-              completionContext,
-            ),
-          ),
-          onCreateContinuity: (status) => _appendCompletionContinuity(
-            target,
-            status,
-            sourceType: _completionSourceTypeForEvent(
-              currentEvent,
-              flow,
-              completionContext,
-            ),
-            triggerHaptic: !enableRitualCompletionFeedback,
-          ),
-          onUserCompletionFeedback: enableRitualCompletionFeedback
-              ? (status) =>
-                    playDayViewRitualCompletionFeedback(feedbackContext, status)
-              : null,
-          onReflect: null,
-          reloadSignal: completionReloadSignal,
-          pickerStyle: completionPickerStyle,
-        ),
-      );
-    }
-
-    final body = Column(
-      mainAxisSize: MainAxisSize.min,
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(detailCategoryLabel, style: _detailCategoryStyle(visual)),
-        const SizedBox(height: 8),
-        Text(
-          currentEvent.title.trim().isEmpty
-              ? 'Scheduled block'
-              : currentEvent.title,
-          maxLines: 3,
-          overflow: TextOverflow.ellipsis,
-          style: _detailTitleStyle(visual),
-        ),
-        const SizedBox(height: 8),
-        _buildDetailTimeLine(
-          _formatTimeRange(currentEvent.startMin, currentEvent.endMin),
-          visual,
-        ),
-        if (flow != null) ...[
-          const SizedBox(height: 4),
-          _buildDetailFlowNameLine(flow.name, visual),
-        ],
-        if (showDetailLocation) ...[
-          const SizedBox(height: 8),
-          InkWell(
-            onTap: () => _launchLocation(currentEvent.location!.trim()),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Icon(
-                  Icons.location_on_outlined,
-                  size: 16,
-                  color: visual.metaText,
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    currentEvent.location!,
-                    style: TextStyle(
-                      color: visual.metaText,
-                      decoration: TextDecoration.underline,
-                      fontSize: 12,
-                      height: 1.35,
-                      fontFamily: _dayViewSerifFamily,
-                      fontFamilyFallback: _dayViewSerifFallback,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-        if (externalAction != null) ...[
-          const SizedBox(height: 10),
-          _buildDetailExternalActionButton(externalAction, visual),
-        ],
-        if ((isTrackSky &&
-                _trackSkyDisplayDetail(
-                  currentEvent,
-                  ky: target.ky,
-                  km: target.km,
-                  kd: target.kd,
-                ).isNotEmpty) ||
-            (currentEvent.detail != null &&
-                currentEvent.detail!.isNotEmpty)) ...[
-          const SizedBox(height: 12),
-          Builder(
-            builder: (context) {
-              final rawDisplayDetail = isTrackSky
-                  ? _trackSkyDisplayDetail(
-                      currentEvent,
-                      ky: target.ky,
-                      km: target.km,
-                      kd: target.kd,
-                    )
-                  : isTheCourse && courseEvent != null
-                  ? courseDetailText(
-                      courseEvent,
-                      lens: courseLensFromNotes(flow?.notes),
-                      context: courseContext,
-                    )
-                  : () {
-                      var rawDetail = currentEvent.detail!;
-                      if (rawDetail.startsWith('flowLocalId=')) {
-                        final semi = rawDetail.indexOf(';');
-                        if (semi > 0 && semi < rawDetail.length - 1) {
-                          rawDetail = rawDetail.substring(semi + 1).trim();
-                        } else {
-                          return '';
-                        }
-                      }
-                      return _stripCidLines(rawDetail);
-                    }();
-              final displayDetail = _dayViewStripStandaloneExternalTargetLines(
-                rawDisplayDetail,
-                externalAction,
-              );
-              if (displayDetail.isEmpty || _looksLikeCidDetail(displayDetail)) {
-                return const SizedBox.shrink();
-              }
-
-              final rendersMaatFlowSections = isMaatFlow;
-              Widget detailContent;
-              if (rendersMaatFlowSections) {
-                detailContent = _buildMaatFlowDetailText(
-                  displayDetail,
-                  visual: visual,
-                );
-              } else {
-                detailContent = RichText(
-                  text: TextSpan(
-                    style: _detailBodyStyle(visual: visual),
-                    children: _buildTextSpans(displayDetail),
-                  ),
-                );
-              }
-
-              if (rendersMaatFlowSections) {
-                if (responseSpecs.isNotEmpty) {
-                  return ConstrainedBox(
-                    constraints: const BoxConstraints(maxHeight: 180),
-                    child: SingleChildScrollView(
-                      physics: const BouncingScrollPhysics(),
-                      child: detailContent,
-                    ),
-                  );
-                }
-                return detailContent;
-              }
-
-              return Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  _buildDetailSectionLabel('Purpose', visual: visual),
-                  const SizedBox(height: 6),
-                  detailContent,
-                ],
-              );
-            },
-          ),
-        ],
-        if (sharedPracticeRoomId != null) ...[
-          const SizedBox(height: 12),
-          _SharedPracticeDetailModule(
-            roomId: sharedPracticeRoomId,
-            calendarName: currentEvent.calendarName,
-            flowTitle: flow?.name ?? currentEvent.title,
-          ),
-        ],
-        if (hasMaatCompletionPanel && responseSpecs.isNotEmpty) ...[
-          const SizedBox(height: 10),
-          buildMaatCompletionPanel(),
-        ],
-        if (currentEvent.flowId != null &&
-            tendingEvent != null &&
-            tendingEvent.localPrompt != TheTendingLocalPromptKind.none) ...[
-          const SizedBox(height: 12),
-          _TheTendingLocalNotesPanel(
-            flowId: currentEvent.flowId!,
-            event: tendingEvent,
-          ),
-        ],
-        if (currentEvent.flowId != null &&
-            keptWordEvent != null &&
-            keptWordEvent.localPrompt != KeptWordLocalPromptKind.none) ...[
-          const SizedBox(height: 12),
-          _KeptWordLocalNotesPanel(
-            flowId: currentEvent.flowId!,
-            event: keptWordEvent,
-          ),
-        ],
-        if (currentEvent.flowId != null &&
-            wagEvent != null &&
-            wagEvent.localPrompt != WagLocalPromptKind.none) ...[
-          const SizedBox(height: 12),
-          _TheWagLocalNotesPanel(flowId: currentEvent.flowId!, event: wagEvent),
-        ],
-        if (currentEvent.flowId != null && daysOutsideEvent != null) ...[
-          const SizedBox(height: 12),
-          _DaysOutsideYearLocalNotesPanel(
-            flowId: currentEvent.flowId!,
-            event: daysOutsideEvent,
-          ),
-        ],
-        if (currentEvent.flowId != null && openHandEvent != null) ...[
-          const SizedBox(height: 12),
-          _OpenHandLocalNotesPanel(
-            flowId: currentEvent.flowId!,
-            event: openHandEvent,
-          ),
-        ],
-        if (currentEvent.flowId != null && djedEvent != null) ...[
-          const SizedBox(height: 12),
-          _DjedLocalNotesPanel(flowId: currentEvent.flowId!, event: djedEvent),
-        ],
-        if (courseEvent != null && courseContext != null) ...[
-          const SizedBox(height: 12),
-          _TheCourseDayCardPanel(event: courseEvent, context: courseContext),
-        ],
-        if (isDecanWatch && decanWatchContext != null) ...[
-          const SizedBox(height: 12),
-          _DecanWatchDayCardPanel(context: decanWatchContext),
-        ],
-        if (currentEvent.flowId != null &&
-            isDecanWatch &&
-            decanWatchContext != null &&
-            responseSpecs.isEmpty) ...[
-          const SizedBox(height: 12),
-          _DecanWatchLocalNotesPanel(
-            flowId: currentEvent.flowId!,
-            kYear: target.ky,
-            kMonth: target.km,
-            kDay: target.kd,
-            decanName: decanWatchContext.decanName,
-          ),
-        ],
-        if (currentEvent.flowId != null && isDecanWatch) ...[
-          const SizedBox(height: 12),
-          _DecanWatchMilestonePanel(
-            flowId: currentEvent.flowId!,
-            kYear: target.ky,
-          ),
-        ],
-        if (hasMaatCompletionPanel && responseSpecs.isEmpty) ...[
-          const SizedBox(height: 10),
-          buildMaatCompletionPanel(),
-        ] else if (!hasMaatCompletionPanel) ...[
-          const SizedBox(height: 10),
-          buildCalendarCompletionPanel(),
-        ],
-        if (libraryCta != null) ...[
-          const SizedBox(height: 12),
-          _MaatFlowLibraryCtaPanel(event: currentEvent, cta: libraryCta),
-        ],
-      ],
-    );
-
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 2),
-      child: DayViewRitualCompletionFeedbackCard._withVisual(
-        enabled: enableRitualCompletionFeedback,
-        visual: visual,
-        child: scrollable
-            ? SingleChildScrollView(
-                physics: const BouncingScrollPhysics(),
-                child: body,
-              )
-            : body,
-      ),
-    );
-  }
-
-  Widget _buildEventDetailTopActionRow({
-    required BuildContext rootContext,
-    required BuildContext sheetContext,
-    required DayViewSheetEventTarget target,
-    required ValueChanged<String?> onEndFlowErrorChanged,
-  }) {
-    final currentEvent = target.event;
-    final flow = _chromeFlowForId(currentEvent.flowId);
-    final completionContext = _maatFlowCompletionContextForEvent(
-      currentEvent,
-      flow,
-    );
-    final sourceType = _completionSourceTypeForEvent(
-      currentEvent,
-      flow,
-      completionContext,
-    );
-
-    return Row(
-      children: [
-        const Spacer(),
-        _buildAddReflectionButton(
-          routeContext: rootContext,
-          sheetContext: sheetContext,
-          target: target,
-          sourceType: sourceType,
-        ),
-        const SizedBox(width: 8),
-        _buildEventDetailOverflowButton(
-          rootContext: rootContext,
-          sheetContext: sheetContext,
-          target: target,
-          onEndFlowErrorChanged: onEndFlowErrorChanged,
-        ),
-      ],
-    );
-  }
-
-  Widget _buildEventDetailInlineError(String message) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-      decoration: BoxDecoration(
-        color: const Color(0xFF4A1414).withValues(alpha: 0.88),
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(
-          color: const Color(0xFFE57373).withValues(alpha: 0.45),
-        ),
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Icon(Icons.error_outline, color: Color(0xFFFFB4AB), size: 18),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Text(
-              message,
-              style: const TextStyle(
-                color: Color(0xFFFFDAD6),
-                fontSize: 13,
-                height: 1.25,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildEventDetailPrimaryAction({
-    required BuildContext rootContext,
-    required BuildContext sheetContext,
-    required DayViewSheetEventTarget target,
-  }) {
-    return TextButton.icon(
-      onPressed: () async {
-        Navigator.pop(sheetContext);
-        final handled = await CalendarPage.makeTodoFromEventTarget(target);
-        if (!handled && rootContext.mounted) {
-          ScaffoldMessenger.of(
-            rootContext,
-          ).showSnackBar(const SnackBar(content: Text('Could not add to-do.')));
-        }
-      },
-      icon: KemeticGold.icon(Icons.playlist_add_check),
-      label: KemeticGold.text(
-        'Make to-do',
-        style: _goldHeaderStyle.copyWith(fontSize: 15),
-      ),
-    );
-  }
-
-  Widget _buildEventDetailOverflowButton({
-    required BuildContext rootContext,
-    required BuildContext sheetContext,
-    required DayViewSheetEventTarget target,
-    required ValueChanged<String?> onEndFlowErrorChanged,
-  }) {
-    final currentEvent = target.event;
-    final flow = _chromeFlowForId(currentEvent.flowId);
-    final actionableFlow = _isActionableFlowId(currentEvent.flowId);
-    final isReminder = currentEvent.isReminder;
-    final isEndingFlow =
-        currentEvent.flowId != null &&
-        _endingFlowIds.contains(currentEvent.flowId);
-
-    return PopupMenuButton<String>(
-      icon: KemeticGold.icon(Icons.more_vert),
-      tooltip: 'Event options',
-      color: _dayViewBase,
-      onSelected: (value) async {
-        if (value == 'end_flow') {
-          final flowId = currentEvent.flowId;
-          final onEndFlow = widget.onEndFlow;
-          if (flowId != null && onEndFlow != null) {
-            if (!_beginEndFlowAction(flowId)) return;
-            onEndFlowErrorChanged(null);
-            try {
-              final result = await CalendarPage.endFlowFromEventTarget(target);
-              if (result == EndFlowActionResult.success) {
-                if (sheetContext.mounted) Navigator.pop(sheetContext);
-              } else if (result == EndFlowActionResult.failed) {
-                onEndFlowErrorChanged(
-                  'Could not end this flow right now.\n'
-                  'Check your connection and try again.',
-                );
-              } else if (result == EndFlowActionResult.notHandled) {
-                onEndFlow(flowId);
-                if (sheetContext.mounted) Navigator.pop(sheetContext);
-              }
-            } finally {
-              _finishEndFlowAction(flowId);
-            }
-          }
-        } else if (value == 'end_reminder') {
-          Navigator.pop(sheetContext);
-          final reminderId = currentEvent.reminderId;
-          final onEndReminder = widget.onEndReminder;
-          if (reminderId != null && onEndReminder != null) {
-            await onEndReminder(reminderId);
-          }
-        } else if (value == 'end_note') {
-          Navigator.pop(sheetContext);
-          if (widget.onDeleteNote != null) {
-            await widget.onDeleteNote!(
-              target.ky,
-              target.km,
-              target.kd,
-              currentEvent,
-            );
-          }
-        } else if (value == 'share') {
-          Navigator.pop(sheetContext);
-          if (flow != null && !isReminder) {
-            await CalendarPage.shareFlowFromEvent(currentEvent);
-          } else if (isReminder && widget.onShareReminder != null) {
-            await widget.onShareReminder!(currentEvent);
-          } else if (widget.onShareNote != null) {
-            await widget.onShareNote!(currentEvent);
-          }
-        } else if (value == 'edit' && flow != null && actionableFlow) {
-          await Navigator.of(sheetContext).maybePop();
-          widget.onManageFlows?.call(flow.id);
-        } else if (value == 'save' && flow != null && actionableFlow) {
-          Navigator.pop(sheetContext);
-          if (widget.onSaveFlow != null) {
-            await widget.onSaveFlow!(flow.id);
-          } else {
-            try {
-              await UserEventsRepo(
-                Supabase.instance.client,
-              ).setFlowSaved(flowId: flow.id, isSaved: true);
-              if (rootContext.mounted) {
-                ScaffoldMessenger.of(rootContext).showSnackBar(
-                  const SnackBar(
-                    content: Text('Saved to Saved Flows'),
-                    duration: Duration(seconds: 2),
-                  ),
-                );
-              }
-            } catch (e) {
-              if (rootContext.mounted) {
-                ScaffoldMessenger.of(rootContext).showSnackBar(
-                  SnackBar(content: Text('Unable to save flow: $e')),
-                );
-              }
-            }
-          }
-        } else if (value == 'edit_reminder' &&
-            isReminder &&
-            widget.onEditReminder != null &&
-            currentEvent.reminderId != null) {
-          Navigator.pop(sheetContext);
-          await widget.onEditReminder!(currentEvent.reminderId!);
-        } else if (value == 'edit_note' &&
-            (flow == null || _isRepeatingNoteFlowId(currentEvent.flowId)) &&
-            !isReminder &&
-            widget.onEditNote != null) {
-          Navigator.pop(sheetContext);
-          await widget.onEditNote!(
-            target.ky,
-            target.km,
-            target.kd,
-            currentEvent,
-          );
-        }
-      },
-      itemBuilder: (context) => [
-        if (flow != null ||
-            (isReminder && widget.onShareReminder != null) ||
-            (flow == null && !isReminder && widget.onShareNote != null))
-          PopupMenuItem(
-            value: 'share',
-            child: Row(
-              children: [
-                KemeticGold.icon(Icons.share_outlined),
-                const SizedBox(width: 12),
-                Text(
-                  flow != null
-                      ? 'Share Flow'
-                      : isReminder
-                      ? 'Share Reminder'
-                      : 'Share Note',
-                  style: const TextStyle(color: Colors.white),
-                ),
-              ],
-            ),
-          ),
-        if (flow != null && actionableFlow && !isReminder)
-          PopupMenuItem(
-            value: 'save',
-            child: Row(
-              children: [
-                KemeticGold.icon(Icons.bookmark_add),
-                const SizedBox(width: 12),
-                const Text('Save Flow', style: TextStyle(color: Colors.white)),
-              ],
-            ),
-          ),
-        if (flow != null && actionableFlow && !isReminder)
-          PopupMenuItem(
-            value: 'edit',
-            child: Row(
-              children: [
-                KemeticGold.icon(Icons.edit),
-                const SizedBox(width: 12),
-                const Text('Edit Flow', style: TextStyle(color: Colors.white)),
-              ],
-            ),
-          ),
-        if (flow != null &&
-            actionableFlow &&
-            !isReminder &&
-            widget.onEndFlow != null)
-          PopupMenuItem(
-            value: 'end_flow',
-            enabled: !isEndingFlow,
-            child: Row(
-              children: [
-                KemeticGold.icon(
-                  isEndingFlow ? Icons.hourglass_top : Icons.stop_circle,
-                ),
-                const SizedBox(width: 12),
-                Text(
-                  isEndingFlow ? 'Ending Flow...' : 'End Flow',
-                  style: const TextStyle(color: Colors.white),
-                ),
-              ],
-            ),
-          ),
-        if (isReminder &&
-            widget.onEditReminder != null &&
-            currentEvent.reminderId != null)
-          PopupMenuItem(
-            value: 'edit_reminder',
-            child: Row(
-              children: [
-                KemeticGold.icon(Icons.edit),
-                const SizedBox(width: 12),
-                const Text(
-                  'Edit Reminder',
-                  style: TextStyle(color: Colors.white),
-                ),
-              ],
-            ),
-          ),
-        if (isReminder &&
-            widget.onEndReminder != null &&
-            currentEvent.reminderId != null)
-          PopupMenuItem(
-            value: 'end_reminder',
-            child: Row(
-              children: [
-                KemeticGold.icon(Icons.stop_circle),
-                const SizedBox(width: 12),
-                const Text(
-                  'End Reminder',
-                  style: TextStyle(color: Colors.white),
-                ),
-              ],
-            ),
-          ),
-        if ((flow == null || _isRepeatingNoteFlowId(currentEvent.flowId)) &&
-            !isReminder &&
-            widget.onEditNote != null)
-          PopupMenuItem(
-            value: 'edit_note',
-            child: Row(
-              children: [
-                KemeticGold.icon(Icons.edit),
-                const SizedBox(width: 12),
-                const Text('Edit Note', style: TextStyle(color: Colors.white)),
-              ],
-            ),
-          ),
-        if ((flow == null || _isRepeatingNoteFlowId(currentEvent.flowId)) &&
-            !isReminder &&
-            widget.onDeleteNote != null)
-          PopupMenuItem(
-            value: 'end_note',
-            child: Row(
-              children: [
-                KemeticGold.icon(Icons.delete_outline),
-                const SizedBox(width: 12),
-                const Text('End Note', style: TextStyle(color: Colors.white)),
-              ],
-            ),
-          ),
-      ],
-    );
-  }
-
-  Widget _buildEventDetailBottomActionRow({
-    required BuildContext rootContext,
-    required BuildContext sheetContext,
-    required DayViewSheetEventTarget target,
-    required ValueChanged<DayViewSheetEventTarget> onTargetChanged,
-  }) {
-    final calendarLabel = CalendarPage.detailSheetCalendarButtonLabel(
-      target.event,
-    );
-    final calendarEnabled = CalendarPage.canChangeDetailSheetCalendar(
-      target.event,
-    );
-
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: [
-        _buildEventDetailPrimaryAction(
-          rootContext: rootContext,
-          sheetContext: sheetContext,
-          target: target,
-        ),
-        TextButton(
-          onPressed: calendarEnabled
-              ? () async {
-                  final updatedTarget =
-                      await CalendarPage.showDetailSheetCalendarPicker(
-                        context: sheetContext,
-                        target: target,
-                        onOptimisticTargetChanged: (optimisticTarget) {
-                          if (sheetContext.mounted) {
-                            onTargetChanged(optimisticTarget);
-                          }
-                        },
-                      );
-                  if (!sheetContext.mounted || updatedTarget == null) return;
-                  onTargetChanged(updatedTarget);
-                }
-              : null,
-          child: calendarEnabled
-              ? KemeticGold.text(
-                  calendarLabel,
-                  style: _goldHeaderStyle.copyWith(fontSize: 15),
-                )
-              : Text(
-                  calendarLabel,
-                  style: _goldHeaderStyle.copyWith(
-                    fontSize: 15,
-                    color: Colors.white24,
-                  ),
-                ),
-        ),
-      ],
-    );
-  }
-
   // Show event detail sheet
   void _showEventDetail(
     EventItem event, {
@@ -7685,25 +8202,23 @@ class _DayViewGridState extends State<DayViewGrid> {
       return;
     }
     final rootContext = context;
-    final sheetDataListenable = widget.dataVersion ?? _kZeroListenable;
-    final currentTarget = ValueNotifier<DayViewSheetEventTarget>(
-      initialTarget ??
-          DayViewSheetEventTarget(
-            ky: widget.ky,
-            km: widget.km,
-            kd: widget.kd,
-            event: event,
-          ),
-    );
-    _publishEventDetailRestorationTarget(currentTarget.value);
-    final measuredHeights = ValueNotifier<Map<String, double>>({});
-    final endFlowError = ValueNotifier<String?>(null);
-    final initialPages = _detailSheetPagesForTarget(currentTarget.value);
-    PageController sheetPageController = PageController(
-      initialPage: initialPages.currentIndex,
-    );
-    var onboardingDetailPromptScheduled = false;
+    final sheetTarget =
+        initialTarget ??
+        DayViewSheetEventTarget(
+          ky: widget.ky,
+          km: widget.km,
+          kd: widget.kd,
+          event: event,
+        );
+    _publishEventDetailRestorationTarget(sheetTarget);
     var sheetReleased = false;
+
+    void releaseSheet() {
+      if (sheetReleased) return;
+      sheetReleased = true;
+      _clearEventDetailRestorationIfAllowed();
+      CalendarEventDetailSheetCoordinator.markClosed();
+    }
 
     if (kDebugMode) {
       debugPrint('[_showEventDetail] Event: "${event.title}"');
@@ -7719,291 +8234,42 @@ class _DayViewGridState extends State<DayViewGrid> {
       );
     }
 
-    void updateMeasuredHeight(String key, double height) {
-      if (sheetReleased || !mounted) return;
-      final normalized = height.ceilToDouble();
-      if (normalized <= 0) return;
-      final previous = measuredHeights.value[key];
-      if (previous != null && (previous - normalized).abs() < 1) return;
-      final nextHeights = Map<String, double>.from(measuredHeights.value);
-      nextHeights[key] = normalized;
-      measuredHeights.value = nextHeights;
-    }
-
-    void resetSheetPageController(int initialPage) {
-      if (sheetReleased) return;
-      final previous = sheetPageController;
-      sheetPageController = PageController(initialPage: initialPage);
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        previous.dispose();
-      });
-    }
-
-    Future<void> moveToTarget(DayViewSheetEventTarget nextTarget) async {
-      if (sheetReleased || !mounted) return;
-      final previousTarget = currentTarget.value;
-      endFlowError.value = null;
-      currentTarget.value = nextTarget;
-      _publishEventDetailRestorationTarget(nextTarget);
-      if (widget.onNavigateToDay != null &&
-          (nextTarget.ky != previousTarget.ky ||
-              nextTarget.km != previousTarget.km ||
-              nextTarget.kd != previousTarget.kd)) {
-        unawaited(
-          widget.onNavigateToDay!(nextTarget.ky, nextTarget.km, nextTarget.kd),
-        );
-      }
-      unawaited(AppHaptics.selection());
-    }
-
-    void setEndFlowError(String? message) {
-      if (sheetReleased || !mounted) return;
-      if (endFlowError.value == message) return;
-      endFlowError.value = message;
-    }
-
-    void releaseSheet() {
-      if (sheetReleased) return;
-      sheetReleased = true;
-      final activeCoachmark = GuidedOnboardingController.instance.target;
-      final journalKey = widget.onboardingJournalKey;
-      if (activeCoachmark?.key == widget.onboardingObservedKey ||
-          (journalKey != null &&
-              (activeCoachmark?.secondaryKeys.contains(journalKey) ?? false))) {
-        GuidedOnboardingController.instance.clear();
-      }
-      currentTarget.dispose();
-      measuredHeights.dispose();
-      endFlowError.dispose();
-      sheetPageController.dispose();
-      _clearEventDetailRestorationIfAllowed();
-      CalendarEventDetailSheetCoordinator.markClosed();
-    }
-
     try {
       showModalBottomSheet(
         context: rootContext,
-        backgroundColor: _dayViewBase,
+        backgroundColor: Colors.transparent,
         isScrollControlled: true,
-        builder: (sheetContext) {
-          return ValueListenableBuilder<int>(
-            valueListenable: sheetDataListenable,
-            builder: (context, dataRevision, child) {
-              return ValueListenableBuilder<DayViewSheetEventTarget>(
-                valueListenable: currentTarget,
-                builder: (context, rawTarget, _) {
-                  final target =
-                      widget.resolveCurrentEventTarget?.call(rawTarget) ??
-                      rawTarget;
-                  final pages = _detailSheetPagesForTarget(target);
-                  final currentKey = _detailSheetTargetKey(target);
-                  final pageViewKey = ValueKey<String>(
-                    '$currentKey:${pages.currentIndex}:${pages.pages.length}',
-                  );
-                  if (!onboardingDetailPromptScheduled &&
-                      _isOnboardingTargetEvent(target.event) &&
-                      widget.onboardingObservedKey != null) {
-                    onboardingDetailPromptScheduled = true;
-                    WidgetsBinding.instance.addPostFrameCallback((_) {
-                      Future<
-                        void
-                      >.delayed(const Duration(milliseconds: 320), () {
-                        if (sheetReleased || !mounted) return;
-                        GuidedOnboardingController.instance.show(
-                          CoachmarkTarget(
-                            key: widget.onboardingObservedKey,
-                            secondaryKeys: [
-                              if (widget.onboardingJournalKey != null)
-                                widget.onboardingJournalKey!,
-                            ],
-                            title: 'Mark what you lived.',
-                            body:
-                                'Tap Observed when you complete the event. Add a journal note when you want to remember what happened, what changed, or what you noticed.',
-                            placement: CoachmarkPlacement.above,
-                            allowBackgroundInteraction: true,
-                            showNextButton: true,
-                            onNext: () {
-                              GuidedOnboardingController.instance.clear();
-                              if (sheetContext.mounted) {
-                                Navigator.of(sheetContext).maybePop();
-                              }
-                              widget.onOnboardingObservedJournalNext?.call();
-                            },
-                          ),
-                        );
-                      });
-                    });
-                  }
-
-                  return ValueListenableBuilder<Map<String, double>>(
-                    valueListenable: measuredHeights,
-                    builder: (context, heights, child) {
-                      final hasOnboardingClosingBanner =
-                          _isOnboardingTargetEvent(target.event) &&
-                          widget.onboardingClosingBannerBuilder != null;
-                      final maxSheetHeight = math.min(
-                        MediaQuery.sizeOf(context).height * 0.68,
-                        520.0,
-                      );
-                      final reservedChromeHeight = hasOnboardingClosingBanner
-                          ? 250.0
-                          : 120.0;
-                      final sheetHeight = (heights[currentKey] ?? 200.0)
-                          .clamp(
-                            0.0,
-                            math.max(
-                              180.0,
-                              maxSheetHeight - reservedChromeHeight,
-                            ),
-                          )
-                          .toDouble();
-
-                      final content = Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          if (hasOnboardingClosingBanner) ...[
-                            widget.onboardingClosingBannerBuilder!(
-                              sheetContext,
-                            ),
-                            const SizedBox(height: 2),
-                          ],
-                          Offstage(
-                            child: Column(
-                              children: [
-                                for (final pageTarget in pages.pages)
-                                  _MeasureSize(
-                                    key: ValueKey<String>(
-                                      _detailSheetTargetKey(pageTarget),
-                                    ),
-                                    onChange: (size) {
-                                      updateMeasuredHeight(
-                                        _detailSheetTargetKey(pageTarget),
-                                        size.height,
-                                      );
-                                    },
-                                    child: SizedBox(
-                                      width: MediaQuery.sizeOf(context).width,
-                                      child: _buildEventDetailSheetPage(
-                                        target: pageTarget,
-                                        scrollable: false,
-                                        includeOnboardingKeys: false,
-                                        completionReloadSignal: dataRevision,
-                                      ),
-                                    ),
-                                  ),
-                              ],
-                            ),
-                          ),
-                          Padding(
-                            padding: const EdgeInsets.fromLTRB(10, 8, 10, 10),
-                            child: Column(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                _buildEventDetailTopActionRow(
-                                  rootContext: rootContext,
-                                  sheetContext: sheetContext,
-                                  target: target,
-                                  onEndFlowErrorChanged: setEndFlowError,
-                                ),
-                                ValueListenableBuilder<String?>(
-                                  valueListenable: endFlowError,
-                                  builder: (context, message, _) {
-                                    return AnimatedSize(
-                                      duration: const Duration(
-                                        milliseconds: 180,
-                                      ),
-                                      curve: Curves.easeOutCubic,
-                                      alignment: Alignment.topCenter,
-                                      child: message == null
-                                          ? const SizedBox.shrink()
-                                          : Padding(
-                                              padding:
-                                                  const EdgeInsets.fromLTRB(
-                                                    12,
-                                                    8,
-                                                    12,
-                                                    0,
-                                                  ),
-                                              child:
-                                                  _buildEventDetailInlineError(
-                                                    message,
-                                                  ),
-                                            ),
-                                    );
-                                  },
-                                ),
-                                const SizedBox(height: 8),
-                                AnimatedSize(
-                                  duration: const Duration(milliseconds: 180),
-                                  curve: Curves.easeOutCubic,
-                                  alignment: Alignment.bottomCenter,
-                                  child: SizedBox(
-                                    height: sheetHeight,
-                                    child: PageView.builder(
-                                      key: pageViewKey,
-                                      controller: sheetPageController,
-                                      physics: const BouncingScrollPhysics(),
-                                      itemCount: pages.pages.length,
-                                      onPageChanged: (index) {
-                                        if (index == pages.currentIndex) {
-                                          return;
-                                        }
-                                        final nextTarget = pages.pages[index];
-                                        final nextPages =
-                                            _detailSheetPagesForTarget(
-                                              nextTarget,
-                                            );
-                                        resetSheetPageController(
-                                          nextPages.currentIndex,
-                                        );
-                                        unawaited(moveToTarget(nextTarget));
-                                      },
-                                      itemBuilder: (context, index) {
-                                        return _buildEventDetailSheetPage(
-                                          target: pages.pages[index],
-                                          completionReloadSignal: dataRevision,
-                                        );
-                                      },
-                                    ),
-                                  ),
-                                ),
-                                const SizedBox(height: 8),
-                                SizedBox(
-                                  height: 46,
-                                  child: _buildEventDetailBottomActionRow(
-                                    rootContext: rootContext,
-                                    sheetContext: sheetContext,
-                                    target: target,
-                                    onTargetChanged: (nextTarget) {
-                                      unawaited(moveToTarget(nextTarget));
-                                    },
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ],
-                      );
-
-                      return SafeArea(
-                        top: false,
-                        child: hasOnboardingClosingBanner
-                            ? ConstrainedBox(
-                                constraints: BoxConstraints(
-                                  maxHeight:
-                                      MediaQuery.sizeOf(context).height * 0.94,
-                                ),
-                                child: SingleChildScrollView(child: content),
-                              )
-                            : content,
-                      );
-                    },
-                  );
-                },
-              );
-            },
-          );
-        },
+        builder: (sheetContext) => CalendarEventDetailSheet(
+          hostContext: rootContext,
+          initialTarget: sheetTarget,
+          flowResolver: _chromeFlowForId,
+          activeLedgerFlowIds: widget.activeLedgerFlowIds,
+          resolveCurrentEventTarget: widget.resolveCurrentEventTarget,
+          resolveAdjacentEventTarget: widget.resolveAdjacentEvent,
+          onTargetChanged: _publishEventDetailRestorationTarget,
+          onNavigateToDay: widget.onNavigateToDay,
+          onManageFlows: widget.onManageFlows,
+          onEditNote: widget.onEditNote,
+          onDeleteNote: widget.onDeleteNote,
+          onShareNote: widget.onShareNote,
+          onEditReminder: widget.onEditReminder,
+          onEndReminder: widget.onEndReminder,
+          onShareReminder: widget.onShareReminder,
+          onEndFlow: widget.onEndFlow,
+          onAppendToJournal: widget.onAppendToJournal,
+          onWriteJournalResponse: widget.onWriteJournalResponse,
+          onSaveFlow: widget.onSaveFlow,
+          dataVersion: widget.dataVersion,
+          onRecordCompletion: widget.onRecordCompletion,
+          onUnrecordCompletion: widget.onUnrecordCompletion,
+          onRemoveCompletionBadge: widget.onRemoveCompletionBadge,
+          onboardingEventClientEventId: widget.onboardingEventClientEventId,
+          onboardingObservedKey: widget.onboardingObservedKey,
+          onboardingJournalKey: widget.onboardingJournalKey,
+          onOnboardingObservedJournalNext:
+              widget.onOnboardingObservedJournalNext,
+          onboardingClosingBannerBuilder: widget.onboardingClosingBannerBuilder,
+        ),
       ).whenComplete(releaseSheet);
       if (kDebugMode) {
         WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -8014,21 +8280,6 @@ class _DayViewGridState extends State<DayViewGrid> {
       releaseSheet();
       rethrow;
     }
-  }
-
-  String _formatTimeRange(int startMin, int endMin) {
-    final startHour = startMin ~/ 60;
-    final startMinute = startMin % 60;
-    final endHour = endMin ~/ 60;
-    final endMinute = endMin % 60;
-
-    String formatTime(int h, int m) {
-      final period = h >= 12 ? 'PM' : 'AM';
-      final hour12 = h == 0 ? 12 : (h > 12 ? h - 12 : h);
-      return '$hour12:${m.toString().padLeft(2, '0')} $period';
-    }
-
-    return '${formatTime(startHour, startMinute)} – ${formatTime(endHour, endMinute)}';
   }
 }
 

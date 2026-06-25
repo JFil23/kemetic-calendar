@@ -45,7 +45,6 @@ import '../ai_generation/itinerary_prompt_parser.dart';
 import '../../models/ai_flow_generation_response.dart';
 import '../../services/ai_flow_generation_service.dart';
 import '../../services/ai_reflection_service.dart';
-import '../../services/app_haptics.dart';
 import '../../data/decan_reflection_repo.dart';
 import '../../data/decan_reflection_model.dart';
 import '../../data/decan_reflection_prompt_state.dart';
@@ -108,7 +107,6 @@ import '../../utils/external_link_utils.dart';
 import 'calendar_invalidation.dart';
 import 'calendar_visible_state_policy.dart';
 import 'calendar_completion.dart';
-import 'calendar_reflection_context.dart';
 import 'reminder_sync_idempotence.dart';
 import 'reminder_sync_gate.dart';
 import 'decan_reflection_badge.dart';
@@ -313,75 +311,82 @@ class _QuickAddSheetState extends State<_QuickAddSheet> {
         padding: EdgeInsets.only(
           bottom: MediaQuery.viewInsetsOf(context).bottom,
         ),
-        child: SafeArea(
-          top: false,
-          child: SingleChildScrollView(
-            controller: _scrollCtrl,
-            padding: const EdgeInsets.fromLTRB(16, 16, 16, 12),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  'Quick add (natural language)',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                TextField(
-                  controller: _textCtrl,
-                  scrollPadding: keyboardManagedTextFieldScrollPadding,
-                  autofocus: false,
-                  focusNode: _focusNode,
-                  style: const TextStyle(color: Colors.white),
-                  decoration: InputDecoration(
-                    hintText: 'e.g., “Fri 3pm-4pm coffee with Amara”',
-                    hintStyle: const TextStyle(color: Colors.white54),
-                    filled: true,
-                    fillColor: const Color(0xFF111111),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: const BorderSide(color: Colors.white24),
+        child: Material(
+          color: Colors.black,
+          shape: const RoundedRectangleBorder(
+            borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+          ),
+          clipBehavior: Clip.antiAlias,
+          child: SafeArea(
+            top: false,
+            child: SingleChildScrollView(
+              controller: _scrollCtrl,
+              padding: const EdgeInsets.fromLTRB(16, 16, 16, 12),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Quick add (natural language)',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
                     ),
                   ),
-                  minLines: 1,
-                  maxLines: 3,
-                  onSubmitted: (_) => _handleSubmit(),
-                ),
-                if (_error != null) ...[
                   const SizedBox(height: 8),
-                  Text(
-                    _error!,
-                    style: const TextStyle(color: Colors.redAccent),
-                  ),
-                ],
-                const SizedBox(height: 12),
-                Row(
-                  children: [
-                    Expanded(
-                      child: ElevatedButton(
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: KemeticGold.base,
-                          foregroundColor: Colors.black,
-                        ),
-                        onPressed: _submitting ? null : _handleSubmit,
-                        child: const Text('Quick add'),
+                  TextField(
+                    controller: _textCtrl,
+                    scrollPadding: keyboardManagedTextFieldScrollPadding,
+                    autofocus: false,
+                    focusNode: _focusNode,
+                    style: const TextStyle(color: Colors.white),
+                    decoration: InputDecoration(
+                      hintText: 'e.g., “Fri 3pm-4pm coffee with Amara”',
+                      hintStyle: const TextStyle(color: Colors.white54),
+                      filled: true,
+                      fillColor: const Color(0xFF111111),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: const BorderSide(color: Colors.white24),
                       ),
                     ),
-                    const SizedBox(width: 8),
-                    TextButton(
-                      onPressed: _submitting ? null : _handleOpenFullEditor,
-                      child: KemeticGold.text(
-                        'Open full editor',
-                        style: const TextStyle(fontWeight: FontWeight.w600),
-                      ),
+                    minLines: 1,
+                    maxLines: 3,
+                    onSubmitted: (_) => _handleSubmit(),
+                  ),
+                  if (_error != null) ...[
+                    const SizedBox(height: 8),
+                    Text(
+                      _error!,
+                      style: const TextStyle(color: Colors.redAccent),
                     ),
                   ],
-                ),
-              ],
+                  const SizedBox(height: 12),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: ElevatedButton(
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: KemeticGold.base,
+                            foregroundColor: Colors.black,
+                          ),
+                          onPressed: _submitting ? null : _handleSubmit,
+                          child: const Text('Quick add'),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      TextButton(
+                        onPressed: _submitting ? null : _handleOpenFullEditor,
+                        child: KemeticGold.text(
+                          'Open full editor',
+                          style: const TextStyle(fontWeight: FontWeight.w600),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
             ),
           ),
         ),
@@ -4831,7 +4836,7 @@ class CalendarPage extends StatefulWidget {
         context: context,
         useRootNavigator: true,
         isScrollControlled: true,
-        backgroundColor: Colors.black,
+        backgroundColor: Colors.transparent,
         shape: const RoundedRectangleBorder(
           borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
         ),
@@ -8527,6 +8532,8 @@ class CalendarPageState extends State<CalendarPage>
   bool _calendarOverlayRestorePresentationStarted = false;
   bool _sharedCalendarsSheetOpenOrOpening = false;
   bool _flowStudioSheetOpenOrOpening = false;
+  bool _daySheetOpenOrOpening = false;
+  bool _quickAddSheetOpenOrOpening = false;
 
   /* ───── today + notes + flows state ───── */
 
@@ -9643,9 +9650,9 @@ class CalendarPageState extends State<CalendarPage>
 
       await showModalBottomSheet(
         context: context,
-        backgroundColor: const Color(0xFF000000),
+        backgroundColor: Colors.transparent,
         isScrollControlled: true,
-        builder: (_) => _MainCalendarEventDetailSheet(
+        builder: (_) => CalendarEventDetailSheet(
           hostContext: context,
           initialTarget: initialTarget,
           flowResolver: _calendarChromeFlowDataForId,
@@ -9665,6 +9672,7 @@ class CalendarPageState extends State<CalendarPage>
           onEndFlow: (id) => unawaited(_endFlow(id).then<void>((_) {})),
           onAppendToJournal: _appendToJournalAndRefresh,
           onWriteJournalResponse: _writeMaatJournalResponseBlockAndRefresh,
+          onSaveFlow: _saveFlowById,
           dataVersion: _dayViewDataVersion,
           onRecordCompletion:
               ({
@@ -27334,6 +27342,8 @@ class CalendarPageState extends State<CalendarPage>
     int? editingSourceKMonth,
     int? editingSourceKDay,
   }) {
+    if (_daySheetOpenOrOpening) return;
+    _daySheetOpenOrOpening = true;
     // Ensure reminder rules are loaded before building the sheet so the list is populated.
     _loadReminderRules();
     _calendarDebugPrint('');
@@ -28991,6 +29001,7 @@ class CalendarPageState extends State<CalendarPage>
           );
         },
       ).then((_) {
+        _daySheetOpenOrOpening = false;
         sheetClosing = true;
         if (persistAsRestoration) {
           unawaited(AppRestorationService.instance.saveDaySheetState(null));
@@ -29009,6 +29020,7 @@ class CalendarPageState extends State<CalendarPage>
       _calendarDebugPrint('Error: $e');
       _calendarDebugPrint('Stack trace: $stackTrace');
       _calendarDebugPrint('');
+      _daySheetOpenOrOpening = false;
       sheetClosing = true;
       disposeDaySheetControllers();
       if (persistAsRestoration) {
@@ -29025,43 +29037,49 @@ class CalendarPageState extends State<CalendarPage>
   /* ───── Natural language quick add ───── */
 
   Future<void> _openQuickAddSheet() async {
-    await showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.black,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
-      ),
-      builder: (_) => _QuickAddSheet(
-        parse: CalendarPage.parseQuickAddText,
-        scaffoldMessengerContext: context,
-        onSave: (parsed) async {
-          final k = KemeticMath.fromGregorian(parsed.date);
-          await _saveSingleNoteOnly(
-            selYear: k.kYear,
-            selMonth: k.kMonth,
-            selDay: k.kDay,
-            title: parsed.title,
-            detail: null,
-            location: null,
-            allDay: parsed.allDay,
-            startTime: parsed.allDay ? null : parsed.start,
-            endTime: parsed.allDay ? null : parsed.end,
-            color: null,
-            alertMinutesBefore: _alertNoneMinutes,
-          );
-        },
-        onOpenFullEditor: () {
-          if (!mounted) return;
-          _openDaySheet(
-            _today.kYear,
-            _today.kMonth,
-            _today.kDay,
-            allowDateChange: true,
-          );
-        },
-      ),
-    );
+    if (_quickAddSheetOpenOrOpening) return;
+    _quickAddSheetOpenOrOpening = true;
+    try {
+      await showModalBottomSheet(
+        context: context,
+        isScrollControlled: true,
+        backgroundColor: Colors.transparent,
+        shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+        ),
+        builder: (_) => _QuickAddSheet(
+          parse: CalendarPage.parseQuickAddText,
+          scaffoldMessengerContext: context,
+          onSave: (parsed) async {
+            final k = KemeticMath.fromGregorian(parsed.date);
+            await _saveSingleNoteOnly(
+              selYear: k.kYear,
+              selMonth: k.kMonth,
+              selDay: k.kDay,
+              title: parsed.title,
+              detail: null,
+              location: null,
+              allDay: parsed.allDay,
+              startTime: parsed.allDay ? null : parsed.start,
+              endTime: parsed.allDay ? null : parsed.end,
+              color: null,
+              alertMinutesBefore: _alertNoneMinutes,
+            );
+          },
+          onOpenFullEditor: () {
+            if (!mounted) return;
+            _openDaySheet(
+              _today.kYear,
+              _today.kMonth,
+              _today.kDay,
+              allowDateChange: true,
+            );
+          },
+        ),
+      );
+    } finally {
+      _quickAddSheetOpenOrOpening = false;
+    }
   }
 
   /* ───── UI ───── */
@@ -31955,9 +31973,12 @@ class CalendarPageState extends State<CalendarPage>
     final orientation = MediaQuery.orientationOf(context);
     final isLandscape = orientation == Orientation.landscape;
     final routeIsCurrent = ModalRoute.of(context)?.isCurrent ?? true;
+    final routeShouldRemainRendered =
+        routeIsCurrent ||
+        CalendarPage._hasCalendarOwnedTransientOverlayOpenOrOpening;
     // Landscape grid only on phone-sized screens; tablets/desktop stay on portrait layout.
     final useGrid = isLandscape && size.shortestSide < 600;
-    final shouldBuildLandscapeGrid = useGrid && routeIsCurrent;
+    final shouldBuildLandscapeGrid = useGrid && routeShouldRemainRendered;
     if (!shouldBuildLandscapeGrid) {
       _landscapeTodayAction = null;
     }
@@ -31994,7 +32015,7 @@ class CalendarPageState extends State<CalendarPage>
     }
     _lastOrientation = orientation;
 
-    if (!routeIsCurrent) {
+    if (!routeShouldRemainRendered) {
       return const Scaffold(backgroundColor: _bg, body: SizedBox.shrink());
     }
 
