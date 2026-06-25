@@ -13,7 +13,7 @@ void main() {
       14,
     ]);
     expect(kReadingHouseSittings.first.title, 'Open the Text');
-    expect(kReadingHouseSittings.last.sharePromptOnComplete, isTrue);
+    expect(kReadingHouseSittings.last.sharePromptOnComplete, isFalse);
   });
 
   test('schedule uses a fixed editable evening hour', () {
@@ -83,12 +83,13 @@ void main() {
     expect(payload['section'], 'Closing section');
     expect(payload['theme'], 'What fragment should the house keep?');
     expect(payload['private_prompt'], contains('Mark what remains'));
-    expect(payload['host_note'], contains('Only share a fragment'));
+    expect(payload['host_note'], contains('Shared surfaces come later'));
     expect(payload['sitting_source'], 'starter_default');
     expect(payload['host_editable'], isFalse);
     expect(payload['host_authoring_phase'], 'future');
     expect(payload['book_title'], 'The Book of Gates');
     expect(payload['private_first'], isTrue);
+    expect(payload['reader_sitting_phase'], 'enabled');
     expect(payload['writing_required'], isFalse);
     expect(payload['unlock_gate'], 'reading_position_mark');
     expect(payload['completion_options'], <String>[
@@ -97,7 +98,13 @@ void main() {
       'skipped',
     ]);
     expect(payload['presence_options'], <String>['carrying', 'not_yet']);
-    expect(payload['share_prompt_on_complete'], isTrue);
+    expect(payload['private_margin'], <String, dynamic>{
+      'phase': 'enabled',
+      'storage': 'local_only',
+      'shared_fragments': 'future',
+    });
+    expect(payload['share_prompt_on_complete'], isFalse);
+    expect(payload['share_prompt_future'], isFalse);
 
     final discussion = payload['discussion_model'] as Map<String, dynamic>;
     expect(discussion['phase'], 'future');
@@ -328,22 +335,25 @@ void main() {
     );
   });
 
-  test('public copy stays honest about the Phase 1B boundary', () {
+  test('public copy stays honest about the Phase 2 boundary', () {
     expect(kReadingHouseOverview, contains('host-authored private sittings'));
-    expect(kReadingHouseOverview, contains('not yet a book-club engine'));
-    expect(kReadingHouseEnrollmentCopy, contains('Phase 1B'));
+    expect(kReadingHouseOverview, contains('local private margin'));
+    expect(kReadingHouseOverview, contains('Shared fragments'));
+    expect(kReadingHouseEnrollmentCopy, contains('Phase 2'));
     expect(kReadingHouseEnrollmentCopy, contains('intent only'));
-    expect(kReadingHouseEnrollmentCopy, contains('not live yet'));
-    expect(
-      readingHouseDetailText(
-        kReadingHouseSittings.first,
-        plan: const ReadingHousePlan(),
-      ),
-      contains('private reading position only'),
+    expect(kReadingHouseEnrollmentCopy, contains('writing stays optional'));
+    final detail = readingHouseDetailText(
+      kReadingHouseSittings.first,
+      plan: const ReadingHousePlan(),
     );
+    expect(detail, contains('Section\nOpening section'));
+    expect(detail, contains('Theme\nWhat is the text asking you to carry?'));
+    expect(detail, contains('Private prompt\nBefore company shapes'));
+    expect(detail, contains('Host note\nBegin with your own encounter'));
+    expect(detail, contains('private reading position only'));
   });
 
-  test('payload does not enable social/company surfaces in Phase 1B', () {
+  test('payload does not enable social/company surfaces in Phase 2', () {
     final payload = readingHouseBehaviorPayload(
       sitting: kReadingHouseSittings.first.asHostAuthored(),
       schedule: readingHouseScheduleForDate(

@@ -56,6 +56,7 @@ import 'the_open_hand_local_store.dart';
 import 'the_djed_flow.dart';
 import 'the_djed_local_store.dart';
 import 'the_reading_house_flow.dart';
+import 'reading_house_private_margin_store.dart';
 import 'maat_decan_flow.dart';
 import 'living_text_day_one_node_store.dart';
 import 'decan_id.dart';
@@ -1430,8 +1431,8 @@ _MaatFlowCompletionContext? _maatFlowCompletionContextForEvent(
       eventCategory: event.category,
       eventNumber: readingSitting.eventNumber,
       flowDay: readingSitting.flowDay,
-      sharePromptOnComplete: readingSitting.sharePromptOnComplete,
-      shareButtonLabel: 'Share a fragment',
+      sharePromptOnComplete: false,
+      shareButtonLabel: 'Shared fragments later',
       graphNodeSlugs: _maatGraphNodeSlugsForFlow(
         flowKey: kReadingHouseFlowKey,
         eventCategory: event.category,
@@ -8905,6 +8906,8 @@ class _MaatFlowCompletionPanelState extends State<_MaatFlowCompletionPanel> {
       const LivingTextDayOneNodeStore();
   final DecanWatchLocalStore _decanWatchLocalStore =
       const DecanWatchLocalStore();
+  final ReadingHousePrivateMarginStore _readingHousePrivateMarginStore =
+      const ReadingHousePrivateMarginStore();
   final TextEditingController _eveningThresholdReleaseCarryController =
       TextEditingController();
   OverlayEntry? _sheetFeedbackOverlay;
@@ -8919,6 +8922,7 @@ class _MaatFlowCompletionPanelState extends State<_MaatFlowCompletionPanel> {
   DailyOrientationEntry? _eveningThresholdOrientation;
   DailyOrientationEntry? _eveningThresholdPreviousOrientation;
   bool _eveningThresholdReleasePending = false;
+  bool _readingHousePrivateMarginSaving = false;
   int _decanWatchResponseLoadGeneration = 0;
   Map<String, MaatFlowResponseValue> _responseValues =
       const <String, MaatFlowResponseValue>{};
@@ -9044,6 +9048,7 @@ class _MaatFlowCompletionPanelState extends State<_MaatFlowCompletionPanel> {
       _responseDirty = false;
       _eveningThresholdReleaseCarryController.clear();
       _eveningThresholdReleasePending = false;
+      _readingHousePrivateMarginSaving = false;
       unawaited(_load());
     } else if (oldWidget.reloadSignal != widget.reloadSignal) {
       _responseValues = const <String, MaatFlowResponseValue>{};
@@ -9052,6 +9057,7 @@ class _MaatFlowCompletionPanelState extends State<_MaatFlowCompletionPanel> {
       _responseDirty = false;
       _eveningThresholdReleaseCarryController.clear();
       _eveningThresholdReleasePending = false;
+      _readingHousePrivateMarginSaving = false;
       unawaited(_load());
     } else if (!_sameResponseSpecs(
       oldWidget.responseSpecs,
@@ -9063,6 +9069,8 @@ class _MaatFlowCompletionPanelState extends State<_MaatFlowCompletionPanel> {
       _responseDirty = false;
       if (_usesDecanWatchResponseBridge) {
         unawaited(_loadDecanWatchResponseValuesIfNeeded());
+      } else if (_usesReadingHousePrivateMargin) {
+        unawaited(_loadReadingHousePrivateMarginValuesIfNeeded());
       } else {
         _hydrateInitialPromptDraftValuesIfNeeded();
       }
@@ -9087,6 +9095,17 @@ class _MaatFlowCompletionPanelState extends State<_MaatFlowCompletionPanel> {
 
   bool get _isEveningThresholdCompletion {
     return widget.completion.flowKey == kEveningThresholdFlowKey;
+  }
+
+  bool get _isReadingHouseCompletion {
+    return widget.completion.flowKey == kReadingHouseFlowKey;
+  }
+
+  bool get _usesReadingHousePrivateMargin {
+    return _isReadingHouseCompletion &&
+        widget.responseSpecs.any(
+          (spec) => spec.flowKey == kReadingHouseFlowKey,
+        );
   }
 
   DateTime get _eventGregorianDate {
@@ -9130,6 +9149,7 @@ class _MaatFlowCompletionPanelState extends State<_MaatFlowCompletionPanel> {
   }
 
   void _rememberInitialPromptDraftValue(MaatFlowResponseValue value) {
+    if (_isReadingHouseCompletion) return;
     if (!_usesSharedInitialPromptDrafts) return;
     kMaatFlowResponseDraftStore.rememberValue(
       flowKey: widget.completion.flowKey,
@@ -9247,6 +9267,66 @@ class _MaatFlowCompletionPanelState extends State<_MaatFlowCompletionPanel> {
     });
   }
 
+  Future<void> _loadReadingHousePrivateMarginValuesIfNeeded() async {
+    if (!_usesReadingHousePrivateMargin) return;
+    final flowId = widget.event.flowId;
+    if (flowId == null) return;
+    final values = await _readingHousePrivateMarginStore.loadValues(
+      flowId: flowId,
+      eventNumber: widget.completion.eventNumber,
+    );
+    if (!mounted) return;
+    setState(() {
+      _responseValues = values;
+      _responseDirty = false;
+    });
+  }
+
+  Future<bool> _saveReadingHousePrivateMargin({
+    bool showFeedback = true,
+  }) async {
+    if (!_usesReadingHousePrivateMargin) return true;
+    final flowId = widget.event.flowId;
+    if (flowId == null) return true;
+    if (showFeedback && mounted) {
+      setState(() {
+        _readingHousePrivateMarginSaving = true;
+      });
+    }
+    try {
+      await _readingHousePrivateMarginStore.saveValues(
+        flowId: flowId,
+        eventNumber: widget.completion.eventNumber,
+        values: _responseValues,
+      );
+      if (!mounted) return true;
+      setState(() {
+        _responseDirty = false;
+        _readingHousePrivateMarginSaving = false;
+      });
+      if (showFeedback) {
+        final hasValues = readingHousePrivateMarginValuesToJson(
+          _responseValues,
+        ).isNotEmpty;
+        _showSheetFeedback(
+          hasValues
+              ? 'Private margin saved on this device.'
+              : 'Private margin cleared on this device.',
+        );
+      }
+      return true;
+    } catch (_) {
+      if (!mounted) return false;
+      setState(() {
+        _readingHousePrivateMarginSaving = false;
+      });
+      if (showFeedback) {
+        _showSheetFeedback('Could not save the private margin.');
+      }
+      return false;
+    }
+  }
+
   Future<void> _persistDecanWatchResponseValues(
     Map<String, MaatFlowResponseValue> values,
   ) async {
@@ -9309,8 +9389,9 @@ class _MaatFlowCompletionPanelState extends State<_MaatFlowCompletionPanel> {
 
   Future<void> _load() async {
     await _loadDecanWatchResponseValuesIfNeeded();
+    await _loadReadingHousePrivateMarginValuesIfNeeded();
     if (!mounted) return;
-    if (!_usesDecanWatchResponseBridge) {
+    if (!_usesDecanWatchResponseBridge && !_usesReadingHousePrivateMargin) {
       _hydrateInitialPromptDraftValuesIfNeeded();
     }
 
@@ -9440,6 +9521,23 @@ class _MaatFlowCompletionPanelState extends State<_MaatFlowCompletionPanel> {
         ),
       );
       return false;
+    }
+    if (_isReadingHouseCompletion) {
+      final position = readingHousePositionFromResponseValues(_responseValues);
+      if (position == null) {
+        if (!mounted) return false;
+        _showSheetFeedback(
+          'Choose Carrying or Not yet before marking this sitting. Writing stays optional.',
+        );
+        return false;
+      }
+      if (position == kReadingHousePositionNotYet && status != 'skipped') {
+        if (!mounted) return false;
+        _showSheetFeedback(
+          'Not yet can only be saved locally or closed as Skipped. Choose Carrying before Observed or Partly.',
+        );
+        return false;
+      }
     }
     return true;
   }
@@ -9618,6 +9716,20 @@ class _MaatFlowCompletionPanelState extends State<_MaatFlowCompletionPanel> {
           'completion': 'raised',
           'raising_seconds': kDjedRaisingSeconds,
         });
+      } else if (_isReadingHouseCompletion) {
+        final savedMargin = await _saveReadingHousePrivateMargin(
+          showFeedback: false,
+        );
+        if (!savedMargin) {
+          _cancelCompletionFeedback();
+          if (!mounted) return;
+          setState(() => _saving = false);
+          _showSheetFeedback('Could not save the private margin.');
+          return;
+        }
+        metadata.addAll(
+          readingHousePrivateMarginCompletionMetadata(_responseValues),
+        );
       }
       final completionIdentity = widget.identity;
       final completionContinuity = widget.onCompletionContinuity;
@@ -10194,8 +10306,17 @@ class _MaatFlowCompletionPanelState extends State<_MaatFlowCompletionPanel> {
       journalPreviews: _responseJournalPreviews(
         completionStatus: CompletionStatusX.fromWireName(_status),
       ),
+      title: _isReadingHouseCompletion ? 'Private margin' : null,
+      subtitle: _isReadingHouseCompletion
+          ? 'Local notes stay on this device. Writing is optional; Carrying or Not yet is required.'
+          : null,
+      saveLabel: _isReadingHouseCompletion ? 'Save private margin' : 'Save',
+      saving: _readingHousePrivateMarginSaving,
       isJournalPreviewIncluded: _isJournalPreviewIncluded,
       onJournalPreviewInclusionChanged: _setJournalPreviewIncluded,
+      onSave: _isReadingHouseCompletion
+          ? () => unawaited(_saveReadingHousePrivateMargin())
+          : null,
       onChanged: _handleResponseChanged,
     );
   }

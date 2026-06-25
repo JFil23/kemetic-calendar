@@ -163,18 +163,28 @@ class MaatFlowResponseSection extends StatefulWidget {
     required this.specs,
     this.values = const <String, MaatFlowResponseValue>{},
     this.journalPreviews = const <MaatFlowResponseJournalPreview>[],
+    this.title,
+    this.subtitle,
+    this.saveLabel = 'Save',
+    this.saving = false,
     this.isJournalPreviewIncluded,
     this.onJournalPreviewInclusionChanged,
+    this.onSave,
     this.onChanged,
   });
 
   final List<MaatFlowResponseSpec> specs;
   final Map<String, MaatFlowResponseValue> values;
   final List<MaatFlowResponseJournalPreview> journalPreviews;
+  final String? title;
+  final String? subtitle;
+  final String saveLabel;
+  final bool saving;
   final bool Function(MaatFlowResponseJournalPreview preview)?
   isJournalPreviewIncluded;
   final void Function(MaatFlowResponseJournalPreview preview, bool included)?
   onJournalPreviewInclusionChanged;
+  final VoidCallback? onSave;
   final ValueChanged<MaatFlowResponseValue>? onChanged;
 
   @override
@@ -223,6 +233,31 @@ class _MaatFlowResponseSectionState extends State<MaatFlowResponseSection> {
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisSize: MainAxisSize.min,
         children: [
+          if (widget.title?.trim().isNotEmpty == true) ...[
+            Text(
+              widget.title!.trim(),
+              style: TextStyle(
+                color: Colors.white.withValues(alpha: 0.9),
+                fontSize: 13,
+                fontWeight: FontWeight.w800,
+                letterSpacing: 0,
+              ),
+            ),
+            if (widget.subtitle?.trim().isNotEmpty == true) ...[
+              const SizedBox(height: 3),
+              Text(
+                widget.subtitle!.trim(),
+                style: TextStyle(
+                  color: Colors.white.withValues(alpha: 0.58),
+                  fontSize: 12,
+                  fontWeight: FontWeight.w500,
+                  height: 1.25,
+                  letterSpacing: 0,
+                ),
+              ),
+            ],
+            const SizedBox(height: 10),
+          ],
           for (final spec in widget.specs) ...[
             _MaatFlowResponseField(
               spec: spec,
@@ -238,6 +273,23 @@ class _MaatFlowResponseSectionState extends State<MaatFlowResponseSection> {
               isPreviewIncluded: widget.isJournalPreviewIncluded,
               onPreviewInclusionChanged:
                   widget.onJournalPreviewInclusionChanged,
+            ),
+          ],
+          if (widget.onSave != null) ...[
+            const SizedBox(height: 12),
+            Align(
+              alignment: Alignment.centerRight,
+              child: OutlinedButton.icon(
+                onPressed: widget.saving ? null : widget.onSave,
+                icon: widget.saving
+                    ? const SizedBox(
+                        width: 14,
+                        height: 14,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Icon(Icons.save_outlined, size: 16),
+                label: Text(widget.saving ? 'Saving...' : widget.saveLabel),
+              ),
             ),
           ],
         ],

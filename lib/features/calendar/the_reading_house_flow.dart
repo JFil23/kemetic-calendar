@@ -10,12 +10,20 @@ const String kReadingHouseTitle = 'The Reading House';
 const String kReadingHouseGlyph = '𓉐';
 const String kReadingHouseTagline = 'A private-study foundation for one book.';
 const String kReadingHouseEnrollmentCopy =
-    'Phase 1B lets the host shape private sittings. Company mode is saved as intent only; invite links, shared fragments, replies, and house chat are not live yet.';
+    'Phase 2 keeps the house private-first: hosts shape sittings, readers can keep a local margin, writing stays optional, and Carrying/Not yet is required before completion. Company mode is still intent only.';
 
 const String kReadingHouseBookTitlePromptId = 'reading-house-book-title';
 const String kReadingHouseEditionNotePromptId = 'reading-house-edition-note';
 const String kReadingHouseQuestionPromptId = 'reading-house-question';
 const String kReadingHouseModePromptId = 'reading-house-mode';
+const String kReadingHousePrivateReflectionSpecId =
+    'reading-house-private-reflection';
+const String kReadingHouseShortNoteSpecId = 'reading-house-short-note';
+const String kReadingHouseSitWithoutWritingSpecId =
+    'reading-house-sit-without-writing';
+const String kReadingHousePositionSpecId = 'reading-house-position';
+const String kReadingHousePositionCarrying = 'carrying';
+const String kReadingHousePositionNotYet = 'not_yet';
 
 const String kReadingHouseDefaultBookTitle = 'the chosen book';
 const String kReadingHouseDefaultQuestion =
@@ -32,7 +40,7 @@ const int kReadingHouseDefaultMinute = 0;
 const int kReadingHouseDefaultDurationMinutes = 60;
 
 const String kReadingHouseOverview =
-    'The Reading House is registered as a Ma’at flow with host-authored private sittings. A book can begin from three starter sittings, then the host can edit, add, reorder, or delete the sitting plan. Each sitting begins with private reflection, lets the reader mark position without mandatory writing, and keeps company surfaces future-facing. It is not yet a book-club engine.';
+    'The Reading House is registered as a Ma’at flow with host-authored private sittings. A book can begin from three starter sittings, then the host can edit, add, reorder, or delete the sitting plan. Each sitting opens with section, theme, host note, and private prompt; the reader can keep a local private margin, sit without writing, and must mark Carrying or Not yet before Observed, Partly, or Skipped. Shared fragments, company rooms, discussion, and chat remain future-facing.';
 
 class ReadingHousePlan {
   const ReadingHousePlan({
@@ -213,9 +221,7 @@ const List<ReadingHouseSitting> kReadingHouseSittings = <ReadingHouseSitting>[
     theme: 'What fragment should the house keep?',
     privatePrompt:
         'Mark what remains after the book closes: sentence, question, practice, or passage.',
-    hostNote:
-        'Only share a fragment if you choose. The private record remains private.',
-    sharePromptOnComplete: true,
+    hostNote: 'Choose one fragment privately. Shared surfaces come later.',
   ),
 ];
 
@@ -690,6 +696,7 @@ Map<String, dynamic> readingHouseBehaviorPayload({
     'house_mode': plan.normalizedMode,
     'house_state': plan.state,
     'private_first': true,
+    'reader_sitting_phase': 'enabled',
     'writing_required': false,
     'unlock_gate': 'reading_position_mark',
     'completion_options': const <String>[
@@ -697,8 +704,17 @@ Map<String, dynamic> readingHouseBehaviorPayload({
       'observed_partly',
       'skipped',
     ],
-    'presence_options': const <String>['carrying', 'not_yet'],
-    'share_prompt_on_complete': sitting.sharePromptOnComplete,
+    'presence_options': const <String>[
+      kReadingHousePositionCarrying,
+      kReadingHousePositionNotYet,
+    ],
+    'private_margin': const <String, dynamic>{
+      'phase': 'enabled',
+      'storage': 'local_only',
+      'shared_fragments': 'future',
+    },
+    'share_prompt_on_complete': false,
+    'share_prompt_future': sitting.sharePromptOnComplete,
     'discussion_model': const <String, dynamic>{
       'phase': 'future',
       'reply_depth': 1,
@@ -729,7 +745,8 @@ String readingHouseDetailText(
     'Section\n${sitting.section}',
     'Theme\n${sitting.theme}',
     'Private prompt\n${sitting.privatePrompt}',
-    'Position gate\nWrite a reflection, save a short note, sit without writing, or mark Not yet. This release records the private reading position only; shared fragments and discussion unlock in a later phase.',
+    'Private margin\nWrite a reflection, save a short note, or choose sit without writing. The margin stays on this device.',
+    'Position gate\nChoose Carrying or Not yet before marking Observed, Partly, or Skipped. This release records private reading position only; shared fragments and discussion unlock in a later phase.',
     if (hostNote.isNotEmpty) 'Host note\n$hostNote',
     'Completion\nUse Observed when the sitting was honestly held, Partly when the reading position is partial, and Skipped when you did not sit. In company mode, Carrying and Not yet become factual presence states when shared surfaces arrive.',
   ].join('\n\n');

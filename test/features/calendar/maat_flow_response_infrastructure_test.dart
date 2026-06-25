@@ -15,6 +15,7 @@ import 'package:mobile/features/calendar/the_djed_flow.dart';
 import 'package:mobile/features/calendar/the_kept_word_flow.dart';
 import 'package:mobile/features/calendar/the_open_hand_flow.dart';
 import 'package:mobile/features/calendar/the_offering_table_flow.dart';
+import 'package:mobile/features/calendar/the_reading_house_flow.dart';
 import 'package:mobile/features/calendar/the_tending_flow.dart';
 import 'package:mobile/features/calendar/the_wag_flow.dart';
 import 'package:mobile/features/calendar/the_weighing_flow.dart';
@@ -268,7 +269,7 @@ void main() {
   });
 
   test('default resolver exposes all 31 Ma_at response sheet specs', () {
-    expect(kDefaultMaatFlowResponseResolver.specs, hasLength(66));
+    expect(kDefaultMaatFlowResponseResolver.specs, hasLength(70));
 
     expect(
       resolveMaatFlowResponseSpecs(
@@ -703,6 +704,30 @@ void main() {
   });
 
   test('sensitive action flows use offer policy and privacy classes', () {
+    final readingHouseSpecs = resolveMaatFlowResponseSpecs(
+      flowKey: kReadingHouseFlowKey,
+      surface: MaatFlowResponseSurface.calendarSheet,
+    );
+    expect(readingHouseSpecs.map((spec) => spec.id), <String>[
+      kReadingHousePrivateReflectionSpecId,
+      kReadingHouseShortNoteSpecId,
+      kReadingHouseSitWithoutWritingSpecId,
+      kReadingHousePositionSpecId,
+    ]);
+    expect(
+      readingHouseSpecs.map((spec) => spec.journalPolicy).toSet(),
+      <MaatFlowJournalPolicy>{MaatFlowJournalPolicy.localOnly},
+    );
+    expect(readingHouseSpecs.map((spec) => spec.privacyClass).toSet(), <String>{
+      'app_record_private',
+    });
+    expect(
+      readingHouseSpecs
+          .singleWhere((spec) => spec.id == kReadingHousePositionSpecId)
+          .requiredForObserved,
+      isTrue,
+    );
+
     final openHandSpecs = resolveMaatFlowResponseSpecs(
       flowKey: kTheOpenHandFlowKey,
       surface: MaatFlowResponseSurface.calendarSheet,
@@ -1892,6 +1917,7 @@ void main() {
         kDaysOutsideTheYearFlowKey,
         kTheOpenHandFlowKey,
         kTheDjedFlowKey,
+        kReadingHouseFlowKey,
         kTheTendingFlowKey,
         kKeptWordFlowKey,
         kTheWagFlowKey,

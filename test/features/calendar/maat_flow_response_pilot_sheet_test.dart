@@ -23,6 +23,7 @@ import 'package:mobile/features/calendar/the_kept_word_flow.dart';
 import 'package:mobile/features/calendar/the_kept_word_local_store.dart';
 import 'package:mobile/features/calendar/the_offering_table_flow.dart';
 import 'package:mobile/features/calendar/the_open_hand_flow.dart';
+import 'package:mobile/features/calendar/the_reading_house_flow.dart';
 import 'package:mobile/features/calendar/the_tending_flow.dart';
 import 'package:mobile/features/calendar/the_tending_local_store.dart';
 import 'package:mobile/features/calendar/the_wag_flow.dart';
@@ -509,6 +510,105 @@ void main() {
         'The Decan Watch: I watched from inside. The sky showed clouded western horizon. I carry steadiness into the next ten days.',
       ),
       findsOneWidget,
+    );
+  });
+
+  testWidgets('Reading House private margin requires position before completion', (
+    tester,
+  ) async {
+    await _setPhoneViewport(tester);
+    final recorded = <Map<String, dynamic>>[];
+
+    await tester.pumpWidget(
+      _DayViewHarness(
+        flowIndex: _readingHouseFlowIndex,
+        notes: <NoteData>[_readingHouseNote()],
+        onRecordCompletion:
+            ({
+              required String clientEventId,
+              required int flowId,
+              required DateTime completedOnDate,
+              Map<String, dynamic>? metadata,
+            }) async {
+              recorded.add(Map<String, dynamic>.from(metadata ?? const {}));
+            },
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await _openDetailSheet(tester, _readingHouseTitle);
+
+    expect(find.text('Private margin'), findsOneWidget);
+    expect(find.text('Short note'), findsOneWidget);
+    expect(find.text('Sit without writing'), findsOneWidget);
+
+    await _enterPilotResponse(
+      tester,
+      specId: kReadingHousePrivateReflectionSpecId,
+      text: 'private reflection text',
+    );
+    await _enterPilotResponse(
+      tester,
+      specId: kReadingHouseShortNoteSpecId,
+      text: 'p. 12',
+    );
+    await _togglePilotCheckbox(
+      tester,
+      specId: kReadingHouseSitWithoutWritingSpecId,
+    );
+    await _tapStatus(tester, 'Observed');
+
+    expect(recorded, isEmpty);
+    expect(
+      find.text(
+        'Choose Carrying or Not yet before marking this sitting. Writing stays optional.',
+      ),
+      findsOneWidget,
+    );
+
+    await _choosePilotOption(
+      tester,
+      specId: kReadingHousePositionSpecId,
+      optionId: kReadingHousePositionNotYet,
+    );
+    await _tapStatus(tester, 'Observed');
+
+    expect(recorded, isEmpty);
+    expect(
+      find.text(
+        'Not yet can only be saved locally or closed as Skipped. Choose Carrying before Observed or Partly.',
+      ),
+      findsOneWidget,
+    );
+
+    await _choosePilotOption(
+      tester,
+      specId: kReadingHousePositionSpecId,
+      optionId: kReadingHousePositionCarrying,
+    );
+    await _tapStatus(tester, 'Observed');
+
+    expect(recorded, hasLength(1));
+    expect(recorded.single['completion_status'], 'observed');
+    expect(recorded.single['reading_position'], kReadingHousePositionCarrying);
+    expect(recorded.single['writing_required'], isFalse);
+    expect(recorded.single['shared_fragments_phase'], 'future');
+    expect(recorded.single.toString(), isNot(contains('private reflection')));
+    expect(recorded.single.toString(), isNot(contains('p. 12')));
+    final margin = recorded.single['private_margin'] as Map<dynamic, dynamic>;
+    expect(margin['storage'], 'local_only');
+    expect(margin['private_reflection_recorded'], isTrue);
+    expect(margin['short_note_recorded'], isTrue);
+    expect(margin['sit_without_writing'], isTrue);
+    expect(find.text('Share a fragment'), findsNothing);
+
+    final prefs = await SharedPreferences.getInstance();
+    expect(
+      prefs.getString(
+        'reading_house_$_readingHouseFlowId'
+        '_private_margin_event_1',
+      ),
+      isNotNull,
     );
   });
 
@@ -5250,6 +5350,8 @@ final String _livingRecordTitle = maatDecanFlowEventTitle(
   _livingRecordDefinition,
   _livingRecordEvent,
 );
+const int _readingHouseFlowId = 118;
+const String _readingHouseTitle = 'Reading House 1: Open the Text';
 
 const Map<int, FlowData> _decanWatchFlowIndex = <int, FlowData>{
   _decanWatchFlowId: FlowData(
@@ -5258,6 +5360,14 @@ const Map<int, FlowData> _decanWatchFlowIndex = <int, FlowData>{
     color: Colors.indigo,
     active: true,
     notes: 'maat=$kDecanWatchFlowKey',
+  ),
+};
+const Map<int, FlowData> _readingHouseFlowIndex = <int, FlowData>{
+  _readingHouseFlowId: FlowData(
+    id: _readingHouseFlowId,
+    name: kReadingHouseTitle,
+    color: Colors.teal,
+    active: true,
   ),
 };
 
@@ -5591,6 +5701,51 @@ NoteData _decanWatchNote() {
       'flow_key': kDecanWatchFlowKey,
       'kind': 'maat_decan_watch',
       'global_decan_id': 1,
+    },
+  );
+}
+
+NoteData _readingHouseNote() {
+  const sitting = ReadingHouseSitting(
+    eventNumber: 1,
+    flowDay: 1,
+    title: 'Open the Text',
+    section: 'Chapters 1-2',
+    theme: 'Where does the book begin?',
+    privatePrompt: 'Mark one private line before discussion.',
+    hostNote: 'Bring the paperback.',
+    sittingSource: kReadingHouseSittingSourceHostAuthored,
+    hostEditable: true,
+    hostAuthoringPhase: kReadingHouseHostAuthoringPhaseEnabled,
+  );
+  const plan = ReadingHousePlan(bookTitle: 'The Book of Gates');
+  return NoteData(
+    clientEventId: 'cid-reading-house-1',
+    title: _readingHouseTitle,
+    detail: readingHouseDetailText(sitting, plan: plan),
+    category: kReadingHouseTitle,
+    allDay: false,
+    start: const TimeOfDay(hour: 19, minute: 0),
+    end: const TimeOfDay(hour: 20, minute: 0),
+    flowId: _readingHouseFlowId,
+    behaviorPayload: const <String, dynamic>{
+      'flow_key': kReadingHouseFlowKey,
+      'kind': 'maat_reading_house_sitting',
+      'event_number': 1,
+      'flow_day': 1,
+      'sitting_title': 'Open the Text',
+      'section': 'Chapters 1-2',
+      'theme': 'Where does the book begin?',
+      'private_prompt': 'Mark one private line before discussion.',
+      'host_note': 'Bring the paperback.',
+      'sitting_source': kReadingHouseSittingSourceHostAuthored,
+      'host_editable': true,
+      'host_authoring_phase': kReadingHouseHostAuthoringPhaseEnabled,
+      'book_title': 'The Book of Gates',
+      'private_first': true,
+      'writing_required': false,
+      'unlock_gate': 'reading_position_mark',
+      'share_prompt_on_complete': false,
     },
   );
 }
@@ -6090,6 +6245,17 @@ Future<void> _choosePilotOption(
   await tester.ensureVisible(option);
   await _pumpInteraction(tester);
   await tester.tap(option);
+  await _pumpInteraction(tester);
+}
+
+Future<void> _togglePilotCheckbox(
+  WidgetTester tester, {
+  required String specId,
+}) async {
+  final checkbox = find.byKey(maatFlowResponseFieldKey(specId));
+  await tester.ensureVisible(checkbox);
+  await _pumpInteraction(tester);
+  await tester.tap(checkbox);
   await _pumpInteraction(tester);
 }
 
