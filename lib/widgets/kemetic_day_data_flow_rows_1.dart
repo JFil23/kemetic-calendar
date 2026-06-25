@@ -2038,436 +2038,399 @@ final List<DecanDayInfo> _hathorIIIFlowRows = _buildFlowRows([
 final List<DecanDayInfo> _kaHerKaIFlowRows = _buildFlowRows([
   (
     day: 1,
-    theme: 'Become Still Enough to Receive',
+    theme: 'See the Ground',
     action:
-        'Pause unnecessary motion. Let the noise from the last three months drain away.',
-    reflection: '"What needs silence before it can be placed?"',
+        'Look honestly at where you actually stand before you plan a thing.',
+    reflection: '"What is truly here to work with?"',
   ),
   (
     day: 2,
-    theme: 'Clear the Field',
-    action:
-        'Remove what the flood left — debris, stale arrangements, old obligations past their season.',
-    reflection: '"What remnants block what is coming?"',
+    theme: 'Clear the Ground',
+    action: 'Remove the old wreckage so something new has room to take root.',
+    reflection: '"What must I carry off first?"',
   ),
   (
     day: 3,
-    theme: 'Name What Ended',
-    action: 'Say what closed plainly. No softening, no denial.',
-    reflection: '"Can I name it without bitterness?"',
+    theme: 'Spend the Best',
+    action: 'Commit your strongest effort to the start, not your leftovers.',
+    reflection: '"Am I planting my best, or hoarding it?"',
   ),
   (
     day: 4,
-    theme: 'Select What Carries Forward',
+    theme: 'Release the Seed',
     action:
-        'From what ended, take one thing worth keeping. Not everything — the strongest seed.',
-    reflection: '"What good in this still feeds me?"',
+        'Commit with care, knowing it cannot be taken back once it leaves your hand.',
+    reflection: '"What am I ready to commit for good?"',
   ),
   (
     day: 5,
-    theme: 'Ground the Body',
-    action:
-        'Bare feet, slow breath, real food, water. The ka requires a body in order to act.',
-    reflection: '"Is my body ready to carry what I am placing?"',
+    theme: 'Trust the Unseen',
+    action: 'Let what is forming form, without digging it up to be sure.',
+    reflection: '"Can I trust what I cannot yet see?"',
   ),
   (
     day: 6,
-    theme: 'Read the Returning Pattern',
-    action:
-        'Note what has persisted through the disruption — the habits, relationships, disciplines that held.',
-    reflection: '"What pattern returns without being forced?"',
+    theme: 'Mend the Commons',
+    action: 'Help keep up what protects everyone, not only yourself.',
+    reflection: '"What shared thing needs my hands?"',
   ),
   (
     day: 7,
-    theme: 'Guard Speech as Seed',
-    action:
-        'Say only what you intend to feed. Leave unspoken what you intend to leave behind.',
-    reflection: '"What am I planting with my mouth?"',
+    theme: 'Keep Your Pace',
+    action: 'Hear how fast others move, then return to your own timing.',
+    reflection: '"Whose pace am I carrying that isn\'t mine?"',
   ),
   (
     day: 8,
-    theme: 'Place the Seed',
-    action:
-        'Set the intention, practice, or project into the ground. Not preparation — placement. It goes in today.',
-    reflection: '"What seed is ready?"',
+    theme: 'Guard the Small',
+    action: 'Let the first fragile sign grow before you fuss over it.',
+    reflection: '"What new thing needs to be left alone?"',
   ),
   (
     day: 9,
-    theme: 'Trust Hidden Work',
-    action:
-        'Do not dig up what you just planted to check on it. Leave it in the dark.',
-    reflection: '"Can I trust hidden life?"',
+    theme: 'Hold Less',
+    action: 'Give up some good growth so the whole can grow strong.',
+    reflection: '"What good thing must I let go of?"',
   ),
   (
     day: 10,
-    theme: 'Seal the Field',
-    action:
-        'Close the vigil. Stop attending to what you placed. Seal the field and let it rest.',
-    reflection: '"Can the old form rest?"',
+    theme: 'Let It Hold',
+    action: 'Trust what you set in place, and give it the patience it needs.',
+    reflection: '"Have I done the start, and can I now wait?"',
   ),
 ]);
 
 final List<DecanDayInfo> _kaHerKaIIFlowRows = _buildFlowRows([
   (
     day: 11,
-    theme: 'Re-Enter Motion',
-    action:
-        'Resume one responsibility. Not everything — one. Deliberate, not urgent.',
-    reflection: '"Where do I re-enter honestly?"',
+    theme: 'Return Daily',
+    action: 'Keep showing up to the work after the excitement has gone.',
+    reflection: '"What needs my steady return?"',
   ),
   (
     day: 12,
-    theme: 'Govern the Impulse',
-    action:
-        'Name the impulse before acting on it. Is this intention or reaction?',
-    reflection: '"What drives this — intention or reaction?"',
+    theme: 'Meet It Small',
+    action: 'Address the small threat now, before it grows past meeting.',
+    reflection: '"What small thing am I letting slide?"',
   ),
   (
     day: 13,
-    theme: 'Feed What Is Returning',
+    theme: 'Spend by Measure',
     action:
-        'Direct energy toward the one thing trying to come back. Water it. Remove what competes.',
-    reflection: '"Am I nurturing revival or starving it?"',
+        'Ration what must last against the long wait, not the hunger of the moment.',
+    reflection: '"What must I make last?"',
   ),
   (
     day: 14,
-    theme: 'Accept the Obligation',
-    action:
-        'Name what is now yours to guard. Say it explicitly. The crop needs a farmer, not a witness.',
-    reflection: '"What is now mine to protect?"',
+    theme: 'Share in Turn',
+    action: 'Take your measure of what is shared, then let it move on.',
+    reflection: '"Am I taking more than my turn?"',
   ),
   (
     day: 15,
-    theme: 'Place Strength Where It Is Needed',
+    theme: 'Outlast the Wind',
     action:
-        'Direct force at what the field actually needs — not what will be noticed.',
-    reflection: '"Who does this effort serve?"',
+        'Stop fighting what you cannot move; wait it out, then begin again.',
+    reflection: '"What am I wasting strength fighting?"',
   ),
   (
     day: 16,
-    theme: 'Restore the Basics',
-    action:
-        'Sleep at a real hour. Eat a real meal. Look at the account. Sweep the floor. Consistently, not perfectly.',
-    reflection: '"Does my rhythm honor life or exhaust it?"',
+    theme: 'Move Your Strength',
+    action: 'Shift effort from what has failed to what is working.',
+    reflection: '"Where am I still pouring effort that\'s gone?"',
   ),
   (
     day: 17,
-    theme: 'Ask for Help',
-    action: 'Call in support. No one tends the whole field alone.',
-    reflection: '"Where am I pretending I can carry this alone?"',
+    theme: 'Hold the Hand Back',
+    action: 'Show strength by not acting, when the work needs no driving.',
+    reflection: '"Where would restraint serve better than force?"',
   ),
   (
     day: 18,
-    theme: 'Return to the Circle',
+    theme: 'Read the Signs',
     action:
-        'Reconnect with one person or group you withdrew from in the flood season.',
-    reflection: '"Where do I belong that I have been avoiding?"',
+        'Watch closely and answer the small signals before trouble spreads.',
+    reflection: '"What is the work quietly telling me?"',
   ),
   (
     day: 19,
-    theme: 'Let Commitment Be Seen',
-    action:
-        'Show one sign you have returned to the work: a kept appointment, a restored rhythm, a message sent.',
-    reflection: '"What commitment can be witnessed?"',
+    theme: 'Lend and Borrow',
+    action: 'Give help freely; it returns the day your own load is too heavy.',
+    reflection: '"Whose help have I stored, or owe?"',
   ),
   (
     day: 20,
-    theme: 'Give Thanks for Endurance',
+    theme: 'It Stands',
     action:
-        'Offer gratitude not for perfection — for persistence. Name what held when the flood was high.',
-    reflection: '"Do I honor the part of me that stayed?"',
+        'See what your care has built, now strong enough to hold on its own.',
+    reflection: '"What have I governed into strength?"',
   ),
 ]);
 
 final List<DecanDayInfo> _kaHerKaIIIFlowRows = _buildFlowRows([
   (
     day: 21,
-    theme: 'Work as Offering',
+    theme: 'Let It Give Time Back',
     action:
-        'Approach today\'s labor as something placed in front of Ma\'at, not performed for an audience.',
-    reflection: '"Am I working or am I proving?"',
+        'When the work can stand, let it return you to the rest of your life.',
+    reflection: '"What has my work been keeping me from?"',
   ),
   (
     day: 22,
-    theme: 'Reopen the Flow',
-    action:
-        'Clear one blockage — financial, relational, creative, physical. Let the current move.',
-    reflection: '"Where has the channel silted shut?"',
+    theme: 'Keep Order Early',
+    action: 'Keep things in good order before there is plenty to show for it.',
+    reflection: '"What deserves care before the reward arrives?"',
   ),
   (
     day: 23,
-    theme: 'Raise the Djed',
-    action:
-        'Stand back up one thing that was knocked flat: a boundary, a practice, a standard you dropped.',
-    reflection: '"What will I stand upright again?"',
+    theme: 'Witness It Now',
+    action: 'Record what is true now, while the marks are still fresh.',
+    reflection: '"What should I note before it fades?"',
   ),
   (
     day: 24,
-    theme: 'Maintain the Vessel',
+    theme: 'Learn What Not to Harm',
     action:
-        'Tend the physical space. Your dwelling is the ka\'s working environment.',
-    reflection: '"Does this space support life?"',
+        'Teach the young what must not be stepped on before giving them a task.',
+    reflection: '"What must be protected as others learn?"',
   ),
   (
     day: 25,
-    theme: 'Relight the Flame',
+    theme: 'Even the Uneven',
     action:
-        'Kindle one thing that went cold in the flood months. Cup it until it holds.',
-    reflection: '"What flame must I tend to keep this alive?"',
+        'When fortune lands unequally, move some of yours toward the short.',
+    reflection: '"Where did luck fall unevenly near me?"',
   ),
   (
     day: 26,
-    theme: 'Set the Stroke with the Crew',
+    theme: 'Small Hands Guard',
     action:
-        'Coordinate with those who share your field. Shared direction, shared meal, shared account.',
-    reflection: '"Who rows beside me in this season?"',
+        'Let even unskilled effort defend what is still too young to defend itself.',
+    reflection: '"What small help is guarding something fragile?"',
   ),
   (
     day: 27,
-    theme: 'Honor What Survived',
+    theme: 'Make for the Unseen Day',
     action:
-        'Name what held through the flood. Not what you wish had happened — what actually endured.',
-    reflection: '"What strength survived?"',
+        'Prepare the tools a later task will need, before the need is visible.',
+    reflection: '"What am I making ready for a day not here yet?"',
   ),
   (
     day: 28,
-    theme: 'Give Thanks in Motion',
+    theme: 'Hold the Pattern',
     action:
-        'Work and give thanks simultaneously. The offering is in the labor itself.',
-    reflection: '"Am I remembering the source while I act?"',
+        'Set this season among the others, so it is not mistaken for the first.',
+    reflection: '"What pattern keeps me from losing perspective?"',
   ),
   (
     day: 29,
-    theme: 'Align With the Season',
+    theme: 'Name the Debt',
     action:
-        'Match your pace to what this moment actually requires. Not what you wish — what is real.',
-    reflection: '"Is my rhythm fighting life?"',
+        'Speak the obligation plainly now, while it is still a relationship.',
+    reflection: '"What unspoken debt should I name clearly?"',
   ),
   (
     day: 30,
-    theme: 'Seal the Month',
+    theme: 'It Has Entered Every House',
     action:
-        'Close Ka-ḥer-ka with an honest accounting. What was placed, what returned, what now holds. Hand it forward clean.',
-    reflection: '"What am I carrying into the next month?"',
+        'See how what took root in private has already changed the life around it.',
+    reflection: '"What that I began has quietly reshaped the whole?"',
   ),
 ]);
 
 final List<DecanDayInfo> _shefBedetIFlowRows = _buildFlowRows([
   (
     day: 1,
-    theme: 'Witness the First Growth',
+    theme: 'Meet What Emerges',
     action:
-        'Look at what has emerged without grabbing it. Presence before management.',
-    reflection: '"What has broken the surface?"',
+        'Greet what has come into the open instead of trusting it from afar.',
+    reflection: '"What has finally shown itself to me?"',
   ),
   (
     day: 2,
-    theme: 'Do Not Harvest Early',
+    theme: 'Begin the Real Work',
     action:
-        'Resist pulling return before it is ready. A shoot pulled too soon does not replant.',
-    reflection: '"Am I moving too fast for what is growing?"',
+        'Once a thing becomes itself, begin the real tending the easy part hid.',
+    reflection: '"What real work begins now that this is real?"',
   ),
   (
     day: 3,
-    theme: 'Give It Water',
-    action:
-        'Apply one direct resource to the thing that emerged: time, attention, money, rest.',
-    reflection: '"What does this growth actually need?"',
+    theme: 'Order Your Attention',
+    action: 'Choose what to tend first instead of scattering yourself thin.',
+    reflection: '"What deserves my attention first?"',
   ),
   (
     day: 4,
-    theme: 'Clear What Competes',
-    action:
-        'Remove one thing drawing from the same soil. Not everything — the most damaging one.',
-    reflection: '"What is competing for this root?"',
+    theme: 'Check the Fast Patch',
+    action: 'Look beneath what grows fastest instead of trusting its speed.',
+    reflection: '"What looks impressive but unproven?"',
   ),
   (
     day: 5,
-    theme: 'Name What Has Changed',
-    action:
-        'Something is different from last month. Name it plainly without overstating it.',
-    reflection: '"What is actually different now?"',
+    theme: 'Tend What Lags',
+    action: 'Give the most care to your weakest ground, not the least.',
+    reflection: '"What part am I tempted to write off?"',
   ),
   (
     day: 6,
-    theme: 'Protect Without Smothering',
+    theme: 'Keep the Boundary',
     action:
-        'Guard the emerging thing from early pressure — but do not cage it.',
-    reflection: '"Am I protecting or controlling?"',
+        'Hold the line that keeps one hunger from becoming another\'s harm.',
+    reflection: '"What boundary protects more than it limits?"',
   ),
   (
     day: 7,
-    theme: 'Let It Be Seen',
-    action:
-        'Show the emergence to one person who can witness it well — not critique it, witness it.',
-    reflection: '"Who can see this without damaging it?"',
+    theme: 'Name the Imitator',
+    action: 'Learn what only mimics the real work, and remove it.',
+    reflection: '"What blends in that does not belong?"',
   ),
   (
     day: 8,
-    theme: 'Work the Row',
-    action:
-        'Return to basic tending. Not inspired work — steady, repeated care.',
-    reflection: '"Am I showing up for the ordinary maintenance?"',
+    theme: 'Set Things in Order',
+    action: 'Put things in order now, before need begins to shout.',
+    reflection: '"What should I count while it is still quiet?"',
   ),
   (
     day: 9,
-    theme: 'Read the Condition',
-    action:
-        'Check what the growth is actually doing. Not what you hoped — what is real.',
-    reflection: '"What is the honest condition of this?"',
+    theme: 'Shape for What\'s Coming',
+    action: 'Prepare a place for the good that has not yet arrived.',
+    reflection: '"What am I preparing to receive?"',
   ),
   (
     day: 10,
-    theme: 'Seal the First Interval',
-    action:
-        'Note what emerged in ten days. Close the first watch. The roots are beginning.',
-    reflection: '"What truly emerged?"',
+    theme: 'See It Whole',
+    action: 'Take in the whole before tending the parts in right order.',
+    reflection: '"Have I seen the whole of this yet?"',
   ),
 ]);
 
 final List<DecanDayInfo> _shefBedetIIFlowRows = _buildFlowRows([
   (
     day: 11,
-    theme: 'Feed the Root, Not the Leaf',
-    action:
-        'Direct resources at the foundation of what is growing, not its visible surface.',
-    reflection: '"Am I feeding the root or performing care?"',
+    theme: 'Look Beneath',
+    action: 'Check below the surface; do not trust the green leaf alone.',
+    reflection: '"What looks fine on top but isn\'t underneath?"',
   ),
   (
     day: 12,
-    theme: 'Extend the Row',
-    action:
-        'Grow the practice or project by one unit. Longer, wider, more consistent.',
-    reflection: '"What is the next step, not the next leap?"',
+    theme: 'Stop at Enough',
+    action: 'Stop your care at the limit of what can be received.',
+    reflection: '"Where is my giving becoming too much?"',
   ),
   (
     day: 13,
-    theme: 'Weatherproof It',
-    action:
-        'Identify the condition that would damage this if it hit today. Build one layer of protection.',
-    reflection: '"What would damage this if it came now?"',
+    theme: 'Guide the Growth',
+    action: 'Guide how the work grows, not only that it grows.',
+    reflection: '"What needs shaping, not just feeding?"',
   ),
   (
     day: 14,
-    theme: 'Build the Rhythm',
-    action:
-        'Set a repeating cadence for the tending: daily, weekly, a specific time. Make it structural.',
-    reflection: '"Does this have a rhythm or just intention?"',
+    theme: 'Let It Be',
+    action: 'Let what is thriving alone, and call the waiting care.',
+    reflection: '"What needs nothing from me right now?"',
   ),
   (
     day: 15,
-    theme: 'Bring Others Into It',
-    action:
-        'Share what is growing with someone who will actively support it — not observe it, support it.',
-    reflection: '"Who belongs in this field with me?"',
+    theme: 'Tend Ahead',
+    action: 'Prepare for the weather that has not yet come.',
+    reflection: '"What am I not yet ready for?"',
   ),
   (
     day: 16,
-    theme: 'Address the Lean',
-    action:
-        'Find where it is growing unevenly. Correct toward balance before it becomes a structural problem.',
-    reflection: '"Where is this leaning that will become a problem?"',
+    theme: 'Time the Gift',
+    action: 'Give at the hour the gift can actually be used.',
+    reflection: '"When, not just what, should I give?"',
   ),
   (
     day: 17,
-    theme: 'Rest the Farmer',
-    action:
-        'The field grows while the farmer sleeps. Rest is maintenance, not absence.',
-    reflection: '"Am I resting enough to sustain this?"',
+    theme: 'Sharpen Early',
+    action: 'Ready what future work will need, before the need shouts.',
+    reflection: '"What should I sharpen now for later?"',
   ),
   (
     day: 18,
-    theme: 'Measure the Growth',
-    action:
-        'Quantify one change from Day 1 of Šef-Bedet to today. Make it concrete.',
-    reflection: '"How much has actually changed?"',
+    theme: 'Trust the Unseen',
+    action: 'Trust what ripens out of sight, without needing to watch it.',
+    reflection: '"What can I trust to work without watching?"',
   ),
   (
     day: 19,
-    theme: 'Thin the Row',
-    action:
-        'Remove one extra demand, weak shoot, or competing growth the field cannot support right now.',
-    reflection: '"What must be thinned?"',
+    theme: 'Tend the Strength',
+    action: 'Care for what you rely on before you ask it to carry weight.',
+    reflection: '"What strength have I leaned on but not tended?"',
   ),
   (
     day: 20,
-    theme: 'Survey the Field',
-    action:
-        'Stand back. Look at the whole, not just the part you have been tending. Note the full condition.',
-    reflection: '"What does the whole field look like?"',
+    theme: 'Keep It Just',
+    action: 'Restore a wrong cleanly, so tomorrow can grow without bitterness.',
+    reflection: '"What must I set right before it festers?"',
   ),
 ]);
 
 final List<DecanDayInfo> _shefBedetIIIFlowRows = _buildFlowRows([
   (
     day: 21,
-    theme: 'Let It Root',
-    action:
-        'Stop moving the plant. Consistent conditions now. Stability is the final act of establishment.',
-    reflection: '"Have I let this stay long enough to root?"',
+    theme: 'Let It Outgrow You',
+    action: 'Watch with open hands; let the living thing live beyond you.',
+    reflection: '"What have I been holding too tightly?"',
   ),
   (
     day: 22,
-    theme: 'Name What This Has Become',
-    action:
-        'Give the growing thing its actual name — what it is now, not what you hoped it would be.',
-    reflection: '"What is this, honestly?"',
+    theme: 'Tell Urge From Need',
+    action: 'Hold still when the urge to act is not a real need.',
+    reflection: '"Is this a need to act, or only an itch?"',
   ),
   (
     day: 23,
-    theme: 'Build for Harder Conditions',
-    action:
-        'Add one layer of protection while the growth is still easy to support.',
-    reflection: '"What will this need under pressure?"',
+    theme: 'Let It Struggle',
+    action: 'Let a small hardship stand, so real strength can grow from it.',
+    reflection: '"What struggle am I tempted to rescue too soon?"',
   ),
   (
     day: 24,
-    theme: 'Give Thanks for the Ground',
+    theme: 'Help Before Asked',
     action:
-        'Acknowledge what made this growth possible — the flood, the silt, Ka-ḥer-ka\'s preparation, other people\'s work.',
-    reflection: '"What held the ground so this could grow?"',
+        'Pass the tool across the boundary before loss has a chance to spread.',
+    reflection: '"Where is help needed before it\'s requested?"',
   ),
   (
     day: 25,
-    theme: 'Commit to What Has Proven Itself',
-    action:
-        'Record, formalize, or commit to one thing that should no longer be treated as a trial.',
-    reflection: '"What needs to stop being temporary?"',
+    theme: 'Honor Hidden Hands',
+    action: 'Honor the unseen hands inside what appears clean and finished.',
+    reflection: '"Whose hidden work am I standing on?"',
   ),
   (
     day: 26,
-    theme: 'Tend the Edges',
+    theme: 'Feed the Memory',
     action:
-        'The center of the field has your attention. Tend the edges today — what is peripheral but still alive.',
-    reflection: '"What at the edge needs care?"',
+        'Remember those who came before, so courage can return to the work.',
+    reflection: '"Who steadies me by being remembered?"',
   ),
   (
     day: 27,
-    theme: 'Trust What Is Established',
+    theme: 'Trade in Trust',
     action:
-        'The roots are in. Stop treating this as fragile. Act from the assumption that it will hold.',
-    reflection: '"Am I still treating this as more fragile than it is?"',
+        'Trade in ways that leave the relationship still standing tomorrow.',
+    reflection: '"Does this exchange leave trust intact?"',
   ),
   (
     day: 28,
-    theme: 'Offer the Month',
+    theme: 'Release Control',
     action:
-        'Place what this month produced in front of Ma\'at. Not the crop — the farmer, the field, the care given.',
-    reflection: '"What did I tend that Ma\'at can weigh?"',
+        'Act rightly without pretending to command what is larger than you.',
+    reflection: '"What must I act on, and what must I release?"',
   ),
   (
     day: 29,
-    theme: 'Align With What Comes Next',
-    action:
-        'Šef-Bedet ends tomorrow. Read what the next month requires. Begin the transition in the body and mind.',
-    reflection: '"Am I ready for what the next season asks?"',
+    theme: 'Ready the Tools',
+    action: 'Let your waiting become readiness for the moment of need.',
+    reflection: '"Is my waiting filled, or just empty?"',
   ),
   (
     day: 30,
-    theme: 'Seal the Month',
-    action:
-        'Close Šef-Bedet. Account for what grew. Hand it forward into the next month as a field in production, not a field in emergence.',
-    reflection: '"What am I handing forward?"',
+    theme: 'Carry a World',
+    action: 'Carry this not as a single moment, but as a whole world begun.',
+    reflection: '"What cycle have I begun?"',
   ),
 ]);
 
@@ -2738,219 +2701,199 @@ final List<DecanDayInfo> _heriuRenpetOverrideFlowRows = _buildFlowRows([
 final List<DecanDayInfo> _rekhWerOverrideIFlowRows = _buildFlowRows([
   (
     day: 1,
-    theme: 'Know What You Are Tending',
+    theme: 'It Enters Other Mouths',
     action:
-        'Name what is growing clearly. What kind of thing is it? What does it actually need at this stage?',
-    reflection: '"Do I know what I am tending?"',
+        'Accept that once a thing can be seen, it no longer belongs to you alone.',
+    reflection: '"What of mine has begun a public life?"',
   ),
   (
     day: 2,
-    theme: 'Read the Condition Before Acting',
+    theme: 'Keep the Same Loaf',
     action:
-        'Before any work on the growing thing today, observe first. What is the current state?',
-    reflection: '"What does the field say before I say anything?"',
+        'Do not spend on promise; let the proof arrive before the portion grows.',
+    reflection: '"Where am I spending on hope, not yield?"',
   ),
   (
     day: 3,
-    theme: 'Use the Right Tool',
-    action:
-        'Match the instrument to the task. The wrong tool applied with effort still damages the crop.',
-    reflection: '"Is this the right tool for what this requires?"',
+    theme: 'Meet Need With Dignity',
+    action: 'Answer another\'s need before it becomes a public shame.',
+    reflection: '"Whose need could I meet before it is exposed?"',
   ),
   (
     day: 4,
-    theme: 'Learn What You Do Not Yet Know',
+    theme: 'Refuse the Hurry',
     action:
-        'Name one gap in your understanding of what you are growing. Find the answer today.',
-    reflection: '"What do I not know that is costing the field?"',
+        'Let skill guide pressure; what is rushed folds before it can hold.',
+    reflection: '"What am I trying to raise too fast?"',
   ),
   (
     day: 5,
-    theme: 'Correct the Technique',
-    action:
-        'Find where your method is imprecise. Refine it before the season demands full capacity.',
-    reflection: '"Where is my technique costing more than it should?"',
+    theme: 'Let the Heat Decide',
+    action: 'Shape what feeds many by readiness, not by appetite.',
+    reflection: '"What am I rushing to feed before it\'s ready?"',
   ),
   (
     day: 6,
-    theme: 'Apply Knowledge, Not Just Effort',
-    action:
-        'Work smarter through understanding today, not just harder through repetition.',
-    reflection: '"Am I applying knowledge or just force?"',
+    theme: 'Ask Who Saw It',
+    action: 'Stop a loose word by asking what is true before it hardens.',
+    reflection: '"What rumor am I letting pass unquestioned?"',
   ),
   (
     day: 7,
-    theme: 'Teach What You Know',
-    action:
-        'Pass one piece of working knowledge to someone in your field. Shared craft strengthens the whole network.',
-    reflection: '"What do I know that someone nearby needs?"',
+    theme: 'Teach the Reason',
+    action: 'Pass on not just the motion, but the reason that keeps it alive.',
+    reflection: '"What do I do well that I cannot yet explain?"',
   ),
   (
     day: 8,
-    theme: 'Receive Correction',
+    theme: 'Let Joy Wait',
     action:
-        'Ask someone with more field experience to review what you are doing. Receive their correction without defense.',
-    reflection: '"Can I receive correction?"',
+        'Look ahead with hope, but wait to promise until the house can bear it.',
+    reflection: '"What promise am I tempted to make too early?"',
   ),
   (
     day: 9,
-    theme: 'Document the Method',
+    theme: 'Give a Clean Limit',
     action:
-        'Write down what is working. A method that exists only in memory gets lost at the worst moment.',
-    reflection: '"Is the knowledge recorded or only in my head?"',
+        'Set the honest limit; a promise too large becomes tomorrow\'s betrayal.',
+    reflection: '"Where would a clean no protect more than a yes?"',
   ),
   (
     day: 10,
-    theme: 'Close the First Knowing',
-    action:
-        'Note what you now understand about this field that you did not at the month\'s start. The knowing is the foundation.',
-    reflection: '"What do I know now that I did not know ten days ago?"',
+    theme: 'Guard the Unfinished',
+    action: 'Protect what is unfinished from the stories built around it.',
+    reflection: '"What expectation must I keep from outrunning the work?"',
   ),
 ]);
 
 final List<DecanDayInfo> _rekhWerOverrideIIFlowRows = _buildFlowRows([
   (
     day: 11,
-    theme: 'Act From What You Know',
+    theme: 'First Form Is Not Final',
     action:
-        'Apply the knowledge built in Decan I without re-litigating it. Less questioning, more competent action.',
-    reflection: '"Am I acting from knowledge or still gathering it?"',
+        'Do not treat early shape as a finished outcome; it can still turn.',
+    reflection: '"What have I called done that is only begun?"',
   ),
   (
     day: 12,
-    theme: 'Maintain the Standard',
-    action:
-        'Hold the quality you established. Do not let the standard drift under pressure or fatigue.',
-    reflection: '"Is the standard holding or drifting?"',
+    theme: 'See Before You Act',
+    action: 'Let the eye catch the flaw before the hand moves to fix it.',
+    reflection: '"Where should I pause before acting?"',
   ),
   (
     day: 13,
-    theme: 'Work the Difficult Section',
-    action:
-        'The part of the field you have been avoiding. Go there today with full attention.',
-    reflection: '"What part of this have I been avoiding?"',
+    theme: 'Count What Can Hold',
+    action: 'Judge what is real strength from what is only crowded show.',
+    reflection: '"What looks like growth but cannot hold?"',
   ),
   (
     day: 14,
-    theme: 'Calibrate the Pace',
-    action:
-        'Match effort to what the field actually requires today — not yesterday\'s urgency, not tomorrow\'s anxiety.',
-    reflection: '"Am I moving at the pace the field needs?"',
+    theme: 'Confirm by Return',
+    action: 'Trust guidance proven over many seeings, not a single glance.',
+    reflection: '"What am I judging on one look alone?"',
   ),
   (
     day: 15,
-    theme: 'Strengthen What Is Weak',
-    action:
-        'Find the weakest section of what you are growing. Direct skilled attention there today.',
-    reflection: '"Where is the weakest point in what I am building?"',
+    theme: 'Shape Help to Fragility',
+    action: 'Match the force of your help to what the thing can bear.',
+    reflection: '"Where is my help too heavy for what it helps?"',
   ),
   (
     day: 16,
-    theme: 'Protect the Knowledge',
-    action:
-        'What you have learned this month could be disrupted. Guard the method against conditions that would erode it.',
-    reflection: '"What would cause me to lose what I have learned?"',
+    theme: 'Hold Without Choking',
+    action: 'Bind firmly enough to hold, loosely enough to let life move.',
+    reflection: '"Where am I holding too tight, or too loose?"',
   ),
   (
     day: 17,
-    theme: 'Work With Another\'s Knowledge',
-    action:
-        'Apply something learned from someone else — a method, a correction, a piece of advice not yet fully used.',
-    reflection: '"Whose knowledge am I not yet using?"',
+    theme: 'Know Which Hurt to Help',
+    action: 'Tell what needs help, what needs time, and what must be released.',
+    reflection: '"What needs help, what needs time, what needs letting go?"',
   ),
   (
     day: 18,
-    theme: 'Read the Growth Accurately',
-    action:
-        'Measure or assess honestly what the field produced in this second interval. Not how it felt — what actually grew.',
-    reflection: '"What does the honest measure say?"',
+    theme: 'Let the Heat Leave',
+    action: 'Wait for anger to cool before you judge; heat distorts the scale.',
+    reflection: '"What should I not decide while still hot?"',
   ),
   (
     day: 19,
-    theme: 'Adjust the Method',
+    theme: 'Correct to Shape',
     action:
-        'Based on Day 18\'s honest reading, change one thing about how you are working. The method must serve the field, not the other way.',
-    reflection: '"What does the reading require me to change?"',
+        'Correct in a way that shapes the person, not just punishes the act.',
+    reflection: '"Am I correcting to teach, or only to punish?"',
   ),
   (
     day: 20,
-    theme: 'Account for the Decan',
-    action:
-        'Two decans of Rekh-Wer complete. What knowledge was built and applied? What does the field now require for the final ten days?',
-    reflection: '"What does the field need from the last decan?"',
+    theme: 'What Is Judged Holds',
+    action: 'Let the heart govern the hand, and what is formed will hold.',
+    reflection: '"What have I shaped with judgment, not just effort?"',
   ),
 ]);
 
 final List<DecanDayInfo> _rekhWerOverrideIIIFlowRows = _buildFlowRows([
   (
     day: 21,
-    theme: 'Consolidate What You Know',
-    action:
-        'Review the knowledge built this month. What is solid? What still needs reinforcement before the month closes?',
-    reflection: '"What do I know well enough to teach?"',
+    theme: 'Proven by Returning',
+    action: 'Build trust by appearing rightly, again and again.',
+    reflection: '"What earns trust by how reliably it returns?"',
   ),
   (
     day: 22,
-    theme: 'Close the Knowledge Gap',
-    action:
-        'The gap identified in Day 4 — has it been closed? If not, close it now before the month ends.',
-    reflection: '"Is the gap closed or still costing the field?"',
+    theme: 'Effort That Knows Where to Go',
+    action: 'Spend effort where it is needed, not equally on everything.',
+    reflection: '"Where am I working hard in the wrong places?"',
   ),
   (
     day: 23,
-    theme: 'Strengthen the Method for Carrying',
-    action:
-        'What you built this month must survive into next month. Strengthen it against the conditions ahead.',
-    reflection: '"Will this method hold into the next month?"',
+    theme: 'It Holds Without You',
+    action: 'Let what you taught be carried by another, unwatched.',
+    reflection: '"What have I taught well enough to leave alone?"',
   ),
   (
     day: 24,
-    theme: 'Work the Field at Full Skill',
+    theme: 'Carry, Don\'t Display',
     action:
-        'Bring everything learned this month to bear today. Not effort — the full precision of what was practiced.',
-    reflection: '"Am I working at the level I have built?"',
+        'Let competence prove itself by carrying people safely, not by show.',
+    reflection: '"Where am I performing skill instead of using it?"',
   ),
   (
     day: 25,
-    theme: 'Pass the Knowledge On',
-    action:
-        'Whatever you learned this month that worked — write it, share it, formalize it so it survives beyond this season.',
-    reflection: '"Who or what carries this knowledge after me?"',
+    theme: 'Look at the Right Hour',
+    action: 'Look when the sign can be seen; some truths show only briefly.',
+    reflection: '"What can I only catch at the right moment?"',
   ),
   (
     day: 26,
-    theme: 'Tend the Overlooked',
+    theme: 'Test Before the Load',
     action:
-        'The section that got the least skilled attention this month. Give it focused care before the month closes.',
-    reflection: '"What did I under-tend this month?"',
+        'Test again what carried weight before; past strength is not present proof.',
+    reflection: '"What am I trusting only because it held last time?"',
   ),
   (
     day: 27,
-    theme: 'Read the Full Field',
-    action:
-        'Stand back from all of Rekh-Wer. What does the whole field look like? What will it need in Rekh-Nedjes?',
-    reflection: '"What does the full field tell me?"',
+    theme: 'Catch the First Tightening',
+    action: 'Act at the first sign of trouble, before it becomes a break.',
+    reflection: '"What early tension can I ease before it snaps?"',
   ),
   (
     day: 28,
-    theme: 'Offer the Craft',
-    action:
-        'The knowledge applied this month is an offering. Place the quality of your craft in front of Ma\'at.',
-    reflection: '"Did I work with the quality Ma\'at would recognize?"',
+    theme: 'Let It Speak Back',
+    action: 'Let what you taught correct you; that is when it has taken root.',
+    reflection: '"Can what I taught now teach me?"',
   ),
   (
     day: 29,
-    theme: 'Prepare the Transition',
+    theme: 'Vigilance Shared',
     action:
-        'Rekh-Nedjes opens next month. Read what it will require. Begin adjusting the approach before the month turns.',
-    reflection: '"What does the next month require that this one did not?"',
+        'Let trusted knowledge spread the watch, so it rests on no one alone.',
+    reflection: '"What no longer depends on my fear alone?"',
   ),
   (
     day: 30,
-    theme: 'Seal Rekh-Wer',
-    action:
-        'Account for what was learned, applied, and built. Name the knowledge that now belongs to you. Hand the field forward.',
-    reflection: '"What knowledge do I carry out of this month?"',
+    theme: 'The Method Holds',
+    action: 'Let what you built carry on past your own hands, still sound.',
+    reflection: '"What of mine now holds without me?"',
   ),
 ]);
 

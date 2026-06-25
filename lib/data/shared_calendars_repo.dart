@@ -7,6 +7,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'event_filing_engine.dart';
 import 'event_filing_repo.dart';
+import 'birthday_calendar.dart';
 import 'shared_calendar_models.dart';
 import 'user_events_repo.dart';
 
@@ -45,6 +46,7 @@ class SharedCalendarsRepo {
   }
 
   String? get _currentUserId => _client.auth.currentUser?.id;
+  String? get currentUserId => _currentUserId;
 
   String _acceptedCalendarsCacheKey(String userId) =>
       '$_acceptedCalendarsCacheKeyPrefix:$userId';
@@ -253,8 +255,25 @@ class SharedCalendarsRepo {
     }
   }
 
+  Future<String?> ensureBirthdaysCalendar() {
+    return BirthdayCalendarRepo(_client).ensureBirthdaysCalendar();
+  }
+
+  Future<String> createBirthday({
+    required String name,
+    required DateTime birthday,
+    required int alertOffsetMinutes,
+  }) {
+    return BirthdayCalendarRepo(_client).createBirthday(
+      name: name,
+      birthday: birthday,
+      alertOffsetMinutes: alertOffsetMinutes,
+    );
+  }
+
   Future<List<SharedCalendarSummary>> getAcceptedCalendars() async {
     await ensurePersonalCalendar();
+    await ensureBirthdaysCalendar();
     try {
       final rows = await _client
           .from(_calendarFilingView)

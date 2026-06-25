@@ -18,12 +18,20 @@ import '../../widgets/keyboard_aware.dart';
 import '../calendar/calendar_page.dart' show KemeticMath;
 import '../calendar/kemetic_month_metadata.dart' show getMonthById;
 import '../nodes/kemetic_node_library.dart';
+import '../reflections/decan_reflection_skin.dart';
 import 'package:mobile/shared/glossy_text.dart';
 import 'journal_badge_utils.dart';
 import 'journal_controller.dart';
 import 'journal_event_badge.dart';
 import 'journal_v2_document_model.dart';
 import 'journal_v2_rich_text.dart';
+
+const Key journalArchiveReflectionSkinKey = ValueKey<String>(
+  'journal-archive-reflection-skin',
+);
+const Key journalArchiveDateModeToggleKey = ValueKey<String>(
+  'journal-archive-date-mode-toggle',
+);
 
 class JournalArchivePage extends StatefulWidget {
   final JournalRepo repo;
@@ -344,88 +352,126 @@ class _JournalArchivePageState extends State<JournalArchivePage> {
     return '$dow, $month ${greg.day}';
   }
 
+  String _formatArchiveSection(DateTime greg) {
+    if (_useKemetic) {
+      final k = KemeticMath.fromGregorian(greg);
+      return getMonthById(k.kMonth).displayFull;
+    }
+    return '${_getMonthName(greg.month)} ${greg.year}';
+  }
+
+  List<_JournalArchiveSection> _archiveSections() {
+    final sections = <_JournalArchiveSection>[];
+    var currentLabel = '';
+    var currentEntries = <JournalEntry>[];
+
+    void flush() {
+      if (currentEntries.isEmpty) return;
+      sections.add(
+        _JournalArchiveSection(
+          label: currentLabel,
+          entries: List<JournalEntry>.unmodifiable(currentEntries),
+        ),
+      );
+      currentEntries = <JournalEntry>[];
+    }
+
+    for (final entry in _entries) {
+      final label = _formatArchiveSection(entry.gregDate);
+      if (currentEntries.isNotEmpty && label != currentLabel) {
+        flush();
+      }
+      currentLabel = label;
+      currentEntries.add(entry);
+    }
+    flush();
+
+    return sections;
+  }
+
+  TextStyle _modeToggleTextStyle({required bool selected}) {
+    return DecanReflectionTokens.bridgeStyle.copyWith(
+      color: selected ? DecanReflectionTokens.base : DecanReflectionTokens.gold,
+      fontSize: 16,
+      fontWeight: FontWeight.w600,
+      letterSpacing: 0,
+    );
+  }
+
   Widget _buildModeToggle() {
-    // Styled like Flow Studio toggle, slightly compact
     return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
-      child: CupertinoSegmentedControl<bool>(
-        groupValue: _useKemetic,
-        padding: const EdgeInsets.all(2),
-        children: const {
-          true: Padding(
-            padding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-            child: Text('Kemetic'),
+      padding: const EdgeInsets.fromLTRB(24, 12, 24, 4),
+      child: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 282),
+          child: CupertinoSegmentedControl<bool>(
+            key: journalArchiveDateModeToggleKey,
+            groupValue: _useKemetic,
+            padding: const EdgeInsets.all(2),
+            selectedColor: DecanReflectionTokens.goldDeep,
+            unselectedColor: const Color.fromRGBO(212, 174, 67, 0.05),
+            borderColor: const Color.fromRGBO(212, 174, 67, 0.34),
+            pressedColor: const Color.fromRGBO(212, 174, 67, 0.14),
+            children: {
+              true: Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 13,
+                  vertical: 8,
+                ),
+                child: Text(
+                  'Kemetic',
+                  style: _modeToggleTextStyle(selected: _useKemetic),
+                ),
+              ),
+              false: Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 13,
+                  vertical: 8,
+                ),
+                child: Text(
+                  'Gregorian',
+                  style: _modeToggleTextStyle(selected: !_useKemetic),
+                ),
+              ),
+            },
+            onValueChanged: (v) {
+              setState(() => _useKemetic = v);
+            },
           ),
-          false: Padding(
-            padding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-            child: Text('Gregorian'),
-          ),
-        },
-        onValueChanged: (v) {
-          setState(() => _useKemetic = v);
-        },
+        ),
       ),
     );
   }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.black,
-      appBar: AppBar(
-        backgroundColor: Colors.black,
-        elevation: 0,
-        leading: IconButton(
-          icon: KemeticGold.icon(
-            _selectedEntry != null ? Icons.arrow_back : Icons.close,
-          ),
-          onPressed: _selectedEntry != null ? _closeEntry : widget.onClose,
-        ),
-        title: Text(
-          _selectedEntry != null ? 'Journal Entry' : 'Journal Archive',
-          style: const TextStyle(
-            color: Colors.white,
-            fontSize: 18,
-            fontWeight: FontWeight.w600,
-          ),
-        ),
-        actions: _selectedEntry != null
-            ? [
-                if (!_isEditing)
-                  TextButton(
-                    onPressed: _startEditing,
-                    child: KemeticGold.text(
-                      'Edit',
-                      style: const TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  )
-                else
-                  TextButton(
-                    onPressed: _saveEntry,
-                    child: KemeticGold.text(
-                      'Save',
-                      style: const TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ),
-              ]
+    final showingEntry = _selectedEntry != null;
+    return DecanReflectionSkinScaffold(
+      key: journalArchiveReflectionSkinKey,
+      navBar: DecanReflectionNavBar(
+        title: showingEntry ? 'Journal Entry' : 'Journal Archive',
+        leadingIcon: showingEntry ? Icons.chevron_left : Icons.close,
+        leadingTooltip: showingEntry ? 'Back to archive' : 'Close archive',
+        onBack: showingEntry ? _closeEntry : widget.onClose,
+        rightWidth: showingEntry ? 76 : 48,
+        right: showingEntry
+            ? _JournalArchiveNavAction(
+                label: _isEditing ? 'Save' : 'Edit',
+                onPressed: _isEditing ? _saveEntry : _startEditing,
+              )
             : null,
       ),
-      body: _selectedEntry != null ? _buildEntryDetail() : _buildEntryList(),
+      child: showingEntry ? _buildEntryDetail() : _buildEntryList(),
     );
   }
 
   Widget _buildEntryList() {
-    const listBottomPadding = 16.0;
-
     if (_loading) {
       return const Center(
-        child: CircularProgressIndicator(color: KemeticGold.base),
+        child: CircularProgressIndicator(
+          valueColor: AlwaysStoppedAnimation<Color>(DecanReflectionTokens.gold),
+          strokeWidth: 2,
+        ),
       );
     }
 
@@ -434,38 +480,54 @@ class _JournalArchivePageState extends State<JournalArchivePage> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.book_outlined, size: 64, color: Color(0xFF666666)),
+            Icon(
+              Icons.book_outlined,
+              size: 54,
+              color: DecanReflectionTokens.inkLo,
+            ),
             SizedBox(height: 16),
             Text(
               'No journal entries yet',
-              style: TextStyle(
-                color: Color(0xFF666666),
-                fontSize: 18,
-                fontWeight: FontWeight.w500,
-              ),
+              textAlign: TextAlign.center,
+              style: DecanReflectionTokens.emptyTitleStyle,
             ),
             SizedBox(height: 8),
             Text(
               'Start writing to see your entries here',
-              style: TextStyle(color: Color(0xFF666666), fontSize: 14),
+              textAlign: TextAlign.center,
+              style: DecanReflectionTokens.emptyBodyStyle,
             ),
           ],
         ),
       );
     }
 
+    final sections = _archiveSections();
+    final bottomPadding =
+        DecanReflectionTokens.scrollBottomPadding +
+        MediaQuery.paddingOf(context).bottom;
+
     return Column(
       children: [
         _buildModeToggle(),
         Expanded(
-          child: ListView.separated(
-            padding: EdgeInsets.fromLTRB(16, 16, 16, listBottomPadding),
-            itemCount: _entries.length,
-            separatorBuilder: (context, index) =>
-                const Divider(color: Color(0xFF333333), height: 1),
-            itemBuilder: (context, index) {
-              final entry = _entries[index];
-              return _buildEntryCard(entry);
+          child: ListView.builder(
+            padding: EdgeInsets.only(top: 6, bottom: bottomPadding),
+            itemCount: sections.length,
+            itemBuilder: (context, sectionIndex) {
+              final section = sections[sectionIndex];
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  DecanMonthHeader(label: section.label),
+                  DecanTrack(
+                    children: [
+                      for (var i = 0; i < section.entries.length; i++)
+                        _buildEntryCard(section.entries[i], addTopGap: i > 0),
+                    ],
+                  ),
+                ],
+              );
             },
           ),
         ),
@@ -473,7 +535,7 @@ class _JournalArchivePageState extends State<JournalArchivePage> {
     );
   }
 
-  Widget _buildEntryCard(JournalEntry entry) {
+  Widget _buildEntryCard(JournalEntry entry, {bool addTopGap = false}) {
     final date = entry.gregDate;
     final header = _formatArchiveDate(date);
     final previewText = _getPreviewText(entry);
@@ -483,10 +545,14 @@ class _JournalArchivePageState extends State<JournalArchivePage> {
       key: ValueKey(entry.id),
       direction: DismissDirection.endToStart,
       background: Container(
-        color: Colors.red.withValues(alpha: 0.8),
+        margin: EdgeInsets.only(top: addTopGap ? 2 : 0),
+        decoration: const BoxDecoration(
+          color: Color.fromRGBO(104, 40, 35, 0.76),
+          borderRadius: BorderRadius.all(Radius.circular(14)),
+        ),
         alignment: Alignment.centerRight,
-        padding: const EdgeInsets.symmetric(horizontal: 16),
-        child: const Icon(Icons.delete, color: Colors.white),
+        padding: const EdgeInsets.symmetric(horizontal: 24),
+        child: const Icon(Icons.delete, color: DecanReflectionTokens.ink),
       ),
       onDismissed: (_) async {
         await widget.repo.deleteByDate(entry.gregDate);
@@ -498,62 +564,14 @@ class _JournalArchivePageState extends State<JournalArchivePage> {
           }
         });
       },
-      child: InkWell(
+      child: _JournalArchiveEntryRow(
+        dateLabel: header,
+        preview: previewText,
+        metadata: '$charCount characters',
+        addTopGap: addTopGap,
         onTap: () {
           _openEntry(entry);
         },
-        child: Container(
-          padding: const EdgeInsets.symmetric(vertical: 16),
-          child: Row(
-            children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // Date header
-                    Text(
-                      header,
-                      style: const TextStyle(
-                        color: KemeticGold.base,
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-
-                    // Preview text
-                    Text(
-                      previewText,
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 14,
-                        height: 1.4,
-                      ),
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    const SizedBox(height: 4),
-
-                    // Character count
-                    Text(
-                      '$charCount characters',
-                      style: TextStyle(
-                        color: Colors.white.withValues(alpha: 0.5),
-                        fontSize: 12,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(width: 16),
-              Icon(
-                Icons.chevron_right,
-                color: Colors.white.withValues(alpha: 0.3),
-                size: 20,
-              ),
-            ],
-          ),
-        ),
       ),
     );
   }
@@ -565,36 +583,50 @@ class _JournalArchivePageState extends State<JournalArchivePage> {
     final date = entry.gregDate;
     final header = _formatArchiveDate(date);
     final entryDoc = _entryToDocument(entry);
+    final charCount = _getActualTextLength(entry);
     final keyboardVisible = keyboardInsetOf(context) > 0;
     const contentBottomPadding = 16.0;
 
     return Column(
       children: [
-        // Date header
-        Container(
-          width: double.infinity,
-          padding: const EdgeInsets.all(16),
-          decoration: const BoxDecoration(
-            color: Color(0xFF0D0D0F),
-            border: Border(
-              bottom: BorderSide(color: Color(0xFF333333), width: 1),
-            ),
-          ),
-          child: Text(
-            header,
-            style: const TextStyle(
-              color: KemeticGold.base,
-              fontSize: 20,
-              fontWeight: FontWeight.w600,
-            ),
-            textAlign: TextAlign.center,
+        Padding(
+          padding: const EdgeInsets.fromLTRB(24, 14, 24, 16),
+          child: Column(
+            children: [
+              const Text(
+                'ENTRY FOR',
+                style: DecanReflectionTokens.riteEyebrowStyle,
+              ),
+              const SizedBox(height: 8),
+              Text(
+                header,
+                style: DecanReflectionTokens.recordTitleStyle.copyWith(
+                  fontSize: 24,
+                  height: 1.25,
+                ),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 8),
+              Text(
+                '$charCount characters',
+                style: DecanReflectionTokens.folioDateStyle,
+              ),
+              const SizedBox(height: 16),
+              const SizedBox(
+                height: 1,
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    gradient: DecanReflectionTokens.mastheadRule,
+                  ),
+                ),
+              ),
+            ],
           ),
         ),
 
-        // Content
         Expanded(
           child: Padding(
-            padding: EdgeInsets.fromLTRB(16, 16, 16, contentBottomPadding),
+            padding: EdgeInsets.fromLTRB(24, 0, 24, contentBottomPadding),
             child: _isEditing
                 ? _buildEditView(keyboardVisible: keyboardVisible)
                 : _buildReadView(entryDoc),
@@ -606,11 +638,7 @@ class _JournalArchivePageState extends State<JournalArchivePage> {
 
   Widget _buildReadView(JournalDocument doc) {
     final visibleText = doc.toPlainText();
-    final baseStyle = const TextStyle(
-      color: Colors.white,
-      fontSize: 16,
-      height: 1.5,
-    );
+    final baseStyle = DecanReflectionTokens.bodyStyle.copyWith(fontSize: 19);
 
     final badges = JournalBadgeUtils.tokensFromDocument(doc);
 
@@ -650,7 +678,7 @@ class _JournalArchivePageState extends State<JournalArchivePage> {
     if (badges.isEmpty) {
       badgeBody = const Text(
         'No badges for this entry',
-        style: TextStyle(color: Color(0xFF666666)),
+        style: DecanReflectionTokens.emptyBodyStyle,
       );
     } else {
       if (maxHeight != null) {
@@ -680,11 +708,15 @@ class _JournalArchivePageState extends State<JournalArchivePage> {
       width: double.infinity,
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: const Color(0xFF0A0A0A),
-        border: Border.all(color: const Color(0xFF333333), width: 1),
-        borderRadius: BorderRadius.circular(12),
+        color: const Color.fromRGBO(18, 15, 8, 0.70),
+        border: Border.all(color: DecanReflectionTokens.hairline, width: 1),
+        borderRadius: BorderRadius.circular(8),
         boxShadow: const [
-          BoxShadow(color: Colors.black54, blurRadius: 6, offset: Offset(0, 2)),
+          BoxShadow(
+            color: Colors.black54,
+            blurRadius: 18,
+            offset: Offset(0, 8),
+          ),
         ],
       ),
       constraints: maxHeight != null
@@ -740,42 +772,61 @@ class _JournalArchivePageState extends State<JournalArchivePage> {
         return Column(
           children: [
             Expanded(
-              child: RichTextEditor(
-                initialBlock: initialBlock,
-                highlightedRanges: _entryLinkRanges(),
-                insightLinks: _entryLinks,
-                onInsightLinkTap: _handleEntryLinkTap,
-                onChanged: (block) {
-                  final previousText = _entryPrevText;
-                  setState(() {
-                    final doc =
-                        _editingDocument ?? _entryToDocument(_selectedEntry!);
-                    final blocks = List<JournalBlock>.from(doc.blocks);
-                    final pIdx = blocks.indexWhere((b) => b is ParagraphBlock);
-                    if (pIdx >= 0) {
-                      blocks[pIdx] = block;
-                    } else {
-                      blocks.insert(0, block);
-                    }
-                    final nextDocument = JournalDocument(
-                      version: doc.version,
-                      blocks: blocks,
-                      meta: doc.meta,
-                    );
-                    final nextText = nextDocument.toPlainText();
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  color: const Color.fromRGBO(18, 15, 8, 0.52),
+                  border: Border.all(color: DecanReflectionTokens.hairline),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Padding(
+                  padding: const EdgeInsets.all(14),
+                  child: RichTextEditor(
+                    initialBlock: initialBlock,
+                    highlightedRanges: _entryLinkRanges(),
+                    insightLinks: _entryLinks,
+                    onInsightLinkTap: _handleEntryLinkTap,
+                    textStyle: DecanReflectionTokens.bodyStyle.copyWith(
+                      fontSize: 18,
+                    ),
+                    placeholderStyle: DecanReflectionTokens.emptyBodyStyle,
+                    cursorColor: DecanReflectionTokens.gold,
+                    transparentDecoration: true,
+                    onChanged: (block) {
+                      final previousText = _entryPrevText;
+                      setState(() {
+                        final doc =
+                            _editingDocument ??
+                            _entryToDocument(_selectedEntry!);
+                        final blocks = List<JournalBlock>.from(doc.blocks);
+                        final pIdx = blocks.indexWhere(
+                          (b) => b is ParagraphBlock,
+                        );
+                        if (pIdx >= 0) {
+                          blocks[pIdx] = block;
+                        } else {
+                          blocks.insert(0, block);
+                        }
+                        final nextDocument = JournalDocument(
+                          version: doc.version,
+                          blocks: blocks,
+                          meta: doc.meta,
+                        );
+                        final nextText = nextDocument.toPlainText();
 
-                    _editingDocument = nextDocument;
-                    _editController.text = nextText;
-                    if (previousText != nextText) {
-                      _entryLinks = InsightLinkRangeUpdater.shiftRanges(
-                        previous: previousText,
-                        next: nextText,
-                        links: _entryLinks,
-                      );
-                      _entryPrevText = nextText;
-                    }
-                  });
-                },
+                        _editingDocument = nextDocument;
+                        _editController.text = nextText;
+                        if (previousText != nextText) {
+                          _entryLinks = InsightLinkRangeUpdater.shiftRanges(
+                            previous: previousText,
+                            next: nextText,
+                            links: _entryLinks,
+                          );
+                          _entryPrevText = nextText;
+                        }
+                      });
+                    },
+                  ),
+                ),
               ),
             ),
             if (badgeHeight > 0) ...[
@@ -806,8 +857,11 @@ class _JournalArchivePageState extends State<JournalArchivePage> {
                       _loadEntryLinks(entry);
                     },
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.grey[800],
-                      foregroundColor: Colors.white,
+                      backgroundColor: const Color.fromRGBO(212, 174, 67, 0.06),
+                      foregroundColor: DecanReflectionTokens.inkSoft,
+                      side: const BorderSide(
+                        color: DecanReflectionTokens.hairline,
+                      ),
                       padding: const EdgeInsets.symmetric(vertical: 12),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(8),
@@ -821,8 +875,8 @@ class _JournalArchivePageState extends State<JournalArchivePage> {
                   child: ElevatedButton(
                     onPressed: _saveEntry,
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: KemeticGold.base,
-                      foregroundColor: Colors.black,
+                      backgroundColor: DecanReflectionTokens.goldDeep,
+                      foregroundColor: DecanReflectionTokens.base,
                       padding: const EdgeInsets.symmetric(vertical: 12),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(8),
@@ -857,5 +911,198 @@ class _JournalArchivePageState extends State<JournalArchivePage> {
 
     if (maxBadgeHeight < 52) return 0;
     return targetHeight.clamp(52.0, maxBadgeHeight).toDouble();
+  }
+}
+
+class _JournalArchiveSection {
+  const _JournalArchiveSection({required this.label, required this.entries});
+
+  final String label;
+  final List<JournalEntry> entries;
+}
+
+class _JournalArchiveNavAction extends StatelessWidget {
+  const _JournalArchiveNavAction({
+    required this.label,
+    required this.onPressed,
+  });
+
+  final String label;
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    return TextButton(
+      onPressed: onPressed,
+      style: ButtonStyle(
+        foregroundColor: const WidgetStatePropertyAll<Color>(
+          DecanReflectionTokens.gold,
+        ),
+        padding: const WidgetStatePropertyAll<EdgeInsetsGeometry>(
+          EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+        ),
+        minimumSize: const WidgetStatePropertyAll<Size>(Size(0, 0)),
+        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+        overlayColor: const WidgetStatePropertyAll<Color>(
+          Color.fromRGBO(212, 174, 67, 0.08),
+        ),
+        shape: WidgetStatePropertyAll<OutlinedBorder>(
+          RoundedRectangleBorder(borderRadius: BorderRadius.circular(999)),
+        ),
+      ),
+      child: Text(
+        label,
+        maxLines: 1,
+        overflow: TextOverflow.fade,
+        softWrap: false,
+        style: DecanReflectionTokens.bridgeStyle.copyWith(
+          fontWeight: FontWeight.w600,
+          letterSpacing: 0,
+        ),
+      ),
+    );
+  }
+}
+
+class _JournalArchiveEntryRow extends StatefulWidget {
+  const _JournalArchiveEntryRow({
+    required this.dateLabel,
+    required this.preview,
+    required this.metadata,
+    required this.onTap,
+    this.addTopGap = false,
+  });
+
+  final String dateLabel;
+  final String preview;
+  final String metadata;
+  final VoidCallback onTap;
+  final bool addTopGap;
+
+  @override
+  State<_JournalArchiveEntryRow> createState() =>
+      _JournalArchiveEntryRowState();
+}
+
+class _JournalArchiveEntryRowState extends State<_JournalArchiveEntryRow> {
+  bool _hovered = false;
+  bool _pressed = false;
+  bool _focused = false;
+
+  bool get _active => _hovered || _pressed;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: EdgeInsets.only(top: widget.addTopGap ? 2 : 0),
+      child: Semantics(
+        button: true,
+        label: 'Open journal entry for ${widget.dateLabel}, ${widget.metadata}',
+        child: DecoratedBox(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(14),
+            border: _focused
+                ? Border.all(color: DecanReflectionTokens.gold, width: 2)
+                : null,
+          ),
+          child: Material(
+            color: Colors.transparent,
+            child: InkWell(
+              borderRadius: BorderRadius.circular(14),
+              focusColor: Colors.transparent,
+              hoverColor: Colors.transparent,
+              highlightColor: Colors.transparent,
+              splashColor: Colors.transparent,
+              onTap: widget.onTap,
+              onHover: (hovered) => setState(() => _hovered = hovered),
+              onHighlightChanged: (pressed) =>
+                  setState(() => _pressed = pressed),
+              onFocusChange: (focused) => setState(() => _focused = focused),
+              child: Stack(
+                children: <Widget>[
+                  Positioned(
+                    left: 3,
+                    top: 25,
+                    child: _JournalArchiveTimelineNode(active: _active),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(30, 16, 20, 18),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      children: <Widget>[
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: <Widget>[
+                              Text(
+                                widget.metadata,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: DecanReflectionTokens.dateStyle,
+                              ),
+                              const SizedBox(height: 3),
+                              Text(
+                                widget.dateLabel,
+                                style: DecanReflectionTokens.recordTitleStyle
+                                    .copyWith(fontSize: 22, height: 1.34),
+                              ),
+                              const SizedBox(height: 6),
+                              DecanPreviewText(text: widget.preview),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Icon(
+                          Icons.chevron_right,
+                          color: DecanReflectionTokens.inkLo.withValues(
+                            alpha: 0.74,
+                          ),
+                          size: 20,
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _JournalArchiveTimelineNode extends StatelessWidget {
+  const _JournalArchiveTimelineNode({required this.active});
+
+  final bool active;
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedScale(
+      scale: active ? 1.18 : 1,
+      duration: const Duration(milliseconds: 250),
+      curve: Curves.ease,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 250),
+        curve: Curves.ease,
+        width: 13,
+        height: 13,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          gradient: DecanReflectionTokens.recordNodeFill,
+          border: Border.all(color: DecanReflectionTokens.goldDeep, width: 1.5),
+          boxShadow: <BoxShadow>[
+            const BoxShadow(color: DecanReflectionTokens.base, spreadRadius: 4),
+            if (active)
+              const BoxShadow(
+                color: Color.fromRGBO(212, 174, 67, 0.28),
+                blurRadius: 14,
+                spreadRadius: 2,
+              ),
+          ],
+        ),
+      ),
+    );
   }
 }

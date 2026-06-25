@@ -11,6 +11,7 @@ import 'package:mobile/features/calendar/calendar_page.dart' show KemeticMath;
 import 'package:mobile/features/calendar/calendar_reflection_context.dart';
 import 'package:mobile/features/calendar/kemetic_month_metadata.dart'
     show getMonthById;
+import 'package:mobile/features/calendar/maat_flow_response_journal_blocks.dart';
 import 'package:mobile/shared/glossy_text.dart';
 import 'journal_controller.dart';
 import 'journal_constants.dart';
@@ -35,6 +36,10 @@ import '../nodes/kemetic_node_library.dart';
 import '../nodes/node_link_picker_sheet.dart';
 
 enum JournalPresentationMode { overlay, page }
+
+const Key kJournalMaatResponseBodyBlocksKey = Key(
+  'journal_maat_response_body_blocks',
+);
 
 class JournalOverlay extends StatefulWidget {
   final JournalController controller;
@@ -106,13 +111,7 @@ class _JournalOverlayState extends State<JournalOverlay>
       curve: Curves.easeOut,
     );
 
-    final initialText =
-        widget.controller.currentDocument?.blocks
-            .whereType<ParagraphBlock>()
-            .expand((block) => block.ops)
-            .map((op) => op.insert)
-            .join() ??
-        widget.controller.currentDraft;
+    final initialText = _currentEditableParagraphText();
     _textController = TextEditingController(text: initialText);
     _prevText = initialText;
     _scrollController = ScrollController();
@@ -183,7 +182,15 @@ class _JournalOverlayState extends State<JournalOverlay>
       'Write your day…';
 
   void _onDraftChanged() {
-    if (mounted && !FeatureFlags.hasRichText) {
+    if (!mounted) return;
+    if (FeatureFlags.hasRichText) {
+      setState(() {
+        _prevText = _currentEditableParagraphText();
+      });
+      return;
+    }
+
+    if (mounted) {
       setState(() {
         _textController.text = widget.controller.currentDraft;
         _prevText = widget.controller.currentDraft;
@@ -226,14 +233,7 @@ class _JournalOverlayState extends State<JournalOverlay>
     if (FeatureFlags.hasRichText) {
       final editor = _richTextEditorKey?.currentState;
       if (editor != null) return editor.currentText;
-      final doc = widget.controller.currentDocument;
-      if (doc != null) {
-        return doc.blocks
-            .whereType<ParagraphBlock>()
-            .expand((block) => block.ops)
-            .map((op) => op.insert)
-            .join();
-      }
+      return _currentEditableParagraphText();
     }
     return _textController.text;
   }
@@ -455,11 +455,9 @@ class _JournalOverlayState extends State<JournalOverlay>
       // Update local state
       setState(() {
         // Update text
-        final paragraphBlocks = previousDoc.blocks.whereType<ParagraphBlock>();
-        if (paragraphBlocks.isNotEmpty) {
-          final plainText = paragraphBlocks.first.ops
-              .map((op) => op.insert)
-              .join();
+        final editableBlock = _editableParagraphBlock(previousDoc);
+        if (editableBlock != null) {
+          final plainText = _paragraphText(editableBlock);
           _textController.text = plainText;
           _insightLinks = InsightLinkRangeUpdater.shiftRanges(
             previous: _prevText,
@@ -487,11 +485,9 @@ class _JournalOverlayState extends State<JournalOverlay>
       // Update local state
       setState(() {
         // Update text
-        final paragraphBlocks = nextDoc.blocks.whereType<ParagraphBlock>();
-        if (paragraphBlocks.isNotEmpty) {
-          final plainText = paragraphBlocks.first.ops
-              .map((op) => op.insert)
-              .join();
+        final editableBlock = _editableParagraphBlock(nextDoc);
+        if (editableBlock != null) {
+          final plainText = _paragraphText(editableBlock);
           _textController.text = plainText;
           _insightLinks = InsightLinkRangeUpdater.shiftRanges(
             previous: _prevText,
@@ -548,7 +544,9 @@ class _JournalOverlayState extends State<JournalOverlay>
 
     final blocks = List<JournalBlock>.from(doc.blocks);
 
-    final paragraphIndex = blocks.indexWhere((b) => b is ParagraphBlock);
+    final paragraphIndex = blocks.indexWhere(
+      (b) => b is ParagraphBlock && !_isMaatResponseParagraph(b),
+    );
     if (paragraphIndex >= 0) {
       blocks[paragraphIndex] = block;
     } else {
@@ -1257,15 +1255,15 @@ class _JournalOverlayState extends State<JournalOverlay>
 
     if (FeatureFlags.hasRichText && widget.controller.currentDocument != null) {
       final doc = widget.controller.currentDocument!;
-      final paragraphBlocks = doc.blocks.whereType<ParagraphBlock>();
-      final initialBlock = paragraphBlocks.isNotEmpty
-          ? paragraphBlocks.first
-          : ParagraphBlock(
-              id: 'p-${DateTime.now().millisecondsSinceEpoch}',
-              ops: [TextOp(insert: '\n')],
-            );
+      final initialBlock =
+          _editableParagraphBlock(doc) ??
+          ParagraphBlock(
+            id: 'p-${DateTime.now().millisecondsSinceEpoch}',
+            ops: [TextOp(insert: '\n')],
+          );
+      final responseBlocks = _maatResponseBodyBlocks(doc);
 
-      return RichTextEditor(
+      final editor = RichTextEditor(
         key: _richTextEditorKey,
         initialBlock: initialBlock,
         onChanged: _onRichTextChanged,
@@ -1281,6 +1279,20 @@ class _JournalOverlayState extends State<JournalOverlay>
             : null,
         cursorColor: journalSkin ? JournalSkinTokens.gold : null,
         transparentDecoration: journalSkin,
+      );
+
+      if (responseBlocks.isEmpty) return editor;
+
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Expanded(child: editor),
+          const SizedBox(height: 12),
+          _buildMaatResponseBodyBlocks(
+            responseBlocks,
+            journalSkin: journalSkin,
+          ),
+        ],
       );
     }
 
@@ -1316,6 +1328,64 @@ class _JournalOverlayState extends State<JournalOverlay>
         scrollPhysics: const BouncingScrollPhysics(),
         enableInteractiveSelection: true,
         onChanged: _handleTextChanged,
+      ),
+    );
+  }
+
+  bool _isMaatResponseParagraph(ParagraphBlock block) {
+    return maatJournalResponseSourceIdFromBlockId(block.id) != null;
+  }
+
+  List<ParagraphBlock> _maatResponseBodyBlocks(JournalDocument doc) {
+    return doc.blocks
+        .whereType<ParagraphBlock>()
+        .where(_isMaatResponseParagraph)
+        .toList(growable: false);
+  }
+
+  ParagraphBlock? _editableParagraphBlock(JournalDocument doc) {
+    for (final block in doc.blocks.whereType<ParagraphBlock>()) {
+      if (!_isMaatResponseParagraph(block)) return block;
+    }
+    return null;
+  }
+
+  String _currentEditableParagraphText() {
+    final doc = widget.controller.currentDocument;
+    if (doc == null) return widget.controller.currentDraft;
+    final block = _editableParagraphBlock(doc);
+    return block == null ? '' : _paragraphText(block);
+  }
+
+  String _paragraphText(ParagraphBlock block) {
+    return block.ops.map((op) => op.insert).join();
+  }
+
+  Widget _buildMaatResponseBodyBlocks(
+    List<ParagraphBlock> blocks, {
+    required bool journalSkin,
+  }) {
+    final textStyle = journalSkin
+        ? JournalSkinTokens.entryBodyStyle.copyWith(
+            color: JournalSkinTokens.goldSoft,
+            fontSize: 18,
+            height: 1.35,
+          )
+        : const TextStyle(color: Color(0xFFE8CF7F), fontSize: 15, height: 1.35);
+
+    return ConstrainedBox(
+      constraints: BoxConstraints(maxHeight: journalSkin ? 104 : 128),
+      child: SingleChildScrollView(
+        child: Column(
+          key: kJournalMaatResponseBodyBlocksKey,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            for (var i = 0; i < blocks.length; i++) ...[
+              if (i > 0) const SizedBox(height: 8),
+              Text(_paragraphText(blocks[i]).trim(), style: textStyle),
+            ],
+          ],
+        ),
       ),
     );
   }

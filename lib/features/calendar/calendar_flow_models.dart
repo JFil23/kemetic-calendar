@@ -12,9 +12,17 @@ typedef CreateNutritionReminder =
 typedef _ReminderOccurrenceRow = ({
   String id,
   String? clientEventId,
+  String title,
   String? detail,
+  String? location,
+  bool allDay,
   DateTime startsAtUtc,
+  DateTime? endsAtUtc,
+  String? calendarId,
+  int? flowLocalId,
+  String? category,
 });
+typedef _DaySheetNoteOccurrence = ({_Note note, DateTime bucketStart});
 
 /// Intent data for creating a reminder from a nutrition item schedule
 class NutritionReminderIntent {
@@ -210,18 +218,54 @@ class _MyFlowsFilingSnapshot {
 
 typedef _MaatFlowCompletionStatus = ({double progress, String label});
 
-/// One resolved instance of a flow on a day.
-class _FlowOccurrence {
-  final _Flow flow;
+class _DaySheetScheduledFlowRow {
+  final int? flowId;
+  final String name;
+  final Color color;
   final bool allDay;
   final TimeOfDay? start;
   final TimeOfDay? end;
-  const _FlowOccurrence({
-    required this.flow,
+  final DateTime startsAtLocal;
+  final DateTime endsAtLocal;
+  final String sourceType;
+  final String? eventId;
+  final String? clientEventId;
+  final String? reminderId;
+  final int occurrenceCount;
+
+  const _DaySheetScheduledFlowRow({
+    required this.flowId,
+    required this.name,
+    required this.color,
     required this.allDay,
+    required this.startsAtLocal,
+    required this.endsAtLocal,
+    required this.sourceType,
     this.start,
     this.end,
+    this.eventId,
+    this.clientEventId,
+    this.reminderId,
+    this.occurrenceCount = 1,
   });
+
+  _DaySheetScheduledFlowRow copyWith({int? occurrenceCount}) {
+    return _DaySheetScheduledFlowRow(
+      flowId: flowId,
+      name: name,
+      color: color,
+      allDay: allDay,
+      start: start,
+      end: end,
+      startsAtLocal: startsAtLocal,
+      endsAtLocal: endsAtLocal,
+      sourceType: sourceType,
+      eventId: eventId,
+      clientEventId: clientEventId,
+      reminderId: reminderId,
+      occurrenceCount: occurrenceCount ?? this.occurrenceCount,
+    );
+  }
 }
 
 class _CandidateEvent {

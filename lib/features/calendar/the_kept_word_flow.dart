@@ -19,9 +19,7 @@ const int kKeptWordEveningFallbackMinutes =
     kEveningThresholdDefaultFallbackMinutes + 20;
 
 const String kKeptWordOverview =
-    'Three times per decan, name agreements and shared rhythms, bring one break to a direct conversation, and confirm renewed order in plain words. '
-    'The Kept Word is a low-medium burden thirty-day Ma\'at flow with nine sittings: Name the State, Bring to Process, and Confirm the Order. '
-    'It practices speaking what is true inside the closest sphere while keeping the response of the other person outside your control.';
+    'The Kept Word is a thirty-day agreement flow with nine sittings. It names what was spoken, bent, broken, repaired, or released, then asks for one clearer act of order while keeping another person’s response outside the user’s control.';
 
 enum KeptWordTimingSlot { openMorning, checkMidday, sealEvening }
 

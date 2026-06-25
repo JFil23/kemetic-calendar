@@ -265,10 +265,18 @@ void main() {
     });
 
     test('today toolbar actions use the calendar glyph', () async {
-      final deprecatedTodayIconMatches = await _filesContainingAny(<String>[
-        'Icons.calendar_today_outlined',
-        'Icons.today',
-      ]);
+      final deprecatedTodayIconMatches =
+          (await _filesContainingAny(<String>[
+                'Icons.calendar_today_outlined',
+                'Icons.today',
+              ]))
+              .where((path) {
+                // Shared Calendars uses this as an "Upcoming events" panel glyph,
+                // not as the Today toolbar action this guard protects.
+                return path !=
+                    'lib/features/calendars/shared_calendars_sheet.dart';
+              })
+              .toList(growable: false);
       expect(deprecatedTodayIconMatches, isEmpty);
 
       final todayGlyphMatches = await _filesContainingAny(<String>[
@@ -278,6 +286,7 @@ void main() {
         todayGlyphMatches,
         containsAll(<String>[
           'lib/features/calendar/calendar_page.dart',
+          'lib/features/calendar/calendar_month_detail.dart',
           'lib/features/calendar/day_view_chrome.dart',
           'lib/features/profile/profile_page.dart',
           'lib/features/rhythm/pages/todays_alignment_page.dart',
@@ -339,6 +348,7 @@ void main() {
           'lib/features/journal/journal_v2_toolbar.dart',
           'lib/features/maat_guidance/maat_guidance_floating_card.dart',
           'lib/features/nodes/kemetic_node_reader_page.dart',
+          'lib/features/nodes/library_canon_entry.dart',
           'lib/features/onboarding/calendar_month_coachmark.dart',
           'lib/features/onboarding/calendar_toggle_coachmark.dart',
           'lib/features/onboarding/guided_onboarding_overlay.dart',
@@ -348,6 +358,9 @@ void main() {
           'lib/features/profile/profile_page.dart',
           'lib/features/rhythm/pages/commitment_tracker_page.dart',
           'lib/features/rhythm/pages/todays_alignment_page.dart',
+          'lib/features/rhythm/widgets/planner/planner_notes_section.dart',
+          'lib/features/rhythm/widgets/planner/planner_nutrition_section.dart',
+          'lib/features/rhythm/widgets/planner/planner_todo_section.dart',
           'lib/features/rhythm/widgets/rhythm_state_button.dart',
           'lib/features/settings/settings_page.dart',
         ]),
@@ -586,6 +599,11 @@ void main() {
         'String _resolveInitialLocation()',
         'Future<void> _readBootInitialPushIntent() async',
       );
+      final bootInitialRouteSelection = _sourceBetween(
+        main,
+        'if (_debugDaySheetSmokeBootRequested) {',
+        'final initialLocation = _resolveInitialLocation();',
+      );
 
       expect(
         bootRestore,
@@ -617,16 +635,34 @@ void main() {
       expect(main, contains('_isBootInitialAppLinkUri'));
       expect(main, contains('String? _bootExplicitIntentLocation'));
       expect(
-        main.indexOf('await _readBootInitialAppLinkIntent();'),
-        lessThan(main.indexOf('await _readBootInitialPushIntent();')),
+        bootInitialRouteSelection.indexOf(
+          'await _readBootInitialAppLinkIntent();',
+        ),
+        lessThan(
+          bootInitialRouteSelection.indexOf(
+            'await _readBootInitialPushIntent();',
+          ),
+        ),
       );
       expect(
-        main.indexOf('await _readBootInitialAppLinkIntent();'),
-        lessThan(main.indexOf('_bootRestoredLocation =')),
+        bootInitialRouteSelection.indexOf(
+          'await _readBootInitialAppLinkIntent();',
+        ),
+        lessThan(
+          bootInitialRouteSelection.indexOf(
+            '_bootRestoredLocation = await _readBootRestoredLocation();',
+          ),
+        ),
       );
       expect(
-        main.indexOf('await _readBootInitialPushIntent();'),
-        lessThan(main.indexOf('_bootRestoredLocation =')),
+        bootInitialRouteSelection.indexOf(
+          'await _readBootInitialPushIntent();',
+        ),
+        lessThan(
+          bootInitialRouteSelection.indexOf(
+            '_bootRestoredLocation = await _readBootRestoredLocation();',
+          ),
+        ),
       );
       expect(
         main.indexOf(
@@ -946,18 +982,35 @@ void main() {
           'void _suppressPassiveLaunchSurfacesForExplicitIntentIfNeeded()',
           'Future<String?> _readBootRestoredLocation() async',
         );
+        final bootInitialRouteSelection = _sourceBetween(
+          main,
+          'if (_debugDaySheetSmokeBootRequested) {',
+          'final initialLocation = _resolveInitialLocation();',
+        );
 
         expect(
           initialLocation.indexOf('_bootExplicitIntentLocation'),
           lessThan(initialLocation.indexOf('_bootRestoredLocation')),
         );
         expect(
-          main.indexOf('await _readBootInitialAppLinkIntent();'),
-          lessThan(main.indexOf('await _readBootInitialPushIntent();')),
+          bootInitialRouteSelection.indexOf(
+            'await _readBootInitialAppLinkIntent();',
+          ),
+          lessThan(
+            bootInitialRouteSelection.indexOf(
+              'await _readBootInitialPushIntent();',
+            ),
+          ),
         );
         expect(
-          main.indexOf('await _readBootInitialPushIntent();'),
-          lessThan(main.indexOf('_bootRestoredLocation =')),
+          bootInitialRouteSelection.indexOf(
+            'await _readBootInitialPushIntent();',
+          ),
+          lessThan(
+            bootInitialRouteSelection.indexOf(
+              '_bootRestoredLocation = await _readBootRestoredLocation();',
+            ),
+          ),
         );
         expect(bootAppLink, contains('_bootInitialAppLinkSignature'));
         expect(bootAppLink, contains('_initialLocationFromAppLinkIntent'));

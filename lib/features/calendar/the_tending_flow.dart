@@ -18,9 +18,7 @@ const int kTheTendingEveningFallbackMinutes =
     kEveningThresholdDefaultFallbackMinutes + 20;
 
 const String kTheTendingOverview =
-    'Three times per decan, see who is in your care, complete one specific tending act, and repair what was missed. '
-    'The Tending is a low-burden thirty-day Ma\'at flow with nine sittings: Find and See, Gather and Attend, and Stand and Restore. '
-    'It is not a parenting app, a guilt loop for burned-out caregivers, or warmth-without-labor sentiment; it is a practice of care made specific.';
+    'The Tending is a thirty-day care flow with nine sittings. It asks the user to look clearly at who or what is in their care, complete one specific tending act, and repair what was missed without turning care into guilt or vague sentiment.';
 
 enum TheTendingTimingSlot { openMorning, checkMidday, sealEvening }
 

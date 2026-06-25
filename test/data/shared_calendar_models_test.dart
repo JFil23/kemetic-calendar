@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:mobile/data/birthday_calendar.dart';
 import 'package:mobile/data/shared_calendar_models.dart';
 
 void main() {
@@ -38,6 +39,20 @@ void main() {
       expect(calendar.canSeeMemberRoster, isTrue);
       expect(calendar.canSeePendingInvites, isFalse);
     });
+
+    test('birthdays calendar is protected from membership management', () {
+      final calendar = _summary(
+        role: SharedCalendarRole.owner,
+        pendingInviteCount: 4,
+        systemType: kBirthdaysSystemType,
+      );
+
+      expect(calendar.isBirthdays, isTrue);
+      expect(calendar.canEditEvents, isTrue);
+      expect(calendar.canManageMembership, isFalse);
+      expect(calendar.canSeeMemberRoster, isFalse);
+      expect(calendar.canSeePendingInvites, isFalse);
+    });
   });
 
   group('SharedCalendarMember', () {
@@ -61,6 +76,7 @@ void main() {
 SharedCalendarSummary _summary({
   required SharedCalendarRole role,
   int pendingInviteCount = 0,
+  String? systemType,
 }) {
   return SharedCalendarSummary(
     id: 'calendar-1',
@@ -73,5 +89,6 @@ SharedCalendarSummary _summary({
     status: SharedCalendarInviteStatus.accepted,
     memberCount: 2,
     pendingInviteCount: pendingInviteCount,
+    systemType: systemType,
   );
 }

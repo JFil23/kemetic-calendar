@@ -4,6 +4,58 @@ enum _FlowPreviewMode { legacy, active, saved }
 
 enum _MyFlowDayCardVariant { liveHero, savedLead, expandedInline }
 
+enum FlowDetailSource {
+  flowStudio,
+  myFlows,
+  reflection,
+  inboxShare,
+  directShare,
+  profilePost,
+  profileActivity,
+  other,
+  communityFeed,
+}
+
+enum FlowDetailActionKind {
+  join,
+  manage,
+  importFlow,
+  openImported,
+  addToMyFlows,
+  openSaved,
+  viewOnly,
+}
+
+@immutable
+class FlowDetailActionPolicy {
+  const FlowDetailActionPolicy({
+    required this.source,
+    required this.kind,
+    required this.label,
+    required this.icon,
+    this.busyLabel,
+    this.busy = false,
+    this.enabled = true,
+    this.onPressed,
+    this.startDateLabel,
+    this.onStartDatePressed,
+  });
+
+  final FlowDetailSource source;
+  final FlowDetailActionKind kind;
+  final String label;
+  final String? busyLabel;
+  final IconData icon;
+  final bool busy;
+  final bool enabled;
+  final FutureOr<void> Function()? onPressed;
+  final String? startDateLabel;
+  final FutureOr<void> Function()? onStartDatePressed;
+
+  String get effectiveLabel => busy ? (busyLabel ?? label) : label;
+  bool get canRun => enabled && !busy && onPressed != null;
+}
+
 class _FlowPreviewMetrics {
   const _FlowPreviewMetrics({
     required this.totalEventCount,
@@ -88,6 +140,8 @@ class _FlowPreviewPage extends StatefulWidget {
     this.mode = _FlowPreviewMode.legacy,
     this.metricsByFlow = const <int, _FlowPreviewMetrics>{},
     this.initialEventsByFlow,
+    this.actionPolicy,
+    this.showFlowOptions = true,
   });
 
   final _Flow flow;
@@ -96,6 +150,8 @@ class _FlowPreviewPage extends StatefulWidget {
   final _FlowPreviewMode mode;
   final Map<int, _FlowPreviewMetrics> metricsByFlow;
   final Map<int, List<FlowEventRow>>? initialEventsByFlow;
+  final FlowDetailActionPolicy? actionPolicy;
+  final bool showFlowOptions;
   final String Function(int km, int di) getDecanLabel;
   final String Function(DateTime? g) fmt;
   final void Function(_Flow flow) onEdit;
@@ -1770,80 +1826,81 @@ class _FlowPreviewPageState extends State<_FlowPreviewPage> {
               onPressed: () => widget.onEndMaatFlow?.call(currentFlow),
               child: const Text('End Flow'),
             ),
-          PopupMenuButton<String>(
-            icon: KemeticGold.icon(Icons.more_vert), // ⋮ vertical dots
-            tooltip: 'Flow options',
-            onSelected: (value) async {
-              if (value == 'journal') {
-                await _handleAddFlowToJournal(currentFlow, currentEvents);
-              } else if (value == 'edit') {
-                widget.onEdit(currentFlow);
-              } else if (value == 'share') {
-                _openShareSheet(context, currentFlow);
-              } else if (value == 'save') {
-                await _toggleSaved(currentFlow);
-              }
-            },
-            itemBuilder: (context) => [
-              PopupMenuItem(
-                value: 'journal',
-                child: Row(
-                  children: [
-                    KemeticGold.icon(Icons.check_circle),
-                    const SizedBox(width: 12),
-                    const Text(
-                      'Done / Add to journal',
-                      style: TextStyle(color: Colors.white),
-                    ),
-                  ],
+          if (widget.showFlowOptions)
+            PopupMenuButton<String>(
+              icon: KemeticGold.icon(Icons.more_vert), // ⋮ vertical dots
+              tooltip: 'Flow options',
+              onSelected: (value) async {
+                if (value == 'journal') {
+                  await _handleAddFlowToJournal(currentFlow, currentEvents);
+                } else if (value == 'edit') {
+                  widget.onEdit(currentFlow);
+                } else if (value == 'share') {
+                  _openShareSheet(context, currentFlow);
+                } else if (value == 'save') {
+                  await _toggleSaved(currentFlow);
+                }
+              },
+              itemBuilder: (context) => [
+                PopupMenuItem(
+                  value: 'journal',
+                  child: Row(
+                    children: [
+                      KemeticGold.icon(Icons.check_circle),
+                      const SizedBox(width: 12),
+                      const Text(
+                        'Done / Add to journal',
+                        style: TextStyle(color: Colors.white),
+                      ),
+                    ],
+                  ),
                 ),
-              ),
-              PopupMenuItem(
-                value: 'edit',
-                child: Row(
-                  children: [
-                    KemeticGold.icon(Icons.edit),
-                    const SizedBox(width: 12),
-                    const Text(
-                      'Edit Flow',
-                      style: TextStyle(color: Colors.white),
-                    ),
-                  ],
+                PopupMenuItem(
+                  value: 'edit',
+                  child: Row(
+                    children: [
+                      KemeticGold.icon(Icons.edit),
+                      const SizedBox(width: 12),
+                      const Text(
+                        'Edit Flow',
+                        style: TextStyle(color: Colors.white),
+                      ),
+                    ],
+                  ),
                 ),
-              ),
-              PopupMenuItem(
-                value: 'share',
-                child: Row(
-                  children: [
-                    KemeticGold.icon(Icons.share),
-                    const SizedBox(width: 12),
-                    const Text(
-                      'Share Flow',
-                      style: TextStyle(color: Colors.white),
-                    ),
-                  ],
+                PopupMenuItem(
+                  value: 'share',
+                  child: Row(
+                    children: [
+                      KemeticGold.icon(Icons.share),
+                      const SizedBox(width: 12),
+                      const Text(
+                        'Share Flow',
+                        style: TextStyle(color: Colors.white),
+                      ),
+                    ],
+                  ),
                 ),
-              ),
-              PopupMenuItem(
-                value: 'save',
-                child: Row(
-                  children: [
-                    KemeticGold.icon(
-                      currentFlow.isSaved
-                          ? Icons.bookmark_remove
-                          : Icons.bookmark_add,
-                    ),
-                    const SizedBox(width: 12),
-                    Text(
-                      currentFlow.isSaved ? 'Remove from Saved' : 'Save Flow',
-                      style: const TextStyle(color: Colors.white),
-                    ),
-                  ],
+                PopupMenuItem(
+                  value: 'save',
+                  child: Row(
+                    children: [
+                      KemeticGold.icon(
+                        currentFlow.isSaved
+                            ? Icons.bookmark_remove
+                            : Icons.bookmark_add,
+                      ),
+                      const SizedBox(width: 12),
+                      Text(
+                        currentFlow.isSaved ? 'Remove from Saved' : 'Save Flow',
+                        style: const TextStyle(color: Colors.white),
+                      ),
+                    ],
+                  ),
                 ),
-              ),
-            ],
-            color: const Color(0xFF000000), // True black
-          ),
+              ],
+              color: const Color(0xFF000000), // True black
+            ),
         ],
       ),
       body: PageView.builder(
@@ -1885,10 +1942,66 @@ class _FlowPreviewPageState extends State<_FlowPreviewPage> {
         },
       ),
       bottomNavigationBar: usesDashboard
-          ? _buildDashboardFooter(currentFlow)
+          ? widget.actionPolicy != null
+                ? _buildExternalDashboardFooter(
+                    currentFlow,
+                    widget.actionPolicy!,
+                  )
+                : _buildDashboardFooter(currentFlow)
           : currentFlow.isSaved
           ? _buildSavedImportFooter(currentFlow)
           : null,
+    );
+  }
+
+  Widget _buildExternalDashboardFooter(
+    _Flow flow,
+    FlowDetailActionPolicy policy,
+  ) {
+    final palette = _MyFlowCardPalette.fromColor(flow.color);
+    final startDateLabel = policy.startDateLabel;
+    final onStartDatePressed = policy.onStartDatePressed;
+
+    void runAction(FutureOr<void> Function()? action) {
+      final result = action?.call();
+      if (result is Future<void>) {
+        unawaited(result);
+      }
+    }
+
+    return SafeArea(
+      minimum: const EdgeInsets.fromLTRB(30, 10, 30, 18),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (startDateLabel != null && onStartDatePressed != null) ...[
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton(
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: const Color(0xFFE8D9C3),
+                  side: BorderSide(color: palette.cardBorder, width: 1),
+                  padding: const EdgeInsets.symmetric(vertical: 13),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                ),
+                onPressed: policy.busy
+                    ? null
+                    : () => runAction(onStartDatePressed),
+                child: Text(startDateLabel),
+              ),
+            ),
+            const SizedBox(height: 12),
+          ],
+          _buildDashboardCtaButton(
+            label: policy.effectiveLabel,
+            palette: palette,
+            onPressed: policy.canRun ? () => runAction(policy.onPressed) : null,
+            icon: policy.icon,
+          ),
+        ],
+      ),
     );
   }
 
@@ -3617,6 +3730,7 @@ Widget buildMyFlowsListPreviewForTesting({
   bool savedEmpty = false,
   bool includeUnresolvedMaatFlow = false,
   bool includeMissingProgressFlow = false,
+  bool includeNoScheduleSavedFlow = false,
   ValueChanged<int>? onPreviewFlow,
   VoidCallback? onCreateNew,
 }) {
@@ -3625,6 +3739,7 @@ Widget buildMyFlowsListPreviewForTesting({
     savedEmpty: savedEmpty,
     includeUnresolvedMaatFlow: includeUnresolvedMaatFlow,
     includeMissingProgressFlow: includeMissingProgressFlow,
+    includeNoScheduleSavedFlow: includeNoScheduleSavedFlow,
   );
 
   return _FlowsViewerPage(
@@ -3757,6 +3872,7 @@ _MyFlowsFilingSnapshot _buildMyFlowsPreviewSnapshot({
   required bool savedEmpty,
   required bool includeUnresolvedMaatFlow,
   required bool includeMissingProgressFlow,
+  required bool includeNoScheduleSavedFlow,
 }) {
   final activeFlows = <_Flow>[
     _buildMyFlowsPreviewFlow(
@@ -3820,13 +3936,30 @@ _MyFlowsFilingSnapshot _buildMyFlowsPreviewSnapshot({
     start: DateTime(2026, 5, 25),
     end: DateTime(2026, 8, 22),
   );
-  final flows = <_Flow>[...activeFlows, savedFlow, savedPersonalFlow];
+  final noScheduleSavedFlow = _buildMyFlowsPreviewFlow(
+    id: 7,
+    name: 'CODEX_NO_SCHEDULE_FLOW_VISIBILITY',
+    color: const Color(0xFF6E8F5E),
+    active: true,
+    isSaved: true,
+    savedAt: DateTime(2026, 6, 2),
+  );
+  final flows = <_Flow>[
+    ...activeFlows,
+    savedFlow,
+    savedPersonalFlow,
+    if (includeNoScheduleSavedFlow) noScheduleSavedFlow,
+  ];
   final activeIds = activeEmpty
       ? <int>{}
       : activeFlows.map((flow) => flow.id).toSet();
   final savedIds = savedEmpty
       ? <int>{}
-      : <int>{savedFlow.id, savedPersonalFlow.id};
+      : <int>{
+          savedFlow.id,
+          savedPersonalFlow.id,
+          if (includeNoScheduleSavedFlow) noScheduleSavedFlow.id,
+        };
   final totalCounts = <int, int>{
     1: 6,
     2: 27,
@@ -3905,11 +4038,21 @@ class _FlowHubPageState extends State<_FlowHubPage> {
     debugLabel: 'flow_studio_add_flow_helper',
   );
   bool _helperPrompted = false;
+  bool _helperPromptScheduled = false;
 
   @override
   void initState() {
     super.initState();
-    unawaited(_maybeShowFlowStudioAddFlowHelper());
+    _scheduleFlowStudioAddFlowHelper();
+  }
+
+  void _scheduleFlowStudioAddFlowHelper() {
+    if (_helperPromptScheduled) return;
+    _helperPromptScheduled = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      unawaited(_maybeShowFlowStudioAddFlowHelper());
+    });
   }
 
   Future<void> _maybeShowFlowStudioAddFlowHelper() async {

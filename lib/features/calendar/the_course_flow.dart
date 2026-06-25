@@ -19,9 +19,7 @@ const int kTheCourseEveningFallbackMinutes =
     kEveningThresholdDefaultFallbackMinutes + 20;
 
 const String kTheCourseOverview =
-    'Three times per decan, locate yourself in the solar day, the ten-day decan, and the active Kemetic season, then do one time-appropriate act. '
-    'The Course is a very low-burden thirty-day Ma\'at flow with nine sittings: Daily Course, Decan Course, and Seasonal Course. '
-    'It is not an astronomy flow, a morning rite, passive day-card reading, or generic seasonal journaling; it makes the ḥꜣw calendar a practice document.';
+    'The Course is a thirty-day time-orientation flow with nine sittings. It locates the user in the day, the decan, and the active Kemetic season, then turns that location into one fitting action instead of passive calendar reading.';
 
 enum CourseScheduleKind { solarDawn, solarDusk, midday, sealEvening }
 

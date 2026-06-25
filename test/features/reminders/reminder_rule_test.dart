@@ -77,6 +77,36 @@ void main() {
       expect(fromCurrent.toJson()['endLocal'], '2026-05-15T00:00:00.000');
     });
 
+    test('keeps repeat end date and repeat configuration in save payload', () {
+      final rule = ReminderRule(
+        id: 'rule-1',
+        title: 'Weekly offering',
+        startLocal: DateTime(2026, 6, 1, 9),
+        endLocal: DateUtils.dateOnly(DateTime(2026, 7, 3)),
+        color: Colors.teal,
+        repeat: const ReminderRepeat(
+          kind: ReminderRepeatKind.weekly,
+          interval: 2,
+          weekdays: {1, 5},
+        ),
+        alertOffsetMinutes: 30,
+      );
+
+      final json = rule.toJson();
+      final repeatJson = json['repeat'] as Map<String, dynamic>;
+      final decoded = ReminderRule.fromJson(json);
+
+      expect(json['endLocal'], '2026-07-03T00:00:00.000');
+      expect(repeatJson['kind'], 'weekly');
+      expect(repeatJson['interval'], 2);
+      expect(repeatJson['weekdays'], [1, 5]);
+      expect(json['alertOffsetMinutes'], 30);
+      expect(decoded.endLocal, DateTime(2026, 7, 3));
+      expect(decoded.repeat.kind, ReminderRepeatKind.weekly);
+      expect(decoded.repeat.interval, 2);
+      expect(decoded.repeat.weekdays, {1, 5});
+    });
+
     test('encodeList and decodeList dedupe by reminder id', () {
       final first = ReminderRule(
         id: 'rule-1',

@@ -87,6 +87,9 @@ void main() {
     expect(exception, isNull);
     expect(find.text("Ma'at Flows"), findsOneWidget);
     expect(find.text('NOT YET JOINED'), findsOneWidget);
+    expect(find.text('DAILY RHYTHM'), findsOneWidget);
+    expect(find.text('INNER WORK'), findsOneWidget);
+    expect(find.text("LIVING IN MA'AT"), findsOneWidget);
     expect(find.text('5 of 12'), findsOneWidget);
     expect(find.text('6 of 10'), findsOneWidget);
     expect(find.text('3 of 10'), findsNothing);
@@ -94,6 +97,41 @@ void main() {
     expect(find.text('The Weighing'), findsOneWidget);
     expect(find.text('Follow the sky'), findsOneWidget);
     expect(find.text('Dawn House Rite'), findsOneWidget);
+  });
+
+  testWidgets('Ma’at not-yet-joined category tabs filter and toggle', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(900, 2200);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        debugShowCheckedModeBanner: false,
+        home: buildMaatFlowsListPreviewForTesting(),
+      ),
+    );
+    await tester.pump();
+
+    expect(find.text('Dawn House Rite'), findsOneWidget);
+    expect(find.text('Follow the sky'), findsOneWidget);
+    expect(find.text('The Weighing'), findsOneWidget);
+
+    await tester.tap(find.byKey(kMaatFlowCategoryInnerWorkTabKey));
+    await tester.pumpAndSettle();
+
+    expect(find.text('The Weighing'), findsOneWidget);
+    expect(find.text('Dawn House Rite'), findsNothing);
+    expect(find.text('Follow the sky'), findsNothing);
+
+    await tester.tap(find.byKey(kMaatFlowCategoryInnerWorkTabKey));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Dawn House Rite'), findsOneWidget);
+    expect(find.text('Follow the sky'), findsOneWidget);
+    expect(find.text('The Weighing'), findsOneWidget);
   });
 
   testWidgets(

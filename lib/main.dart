@@ -55,7 +55,6 @@ import 'services/decan_reflection_scheduler.dart';
 import 'features/journal/journal_controller.dart';
 import 'features/journal/journal_entry_detail_page.dart';
 import 'features/journal/journal_page.dart';
-import 'features/journal/journal_skin_tokens.dart';
 import 'features/calendar/calendar_reflection_context.dart';
 import 'features/maat_guidance/maat_guidance_controller.dart';
 import 'features/maat_guidance/maat_guidance_detail_page.dart';
@@ -75,7 +74,7 @@ import 'features/profile/insight_post_picker_page.dart';
 import 'features/profile/profile_page.dart';
 import 'features/profile/profile_search_page.dart';
 import 'features/reflections/decan_reflection_archive_page.dart';
-import 'features/reflections/decan_reflection_skin.dart';
+import 'features/shared_practice/shared_practice_room_page.dart';
 import 'features/rhythm/pages/commitment_tracker_page.dart';
 import 'features/rhythm/pages/rhythm_editors.dart';
 import 'features/rhythm/pages/todays_alignment_page.dart';
@@ -108,6 +107,13 @@ const appSiteUrlEnv = String.fromEnvironment(
   'APP_SITE_URL',
   defaultValue: defaultProductionAppSiteUrl,
 );
+const _kDebugDaySheetSmokeRoute = '/debug/day-sheet-smoke';
+const _debugInitialRouteEnv = String.fromEnvironment('H3W_DEBUG_ROUTE');
+const _debugDaySheetSmokeEnv = bool.fromEnvironment(
+  'H3W_DEBUG_DAY_SHEET_SMOKE',
+);
+
+bool _debugDaySheetSmokeBootRequested = false;
 
 typedef AppRuntimeConfig = ({
   String url,
@@ -195,6 +201,46 @@ Future<AppRuntimeConfig> _loadSupabaseConfig() async {
     anonKey: anonKey,
     appEnvironment: appEnvironment,
     appSiteUrl: appSiteUrl,
+  );
+}
+
+bool _isDebugDaySheetSmokeLocation(String? raw) {
+  if (!kDebugMode) return false;
+  final value = raw?.trim();
+  if (value == null || value.isEmpty) return false;
+  final uri = Uri.tryParse(value);
+  final path = uri?.path.isNotEmpty == true
+      ? uri!.path
+      : value.split('?').first.split('#').first;
+  return path == _kDebugDaySheetSmokeRoute;
+}
+
+String? _debugInitialLocationFromDefines() {
+  if (!kDebugMode) return null;
+  if (_debugDaySheetSmokeEnv) return _kDebugDaySheetSmokeRoute;
+  if (_isDebugDaySheetSmokeLocation(_debugInitialRouteEnv)) {
+    return _kDebugDaySheetSmokeRoute;
+  }
+  return null;
+}
+
+bool _debugDaySheetSmokeRequestedAtBoot() {
+  if (!kDebugMode) return false;
+  if (_debugInitialLocationFromDefines() != null) return true;
+  if (kIsWeb && _isDebugDaySheetSmokeLocation(Uri.base.toString())) {
+    return true;
+  }
+  return _isDebugDaySheetSmokeLocation(
+    PlatformDispatcher.instance.defaultRouteName,
+  );
+}
+
+AppRuntimeConfig _debugDaySheetSmokeFallbackConfig() {
+  return (
+    url: 'https://debug-day-sheet-smoke.supabase.co',
+    anonKey: 'sb_publishable_debug_day_sheet_smoke_route_only',
+    appEnvironment: 'dev',
+    appSiteUrl: defaultProductionAppSiteUrl,
   );
 }
 
@@ -436,11 +482,22 @@ Future<void> main() async {
 
     WidgetsFlutterBinding.ensureInitialized();
     debugPrint('[boot] main() executed');
+    _debugDaySheetSmokeBootRequested = _debugDaySheetSmokeRequestedAtBoot();
 
     // Register background handler for FCM (no-op on web)
     registerPushBackgroundHandler();
 
-    final supabaseConfig = await _loadSupabaseConfig();
+    var supabaseConfig = await _loadSupabaseConfig();
+    var runtimeConfigErrors = _runtimeConfigErrors(supabaseConfig);
+    if (_debugDaySheetSmokeBootRequested && runtimeConfigErrors.isNotEmpty) {
+      supabaseConfig = _debugDaySheetSmokeFallbackConfig();
+      runtimeConfigErrors = _runtimeConfigErrors(supabaseConfig);
+      if (kDebugMode) {
+        debugPrint(
+          '[debug-smoke] Using local placeholder Supabase config for $_kDebugDaySheetSmokeRoute',
+        );
+      }
+    }
 
     if (kDebugMode) {
       debugPrint('🔍 SUPABASE_URL: ${supabaseConfig.url}');
@@ -455,7 +512,6 @@ Future<void> main() async {
       );
     }
 
-    final runtimeConfigErrors = _runtimeConfigErrors(supabaseConfig);
     if (runtimeConfigErrors.isNotEmpty) {
       runApp(_runtimeConfigErrorApp(runtimeConfigErrors));
       return;
@@ -475,16 +531,23 @@ Future<void> main() async {
       ),
     );
 
-    await _refreshSessionIfNeeded('boot');
+    if (!_debugDaySheetSmokeBootRequested) {
+      await _refreshSessionIfNeeded('boot');
 
-    await ProfileRepo(Supabase.instance.client).preloadLocalCaches();
+      await ProfileRepo(Supabase.instance.client).preloadLocalCaches();
+    }
 
     await AppWindowService.instance.ensureInitialized();
     await AppRestorationService.instance.initialize();
     await NavigationTrace.instance.load();
-    await _readBootInitialAppLinkIntent();
-    await _readBootInitialPushIntent();
-    _bootRestoredLocation = await _readBootRestoredLocation();
+    if (_debugDaySheetSmokeBootRequested) {
+      _bootExplicitIntentLocation = _kDebugDaySheetSmokeRoute;
+      _bootRestoredLocation = null;
+    } else {
+      await _readBootInitialAppLinkIntent();
+      await _readBootInitialPushIntent();
+      _bootRestoredLocation = await _readBootRestoredLocation();
+    }
     final initialLocation = _resolveInitialLocation();
     _router = _createRouter(initialLocation: initialLocation);
     traceRestoration('boot router created initialLocation=$initialLocation');
@@ -504,10 +567,12 @@ Future<void> main() async {
 
     // 🚨 Initialize notifications/push without blocking the first frame.
     // AuthGate will re-attempt on sign-in if these fail.
-    _startBackgroundWarmups();
+    if (!_debugDaySheetSmokeBootRequested) {
+      _startBackgroundWarmups();
 
-    // Web/PWA boot hardening (iOS PWA friendly)
-    _startWebBootTasks();
+      // Web/PWA boot hardening (iOS PWA friendly)
+      _startWebBootTasks();
+    }
 
     runApp(const MyApp());
     _traceRouterLocationAfterFrame('after_run_app_first_frame');
@@ -743,6 +808,9 @@ const Color _launchBackdrop = Color(0xFF171518);
 final ValueNotifier<int> _floatingMenuModalDepth = ValueNotifier<int>(0);
 final ValueNotifier<bool> _launchOverlayDismissed = ValueNotifier<bool>(false);
 final ValueNotifier<int> _maatGuidancePostEnsureRefresh = ValueNotifier<int>(0);
+const MethodChannel _shellBackChannel = MethodChannel(
+  'com.kemetic.calendar/shell_back',
+);
 final _FloatingMenuRouteObserver _floatingMenuRouteObserver =
     _FloatingMenuRouteObserver();
 final GlobalKey globalMenuButtonKey = GlobalKey(
@@ -755,6 +823,10 @@ const bool _debugForceGlobalFloatingMenu = bool.fromEnvironment(
 bool _debugForceGlobalFloatingMenuForTesting = false;
 
 int get globalFloatingMenuModalDepthValue => _floatingMenuModalDepth.value;
+
+@visibleForTesting
+NavigatorObserver get globalFloatingMenuRouteObserverForTesting =>
+    _floatingMenuRouteObserver;
 
 bool get rootNavigatorContextMountedForNavigationTrace =>
     _rootNavigatorKey.currentContext?.mounted ?? false;
@@ -771,9 +843,20 @@ String get rootRouterUriForNavigationTrace {
 }
 
 class _FloatingMenuRouteObserver extends NavigatorObserver {
+  bool _isSearchRoute(Route<dynamic> route) {
+    if (route is! PageRoute<dynamic>) return false;
+    try {
+      final Object? delegate = (route as dynamic).delegate;
+      return delegate is SearchDelegate<dynamic>;
+    } catch (_) {
+      return false;
+    }
+  }
+
   bool _suppressesFloatingMenu(Route<dynamic> route) {
     if (route.settings.name == calendarActionsMenuRouteName) return false;
     if (route.settings.name == calendarMonthDetailRouteName) return true;
+    if (_isSearchRoute(route)) return true;
     return route is PopupRoute;
   }
 
@@ -829,6 +912,7 @@ class _FloatingMenuRouteObserver extends NavigatorObserver {
 
 class TelemetryRouteObserver extends RouteObserver<PageRoute<dynamic>> {
   void _send(PageRoute<dynamic>? route) {
+    if (kDebugMode && _debugDaySheetSmokeBootRequested) return;
     final name = route?.settings.name ?? '/';
     unawaited(Events.trackIfAuthed('screen_view', {'route': name}));
   }
@@ -855,6 +939,10 @@ class TelemetryRouteObserver extends RouteObserver<PageRoute<dynamic>> {
 /* ───────────────────────── Router Configuration ───────────────────────── */
 
 String _resolveInitialLocation() {
+  final debugInitial = _debugInitialLocationFromDefines();
+  if (debugInitial != null) return debugInitial;
+  if (_debugDaySheetSmokeBootRequested) return _kDebugDaySheetSmokeRoute;
+
   final defaultRoute = PlatformDispatcher.instance.defaultRouteName.trim();
   final location =
       defaultRoute.isEmpty || defaultRoute == Navigator.defaultRouteName
@@ -1455,6 +1543,16 @@ GoRouter _createRouter({required String initialLocation}) => GoRouter(
   ),
   routes: [
     _calmRoute(path: '/', builder: (context, state) => const AuthGate()),
+    if (kDebugMode)
+      _calmRoute(
+        path: _kDebugDaySheetSmokeRoute,
+        builder: (context, state) {
+          return SessionTrackedRoute(
+            location: state.uri.toString(),
+            child: CalendarPage.buildDebugDaySheetSmokeRoute(),
+          );
+        },
+      ),
     _calmRoute(
       path: '/inbox',
       builder: (context, state) {
@@ -1519,6 +1617,22 @@ GoRouter _createRouter({required String initialLocation}) => GoRouter(
         return SessionTrackedRoute(
           location: state.uri.toString(),
           child: SharedFlowRoutePage(flowId: flowId),
+        );
+      },
+    ),
+    _calmRoute(
+      path: '/shared-practice/:roomId',
+      builder: (context, state) {
+        final roomId = Uri.decodeComponent(state.pathParameters['roomId']!);
+        if (roomId.trim().isEmpty) {
+          return const _RouteMissingScaffold(
+            message: 'This shared practice room is no longer available.',
+            fallbackLocation: '/profile/me',
+          );
+        }
+        return SessionTrackedRoute(
+          location: state.uri.toString(),
+          child: SharedPracticeRoomPage(roomId: roomId),
         );
       },
     ),
@@ -2094,6 +2208,10 @@ class _MyAppState extends State<MyApp> {
 
   @override
   Widget build(BuildContext context) {
+    if (_debugDaySheetSmokeBootRequested) {
+      return _buildAuthedApp();
+    }
+
     final signedIn = supabase.auth.currentSession != null;
     if (signedIn && _passwordRecoverySession) {
       return _buildPasswordRecoveryApp();
@@ -2228,6 +2346,9 @@ class _GlobalFloatingMenuShellState extends State<_GlobalFloatingMenuShell>
   StreamSubscription<AuthState>? _authSub;
   bool _menuMounted = false;
   bool _menuOpen = false;
+  bool _drawerBackGestureActive = false;
+  bool _drawerBackPopRouteConsumePending = false;
+  Timer? _drawerBackPopRouteConsumeTimer;
   bool _rebuildScheduled = false;
   bool? _lastGuidanceSuppressed;
   int _dailyCosmicContextEvaluationSerial = 0;
@@ -2246,6 +2367,7 @@ class _GlobalFloatingMenuShellState extends State<_GlobalFloatingMenuShell>
     );
     _maatGuidanceController.addListener(_scheduleRebuild);
     _dailyCosmicContextController.addListener(_scheduleRebuild);
+    _shellBackChannel.setMethodCallHandler(_handleShellBackMethodCall);
     GuidedOnboardingController.instance.addListener(
       _handleExternalOverlayGateChanged,
     );
@@ -2297,17 +2419,46 @@ class _GlobalFloatingMenuShellState extends State<_GlobalFloatingMenuShell>
     );
     _maatGuidanceController.removeListener(_scheduleRebuild);
     _dailyCosmicContextController.removeListener(_scheduleRebuild);
+    _shellBackChannel.setMethodCallHandler(null);
     GuidedOnboardingController.instance.removeListener(
       _handleExternalOverlayGateChanged,
     );
     _maatGuidanceController.dispose();
     _dailyCosmicContextController.dispose();
+    _drawerBackPopRouteConsumeTimer?.cancel();
     unawaited(_authSub?.cancel());
     super.dispose();
   }
 
   @override
   Future<bool> didPopRoute() => _handleBackButton();
+
+  Future<Object?> _handleShellBackMethodCall(MethodCall call) async {
+    if (call.method != 'handleAndroidBack') {
+      throw MissingPluginException('No shell back handler for ${call.method}');
+    }
+    return _handleAndroidBackButton();
+  }
+
+  @override
+  bool handleStartBackGesture(PredictiveBackEvent backEvent) {
+    if (!(_menuMounted && _menuOpen)) return false;
+    _drawerBackGestureActive = true;
+    return true;
+  }
+
+  @override
+  void handleCommitBackGesture() {
+    if (!_drawerBackGestureActive) return;
+    _drawerBackGestureActive = false;
+    _consumeNextPopRouteAfterDrawerBackGesture();
+    unawaited(_closeFloatingMenu());
+  }
+
+  @override
+  void handleCancelBackGesture() {
+    _drawerBackGestureActive = false;
+  }
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
@@ -2365,8 +2516,24 @@ class _GlobalFloatingMenuShellState extends State<_GlobalFloatingMenuShell>
   }
 
   void _resetFloatingMenuState() {
+    _drawerBackGestureActive = false;
+    _drawerBackPopRouteConsumePending = false;
+    _drawerBackPopRouteConsumeTimer?.cancel();
+    _drawerBackPopRouteConsumeTimer = null;
     _menuMounted = false;
     _menuOpen = false;
+  }
+
+  void _consumeNextPopRouteAfterDrawerBackGesture() {
+    _drawerBackPopRouteConsumePending = true;
+    _drawerBackPopRouteConsumeTimer?.cancel();
+    _drawerBackPopRouteConsumeTimer = Timer(
+      globalSideDrawerTransitionDuration + const Duration(milliseconds: 250),
+      () {
+        _drawerBackPopRouteConsumePending = false;
+        _drawerBackPopRouteConsumeTimer = null;
+      },
+    );
   }
 
   void _scheduleRebuild() {
@@ -2768,43 +2935,17 @@ class _GlobalFloatingMenuShellState extends State<_GlobalFloatingMenuShell>
     };
   }
 
-  bool get _isJournalRoute {
-    final path = _currentUri.path.isEmpty ? '/' : _currentUri.path;
-    return path == '/journal' || path.startsWith('/journal/');
-  }
-
-  bool get _isReflectionsRoute {
-    final path = _currentUri.path.isEmpty ? '/' : _currentUri.path;
-    return path == '/reflections' || path.startsWith('/reflections/');
-  }
-
-  GlobalMenuBubbleStyle? get _globalMenuBubbleStyle {
-    if (_isReflectionsRoute) return decanReflectionGlobalMenuBubbleStyle;
-    if (!_isJournalRoute) return null;
-    return const GlobalMenuBubbleStyle(
-      size: 60,
-      left: 20,
-      bottom: 24,
-      background: JournalSkinTokens.floatingGlyphBackground,
-      borderColor: JournalSkinTokens.floatingGlyphBorder,
-      boxShadow: [
-        BoxShadow(
-          color: JournalSkinTokens.floatingGlyphShadow,
-          blurRadius: 24,
-          spreadRadius: -10,
-          offset: Offset(0, 10),
-        ),
-      ],
-      glyphGradient: JournalSkinTokens.floatingGlyphIconGradient,
-      glyphSize: 28,
-    );
-  }
-
   bool _shouldOpenDrawerForBack(BuildContext context) {
     return _isDrawerBackToggleRoute && _shouldActivateFloatingMenu(context);
   }
 
   Future<bool> _handleBackButton() async {
+    if (_drawerBackPopRouteConsumePending) {
+      _drawerBackPopRouteConsumePending = false;
+      _drawerBackPopRouteConsumeTimer?.cancel();
+      _drawerBackPopRouteConsumeTimer = null;
+      return true;
+    }
     if (_dailyCosmicContextController.hasVisibleBadge) {
       await _dailyCosmicContextController.dismiss();
       return true;
@@ -2815,6 +2956,24 @@ class _GlobalFloatingMenuShellState extends State<_GlobalFloatingMenuShell>
     }
     if (_shouldOpenDrawerForBack(context)) {
       _openFloatingMenu();
+      return true;
+    }
+    return false;
+  }
+
+  Future<bool> _handleAndroidBackButton() async {
+    if (_drawerBackPopRouteConsumePending) {
+      _drawerBackPopRouteConsumePending = false;
+      _drawerBackPopRouteConsumeTimer?.cancel();
+      _drawerBackPopRouteConsumeTimer = null;
+      return true;
+    }
+    if (_dailyCosmicContextController.hasVisibleBadge) {
+      await _dailyCosmicContextController.dismiss();
+      return true;
+    }
+    if (_menuMounted && _menuOpen) {
+      await _closeFloatingMenu();
       return true;
     }
     return false;
@@ -2876,7 +3035,6 @@ class _GlobalFloatingMenuShellState extends State<_GlobalFloatingMenuShell>
                     visible: shouldActivateFloatingMenu,
                     open: menuOpenForInteraction,
                     onPressed: _handleFloatingMenuPressed,
-                    style: _globalMenuBubbleStyle,
                   ),
                 DailyCosmicContextOverlayHost(
                   controller: _dailyCosmicContextController,

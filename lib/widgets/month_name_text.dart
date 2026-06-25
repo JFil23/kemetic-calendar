@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
 
 /// Guaranteed font rendering for Egyptological transliteration
-/// 
+///
 /// ALL month name displays MUST use this widget to ensure:
 /// - Diacritics render correctly (ḫ, ḥ, ꜥ, ȝ, etc.)
 /// - Font family is consistent
 /// - Accessibility scaling works
-/// 
+///
 /// CI will enforce this via architecture guard tests.
 class MonthNameText extends StatelessWidget {
   final String text;
@@ -37,14 +37,16 @@ class MonthNameText extends StatelessWidget {
       fontFamilyFallback: ['NotoSans', 'Roboto', 'Arial', 'sans-serif'],
     );
 
-    final TextStyle crisp = base.merge(s).copyWith(
-      // snap to whole pixels
-      fontSize: fs.roundToDouble(),
-      // kill subpixel spacing (CanvasKit blur)
-      letterSpacing: 0,
-      // do NOT force a fractional line height
-      height: s.height,
-    );
+    final TextStyle crisp = base
+        .merge(s)
+        .copyWith(
+          // snap to whole pixels
+          fontSize: fs.roundToDouble(),
+          // Default to snapped spacing, but honor deliberate display tracking.
+          letterSpacing: s.letterSpacing ?? 0,
+          // do NOT force a fractional line height
+          height: s.height,
+        );
 
     return Text(
       text,
@@ -60,4 +62,3 @@ class MonthNameText extends StatelessWidget {
     );
   }
 }
-

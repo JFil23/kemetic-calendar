@@ -235,12 +235,23 @@ Widget debugBuildFlowStudioPageForTest({
   ImportFlowData? importData,
   int? editFlowId,
   Map<String, dynamic>? initialDraftJson,
+  bool debugHasExistingFlows = false,
   Future<void> Function(dynamic result)? onRouteResult,
   Future<TimeOfDay?> Function(BuildContext context, TimeOfDay initialTime)?
   debugTimePicker,
 }) {
   return _FlowStudioPage(
-    existingFlows: const <_Flow>[],
+    existingFlows: debugHasExistingFlows
+        ? <_Flow>[
+            _Flow(
+              id: 1,
+              name: 'Existing flow',
+              color: _gold,
+              active: true,
+              rules: const <FlowRule>[],
+            ),
+          ]
+        : const <_Flow>[],
     editFlowId: editFlowId,
     importData: importData,
     onRouteResult: onRouteResult == null
@@ -651,38 +662,6 @@ class _FlowStudioPageState extends State<_FlowStudioPage>
     _flowAlertMixed = true;
     for (final draft in drafts) {
       draft.usesFlowAlertDefault = false;
-    }
-  }
-
-  int _daysInGregorianMonth(int year, int month) {
-    final leap = (year % 4 == 0) && ((year % 100 != 0) || (year % 400 == 0));
-    switch (month) {
-      case 1:
-        return 31;
-      case 2:
-        return leap ? 29 : 28;
-      case 3:
-        return 31;
-      case 4:
-        return 30;
-      case 5:
-        return 31;
-      case 6:
-        return 30;
-      case 7:
-        return 31;
-      case 8:
-        return 31;
-      case 9:
-        return 30;
-      case 10:
-        return 31;
-      case 11:
-        return 30;
-      case 12:
-        return 31;
-      default:
-        return 30;
     }
   }
 
@@ -1337,420 +1316,11 @@ class _FlowStudioPageState extends State<_FlowStudioPage>
   // ---------- pickers ----------
 
   Future<DateTime?> _pickGregorianDate({DateTime? initial}) async {
-    final now = DateTime.now();
-    DateTime seed = DateUtils.dateOnly(initial ?? now);
-
-    int y = seed.year;
-    int m = seed.month;
-    int d = seed.day;
-
-    final int yearStart = now.year - 200;
-    final yearCtrl = FixedExtentScrollController(
-      initialItem: (y - yearStart).clamp(0, 400),
-    );
-    final monthCtrl = FixedExtentScrollController(
-      initialItem: (m - 1).clamp(0, 11),
-    );
-    final dayCtrl = FixedExtentScrollController(
-      initialItem: (d - 1).clamp(0, 30),
-    );
-
-    return showModalBottomSheet<DateTime>(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.black,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
-      ),
-      builder: (sheetCtx) {
-        int localY = y, localM = m, localD = d;
-
-        int dayMax() => _daysInGregorianMonth(localY, localM);
-
-        return StatefulBuilder(
-          builder: (sheetCtx, setSheetState) {
-            final max = dayMax();
-            if (localD > max) localD = max;
-
-            return Padding(
-              padding: EdgeInsets.only(
-                left: 16,
-                right: 16,
-                top: 12,
-                bottom: MediaQuery.of(sheetCtx).viewInsets.bottom + 12,
-              ),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  // drag handle
-                  Container(
-                    width: 36,
-                    height: 4,
-                    margin: const EdgeInsets.only(bottom: 12),
-                    decoration: BoxDecoration(
-                      color: Colors.white24,
-                      borderRadius: BorderRadius.circular(2),
-                    ),
-                  ),
-
-                  const GlossyText(
-                    text: 'Pick Gregorian date',
-                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
-                    gradient: blueGloss,
-                  ),
-                  const SizedBox(height: 8),
-
-                  SizedBox(
-                    height: 160,
-                    child: Row(
-                      children: [
-                        // Month
-                        Expanded(
-                          flex: 4,
-                          child: CupertinoPicker(
-                            scrollController: monthCtrl,
-                            itemExtent: 32,
-                            looping: true,
-                            backgroundColor: const Color(0x00121214),
-                            onSelectedItemChanged: (i) {
-                              setSheetState(() {
-                                localM = (i % 12) + 1;
-                                final mx = dayMax();
-                                if (localD > mx && dayCtrl.hasClients) {
-                                  localD = mx;
-                                  WidgetsBinding.instance.addPostFrameCallback(
-                                    (_) => dayCtrl.jumpToItem(localD - 1),
-                                  );
-                                }
-                              });
-                            },
-                            children: List<Widget>.generate(12, (i) {
-                              final label = _gregMonthNames[i + 1];
-                              return Center(
-                                child: GlossyText(
-                                  text: label,
-                                  style: const TextStyle(fontSize: 14),
-                                  gradient: silverGloss,
-                                ),
-                              );
-                            }),
-                          ),
-                        ),
-                        const SizedBox(width: 6),
-                        // Day
-                        Expanded(
-                          flex: 3,
-                          child: CupertinoPicker(
-                            scrollController: dayCtrl,
-                            itemExtent: 32,
-                            looping: true,
-                            backgroundColor: const Color(0x00121214),
-                            onSelectedItemChanged: (i) {
-                              setSheetState(() {
-                                final mx = dayMax();
-                                localD = (i % mx) + 1;
-                              });
-                            },
-                            children: List<Widget>.generate(dayMax(), (i) {
-                              final dd = i + 1;
-                              return Center(
-                                child: GlossyText(
-                                  text: '$dd',
-                                  style: const TextStyle(fontSize: 14),
-                                  gradient: silverGloss,
-                                ),
-                              );
-                            }),
-                          ),
-                        ),
-                        const SizedBox(width: 6),
-                        // Year
-                        Expanded(
-                          flex: 4,
-                          child: CupertinoPicker(
-                            scrollController: yearCtrl,
-                            itemExtent: 32,
-                            looping: false,
-                            backgroundColor: const Color(0x00121214),
-                            onSelectedItemChanged: (i) {
-                              setSheetState(() {
-                                localY = yearStart + i;
-                                final mx = dayMax();
-                                if (localD > mx && dayCtrl.hasClients) {
-                                  localD = mx;
-                                  WidgetsBinding.instance.addPostFrameCallback(
-                                    (_) => dayCtrl.jumpToItem(localD - 1),
-                                  );
-                                }
-                              });
-                            },
-                            children: List<Widget>.generate(401, (i) {
-                              final yy = yearStart + i;
-                              return Center(
-                                child: GlossyText(
-                                  text: '$yy',
-                                  style: const TextStyle(fontSize: 14),
-                                  gradient: silverGloss,
-                                ),
-                              );
-                            }),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-
-                  const SizedBox(height: 12),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: OutlinedButton(
-                          style: OutlinedButton.styleFrom(
-                            foregroundColor: Colors.white,
-                            side: const BorderSide(color: silver, width: 1.25),
-                          ),
-                          onPressed: () => Navigator.pop(sheetCtx, null),
-                          child: const Text('Cancel'),
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: ElevatedButton(
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: _blue,
-                            foregroundColor: Colors.black,
-                          ),
-                          onPressed: () {
-                            final out = DateUtils.dateOnly(
-                              DateTime(localY, localM, localD),
-                            );
-                            Navigator.pop(sheetCtx, out);
-                          },
-                          child: const Text('Done'),
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            );
-          },
-        );
-      },
-    );
+    return showGregorianDatePicker(context: context, initialDate: initial);
   }
 
   Future<DateTime?> _pickKemeticDate({DateTime? initial}) async {
-    final initK = KemeticMath.fromGregorian(initial ?? DateTime.now());
-    int ky = initK.kYear, km = initK.kMonth, kd = initK.kDay;
-
-    int maxDayFor(int year, int month) =>
-        (month == 13) ? (KemeticMath.isLeapKemeticYear(year) ? 6 : 5) : 30;
-
-    final yearStart = initK.kYear - 200;
-    final yearCtrl = FixedExtentScrollController(
-      initialItem: (ky - yearStart).clamp(0, 400),
-    );
-    final monthCtrl = FixedExtentScrollController(
-      initialItem: (km - 1).clamp(0, 12),
-    );
-    final dayCtrl = FixedExtentScrollController(initialItem: (kd - 1));
-
-    return showModalBottomSheet<DateTime>(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.black,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
-      ),
-      builder: (sheetCtx) {
-        int localKy = ky, localKm = km, localKd = kd;
-
-        int dayMax() => maxDayFor(localKy, localKm);
-
-        return StatefulBuilder(
-          builder: (sheetCtx, setSheetState) {
-            if (localKd > dayMax()) localKd = dayMax();
-
-            return Padding(
-              padding: EdgeInsets.only(
-                left: 16,
-                right: 16,
-                top: 12,
-                bottom: MediaQuery.of(sheetCtx).viewInsets.bottom + 12,
-              ),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Container(
-                    width: 36,
-                    height: 4,
-                    margin: const EdgeInsets.only(bottom: 12),
-                    decoration: BoxDecoration(
-                      color: Colors.white24,
-                      borderRadius: BorderRadius.circular(2),
-                    ),
-                  ),
-                  const GlossyText(
-                    text: 'Pick Kemetic date',
-                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
-                    gradient: goldGloss, // <- gold gleam
-                  ),
-                  const SizedBox(height: 8),
-                  SizedBox(
-                    height: 160,
-                    child: Row(
-                      children: [
-                        Expanded(
-                          flex: 4,
-                          child: CupertinoPicker(
-                            scrollController: monthCtrl,
-                            itemExtent: 32,
-                            looping: true,
-                            backgroundColor: const Color(0x00121214),
-                            onSelectedItemChanged: (i) {
-                              setSheetState(() {
-                                localKm = (i % 13) + 1;
-                                final max = maxDayFor(localKy, localKm);
-                                if (localKd > max) {
-                                  localKd = max;
-                                  if (dayCtrl.hasClients) {
-                                    WidgetsBinding.instance
-                                        .addPostFrameCallback(
-                                          (_) =>
-                                              dayCtrl.jumpToItem(localKd - 1),
-                                        );
-                                  }
-                                }
-                              });
-                            },
-                            children: List<Widget>.generate(13, (i) {
-                              final m = i + 1;
-                              final label = getMonthById(m).displayFull;
-                              return Center(
-                                child: GlossyText(
-                                  text: label,
-                                  style: const TextStyle(fontSize: 14),
-                                  gradient: silverGloss,
-                                ),
-                              );
-                            }),
-                          ),
-                        ),
-                        const SizedBox(width: 6),
-                        Expanded(
-                          flex: 3,
-                          child: CupertinoPicker(
-                            scrollController: dayCtrl,
-                            itemExtent: 32,
-                            looping: true,
-                            backgroundColor: const Color(0x00121214),
-                            onSelectedItemChanged: (i) {
-                              setSheetState(() {
-                                final max = maxDayFor(localKy, localKm);
-                                localKd = (i % max) + 1;
-                              });
-                            },
-                            children: List<Widget>.generate(dayMax(), (i) {
-                              final d = i + 1;
-                              return Center(
-                                child: GlossyText(
-                                  text: '$d',
-                                  style: const TextStyle(fontSize: 14),
-                                  gradient: silverGloss,
-                                ),
-                              );
-                            }),
-                          ),
-                        ),
-                        const SizedBox(width: 6),
-                        Expanded(
-                          flex: 4,
-                          child: CupertinoPicker(
-                            scrollController: yearCtrl,
-                            itemExtent: 32,
-                            looping: false,
-                            backgroundColor: const Color(0x00121214),
-                            onSelectedItemChanged: (i) {
-                              setSheetState(() {
-                                localKy = yearStart + i;
-                                final max = maxDayFor(localKy, localKm);
-                                if (localKd > max) {
-                                  localKd = max;
-                                  if (dayCtrl.hasClients) {
-                                    WidgetsBinding.instance
-                                        .addPostFrameCallback(
-                                          (_) =>
-                                              dayCtrl.jumpToItem(localKd - 1),
-                                        );
-                                  }
-                                }
-                              });
-                            },
-                            children: List<Widget>.generate(401, (i) {
-                              final ky = yearStart + i;
-                              final label = _gregYearLabelFor(ky, localKm);
-                              return Center(
-                                child: GlossyText(
-                                  text: label,
-                                  style: const TextStyle(fontSize: 14),
-                                  gradient: silverGloss,
-                                ),
-                              );
-                            }),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: OutlinedButton(
-                          style: OutlinedButton.styleFrom(
-                            foregroundColor: Colors.white,
-                            side: const BorderSide(color: silver, width: 1.25),
-                          ),
-                          onPressed: () => Navigator.pop(sheetCtx, null),
-                          child: const Text('Cancel'),
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: ElevatedButton(
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: _gold,
-                            foregroundColor: Colors
-                                .white, // text color pairs with glossy white label
-                          ),
-                          onPressed: () {
-                            final g = KemeticMath.toGregorian(
-                              localKy,
-                              localKm,
-                              localKd,
-                            );
-                            Navigator.pop(sheetCtx, _dateOnly(g));
-                          },
-                          child: const GlossyText(
-                            text: 'Done',
-                            style: TextStyle(
-                              fontSize: 14,
-                              fontWeight: FontWeight.w600,
-                            ),
-                            gradient: whiteGloss, // subtle sheen on the label
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            );
-          },
-        );
-      },
-    );
+    return showKemeticDatePicker(context: context, initialDate: initial);
   }
 
   Future<void> _pickRangeStart() async {
@@ -2448,6 +2018,24 @@ class _FlowStudioPageState extends State<_FlowStudioPage>
     final bool isAiImport = widget.importData?.share.payloadId == 'ai-local';
     final bool isImportedFlow = widget.importData != null && !isAiImport;
     final List<FlowRule> rulesToSave = isImportedFlow ? <FlowRule>[] : rules;
+    final hasMaterializedSchedule =
+        rulesToSave.isNotEmpty || planned.isNotEmpty;
+    final hasScheduledOutput =
+        _startDate != null ||
+        _endDate != null ||
+        rulesToSave.isNotEmpty ||
+        planned.isNotEmpty;
+    final importedWithoutMaterializedSchedule =
+        isImportedFlow && !hasMaterializedSchedule;
+    final saveAsUnscheduledTemplate =
+        importedWithoutMaterializedSchedule ||
+        (widget.importData == null &&
+            !_isAIGeneratedFlow &&
+            !hasScheduledOutput &&
+            !(_editing?.isReminder ?? false) &&
+            !(_editing?.isHidden ?? false));
+    final flowIsSaved =
+        (_editing?.isSaved ?? false) || saveAsUnscheduledTemplate;
 
     final flow = _Flow(
       id: _editing?.id ?? -1,
@@ -2455,6 +2043,8 @@ class _FlowStudioPageState extends State<_FlowStudioPage>
       name: name,
       color: _buildColor,
       active: _active,
+      isSaved: flowIsSaved,
+      savedAt: flowIsSaved ? (_editing?.savedAt ?? DateTime.now()) : null,
       rules: rulesToSave, // ✅ Empty rules for non-AI imports
       start: _startDate,
       end: _endDate,
@@ -3593,6 +3183,13 @@ class _FlowStudioPageState extends State<_FlowStudioPage>
       final eventsJson = payload?['events'] as List<dynamic>?;
 
       if (eventsJson != null && eventsJson.isNotEmpty) {
+        if (!isAiImport) {
+          // Shared-flow payload snapshots are already concrete event instances.
+          // Keep them in per-day mode so Save persists the individual rows
+          // instead of requiring a repeating weekday template selection.
+          _useKemetic = false;
+          _splitByPeriod = true;
+        }
         final baseDate = _startDate ?? DateTime.now();
         final userEvents = <UserEvent>[];
         for (final e in eventsJson) {
@@ -3701,7 +3298,20 @@ class _FlowStudioPageState extends State<_FlowStudioPage>
           _syncReady = true;
         }
       } else {
-        _endDate = requestedEndDate ?? _startDate;
+        final suggestedWeekdays =
+            data.share.suggestedSchedule?.weekdays ?? const <int>[];
+        final hasImportSchedule =
+            isAiImport ||
+            data.rules.isNotEmpty ||
+            suggestedWeekdays.isNotEmpty ||
+            requestedEndDate != null;
+        if (!hasImportSchedule) {
+          _startDate = null;
+          _endDate = null;
+          _dateRangeEditedInCurrentEditor = false;
+        } else {
+          _endDate = requestedEndDate ?? _startDate;
+        }
         _syncReady = true;
         _rebuildSpans();
       }
@@ -4411,6 +4021,7 @@ class _FlowStudioPageState extends State<_FlowStudioPage>
       } else {
         AIFlowGenerationService? debugService;
         assert(() {
+          // ignore: invalid_use_of_visible_for_testing_member
           debugService = AIFlowGenerationService.debugFlowStudioOverride;
           return true;
         }());
@@ -5052,15 +4663,20 @@ class _FlowStudioPageState extends State<_FlowStudioPage>
           ),
         ),
         title: Row(
-          mainAxisSize: MainAxisSize.min,
+          mainAxisSize: MainAxisSize.max,
           children: [
-            const Text(
-              'Flow Studio',
-              style: TextStyle(
-                color: _gold,
-                fontSize: 22,
-                fontWeight: FontWeight.w600,
-                fontFamily: 'GentiumPlus',
+            const Flexible(
+              child: Text(
+                'Flow Studio',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                softWrap: false,
+                style: TextStyle(
+                  color: _gold,
+                  fontSize: 22,
+                  fontWeight: FontWeight.w600,
+                  fontFamily: 'GentiumPlus',
+                ),
               ),
             ),
             const SizedBox(width: 12),
@@ -5127,7 +4743,7 @@ class _FlowStudioPageState extends State<_FlowStudioPage>
               tooltip: 'Flows menu',
               icon: const Icon(Icons.more_vert, color: _silver, size: 22),
               padding: EdgeInsets.zero,
-              constraints: const BoxConstraints.tightFor(width: 36, height: 44),
+              constraints: const BoxConstraints(minWidth: 220, maxWidth: 280),
               onSelected: (v) {
                 if (v == 1) _openFlowPicker();
                 if (v == 2) _clearEditorForNew();

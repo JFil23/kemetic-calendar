@@ -91,6 +91,32 @@ void main() {
       );
     });
 
+    test(
+      'Ma’at template details preserve inbox profile and reflection parents',
+      () {
+        for (final parentRoute in <String>[
+          '/inbox',
+          '/profile/user-1',
+          '/reflections',
+        ]) {
+          expect(
+            CalendarPage.restorableOverlayParentRouteFromStack(
+              <Map<String, dynamic>>[
+                <String, dynamic>{
+                  'kind': 'calendar.flowStudio',
+                  'parentRoute': parentRoute,
+                  'mode': 'maatTemplate',
+                  'templateKey': 'the-weighing',
+                },
+              ],
+            ),
+            parentRoute,
+            reason: parentRoute,
+          );
+        }
+      },
+    );
+
     test('library routes restore as detached overlay parents', () {
       for (final parentRoute in <String>[
         '/nodes',

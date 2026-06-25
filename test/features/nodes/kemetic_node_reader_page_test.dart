@@ -3,11 +3,16 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:mobile/data/choice_event_repo.dart';
 import 'package:mobile/features/nodes/kemetic_node_library.dart';
+import 'package:mobile/features/nodes/kemetic_node_model.dart';
 import 'package:mobile/features/nodes/kemetic_node_list_page.dart';
 import 'package:mobile/features/nodes/kemetic_node_reader_page.dart';
+import 'package:mobile/features/nodes/library_read_progress_store.dart';
 import 'package:mobile/features/nodes/node_user_insights_section.dart';
 import 'package:mobile/features/nodes/widgets.dart';
 import 'package:mobile/main.dart' as app;
+import 'package:mobile/shared/date_picker/kemetic_picker_labels.dart';
+import 'package:mobile/utils/kemetic_date_format.dart';
+import 'package:mobile/widgets/kemetic_date_picker.dart' show KemeticMath;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -449,6 +454,77 @@ void main() {
     expect(find.text('Your Insights'), findsOneWidget);
   });
 
+  testWidgets(
+    'node insight date picker Cancel preserves date and body on small phone',
+    (tester) async {
+      _useSmallPhoneSurface(tester);
+      final node = KemeticNodeLibrary.resolve('maat')!;
+      final initialDate = DateUtils.dateOnly(DateTime.now());
+      final initialLabel = formatKemeticDate(initialDate);
+      final initialKemetic = KemeticMath.fromGregorian(initialDate);
+
+      await _pumpNodeInsightEditor(tester, node);
+      expect(find.text(initialLabel), findsOneWidget);
+
+      await tester.enterText(find.byType(TextField), 'Balance is practice.');
+      await tester.tap(find.byIcon(Icons.event_note_outlined));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Pick Kemetic date'), findsOneWidget);
+      expect(find.text('Kemetic Calendar'), findsOneWidget);
+      expect(
+        find.text(kemeticPickerMonthLabel(initialKemetic.kMonth)),
+        findsWidgets,
+      );
+
+      await tester.tap(find.widgetWithText(OutlinedButton, 'Cancel'));
+      await tester.pumpAndSettle();
+
+      expect(find.text(initialLabel), findsOneWidget);
+      expect(find.text('Balance is practice.'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    },
+  );
+
+  testWidgets(
+    'node insight date picker Done keeps visible date and reopens cleanly',
+    (tester) async {
+      _useSmallPhoneSurface(tester);
+      final node = KemeticNodeLibrary.resolve('maat')!;
+      final initialDate = DateUtils.dateOnly(DateTime.now());
+      final initialLabel = formatKemeticDate(initialDate);
+      final initialKemetic = KemeticMath.fromGregorian(initialDate);
+
+      await _pumpNodeInsightEditor(tester, node);
+      await tester.enterText(find.byType(TextField), 'Order needs witness.');
+
+      await tester.tap(find.byIcon(Icons.event_note_outlined));
+      await tester.pumpAndSettle();
+      await tester.tap(find.widgetWithText(ElevatedButton, 'Done'));
+      await tester.pumpAndSettle();
+
+      expect(find.text(initialLabel), findsOneWidget);
+      expect(find.text('Order needs witness.'), findsOneWidget);
+
+      await tester.tap(find.byIcon(Icons.event_note_outlined));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Pick Kemetic date'), findsOneWidget);
+      expect(
+        find.text(kemeticPickerMonthLabel(initialKemetic.kMonth)),
+        findsWidgets,
+      );
+      expect(find.text('${initialKemetic.kDay}'), findsWidgets);
+
+      await tester.tap(find.widgetWithText(ElevatedButton, 'Done'));
+      await tester.pumpAndSettle();
+
+      expect(find.text(initialLabel), findsOneWidget);
+      expect(find.text('Order needs witness.'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    },
+  );
+
   testWidgets('node list glyph tiles fit compound and low-profile signs', (
     tester,
   ) async {
@@ -525,6 +601,51 @@ void main() {
     expect(find.byType(Table), findsNWidgets(7));
     expect(find.text('New Species'), findsOneWidget);
     expect(find.text('Human Mirror'), findsOneWidget);
+  });
+
+  testWidgets('persists and restores reader scroll progress', (tester) async {
+    tester.view.physicalSize = const Size(1170, 2532);
+    tester.view.devicePixelRatio = 3.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    final prefs = await SharedPreferences.getInstance();
+    var now = DateTime(2026, 6, 21, 12);
+    final store = LibraryReadProgressStore(prefs: prefs, now: () => now);
+    final node = KemeticNodeLibrary.resolve('human_emergence')!;
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: KemeticNodeReaderPage(node: node, readProgressStore: store),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.drag(_readerScrollView(), const Offset(0, -360));
+    await tester.pump(const Duration(milliseconds: 500));
+    await tester.pump();
+
+    final savedProgress = await store.readNodeProgress('human_emergence');
+    expect(savedProgress, isNotNull);
+    expect(savedProgress!.lastScrollOffset, greaterThan(0));
+    expect(savedProgress.completedAt, isNull);
+
+    final savedOffset = savedProgress.lastScrollOffset;
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pumpAndSettle();
+
+    now = DateTime(2026, 6, 21, 12, 1);
+    await tester.pumpWidget(
+      MaterialApp(
+        home: KemeticNodeReaderPage(node: node, readProgressStore: store),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    final scrollView = tester.widget<SingleChildScrollView>(
+      _readerScrollView(),
+    );
+    expect(scrollView.controller!.offset, closeTo(savedOffset, 1));
   });
 
   testWidgets('renders ancient african tree table grids', (tester) async {
@@ -635,6 +756,37 @@ class _ChoiceEventCall {
   final String? sourceSurface;
   final String? deliveryId;
   final Map<String, dynamic>? metadata;
+}
+
+Finder _readerScrollView() {
+  return find.byWidgetPredicate(
+    (widget) =>
+        widget is SingleChildScrollView &&
+        widget.controller != null &&
+        widget.scrollDirection == Axis.vertical,
+  );
+}
+
+Future<void> _pumpNodeInsightEditor(
+  WidgetTester tester,
+  KemeticNode node,
+) async {
+  await tester.pumpWidget(
+    MaterialApp(
+      home: Scaffold(
+        body: NodeUserInsightsSection(node: node, openEditorOnLoad: true),
+      ),
+    ),
+  );
+  await tester.pumpAndSettle();
+  expect(find.text('New ${node.title} Insight'), findsOneWidget);
+}
+
+void _useSmallPhoneSurface(WidgetTester tester) {
+  tester.view.physicalSize = const Size(390, 844);
+  tester.view.devicePixelRatio = 1;
+  addTearDown(tester.view.resetPhysicalSize);
+  addTearDown(tester.view.resetDevicePixelRatio);
 }
 
 class _RecordingChoiceEventTracker implements ChoiceEventTracker {

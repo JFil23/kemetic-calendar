@@ -2,29 +2,45 @@ import 'dart:convert';
 
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'the_decan_watch_flow.dart';
+
 class DecanWatchRecord {
   final String? skyNote;
   final String? decanIntention;
   final bool observedFromInside;
+  final String? visibility;
 
   const DecanWatchRecord({
     this.skyNote,
     this.decanIntention,
     this.observedFromInside = false,
+    this.visibility,
   });
+
+  String? get normalizedVisibility => normalizeDecanWatchVisibility(visibility);
+
+  String? get responseVisibility {
+    final normalized = normalizedVisibility;
+    if (normalized != null) return normalized;
+    return observedFromInside ? kDecanWatchVisibilityInside : null;
+  }
 
   bool get isEmpty {
     return (skyNote ?? '').trim().isEmpty &&
         (decanIntention ?? '').trim().isEmpty &&
-        !observedFromInside;
+        !observedFromInside &&
+        responseVisibility == null;
   }
 
   Map<String, dynamic> toJson() {
+    final nextVisibility = normalizedVisibility;
     return <String, dynamic>{
       if ((skyNote ?? '').trim().isNotEmpty) 'sky_note': skyNote!.trim(),
       if ((decanIntention ?? '').trim().isNotEmpty)
         'decan_intention': decanIntention!.trim(),
-      'observed_from_inside': observedFromInside,
+      if (nextVisibility != null) 'visibility': nextVisibility,
+      'observed_from_inside':
+          observedFromInside || nextVisibility == kDecanWatchVisibilityInside,
     };
   }
 
@@ -34,6 +50,9 @@ class DecanWatchRecord {
       skyNote: value['sky_note']?.toString(),
       decanIntention: value['decan_intention']?.toString(),
       observedFromInside: value['observed_from_inside'] == true,
+      visibility: normalizeDecanWatchVisibility(
+        value['visibility']?.toString(),
+      ),
     );
   }
 
@@ -41,11 +60,13 @@ class DecanWatchRecord {
     String? skyNote,
     String? decanIntention,
     bool? observedFromInside,
+    String? visibility,
   }) {
     return DecanWatchRecord(
       skyNote: skyNote ?? this.skyNote,
       decanIntention: decanIntention ?? this.decanIntention,
       observedFromInside: observedFromInside ?? this.observedFromInside,
+      visibility: visibility ?? this.visibility,
     );
   }
 }

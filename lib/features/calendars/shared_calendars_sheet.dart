@@ -6,12 +6,16 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
+import '../../data/birthday_calendar.dart';
 import '../../data/event_filing_engine.dart';
 import '../../data/shared_calendar_models.dart';
 import '../../data/shared_calendars_repo.dart';
+import '../../shared/date_picker/stone_register_date_picker.dart';
 import '../../shared/glossy_text.dart';
+import '../../widgets/gregorian_date_picker.dart';
 import '../../widgets/kemetic_keyboard.dart';
 import '../../widgets/keyboard_aware.dart';
+import '../calendar/notify.dart';
 import '../reminders/reminder_rule.dart';
 
 typedef SharedCalendarAddEventCallback =
@@ -199,6 +203,56 @@ class _SharedCalendarsSheetState extends State<SharedCalendarsSheet> {
         colorValue: result.colorValue,
       );
     });
+  }
+
+  Future<void> _createBirthday(SharedCalendarSummary calendar) async {
+    if (!calendar.isBirthdays) return;
+    final result = await _showBirthdayEditor();
+    if (result == null) return;
+
+    await _runAction(() async {
+      final birthdayId = await widget.repo.createBirthday(
+        name: result.name,
+        birthday: result.birthday,
+        alertOffsetMinutes: result.alertOffsetMinutes,
+      );
+      await _scheduleNextBirthdayAlert(
+        BirthdayItem(
+          id: birthdayId,
+          userId: widget.repo.currentUserId ?? '',
+          calendarId: calendar.id,
+          name: result.name,
+          month: result.birthday.month,
+          day: result.birthday.day,
+          birthYear: result.birthday.year,
+          alertOffsetMinutes: result.alertOffsetMinutes,
+        ),
+      );
+    });
+  }
+
+  Future<void> _scheduleNextBirthdayAlert(BirthdayItem item) async {
+    if (item.alertOffsetMinutes == kBirthdayNoAlertMinutes) return;
+    final occurrence = nextBirthdayOccurrence(item: item);
+    if (occurrence == null) return;
+    final scheduledAt = occurrence.localStart.subtract(
+      Duration(minutes: item.alertOffsetMinutes),
+    );
+    try {
+      final result = await Notify.scheduleAlertWithPersistenceResult(
+        clientEventId: occurrence.clientEventId,
+        scheduledAt: scheduledAt,
+        title: occurrence.title,
+        payload: birthdayNotificationPayloadJson(occurrence),
+      );
+      if (result.needsUserVisibleWarning) {
+        _showSheetMessage(
+          result.message ?? 'Birthday alert was not scheduled.',
+        );
+      }
+    } catch (e) {
+      _showSheetMessage('Birthday saved, but the alert was not scheduled.');
+    }
   }
 
   Future<void> _editCalendar(SharedCalendarSummary calendar) async {
@@ -505,6 +559,14 @@ class _SharedCalendarsSheetState extends State<SharedCalendarsSheet> {
     );
   }
 
+  Future<_BirthdayEditorResult?> _showBirthdayEditor() {
+    return showDialog<_BirthdayEditorResult>(
+      context: context,
+      useRootNavigator: true,
+      builder: (ctx) => const _BirthdayEditorDialog(),
+    );
+  }
+
   void _showSheetMessage(String message) {
     final overlayContext = Navigator.of(
       context,
@@ -767,6 +829,16 @@ class _SharedCalendarsSheetState extends State<SharedCalendarsSheet> {
                 ),
               ),
               const SizedBox(width: 14),
+              if (calendar.isBirthdays) ...[
+                _H3wRowIconButton(
+                  key: const ValueKey<String>('birthdays-calendar-add-button'),
+                  tooltip: 'Add birthday',
+                  icon: Icons.add,
+                  color: accentLight,
+                  onPressed: _saving ? null : () => _createBirthday(calendar),
+                ),
+                const SizedBox(width: 10),
+              ],
               _H3wVisibilityToggle(
                 value: isVisible,
                 accent: accent,
@@ -789,7 +861,7 @@ class _SharedCalendarsSheetState extends State<SharedCalendarsSheet> {
                         children: [
                           const SizedBox(height: 15),
                           _calendarEventsDropdown(calendar),
-                          if (!calendar.isPersonal)
+                          if (!calendar.isPersonal && !calendar.isSystem)
                             _calendarFooterActions(calendar, isOwner),
                         ],
                       )
@@ -1640,6 +1712,42 @@ class _H3wAddCircleButton extends StatelessWidget {
   }
 }
 
+class _H3wRowIconButton extends StatelessWidget {
+  const _H3wRowIconButton({
+    super.key,
+    required this.tooltip,
+    required this.icon,
+    required this.color,
+    required this.onPressed,
+  });
+
+  final String tooltip;
+  final IconData icon;
+  final Color color;
+  final VoidCallback? onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    return Tooltip(
+      message: tooltip,
+      child: InkWell(
+        customBorder: const CircleBorder(),
+        onTap: onPressed,
+        child: Container(
+          width: 30,
+          height: 30,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            border: Border.all(color: color.withValues(alpha: 0.56)),
+            color: color.withValues(alpha: 0.08),
+          ),
+          child: Icon(icon, color: color, size: 17),
+        ),
+      ),
+    );
+  }
+}
+
 class H3wCalendarCardSurface extends StatelessWidget {
   const H3wCalendarCardSurface({
     super.key,
@@ -2459,6 +2567,274 @@ class _CalendarMembersSheetState extends State<CalendarMembersSheet> {
             Icon(Icons.arrow_drop_down, color: widget.calendar.color, size: 18),
           ],
         ],
+      ),
+    );
+  }
+}
+
+class _BirthdayEditorResult {
+  const _BirthdayEditorResult({
+    required this.name,
+    required this.birthday,
+    required this.alertOffsetMinutes,
+  });
+
+  final String name;
+  final DateTime birthday;
+  final int alertOffsetMinutes;
+}
+
+class _BirthdayEditorDialog extends StatefulWidget {
+  const _BirthdayEditorDialog();
+
+  @override
+  State<_BirthdayEditorDialog> createState() => _BirthdayEditorDialogState();
+}
+
+class _BirthdayEditorDialogState extends State<_BirthdayEditorDialog> {
+  final TextEditingController _nameCtrl = TextEditingController();
+  DateTime? _birthday;
+  int _alertOffsetMinutes = kBirthdayNoAlertMinutes;
+  String? _error;
+
+  @override
+  void dispose() {
+    _nameCtrl.dispose();
+    super.dispose();
+  }
+
+  InputDecoration _inputDecoration(String label) {
+    return InputDecoration(
+      labelText: label,
+      labelStyle: const TextStyle(color: H3wCalendarSheetTokens.silverMid),
+      isDense: true,
+      filled: true,
+      fillColor: const Color(0xFF211C14),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: BorderSide(color: Colors.white.withValues(alpha: 0.08)),
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: const BorderSide(color: H3wCalendarSheetTokens.gold),
+      ),
+      errorBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: const BorderSide(color: H3wCalendarSheetTokens.repeatPink),
+      ),
+      focusedErrorBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: const BorderSide(
+          color: H3wCalendarSheetTokens.repeatPinkLight,
+        ),
+      ),
+    );
+  }
+
+  Future<void> _pickBirthday() async {
+    final now = DateTime.now();
+    final firstYear = now.year - 130;
+    final lastYear = now.year + 1;
+    final seed = _birthday ?? DateTime(now.year - 18, now.month, now.day);
+    final picked = await StoneRegisterDatePicker.show<DateTime>(
+      context,
+      initialValue: DateUtils.dateOnly(seed),
+      adapter: GregorianDatePickerAdapter(
+        yearStart: firstYear,
+        yearCount: lastYear - firstYear + 1,
+      ),
+      initialMode: StoneDatePickerCalendarMode.gregorian,
+      allowModeSwitch: false,
+      title: 'Pick birthday',
+      subtitle: 'Gregorian Calendar',
+    );
+    if (picked == null || !mounted) return;
+    setState(() {
+      _birthday = DateUtils.dateOnly(picked);
+      _error = null;
+    });
+  }
+
+  void _save() {
+    final name = _nameCtrl.text.trim();
+    if (name.isEmpty) {
+      setState(() => _error = 'Name is required.');
+      return;
+    }
+    final birthday = _birthday;
+    if (birthday == null) {
+      setState(() => _error = 'Birthday date is required.');
+      return;
+    }
+    Navigator.of(context).pop(
+      _BirthdayEditorResult(
+        name: name,
+        birthday: birthday,
+        alertOffsetMinutes: _alertOffsetMinutes,
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final birthdayLabel = _birthday == null
+        ? 'Choose date'
+        : DateFormat.yMMMMd().format(_birthday!);
+
+    return KemeticKeyboardRevealScope(
+      enabled: false,
+      child: Dialog(
+        backgroundColor: Colors.transparent,
+        insetPadding: const EdgeInsets.symmetric(horizontal: 26),
+        child: Container(
+          width: double.infinity,
+          padding: const EdgeInsets.fromLTRB(22, 24, 22, 20),
+          decoration: BoxDecoration(
+            color: const Color(0xFF16130D),
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(
+              color: Color(
+                kBirthdaysCalendarColorValue,
+              ).withValues(alpha: 0.35),
+            ),
+            boxShadow: const [
+              BoxShadow(
+                color: Color(0x99000000),
+                blurRadius: 60,
+                offset: Offset(0, 20),
+              ),
+            ],
+          ),
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Add Birthday',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 25,
+                    fontWeight: FontWeight.w600,
+                    fontFamily: H3wCalendarSheetTokens.serif,
+                    fontFamilyFallback: H3wCalendarSheetTokens.serifFallback,
+                  ),
+                ),
+                const SizedBox(height: 18),
+                TextField(
+                  key: const ValueKey<String>('birthday-name-field'),
+                  controller: _nameCtrl,
+                  autofocus: true,
+                  cursorColor: H3wCalendarSheetTokens.gold,
+                  scrollPadding: keyboardManagedTextFieldScrollPadding,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 17,
+                    fontWeight: FontWeight.w400,
+                    fontFamily: H3wCalendarSheetTokens.serif,
+                    fontFamilyFallback: H3wCalendarSheetTokens.serifFallback,
+                  ),
+                  decoration: _inputDecoration('Name'),
+                ),
+                const SizedBox(height: 12),
+                InkWell(
+                  key: const ValueKey<String>('birthday-date-picker'),
+                  borderRadius: BorderRadius.circular(12),
+                  onTap: _pickBirthday,
+                  child: InputDecorator(
+                    decoration: _inputDecoration('Birthday'),
+                    child: Text(
+                      birthdayLabel,
+                      style: TextStyle(
+                        color: _birthday == null
+                            ? H3wCalendarSheetTokens.silverMid
+                            : Colors.white,
+                        fontSize: 17,
+                        fontFamily: H3wCalendarSheetTokens.serif,
+                        fontFamilyFallback:
+                            H3wCalendarSheetTokens.serifFallback,
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                DropdownButtonFormField<int>(
+                  key: const ValueKey<String>('birthday-alert-picker'),
+                  initialValue: _alertOffsetMinutes,
+                  dropdownColor: const Color(0xFF211C14),
+                  iconEnabledColor: H3wCalendarSheetTokens.gold,
+                  decoration: _inputDecoration('Alert'),
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 17,
+                    fontFamily: H3wCalendarSheetTokens.serif,
+                    fontFamilyFallback: H3wCalendarSheetTokens.serifFallback,
+                  ),
+                  items: [
+                    for (final option in kBirthdayAlertOptions)
+                      DropdownMenuItem<int>(
+                        value: option,
+                        child: Text(birthdayAlertLabel(option)),
+                      ),
+                  ],
+                  onChanged: (value) {
+                    if (value == null) return;
+                    setState(() => _alertOffsetMinutes = value);
+                  },
+                ),
+                if (_error != null) ...[
+                  const SizedBox(height: 12),
+                  Text(
+                    _error!,
+                    style: const TextStyle(
+                      color: H3wCalendarSheetTokens.repeatPinkLight,
+                      fontSize: 13,
+                      fontFamily: H3wCalendarSheetTokens.serif,
+                      fontFamilyFallback: H3wCalendarSheetTokens.serifFallback,
+                    ),
+                  ),
+                ],
+                const SizedBox(height: 24),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    TextButton(
+                      onPressed: () => Navigator.of(context).pop(),
+                      style: TextButton.styleFrom(
+                        foregroundColor: H3wCalendarSheetTokens.silverMid,
+                        textStyle: const TextStyle(
+                          fontSize: 17,
+                          fontWeight: FontWeight.w400,
+                          fontFamily: H3wCalendarSheetTokens.serif,
+                          fontFamilyFallback:
+                              H3wCalendarSheetTokens.serifFallback,
+                        ),
+                      ),
+                      child: const Text('Cancel'),
+                    ),
+                    const SizedBox(width: 22),
+                    TextButton(
+                      key: const ValueKey<String>('birthday-save-button'),
+                      onPressed: _save,
+                      style: TextButton.styleFrom(
+                        foregroundColor: Color(kBirthdaysCalendarColorValue),
+                        textStyle: const TextStyle(
+                          fontSize: 17,
+                          fontWeight: FontWeight.w600,
+                          fontFamily: H3wCalendarSheetTokens.serif,
+                          fontFamilyFallback:
+                              H3wCalendarSheetTokens.serifFallback,
+                        ),
+                      ),
+                      child: const Text('Save'),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ),
       ),
     );
   }

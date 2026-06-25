@@ -1809,28 +1809,22 @@ Map<String, KemeticDayInfo> _buildKaHerKaIEntries() {
   return Map.fromEntries([
     _dayInfoEntry(
       key: 'kaherka_1_1',
-      kemeticDate: 'Ka-ḥer-ka I, Day 1',
+      kemeticDate: 'Ka-ḥer-ka I, Day 1 (Day 1 of Ka-ḥer-ka)',
       season: '🌊 Akhet Closing – Inundation Withdraws',
-      month:
-          'Ka-ḥer-ka ("Ka upon Ka" — doubled life-force, the seed entering the black earth)',
-      decanName: 'ḫnwy (translation uncertain) | Deck: The Embraced Ones',
+      month: 'Ka-ḥer-ka ("Ka upon Ka")',
+      decanName: 'msḥtjw ("The Foreleg")',
       starCluster:
-          '✨ msḥtjw — a northern star group associated with the Foreleg, commonly linked with the Big Dipper shape: seven bright stars forming a bowl and bent handle around the northern sky',
-      maatPrinciple: 'Vitality Enters the Ground',
-      cosmicContext: '''
-Hathor is closed. The partnership was named, the structure was raised.
-Now the black silt lies open and the builders put down their cords.
+          '✨ msḥtjw — the Foreleg, the stars of the Bull\'s foreleg in the northern sky, watched through this ten-day interval.',
+      maatPrinciple: 'See the Ground as It Actually Is',
+      cosmicContext:
+          '''The flood has drained and the field lies bare. Before lifting a tool, the Kemite walks out and looks: where the silt fell deep, where it left sand, where the water cut. Nothing begins until the ground is seen plainly.
 
-Ka-ḥer-ka is not a month of display.
-It is the month the seed goes into the earth.
-You do not plant by force — you plant by preparation.
-The first preparation is stillness.
-''',
+A beginning starts from real conditions, not hoped-for ones — what can grow is decided by what is here.''',
       decanFlow: _kaHerKaIFlowRows,
       meduNeter: MeduNeterKey(
         glyph: 'Seed pressed into open palm over black silt',
         colorFrequency: 'Black Nile earth, no light yet',
-        mantra: '"I am still so something can be placed in me."',
+        mantra: '"I see the ground as it is before I act on it."',
       ),
     ),
     _dayInfoEntry(
@@ -1838,23 +1832,19 @@ The first preparation is stillness.
       kemeticDate: 'Ka-ḥer-ka I, Day 2',
       season: '🌊 Akhet Closing – Inundation Withdraws',
       month: 'Ka-ḥer-ka ("Ka upon Ka")',
-      decanName: 'ḫnwy (translation uncertain) | Deck: The Embraced Ones',
+      decanName: 'msḥtjw ("The Foreleg")',
       starCluster:
-          '✨ msḥtjw — the Foreleg asterism in the northern sky, seen as a distinct bent arrangement of bright stars with a bowl-like front and extended handle',
-      maatPrinciple: 'Clear What the Flood Left',
-      cosmicContext: '''
-Before seed goes into the silt, the field is cleared.
-Flood debris, rotted reed, the crusted remains of last year's arrangements.
-A clogged field wastes the seed placed in it.
+          '✨ msḥtjw — the Foreleg, the stars of the Bull\'s foreleg in the northern sky, watched through this ten-day interval.',
+      maatPrinciple: 'Clear the Ground Before the Seed',
+      cosmicContext:
+          '''The flood has pulled back and left fresh silt, but also debris: rotted reed, broken stalk, the crust of last year's field. Today the Kemite clears it, because seed dropped onto clutter never takes root.
 
-Yesterday you became still.
-Today you clear.
-''',
+A field cannot hold what is coming until the old wreckage is carried off. The ground about to be planted is first made empty.''',
       decanFlow: _kaHerKaIFlowRows,
       meduNeter: MeduNeterKey(
         glyph: 'Water jar pouring over swept earth',
         colorFrequency: 'Cool water blue over cleared black-brown ground',
-        mantra: '"I clear the place where renewal will land."',
+        mantra: '"I clear the ground where my year will land."',
       ),
     ),
     _dayInfoEntry(
@@ -1862,20 +1852,19 @@ Today you clear.
       kemeticDate: 'Ka-ḥer-ka I, Day 3',
       season: '🌊 Akhet Closing – Inundation Withdraws',
       month: 'Ka-ḥer-ka ("Ka upon Ka")',
-      decanName: 'ḫnwy (translation uncertain) | Deck: The Embraced Ones',
+      decanName: 'msḥtjw ("The Foreleg")',
       starCluster:
-          '✨ msḥtjw — a bright northern seven-star pattern with a clear angular shape, visually remembered as a foreleg or haunch in Kemetic star imagery',
-      maatPrinciple: 'Name What Ended',
-      cosmicContext: '''
-The scribe does not write "the grain is plentiful" when the jar is empty.
-To pretend nothing ended is to lie about the condition of the field —
-and a lie about the field costs the harvest.
-''',
+          '✨ msḥtjw — the Foreleg, the stars of the Bull\'s foreleg in the northern sky, watched through this ten-day interval.',
+      maatPrinciple: 'Spend the Best of What Was Saved',
+      cosmicContext:
+          '''The cleared field waits, and the Kemite goes to the grain jar. The fullest, heaviest seed is set apart and carried back to the ground, because a field planted with weak grain returns a weak crop.
+
+The best of what was saved is spent, not hoarded. What is held back from the planting is held back from the year.''',
       decanFlow: _kaHerKaIFlowRows,
       meduNeter: MeduNeterKey(
         glyph: 'Open mouth above cleared earth — the naming',
         colorFrequency: 'Deep indigo with a single line of honest white',
-        mantra: '"I speak what ended so the ground knows what to grow."',
+        mantra: '"I plant the best of what I saved, not the leftovers."',
       ),
     ),
     _dayInfoEntry(
@@ -1883,24 +1872,20 @@ and a lie about the field costs the harvest.
       kemeticDate: 'Ka-ḥer-ka I, Day 4',
       season: '🌊 Akhet Closing – Inundation Withdraws',
       month: 'Ka-ḥer-ka ("Ka upon Ka")',
-      decanName: 'ḫnwy (translation uncertain) | Deck: The Embraced Ones',
+      decanName: 'msḥtjw ("The Foreleg")',
       starCluster:
-          '✨ msḥtjw — a northern foreleg-shaped star group, physically broad and angular, with bright stars forming a recognizable limb-like outline',
-      maatPrinciple: 'Select What Carries Forward',
-      cosmicContext: '''
-The farmer does not carry all last year's grain into the new planting.
-Weak grain goes back to the earth.
-Strong grain — the seed-stock — is set aside.
-That selection is not sentimentality. It is survival intelligence.
+          '✨ msḥtjw — the Foreleg, the stars of the Bull\'s foreleg in the northern sky, watched through this ten-day interval.',
+      maatPrinciple: 'The Seed Leaves the Hand',
+      cosmicContext:
+          '''The Kemite walks the field and casts the grain. Once it leaves the hand, it cannot be gathered back; each throw is final the moment it lands. So the sowing is done with attention, the arm steady, the spread even.
 
-What was genuinely good in what ended?
-One thing. Not everything — the strongest stalk.
-''',
+What is committed cannot be uncommitted. The care belongs to the throw, not to the wish to call it back.''',
       decanFlow: _kaHerKaIFlowRows,
       meduNeter: MeduNeterKey(
         glyph: 'Single seed held up for inspection — selected, not hoarded',
         colorFrequency: 'Warm amber over dark ground',
-        mantra: '"I keep the strongest seed. The rest returns to the earth."',
+        mantra:
+            '"What I commit, I commit with care, because it does not return."',
       ),
     ),
     _dayInfoEntry(
@@ -1908,20 +1893,19 @@ One thing. Not everything — the strongest stalk.
       kemeticDate: 'Ka-ḥer-ka I, Day 5',
       season: '🌊 Akhet Closing – Inundation Withdraws',
       month: 'Ka-ḥer-ka ("Ka upon Ka")',
-      decanName: 'ḫnwy (translation uncertain) | Deck: The Embraced Ones',
+      decanName: 'msḥtjw ("The Foreleg")',
       starCluster:
-          '✨ msḥtjw — the Foreleg star pattern in the northern sky, a distinct group of bright stars arranged like a bent limb or ladle-shaped form',
-      maatPrinciple: 'The Ka Lives in the Body',
-      cosmicContext: '''
-The ka is not a soul floating above the flesh.
-It is the vital force that moves through a living body — breath, appetite, warmth, posture.
-When the ka is depleted, it shows in the body first.
-''',
+          '✨ msḥtjw — the Foreleg, the stars of the Bull\'s foreleg in the northern sky, watched through this ten-day interval.',
+      maatPrinciple: 'Trust What Is Forming Where You Cannot See It',
+      cosmicContext:
+          '''Days pass and the planted field shows nothing. The silt lies flat and dark, no sign the seed has taken. The Kemite knows that to dig down and check would kill the thing he fears for. So he leaves it.
+
+The hardest stretch is the one with no proof. What forms underground is trusted because it cannot yet be seen.''',
       decanFlow: _kaHerKaIFlowRows,
       meduNeter: MeduNeterKey(
-        glyph: 'Foot on earth, ka-arms raised — the embodied life-force',
-        colorFrequency: 'Damp black-brown soil and living skin warmth',
-        mantra: '"My ka lives here. I tend the vessel it moves through."',
+        glyph: 'A blank, unbroken field giving no sign of the seed below',
+        colorFrequency: 'Flat dark silt under a waiting sky',
+        mantra: '"I let what is forming form, without digging to be sure."',
       ),
     ),
     _dayInfoEntry(
@@ -1929,22 +1913,21 @@ When the ka is depleted, it shows in the body first.
       kemeticDate: 'Ka-ḥer-ka I, Day 6',
       season: '🌊 Akhet Closing – Inundation Withdraws',
       month: 'Ka-ḥer-ka ("Ka upon Ka")',
-      decanName: 'ḫnwy (translation uncertain) | Deck: The Embraced Ones',
+      decanName: 'msḥtjw ("The Foreleg")',
       starCluster:
-          '✨ msḥtjw — a prominent northern star form, often identified with the Big Dipper asterism, whose seven stars make a clear bent shape in the sky',
-      maatPrinciple: 'Order Returns in Pattern, Not in Announcement',
-      cosmicContext: '''
-The stars do not announce their return.
-They appear in the same position they held the year before.
-The astronomer-priests tracked those returns not as spectacle
-but as confirmation: the pattern holds.
-''',
+          '✨ msḥtjw — the Foreleg, the stars of the Bull\'s foreleg in the northern sky, watched through this ten-day interval.',
+      maatPrinciple: 'What Protects Everyone Is No One Man\'s to Carry',
+      cosmicContext:
+          '''A slumping spot has opened in the dike that holds the channel above the fields. One farmer cannot pack it before the water rises, so men come from every plot it guards, sons carrying baskets behind. The breach is closed by the same hands it protects.
+
+What keeps many safe is kept up by many, never for one alone.''',
       decanFlow: _kaHerKaIFlowRows,
       meduNeter: MeduNeterKey(
         glyph:
-            'Star-rise over the black horizon — the return without announcement',
-        colorFrequency: 'Pre-dawn blue, single white point at the edge',
-        mantra: '"The pattern returns. I am part of it."',
+            'Men from many plots packing the failing dike together before the water rises',
+        colorFrequency:
+            'Wet dark mud built firm by many hands at the low waterline',
+        mantra: '"What protects us all, I help keep up."',
       ),
     ),
     _dayInfoEntry(
@@ -1952,23 +1935,20 @@ but as confirmation: the pattern holds.
       kemeticDate: 'Ka-ḥer-ka I, Day 7',
       season: '🌊 Akhet Closing – Inundation Withdraws',
       month: 'Ka-ḥer-ka ("Ka upon Ka")',
-      decanName: 'ḫnwy (translation uncertain) | Deck: The Embraced Ones',
+      decanName: 'msḥtjw ("The Foreleg")',
       starCluster:
-          '✨ msḥtjw — a northern seven-star group with a bowl and handle shape, circling the northern sky as a stable, easily noticed pattern',
-      maatPrinciple: 'Voice Is a Seed',
-      cosmicContext: '''
-The silt does not argue with what is placed in it.
-It accepts or rejects based on what was brought.
+          '✨ msḥtjw — the Foreleg, the stars of the Bull\'s foreleg in the northern sky, watched through this ten-day interval.',
+      maatPrinciple: 'Another\'s Pace Is Heard, Then Set Down',
+      cosmicContext:
+          '''At the well, a neighbor remarks that two plots downriver are already greening, while the Kemite's shows nothing. The words sit heavier than the jar on the walk home. But each field keeps its own time, set by its own silt and seed, not by who breaks ground first.
 
-Your voice works the same way in this season.
-Words spoken carelessly scatter seed.
-Words spoken with weight and intention press it in at the right depth.
-''',
+Another's pace is worth hearing once, never worth carrying home.''',
       decanFlow: _kaHerKaIFlowRows,
       meduNeter: MeduNeterKey(
-        glyph: 'Mouth-sign over black silt — speech as planting',
-        colorFrequency: 'Muted gold at the lips, dark earth below',
-        mantra: '"I speak only what I intend to grow."',
+        glyph:
+            'A full jar carried home from the well, a comparison left behind at the water',
+        colorFrequency: 'Sunlit well stone behind, the quiet dark field ahead',
+        mantra: '"I hear another\'s pace once, and do not carry it home."',
       ),
     ),
     _dayInfoEntry(
@@ -1976,27 +1956,20 @@ Words spoken with weight and intention press it in at the right depth.
       kemeticDate: 'Ka-ḥer-ka I, Day 8',
       season: '🌊 Akhet Closing – Inundation Withdraws',
       month: 'Ka-ḥer-ka ("Ka upon Ka")',
-      decanName: 'ḫnwy (translation uncertain) | Deck: The Embraced Ones',
+      decanName: 'msḥtjw ("The Foreleg")',
       starCluster:
-          '✨ msḥtjw — the Foreleg star group, a bright angular northern pattern whose shape suggests a limb ready for movement',
-      maatPrinciple: 'The Seed Goes In Today',
-      cosmicContext: '''
-The field is cleared. The body is grounded.
-What was lost has been named. What carries forward has been selected.
-The voice has been guarded. The ground is ready.
+          '✨ msḥtjw — the Foreleg, the stars of the Bull\'s foreleg in the northern sky, watched through this ten-day interval.',
+      maatPrinciple: 'Let a Small Sign Stay Small',
+      cosmicContext:
+          '''A single thread of green breaks the silt. The Kemite kneels to be sure, then does nothing — no extra water, no loosening of the soil. A shoot this new is killed by eager hands as easily as by drought.
 
-Today the seed goes in.
-
-Not a plan, not a rehearsal — placement.
-The intention, practice, project, or commitment
-you have been preparing for seven days
-goes into the earth today.
-''',
+The first proof of a thing is the most fragile. It is left alone to grow past needing protection.''',
       decanFlow: _kaHerKaIFlowRows,
       meduNeter: MeduNeterKey(
-        glyph: 'Hand pressing seed into open black silt — the act of placement',
-        colorFrequency: 'Black earth receiving a point of living gold',
-        mantra: '"It is planted. I placed it with intention."',
+        glyph:
+            'A single green thread breaking dark silt, seen and left untouched',
+        colorFrequency: 'One pale-green shoot against wide black ground',
+        mantra: '"I let the first sign stay small, and do not force it."',
       ),
     ),
     _dayInfoEntry(
@@ -2004,25 +1977,19 @@ goes into the earth today.
       kemeticDate: 'Ka-ḥer-ka I, Day 9',
       season: '🌊 Akhet Closing – Inundation Withdraws',
       month: 'Ka-ḥer-ka ("Ka upon Ka")',
-      decanName: 'ḫnwy (translation uncertain) | Deck: The Embraced Ones',
+      decanName: 'msḥtjw ("The Foreleg")',
       starCluster:
-          '✨ msḥtjw — a clear northern asterism of seven bright stars, physically remembered through its bent handle and bowl-like form',
-      maatPrinciple: 'Growth Begins in Darkness',
-      cosmicContext: '''
-The seed was pressed into the black silt yesterday.
-It is not visible. Nothing appears at the surface.
-The farmer who digs it up to check
-destroys the very process they are impatient for.
+          '✨ msḥtjw — the Foreleg, the stars of the Bull\'s foreleg in the northern sky, watched through this ten-day interval.',
+      maatPrinciple: 'The Whole Feeds More by Holding Less',
+      cosmicContext:
+          '''The shoots have come up too thick to all survive. The Kemite pulls the weaker by hand, opening room around the strong — and it is hard to tear a living thing that has done nothing wrong. But a crowded row chokes itself.
 
-The grain splits and sends its first root downward
-and no one witnesses that either.
-The work that cannot be seen is still work.
-''',
+Some good is given up so the rest grows strong. The field feeds more by holding less.''',
       decanFlow: _kaHerKaIFlowRows,
       meduNeter: MeduNeterKey(
-        glyph: 'Seed beneath the soil surface — the unseen root',
-        colorFrequency: 'Black earth with a single pale root line',
-        mantra: '"The work continues even when I cannot see it."',
+        glyph: 'Weaker sprouts pulled by hand to open room around the strong',
+        colorFrequency: 'Thinned green rows with clear dark space between',
+        mantra: '"I give up some good growth so the whole can grow strong."',
       ),
     ),
     _dayInfoEntry(
@@ -2030,25 +1997,20 @@ The work that cannot be seen is still work.
       kemeticDate: 'Ka-ḥer-ka I, Day 10',
       season: '🌊 Akhet Closing – Inundation Withdraws',
       month: 'Ka-ḥer-ka ("Ka upon Ka")',
-      decanName: 'ḫnwy (translation uncertain) | Deck: The Embraced Ones',
+      decanName: 'msḥtjw ("The Foreleg")',
       starCluster:
-          '✨ msḥtjw — the northern Foreleg star group, visually stable as a seven-star angular form around the northern sky and distinct from the southern Sah/Orion pattern',
-      maatPrinciple: 'Seal the Field',
-      cosmicContext: '''
-Ten days: stillness, clearing, naming, selecting,
-grounding the body, reading the pattern, guarding speech, placing the seed, trusting the dark.
+          '✨ msḥtjw — the Foreleg, the stars of the Bull\'s foreleg in the northern sky, watched through this ten-day interval.',
+      maatPrinciple: 'What Is Established Asks Only Patience',
+      cosmicContext:
+          '''The first ten days of Ka-ḥer-ka close. The ground was read and cleared, the best seed cast, the dike made sound, the rows thinned. Nothing is left to begin. The field keeps its own rhythm now.
 
-The first decan of Ka-ḥer-ka closes today.
-
-The seed is in the ground and the work is now underground.
-Stop attending to it. Stop reviewing it, reconsidering it, second-guessing it.
-An unsealed field loses what it is trying to hold.
-''',
+Everything the start required has been done. What remains is not effort, but the patience to let the field hold what it was given.''',
       decanFlow: _kaHerKaIFlowRows,
       meduNeter: MeduNeterKey(
-        glyph: 'Sealed field — the earth closed over the placed seed',
-        colorFrequency: 'Dark earth with a thin gold seam at the surface',
-        mantra: '"The field is sealed. The work inside is protected."',
+        glyph:
+            'The set field at the close of ten days, rows holding their rhythm',
+        colorFrequency: 'Ordered green over settled dark ground',
+        mantra: '"What I set in place now holds, and asks only my patience."',
       ),
     ),
   ]);
@@ -2058,28 +2020,23 @@ Map<String, KemeticDayInfo> _buildKaHerKaIIEntries() {
   return Map.fromEntries([
     _dayInfoEntry(
       key: 'kaherka_11_2',
-      kemeticDate: 'Ka-ḥer-ka II, Day 11',
+      kemeticDate: 'Ka-ḥer-ka II, Day 11 (Day 11 of Ka-ḥer-ka)',
       season: '🌊 Akhet Closing – Inundation Withdraws',
-      month: 'Ka-ḥer-ka ("Ka upon Ka" — doubled life-force)',
-      decanName:
-          'ḥry-ib wꜣ (translation uncertain) | Deck: Heart of the Barque',
+      month: 'Ka-ḥer-ka ("Ka upon Ka")',
+      decanName: 'ḥry-ib msḥtjw ("Heart of the Foreleg")',
       starCluster:
-          '✨ ḥry-ib msḥtjw — the heart-region of the northern Foreleg star group, centered within the seven-star Big Dipper form where the bowl and handle meet in a clear angular pattern',
-      maatPrinciple: 'The Ka Begins to Move',
-      cosmicContext: '''
-The field is sealed. Ten days passed.
-Now the second decan opens and the ka begins to move again.
+          '✨ ḥry-ib msḥtjw — the Heart of the Foreleg, the central stars of the northern group, watched through this ten-day interval.',
+      maatPrinciple: 'Returning Is the Work',
+      cosmicContext:
+          '''The drama of planting is over, and the field now asks something harder than effort: return. Each morning the Kemite walks the same rows, checks the same channels, does the same small things. The crop lives by this steadiness, not by any single grand act.
 
-Not in explosion — in deliberate re-entry.
-The Nile barque does not surge from the bank.
-It is pushed off slowly, oar set to the current,
-and the pilot commits to one direction before adding speed.
-''',
+What is begun is kept alive by showing up, long after the excitement has gone.''',
       decanFlow: _kaHerKaIIFlowRows,
       meduNeter: MeduNeterKey(
-        glyph: 'Barque pushed from bank — the first deliberate movement',
-        colorFrequency: 'River black with the first line of gold at the bow',
-        mantra: '"I move with intention, not with urgency."',
+        glyph:
+            'A figure walking the same rows at dawn, unremarkable and steady',
+        colorFrequency: 'Even morning light over ordered green rows',
+        mantra: '"I keep what I began alive by returning to it daily."',
       ),
     ),
     _dayInfoEntry(
@@ -2087,25 +2044,19 @@ and the pilot commits to one direction before adding speed.
       kemeticDate: 'Ka-ḥer-ka II, Day 12',
       season: '🌊 Akhet Closing – Inundation Withdraws',
       month: 'Ka-ḥer-ka ("Ka upon Ka")',
-      decanName:
-          'ḥry-ib wꜣ (translation uncertain) | Deck: Heart of the Barque',
+      decanName: 'ḥry-ib msḥtjw ("Heart of the Foreleg")',
       starCluster:
-          '✨ ḥry-ib msḥtjw — the central section of the northern Foreleg asterism, a bent seven-star form with a compact bowl and extended handle visible around the northern sky',
-      maatPrinciple: 'Direction Before Force',
-      cosmicContext: '''
-Yesterday you re-entered motion.
-Today you govern the impulse that motion stirs.
+          '✨ ḥry-ib msḥtjw — the Heart of the Foreleg, the central stars of the northern group, watched through this ten-day interval.',
+      maatPrinciple: 'Meet the Small Threat While It Is Small',
+      cosmicContext:
+          '''Insects appear on the young leaves, only a few at first. The Kemite does not wait to see whether they spread. He clears them the same day, because a handful ignored becomes a swarm that takes the field.
 
-The ka is a vital force — not a judgment.
-Pointed at appetite, it feeds appetite.
-Pointed at the field, it feeds the field.
-''',
+A small threat is cheap to meet and ruinous to delay. The cost of waiting only rises.''',
       decanFlow: _kaHerKaIIFlowRows,
       meduNeter: MeduNeterKey(
-        glyph:
-            'Oar held above the water — direction chosen before force applied',
-        colorFrequency: 'Dark river with a steady gold oar-line',
-        mantra: '"I name the direction before I apply the force."',
+        glyph: 'A hand clearing the first insects from a young leaf',
+        colorFrequency: 'A few dark specks on bright green, caught early',
+        mantra: '"I meet the small threat now, before it grows past meeting."',
       ),
     ),
     _dayInfoEntry(
@@ -2113,25 +2064,21 @@ Pointed at the field, it feeds the field.
       kemeticDate: 'Ka-ḥer-ka II, Day 13',
       season: '🌊 Akhet Closing – Inundation Withdraws',
       month: 'Ka-ḥer-ka ("Ka upon Ka")',
-      decanName:
-          'ḥry-ib wꜣ (translation uncertain) | Deck: Heart of the Barque',
+      decanName: 'ḥry-ib msḥtjw ("Heart of the Foreleg")',
       starCluster:
-          '✨ ḥry-ib msḥtjw — the inner portion of the Foreleg star pattern, physically tied to the bright angular stars of the Big Dipper shape near the northern sky',
-      maatPrinciple: 'Nourish What Is Trying to Return',
-      cosmicContext: '''
-Something in you or around you is trying to come back.
-A practice that went quiet in the flood season.
-A relationship that contracted under pressure.
-A project that went dark when resources ran out.
+          '✨ ḥry-ib msḥtjw — the Heart of the Foreleg, the central stars of the northern group, watched through this ten-day interval.',
+      maatPrinciple: 'What Must Last Is Spent by Measure',
+      cosmicContext:
+          '''With the seed grain gone to the field, the wife counts what is left and divides it across the months until harvest. Each day's flour is weighed, because a household that eats by appetite goes hungry before the new grain comes.
 
-The seed is in the ground. The barque is moving.
-Now you direct specific energy toward the thing that is trying to rise.
-''',
+What must last is not spent freely — measured against the long wait, not the hunger of the moment.''',
       decanFlow: _kaHerKaIIFlowRows,
       meduNeter: MeduNeterKey(
-        glyph: 'Water jar tilted over a sealed furrow',
-        colorFrequency: 'River blue over black earth, life still hidden',
-        mantra: '"I feed what is trying to return."',
+        glyph:
+            'A wife weighing the day\'s flour against the months still to come',
+        colorFrequency:
+            'Half-full jars portioned out against the long stretch to harvest',
+        mantra: '"What must last, I spend by measure, not by appetite."',
       ),
     ),
     _dayInfoEntry(
@@ -2139,21 +2086,21 @@ Now you direct specific energy toward the thing that is trying to rise.
       kemeticDate: 'Ka-ḥer-ka II, Day 14',
       season: '🌊 Akhet Closing – Inundation Withdraws',
       month: 'Ka-ḥer-ka ("Ka upon Ka")',
-      decanName:
-          'ḥry-ib wꜣ (translation uncertain) | Deck: Heart of the Barque',
+      decanName: 'ḥry-ib msḥtjw ("Heart of the Foreleg")',
       starCluster:
-          '✨ ḥry-ib msḥtjw — a northern star field within the Foreleg form, marked by the bowl-like front of the seven-star pattern and the handle extending outward',
-      maatPrinciple: 'Accept the Obligation You Have Been Deferring',
-      cosmicContext: '''
-The barque does not float without a pilot.
-Someone must hold the oar through the whole crossing —
-not until it gets inconvenient, but through.
-''',
+          '✨ ḥry-ib msḥtjw — the Heart of the Foreleg, the central stars of the northern group, watched through this ten-day interval.',
+      maatPrinciple: 'What Is Shared Is Used in Turn',
+      cosmicContext:
+          '''The water reaching the Kemite's field has passed through plots above, and will pass to plots below. He takes his measure and closes the gate, because holding the channel too long leaves the fields below dry.
+
+What is shared is drawn in turn, never seized — the one who hoards is remembered when his turn to wait comes.''',
       decanFlow: _kaHerKaIIFlowRows,
       meduNeter: MeduNeterKey(
-        glyph: 'Hand on an oar — the committed grip',
-        colorFrequency: 'Steady dark water and firm wood-brown',
-        mantra: '"This is mine to guard. I do not step back."',
+        glyph:
+            'A shared channel passing field to field, each gate opened then closed in turn',
+        colorFrequency:
+            'Water threading down a line of plots, taken and passed on',
+        mantra: '"I take my measure of what is shared, and let it move on."',
       ),
     ),
     _dayInfoEntry(
@@ -2161,25 +2108,19 @@ not until it gets inconvenient, but through.
       kemeticDate: 'Ka-ḥer-ka II, Day 15',
       season: '🌊 Akhet Closing – Inundation Withdraws',
       month: 'Ka-ḥer-ka ("Ka upon Ka")',
-      decanName:
-          'ḥry-ib wꜣ (translation uncertain) | Deck: Heart of the Barque',
+      decanName: 'ḥry-ib msḥtjw ("Heart of the Foreleg")',
       starCluster:
-          '✨ ḥry-ib msḥtjw — the central area of the Foreleg asterism, a distinct northern seven-star configuration with a bent, limb-like outline',
-      maatPrinciple: 'Strength Is a Tool, Not a Performance',
-      cosmicContext: '''
-The ka placed into the field is measured by what grows —
-not by how hard the placing looked.
-A farmer who exhausts himself on the wrong part of the field
-leaves the planted row untended.
+          '✨ ḥry-ib msḥtjw — the Heart of the Foreleg, the central stars of the northern group, watched through this ten-day interval.',
+      maatPrinciple: 'Some Forces Are Outlasted, Not Fought',
+      cosmicContext:
+          '''A hard wind comes down the valley and lays part of the field flat. The Kemite cannot wrestle the sky, so he shelters and waits. When it passes, he lifts what will stand and leaves what is broken.
 
-Today: is your effort going where the field needs it,
-or where it will be noticed?
-''',
+Some forces are too large to oppose. They are outlasted, not defeated, and the work resumes when they have gone.''',
       decanFlow: _kaHerKaIIFlowRows,
       meduNeter: MeduNeterKey(
-        glyph: 'Hoe turned toward the neglected row, not the visible one',
-        colorFrequency: 'Work-worn copper over black earth',
-        mantra: '"My strength goes where the field needs it."',
+        glyph: 'A figure waiting out the wind, the field bent low behind him',
+        colorFrequency: 'Grey wind over flattened green, light returning after',
+        mantra: '"What I cannot fight, I outlast, then begin again."',
       ),
     ),
     _dayInfoEntry(
@@ -2187,22 +2128,19 @@ or where it will be noticed?
       kemeticDate: 'Ka-ḥer-ka II, Day 16',
       season: '🌊 Akhet Closing – Inundation Withdraws',
       month: 'Ka-ḥer-ka ("Ka upon Ka")',
-      decanName:
-          'ḥry-ib wꜣ (translation uncertain) | Deck: Heart of the Barque',
+      decanName: 'ḥry-ib msḥtjw ("Heart of the Foreleg")',
       starCluster:
-          '✨ ḥry-ib msḥtjw — the heart of the northern Foreleg pattern, where the angular seven-star form is most easily recognized as a bent limb or ladle shape',
-      maatPrinciple: 'Order Is Not Glamorous and Must Be Maintained Anyway',
-      cosmicContext: '''
-The flood season disrupts basic rhythms.
-Sleep shifts. Food becomes careless. Accounts go unlooked at.
-The body forgets what it felt like to be in order.
-''',
+          '✨ ḥry-ib msḥtjw — the Heart of the Foreleg, the central stars of the northern group, watched through this ten-day interval.',
+      maatPrinciple: 'Move Strength to What Is Working',
+      cosmicContext:
+          '''One row never came up — bad seed, or ground too thin. The Kemite turns it under and sends its share of water to the rows that thrive. To keep watering the dead row would only drain the living ones.
+
+Strength is finite, and belongs where it returns something. What failed is released so what works can have more.''',
       decanFlow: _kaHerKaIIFlowRows,
       meduNeter: MeduNeterKey(
-        glyph: 'Lamp lit at a regular hour — the rhythm restored',
-        colorFrequency: 'Warm hearth amber in plain dark room',
-        mantra:
-            '"I rebuild the ordinary. It is the foundation of everything else."',
+        glyph: 'A failed row turned under, its water sent to thriving rows',
+        colorFrequency: 'Bare turned soil beside deepening green',
+        mantra: '"I move my strength from what failed to what is working."',
       ),
     ),
     _dayInfoEntry(
@@ -2210,26 +2148,21 @@ The body forgets what it felt like to be in order.
       kemeticDate: 'Ka-ḥer-ka II, Day 17',
       season: '🌊 Akhet Closing – Inundation Withdraws',
       month: 'Ka-ḥer-ka ("Ka upon Ka")',
-      decanName:
-          'ḥry-ib wꜣ (translation uncertain) | Deck: Heart of the Barque',
+      decanName: 'ḥry-ib msḥtjw ("Heart of the Foreleg")',
       starCluster:
-          '✨ ḥry-ib msḥtjw — a northern seven-star pattern associated with the Foreleg, visible as a compact bowl joined to an extended handle-like line',
-      maatPrinciple: 'The Ka Is Not Meant to Travel Alone',
-      cosmicContext: '''
-The flood season contracts the social world.
-You stop calling. You stop showing up.
-You tell yourself it is protection.
-Often it is just depletion wearing the costume of independence.
+          '✨ ḥry-ib msḥtjw — the Heart of the Foreleg, the central stars of the northern group, watched through this ten-day interval.',
+      maatPrinciple: 'Restraint Is Also Strength',
+      cosmicContext:
+          '''It is the Kemite's turn to watch the channel gate through the night. The water runs high, and the temptation is to open the gate a little wider and take extra for his own rows. He leaves it set where the village agreed.
 
-No one tends the whole field alone.
-The worker who tries to carry every section
-exhausts himself before the season that matters most.
-''',
+Restraint is not weakness. It is the strength that holds the gate when no one is watching.''',
       decanFlow: _kaHerKaIIFlowRows,
       meduNeter: MeduNeterKey(
-        glyph: 'Two hands on the oar — shared piloting',
-        colorFrequency: 'River black with twin gold oar-lines',
-        mantra: '"I let the ka travel with company."',
+        glyph:
+            'A lone watcher at the shared channel gate at night, leaving it set where the village agreed',
+        colorFrequency:
+            'Dark water at the gate, the sleeping fields held behind',
+        mantra: '"The strength I show is the gate I could open, and do not."',
       ),
     ),
     _dayInfoEntry(
@@ -2237,24 +2170,20 @@ exhausts himself before the season that matters most.
       kemeticDate: 'Ka-ḥer-ka II, Day 18',
       season: '🌊 Akhet Closing – Inundation Withdraws',
       month: 'Ka-ḥer-ka ("Ka upon Ka")',
-      decanName:
-          'ḥry-ib wꜣ (translation uncertain) | Deck: Heart of the Barque',
+      decanName: 'ḥry-ib msḥtjw ("Heart of the Foreleg")',
       starCluster:
-          '✨ ḥry-ib msḥtjw — the central Foreleg region of the northern sky, associated with the angular Big Dipper star form around the poleward heavens',
-      maatPrinciple: 'Return to the Circle',
-      cosmicContext: '''
-The barque crosses the Duat and arrives at the living world.
-The arrival is witnessed.
+          '✨ ḥry-ib msḥtjw — the Heart of the Foreleg, the central stars of the northern group, watched through this ten-day interval.',
+      maatPrinciple: 'The Work Tells You What It Needs',
+      cosmicContext:
+          '''A leaf yellows at one edge; another curls in on itself. To a careless eye these are nothing. The Kemite reads them as the field's own speech and adjusts before the small signs become a spreading loss.
 
-The flood season pulls people inward.
-By now you may have drifted from a circle —
-a family, a crew, a community, a network whose work connects to yours.
-''',
+What is watched closely tells its keeper what it needs. The signs are there for the one paying attention.''',
       decanFlow: _kaHerKaIIFlowRows,
       meduNeter: MeduNeterKey(
-        glyph: 'Barque arriving at the eastern shore — witnessed emergence',
-        colorFrequency: 'Night black opening into first light at the bank',
-        mantra: '"I return to the people who know my name."',
+        glyph: 'A keen eye reading a single yellowing leaf among green',
+        colorFrequency: 'One faded edge noticed against healthy green',
+        mantra:
+            '"I read the small signs the work gives, and answer them early."',
       ),
     ),
     _dayInfoEntry(
@@ -2262,25 +2191,21 @@ a family, a crew, a community, a network whose work connects to yours.
       kemeticDate: 'Ka-ḥer-ka II, Day 19',
       season: '🌊 Akhet Closing – Inundation Withdraws',
       month: 'Ka-ḥer-ka ("Ka upon Ka")',
-      decanName:
-          'ḥry-ib wꜣ (translation uncertain) | Deck: Heart of the Barque',
+      decanName: 'ḥry-ib msḥtjw ("Heart of the Foreleg")',
       starCluster:
-          '✨ ḥry-ib msḥtjw — a central marker within the northern Foreleg star group, physically recognized through the seven-star bent formation of the Big Dipper asterism',
-      maatPrinciple: 'Let Commitment Be Seen',
-      cosmicContext: '''
-The seed is still underground. Growth belongs to the next month.
-But commitment is different from growth — it can be witnessed now.
+          '✨ ḥry-ib msḥtjw — the Heart of the Foreleg, the central stars of the northern group, watched through this ten-day interval.',
+      maatPrinciple: 'Help Given Is Help Stored',
+      cosmicContext:
+          '''A fallen tree blocks the path, too heavy for one man to shift. The Kemite goes to a neighbor he helped haul stone last season, and the man comes at once. The trunk moves easily between them.
 
-A kept appointment. A restored rhythm. A repaired tool.
-A message sent to someone who was waiting.
-A task done at the time you said you would do it.
-''',
+Help given is not spent; it is stored. The hand lent freely returns the day your own load is too heavy alone.''',
       decanFlow: _kaHerKaIIFlowRows,
       meduNeter: MeduNeterKey(
-        glyph:
-            'Farmer at the field edge at first light — returned, not yet harvesting',
-        colorFrequency: 'Pre-dawn blue with a figure at the boundary',
-        mantra: '"I show up. The field knows I came back."',
+        glyph: 'Two men shifting a fallen trunk that neither could move alone',
+        colorFrequency:
+            'Shared effort against dead weight, the path cleared together',
+        mantra:
+            '"The help I give freely returns when my own load is too heavy."',
       ),
     ),
     _dayInfoEntry(
@@ -2288,27 +2213,19 @@ A task done at the time you said you would do it.
       kemeticDate: 'Ka-ḥer-ka II, Day 20',
       season: '🌊 Akhet Closing – Inundation Withdraws',
       month: 'Ka-ḥer-ka ("Ka upon Ka")',
-      decanName:
-          'ḥry-ib wꜣ (translation uncertain) | Deck: Heart of the Barque',
+      decanName: 'ḥry-ib msḥtjw ("Heart of the Foreleg")',
       starCluster:
-          '✨ ḥry-ib msḥtjw — the heart-region of the northern Foreleg asterism, centered in the seven-star bent pattern that circles the northern sky',
-      maatPrinciple: 'Endurance Is Itself an Offering',
-      cosmicContext: '''
-Ten days: re-entry, direction, nourishment, obligation,
-strength placed rightly, rhythm restored, help called in, circle rejoined, commitment visible.
+          '✨ ḥry-ib msḥtjw — the Heart of the Foreleg, the central stars of the northern group, watched through this ten-day interval.',
+      maatPrinciple: 'What Was Governed Now Stands',
+      cosmicContext:
+          '''Twenty days in, the crop stands firm and deep green, past the fragility of its first week. The Kemite sees it has come up under his hand — watered by measure, defended from pest and wind, left alone when leaving alone was right.
 
-You did not do this perfectly.
-Perfection is not the offering.
-Persistence is.
-
-The ka that crossed the Duat and arrived at the eastern shore
-did not arrive because it was impressive — it arrived because it did not stop.
-''',
+A thing tended with judgment grows past needing rescue. Governed well, it carries its own strength.''',
       decanFlow: _kaHerKaIIFlowRows,
       meduNeter: MeduNeterKey(
-        glyph: 'Barque at the eastern shore, ka-arms raised — arrived',
-        colorFrequency: 'Dawn gold over river black',
-        mantra: '"I arrived. That is the offering."',
+        glyph: 'A firm, deep-green field standing strong at the second turn',
+        colorFrequency: 'Established green holding steady across the rows',
+        mantra: '"What I governed with care now stands on its own."',
       ),
     ),
   ]);
@@ -2318,29 +2235,24 @@ Map<String, KemeticDayInfo> _buildKaHerKaIIIEntries() {
   return Map.fromEntries([
     _dayInfoEntry(
       key: 'kaherka_21_3',
-      kemeticDate: 'Ka-ḥer-ka III, Day 21',
+      kemeticDate: 'Ka-ḥer-ka III, Day 21 (Day 21 of Ka-ḥer-ka)',
       season: '🌊 Akhet Closing – Inundation Withdraws',
-      month: 'Ka-ḥer-ka ("Ka upon Ka" — doubled life-force)',
-      decanName:
-          'rmṯ n pt / remetch en pet ("People of Heaven") | Deck: The Crew of Heaven',
+      month: 'Ka-ḥer-ka ("Ka upon Ka")',
+      decanName: 'sbꜣ msḥtjw ("Star of the Foreleg")',
       starCluster:
-          '✨ sbꜣ msḥtjw — the star of the northern Foreleg group, observed within the seven-star Big Dipper form whose bowl and handle create a clear bent shape in the northern sky',
-      maatPrinciple: 'Labor Is Placed, Not Performed',
-      cosmicContext: '''
-The Crew of Heaven does not row for applause.
-They row because the barque requires it —
-because the sun would not cross the sky without them.
+          '✨ sbꜣ msḥtjw — the Star of the Foreleg, the bright marker of the northern group, watched through this ten-day interval.',
+      maatPrinciple: 'When a Thing Can Stand, It Returns You to Your Life',
+      cosmicContext:
+          '''For the first time in days, the rows ask nothing urgent, and the Kemite leaves before the heat. He goes home and mends what waited — a roof beam, a cracked jar. The field gives his hours back.
 
-Two decans of Ka-ḥer-ka have passed.
-The seed was placed. The ka was re-engaged.
-Now the third decan asks the simplest question:
-are you working or are you proving?
-''',
+Care that never releases you has not fully succeeded. When a thing can stand, it returns you to your life.''',
       decanFlow: _kaHerKaIIIFlowRows,
       meduNeter: MeduNeterKey(
-        glyph: 'Oar in water — the crew rowing without witness',
-        colorFrequency: 'Deep river black and working copper',
-        mantra: '"I work for the field. The field is enough witness."',
+        glyph:
+            'A figure leaving the quiet field early to mend a roof beam at home',
+        colorFrequency:
+            'Young rows needing nothing, attention turning back to the house',
+        mantra: '"When my work can stand, I let it return me to my life."',
       ),
     ),
     _dayInfoEntry(
@@ -2348,21 +2260,21 @@ are you working or are you proving?
       kemeticDate: 'Ka-ḥer-ka III, Day 22',
       season: '🌊 Akhet Closing – Inundation Withdraws',
       month: 'Ka-ḥer-ka ("Ka upon Ka")',
-      decanName:
-          'rmṯ n pt / remetch en pet ("People of Heaven") | Deck: The Crew of Heaven',
+      decanName: 'sbꜣ msḥtjw ("Star of the Foreleg")',
       starCluster:
-          '✨ sbꜣ msḥtjw — a marker within the northern Foreleg asterism, tied to the bright seven-star pattern commonly recognized as the Big Dipper',
-      maatPrinciple: 'A Blocked Channel Cannot Feed the Field',
-      cosmicContext: '''
-The Crew of Heaven clears the path for Ra's barque.
-They remove the obstacles — not because clearing is glorious
-but because the barque cannot move through obstruction.
-''',
+          '✨ sbꜣ msḥtjw — the Star of the Foreleg, the bright marker of the northern group, watched through this ten-day interval.',
+      maatPrinciple: 'Reverence Is Order Kept Before Plenty Arrives',
+      cosmicContext:
+          '''In the temple court, priests wash linen, polish vessels, and grind incense — though the fields are still young and the offering stores not yet refilled. The rites for the netjeru are readied against an abundance not yet come.
+
+Reverence does not wait for plenty to act. It is order kept before there is anything to show.''',
       decanFlow: _kaHerKaIIIFlowRows,
       meduNeter: MeduNeterKey(
-        glyph: 'Cleared channel with water beginning to flow',
-        colorFrequency: 'Nile blue returning to worked clay-brown',
-        mantra: '"I clear the channel so life can move again."',
+        glyph:
+            'Priests washing linen and polishing vessels in the lean stretch before plenty',
+        colorFrequency:
+            'Temple linen white and incense grey kept ready ahead of the harvest',
+        mantra: '"I keep order before there is plenty to show for it."',
       ),
     ),
     _dayInfoEntry(
@@ -2370,21 +2282,21 @@ but because the barque cannot move through obstruction.
       kemeticDate: 'Ka-ḥer-ka III, Day 23',
       season: '🌊 Akhet Closing – Inundation Withdraws',
       month: 'Ka-ḥer-ka ("Ka upon Ka")',
-      decanName:
-          'rmṯ n pt / remetch en pet ("People of Heaven") | Deck: The Crew of Heaven',
+      decanName: 'sbꜣ msḥtjw ("Star of the Foreleg")',
       starCluster:
-          '✨ sbꜣ msḥtjw — the Foreleg star marker within the northern seven-star angular form, seen as a distinct bowl-and-handle pattern circling the northern sky',
-      maatPrinciple: 'The Djed Must Stand',
-      cosmicContext: '''
-The Djed — the spine of Asar, the pillar of stability — was knocked flat by the flood.
-The crew raises it. Not because it is easy. Because the world needs it upright.
-''',
+          '✨ sbꜣ msḥtjw — the Star of the Foreleg, the bright marker of the northern group, watched through this ten-day interval.',
+      maatPrinciple: 'What Is Witnessed Early Is Not Fought Over Later',
+      cosmicContext:
+          '''A scribe and the elders walk the fresh mud, noting where the water stood, which plots took silt, which were scoured. The marks will soon fade. They set them down while the ground still shows the truth, before memory can bend it.
+
+What is witnessed while the evidence is fresh is not argued over once it is gone.''',
       decanFlow: _kaHerKaIIIFlowRows,
       meduNeter: MeduNeterKey(
         glyph:
-            'Djed pillar being raised by hands — the spine of stability restored',
-        colorFrequency: 'Rooted sandstone gold with steady dark bands',
-        mantra: '"I raise what was knocked flat. The world needs it standing."',
+            'A scribe and elders recording the fresh flood marks before they fade',
+        colorFrequency:
+            'Wet silt lines read and written down before they dry away',
+        mantra: '"I set down what is true while the marks are still fresh."',
       ),
     ),
     _dayInfoEntry(
@@ -2392,25 +2304,21 @@ The crew raises it. Not because it is easy. Because the world needs it upright.
       kemeticDate: 'Ka-ḥer-ka III, Day 24',
       season: '🌊 Akhet Closing – Inundation Withdraws',
       month: 'Ka-ḥer-ka ("Ka upon Ka")',
-      decanName:
-          'rmṯ n pt / remetch en pet ("People of Heaven") | Deck: The Crew of Heaven',
+      decanName: 'sbꜣ msḥtjw ("Star of the Foreleg")',
       starCluster:
-          '✨ sbꜣ msḥtjw — a guiding point in the northern Foreleg group, physically set within the recognizable seven-star bent form of the Big Dipper',
-      maatPrinciple: 'The Ka Requires a Maintained Environment',
-      cosmicContext: '''
-The crew that rows Ra's barque maintains the barque.
-They bail water, check the timbers, keep the hull from taking on the Duat.
-A deteriorating vessel loses the thing it carries.
+          '✨ sbꜣ msḥtjw — the Star of the Foreleg, the bright marker of the northern group, watched through this ten-day interval.',
+      maatPrinciple: 'The Young Join the Work by Learning What Not to Harm',
+      cosmicContext:
+          '''Children chase each other with reed stems toward the field edge. An older sister catches them before they cut across the planted ground, shows them the safe path, then sets them to carrying water. Their first task is learning what not to touch.
 
-Your household is the hull.
-Floor, workspace, bedroom, kitchen.
-A deteriorating environment leaks the vitality you are trying to build.
-''',
+Belonging in the work begins not with what to do, but with what must never be harmed.''',
       decanFlow: _kaHerKaIIIFlowRows,
       meduNeter: MeduNeterKey(
-        glyph: 'Hands checking the hull — the vessel maintained from inside',
-        colorFrequency: 'Ship-wood brown and steady ochre',
-        mantra: '"I keep the vessel worthy of what it carries."',
+        glyph:
+            'An older child turning the young from the planted ground onto the safe path',
+        colorFrequency:
+            'Running children steered clear of the tender young rows',
+        mantra: '"I teach what must not be harmed before I give the task."',
       ),
     ),
     _dayInfoEntry(
@@ -2418,27 +2326,22 @@ A deteriorating environment leaks the vitality you are trying to build.
       kemeticDate: 'Ka-ḥer-ka III, Day 25',
       season: '🌊 Akhet Closing – Inundation Withdraws',
       month: 'Ka-ḥer-ka ("Ka upon Ka")',
-      decanName:
-          'rmṯ n pt / remetch en pet ("People of Heaven") | Deck: The Crew of Heaven',
+      decanName: 'sbꜣ msḥtjw ("Star of the Foreleg")',
       starCluster:
-          '✨ sbꜣ msḥtjw — part of the northern Foreleg constellation-form, appearing as a stable angular group of bright stars rather than a compact cluster',
-      maatPrinciple: 'Relight What Went Cold',
-      cosmicContext: '''
-The crew carries a flame through the Duat.
-Without it, the barque navigates blind.
+          '✨ sbꜣ msḥtjw — the Star of the Foreleg, the bright marker of the northern group, watched through this ten-day interval.',
+      maatPrinciple:
+          'When Fortune Lands Unevenly, Maat Is What the Village Does Next',
+      cosmicContext:
+          '''The flood left one downriver plot pale and thin, while another house has more silt than it can use. Without anyone calling it charity, baskets of earth cross the path. The water did not choose fairly, and the choosing now falls to them.
 
-Things go cold in the flood season — not because they died,
-but because they ran out of fuel and no one refilled them.
-
-A creative practice. A physical discipline. A friendship.
-A daily prayer. A standard quietly dropped.
-These are not gone. They are unlit.
-''',
+Fortune lands unevenly and asks nothing. What the village does in answer is where Maat begins.''',
       decanFlow: _kaHerKaIIIFlowRows,
       meduNeter: MeduNeterKey(
-        glyph: 'Small flame cupped in two hands — the relight, not the blaze',
-        colorFrequency: 'Ember gold in dark copper',
-        mantra: '"I relight this. I do not walk away until it holds."',
+        glyph:
+            'Baskets of silt crossing the path from a rich plot to a scoured one',
+        colorFrequency:
+            'Rich dark earth moving toward pale, short-changed ground',
+        mantra: '"When luck falls unevenly, I help even it."',
       ),
     ),
     _dayInfoEntry(
@@ -2446,25 +2349,22 @@ These are not gone. They are unlit.
       kemeticDate: 'Ka-ḥer-ka III, Day 26',
       season: '🌊 Akhet Closing – Inundation Withdraws',
       month: 'Ka-ḥer-ka ("Ka upon Ka")',
-      decanName:
-          'rmṯ n pt / remetch en pet ("People of Heaven") | Deck: The Crew of Heaven',
+      decanName: 'sbꜣ msḥtjw ("Star of the Foreleg")',
       starCluster:
-          '✨ sbꜣ msḥtjw — the Foreleg star marker in the northern sky, associated with the Big Dipper’s seven bright stars forming a bowl and extended handle',
-      maatPrinciple: 'The Crew Rows Together',
-      cosmicContext: '''
-The divine crew does not take shifts.
-They row in synchrony or the barque does not advance.
-One oar pulling when the others are still does not move the vessel — it turns it in place.
+          '✨ sbꜣ msḥtjw — the Star of the Foreleg, the bright marker of the northern group, watched through this ten-day interval.',
+      maatPrinciple: 'Sometimes the Future Is Defended by Small Hands',
+      cosmicContext:
+          '''Sparrows drop onto the young green at first light. The children stand among the rows with rattles and thrown clods, noise enough to keep the flock moving. The work is not skilled, but the tender shoots would be stripped without it.
 
-The Crew of Heaven rising now asks:
-who shares this field with you,
-and when did you last coordinate with them?
-''',
+Protection is not always grand. Some of the future is defended by children making noise in a field.''',
       decanFlow: _kaHerKaIIIFlowRows,
       meduNeter: MeduNeterKey(
-        glyph: 'Multiple oars in the water at the same angle — synchronized',
-        colorFrequency: 'River black with parallel gold oar-lines',
-        mantra: '"We row together. That is how the barque moves."',
+        glyph:
+            'Children with rattles keeping a flock of sparrows off the young green',
+        colorFrequency:
+            'Bird-grey lifting off bright young shoots under small, loud guard',
+        mantra:
+            '"I let even small, plain effort defend what cannot yet defend itself."',
       ),
     ),
     _dayInfoEntry(
@@ -2472,23 +2372,21 @@ and when did you last coordinate with them?
       kemeticDate: 'Ka-ḥer-ka III, Day 27',
       season: '🌊 Akhet Closing – Inundation Withdraws',
       month: 'Ka-ḥer-ka ("Ka upon Ka")',
-      decanName:
-          'rmṯ n pt / remetch en pet ("People of Heaven") | Deck: The Crew of Heaven',
+      decanName: 'sbꜣ msḥtjw ("Star of the Foreleg")',
       starCluster:
-          '✨ sbꜣ msḥtjw — a stable northern seven-star pattern linked with the Foreleg, visually consistent across the night as it circles near the northern sky',
-      maatPrinciple: 'Quiet Strength Is Also Strength',
-      cosmicContext: '''
-The crew does not sing about rowing. They row.
-Their virtue is in the doing, not the announcement.
-The barque crosses the Duat because they showed up in the dark,
-put their hands on the oar, and did not stop.
-''',
+          '✨ sbꜣ msḥtjw — the Star of the Foreleg, the bright marker of the northern group, watched through this ten-day interval.',
+      maatPrinciple: 'Unseen Makers Prepare Before They Are Needed',
+      cosmicContext:
+          '''In the shade, a rope maker twists fiber into yoke ties, gate bindings, and carrying slings. The crop is far from the work these will serve, yet his hands already shape the tools of a season no one watching the rows can see.
+
+A future task is possible only because someone prepared its tools before the need could be seen.''',
       decanFlow: _kaHerKaIIIFlowRows,
       meduNeter: MeduNeterKey(
-        glyph: 'Crew rowing in darkness — the unwitnessed labor',
+        glyph:
+            'A rope maker twisting fiber for a season the young field has not reached',
         colorFrequency:
-            'Deep river black with a thin trail of gold in the wake',
-        mantra: '"The quiet work counts. I name it."',
+            'Fiber tan worked into rope long before the work it will serve',
+        mantra: '"I make ready the tools a later task will need."',
       ),
     ),
     _dayInfoEntry(
@@ -2496,26 +2394,20 @@ put their hands on the oar, and did not stop.
       kemeticDate: 'Ka-ḥer-ka III, Day 28',
       season: '🌊 Akhet Closing – Inundation Withdraws',
       month: 'Ka-ḥer-ka ("Ka upon Ka")',
-      decanName:
-          'rmṯ n pt / remetch en pet ("People of Heaven") | Deck: The Crew of Heaven',
+      decanName: 'sbꜣ msḥtjw ("Star of the Foreleg")',
       starCluster:
-          '✨ sbꜣ msḥtjw — a guiding star within the northern Foreleg asterism, part of the bright angular Big Dipper form visible around the northern sky',
-      maatPrinciple: 'Labor and Gratitude Are the Same Act',
-      cosmicContext: '''
-The crew rows and the hymns to Ra are sung simultaneously.
-Not before, not after — during.
-Labor and gratitude are not separate categories.
-The offering is in the motion itself.
+          '✨ sbꜣ msḥtjw — the Star of the Foreleg, the bright marker of the northern group, watched through this ten-day interval.',
+      maatPrinciple: 'Memory Keeps the Present From Thinking It Is the First',
+      cosmicContext:
+          '''An elder points to old stains high on a wall — marks from floods richer and poorer than this. The young listen, because this year must be understood among the others. The field is new; the pattern it belongs to is old.
 
-You have been working your way through Ka-ḥer-ka.
-Today you do not stop to give thanks — you work and you are grateful at the same time.
-''',
+Memory is a tool. It keeps the present from believing it is the first season anyone has lived.''',
       decanFlow: _kaHerKaIIIFlowRows,
       meduNeter: MeduNeterKey(
-        glyph: 'Oar moving through water — the hymn in the motion',
+        glyph: 'An elder showing the young old flood stains high on a wall',
         colorFrequency:
-            'River gold in dark water — action and gratitude unified',
-        mantra: '"I work and I am grateful. They are the same."',
+            'Faded high-water marks read against this year\'s fresh line',
+        mantra: '"I set this season among the others, not above them."',
       ),
     ),
     _dayInfoEntry(
@@ -2523,50 +2415,43 @@ Today you do not stop to give thanks — you work and you are grateful at the sa
       kemeticDate: 'Ka-ḥer-ka III, Day 29',
       season: '🌊 Akhet Closing – Inundation Withdraws',
       month: 'Ka-ḥer-ka ("Ka upon Ka")',
-      decanName:
-          'rmṯ n pt / remetch en pet ("People of Heaven") | Deck: The Crew of Heaven',
+      decanName: 'sbꜣ msḥtjw ("Star of the Foreleg")',
       starCluster:
-          '✨ sbꜣ msḥtjw — the Foreleg star in the northern sky, physically understood through the stable seven-star angular pattern of the Big Dipper asterism',
-      maatPrinciple: 'The Season Sets the Pace',
-      cosmicContext: '''
-The barque does not row at the same speed through every gate of the Duat.
-Some passages require long strokes.
-Some require the oars raised and the barque to drift.
-The crew reads the passage — they do not impose a fixed speed on a variable current.
-''',
+          '✨ sbꜣ msḥtjw — the Star of the Foreleg, the bright marker of the northern group, watched through this ten-day interval.',
+      maatPrinciple: 'A Debt Named Early Stays a Relationship',
+      cosmicContext:
+          '''In the shade near the lane, two households speak plainly — borrowed seed, a shared ox, a day of labor promised. A neighbor witnesses. Nothing is tense yet, and that is the point: the debt is named while it is still an arrangement between friends.
+
+A debt spoken clearly stays a relationship. A debt left vague hardens into a wound.''',
       decanFlow: _kaHerKaIIIFlowRows,
       meduNeter: MeduNeterKey(
-        glyph: 'Oar raised for a drift passage — reading the current',
-        colorFrequency: 'River silver and quiet earth',
-        mantra: '"I row at the pace the season requires."',
+        glyph:
+            'Two households naming a debt plainly in the shade, a neighbor witnessing',
+        colorFrequency:
+            'A plain agreement spoken in the cool shade of the lane',
+        mantra: '"I name what is owed while it is still a relationship."',
       ),
     ),
     _dayInfoEntry(
       key: 'kaherka_30_3',
       kemeticDate: 'Ka-ḥer-ka III, Day 30',
       season: '🌊 Akhet Closing – Inundation Withdraws',
-      month:
-          'Ka-ḥer-ka ("Ka upon Ka" — the seed placed, the ka re-engaged, the crew rowing)',
-      decanName:
-          'rmṯ n pt / remetch en pet ("People of Heaven") | Deck: The Crew of Heaven',
+      month: 'Ka-ḥer-ka ("Ka upon Ka")',
+      decanName: 'sbꜣ msḥtjw ("Star of the Foreleg")',
       starCluster:
-          '✨ sbꜣ msḥtjw — the star of the northern Foreleg group, set within the seven-star Big Dipper pattern whose repeated visibility makes it a stable guide in the northern sky',
-      maatPrinciple: 'Seal the Month. Hand It Forward Clean.',
-      cosmicContext: '''
-Ka-ḥer-ka closes today.
+          '✨ sbꜣ msḥtjw — the Star of the Foreleg, the bright marker of the northern group, watched through this ten-day interval.',
+      maatPrinciple: 'What Takes Root in the Dark Rises Through the Whole Life',
+      cosmicContext:
+          '''At dusk the Kemite walks home past the temple court, the rope maker, children with dusty feet, women measuring stores, neighbors talking across field lines. The crop is still young, but it has entered every house.
 
-The flood withdrew. The black silt received the seed.
-The field was cleared and the vigil was kept.
-The ka re-entered motion, the obligation was accepted,
-the basics were restored, the help was called in.
-The Djed was raised, the channel was cleared,
-the flame was relit, the crew coordinated, the labor offered.
-''',
+What takes root in the dark does not stay private. It rises first through the world ordering itself around it.''',
       decanFlow: _kaHerKaIIIFlowRows,
       meduNeter: MeduNeterKey(
-        glyph: 'Barque at the eastern gate — the crossing complete',
-        colorFrequency: 'First light gold over river black',
-        mantra: '"The month is complete. I hand it forward clean."',
+        glyph:
+            'The walk home at dusk past temple, rope maker, children, women, and neighbors',
+        colorFrequency:
+            'A whole village at dusk already arranged around the young field',
+        mantra: '"What I rooted in the dark has already entered every house."',
       ),
     ),
   ]);
@@ -2576,247 +2461,198 @@ Map<String, KemeticDayInfo> _buildShefBedetIEntries() {
   return Map.fromEntries([
     _dayInfoEntry(
       key: 'sefbedet_1_1',
-      kemeticDate: 'Šef-Bedet I, Day 1',
-      season: '🌱 Peret I – Emergence Season',
-      month: 'Šef-Bedet (Šf-bdt) — the emergence month, Peret begins',
-      decanName: 'ḫnty-ḥr (translation uncertain) | Deck: The Foremost of Face',
+      kemeticDate: 'Šef-Bedet I, Day 1 (Day 1 of Šef-Bedet)',
+      season: '🌱 Peret – Emergence Season',
+      month: 'Šef-Bedet ("Šf-bdt")',
+      decanName: 'ḫnty-ḥr ("Foremost of the Sky")',
       starCluster:
-          '✨ ḫnty-ḥr — a decanal star group watched near the eastern horizon during this ten-day interval; exact modern identification is uncertain, but it belongs to the class of rising star markers used to divide the night',
-      maatPrinciple: 'What Was Hidden Is Now Visible',
-      cosmicContext: '''
-Ka-ḥer-ka is sealed. The seed is above ground.
-
-This is the most dangerous moment in the agricultural year.
-The shoot is visible but not strong.
-Wind, animals, a careless foot — any of these end it.
-
-Peret does not ask you to celebrate emergence.
-It asks you to witness it without grabbing it.
-''',
+          '✨ ḫnty-ḥr — the Foremost of the Sky, the leading star of the group, watched through this ten-day interval.',
+      maatPrinciple: 'Emergence Belongs to the Whole House',
+      cosmicContext:
+          '''Green pricks the mud where the flood has gone. The farmer sees it, then hears the house behind him: a wife measuring grain, children arguing over the first row, a neighbor calling from the path. Emergence does not belong to one pair of hands. It changes the meaning of everyone's morning.''',
       decanFlow: _shefBedetIFlowRows,
       meduNeter: MeduNeterKey(
         glyph: 'First green shoot above black silt — the emergence witnessed',
         colorFrequency: 'Black earth with one thin line of living green',
-        mantra: '"I witness without grabbing."',
+        mantra: '"What rises before me belongs to more than me."',
       ),
     ),
     _dayInfoEntry(
       key: 'sefbedet_2_1',
       kemeticDate: 'Šef-Bedet I, Day 2',
-      season: '🌱 Peret I – Emergence Season',
-      month: 'Šef-Bedet (Šf-bdt)',
-      decanName: 'ḫnty-ḥr (translation uncertain) | Deck: The Foremost of Face',
+      season: '🌱 Peret – Emergence Season',
+      month: 'Šef-Bedet ("Šf-bdt")',
+      decanName: 'ḫnty-ḥr ("Foremost of the Sky")',
       starCluster:
-          '✨ ḫnty-ḥr — a small decanal rising group near the horizon, observed as part of the night-star sequence rather than as a securely identified modern constellation',
-      maatPrinciple: 'The Shoot Is Not the Harvest',
-      cosmicContext: '''
-In the flood-plain fields, early growth was protected, not pulled.
-A farmer who harvested at emergence got one meal.
-A farmer who waited got a season.
+          '✨ ḫnty-ḥr — the Foremost of the Sky, the leading star of the group, watched through this ten-day interval.',
+      maatPrinciple: 'When a Thing Becomes Itself, the Real Work Begins',
+      cosmicContext:
+          '''The seedlings put out their first true leaves — not the pale shoots of sprouting, but the real form of what they will become. The Kemite sees the crop has crossed into being itself, and knows the easy part is over.
 
-Whatever rose from the ground in Ka-ḥer-ka —
-a practice, a project, a relationship returning, a capacity returning —
-is not ready to be pressed for yield.
-''',
+The arrival of a thing is not the end of effort. It is the moment the real demands begin.''',
       decanFlow: _shefBedetIFlowRows,
       meduNeter: MeduNeterKey(
         glyph: 'Hand held back from the young shoot — patience before harvest',
         colorFrequency: 'Restrained earth-brown, green just visible',
-        mantra: '"The shoot is not the harvest. I wait."',
+        mantra: '"When the work becomes itself, I take up the real tending."',
       ),
     ),
     _dayInfoEntry(
       key: 'sefbedet_3_1',
       kemeticDate: 'Šef-Bedet I, Day 3',
-      season: '🌱 Peret I – Emergence Season',
-      month: 'Šef-Bedet (Šf-bdt)',
-      decanName: 'ḫnty-ḥr (translation uncertain) | Deck: The Foremost of Face',
+      season: '🌱 Peret – Emergence Season',
+      month: 'Šef-Bedet ("Šf-bdt")',
+      decanName: 'ḫnty-ḥr ("Foremost of the Sky")',
       starCluster:
-          '✨ ḫnty-ḥr — an early-rising decanal star group near the eastern horizon, likely faint compared with major anchors like Sopdet or Sah; exact modern identification uncertain',
-      maatPrinciple: 'New Growth Requires Direct Nourishment',
-      cosmicContext: '''
-The shoot is above ground. It needs water — not hope, water.
-Not general goodwill toward the field. A specific act on this specific plant.
+          '✨ ḫnty-ḥr — the Foremost of the Sky, the leading star of the group, watched through this ten-day interval.',
+      maatPrinciple: 'Choose the Order of Attention',
+      cosmicContext:
+          '''The emerging field needs many things at once — water here, weeding there, shade for the youngest rows. The Kemite cannot do all of it today, so they walk the field and decide the order, beginning where delay would cost the most.
 
-What emerged in Ka-ḥer-ka needs one direct resource today:
-time blocked for it, money allocated, rest taken so you can sustain it,
-a conversation that removes an obstacle.
-''',
+Attention spread evenly over everything arrives nowhere in time. What is tended first is chosen on purpose.''',
       decanFlow: _shefBedetIFlowRows,
       meduNeter: MeduNeterKey(
         glyph: 'Water jar pouring directly at the base of the young shoot',
         colorFrequency: 'River blue at the root, green rising',
-        mantra: '"I give it what it actually needs."',
+        mantra:
+            '"I choose what to tend first, instead of scattering myself thin."',
       ),
     ),
     _dayInfoEntry(
       key: 'sefbedet_4_1',
       kemeticDate: 'Šef-Bedet I, Day 4',
-      season: '🌱 Peret I – Emergence Season',
-      month: 'Šef-Bedet (Šf-bdt)',
-      decanName: 'ḫnty-ḥr (translation uncertain) | Deck: The Foremost of Face',
+      season: '🌱 Peret – Emergence Season',
+      month: 'Šef-Bedet ("Šf-bdt")',
+      decanName: 'ḫnty-ḥr ("Foremost of the Sky")',
       starCluster:
-          '✨ ḫnty-ḥr — a decanal marker in the rising sequence of stars, observed near the horizon as a timing sign; no secure modern star-cluster identification should be assumed',
-      maatPrinciple: 'Remove What Competes for the Same Root',
-      cosmicContext: '''
-Two plants in the same row compete for the same water.
-The weaker one does not always lose — sometimes it wins by volume,
-and the intended crop starves.
+          '✨ ḫnty-ḥr — the Foremost of the Sky, the leading star of the group, watched through this ten-day interval.',
+      maatPrinciple: 'Fast Growth Is Not Always Strong Growth',
+      cosmicContext:
+          '''One patch has shot up far ahead of the rest, taller and greener. Rather than celebrate it, the Kemite kneels and checks the stems, because a plant that races upward often does so on a thin, shallow root that the first hard day will topple.
 
-What in your life right now draws from the same soil as the emerging thing?
-An obligation, a distraction, a habit that survived the flood but has no place in Peret.
-''',
+What rises fastest draws the eye, but speed alone proves nothing about what holds underneath.''',
       decanFlow: _shefBedetIFlowRows,
       meduNeter: MeduNeterKey(
         glyph: 'Hand pulling a competing root from beside the young shoot',
         colorFrequency: 'Brown root removed, green shoot freed',
-        mantra: '"I clear what competes for the same root."',
+        mantra: '"I check what grows fastest instead of trusting its speed."',
       ),
     ),
     _dayInfoEntry(
       key: 'sefbedet_5_1',
       kemeticDate: 'Šef-Bedet I, Day 5',
-      season: '🌱 Peret I – Emergence Season',
-      month: 'Šef-Bedet (Šf-bdt)',
-      decanName: 'ḫnty-ḥr (translation uncertain) | Deck: The Foremost of Face',
+      season: '🌱 Peret – Emergence Season',
+      month: 'Šef-Bedet ("Šf-bdt")',
+      decanName: 'ḫnty-ḥr ("Foremost of the Sky")',
       starCluster:
-          '✨ ḫnty-ḥr — a horizon-rising decanal star group used as a ten-day timing marker; physical identification remains uncertain, so it is best treated as a small watched star group in sequence',
-      maatPrinciple: 'Name What Has Actually Changed',
-      cosmicContext: '''
-Something is different from last month.
-The seed was underground. Now it is not.
-That is a real change and it deserves a real accounting.
+          '✨ ḫnty-ḥr — the Foremost of the Sky, the leading star of the group, watched through this ten-day interval.',
+      maatPrinciple: 'The Slow Part Is Where the Season Turns',
+      cosmicContext:
+          '''A corner of the field lags, its shoots thin and pale beside the thriving rows. The easy thing is to write it off and tend the strong. Instead the Kemite gives it the most care, knowing the harvest is often decided by its weakest ground.
 
-Not: "I'm finally doing better."
-Not: "Everything is turning around."
-Just: what is specifically different today from thirty days ago?
-''',
+What lags is not abandoned. It is exactly where attention does the most.''',
       decanFlow: _shefBedetIFlowRows,
       meduNeter: MeduNeterKey(
         glyph:
             'Scribe\'s palette noting the condition of the field — honest record',
         colorFrequency: 'Ink black on clean papyrus, one green mark',
-        mantra: '"I name what changed. No more, no less."',
+        mantra: '"I give the most care to what lags, not the least."',
       ),
     ),
     _dayInfoEntry(
       key: 'sefbedet_6_1',
       kemeticDate: 'Šef-Bedet I, Day 6',
-      season: '🌱 Peret I – Emergence Season',
-      month: 'Šef-Bedet (Šf-bdt)',
-      decanName: 'ḫnty-ḥr (translation uncertain) | Deck: The Foremost of Face',
+      season: '🌱 Peret – Emergence Season',
+      month: 'Šef-Bedet ("Šf-bdt")',
+      decanName: 'ḫnty-ḥr ("Foremost of the Sky")',
       starCluster:
-          '✨ ḫnty-ḥr — a small star group in the decanal sequence, physically described as a rising horizon marker rather than a well-confirmed modern constellation',
-      maatPrinciple: 'Guard Without Caging',
-      cosmicContext: '''
-The first-growth farmer built low windbreaks around tender shoots —
-not to stop all air, but to break the force of the damaging wind.
-Total enclosure kills the shoot differently than the wind does.
-''',
+          '✨ ḫnty-ḥr — the Foremost of the Sky, the leading star of the group, watched through this ten-day interval.',
+      maatPrinciple: 'Boundaries Are a Form of Care',
+      cosmicContext:
+          '''A goat noses at a weak fence near the neighbor's plot. Boys run. An old woman shouts from a doorway. The animal wants leaves, not trouble, but trouble does not need intention. Boundaries are part of care. A village survives because each house keeps its hunger from entering another house.''',
       decanFlow: _shefBedetIFlowRows,
       meduNeter: MeduNeterKey(
         glyph: 'Low reed windbreak beside the young shoot — partial shelter',
         colorFrequency: 'Warm straw-brown shelter, green within',
-        mantra: '"I protect without caging."',
+        mantra: '"I protect the line that keeps hunger from becoming harm."',
       ),
     ),
     _dayInfoEntry(
       key: 'sefbedet_7_1',
       kemeticDate: 'Šef-Bedet I, Day 7',
-      season: '🌱 Peret I – Emergence Season',
-      month: 'Šef-Bedet (Šf-bdt)',
-      decanName: 'ḫnty-ḥr (translation uncertain) | Deck: The Foremost of Face',
+      season: '🌱 Peret – Emergence Season',
+      month: 'Šef-Bedet ("Šf-bdt")',
+      decanName: 'ḫnty-ḥr ("Foremost of the Sky")',
       starCluster:
-          '✨ ḫnty-ḥr — a decanal star group watched in relation to the eastern horizon and the night-hour sequence; its exact modern match is not secure',
-      maatPrinciple: 'The Right Witness Strengthens',
-      cosmicContext: '''
-Not everyone should see the shoot at this stage.
-The person who immediately asks what you will do with it,
-how much it will yield, why you chose that crop —
-that is not the witness the shoot needs right now.
-''',
+          '✨ ḫnty-ḥr — the Foremost of the Sky, the leading star of the group, watched through this ten-day interval.',
+      maatPrinciple: 'The Hardest Intruder Is the One That Blends In',
+      cosmicContext:
+          '''Among the seedlings grows a weed almost indistinguishable from the crop. The Kemite studies the tiny difference — a wrong green, a different vein — and pulls it, because the intruder that mimics the real thing does the most damage unnoticed.
+
+What imitates the work hides inside it. Telling the two apart is the whole task.''',
       decanFlow: _shefBedetIFlowRows,
       meduNeter: MeduNeterKey(
         glyph:
             'Two figures standing over a young row — one pointing, one simply present',
         colorFrequency: 'Quiet earth tones, no gold yet',
-        mantra: '"I show this to someone who can witness it well."',
+        mantra: '"I learn what only imitates the work, and remove it."',
       ),
     ),
     _dayInfoEntry(
       key: 'sefbedet_8_1',
       kemeticDate: 'Šef-Bedet I, Day 8',
-      season: '🌱 Peret I – Emergence Season',
-      month: 'Šef-Bedet (Šf-bdt)',
-      decanName: 'ḫnty-ḥr (translation uncertain) | Deck: The Foremost of Face',
+      season: '🌱 Peret – Emergence Season',
+      month: 'Šef-Bedet ("Šf-bdt")',
+      decanName: 'ḫnty-ḥr ("Foremost of the Sky")',
       starCluster:
-          '✨ ḫnty-ḥr — a horizon-rising decanal marker, likely faint or modest compared with major star figures; exact identification remains uncertain',
-      maatPrinciple: 'Growth Is Sustained by Ordinary Maintenance',
-      cosmicContext: '''
-The farmer who tended first growth did not do inspired work.
-They walked the row. They checked the soil. They pulled the competing weed.
-They did it again tomorrow. And the day after.
-
-Emergence is not maintained by the energy of beginnings.
-It is maintained by the ordinary return.
-''',
+          '✨ ḫnty-ḥr — the Foremost of the Sky, the leading star of the group, watched through this ten-day interval.',
+      maatPrinciple: 'Order Begins While the Room Is Quiet',
+      cosmicContext:
+          '''Before the granary fills, the scribe begins. He marks old grain, promised grain, missing grain, and grain already spoken for. A small error now can become hunger later. A clear count gives the household a future it can stand inside.''',
       decanFlow: _shefBedetIFlowRows,
       meduNeter: MeduNeterKey(
         glyph: 'Farmer walking the row at dawn — steady, unremarkable care',
         colorFrequency: 'Plain earth and growing green, no drama',
-        mantra: '"I tend the ordinary. That is how it grows."',
+        mantra: '"I set things in order before need begins to shout."',
       ),
     ),
     _dayInfoEntry(
       key: 'sefbedet_9_1',
       kemeticDate: 'Šef-Bedet I, Day 9',
-      season: '🌱 Peret I – Emergence Season',
-      month: 'Šef-Bedet (Šf-bdt)',
-      decanName: 'ḫnty-ḥr (translation uncertain) | Deck: The Foremost of Face',
+      season: '🌱 Peret – Emergence Season',
+      month: 'Šef-Bedet ("Šf-bdt")',
+      decanName: 'ḫnty-ḥr ("Foremost of the Sky")',
       starCluster:
-          '✨ ḫnty-ḥr — a small decanal star group near the horizon in the observed night sequence, best described physically as a rising timing marker with uncertain modern identification',
-      maatPrinciple: 'Read the Field as It Is',
-      cosmicContext: '''
-The farmer does not read the field hoping for good news.
-The farmer reads the field to know what is actually happening —
-because an honest reading now is cheaper than a wrong response later.
-
-What is the honest condition of what emerged?
-Growing well? Struggling? Needs a different resource than you thought?
-''',
+          '✨ ḫnty-ḥr — the Foremost of the Sky, the leading star of the group, watched through this ten-day interval.',
+      maatPrinciple: 'Craft Gives Shape to Hope',
+      cosmicContext:
+          '''The potter turns wet clay into jars for a harvest not yet ready. Beside him, a basket maker splits reeds. Their work trusts a future no one can command. Preparation is a kind of belief. It gives shape to abundance before abundance has agreed to arrive.''',
       decanFlow: _shefBedetIFlowRows,
       meduNeter: MeduNeterKey(
         glyph: 'Farmer kneeling to inspect the root — close honest reading',
         colorFrequency: 'Dark earth close up, green assessed not admired',
-        mantra: '"I read this as it is, not as I hoped."',
+        mantra: '"I give form to the good that is still on its way."',
       ),
     ),
     _dayInfoEntry(
       key: 'sefbedet_10_1',
       kemeticDate: 'Šef-Bedet I, Day 10',
-      season: '🌱 Peret I – Emergence Season',
-      month: 'Šef-Bedet (Šf-bdt)',
-      decanName: 'ḫnty-ḥr (translation uncertain) | Deck: The Foremost of Face',
+      season: '🌱 Peret – Emergence Season',
+      month: 'Šef-Bedet ("Šf-bdt")',
+      decanName: 'ḫnty-ḥr ("Foremost of the Sky")',
       starCluster:
-          '✨ ḫnty-ḥr — the first decanal star group of this month’s sequence, observed as a modest rising horizon marker rather than a securely mapped modern cluster',
-      maatPrinciple: 'Ten Days of Emergence — Note What Took Root',
-      cosmicContext: '''
-The first decan of Šef-Bedet closes.
+          '✨ ḫnty-ḥr — the Foremost of the Sky, the leading star of the group, watched through this ten-day interval.',
+      maatPrinciple: 'What Is Fully Seen Can Be Rightly Ordered',
+      cosmicContext:
+          '''The first ten days of Šef-Bedet close. The field has emerged, and the Kemite has walked all of it — the racing patch, the slow corner, the crowded row, the hidden weed. The whole is known now, its care given in right order.
 
-Ten days ago the shoot broke the surface.
-You witnessed it, fed it, cleared competitors, named the change,
-protected it, showed it to the right person, tended the ordinary, read the honest condition.
-
-Now: what actually took root?
-Now: what truly emerged?
-Not what you hoped — what did.
-''',
+Only what is seen in full can be tended well. The knowing comes before the steady work.''',
       decanFlow: _shefBedetIFlowRows,
       meduNeter: MeduNeterKey(
         glyph: 'Young row of shoots — ten days old, rooted but not yet strong',
         colorFrequency:
             'Black earth, multiple green points, the beginning of a field',
-        mantra: '"Ten days. I know what took root."',
+        mantra: '"Having seen it whole, I can tend it in right order."',
       ),
     ),
   ]);
@@ -2826,257 +2662,198 @@ Map<String, KemeticDayInfo> _buildShefBedetIIEntries() {
   return Map.fromEntries([
     _dayInfoEntry(
       key: 'sefbedet_11_2',
-      kemeticDate: 'Šef-Bedet II, Day 11',
-      season: '🌱 Peret I – Emergence Season',
-      month: 'Šef-Bedet (Šf-bdt)',
-      decanName:
-          'ḥry-ib ḫnty-ḥr (translation uncertain) | Deck: Heart of the Foremost',
+      kemeticDate: 'Šef-Bedet II, Day 11 (Day 11 of Šef-Bedet)',
+      season: '🌱 Peret – Emergence Season',
+      month: 'Šef-Bedet ("Šf-bdt")',
+      decanName: 'ḥry-ib ḫnty-ḥr ("Heart of the Foremost")',
       starCluster:
-          '✨ ḥry-ib ḫnty-ḥr — the heart phase of this decanal sequence; a small horizon-rising star group observed as part of the night-hour order, with no secure modern constellation identification',
-      maatPrinciple: 'Strength Goes to the Root',
-      cosmicContext: '''
-The first decan established what took root.
-The second decan strengthens it.
-
-But the mistake at this stage is feeding the visible part —
-the impressive output, the surface people see —
-while the root goes unattended.
-''',
+          '✨ ḥry-ib ḫnty-ḥr — the Heart of the Foremost, the central star of the group, watched through this ten-day interval.',
+      maatPrinciple: 'Do Not Trust the Surface Alone',
+      cosmicContext:
+          '''At the edge of the field, an older farmer kneels and presses two fingers into the soil. The top is dark. Below, it is still dry. He sends a boy back to open the furrow wider. Green leaves can flatter the eye. Roots tell the truth.''',
       decanFlow: _shefBedetIIFlowRows,
       meduNeter: MeduNeterKey(
         glyph: 'Water soaking into deep soil — the root, not the leaf',
         colorFrequency: 'Dark root depth, green at surface',
-        mantra: '"I feed what holds it in the ground."',
+        mantra: '"I look beneath what seems well."',
       ),
     ),
     _dayInfoEntry(
       key: 'sefbedet_12_2',
       kemeticDate: 'Šef-Bedet II, Day 12',
-      season: '🌱 Peret I – Emergence Season',
-      month: 'Šef-Bedet (Šf-bdt)',
-      decanName:
-          'ḥry-ib ḫnty-ḥr (translation uncertain) | Deck: Heart of the Foremost',
+      season: '🌱 Peret – Emergence Season',
+      month: 'Šef-Bedet ("Šf-bdt")',
+      decanName: 'ḥry-ib ḫnty-ḥr ("Heart of the Foremost")',
       starCluster:
-          '✨ ḥry-ib ḫnty-ḥr — a modest decanal star group in the rising sequence, physically treated as a horizon timing marker rather than a firmly identified modern cluster',
-      maatPrinciple: 'Extend, Do Not Leap',
-      cosmicContext: '''
-A field is extended by measure, not by leap.
-Boundaries are not doubled in a season — they are walked forward steadily,
-and the irrigation extended to match.
+          '✨ ḥry-ib ḫnty-ḥr — the Heart of the Foremost, the central star of the group, watched through this ten-day interval.',
+      maatPrinciple: 'Care Past the Limit Becomes Harm',
+      cosmicContext:
+          '''The Kemite loves the strongest rows and wants to give them more water. But the soil is full, and more would drown the roots it means to help. So the Kemite stops: knowing when to withhold is as much care as giving.
 
-What is growing in your life right now can be extended.
-Not doubled. Not redesigned.
-Extended: one more row, one more session, one more hour of care per week.
-''',
+Kindness past what can be received turns into damage. The limit is part of the love.''',
       decanFlow: _shefBedetIIFlowRows,
       meduNeter: MeduNeterKey(
         glyph: 'Field boundary pushed forward by one measured row',
         colorFrequency: 'Green rows extending steadily into prepared earth',
-        mantra: '"I extend this by one step, not one leap."',
+        mantra: '"I stop my care at the limit of what can be used."',
       ),
     ),
     _dayInfoEntry(
       key: 'sefbedet_13_2',
       kemeticDate: 'Šef-Bedet II, Day 13',
-      season: '🌱 Peret I – Emergence Season',
-      month: 'Šef-Bedet (Šf-bdt)',
-      decanName:
-          'ḥry-ib ḫnty-ḥr (translation uncertain) | Deck: Heart of the Foremost',
+      season: '🌱 Peret – Emergence Season',
+      month: 'Šef-Bedet ("Šf-bdt")',
+      decanName: 'ḥry-ib ḫnty-ḥr ("Heart of the Foremost")',
       starCluster:
-          '✨ ḥry-ib ḫnty-ḥr — a small star marker in the decanal night sequence, observed near the horizon with uncertain modern identification',
-      maatPrinciple: 'Build for Adversity Before It Arrives',
-      cosmicContext: '''
-Protection is built while the season still gives room to tend.
-The windbreak was built in Peret, before Shemu arrived.
+          '✨ ḥry-ib ḫnty-ḥr — the Heart of the Foremost, the central star of the group, watched through this ten-day interval.',
+      maatPrinciple: 'Growth Is Guided, Not Only Fed',
+      cosmicContext:
+          '''The climbing stems reach blindly in every direction. The Kemite stakes them and turns them toward the light, so their strength goes upward instead of sprawling. The plant would grow either way, but only guided does it grow well.
 
-What condition, if it appeared today, would damage what is growing?
-A budget cut. A loss of energy. A conflict. An unexpected demand.
-''',
+Feeding a thing is not the whole of tending it. How it grows matters as much as that it grows.''',
       decanFlow: _shefBedetIIFlowRows,
       meduNeter: MeduNeterKey(
         glyph:
             'Windbreak completed before the dry season — protection built early',
         colorFrequency: 'Straw-brown barrier, green field behind it',
-        mantra: '"I build protection before the storm, not after."',
+        mantra: '"I guide how the work grows, not only that it grows."',
       ),
     ),
     _dayInfoEntry(
       key: 'sefbedet_14_2',
       kemeticDate: 'Šef-Bedet II, Day 14',
-      season: '🌱 Peret I – Emergence Season',
-      month: 'Šef-Bedet (Šf-bdt)',
-      decanName:
-          'ḥry-ib ḫnty-ḥr (translation uncertain) | Deck: Heart of the Foremost',
+      season: '🌱 Peret – Emergence Season',
+      month: 'Šef-Bedet ("Šf-bdt")',
+      decanName: 'ḥry-ib ḫnty-ḥr ("Heart of the Foremost")',
       starCluster:
-          '✨ ḥry-ib ḫnty-ḥr — a horizon-rising decanal group in the ten-day star sequence; its physical identity is best described cautiously as a small watched star marker',
-      maatPrinciple: 'Rhythm Is Structure, Not Inspiration',
-      cosmicContext: '''
-The field was watered on a schedule, not when the farmer felt inspired.
-Irrigation waited for no one's motivation.
-The water came because the system said it came.
+          '✨ ḥry-ib ḫnty-ḥr — the Heart of the Foremost, the central star of the group, watched through this ten-day interval.',
+      maatPrinciple: 'Patience Is a Form of Tending',
+      cosmicContext:
+          '''Some rows need nothing today. They are watered, weeded, and well — and the only thing they ask is time. The Kemite passes them by without fussing, because the urge to always be doing can disturb what is quietly thriving.
 
-Whatever is growing in your life right now
-needs a cadence — a specific time, a specific frequency —
-that does not depend on how you feel.
-''',
+Knowing when a thing needs nothing is harder than knowing when it needs something. Restraint, rightly placed, is care.''',
       decanFlow: _shefBedetIIFlowRows,
       meduNeter: MeduNeterKey(
         glyph:
             'Trellis stake set beside the young plant — structure for the growth',
         colorFrequency: 'Wood-brown support, green climbing',
-        mantra: '"I give this a rhythm it can grow against."',
+        mantra: '"I let what is thriving be, and call the waiting care."',
       ),
     ),
     _dayInfoEntry(
       key: 'sefbedet_15_2',
       kemeticDate: 'Šef-Bedet II, Day 15',
-      season: '🌱 Peret I – Emergence Season',
-      month: 'Šef-Bedet (Šf-bdt)',
-      decanName:
-          'ḥry-ib ḫnty-ḥr (translation uncertain) | Deck: Heart of the Foremost',
+      season: '🌱 Peret – Emergence Season',
+      month: 'Šef-Bedet ("Šf-bdt")',
+      decanName: 'ḥry-ib ḫnty-ḥr ("Heart of the Foremost")',
       starCluster:
-          '✨ ḥry-ib ḫnty-ḥr — the midpoint star phase of this decanal sequence, seen as a modest rising group used for night timing rather than a securely mapped constellation',
-      maatPrinciple: 'Bring the Right Hands Into the Field',
-      cosmicContext: '''
-A field tended by one person is a smaller field.
-Not because the person is insufficient —
-because the field requires more than one pair of eyes and one set of skills.
-''',
+          '✨ ḥry-ib ḫnty-ḥr — the Heart of the Foremost, the central star of the group, watched through this ten-day interval.',
+      maatPrinciple: 'Tend for What Is Coming',
+      cosmicContext:
+          '''The Kemite reads the sky — the haze that means heat, the wind that means dry days — and waters more heavily now, before the hard stretch arrives. Care given only for today leaves the field unready for tomorrow.
+
+Good tending looks past the present moment. It prepares for the weather that has not yet come.''',
       decanFlow: _shefBedetIIFlowRows,
       meduNeter: MeduNeterKey(
         glyph: 'Two farmers in the row together — expansion, not rescue',
         colorFrequency: 'Living green with two figures working',
-        mantra: '"I bring the right hands into this field."',
+        mantra: '"I tend for what is coming, not only for today."',
       ),
     ),
     _dayInfoEntry(
       key: 'sefbedet_16_2',
       kemeticDate: 'Šef-Bedet II, Day 16',
-      season: '🌱 Peret I – Emergence Season',
-      month: 'Šef-Bedet (Šf-bdt)',
-      decanName:
-          'ḥry-ib ḫnty-ḥr (translation uncertain) | Deck: Heart of the Foremost',
+      season: '🌱 Peret – Emergence Season',
+      month: 'Šef-Bedet ("Šf-bdt")',
+      decanName: 'ḥry-ib ḫnty-ḥr ("Heart of the Foremost")',
       starCluster:
-          '✨ ḥry-ib ḫnty-ḥr — a small decanal rising group in the night-hour order; exact modern star-cluster identification remains uncertain',
-      maatPrinciple: 'Correct the Lean Before It Becomes the Shape',
-      cosmicContext: '''
-A plant growing toward one light source will lean until it cannot stand straight.
-Not damaged — just shaped by what was available.
-But a leaning plant eventually becomes a plant that cannot bear weight upright.
-
-Where is what you are growing leaning?
-Too much time and too little resource? Output without rest?
-Visible progress with a neglected foundation?
-''',
+          '✨ ḥry-ib ḫnty-ḥr — the Heart of the Foremost, the central star of the group, watched through this ten-day interval.',
+      maatPrinciple: 'Timing Makes the Gift Merciful',
+      cosmicContext:
+          '''At dusk, water is carried instead of wasted at noon. The soil receives it. The workers receive bread when their bodies can use it. Timing is mercy. A good gift given at the wrong hour becomes thin. The same hand can waste or bless by choosing its moment.''',
       decanFlow: _shefBedetIIFlowRows,
       meduNeter: MeduNeterKey(
         glyph:
             'Stake correcting a leaning plant — early correction, not emergency repair',
         colorFrequency: 'Green redirected toward balance',
-        mantra: '"I correct the lean before it becomes the shape."',
+        mantra: '"I give at the hour when the gift can live."',
       ),
     ),
     _dayInfoEntry(
       key: 'sefbedet_17_2',
       kemeticDate: 'Šef-Bedet II, Day 17',
-      season: '🌱 Peret I – Emergence Season',
-      month: 'Šef-Bedet (Šf-bdt)',
-      decanName:
-          'ḥry-ib ḫnty-ḥr (translation uncertain) | Deck: Heart of the Foremost',
+      season: '🌱 Peret – Emergence Season',
+      month: 'Šef-Bedet ("Šf-bdt")',
+      decanName: 'ḥry-ib ḫnty-ḥr ("Heart of the Foremost")',
       starCluster:
-          '✨ ḥry-ib ḫnty-ḥr — a horizon-based decanal marker in the observed star sequence, likely modest in brightness and not securely identified with a modern constellation',
-      maatPrinciple: 'The Field Grows While the Farmer Rests',
-      cosmicContext: '''
-Growth does not stop when the farmer sleeps.
-It does not wait for the farmer to be watching.
-The Kemite understood: rest is part of the production cycle, not outside it.
-
-A farmer who does not rest
-runs himself into the ground before the harvest arrives.
-Then there is no one to bring in the crop.
-''',
+          '✨ ḥry-ib ḫnty-ḥr — the Heart of the Foremost, the central star of the group, watched through this ten-day interval.',
+      maatPrinciple: 'Competence Is Patience Stored in Tools',
+      cosmicContext:
+          '''Under a strip of shade, a metalworker sharpens a sickle blade. The harvest is not here, yet the edge must be ready before need shouts. Sparks fall and vanish. So much of competence looks like nothing afterward. Only the clean cut remembers the patience that made it possible.''',
       decanFlow: _shefBedetIIFlowRows,
       meduNeter: MeduNeterKey(
         glyph: 'Farmer resting beside a growing field — rest as production',
         colorFrequency:
             'Warm earth, green continuing without the farmer watching',
-        mantra: '"The field grows while I rest. Both are required."',
+        mantra: '"I sharpen what future labor will need."',
       ),
     ),
     _dayInfoEntry(
       key: 'sefbedet_18_2',
       kemeticDate: 'Šef-Bedet II, Day 18',
-      season: '🌱 Peret I – Emergence Season',
-      month: 'Šef-Bedet (Šf-bdt)',
-      decanName:
-          'ḥry-ib ḫnty-ḥr (translation uncertain) | Deck: Heart of the Foremost',
+      season: '🌱 Peret – Emergence Season',
+      month: 'Šef-Bedet ("Šf-bdt")',
+      decanName: 'ḥry-ib ḫnty-ḥr ("Heart of the Foremost")',
       starCluster:
-          '✨ ḥry-ib ḫnty-ḥr — a decanal star group watched in sequence near the horizon, functioning as a timing marker rather than a securely identified modern cluster',
-      maatPrinciple: 'Measure What Has Actually Grown',
-      cosmicContext: '''
-The scribe recorded the field's condition at intervals —
-not to celebrate, to know.
-Numbers gave the household, the field crew, the honest record a way to plan for what was coming.
-Feeling was not a substitute for measurement.
-''',
+          '✨ ḥry-ib ḫnty-ḥr — the Heart of the Foremost, the central star of the group, watched through this ten-day interval.',
+      maatPrinciple: 'Hidden Processes Deserve Trust',
+      cosmicContext:
+          '''The brewer checks sealed jars. Foam has risen and settled without witness. Beer will pay labor, strengthen bodies, and soften hard talk at evening. The jar teaches hidden work. Not everything must be watched to be faithful. Some things ripen best under clay, away from praise.''',
       decanFlow: _shefBedetIIFlowRows,
       meduNeter: MeduNeterKey(
         glyph:
             'Scribe recording field measurements — the honest interval count',
         colorFrequency: 'Ink black, clean papyrus, numbered rows',
-        mantra: '"I measure what changed. Feeling is not measurement."',
+        mantra: '"I trust what ripens without needing my witness."',
       ),
     ),
     _dayInfoEntry(
       key: 'sefbedet_19_2',
       kemeticDate: 'Šef-Bedet II, Day 19',
-      season: '🌱 Peret I – Emergence Season',
-      month: 'Šef-Bedet (Šf-bdt)',
-      decanName:
-          'ḥry-ib ḫnty-ḥr (translation uncertain) | Deck: Heart of the Foremost',
+      season: '🌱 Peret – Emergence Season',
+      month: 'Šef-Bedet ("Šf-bdt")',
+      decanName: 'ḥry-ib ḫnty-ḥr ("Heart of the Foremost")',
       starCluster:
-          '✨ ḥry-ib ḫnty-ḥr — a small rising decanal marker in the night-star sequence, with exact modern identification uncertain and best treated as an observed timing group',
-      maatPrinciple: 'Thin What the Field Cannot Support',
-      cosmicContext: '''
-Not every shoot that appeared in Šef-Bedet I should survive into Decan III.
-Early growth produces more than the field can fully support.
-The farmer thins the row — not from failure, but from clarity.
-One weak shoot removed gives the stronger ones the full water.
-''',
+          '✨ ḥry-ib ḫnty-ḥr — the Heart of the Foremost, the central star of the group, watched through this ten-day interval.',
+      maatPrinciple: 'Strength Requires Care Before Use',
+      cosmicContext:
+          '''The oxen are brushed and fed before they are asked to pull. A boy learns where to stand, where not to place his foot, how to speak without striking. Power must be tended before it is used. The animal that helps make bread also requires bread's patience.''',
       decanFlow: _shefBedetIIFlowRows,
       meduNeter: MeduNeterKey(
         glyph:
             'Farmer thinning the row — removing the weak shoot so the strong one gets the water',
         colorFrequency:
             'Black earth, thinned row, the remaining green with full access to root water',
-        mantra: '"I thin the row. The stronger growth gets the full water."',
+        mantra: '"I tend strength before I ask it to carry weight."',
       ),
     ),
     _dayInfoEntry(
       key: 'sefbedet_20_2',
       kemeticDate: 'Šef-Bedet II, Day 20',
-      season: '🌱 Peret I – Emergence Season',
-      month: 'Šef-Bedet (Šf-bdt)',
-      decanName:
-          'ḥry-ib ḫnty-ḥr (translation uncertain) | Deck: Heart of the Foremost',
+      season: '🌱 Peret – Emergence Season',
+      month: 'Šef-Bedet ("Šf-bdt")',
+      decanName: 'ḥry-ib ḫnty-ḥr ("Heart of the Foremost")',
       starCluster:
-          '✨ ḥry-ib ḫnty-ḥr — the heart phase of this horizon-rising decanal sequence; a modest observed star group used for timing, with no secure modern constellation assignment',
-      maatPrinciple: 'Survey the Whole Field',
-      cosmicContext: '''
-Twenty days into Šef-Bedet.
-The farmer who has been in the rows all month needs to step back
-and look at the full condition of the field — not the section they know best,
-but the whole.
-
-What is strong? What is lagging? What needs attention in the third decan?
-Where is the growth you did not plant?
-''',
+          '✨ ḥry-ib ḫnty-ḥr — the Heart of the Foremost, the central star of the group, watched through this ten-day interval.',
+      maatPrinciple: 'Justice Keeps the Field from Bitterness',
+      cosmicContext:
+          '''At the edge of two plots, elders judge a boundary stone shifted by water. No blade is drawn. No voice wins by loudness. They remember old marks, listen to both houses, and set the stone again. Justice is also fieldwork. It keeps tomorrow from being poisoned. When the stone stands again, no one has won. Two houses have been spared from teaching their children to hate a furrow.''',
       decanFlow: _shefBedetIIFlowRows,
       meduNeter: MeduNeterKey(
         glyph:
             'Farmer standing at the field edge, looking at the whole — the survey',
         colorFrequency: 'Wide green field, one figure reading all of it',
-        mantra: '"I see the whole field. Not just the row I know."',
+        mantra: '"I restore the line so tomorrow can grow cleanly."',
       ),
     ),
   ]);
@@ -3086,267 +2863,197 @@ Map<String, KemeticDayInfo> _buildShefBedetIIIEntries() {
   return Map.fromEntries([
     _dayInfoEntry(
       key: 'sefbedet_21_3',
-      kemeticDate: 'Šef-Bedet III, Day 21',
-      season: '🌱 Peret I – Emergence Season',
-      month: 'Šef-Bedet (Šf-bdt)',
-      decanName:
-          'sbꜣ ḫnty-ḥr (translation uncertain) | Deck: Star of the Foremost',
+      kemeticDate: 'Šef-Bedet III, Day 21 (Day 21 of Šef-Bedet)',
+      season: '🌱 Peret – Emergence Season',
+      month: 'Šef-Bedet ("Šf-bdt")',
+      decanName: 'sbꜣ ḫnty-ḥr ("Star of the Foremost")',
       starCluster:
-          '✨ sbꜣ ḫnty-ḥr — the star phase of this decanal group, best described as a modest rising horizon marker in the ten-day night sequence; exact modern identification is uncertain',
-      maatPrinciple: 'Let It Root',
-      cosmicContext: '''
-Twenty days of emergence. The shoot has been fed, protected, measured, and tended.
-Now it must root.
-
-Rooting requires stability.
-A plant moved every few days cannot root — it spends all its energy re-establishing,
-and none of it going deep.
-''',
+          '✨ sbꜣ ḫnty-ḥr — the Star of the Foremost, the bright marker of the group, watched through this ten-day interval.',
+      maatPrinciple: 'Living Things Must Outgrow Their Keeper',
+      cosmicContext:
+          '''The crop now stands without constant touching. The farmer walks more slowly, seeing which tasks are his and which belong to root, sun, insect, wind, and time. Trust is not absence. It is attention with open hands. The living thing must be allowed to live beyond the keeper.''',
       decanFlow: _shefBedetIIIFlowRows,
       meduNeter: MeduNeterKey(
         glyph:
             'Root system spreading in stable soil — the plant finally held in place',
         colorFrequency: 'Dark earth, deep root lines, green above steady',
-        mantra: '"I stop moving it. I let it root."',
+        mantra: '"I watch without making the living thing smaller."',
       ),
     ),
     _dayInfoEntry(
       key: 'sefbedet_22_3',
       kemeticDate: 'Šef-Bedet III, Day 22',
-      season: '🌱 Peret I – Emergence Season',
-      month: 'Šef-Bedet (Šf-bdt)',
-      decanName:
-          'sbꜣ ḫnty-ḥr (translation uncertain) | Deck: Star of the Foremost',
+      season: '🌱 Peret – Emergence Season',
+      month: 'Šef-Bedet ("Šf-bdt")',
+      decanName: 'sbꜣ ḫnty-ḥr ("Star of the Foremost")',
       starCluster:
-          '✨ sbꜣ ḫnty-ḥr — a small decanal star group observed near the horizon as part of the night-hour sequence, not securely matched to a modern constellation',
-      maatPrinciple: 'Name It for What It Is',
-      cosmicContext: '''
-The field at Day 22 is not what it was on Day 1.
-It is no longer emergence. It is a growing field.
+          '✨ sbꜣ ḫnty-ḥr — the Star of the Foremost, the bright marker of the group, watched through this ten-day interval.',
+      maatPrinciple: 'The Urge to Act Is Not the Need to Act',
+      cosmicContext:
+          '''Everything is going well, yet the Kemite feels the restless pull to do something — to water, to weed, to fix what is not broken. They hold still, because action taken only to soothe restlessness disturbs a field that needs nothing.
 
-Name it accurately.
-Not what you hoped it would become.
-Not what it looked like on Day 1.
-What it actually is right now — its size, its condition, its realistic yield.
-''',
+Doing something is not always better than nothing. The itch to act and the need to act differ.''',
       decanFlow: _shefBedetIIIFlowRows,
       meduNeter: MeduNeterKey(
         glyph:
             'Scribe naming the field in the record — the thing given its actual name',
         colorFrequency:
             'Ink on papyrus, green field behind it — named and real',
-        mantra: '"I name this for what it actually is."',
+        mantra: '"I tell the urge to act apart from the need to act."',
       ),
     ),
     _dayInfoEntry(
       key: 'sefbedet_23_3',
       kemeticDate: 'Šef-Bedet III, Day 23',
-      season: '🌱 Peret I – Emergence Season',
-      month: 'Šef-Bedet (Šf-bdt)',
-      decanName:
-          'sbꜣ ḫnty-ḥr (translation uncertain) | Deck: Star of the Foremost',
+      season: '🌱 Peret – Emergence Season',
+      month: 'Šef-Bedet ("Šf-bdt")',
+      decanName: 'sbꜣ ḫnty-ḥr ("Star of the Foremost")',
       starCluster:
-          '✨ sbꜣ ḫnty-ḥr — a horizon-rising decanal timing group, likely modest in appearance compared with major anchors like Sopdet or Sah; modern identification remains uncertain',
-      maatPrinciple: 'Protection Is Built While Conditions Are Good',
-      cosmicContext: '''
-The farmer does not wait for stress to test the root.
-Peret still gives room to tend and build — pressure will come later and there will be less time then.
+          '✨ sbꜣ ḫnty-ḥr — the Star of the Foremost, the bright marker of the group, watched through this ten-day interval.',
+      maatPrinciple: 'What Never Struggles Never Grows Able',
+      cosmicContext:
+          '''A row wilts in the midday heat, and the Kemite wants to rush water to it. But evening will revive it, and a plant that meets a little hardship grows deeper roots and a tougher stem. So the Kemite waits.
 
-What would damage what is growing if it arrived today?
-A cut in time, a loss of energy, an external demand?
-''',
+A thing rescued from every struggle never builds the strength struggle would have given it.''',
       decanFlow: _shefBedetIIIFlowRows,
       meduNeter: MeduNeterKey(
         glyph:
             'Windbreak built while conditions still allow — protection before pressure arrives',
         colorFrequency: 'Straw-brown protection, green field tended behind it',
-        mantra: '"I build protection while conditions still allow it."',
+        mantra: '"I let a small struggle stand, so strength can grow from it."',
       ),
     ),
     _dayInfoEntry(
       key: 'sefbedet_24_3',
       kemeticDate: 'Šef-Bedet III, Day 24',
-      season: '🌱 Peret I – Emergence Season',
-      month: 'Šef-Bedet (Šf-bdt)',
-      decanName:
-          'sbꜣ ḫnty-ḥr (translation uncertain) | Deck: Star of the Foremost',
+      season: '🌱 Peret – Emergence Season',
+      month: 'Šef-Bedet ("Šf-bdt")',
+      decanName: 'sbꜣ ḫnty-ḥr ("Star of the Foremost")',
       starCluster:
-          '✨ sbꜣ ḫnty-ḥr — a decanal star marker in the rising sequence, physically treated as a small watched horizon group with no secure modern cluster assignment',
-      maatPrinciple: 'Acknowledge What Made Growth Possible',
-      cosmicContext: '''
-The crop does not grow from the farmer's intention alone.
-It grows from the flood that came before,
-the silt the river left,
-the hands that maintained the canal through the dry years,
-the seed saved from last harvest.
-''',
+          '✨ sbꜣ ḫnty-ḥr — the Star of the Foremost, the bright marker of the group, watched through this ten-day interval.',
+      maatPrinciple: 'Help Crosses Boundaries Before Speech',
+      cosmicContext:
+          '''In a low field, a farmer finds water lingering too long. The shoots yellow at their feet. He opens a channel with help from two neighbors who owe him nothing today. Good community is not sentiment. It is a hoe passed across a boundary before loss spreads.''',
       decanFlow: _shefBedetIIIFlowRows,
       meduNeter: MeduNeterKey(
         glyph:
             'Offering arms toward the field — the farmer acknowledging the source',
         colorFrequency: 'Gold gratitude over green field, earth beneath both',
-        mantra: '"I name what held the ground so this could grow."',
+        mantra: '"I pass the tool across the boundary in time."',
       ),
     ),
     _dayInfoEntry(
       key: 'sefbedet_25_3',
       kemeticDate: 'Šef-Bedet III, Day 25',
-      season: '🌱 Peret I – Emergence Season',
-      month: 'Šef-Bedet (Šf-bdt)',
-      decanName:
-          'sbꜣ ḫnty-ḥr (translation uncertain) | Deck: Star of the Foremost',
+      season: '🌱 Peret – Emergence Season',
+      month: 'Šef-Bedet ("Šf-bdt")',
+      decanName: 'sbꜣ ḫnty-ḥr ("Star of the Foremost")',
       starCluster:
-          '✨ sbꜣ ḫnty-ḥr — a modest decanal horizon marker in the star-time sequence, best described physically as a small rising group rather than a confirmed modern constellation',
-      maatPrinciple: 'Commit to What Has Proven Itself',
-      cosmicContext: '''
-A practice still treated as "I'm trying this" after 25 days
-gets the effort of a trial, not of a life.
-
-Something from this month has proven itself.
-It took root, it survived the lean-correction, it held through ordinary maintenance.
-That thing is no longer an experiment.
-''',
+          '✨ sbꜣ ḫnty-ḥr — the Star of the Foremost, the bright marker of the group, watched through this ten-day interval.',
+      maatPrinciple: 'Clean Cloth Remembers Dirty Hands',
+      cosmicContext:
+          '''Women sit where the light is good and twist flax into thread. Linen will wrap bodies, cover bread, bind bundles, dress priests, and mark dignity in heat. The crop outside is not the only harvest. A priest may stand spotless in white linen, but the cloth remembers the women, the stems, and the dust.''',
       decanFlow: _shefBedetIIIFlowRows,
       meduNeter: MeduNeterKey(
         glyph: 'Boundary marker set in the field — the commitment recorded',
         colorFrequency: 'Stone marker, green field recognized and claimed',
-        mantra: '"This proved itself. I commit to it."',
+        mantra: '"I honor the hands hidden inside what appears clean."',
       ),
     ),
     _dayInfoEntry(
       key: 'sefbedet_26_3',
       kemeticDate: 'Šef-Bedet III, Day 26',
-      season: '🌱 Peret I – Emergence Season',
-      month: 'Šef-Bedet (Šf-bdt)',
-      decanName:
-          'sbꜣ ḫnty-ḥr (translation uncertain) | Deck: Star of the Foremost',
+      season: '🌱 Peret – Emergence Season',
+      month: 'Šef-Bedet ("Šf-bdt")',
+      decanName: 'sbꜣ ḫnty-ḥr ("Star of the Foremost")',
       starCluster:
-          '✨ sbꜣ ḫnty-ḥr — a rising decanal star group observed in sequence near the horizon; its exact modern star identity is uncertain',
-      maatPrinciple: 'The Edges of the Field Also Need Care',
-      cosmicContext: '''
-The center of the field gets the attention.
-It is where the main crop is, where the effort concentrated, where the yield will come from.
-
-But the edges hold the boundary.
-They determine how far the field extends.
-And an untended edge is where pests enter, where erosion starts,
-where the next season's expansion is either possible or blocked.
-''',
+          '✨ sbꜣ ḫnty-ḥr — the Star of the Foremost, the bright marker of the group, watched through this ten-day interval.',
+      maatPrinciple: 'Memory Feeds Courage',
+      cosmicContext:
+          '''At a small household place, food is set for the dead. A little beer. A little bread. Names are spoken quietly. The ancestors do not weed the rows, yet they remain part of the household economy. Memory feeds courage. Courage feeds the hands that return to work.''',
       decanFlow: _shefBedetIIIFlowRows,
       meduNeter: MeduNeterKey(
         glyph:
             'Farmer walking the field edge — the perimeter tended, not just the center',
         colorFrequency: 'Wide green with attention at the margin',
-        mantra: '"I tend the edges. They hold the boundary."',
+        mantra: '"I feed memory so courage can return to the work."',
       ),
     ),
     _dayInfoEntry(
       key: 'sefbedet_27_3',
       kemeticDate: 'Šef-Bedet III, Day 27',
-      season: '🌱 Peret I – Emergence Season',
-      month: 'Šef-Bedet (Šf-bdt)',
-      decanName:
-          'sbꜣ ḫnty-ḥr (translation uncertain) | Deck: Star of the Foremost',
+      season: '🌱 Peret – Emergence Season',
+      month: 'Šef-Bedet ("Šf-bdt")',
+      decanName: 'sbꜣ ḫnty-ḥr ("Star of the Foremost")',
       starCluster:
-          '✨ sbꜣ ḫnty-ḥr — a small horizon-based decanal star marker within the night sequence, not securely identifiable with a specific modern cluster',
-      maatPrinciple: 'Trust the Established Root',
-      cosmicContext: '''
-For twenty-six days you have been treating this as fragile.
-That was right. It was fragile.
-
-It is less fragile now.
-The root is in. The rhythm is set. The competitors were cleared.
-The structure holds.
-''',
+          '✨ sbꜣ ḫnty-ḥr — the Star of the Foremost, the bright marker of the group, watched through this ten-day interval.',
+      maatPrinciple: 'Exchange Reveals the Shape of Trust',
+      cosmicContext:
+          '''In the market shade, people trade fish, onions, sandals, gossip, and promises. One basket buys help. One jar settles anger. One debt waits. The economy moves in small things before the harvest makes noise. Every exchange asks the same question: who will still stand with whom tomorrow?''',
       decanFlow: _shefBedetIIIFlowRows,
       meduNeter: MeduNeterKey(
         glyph:
             'Established plant with the windbreak opened — protection reduced, not removed',
         colorFrequency:
             'Full green, windbreak opened but present — less shelter, not none',
-        mantra: '"The root is in. I can loosen the shelter."',
+        mantra: '"I trade in ways that leave relationship standing."',
       ),
     ),
     _dayInfoEntry(
       key: 'sefbedet_28_3',
       kemeticDate: 'Šef-Bedet III, Day 28',
-      season: '🌱 Peret I – Emergence Season',
-      month: 'Šef-Bedet (Šf-bdt)',
-      decanName:
-          'sbꜣ ḫnty-ḥr (translation uncertain) | Deck: Star of the Foremost',
+      season: '🌱 Peret – Emergence Season',
+      month: 'Šef-Bedet ("Šf-bdt")',
+      decanName: 'sbꜣ ḫnty-ḥr ("Star of the Foremost")',
       starCluster:
-          '✨ sbꜣ ḫnty-ḥr — a modest rising decanal group used as a ten-day star-time marker; physical identification remains cautious and uncertain',
-      maatPrinciple: 'Offer the Month to Ma\'at',
-      cosmicContext: '''
-The offering is not the crop. The crop is not ready.
-The offering is the care that was given —
-the watering, the clearing, the tending, the honest reading,
-the patience when it was not visible, the protection when it was vulnerable.
-
-Place that in front of Ma'at.
-Not the result — the effort.
-Not the yield — the farmer.
-''',
+          '✨ sbꜣ ḫnty-ḥr — the Star of the Foremost, the bright marker of the group, watched through this ten-day interval.',
+      maatPrinciple: 'Care Must Release Control',
+      cosmicContext:
+          '''Wind crosses the field all afternoon. No one can bargain with it. Leaves bend, dust lifts, and the farmer stops pretending his care is control. Maat is not command over the world. It is right action inside a world that remains larger than the one acting.''',
       decanFlow: _shefBedetIIIFlowRows,
       meduNeter: MeduNeterKey(
         glyph:
             'Farmer with empty hands before Ma\'at — the care offered, not the yield',
         colorFrequency:
             'Gold Ma\'at scale, green field behind, empty honest hands',
-        mantra:
-            '"I offer the care, not the crop. The care is what Ma\'at weighs."',
+        mantra: '"I act rightly without pretending to rule the whole."',
       ),
     ),
     _dayInfoEntry(
       key: 'sefbedet_29_3',
       kemeticDate: 'Šef-Bedet III, Day 29',
-      season: '🌱 Peret I – Emergence Season',
-      month: 'Šef-Bedet (Šf-bdt)',
-      decanName:
-          'sbꜣ ḫnty-ḥr (translation uncertain) | Deck: Star of the Foremost',
+      season: '🌱 Peret – Emergence Season',
+      month: 'Šef-Bedet ("Šf-bdt")',
+      decanName: 'sbꜣ ḫnty-ḥr ("Star of the Foremost")',
       starCluster:
-          '✨ sbꜣ ḫnty-ḥr — the star phase of the decan, observed as a small horizon marker in the night-time sequence rather than a securely named modern star cluster',
-      maatPrinciple: 'Read What the Next Month Requires',
-      cosmicContext: '''
-Šef-Bedet closes tomorrow.
-The next month opens a new chapter in Peret and the work changes shape.
-
-The farmer who walks into the next season without reading it
-brings the wrong tools and misses the first window.
-''',
+          '✨ sbꜣ ḫnty-ḥr — the Star of the Foremost, the bright marker of the group, watched through this ten-day interval.',
+      maatPrinciple: 'Preparation Turns Waiting into Form',
+      cosmicContext:
+          '''Near the threshing floor, tools are gathered though the grain is not ready. Baskets wait. Ropes wait. Children practice staying clear of hooves. Waiting has changed its texture. It is no longer empty. It has become readiness, and readiness has a sound: reeds, blades, rope, breath.''',
       decanFlow: _shefBedetIIIFlowRows,
       meduNeter: MeduNeterKey(
         glyph: 'Farmer looking toward the next field — reading ahead',
         colorFrequency: 'Present green behind, new earth ahead',
-        mantra: '"I read what comes next before it arrives."',
+        mantra: '"I let waiting become readiness in my hands."',
       ),
     ),
     _dayInfoEntry(
       key: 'sefbedet_30_3',
       kemeticDate: 'Šef-Bedet III, Day 30',
-      season: '🌱 Peret I – Emergence Season',
-      month: 'Šef-Bedet (Šf-bdt)',
-      decanName:
-          'sbꜣ ḫnty-ḥr (translation uncertain) | Deck: Star of the Foremost',
+      season: '🌱 Peret – Emergence Season',
+      month: 'Šef-Bedet ("Šf-bdt")',
+      decanName: 'sbꜣ ḫnty-ḥr ("Star of the Foremost")',
       starCluster:
-          '✨ sbꜣ ḫnty-ḥr — the final star marker of this month’s decanal sequence, best described as a modest rising group in the horizon-based night order with uncertain modern identification',
-      maatPrinciple: 'Hand It Forward as a Field in Production',
-      cosmicContext: '''
-Šef-Bedet closes today.
-
-The seed placed in Ka-ḥer-ka has become a growing field.
-Not harvest — production. The plants are in the ground and alive.
-
-Account for what grew this month.
-Name the roots that held. Name the growth that surprised you.
-Name what did not survive and what that means.
-''',
+          '✨ sbꜣ ḫnty-ḥr — the Star of the Foremost, the bright marker of the group, watched through this ten-day interval.',
+      maatPrinciple: 'What Emerges Becomes a Whole World',
+      cosmicContext:
+          '''Šef-Bedet closes with the field still unfinished. That is the living lesson. A month can end before the work does. The village has changed around the green: priests prepared, children learned, women measured, neighbors answered, tools sharpened, debts remembered. Emergence becomes a world, not a moment.''',
       decanFlow: _shefBedetIIIFlowRows,
       meduNeter: MeduNeterKey(
         glyph:
             'Established field at month\'s end — rooted, green, in production',
         colorFrequency: 'Full living green, earth dark and fed beneath',
-        mantra: '"The field is in production. I hand it forward."',
+        mantra: '"I carry emergence as a world, not a moment."',
       ),
     ),
   ]);

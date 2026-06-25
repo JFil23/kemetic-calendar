@@ -1046,12 +1046,29 @@ void main() {
         expect(routeSource, contains('UtilitySheetRouteScaffold'));
         expect(routeSource, contains("semanticLabel: 'Flow Studio'"));
         expect(routeSource, contains('onClose: _closeRoute'));
-        expect(routeSource, contains('_buildDetachedFlowStudioRoot'));
+        expect(routeSource, contains('onBackPressed: _handleSystemBack'));
+        expect(routeSource, contains('topRadius: 0'));
+        expect(routeSource, contains('child: Navigator('));
+        expect(routeSource, contains('onGenerateInitialRoutes:'));
+        expect(
+          routeSource,
+          contains('CalendarPage._detachedFlowStudioInitialRoutes'),
+        );
         expect(routeSource, contains("parentRoute: '/flows'"));
         expect(routeSource, contains("closeOrReturn(context, '/')"));
         expect(routeSource, isNot(contains("GoRouter.of(context).go('/')")));
         expect(routeSource, isNot(contains('showModalBottomSheet')));
         expect(routeSource, isNot(contains('CalendarPage.globalKey')));
+        expect(
+          calendarSource,
+          contains('static Widget _buildDetachedFlowStudioRoot'),
+        );
+        expect(
+          calendarSource,
+          contains(
+            'static List<Route<dynamic>> _detachedFlowStudioInitialRoutes',
+          ),
+        );
         expect(flowHubSource, contains('this.onClose'));
         expect(flowHubSource, contains('widget.onClose'));
         expect(flowHubSource, contains('automaticallyImplyLeading'));
@@ -1108,7 +1125,12 @@ void main() {
         expect(routeScaffold, contains('_requestClose'));
         expect(routeScaffold, contains('utilitySheetRouteDragHandleKey'));
         expect(routeScaffold, contains('BorderRadius.vertical'));
-        expect(routeScaffold, contains('top: Radius.circular(24)'));
+        expect(routeScaffold, contains('this.topRadius = 24'));
+        expect(routeScaffold, contains('final double topRadius'));
+        expect(
+          routeScaffold,
+          contains('top: Radius.circular(widget.topRadius)'),
+        );
         expect(routeScaffold, contains('Close \${widget.semanticLabel}'));
         expect(routeScaffold, contains('GestureDetector'));
         expect(routeScaffold, contains('FractionallySizedBox'));
@@ -1204,11 +1226,21 @@ void main() {
         'class GlobalSideDrawer extends StatelessWidget',
       );
 
-      expect(bubble, contains('width: kGlobalMenuBubbleSize'));
-      expect(bubble, contains('height: kGlobalMenuBubbleSize'));
+      expect(
+        bubble,
+        contains(
+          'final bubbleStyle = style ?? globalTransparentMenuBubbleStyle',
+        ),
+      );
+      expect(bubble, contains('final double size = bubbleStyle.size'));
+      expect(bubble, contains('final double size'));
+      expect(bubble, contains('width: size'));
+      expect(bubble, contains('height: size'));
+      expect(bubble, contains('key: globalMenuBubbleSurfaceKey'));
       expect(bubble, contains('customBorder: const CircleBorder()'));
       expect(bubble, contains('onTap: onPressed'));
       expect(bubble, isNot(contains('hitHeight')));
+      expect(bubble, isNot(contains('Color(0xF6000000)')));
       expect(bubble, isNot(contains('onPointerUp')));
     });
 
@@ -1396,27 +1428,40 @@ void main() {
     });
 
     test(
-      'planner embedded mode keeps menu space while routed lists do not',
+      'planner routes keep menu space while archive lists use local safe-area padding',
       () async {
         final planner = await File(
           'lib/features/rhythm/pages/todays_alignment_page.dart',
+        ).readAsString();
+        final tracker = await File(
+          'lib/features/rhythm/pages/commitment_tracker_page.dart',
         ).readAsString();
         final reflections = await File(
           'lib/features/reflections/decan_reflection_archive_page.dart',
         ).readAsString();
 
-        expect(planner, contains('final listBottomPadding = embedded'));
         expect(
           planner,
-          contains('? bottomPaddingAboveGlobalChrome(context, 32)'),
+          contains(
+            'final listBottomPadding = bottomPaddingAboveGlobalChrome(context, 32);',
+          ),
         );
-        expect(planner, contains(': 32.0'));
+        expect(
+          tracker,
+          contains('bottomPaddingAboveGlobalChrome(context, 32)'),
+        );
+        expect(planner, isNot(contains('final listBottomPadding = embedded')));
         expect(planner, contains('keyboardInsetOf(context)'));
-        expect(reflections, contains('const listBottomPadding = 16.0;'));
+        expect(reflections, contains('final bottomPadding ='));
+        expect(
+          reflections,
+          contains('DecanReflectionTokens.scrollBottomPadding +'),
+        );
+        expect(reflections, contains('MediaQuery.paddingOf(context).bottom'));
         expect(reflections, isNot(contains('bottomPaddingAboveGlobalChrome')));
         expect(
           reflections,
-          contains('padding: EdgeInsets.fromLTRB(0, 0, 0, listBottomPadding)'),
+          contains('padding: EdgeInsets.only(top: 8, bottom: bottomPadding)'),
         );
       },
     );

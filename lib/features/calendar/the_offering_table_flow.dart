@@ -15,9 +15,7 @@ const int kOfferingTableDefaultHour = 7;
 const int kOfferingTableDefaultMinute = 30;
 
 const String kOfferingTableOverview =
-    'Daily morning provision on the calendar: water first, then food, rest, and care, so basic life-support does not quietly collapse into Isfet. '
-    'The Offering Table is a very low-burden thirty-day Ma\'at flow with one sitting each morning, moving through the Personal Table, Household Table, and Flowing Table. '
-    'It is not a meal tracker, sleep app, wellness costume, or optimization flow; it is a practice of feeding what needs to be fed.';
+    'The Offering Table is a thirty-day provision flow. Each morning begins with water, then moves through food, rest, care, household support, and what must be returned to flow. The practice stays small: feed what needs to be fed before the day takes everything else.';
 
 const String kOfferingTableEnrollmentCopy =
     'Required: place water and speak the line. Everything else is optional. Two minutes is enough.';

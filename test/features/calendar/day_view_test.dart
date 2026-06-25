@@ -6,10 +6,15 @@ import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:mobile/core/completion_status.dart';
+import 'package:mobile/features/calendar/calendar_completion.dart';
 import 'package:mobile/features/calendar/calendar_page.dart' show KemeticMath;
 import 'package:mobile/features/calendar/day_view.dart';
+import 'package:mobile/features/calendar/landscape_month_view.dart';
 import 'package:mobile/features/calendar/living_text_day_one_node_store.dart';
 import 'package:mobile/features/calendar/maat_decan_flow.dart';
+import 'package:mobile/features/calendar/maat_flow_response_draft_store.dart';
+import 'package:mobile/features/calendar/maat_flow_palette.dart';
+import 'package:mobile/features/calendar/the_weighing_flow.dart';
 import 'package:mobile/features/journal/journal_badge_utils.dart';
 import 'package:mobile/features/journal/journal_event_badge.dart';
 import 'package:mobile/services/app_restoration_service.dart';
@@ -39,9 +44,13 @@ void main() {
 
   setUp(() {
     SharedPreferences.setMockInitialValues(<String, Object>{});
+    kMaatFlowResponseDraftStore.clearForTesting();
     CalendarEventDetailSheetCoordinator.debugResetForTests();
   });
-  tearDown(CalendarEventDetailSheetCoordinator.debugResetForTests);
+  tearDown(() {
+    kMaatFlowResponseDraftStore.clearForTesting();
+    CalendarEventDetailSheetCoordinator.debugResetForTests();
+  });
 
   group('DayViewGrid overlapping event gestures', () {
     testWidgets(
@@ -165,6 +174,67 @@ void main() {
         );
       },
     );
+
+    testWidgets('Track Sky event cards fit long moon copy without overflow', (
+      tester,
+    ) async {
+      await _setPhoneViewport(tester);
+
+      await tester.pumpWidget(
+        _DayViewHarness(
+          initialScrollOffset: 15 * 60,
+          flowIndex: const <int, FlowData>{
+            99: FlowData(
+              id: 99,
+              name: 'Follow the sky',
+              color: Colors.indigo,
+              active: true,
+              notes: 'sky_tz=pacific',
+            ),
+          },
+          notes: [
+            _timedNote(
+              title: 'Strawberry Moon + Micromoon (Full)',
+              startHour: 15,
+              startMinute: 30,
+              endHour: 16,
+              endMinute: 15,
+              flowId: 99,
+            ),
+          ],
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(tester.takeException(), isNull);
+      expect(find.text('Follow the sky'), findsWidgets);
+      expect(find.text('Strawberry Moon + Micromoon (Full)'), findsWidgets);
+    });
+
+    testWidgets('phone landscape Day View uses the landscape month surface', (
+      tester,
+    ) async {
+      await _setPhoneLandscapeViewport(tester);
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: DayViewPage(
+            initialKy: 1,
+            initialKm: 2,
+            initialKd: 5,
+            showGregorian: false,
+            notesForDay: (_, _, _) => const [],
+            flowIndex: const {},
+            getMonthName: (month) => 'Month $month',
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(tester.takeException(), isNull);
+      expect(find.byType(LandscapeMonthView), findsOneWidget);
+      expect(find.byType(DayViewGrid), findsNothing);
+    });
 
     test(
       'single non-overlapping events keep the phone width factor by default',
@@ -375,6 +445,15 @@ void main() {
 
         expect(find.text('New Event'), findsOneWidget);
         expect(find.text('4:30 PM'), findsOneWidget);
+        expect(
+          _dayViewTimelineLayerKeys(tester),
+          containsAllInOrder([
+            dayViewTimelineGridLayerKey,
+            dayViewTimelineEventLayerKey,
+            dayViewTimelinePreviewLayerKey,
+            dayViewTimelineOverlayLayerKey,
+          ]),
+        );
 
         await gesture.moveBy(const Offset(0, 45));
         await tester.pump();
@@ -387,47 +466,48 @@ void main() {
       },
     );
 
-    testWidgets('late-start real cards repaint into the next hour row', (
+    testWidgets('timeline grid layer stays below event and preview layers', (
       tester,
     ) async {
       await _setPhoneViewport(tester);
 
       await tester.pumpWidget(
         const _DayViewHarness(
-          initialScrollOffset: 8 * 60,
+          initialScrollOffset: 14 * 60,
           notes: [
             NoteData(
-              clientEventId: 'late-reminder',
-              title: 'journal every night',
+              clientEventId: 'multi-hour-card',
+              title: 'test',
               allDay: false,
-              start: TimeOfDay(hour: 8, minute: 30),
-              end: TimeOfDay(hour: 9, minute: 0),
+              start: TimeOfDay(hour: 15, minute: 30),
+              end: TimeOfDay(hour: 16, minute: 30),
               manualColor: Colors.green,
-              isReminder: true,
-            ),
-            NoteData(
-              clientEventId: 'late-math-card',
-              title: 'Explain the Mystery',
-              category: 'Daily Math Visuals · 30-Day Path',
-              allDay: false,
-              start: TimeOfDay(hour: 9, minute: 42),
-              end: TimeOfDay(hour: 10, minute: 0),
-              manualColor: Colors.blue,
             ),
           ],
         ),
       );
       await tester.pumpAndSettle();
 
-      expect(find.text('journal every night'), findsWidgets);
-      expect(find.text('Explain the Mystery'), findsWidgets);
+      expect(find.text('test'), findsWidgets);
+
+      final keys = _dayViewTimelineLayerKeys(tester);
       expect(
-        find.byKey(dayViewOverflowVisualKey('cid:late-reminder', 9)),
-        findsOneWidget,
+        keys,
+        containsAllInOrder([
+          dayViewTimelineGridLayerKey,
+          dayViewTimelineLabelLayerKey,
+          dayViewTimelineEventLayerKey,
+          dayViewTimelinePreviewLayerKey,
+          dayViewTimelineOverlayLayerKey,
+        ]),
       );
       expect(
-        find.byKey(dayViewOverflowVisualKey('cid:late-math-card', 10)),
-        findsOneWidget,
+        keys.indexOf(dayViewTimelineGridLayerKey),
+        lessThan(keys.indexOf(dayViewTimelineEventLayerKey)),
+      );
+      expect(
+        keys.indexOf(dayViewTimelineEventLayerKey),
+        lessThan(keys.indexOf(dayViewTimelinePreviewLayerKey)),
       );
     });
   });
@@ -496,6 +576,98 @@ void main() {
 
         expect(find.text('Watch on YouTube'), findsOneWidget);
         expect(find.text(url), findsNothing);
+      },
+    );
+
+    testWidgets(
+      'Ma_at flow detail sheet uses gold section headers without duplicate labels',
+      (tester) async {
+        await _setPhoneViewport(tester);
+        final event = kTheWeighingEvents.singleWhere(
+          (event) => event.eventNumber == 9,
+        );
+        final title = theWeighingEventTitle(event);
+        final recordedStatuses = <CompletionStatus>[];
+
+        await tester.pumpWidget(
+          _DayViewHarness(
+            initialScrollOffset: 9 * 60,
+            flowIndex: const <int, FlowData>{
+              90: FlowData(
+                id: 90,
+                name: kTheWeighingTitle,
+                color: Colors.amber,
+                active: true,
+                notes: 'weighing_lens=neutral',
+              ),
+            },
+            notes: [
+              NoteData(
+                clientEventId: 'cid-the-weighing-9',
+                title: title,
+                detail: theWeighingDetailText(
+                  event,
+                  lens: TheWeighingLens.neutral,
+                ),
+                category: event.decanSection,
+                allDay: false,
+                start: const TimeOfDay(hour: 10, minute: 0),
+                end: const TimeOfDay(hour: 10, minute: 10),
+                flowId: 90,
+              ),
+            ],
+            onRecordCompletion:
+                ({
+                  required String clientEventId,
+                  required int flowId,
+                  required DateTime completedOnDate,
+                  Map<String, dynamic>? metadata,
+                }) async {
+                  recordedStatuses.add(
+                    CompletionStatusX.fromWireName(
+                      metadata?['completion_status']?.toString(),
+                    ),
+                  );
+                },
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        final eventSurface = find
+            .ancestor(
+              of: find.text(title).first,
+              matching: find.byType(GestureDetector),
+            )
+            .last;
+        await tester.tap(eventSurface);
+        await tester.pumpAndSettle();
+
+        for (final label in const <String>['PURPOSE', 'WORDS', 'STEPS']) {
+          final finder = find.text(label);
+          expect(finder, findsOneWidget);
+          final text = tester.widget<Text>(finder);
+          expect(text.style?.color, MaatFlowPalette.interiorLabel);
+          expect(text.style?.letterSpacing, 1.6);
+        }
+        expect(find.text('Purpose'), findsNothing);
+
+        final bodyFinder = find.textContaining(
+          'These lines are not aspirational',
+        );
+        expect(bodyFinder, findsOneWidget);
+        final bodyText = tester.widget<Text>(bodyFinder);
+        expect(bodyText.style?.color, isNot(MaatFlowPalette.interiorLabel));
+
+        expect(find.text('Observed'), findsWidgets);
+        expect(find.text('Partly'), findsWidgets);
+        expect(find.text('Skipped'), findsWidgets);
+
+        await tester.ensureVisible(find.text('Observed').last);
+        await tester.pumpAndSettle();
+        await tester.tap(find.text('Observed').last);
+        await tester.pumpAndSettle();
+
+        expect(recordedStatuses, <CompletionStatus>[CompletionStatus.observed]);
       },
     );
 
@@ -630,7 +802,7 @@ void main() {
     );
 
     testWidgets(
-      'flow observed completion pulses the rim and requests medium haptic',
+      'ordinary flow observed completion pulses the rim and requests medium haptic',
       (tester) async {
         await _setPhoneViewport(tester);
 
@@ -678,6 +850,11 @@ void main() {
 
         await tester.tap(find.text('Observed').last);
         await tester.pump();
+        await tester.pump(
+          kCalendarCompletionFeedbackDelay - const Duration(milliseconds: 1),
+        );
+        expect(_ritualRimIntensity(tester), 0);
+        await tester.pump(const Duration(milliseconds: 1));
         await tester.pump(const Duration(milliseconds: 140));
 
         expect(recordedStatuses, <CompletionStatus>[CompletionStatus.observed]);
@@ -698,7 +875,7 @@ void main() {
     );
 
     testWidgets(
-      'flow partly completion pulses the rim weaker and requests light haptic',
+      'ordinary flow partly completion pulses the rim weaker and requests light haptic',
       (tester) async {
         await _setPhoneViewport(tester);
 
@@ -744,6 +921,7 @@ void main() {
 
         await tester.tap(find.text('Observed').last);
         await tester.pump();
+        await tester.pump(kCalendarCompletionFeedbackDelay);
         await tester.pump(const Duration(milliseconds: 140));
         final observedRimIntensity = _ritualRimIntensity(tester);
         expect(_ritualPulseMode(tester), 'observed');
@@ -754,6 +932,7 @@ void main() {
         await tester.pumpAndSettle();
         await tester.tap(find.text('Partly').last);
         await tester.pump();
+        await tester.pump(kCalendarCompletionFeedbackDelay);
         await tester.pump(const Duration(milliseconds: 140));
         final partialRimIntensity = _ritualRimIntensity(tester);
 
@@ -774,63 +953,69 @@ void main() {
       },
     );
 
-    testWidgets('flow skipped completion does not pulse or request haptic', (
-      tester,
-    ) async {
-      await _setPhoneViewport(tester);
+    testWidgets(
+      'ordinary flow skipped completion pulses and requests light haptic',
+      (tester) async {
+        await _setPhoneViewport(tester);
 
-      final appendedBadges = <String>[];
-      final recordedStatuses = <CompletionStatus>[];
+        final appendedBadges = <String>[];
+        final recordedStatuses = <CompletionStatus>[];
 
-      await tester.pumpWidget(
-        _DayViewHarness(
-          notes: [
-            _timedNote(
-              clientEventId: 'cid-ritual-skipped',
-              title: 'Ritual Skipped',
-              startHour: 10,
-              startMinute: 0,
-              endHour: 11,
-              endMinute: 0,
-              flowId: 1,
-            ),
-          ],
-          onAppendToJournal: (text) async {
-            appendedBadges.add(text);
-          },
-          onRecordCompletion:
-              ({
-                required String clientEventId,
-                required int flowId,
-                required DateTime completedOnDate,
-                Map<String, dynamic>? metadata,
-              }) async {
-                recordedStatuses.add(
-                  CompletionStatusX.fromWireName(
-                    metadata?['completion_status']?.toString() ??
-                        metadata?['status']?.toString(),
-                  ),
-                );
-              },
-        ),
-      );
-      await tester.pumpAndSettle();
+        await tester.pumpWidget(
+          _DayViewHarness(
+            notes: [
+              _timedNote(
+                clientEventId: 'cid-ritual-skipped',
+                title: 'Ritual Skipped',
+                startHour: 10,
+                startMinute: 0,
+                endHour: 11,
+                endMinute: 0,
+                flowId: 1,
+              ),
+            ],
+            onAppendToJournal: (text) async {
+              appendedBadges.add(text);
+            },
+            onRecordCompletion:
+                ({
+                  required String clientEventId,
+                  required int flowId,
+                  required DateTime completedOnDate,
+                  Map<String, dynamic>? metadata,
+                }) async {
+                  recordedStatuses.add(
+                    CompletionStatusX.fromWireName(
+                      metadata?['completion_status']?.toString() ??
+                          metadata?['status']?.toString(),
+                    ),
+                  );
+                },
+          ),
+        );
+        await tester.pumpAndSettle();
 
-      await tester.tap(find.text('Ritual Skipped'));
-      await tester.pumpAndSettle();
+        await tester.tap(find.text('Ritual Skipped'));
+        await tester.pumpAndSettle();
 
-      final hapticCalls = _capturePlatformHaptics(tester);
+        final hapticCalls = _capturePlatformHaptics(tester);
 
-      await tester.tap(find.text('Skipped').last);
-      await tester.pump();
-      await tester.pump(const Duration(milliseconds: 140));
+        await tester.tap(find.text('Skipped').last);
+        await tester.pump();
+        await tester.pump(kCalendarCompletionFeedbackDelay);
+        await tester.pump(const Duration(milliseconds: 140));
 
-      expect(recordedStatuses, <CompletionStatus>[CompletionStatus.skipped]);
-      expect(appendedBadges, hasLength(1));
-      expect(_ritualRimIntensity(tester), 0);
-      expect(_ritualPulsePaintsFill(tester), isFalse);
-      expect(_hapticArguments(hapticCalls), isEmpty);
-    });
+        expect(recordedStatuses, <CompletionStatus>[CompletionStatus.skipped]);
+        expect(appendedBadges, hasLength(1));
+        expect(_ritualPulseMode(tester), 'skipped');
+        expect(_ritualRimIntensity(tester), greaterThan(0));
+        expect(_ritualPulsePaintsFill(tester), isFalse);
+        expect(
+          _hapticArguments(hapticCalls),
+          contains('HapticFeedbackType.lightImpact'),
+        );
+      },
+    );
 
     testWidgets('restored flow completion state does not pulse the card', (
       tester,
@@ -1044,6 +1229,188 @@ void main() {
       expect(openedCreateNote, isTrue);
       expect(find.byType(BottomSheet), findsNothing);
     });
+
+    testWidgets(
+      'header new-note action opens Day sheet for current Day View date',
+      (tester) async {
+        await _setPhoneViewport(tester);
+        final openedDates = <({int ky, int km, int kd})>[];
+        var openedQuickAdd = false;
+
+        await tester.pumpWidget(
+          MaterialApp(
+            home: DayViewPage(
+              initialKy: 6268,
+              initialKm: 2,
+              initialKd: 5,
+              showGregorian: false,
+              notesForDay: (_, _, _) => const <NoteData>[],
+              flowIndex: const {},
+              getMonthName: _gregorianMonthName,
+              onOpenQuickAdd: (_) async {
+                openedQuickAdd = true;
+              },
+              onAddNote: (ky, km, kd) {
+                openedDates.add((ky: ky, km: km, kd: kd));
+              },
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        await tester.tap(find.byTooltip('New note'));
+        await tester.pumpAndSettle();
+
+        expect(openedQuickAdd, isFalse);
+        expect(openedDates, [(ky: 6268, km: 2, kd: 5)]);
+
+        await tester.pumpWidget(
+          MaterialApp(
+            home: DayViewPage(
+              initialKy: 6268,
+              initialKm: 2,
+              initialKd: 6,
+              showGregorian: false,
+              notesForDay: (_, _, _) => const <NoteData>[],
+              flowIndex: const {},
+              getMonthName: _gregorianMonthName,
+              onOpenQuickAdd: (_) async {
+                openedQuickAdd = true;
+              },
+              onAddNote: (ky, km, kd) {
+                openedDates.add((ky: ky, km: km, kd: kd));
+              },
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        await tester.tap(find.byTooltip('New note'));
+        await tester.pumpAndSettle();
+
+        expect(openedQuickAdd, isFalse);
+        expect(openedDates, [
+          (ky: 6268, km: 2, kd: 5),
+          (ky: 6268, km: 2, kd: 6),
+        ]);
+      },
+    );
+
+    testWidgets(
+      'Day Sheet event request opens detail on the existing Day View without a page push',
+      (tester) async {
+        await _setPhoneViewport(tester);
+        final request = ValueNotifier<DayViewSheetEventTarget?>(null);
+        addTearDown(request.dispose);
+        final observer = _PagePushCountingNavigatorObserver();
+        final note = _timedNote(
+          id: 'sheet-note-1',
+          clientEventId: 'sheet-note-client-1',
+          title: 'Sheet Note Target',
+          startHour: 10,
+          startMinute: 0,
+          endHour: 11,
+          endMinute: 0,
+        );
+
+        await tester.pumpWidget(
+          MaterialApp(
+            navigatorObservers: [observer],
+            home: DayViewPage(
+              initialKy: 1,
+              initialKm: 1,
+              initialKd: 1,
+              showGregorian: false,
+              notesForDay: (_, _, _) => [note],
+              flowIndex: const {},
+              getMonthName: _gregorianMonthName,
+              eventDetailRequestListenable: request,
+              onEventDetailRequestHandled: () {
+                request.value = null;
+              },
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+        observer.reset();
+
+        request.value = DayViewSheetEventTarget(
+          ky: 1,
+          km: 1,
+          kd: 1,
+          event: _eventFromNote(note),
+        );
+        await tester.pumpAndSettle();
+
+        expect(observer.pagePushCount, 0);
+        expect(request.value, isNull);
+        expect(find.byType(BottomSheet), findsOneWidget);
+        expect(find.text('Sheet Note Target'), findsWidgets);
+      },
+    );
+
+    testWidgets(
+      'Day Sheet event request changes the existing Day View date without a page push',
+      (tester) async {
+        await _setPhoneViewport(tester);
+        final request = ValueNotifier<DayViewSheetEventTarget?>(null);
+        addTearDown(request.dispose);
+        final observer = _PagePushCountingNavigatorObserver();
+        final dayOneNote = _timedNote(
+          id: 'sheet-note-day-1',
+          clientEventId: 'sheet-note-client-day-1',
+          title: 'Day One Note',
+          startHour: 8,
+          startMinute: 0,
+          endHour: 9,
+          endMinute: 0,
+        );
+        final dayTwoNote = _timedNote(
+          id: 'sheet-note-day-2',
+          clientEventId: 'sheet-note-client-day-2',
+          title: 'Day Two Note',
+          startHour: 14,
+          startMinute: 0,
+          endHour: 15,
+          endMinute: 0,
+        );
+
+        await tester.pumpWidget(
+          MaterialApp(
+            navigatorObservers: [observer],
+            home: DayViewPage(
+              initialKy: 1,
+              initialKm: 1,
+              initialKd: 1,
+              showGregorian: false,
+              notesForDay: (ky, km, kd) =>
+                  kd == 2 ? [dayTwoNote] : [dayOneNote],
+              flowIndex: const {},
+              getMonthName: _gregorianMonthName,
+              eventDetailRequestListenable: request,
+              onEventDetailRequestHandled: () {
+                request.value = null;
+              },
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+        observer.reset();
+
+        request.value = DayViewSheetEventTarget(
+          ky: 1,
+          km: 1,
+          kd: 2,
+          event: _eventFromNote(dayTwoNote),
+        );
+        await tester.pumpAndSettle();
+
+        expect(observer.pagePushCount, 0);
+        expect(request.value, isNull);
+        expect(find.byType(BottomSheet), findsOneWidget);
+        expect(find.text('Day Two Note'), findsWidgets);
+      },
+    );
 
     testWidgets(
       'tap consumes echoed detail restoration state without opening a second sheet',
@@ -1374,6 +1741,8 @@ void main() {
 
       await tester.tap(find.text('Living Text 4: Add Your First Reflection'));
       await tester.pumpAndSettle();
+      await tester.ensureVisible(find.text('Add your insight'));
+      await tester.pumpAndSettle();
       await tester.tap(find.text('Add your insight'));
       await tester.pumpAndSettle();
 
@@ -1403,6 +1772,8 @@ void main() {
         await tester.pumpAndSettle();
 
         await tester.tap(find.text('Living Text 4: Add Your First Reflection'));
+        await tester.pumpAndSettle();
+        await tester.ensureVisible(find.text('Add your insight'));
         await tester.pumpAndSettle();
         await tester.tap(find.text('Add your insight'));
         await tester.pumpAndSettle();
@@ -1439,6 +1810,8 @@ void main() {
           ),
           findsOneWidget,
         );
+        await tester.ensureVisible(find.text('Revise your insight'));
+        await tester.pumpAndSettle();
         await tester.tap(find.text('Revise your insight'));
         await tester.pumpAndSettle();
 
@@ -1651,11 +2024,8 @@ void main() {
       expect(lateRestorationReports, 0);
     });
 
-    testWidgets('menu button dispatches the provided header menu handler', (
-      tester,
-    ) async {
+    testWidgets('header omits duplicate global menu action', (tester) async {
       await _setPhoneViewport(tester);
-      var menuOpenCount = 0;
 
       await tester.pumpWidget(
         MaterialApp(
@@ -1667,19 +2037,17 @@ void main() {
             notesForDay: (ky, km, kd) => const [],
             flowIndex: const {},
             getMonthName: (month) => 'Month $month',
-            onOpenMenu: (_) async {
-              menuOpenCount += 1;
-            },
           ),
         ),
       );
       await tester.pumpAndSettle();
 
-      expect(find.byTooltip('Menu'), findsOneWidget);
-      await tester.tap(find.byTooltip('Menu'));
-      await tester.pumpAndSettle();
-
-      expect(menuOpenCount, 1);
+      expect(find.byTooltip('Menu'), findsNothing);
+      expect(find.byIcon(Icons.more_vert), findsNothing);
+      expect(find.byTooltip('New note'), findsOneWidget);
+      expect(find.byTooltip('Search notes'), findsOneWidget);
+      expect(find.byTooltip('Today'), findsOneWidget);
+      expect(find.byTooltip('My Profile'), findsOneWidget);
     });
 
     testWidgets('system back reports user close for restoration clearing', (
@@ -2042,6 +2410,15 @@ Future<void> _setPhoneViewport(WidgetTester tester) async {
   });
 }
 
+Future<void> _setPhoneLandscapeViewport(WidgetTester tester) async {
+  tester.view.devicePixelRatio = 1.0;
+  tester.view.physicalSize = const Size(844, 390);
+  addTearDown(() async {
+    tester.view.resetPhysicalSize();
+    tester.view.resetDevicePixelRatio();
+  });
+}
+
 Future<void> _setTabletLandscapeViewport(WidgetTester tester) async {
   tester.view.devicePixelRatio = 1.0;
   tester.view.physicalSize = const Size(1194, 834);
@@ -2097,6 +2474,22 @@ NoteData _livingTextNote({
       },
     },
   );
+}
+
+class _PagePushCountingNavigatorObserver extends NavigatorObserver {
+  int pagePushCount = 0;
+
+  void reset() {
+    pagePushCount = 0;
+  }
+
+  @override
+  void didPush(Route<dynamic> route, Route<dynamic>? previousRoute) {
+    super.didPush(route, previousRoute);
+    if (previousRoute != null && route is MaterialPageRoute<dynamic>) {
+      pagePushCount++;
+    }
+  }
 }
 
 NoteData _timedReminderNote({
@@ -2197,6 +2590,11 @@ String? _ritualPulseMode(WidgetTester tester) {
 
 double _screenCenterX(WidgetTester tester) =>
     tester.getSize(find.byType(Scaffold)).width / 2;
+
+List<Key?> _dayViewTimelineLayerKeys(WidgetTester tester) {
+  final stack = tester.widget<Stack>(find.byKey(dayViewTimelineStackKey));
+  return stack.children.map((child) => child.key).toList();
+}
 
 const Map<int, FlowData> _defaultFlowIndex = {
   1: FlowData(id: 1, name: 'Practice', color: Colors.green, active: true),

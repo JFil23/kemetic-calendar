@@ -15,7 +15,7 @@ const String kDjedConfidenceLabel =
     'Draws on the Djed pillar, annual raising, stability, contest, and uprightness.';
 
 const String kDjedOverview =
-    'Nine sittings across thirty days: name the load-bearing elements of your life, engage what threatens them, then raise the Djed by standing upright with arms raised and declaring the spine intact.';
+    'The Djed is a thirty-day stability flow with nine sittings. It names what holds life upright, meets what threatens that structure, and closes with one concrete act of raising, repair, or restored support.';
 
 enum DjedTimingSlot { openMorning, checkMidday, sealEvening }
 

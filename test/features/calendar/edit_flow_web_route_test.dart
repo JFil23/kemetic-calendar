@@ -131,7 +131,11 @@ void main() {
     expect(routePage, contains('final Uri? routeUri'));
     expect(routePage, contains('CalendarPage._flowStudioRouteStateFromUri'));
     expect(routePage, contains("parentRoute: '/flows'"));
-    expect(routePage, contains('_buildDetachedFlowStudioRoot'));
+    expect(routePage, contains('UtilitySheetRouteScaffold'));
+    expect(routePage, contains('Navigator('));
+    expect(routePage, contains('_flowStudioNavigatorKey'));
+    expect(routePage, contains('_detachedFlowStudioInitialRoutes'));
+    expect(routePage, contains('onReturnToHub: _returnToFlowStudioHubRoute'));
   });
 
   test('Edit Flow actions use edit-by-id route on web', () {
@@ -190,9 +194,34 @@ void main() {
     final grid = File(
       'lib/features/calendar/calendar_grid_widgets.dart',
     ).readAsStringSync();
-    expect(dayView, contains('await Navigator.of(sheetContext).maybePop();'));
-    expect(landscape, contains('await Navigator.of(sheetContext).maybePop();'));
-    expect(grid, contains('await Navigator.of(sheetContext).maybePop();'));
+    final sharedDetailManageFlow = _sourceBetween(
+      dayView,
+      "value == 'edit' && flow != null && actionableFlow",
+      "value == 'save' && flow != null && actionableFlow",
+    );
+    final landscapeDetailCaller = _sourceBetween(
+      landscape,
+      'builder: (sheetContext) => CalendarEventDetailSheet(',
+      'onEditNote: widget.onEditNote,',
+    );
+    final gridDetailCaller = _sourceBetween(
+      grid,
+      'builder: (_) => CalendarEventDetailSheet(',
+      'onEditNote: onEditNote,',
+    );
+    expect(
+      sharedDetailManageFlow,
+      contains('await Navigator.of(sheetContext).maybePop();'),
+    );
+    expect(
+      sharedDetailManageFlow,
+      contains('widget.onManageFlows?.call(flow.id)'),
+    );
+    expect(
+      landscapeDetailCaller,
+      contains('onManageFlows: widget.onManageFlows'),
+    );
+    expect(gridDetailCaller, contains('onManageFlows: onManageFlows'));
 
     expect(
       sharedFlowDetails,

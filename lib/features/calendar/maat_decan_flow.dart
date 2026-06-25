@@ -251,55 +251,55 @@ class MaatDecanFlowOccurrenceSchedule {
 }
 
 const String kFairHearingOverview =
-    'A 30-day practice of fair judgment: hear fully before deciding, apply the same measure to those you favor and those you do not, and pronounce the decision clearly. Drawn from the nine appeals of the Eloquent Peasant.';
+    'A 30-day practice of fair judgment: hear fully, keep one measure for favored and unfavored sides, and pronounce the decision clearly.';
 
 const String kHouseOfLifeOverview =
-    'A 30-day scribal practice for learning accurately: write with the hand, recite with the mouth, seek those who know more, then transmit one useful piece of knowledge.';
+    'A 30-day scribal practice: learn accurately, write and recite one useful piece of knowledge, then transmit it with care.';
 
 const String kBoundaryStoneOverview =
-    'A 30-day survey of what is yours and what is not: map resources, labor, credit, and force; name where the markers moved; then restore at least one stone to its right place.';
+    'A 30-day boundary practice: map resources, labor, credit, and force; name what moved; restore one marker to its place.';
 
 const String kHotepOverview =
-    'A 30-day evening practice for the peace of completed offering: name what was given, distinguish real obligation from fear of tomorrow, and let the heart cool before sleep.';
+    'A 30-day evening peace practice: name what was given, separate real obligation from fear, and let the heart cool before sleep.';
 
 const String kOpenMouthOverview =
-    'A 30-day speech practice: record what your mouth has been creating, govern the tongue through one discipline, and say one important thing that has been withheld.';
+    'A 30-day speech practice: record what the mouth creates, govern one word, and speak or withhold with discipline.';
 
 const String kLivingRecordOverview =
-    'A 30-day practice of building a genuine decan account across ḥꜣw: day card, node library, planner, journal, feed, alignment, Flow Studio, guidance, and a physical record.';
+    'A 30-day record practice: turn the decan into a living account across day card, library, planner, journal, and physical line.';
 
 const String kHetHeruOverview =
-    'A 30-day practice of transforming the hot Sekhmet force into Het-Heru: name what has gone too far, find the red beer that fills the need, then practice music, feast, beauty, and joy.';
+    'A 30-day cooling practice: name the hot force, meet its real need, and return it toward music, beauty, feast, and joy.';
 
 const String kTheShoreOverview =
-    'A 30-day practice of honest exchange: inventory what you can offer, prepare one real exchange, make it at honest measure, and account for what returns.';
+    'A 30-day exchange practice: inventory what you offer, make one honest exchange, and account for what returns.';
 
 const String kTheAutobiographyOverview =
-    'A 30-day life review that surveys capacities, works, and gifts, then produces a four-section autobiography: Capacities, Works, Gifts, and Claim.';
+    'A 30-day life-record practice: name capacities, works, gifts, and one honest claim supported by evidence.';
 
 const String kFirstArrangementOverview =
-    'A 30-day practice of choosing one physical space, seeing what is actually there, removing what does not belong, arranging what remains, purifying it, and establishing maintenance.';
+    'A 30-day space-order practice: choose one place, see what belongs, remove what does not, and establish maintenance.';
 
 const String kLivingPatternOverview =
-    'A 30-day practice of observing one natural subject until a real pattern appears, then extracting one principle and acting from it.';
+    'A 30-day observation practice: watch one natural subject until a real pattern appears, then act from its principle.';
 
 const String kTrueNameOverview =
-    'A 30-day private self-accounting flow: identify a false account, measure it against the real record, speak the accurate account aloud, and act from it.';
+    'A 30-day private naming practice: measure a false account against the record, speak the accurate account, and act from it.';
 
 const String kLivingTextOverview =
-    'A 30-day Library practice: read carefully, add reflections, questions, connections, and close with a colophon naming what your life added to the living text.';
+    'A 30-day Library practice: read carefully, add reflection or connection, and close with a living mark.';
 
 const String kClearingOverview =
-    'A 30-day practice of temperance before response: identify where heat drives action, create space before reply, and act once from the cleared state.';
+    'A 30-day temperance practice: notice where heat drives action, create space before reply, and act from the cleared state.';
 
 const String kWanderingOverview =
-    'A 30-day evening grief accompaniment: name the loss, search for what remains, and gently notice which capacities begin to open again.';
+    'A 30-day evening grief accompaniment: name the loss, search gently, and notice one capacity that remains or returns.';
 
 const String kKhatOverview =
-    'A 30-day body-care practice: listen to the body, provide food, water, washing, rest, and movement, then close with a grounded body record.';
+    'A 30-day body-care practice: listen to the body, answer with water, food, washing, rest, or movement, then record what changed.';
 
 const String kOracleOverview =
-    'A 30-day dream-question practice: prepare one specific oracle question, receive and record the night without early interpretation, then act on one grounded indication.';
+    'A 30-day dream-question practice: prepare one question, receive without forcing meaning, and test one sign through grounded action.';
 
 const String kFairHearingConfidence =
     'Draws on Kemetic wisdom and administrative scenes of hearing, weighing, and pronounced judgment.';
@@ -761,7 +761,7 @@ kMaatDecanFlowDefinitions = <MaatDecanFlowDefinition>[
         durationMinutesMin: 15,
         durationMinutesMax: 20,
         purpose:
-            'The Kemite who observed the jackal did not decide in advance what it would mean. They watched. This rite begins the same way: choose the subject and look at it without deciding what it demonstrates.',
+            'The Kemetic observer who watched the jackal did not decide in advance what it would mean. They watched. This rite begins the same way: choose the subject and look at it without deciding what it demonstrates.',
         spokenLine: 'Say what is. Do not interpret yet.',
         steps: <String>[
           'Go to your subject and observe for 15-20 minutes.',
@@ -1972,7 +1972,7 @@ kMaatDecanFlowDefinitions = <MaatDecanFlowDefinition>[
           'Make it abundant. Ra did not pour one jar; he flooded the field.',
         ],
         sourceNote:
-            'The myth names the scale: seven thousand jars, poured across the whole field of Lower Egypt. Transformation through a token gesture is not the Kemetic model. The beer that transforms must be given in the quantity that allows the need to be fully met.',
+            'The myth names the scale: seven thousand jars, poured across the whole field of Lower Kemet. Transformation through a token gesture is not the Kemetic model. The beer that transforms must be given in the quantity that allows the need to be fully met.',
       ),
       MaatDecanFlowEvent(
         eventNumber: 5,

@@ -40,7 +40,6 @@ class KemeticDayViewHeader extends StatelessWidget {
     this.onOpenQuickAdd,
     this.onOpenSearch,
     this.onOpenProfile,
-    this.onOpenMenu,
   });
 
   final int currentKy;
@@ -59,7 +58,6 @@ class KemeticDayViewHeader extends StatelessWidget {
   final Future<void> Function(BuildContext context)? onOpenQuickAdd;
   final Future<void> Function(BuildContext context)? onOpenSearch;
   final Future<void> Function(BuildContext context)? onOpenProfile;
-  final Future<void> Function(BuildContext context)? onOpenMenu;
 
   @override
   Widget build(BuildContext context) {
@@ -170,17 +168,6 @@ class KemeticDayViewHeader extends StatelessWidget {
                       }
                     },
                   ),
-                  if (onOpenMenu != null)
-                    IconButton(
-                      tooltip: 'Menu',
-                      icon: KemeticGold.icon(Icons.more_vert, size: 25),
-                      constraints: actionButtonConstraints,
-                      padding: EdgeInsets.zero,
-                      visualDensity: VisualDensity.compact,
-                      onPressed: () async {
-                        await onOpenMenu!(context);
-                      },
-                    ),
                 ],
               ),
             ),

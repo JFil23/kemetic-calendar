@@ -20,8 +20,7 @@ const String kOpenHandConfidenceLabel =
     'Draws on the bread-water-clothing-boat formula across Kemetic biography and Spell 125.';
 
 const String kOpenHandOverview =
-    'Nine sittings across thirty days: see specific need, give something real beyond your circle, and confirm that provision is flowing through you like the flood. '
-    'The Open Hand is outward provision, not a donation platform, public virtue feed, or replacement for The Offering Table.';
+    'The Open Hand is a thirty-day outward provision flow with nine sittings. It asks the user to see a real need, give something usable beyond obligation, and confirm what moved without turning generosity into performance.';
 
 enum OpenHandTimingSlot { openMorning, checkMidday, sealEvening }
 

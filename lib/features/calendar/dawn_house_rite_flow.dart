@@ -11,10 +11,9 @@ const String kDawnHouseRiteTitle = 'Dawn House Rite';
 const int kDawnHouseRiteDurationMinutes = 3;
 
 const String kDawnHouseRiteOverview =
-    'The Dawn House Rite is grounded in one of the clearest Egyptian sacred time-patterns: at dawn, the world returns to visible order. '
-    'In the Pyramid Texts of Unas, washing, purification, the Lake of Dawn, and the appearance of Re are linked, making morning not just a beginning but a renewal of creation. '
-    'This thirty-day flow turns that ancient pattern into a simple house observance: cleanse the hands or face, set water, greet the returning light, speak ma’at, and choose one act that brings order into the day. '
-    'Its three ten-day movements—personal ma’at, household ma’at, and communal ma’at—echo the Egyptian thirty-day month divided into three ten-day periods, carrying dawn renewal from the body to the home to the wider world.';
+    'The Dawn House Rite rests on a clear Kemetic time-pattern: at dawn, the world returns to visible order. '
+    'This thirty-day flow turns that pattern into a simple house observance: set water, greet the returning light, speak ma’at, and choose one act that brings order into the day. '
+    'Its three ten-day movements carry dawn renewal from the body to the home to the wider world.';
 
 enum DawnHouseRiteLens {
   neutral,

@@ -1,6 +1,12 @@
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:mobile/features/calendar/calendar_page.dart'
+    show
+        NoteRepeatEndType,
+        NoteRepeatOption,
+        SimpleRecurrenceFrequency,
+        generateNoteRecurrenceDates;
 import 'package:mobile/features/calendar/calendar_recurring_scope.dart';
 
 void main() {
@@ -56,6 +62,44 @@ void main() {
         DateTime(2026, 6, 11),
         DateTime(2026, 6, 12),
       });
+    });
+
+    test(
+      'repeat until includes the selected until date without off-by-one',
+      () {
+        final generated = generateNoteRecurrenceDates(
+          startDate: DateTime(2026, 6, 1),
+          repeatOption: NoteRepeatOption.everyDay,
+          customFrequency: SimpleRecurrenceFrequency.daily,
+          customInterval: 1,
+          endType: NoteRepeatEndType.onDate,
+          endDate: DateTime(2026, 6, 3),
+          endCount: 10,
+          horizonEnd: DateTime(2026, 6, 10),
+        );
+
+        expect(generated, {
+          DateTime(2026, 6, 1),
+          DateTime(2026, 6, 2),
+          DateTime(2026, 6, 3),
+        });
+        expect(generated, isNot(contains(DateTime(2026, 6, 4))));
+      },
+    );
+
+    test('repeat count end type remains independent from until date', () {
+      final generated = generateNoteRecurrenceDates(
+        startDate: DateTime(2026, 6, 1),
+        repeatOption: NoteRepeatOption.everyDay,
+        customFrequency: SimpleRecurrenceFrequency.daily,
+        customInterval: 1,
+        endType: NoteRepeatEndType.afterCount,
+        endDate: DateTime(2026, 6, 30),
+        endCount: 2,
+        horizonEnd: DateTime(2026, 6, 30),
+      );
+
+      expect(generated, {DateTime(2026, 6, 1), DateTime(2026, 6, 2)});
     });
   });
 
@@ -159,6 +203,71 @@ void main() {
       expect(editScope, contains('repeat_entire_series_replace'));
     });
 
+    test('note recurrence until picker is isolated to End Repeat On Date', () {
+      final endRepeatRow = _sourceBetween(
+        calendarPage,
+        '// End Repeat row',
+        'DaySheetSpectrumColorPicker(',
+      );
+      expect(endRepeatRow, contains('RecurrenceUntilDatePicker.show'));
+      expect(endRepeatRow, contains('initialDate:'));
+      expect(endRepeatRow, contains('firstDate: gDay'));
+      expect(endRepeatRow, contains('lastDate: gDay.add'));
+      expect(endRepeatRow, contains('endDate = picked'));
+      expect(endRepeatRow, isNot(contains('await pickDateUniversal')));
+
+      final saveRepeatingNote = _sourceBetween(
+        calendarPage,
+        'Future<void> _saveRepeatingNoteAsHiddenFlow',
+        'Future<void> _triggerFlowSchedule',
+      );
+      expect(saveRepeatingNote, contains('_buildNoteRuleDates'));
+      expect(saveRepeatingNote, contains('endType: endType'));
+      expect(saveRepeatingNote, contains('endDate: endDate'));
+      expect(saveRepeatingNote, contains('CalendarPageState.ruleToJson(rule)'));
+    });
+
+    test('reminder date pickers use Stone Register wrappers only', () {
+      final reminderEditor = _sourceBetween(
+        calendarPage,
+        'Future<bool> _openReminderEditor',
+        'Future<void> _editReminderById',
+      );
+
+      expect(reminderEditor, isNot(contains('await pickDateUniversal')));
+      expect(reminderEditor, contains('RecurrenceUntilDatePicker.show'));
+      expect(reminderEditor, contains('StoneRegisterDateField<'));
+      expect(reminderEditor, contains('day_sheet_reminder_date_picker_field'));
+      expect(reminderEditor, contains('EventCreateDatePickerValue'));
+      expect(reminderEditor, contains('EventCreateDatePickerAdapter'));
+      expect(reminderEditor, contains('DateUtils.dateOnly(startLocal)'));
+      expect(reminderEditor, contains('onChanged: (picked)'));
+      expect(reminderEditor, contains('reminderDateMode = picked.mode'));
+      expect(reminderEditor, isNot(contains('DaySheetDateStepper')));
+
+      final repeatEndDate = _sourceBetween(
+        reminderEditor,
+        'if (repeat.kind != ReminderRepeatKind.none) ...[',
+        'DaySheetCategoryChips(',
+      );
+      expect(repeatEndDate, contains('RecurrenceUntilDatePicker.show'));
+      expect(repeatEndDate, contains('initialDate: endLocal ?? startLocal'));
+      expect(repeatEndDate, contains('allowPast: true'));
+      expect(repeatEndDate, contains('normalized.isBefore(minEnd)'));
+      expect(repeatEndDate, contains('? minEnd'));
+      expect(repeatEndDate, isNot(contains('await pickDateUniversal')));
+
+      expect(
+        reminderEditor,
+        contains(
+          'endLocal:\n                                      repeat.kind',
+        ),
+      );
+      expect(reminderEditor, contains(': endLocal'));
+      expect(reminderEditor, contains('_previewReminderLocally'));
+      expect(reminderEditor, contains('_upsertReminderRule(rule)'));
+    });
+
     test('shared calendar update fanout respects selected scope', () {
       final notifyScope = _sourceBetween(
         calendarPage,
@@ -179,10 +288,10 @@ void main() {
           "value == 'end_note'",
           "value == 'share'",
         );
-        final gridDelete = _sourceBetween(
+        final gridDetailCaller = _sourceBetween(
           gridWidgets,
-          "value == 'end_note'",
-          "value == 'share'",
+          'builder: (_) => CalendarEventDetailSheet(',
+          'onShareNote: onShareNote,',
         );
         final searchOpen = _sourceBetween(
           calendarPage,
@@ -191,7 +300,8 @@ void main() {
         );
 
         expect(dayViewDelete, contains('Navigator.pop(sheetContext)'));
-        expect(gridDelete, contains('Navigator.pop(sheetContext)'));
+        expect(dayViewDelete, contains('widget.onDeleteNote!'));
+        expect(gridDetailCaller, contains('onDeleteNote: onDeleteNote'));
         expect(
           searchOpen,
           contains('_eventDetailRestorationStateForSearchNote'),
@@ -209,7 +319,7 @@ void main() {
         final saveHandler = _sourceBetween(
           calendarPage,
           'else if (!isRepeating) {',
-          '} else {\n                                      // Repeating note',
+          '// Repeating note - create hidden flow',
         );
         final deleteFallback = _sourceBetween(
           calendarPage,

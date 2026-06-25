@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mobile/features/calendar/dawn_house_rite_flow.dart';
+import 'package:mobile/features/calendar/evening_threshold_rite_flow.dart';
 import 'package:mobile/features/calendar/maat_decan_flow.dart';
 import 'package:mobile/features/calendar/maat_flow_identity.dart';
 import 'package:mobile/features/calendar/moon_return_flow.dart';
@@ -142,6 +143,26 @@ void main() {
         MaatFlowKind.oracle,
       );
     });
+
+    test(
+      'resolves The Closing display and legacy Evening Threshold Rite name',
+      () {
+        expect(
+          resolveMaatFlowKind(flowName: kEveningThresholdRiteTitle),
+          MaatFlowKind.eveningThresholdRite,
+        );
+        expect(
+          resolveMaatFlowKind(flowName: kEveningThresholdRiteLegacyTitle),
+          MaatFlowKind.eveningThresholdRite,
+        );
+        expect(
+          resolveMaatFlowKind(
+            flowNotes: 'mode=gregorian;maat=evening-threshold-rite',
+          ),
+          MaatFlowKind.eveningThresholdRite,
+        );
+      },
+    );
 
     test('resolves action ids for migrated Ma’at families', () {
       expect(

@@ -1,11 +1,31 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 
 import '../core/global_side_drawer_metrics.dart';
+import '../features/calendar/kemetic_month_metadata.dart';
 import '../shared/glossy_text.dart';
+import 'kemetic_date_picker.dart' show KemeticMath;
 import 'inbox_icon_with_badge.dart';
+import 'month_name_text.dart';
 
 const Key globalMenuBubbleKey = ValueKey<String>('global-menu-bubble');
+const Key globalMenuBubbleSurfaceKey = ValueKey<String>(
+  'global-menu-bubble-surface',
+);
 const Key globalSideDrawerKey = ValueKey<String>('global-side-drawer');
+const Key globalSideDrawerDateHeaderKey = ValueKey<String>(
+  'global-side-drawer-date-header',
+);
+const Key globalSideDrawerDateMonthKey = ValueKey<String>(
+  'global-side-drawer-date-month',
+);
+const Key globalSideDrawerDateDayKey = ValueKey<String>(
+  'global-side-drawer-date-day',
+);
+const Key globalSideDrawerDateDividerKey = ValueKey<String>(
+  'global-side-drawer-date-divider',
+);
 const Key globalSideDrawerForegroundKey = ValueKey<String>(
   'global-side-drawer-foreground',
 );
@@ -16,6 +36,46 @@ const Duration globalSideDrawerTransitionDuration = Duration(milliseconds: 220);
 const Curve globalSideDrawerTransitionCurve = Curves.easeOutCubic;
 const double kGlobalSideDrawerGlyphColumnWidth = 46;
 const double kGlobalSideDrawerRowHeight = 50;
+const double _kGlobalSideDrawerRowGap = 2;
+const double _kGlobalSideDrawerHorizontalPadding = 10;
+const double _kGlobalSideDrawerVerticalPadding = 18;
+const double _kGlobalSideDrawerDesiredNavTopFraction = 0.30;
+const double _kGlobalSideDrawerMinHeaderHeight = 96;
+const double _kGlobalSideDrawerMinVisibleHeaderHeight = 52;
+const double _kGlobalSideDrawerDateHeaderBottomGap = 12;
+const double _kGlobalSideDrawerDateDividerBandHeight = 44;
+const double _kGlobalSideDrawerDateOpacity = 0.86;
+const Gradient _kGlobalSideDrawerDayGoldGloss = LinearGradient(
+  begin: Alignment.topCenter,
+  end: Alignment.bottomCenter,
+  colors: [Color(0xFFE6BE32), Color(0xFFC89710), Color(0xFF735109)],
+  stops: [0, 0.52, 1],
+);
+
+const GlobalMenuBubbleStyle globalTransparentMenuBubbleStyle =
+    GlobalMenuBubbleStyle(
+      size: 52,
+      left: 18,
+      bottom: 22,
+      background: RadialGradient(
+        center: Alignment(0, -0.3),
+        radius: 0.76,
+        colors: <Color>[Color.fromRGBO(245, 232, 203, 0.14), Color(0xFF120F08)],
+        stops: <double>[0, 0.6],
+      ),
+      borderColor: Color.fromRGBO(212, 174, 67, 0.18),
+      boxShadow: <BoxShadow>[
+        BoxShadow(
+          color: Color.fromRGBO(0, 0, 0, 0.55),
+          blurRadius: 30,
+          offset: Offset(0, 8),
+        ),
+      ],
+      glyphGradient: LinearGradient(
+        colors: <Color>[Color(0xFFD4AE43), Color(0xFFD4AE43)],
+      ),
+      glyphSize: 24,
+    );
 
 class GlobalSideDrawerItem {
   const GlobalSideDrawerItem({
@@ -51,17 +111,14 @@ class GlobalMenuBubble extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final bubbleStyle = style;
-    final size = bubbleStyle?.size ?? kGlobalMenuBubbleSize;
+    final bubbleStyle = style ?? globalTransparentMenuBubbleStyle;
+    final double size = bubbleStyle.size;
     final safePadding = MediaQuery.paddingOf(context);
-    final left = bubbleStyle == null
-        ? globalMenuBubbleLeft(context)
-        : bubbleStyle.left +
-              (bubbleStyle.respectSafeArea ? safePadding.left : 0);
-    final bottom = bubbleStyle == null
-        ? globalMenuBubbleBottom(context)
-        : bubbleStyle.bottom +
-              (bubbleStyle.respectSafeArea ? safePadding.bottom : 0);
+    final left =
+        bubbleStyle.left + (bubbleStyle.respectSafeArea ? safePadding.left : 0);
+    final bottom =
+        bubbleStyle.bottom +
+        (bubbleStyle.respectSafeArea ? safePadding.bottom : 0);
 
     return Positioned(
       left: left,
@@ -130,7 +187,7 @@ class _GlobalMenuBubbleSurface extends StatelessWidget {
     required this.onPressed,
   });
 
-  final GlobalMenuBubbleStyle? style;
+  final GlobalMenuBubbleStyle style;
   final VoidCallback onPressed;
 
   @override
@@ -138,21 +195,12 @@ class _GlobalMenuBubbleSurface extends StatelessWidget {
     final bubbleStyle = style;
     final glyph = GlossyGlyph(
       glyph: '𓉹',
-      gradient: bubbleStyle?.glyphGradient ?? goldGloss,
-      size: bubbleStyle?.glyphSize ?? 24,
+      gradient: bubbleStyle.glyphGradient,
+      size: bubbleStyle.glyphSize,
     );
 
-    if (bubbleStyle == null) {
-      return Material(
-        color: const Color(0xF6000000),
-        shape: const CircleBorder(),
-        elevation: 10,
-        shadowColor: const Color(0xB3000000),
-        child: _GlobalMenuBubbleInk(onPressed: onPressed, child: glyph),
-      );
-    }
-
     return DecoratedBox(
+      key: globalMenuBubbleSurfaceKey,
       decoration: BoxDecoration(
         shape: BoxShape.circle,
         gradient: bubbleStyle.background,
@@ -225,12 +273,12 @@ class GlobalSideDrawer extends StatelessWidget {
                 child: SafeArea(
                   right: false,
                   bottom: false,
-                  child: ListView.separated(
-                    padding: const EdgeInsets.fromLTRB(10, 18, 10, 18),
-                    itemCount: items.length,
-                    separatorBuilder: (_, _) => const SizedBox(height: 2),
-                    itemBuilder: (context, index) {
-                      return _GlobalSideDrawerRow(item: items[index]);
+                  child: LayoutBuilder(
+                    builder: (context, constraints) {
+                      return _GlobalSideDrawerBody(
+                        items: items,
+                        availableHeight: constraints.maxHeight,
+                      );
                     },
                   ),
                 ),
@@ -239,6 +287,347 @@ class GlobalSideDrawer extends StatelessWidget {
           ),
         ),
       ),
+    );
+  }
+}
+
+class _GlobalSideDrawerBody extends StatelessWidget {
+  const _GlobalSideDrawerBody({
+    required this.items,
+    required this.availableHeight,
+  });
+
+  final List<GlobalSideDrawerItem> items;
+  final double availableHeight;
+
+  @override
+  Widget build(BuildContext context) {
+    if (items.isEmpty) return const SizedBox.shrink();
+
+    final height = availableHeight.isFinite
+        ? availableHeight
+        : MediaQuery.sizeOf(context).height;
+    final navHeight = _drawerRowsHeight(items.length);
+    final usesScrollableFallback =
+        height <
+        navHeight +
+            _kGlobalSideDrawerVerticalPadding +
+            _kGlobalSideDrawerDateHeaderBottomGap +
+            _kGlobalSideDrawerMinVisibleHeaderHeight;
+
+    if (usesScrollableFallback) {
+      final headerHeight = (height * 0.28)
+          .clamp(_kGlobalSideDrawerMinHeaderHeight, 160.0)
+          .toDouble();
+      return SingleChildScrollView(
+        padding: const EdgeInsets.fromLTRB(
+          _kGlobalSideDrawerHorizontalPadding,
+          _kGlobalSideDrawerVerticalPadding,
+          _kGlobalSideDrawerHorizontalPadding,
+          _kGlobalSideDrawerVerticalPadding,
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            SizedBox(
+              height: headerHeight,
+              child: const _GlobalSideDrawerDateHeader(),
+            ),
+            const SizedBox(height: _kGlobalSideDrawerDateHeaderBottomGap),
+            _GlobalSideDrawerRows(items: items),
+          ],
+        ),
+      );
+    }
+
+    final maxNavTop = height - navHeight - _kGlobalSideDrawerVerticalPadding;
+    final navTop = (height * _kGlobalSideDrawerDesiredNavTopFraction)
+        .clamp(_kGlobalSideDrawerVerticalPadding, maxNavTop)
+        .toDouble();
+    final dateHeaderHeight = math
+        .max(0, navTop - _kGlobalSideDrawerDateDividerBandHeight)
+        .toDouble();
+    final dividerTop = dateHeaderHeight + (navTop - dateHeaderHeight - 1) / 2;
+
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        Positioned(
+          top: 0,
+          left: _kGlobalSideDrawerHorizontalPadding,
+          right: _kGlobalSideDrawerHorizontalPadding,
+          height: dateHeaderHeight,
+          child: const _GlobalSideDrawerDateHeader(),
+        ),
+        Positioned(
+          top: dividerTop,
+          left: _kGlobalSideDrawerHorizontalPadding,
+          right: _kGlobalSideDrawerHorizontalPadding,
+          child: const _GlobalSideDrawerDateDivider(),
+        ),
+        Positioned(
+          top: navTop,
+          left: _kGlobalSideDrawerHorizontalPadding,
+          right: _kGlobalSideDrawerHorizontalPadding,
+          height: navHeight,
+          child: _GlobalSideDrawerRows(items: items),
+        ),
+      ],
+    );
+  }
+}
+
+double _drawerRowsHeight(int itemCount) {
+  if (itemCount <= 0) return 0;
+  return itemCount * kGlobalSideDrawerRowHeight +
+      (itemCount - 1) * _kGlobalSideDrawerRowGap;
+}
+
+class _GlobalSideDrawerDateHeader extends StatelessWidget {
+  const _GlobalSideDrawerDateHeader();
+
+  @override
+  Widget build(BuildContext context) {
+    final today = KemeticMath.fromGregorian(DateTime.now());
+    final monthName = getMonthById(today.kMonth).displayShort.toUpperCase();
+    final dayNumber = '${today.kDay}';
+
+    return LayoutBuilder(
+      key: globalSideDrawerDateHeaderKey,
+      builder: (context, constraints) {
+        if (constraints.maxHeight < 52 || constraints.maxWidth <= 0) {
+          return const SizedBox.shrink();
+        }
+
+        final monthFontSize = constraints.maxHeight < 128 ? 23.0 : 27.5;
+        final monthStyle = TextStyle(
+          color: Colors.white,
+          fontSize: monthFontSize,
+          height: 1.02,
+          fontWeight: FontWeight.w600,
+          fontFamily: 'CormorantGaramond',
+          fontFamilyFallback: const ['GentiumPlus', 'NotoSans', 'Roboto'],
+          letterSpacing: 0.8,
+        );
+        final monthWidth = _textWidth(
+          monthName,
+          monthStyle,
+        ).clamp(44.0, constraints.maxWidth).toDouble();
+        const baseDayFontSize = 96.0;
+        final baseDayStyle = monthStyle.copyWith(
+          fontSize: baseDayFontSize,
+          height: 0.72,
+          fontWeight: FontWeight.w400,
+        );
+        final dayWidth = math.max(1, _textWidth(dayNumber, baseDayStyle));
+        final computedDayFontSize = baseDayFontSize * monthWidth / dayWidth;
+        final maxDayFontSize = math.max(
+          48.0,
+          math.min(152.0, constraints.maxHeight - monthFontSize - 6),
+        );
+        final minDayFontSize = math.min(62.0, maxDayFontSize);
+        final dayFontSize = computedDayFontSize
+            .clamp(minDayFontSize, maxDayFontSize)
+            .toDouble();
+        final dayStyle = baseDayStyle.copyWith(fontSize: dayFontSize);
+        final dayVisualHeight = (dayFontSize * 0.56).clamp(42.0, 88.0);
+        final dayTop = math.max(0.0, monthFontSize - 3);
+        final dateBlockHeight = dayTop + dayVisualHeight;
+
+        return Center(
+          child: Opacity(
+            opacity: _kGlobalSideDrawerDateOpacity,
+            child: FittedBox(
+              fit: BoxFit.scaleDown,
+              child: SizedBox(
+                width: constraints.maxWidth,
+                height: dateBlockHeight,
+                child: Stack(
+                  alignment: Alignment.topCenter,
+                  clipBehavior: Clip.none,
+                  children: [
+                    Positioned(
+                      top: 0,
+                      child: Transform.scale(
+                        scaleY: 1.08,
+                        alignment: Alignment.center,
+                        child: _GlobalSideDrawerDateMonthText(
+                          monthName,
+                          style: monthStyle,
+                        ),
+                      ),
+                    ),
+                    Positioned(
+                      top: dayTop,
+                      child: SizedBox(
+                        width: constraints.maxWidth,
+                        height: dayVisualHeight,
+                        child: OverflowBox(
+                          minHeight: 0,
+                          maxWidth: constraints.maxWidth,
+                          maxHeight: dayFontSize,
+                          alignment: Alignment.center,
+                          child: Transform.scale(
+                            scaleX: 0.94,
+                            scaleY: 0.72,
+                            alignment: Alignment.center,
+                            child: _GlobalSideDrawerDateDayText(
+                              key: globalSideDrawerDateDayKey,
+                              text: dayNumber,
+                              style: dayStyle,
+                              gradient: _kGlobalSideDrawerDayGoldGloss,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+}
+
+class _GlobalSideDrawerDateDayText extends StatelessWidget {
+  const _GlobalSideDrawerDateDayText({
+    super.key,
+    required this.text,
+    required this.style,
+    required this.gradient,
+  });
+
+  final String text;
+  final TextStyle style;
+  final Gradient gradient;
+
+  @override
+  Widget build(BuildContext context) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final fontSize = style.fontSize ?? 96;
+        final width = constraints.maxWidth.isFinite && constraints.maxWidth > 0
+            ? constraints.maxWidth
+            : _textWidth(text, style);
+        final bounds = Rect.fromLTWH(0, 0, width, fontSize * 1.1);
+        final paint = Paint()..shader = gradient.createShader(bounds);
+
+        return RepaintBoundary(
+          child: Text(
+            text,
+            style: style.copyWith(
+              foreground: paint,
+              shadows: null,
+              letterSpacing: style.letterSpacing ?? 0,
+            ),
+            maxLines: 1,
+            softWrap: false,
+            overflow: TextOverflow.visible,
+            textAlign: TextAlign.center,
+            textHeightBehavior: const TextHeightBehavior(
+              applyHeightToFirstAscent: false,
+              applyHeightToLastDescent: false,
+            ),
+          ),
+        );
+      },
+    );
+  }
+}
+
+class _GlobalSideDrawerDateDivider extends StatelessWidget {
+  const _GlobalSideDrawerDateDivider();
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: FractionallySizedBox(
+        widthFactor: 0.72,
+        child: SizedBox(
+          key: globalSideDrawerDateDividerKey,
+          height: 0.75,
+          child: DecoratedBox(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: [
+                  KemeticGold.base.withValues(alpha: 0),
+                  KemeticGold.light.withValues(alpha: 0.42),
+                  KemeticGold.base.withValues(alpha: 0.50),
+                  KemeticGold.deep.withValues(alpha: 0.30),
+                  KemeticGold.base.withValues(alpha: 0),
+                ],
+                stops: const [0, 0.18, 0.50, 0.82, 1],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+double _textWidth(String text, TextStyle style) {
+  final painter = TextPainter(
+    text: TextSpan(text: text, style: style),
+    maxLines: 1,
+    textDirection: TextDirection.ltr,
+  )..layout();
+  return painter.width;
+}
+
+class _GlobalSideDrawerDateMonthText extends StatelessWidget {
+  const _GlobalSideDrawerDateMonthText(this.text, {required this.style});
+
+  final String text;
+  final TextStyle style;
+
+  @override
+  Widget build(BuildContext context) {
+    final masked = style.copyWith(
+      color: const Color(0xFFFFFFFF),
+      fontSize: (style.fontSize ?? 20).roundToDouble(),
+      letterSpacing: style.letterSpacing,
+      height: style.height,
+      shadows: null,
+    );
+
+    return RepaintBoundary(
+      child: ShaderMask(
+        shaderCallback: (bounds) => goldGloss.createShader(bounds),
+        blendMode: BlendMode.srcIn,
+        child: MonthNameText(
+          text,
+          key: globalSideDrawerDateMonthKey,
+          style: masked,
+          maxLines: 1,
+          softWrap: false,
+          overflow: TextOverflow.fade,
+          textAlign: TextAlign.center,
+        ),
+      ),
+    );
+  }
+}
+
+class _GlobalSideDrawerRows extends StatelessWidget {
+  const _GlobalSideDrawerRows({required this.items});
+
+  final List<GlobalSideDrawerItem> items;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        for (var index = 0; index < items.length; index++) ...[
+          _GlobalSideDrawerRow(item: items[index]),
+          if (index != items.length - 1)
+            const SizedBox(height: _kGlobalSideDrawerRowGap),
+        ],
+      ],
     );
   }
 }

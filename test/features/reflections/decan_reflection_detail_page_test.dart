@@ -22,6 +22,30 @@ void main() {
     },
   );
 
+  test(
+    'reflection suggested Ma’at flows keep exact Flow Studio template routing',
+    () async {
+      final source = await File(
+        'lib/features/reflections/decan_reflection_detail_page.dart',
+      ).readAsString();
+
+      expect(source, contains("case 'flow_template':"));
+      expect(source, contains("'mode': 'maatTemplate'"));
+      expect(source, contains("'templateKey': cta.ref"));
+      expect(source, contains("case 'flow_personalized':"));
+      expect(
+        source,
+        contains(
+          "'mode': cta.fallbackRef == null ? 'maatFlows' : 'maatTemplate'",
+        ),
+      );
+      expect(
+        source,
+        contains("if (cta.fallbackRef != null) 'templateKey': cta.fallbackRef"),
+      );
+    },
+  );
+
   testWidgets(
     'fallback node chip renders and routes while primary flow CTA remains',
     (tester) async {

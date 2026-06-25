@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import 'birthday_calendar.dart';
 import 'event_filing_engine.dart';
 import 'user_events_repo.dart';
 
@@ -80,6 +81,33 @@ class EventFilingRepo {
     } catch (e) {
       _log('getEventCabinet failed: $e');
       rethrow;
+    }
+
+    try {
+      final birthdayOccurrences = await BirthdayCalendarRepo(_client)
+          .getUpcomingOccurrences(
+            calendarId: trimmedCalendarId,
+            startsOnOrAfterUtc: startsOnOrAfterUtc,
+          );
+      rows.addAll(
+        birthdayOccurrences.map(
+          (occurrence) => occurrence.toFilingBackendRow(),
+        ),
+      );
+    } catch (e) {
+      _log('birthday occurrence merge failed: $e');
+    }
+
+    if (boundedMaxRows != null && rows.length > boundedMaxRows) {
+      rows.sort((a, b) {
+        final aStart = DateTime.tryParse(a['starts_at']?.toString() ?? '');
+        final bStart = DateTime.tryParse(b['starts_at']?.toString() ?? '');
+        final byStart = (aStart ?? DateTime.fromMillisecondsSinceEpoch(0))
+            .compareTo(bStart ?? DateTime.fromMillisecondsSinceEpoch(0));
+        if (byStart != 0) return byStart;
+        return (a['id']?.toString() ?? '').compareTo(b['id']?.toString() ?? '');
+      });
+      rows.removeRange(boundedMaxRows, rows.length);
     }
 
     return FiledEventCabinet.fromBackendRows(rows);

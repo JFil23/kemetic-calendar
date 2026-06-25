@@ -7,6 +7,36 @@ import 'package:mobile/core/completion_badge_style.dart';
 import 'package:mobile/core/completion_status.dart';
 import 'package:mobile/features/journal/journal_event_badge.dart';
 
+const Duration kCalendarCompletionFeedbackDelay = Duration(milliseconds: 500);
+
+bool calendarCompletionStatusTriggersFeedback(CompletionStatus status) {
+  return status == CompletionStatus.observed ||
+      status == CompletionStatus.partial ||
+      status == CompletionStatus.skipped;
+}
+
+class CalendarCompletionFeedbackScheduler {
+  Timer? _timer;
+
+  void schedule(CompletionStatus status, VoidCallback callback) {
+    cancel();
+    if (!calendarCompletionStatusTriggersFeedback(status)) return;
+    _timer = Timer(kCalendarCompletionFeedbackDelay, () {
+      _timer = null;
+      callback();
+    });
+  }
+
+  void cancel() {
+    _timer?.cancel();
+    _timer = null;
+  }
+
+  void dispose() {
+    cancel();
+  }
+}
+
 class CalendarCompletionRecord {
   const CalendarCompletionRecord({
     required this.completionStatus,
@@ -210,6 +240,7 @@ class CalendarCompletionPicker extends StatelessWidget {
     this.showPartial = true,
     this.onReflect,
     this.observedButtonKey,
+    this.leadingContent,
     this.style,
   });
 
@@ -220,6 +251,7 @@ class CalendarCompletionPicker extends StatelessWidget {
   final bool showPartial;
   final VoidCallback? onReflect;
   final Key? observedButtonKey;
+  final Widget? leadingContent;
   final CalendarCompletionPickerStyle? style;
 
   @override
@@ -250,6 +282,10 @@ class CalendarCompletionPicker extends StatelessWidget {
             ),
           ),
           SizedBox(height: pickerStyle.labelGap),
+          if (leadingContent != null) ...[
+            leadingContent!,
+            SizedBox(height: pickerStyle.labelGap),
+          ],
           Row(
             children: [
               _CompletionStatusButton(
@@ -346,6 +382,8 @@ class _CalendarEventCompletionPanelState
   CompletionStatus _status = CompletionStatus.none;
   bool _loading = true;
   bool _saving = false;
+  final CalendarCompletionFeedbackScheduler _completionFeedbackScheduler =
+      CalendarCompletionFeedbackScheduler();
 
   @override
   void initState() {
@@ -356,10 +394,34 @@ class _CalendarEventCompletionPanelState
   @override
   void didUpdateWidget(covariant CalendarEventCompletionPanel oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.identity != widget.identity ||
-        oldWidget.reloadSignal != widget.reloadSignal) {
+    if (oldWidget.identity != widget.identity) {
+      _cancelCompletionFeedback();
+      _load();
+    } else if (oldWidget.reloadSignal != widget.reloadSignal) {
       _load();
     }
+  }
+
+  @override
+  void dispose() {
+    _completionFeedbackScheduler.dispose();
+    super.dispose();
+  }
+
+  void _cancelCompletionFeedback() {
+    _completionFeedbackScheduler.cancel();
+  }
+
+  void _scheduleCompletionFeedback(CompletionStatus status) {
+    final callback = widget.onUserCompletionFeedback;
+    if (callback == null) {
+      _cancelCompletionFeedback();
+      return;
+    }
+    _completionFeedbackScheduler.schedule(status, () {
+      if (!mounted) return;
+      callback(status);
+    });
   }
 
   Future<void> _load() async {
@@ -389,6 +451,7 @@ class _CalendarEventCompletionPanelState
   Future<void> _record(CompletionStatus status) async {
     if (_saving) return;
     setState(() => _saving = true);
+    _scheduleCompletionFeedback(status);
     try {
       if (status == CompletionStatus.none) {
         if (widget.onClearStatus != null) {
@@ -408,11 +471,8 @@ class _CalendarEventCompletionPanelState
         _status = status;
         _saving = false;
       });
-      if (status == CompletionStatus.observed ||
-          status == CompletionStatus.partial) {
-        widget.onUserCompletionFeedback?.call(status);
-      }
     } catch (_) {
+      _cancelCompletionFeedback();
       if (!mounted) return;
       setState(() => _saving = false);
       ScaffoldMessenger.maybeOf(context)?.showSnackBar(

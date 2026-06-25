@@ -366,7 +366,19 @@ void main() {
           'Future<void> _loadFromDisk({',
           '/// Allows other screens',
         );
-        expect(loadFromDisk, contains('_notes\n        ..clear()'));
+        expect(loadFromDisk, contains('hasPaintedStandaloneLaneAtLoadStart'));
+        expect(
+          loadFromDisk,
+          contains('commitVisibleCalendarState(String phase)'),
+        );
+        expect(loadFromDisk, contains('preservePaintedStandaloneLane'));
+        expect(
+          loadFromDisk,
+          contains('_mergePaintedStandaloneLaneInto(newNotes)'),
+        );
+        expect(loadFromDisk, contains('dedupedNotes'));
+        expect(loadFromDisk, contains('_notes\n          ..clear()'));
+        expect(loadFromDisk, contains('..addAll(dedupedNotes)'));
         expect(
           loadFromDisk,
           contains(

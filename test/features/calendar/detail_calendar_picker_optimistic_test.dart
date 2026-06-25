@@ -45,12 +45,9 @@ void main() {
     ).readAsStringSync();
 
     expect(dayView, contains('onOptimisticTargetChanged: (optimisticTarget)'));
-    expect(dayView, contains('onTargetChanged(optimisticTarget);'));
-    expect(
-      landscape,
-      contains('onOptimisticTargetChanged: (optimisticTarget)'),
-    );
-    expect(landscape, contains('onTargetChanged(optimisticTarget);'));
+    expect(dayView, contains('_moveToTarget(optimisticTarget);'));
+    expect(landscape, contains('CalendarEventDetailSheet('));
+    expect(landscape, contains('onTargetChanged: moveToTarget'));
   });
 }
 

@@ -3,9 +3,12 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:mobile/data/share_models.dart';
+import 'package:mobile/features/calendar/kemetic_month_metadata.dart';
 import 'package:mobile/features/calendar/calendar_page.dart'
-    show debugBuildFlowStudioPageForTest;
+    show ImportFlowData, KemeticMath, debugBuildFlowStudioPageForTest;
 import 'package:mobile/models/ai_flow_generation_response.dart';
+import 'package:mobile/shared/date_picker/kemetic_picker_labels.dart';
 import 'package:mobile/services/ai_flow_generation_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -138,6 +141,7 @@ void main() {
     await _pumpFlowStudio(tester);
 
     expect(savedResult, isNotNull);
+    expect(savedResult.savedFlow.isSaved, isFalse);
     final planned = List<dynamic>.from(savedResult.plannedNotes as Iterable);
     expect(planned, hasLength(1));
     final savedNote = planned.single.note;
@@ -151,6 +155,174 @@ void main() {
       planned.map((plannedNote) => plannedNote.note.detail),
       isNot(contains('This detail must not save')),
     );
+
+    await _closeFlowStudio(tester);
+  });
+
+  testWidgets('manual no-schedule save creates a saved template payload', (
+    tester,
+  ) async {
+    _useLargeSurface(tester);
+    dynamic savedResult;
+    await _openFlowStudio(
+      tester,
+      onRouteResult: (result) async {
+        savedResult = result;
+      },
+    );
+
+    await tester.enterText(_nameField(), 'CODEX_NO_SCHEDULE_FLOW_VISIBILITY');
+    await tester.tap(find.text('Save').first);
+    await _pumpFlowStudio(tester);
+
+    expect(savedResult, isNotNull);
+    expect(savedResult.savedFlow.name, 'CODEX_NO_SCHEDULE_FLOW_VISIBILITY');
+    expect(savedResult.savedFlow.active, isTrue);
+    expect(savedResult.savedFlow.isSaved, isTrue);
+    expect(savedResult.savedFlow.start, isNull);
+    expect(savedResult.savedFlow.end, isNull);
+    expect(savedResult.savedFlow.rules, isEmpty);
+    expect(List<dynamic>.from(savedResult.plannedNotes as Iterable), isEmpty);
+
+    await _closeFlowStudio(tester);
+  });
+
+  testWidgets('shared import snapshot events save without weekday selection', (
+    tester,
+  ) async {
+    _useLargeSurface(tester);
+    dynamic savedResult;
+    final importData = _buildSharedImportData(
+      events: const [
+        {
+          'offset_days': 0,
+          'title': 'CODEX_INBOX_IMPORT_SMOKE opening',
+          'detail': 'first imported snapshot',
+          'location': 'Audit room',
+          'all_day': false,
+          'start_time': '09:15',
+          'end_time': '10:00',
+          'action_id': 'tap-one',
+          'behavior_payload': {'kind': 'tap'},
+        },
+        {
+          'offset_days': 1,
+          'title': 'CODEX_INBOX_IMPORT_SMOKE closing',
+          'detail': 'second imported snapshot',
+          'all_day': false,
+          'start_time': '18:30',
+          'end_time': '19:05',
+        },
+      ],
+    );
+
+    await _openFlowStudio(
+      tester,
+      importData: importData,
+      onRouteResult: (result) async {
+        savedResult = result;
+      },
+    );
+
+    await tester.tap(find.text('Save').first);
+    await _pumpFlowStudio(tester);
+
+    expect(savedResult, isNotNull);
+    expect(savedResult.savedFlow.name, 'CODEX_INBOX_IMPORT_SMOKE');
+    expect(savedResult.savedFlow.isSaved, isFalse);
+    expect(savedResult.savedFlow.shareId, _testShareId);
+    expect(savedResult.originType, 'share_import');
+    expect(savedResult.originFlowId, 765);
+    expect(savedResult.rootFlowId, 765);
+    expect(savedResult.originShareId, _testShareId);
+    expect(savedResult.savedFlow.rules, isEmpty);
+
+    final planned = List<dynamic>.from(savedResult.plannedNotes as Iterable);
+    expect(planned, hasLength(2));
+    expect(
+      planned.map((plannedNote) => plannedNote.note.title),
+      containsAll(<String>[
+        'CODEX_INBOX_IMPORT_SMOKE opening',
+        'CODEX_INBOX_IMPORT_SMOKE closing',
+      ]),
+    );
+
+    final opening = planned.firstWhere(
+      (plannedNote) =>
+          plannedNote.note.title == 'CODEX_INBOX_IMPORT_SMOKE opening',
+    );
+    expect(opening.note.detail, 'first imported snapshot');
+    expect(opening.note.location, 'Audit room');
+    expect(opening.note.allDay, isFalse);
+    expect(opening.note.start.hour, 9);
+    expect(opening.note.start.minute, 15);
+    expect(opening.note.end.hour, 10);
+    expect(opening.note.end.minute, 0);
+    expect(opening.note.actionId, 'tap-one');
+    expect(opening.note.behaviorPayload, {'kind': 'tap'});
+
+    await _closeFlowStudio(tester);
+  });
+
+  testWidgets('no-schedule shared import saves as a findable template', (
+    tester,
+  ) async {
+    _useLargeSurface(tester);
+    dynamic savedResult;
+    final importData = _buildSharedImportData(events: const []);
+
+    await _openFlowStudio(
+      tester,
+      importData: importData,
+      onRouteResult: (result) async {
+        savedResult = result;
+      },
+    );
+
+    await tester.tap(find.text('Save').first);
+    await _pumpFlowStudio(tester);
+
+    expect(savedResult, isNotNull);
+    expect(savedResult.savedFlow.name, 'CODEX_INBOX_IMPORT_SMOKE');
+    expect(savedResult.savedFlow.active, isTrue);
+    expect(savedResult.savedFlow.isSaved, isTrue);
+    expect(savedResult.savedFlow.shareId, _testShareId);
+    expect(savedResult.originType, 'share_import');
+    expect(savedResult.originShareId, _testShareId);
+    expect(savedResult.savedFlow.rules, isEmpty);
+    expect(List<dynamic>.from(savedResult.plannedNotes as Iterable), isEmpty);
+
+    await _closeFlowStudio(tester);
+  });
+
+  testWidgets('imported edit toolbar fits narrow mobile width', (tester) async {
+    _useMobilePortraitSurface(tester);
+    final draft = _buildDraft(
+      name: 'CODEX_INBOX_IMPORT_SMOKE',
+      editingFlowId: 771,
+      startDate: DateTime(2026, 6, 21),
+      endDate: DateTime(2026, 6, 22),
+    );
+
+    await _openFlowStudio(
+      tester,
+      initialDraftJson: draft,
+      debugHasExistingFlows: true,
+    );
+
+    expect(tester.takeException(), isNull);
+    expect(find.byTooltip('Close'), findsOneWidget);
+    expect(find.byTooltip('Delete'), findsOneWidget);
+    expect(find.byTooltip('Flows menu'), findsOneWidget);
+    expect(find.byIcon(Icons.auto_awesome), findsAtLeastNWidgets(1));
+    expect(find.text('Save'), findsOneWidget);
+
+    await tester.tap(find.byTooltip('Flows menu'));
+    await tester.pumpAndSettle();
+    expect(tester.takeException(), isNull);
+    expect(find.text('Find / Edit flows...'), findsOneWidget);
+    expect(find.text('New flow'), findsOneWidget);
+    expect(find.text('Reset fields'), findsOneWidget);
 
     await _closeFlowStudio(tester);
   });
@@ -188,6 +360,127 @@ void main() {
 
     await _closeFlowStudio(tester);
   });
+
+  testWidgets(
+    'build date picker opens with Gregorian value and preserves Cancel Done reopen on small phone',
+    (tester) async {
+      _useMobilePortraitSurface(tester);
+      final start = DateTime(2026, 6, 15);
+      final end = DateTime(2026, 6, 21);
+      final draft = _buildDraft(startDate: start, endDate: end);
+      await _openFlowStudio(tester, initialDraftJson: draft);
+
+      expect(find.text(_dateLabel(start)), findsOneWidget);
+      expect(find.text(_dateLabel(end)), findsOneWidget);
+
+      await _tapOutlinedDateButton(tester, _dateLabel(start));
+      expect(find.text('Pick Gregorian date'), findsOneWidget);
+      expect(find.text('Gregorian Calendar'), findsOneWidget);
+      expect(find.text('June'), findsWidgets);
+      expect(find.text('15'), findsWidgets);
+      expect(find.text('2026'), findsWidgets);
+      expect(tester.takeException(), isNull);
+
+      await _tapPickerCancel(tester);
+      expect(find.text(_dateLabel(start)), findsOneWidget);
+      expect(find.text(_dateLabel(end)), findsOneWidget);
+      expect(find.text('Save Flow'), findsOneWidget);
+
+      await _tapOutlinedDateButton(tester, _dateLabel(start));
+      await _tapPickerDone(tester);
+      expect(tester.takeException(), isNull);
+      expect(find.text(_dateLabel(start)), findsOneWidget);
+      expect(find.text(_dateLabel(end)), findsOneWidget);
+
+      await _tapOutlinedDateButton(tester, _dateLabel(start));
+      expect(find.text('Pick Gregorian date'), findsOneWidget);
+      expect(find.text('June'), findsWidgets);
+      expect(find.text('15'), findsWidgets);
+      expect(find.text('2026'), findsWidgets);
+      await _tapPickerCancel(tester);
+
+      await _closeFlowStudio(tester);
+    },
+  );
+
+  testWidgets(
+    'build Kemetic date picker uses app conversion and preserves Done result',
+    (tester) async {
+      _useLargeSurface(tester);
+      final start = DateTime(2026, 6, 15);
+      final end = DateTime(2026, 6, 21);
+      final draft = _buildDraft(startDate: start, endDate: end);
+      await _openFlowStudio(tester, initialDraftJson: draft);
+
+      await tester.tap(find.text('Kemetic'));
+      await _pumpFlowStudio(tester);
+
+      final startLabel = _kemeticLabel(start);
+      final startK = KemeticMath.fromGregorian(start);
+      expect(find.text(startLabel), findsOneWidget);
+
+      await _tapOutlinedDateButton(tester, startLabel);
+      expect(find.text('Pick Kemetic date'), findsOneWidget);
+      expect(find.text('Kemetic Calendar'), findsOneWidget);
+      expect(find.text(kemeticPickerMonthLabel(startK.kMonth)), findsWidgets);
+      expect(find.text('${startK.kDay}'), findsWidgets);
+
+      await _tapPickerDone(tester);
+      expect(find.text(startLabel), findsOneWidget);
+
+      await tester.tap(find.text('Gregorian'));
+      await _pumpFlowStudio(tester);
+      expect(find.text(_dateLabel(start)), findsOneWidget);
+      expect(find.text(_dateLabel(end)), findsOneWidget);
+
+      await _closeFlowStudio(tester);
+    },
+  );
+
+  testWidgets(
+    'compose date picker preserves prompt Cancel Done and reopen behavior',
+    (tester) async {
+      _useLargeSurface(tester);
+      final start = DateTime(2026, 6, 13);
+      final end = DateTime(2026, 6, 22);
+      final draft = _buildDraft(
+        studioMode: 'compose',
+        composePrompt: 'practice piano',
+        startDate: start,
+        endDate: end,
+      );
+      await _openFlowStudio(tester, initialDraftJson: draft);
+
+      expect(find.text('practice piano'), findsOneWidget);
+      expect(find.text(_dateLabel(start)), findsOneWidget);
+      expect(find.text(_dateLabel(end)), findsOneWidget);
+      expect(find.text('Shape this flow'), findsOneWidget);
+
+      await _tapOutlinedDateButton(tester, _dateLabel(start));
+      expect(find.text('Pick Gregorian date'), findsOneWidget);
+      expect(find.text('Gregorian Calendar'), findsOneWidget);
+      await _tapPickerCancel(tester);
+      expect(find.text('practice piano'), findsOneWidget);
+      expect(find.text(_dateLabel(start)), findsOneWidget);
+      expect(find.text(_dateLabel(end)), findsOneWidget);
+
+      await _tapOutlinedDateButton(tester, _dateLabel(end));
+      await _tapPickerDone(tester);
+      expect(find.text('practice piano'), findsOneWidget);
+      expect(find.text(_dateLabel(start)), findsOneWidget);
+      expect(find.text(_dateLabel(end)), findsOneWidget);
+      expect(find.text('Use prompt duration'), findsOneWidget);
+
+      await _tapOutlinedDateButton(tester, _dateLabel(end));
+      expect(find.text('Pick Gregorian date'), findsOneWidget);
+      expect(find.text('June'), findsWidgets);
+      expect(find.text('22'), findsWidgets);
+      expect(find.text('2026'), findsWidgets);
+      await _tapPickerCancel(tester);
+
+      await _closeFlowStudio(tester);
+    },
+  );
 
   testWidgets('Compose failure preserves prompt and exposes manual recovery', (
     tester,
@@ -363,7 +656,7 @@ void main() {
       onRouteResult: (result) async {
         savedResult = result;
       },
-      debugTimePicker: (_, __) async => pickedTimes.removeAt(0),
+      debugTimePicker: (_, _) async => pickedTimes.removeAt(0),
     );
 
     await tester.tap(find.byKey(const ValueKey('flow-studio-shape-cta')));
@@ -533,6 +826,32 @@ void main() {
     expect(pickEndBody, contains('_showFlowTimePicker'));
     expect(pickEndBody, contains('_schedulePersistentDraftSave();'));
 
+    final pickGregorianDateBody = _sliceBetween(
+      source,
+      'Future<DateTime?> _pickGregorianDate',
+      'Future<DateTime?> _pickKemeticDate',
+    );
+    expect(pickGregorianDateBody, contains('showGregorianDatePicker'));
+    expect(pickGregorianDateBody, isNot(contains('showModalBottomSheet')));
+
+    final pickKemeticDateBody = _sliceBetween(
+      source,
+      'Future<DateTime?> _pickKemeticDate',
+      'Future<void> _pickRangeStart',
+    );
+    expect(pickKemeticDateBody, contains('showKemeticDatePicker'));
+    expect(pickKemeticDateBody, isNot(contains('showModalBottomSheet')));
+
+    final rebuildBody = _sliceBetween(
+      source,
+      'void _rebuildSpans()',
+      '// Kemetic decans present',
+    );
+    expect(
+      rebuildBody,
+      contains('if (_hasFullRange && _endDate!.isBefore(_startDate!))'),
+    );
+
     final aiGeneratedLoadBody = _sliceBetween(
       source,
       'Future<void> _loadAIGeneratedFlow(int flowId) async',
@@ -571,8 +890,16 @@ void main() {
       '/// Schedules all note occurrences for a flow to the calendar',
     );
     expect(persistBody, contains('rollbackNewFlowSave'));
+    expect(persistBody, contains('isSaved: r.savedFlow!.isSaved'));
     expect(persistBody, contains("deleteScope: 'failed_new_flow_save'"));
     expect(persistBody, contains('await commitGenerationIfNeeded();'));
+
+    final headlessPersistBody = _sliceBetween(
+      calendar,
+      'static Future<int?> _persistFlowStudioResultHeadless',
+      'static Future<int?> importFlowFromShare',
+    );
+    expect(headlessPersistBody, contains('isSaved: f.isSaved'));
   });
 }
 
@@ -699,6 +1026,8 @@ T testerWidget<T extends Widget>(Finder finder) {
 }
 
 Map<String, dynamic> _buildDraft({
+  String name = '',
+  int? editingFlowId,
   String studioMode = 'build',
   required DateTime startDate,
   required DateTime endDate,
@@ -707,7 +1036,8 @@ Map<String, dynamic> _buildDraft({
   String date(DateTime value) => DateUtils.dateOnly(value).toIso8601String();
 
   return <String, dynamic>{
-    'name': '',
+    'editingFlowId': editingFlowId,
+    'name': name,
     'active': true,
     'selectedColorIndex': 0,
     'studioMode': studioMode,
@@ -739,7 +1069,9 @@ Map<String, dynamic> _buildDraft({
 
 Future<void> _openFlowStudio(
   WidgetTester tester, {
+  ImportFlowData? importData,
   Map<String, dynamic>? initialDraftJson,
+  bool debugHasExistingFlows = false,
   Future<void> Function(dynamic result)? onRouteResult,
   Future<TimeOfDay?> Function(BuildContext context, TimeOfDay initialTime)?
   debugTimePicker,
@@ -747,7 +1079,9 @@ Future<void> _openFlowStudio(
   await tester.pumpWidget(
     MaterialApp(
       home: debugBuildFlowStudioPageForTest(
+        importData: importData,
         initialDraftJson: initialDraftJson,
+        debugHasExistingFlows: debugHasExistingFlows,
         onRouteResult: onRouteResult,
         debugTimePicker: debugTimePicker,
       ),
@@ -769,6 +1103,25 @@ Future<void> _tapChip(WidgetTester tester, String label) async {
   await _pumpFlowStudio(tester);
 }
 
+Future<void> _tapOutlinedDateButton(WidgetTester tester, String label) async {
+  final button = find.widgetWithText(OutlinedButton, label);
+  expect(button, findsAtLeastNWidgets(1));
+  await tester.ensureVisible(button.first);
+  await tester.pump();
+  await tester.tap(button.first, warnIfMissed: false);
+  await tester.pumpAndSettle();
+}
+
+Future<void> _tapPickerCancel(WidgetTester tester) async {
+  await tester.tap(find.widgetWithText(OutlinedButton, 'Cancel'));
+  await tester.pumpAndSettle();
+}
+
+Future<void> _tapPickerDone(WidgetTester tester) async {
+  await tester.tap(find.widgetWithText(ElevatedButton, 'Done'));
+  await tester.pumpAndSettle();
+}
+
 Future<void> _pumpFlowStudio(
   WidgetTester tester, [
   Duration duration = const Duration(milliseconds: 250),
@@ -784,6 +1137,77 @@ void _useLargeSurface(WidgetTester tester) {
     tester.view.resetPhysicalSize();
     tester.view.resetDevicePixelRatio();
   });
+}
+
+void _useMobilePortraitSurface(WidgetTester tester) {
+  tester.view.physicalSize = const Size(393, 852);
+  tester.view.devicePixelRatio = 1;
+  addTearDown(() {
+    tester.view.resetPhysicalSize();
+    tester.view.resetDevicePixelRatio();
+  });
+}
+
+String _dateLabel(DateTime value) {
+  final date = DateUtils.dateOnly(value);
+  return '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
+}
+
+String _kemeticLabel(DateTime value) {
+  final k = KemeticMath.fromGregorian(DateUtils.dateOnly(value));
+  final month = getMonthById(k.kMonth).displayFull;
+  final yearLabel = _gregYearLabelForTest(k.kYear, k.kMonth);
+  return '$month ${k.kDay} • $yearLabel';
+}
+
+String _gregYearLabelForTest(int kYear, int kMonth) {
+  final lastDay = (kMonth == 13)
+      ? (KemeticMath.isLeapKemeticYear(kYear) ? 6 : 5)
+      : 30;
+  final yStart = KemeticMath.toGregorian(kYear, kMonth, 1).year;
+  final yEnd = KemeticMath.toGregorian(kYear, kMonth, lastDay).year;
+  return yStart == yEnd ? '$yStart' : '$yStart/$yEnd';
+}
+
+const _testShareId = '11111111-1111-4111-8111-111111111111';
+
+ImportFlowData _buildSharedImportData({
+  required List<Map<String, dynamic>> events,
+}) {
+  final share = InboxShareItem(
+    shareId: _testShareId,
+    kind: InboxShareKind.flow,
+    recipientId: 'recipient',
+    senderId: 'sender',
+    payloadId: '765',
+    title: 'CODEX_INBOX_IMPORT_SMOKE',
+    createdAt: DateTime.utc(2026, 6, 19),
+    suggestedSchedule: SuggestedSchedule(
+      startDate: '2026-06-19',
+      weekdays: const [],
+    ),
+    payloadJson: {
+      'flow_id': 765,
+      'name': 'CODEX_INBOX_IMPORT_SMOKE',
+      'color': 0xFF4DD0E1,
+      'notes': '',
+      'rules': const [],
+      'events': events,
+    },
+  );
+
+  return ImportFlowData(
+    share: share,
+    name: 'CODEX_INBOX_IMPORT_SMOKE',
+    color: 0xFF4DD0E1,
+    notes: '',
+    rules: const [],
+    suggestedStartDate: DateTime(2026, 6, 19),
+    suggestedEndDate: events.isEmpty ? null : DateTime(2026, 6, 20),
+    originFlowId: 765,
+    rootFlowId: 765,
+    originType: 'share_import',
+  );
 }
 
 String _sliceBetween(String source, String startNeedle, String endNeedle) {

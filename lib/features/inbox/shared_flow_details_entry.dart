@@ -49,22 +49,6 @@ class _SharedFlowDetailsEntryState extends State<SharedFlowDetailsEntry> {
       debugPrint('  payload keys=${payload?.keys.toList()}');
     }
 
-    if (hasValidPayload) {
-      // ---------------------------------------------------
-      // 2. USE PAYLOAD MODE → no DB calls at all
-      // Always prefer payload when present (sender's snapshot)
-      // ---------------------------------------------------
-      _usePayloadMode = true;
-      _flowIdFuture = null;
-      return;
-    }
-
-    // ---------------------------------------------------
-    // 3. USE FLOW-ID MODE → fallback to DB lookup
-    // Only for legacy/old shares without payload_json
-    // ---------------------------------------------------
-    _usePayloadMode = false;
-
     final repo = UserEventsRepo(Supabase.instance.client);
 
     _flowIdFuture = repo
@@ -80,6 +64,21 @@ class _SharedFlowDetailsEntryState extends State<SharedFlowDetailsEntry> {
             return null;
           },
         );
+
+    if (hasValidPayload) {
+      // ---------------------------------------------------
+      // 2. USE PAYLOAD MODE → render the sender snapshot, but still check
+      // import status so a route-backed import cannot keep offering Import.
+      // ---------------------------------------------------
+      _usePayloadMode = true;
+      return;
+    }
+
+    // ---------------------------------------------------
+    // 3. USE FLOW-ID MODE → fallback to DB lookup
+    // Only for legacy/old shares without payload_json
+    // ---------------------------------------------------
+    _usePayloadMode = false;
   }
 
   /// Mark the share as viewed if the current user is the recipient
@@ -114,9 +113,15 @@ class _SharedFlowDetailsEntryState extends State<SharedFlowDetailsEntry> {
     // PAYLOAD MODE → instant UI rendering
     // ----------------------------------
     if (_usePayloadMode) {
-      return SharedFlowDetailsPage(
-        share: widget.share,
-        fallbackLocation: widget.fallbackLocation,
+      return FutureBuilder<int?>(
+        future: _flowIdFuture,
+        builder: (context, snapshot) {
+          return SharedFlowDetailsPage(
+            share: widget.share,
+            importedFlowId: snapshot.data,
+            fallbackLocation: widget.fallbackLocation,
+          );
+        },
       );
     }
 

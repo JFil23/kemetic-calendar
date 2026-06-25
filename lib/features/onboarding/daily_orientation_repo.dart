@@ -276,30 +276,16 @@ class DailyOrientationRepo {
     required String source,
     String? kemeticDayKey,
   }) async {
-    final trimmed = chosenReturn.trim();
-    if (trimmed.isEmpty) return;
-    final nowIso = DateTime.now().toUtc().toIso8601String();
-    final payload = <String, dynamic>{
-      'user_id': userId,
-      'local_date': _dateOnlyIso(localDate),
-      if (kemeticDayKey != null && kemeticDayKey.trim().isNotEmpty)
-        'kemetic_day_key': kemeticDayKey.trim(),
-      'chosen_return': trimmed,
-      'source': source,
-      'set_at': nowIso,
-      'landing_status': null,
-      'landed_at': null,
-      'status': 'started',
-    };
-    await _upsertRemote(payload);
-    await _writeLocal(userId: userId, localDate: localDate, patch: payload);
-    await _writeCurrentCarryLocal(
+    final payload = _setCarryPayload(
       userId: userId,
       localDate: localDate,
-      chosenReturn: trimmed,
+      chosenReturn: chosenReturn,
       source: source,
-      setAtIso: nowIso,
+      kemeticDayKey: kemeticDayKey,
     );
+    if (payload == null) return;
+    await _upsertRemote(payload);
+    await _writeCarryLocalFromPayload(payload);
   }
 
   Future<void> recordLanding({
@@ -329,41 +315,81 @@ class DailyOrientationRepo {
     required DateTime previousLocalDate,
     required String chosenReturn,
   }) async {
-    await setCarry(
+    final carryPayload = _setCarryPayload(
       userId: userId,
       localDate: localDate,
       chosenReturn: chosenReturn,
       source: 'carried_from_yesterday',
     );
-    await _persistLocalAndRemote(
-      userId: userId,
-      localDate: previousLocalDate,
-      patch: const <String, dynamic>{'carryover_choice': 'carry_it_forward'},
-    );
-    await recordEveningThresholdDecision(
+    if (carryPayload == null) return;
+    final previousPayload = <String, dynamic>{
+      'user_id': userId,
+      'local_date': _dateOnlyIso(previousLocalDate),
+      'carryover_choice': 'carry_it_forward',
+    };
+    final decisionPayload = _decisionPayload(
       userId: userId,
       decisionDate: localDate,
       decision: 'carried',
     );
+    if (decisionPayload == null) return;
+
+    await _upsertRemote(carryPayload);
+    await _upsertRemote(previousPayload);
+    await _upsertDecisionRemote(decisionPayload);
+
+    await _writeCarryLocalFromPayload(carryPayload);
+    await _writeLocal(
+      userId: userId,
+      localDate: previousLocalDate,
+      patch: previousPayload,
+    );
+    await _writeDecisionLocal(decisionPayload);
   }
 
   Future<void> releaseWithNewCarry({
     required String userId,
     required DateTime localDate,
+    DateTime? previousLocalDate,
     required String chosenReturn,
   }) async {
-    await setCarry(
+    final carryPayload = _setCarryPayload(
       userId: userId,
       localDate: localDate,
       chosenReturn: chosenReturn,
       source: 'newly_set',
     );
-    await recordEveningThresholdDecision(
+    if (carryPayload == null) return;
+    final previousPayload = previousLocalDate == null
+        ? null
+        : <String, dynamic>{
+            'user_id': userId,
+            'local_date': _dateOnlyIso(previousLocalDate),
+            'carryover_choice': 'release_it',
+          };
+    final decisionPayload = _decisionPayload(
       userId: userId,
       decisionDate: localDate,
       decision: 'released',
       newCarryText: chosenReturn,
     );
+    if (decisionPayload == null) return;
+
+    await _upsertRemote(carryPayload);
+    if (previousPayload != null) {
+      await _upsertRemote(previousPayload);
+    }
+    await _upsertDecisionRemote(decisionPayload);
+
+    await _writeCarryLocalFromPayload(carryPayload);
+    if (previousPayload != null) {
+      await _writeLocal(
+        userId: userId,
+        localDate: previousLocalDate!,
+        patch: previousPayload,
+      );
+    }
+    await _writeDecisionLocal(decisionPayload);
   }
 
   Future<void> recordEveningThresholdDecision({
@@ -372,15 +398,85 @@ class DailyOrientationRepo {
     required String decision,
     String? newCarryText,
   }) async {
+    final payload = _decisionPayload(
+      userId: userId,
+      decisionDate: decisionDate,
+      decision: decision,
+      newCarryText: newCarryText,
+    );
+    if (payload == null) return;
+    await _upsertDecisionRemote(payload);
+    await _writeDecisionLocal(payload);
+  }
+
+  Map<String, dynamic>? _setCarryPayload({
+    required String userId,
+    required DateTime localDate,
+    required String chosenReturn,
+    required String source,
+    String? kemeticDayKey,
+  }) {
+    final trimmed = chosenReturn.trim();
+    if (trimmed.isEmpty) return null;
+    final nowIso = DateTime.now().toUtc().toIso8601String();
+    return <String, dynamic>{
+      'user_id': userId,
+      'local_date': _dateOnlyIso(localDate),
+      if (kemeticDayKey != null && kemeticDayKey.trim().isNotEmpty)
+        'kemetic_day_key': kemeticDayKey.trim(),
+      'chosen_return': trimmed,
+      'source': source,
+      'set_at': nowIso,
+      'landing_status': null,
+      'landed_at': null,
+      'status': 'started',
+    };
+  }
+
+  Future<void> _writeCarryLocalFromPayload(Map<String, dynamic> payload) async {
+    final userId = payload['user_id']?.toString().trim();
+    final localDate = DateTime.tryParse(
+      payload['local_date']?.toString() ?? '',
+    );
+    final chosenReturn = payload['chosen_return']?.toString().trim();
+    final source = payload['source']?.toString().trim();
+    if (userId == null ||
+        userId.isEmpty ||
+        localDate == null ||
+        chosenReturn == null ||
+        chosenReturn.isEmpty ||
+        source == null ||
+        source.isEmpty) {
+      return;
+    }
+    await _writeLocal(userId: userId, localDate: localDate, patch: payload);
+    await _writeCurrentCarryLocal(
+      userId: userId,
+      localDate: localDate,
+      chosenReturn: chosenReturn,
+      source: source,
+      setAtIso: payload['set_at']?.toString(),
+    );
+  }
+
+  Map<String, dynamic>? _decisionPayload({
+    required String userId,
+    required DateTime decisionDate,
+    required String decision,
+    String? newCarryText,
+  }) {
     final normalized = decision.trim().toLowerCase();
-    if (normalized != 'carried' && normalized != 'released') return;
-    final payload = <String, dynamic>{
+    if (normalized != 'carried' && normalized != 'released') return null;
+    return <String, dynamic>{
       'user_id': userId,
       'decision_date': _dateOnlyIso(decisionDate),
       'decision': normalized,
       if (newCarryText != null && newCarryText.trim().isNotEmpty)
         'new_carry_text': newCarryText.trim(),
     };
+  }
+
+  Future<void> _upsertDecisionRemote(Map<String, dynamic> payload) async {
     try {
       await _client
           .from('evening_threshold_decisions')
@@ -392,7 +488,6 @@ class DailyOrientationRepo {
         e,
       );
     }
-    await _writeDecisionLocal(payload);
   }
 
   Future<void> complete({
@@ -439,20 +534,6 @@ class DailyOrientationRepo {
       'local_date': _dateOnlyIso(localDate),
       'status': 'skipped',
       'completed_at': nowIso,
-    };
-    await _upsertRemote(payload);
-    await _writeLocal(userId: userId, localDate: localDate, patch: payload);
-  }
-
-  Future<void> _persistLocalAndRemote({
-    required String userId,
-    required DateTime localDate,
-    required Map<String, dynamic> patch,
-  }) async {
-    final payload = <String, dynamic>{
-      'user_id': userId,
-      'local_date': _dateOnlyIso(localDate),
-      ...patch,
     };
     await _upsertRemote(payload);
     await _writeLocal(userId: userId, localDate: localDate, patch: payload);

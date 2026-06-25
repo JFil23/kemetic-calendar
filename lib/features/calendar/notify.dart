@@ -1561,9 +1561,13 @@ class Notify {
       final userId = client.auth.currentUser?.id;
       if (userId == null) return const <String>{};
 
-      final existing = <String>{};
+      final existing = filtered
+          .where((id) => id.toLowerCase().startsWith('birthday:'))
+          .toSet();
       const batchSize = 100;
-      final ids = filtered.toList();
+      final ids = filtered
+          .where((id) => !id.toLowerCase().startsWith('birthday:'))
+          .toList();
 
       for (int i = 0; i < ids.length; i += batchSize) {
         final batch = ids.skip(i).take(batchSize).toList();

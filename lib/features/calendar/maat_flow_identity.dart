@@ -264,6 +264,8 @@ const Map<String, MaatFlowKind> _flowNameKinds = <String, MaatFlowKind>{
   'dawn house rite': MaatFlowKind.dawnHouseRite,
   'the evening threshold': MaatFlowKind.eveningThreshold,
   'evening threshold': MaatFlowKind.eveningThreshold,
+  'the closing': MaatFlowKind.eveningThresholdRite,
+  'closing': MaatFlowKind.eveningThresholdRite,
   'evening threshold rite': MaatFlowKind.eveningThresholdRite,
   'the weighing': MaatFlowKind.theWeighing,
   'the offering table': MaatFlowKind.offeringTable,

@@ -24,6 +24,33 @@ void main() {
     expect(main, isNot(contains('USE_GLOBAL_SIDE_DRAWER_NAVIGATION')));
   });
 
+  test('global drawer bubble skin is not route-specific', () async {
+    final main = await File('lib/main.dart').readAsString();
+    final shell = _sourceBetween(
+      main,
+      'class _GlobalFloatingMenuShellState',
+      'class PushIntentBridge',
+    );
+    final drawer = await File(
+      'lib/widgets/global_side_drawer.dart',
+    ).readAsString();
+    final bubble = _sourceBetween(
+      drawer,
+      'class GlobalMenuBubble extends StatelessWidget',
+      'class GlobalSideDrawer extends StatelessWidget',
+    );
+
+    expect(shell, contains('GlobalMenuBubble('));
+    expect(shell, isNot(contains('_globalMenuBubbleStyle')));
+    expect(shell, isNot(contains('_isReflectionsRoute')));
+    expect(shell, isNot(contains('_isJournalRoute')));
+    expect(shell, isNot(contains('decanReflectionGlobalMenuBubbleStyle')));
+    expect(shell, isNot(contains('JournalSkinTokens.floatingGlyph')));
+    expect(bubble, contains('globalTransparentMenuBubbleStyle'));
+    expect(bubble, contains('globalMenuBubbleSurfaceKey'));
+    expect(bubble, isNot(contains('Color(0xF6000000)')));
+  });
+
   test(
     'global side drawer is an underlay behind the foreground shell',
     () async {

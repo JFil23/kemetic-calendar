@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
@@ -45,13 +46,66 @@ void main() {
       expect(dayView, contains('class _MaatFlowCompletionPanel'));
       expect(dayView, contains('CalendarCompletionPicker('));
       expect(dayView, contains('CalendarEventCompletionPanel('));
-      expect(monthGrid, contains('CalendarEventCompletionPanel('));
-      expect(landscape, contains('CalendarEventCompletionPanel('));
+      expect(monthGrid, contains('CalendarEventDetailSheet('));
+      expect(landscape, contains('CalendarEventDetailSheet('));
+      expect(monthGrid, isNot(contains('CalendarEventCompletionPanel(')));
+      expect(landscape, isNot(contains('CalendarEventCompletionPanel(')));
 
       expect(dayView, contains('CompletionSourceType.maatFlow'));
       expect(dayView, contains('CompletionSourceType.userFlow'));
       expect(dayView, contains('CompletionSourceType.note'));
       expect(dayView, contains('CompletionSourceType.reminder'));
+    },
+  );
+
+  test(
+    'Ma’at completions use shared badge sync metadata and refresh hooks',
+    () {
+      final dayView = File(
+        'lib/features/calendar/day_view.dart',
+      ).readAsStringSync();
+      final calendarPage = File(
+        'lib/features/calendar/calendar_page.dart',
+      ).readAsStringSync();
+
+      final metadata = _sourceBetween(
+        dayView,
+        'Map<String, dynamic> metadataFor',
+        'class _MaatLibraryCtaPayload',
+      );
+      expect(
+        metadata,
+        contains("'completion_status': completionStatus.wireName"),
+      );
+      expect(
+        metadata,
+        contains("'reflection_status': ReflectionStatus.none.wireName"),
+      );
+      expect(
+        metadata,
+        contains("'source_type': CompletionSourceType.maatFlow.wireName"),
+      );
+
+      final appendHelper = _sourceBetween(
+        calendarPage,
+        'Future<void> _appendToJournalAndRefresh',
+        'Future<void> _removeCompletionBadgeAndRefresh',
+      );
+      expect(appendHelper, contains('_ensureJournalControllerReady()'));
+      expect(
+        appendHelper,
+        contains('await _journalController.appendToToday(text)'),
+      );
+      expect(appendHelper, contains('_notifyDayViewDataChanged()'));
+
+      expect(
+        calendarPage,
+        contains('onAppendToJournal: _appendToJournalAndRefresh'),
+      );
+      expect(
+        calendarPage,
+        contains('onRemoveCompletionBadge: _removeCompletionBadgeAndRefresh'),
+      );
     },
   );
 
@@ -97,16 +151,17 @@ void main() {
 
     final feedbackMapper = _sourceBetween(
       dayView,
-      'CompletionStatus _completionFeedbackStatusForRawStatus',
-      'String? _eveningThresholdPrerequisiteMessage',
+      'CompletionStatus _maatCompletionStatusForRawStatus',
+      'List<String> _dedupeMaatNodeSlugs',
     );
     expect(feedbackMapper, contains("case 'held':"));
     expect(feedbackMapper, contains("case 'carry_forward':"));
     expect(feedbackMapper, contains("case 'release':"));
     expect(feedbackMapper, contains("return CompletionStatus.observed;"));
     expect(feedbackMapper, contains("case 'working':"));
-    expect(feedbackMapper, contains("case 'slipped':"));
     expect(feedbackMapper, contains("return CompletionStatus.partial;"));
+    expect(feedbackMapper, contains("case 'slipped':"));
+    expect(feedbackMapper, contains("return CompletionStatus.skipped;"));
 
     final record = _sourceBetween(
       dayView,
@@ -116,12 +171,20 @@ void main() {
     expect(
       record,
       contains(
-        'final feedbackStatus = _completionFeedbackStatusForRawStatus(status);',
+        'final completionStatus = _maatCompletionStatusForRawStatus(status);',
       ),
     );
+    expect(record, contains('_scheduleCompletionFeedback(completionStatus);'));
+
+    final maatPanel = _sourceBetween(
+      dayView,
+      'class _MaatFlowCompletionPanelState',
+      'Future<void> _clear() async',
+    );
+    expect(maatPanel, contains('CalendarCompletionFeedbackScheduler'));
     expect(
-      record,
-      contains('widget.onUserCompletionFeedback?.call(feedbackStatus);'),
+      maatPanel,
+      contains('_scheduleCompletionFeedback(completionStatus);'),
     );
   });
 
@@ -144,10 +207,13 @@ void main() {
           'No carry was set this morning. The flow will resume tomorrow.',
         ),
       );
-      expect(
-        guard,
-        contains('Land yesterday\\\'s carry before choosing what crosses.'),
+      expect(guard, contains('No unresolved carry is available to cross.'));
+      final prerequisite = _sourceBetween(
+        dayView,
+        'String? _eveningThresholdPrerequisiteMessage',
+        'bool _showEveningThresholdPrerequisiteFeedbackIfBlocked',
       );
+      expect(prerequisite, isNot(contains('landingStatus')));
       expect(guard, contains('_showSheetFeedback('));
       expect(
         guard,
@@ -297,11 +363,7 @@ void main() {
     );
     expect(
       setCarry.indexOf('await _upsertRemote(payload)'),
-      lessThan(setCarry.indexOf('await _writeLocal')),
-    );
-    expect(
-      setCarry.indexOf('await _writeLocal'),
-      lessThan(setCarry.indexOf('await _writeCurrentCarryLocal')),
+      lessThan(setCarry.indexOf('await _writeCarryLocalFromPayload(payload)')),
     );
 
     final carryForward = _sourceBetween(
@@ -309,11 +371,16 @@ void main() {
       'Future<void> carryForward',
       'Future<void> releaseWithNewCarry',
     );
-    expect(carryForward, contains('_persistLocalAndRemote('));
+    expect(carryForward, contains('await _upsertRemote(carryPayload)'));
+    expect(carryForward, contains('await _upsertRemote(previousPayload)'));
+    expect(
+      carryForward,
+      contains('await _upsertDecisionRemote(decisionPayload)'),
+    );
     expect(carryForward, contains("'carryover_choice': 'carry_it_forward'"));
     expect(
-      carryForward.indexOf('_persistLocalAndRemote('),
-      lessThan(carryForward.indexOf('recordEveningThresholdDecision(')),
+      carryForward.indexOf('await _upsertDecisionRemote(decisionPayload)'),
+      lessThan(carryForward.indexOf('await _writeCarryLocalFromPayload')),
     );
 
     final release = _sourceBetween(
@@ -321,9 +388,11 @@ void main() {
       'Future<void> releaseWithNewCarry',
       'Future<void> recordEveningThresholdDecision',
     );
+    expect(release, contains("'carryover_choice': 'release_it'"));
+    expect(release, contains('await _upsertDecisionRemote(decisionPayload)'));
     expect(
-      release.indexOf('await setCarry('),
-      lessThan(release.indexOf('await recordEveningThresholdDecision(')),
+      release.indexOf('await _upsertDecisionRemote(decisionPayload)'),
+      lessThan(release.indexOf('await _writeCarryLocalFromPayload')),
     );
     expect(release, contains("decision: 'released'"));
 
@@ -333,7 +402,7 @@ void main() {
       'Future<void> complete',
     );
     expect(
-      decision.indexOf(".from('evening_threshold_decisions')"),
+      decision.indexOf('await _upsertDecisionRemote(payload)'),
       lessThan(decision.indexOf('await _writeDecisionLocal(payload)')),
     );
     expect(decision, contains('throw DailyOrientationPersistenceException'));
@@ -361,51 +430,52 @@ void main() {
         ).readAsStringSync(),
       };
 
-      for (final entry in sources.entries) {
-        final source = entry.value;
-        final firstPanel = source.indexOf('CalendarEventCompletionPanel(');
-        expect(firstPanel, isNonNegative, reason: entry.key);
-        final sheetStart = source.lastIndexOf(
-          'Widget _buildEventDetailSheetPage',
-          firstPanel,
-        );
-        final sheetEnd = source.indexOf(
-          'Widget _buildEventDetailTopActionRow',
-          firstPanel,
-        );
-        expect(sheetStart, isNonNegative, reason: entry.key);
-        expect(sheetEnd, isNonNegative, reason: entry.key);
-        final sheet = source.substring(sheetStart, sheetEnd);
+      final dayView = sources['day_view.dart']!;
+      final firstPanel = dayView.indexOf('CalendarEventCompletionPanel(');
+      expect(firstPanel, isNonNegative, reason: 'day_view.dart');
+      final sheetStart = dayView.lastIndexOf(
+        'Widget _buildEventDetailSheetPage',
+        firstPanel,
+      );
+      final sheetEnd = dayView.indexOf(
+        'Widget _buildEventDetailTopActionRow',
+        firstPanel,
+      );
+      expect(sheetStart, isNonNegative, reason: 'day_view.dart');
+      expect(sheetEnd, isNonNegative, reason: 'day_view.dart');
+      final sheet = dayView.substring(sheetStart, sheetEnd);
 
-        expect(sheet, contains('onClearStatus:'), reason: entry.key);
-        expect(sheet, contains('_clearCalendarCompletion('), reason: entry.key);
-        expect(sheet, contains('onCreateContinuity:'), reason: entry.key);
-        expect(sheet, contains('triggerHaptic:'), reason: entry.key);
-        expect(sheet, contains('onUserCompletionFeedback:'), reason: entry.key);
-        expect(
-          sheet,
-          contains('playDayViewRitualCompletionFeedback('),
-          reason: entry.key,
-        );
-        expect(sheet, contains('reloadSignal:'), reason: entry.key);
-        expect(
-          sheet,
-          contains('DayViewRitualCompletionFeedbackCard'),
-          reason: entry.key,
-        );
-      }
+      expect(sheet, contains('onClearStatus:'), reason: 'day_view.dart');
+      expect(
+        sheet,
+        contains('_clearCalendarCompletion('),
+        reason: 'day_view.dart',
+      );
+      expect(sheet, contains('onCreateContinuity:'), reason: 'day_view.dart');
+      expect(sheet, contains('triggerHaptic:'), reason: 'day_view.dart');
+      expect(
+        sheet,
+        contains('onUserCompletionFeedback:'),
+        reason: 'day_view.dart',
+      );
+      expect(
+        sheet,
+        contains('playDayViewRitualCompletionFeedback('),
+        reason: 'day_view.dart',
+      );
+      expect(sheet, contains('reloadSignal:'), reason: 'day_view.dart');
+      expect(
+        sheet,
+        contains('DayViewRitualCompletionFeedbackCard'),
+        reason: 'day_view.dart',
+      );
 
       for (final entry in sources.entries.where(
         (entry) => entry.key != 'day_view.dart',
       )) {
         expect(
           entry.value,
-          contains('buildDayViewMaatFlowCompletionPanel('),
-          reason: entry.key,
-        );
-        expect(
-          entry.value,
-          contains('hasDayViewMaatFlowCompletionContext(event, flow)'),
+          contains('CalendarEventDetailSheet('),
           reason: entry.key,
         );
       }
@@ -416,6 +486,9 @@ void main() {
     'month and landscape detail sheets wire clear persistence and badge removal',
     () {
       final sources = {
+        'day_view.dart': File(
+          'lib/features/calendar/day_view.dart',
+        ).readAsStringSync(),
         'calendar_page.dart': File(
           'lib/features/calendar/calendar_page.dart',
         ).readAsStringSync(),
@@ -433,52 +506,63 @@ void main() {
       );
       expect(
         sources['calendar_page.dart']!,
-        contains('await _journalController.removeBadge(badgeId);'),
+        contains('onRemoveCompletionBadge: _removeCompletionBadgeAndRefresh'),
       );
       expect(
         sources['calendar_grid_widgets.dart']!,
         contains('onUnrecordCompletion: state?._unrecordEventCompletion'),
       );
-      for (final entry in sources.entries.where(
-        (entry) => entry.key != 'calendar_page.dart',
-      )) {
-        expect(entry.value, contains('_removeCompletionContinuity('));
-        expect(entry.value, contains('widget.onRemoveCompletionBadge'));
-        expect(entry.value, contains('calendarCompletionBadgeId('));
-        expect(entry.value, contains('await _removeCompletionContinuity('));
-      }
+      expect(
+        sources['calendar_grid_widgets.dart']!,
+        contains('onRemoveCompletionBadge: (badgeId) async'),
+      );
+      expect(
+        sources['landscape_month_view.dart']!,
+        contains('onUnrecordCompletion: widget.onUnrecordCompletion'),
+      );
+      expect(
+        sources['landscape_month_view.dart']!,
+        contains('onRemoveCompletionBadge: widget.onRemoveCompletionBadge'),
+      );
+      expect(
+        sources['day_view.dart']!,
+        contains('_removeCompletionContinuity('),
+      );
+      expect(
+        sources['day_view.dart']!,
+        contains('widget.onRemoveCompletionBadge'),
+      );
+      expect(sources['day_view.dart']!, contains('calendarCompletionBadgeId('));
+      expect(
+        sources['day_view.dart']!,
+        contains('await _removeCompletionContinuity('),
+      );
     },
   );
 
   test(
     'detail top action is Add reflection while End Flow stays overflow-only',
     () {
-      final sources = {
-        'day_view.dart': File(
-          'lib/features/calendar/day_view.dart',
-        ).readAsStringSync(),
-        'calendar_grid_widgets.dart': File(
-          'lib/features/calendar/calendar_grid_widgets.dart',
-        ).readAsStringSync(),
-        'landscape_month_view.dart': File(
-          'lib/features/calendar/landscape_month_view.dart',
-        ).readAsStringSync(),
-      };
-
-      for (final entry in sources.entries) {
-        final topStart = entry.value.indexOf('_buildEventDetailTopActionRow');
-        final topEnd = entry.value.indexOf(
-          '_buildEventDetailPrimaryAction',
-          topStart,
-        );
-        expect(topStart, isNonNegative, reason: entry.key);
-        expect(topEnd, isNonNegative, reason: entry.key);
-        final topRow = entry.value.substring(topStart, topEnd);
-        expect(topRow, contains('_buildAddReflectionButton('));
-        expect(entry.value, contains("label: const Text('Add reflection')"));
-        expect(topRow, isNot(contains("label: const Text('End Flow')")));
-        expect(entry.value, contains("value: 'end_flow'"));
-      }
+      final dayView = File(
+        'lib/features/calendar/day_view.dart',
+      ).readAsStringSync();
+      final monthGrid = File(
+        'lib/features/calendar/calendar_grid_widgets.dart',
+      ).readAsStringSync();
+      final landscape = File(
+        'lib/features/calendar/landscape_month_view.dart',
+      ).readAsStringSync();
+      final topRow = _sourceBetween(
+        dayView,
+        'Widget _buildEventDetailTopActionRow',
+        'Widget _buildEventDetailInlineError',
+      );
+      expect(topRow, contains('_buildAddReflectionButton('));
+      expect(dayView, contains("label: const Text('Add reflection')"));
+      expect(topRow, isNot(contains("label: const Text('End Flow')")));
+      expect(dayView, contains("value: 'end_flow'"));
+      expect(monthGrid, contains('CalendarEventDetailSheet('));
+      expect(landscape, contains('CalendarEventDetailSheet('));
     },
   );
 
@@ -520,46 +604,35 @@ void main() {
   });
 
   test('End Flow detail sheets await success before closing', () {
-    final sources = {
-      'day_view.dart': File(
-        'lib/features/calendar/day_view.dart',
-      ).readAsStringSync(),
-      'calendar_grid_widgets.dart': File(
-        'lib/features/calendar/calendar_grid_widgets.dart',
-      ).readAsStringSync(),
-      'landscape_month_view.dart': File(
-        'lib/features/calendar/landscape_month_view.dart',
-      ).readAsStringSync(),
-    };
+    final dayView = File(
+      'lib/features/calendar/day_view.dart',
+    ).readAsStringSync();
+    final monthGrid = File(
+      'lib/features/calendar/calendar_grid_widgets.dart',
+    ).readAsStringSync();
+    final landscape = File(
+      'lib/features/calendar/landscape_month_view.dart',
+    ).readAsStringSync();
+    final handler = _sourceBetween(
+      dayView,
+      "if (value == 'end_flow') {",
+      "} else if (value == 'end_reminder')",
+    );
+    final awaitIndex = handler.indexOf(
+      'await CalendarPage.endFlowFromEventTarget(target)',
+    );
+    final popIndex = handler.indexOf('Navigator.pop(sheetContext)');
 
-    for (final entry in sources.entries) {
-      final handler = _sourceBetween(
-        entry.value,
-        "if (value == 'end_flow') {",
-        "} else if (value == 'end_reminder')",
-      );
-      final awaitIndex = handler.indexOf(
-        'await CalendarPage.endFlowFromEventTarget(target)',
-      );
-      final popIndex = handler.indexOf('Navigator.pop(sheetContext)');
-
-      expect(awaitIndex, isNonNegative, reason: entry.key);
-      expect(popIndex, isNonNegative, reason: entry.key);
-      expect(awaitIndex, lessThan(popIndex), reason: entry.key);
-      expect(
-        handler,
-        contains('result == EndFlowActionResult.success'),
-        reason: entry.key,
-      );
-      expect(
-        handler,
-        contains('result == EndFlowActionResult.notHandled'),
-        reason: entry.key,
-      );
-      expect(handler, contains('_beginEndFlowAction'), reason: entry.key);
-      expect(handler, contains('_finishEndFlowAction'), reason: entry.key);
-      expect(handler, isNot(contains('routedThroughCalendarPage')));
-    }
+    expect(awaitIndex, isNonNegative);
+    expect(popIndex, isNonNegative);
+    expect(awaitIndex, lessThan(popIndex));
+    expect(handler, contains('result == EndFlowActionResult.success'));
+    expect(handler, contains('result == EndFlowActionResult.notHandled'));
+    expect(handler, contains('_beginEndFlowAction'));
+    expect(handler, contains('_finishEndFlowAction'));
+    expect(handler, isNot(contains('routedThroughCalendarPage')));
+    expect(monthGrid, contains('CalendarEventDetailSheet('));
+    expect(landscape, contains('CalendarEventDetailSheet('));
   });
 
   test('Day detail sheet keeps failed End Flow feedback inside the sheet', () {
@@ -573,26 +646,48 @@ void main() {
     );
 
     expect(handler, contains('result == EndFlowActionResult.failed'));
-    expect(handler, contains('onEndFlowErrorChanged('));
+    expect(handler, contains('_setEndFlowError('));
     expect(dayView, contains("'Could not end this flow right now.\\n'"));
     expect(dayView, contains("'Check your connection and try again.'"));
     expect(dayView, contains('_buildEventDetailInlineError('));
-    expect(dayView, contains('ValueListenableBuilder<String?>'));
+    expect(dayView, contains('AnimatedSize('));
   });
 
-  test('Day detail sheet guards late measurement callbacks after release', () {
+  test(
+    'Month-grid detail sheet keeps failed End Flow feedback inside the sheet',
+    () {
+      final monthGrid = File(
+        'lib/features/calendar/calendar_grid_widgets.dart',
+      ).readAsStringSync();
+      expect(monthGrid, contains('CalendarEventDetailSheet('));
+      expect(monthGrid, isNot(contains('_buildEventDetailInlineError(')));
+      expect(monthGrid, isNot(contains('String? _endFlowError;')));
+    },
+  );
+
+  test(
+    'Landscape detail sheet keeps failed End Flow feedback inside the sheet',
+    () {
+      final landscape = File(
+        'lib/features/calendar/landscape_month_view.dart',
+      ).readAsStringSync();
+      expect(landscape, contains('CalendarEventDetailSheet('));
+      expect(landscape, isNot(contains('_buildEventDetailInlineError(')));
+      expect(landscape, isNot(contains('ValueNotifier<String?>(null)')));
+    },
+  );
+
+  test('detail sheet openers release coordinator after sheet closes', () {
     final dayView = File(
       'lib/features/calendar/day_view.dart',
     ).readAsStringSync();
+    final landscape = File(
+      'lib/features/calendar/landscape_month_view.dart',
+    ).readAsStringSync();
     final showDetail = _sourceBetween(
       dayView,
-      'void _showEventDetail(',
-      'String _formatTimeRange',
-    );
-    final updateMeasuredHeight = _sourceBetween(
-      showDetail,
-      'void updateMeasuredHeight',
-      'void resetSheetPageController',
+      '  // Show event detail sheet\n  void _showEventDetail(',
+      '\n}\n\nclass _TheCourseDayCardPanel',
     );
     final releaseSheet = _sourceBetween(
       showDetail,
@@ -601,13 +696,25 @@ void main() {
     );
 
     expect(showDetail, contains('var sheetReleased = false;'));
-    expect(
-      updateMeasuredHeight,
-      contains('if (sheetReleased || !mounted) return;'),
-    );
     expect(releaseSheet, contains('if (sheetReleased) return;'));
     expect(releaseSheet, contains('sheetReleased = true;'));
-    expect(showDetail, contains('endFlowError.dispose();'));
+    expect(showDetail, contains('.whenComplete(releaseSheet)'));
+
+    final landscapeShowDetail = _sourceBetween(
+      landscape,
+      'void _showEventDetail(',
+      'Map<EventItem, int> _assignColumns',
+    );
+    final landscapeReleaseSheet = _sourceBetween(
+      landscapeShowDetail,
+      'void releaseSheet()',
+      'try {',
+    );
+
+    expect(landscapeShowDetail, contains('var sheetReleased = false;'));
+    expect(landscapeReleaseSheet, contains('if (sheetReleased) return;'));
+    expect(landscapeReleaseSheet, contains('sheetReleased = true;'));
+    expect(landscapeShowDetail, contains('.whenComplete(releaseSheet)'));
   });
 
   test(
@@ -704,44 +811,36 @@ void main() {
       'lib/features/calendar/landscape_month_view.dart',
     ).readAsStringSync();
 
+    final reflectionOpener = _sourceBetween(
+      dayView,
+      'Future<void> _openReflectionForTarget',
+      'Future<CompletionStatus> _loadCalendarCompletionStatus',
+    );
+    expect(reflectionOpener, contains('extra: reflectionContext'));
+    expect(monthGrid, contains('CalendarEventDetailSheet('));
+    expect(landscape, contains('CalendarEventDetailSheet('));
+
     for (final source in [dayView, monthGrid, landscape]) {
-      expect(source, contains('extra: reflectionContext'));
       expect(source, isNot(contains("go('/journal?")));
       expect(source, isNot(contains('go("/journal?')));
     }
   });
 
   test('Add reflection opens without recording completion or continuity', () {
-    final sources = {
-      'day_view.dart': File(
-        'lib/features/calendar/day_view.dart',
-      ).readAsStringSync(),
-      'calendar_grid_widgets.dart': File(
-        'lib/features/calendar/calendar_grid_widgets.dart',
-      ).readAsStringSync(),
-      'landscape_month_view.dart': File(
-        'lib/features/calendar/landscape_month_view.dart',
-      ).readAsStringSync(),
-    };
-
-    for (final entry in sources.entries) {
-      final start = entry.value.indexOf(
-        'Future<void> _openReflectionForTarget',
-      );
-      final end = entry.value.indexOf(
-        'Future<CompletionStatus> _loadCalendarCompletionStatus',
-        start,
-      );
-      expect(start, isNonNegative, reason: entry.key);
-      expect(end, isNonNegative, reason: entry.key);
-      final body = entry.value.substring(start, end);
-      expect(body, contains('.load(identity)'), reason: entry.key);
-      expect(body, contains('extra: reflectionContext'), reason: entry.key);
-      expect(body, isNot(contains('.save(')), reason: entry.key);
-      expect(body, isNot(contains('onCreateContinuity')), reason: entry.key);
-      expect(body, isNot(contains('appendToJournal')), reason: entry.key);
-      expect(body, isNot(contains('appendToToday')), reason: entry.key);
-    }
+    final dayView = File(
+      'lib/features/calendar/day_view.dart',
+    ).readAsStringSync();
+    final body = _sourceBetween(
+      dayView,
+      'Future<void> _openReflectionForTarget',
+      'Future<CompletionStatus> _loadCalendarCompletionStatus',
+    );
+    expect(body, contains('.load(identity)'));
+    expect(body, contains('extra: reflectionContext'));
+    expect(body, isNot(contains('.save(')));
+    expect(body, isNot(contains('onCreateContinuity')));
+    expect(body, isNot(contains('appendToJournal')));
+    expect(body, isNot(contains('appendToToday')));
   });
 
   test('observed, partial, and skipped create completion continuity', () {
@@ -869,6 +968,145 @@ void main() {
         CompletionStatus.partial,
         CompletionStatus.skipped,
       ]);
+    },
+  );
+
+  testWidgets(
+    'completion feedback is scheduled at 500ms before persistence finishes',
+    (tester) async {
+      SharedPreferences.setMockInitialValues(<String, Object>{});
+      final recorded = <CompletionStatus>[];
+      final feedback = <CompletionStatus>[];
+      final recordCompleter = Completer<void>();
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: CalendarEventCompletionPanel(
+              identity: 'cid:event-1',
+              sourceType: CompletionSourceType.userFlow,
+              loadStatus: () async => CompletionStatus.none,
+              onRecordStatus: (status) async {
+                recorded.add(status);
+                await recordCompleter.future;
+              },
+              onUserCompletionFeedback: feedback.add,
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Observed'));
+      await tester.pump();
+
+      expect(recorded, <CompletionStatus>[CompletionStatus.observed]);
+      expect(feedback, isEmpty);
+
+      await tester.pump(
+        kCalendarCompletionFeedbackDelay - const Duration(milliseconds: 1),
+      );
+      expect(feedback, isEmpty);
+
+      await tester.pump(const Duration(milliseconds: 1));
+      expect(feedback, <CompletionStatus>[CompletionStatus.observed]);
+      expect(recordCompleter.isCompleted, isFalse);
+
+      recordCompleter.complete();
+      await tester.pumpAndSettle();
+      expect(feedback, <CompletionStatus>[CompletionStatus.observed]);
+    },
+  );
+
+  testWidgets(
+    'ordinary completion feedback survives a reload signal before 500ms',
+    (tester) async {
+      SharedPreferences.setMockInitialValues(<String, Object>{});
+      final recorded = <CompletionStatus>[];
+      final feedback = <CompletionStatus>[];
+      final recordCompleter = Completer<void>();
+      var reloadSignal = Object();
+      late StateSetter setHarnessState;
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: StatefulBuilder(
+              builder: (context, setState) {
+                setHarnessState = setState;
+                return CalendarEventCompletionPanel(
+                  identity: 'cid:generated-flow-event',
+                  sourceType: CompletionSourceType.userFlow,
+                  loadStatus: () async => CompletionStatus.none,
+                  reloadSignal: reloadSignal,
+                  onRecordStatus: (status) async {
+                    recorded.add(status);
+                    setHarnessState(() {
+                      reloadSignal = Object();
+                    });
+                    await recordCompleter.future;
+                  },
+                  onUserCompletionFeedback: feedback.add,
+                );
+              },
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Observed'));
+      await tester.pump();
+
+      expect(recorded, <CompletionStatus>[CompletionStatus.observed]);
+      await tester.pump(
+        kCalendarCompletionFeedbackDelay - const Duration(milliseconds: 1),
+      );
+      expect(feedback, isEmpty);
+
+      await tester.pump(const Duration(milliseconds: 1));
+      expect(feedback, <CompletionStatus>[CompletionStatus.observed]);
+
+      recordCompleter.complete();
+      await tester.pumpAndSettle();
+      expect(feedback, <CompletionStatus>[CompletionStatus.observed]);
+    },
+  );
+
+  testWidgets(
+    'completion feedback timer is canceled safely on disposal before 500ms',
+    (tester) async {
+      SharedPreferences.setMockInitialValues(<String, Object>{});
+      final feedback = <CompletionStatus>[];
+      final recordCompleter = Completer<void>();
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: CalendarEventCompletionPanel(
+              identity: 'cid:dismissed-flow-event',
+              sourceType: CompletionSourceType.userFlow,
+              loadStatus: () async => CompletionStatus.none,
+              onRecordStatus: (_) => recordCompleter.future,
+              onUserCompletionFeedback: feedback.add,
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Observed'));
+      await tester.pump();
+      await tester.pump(
+        kCalendarCompletionFeedbackDelay - const Duration(milliseconds: 1),
+      );
+
+      await tester.pumpWidget(const MaterialApp(home: SizedBox.shrink()));
+      recordCompleter.complete();
+      await tester.pump(kCalendarCompletionFeedbackDelay);
+
+      expect(feedback, isEmpty);
+      expect(tester.takeException(), isNull);
     },
   );
 

@@ -11,9 +11,7 @@ const String kMoonReturnConfidenceLabel =
 const int kMoonReturnDurationMinutes = 5;
 
 const String kMoonReturnOverview =
-    'At each new moon, set down one thing at dusk. At each full moon, go outside at moonrise and name what filled. '
-    'The Moon Return is an ongoing Ma\'at flow for the Eye of Heru cycle: emptying, restoration, and wholeness across each lunar month. '
-    'Enrollment opens only at the new moon threshold.';
+    'The Moon Return follows the lunar rhythm of emptying and fullness. At the new moon, the user sets down one thing; at the full moon, they name what has filled. The flow keeps the record short and tied to visible lunar return.';
 
 enum MoonReturnEventKind { emptyEye, wholeEye }
 

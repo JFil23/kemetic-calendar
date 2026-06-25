@@ -176,20 +176,23 @@ void main() {
       expect(source, contains('_startDateButtonLabel(context, selectedStart)'));
       expect(
         source,
-        contains(r'First dawn: ${_dateLabel(context, selectedStart)}'),
+        contains(
+          r"'Start: ${_dateLabel(context, selectedStart)} at $firstTime'",
+        ),
       );
       expect(
         source,
-        contains(r'First evening: ${_dateLabel(context, selectedStart)}'),
-      );
-      expect(
-        source,
-        contains(r'First sitting: ${_dateLabel(context, selectedStart)}'),
+        contains(
+          '_buildStartDateRow(\n'
+          '              context,\n'
+          '              selectedStart,',
+        ),
       );
       expect(
         source,
         isNot(contains(r'Start: ${_fmtGregorian(selectedStart)}')),
       );
+      expect(source, isNot(contains(r'First dawn: ${_fmtGregorian')));
       expect(source, isNot(contains('CupertinoSegmentedControl<bool>')));
     },
   );

@@ -9,8 +9,7 @@ const String kTheWagConfidenceLabel =
     'Festival attested; household form reconstructed.';
 
 const String kTheWagOverview =
-    'The Wag is an annual Ma\'at flow for the blessed dead: name ancestors, set water and bread, hold the Day 17 vigil, keep the Day 18 feast, then close with what they gave and what you will leave. '
-    'It is fixed to Kemetic Month 1, following the year opening rather than a rolling thirty-day enrollment.';
+    'The Wag is an annual Kemetic ancestor flow in Month 1. It moves through naming, table-setting, vigil, feast, and return, asking the user to carry one gift, memory, or legacy forward without forcing private names into the public record.';
 
 enum WagEventKind {
   beginNaming,

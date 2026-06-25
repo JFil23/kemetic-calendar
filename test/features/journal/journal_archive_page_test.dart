@@ -3,6 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:mobile/data/journal_repo.dart';
 import 'package:mobile/features/journal/journal_archive_page.dart';
 import 'package:mobile/features/journal/journal_controller.dart';
+import 'package:mobile/features/reflections/decan_reflection_skin.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -75,6 +76,162 @@ void main() {
     expect(editorRect.bottom, lessThanOrEqualTo(524));
     expect(tester.takeException(), isNull);
   });
+
+  testWidgets('archive keeps date toggle, metadata, rows, and Decan skin', (
+    tester,
+  ) async {
+    tester.view.devicePixelRatio = 1;
+    tester.view.physicalSize = const Size(390, 844);
+    addTearDown(tester.view.reset);
+
+    final entry = _entry(body: 'x');
+    final repo = _ArchiveRepo(entry);
+    final controller = JournalController.withRepo(
+      repo,
+      currentUserId: () => 'user-a',
+    );
+    addTearDown(controller.dispose);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: JournalArchivePage(
+          repo: repo,
+          controller: controller,
+          isPortrait: true,
+          onClose: () {},
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(journalArchiveReflectionSkinKey), findsOneWidget);
+    expect(find.byType(DecanTrack), findsWidgets);
+    expect(find.byKey(journalArchiveDateModeToggleKey), findsOneWidget);
+    expect(find.text('Kemetic'), findsOneWidget);
+    expect(find.text('Gregorian'), findsOneWidget);
+    expect(find.text('x'), findsOneWidget);
+    expect(find.text('1 characters'), findsOneWidget);
+
+    await tester.tap(find.text('Gregorian'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Saturday, May 23'), findsOneWidget);
+    expect(find.text('1 characters'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('archive row still opens the existing entry detail/editor flow', (
+    tester,
+  ) async {
+    tester.view.devicePixelRatio = 1;
+    tester.view.physicalSize = const Size(390, 844);
+    addTearDown(tester.view.reset);
+
+    final entry = _entry(body: 'Archive row opens detail');
+    final repo = _ArchiveRepo(entry);
+    final controller = JournalController.withRepo(
+      repo,
+      currentUserId: () => 'user-a',
+    );
+    addTearDown(controller.dispose);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: JournalArchivePage(
+          repo: repo,
+          controller: controller,
+          isPortrait: true,
+          onClose: () {},
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.textContaining('Archive row opens detail').first);
+    await tester.pumpAndSettle();
+
+    expect(find.text('Journal Entry'), findsOneWidget);
+    expect(find.text('ENTRY FOR'), findsOneWidget);
+    expect(find.text('Edit'), findsOneWidget);
+
+    await tester.tap(find.text('Edit'));
+    await tester.pumpAndSettle();
+
+    expect(find.byType(TextField), findsOneWidget);
+    expect(find.text('Save'), findsWidgets);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('archive close button still calls existing onClose callback', (
+    tester,
+  ) async {
+    tester.view.devicePixelRatio = 1;
+    tester.view.physicalSize = const Size(390, 844);
+    addTearDown(tester.view.reset);
+
+    final repo = _ArchiveRepo(_entry(body: 'Close callback entry'));
+    final controller = JournalController.withRepo(
+      repo,
+      currentUserId: () => 'user-a',
+    );
+    addTearDown(controller.dispose);
+
+    var closed = false;
+    await tester.pumpWidget(
+      MaterialApp(
+        home: JournalArchivePage(
+          repo: repo,
+          controller: controller,
+          isPortrait: true,
+          onClose: () => closed = true,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byTooltip('Close archive'));
+    await tester.pumpAndSettle();
+
+    expect(closed, isTrue);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('archive swipe-delete still calls repo delete and removes row', (
+    tester,
+  ) async {
+    tester.view.devicePixelRatio = 1;
+    tester.view.physicalSize = const Size(390, 844);
+    addTearDown(tester.view.reset);
+
+    final entry = _entry(body: 'Swipe delete entry');
+    final repo = _ArchiveRepo(entry);
+    final controller = JournalController.withRepo(
+      repo,
+      currentUserId: () => 'user-a',
+    );
+    addTearDown(controller.dispose);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: JournalArchivePage(
+          repo: repo,
+          controller: controller,
+          isPortrait: true,
+          onClose: () {},
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Swipe delete entry'), findsOneWidget);
+
+    await tester.drag(find.text('Swipe delete entry'), const Offset(-500, 0));
+    await tester.pumpAndSettle();
+
+    expect(repo.deletedDates, contains(entry.gregDate));
+    expect(find.text('Swipe delete entry'), findsNothing);
+    expect(tester.takeException(), isNull);
+  });
 }
 
 JournalEntry _entry({required String body}) {
@@ -92,22 +249,31 @@ JournalEntry _entry({required String body}) {
 }
 
 class _ArchiveRepo extends JournalRepo {
-  _ArchiveRepo(this.entry)
+  _ArchiveRepo(JournalEntry entry)
     : super(
         SupabaseClient(
           'https://example.com',
           'test-anon-key',
           authOptions: const AuthClientOptions(autoRefreshToken: false),
         ),
-      );
+      ) {
+    entries.add(entry);
+  }
 
-  final JournalEntry entry;
+  final entries = <JournalEntry>[];
+  final deletedDates = <DateTime>[];
 
   @override
-  Future<List<JournalEntry>> listRecent({int days = 30}) async => [entry];
+  Future<List<JournalEntry>> listRecent({int days = 30}) async =>
+      List<JournalEntry>.of(entries);
 
   @override
-  Future<JournalEntry?> getByDate(DateTime localDate) async => entry;
+  Future<JournalEntry?> getByDate(DateTime localDate) async {
+    for (final entry in entries) {
+      if (DateUtils.isSameDay(entry.gregDate, localDate)) return entry;
+    }
+    return null;
+  }
 
   @override
   Future<void> upsert({
@@ -116,4 +282,12 @@ class _ArchiveRepo extends JournalRepo {
     Map<String, dynamic>? meta,
     String? category,
   }) async {}
+
+  @override
+  Future<void> deleteByDate(DateTime localDate) async {
+    deletedDates.add(localDate);
+    entries.removeWhere(
+      (entry) => DateUtils.isSameDay(entry.gregDate, localDate),
+    );
+  }
 }

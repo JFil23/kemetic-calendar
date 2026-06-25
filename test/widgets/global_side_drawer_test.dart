@@ -32,9 +32,11 @@ void main() {
     );
 
     final bubbleRect = tester.getRect(find.byKey(globalMenuBubbleKey));
-    expect(bubbleRect.left, 24);
-    expect(bubbleRect.bottom, 844 - 40);
+    expect(bubbleRect.left, 26);
+    expect(bubbleRect.bottom, 844 - 46);
+    expect(bubbleRect.size, const Size(52, 52));
     expect(find.bySemanticsLabel('Open navigation menu'), findsOneWidget);
+    _expectTransparentMenuBubbleSurface(tester);
 
     await tester.tap(find.byKey(globalMenuBubbleKey));
     expect(tapCount, 1);
@@ -67,6 +69,46 @@ void main() {
     expect(drawerWidth, lessThanOrEqualTo(390 * 0.48));
     expect(drawerWidth, lessThan(220));
     expect(drawerWidth, closeTo(187.2, 0.1));
+  });
+
+  testWidgets('phone portrait drawer uses upper date header and lower nav', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(390, 844);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Stack(
+          fit: StackFit.expand,
+          children: [GlobalSideDrawer(open: true, items: _drawerItems())],
+        ),
+      ),
+    );
+
+    final headerRect = tester.getRect(
+      find.byKey(globalSideDrawerDateHeaderKey),
+    );
+    final dividerRect = tester.getRect(
+      find.byKey(globalSideDrawerDateDividerKey),
+    );
+    final calendarRect = tester.getRect(
+      find.byKey(const ValueKey<String>('global-side-drawer-item-Calendar')),
+    );
+    final settingsRect = tester.getRect(
+      find.byKey(const ValueKey<String>('global-side-drawer-item-Settings')),
+    );
+
+    expect(find.byKey(globalSideDrawerDateMonthKey), findsOneWidget);
+    expect(find.byKey(globalSideDrawerDateDayKey), findsOneWidget);
+    expect(headerRect.bottom, lessThan(calendarRect.top));
+    expect(dividerRect.top, greaterThan(headerRect.bottom));
+    expect(dividerRect.bottom, lessThan(calendarRect.top));
+    expect(calendarRect.top, closeTo(844 * 0.30, 1));
+    expect(settingsRect.center.dy, greaterThan(844 * 0.86));
+    expect(settingsRect.bottom, lessThanOrEqualTo(844));
   });
 
   testWidgets('phone landscape drawer is capped as a side rail', (
@@ -203,6 +245,36 @@ void main() {
     expect(width, greaterThanOrEqualTo(300));
     expect(width, closeTo(320, 0.1));
   });
+}
+
+void _expectTransparentMenuBubbleSurface(WidgetTester tester) {
+  final surface = tester.widget<DecoratedBox>(
+    find.byKey(globalMenuBubbleSurfaceKey),
+  );
+  final decoration = surface.decoration as BoxDecoration;
+  final border = decoration.border! as Border;
+
+  expect(decoration.shape, BoxShape.circle);
+  expect(
+    decoration.gradient,
+    same(globalTransparentMenuBubbleStyle.background),
+  );
+  expect(border.top.color, globalTransparentMenuBubbleStyle.borderColor);
+  expect(
+    decoration.boxShadow,
+    same(globalTransparentMenuBubbleStyle.boxShadow),
+  );
+
+  final glyphFinder = find.descendant(
+    of: find.byKey(globalMenuBubbleSurfaceKey),
+    matching: find.byType(GlossyGlyph),
+  );
+  expect(glyphFinder, findsOneWidget);
+
+  final glyph = tester.widget<GlossyGlyph>(glyphFinder);
+  expect(glyph.glyph, '𓉹');
+  expect(glyph.gradient, same(globalTransparentMenuBubbleStyle.glyphGradient));
+  expect(glyph.size, globalTransparentMenuBubbleStyle.glyphSize);
 }
 
 List<GlobalSideDrawerItem> _drawerItems({VoidCallback? onSelected}) {

@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:mobile/core/app_bottom_insets.dart';
 import 'package:mobile/core/navigation_fallback.dart';
 import 'package:mobile/core/touch_targets.dart';
 import 'package:go_router/go_router.dart';
@@ -136,7 +137,12 @@ class _CommitmentTrackerPageState extends State<CommitmentTrackerPage> {
             }
 
             return ListView(
-              padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
+              padding: EdgeInsets.fromLTRB(
+                16,
+                16,
+                16,
+                bottomPaddingAboveGlobalChrome(context, 32),
+              ),
               children: [
                 RhythmSectionCard(
                   child: Column(

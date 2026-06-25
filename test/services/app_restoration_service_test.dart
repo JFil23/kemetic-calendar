@@ -255,6 +255,28 @@ void main() {
   );
 
   test(
+    'user dismissal to Calendar clears stale non-root primary selection',
+    () async {
+      for (final source in const <NavigationSource>[
+        NavigationSource.userBack,
+        NavigationSource.userDismissal,
+      ]) {
+        await AppRestorationService.instance.clearCurrentSnapshot();
+        await _saveDurableRoute('/journal');
+        await _saveDurableRoute('/', source: source);
+        await AppRestorationService.instance.flushPendingWrites();
+
+        final snapshot = await AppRestorationService.instance.readSnapshot();
+
+        expect(snapshot?.routeLocation, '/', reason: source.wireName);
+        expect(snapshot?.launchRouteMetadata?.source, source);
+        expect(snapshot?.launchRouteMetadata?.section, AppSection.calendar);
+        expect(snapshot?.primarySelectionMetadata, isNull);
+      }
+    },
+  );
+
+  test(
     'programmatic root cannot overwrite a non-root durable surface from Calendar',
     () async {
       await _saveDurableRoute('/');

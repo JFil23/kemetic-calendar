@@ -215,6 +215,16 @@ void main() {
           'void _startInitialTasks()',
           'void _consumePendingWebPushIntent()',
         );
+        final mainBootReadSource = _sourceBetween(
+          mainSource,
+          'await AppWindowService.instance.ensureInitialized();',
+          'final initialLocation = _resolveInitialLocation();',
+        );
+        final normalBootReadSource = _sourceBetween(
+          mainBootReadSource,
+          '} else {',
+          '}\n    ',
+        );
 
         expect(pushSource, contains('class PushInitialMessage'));
         expect(
@@ -229,8 +239,8 @@ void main() {
           lessThan(initialLocationSource.indexOf('_bootRestoredLocation')),
         );
         expect(
-          mainSource.indexOf('await _readBootInitialPushIntent();'),
-          lessThan(mainSource.indexOf('_bootRestoredLocation =')),
+          normalBootReadSource.indexOf('await _readBootInitialPushIntent();'),
+          lessThan(normalBootReadSource.indexOf('_bootRestoredLocation =')),
         );
         expect(
           launchSuppressionSource,

@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import 'birthday_calendar.dart';
+
 enum SharedCalendarRole { owner, editor, viewer }
 
 enum SharedCalendarInviteStatus { pending, accepted, declined }
@@ -47,6 +49,7 @@ class SharedCalendarSummary {
     this.filingLifecycle,
     this.ownerHandle,
     this.ownerDisplayName,
+    this.systemType,
   });
 
   final String id;
@@ -66,14 +69,24 @@ class SharedCalendarSummary {
   final String? filingLifecycle;
   final String? ownerHandle;
   final String? ownerDisplayName;
+  final String? systemType;
 
   factory SharedCalendarSummary.fromRow(Map<String, dynamic> row) {
+    final name = ((row['name'] as String?) ?? '').trim();
+    final icon = ((row['icon'] as String?) ?? 'calendar').trim();
+    final explicitSystemType = _cleanString(row['system_type']);
+    final derivedSystemType =
+        explicitSystemType ??
+        ((name.toLowerCase() == kBirthdaysCalendarName.toLowerCase() ||
+                icon.toLowerCase() == kBirthdaysSystemType)
+            ? kBirthdaysSystemType
+            : null);
     return SharedCalendarSummary(
       id: (row['id'] as String?) ?? '',
       ownerId: (row['owner_id'] as String?) ?? '',
-      name: ((row['name'] as String?) ?? '').trim(),
+      name: name,
       colorValue: (row['color'] as num?)?.toInt() ?? 5099745,
-      icon: ((row['icon'] as String?) ?? 'calendar').trim(),
+      icon: icon,
       isPersonal: row['is_personal'] == true,
       role: sharedCalendarRoleFromString((row['role'] as String?) ?? 'editor'),
       status: sharedCalendarInviteStatusFromString(
@@ -88,6 +101,7 @@ class SharedCalendarSummary {
       filingLifecycle: (row['lifecycle'] as String?)?.trim(),
       ownerHandle: (row['owner_handle'] as String?)?.trim(),
       ownerDisplayName: (row['owner_display_name'] as String?)?.trim(),
+      systemType: derivedSystemType,
     );
   }
 
@@ -110,10 +124,15 @@ class SharedCalendarSummary {
       'lifecycle': filingLifecycle,
       'owner_handle': ownerHandle,
       'owner_display_name': ownerDisplayName,
+      'system_type': systemType,
     };
   }
 
   Color get color => Color(colorValue);
+
+  bool get isSystem => systemType != null && systemType!.trim().isNotEmpty;
+
+  bool get isBirthdays => systemType == kBirthdaysSystemType;
 
   bool get isOwner => role == SharedCalendarRole.owner;
 
@@ -123,11 +142,11 @@ class SharedCalendarSummary {
   bool get canEdit => canEditEvents;
 
   bool get canSeeMemberRoster =>
-      status == SharedCalendarInviteStatus.accepted && !isPersonal;
+      status == SharedCalendarInviteStatus.accepted && !isPersonal && !isSystem;
 
-  bool get canSeePendingInvites => isOwner && !isPersonal;
+  bool get canSeePendingInvites => isOwner && !isPersonal && !isSystem;
 
-  bool get canManageMembership => isOwner && !isPersonal;
+  bool get canManageMembership => isOwner && !isPersonal && !isSystem;
 
   bool get canManageMembers => canManageMembership;
 

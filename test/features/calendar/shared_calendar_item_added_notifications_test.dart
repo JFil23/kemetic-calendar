@@ -70,7 +70,7 @@ void main() {
     final repeatingNoteSave = _sourceBetween(
       calendarSource,
       'Future<void> _saveRepeatingNoteAsHiddenFlow',
-      'Future<DateTime?> pickDateUniversal',
+      'Future<void> _triggerFlowSchedule',
     );
     expect(repeatingNoteSave, contains("itemType: 'note'"));
     expect(repeatingNoteSave, contains('noteId: firstEventId'));

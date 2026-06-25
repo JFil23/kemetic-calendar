@@ -1101,12 +1101,16 @@ class _AIFlowGenerationModalState extends State<AIFlowGenerationModal> {
                                   size: 20,
                                 ),
                                 SizedBox(width: 8),
-                                Text(
-                                  'Tips for better results',
-                                  style: TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 14,
-                                    fontWeight: FontWeight.w500,
+                                Expanded(
+                                  child: Text(
+                                    'Tips for better results',
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.w500,
+                                    ),
                                   ),
                                 ),
                               ],

@@ -55,9 +55,17 @@ void main() {
         source,
         contains('KemeticKeyboardRevealScope(enabled: false, child: content)'),
       );
-      expect(source, contains('final listBottomPadding = embedded'));
-      expect(source, contains('? bottomPaddingAboveGlobalChrome(context, 32)'));
-      expect(source, contains(': 32.0'));
+      expect(
+        source,
+        contains(
+          'final listBottomPadding = bottomPaddingAboveGlobalChrome(context, 32);',
+        ),
+      );
+      expect(source, contains('final keyboardInset = keyboardInsetOf(context);'));
+      expect(source, contains('final effectiveListBottomPadding = math.max('));
+      expect(source, contains('keyboardInset + 32'));
+      expect(source, contains('bottomPadding: effectiveListBottomPadding'));
+      expect(source, isNot(contains('final listBottomPadding = embedded')));
       expect(
         source,
         contains('scrollPadding: keyboardManagedTextFieldScrollPadding'),

@@ -535,11 +535,18 @@ class _InfoTab extends StatefulWidget {
 }
 
 class _InfoTabState extends State<_InfoTab> {
+  static const List<String> _transliterationFontFallback = [
+    'GentiumPlus',
+    'NotoSans',
+    'Roboto',
+  ];
+
   static const TextStyle _bodyStyle = TextStyle(
     color: _CalendarTone.bodyStone,
     fontSize: _CalendarScale.infoBody,
     height: 1.47,
     fontFamily: 'CormorantGaramond',
+    fontFamilyFallback: _transliterationFontFallback,
     fontWeight: FontWeight.w400,
   );
   static const TextStyle _metaStyle = TextStyle(
@@ -548,6 +555,7 @@ class _InfoTabState extends State<_InfoTab> {
     height: 1.30,
     fontStyle: FontStyle.italic,
     fontFamily: 'CormorantGaramond',
+    fontFamilyFallback: _transliterationFontFallback,
     fontWeight: FontWeight.w400,
   );
 
@@ -1018,7 +1026,8 @@ class _EventsTab extends StatelessWidget {
     final flow = event.flowName?.trim().toLowerCase();
     if (flow == null || flow.isEmpty) return false;
     return flow == kDawnHouseRiteTitle.toLowerCase() ||
-        flow == kEveningThresholdRiteTitle.toLowerCase();
+        resolveMaatFlowKind(flowName: flow) ==
+            MaatFlowKind.eveningThresholdRite;
   }
 
   String _purposePreview(String? detail) {

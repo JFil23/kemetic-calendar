@@ -8,7 +8,7 @@ const String kDecanWatchGlyph = '𓇼';
 const String kDecanWatchTagline =
     'The sky has been counting. Stand under it and add your count.';
 const String kDecanWatchOverview =
-    'At each decan boundary, go outside, look up, note one line about the sky, read the day card, and name one bearing for the next ten days. The Decan Watch is an ongoing night-sky rhythm, not a drift-repair flow.';
+    'The Decan Watch meets each ten-day boundary through honest sky witness. Outside, inside, clear, or clouded, the user records what the night allowed and names one bearing for the next ten days.';
 const String kDecanWatchConfidenceLabel =
     'Draws on ten-day decan observation and Kemetic astronomical practice.';
 const String kDecanWatchRequiredLine =
@@ -19,6 +19,22 @@ const int kDecanWatchDefaultMinute = 0;
 const int kDecanWatchEditableFromHour = 18;
 const int kDecanWatchEditableToHour = 23;
 const int kDecanWatchDurationMinutes = 15;
+
+const String kDecanWatchResponseJournalGroupId = 'decan-watch-observation';
+const String kDecanWatchResponseVisibilitySpecId = 'decan-watch-visibility';
+const String kDecanWatchResponseSkyNoteSpecId = 'decan-watch-sky-note';
+const String kDecanWatchResponseBearingSpecId = 'decan-watch-bearing';
+
+const String kDecanWatchVisibilityOutside = 'outside';
+const String kDecanWatchVisibilityInside = 'inside';
+const String kDecanWatchVisibilityClouded = 'clouded';
+const String kDecanWatchVisibilityNotVisible = 'not_visible';
+const Set<String> kDecanWatchVisibilityIds = <String>{
+  kDecanWatchVisibilityOutside,
+  kDecanWatchVisibilityInside,
+  kDecanWatchVisibilityClouded,
+  kDecanWatchVisibilityNotVisible,
+};
 
 enum DecanWatchLens { neutral, ra, nut }
 
@@ -97,6 +113,13 @@ DecanWatchLens? decanWatchLensFromKey(String? key) {
   for (final lens in DecanWatchLens.values) {
     if (lens.key == normalized) return lens;
   }
+  return null;
+}
+
+String? normalizeDecanWatchVisibility(String? value) {
+  final normalized = value?.trim().toLowerCase().replaceAll('-', '_');
+  if (normalized == null || normalized.isEmpty) return null;
+  if (kDecanWatchVisibilityIds.contains(normalized)) return normalized;
   return null;
 }
 

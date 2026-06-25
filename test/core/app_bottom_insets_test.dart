@@ -3,6 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:mobile/core/app_bottom_insets.dart';
 import 'package:mobile/core/global_side_drawer_metrics.dart';
 import 'package:mobile/features/nodes/kemetic_node_library.dart';
+import 'package:mobile/features/nodes/kemetic_node_list_page.dart';
 import 'package:mobile/features/nodes/kemetic_node_reader_page.dart';
 import 'package:mobile/features/nodes/node_user_insights_section.dart';
 import 'package:mobile/services/session_resume_service.dart';
@@ -138,6 +139,60 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Your Insights'), findsOneWidget);
+  });
+
+  testWidgets('library list keeps bubble-aware bottom padding', (tester) async {
+    tester.view.physicalSize = const Size(390, 640);
+    tester.view.devicePixelRatio = 1;
+    tester.view.padding = const FakeViewPadding(bottom: 24);
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    addTearDown(tester.view.resetPadding);
+
+    await tester.pumpWidget(const MaterialApp(home: KemeticNodeListPage()));
+    await tester.pump();
+
+    final listFinder = find.byType(ListView).first;
+    final listView = tester.widget<ListView>(listFinder);
+    final padding = listView.padding as EdgeInsets;
+    final listContext = tester.element(listFinder);
+
+    expect(
+      padding.bottom,
+      AppBottomInsets.scrollBottomPadding(listContext, 180),
+    );
+    expect(padding.bottom, greaterThan(kGlobalMenuBubbleSize));
+  });
+
+  testWidgets('library reader keeps bubble-aware bottom padding', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(390, 640);
+    tester.view.devicePixelRatio = 1;
+    tester.view.padding = const FakeViewPadding(bottom: 24);
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    addTearDown(tester.view.resetPadding);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: KemeticNodeReaderPage(
+          node: KemeticNodeLibrary.resolve('cosmic_order')!,
+        ),
+      ),
+    );
+    await tester.pump();
+
+    final scrollFinder = find.byType(SingleChildScrollView).first;
+    final scrollView = tester.widget<SingleChildScrollView>(scrollFinder);
+    final padding = scrollView.padding as EdgeInsets;
+    final scrollContext = tester.element(scrollFinder);
+
+    expect(
+      padding.bottom,
+      AppBottomInsets.scrollBottomPadding(scrollContext, 28),
+    );
+    expect(padding.bottom, greaterThan(kGlobalMenuBubbleSize));
   });
 
   testWidgets('main calendar route can opt out without special bottom chrome', (
