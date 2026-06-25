@@ -265,14 +265,18 @@ void main() {
     });
 
     test('today toolbar actions use the calendar glyph', () async {
-      final deprecatedTodayIconMatches = (await _filesContainingAny(<String>[
-        'Icons.calendar_today_outlined',
-        'Icons.today',
-      ])).where((path) {
-        // Shared Calendars uses this as an "Upcoming events" panel glyph,
-        // not as the Today toolbar action this guard protects.
-        return path != 'lib/features/calendars/shared_calendars_sheet.dart';
-      }).toList(growable: false);
+      final deprecatedTodayIconMatches =
+          (await _filesContainingAny(<String>[
+                'Icons.calendar_today_outlined',
+                'Icons.today',
+              ]))
+              .where((path) {
+                // Shared Calendars uses this as an "Upcoming events" panel glyph,
+                // not as the Today toolbar action this guard protects.
+                return path !=
+                    'lib/features/calendars/shared_calendars_sheet.dart';
+              })
+              .toList(growable: false);
       expect(deprecatedTodayIconMatches, isEmpty);
 
       final todayGlyphMatches = await _filesContainingAny(<String>[
@@ -595,6 +599,11 @@ void main() {
         'String _resolveInitialLocation()',
         'Future<void> _readBootInitialPushIntent() async',
       );
+      final bootInitialRouteSelection = _sourceBetween(
+        main,
+        'if (_debugDaySheetSmokeBootRequested) {',
+        'final initialLocation = _resolveInitialLocation();',
+      );
 
       expect(
         bootRestore,
@@ -626,16 +635,34 @@ void main() {
       expect(main, contains('_isBootInitialAppLinkUri'));
       expect(main, contains('String? _bootExplicitIntentLocation'));
       expect(
-        main.indexOf('await _readBootInitialAppLinkIntent();'),
-        lessThan(main.indexOf('await _readBootInitialPushIntent();')),
+        bootInitialRouteSelection.indexOf(
+          'await _readBootInitialAppLinkIntent();',
+        ),
+        lessThan(
+          bootInitialRouteSelection.indexOf(
+            'await _readBootInitialPushIntent();',
+          ),
+        ),
       );
       expect(
-        main.indexOf('await _readBootInitialAppLinkIntent();'),
-        lessThan(main.indexOf('_bootRestoredLocation =')),
+        bootInitialRouteSelection.indexOf(
+          'await _readBootInitialAppLinkIntent();',
+        ),
+        lessThan(
+          bootInitialRouteSelection.indexOf(
+            '_bootRestoredLocation = await _readBootRestoredLocation();',
+          ),
+        ),
       );
       expect(
-        main.indexOf('await _readBootInitialPushIntent();'),
-        lessThan(main.indexOf('_bootRestoredLocation =')),
+        bootInitialRouteSelection.indexOf(
+          'await _readBootInitialPushIntent();',
+        ),
+        lessThan(
+          bootInitialRouteSelection.indexOf(
+            '_bootRestoredLocation = await _readBootRestoredLocation();',
+          ),
+        ),
       );
       expect(
         main.indexOf(
@@ -955,18 +982,35 @@ void main() {
           'void _suppressPassiveLaunchSurfacesForExplicitIntentIfNeeded()',
           'Future<String?> _readBootRestoredLocation() async',
         );
+        final bootInitialRouteSelection = _sourceBetween(
+          main,
+          'if (_debugDaySheetSmokeBootRequested) {',
+          'final initialLocation = _resolveInitialLocation();',
+        );
 
         expect(
           initialLocation.indexOf('_bootExplicitIntentLocation'),
           lessThan(initialLocation.indexOf('_bootRestoredLocation')),
         );
         expect(
-          main.indexOf('await _readBootInitialAppLinkIntent();'),
-          lessThan(main.indexOf('await _readBootInitialPushIntent();')),
+          bootInitialRouteSelection.indexOf(
+            'await _readBootInitialAppLinkIntent();',
+          ),
+          lessThan(
+            bootInitialRouteSelection.indexOf(
+              'await _readBootInitialPushIntent();',
+            ),
+          ),
         );
         expect(
-          main.indexOf('await _readBootInitialPushIntent();'),
-          lessThan(main.indexOf('_bootRestoredLocation =')),
+          bootInitialRouteSelection.indexOf(
+            'await _readBootInitialPushIntent();',
+          ),
+          lessThan(
+            bootInitialRouteSelection.indexOf(
+              '_bootRestoredLocation = await _readBootRestoredLocation();',
+            ),
+          ),
         );
         expect(bootAppLink, contains('_bootInitialAppLinkSignature'));
         expect(bootAppLink, contains('_initialLocationFromAppLinkIntent'));
