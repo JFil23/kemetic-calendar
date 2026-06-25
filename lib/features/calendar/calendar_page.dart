@@ -175,6 +175,7 @@ part 'calendar_month_detail.dart';
 part 'calendar_flow_studio_page.dart';
 part 'calendar_flow_pages.dart';
 part 'calendar_maat_flows.dart';
+part 'reading_house_authoring_page.dart';
 part 'my_flow_card_spec.dart';
 part 'my_flow_maat_badge.dart';
 part 'my_flow_card.dart';
@@ -6436,6 +6437,7 @@ class CalendarPage extends StatefulWidget {
     DecanWatchLens? decanWatchLens,
     OpenHandLens? openHandLens,
     DjedLens? djedLens,
+    List<ReadingHouseSitting>? readingHouseSittings,
     String? eveningThresholdInitialCarry,
   }) async {
     final personalCalendarId = await _loadHeadlessPersonalCalendarId();
@@ -6591,6 +6593,7 @@ class CalendarPage extends StatefulWidget {
         plan: readingHousePlanFromDraftValues(
           kMaatFlowResponseDraftStore.valuesForFlow(template.key),
         ),
+        readingHouseSittings: readingHouseSittings,
         alertOffsetMinutes: kEventFilingNoAlertMinutes,
       );
       return result.flowIdOrNegativeOne;
@@ -6925,13 +6928,48 @@ class CalendarPage extends StatefulWidget {
       }
     }
 
+    final cachedFlows =
+        _cachedDetachedMyFlowsFilingSnapshot(flowsRepo)?.flows ??
+        const <_Flow>[];
+    _Flow? readingHouseFlow;
+    if (editFlowId != null && importData == null) {
+      for (final flow in cachedFlows) {
+        if (flow.id == editFlowId &&
+            (resolveMaatFlowKind(flowNotes: flow.notes) ==
+                    MaatFlowKind.readingHouse ||
+                isReadingHouseFlowReference(
+                  flowName: flow.name,
+                  flowNotes: flow.notes,
+                ))) {
+          readingHouseFlow = flow;
+          break;
+        }
+      }
+    }
+    if (readingHouseFlow != null) {
+      return _pushDetachedFlowStudioRoute<_FlowStudioResult>(
+        navigator,
+        MaterialPageRoute<_FlowStudioResult>(
+          builder: (_) => _ReadingHouseAuthoringPage(
+            flow: readingHouseFlow!,
+            onSave: handleResult,
+          ),
+        ),
+        parentRoute: parentRoute,
+        visibleState: <String, dynamic>{
+          'mode': _kFlowStudioModeEditor,
+          'editFlowId': editFlowId,
+          'templateKey': kReadingHouseFlowKey,
+        },
+        returnState: returnState,
+      );
+    }
+
     return _pushDetachedFlowStudioRoute<_FlowStudioResult>(
       navigator,
       MaterialPageRoute<_FlowStudioResult>(
         builder: (_) => _FlowStudioPage(
-          existingFlows:
-              _cachedDetachedMyFlowsFilingSnapshot(flowsRepo)?.flows ??
-              const <_Flow>[],
+          existingFlows: cachedFlows,
           editFlowId: editFlowId,
           importData: importData,
           onRouteResult: handleResult,
@@ -10098,6 +10136,7 @@ class CalendarPageState extends State<CalendarPage>
                     DecanWatchLens? decanWatchLens,
                     OpenHandLens? openHandLens,
                     DjedLens? djedLens,
+                    List<ReadingHouseSitting>? readingHouseSittings,
                     String? eveningThresholdInitialCarry,
                   }) async {
                     final id = await _addMaatFlowInstance(
@@ -10128,6 +10167,7 @@ class CalendarPageState extends State<CalendarPage>
                       decanWatchLens: decanWatchLens ?? DecanWatchLens.neutral,
                       openHandLens: openHandLens ?? OpenHandLens.neutral,
                       djedLens: djedLens ?? DjedLens.neutral,
+                      readingHouseSittings: readingHouseSittings,
                       eveningThresholdInitialCarry:
                           eveningThresholdInitialCarry,
                     );
@@ -10208,6 +10248,24 @@ class CalendarPageState extends State<CalendarPage>
     ImportFlowData? importData,
     required Map<String, dynamic> returnState,
   }) {
+    final readingHouseFlow = importData == null
+        ? _readingHouseFlowForEditor(editFlowId)
+        : null;
+    if (readingHouseFlow != null) {
+      return _pushFlowStudioRoute<_FlowStudioResult>(
+        navigator,
+        MaterialPageRoute<_FlowStudioResult>(
+          builder: (_) => _ReadingHouseAuthoringPage(flow: readingHouseFlow),
+        ),
+        visibleState: <String, dynamic>{
+          'mode': _kFlowStudioModeEditor,
+          'editFlowId': editFlowId,
+          'templateKey': kReadingHouseFlowKey,
+        },
+        returnState: returnState,
+      );
+    }
+
     Future<void> handleResult(_FlowStudioResult result) async {
       await _persistFlowStudioResult(result);
       if (mounted) {
@@ -10234,6 +10292,22 @@ class CalendarPageState extends State<CalendarPage>
       },
       returnState: returnState,
     );
+  }
+
+  _Flow? _readingHouseFlowForEditor(int? flowId) {
+    if (flowId == null) return null;
+    final index = _flows.indexWhere((flow) => flow.id == flowId);
+    if (index < 0) return null;
+    final flow = _flows[index];
+    if (resolveMaatFlowKind(flowNotes: flow.notes) ==
+            MaatFlowKind.readingHouse ||
+        isReadingHouseFlowReference(
+          flowName: flow.name,
+          flowNotes: flow.notes,
+        )) {
+      return flow;
+    }
+    return null;
   }
 
   Future<int?> _pushMaatFlowTemplateDetail(
@@ -10269,6 +10343,7 @@ class CalendarPageState extends State<CalendarPage>
                 DecanWatchLens? decanWatchLens,
                 OpenHandLens? openHandLens,
                 DjedLens? djedLens,
+                List<ReadingHouseSitting>? readingHouseSittings,
                 String? eveningThresholdInitialCarry,
               }) async {
                 final id = await _addMaatFlowInstance(
@@ -10296,6 +10371,7 @@ class CalendarPageState extends State<CalendarPage>
                   decanWatchLens: decanWatchLens ?? DecanWatchLens.neutral,
                   openHandLens: openHandLens ?? OpenHandLens.neutral,
                   djedLens: djedLens ?? DjedLens.neutral,
+                  readingHouseSittings: readingHouseSittings,
                   eveningThresholdInitialCarry: eveningThresholdInitialCarry,
                 );
                 return id;
@@ -13980,6 +14056,7 @@ class CalendarPageState extends State<CalendarPage>
             DecanWatchLens? decanWatchLens,
             OpenHandLens? openHandLens,
             DjedLens? djedLens,
+            List<ReadingHouseSitting>? readingHouseSittings,
             String? eveningThresholdInitialCarry,
           }) {
             return _addMaatFlowInstance(
@@ -14006,6 +14083,7 @@ class CalendarPageState extends State<CalendarPage>
               decanWatchLens: decanWatchLens ?? DecanWatchLens.neutral,
               openHandLens: openHandLens ?? OpenHandLens.neutral,
               djedLens: djedLens ?? DjedLens.neutral,
+              readingHouseSittings: readingHouseSittings,
               eveningThresholdInitialCarry: eveningThresholdInitialCarry,
             );
           },
@@ -23265,6 +23343,34 @@ class CalendarPageState extends State<CalendarPage>
   }
 
   void _openFlowEditorDirectly(int flowId) {
+    final readingHouseFlow = _readingHouseFlowForEditor(flowId);
+    if (readingHouseFlow != null) {
+      _openFlowStudioSheet(
+        continuityState: <String, dynamic>{
+          'mode': _kFlowStudioModeEditor,
+          'editFlowId': flowId,
+          'templateKey': kReadingHouseFlowKey,
+        },
+        rootBuilder: (innerCtx) {
+          return _ReadingHouseAuthoringPage(
+            flow: readingHouseFlow,
+            onSave: (result) async {
+              await _persistFlowStudioResult(result);
+              if (mounted) {
+                await _loadFromDisk(source: 'reading_house_authoring_save');
+              }
+              if (!innerCtx.mounted) return;
+              final rootNavigator = Navigator.of(innerCtx, rootNavigator: true);
+              if (rootNavigator.canPop()) {
+                rootNavigator.pop();
+              }
+            },
+          );
+        },
+      );
+      return;
+    }
+
     _openFlowStudioSheet(
       continuityState: <String, dynamic>{
         'mode': _kFlowStudioModeEditor,
@@ -23785,6 +23891,7 @@ class CalendarPageState extends State<CalendarPage>
     DecanWatchLens decanWatchLens = DecanWatchLens.neutral,
     OpenHandLens openHandLens = OpenHandLens.neutral,
     DjedLens djedLens = DjedLens.neutral,
+    List<ReadingHouseSitting>? readingHouseSittings,
     String? eveningThresholdInitialCarry,
   }) async {
     if (template.kind == _MaatFlowTemplateKind.trackSky) {
@@ -25014,13 +25121,12 @@ class CalendarPageState extends State<CalendarPage>
       final firstG = DateUtils.dateOnly(
         startDate ?? defaultReadingHouseStartDate(timezone),
       );
+      final sittings = normalizeReadingHouseSittingOrder(
+        readingHouseSittings ?? kReadingHouseSittings,
+      );
       final occurrences = <ReadingHouseOccurrenceSchedule>[
-        for (final sitting in kReadingHouseSittings)
-          readingHouseScheduleForDate(
-            sitting,
-            firstG.add(Duration(days: sitting.flowDay - 1)),
-            timezone,
-          ),
+        for (final sitting in sittings)
+          readingHouseScheduleForSitting(sitting, firstG, timezone),
       ];
       final dates = <DateTime>{
         for (final occurrence in occurrences)
@@ -25060,8 +25166,8 @@ class CalendarPageState extends State<CalendarPage>
 
       final repo = UserEventsRepo(Supabase.instance.client);
       try {
-        for (var i = 0; i < kReadingHouseSittings.length; i++) {
-          final sitting = kReadingHouseSittings[i];
+        for (var i = 0; i < sittings.length; i++) {
+          final sitting = sittings[i];
           final occurrence = occurrences[i];
           final kyKmKd = KemeticMath.fromGregorian(
             DateUtils.dateOnly(occurrence.startLocal),

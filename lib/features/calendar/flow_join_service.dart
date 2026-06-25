@@ -2158,9 +2158,12 @@ class FlowJoinService {
     required TrackSkyTimeZone timezone,
     DateTime? startDate,
     ReadingHousePlan plan = const ReadingHousePlan(),
+    List<ReadingHouseSitting>? readingHouseSittings,
     int alertOffsetMinutes = kEventFilingNoAlertMinutes,
   }) async {
-    final sittings = kReadingHouseSittings;
+    final sittings = normalizeReadingHouseSittingOrder(
+      readingHouseSittings ?? kReadingHouseSittings,
+    );
     if (sittings.isEmpty) {
       return const FlowJoinResult.failure(FlowJoinFailureCode.noOccurrences);
     }
@@ -2170,11 +2173,7 @@ class FlowJoinService {
     );
     final occurrences = <ReadingHouseOccurrenceSchedule>[
       for (final sitting in sittings)
-        readingHouseScheduleForDate(
-          sitting,
-          firstGregorian.add(Duration(days: sitting.flowDay - 1)),
-          timezone,
-        ),
+        readingHouseScheduleForSitting(sitting, firstGregorian, timezone),
     ];
     if (occurrences.isEmpty) {
       return const FlowJoinResult.failure(FlowJoinFailureCode.noOccurrences);

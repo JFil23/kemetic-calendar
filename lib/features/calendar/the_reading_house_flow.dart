@@ -10,7 +10,7 @@ const String kReadingHouseTitle = 'The Reading House';
 const String kReadingHouseGlyph = '𓉐';
 const String kReadingHouseTagline = 'A private-study foundation for one book.';
 const String kReadingHouseEnrollmentCopy =
-    'Phase 1A creates private starter sittings. Company mode is saved as intent only; invite links, shared fragments, replies, and house chat are not live yet.';
+    'Phase 1B lets the host shape private sittings. Company mode is saved as intent only; invite links, shared fragments, replies, and house chat are not live yet.';
 
 const String kReadingHouseBookTitlePromptId = 'reading-house-book-title';
 const String kReadingHouseEditionNotePromptId = 'reading-house-edition-note';
@@ -23,12 +23,16 @@ const String kReadingHouseDefaultQuestion =
 const String kReadingHouseDefaultMode = 'company';
 const String kReadingHouseSoloMode = 'solo';
 const String kReadingHouseDefaultState = 'draft_house';
+const String kReadingHouseSittingSourceStarterDefault = 'starter_default';
+const String kReadingHouseSittingSourceHostAuthored = 'host_authored';
+const String kReadingHouseHostAuthoringPhaseFuture = 'future';
+const String kReadingHouseHostAuthoringPhaseEnabled = 'enabled';
 const int kReadingHouseDefaultHour = 19;
 const int kReadingHouseDefaultMinute = 0;
 const int kReadingHouseDefaultDurationMinutes = 60;
 
 const String kReadingHouseOverview =
-    'The Reading House is registered as a Ma’at flow with a Phase 1A private-study skeleton. A book is divided into three generated starter sittings. Each sitting begins with private reflection, lets the reader mark position without mandatory writing, and keeps company surfaces future-facing. It is not yet a book-club engine.';
+    'The Reading House is registered as a Ma’at flow with host-authored private sittings. A book can begin from three starter sittings, then the host can edit, add, reorder, or delete the sitting plan. Each sitting begins with private reflection, lets the reader mark position without mandatory writing, and keeps company surfaces future-facing. It is not yet a book-club engine.';
 
 class ReadingHousePlan {
   const ReadingHousePlan({
@@ -74,6 +78,12 @@ class ReadingHouseSitting {
     required this.privatePrompt,
     this.hostNote = '',
     this.sharePromptOnComplete = false,
+    this.sittingSource = kReadingHouseSittingSourceStarterDefault,
+    this.hostEditable = false,
+    this.hostAuthoringPhase = kReadingHouseHostAuthoringPhaseFuture,
+    this.scheduledDate,
+    this.hour = kReadingHouseDefaultHour,
+    this.minute = kReadingHouseDefaultMinute,
   });
 
   final int eventNumber;
@@ -84,6 +94,70 @@ class ReadingHouseSitting {
   final String privatePrompt;
   final String hostNote;
   final bool sharePromptOnComplete;
+  final String sittingSource;
+  final bool hostEditable;
+  final String hostAuthoringPhase;
+  final DateTime? scheduledDate;
+  final int hour;
+  final int minute;
+
+  bool get isHostAuthored =>
+      sittingSource == kReadingHouseSittingSourceHostAuthored ||
+      hostAuthoringPhase == kReadingHouseHostAuthoringPhaseEnabled ||
+      hostEditable;
+
+  ReadingHouseSitting copyWith({
+    int? eventNumber,
+    int? flowDay,
+    String? title,
+    String? section,
+    String? theme,
+    String? privatePrompt,
+    String? hostNote,
+    bool? sharePromptOnComplete,
+    String? sittingSource,
+    bool? hostEditable,
+    String? hostAuthoringPhase,
+    DateTime? scheduledDate,
+    bool clearScheduledDate = false,
+    int? hour,
+    int? minute,
+  }) {
+    return ReadingHouseSitting(
+      eventNumber: eventNumber ?? this.eventNumber,
+      flowDay: flowDay ?? this.flowDay,
+      title: title ?? this.title,
+      section: section ?? this.section,
+      theme: theme ?? this.theme,
+      privatePrompt: privatePrompt ?? this.privatePrompt,
+      hostNote: hostNote ?? this.hostNote,
+      sharePromptOnComplete:
+          sharePromptOnComplete ?? this.sharePromptOnComplete,
+      sittingSource: sittingSource ?? this.sittingSource,
+      hostEditable: hostEditable ?? this.hostEditable,
+      hostAuthoringPhase: hostAuthoringPhase ?? this.hostAuthoringPhase,
+      scheduledDate: clearScheduledDate
+          ? null
+          : scheduledDate ?? this.scheduledDate,
+      hour: (hour ?? this.hour).clamp(0, 23).toInt(),
+      minute: (minute ?? this.minute).clamp(0, 59).toInt(),
+    );
+  }
+
+  ReadingHouseSitting asHostAuthored({
+    int? eventNumber,
+    int? flowDay,
+    DateTime? scheduledDate,
+  }) {
+    return copyWith(
+      eventNumber: eventNumber,
+      flowDay: flowDay,
+      scheduledDate: scheduledDate,
+      sittingSource: kReadingHouseSittingSourceHostAuthored,
+      hostEditable: true,
+      hostAuthoringPhase: kReadingHouseHostAuthoringPhaseEnabled,
+    );
+  }
 }
 
 class ReadingHouseOccurrenceSchedule {
@@ -145,6 +219,95 @@ const List<ReadingHouseSitting> kReadingHouseSittings = <ReadingHouseSitting>[
   ),
 ];
 
+int readingHouseDefaultFlowDayForIndex(int index) {
+  if (index <= 0) return 1;
+  return index * 7;
+}
+
+List<ReadingHouseSitting> readingHouseStarterSittingsForAuthoring() {
+  return <ReadingHouseSitting>[...kReadingHouseSittings];
+}
+
+List<ReadingHouseSitting> normalizeReadingHouseSittingOrder(
+  List<ReadingHouseSitting> sittings, {
+  bool markAsHostAuthored = false,
+}) {
+  return <ReadingHouseSitting>[
+    for (var index = 0; index < sittings.length; index++)
+      (markAsHostAuthored ? sittings[index].asHostAuthored() : sittings[index])
+          .copyWith(
+            eventNumber: index + 1,
+            flowDay: sittings[index].scheduledDate == null
+                ? readingHouseDefaultFlowDayForIndex(index)
+                : sittings[index].flowDay,
+          ),
+  ];
+}
+
+List<ReadingHouseSitting> addReadingHouseSitting(
+  List<ReadingHouseSitting> sittings, {
+  ReadingHouseSitting? sitting,
+}) {
+  final nextIndex = sittings.length;
+  final nextNumber = nextIndex + 1;
+  final next =
+      (sitting ??
+              ReadingHouseSitting(
+                eventNumber: nextNumber,
+                flowDay: readingHouseDefaultFlowDayForIndex(nextIndex),
+                title: 'New Sitting',
+                section: 'New section',
+                theme: 'What should this sitting hold?',
+                privatePrompt:
+                    'Read privately first, then mark what you are carrying.',
+              ))
+          .asHostAuthored(
+            eventNumber: nextNumber,
+            flowDay: readingHouseDefaultFlowDayForIndex(nextIndex),
+          );
+  return <ReadingHouseSitting>[...sittings, next];
+}
+
+List<ReadingHouseSitting> editReadingHouseSitting(
+  List<ReadingHouseSitting> sittings,
+  int eventNumber,
+  ReadingHouseSitting updated,
+) {
+  return normalizeReadingHouseSittingOrder(<ReadingHouseSitting>[
+    for (final sitting in sittings)
+      sitting.eventNumber == eventNumber ? updated.asHostAuthored() : sitting,
+  ]);
+}
+
+List<ReadingHouseSitting> deleteReadingHouseSitting(
+  List<ReadingHouseSitting> sittings,
+  int eventNumber,
+) {
+  return normalizeReadingHouseSittingOrder(<ReadingHouseSitting>[
+    for (final sitting in sittings)
+      if (sitting.eventNumber != eventNumber) sitting.asHostAuthored(),
+  ], markAsHostAuthored: true);
+}
+
+List<ReadingHouseSitting> reorderReadingHouseSitting(
+  List<ReadingHouseSitting> sittings,
+  int oldIndex,
+  int newIndex,
+) {
+  if (sittings.isEmpty ||
+      oldIndex < 0 ||
+      oldIndex >= sittings.length ||
+      newIndex < 0 ||
+      newIndex >= sittings.length ||
+      oldIndex == newIndex) {
+    return normalizeReadingHouseSittingOrder(sittings);
+  }
+  final next = <ReadingHouseSitting>[...sittings];
+  final moved = next.removeAt(oldIndex);
+  next.insert(newIndex, moved);
+  return normalizeReadingHouseSittingOrder(next, markAsHostAuthored: true);
+}
+
 bool _readingHouseTimeZonesInitialized = false;
 
 void _ensureReadingHouseTimeZonesInitialized() {
@@ -169,9 +332,16 @@ DateTime defaultReadingHouseStartDate(
 }
 
 DateTime readingHouseNowInZone(TrackSkyTimeZone timezone, {DateTime? now}) {
+  return readingHouseLocalDateTimeForUtc(now ?? DateTime.now(), timezone);
+}
+
+DateTime readingHouseLocalDateTimeForUtc(
+  DateTime instant,
+  TrackSkyTimeZone timezone,
+) {
   _ensureReadingHouseTimeZonesInitialized();
   final location = tz.getLocation(timezone.ianaName);
-  final zoned = tz.TZDateTime.from((now ?? DateTime.now()).toUtc(), location);
+  final zoned = tz.TZDateTime.from(instant.toUtc(), location);
   return _fromReadingHouseZonedDateTime(zoned);
 }
 
@@ -212,6 +382,25 @@ ReadingHouseOccurrenceSchedule readingHouseScheduleForDate(
     fallback: 'user_editable_local_time',
     hour: clampedHour,
     minute: clampedMinute,
+  );
+}
+
+ReadingHouseOccurrenceSchedule readingHouseScheduleForSitting(
+  ReadingHouseSitting sitting,
+  DateTime firstStart,
+  TrackSkyTimeZone timezone,
+) {
+  return readingHouseScheduleForDate(
+    sitting,
+    sitting.scheduledDate ??
+        DateTime(
+          firstStart.year,
+          firstStart.month,
+          firstStart.day,
+        ).add(Duration(days: sitting.flowDay - 1)),
+    timezone,
+    hour: sitting.hour,
+    minute: sitting.minute,
   );
 }
 
@@ -327,7 +516,9 @@ ReadingHouseSitting? _readingHouseSittingFromPayload(
   final eventNumber = parseNumber(payload['event_number']);
   if (eventNumber == null) return null;
   final fallback = readingHouseSittingByNumber(eventNumber);
-  if (fallback == null) return null;
+  final schedule = payload['schedule'] is Map
+      ? Map<String, dynamic>.from(payload['schedule'] as Map)
+      : const <String, dynamic>{};
 
   String value(String key, String fallbackValue) {
     final raw = payload[key]?.toString().trim();
@@ -344,19 +535,70 @@ ReadingHouseSitting? _readingHouseSittingFromPayload(
     return fallbackValue;
   }
 
+  DateTime? dateValue(String key) {
+    final raw = payload[key]?.toString().trim();
+    if (raw == null || raw.isEmpty) return null;
+    final parsed = DateTime.tryParse(raw);
+    if (parsed == null) return null;
+    return DateTime(parsed.year, parsed.month, parsed.day);
+  }
+
+  final source = value(
+    'sitting_source',
+    fallback?.sittingSource ?? kReadingHouseSittingSourceHostAuthored,
+  );
+  final authoringPhase = value(
+    'host_authoring_phase',
+    fallback?.hostAuthoringPhase ?? kReadingHouseHostAuthoringPhaseEnabled,
+  );
+  final hostEditable = boolValue(
+    'host_editable',
+    fallback?.hostEditable ??
+        (source == kReadingHouseSittingSourceHostAuthored ||
+            authoringPhase == kReadingHouseHostAuthoringPhaseEnabled),
+  );
+
   return ReadingHouseSitting(
     eventNumber: eventNumber,
-    flowDay: parseNumber(payload['flow_day']) ?? fallback.flowDay,
-    title: value('sitting_title', fallback.title),
-    section: value('section', fallback.section),
-    theme: value('theme', fallback.theme),
-    privatePrompt: value('private_prompt', fallback.privatePrompt),
-    hostNote: value('host_note', fallback.hostNote),
+    flowDay:
+        parseNumber(payload['flow_day']) ??
+        fallback?.flowDay ??
+        readingHouseDefaultFlowDayForIndex(eventNumber - 1),
+    title: value('sitting_title', fallback?.title ?? 'Sitting $eventNumber'),
+    section: value('section', fallback?.section ?? ''),
+    theme: value('theme', fallback?.theme ?? ''),
+    privatePrompt: value('private_prompt', fallback?.privatePrompt ?? ''),
+    hostNote: value('host_note', fallback?.hostNote ?? ''),
     sharePromptOnComplete: boolValue(
       'share_prompt_on_complete',
-      fallback.sharePromptOnComplete,
+      fallback?.sharePromptOnComplete ?? false,
     ),
+    sittingSource: source,
+    hostEditable: hostEditable,
+    hostAuthoringPhase: authoringPhase,
+    scheduledDate:
+        dateValue('scheduled_local_date') ??
+        dateValue('local_date') ??
+        _dateFromSchedule(schedule),
+    hour:
+        parseNumber(schedule['hour']) ??
+        parseNumber(payload['hour']) ??
+        fallback?.hour ??
+        kReadingHouseDefaultHour,
+    minute:
+        parseNumber(schedule['minute']) ??
+        parseNumber(payload['minute']) ??
+        fallback?.minute ??
+        kReadingHouseDefaultMinute,
   );
+}
+
+DateTime? _dateFromSchedule(Map<String, dynamic> schedule) {
+  final raw = schedule['local_date']?.toString().trim();
+  if (raw == null || raw.isEmpty) return null;
+  final parsed = DateTime.tryParse(raw);
+  if (parsed == null) return null;
+  return DateTime(parsed.year, parsed.month, parsed.day);
 }
 
 bool isReadingHouseFlowReference({
@@ -437,9 +679,10 @@ Map<String, dynamic> readingHouseBehaviorPayload({
     'private_prompt': sitting.privatePrompt,
     if (sitting.hostNote.trim().isNotEmpty)
       'host_note': sitting.hostNote.trim(),
-    'sitting_source': 'starter_default',
-    'host_editable': false,
-    'host_authoring_phase': 'future',
+    'sitting_source': sitting.sittingSource,
+    'host_editable': sitting.hostEditable,
+    'host_authoring_phase': sitting.hostAuthoringPhase,
+    'scheduled_local_date': _readingHouseDateToken(schedule.startLocal),
     'book_title': plan.displayBookTitle,
     if (plan.editionNote.trim().isNotEmpty)
       'edition_note': plan.editionNote.trim(),
@@ -467,6 +710,7 @@ Map<String, dynamic> readingHouseBehaviorPayload({
       'fallback': schedule.fallback,
       'timezone': schedule.timezone.key,
       'iana_timezone': schedule.timezone.ianaName,
+      'local_date': _readingHouseDateToken(schedule.startLocal),
       'hour': schedule.hour,
       'minute': schedule.minute,
     },
@@ -492,7 +736,21 @@ String readingHouseDetailText(
 }
 
 String readingHouseTimingLabel(ReadingHouseSitting sitting) {
-  return 'Day ${sitting.flowDay} · 7:00 PM local';
+  return 'Day ${sitting.flowDay} · ${_readingHouseTimeLabel(sitting.hour, sitting.minute)} local';
+}
+
+String _readingHouseDateToken(DateTime date) {
+  return '${date.year.toString().padLeft(4, '0')}-'
+      '${date.month.toString().padLeft(2, '0')}-'
+      '${date.day.toString().padLeft(2, '0')}';
+}
+
+String _readingHouseTimeLabel(int hour, int minute) {
+  final normalizedHour = hour.clamp(0, 23).toInt();
+  final normalizedMinute = minute.clamp(0, 59).toInt();
+  final period = normalizedHour >= 12 ? 'PM' : 'AM';
+  final displayHour = normalizedHour % 12 == 0 ? 12 : normalizedHour % 12;
+  return '$displayHour:${normalizedMinute.toString().padLeft(2, '0')} $period';
 }
 
 DateTime _fromReadingHouseZonedDateTime(tz.TZDateTime zoned) {

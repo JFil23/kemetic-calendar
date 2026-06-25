@@ -2666,8 +2666,7 @@ const _previewInlineDetailBranches = [
   (
     name: 'Djed',
     start: 'Widget _buildDjedEventTile',
-    end:
-        'DaysOutsideYearEnrollmentWindow? _resolveDaysOutsideYearPreviewWindow',
+    end: 'Widget _buildDjedScaffold',
     detailFunction: 'djedDetailText',
   ),
   (

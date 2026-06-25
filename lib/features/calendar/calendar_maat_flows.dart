@@ -251,6 +251,7 @@ Widget buildMaatFlowTemplateDetailPreviewForTesting({
           DecanWatchLens? decanWatchLens,
           OpenHandLens? openHandLens,
           DjedLens? djedLens,
+          List<ReadingHouseSitting>? readingHouseSittings,
           String? eveningThresholdInitialCarry,
         }) async => 1,
   );
@@ -2042,6 +2043,7 @@ class _MaatFlowTemplateDetailPage extends StatefulWidget {
     DecanWatchLens? decanWatchLens,
     OpenHandLens? openHandLens,
     DjedLens? djedLens,
+    List<ReadingHouseSitting>? readingHouseSittings,
     String? eveningThresholdInitialCarry,
   })
   addInstance;
@@ -2211,6 +2213,8 @@ class _MaatFlowTemplateDetailPageState
   bool _djedJoinInFlight = false;
   bool _readingHouseStartDateTouched = false;
   bool _readingHouseJoinInFlight = false;
+  List<ReadingHouseSitting> _readingHouseSittings =
+      readingHouseStarterSittingsForAuthoring();
   bool _maatDecanStartDateTouched = false;
   bool _maatDecanJoinInFlight = false;
   bool _descriptionExpanded = false;
@@ -2271,6 +2275,7 @@ class _MaatFlowTemplateDetailPageState
       _picked = defaultTheDjedStartDate(_previewTrackSkyTimeZone);
     } else if (widget.template.kind == _MaatFlowTemplateKind.readingHouse) {
       _picked = defaultReadingHouseStartDate(_previewTrackSkyTimeZone);
+      _readingHouseSittings = readingHouseStarterSittingsForAuthoring();
     } else if (widget.template.kind == _MaatFlowTemplateKind.maatDecan) {
       _picked = defaultTheDecanWatchStartDate(_previewTrackSkyTimeZone);
     }
@@ -4061,6 +4066,7 @@ class _MaatFlowTemplateDetailPageState
         template: widget.template,
         startDate: selectedStart,
         trackSkyTimeZone: _previewTrackSkyTimeZone,
+        readingHouseSittings: _readingHouseSittings,
       );
     } catch (e, st) {
       if (kDebugMode) {
@@ -7913,14 +7919,97 @@ class _MaatFlowTemplateDetailPageState
     );
   }
 
+  DateTime _readingHouseDateForSitting(
+    ReadingHouseSitting sitting,
+    DateTime firstStart,
+  ) {
+    final schedule = readingHouseScheduleForSitting(
+      sitting,
+      firstStart,
+      _previewTrackSkyTimeZone,
+    );
+    return DateTime(
+      schedule.startLocal.year,
+      schedule.startLocal.month,
+      schedule.startLocal.day,
+    );
+  }
+
+  int _readingHouseFlowDayForDate(DateTime firstStart, DateTime sittingDate) {
+    final first = DateTime(firstStart.year, firstStart.month, firstStart.day);
+    final selected = DateTime(
+      sittingDate.year,
+      sittingDate.month,
+      sittingDate.day,
+    );
+    return math.max(1, selected.difference(first).inDays + 1);
+  }
+
+  Future<void> _editReadingHouseSitting(
+    BuildContext context,
+    ReadingHouseSitting sitting,
+    DateTime firstStart,
+  ) async {
+    final scheduledDate = _readingHouseDateForSitting(sitting, firstStart);
+    final edited = await showModalBottomSheet<ReadingHouseSitting>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => _ReadingHouseSittingDraftSheet(
+        sitting: sitting,
+        initialDate: scheduledDate,
+        initialTime: TimeOfDay(hour: sitting.hour, minute: sitting.minute),
+        flowDayForDate: (date) => _readingHouseFlowDayForDate(firstStart, date),
+        accentColor: _palette.accent,
+        borderColor: _palette.accent.withValues(alpha: 0.35),
+      ),
+    );
+
+    if (edited == null || !mounted) return;
+    setState(() {
+      _readingHouseSittings = editReadingHouseSitting(
+        _readingHouseSittings,
+        sitting.eventNumber,
+        edited,
+      );
+    });
+  }
+
+  void _addReadingHouseSitting() {
+    setState(() {
+      _readingHouseSittings = addReadingHouseSitting(_readingHouseSittings);
+    });
+  }
+
+  void _deleteReadingHouseSitting(ReadingHouseSitting sitting) {
+    if (_readingHouseSittings.length <= 1) return;
+    setState(() {
+      _readingHouseSittings = deleteReadingHouseSitting(
+        _readingHouseSittings,
+        sitting.eventNumber,
+      );
+    });
+  }
+
+  void _moveReadingHouseSitting(int oldIndex, int newIndex) {
+    setState(() {
+      _readingHouseSittings = reorderReadingHouseSitting(
+        _readingHouseSittings,
+        oldIndex,
+        newIndex,
+      );
+    });
+  }
+
   Widget _buildReadingHouseSittingTile(
     BuildContext context,
     ReadingHouseSitting sitting,
     DateTime firstStart,
+    int index,
   ) {
-    final schedule = readingHouseScheduleForDate(
+    final schedule = readingHouseScheduleForSitting(
       sitting,
-      firstStart.add(Duration(days: sitting.flowDay - 1)),
+      firstStart,
       _previewTrackSkyTimeZone,
     );
     final l10n = MaterialLocalizations.of(context);
@@ -7933,14 +8022,72 @@ class _MaatFlowTemplateDetailPageState
     final plan = readingHousePlanFromDraftValues(
       kMaatFlowResponseDraftStore.valuesForFlow(kReadingHouseFlowKey),
     );
-    return _buildExpandableFlowEventTile(
-      title: readingHouseSittingTitle(sitting),
-      subtitle:
-          '${readingHouseTimingLabel(sitting)} · ${_dateLabel(context, schedule.startLocal)} at $time',
-      detailText: readingHouseDetailText(sitting, plan: plan),
-      borderColor: sitting.sharePromptOnComplete
-          ? _palette.accent.withValues(alpha: 0.42)
-          : Colors.white12,
+    final metadata =
+        sitting.sittingSource == kReadingHouseSittingSourceHostAuthored
+        ? 'Host authored'
+        : 'Starter default';
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        _buildExpandableFlowEventTile(
+          title: readingHouseSittingTitle(sitting),
+          subtitle:
+              '$metadata · ${readingHouseTimingLabel(sitting)} · ${_dateLabel(context, schedule.startLocal)} at $time',
+          detailText: readingHouseDetailText(sitting, plan: plan),
+          borderColor: sitting.isHostAuthored
+              ? _palette.accent.withValues(alpha: 0.46)
+              : sitting.sharePromptOnComplete
+              ? _palette.accent.withValues(alpha: 0.42)
+              : Colors.white12,
+        ),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(8, 0, 8, 10),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.end,
+            children: [
+              Tooltip(
+                message: 'Move up',
+                child: IconButton(
+                  onPressed: index == 0
+                      ? null
+                      : () => _moveReadingHouseSitting(index, index - 1),
+                  icon: const Icon(Icons.keyboard_arrow_up),
+                  color: _palette.accent,
+                ),
+              ),
+              Tooltip(
+                message: 'Move down',
+                child: IconButton(
+                  onPressed: index >= _readingHouseSittings.length - 1
+                      ? null
+                      : () => _moveReadingHouseSitting(index, index + 1),
+                  icon: const Icon(Icons.keyboard_arrow_down),
+                  color: _palette.accent,
+                ),
+              ),
+              Tooltip(
+                message: 'Edit sitting',
+                child: IconButton(
+                  onPressed: () =>
+                      _editReadingHouseSitting(context, sitting, firstStart),
+                  icon: const Icon(Icons.edit_outlined),
+                  color: _palette.accent,
+                ),
+              ),
+              Tooltip(
+                message: 'Delete sitting',
+                child: IconButton(
+                  onPressed: _readingHouseSittings.length <= 1
+                      ? null
+                      : () => _deleteReadingHouseSitting(sitting),
+                  icon: const Icon(Icons.delete_outline),
+                  color: const Color(0xFFD98E73),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
     );
   }
 
@@ -7949,7 +8096,7 @@ class _MaatFlowTemplateDetailPageState
     final selectedStart =
         _picked ?? defaultReadingHouseStartDate(_previewTrackSkyTimeZone);
     final firstSchedule = readingHouseScheduleForDate(
-      kReadingHouseSittings.first,
+      _readingHouseSittings.first,
       selectedStart,
       _previewTrackSkyTimeZone,
     );
@@ -7991,14 +8138,29 @@ class _MaatFlowTemplateDetailPageState
           ],
         ),
         const _MaatFlowDetailSeparator(),
-        const _MaatFlowDetailSectionLabel('STARTER SITTINGS'),
-        ...kReadingHouseSittings.map(
-          (sitting) =>
-              _buildReadingHouseSittingTile(context, sitting, selectedStart),
+        const _MaatFlowDetailSectionLabel('HOST SITTINGS'),
+        for (var index = 0; index < _readingHouseSittings.length; index++)
+          _buildReadingHouseSittingTile(
+            context,
+            _readingHouseSittings[index],
+            selectedStart,
+            index,
+          ),
+        Align(
+          alignment: Alignment.centerLeft,
+          child: OutlinedButton.icon(
+            onPressed: _addReadingHouseSitting,
+            icon: const Icon(Icons.add),
+            label: const Text('Add Sitting'),
+            style: OutlinedButton.styleFrom(
+              foregroundColor: _palette.accent,
+              side: BorderSide(color: _palette.accent.withValues(alpha: 0.45)),
+            ),
+          ),
         ),
         const SizedBox(height: 10),
         _buildMaatFlowNotice(
-          'Phase 1A creates a draft house and private calendar sittings. Invite links, shared fragments, one-level replies, house chat, and moderation stay out of this surface.',
+          'Phase 1B saves host-authored private sittings. Invite links, shared fragments, one-level replies, house chat, and moderation stay out of this surface.',
           borderColor: _palette.accent.withValues(alpha: 0.30),
         ),
         const SizedBox(height: 10),
